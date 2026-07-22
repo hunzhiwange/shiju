@@ -1,6 +1,6 @@
 [package]
 name = "vw-cli"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/vibewindow"
 homepage = "https://github.com/hunzhiwange/vibewindow"
@@ -40,10 +40,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt", "ansi"] }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 unicode-width = "0.1"
-vw-agent = { path = "../vw-agent", version = "0.3.0" }
-vw-config-types = { path = "../vw-config-types", version = "0.3.0" }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.3.0" }
-vw-shared = { path = "../vw-shared", version = "0.3.0" }
+vw-agent = { path = "../vw-agent", version = "0.4.0" }
+vw-config-types = { path = "../vw-config-types", version = "0.4.0" }
+vw-gateway-client = { path = "../vw-gateway-client", version = "0.4.0" }
+vw-shared = { path = "../vw-shared", version = "0.4.0" }
 
 [dev-dependencies]
 async-trait = "0.1.89"

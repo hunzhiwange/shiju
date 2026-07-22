@@ -7,6 +7,8 @@ fn server(host: &str, port: u16) -> GatewayClientServerDraft {
         name: "Local".to_string(),
         host: host.to_string(),
         port,
+        platform_id: "10000".to_string(),
+        company_id: "100000000".to_string(),
         skey: String::new(),
     }
 }
@@ -46,7 +48,14 @@ fn server_health_key_returns_none_for_unparseable_host() {
     assert_eq!(key, None);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
+async fn check_servers_skips_unparseable_hosts_without_network_access() {
+    let results = check_servers(vec![server("http://[", 8080)]).await;
+
+    assert!(results.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn check_servers_marks_unreachable_loopback_server_unhealthy() {
     let results = check_servers(vec![server("127.0.0.1", 1)]).await;
 

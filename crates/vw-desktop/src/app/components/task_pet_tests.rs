@@ -61,6 +61,9 @@ fn window_builds_collapsed_and_expanded_variants() {
     app.task_pet_hovered_request_id = Some(1);
     keep_element(window(&app));
     keep_element(expanded_window(&app));
+
+    app.task_pet_robot_hovered = true;
+    keep_element(expanded_window(&app));
 }
 
 #[test]
@@ -78,6 +81,36 @@ fn pet_control_covers_avatar_badge_code_and_collapse_controls() {
     keep_element(pet_sprite(&app, PET_EXPANDED_SIZE));
     app.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
     keep_element(pet_sprite(&app, PET_EXPANDED_SIZE));
+
+    app.task_pet_items = vec![task_item(2, TaskPetStatus::Completed)];
+    app.task_pet_avatar_kind = TaskPetAvatarKind::Robot;
+    app.task_pet_robot_hovered = false;
+    keep_element(pet_control(&app, PET_COLLAPSED_SIZE, true));
+}
+
+#[test]
+fn robot_sprite_covers_hover_pulse_and_walking_directions() {
+    let mut app = test_app();
+
+    app.task_pet_robot_hovered = true;
+    app.status_animation_frame = 0;
+    keep_element(robot_pet_sprite(&app, PET_COLLAPSED_SIZE));
+
+    app.status_animation_frame = 3;
+    keep_element(robot_pet_sprite(&app, PET_COLLAPSED_SIZE));
+
+    app.task_pet_robot_hovered = false;
+    app.task_pet_dragging = true;
+    app.task_pet_drag_direction = -1;
+    app.status_animation_frame = 1;
+    keep_element(robot_pet_sprite(&app, PET_COLLAPSED_SIZE));
+
+    app.task_pet_drag_direction = 1;
+    app.status_animation_frame = 2;
+    keep_element(robot_pet_sprite(&app, PET_COLLAPSED_SIZE));
+
+    std::hint::black_box(walk_pet_handle(PET_WALK_RIGHT_BODY_0, true));
+    std::hint::black_box(walk_pet_handle(PET_WALK_RIGHT_BODY_0, false));
 }
 
 #[test]
@@ -125,13 +158,42 @@ fn human_motion_and_handle_follow_walking_hover_and_work_state() {
     app.task_pet_robot_hovered = true;
     assert_eq!(human_motion_lift(&app), 5.0);
 
+    app.status_animation_frame = 1;
+    assert_eq!(human_motion_lift(&app), 2.0);
+
     app.task_pet_robot_hovered = false;
     app.task_pet_items = vec![task_item(1, TaskPetStatus::Running)];
+    app.status_animation_frame = 0;
     assert_eq!(human_motion_lift(&app), 5.0);
 
     app.status_animation_frame = 2;
     assert_eq!(human_motion_lift(&app), 0.0);
 
+    keep_element(human_pet_sprite(
+        human_avatar_handle(
+            &app,
+            PET_BEAUTY_HANDLE.clone(),
+            PET_BEAUTY_LEFT_HANDLE.clone(),
+            PET_BEAUTY_WORK_HANDLE.clone(),
+        ),
+        PET_EXPANDED_SIZE,
+        human_motion_lift(&app),
+    ));
+
+    app.task_pet_dragging = true;
+    app.task_pet_drag_direction = -1;
+    keep_element(human_pet_sprite(
+        human_avatar_handle(
+            &app,
+            PET_BEAUTY_HANDLE.clone(),
+            PET_BEAUTY_LEFT_HANDLE.clone(),
+            PET_BEAUTY_WORK_HANDLE.clone(),
+        ),
+        PET_EXPANDED_SIZE,
+        human_motion_lift(&app),
+    ));
+
+    app.task_pet_drag_direction = 1;
     keep_element(human_pet_sprite(
         human_avatar_handle(
             &app,

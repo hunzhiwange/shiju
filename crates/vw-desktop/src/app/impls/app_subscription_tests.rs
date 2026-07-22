@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use iced::keyboard::{self, Modifiers};
 
 use super::*;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::preview::PreviewTab;
 use crate::app::state::{AcpHistoryReplayMode, SessionRuntimeState};
 
 fn test_app() -> App {
@@ -44,6 +46,23 @@ fn recent_project_meta(path: &str, interval: u64) -> crate::app::RecentProjectMe
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn preview_tab(path: &str) -> PreviewTab {
+    PreviewTab {
+        path: path.to_string(),
+        title: "main.rs".to_string(),
+        content: "fn main() {}\n".to_string(),
+        is_dirty: false,
+        truncated: false,
+        auto_save_revision: 0,
+        editor: crate::app::components::editor::Editor::new("fn main() {}", "rust"),
+        scroll_id: iced::widget::Id::unique(),
+        lsp_server_key: Some("rust-analyzer"),
+        lsp_uri: Some("file:///workspace/src/main.rs".to_string()),
+        lsp_language_id: Some("rust".to_string()),
+    }
+}
+
 fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
     crate::app::AgentRequest {
         id,
@@ -51,6 +70,7 @@ fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
         query: "hello".to_string(),
         root: None,
         model: None,
+        reasoning_effort: None,
         acp_test: false,
         acp_agent: None,
         acp_allowed_tools: None,
@@ -213,6 +233,26 @@ fn map_global_event_maps_keyboard_shortcuts() {
 }
 
 #[test]
+fn map_global_event_handles_escape_before_captured_filter() {
+    let result = map_global_event(
+        key_pressed(keyboard::Key::Named(keyboard::key::Named::Escape), Modifiers::COMMAND),
+        iced::event::Status::Captured,
+        window_id(),
+    );
+
+    let Some(Message::Batch(messages)) = result else {
+        panic!("captured escape should still close global transient UI");
+    };
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::View(message::ViewMessage::GlobalKeyPressed(
+            keyboard::Key::Named(keyboard::key::Named::Escape),
+            modifiers
+        )) if *modifiers == Modifiers::COMMAND
+    )));
+}
+
+#[test]
 fn map_global_event_ignores_captured_non_shortcut_keys() {
     let id = window_id();
 
@@ -242,6 +282,25 @@ fn map_global_event_ignores_captured_non_shortcut_keys() {
             modifiers
         ))) if modifiers == Modifiers::SHIFT
     ));
+}
+
+#[test]
+fn map_global_event_ignores_unhandled_mouse_and_window_events() {
+    let id = window_id();
+
+    let pressed = map_global_event(
+        iced::Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
+        iced::event::Status::Ignored,
+        id,
+    );
+    assert!(pressed.is_none());
+
+    let focused = map_global_event(
+        iced::Event::Window(iced::window::Event::Focused),
+        iced::event::Status::Ignored,
+        id,
+    );
+    assert!(focused.is_none());
 }
 
 #[test]
@@ -277,12 +336,31 @@ fn subscription_builds_agent_runtime_states() {
 }
 
 #[test]
+fn workflow_run_subscription_is_active_only_while_running() {
+    let mut app = test_app();
+    assert!(workflow_run_subscription_request(&app).is_none());
+
+    app.workflow_state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        [("topic".to_string(), serde_json::json!("rust"))].into(),
+    );
+    let request =
+        workflow_run_subscription_request(&app).expect("running workflow should subscribe");
+    assert_eq!(request.uuid, "workflow-1");
+    assert_eq!(request.query, "hello");
+    assert_eq!(request.inputs.get("topic"), Some(&serde_json::json!("rust")));
+    assert_eq!(request.user, "desktop-workflow");
+
+    app.workflow_state.finish_saved_app_run();
+    assert!(workflow_run_subscription_request(&app).is_none());
+}
+
+#[test]
 fn subscription_builds_tool_and_project_ticks() {
     let mut app = test_app();
 
     app.terminal.is_visible = true;
-    app.screen = Screen::MarkdownTool;
-    app.markdown_tool_stream_enabled = true;
     app.task_board_settings.auto_refresh = true;
     app.task_board_settings.refresh_interval_seconds = 0;
     subscription_builds(&app);
@@ -306,26 +384,43 @@ fn subscription_builds_tool_and_project_ticks() {
 }
 
 #[test]
-fn subscription_builds_design_and_settings_ticks() {
+fn subscription_builds_settings_ticks() {
     let mut app = test_app();
 
     app.show_settings = true;
     app.provider_settings.models_syncing = true;
     subscription_builds(&app);
+}
 
-    app.screen = Screen::Design;
-    app.active_tab_id = Some("design".to_string());
-    let mut design_state = crate::app::views::design::state::DesignState::new(
-        crate::app::views::design::models::DesignDoc::default(),
+#[test]
+fn subscription_builds_workflow_and_update_progress_states() {
+    let mut app = test_app();
+    let (_progress_tx, progress_rx) = std::sync::mpsc::channel();
+    app.app_update_progress_rx = Some(progress_rx);
+    app.workflow_state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
     );
-    design_state.design_generation_loading = true;
-    let (_figma_tx, figma_rx) = std::sync::mpsc::channel();
-    design_state.figma_progress_rx = Some(figma_rx);
-    app.design_states.insert("design".to_string(), design_state);
+
     subscription_builds(&app);
 
-    app.active_design_state_mut().unwrap().design_generation_loading = false;
-    let (_stream_tx, stream_rx) = std::sync::mpsc::channel();
-    app.active_design_state_mut().unwrap().design_generation_stream_rx = Some(stream_rx);
+    app.app_update_progress_rx = None;
+    app.workflow_state.finish_saved_app_run();
+    subscription_builds(&app);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn subscription_builds_preview_lsp_enabled_and_disabled_states() {
+    let mut app = test_app();
+    let path = "/workspace/src/main.rs";
+    app.active_preview_path = Some(path.to_string());
+    app.preview_tabs.push(preview_tab(path));
+
+    app.lsp_disabled = false;
+    subscription_builds(&app);
+
+    app.lsp_disabled = true;
     subscription_builds(&app);
 }

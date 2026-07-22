@@ -154,6 +154,319 @@ impl WorkflowState {
         }
     }
 
+    pub fn open_saved_app_run_prompt(&mut self, uuid: String) {
+        // 回填上次运行的 query，输入项的值在参数加载完成后再按名称覆盖。
+        let query =
+            self.last_run_drafts.get(&uuid).map(|draft| draft.query.clone()).unwrap_or_default();
+        self.saved_app_run_prompt = Some(WorkflowRunPromptDraft {
+            uuid,
+            query,
+            loading: true,
+            inputs: Vec::new(),
+            error: None,
+        });
+        self.saved_app_actions_menu_uuid = None;
+        self.saved_apps_error = None;
+    }
+
+    pub fn close_saved_app_run_prompt(&mut self) {
+        self.saved_app_run_prompt = None;
+    }
+
+    pub fn set_saved_app_run_query(&mut self, query: String) {
+        if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
+            prompt.query = query;
+            prompt.error = None;
+        }
+    }
+
+    pub fn finish_saved_app_run_prompt_load(
+        &mut self,
+        uuid: &str,
+        result: Result<Vec<WorkflowRunInputDraft>, String>,
+    ) {
+        let Some(prompt) = self.saved_app_run_prompt.as_mut() else {
+            return;
+        };
+        if prompt.uuid != uuid {
+            return;
+        }
+
+        prompt.loading = false;
+        match result {
+            Ok(mut inputs) => {
+                // 结构以文档为准，但用上次运行缓存的同名输入值回填，方便重复测试。
+                if let Some(cached) = self.last_run_drafts.get(uuid) {
+                    for input in inputs.iter_mut() {
+                        if let Some(remembered) = cached.inputs.iter().find(|cached_input| {
+                            cached_input.name == input.name
+                                && cached_input.input_type == input.input_type
+                        }) {
+                            input.value = remembered.value.clone();
+                        }
+                    }
+                }
+                prompt.inputs = inputs;
+                prompt.error = None;
+            }
+            Err(error) => {
+                prompt.inputs.clear();
+                prompt.error = Some(error);
+            }
+        }
+    }
+
+    pub fn set_saved_app_run_input_value(&mut self, index: usize, value: String) {
+        if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
+            if let Some(input) = prompt.inputs.get_mut(index) {
+                input.value = value;
+            }
+            prompt.error = None;
+        }
+    }
+
+    pub fn toggle_saved_app_run_input_value(&mut self, index: usize, value: bool) {
+        if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
+            if let Some(input) = prompt.inputs.get_mut(index) {
+                input.value = value.to_string();
+            }
+            prompt.error = None;
+        }
+    }
+
+    pub fn set_saved_app_run_prompt_error(&mut self, error: String) {
+        if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
+            prompt.error = Some(error);
+        }
+    }
+
+    /// 缓存本次运行填写的参数草稿，供下次打开同一应用的运行弹窗时回填。
+    pub fn remember_saved_app_run_draft(&mut self, prompt: WorkflowRunPromptDraft) {
+        let mut draft = prompt;
+        draft.loading = false;
+        draft.error = None;
+        self.last_run_drafts.insert(draft.uuid.clone(), draft);
+    }
+
+    pub fn begin_saved_app_run(
+        &mut self,
+        uuid: String,
+        query: String,
+        inputs: BTreeMap<String, serde_json::Value>,
+    ) -> bool {
+        if self.running_saved_app_uuid.is_some() {
+            return false;
+        }
+
+        self.running_saved_app_uuid = Some(uuid.clone());
+        self.running_saved_app_query = query;
+        self.running_saved_app_inputs = inputs;
+        self.saved_app_run_prompt = None;
+        self.saved_app_actions_menu_uuid = None;
+        self.saved_apps_error = None;
+        self.saved_app_run_preview = Some(WorkflowRunPreview::running(uuid));
+        self.run_error_copied = false;
+        true
+    }
+
+    pub fn finish_saved_app_run(&mut self) {
+        self.running_saved_app_uuid = None;
+        if let Some(preview) = self.saved_app_run_preview.as_mut() {
+            preview.is_finished = true;
+            if preview.status == WorkflowRunStatus::Running {
+                preview.status = WorkflowRunStatus::Succeeded;
+            }
+        }
+    }
+
+    pub fn fail_saved_app_run(&mut self, error: WorkflowRunErrorPreview) {
+        self.running_saved_app_uuid = None;
+        if let Some(preview) = self.saved_app_run_preview.as_mut() {
+            preview.status = WorkflowRunStatus::Failed;
+            preview.error = Some(error);
+            preview.is_finished = true;
+        }
+    }
+
+    pub fn cancel_saved_app_run(&mut self) {
+        self.running_saved_app_uuid = None;
+        if let Some(preview) = self.saved_app_run_preview.as_mut() {
+            preview.status = WorkflowRunStatus::Canceled;
+            preview.is_finished = true;
+        }
+    }
+
+    pub fn retry_saved_app_run_preview(&mut self) -> bool {
+        if self.running_saved_app_uuid.is_some() {
+            return false;
+        }
+
+        let Some(preview) = self.saved_app_run_preview.as_ref() else {
+            return false;
+        };
+        if !preview.is_finished
+            || !matches!(preview.status, WorkflowRunStatus::Succeeded | WorkflowRunStatus::Failed)
+        {
+            return false;
+        }
+
+        let query = self.running_saved_app_query.trim().to_string();
+        if query.is_empty() {
+            return false;
+        }
+
+        self.begin_saved_app_run(preview.uuid.clone(), query, self.running_saved_app_inputs.clone())
+    }
+
+    pub fn close_saved_app_run_preview(&mut self) {
+        self.running_saved_app_uuid = None;
+        self.running_saved_app_query.clear();
+        self.running_saved_app_inputs.clear();
+        self.saved_app_run_preview = None;
+        self.saved_app_run_detail = None;
+        self.run_error_copied = false;
+    }
+
+    /// 打开运行预览中某个节点的“查看详细”弹窗，展示其完整原始数据。
+    pub fn open_saved_app_run_node_detail(&mut self, index: usize) {
+        let Some(node) =
+            self.saved_app_run_preview.as_ref().and_then(|preview| preview.nodes.get(index))
+        else {
+            return;
+        };
+        let title = if node.title.trim().is_empty() { node.id.clone() } else { node.title.clone() };
+        let content =
+            serde_json::to_string_pretty(&node.data).unwrap_or_else(|_| node.data.to_string());
+        self.saved_app_run_detail = Some(WorkflowRunDetailDialog {
+            title,
+            content: text_editor::Content::with_text(&content),
+        });
+    }
+
+    /// 打开运行预览中文本输出的“查看详细”弹窗，展示完整文本。
+    pub fn open_saved_app_run_output_detail(&mut self) {
+        let Some(preview) = self.saved_app_run_preview.as_ref() else {
+            return;
+        };
+        self.saved_app_run_detail = Some(WorkflowRunDetailDialog {
+            title: "运行输出".to_string(),
+            content: text_editor::Content::with_text(&preview.text_output),
+        });
+    }
+
+    /// 在“查看详细”弹窗中执行只读编辑器动作，仅放行选中、复制与移动，拦截编辑。
+    pub fn saved_app_run_detail_action(&mut self, action: text_editor::Action) {
+        if action.is_edit() {
+            return;
+        }
+        if let Some(detail) = self.saved_app_run_detail.as_mut() {
+            detail.content.perform(action);
+        }
+    }
+
+    pub fn close_saved_app_run_detail(&mut self) {
+        self.saved_app_run_detail = None;
+    }
+
+    /// 标记运行错误详情已复制，并返回需要写入剪贴板的完整报告文本。
+    /// 没有错误时返回 `None`，调用方据此跳过剪贴板与计时器任务。
+    pub fn copy_saved_app_run_error(&mut self) -> Option<String> {
+        let preview = self.saved_app_run_preview.as_ref()?;
+        preview.error.as_ref()?;
+        let report = preview.debug_text();
+        self.run_error_copied = true;
+        Some(report)
+    }
+
+    pub fn clear_saved_app_run_error_copied(&mut self) {
+        self.run_error_copied = false;
+    }
+
+    pub fn saved_app_run_subscription_request(&self) -> Option<WorkflowRunSubscriptionRequest> {
+        let uuid = self.running_saved_app_uuid.clone()?;
+        Some(WorkflowRunSubscriptionRequest {
+            uuid,
+            query: self.running_saved_app_query.clone(),
+            inputs: self.running_saved_app_inputs.clone(),
+            user: "desktop-workflow".to_string(),
+        })
+    }
+
+    pub fn apply_saved_app_run_event(
+        &mut self,
+        event: vw_gateway_client::GatewayWorkflowStreamEvent,
+    ) {
+        match event {
+            vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowStarted {
+                workflow_run_id,
+                data,
+                ..
+            } => {
+                if let Some(preview) = self.saved_app_run_preview.as_mut() {
+                    preview.run_id = non_empty_string(workflow_run_id).or(preview.run_id.take());
+                    preview.status = WorkflowRunStatus::Running;
+                    preview.is_finished = false;
+                    merge_run_status(preview, &data);
+                }
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::NodeStarted {
+                workflow_run_id,
+                data,
+                ..
+            }
+            | vw_gateway_client::GatewayWorkflowStreamEvent::NodeFinished {
+                workflow_run_id,
+                data,
+                ..
+            } => {
+                if let Some(preview) = self.saved_app_run_preview.as_mut() {
+                    preview.run_id = non_empty_string(workflow_run_id).or(preview.run_id.take());
+                    upsert_run_node(preview, data);
+                }
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::TextChunk {
+                workflow_run_id,
+                text,
+                ..
+            } => {
+                if let Some(preview) = self.saved_app_run_preview.as_mut() {
+                    preview.run_id = non_empty_string(workflow_run_id).or(preview.run_id.take());
+                    preview.text_output.push_str(&text);
+                }
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::Message { answer, .. } => {
+                if let Some(preview) = self.saved_app_run_preview.as_mut()
+                    && preview.text_output.is_empty()
+                    && !answer.is_empty()
+                {
+                    preview.text_output = answer;
+                }
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowFinished {
+                workflow_run_id,
+                data,
+                ..
+            } => {
+                if let Some(preview) = self.saved_app_run_preview.as_mut() {
+                    preview.run_id = non_empty_string(workflow_run_id).or(preview.run_id.take());
+                    merge_run_status(preview, &data);
+                }
+                self.finish_saved_app_run();
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::MessageEnd { .. } => {
+                self.finish_saved_app_run();
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::Error(error) => {
+                self.fail_saved_app_run(WorkflowRunErrorPreview {
+                    status: error.status,
+                    code: error.code,
+                    message: error.message,
+                });
+            }
+            vw_gateway_client::GatewayWorkflowStreamEvent::Unknown { .. } => {}
+        }
+    }
+
     pub fn has_start_node(&self) -> bool {
         self.document.nodes.iter().any(|node| node.block_type == "start")
     }
@@ -653,4 +966,229 @@ impl WorkflowState {
             index += 1;
         }
     }
+}
+
+impl WorkflowRunPreview {
+    fn running(uuid: String) -> Self {
+        Self {
+            uuid,
+            run_id: None,
+            status: WorkflowRunStatus::Running,
+            nodes: Vec::new(),
+            text_output: String::new(),
+            error: None,
+            is_finished: false,
+        }
+    }
+
+    pub fn debug_text(&self) -> String {
+        let mut lines = Vec::new();
+        lines.push(format!("source: {}", self.error_source()));
+        lines.push(format!("uuid: {}", self.uuid));
+        lines.push(format!("run_id: {}", self.run_id.as_deref().unwrap_or("pending")));
+        lines.push(format!("status: {}", workflow_run_error_status(self.error.as_ref())));
+        lines.push(format!("finished: {}", self.is_finished));
+
+        if let Some(node) = self.failed_node() {
+            lines.push(format!("failed_node: {} ({})", node.title, node.id));
+        }
+
+        if let Some(error) = &self.error {
+            lines.push(format!("code: {}", error.code));
+            lines.push(format!("message: {}", error.message));
+        }
+
+        if !self.nodes.is_empty() {
+            lines.push("nodes:".to_string());
+            for node in &self.nodes {
+                let status = node.status.as_deref().unwrap_or("pending");
+                lines.push(format!("- {} ({}) status: {}", node.title, node.id, status));
+                lines.push(format!("  data: {}", node.debug_data_text()));
+            }
+        }
+
+        lines.join("\n")
+    }
+
+    fn failed_node(&self) -> Option<&WorkflowRunNodePreview> {
+        self.nodes
+            .iter()
+            .find(|node| matches!(node.status.as_deref(), Some("failed") | Some("error")))
+    }
+
+    fn error_source(&self) -> &'static str {
+        if let Some(error) = &self.error {
+            if error.code == "transport_error" {
+                return "connection";
+            }
+            if error.status > 0 {
+                return "gateway";
+            }
+        }
+
+        if self.failed_node().is_some() { "node" } else { "workflow" }
+    }
+}
+
+impl WorkflowRunNodePreview {
+    pub fn debug_data_text(&self) -> String {
+        sanitized_debug_value(&self.data).to_string()
+    }
+}
+
+fn non_empty_string(value: String) -> Option<String> {
+    (!value.trim().is_empty()).then_some(value)
+}
+
+fn json_string_field(data: &serde_json::Value, field: &str) -> Option<String> {
+    data.get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn upsert_run_node(preview: &mut WorkflowRunPreview, data: serde_json::Value) {
+    let Some(id) = json_string_field(&data, "node_id").or_else(|| json_string_field(&data, "id"))
+    else {
+        return;
+    };
+    let title = json_string_field(&data, "title").unwrap_or_else(|| id.clone());
+    let status = json_string_field(&data, "status");
+
+    let node_failed = matches!(status.as_deref(), Some("failed") | Some("error"));
+    let node_failed_message = node_failed.then(|| format!("节点失败: {title}"));
+
+    if let Some(node) = preview.nodes.iter_mut().find(|node| node.id == id) {
+        node.title = title;
+        node.status = status;
+        node.data = data;
+    } else {
+        preview.nodes.push(WorkflowRunNodePreview { id, title, status, data });
+    }
+
+    if node_failed {
+        preview.status = WorkflowRunStatus::Failed;
+        if preview.error.is_none() {
+            preview.error = Some(WorkflowRunErrorPreview {
+                status: 0,
+                code: "node_failed".to_string(),
+                message: node_failed_message.unwrap_or_else(|| "节点失败".to_string()),
+            });
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn workflow_run_inputs_from_document(
+    document: &WorkflowDocument,
+) -> Vec<WorkflowRunInputDraft> {
+    document
+        .nodes
+        .iter()
+        .filter(|node| node.block_type == "start")
+        .flat_map(workflow_run_inputs_from_start_node)
+        .collect()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn workflow_run_inputs_from_start_node(node: &WorkflowNode) -> Vec<WorkflowRunInputDraft> {
+    let Some(variables) = node
+        .raw_node
+        .as_mapping()
+        .and_then(|node| node.get(&Value::String("data".to_string())))
+        .and_then(Value::as_mapping)
+        .and_then(|data| data.get(&Value::String("variables".to_string())))
+        .and_then(Value::as_sequence)
+    else {
+        return Vec::new();
+    };
+
+    variables
+        .iter()
+        .map(super::start_variable_drafts::build_start_variable_draft)
+        .filter(|variable| !variable.variable.trim().is_empty())
+        .map(workflow_run_input_from_start_variable)
+        .collect()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn workflow_run_input_from_start_variable(
+    variable: WorkflowStartVariableDraft,
+) -> WorkflowRunInputDraft {
+    let value = if matches!(variable.input_type.as_str(), "file" | "file-list") {
+        variable.default_file_values.join("\n")
+    } else {
+        variable.default_value.clone()
+    };
+
+    WorkflowRunInputDraft {
+        name: variable.variable.trim().to_string(),
+        label: if variable.label.trim().is_empty() {
+            variable.variable.trim().to_string()
+        } else {
+            variable.label.trim().to_string()
+        },
+        input_type: variable.input_type,
+        required: variable.required,
+        hidden: variable.hidden,
+        options: variable.options,
+        value,
+        placeholder: variable.placeholder,
+        hint: variable.hint,
+        max_length_input: variable.max_length_input,
+    }
+}
+
+fn merge_run_status(preview: &mut WorkflowRunPreview, data: &serde_json::Value) {
+    match json_string_field(data, "status").as_deref() {
+        Some("failed") | Some("error") => preview.status = WorkflowRunStatus::Failed,
+        Some("canceled") | Some("cancelled") => preview.status = WorkflowRunStatus::Canceled,
+        Some("succeeded") | Some("success") | Some("finished") => {
+            preview.status = WorkflowRunStatus::Succeeded;
+        }
+        _ => {}
+    }
+}
+
+fn workflow_run_error_status(error: Option<&WorkflowRunErrorPreview>) -> String {
+    let Some(error) = error else {
+        return "n/a".to_string();
+    };
+
+    if error.status == 0 && error.code == "transport_error" {
+        "transport".to_string()
+    } else if error.status == 0 {
+        "n/a".to_string()
+    } else {
+        error.status.to_string()
+    }
+}
+
+fn sanitized_debug_value(value: &serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.iter().map(sanitized_debug_value).collect())
+        }
+        serde_json::Value::Object(map) => {
+            let filtered = map
+                .iter()
+                .filter(|(key, _)| !is_sensitive_debug_key(key))
+                .map(|(key, value)| (key.clone(), sanitized_debug_value(value)))
+                .collect();
+            serde_json::Value::Object(filtered)
+        }
+        _ => value.clone(),
+    }
+}
+
+fn is_sensitive_debug_key(key: &str) -> bool {
+    let lower = key.to_ascii_lowercase();
+    lower.starts_with("__vw_")
+        || lower.contains("token")
+        || lower.contains("secret")
+        || lower.contains("password")
+        || lower.contains("api_key")
+        || lower.contains("apikey")
+        || lower == "authorization"
+        || lower == "cookie"
 }

@@ -207,6 +207,44 @@ fn service_command_task(command: String) -> Task<Message> {
     )
 }
 
+fn should_recover_after_service_command(command: &str) -> bool {
+    matches!(command, "start" | "restart")
+}
+
+fn is_danger_service_command(command: &str) -> bool {
+    matches!(command, "stop" | "uninstall")
+}
+
+fn service_recovery_task(command: String) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let request_command = command.clone();
+        Task::perform(
+            async move {
+                if request_command == "restart" {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+                crate::app::config::bootstrap_cli_service_async().await
+            },
+            move |result| {
+                Message::Settings(SettingsMessage::Gateway(
+                    GatewayMessage::ServiceRecoveryCompleted(command.clone(), result),
+                ))
+            },
+        )
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        Task::done(Message::Settings(SettingsMessage::Gateway(
+            GatewayMessage::ServiceRecoveryCompleted(
+                command,
+                Err("wasm 环境不支持本机 gateway 自动恢复".to_string()),
+            ),
+        )))
+    }
+}
+
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
@@ -341,10 +379,36 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GatewayMessage::ServiceCommandRequested(command) => {
             let command = command.trim().to_ascii_lowercase();
+            if is_danger_service_command(&command) {
+                app.gateway_settings.pending_service_command_confirmation = Some(command);
+                app.gateway_settings.save_error = None;
+                return Task::none();
+            }
+
+            app.gateway_settings.service_action_running = Some(command.clone());
+            app.gateway_settings.service_action_output = None;
+            app.gateway_settings.pending_service_command_confirmation = None;
+            app.gateway_settings.save_error = None;
+            return service_command_task(command);
+        }
+        GatewayMessage::ConfirmDangerServiceCommand(command) => {
+            let command = command.trim().to_ascii_lowercase();
+            if app.gateway_settings.pending_service_command_confirmation.as_deref()
+                != Some(command.as_str())
+                || !is_danger_service_command(&command)
+            {
+                return Task::none();
+            }
+
+            app.gateway_settings.pending_service_command_confirmation = None;
             app.gateway_settings.service_action_running = Some(command.clone());
             app.gateway_settings.service_action_output = None;
             app.gateway_settings.save_error = None;
             return service_command_task(command);
+        }
+        GatewayMessage::CancelDangerServiceCommand => {
+            app.gateway_settings.pending_service_command_confirmation = None;
+            return Task::none();
         }
         GatewayMessage::ServiceCommandCompleted(command, result) => {
             app.gateway_settings.service_action_running = None;
@@ -357,12 +421,55 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     };
                     app.gateway_settings.service_action_output = Some(output);
                     app.gateway_settings.save_error = None;
+                    if should_recover_after_service_command(&command) {
+                        return service_recovery_task(command);
+                    }
                 }
                 Err(err) => {
                     app.gateway_settings.service_action_output = None;
                     app.gateway_settings.save_error =
                         Some(format!("service {command} 失败: {err}"));
                 }
+            }
+            return Task::none();
+        }
+        GatewayMessage::ServiceRecoveryCompleted(command, result) => {
+            match result {
+                Ok(()) => {
+                    let recovery_message = "本机 gateway 已恢复并刷新连接状态。";
+                    app.gateway_settings.service_action_output =
+                        Some(match app.gateway_settings.service_action_output.take() {
+                            Some(output) if !output.trim().is_empty() => {
+                                format!("{output}\n{recovery_message}")
+                            }
+                            _ => recovery_message.to_string(),
+                        });
+                    app.gateway_settings.save_error = None;
+                    return Task::done(Message::GatewayHealthTick);
+                }
+                Err(err) => {
+                    app.gateway_settings.save_error = Some(format!(
+                        "service {command} 已执行，但本机 gateway 自动恢复失败: {err}"
+                    ));
+                }
+            }
+            return Task::none();
+        }
+        GatewayMessage::CopyServiceCommand(command) => {
+            app.gateway_settings.copied_service_command = Some(command.clone());
+            return Task::batch(vec![
+                iced::clipboard::write(command.clone()),
+                crate::app::message::after(
+                    Duration::from_secs(2),
+                    Message::Settings(SettingsMessage::Gateway(
+                        GatewayMessage::ClearCopiedServiceCommand(command),
+                    )),
+                ),
+            ]);
+        }
+        GatewayMessage::ClearCopiedServiceCommand(command) => {
+            if app.gateway_settings.copied_service_command.as_deref() == Some(command.as_str()) {
+                app.gateway_settings.copied_service_command = None;
             }
             return Task::none();
         }

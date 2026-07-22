@@ -195,10 +195,12 @@ fn name_and_schema() {
     let engine = engine_with_sops(vec![]);
     let tool = SopStatusTool::new(engine);
     assert_eq!(tool.name(), "sop_status");
+    assert!(tool.description().contains("查询 SOP 执行状态"));
     let schema = tool.parameters_schema();
     assert!(schema["properties"]["run_id"].is_object());
     assert!(schema["properties"]["sop_name"].is_object());
     assert!(schema["properties"]["include_metrics"].is_object());
+    assert!(schema["properties"]["include_gate_status"].is_object());
 }
 
 /// 测试：全局指标展示
@@ -303,4 +305,84 @@ async fn status_metrics_not_shown_by_default() {
     let result = tool.execute(json!({})).await.unwrap();
     assert!(result.success);
     assert!(!result.output.contains("Metrics"));
+}
+
+#[tokio::test]
+async fn status_includes_gate_status_notice_when_requested() {
+    let engine = engine_with_sops(vec![]);
+    let result =
+        SopStatusTool::new(engine).execute(json!({"include_gate_status": true})).await.unwrap();
+
+    assert!(result.output.contains("Gate Status: not available"));
+    assert!(result.output.contains("ampersona-gates feature not enabled"));
+}
+
+#[tokio::test]
+async fn status_reports_poisoned_engine_lock() {
+    let engine = engine_with_sops(vec![test_sop("s1")]);
+    let poison_target = engine.clone();
+    let _ = std::thread::spawn(move || {
+        let _guard = poison_target.lock().unwrap();
+        panic!("poison sop engine for status test");
+    })
+    .join();
+
+    let error = SopStatusTool::new(engine)
+        .execute(json!({}))
+        .await
+        .expect_err("poisoned lock should surface as an error");
+
+    assert!(error.to_string().contains("Engine lock poisoned"));
+}
+
+#[test]
+fn metric_value_formatter_handles_non_number_values() {
+    assert_eq!(super::format_metric_value(&json!("n/a")), "\"n/a\"");
+    assert_eq!(super::format_metric_value(&json!(true)), "true");
+}
+
+#[tokio::test]
+async fn status_specific_completed_run_includes_completion_and_step_result() {
+    let engine = engine_with_sops(vec![test_sop("s1")]);
+    let run_id = {
+        let mut engine = engine.lock().unwrap();
+        engine.start_run("s1", manual_event()).unwrap();
+        let run_id = engine.active_runs().keys().next().unwrap().clone();
+        engine
+            .advance_step(
+                &run_id,
+                SopStepResult {
+                    step_number: 1,
+                    status: SopStepStatus::Completed,
+                    output: "inspection complete".into(),
+                    started_at: "2026-02-19T12:00:00Z".into(),
+                    completed_at: Some("2026-02-19T12:01:00Z".into()),
+                },
+            )
+            .unwrap();
+        run_id
+    };
+
+    let result = SopStatusTool::new(engine).execute(json!({"run_id": run_id})).await.unwrap();
+
+    assert!(result.output.contains("Completed:"));
+    assert!(result.output.contains("Step results:"));
+    assert!(result.output.contains("Step 1: completed — inspection complete"));
+}
+
+#[tokio::test]
+async fn status_lists_finished_runs_when_no_runs_are_active() {
+    let engine = engine_with_sops(vec![test_sop("s1")]);
+    {
+        let mut engine = engine.lock().unwrap();
+        engine.start_run("s1", manual_event()).unwrap();
+        let run_id = engine.active_runs().keys().next().unwrap().clone();
+        engine.cancel_run(&run_id).unwrap();
+    }
+
+    let result = SopStatusTool::new(engine).execute(json!({})).await.unwrap();
+
+    assert!(result.output.contains("No active runs."));
+    assert!(result.output.contains("Finished runs (1):"));
+    assert!(result.output.contains("s1 [cancelled]"));
 }

@@ -18,6 +18,53 @@ use crate::app::Message;
 use crate::app::assets::{self, Icon};
 use crate::app::message::view::ViewMessage;
 
+fn muted_label_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style {
+        color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
+    }
+}
+
+fn primary_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.palette().text) }
+}
+
+fn icon_svg_style(theme: &Theme) -> svg::Style {
+    svg::Style { color: Some(theme.palette().text) }
+}
+
+fn icon_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let bg = match status {
+        iced::widget::button::Status::Hovered => Some(palette.background.weak.color.into()),
+        iced::widget::button::Status::Pressed => Some(palette.background.strong.color.into()),
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background: bg,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 6.0.into() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+fn tooltip_container_style(theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        text_color: Some(theme.palette().text),
+        background: Some(iced::Background::Color(theme.palette().background)),
+        border: iced::Border {
+            width: 1.0,
+            color: theme.extended_palette().background.strong.color,
+            radius: 8.0.into(),
+        },
+        shadow: iced::Shadow::default(),
+        snap: false,
+    }
+}
+
 /// 创建节标题文本元素
 ///
 /// 用于在视图中显示带有一致样式的节标题文本。
@@ -60,13 +107,9 @@ pub fn section_title<'a>(label: &'a str) -> iced::Element<'a, Message> {
 /// ```
 pub fn kv<'a>(label: &'a str, value: String) -> iced::Element<'a, Message> {
     row![
-        text(label).size(12).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
-        }),
+        text(label).size(12).style(muted_label_text_style),
         Space::new().width(Length::Fill),
-        text(value)
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style { color: Some(theme.palette().text) })
+        text(value).size(12).style(primary_text_style)
     ]
     .align_y(Alignment::Center)
     .into()
@@ -122,44 +165,15 @@ pub fn icon_svg(icon: Icon) -> Svg<'static> {
 /// ```
 pub fn icon_btn<'a>(icon: Icon, tip: &'a str, msg: Message) -> iced::Element<'a, Message> {
     // 创建图标按钮，设置尺寸、内边距和样式
-    let btn = button(
-        icon_svg(icon)
-            .style(|theme: &Theme, _status| svg::Style { color: Some(theme.palette().text) }),
-    )
-    .on_press(msg)
-    .height(Length::Fixed(24.0))
-    .padding([4, 6])
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        // 根据按钮状态设置背景色
-        let bg = match status {
-            iced::widget::button::Status::Hovered => Some(palette.background.weak.color.into()),
-            iced::widget::button::Status::Pressed => Some(palette.background.strong.color.into()),
-            _ => None,
-        };
-        iced::widget::button::Style {
-            background: bg,
-            border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 6.0.into() },
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
-    });
+    let btn = button(icon_svg(icon).style(|theme: &Theme, _status| icon_svg_style(theme)))
+        .on_press(msg)
+        .height(Length::Fixed(24.0))
+        .padding([4, 6])
+        .style(icon_button_style);
 
     // 创建工具提示容器，设置文本和样式
     let tip_content =
-        container(text(tip.to_string()).size(12)).padding([6, 10]).style(|theme: &Theme| {
-            iced::widget::container::Style {
-                text_color: Some(theme.palette().text),
-                background: Some(iced::Background::Color(theme.palette().background)),
-                border: iced::Border {
-                    width: 1.0,
-                    color: theme.extended_palette().background.strong.color,
-                    radius: 8.0.into(),
-                },
-                shadow: iced::Shadow::default(),
-                snap: false,
-            }
-        });
+        container(text(tip.to_string()).size(12)).padding([6, 10]).style(tooltip_container_style);
     Tooltip::new(btn, tip_content, TooltipPosition::Bottom).gap(8).into()
 }
 
@@ -230,13 +244,9 @@ pub fn kv_path<'a>(label: &'a str, path: Option<String>) -> iced::Element<'a, Me
     let value = path.as_deref().map(display_path).unwrap_or_else(|| "暂无".to_string());
     // 创建基础键值对行布局
     let mut r = row![
-        text(label).size(12).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
-        }),
+        text(label).size(12).style(muted_label_text_style),
         Space::new().width(Length::Fill),
-        text(value)
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style { color: Some(theme.palette().text) }),
+        text(value).size(12).style(primary_text_style),
     ]
     .align_y(Alignment::Center)
     .spacing(10);

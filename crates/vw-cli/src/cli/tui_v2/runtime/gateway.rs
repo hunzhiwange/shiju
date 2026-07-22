@@ -25,7 +25,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
-use vw_gateway_client::vw_api_types::id::SessionId;
+use vw_gateway_client::vw_api_types::id::{
+    COMPANY_ID_HEADER, PLATFORM_ID_HEADER, SessionId, TenantScope,
+};
 use vw_gateway_client::{GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -54,8 +56,8 @@ impl GatewayPreflightOutcome {
 /// CLI 侧用于构造 `GatewayClient` 的最小引导配置。
 ///
 /// 该结构只覆盖客户端访问网关所需的字段：主机、端口与认证信息。
-/// 字段来源保持与 `vibewindow.json` 顶层的 `gateway_client` 配置块一致，
-/// 这样新 TUI 不需要依赖桌面端的设置模块，也能复用同一份配置语义。
+/// 字段来源为桌面端维护的 `gateway-client-bootstrap.json` 启动缓存，
+/// 不把它当作完整系统配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct GatewayClientBootstrapConfig {
     /// 目标网关主机名或 IP。
@@ -64,6 +66,10 @@ pub(crate) struct GatewayClientBootstrapConfig {
     pub(crate) port: u16,
     /// 可选 skey，会作为 Bearer token 发送。
     pub(crate) skey: Option<String>,
+    /// 请求所属的平台租户 ID。
+    pub(crate) platform_id: String,
+    /// 请求所属的公司租户 ID。
+    pub(crate) company_id: String,
 }
 
 impl Default for GatewayClientBootstrapConfig {
@@ -72,23 +78,29 @@ impl Default for GatewayClientBootstrapConfig {
             host: "127.0.0.1".to_string(),
             port: 42617,
             skey: None,
+            platform_id: "10000".to_string(),
+            company_id: "100000000".to_string(),
         }
     }
 }
 
 impl GatewayClientBootstrapConfig {
-    /// 从 CLI 已解析的配置文件中读取 gateway client 引导信息。
+    /// 从 CLI 配置目录的启动缓存读取 gateway client 引导信息。
     ///
     /// 读取失败时会回退到默认值，而不是让 legacy CLI 因配置缺失直接中断。
     /// 这样可以保证 S1-1 先把依赖边界与 runtime 骨架接好，后续再继续补齐真实切换路径。
     pub(crate) fn load(config: &Config) -> Self {
         let mut bootstrap = Self::default();
 
-        let contents = match std::fs::read_to_string(&config.config_path) {
+        let Some(config_dir) = config.config_path.parent() else {
+            return bootstrap;
+        };
+        let bootstrap_path = config_dir.join("gateway-client-bootstrap.json");
+        let contents = match std::fs::read_to_string(&bootstrap_path) {
             Ok(contents) => contents,
             Err(err) => {
                 tracing::warn!(
-                    path = %config.config_path.display(),
+                    path = %bootstrap_path.display(),
                     error = %err,
                     "failed to read cli gateway bootstrap config, using defaults"
                 );
@@ -100,7 +112,7 @@ impl GatewayClientBootstrapConfig {
             Ok(root) => root,
             Err(err) => {
                 tracing::warn!(
-                    path = %config.config_path.display(),
+                    path = %bootstrap_path.display(),
                     error = %err,
                     "failed to parse cli gateway bootstrap config, using defaults"
                 );
@@ -114,7 +126,10 @@ impl GatewayClientBootstrapConfig {
 
     /// 将引导配置转换为 `GatewayEndpoint`。
     pub(crate) fn endpoint(&self) -> GatewayEndpoint {
-        let mut endpoint = GatewayEndpoint::new(self.host.clone(), self.port);
+        let tenant_scope = TenantScope::new(self.platform_id.clone(), self.company_id.clone())
+            .expect("CLI gateway bootstrap tenant IDs must not be empty");
+        let mut endpoint =
+            GatewayEndpoint::new(self.host.clone(), self.port).with_tenant_scope(tenant_scope);
         if let Some(auth) = self.auth() {
             endpoint = endpoint.with_auth(auth);
         }
@@ -123,8 +138,8 @@ impl GatewayClientBootstrapConfig {
 
     /// 将顶层 JSON 根对象中的 `gateway_client` 块映射到当前结构。
     fn apply_json_root(&mut self, root: &serde_json::Value) {
-        let Some(gateway) = root.get("gateway_client").and_then(serde_json::Value::as_object)
-        else {
+        let gateway = root.get("gateway_client").unwrap_or(root).as_object();
+        let Some(gateway) = gateway else {
             return;
         };
 
@@ -144,17 +159,19 @@ impl GatewayClientBootstrapConfig {
 
         self.skey = gateway_optional_string(gateway.get("skey"))
             .or_else(|| gateway_optional_string(gateway.get("bearer_token")));
+        if let Some(platform_id) = gateway_optional_string(gateway.get("platform_id")) {
+            self.platform_id = platform_id;
+        }
+        if let Some(company_id) = gateway_optional_string(gateway.get("company_id")) {
+            self.company_id = company_id;
+        }
     }
 
     /// 仅当配置中存在至少一种认证信息时才生成认证对象。
     fn auth(&self) -> Option<GatewayAuth> {
         let auth = GatewayAuth { skey: self.skey.clone() };
 
-        if auth.skey.is_none() {
-            None
-        } else {
-            Some(auth)
-        }
+        if auth.skey.is_none() { None } else { Some(auth) }
     }
 }
 
@@ -411,7 +428,7 @@ impl GatewayUiRuntime {
 
         if !is_local_loopback_endpoint(self.endpoint()) {
             return Err(annotate_gateway_transport_error(
-                "gateway preflight failed".to_string(),
+                "gateway preflight failed: connection refused".to_string(),
                 self.endpoint(),
             ));
         }
@@ -421,22 +438,11 @@ impl GatewayUiRuntime {
             return Ok(GatewayPreflightOutcome::Started);
         }
 
-        let mut message = annotate_gateway_transport_error(
-            "gateway preflight failed".to_string(),
+        Err(local_gateway_startup_failure_message(
             self.endpoint(),
-        );
-        if let Some(startup_error) = startup_error {
-            message.push_str(" Auto-start failed: ");
-            message.push_str(startup_error.as_str());
-        } else {
-            let _ = write!(
-                message,
-                " Auto-start did not reach {} with status=ok within {}s.",
-                GATEWAY_HEALTH_PATH,
-                GATEWAY_STARTUP_TIMEOUT.as_secs()
-            );
-        }
-        Err(message)
+            startup_error,
+            GATEWAY_STARTUP_TIMEOUT,
+        ))
     }
 }
 
@@ -504,6 +510,7 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
 fn looks_like_gateway_transport_error(message: &str) -> bool {
     let normalized = message.trim().to_ascii_lowercase();
     normalized.contains("error sending request")
+        || normalized.contains("gateway preflight failed")
         || normalized.contains("connection refused")
         || normalized.contains("tcp connect error")
         || normalized.contains("dns error")
@@ -562,6 +569,28 @@ fn is_local_loopback_endpoint(endpoint: &GatewayEndpoint) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn local_gateway_startup_failure_message(
+    endpoint: &GatewayEndpoint,
+    startup_error: Option<String>,
+    timeout: Duration,
+) -> String {
+    let mut message =
+        annotate_gateway_transport_error("gateway preflight failed".to_string(), endpoint);
+    if let Some(startup_error) = startup_error {
+        message.push_str(" Auto-start failed: ");
+        message.push_str(startup_error.as_str());
+    } else {
+        let _ = write!(
+            message,
+            " Auto-start did not reach {} with status=ok within {}s.",
+            GATEWAY_HEALTH_PATH,
+            timeout.as_secs()
+        );
+    }
+    message
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn start_local_gateway_process(endpoint: &GatewayEndpoint) -> Result<(), String> {
     let executable = std::env::current_exe()
         .map_err(|err| format!("resolve current executable failed: {err}"))?;
@@ -607,9 +636,11 @@ fn gateway_health_ready(endpoint: &GatewayEndpoint) -> bool {
     let _ = stream.set_write_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
 
     let request = format!(
-        "GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+        "GET {} HTTP/1.1\r\nHost: {}\r\n{PLATFORM_ID_HEADER}: {}\r\n{COMPANY_ID_HEADER}: {}\r\nConnection: close\r\n\r\n",
         GATEWAY_HEALTH_PATH,
-        endpoint.describe()
+        endpoint.describe(),
+        endpoint.tenant_scope().platform_id().as_ref(),
+        endpoint.tenant_scope().company_id().as_ref(),
     );
     if stream.write_all(request.as_bytes()).is_err() {
         return false;
@@ -630,7 +661,11 @@ fn gateway_health_ready(endpoint: &GatewayEndpoint) -> bool {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_gateway_socket_address(endpoint: &GatewayEndpoint) -> Option<std::net::SocketAddr> {
-    format!("{}:{}", endpoint.normalized_host(), endpoint.port)
+    let host = endpoint.normalized_host();
+    if host.is_empty() || host.chars().any(char::is_whitespace) {
+        return None;
+    }
+    format!("{host}:{}", endpoint.port)
         .to_socket_addrs()
         .ok()?
         .find(|addr| addr.is_ipv4() || addr.is_ipv6())

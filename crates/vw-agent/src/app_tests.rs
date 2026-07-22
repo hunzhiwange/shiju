@@ -1,4 +1,7 @@
-use super::task::{Task, create_task};
+use super::task::{
+    Task, claim_pending_gateway_execution_task, create_task, finish_gateway_execution_task,
+    load_pending_gateway_execution_tasks,
+};
 
 #[test]
 fn task_new_uses_stable_bootstrap_defaults() {
@@ -91,7 +94,10 @@ fn create_task_normalizes_blank_fields_and_allocates_sequences() {
     assert_eq!(second.acp_agent, None);
 
     let conn = rusqlite::Connection::open(
-        temp.path().join(".vibewindow").join("tasks").join("_index.sqlite3"),
+        temp.path()
+            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join("tasks")
+            .join("_index.sqlite3"),
     )
     .expect("task db should open");
     let (priority, model, agent, acp_agent, prompt, status_key, order_no): (
@@ -145,4 +151,112 @@ fn create_task_returns_io_error_when_project_path_is_file() {
         "unexpected error kind: {:?}",
         err.kind()
     );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn task_database(temp: &tempfile::TempDir) -> std::path::PathBuf {
+    temp.path()
+        .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        .join("tasks")
+        .join("_index.sqlite3")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn create_pending_task(temp: &tempfile::TempDir, prompt: &str) -> Task {
+    let created = create_task(
+        temp.path().to_str().expect("utf-8 temp path"),
+        Task {
+            id: "ignored".to_string(),
+            priority: 1,
+            model: "model-a".to_string(),
+            agent: Some("main".to_string()),
+            acp_agent: None,
+            prompt: prompt.to_string(),
+        },
+    )
+    .expect("task should be created");
+    let conn = rusqlite::Connection::open(task_database(temp)).expect("task db should open");
+    conn.execute("UPDATE tasks SET status_key = 'pending' WHERE id = ?1", [&created.id])
+        .expect("task should become pending");
+    conn.execute(
+        "UPDATE task_index_entries SET status_key = 'pending' WHERE task_id = ?1",
+        [&created.id],
+    )
+    .expect("task index should become pending");
+    created
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_task_load_claim_and_finish_success_update_persisted_state() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let task = create_pending_task(&temp, "execute this");
+    let project = temp.path().to_str().expect("utf-8 temp path");
+
+    let loaded =
+        load_pending_gateway_execution_tasks(project, &["missing".to_string(), task.id.clone()])
+            .expect("pending tasks should load");
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].id, task.id);
+    assert_eq!(loaded[0].prompt, "execute this");
+
+    let claimed = claim_pending_gateway_execution_task(project, &task.id)
+        .expect("claim should succeed")
+        .expect("pending task should be claimed");
+    assert_eq!(claimed.id, task.id);
+    assert!(claim_pending_gateway_execution_task(project, &task.id).unwrap().is_none());
+
+    finish_gateway_execution_task(project, &task.id, Ok("  completed output  ".to_string()))
+        .expect("finish should succeed");
+
+    let conn = rusqlite::Connection::open(task_database(&temp)).expect("task db should open");
+    let (status, last_error, started): (String, Option<String>, Option<i64>) = conn
+        .query_row(
+            "SELECT status_key, last_error, execution_started_at_ms FROM tasks WHERE id = ?1",
+            [&task.id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .expect("finished task should exist");
+    assert_eq!(status, "code_complete");
+    assert!(last_error.is_none());
+    assert!(started.is_none());
+    let messages: Vec<String> = conn
+        .prepare("SELECT message FROM task_logs WHERE task_id = ?1 ORDER BY seq_no")
+        .unwrap()
+        .query_map([&task.id], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(messages.iter().any(|message| message == "网关任务池 worker 开始执行"));
+    assert!(messages.iter().any(|message| message == "网关执行完成: completed output"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_task_finish_failure_records_error_and_ignores_missing_storage() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let task = create_pending_task(&temp, "fail this");
+    let project = temp.path().to_str().expect("utf-8 temp path");
+    claim_pending_gateway_execution_task(project, &task.id)
+        .expect("claim should succeed")
+        .expect("pending task should be claimed");
+
+    finish_gateway_execution_task(project, &task.id, Err("  provider failed  ".to_string()))
+        .expect("failure should persist");
+
+    let conn = rusqlite::Connection::open(task_database(&temp)).expect("task db should open");
+    let (status, last_error): (String, Option<String>) = conn
+        .query_row("SELECT status_key, last_error FROM tasks WHERE id = ?1", [&task.id], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .expect("failed task should exist");
+    assert_eq!(status, "failed");
+    assert_eq!(last_error.as_deref(), Some("  provider failed  "));
+
+    let missing = tempfile::tempdir().expect("missing project temp dir");
+    let missing_project = missing.path().to_str().expect("utf-8 temp path");
+    assert!(load_pending_gateway_execution_tasks(missing_project, &[]).unwrap().is_empty());
+    assert!(claim_pending_gateway_execution_task(missing_project, "unknown").unwrap().is_none());
+    finish_gateway_execution_task(missing_project, "unknown", Ok(String::new()))
+        .expect("missing storage should be ignored");
 }

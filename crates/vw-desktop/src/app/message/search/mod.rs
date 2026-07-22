@@ -20,6 +20,11 @@ use iced::Task;
 /// 包括输入变更、遮罩层切换、以及各类搜索结果的选择操作。
 #[derive(Debug, Clone)]
 pub enum SearchMessage {
+    /// 打开搜索面板
+    ///
+    /// 会清空上一次查询，让 Command+P 或顶部搜索按钮始终从空输入开始。
+    Open,
+
     /// 搜索输入框内容变更
     ///
     /// 当用户在搜索框中输入或修改文本时触发。
@@ -75,6 +80,13 @@ mod tests;
 /// ```
 pub fn update(app: &mut App, message: SearchMessage) -> Task<Message> {
     match message {
+        SearchMessage::Open => {
+            app.search_text.clear();
+            app.show_search_overlay = true;
+            app.refresh_search_panel_file_cache();
+            Task::none()
+        }
+
         // 处理搜索输入变更
         // 更新搜索文本并根据内容是否为空决定是否显示搜索遮罩层
         SearchMessage::InputChanged(v) => {

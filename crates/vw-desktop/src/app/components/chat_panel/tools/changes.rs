@@ -177,3 +177,7 @@ pub fn parse_changes_file_summaries(output: &str) -> Vec<ChangeFileSummary> {
 #[cfg(test)]
 #[path = "tests/changes.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "changes_tests.rs"]
+mod coverage_tests;

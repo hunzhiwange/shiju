@@ -61,6 +61,58 @@ fn parse_file_reference_keeps_invalid_suffix_as_plain_path() {
 }
 
 #[test]
+fn parse_file_reference_accepts_zeroes_and_colons_in_path() {
+    let zero_range = parse_file_reference("src/main.rs:0:0-0:0");
+    assert_eq!(zero_range.path, "src/main.rs");
+    assert!(matches!(
+        zero_range.location,
+        Some(FileReferenceLocation::Range {
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 0
+        })
+    ));
+
+    let drive_path = parse_file_reference(r"C:\src\main.rs:9");
+    assert_eq!(drive_path.path, r"C:\src\main.rs");
+    assert!(matches!(drive_path.location, Some(FileReferenceLocation::Line { line: 9 })));
+}
+
+#[test]
+fn parse_file_reference_accepts_maximum_usize_location_values() {
+    let max = usize::MAX;
+    let reference = format!("src/lib.rs:{max}:{max}-{max}:{max}");
+    let parsed = parse_file_reference(&reference);
+
+    assert_eq!(parsed.path, "src/lib.rs");
+    assert!(matches!(
+        parsed.location,
+        Some(FileReferenceLocation::Range {
+            start_line,
+            start_column,
+            end_line,
+            end_column,
+        }) if start_line == max
+            && start_column == max
+            && end_line == max
+            && end_column == max
+    ));
+}
+
+#[test]
+fn parse_file_reference_rejects_overflow_and_incomplete_precise_ranges() {
+    for reference in
+        ["src/main.rs:184467440737095516160", "src/main.rs:1:2-3:", "src/main.rs:1:2-three:x"]
+    {
+        let parsed = parse_file_reference(reference);
+
+        assert_eq!(parsed.path, reference);
+        assert!(parsed.location.is_none());
+    }
+}
+
+#[test]
 fn formats_reference_locations_for_tooltip_and_compact_badge() {
     let cases = [
         (FileReferenceLocation::Line { line: 8 }, "第 8 行", "8"),
@@ -107,6 +159,15 @@ fn extract_file_mentions_ignores_bare_at_and_stops_on_spaces() {
 }
 
 #[test]
+fn extract_file_mentions_preserves_order_duplicates_and_ascii_boundaries() {
+    assert_eq!(
+        extract_file_mentions("@same.rs,@same.rs; @@last.rs? @目录/file.rs"),
+        vec!["same.rs".to_string(), "same.rs".to_string(), "last.rs".to_string(),]
+    );
+    assert!(extract_file_mentions("plain text without mentions").is_empty());
+}
+
+#[test]
 fn file_reference_styles_cover_hovered_and_idle_states() {
     let theme = Theme::Dark;
     let hovered = file_reference_style(&theme, true);
@@ -128,6 +189,29 @@ fn tooltip_dark_style_uses_dark_background_and_white_text() {
 }
 
 #[test]
+fn file_reference_styles_keep_theme_text_and_dark_tooltip_contracts() {
+    let theme = Theme::Dark;
+    let idle = file_reference_style(&theme, false);
+    let hovered = file_reference_style(&theme, true);
+
+    assert_eq!(idle.text_color, Some(theme.palette().text));
+    assert_eq!(hovered.text_color, Some(theme.palette().text));
+    let Some(Background::Color(idle_background)) = idle.background else {
+        panic!("idle style should use a color background");
+    };
+    let Some(Background::Color(hovered_background)) = hovered.background else {
+        panic!("hovered style should use a color background");
+    };
+    assert_ne!(idle_background, hovered_background);
+
+    let tooltip = tooltip_dark_style(&theme);
+    assert_eq!(tooltip.text_color, Some(Color::WHITE));
+    assert_eq!(tooltip.border.color, Color::TRANSPARENT);
+    assert_eq!(tooltip.border.width, 0.0);
+    assert!(tooltip.shadow.blur_radius > 0.0);
+}
+
+#[test]
 fn file_reference_card_and_list_render_expected_outer_shapes() {
     let card = file_reference_card("src/main.rs:10".to_string(), false);
     assert_size(&card, Length::Shrink, Length::Shrink);
@@ -140,5 +224,15 @@ fn file_reference_card_and_list_render_expected_outer_shapes() {
 
     let mentions = vec!["src/main.rs:10".to_string(), "README.md".to_string()];
     let rendered = render_file_references(&mentions, Some(1));
+    assert_size(&rendered, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn file_reference_cards_accept_empty_paths_and_out_of_range_hover_indices() {
+    let empty_path = file_reference_card(String::new(), true);
+    assert_size(&empty_path, Length::Shrink, Length::Shrink);
+
+    let mentions = vec!["README.md".to_string(), "src/lib.rs:0:0".to_string()];
+    let rendered = render_file_references(&mentions, Some(mentions.len()));
     assert_size(&rendered, Length::Fill, Length::Shrink);
 }

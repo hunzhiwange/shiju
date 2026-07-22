@@ -9,7 +9,21 @@
 //! 并准确解析返回的响应数据。
 
 use super::super::*;
-use crate::app::agent::security::SecurityPolicy;
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use crate::app::agent::tools::traits::Tool;
+use serde_json::json;
+use std::sync::Arc;
+
+fn tool_with_security(security: SecurityPolicy) -> CodeSearchTool {
+    CodeSearchTool::new(Arc::new(security))
+}
+
+fn supervised_tool() -> CodeSearchTool {
+    tool_with_security(SecurityPolicy {
+        autonomy: AutonomyLevel::Supervised,
+        ..SecurityPolicy::default()
+    })
+}
 
 /// 解析 SSE 格式文本中的第一个文本内容
 ///
@@ -48,6 +62,77 @@ fn schema_exposes_query() {
     assert!(schema["properties"]["query"].is_object());
 }
 
+#[test]
+fn schema_exposes_compatibility_query_and_token_fields() {
+    let schema = CodeSearchTool::schema();
+
+    assert_eq!(schema["properties"]["query"]["type"], "string");
+    assert_eq!(schema["properties"]["information_request"]["type"], "string");
+    assert_eq!(schema["properties"]["tokensNum"]["type"], "number");
+    assert_eq!(schema["required"], json!([]));
+}
+
+#[test]
+fn tool_metadata_identifies_codesearch_and_has_a_description() {
+    let tool = supervised_tool();
+
+    assert_eq!(tool.name(), "codesearch");
+    assert!(!tool.description().trim().is_empty());
+    assert_eq!(tool.parameters_schema(), CodeSearchTool::schema());
+}
+
+#[test]
+fn args_deserialize_camel_case_token_count() {
+    let args: super::Args = serde_json::from_value(json!({
+        "query": "rust",
+        "tokensNum": 1_234
+    }))
+    .unwrap();
+
+    assert_eq!(args.query.as_deref(), Some("rust"));
+    assert_eq!(args.tokens_num, Some(1_234));
+}
+
+#[test]
+fn resolve_query_prefers_query_and_trims_it() {
+    let args = super::Args {
+        query: Some("  primary query  ".into()),
+        information_request: Some("fallback query".into()),
+        tokens_num: None,
+    };
+
+    assert_eq!(CodeSearchTool::resolve_query(&args), "primary query");
+}
+
+#[test]
+fn resolve_query_falls_back_to_trimmed_information_request() {
+    let args = super::Args {
+        query: None,
+        information_request: Some("  compatibility query  ".into()),
+        tokens_num: None,
+    };
+
+    assert_eq!(CodeSearchTool::resolve_query(&args), "compatibility query");
+}
+
+#[test]
+fn resolve_query_returns_empty_for_missing_or_blank_values() {
+    let missing = super::Args { query: None, information_request: None, tokens_num: None };
+    let blank = super::Args {
+        query: Some(" \t\n ".into()),
+        information_request: Some("fallback is not used when query is present".into()),
+        tokens_num: None,
+    };
+
+    assert_eq!(CodeSearchTool::resolve_query(&missing), "");
+    assert_eq!(CodeSearchTool::resolve_query(&blank), "");
+}
+
+#[test]
+fn validate_exa_endpoint_accepts_the_fixed_https_allowlisted_url() {
+    assert_eq!(supervised_tool().validate_exa_endpoint().unwrap(), super::EXA_MCP_URL);
+}
+
 /// 测试 parse_sse_first_text 函数能否正确提取 SSE 响应中的文本内容
 ///
 /// 此测试验证函数能够：
@@ -82,4 +167,110 @@ fn parse_sse_first_text_ignores_non_data_lines() {
 
     // 验证函数返回 None，表示没有可解析的文本内容
     assert_eq!(parse_sse_first_text(s), None);
+}
+
+#[test]
+fn parse_sse_first_text_skips_empty_text_before_later_data() {
+    let s = concat!(
+        "data: {\"result\":{\"content\":[{\"text\":\"\"}]}}\n",
+        "data: {\"result\":{\"content\":[{\"text\":\"later\"}]}}"
+    );
+
+    assert_eq!(parse_sse_first_text(s).as_deref(), Some("later"));
+}
+
+#[test]
+fn parse_sse_first_text_returns_none_for_malformed_json() {
+    assert_eq!(parse_sse_first_text("data: {not-json}"), None);
+}
+
+#[test]
+fn parse_sse_first_text_returns_none_when_nested_text_is_missing_or_invalid() {
+    let responses = [
+        r#"data: {}"#,
+        r#"data: {"result":{}}"#,
+        r#"data: {"result":{"content":[]}}"#,
+        r#"data: {"result":{"content":[{}]}}"#,
+        r#"data: {"result":{"content":[{"text":7}]}}"#,
+    ];
+
+    for response in responses {
+        assert_eq!(parse_sse_first_text(response), None, "response: {response}");
+    }
+}
+
+#[test]
+fn parse_sse_first_text_only_uses_the_first_content_item() {
+    let s = r#"data: {"result":{"content":[{"type":"image"},{"text":"second"}]}}"#;
+
+    assert_eq!(parse_sse_first_text(s), None);
+}
+
+#[test]
+fn parse_sse_first_text_requires_space_after_data_prefix() {
+    let s = r#"data:{"result":{"content":[{"text":"ignored"}]}}"#;
+
+    assert_eq!(parse_sse_first_text(s), None);
+}
+
+#[tokio::test]
+async fn execute_rejects_invalid_parameters_before_network() {
+    let error = supervised_tool().execute(json!([])).await.err().expect("array args must fail");
+
+    assert!(error.to_string().contains("Missing or invalid parameters"));
+}
+
+#[tokio::test]
+async fn execute_rejects_negative_token_count_before_network() {
+    let error = supervised_tool()
+        .execute(json!({"query": "rust", "tokensNum": -1}))
+        .await
+        .err()
+        .expect("negative token count must not deserialize as u32");
+
+    assert!(error.to_string().contains("Missing or invalid parameters"));
+    assert!(error.to_string().contains("-1"));
+}
+
+#[tokio::test]
+async fn execute_returns_missing_query_for_absent_or_blank_queries() {
+    for args in [json!({}), json!({"query": "  "}), json!({"information_request": "\t"})] {
+        let result = supervised_tool().execute(args).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert_eq!(result.error.as_deref(), Some("Missing query"));
+    }
+}
+
+#[tokio::test]
+async fn execute_blocks_read_only_policy_before_network() {
+    let tool = tool_with_security(SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        ..SecurityPolicy::default()
+    });
+
+    let result = tool.execute(json!({"query": "rust"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert_eq!(result.error.as_deref(), Some("Action blocked: autonomy is read-only"));
+}
+
+#[tokio::test]
+async fn execute_blocks_exhausted_action_budget_before_network() {
+    let tool = tool_with_security(SecurityPolicy {
+        autonomy: AutonomyLevel::Supervised,
+        max_actions_per_hour: 0,
+        ..SecurityPolicy::default()
+    });
+
+    let result = tool.execute(json!({"query": "rust"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert_eq!(
+        result.error.as_deref(),
+        Some("Rate limit exceeded: too many actions in the last hour")
+    );
 }

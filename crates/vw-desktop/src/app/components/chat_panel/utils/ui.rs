@@ -28,34 +28,35 @@ use super::theme::is_dark_theme;
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn copy_tooltip_content<'a>(label: &'a str) -> Element<'a, Message> {
-    container(text(label).size(11))
-        .padding([4, 8])
-        .style(|_theme: &Theme| iced::widget::container::Style {
-            // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            text_color: Some(Color::from_rgb8(0xF3, 0xF4, 0xF6)),
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(Color::from_rgb8(0x0B, 0x0B, 0x0B))),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border {
-                // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                width: 1.0,
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Color::from_rgb8(0x14, 0x14, 0x14),
-                // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                radius: 6.0.into(),
-            },
-            // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            shadow: iced::Shadow {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Color::BLACK.scale_alpha(0.25),
-                // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                offset: iced::Vector::new(0.0, 2.0),
-                // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                blur_radius: 6.0,
-            },
-            ..Default::default()
-        })
-        .into()
+    container(text(label).size(11)).padding([4, 8]).style(copy_tooltip_style).into()
+}
+
+pub(super) fn copy_tooltip_style(_theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        text_color: Some(Color::from_rgb8(0xF3, 0xF4, 0xF6)),
+        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        background: Some(Background::Color(Color::from_rgb8(0x0B, 0x0B, 0x0B))),
+        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        border: Border {
+            // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            width: 1.0,
+            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            color: Color::from_rgb8(0x14, 0x14, 0x14),
+            // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            radius: 6.0.into(),
+        },
+        // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        shadow: iced::Shadow {
+            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            color: Color::BLACK.scale_alpha(0.25),
+            // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            offset: iced::Vector::new(0.0, 2.0),
+            // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            blur_radius: 6.0,
+        },
+        ..Default::default()
+    }
 }
 
 /// 处理 chat context target key 对应的局部职责。
@@ -96,39 +97,6 @@ pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
         return None;
     }
 
-    let menu_button_style = |theme: &Theme, status: iced::widget::button::Status| {
-        let hovered_bg = if is_dark_theme(theme) {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.05)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xEA, 0xED, 0xF1, 0.85)
-        };
-        let pressed_bg = if is_dark_theme(theme) {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.09)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xE2, 0xE6, 0xEB, 0.95)
-        };
-
-        iced::widget::button::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: match status {
-                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
-                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                iced::widget::button::Status::Hovered => Some(Background::Color(hovered_bg)),
-                _ => None,
-            },
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
-            // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
-    };
-
     let menu_item = |label: &'static str, message: Message| {
         button(
             container(text(label).size(12))
@@ -138,7 +106,7 @@ pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
         )
         .width(Length::Fill)
         .padding(0)
-        .style(menu_button_style)
+        .style(chat_context_menu_button_style)
         .on_press(message)
     };
 
@@ -154,41 +122,79 @@ pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
         .width(Length::Fixed(134.0)),
     )
     .padding([3, 3])
-    .style(|theme: &Theme| {
-        let background = if is_dark_theme(theme) {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0x22, 0x22, 0x24, 0.98)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xF3, 0xF4, 0xF6, 0.98)
-        };
-        let border = if is_dark_theme(theme) {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0x3A, 0x3A, 0x3F, 0.95)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(0xDD, 0xE1, 0xE6, 1.0)
-        };
-
-        iced::widget::container::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(background)),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border { width: 1.0, color: border, radius: 8.0.into() },
-            // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            shadow: iced::Shadow {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.20 } else { 0.08 }),
-                // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                offset: iced::Vector::new(0.0, 4.0),
-                // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                blur_radius: 10.0,
-            },
-            ..Default::default()
-        }
-    });
+    .style(chat_context_menu_style);
 
     Some(menu.into())
+}
+
+pub(super) fn chat_context_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let hovered_bg = if is_dark_theme(theme) {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.05)
+    } else {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xEA, 0xED, 0xF1, 0.85)
+    };
+    let pressed_bg = if is_dark_theme(theme) {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.09)
+    } else {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xE2, 0xE6, 0xEB, 0.95)
+    };
+
+    iced::widget::button::Style {
+        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        background: match status {
+            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
+            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            iced::widget::button::Status::Hovered => Some(Background::Color(hovered_bg)),
+            _ => None,
+        },
+        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
+        // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+pub(super) fn chat_context_menu_style(theme: &Theme) -> iced::widget::container::Style {
+    let background = if is_dark_theme(theme) {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0x22, 0x22, 0x24, 0.98)
+    } else {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xF3, 0xF4, 0xF6, 0.98)
+    };
+    let border = if is_dark_theme(theme) {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0x3A, 0x3A, 0x3F, 0.95)
+    } else {
+        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        Color::from_rgba8(0xDD, 0xE1, 0xE6, 1.0)
+    };
+
+    iced::widget::container::Style {
+        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        background: Some(Background::Color(background)),
+        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        border: Border { width: 1.0, color: border, radius: 8.0.into() },
+        // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+        shadow: iced::Shadow {
+            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.20 } else { 0.08 }),
+            // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            offset: iced::Vector::new(0.0, 4.0),
+            // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            blur_radius: 10.0,
+        },
+        ..Default::default()
+    }
 }
 
 /// 处理 bold font 对应的局部职责。

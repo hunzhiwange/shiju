@@ -22,6 +22,13 @@ fn high_risk_commands_include_privileged_network_and_filesystem_tools() {
 }
 
 #[test]
+fn wrapped_root_deletion_patterns_are_high_risk() {
+    for command in ["bash -c 'rm -rf /'", "/bin/sh -c 'rm -fr /'"] {
+        assert_eq!(classify_command_risk(command), CommandRiskLevel::High, "{command}");
+    }
+}
+
+#[test]
 fn medium_risk_commands_include_repo_package_and_file_mutations() {
     for command in [
         "git push",

@@ -9,6 +9,17 @@ use super::*;
 use iced::Point;
 use serde_yaml::Value;
 
+const MINIMAL_WORKFLOW_YAML: &str = r#"
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data:
+          title: Start
+          type: start
+    edges: []
+"#;
+
 fn mapping_field<'a>(value: &'a Value, key: &str) -> &'a Value {
     value
         .as_mapping()
@@ -113,4 +124,50 @@ fn rebuild_node_from_parts_updates_mapping_and_reports_invalid_yaml() {
     let parse_error =
         rebuild_node_from_parts(&base, "标题", "", "foo: [").expect_err("bad yaml fails");
     assert!(parse_error.starts_with("节点 data YAML 解析失败:"));
+}
+
+#[test]
+fn rebuild_node_from_parts_reports_invalid_raw_node_shape() {
+    let base = create_node_from_type("answer", "answer".to_string(), Point::ORIGIN, 1.0)
+        .expect("answer node should be created");
+    let malformed = WorkflowNode { raw_node: Value::Null, ..base };
+
+    let error = rebuild_node_from_parts(&malformed, "标题", "描述", "answer: hello\n")
+        .expect_err("a node without its required identity fields should fail to rebuild");
+
+    assert!(error.starts_with("重建节点失败:"));
+}
+
+#[test]
+fn load_document_from_text_reports_yaml_and_graph_errors() {
+    let parse_error =
+        load_document_from_text(None, "workflow: [".to_string()).expect_err("invalid YAML fails");
+    assert!(parse_error.starts_with("解析 Dify DSL 失败:"));
+
+    let graph_error = load_document_from_text(
+        Some("/tmp/no-graph.yml".to_string()),
+        "app:\n  name: Missing Graph\n".to_string(),
+    )
+    .expect_err("missing graph fails");
+    assert_eq!(graph_error, "未找到 workflow.graph 节点，无法构建画布");
+}
+
+#[test]
+fn load_document_from_path_reads_file_and_reports_read_errors() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let workflow_path = temp.path().join("from-path.yml");
+    std::fs::write(&workflow_path, MINIMAL_WORKFLOW_YAML).expect("workflow file should be written");
+
+    let loaded = load_document_from_path(&workflow_path.to_string_lossy())
+        .expect("workflow should load from path");
+
+    assert_eq!(loaded.source_path.as_deref(), Some(workflow_path.to_string_lossy().as_ref()));
+    assert_eq!(loaded.source_name, "未命名应用");
+    assert_eq!(loaded.document.nodes.len(), 1);
+    assert_eq!(loaded.document.nodes[0].id, "start");
+
+    let missing_path = temp.path().join("missing.yml");
+    let read_error = load_document_from_path(&missing_path.to_string_lossy())
+        .expect_err("missing file should fail");
+    assert!(read_error.starts_with("读取工作流文件失败:"));
 }

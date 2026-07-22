@@ -14,13 +14,14 @@
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_value_badge,
+    icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_value_badge,
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
-use iced::widget::{Space, button, column, container, image, row, text};
+use iced::widget::{Space, button, column, container, image, progress_bar, row, text};
 use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
+use std::hash::{Hash, Hasher};
 
 const HEADER_LOGO_IMAGE_SIZE: f32 = 76.0;
 const HEADER_LOGO_BADGE_SIZE: f32 = 88.0;
@@ -66,7 +67,7 @@ const UPDATE_LOGO_BADGE_RADIUS: f32 = 26.0;
 ///    - 内容描述文本
 ///    - 关闭按钮
 pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
-    view_inner(title, content, None, None, false, false, false, title == "CLI 安装完成")
+    view_inner(title, content, None, None, false, false, false, title == "CLI 安装完成", None, None)
 }
 
 pub fn view_update_check<'a>(
@@ -78,6 +79,30 @@ pub fn view_update_check<'a>(
     show_install_action: bool,
     use_app_update_action: bool,
 ) -> Element<'a, Message> {
+    view_update_check_with_progress(
+        title,
+        content,
+        current_version,
+        server_version,
+        is_checking,
+        show_install_action,
+        use_app_update_action,
+        None,
+        None,
+    )
+}
+
+pub fn view_update_check_with_progress<'a>(
+    title: &'a str,
+    content: &'a str,
+    current_version: &'a str,
+    server_version: &'a str,
+    is_checking: bool,
+    show_install_action: bool,
+    use_app_update_action: bool,
+    update_progress: Option<&'a vw_shared::update::UpdateProgress>,
+    last_copied_code_hash: Option<u64>,
+) -> Element<'a, Message> {
     view_inner(
         title,
         content,
@@ -87,6 +112,8 @@ pub fn view_update_check<'a>(
         show_install_action,
         use_app_update_action,
         false,
+        update_progress,
+        last_copied_code_hash,
     )
 }
 
@@ -99,6 +126,8 @@ fn view_inner<'a>(
     show_install_action: bool,
     use_app_update_action: bool,
     show_logo_above_content: bool,
+    update_progress: Option<&'a vw_shared::update::UpdateProgress>,
+    last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
@@ -125,28 +154,7 @@ fn view_inner<'a>(
         .height(Length::Fixed(logo_badge_size))
         .align_x(Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
-        .style(move |theme: &Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                background: Some(Background::Color(theme.palette().primary.scale_alpha(
-                    if theme.palette().background.r
-                        + theme.palette().background.g
-                        + theme.palette().background.b
-                        < 1.5
-                    {
-                        0.20
-                    } else {
-                        0.08
-                    },
-                ))),
-                border: iced::Border {
-                    width: 1.0,
-                    color: palette.background.strong.color.scale_alpha(0.78),
-                    radius: logo_badge_radius.into(),
-                },
-                ..Default::default()
-            }
-        })
+        .style(move |theme: &Theme| logo_badge_style(theme, logo_badge_radius))
     };
 
     // 构建模态框卡片主体
@@ -220,6 +228,13 @@ fn view_inner<'a>(
         .into()
     };
 
+    let progress_block: Element<'a, Message> =
+        if use_app_update_action && let Some(progress) = update_progress {
+            update_progress_block(progress, last_copied_code_hash)
+        } else {
+            Space::new().height(0.0).into()
+        };
+
     let card_content: Element<'a, Message> = if has_version_info {
         column![
             container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
@@ -235,6 +250,7 @@ fn view_inner<'a>(
             .align_x(Horizontal::Center)
             .width(Length::Fill),
             version_block,
+            progress_block,
             container(
                 text(helper_text)
                     .size(12)
@@ -307,4 +323,153 @@ fn view_inner<'a>(
     let card = settings_modal_card(card_content).width(Length::Fixed(540.0)).max_width(620.0);
 
     settings_modal_overlay(None, close_message, card)
+}
+
+pub(super) fn update_progress_block<'a>(
+    progress: &'a vw_shared::update::UpdateProgress,
+    last_copied_code_hash: Option<u64>,
+) -> Element<'a, Message> {
+    let progress_value = progress
+        .total_bytes
+        .filter(|total| *total > 0)
+        .map(|total| (progress.downloaded_bytes as f32 / total as f32).clamp(0.0, 1.0))
+        .unwrap_or(0.0);
+    let percent_label = progress
+        .total_bytes
+        .filter(|total| *total > 0)
+        .map(|_| format!("{:.0}%", progress_value * 100.0))
+        .unwrap_or_else(|| "下载中".to_string());
+    let total_label = progress.total_bytes.map(format_bytes).unwrap_or_else(|| "未知".to_string());
+    let copy_hash = hash_copy_text(&progress.download_url);
+    let copied = last_copied_code_hash == Some(copy_hash);
+    let copy_label = if copied { "✓" } else { "复制" };
+
+    container(
+        column![
+            row![
+                text("下载进度").size(12).style(settings_muted_text_style),
+                Space::new().width(Length::Fill),
+                text(percent_label).size(12),
+            ]
+            .align_y(Alignment::Center),
+            container(progress_bar(0.0..=1.0, progress_value)).height(Length::Fixed(8.0)),
+            row![
+                settings_value_badge(format!("已下载 {}", format_bytes(progress.downloaded_bytes))),
+                settings_value_badge(format!("总大小 {total_label}")),
+            ]
+            .spacing(8),
+            row![
+                settings_value_badge(format!("速度 {}", format_rate(progress.bytes_per_second))),
+                settings_value_badge(format!(
+                    "平均 {}",
+                    format_rate(progress.average_bytes_per_second)
+                )),
+            ]
+            .spacing(8),
+            row![
+                column![
+                    text("下载 URL").size(11).style(settings_muted_text_style),
+                    text(compact_url(&progress.download_url)).size(11),
+                ]
+                .spacing(3)
+                .width(Length::Fill),
+                button(
+                    row![
+                        icon_svg(if copied { Icon::Check } else { Icon::Copy }, 13.0),
+                        text(copy_label).size(12)
+                    ]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
+                )
+                .on_press(Message::CopyCode(progress.download_url.clone()))
+                .padding([7, 12])
+                .width(Length::Fixed(78.0))
+                .style(rounded_action_btn_style),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(10),
+    )
+    .width(Length::Fill)
+    .padding(12)
+    .style(update_progress_card_style)
+    .into()
+}
+
+pub(super) fn logo_badge_style(
+    theme: &Theme,
+    logo_badge_radius: f32,
+) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(theme.palette().primary.scale_alpha(
+            if theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5
+            {
+                0.20
+            } else {
+                0.08
+            },
+        ))),
+        border: iced::Border {
+            width: 1.0,
+            color: palette.background.strong.color.scale_alpha(0.78),
+            radius: logo_badge_radius.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn update_progress_card_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.55))),
+        border: iced::Border {
+            width: 1.0,
+            color: palette.background.strong.color.scale_alpha(0.65),
+            radius: 8.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn format_bytes(bytes: u64) -> String {
+    const MB: f64 = 1024.0 * 1024.0;
+    if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / MB)
+    }
+}
+
+pub(super) fn format_rate(bytes_per_second: f64) -> String {
+    if bytes_per_second <= 0.0 {
+        return "0 KB/s".to_string();
+    }
+    const MB: f64 = 1024.0 * 1024.0;
+    if bytes_per_second < MB {
+        format!("{:.1} KB/s", bytes_per_second / 1024.0)
+    } else {
+        format!("{:.1} MB/s", bytes_per_second / MB)
+    }
+}
+
+pub(super) fn compact_url(url: &str) -> String {
+    const MAX_LEN: usize = 72;
+    let chars = url.chars().collect::<Vec<_>>();
+    if chars.len() <= MAX_LEN {
+        return url.to_string();
+    }
+    let head = chars.iter().take(42).collect::<String>();
+    let tail = chars.iter().skip(chars.len().saturating_sub(24)).collect::<String>();
+    format!("{head}...{tail}")
+}
+
+pub(super) fn hash_copy_text(content: &str) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    content.hash(&mut hasher);
+    hasher.finish()
 }

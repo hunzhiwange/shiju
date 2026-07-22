@@ -1381,13 +1381,14 @@ fn transcript_item_line_texts(item: &TuiTranscriptItem<'_>) -> Vec<String> {
     match item {
         TuiTranscriptItem::Standalone(message) => vec![message_line_text(message)],
         TuiTranscriptItem::AssistantTurn(turn) => {
-            let mut lines = vec![assistant_line_text(turn.assistant)];
+            let mut lines = Vec::new();
             lines.extend(
                 turn.preface.iter().map(|entry| assistant_turn_entry_line_text(entry, true)),
             );
             lines.extend(
                 turn.children.iter().map(|entry| assistant_turn_entry_line_text(entry, false)),
             );
+            lines.push(assistant_line_text(turn.assistant));
             lines
         }
     }

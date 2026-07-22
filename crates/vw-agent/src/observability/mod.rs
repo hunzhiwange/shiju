@@ -192,11 +192,9 @@ pub fn create_observer(config: &ObservabilityConfig) -> Box<dyn Observer> {
                 ) {
                     Ok(obs) => {
                         // 初始化成功：记录配置的端点信息（回退显示默认值）
-                        tracing::info!(
-                            endpoint =
-                                config.otel_endpoint.as_deref().unwrap_or("http://localhost:4318"),
-                            "OpenTelemetry observer initialized"
-                        );
+                        let endpoint =
+                            config.otel_endpoint.as_deref().unwrap_or("http://localhost:4318");
+                        tracing::info!(endpoint = endpoint, "OpenTelemetry observer initialized");
                         Box::new(obs)
                     }
                     Err(e) => {

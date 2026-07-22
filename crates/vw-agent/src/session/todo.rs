@@ -3,7 +3,6 @@
 use crate::app::agent::bus;
 use crate::app::agent::project::instance;
 use crate::app::agent::storage;
-use crate::session::ui_types as models;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt;
@@ -23,6 +22,7 @@ pub mod event {
 pub enum Error {
     Storage(storage::Error),
     Json(serde_json::Error),
+    Other(anyhow::Error),
 }
 
 impl fmt::Display for Error {
@@ -30,6 +30,7 @@ impl fmt::Display for Error {
         match self {
             Error::Storage(e) => write!(f, "{}", e),
             Error::Json(e) => write!(f, "{}", e),
+            Error::Other(e) => write!(f, "{}", e),
         }
     }
 }
@@ -45,6 +46,12 @@ impl From<storage::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(value: serde_json::Error) -> Self {
         Error::Json(value)
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Error::Other(value)
     }
 }
 
@@ -97,21 +104,29 @@ fn instance_directory_opt() -> Option<String> {
     if d.is_empty() { None } else { Some(d) }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn todo_storage_session_id(session_id: &str) -> String {
+    instance::project()
+        .map(|project| format!("{}:{session_id}", project.id))
+        .unwrap_or_else(|| session_id.to_string())
+}
+
 /// 执行 update 操作，并返回调用方需要的结果。
 pub async fn update(input: UpdateInput) -> Result<(), Error> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let ui_todos = input
+        let storage_session_id = todo_storage_session_id(&input.session_id);
+        let tool_todos = input
             .todos
             .iter()
-            .map(|todo| models::SessionTodoItem {
+            .map(|todo| crate::app::agent::tools::todo::Todo {
                 content: todo.content.clone(),
                 status: todo_status_to_str(&todo.status).to_string(),
                 priority: todo_priority_to_str(&todo.priority).to_string(),
                 id: todo.id.clone(),
             })
             .collect::<Vec<_>>();
-        let _ = crate::session::ui_store::save_session_todos(&input.session_id, &ui_todos);
+        crate::app::agent::tools::todo::write_session_todos(&storage_session_id, tool_todos)?;
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -131,7 +146,8 @@ pub async fn update(input: UpdateInput) -> Result<(), Error> {
 pub async fn get(session_id: &str) -> Vec<Info> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return crate::session::ui_store::load_session_todos(session_id)
+        let storage_session_id = todo_storage_session_id(session_id);
+        return crate::app::agent::tools::todo::read_session_todos(&storage_session_id)
             .into_iter()
             .map(|todo| Info {
                 id: todo.id,

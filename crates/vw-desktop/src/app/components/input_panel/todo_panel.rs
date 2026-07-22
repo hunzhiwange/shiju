@@ -51,6 +51,43 @@ pub struct TodoPanelData {
     pub running_task: String,
 }
 
+fn todo_panel_is_dark(theme: &Theme) -> bool {
+    let background = theme.palette().background;
+    background.r + background.g + background.b < 1.5
+}
+
+pub(super) fn todo_status_pill_colors(
+    theme: &Theme,
+    is_completed: bool,
+    is_running: bool,
+) -> (Color, Color) {
+    if is_completed {
+        return (Color::from_rgb8(46, 194, 126), Color::WHITE);
+    }
+
+    if is_running {
+        return (theme.palette().primary, Color::WHITE);
+    }
+
+    if todo_panel_is_dark(theme) {
+        (Color::from_rgb8(96, 165, 250), Color::WHITE)
+    } else {
+        (Color::from_rgb8(71, 85, 105), Color::from_rgb8(248, 250, 252))
+    }
+}
+
+pub(super) fn todo_task_text_color(theme: &Theme, is_completed: bool) -> Color {
+    if is_completed {
+        if todo_panel_is_dark(theme) {
+            theme.palette().text.scale_alpha(0.78)
+        } else {
+            theme.extended_palette().secondary.base.text.scale_alpha(0.72)
+        }
+    } else {
+        theme.palette().text
+    }
+}
+
 /// 计算待办面板数据
 ///
 /// 根据应用状态和待办事项列表，计算面板所需显示的数据。
@@ -466,39 +503,29 @@ pub fn todo_panel(
 
             // 创建任务文本，已完成任务使用半透明颜色
             let task_text = text(todo.content).size(12).style(move |theme: &Theme| {
-                let color = if is_completed {
-                    // 已完成任务使用次要文本颜色的 72% 透明度
-                    theme.extended_palette().secondary.base.text.scale_alpha(0.72)
-                } else {
-                    theme.palette().text
-                };
-                iced::widget::text::Style { color: Some(color) }
+                iced::widget::text::Style { color: Some(todo_task_text_color(theme, is_completed)) }
             });
 
             // 创建状态标签（右侧的彩色标签）
-            let status_pill = container(text(status_badge).size(10))
+            let status_label = text(status_badge).size(10).style(move |theme: &Theme| {
+                let (_, text_color) = todo_status_pill_colors(theme, is_completed, is_running);
+                iced::widget::text::Style { color: Some(text_color) }
+            });
+            let status_pill = container(status_label)
                 .padding([0, 8])
                 .height(Length::Fixed(18.0))
                 .align_y(iced::alignment::Vertical::Center)
                 .style(move |theme: &Theme| {
-                    let ext = theme.extended_palette();
-                    // 根据状态选择不同的颜色
-                    let color = if is_completed {
-                        Color::from_rgb8(46, 194, 126) // 绿色
-                    } else if is_running {
-                        theme.palette().primary // 主题色
-                    } else {
-                        ext.secondary.base.text // 灰色
-                    };
+                    let (background_color, text_color) =
+                        todo_status_pill_colors(theme, is_completed, is_running);
                     iced::widget::container::Style {
-                        // 使用 12% 透明度的颜色作为背景
-                        background: Some(Background::Color(color.scale_alpha(0.12))),
+                        background: Some(Background::Color(background_color.scale_alpha(0.16))),
                         border: Border {
                             width: 0.0,
                             color: Color::TRANSPARENT,
                             radius: 999.0.into(), // 胶囊形状
                         },
-                        text_color: Some(color),
+                        text_color: Some(text_color),
                         ..Default::default()
                     }
                 });
@@ -555,7 +582,13 @@ pub fn todo_panel(
         let list_height = (rows_height + TODO_HEIGHT_EXTRA).min(TODO_MAX_HEIGHT);
 
         // 创建可滚动任务列表
-        let task_list = scrollable(container(todo_rows).width(Length::Fill))
+        let task_list =
+            scrollable(container(todo_rows).width(Length::Fill).padding(iced::Padding {
+                top: 0.0,
+                right: 8.0,
+                bottom: 0.0,
+                left: 0.0,
+            }))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .width(Length::Fill)
             .height(Length::Fixed(list_height));

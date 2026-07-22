@@ -27,6 +27,10 @@ pub(crate) fn request_allowed_tools_from_inventory(
     runtime: &SessionRuntimeState,
     inventory: &SessionToolInventory,
 ) -> Option<Vec<String>> {
+    if !inventory.restricts_tools && !runtime.tool_selector.has_tool_filter() {
+        return None;
+    }
+
     let allowed_tools =
         sorted_unique_tools(runtime.tool_selector.filter_tools(&inventory.base_tools));
     (!allowed_tools.is_empty()).then_some(allowed_tools)
@@ -159,6 +163,7 @@ impl App {
     ) -> SessionToolInventory {
         let available_tools = sorted_unique_tools(self.agents_settings.available_tools.clone());
         let static_tools = self.selected_static_allowed_tools(runtime);
+        let restricts_tools = static_tools.is_some();
         let base_tools = if let Some(static_tools) = static_tools {
             if available_tools.is_empty() {
                 static_tools
@@ -170,7 +175,7 @@ impl App {
             available_tools.clone()
         };
 
-        SessionToolInventory { base_tools }
+        SessionToolInventory { base_tools, restricts_tools }
     }
 
     pub(crate) fn session_allowed_tools_for_request(
@@ -272,6 +277,7 @@ impl App {
         let runtime = self.get_session_runtime(&session_id);
         self.model = runtime.model;
         self.auto_model = runtime.auto_model;
+        self.reasoning_effort = runtime.reasoning_effort;
         self.acp_agent = runtime.acp_agent;
         self.acp_history_mode = runtime.acp_history_mode;
         self.acp_recent_count = runtime.acp_recent_count;

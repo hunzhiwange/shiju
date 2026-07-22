@@ -29,7 +29,7 @@ use iced::widget::slider::Rail;
 /// 重新导出 use iced::widget::{，让上层模块通过稳定路径访问。
 use iced::widget::{Space, column, container, responsive, row, text, text_editor, vertical_slider};
 /// 重新导出 use iced::{，让上层模块通过稳定路径访问。
-use iced::{Border, Color, Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector};
+use iced::{Border, Color, Element, Event, Length, Rectangle, Size, Theme, Vector};
 
 /// 处理 tool detail dialog view 对应的局部职责。
 ///
@@ -89,17 +89,20 @@ pub fn tool_detail_dialog_view<'a>(app: &'a App) -> Option<Element<'a, Message>>
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
+pub(super) fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
     let Some(dialog) = app.tool_detail_dialog.as_ref() else {
         return container(Space::new().width(Length::Fill).height(Length::Fill)).into();
     };
 
-    let viewport_height = (size.height - 24.0).max(1.0);
-    let line_height = app.current_line_height.max(1.0);
-    let total_lines = dialog.editor.line_count().max(1) as f32;
-    let visible_lines = (viewport_height / line_height).floor().max(1.0);
-    let max_scroll = (total_lines - visible_lines).max(0.0);
-    let scroll_top_line = dialog.scroll_top_line.clamp(0.0, max_scroll);
+    let scroll_state = tool_detail_scroll_state(
+        size,
+        app.current_line_height,
+        dialog.editor.line_count(),
+        dialog.scroll_top_line,
+    );
+    let viewport_height = scroll_state.viewport_height;
+    let max_scroll = scroll_state.max_scroll;
+    let scroll_top_line = scroll_state.scroll_top_line;
 
     let editor = text_editor(&dialog.editor)
         .id(dialog.editor_id.clone())
@@ -179,57 +182,7 @@ fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
             .step(1.0)
             .width(10)
             .height(Length::Fill)
-            .style(|theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                let thumb = match status {
-                    // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    iced::widget::vertical_slider::Status::Active => {
-                        palette.background.strong.color.scale_alpha(0.85)
-                    }
-                    iced::widget::vertical_slider::Status::Hovered => {
-                        theme.palette().primary.scale_alpha(0.75)
-                    }
-                    iced::widget::vertical_slider::Status::Dragged => theme.palette().primary,
-                };
-
-                iced::widget::vertical_slider::Style {
-                    // rail 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    rail: Rail {
-                        // backgrounds 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        backgrounds: (
-                            palette.background.weak.color.scale_alpha(0.30).into(),
-                            palette.background.weak.color.scale_alpha(0.30).into(),
-                        ),
-                        // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        width: 4.0,
-                        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        border: Border {
-                            // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            radius: 999.0.into(),
-                            // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            width: 0.0,
-                            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            color: Color::TRANSPARENT,
-                        },
-                    },
-                    // handle 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    handle: iced::widget::vertical_slider::Handle {
-                        // shape 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        shape: iced::widget::vertical_slider::HandleShape::Rectangle {
-                            // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            width: 8,
-                            // border_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            border_radius: 999.0.into(),
-                        },
-                        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        background: thumb.into(),
-                        // border_width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        border_width: 0.0,
-                        // border_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        border_color: Color::TRANSPARENT,
-                    },
-                }
-            });
+            .style(tool_detail_scrollbar_style);
 
         body = body.push(container(slider).width(Length::Fixed(10.0)).height(Length::Fill));
     }
@@ -238,12 +191,71 @@ fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
         .padding(12)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(|theme: &Theme| {
-            let mut style = settings_panel_style(theme);
-            style.border.radius = 18.0.into();
-            style
-        })
+        .style(tool_detail_panel_style)
         .into()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct ToolDetailScrollState {
+    pub viewport_height: f32,
+    pub max_scroll: f32,
+    pub scroll_top_line: f32,
+}
+
+pub(super) fn tool_detail_scroll_state(
+    size: Size,
+    line_height: f32,
+    line_count: usize,
+    scroll_top_line: f32,
+) -> ToolDetailScrollState {
+    let viewport_height = (size.height - 24.0).max(1.0);
+    let line_height = line_height.max(1.0);
+    let total_lines = line_count.max(1) as f32;
+    let visible_lines = (viewport_height / line_height).floor().max(1.0);
+    let max_scroll = (total_lines - visible_lines).max(0.0);
+    let scroll_top_line = scroll_top_line.clamp(0.0, max_scroll);
+
+    ToolDetailScrollState { viewport_height, max_scroll, scroll_top_line }
+}
+
+pub(super) fn tool_detail_scrollbar_style(
+    theme: &Theme,
+    status: iced::widget::vertical_slider::Status,
+) -> iced::widget::vertical_slider::Style {
+    let palette = theme.extended_palette();
+    let thumb = match status {
+        iced::widget::vertical_slider::Status::Active => {
+            palette.background.strong.color.scale_alpha(0.85)
+        }
+        iced::widget::vertical_slider::Status::Hovered => theme.palette().primary.scale_alpha(0.75),
+        iced::widget::vertical_slider::Status::Dragged => theme.palette().primary,
+    };
+
+    iced::widget::vertical_slider::Style {
+        rail: Rail {
+            backgrounds: (
+                palette.background.weak.color.scale_alpha(0.30).into(),
+                palette.background.weak.color.scale_alpha(0.30).into(),
+            ),
+            width: 4.0,
+            border: Border { radius: 999.0.into(), width: 0.0, color: Color::TRANSPARENT },
+        },
+        handle: iced::widget::vertical_slider::Handle {
+            shape: iced::widget::vertical_slider::HandleShape::Rectangle {
+                width: 8,
+                border_radius: 999.0.into(),
+            },
+            background: thumb.into(),
+            border_width: 0.0,
+            border_color: Color::TRANSPARENT,
+        },
+    }
+}
+
+pub(super) fn tool_detail_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = settings_panel_style(theme);
+    style.border.radius = 18.0.into();
+    style
 }
 
 /// 处理 wheel interceptor 对应的局部职责。
@@ -259,13 +271,15 @@ fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn wheel_interceptor<'a, Message>(
-    content: impl Into<Element<'a, Message>>,
+pub(super) fn wheel_interceptor<'a, Message, ThemeT, RendererT>(
+    content: impl Into<Element<'a, Message, ThemeT, RendererT>>,
     // on_scroll 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     on_scroll: impl Fn(mouse::ScrollDelta) -> Message + 'a,
-) -> Element<'a, Message>
+) -> Element<'a, Message, ThemeT, RendererT>
 where
     Message: 'a,
+    ThemeT: 'a,
+    RendererT: iced::advanced::Renderer + 'a,
 {
     // Element 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     Element::new(WheelInterceptor { content: content.into(), on_scroll: Box::new(on_scroll) })
@@ -274,14 +288,18 @@ where
 /// WheelInterceptor 保存 tool_detail_dialog 模块需要跨函数传递的状态。
 ///
 /// 字段保持贴近调用方的真实数据，避免在 UI 边界处隐藏额外转换。
-struct WheelInterceptor<'a, Message> {
+pub(super) struct WheelInterceptor<'a, Message, ThemeT, RendererT> {
     // content 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    content: Element<'a, Message>,
+    pub(super) content: Element<'a, Message, ThemeT, RendererT>,
     // on_scroll 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    on_scroll: Box<dyn Fn(mouse::ScrollDelta) -> Message + 'a>,
+    pub(super) on_scroll: Box<dyn Fn(mouse::ScrollDelta) -> Message + 'a>,
 }
 
-impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message> {
+impl<Message, ThemeT, RendererT> Widget<Message, ThemeT, RendererT>
+    for WheelInterceptor<'_, Message, ThemeT, RendererT>
+where
+    RendererT: iced::advanced::Renderer,
+{
     /// 处理 children 对应的局部职责。
     ///
     /// # 参数
@@ -351,7 +369,7 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // tree 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         tree: &mut Tree,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &Renderer,
+        renderer: &RendererT,
         // limits 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         limits: &layout::Limits,
     ) -> layout::Node {
@@ -378,7 +396,7 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // layout 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         layout: Layout<'_>,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &Renderer,
+        renderer: &RendererT,
         // operation 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         operation: &mut dyn Operation,
     ) {
@@ -409,7 +427,7 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // cursor 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         cursor: mouse::Cursor,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &Renderer,
+        renderer: &RendererT,
         // clipboard 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         clipboard: &mut dyn Clipboard,
         // shell 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -455,9 +473,9 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // tree 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         tree: &Tree,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &mut Renderer,
+        renderer: &mut RendererT,
         // theme 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        theme: &Theme,
+        theme: &ThemeT,
         // style 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         style: &renderer::Style,
         // layout 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -502,7 +520,7 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // viewport 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         viewport: &Rectangle,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &Renderer,
+        renderer: &RendererT,
     ) -> mouse::Interaction {
         self.content.as_widget().mouse_interaction(
             &tree.children[0],
@@ -533,12 +551,12 @@ impl<Message> Widget<Message, Theme, Renderer> for WheelInterceptor<'_, Message>
         // layout 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         layout: Layout<'b>,
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        renderer: &Renderer,
+        renderer: &RendererT,
         // viewport 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         viewport: &Rectangle,
         // translation 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         translation: Vector,
-    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+    ) -> Option<overlay::Element<'b, Message, ThemeT, RendererT>> {
         self.content.as_widget_mut().overlay(
             &mut tree.children[0],
             layout,

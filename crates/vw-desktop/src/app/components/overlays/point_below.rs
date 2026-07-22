@@ -65,6 +65,8 @@ pub struct PointBelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rend
     on_close: Option<Message>,
     // capture_outside_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     capture_outside_click: bool,
+    // 锚点控件区域内的点击是否也触发关闭。默认 false，保护可切换锚点不被同一次点击关闭。
+    close_on_target_click: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -106,6 +108,8 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
             on_close: None,
             // capture_outside_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             capture_outside_click: true,
+            // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            close_on_target_click: false,
         }
     }
 
@@ -196,6 +200,16 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
     /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
     pub fn capture_outside_click(mut self, capture: bool) -> Self {
         self.capture_outside_click = capture;
+        self
+    }
+
+    /// 允许锚点控件区域内的点击也关闭浮层。
+    ///
+    /// 默认关闭：避免可切换锚点（按钮等）被打开它的同一次点击立即关闭。
+    /// 对于锚点区域很大（如整条消息气泡）的菜单，应开启此项，否则点击气泡内
+    /// 空白处无法关闭菜单。
+    pub fn close_on_target_click(mut self, close: bool) -> Self {
+        self.close_on_target_click = close;
         self
     }
 
@@ -516,6 +530,8 @@ where
                 on_close: self.on_close.clone(),
                 // capture_outside_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 capture_outside_click: self.capture_outside_click,
+                // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                close_on_target_click: self.close_on_target_click,
             })))
         } else {
             None
@@ -585,6 +601,8 @@ struct PointBelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     on_close: Option<Message>,
     // capture_outside_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     capture_outside_click: bool,
+    // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+    close_on_target_click: bool,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -665,7 +683,7 @@ where
         if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
             && let Some(on_close) = &self.on_close
             && let Some(cursor_position) = cursor_position
-            && !self.target_bounds.contains(cursor_position)
+            && (self.close_on_target_click || !self.target_bounds.contains(cursor_position))
             && !bounds.contains(cursor_position)
         {
             shell.publish(on_close.clone());

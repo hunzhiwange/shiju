@@ -532,20 +532,7 @@ async fn run_agent_job(
         };
     }
 
-    let mut model_candidates = Vec::new();
-    if let Some(model) = primary_model.filter(|value| !value.trim().is_empty()) {
-        model_candidates.push(Some(model));
-    } else {
-        model_candidates.push(None);
-    }
-    for fallback in &job.fallbacks {
-        let fallback = fallback.trim();
-        if !fallback.is_empty()
-            && !model_candidates.iter().any(|candidate| candidate.as_deref() == Some(fallback))
-        {
-            model_candidates.push(Some(fallback.to_string()));
-        }
-    }
+    let model_candidates = agent_model_candidates(primary_model, &job.fallbacks);
 
     let mut last_error = None;
     for model_override in model_candidates {
@@ -564,13 +551,7 @@ async fn run_agent_job(
 
         match run_result {
             Ok(output) => {
-                let output = output.trim();
-                let output = if output.is_empty() {
-                    "agent job executed".to_string()
-                } else {
-                    output.to_string()
-                };
-                return (true, output);
+                return (true, normalize_agent_job_success_output(&output));
             }
             Err(err) => {
                 last_error = Some(err);
@@ -589,6 +570,32 @@ async fn run_agent_job(
         Ok(_) => (true, "agent job executed".to_string()),
         Err(e) => (false, format!("agent job failed: {e}")),
     }
+}
+
+fn normalize_agent_job_success_output(output: &str) -> String {
+    let output = output.trim();
+    if output.is_empty() { "agent job executed".to_string() } else { output.to_string() }
+}
+
+fn agent_model_candidates(
+    primary_model: Option<String>,
+    fallbacks: &[String],
+) -> Vec<Option<String>> {
+    let mut model_candidates = Vec::new();
+    if let Some(model) = primary_model.filter(|value| !value.trim().is_empty()) {
+        model_candidates.push(Some(model));
+    } else {
+        model_candidates.push(None);
+    }
+    for fallback in fallbacks {
+        let fallback = fallback.trim();
+        if !fallback.is_empty()
+            && !model_candidates.iter().any(|candidate| candidate.as_deref() == Some(fallback))
+        {
+            model_candidates.push(Some(fallback.to_string()));
+        }
+    }
+    model_candidates
 }
 
 async fn deliver_agent_job_to_task_pool(
@@ -634,6 +641,26 @@ async fn run_gateway_agent_job(
     prompt: &str,
     model_override: Option<String>,
 ) -> anyhow::Result<String> {
+    let (session_id, request) = cron_gateway_agent_request(config, job, prompt, model_override);
+
+    let collected =
+        crate::app::agent::gateway::api::handlers::session::stream::collect_gateway_chat_stream(
+            config.workspace_dir.to_string_lossy().to_string(),
+            request,
+        )
+        .await
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
+
+    Ok(format_gateway_agent_output(&session_id, &collected))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cron_gateway_agent_request(
+    config: &Config,
+    job: &CronJob,
+    prompt: &str,
+    model_override: Option<String>,
+) -> (String, vw_api_types::chat::GatewayChatStreamRequest) {
     let agent = job
         .agent
         .as_deref()
@@ -649,31 +676,14 @@ async fn run_gateway_agent_job(
         .map(str::to_string);
     let session_id = format!("cron-{}", job.id);
 
-    let mut options = serde_json::Map::new();
-    if job.full_access {
-        options.insert("full_access".to_string(), serde_json::Value::Bool(true));
-    }
-    if let Some(acp_agent) = acp_agent.as_ref() {
-        options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
-        options.insert("acp_agent".to_string(), serde_json::Value::String(acp_agent.clone()));
-        options.insert("acp_force_new_session".to_string(), serde_json::Value::Bool(true));
-        options.insert(
-            "cwd".to_string(),
-            serde_json::Value::String(config.workspace_dir.to_string_lossy().to_string()),
-        );
-        if job.full_access {
-            options.insert(
-                "acp_permission_mode".to_string(),
-                serde_json::Value::String("approve-all".to_string()),
-            );
-        }
-    }
+    let options = cron_gateway_options(config, job, acp_agent.as_deref());
 
     let request = vw_api_types::chat::GatewayChatStreamRequest {
         session_id: Some(session_id.clone().into()),
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,
         model: model_override,
+        reasoning_effort: None,
         agent: Some(agent),
         allowed_tools: None,
         acp_agent,
@@ -681,14 +691,14 @@ async fn run_gateway_agent_job(
         options: (!options.is_empty()).then_some(serde_json::Value::Object(options)),
     };
 
-    let collected =
-        crate::app::agent::gateway::api::handlers::session::stream::collect_gateway_chat_stream(
-            config.workspace_dir.to_string_lossy().to_string(),
-            request,
-        )
-        .await
-        .map_err(|err| anyhow::anyhow!("{err}"))?;
+    (session_id, request)
+}
 
+#[cfg(not(target_arch = "wasm32"))]
+fn format_gateway_agent_output(
+    session_id: &str,
+    collected: &crate::app::agent::gateway::api::handlers::session::stream::GatewayChatStreamCollected,
+) -> String {
     let mut output = collected.output.trim().to_string();
     if output.is_empty() {
         output = "agent job executed".to_string();
@@ -700,7 +710,34 @@ async fn run_gateway_agent_job(
     } else {
         output.push_str(&format!("\n[session:{session_id}]"));
     }
-    Ok(output)
+    output
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cron_gateway_options(
+    config: &Config,
+    job: &CronJob,
+    acp_agent: Option<&str>,
+) -> serde_json::Map<String, serde_json::Value> {
+    let mut options = serde_json::Map::new();
+    if job.full_access || acp_agent.is_some() {
+        options.insert("full_access".to_string(), serde_json::Value::Bool(true));
+    }
+    if let Some(acp_agent) = acp_agent {
+        options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
+        options.insert("acp_agent".to_string(), serde_json::Value::String(acp_agent.to_string()));
+        options.insert("acp_force_new_session".to_string(), serde_json::Value::Bool(true));
+        options.insert("acp_close_client_after_request".to_string(), serde_json::Value::Bool(true));
+        options.insert(
+            "cwd".to_string(),
+            serde_json::Value::String(config.workspace_dir.to_string_lossy().to_string()),
+        );
+        options.insert(
+            "acp_permission_mode".to_string(),
+            serde_json::Value::String("approve-all".to_string()),
+        );
+    }
+    options
 }
 
 fn cron_agent_prompt(job: &CronJob, name: &str, prompt: &str) -> String {
@@ -1263,3 +1300,7 @@ pub(crate) async fn deliver_announcement(
 #[cfg(test)]
 #[path = "tests/scheduler.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "scheduler_tests.rs"]
+mod scheduler_tests;

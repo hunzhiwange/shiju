@@ -65,7 +65,7 @@ pub(super) fn advanced_base_title(
     }
 }
 
-fn advanced_summary(tool_name: &str, value: &Value) -> String {
+pub(super) fn advanced_summary(tool_name: &str, value: &Value) -> String {
     if let Some(summary) = tool_summary_text(value).filter(|summary| !summary.trim().is_empty()) {
         return summary;
     }
@@ -124,7 +124,7 @@ fn advanced_summary(tool_name: &str, value: &Value) -> String {
     }
 }
 
-fn advanced_metadata_text(
+pub(super) fn advanced_metadata_text(
     tool_name: &str,
     value: &Value,
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
@@ -182,7 +182,7 @@ fn advanced_metadata_text(
     parts.join(" · ")
 }
 
-fn advanced_fallback_body(
+pub(super) fn advanced_fallback_body(
     tool_name: &str,
     value: &Value,
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
@@ -214,7 +214,7 @@ fn advanced_fallback_body(
     String::new()
 }
 
-fn advanced_success_body(tool_name: &str, raw_output: &str, value: &Value) -> String {
+pub(super) fn advanced_success_body(tool_name: &str, raw_output: &str, value: &Value) -> String {
     match tool_name {
         "AgentTool" | "Agent" => {
             if let Ok(parsed) = serde_json::from_str::<Value>(raw_output)
@@ -284,7 +284,7 @@ pub(super) fn format_tool_search_body(value: &Value) -> Option<String> {
     Some(lines.join("\n"))
 }
 
-fn format_verify_plan_execution_body(value: &Value) -> Option<String> {
+pub(super) fn format_verify_plan_execution_body(value: &Value) -> Option<String> {
     let data = tool_result_data(value)?.as_object()?;
     let ready = data.get("ready").and_then(Value::as_bool).unwrap_or(false);
     let todo_count = data.get("todo_count").and_then(Value::as_u64).unwrap_or(0);
@@ -314,7 +314,7 @@ fn format_verify_plan_execution_body(value: &Value) -> Option<String> {
     Some(blockers.join("\n"))
 }
 
-fn format_browser_success_body(tool_name: &str, value: &Value) -> Option<String> {
+pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Option<String> {
     let data = tool_result_data(value)?.as_object()?;
     if matches!(tool_name, "browser_open" | "open_browser_page") {
         let browser = data.get("browser").and_then(Value::as_str).map(str::trim).unwrap_or("");

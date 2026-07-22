@@ -20,6 +20,7 @@
 //! - Tauri 应用的源地址默认被允许
 //! - 生产环境应通过白名单严格限制允许的源
 
+use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 use axum::http::Method;
 use axum::http::Request;
@@ -28,6 +29,7 @@ use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use base64::Engine;
+use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
 use crate::app::agent::flag;
 use crate::app::agent::gateway::ApiError;
@@ -153,6 +155,56 @@ pub(crate) async fn basic_auth_middleware(req: Request<axum::body::Body>, next: 
     let username = flag::VIBEWINDOW_SERVER_USERNAME.as_deref().unwrap_or("vibewindow");
 
     basic_auth_middleware_with_credentials(req, next, password, username).await
+}
+
+/// 从客户端请求头构造并注入租户作用域。
+///
+/// 除 CORS 预检外，受管客户端路由必须提供且只能提供一个 UTF-8、非空的平台和公司
+/// header。缺少或非法 header 不会回退到默认租户，避免请求越过租户边界。
+pub(crate) async fn tenant_scope_middleware(
+    mut req: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
+    if req.method() == Method::OPTIONS {
+        return next.run(req).await;
+    }
+
+    let platform_id = match required_tenant_header(req.headers(), PLATFORM_ID_HEADER) {
+        Ok(value) => value,
+        Err(error) => return error.into_response(),
+    };
+    let company_id = match required_tenant_header(req.headers(), COMPANY_ID_HEADER) {
+        Ok(value) => value,
+        Err(error) => return error.into_response(),
+    };
+    let scope = match TenantScope::new(platform_id, company_id) {
+        Ok(scope) => scope,
+        Err(error) => return ApiError::bad_request(error.to_string()).into_response(),
+    };
+
+    req.extensions_mut().insert(scope);
+    next.run(req).await
+}
+
+fn required_tenant_header<'a>(
+    headers: &'a HeaderMap,
+    name: &'static str,
+) -> Result<&'a str, ApiError> {
+    let mut values = headers.get_all(name).iter();
+    let Some(value) = values.next() else {
+        return Err(ApiError::bad_request(format!("missing {name} header")));
+    };
+    if values.next().is_some() {
+        return Err(ApiError::bad_request(format!("{name} header must have a single value")));
+    }
+
+    let value = value
+        .to_str()
+        .map_err(|_| ApiError::bad_request(format!("{name} header must be valid UTF-8")))?;
+    if value.trim().is_empty() {
+        return Err(ApiError::bad_request(format!("{name} header must not be empty")));
+    }
+    Ok(value)
 }
 
 async fn basic_auth_middleware_with_credentials(

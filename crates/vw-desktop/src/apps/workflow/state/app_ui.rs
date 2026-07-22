@@ -233,7 +233,7 @@ impl WorkflowState {
     }
 }
 
-fn organized_node_positions(document: &WorkflowDocument) -> HashMap<String, Point> {
+pub(super) fn organized_node_positions(document: &WorkflowDocument) -> HashMap<String, Point> {
     let node_order = document.nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
     let node_index = node_order
         .iter()

@@ -26,4 +26,9 @@ impl Signal {
             }
         }
     }
+
+    #[cfg(test)]
+    pub(super) fn test_sender(&self) -> tokio::sync::watch::Sender<bool> {
+        self.tx.clone()
+    }
 }

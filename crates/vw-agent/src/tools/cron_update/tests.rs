@@ -300,3 +300,22 @@ async fn blocks_update_when_rate_limited() {
     // 验证任务状态未被修改，仍然为启用状态
     assert!(get_job(&cfg, &job.id).unwrap().enabled);
 }
+
+#[tokio::test]
+async fn disabled_cron_rejects_update_before_parsing_patch() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = Config {
+        workspace_dir: tmp.path().join("workspace"),
+        config_path: tmp.path().join("vibewindow.json"),
+        ..Config::default()
+    };
+    config.cron.enabled = false;
+    tokio::fs::create_dir_all(&config.workspace_dir).await.unwrap();
+    let cfg = Arc::new(config);
+    let tool = CronUpdateTool::new(cfg.clone(), test_security(&cfg));
+
+    let result = tool.execute(json!({"job_id": "job-1"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("cron is disabled by config (cron.enabled=false)"));
+}

@@ -19,6 +19,7 @@ use vw_api_types::session::{
 
 use super::shared::{
     UiSessionCreateBody, UiSessionListQuery, has_explicit_directory, session_api_error,
+    with_tenant_instance,
 };
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::AppState;
@@ -27,10 +28,10 @@ use crate::app::agent::gateway::chat::{
 };
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
-use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project::instance;
 use crate::app::agent::session as agent_session;
 use crate::app::agent::snapshot;
+use crate::session::ui_store;
 
 fn task_session_summary_needs_refresh(session: &agent_session::session::Info) -> bool {
     if !session.id.starts_with("task-board-") {
@@ -66,12 +67,13 @@ pub(super) async fn ui_session_list(
     Query(query): Query<UiSessionListQuery>,
     _headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::session::Info>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let UiSessionListQuery { directory, roots, start, search, limit } = query;
     let directory = directory.filter(|d| !d.trim().is_empty());
     let term = search.map(|s| s.to_ascii_lowercase());
     let limit = limit.unwrap_or(usize::MAX);
 
-    let mut sessions = agent_session::session::list_all()
+    let mut sessions = ui_store::with_tenant_scope(tenant, agent_session::session::list_all())
         .await
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
@@ -109,9 +111,10 @@ pub(super) async fn ui_session_status(
     Query(query): Query<InstanceQuery>,
     _headers: HeaderMap,
 ) -> Result<Json<HashMap<String, agent_session::status::Info>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let directory = query.directory.filter(|d| !d.trim().is_empty());
 
-    let mut sessions = agent_session::session::list_all()
+    let mut sessions = ui_store::with_tenant_scope(tenant, agent_session::session::list_all())
         .await
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
@@ -147,9 +150,10 @@ pub(super) async fn ui_session_get(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     if has_explicit_directory(&query, &headers) {
         let dir = resolve_directory(&query, &headers);
-        let result = with_instance(dir, move || {
+        let result = with_tenant_instance(tenant, dir, move || {
             Box::pin(async move {
                 agent_session::session::get(&session_id).await.map_err(session_api_error)
             })
@@ -158,7 +162,9 @@ pub(super) async fn ui_session_get(
         return Ok(Json(result));
     }
 
-    let session = agent_session::session::get_any(&session_id).await.map_err(session_api_error)?;
+    let session = ui_store::with_tenant_scope(tenant, agent_session::session::get_any(&session_id))
+        .await
+        .map_err(session_api_error)?;
     Ok(Json(session))
 }
 
@@ -178,13 +184,14 @@ pub(super) async fn ui_session_create(
     headers: HeaderMap,
     Json(body): Json<Option<UiSessionCreateBody>>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     let body =
         body.unwrap_or(UiSessionCreateBody { session: Default::default(), permission: None });
     let UiSessionCreateBody { session, permission } = body;
     let vw_api_types::session::GatewaySessionCreateBody { parent_id, title } = session;
 
-    let created = with_instance(dir, move || {
+    let created = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             agent_session::session::create_next(agent_session::session::CreateInput {
                 parent_id,
@@ -216,6 +223,7 @@ pub(super) async fn ui_session_patch(
     headers: HeaderMap,
     Json(body): Json<GatewaySessionPatchBody>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let title = body.title.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let archived = body.time.and_then(|time| time.archived);
 
@@ -235,7 +243,7 @@ pub(super) async fn ui_session_patch(
 
     let updated = if has_explicit_directory(&query, &headers) {
         let dir = resolve_directory(&query, &headers);
-        with_instance(dir, move || {
+        with_tenant_instance(tenant, dir, move || {
             Box::pin(async move {
                 agent_session::session::update(&session_id, update_fn)
                     .await
@@ -244,9 +252,12 @@ pub(super) async fn ui_session_patch(
         })
         .await?
     } else {
-        agent_session::session::update_any(&session_id, update_fn)
-            .await
-            .map_err(session_api_error)?
+        ui_store::with_tenant_scope(
+            tenant,
+            agent_session::session::update_any(&session_id, update_fn),
+        )
+        .await
+        .map_err(session_api_error)?
     };
 
     Ok(Json(updated))
@@ -268,10 +279,11 @@ pub(super) async fn ui_session_delete(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<bool>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     if has_explicit_directory(&query, &headers) {
         let dir = resolve_directory(&query, &headers);
         let session_id_for_remove = session_id.clone();
-        with_instance(dir, move || {
+        with_tenant_instance(tenant, dir, move || {
             Box::pin(async move {
                 agent_session::session::remove(&session_id_for_remove)
                     .await
@@ -281,7 +293,9 @@ pub(super) async fn ui_session_delete(
         })
         .await?;
     } else {
-        agent_session::session::remove_any(&session_id).await.map_err(session_api_error)?;
+        ui_store::with_tenant_scope(tenant, agent_session::session::remove_any(&session_id))
+            .await
+            .map_err(session_api_error)?;
     }
 
     invalidate_session_query_engine(&state, &session_id).await;
@@ -303,8 +317,9 @@ pub(super) async fn session_children(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::session::Info>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
-    let children = with_instance(dir, move || {
+    let children = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             agent_session::session::children(&session_id)
                 .await
@@ -329,8 +344,9 @@ pub(super) async fn session_todo_get(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<vw_api_types::session::GatewaySessionTodoItem>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
-    let todos = with_instance(dir, move || {
+    let todos = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move { Ok(agent_session::todo::get(&session_id).await) })
     })
     .await?;
@@ -353,8 +369,9 @@ pub(super) async fn session_todo_put(
     headers: HeaderMap,
     Json(body): Json<GatewaySessionTodoPutBody>,
 ) -> Result<Json<bool>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
-    with_instance(dir, move || {
+    with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             agent_session::todo::update(agent_session::todo::UpdateInput {
                 session_id,
@@ -387,11 +404,12 @@ pub(super) async fn session_fork(
     headers: HeaderMap,
     Json(body): Json<Option<GatewaySessionForkBody>>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     let body = body.unwrap_or_default();
     let session_id_for_fork = session_id.clone();
 
-    let result = with_instance(dir, move || {
+    let result = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             agent_session::session::fork(&session_id_for_fork, body.message_id.as_deref())
                 .await
@@ -424,9 +442,10 @@ pub(super) async fn session_reset(
     headers: HeaderMap,
     Json(body): Json<GatewaySessionResetBody>,
 ) -> Result<Json<agent_session::session::Info>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     let session_id_for_reset = session_id.clone();
-    let result = with_instance(dir, move || {
+    let result = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             let info = if body.revert_code {
                 // 回滚代码后立即清理 revert 产物，保证 UI 看到的是已收敛的会话状态。
@@ -478,8 +497,9 @@ pub(super) async fn session_diff(
     Query(query): Query<GatewaySessionDiffQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<snapshot::FileDiff>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&InstanceQuery { directory: query.directory }, &headers);
-    let diffs = with_instance(dir, move || {
+    let diffs = with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             Ok(agent_session::summary::diff(agent_session::summary::DiffInput {
                 session_id,
@@ -508,8 +528,9 @@ pub(super) async fn session_summarize(
     headers: HeaderMap,
     Json(body): Json<GatewaySessionSummarizeBody>,
 ) -> Result<Json<bool>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
-    with_instance(dir, move || {
+    with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
             agent_session::summary::summarize(agent_session::summary::SummarizeInput {
                 session_id,

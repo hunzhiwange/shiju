@@ -28,6 +28,32 @@ use super::*;
 mod tests {
     use super::*;
 
+    #[cfg(not(target_arch = "wasm32"))]
+    struct FailingReader;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    impl tokio::io::AsyncRead for FailingReader {
+        fn poll_read(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            _buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Err(std::io::Error::other("read failed")))
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    impl tokio::io::AsyncBufRead for FailingReader {
+        fn poll_fill_buf(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::io::Result<&[u8]>> {
+            std::task::Poll::Ready(Err(std::io::Error::other("read failed")))
+        }
+
+        fn consume(self: std::pin::Pin<&mut Self>, _amt: usize) {}
+    }
+
     /// 测试 CLI 通道的名称返回值
     ///
     /// # 验证点
@@ -198,5 +224,96 @@ mod tests {
 
         assert_eq!(std::mem::size_of_val(&channel), 0);
         assert_eq!(channel.name(), "cli");
+    }
+
+    #[test]
+    fn unix_timestamp_secs_returns_elapsed_seconds() {
+        let now = std::time::UNIX_EPOCH + std::time::Duration::from_secs(42);
+
+        assert_eq!(unix_timestamp_secs(now), 42);
+    }
+
+    #[test]
+    fn unix_timestamp_secs_returns_zero_before_epoch() {
+        let now = std::time::UNIX_EPOCH - std::time::Duration::from_secs(1);
+
+        assert_eq!(unix_timestamp_secs(now), 0);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn listen_from_reader_trims_skips_empty_and_stops_at_eof() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let reader = tokio::io::BufReader::new(std::io::Cursor::new(b"\n  hello  \n\t \n"));
+
+        listen_from_reader(Box::new(reader), tx).await.unwrap();
+
+        let msg = rx.recv().await.unwrap();
+
+        assert!(!msg.id.is_empty());
+        assert_eq!(msg.sender, "user");
+        assert_eq!(msg.reply_target, "user");
+        assert_eq!(msg.content, "hello");
+        assert_eq!(msg.channel, "cli");
+        assert!(msg.timestamp > 0);
+        assert_eq!(msg.thread_ts, None);
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn listen_from_reader_stops_on_quit_command() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let reader = tokio::io::BufReader::new(std::io::Cursor::new(b"/quit\nhello\n"));
+
+        listen_from_reader(Box::new(reader), tx).await.unwrap();
+
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn listen_from_reader_stops_on_exit_command() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let reader = tokio::io::BufReader::new(std::io::Cursor::new(b"/exit\nhello\n"));
+
+        listen_from_reader(Box::new(reader), tx).await.unwrap();
+
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn listen_from_reader_stops_when_receiver_is_closed() {
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let reader = tokio::io::BufReader::new(std::io::Cursor::new(b"hello\nignored\n"));
+        drop(rx);
+
+        listen_from_reader(Box::new(reader), tx).await.unwrap();
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn listen_from_reader_stops_on_read_error() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+        listen_from_reader(Box::new(FailingReader), tx).await.unwrap();
+
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn cli_channel_listen_reads_stdin_until_quit_command() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(4);
+        let reader =
+            tokio::io::BufReader::new(std::io::Cursor::new(b"  hello  \n/quit\nignored\n"));
+
+        listen_from_reader(Box::new(reader), tx).await.unwrap();
+
+        let msg = rx.recv().await.unwrap();
+
+        assert_eq!(msg.content, "hello");
+        assert!(rx.recv().await.is_none());
     }
 }

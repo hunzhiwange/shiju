@@ -1,12 +1,17 @@
 use std::collections::HashMap;
+use std::fs;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
 use crate::cli::flags::GlobalFlags;
 use crate::{
     AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode, ResolvedAcpxConfig,
-    SESSION_RECORD_SCHEMA, SessionAcpxState, SessionEventLog, SessionRecord, SessionTokenUsage,
+    SESSION_RECORD_SCHEMA, SessionAcpxState, SessionAgentContent, SessionAgentMessage,
+    SessionEventLog, SessionMessage, SessionRecord, SessionTokenUsage, SessionUserContent,
+    SessionUserMessage, write_session_record,
 };
 
 use super::*;
@@ -36,7 +41,7 @@ fn flags(format: OutputFormat) -> GlobalFlags {
 fn config() -> ResolvedAcpxConfig {
     ResolvedAcpxConfig {
         default_agent: "agent".to_string(),
-        default_permissions: PermissionMode::ApproveReads,
+        default_permissions: PermissionMode::ApproveAll,
         non_interactive_permissions: NonInteractivePermissionPolicy::Deny,
         auth_policy: AuthPolicy::Skip,
         ttl_ms: 30_000,
@@ -47,6 +52,7 @@ fn config() -> ResolvedAcpxConfig {
         auth: HashMap::new(),
         disable_exec: false,
         mcp_servers: Vec::new(),
+        mcp_server_management: Vec::new(),
         global_path: "/tmp/global.json".to_string(),
         project_path: "/tmp/project.json".to_string(),
         has_global_config: false,
@@ -54,10 +60,86 @@ fn config() -> ResolvedAcpxConfig {
     }
 }
 
-fn missing_session_flags(format: OutputFormat) -> GlobalFlags {
+struct TempDir {
+    path: PathBuf,
+}
+
+impl TempDir {
+    fn new(label: &str) -> Self {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock should be after unix epoch")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("vw-acp-status-command-{label}-{unique}"));
+        fs::create_dir_all(&path).expect("create temp dir");
+        Self { path }
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    fn join(&self, path: impl AsRef<Path>) -> PathBuf {
+        self.path.join(path)
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+struct HomeEnvGuard {
+    _lock: tokio::sync::MutexGuard<'static, ()>,
+    previous: Option<std::ffi::OsString>,
+}
+
+impl HomeEnvGuard {
+    async fn set(path: &Path) -> Self {
+        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
+        let previous = std::env::var_os("HOME");
+        unsafe { std::env::set_var("HOME", path) };
+        Self { _lock: lock, previous }
+    }
+}
+
+impl Drop for HomeEnvGuard {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("HOME", value) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+    }
+}
+
+async fn missing_session_fixture(format: OutputFormat) -> (HomeEnvGuard, TempDir, GlobalFlags) {
+    let home = TempDir::new("missing-home");
+    let home_env = HomeEnvGuard::set(home.path()).await;
+    let cwd = home.join("missing-cwd");
+    tokio::fs::create_dir_all(crate::session_event_log::session_base_dir(home.path()))
+        .await
+        .expect("create empty session dir");
+    tokio::fs::create_dir_all(&cwd).await.expect("create missing session cwd");
     let mut global_flags = flags(format);
-    global_flags.cwd = format!("/tmp/vw-acp-status-command-missing-{}", std::process::id());
-    global_flags
+    global_flags.cwd = cwd.to_string_lossy().into_owned();
+    (home_env, home, global_flags)
+}
+
+async fn active_session_fixture(
+    format: OutputFormat,
+    name: Option<&str>,
+) -> (HomeEnvGuard, TempDir, GlobalFlags, SessionRecord) {
+    let (home_env, home, global_flags) = missing_session_fixture(format).await;
+    let mut record = record();
+    record.vwacp_record_id = name.unwrap_or("cwd-record").to_string();
+    record.acp_session_id = format!("acp-{}", record.vwacp_record_id);
+    record.agent_session_id = Some(format!("agent-{}", record.vwacp_record_id));
+    record.cwd = global_flags.cwd.clone();
+    record.name = name.map(ToString::to_string);
+    record.event_log.active_path = home.join("active.jsonl").to_string_lossy().into_owned();
+    write_session_record(&record).await.expect("write session record");
+    (home_env, home, global_flags, record)
 }
 
 fn record() -> SessionRecord {
@@ -105,6 +187,7 @@ fn record() -> SessionRecord {
             available_models: Some(vec!["model-a".to_string(), "model-b".to_string()]),
             available_commands: None,
             config_options: None,
+            desired_config_options: None,
             session_options: None,
         }),
     }
@@ -142,6 +225,20 @@ fn build_status_payload_maps_running_and_dead_fields() {
     assert_eq!(dead.status, "dead");
     assert_eq!(dead.exit_code, Some(7));
     assert_eq!(dead.signal, Some("TERM".to_string()));
+}
+
+#[test]
+fn build_status_payload_omits_dead_exit_fields_when_absent() {
+    let mut record = record();
+    record.last_agent_exit_code = None;
+    record.last_agent_exit_signal = None;
+
+    let payload = build_status_payload(&record, false, Some(55));
+
+    assert_eq!(payload.status, "dead");
+    assert_eq!(payload.pid, Some(55));
+    assert!(payload.exit_code.is_none());
+    assert!(payload.signal.is_none());
 }
 
 #[test]
@@ -194,12 +291,28 @@ fn write_no_session_status_supports_quiet_text_and_json() {
 
     let mut text = Vec::new();
     write_no_session_status(&mut text, &flags(OutputFormat::Text), "agent").unwrap();
-    assert!(String::from_utf8(text).unwrap().contains("status: no-session"));
+    assert_eq!(
+        String::from_utf8(text).unwrap(),
+        [
+            "session: -",
+            "agent: agent",
+            "pid: -",
+            "status: no-session",
+            "model: -",
+            "mode: -",
+            "uptime: -",
+            "lastPromptTime: -",
+            "",
+        ]
+        .join("\n")
+    );
 
     let mut json = Vec::new();
     write_no_session_status(&mut json, &flags(OutputFormat::Json), "agent").unwrap();
     let value: Value = serde_json::from_slice(&json).unwrap();
+    assert_eq!(value["action"], "status_snapshot");
     assert_eq!(value["status"], "no-session");
+    assert_eq!(value["summary"], "no active session");
 }
 
 #[test]
@@ -230,7 +343,11 @@ fn write_status_payload_supports_quiet_text_and_json() {
     let mut json = Vec::new();
     write_status_payload(&mut json, &flags(OutputFormat::Json), &record, &payload, false).unwrap();
     let value: Value = serde_json::from_slice(&json).unwrap();
+    assert_eq!(value["action"], "status_snapshot");
     assert_eq!(value["status"], "dead");
+    assert_eq!(value["summary"], "queue owner unavailable");
+    assert_eq!(value["vwacpRecordId"], "record-1");
+    assert_eq!(value["vwacpSessionId"], "session-1");
     assert_eq!(value["agentSessionId"], "agent-session-1");
 }
 
@@ -251,6 +368,53 @@ fn write_status_payload_running_text_omits_dead_exit_fields() {
     assert!(text.contains("lastPromptTime: 2026-01-01T00:01:00Z"));
     assert!(!text.contains("exitCode:"));
     assert!(!text.contains("signal:"));
+}
+
+#[test]
+fn write_status_payload_dead_text_uses_placeholders_for_absent_fields() {
+    let mut record = record();
+    record.agent_session_id = None;
+    record.pid = None;
+    record.vwacp = None;
+    record.last_prompt_at = None;
+    record.last_agent_exit_code = None;
+    record.last_agent_exit_signal = None;
+    let payload = build_status_payload(&record, false, None);
+
+    let mut text = Vec::new();
+    write_status_payload(&mut text, &flags(OutputFormat::Text), &record, &payload, false).unwrap();
+    let text = String::from_utf8(text).unwrap();
+
+    assert!(!text.contains("agentSessionId:"));
+    assert!(text.contains("pid: -"));
+    assert!(text.contains("model: -"));
+    assert!(text.contains("mode: -"));
+    assert!(text.contains("uptime: -"));
+    assert!(text.contains("lastPromptTime: -"));
+    assert!(text.contains("exitCode: -"));
+    assert!(text.contains("signal: -"));
+}
+
+#[test]
+fn write_status_payload_json_includes_alive_snapshot_fields() {
+    let record = record();
+    let payload = build_status_payload(&record, true, Some(321));
+
+    let mut json = Vec::new();
+    write_status_payload(&mut json, &flags(OutputFormat::Json), &record, &payload, true).unwrap();
+    let value: Value = serde_json::from_slice(&json).unwrap();
+
+    assert_eq!(value["action"], "status_snapshot");
+    assert_eq!(value["status"], "alive");
+    assert_eq!(value["pid"], 321);
+    assert_eq!(value["summary"], "queue owner healthy");
+    assert_eq!(value["model"], "model-a");
+    assert_eq!(value["mode"], "focus");
+    assert_eq!(value["availableModels"], serde_json::json!(["model-a", "model-b"]));
+    assert_eq!(value["uptime"], "00:00:00");
+    assert_eq!(value["lastPromptTime"], "2026-01-01T00:01:00Z");
+    assert!(value.get("exitCode").is_none());
+    assert!(value.get("signal").is_none());
 }
 
 #[test]
@@ -287,17 +451,53 @@ fn write_status_payload_propagates_writer_errors() {
     assert!(matches!(error, StatusCommandError::Io(_)));
 }
 
+#[test]
+fn write_status_payload_propagates_json_writer_errors() {
+    let record = record();
+    let payload = build_status_payload(&record, true, Some(123));
+    let mut writer = FailingWriter;
+
+    let error =
+        write_status_payload(&mut writer, &flags(OutputFormat::Json), &record, &payload, true)
+            .expect_err("JSON writer error should bubble up");
+
+    assert!(matches!(error, StatusCommandError::Io(_)));
+}
+
 #[tokio::test]
 async fn handle_status_writes_no_session_for_missing_record() {
     let status_flags = StatusFlags { session: Some("missing-status".to_string()) };
-    let global_flags = missing_session_flags(OutputFormat::Quiet);
+    let (_home_env, _home, global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
 
     handle_status(None, &status_flags, &global_flags, &config()).await.unwrap();
 }
 
 #[tokio::test]
+async fn handle_status_writes_dead_status_for_existing_unhealthy_record() {
+    let (_home_env, _home, global_flags, _record) =
+        active_session_fixture(OutputFormat::Quiet, None).await;
+    let status_flags = StatusFlags { session: None };
+
+    handle_status(None, &status_flags, &global_flags, &config()).await.unwrap();
+}
+
+#[tokio::test]
+async fn handle_status_reports_duplicate_agent_selection_before_lookup() {
+    let status_flags = StatusFlags { session: None };
+    let (_home_env, _home, mut global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
+    global_flags.agent = Some("override-agent".to_string());
+
+    let error = handle_status(Some("agent"), &status_flags, &global_flags, &config())
+        .await
+        .expect_err("duplicate agent selection should fail");
+
+    assert!(matches!(error, StatusCommandError::Flags(_)));
+    assert_eq!(error.to_string(), "Do not combine positional agent with --agent override");
+}
+
+#[tokio::test]
 async fn handle_sessions_show_reports_missing_named_session() {
-    let global_flags = missing_session_flags(OutputFormat::Quiet);
+    let (_home_env, _home, global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
     let error = handle_sessions_show(None, Some("missing-show"), &global_flags, &config())
         .await
         .expect_err("missing session should error");
@@ -309,8 +509,29 @@ async fn handle_sessions_show_reports_missing_named_session() {
 }
 
 #[tokio::test]
+async fn handle_sessions_show_reports_missing_cwd_session() {
+    let (_home_env, _home, global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
+    let error = handle_sessions_show(None, None, &global_flags, &config())
+        .await
+        .expect_err("missing session should error");
+
+    assert_eq!(
+        error.to_string(),
+        format!("No cwd session for {} and agent agent", global_flags.cwd)
+    );
+}
+
+#[tokio::test]
+async fn handle_sessions_show_prints_existing_named_session() {
+    let (_home_env, _home, global_flags, _record) =
+        active_session_fixture(OutputFormat::Quiet, Some("named-show")).await;
+
+    handle_sessions_show(None, Some("named-show"), &global_flags, &config()).await.unwrap();
+}
+
+#[tokio::test]
 async fn handle_sessions_history_reports_missing_cwd_session() {
-    let global_flags = missing_session_flags(OutputFormat::Quiet);
+    let (_home_env, _home, global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
     let error = handle_sessions_history(None, None, 3, &global_flags, &config())
         .await
         .expect_err("missing session should error");
@@ -319,4 +540,42 @@ async fn handle_sessions_history_reports_missing_cwd_session() {
         error.to_string(),
         format!("No cwd session for {} and agent agent", global_flags.cwd)
     );
+}
+
+#[tokio::test]
+async fn handle_sessions_history_reports_missing_named_session() {
+    let (_home_env, _home, global_flags) = missing_session_fixture(OutputFormat::Quiet).await;
+    let error = handle_sessions_history(None, Some("missing-history"), 3, &global_flags, &config())
+        .await
+        .expect_err("missing session should error");
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "No named session \"missing-history\" for cwd {} and agent agent",
+            global_flags.cwd
+        )
+    );
+}
+
+#[tokio::test]
+async fn handle_sessions_history_prints_existing_named_session_history() {
+    let (_home_env, _home, global_flags, mut record) =
+        active_session_fixture(OutputFormat::Quiet, Some("named-history")).await;
+    record.messages = vec![
+        SessionMessage::User(SessionUserMessage {
+            id: "user-1".to_string(),
+            content: vec![SessionUserContent::Text("first prompt".to_string())],
+        }),
+        SessionMessage::Agent(SessionAgentMessage {
+            content: vec![SessionAgentContent::Text("first answer".to_string())],
+            tool_results: HashMap::new(),
+            reasoning_details: None,
+        }),
+    ];
+    write_session_record(&record).await.expect("update session record");
+
+    handle_sessions_history(None, Some("named-history"), 1, &global_flags, &config())
+        .await
+        .unwrap();
 }

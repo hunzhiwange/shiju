@@ -113,7 +113,7 @@ impl MatrixChannel {
 
                 let mut client_builder = MatrixSdkClient::builder().homeserver_url(&self.homeserver);
 
-                if let Some(store_dir) = self.matrix_store_dir() {
+                if let Some(store_dir) = self.matrix_store_dir_for_user_id(&resolved_user_id) {
                     tokio::fs::create_dir_all(&store_dir).await.map_err(|error| {
                         anyhow::anyhow!(
                             "Matrix failed to initialize persistent store directory at '{}': {error}",

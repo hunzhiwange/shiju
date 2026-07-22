@@ -4,6 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::*;
+use iced::widget::text_editor;
 
 #[test]
 fn prioritize_chat_ui_chunk_starts_keeps_base_first_on_initial_plan() {
@@ -30,6 +31,44 @@ fn prioritize_chat_ui_chunk_starts_prefers_backward_chunks_when_scrolling_up() {
 
     assert_eq!(anchor_chunk_start, Some(32));
     assert_eq!(chunk_starts, vec![32, 64, 0, 96]);
+}
+
+#[test]
+fn chunk_scheduler_retains_anchor_and_expanded_text() {
+    let (mut app, _task) = App::new();
+    app.active_session_id = Some("active".to_string());
+    app.chat = (0..260)
+        .map(|idx| ChatMessage {
+            role: if idx == 259 { ChatRole::Assistant } else { ChatRole::User },
+            content: format!("message {idx}"),
+            think_timing: Vec::new(),
+        })
+        .collect();
+    app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.scroll_to_item_anchor(170, 0.0, 0.0);
+    app.current_session_runtime_mut().is_requesting = true;
+
+    let anchor_key = (170_u64) << 32;
+    let expanded_key = (210_u64) << 32;
+    let think_key = (211_u64) << 32;
+    let tail_key = (259_u64) << 32;
+    let evicted_key = (96_u64) << 32;
+    app.chat_message_expanded.insert(210);
+    app.chat_think_expanded.insert(think_key);
+    app.chat_special_text_editors.insert(anchor_key, text_editor::Content::with_text("anchor"));
+    app.chat_special_text_editors.insert(expanded_key, text_editor::Content::with_text("expanded"));
+    app.chat_think_editors.insert(think_key, text_editor::Content::with_text("think"));
+    app.chat_special_text_editors.insert(tail_key, text_editor::Content::with_text("tail"));
+    app.chat_special_text_editors.insert(evicted_key, text_editor::Content::with_text("evicted"));
+
+    app.prune_chat_heavy_editor_caches(64, 96);
+
+    assert!(app.chat_special_text_editors.contains_key(&anchor_key));
+    assert!(app.chat_special_text_editors.contains_key(&expanded_key));
+    assert!(app.chat_think_editors.contains_key(&think_key));
+    assert!(app.chat_special_text_editors.contains_key(&tail_key));
+    assert!(!app.chat_special_text_editors.contains_key(&evicted_key));
 }
 
 #[test]

@@ -1,12 +1,50 @@
 use super::*;
-use axum::extract::{Path, Query};
+use axum::body::Body;
+use axum::extract::{Extension, Path, Query};
+use axum::http::{Request, StatusCode};
 use std::path::Path as FsPath;
 use tempfile::TempDir;
+use tower::ServiceExt;
 use uuid::Uuid;
 
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
+}
+
+#[tokio::test]
+async fn project_routes_require_explicit_tenant_scope() {
+    let app = router::<()>()
+        .layer(axum::middleware::from_fn(
+            crate::app::agent::gateway::middleware::tenant_scope_middleware,
+        ))
+        .with_state(());
+    let old = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/projects/platforms/platform-a/companies/company-a")
+                .header(vw_api_types::id::PLATFORM_ID_HEADER, "platform-a")
+                .header(vw_api_types::id::COMPANY_ID_HEADER, "company-a")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(old.status(), StatusCode::NOT_FOUND);
+
+    let current = app
+        .oneshot(
+            Request::builder()
+                .uri("/projects")
+                .header(vw_api_types::id::PLATFORM_ID_HEADER, "platform-a")
+                .header(vw_api_types::id::COMPANY_ID_HEADER, "company-a")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("response");
+    assert_ne!(current.status(), StatusCode::NOT_FOUND);
 }
 
 #[test]
@@ -15,6 +53,13 @@ fn normalize_path_removes_current_directory_prefix() {
     assert_eq!(normalize_path("/crates/vw-agent"), "crates/vw-agent");
     assert_eq!(normalize_path(r"\crates\vw-agent\"), "crates/vw-agent");
     assert_eq!(normalize_path("crates/vw-agent/"), "crates/vw-agent");
+}
+
+#[test]
+fn normalize_path_handles_empty_root_and_repeated_edge_separators() {
+    assert_eq!(normalize_path(""), "");
+    assert_eq!(normalize_path("/"), "");
+    assert_eq!(normalize_path("///crates/vw-agent///"), "crates/vw-agent");
 }
 
 #[test]
@@ -59,6 +104,29 @@ fn project_info(id: &str, worktree: String, sandboxes: Vec<String>) -> project::
     }
 }
 
+fn store_project(info: &project::Info) {
+    project::store_local_test_project(info).expect("project should write");
+}
+
+fn remove_project(project_id: &str) {
+    project::remove_local_test_project(project_id).expect("project should clean up");
+}
+
+fn default_tenant_scope() -> Extension<TenantScope> {
+    Extension(project::default_tenant_scope())
+}
+
+fn local_project_path(project_id: impl Into<String>) -> Path<String> {
+    Path(project_id.into())
+}
+
+fn local_worktree_path(
+    project_id: impl Into<String>,
+    worktree_id: impl Into<String>,
+) -> Path<(String, String)> {
+    Path((project_id.into(), worktree_id.into()))
+}
+
 #[test]
 fn project_context_directory_prefers_worktree_then_sandbox() {
     let with_worktree =
@@ -76,6 +144,28 @@ fn project_context_directory_prefers_worktree_then_sandbox() {
     let error = project_context_directory(&missing).expect_err("missing directory should fail");
     assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(error.message, "project directory missing");
+}
+
+#[test]
+fn project_scope_rejects_blank_project_id() {
+    let error = project_scope(project::default_tenant_scope(), " \t ".to_string())
+        .expect_err("blank project id should fail");
+
+    assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(error.message.contains("project id"));
+}
+
+#[test]
+fn project_owns_directory_normalizes_worktree_and_sandbox_paths() {
+    let info = project_info(
+        "project-owned-paths",
+        r"C:\repo\main\".to_string(),
+        vec!["/repo/sandbox/".to_string()],
+    );
+
+    assert!(project_owns_directory(&info, "C:/repo/main"));
+    assert!(project_owns_directory(&info, "./repo/sandbox"));
+    assert!(!project_owns_directory(&info, "/repo/unrelated"));
 }
 
 #[test]
@@ -112,6 +202,31 @@ fn map_project_uses_explicit_non_blank_name() {
 }
 
 #[test]
+fn map_project_ignores_blank_explicit_name() {
+    let temp = TempDir::new().expect("tempdir");
+    let directory = temp.path().join("fallback-name");
+    std::fs::create_dir_all(&directory).expect("project dir");
+    let mut info =
+        project_info("project-blank-name", directory.to_string_lossy().to_string(), Vec::new());
+    info.name = Some(" \t ".to_string());
+
+    let dto = map_project(&info);
+
+    assert_eq!(dto.name, "fallback-name");
+}
+
+#[test]
+fn map_project_falls_back_to_directory_when_no_name_component_exists() {
+    let info = project_info("project-empty-directory", String::new(), Vec::new());
+
+    let dto = map_project(&info);
+
+    assert_eq!(dto.name, "");
+    assert_eq!(dto.directory, "");
+    assert_eq!(dto.display_path, "");
+}
+
+#[test]
 fn map_worktree_derives_name_id_and_timestamps() {
     let temp = TempDir::new().expect("tempdir");
     let directory = temp.path().join("feature-tree");
@@ -136,6 +251,24 @@ fn git_stdout_and_change_records_are_empty_for_non_repo() {
         git_stdout(&temp.path().to_string_lossy(), &["rev-parse", "--abbrev-ref", "HEAD"])
             .is_none()
     );
+    assert!(collect_project_change_records(&temp.path().to_string_lossy()).is_empty());
+}
+
+#[test]
+fn git_stdout_returns_none_for_successful_empty_stdout() {
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "demo\n");
+    commit_all(&repo, "initial");
+
+    assert!(git_stdout(&temp.path().to_string_lossy(), &["status", "--porcelain"]).is_none());
+}
+
+#[test]
+fn collect_project_change_records_empty_for_unborn_git_repo() {
+    let temp = TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("repo init");
+
     assert!(collect_project_change_records(&temp.path().to_string_lossy()).is_empty());
 }
 
@@ -184,6 +317,51 @@ fn collect_project_change_records_groups_modified_files() {
     );
 }
 
+#[test]
+fn collect_project_change_records_includes_nested_untracked_files() {
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "clean\n");
+    commit_all(&repo, "initial");
+
+    write_file(&temp.path().join("src/generated/new_file.rs"), "pub fn created() {}\n");
+
+    let items = collect_project_change_records(&temp.path().to_string_lossy());
+    let item = items
+        .iter()
+        .find(|item| item.path == "src/generated/new_file.rs")
+        .expect("nested untracked file should be reported");
+
+    assert!(item.patch.contains("pub fn created() {}"));
+}
+
+#[test]
+fn map_project_reports_git_branch_and_dirty_state() {
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "clean\n");
+    commit_all(&repo, "initial");
+    write_file(&temp.path().join("README.md"), "dirty\n");
+    let mut info = project_info("project-git", temp.path().to_string_lossy().to_string(), vec![]);
+    info.vcs = Some(project::Vcs::Git);
+
+    let dto = map_project(&info);
+
+    assert!(dto.git.is_repo);
+    assert!(dto.git.has_uncommitted_changes);
+    assert!(dto.current_branch.is_some());
+}
+
+#[test]
+fn map_worktree_uses_default_name_for_blank_directory() {
+    let info = project_info("project-worktree-default", String::new(), vec![]);
+
+    let dto = map_worktree("project-worktree-default", &info, String::new());
+
+    assert_eq!(dto.name, "worktree");
+    assert_eq!(dto.branch, "");
+}
+
 #[tokio::test]
 async fn load_project_filters_missing_sandboxes_and_maps_missing_project() {
     let temp = TempDir::new().expect("tempdir");
@@ -195,13 +373,14 @@ async fn load_project_filters_missing_sandboxes_and_maps_missing_project() {
         existing.to_string_lossy().to_string(),
         vec![existing.to_string_lossy().to_string(), "/definitely/missing".to_string()],
     );
-    storage::write(&["project", &id], &info).await.expect("project write");
+    store_project(&info);
 
-    let loaded = load_project(&id).await.expect("project should load");
+    let scope = project::project_scope_for_default_tenant(id.clone()).expect("scope");
+    let loaded = load_project(&scope).await.expect("project should load");
     assert_eq!(loaded.sandboxes, vec![existing.to_string_lossy().to_string()]);
 
-    storage::remove(&["project", &id]).await.expect("cleanup");
-    let missing = load_project(&id).await.expect_err("missing project should map to not found");
+    remove_project(&id);
+    let missing = load_project(&scope).await.expect_err("missing project should map to not found");
     assert_eq!(missing.status, axum::http::StatusCode::NOT_FOUND);
 }
 
@@ -210,13 +389,16 @@ async fn project_get_and_update_round_trip_storage() {
     let temp = TempDir::new().expect("tempdir");
     let id = format!("handler-project-update-{}", Uuid::new_v4());
     let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
-    storage::write(&["project", &id], &info).await.expect("project write");
+    store_project(&info);
 
-    let Json(response) = project_get_v1(Path(id.clone())).await.expect("project should get");
+    let Json(response) = project_get_v1(default_tenant_scope(), local_project_path(id.clone()))
+        .await
+        .expect("project should get");
     assert_eq!(response.project.id.0, id);
 
     let Json(response) = project_update_v1(
-        Path(id.clone()),
+        default_tenant_scope(),
+        local_project_path(id.clone()),
         Json(UpdateProjectRequest {
             name: Some("Updated".to_string()),
             active_worktree_id: None,
@@ -233,7 +415,70 @@ async fn project_get_and_update_round_trip_storage() {
     .expect("project should update");
 
     assert_eq!(response.project.name, "Updated");
-    storage::remove(&["project", &id]).await.expect("cleanup");
+    remove_project(&id);
+}
+
+#[tokio::test]
+async fn project_get_missing_project_returns_not_found() {
+    let error = project_get_v1(
+        default_tenant_scope(),
+        local_project_path(format!("handler-project-get-missing-{}", Uuid::new_v4())),
+    )
+    .await
+    .expect_err("missing project should fail");
+
+    assert_eq!(error.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(error.message, "project not found");
+}
+
+#[tokio::test]
+async fn project_routes_do_not_cross_tenant_for_same_project_id() {
+    let temp = TempDir::new().expect("tempdir");
+    let first_dir = temp.path().join("first");
+    let second_dir = temp.path().join("second");
+    std::fs::create_dir_all(&first_dir).expect("first dir");
+    std::fs::create_dir_all(&second_dir).expect("second dir");
+    let project_id = format!("shared-project-{}", Uuid::new_v4());
+    let first_tenant = TenantScope::new("platform-a", "company-a").expect("first tenant");
+    let second_tenant = TenantScope::new("platform-b", "company-b").expect("second tenant");
+    let first = project_info(&project_id, first_dir.to_string_lossy().into_owned(), Vec::new());
+    let second = project_info(&project_id, second_dir.to_string_lossy().into_owned(), Vec::new());
+    let store = project::runtime_store().expect("project store");
+    store.create(&first_tenant, &first).expect("first project");
+    store.create(&second_tenant, &second).expect("second project");
+
+    let Json(first_response) =
+        project_get_v1(Extension(first_tenant.clone()), Path(project_id.clone()))
+            .await
+            .expect("first response");
+    let Json(second_response) =
+        project_get_v1(Extension(second_tenant.clone()), Path(project_id.clone()))
+            .await
+            .expect("second response");
+
+    assert_eq!(first_response.project.directory, first_dir.to_string_lossy());
+    assert_eq!(second_response.project.directory, second_dir.to_string_lossy());
+    store
+        .delete(
+            &ProjectScope::new(first_tenant, ProjectId::from(project_id.as_str())).expect("scope"),
+        )
+        .expect("delete first");
+    store
+        .delete(&ProjectScope::new(second_tenant, ProjectId::from(project_id)).expect("scope"))
+        .expect("delete second");
+}
+
+#[tokio::test]
+async fn project_update_missing_project_returns_bad_request() {
+    let err = project_update_v1(
+        default_tenant_scope(),
+        local_project_path(format!("handler-project-missing-{}", Uuid::new_v4())),
+        Json(UpdateProjectRequest::default()),
+    )
+    .await
+    .expect_err("missing project should fail");
+
+    assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -252,65 +497,254 @@ async fn project_list_filters_sorts_limits_and_cursors() {
     let mut beta = project_info(&beta_id, beta_dir.to_string_lossy().to_string(), Vec::new());
     beta.name = Some(format!("Beta {token}"));
     beta.time.updated = 200;
-    storage::write(&["project", &alpha_id], &alpha).await.expect("alpha write");
-    storage::write(&["project", &beta_id], &beta).await.expect("beta write");
+    store_project(&alpha);
+    store_project(&beta);
 
-    let Json(page) = project_list_v1(Query(ListProjectsRequest {
-        cursor: None,
-        limit: Some(1),
-        query: Some(token.clone()),
-        status: Some(ProjectStatus::Ready),
-    }))
+    let Json(page) = project_list_v1(
+        default_tenant_scope(),
+        Query(ListProjectsRequest {
+            cursor: None,
+            limit: Some(1),
+            query: Some(token.clone()),
+            status: Some(ProjectStatus::Ready),
+        }),
+    )
     .await
     .expect("projects should list");
     assert_eq!(page.items.len(), 1);
     assert_eq!(page.items[0].id.0, beta_id);
     assert_eq!(page.next_cursor.as_deref(), Some(beta_id.as_str()));
 
-    let Json(next_page) = project_list_v1(Query(ListProjectsRequest {
-        cursor: page.next_cursor,
-        limit: Some(50),
-        query: Some(token),
-        status: Some(ProjectStatus::Ready),
-    }))
+    let Json(next_page) = project_list_v1(
+        default_tenant_scope(),
+        Query(ListProjectsRequest {
+            cursor: page.next_cursor,
+            limit: Some(50),
+            query: Some(token),
+            status: Some(ProjectStatus::Ready),
+        }),
+    )
     .await
     .expect("next projects should list");
     assert!(next_page.items.iter().any(|item| item.id.0 == alpha_id));
 
-    storage::remove(&["project", &alpha_id]).await.expect("alpha cleanup");
-    storage::remove(&["project", &beta_id]).await.expect("beta cleanup");
+    remove_project(&alpha_id);
+    remove_project(&beta_id);
+}
+
+#[tokio::test]
+async fn project_list_handles_missing_cursor_blank_query_and_status_miss() {
+    let temp = TempDir::new().expect("tempdir");
+    let id = format!("handler-list-miss-{}", Uuid::new_v4());
+    let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+
+    let Json(page) = project_list_v1(
+        default_tenant_scope(),
+        Query(ListProjectsRequest {
+            cursor: Some("missing-cursor".to_string()),
+            limit: Some(0),
+            query: Some("   ".to_string()),
+            status: Some(ProjectStatus::Indexing),
+        }),
+    )
+    .await
+    .expect("projects should list");
+
+    assert!(page.items.is_empty());
+    assert_eq!(page.next_cursor, None);
+    remove_project(&id);
+}
+
+#[tokio::test]
+async fn project_list_uses_name_directory_and_id_tie_breakers() {
+    let temp = TempDir::new().expect("tempdir");
+    let token = Uuid::new_v4().to_string();
+    let directory_a = temp.path().join("a");
+    let directory_b = temp.path().join("b");
+    std::fs::create_dir_all(&directory_a).expect("directory a");
+    std::fs::create_dir_all(&directory_b).expect("directory b");
+
+    let alpha_id = format!("tie-alpha-{token}");
+    let same_a_first_id = format!("tie-a-first-{token}");
+    let same_a_second_id = format!("tie-a-second-{token}");
+    let same_b_id = format!("tie-b-{token}");
+    let fixtures = [
+        (&alpha_id, format!("Alpha {token}"), &directory_b),
+        (&same_a_first_id, format!("Same {token}"), &directory_a),
+        (&same_a_second_id, format!("Same {token}"), &directory_a),
+        (&same_b_id, format!("Same {token}"), &directory_b),
+    ];
+    for (id, name, directory) in &fixtures {
+        let mut info = project_info(id, directory.to_string_lossy().to_string(), Vec::new());
+        info.name = Some(name.clone());
+        info.time.updated = 100;
+        store_project(&info);
+    }
+
+    let Json(page) = project_list_v1(
+        default_tenant_scope(),
+        Query(ListProjectsRequest {
+            cursor: None,
+            limit: Some(20),
+            query: Some(token),
+            status: None,
+        }),
+    )
+    .await
+    .expect("projects should list");
+
+    let ids = page.items.into_iter().map(|item| item.id.0).collect::<Vec<_>>();
+    assert_eq!(
+        ids,
+        vec![
+            alpha_id.clone(),
+            same_a_first_id.clone(),
+            same_a_second_id.clone(),
+            same_b_id.clone(),
+        ]
+    );
+
+    for (id, _, _) in fixtures {
+        remove_project(id);
+    }
+}
+
+#[tokio::test]
+async fn project_list_searches_directory_case_insensitively() {
+    let temp = TempDir::new().expect("tempdir");
+    let token = Uuid::new_v4().to_string();
+    let directory = temp.path().join(format!("DirectoryNeedle-{token}"));
+    std::fs::create_dir_all(&directory).expect("project dir");
+    let id = format!("handler-directory-search-{token}");
+    let mut info = project_info(&id, directory.to_string_lossy().to_string(), Vec::new());
+    info.name = Some("Neutral Project".to_string());
+    store_project(&info);
+
+    let Json(page) = project_list_v1(
+        default_tenant_scope(),
+        Query(ListProjectsRequest {
+            cursor: None,
+            limit: None,
+            query: Some(format!("DIRECTORYNEEDLE-{token}")),
+            status: None,
+        }),
+    )
+    .await
+    .expect("projects should list");
+
+    assert_eq!(page.items.len(), 1);
+    assert_eq!(page.items[0].id.0, id);
+    remove_project(&id);
 }
 
 #[tokio::test]
 async fn project_change_records_requires_directory() {
-    let err = project_change_records_v1(Query(ListProjectChangeRecordsRequest { directory: None }))
-        .await
-        .expect_err("directory is required");
+    let err = project_change_records_v1(
+        default_tenant_scope(),
+        local_project_path("missing"),
+        Query(ListProjectChangeRecordsRequest { directory: None }),
+    )
+    .await
+    .expect_err("directory is required");
 
     assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(err.message, "directory is required");
 }
 
 #[tokio::test]
+async fn project_change_records_rejects_blank_and_unowned_directory() {
+    let blank = project_change_records_v1(
+        default_tenant_scope(),
+        local_project_path("missing"),
+        Query(ListProjectChangeRecordsRequest { directory: Some(" \t ".to_string()) }),
+    )
+    .await
+    .expect_err("blank directory should fail");
+    assert_eq!(blank.status, axum::http::StatusCode::BAD_REQUEST);
+    assert_eq!(blank.message, "directory is required");
+
+    let temp = TempDir::new().expect("tempdir");
+    let owned = temp.path().join("owned");
+    let unrelated = temp.path().join("unrelated");
+    std::fs::create_dir_all(&owned).expect("owned dir");
+    std::fs::create_dir_all(&unrelated).expect("unrelated dir");
+    let id = format!("handler-project-unowned-changes-{}", Uuid::new_v4());
+    let info = project_info(&id, owned.to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+
+    let unowned = project_change_records_v1(
+        default_tenant_scope(),
+        local_project_path(id.clone()),
+        Query(ListProjectChangeRecordsRequest {
+            directory: Some(unrelated.to_string_lossy().to_string()),
+        }),
+    )
+    .await
+    .expect_err("unowned directory should fail");
+
+    assert_eq!(unowned.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(unowned.message, "project directory not found");
+    remove_project(&id);
+}
+
+#[tokio::test]
 async fn project_resolve_and_change_records_handle_plain_directory() {
     let temp = TempDir::new().expect("tempdir");
 
-    let Json(resolved) = project_resolve_v1(Json(ResolveProjectRequest {
-        directory: temp.path().to_string_lossy().to_string(),
-        create_if_missing: true,
-    }))
+    let Json(resolved) = project_resolve_v1(
+        default_tenant_scope(),
+        Json(ResolveProjectRequest {
+            directory: temp.path().to_string_lossy().to_string(),
+            create_if_missing: true,
+        }),
+    )
     .await
     .expect("plain directory should resolve");
     assert_eq!(resolved.project.directory, temp.path().to_string_lossy());
 
-    let Json(changes) = project_change_records_v1(Query(ListProjectChangeRecordsRequest {
-        directory: Some(temp.path().to_string_lossy().to_string()),
-    }))
+    let Json(changes) = project_change_records_v1(
+        default_tenant_scope(),
+        local_project_path(resolved.project.id.0.clone()),
+        Query(ListProjectChangeRecordsRequest {
+            directory: Some(temp.path().to_string_lossy().to_string()),
+        }),
+    )
     .await
     .expect("plain directory changes should list");
     assert!(changes.items.is_empty());
 
-    storage::remove(&["project", &resolved.project.id.0]).await.expect("cleanup");
+    remove_project(&resolved.project.id.0);
+}
+
+#[tokio::test]
+async fn project_change_records_uses_stored_sandbox_match() {
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "clean\n");
+    commit_all(&repo, "initial");
+    write_file(&temp.path().join("README.md"), "dirty\n");
+    let id = format!("handler-project-changes-{}", Uuid::new_v4());
+    let mut info = project_info(
+        &id,
+        temp.path().join("primary").to_string_lossy().to_string(),
+        vec![temp.path().to_string_lossy().to_string()],
+    );
+    info.vcs = Some(project::Vcs::Git);
+    store_project(&info);
+
+    let Json(response) = project_change_records_v1(
+        default_tenant_scope(),
+        local_project_path(id.clone()),
+        Query(ListProjectChangeRecordsRequest {
+            directory: Some(format!("{}/", temp.path().to_string_lossy())),
+        }),
+    )
+    .await
+    .expect("project changes should list");
+
+    assert!(response.items.iter().any(|item| item.path == "README.md"));
+    remove_project(&id);
 }
 
 #[tokio::test]
@@ -318,23 +752,53 @@ async fn project_worktrees_return_empty_for_non_git_project() {
     let temp = TempDir::new().expect("tempdir");
     let id = format!("handler-project-worktrees-{}", Uuid::new_v4());
     let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
-    storage::write(&["project", &id], &info).await.expect("project write");
+    store_project(&info);
 
     let Json(response) =
-        project_worktrees_v1(Path(id.clone())).await.expect("worktrees should list");
+        project_worktrees_v1(default_tenant_scope(), local_project_path(id.clone()))
+            .await
+            .expect("worktrees should list");
 
     assert!(response.items.is_empty());
-    storage::remove(&["project", &id]).await.expect("cleanup");
+    remove_project(&id);
 }
 
 #[tokio::test]
-async fn project_worktree_create_rejects_project_without_directory() {
+async fn project_worktrees_list_git_project_primary_worktree() {
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "demo\n");
+    commit_all(&repo, "initial");
+    let tenant = project::default_tenant_scope();
+    let (info, _) = project::from_directory(&tenant, temp.path()).await.expect("project discover");
+
+    let Json(response) =
+        project_worktrees_v1(default_tenant_scope(), local_project_path(info.id.clone()))
+            .await
+            .expect("worktrees should list");
+    let expected_directory =
+        std::fs::canonicalize(temp.path()).expect("canonical temp").to_string_lossy().to_string();
+
+    assert!(response.items.iter().any(|item| {
+        let directory = std::fs::canonicalize(&item.directory)
+            .expect("canonical worktree")
+            .to_string_lossy()
+            .to_string();
+        directory == expected_directory && item.project_id.0 == info.id
+    }));
+    remove_project(&info.id);
+}
+
+#[tokio::test]
+async fn project_store_rejects_project_without_directory() {
     let id = format!("handler-project-worktree-create-{}", Uuid::new_v4());
-    let info = project_info(&id, String::new(), vec![String::new()]);
-    storage::write(&["project", &id], &info).await.expect("project write");
+    let missing = std::env::temp_dir().join(format!("missing-project-{}", Uuid::new_v4()));
+    let info = project_info(&id, missing.to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
 
     let err = project_worktree_create_v1(
-        Path(id.clone()),
+        default_tenant_scope(),
+        local_project_path(id.clone()),
         Json(CreateWorktreeRequest {
             name: "feature".to_string(),
             branch: "feature".to_string(),
@@ -346,12 +810,39 @@ async fn project_worktree_create_rejects_project_without_directory() {
     .expect_err("missing project directory should fail");
 
     assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
-    storage::remove(&["project", &id]).await.expect("cleanup");
+    remove_project(&id);
+}
+
+#[tokio::test]
+async fn project_worktree_create_rejects_non_git_project() {
+    let temp = TempDir::new().expect("tempdir");
+    let id = format!("handler-project-worktree-non-git-{}", Uuid::new_v4());
+    let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+
+    let err = project_worktree_create_v1(
+        default_tenant_scope(),
+        local_project_path(id.clone()),
+        Json(CreateWorktreeRequest {
+            name: "feature".to_string(),
+            branch: "feature".to_string(),
+            from_ref: None,
+            checkout: false,
+        }),
+    )
+    .await
+    .expect_err("non git project should fail");
+
+    assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
+    let tenant = project::default_tenant_scope();
+    let (local, _) = project::from_directory(&tenant, temp.path()).await.expect("local project");
+    remove_project(&id);
+    remove_project(&local.id);
 }
 
 #[tokio::test]
 async fn worktree_get_rejects_invalid_id_before_project_lookup() {
-    let err = worktree_get_v1(Path("invalid!".to_string()))
+    let err = worktree_get_v1(default_tenant_scope(), local_worktree_path("missing", "invalid!"))
         .await
         .expect_err("invalid worktree id should fail");
 
@@ -359,9 +850,79 @@ async fn worktree_get_rejects_invalid_id_before_project_lookup() {
 }
 
 #[tokio::test]
+async fn worktree_get_maps_stored_project_directory() {
+    let temp = TempDir::new().expect("tempdir");
+    let id = format!("handler-worktree-get-{}", Uuid::new_v4());
+    let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+
+    let Json(response) = worktree_get_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), worktree_id_from_directory(&temp.path().to_string_lossy())),
+    )
+    .await
+    .expect("worktree should get");
+
+    assert_eq!(response.worktree.project_id.0, id);
+    assert_eq!(
+        normalize_path(&response.worktree.directory),
+        normalize_path(&temp.path().to_string_lossy())
+    );
+    remove_project(&id);
+}
+
+#[tokio::test]
+async fn worktree_handlers_reject_directory_outside_project() {
+    let temp = TempDir::new().expect("tempdir");
+    let owned = temp.path().join("owned");
+    let unrelated = temp.path().join("unrelated");
+    std::fs::create_dir_all(&owned).expect("owned dir");
+    std::fs::create_dir_all(&unrelated).expect("unrelated dir");
+    let id = format!("handler-worktree-unowned-{}", Uuid::new_v4());
+    let info = project_info(&id, owned.to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+    let unrelated_id = worktree_id_from_directory(&unrelated.to_string_lossy());
+
+    let get_error = worktree_get_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), unrelated_id.clone()),
+    )
+    .await
+    .expect_err("unowned worktree should not be returned");
+    assert_eq!(get_error.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(get_error.message, "worktree not found");
+
+    let delete_error = worktree_delete_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), unrelated_id.clone()),
+        Json(DeleteWorktreeRequest { force: false }),
+    )
+    .await
+    .expect_err("unowned worktree should not be deleted");
+    assert_eq!(delete_error.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(delete_error.message, "worktree not found");
+
+    let reset_error = worktree_reset_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), unrelated_id),
+        Json(ResetWorktreeRequest {
+            mode: ResetMode::Mixed,
+            target_ref: Some("HEAD~1".to_string()),
+        }),
+    )
+    .await
+    .expect_err("unowned worktree should not be reset");
+    assert_eq!(reset_error.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(reset_error.message, "worktree not found");
+
+    remove_project(&id);
+}
+
+#[tokio::test]
 async fn worktree_delete_and_reset_reject_invalid_ids_before_project_lookup() {
     let delete_err = worktree_delete_v1(
-        Path("invalid!".to_string()),
+        default_tenant_scope(),
+        local_worktree_path("missing", "invalid!"),
         Json(DeleteWorktreeRequest { force: true }),
     )
     .await
@@ -369,10 +930,43 @@ async fn worktree_delete_and_reset_reject_invalid_ids_before_project_lookup() {
     assert_eq!(delete_err.status, axum::http::StatusCode::NOT_FOUND);
 
     let reset_err = worktree_reset_v1(
-        Path("invalid!".to_string()),
+        default_tenant_scope(),
+        local_worktree_path("missing", "invalid!"),
         Json(ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: Some("HEAD".to_string()) }),
     )
     .await
     .expect_err("invalid reset id should fail");
     assert_eq!(reset_err.status, axum::http::StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn worktree_delete_and_reset_reject_non_git_project_after_lookup() {
+    let temp = TempDir::new().expect("tempdir");
+    let id = format!("handler-worktree-non-git-{}", Uuid::new_v4());
+    let info = project_info(&id, temp.path().to_string_lossy().to_string(), Vec::new());
+    store_project(&info);
+    let worktree_id = worktree_id_from_directory(&temp.path().to_string_lossy());
+
+    let delete_err = worktree_delete_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), worktree_id.clone()),
+        Json(DeleteWorktreeRequest { force: true }),
+    )
+    .await
+    .expect_err("non git delete should fail");
+    assert_eq!(delete_err.status, axum::http::StatusCode::BAD_REQUEST);
+
+    let reset_err = worktree_reset_v1(
+        default_tenant_scope(),
+        local_worktree_path(id.clone(), worktree_id),
+        Json(ResetWorktreeRequest { mode: ResetMode::Soft, target_ref: Some("HEAD".to_string()) }),
+    )
+    .await
+    .expect_err("non git reset should fail");
+    assert_eq!(reset_err.status, axum::http::StatusCode::BAD_REQUEST);
+
+    let tenant = project::default_tenant_scope();
+    let (local, _) = project::from_directory(&tenant, temp.path()).await.expect("local project");
+    remove_project(&id);
+    remove_project(&local.id);
 }

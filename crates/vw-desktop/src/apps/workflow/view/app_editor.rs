@@ -11,6 +11,11 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
         return container(Space::new().width(1).height(1)).into();
     };
 
+    const APP_EDITOR_MODAL_WIDTH: f32 = 680.0;
+    const APP_EDITOR_MODAL_HEIGHT: f32 = 620.0;
+    const APP_EDITOR_SCROLLBAR_WIDTH: f32 = 4.0;
+    const APP_EDITOR_SCROLL_GUTTER: f32 = 12.0;
+
     let title = match &editor.mode {
         super::state::WorkflowAppEditorMode::Create => "新增应用",
         super::state::WorkflowAppEditorMode::Edit(_) => "编辑应用信息",
@@ -25,7 +30,7 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
         }
     };
 
-    let mut content = column![
+    let header = row![
         row![
             column![
                 text(title).size(24),
@@ -36,8 +41,12 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
             settings_close_button(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
         ]
         .align_y(Alignment::Center),
-        section_card("应用基础信息", "表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
-    ]
+    ];
+
+    let mut content = column![section_card(
+        "应用基础信息",
+        "表单结构参考 Dify 应用设置页，先整理名称、图标和描述。",
+    )]
     .spacing(16);
 
     if let super::state::WorkflowAppEditorMode::Edit(target_id) = &editor.mode {
@@ -89,36 +98,46 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
             workflow_text_input("0 表示不限制", &editor.max_active_requests_input, |value| {
                 Message::WorkflowTool(WorkflowMessage::AppEditorMaxActiveRequestsChanged(value))
             }),
-        ))
-        .push(
-            row![
-                Space::new().width(Length::Fill),
-                button(text("取消"))
-                    .style(rounded_action_btn_style)
-                    .padding([9, 14])
-                    .on_press(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
-                button(text("保存应用信息"))
-                    .style(primary_action_btn_style)
-                    .padding([9, 14])
-                    .on_press(Message::WorkflowTool(WorkflowMessage::SubmitAppEditor)),
-            ]
-            .spacing(10),
-        );
+        ));
+
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text("取消"))
+            .style(rounded_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
+        button(text("保存应用信息"))
+            .style(primary_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::SubmitAppEditor)),
+    ]
+    .spacing(10);
 
     let scroll_content = container(content).width(Length::Fill).padding(iced::Padding {
         top: 0.0,
-        right: 4.0,
+        right: APP_EDITOR_SCROLLBAR_WIDTH + APP_EDITOR_SCROLL_GUTTER,
         bottom: 0.0,
         left: 0.0,
     });
 
     container(
         container(
-            scrollable(scroll_content)
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fixed(620.0)),
+            column![
+                header,
+                scrollable(scroll_content)
+                    .direction(Direction::Vertical(
+                        Scrollbar::new()
+                            .width(APP_EDITOR_SCROLLBAR_WIDTH)
+                            .scroller_width(APP_EDITOR_SCROLLBAR_WIDTH),
+                    ))
+                    .height(Length::Fill),
+                footer,
+            ]
+            .spacing(16)
+            .height(Length::Fill),
         )
-        .width(Length::Fixed(680.0))
+        .width(Length::Fixed(APP_EDITOR_MODAL_WIDTH))
+        .height(Length::Fixed(APP_EDITOR_MODAL_HEIGHT))
         .padding([24, 26])
         .style(modal_card_style),
     )

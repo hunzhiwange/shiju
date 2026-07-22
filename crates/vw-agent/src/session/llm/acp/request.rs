@@ -18,10 +18,11 @@ use crate::app::agent::session::{message, ui_types};
 use super::config::{lookup_acp_command, normalize_acp_agent_config, parse_acp_options};
 use super::replay::{build_request_prompt, parse_recent_count, parse_replay_strategy};
 use super::session::{
-    acp_session_name, find_or_create_cached_session_record, get_cached_acp_client, should_abort,
+    acp_session_name, close_cached_acp_client_if_unshared, find_or_create_cached_session_record,
+    get_cached_acp_client, should_abort,
 };
 use super::updates::forward_acp_message;
-use super::{Error, StreamEvent, is_acp_session_changed_error, to_api_error};
+use super::{CachedAcpClientEntry, Error, StreamEvent, is_acp_session_changed_error, to_api_error};
 
 /// 执行一次 ACP 流式请求并把结果转发给上层事件消费者。
 ///
@@ -122,6 +123,7 @@ pub(crate) async fn do_stream_request_acp(
         .or_else(|| std::env::current_dir().ok())
         .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
     let parsed_options = parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+    let close_client_after_request = parse_close_client_after_request(merged_options)?;
     let cwd_text = cwd.to_string_lossy().into_owned();
     let walk_boundary = vw_acp::find_git_repository_root(&cwd_text)
         .map(|path| path.to_string_lossy().into_owned())
@@ -148,13 +150,14 @@ pub(crate) async fn do_stream_request_acp(
             }));
         }
 
-        let cached_client =
+        let cached_client_entry =
             get_cached_acp_client(&acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options);
+        let cached_client = &cached_client_entry.client;
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
-        let _prompt_guard = cached_client.prompt_lock.lock().await;
-        let mut record = find_or_create_cached_session_record(
-            &cached_client,
+        let prompt_guard = cached_client.prompt_lock.lock().await;
+        let mut record = match find_or_create_cached_session_record(
+            cached_client.as_ref(),
             &acp_agent_name,
             &normalized_acp_cfg,
             &cwd,
@@ -163,38 +166,82 @@ pub(crate) async fn do_stream_request_acp(
             &parsed_options,
             force_new_session,
         )
-        .await?;
+        .await
+        {
+            Ok(record) => record,
+            Err(err) => {
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
+                return Err(err);
+            }
+        };
 
         let acp_session_id = record.acp_session_id.clone();
         if let Some(mode_id) = parsed_options.session_mode.clone() {
-            cached_client
+            if let Err(err) = cached_client
                 .client
                 .set_session_mode(acp_session_id.clone(), &cwd, mode_id)
                 .await
-                .map_err(to_api_error)?;
+                .map_err(to_api_error)
+            {
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
+                return Err(err);
+            }
         }
         if let Some(model_id) =
             parsed_options.session_options.as_ref().and_then(|options| options.model.clone())
         {
-            cached_client
+            if let Err(err) = cached_client
                 .client
                 .set_session_model(acp_session_id.clone(), &cwd, model_id)
                 .await
-                .map_err(to_api_error)?;
+                .map_err(to_api_error)
+            {
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
+                return Err(err);
+            }
         }
         for (config_id, value) in parsed_options.session_config_options.clone() {
-            cached_client
+            if let Err(err) = cached_client
                 .client
                 .set_session_config_option(acp_session_id.clone(), &cwd, config_id, value)
                 .await
-                .map_err(to_api_error)?;
+                .map_err(to_api_error)
+            {
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
+                return Err(err);
+            }
         }
 
         apply_lifecycle_snapshot_to_record(
             &mut record,
             &cached_client.client.get_agent_lifecycle_snapshot(),
         );
-        write_session_record(&record).await.map_err(to_api_error)?;
+        if let Err(err) = write_session_record(&record).await.map_err(to_api_error) {
+            close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+                .await;
+            drop(prompt_guard);
+            return Err(err);
+        }
 
         let (acp_message_tx, mut acp_message_rx) = {
             let (tx, rx) = mpsc::unbounded_channel::<AcpJsonRpcMessage>();
@@ -230,9 +277,16 @@ pub(crate) async fn do_stream_request_acp(
                 *cached_client.output_tx.lock() = None;
                 let _ = cached_client.client.cancel(record.acp_session_id.clone()).await;
                 acp_task.abort();
+                let _ = acp_task.await;
                 on_event(StreamEvent::Error(message::AssistantError::MessageAbortedError {
                     message: "aborted".to_string(),
                 }));
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
                 return Err(Error::Aborted);
             }
             if let Some(abort_rx) = abort_rx.as_mut() {
@@ -243,9 +297,16 @@ pub(crate) async fn do_stream_request_acp(
                                 *cached_client.output_tx.lock() = None;
                                 let _ = cached_client.client.cancel(record.acp_session_id.clone()).await;
                                 acp_task.abort();
+                                let _ = acp_task.await;
                                 on_event(StreamEvent::Error(message::AssistantError::MessageAbortedError {
                                     message: "aborted".to_string(),
                                 }));
+                                close_client_after_request_if_needed(
+                                    close_client_after_request,
+                                    &cached_client_entry,
+                                )
+                                .await;
+                                drop(prompt_guard);
                                 return Err(Error::Aborted);
                             }
                             Ok(_) | Err(_) => {}
@@ -341,8 +402,17 @@ pub(crate) async fn do_stream_request_acp(
                     acp_agent = %acp_agent_name,
                     "ACP session changed during prompt; retrying with a new session"
                 );
+                close_client_after_request_if_needed(
+                    close_client_after_request,
+                    &cached_client_entry,
+                )
+                .await;
+                drop(prompt_guard);
                 continue;
             }
+            close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+                .await;
+            drop(prompt_guard);
             return Err(err);
         }
 
@@ -354,7 +424,12 @@ pub(crate) async fn do_stream_request_acp(
             &mut record,
             &cached_client.client.get_agent_lifecycle_snapshot(),
         );
-        write_session_record(&record).await.map_err(to_api_error)?;
+        if let Err(err) = write_session_record(&record).await.map_err(to_api_error) {
+            close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+                .await;
+            drop(prompt_guard);
+            return Err(err);
+        }
 
         on_event(StreamEvent::Done { finish_reason, usage: latest_usage });
 
@@ -365,8 +440,26 @@ pub(crate) async fn do_stream_request_acp(
             delta_count,
             "forwarding ACP deltas to stream consumer"
         );
+        close_client_after_request_if_needed(close_client_after_request, &cached_client_entry)
+            .await;
+        drop(prompt_guard);
         return Ok(());
     }
+}
+
+async fn close_client_after_request_if_needed(should_close: bool, entry: &CachedAcpClientEntry) {
+    if should_close {
+        close_cached_acp_client_if_unshared(entry).await;
+    }
+}
+
+fn parse_close_client_after_request(merged_options: &Value) -> Result<bool, Error> {
+    let Some(value) = merged_options.get("acp_close_client_after_request") else {
+        return Ok(false);
+    };
+    value
+        .as_bool()
+        .ok_or_else(|| super::acp_option_error("acp_close_client_after_request must be a boolean"))
 }
 
 fn with_copilot_auth_environment(

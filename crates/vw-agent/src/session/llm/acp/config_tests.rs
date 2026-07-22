@@ -314,6 +314,18 @@ fn parse_acp_options_rejects_structured_session_config_values() {
 }
 
 #[test]
+fn parse_acp_options_rejects_structured_implicit_thought_level() {
+    let err = parse_acp_options(
+        &json!({ "thought_level": { "level": "high" } }),
+        "codex",
+        &acp_config("codex", &[]),
+    )
+    .expect_err("structured implicit config should fail");
+
+    assert!(error_text(err).contains("thought_level must be a string, number, bool, or null"));
+}
+
+#[test]
 fn parse_acp_options_normalizes_compatible_config_ids_and_deduplicates_implicit_keys() {
     let parsed = parse_acp_options(
         &json!({
@@ -353,6 +365,31 @@ fn parse_acp_options_adds_implicit_reasoning_keys_when_explicit_config_is_absent
             ("thought_level".to_string(), "high".to_string()),
         ]
     );
+}
+
+#[test]
+fn parse_acp_options_converts_shared_reasoning_effort_at_acp_boundary() {
+    for expected in ["none", "low", "medium", "high", "xhigh", "max"] {
+        let parsed = parse_acp_options(
+            &json!({ "reasoning_effort": expected }),
+            "codex",
+            &acp_config("codex", &[]),
+        )
+        .expect("shared reasoning effort should parse");
+
+        assert_eq!(
+            parsed.session_config_options,
+            vec![("reasoning_effort".to_string(), expected.to_string())]
+        );
+    }
+
+    let error = parse_acp_options(
+        &json!({ "reasoning_effort": "extreme" }),
+        "codex",
+        &acp_config("codex", &[]),
+    )
+    .expect_err("unsupported reasoning effort must fail");
+    assert!(error.to_string().contains("reasoning_effort must be a supported string"));
 }
 
 #[test]

@@ -30,7 +30,7 @@ pub(super) fn todo_tool_expanded(manual_expanded: bool, _is_running: bool) -> bo
 }
 
 pub(super) fn todo_tool_card_padding() -> iced::Padding {
-    iced::Padding { top: 10.0, right: 12.0, bottom: 10.0, left: 12.0 }
+    iced::Padding::ZERO
 }
 
 fn todo_tool_header<'a>(

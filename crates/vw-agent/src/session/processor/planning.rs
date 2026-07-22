@@ -75,7 +75,7 @@ pub(crate) fn ingest_planning_answer_todowrite_only(
     answer: &str,
     ctx: &ToolRuntimeContext,
     allowed_tools: &HashSet<String>,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
     tool_state: &mut super::ToolSessionState,
 ) -> bool {
     // 将答案按行分割，便于逐行解析工具调用
@@ -108,8 +108,15 @@ pub(crate) fn ingest_planning_answer_todowrite_only(
                 session.push(super::Role::Assistant, call);
 
                 // 执行工具调用并记录结果
+                let mut forward_event = |event| on_event(event);
                 let _ = super::tools_exec::run_tool_and_record(
-                    session, &name, &input, ctx, true, on_event, tool_state,
+                    session,
+                    &name,
+                    &input,
+                    ctx,
+                    true,
+                    &mut forward_event,
+                    tool_state,
                 );
             }
 
@@ -128,13 +135,14 @@ pub(crate) fn ingest_planning_answer_todowrite_only(
             session.push(super::Role::Assistant, format!("/{TODO_WRITE_TOOL_ID}"));
 
             // 执行自动提取的待办事项
+            let mut forward_event = |event| on_event(event);
             let _ = super::tools_exec::run_tool_and_record(
                 session,
                 TODO_WRITE_TOOL_ID,
                 &input,
                 ctx,
                 true,
-                on_event,
+                &mut forward_event,
                 tool_state,
             );
             ran_todowrite = true;
@@ -273,11 +281,6 @@ fn build_todowrite_from_text(answer: &str) -> Option<String> {
 
         // 标准化空白字符：将多个连续空格/制表符压缩为单个空格
         let normalized = line.split_whitespace().collect::<Vec<_>>().join(" ");
-
-        // 跳过标准化后为空的行
-        if normalized.is_empty() {
-            continue;
-        }
 
         // 生成去重用的键（小写形式）
         let key = normalized.to_lowercase();

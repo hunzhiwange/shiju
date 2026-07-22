@@ -1,4 +1,4 @@
-use super::{QQ_API_BASE, QQ_AUTH_URL, QQChannel};
+use super::QQChannel;
 use serde_json::{Value, json};
 
 /// 确保使用 HTTPS 协议。
@@ -19,7 +19,7 @@ impl QQChannel {
             "clientSecret": self.app_secret,
         });
 
-        let resp = self.http_client().post(QQ_AUTH_URL).json(&body).send().await?;
+        let resp = self.http_client().post(self.auth_url()).json(&body).send().await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -78,7 +78,7 @@ impl QQChannel {
     pub(super) async fn get_gateway_url(&self, token: &str) -> anyhow::Result<String> {
         let resp = self
             .http_client()
-            .get(format!("{QQ_API_BASE}/gateway"))
+            .get(format!("{}/gateway", self.api_base()))
             .header("Authorization", format!("QQBot {token}"))
             .send()
             .await?;

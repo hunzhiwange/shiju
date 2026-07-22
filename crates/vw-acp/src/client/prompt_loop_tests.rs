@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use agent_client_protocol as acp;
 use async_trait::async_trait;
@@ -39,6 +40,7 @@ struct TestAgentState {
     new_session_id: String,
     fail_cancel: bool,
     prompt_started: tokio::sync::Notify,
+    cancel_received: tokio::sync::Notify,
     prompt_response_rx:
         tokio::sync::Mutex<Option<oneshot::Receiver<acp::Result<acp::PromptResponse>>>>,
     prompt_session_ids: Mutex<Vec<String>>,
@@ -57,6 +59,7 @@ impl TestAgent {
                     new_session_id: new_session_id.to_string(),
                     fail_cancel,
                     prompt_started: tokio::sync::Notify::new(),
+                    cancel_received: tokio::sync::Notify::new(),
                     prompt_response_rx: tokio::sync::Mutex::new(Some(prompt_response_rx)),
                     prompt_session_ids: Mutex::new(Vec::new()),
                     cancelled_session_ids: Mutex::new(Vec::new()),
@@ -68,6 +71,10 @@ impl TestAgent {
 
     async fn wait_for_prompt(&self) {
         self.state.prompt_started.notified().await;
+    }
+
+    async fn wait_for_cancel(&self) {
+        self.state.cancel_received.notified().await;
     }
 
     fn prompt_session_ids(&self) -> Vec<String> {
@@ -118,6 +125,7 @@ impl acp::Agent for TestAgent {
 
     async fn cancel(&self, args: acp::CancelNotification) -> acp::Result<()> {
         self.state.cancelled_session_ids.lock().push(args.session_id.0.to_string());
+        self.state.cancel_received.notify_one();
         if self.state.fail_cancel { Err(acp::Error::invalid_params()) } else { Ok(()) }
     }
 }
@@ -282,6 +290,77 @@ async fn run_actor_prompt_maps_prompt_errors_and_clears_active_prompt() {
 }
 
 #[tokio::test]
+async fn run_actor_prompt_processes_internal_events_while_prompt_is_pending() {
+    let (agent, prompt_response_tx) = TestAgent::new("session-pending-event", false);
+
+    with_runtime(agent, async |client, mut runtime, internal_tx, agent| {
+        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+        let run_prompt = client.run_actor_prompt(
+            &mut runtime,
+            PromptRequest::new(PathBuf::from("."), "hello"),
+            event_tx,
+        );
+        let drive_prompt = async {
+            agent.wait_for_prompt().await;
+            internal_tx
+                .send(InternalEvent::Delta("pending".to_string()))
+                .expect("pending delta should send");
+            let event = tokio::time::timeout(Duration::from_secs(1), event_rx.recv())
+                .await
+                .expect("pending delta should be forwarded")
+                .expect("event channel should remain open");
+            assert_eq!(event, PromptEvent::TextDelta("pending".to_string()));
+            prompt_response_tx
+                .send(Ok(acp::PromptResponse::new(acp::StopReason::EndTurn)))
+                .expect("prompt response should send");
+        };
+
+        let (result, _) = tokio::join!(run_prompt, drive_prompt);
+        let result = result.expect("prompt should complete");
+
+        assert_eq!(result.deltas, vec!["pending"]);
+        assert_eq!(result.finish_reason.as_deref(), Some("stop"));
+        assert!(!client.has_active_prompt());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn run_actor_prompt_ignores_false_and_closed_cancel_signals() {
+    let (agent, prompt_response_tx) = TestAgent::new("session-false-cancel", false);
+
+    with_runtime(agent, async |client, mut runtime, _internal_tx, agent| {
+        let (event_tx, _event_rx) = mpsc::unbounded_channel();
+        let run_prompt = client.run_actor_prompt(
+            &mut runtime,
+            PromptRequest::new(PathBuf::from("."), "hello"),
+            event_tx,
+        );
+        let drive_prompt = async {
+            agent.wait_for_prompt().await;
+            let active_prompt =
+                client.active_prompt.lock().clone().expect("active prompt should be registered");
+            active_prompt.cancel_tx.send(false).expect("false cancel signal should send");
+            tokio::task::yield_now().await;
+            client.clear_active_prompt(&active_prompt.session_id);
+            drop(active_prompt);
+            tokio::task::yield_now().await;
+            prompt_response_tx
+                .send(Ok(acp::PromptResponse::new(acp::StopReason::EndTurn)))
+                .expect("prompt response should send");
+        };
+
+        let (result, _) = tokio::join!(run_prompt, drive_prompt);
+        let result = result.expect("prompt should ignore non-cancelling signals");
+
+        assert_eq!(result.finish_reason.as_deref(), Some("stop"));
+        assert_eq!(agent.cancelled_session_ids(), Vec::<String>::new());
+        assert!(!client.has_active_prompt());
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn run_actor_prompt_sends_cancel_and_waits_for_cancelled_response() {
     let (agent, prompt_response_tx) = TestAgent::new("session-cancel", false);
 
@@ -337,6 +416,36 @@ async fn run_actor_prompt_returns_cancelled_response_when_agent_rejects_cancel_n
 
         let result = result.expect("cancelled prompt response should win");
         assert_eq!(result.finish_reason.as_deref(), Some("cancelled"));
+        assert_eq!(agent.cancelled_session_ids(), vec!["session-cancel-error"]);
+        assert!(!client.has_active_prompt());
+        assert!(client.cancelling_session_ids.lock().is_empty());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn run_actor_prompt_returns_prompt_error_after_agent_rejects_cancel_notification() {
+    let (agent, prompt_response_tx) = TestAgent::new("session-cancel-error", true);
+
+    with_runtime(agent, async |client, mut runtime, _internal_tx, agent| {
+        let (event_tx, _event_rx) = mpsc::unbounded_channel();
+        let run_prompt = client.run_actor_prompt(
+            &mut runtime,
+            PromptRequest::new(PathBuf::from("."), "hello"),
+            event_tx,
+        );
+        let cancel_prompt = async {
+            agent.wait_for_prompt().await;
+            assert!(client.cancel("session-cancel-error").await.expect("cancel should signal"));
+            agent.wait_for_cancel().await;
+            prompt_response_tx
+                .send(Err(acp::Error::invalid_params()))
+                .expect("prompt error should send");
+        };
+
+        let (result, _) = tokio::join!(run_prompt, cancel_prompt);
+
+        assert!(matches!(result, Err(AcpError::Prompt(_))));
         assert_eq!(agent.cancelled_session_ids(), vec!["session-cancel-error"]);
         assert!(!client.has_active_prompt());
         assert!(client.cancelling_session_ids.lock().is_empty());

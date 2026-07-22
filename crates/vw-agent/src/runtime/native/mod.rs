@@ -84,6 +84,15 @@ enum ShellKind {
     Cmd,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShellLaunchStyle {
+    ZshLoginInteractive,
+    Posix,
+    BashLogin,
+    PowerShell,
+    Cmd,
+}
+
 impl ShellKind {
     /// 获取 shell 类型的字符串表示
     ///
@@ -105,6 +114,16 @@ impl ShellKind {
             ShellKind::Pwsh => "pwsh",
             ShellKind::PowerShell => "powershell",
             ShellKind::Cmd => "cmd",
+        }
+    }
+
+    fn launch_style(self) -> ShellLaunchStyle {
+        match self {
+            ShellKind::Zsh => ShellLaunchStyle::ZshLoginInteractive,
+            ShellKind::Sh => ShellLaunchStyle::Posix,
+            ShellKind::Bash => ShellLaunchStyle::BashLogin,
+            ShellKind::Pwsh | ShellKind::PowerShell => ShellLaunchStyle::PowerShell,
+            ShellKind::Cmd => ShellLaunchStyle::Cmd,
         }
     }
 }
@@ -130,21 +149,21 @@ impl ShellProgram {
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
     fn add_shell_args(&self, process: &mut tokio::process::Command, command: &str) {
-        match self.kind {
+        match self.kind.launch_style() {
             // zsh: 使用登录 shell、交互模式，执行命令
-            ShellKind::Zsh => {
+            ShellLaunchStyle::ZshLoginInteractive => {
                 process.arg("-l").arg("-i").arg("-c").arg(command);
             }
             // sh: 标准 POSIX shell，直接执行命令
-            ShellKind::Sh => {
+            ShellLaunchStyle::Posix => {
                 process.arg("-c").arg(command);
             }
             // bash: 使用登录 shell 执行命令
-            ShellKind::Bash => {
+            ShellLaunchStyle::BashLogin => {
                 process.arg("-l").arg("-c").arg(command);
             }
             // PowerShell: 禁用启动Logo、配置文件，使用非交互模式执行命令
-            ShellKind::Pwsh | ShellKind::PowerShell => {
+            ShellLaunchStyle::PowerShell => {
                 process
                     .arg("-NoLogo")
                     .arg("-NoProfile")
@@ -153,7 +172,7 @@ impl ShellProgram {
                     .arg(command);
             }
             // cmd: 使用 /C 参数执行命令后退出
-            ShellKind::Cmd => {
+            ShellLaunchStyle::Cmd => {
                 process.arg("/C").arg(command);
             }
         }
@@ -183,14 +202,34 @@ fn detect_native_shell() -> Option<ShellProgram> {
     #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
     {
         let comspec = std::env::var_os("COMSPEC").map(PathBuf::from);
-        detect_native_shell_with(true, |name| which::which(name).ok(), comspec, None)
+        detect_native_shell_with(true, resolve_shell_on_path, comspec, None)
     }
     // Unix/Linux/macOS 平台检测逻辑
     #[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
     {
         let user_shell = std::env::var_os("SHELL").map(PathBuf::from);
-        detect_native_shell_with(false, |name| which::which(name).ok(), None, user_shell)
+        detect_native_shell_with(false, resolve_shell_on_path, None, user_shell)
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_shell_on_path(name: &str) -> Option<PathBuf> {
+    which::which(name).ok()
+}
+
+fn windows_shell_candidates() -> [(&'static str, ShellKind); 6] {
+    [
+        ("bash", ShellKind::Bash),
+        ("sh", ShellKind::Sh),
+        ("pwsh", ShellKind::Pwsh),
+        ("powershell", ShellKind::PowerShell),
+        ("cmd", ShellKind::Cmd),
+        ("cmd.exe", ShellKind::Cmd),
+    ]
+}
+
+fn unix_shell_candidates() -> [(&'static str, ShellKind); 3] {
+    [("zsh", ShellKind::Zsh), ("bash", ShellKind::Bash), ("sh", ShellKind::Sh)]
 }
 
 /// 使用自定义解析器检测原生 shell
@@ -234,14 +273,7 @@ where
 {
     if is_windows {
         // Windows 平台按优先级检测 shell
-        for (name, kind) in [
-            ("bash", ShellKind::Bash),
-            ("sh", ShellKind::Sh),
-            ("pwsh", ShellKind::Pwsh),
-            ("powershell", ShellKind::PowerShell),
-            ("cmd", ShellKind::Cmd),
-            ("cmd.exe", ShellKind::Cmd),
-        ] {
+        for (name, kind) in windows_shell_candidates() {
             if let Some(program) = resolve(name) {
                 // Windows 可能暴露 C:\Windows\System32\bash.exe，这是一个
                 // 传统的 WSL launcher，会在 Linux 用户空间执行命令。
@@ -270,8 +302,7 @@ where
     }
 
     // 如果用户 shell 不可用，按优先级检测系统 shell
-    for (name, kind) in [("zsh", ShellKind::Zsh), ("bash", ShellKind::Bash), ("sh", ShellKind::Sh)]
-    {
+    for (name, kind) in unix_shell_candidates() {
         if let Some(program) = resolve(name) {
             return Some(ShellProgram { kind, program });
         }
@@ -350,6 +381,13 @@ fn missing_shell_error() -> &'static str {
     {
         "Native runtime could not find a usable shell (tried: zsh, bash, sh). \
          Install a POSIX shell and ensure it is available on PATH."
+    }
+}
+
+fn storage_path_from_home_dir(home_dir: Option<&Path>) -> PathBuf {
+    match home_dir {
+        Some(home_dir) => vw_config_types::paths::home_config_dir(home_dir),
+        None => PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME),
     }
 }
 
@@ -495,10 +533,9 @@ impl RuntimeAdapter for NativeRuntime {
     /// println!("存储路径: {:?}", storage);
     /// ```
     fn storage_path(&self) -> PathBuf {
-        directories::UserDirs::new().map_or_else(
-            || PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME),
-            |u| vw_config_types::paths::home_config_dir(u.home_dir()),
-        )
+        let home_dir =
+            directories::UserDirs::new().map(|user_dirs| user_dirs.home_dir().to_owned());
+        storage_path_from_home_dir(home_dir.as_deref())
     }
 
     /// 检查是否支持长时间运行的进程
@@ -556,5 +593,4 @@ impl RuntimeAdapter for NativeRuntime {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
 mod tests;

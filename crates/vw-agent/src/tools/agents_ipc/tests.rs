@@ -569,4 +569,249 @@ mod tests {
         assert_eq!(parsed["value"], "complete");
         assert_eq!(parsed["owner"], "vibewindow_agent_a");
     }
+
+    #[test]
+    fn reopening_agent_preserves_registration_metadata() {
+        let dir = TempDir::new().unwrap();
+        let db_path = dir.path().join("agents.db").to_str().unwrap().to_string();
+        let db = IpcDb::open_with_id(&db_path, "vibewindow_agent_a", 300).unwrap();
+
+        {
+            let conn = db.conn.lock().unwrap();
+            conn.execute(
+                "UPDATE agents SET role = 'reviewer', status = 'offline', metadata = '{\"slot\":2}', last_seen = 1 WHERE agent_id = 'vibewindow_agent_a'",
+                [],
+            )
+            .unwrap();
+        }
+
+        let reopened = IpcDb::open_with_id(&db_path, "vibewindow_agent_a", 300).unwrap();
+        let registration: (Option<String>, String, Option<String>, i64) = reopened
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT role, status, metadata, last_seen FROM agents WHERE agent_id = 'vibewindow_agent_a'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+
+        assert_eq!(registration.0.as_deref(), Some("reviewer"));
+        assert_eq!(registration.1, "online");
+        assert_eq!(registration.2.as_deref(), Some("{\"slot\":2}"));
+        assert!(registration.3 > 1);
+    }
+
+    #[test]
+    fn open_reports_database_parent_creation_failure() {
+        let dir = TempDir::new().unwrap();
+        let blocked_parent = dir.path().join("not_a_directory");
+        std::fs::write(&blocked_parent, b"file").unwrap();
+        let config = AgentsIpcConfig {
+            enabled: true,
+            db_path: blocked_parent.join("agents.db").to_string_lossy().into_owned(),
+            staleness_secs: 300,
+        };
+
+        let error = match IpcDb::open(dir.path(), &config) {
+            Ok(_) => panic!("database open unexpectedly succeeded"),
+            Err(error) => error,
+        };
+
+        assert!(error.starts_with("failed to create db directory:"));
+    }
+
+    #[test]
+    fn create_team_normalizes_members_and_persists_team_state() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+        let members = vec![
+            " agent_b ".to_string(),
+            "agent_a".to_string(),
+            String::new(),
+            "agent_b".to_string(),
+        ];
+
+        let created = db.create_team(" review ", &members).unwrap();
+
+        assert_eq!(created["team_id"], "review");
+        assert_eq!(created["members"], json!(["agent_a", "agent_b"]));
+        assert_eq!(created["owner"], "vibewindow_agent_a");
+        assert!(created["updated_at"].as_i64().unwrap() > 0);
+        assert_eq!(db.read_team_members("review").unwrap(), vec!["agent_a", "agent_b"]);
+
+        let stored_key: String = db
+            .conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT key FROM shared_state WHERE key = 'team:review'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(stored_key, "team:review");
+    }
+
+    #[test]
+    fn team_operations_reject_blank_identifiers_and_members() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+
+        assert_eq!(
+            db.create_team(" \t ", &["agent_a".to_string()]).unwrap_err(),
+            "team id must not be empty"
+        );
+        assert_eq!(
+            db.create_team("review", &[String::new(), "  ".to_string()]).unwrap_err(),
+            "team members must not be empty"
+        );
+        assert_eq!(db.delete_team("  ").unwrap_err(), "team id must not be empty");
+        assert_eq!(db.read_team_members("\n").unwrap_err(), "team id must not be empty");
+    }
+
+    #[test]
+    fn delete_team_reports_presence_and_read_reports_unknown_team() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+        db.create_team("review", &["agent_a".to_string()]).unwrap();
+
+        assert!(db.delete_team(" review ").unwrap());
+        assert!(!db.delete_team("review").unwrap());
+        assert_eq!(db.read_team_members("review").unwrap_err(), "unknown team 'review'");
+    }
+
+    #[test]
+    fn read_team_members_reports_malformed_persisted_value() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+        db.conn
+            .lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO shared_state (key, value, owner, updated_at) VALUES ('team:broken', 'not-json', 'vibewindow_agent_a', 1)",
+                [],
+            )
+            .unwrap();
+
+        let error = db.read_team_members("broken").unwrap_err();
+        assert!(error.starts_with("failed to decode team members:"));
+    }
+
+    #[test]
+    fn send_message_helper_records_sender_recipient_and_payload() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+
+        db.send_message("vibewindow_agent_b", "queued work").unwrap();
+
+        let message: (String, String, String, i64) = db
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT from_agent, to_agent, payload, created_at FROM messages",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(message.0, "vibewindow_agent_a");
+        assert_eq!(message.1, "vibewindow_agent_b");
+        assert_eq!(message.2, "queued work");
+        assert!(message.3 > 0);
+    }
+
+    #[test]
+    fn database_helpers_report_storage_failures() {
+        let dir = TempDir::new().unwrap();
+        let db = test_db(&dir, "vibewindow_agent_a");
+        let conn = db.conn.lock().unwrap();
+        conn.execute("DROP TABLE messages", []).unwrap();
+        conn.execute("DROP TABLE shared_state", []).unwrap();
+        drop(conn);
+
+        let send_error = db.send_message("vibewindow_agent_b", "queued work").unwrap_err();
+        assert!(send_error.starts_with("failed to send message:"));
+
+        let create_error = db.create_team("review", &["agent_a".to_string()]).unwrap_err();
+        assert!(create_error.starts_with("failed to persist team:"));
+
+        let delete_error = db.delete_team("review").unwrap_err();
+        assert!(delete_error.starts_with("failed to delete team:"));
+        assert_eq!(db.read_team_members("review").unwrap_err(), "unknown team 'review'");
+    }
+
+    #[test]
+    fn tool_metadata_exposes_stable_names_and_required_parameters() {
+        let dir = TempDir::new().unwrap();
+        let db = Arc::new(test_db(&dir, "vibewindow_agent_a"));
+        let security = Arc::new(SecurityPolicy::default());
+        let list = AgentsListTool::new(db.clone());
+        let send = AgentsSendTool::new(db.clone(), security.clone());
+        let inbox = AgentsInboxTool::new(db.clone());
+        let get = StateGetTool::new(db.clone());
+        let set = StateSetTool::new(db, security);
+
+        assert_eq!(list.name(), "agents_list");
+        assert_eq!(send.name(), "agents_send");
+        assert_eq!(inbox.name(), "agents_inbox");
+        assert_eq!(get.name(), "state_get");
+        assert_eq!(set.name(), "state_set");
+        assert!(list.description().contains("IPC"));
+        assert!(send.description().contains("广播"));
+        assert!(inbox.description().contains("未读消息"));
+        assert!(get.description().contains("获取值"));
+        assert!(set.description().contains("设置键值对"));
+        assert_eq!(list.parameters_schema()["required"], json!([]));
+        assert_eq!(send.parameters_schema()["required"], json!(["to_agent", "payload"]));
+        assert_eq!(inbox.parameters_schema()["required"], json!([]));
+        assert_eq!(get.parameters_schema()["required"], json!(["key"]));
+        assert_eq!(set.parameters_schema()["required"], json!(["key", "value"]));
+    }
+
+    #[tokio::test]
+    async fn state_tools_reject_missing_or_non_string_parameters() {
+        let dir = TempDir::new().unwrap();
+        let db = Arc::new(test_db(&dir, "vibewindow_agent_a"));
+        let get = StateGetTool::new(db.clone());
+        let set = StateSetTool::new(db, Arc::new(SecurityPolicy::default()));
+
+        let missing_get = get.execute(json!({})).await.unwrap();
+        assert!(!missing_get.success);
+        assert_eq!(missing_get.error.as_deref(), Some("Missing 'key' parameter"));
+
+        let non_string_get = get.execute(json!({"key": 7})).await.unwrap();
+        assert!(!non_string_get.success);
+        assert_eq!(non_string_get.error.as_deref(), Some("Missing 'key' parameter"));
+
+        let missing_key = set.execute(json!({"value": "ready"})).await.unwrap();
+        assert!(!missing_key.success);
+        assert_eq!(missing_key.error.as_deref(), Some("Missing 'key' parameter"));
+
+        let missing_value = set.execute(json!({"key": "status"})).await.unwrap();
+        assert!(!missing_value.success);
+        assert_eq!(missing_value.error.as_deref(), Some("Missing 'value' parameter"));
+    }
+
+    #[tokio::test]
+    async fn broadcast_message_remains_unread_for_repeated_inbox_reads() {
+        let dir = TempDir::new().unwrap();
+        let db = Arc::new(test_db(&dir, "vibewindow_agent_a"));
+        db.send_message("*", "announcement").unwrap();
+        let inbox = AgentsInboxTool::new(db.clone());
+
+        for _ in 0..2 {
+            let result = inbox.execute(json!({})).await.unwrap();
+            let messages: Vec<serde_json::Value> = serde_json::from_str(&result.output).unwrap();
+            assert_eq!(messages.len(), 1);
+            assert_eq!(messages[0]["payload"], "announcement");
+        }
+
+        let read_flag: i64 = db
+            .conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT read FROM messages", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(read_flag, 0);
+    }
 }

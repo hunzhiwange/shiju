@@ -4,8 +4,8 @@
 //! 当前内置钩子以及未来预留的自定义钩子扩展区域。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card,
 };
 use crate::app::message::settings::HooksMessage;
 use crate::app::{App, Message, message};
@@ -35,6 +35,14 @@ fn field_row<'a>(
     .into()
 }
 
+fn enabled_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::Hooks(HooksMessage::EnabledToggled(value)))
+}
+
+fn command_logger_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::Hooks(HooksMessage::CommandLoggerToggled(value)))
+}
+
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.hooks_settings;
 
@@ -43,11 +51,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "控制是否开启运行时 hooks 执行。",
         checkbox(s.enabled)
             .label("开启运行时 hooks 执行")
-            .on_toggle(|value| {
-                Message::Settings(message::SettingsMessage::Hooks(HooksMessage::EnabledToggled(
-                    value,
-                )))
-            })
+            .on_toggle(enabled_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -68,13 +72,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let command_logger_row = field_row(
         "command_logger",
         "记录命令调用信息，便于审计与问题回溯。",
-        checkbox(s.command_logger)
-            .on_toggle(|value| {
-                Message::Settings(message::SettingsMessage::Hooks(
-                    HooksMessage::CommandLoggerToggled(value),
-                ))
-            })
-            .style(settings_checkbox_style),
+        checkbox(s.command_logger).on_toggle(command_logger_toggled).style(settings_checkbox_style),
     );
 
     let custom_placeholder = settings_section_card(
@@ -82,7 +80,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "此区域为未来扩展预留。后续会在这里加入自定义 hook 注册、启停和参数配置能力。",
     );
 
-    let mut content = column![
+    let content = column![
         settings_page_intro("钩子配置", "配置运行时 hooks 总开关与内置钩子的启用状态。"),
         settings_section_card("基础行为", "关闭总开关后将暂停 hooks 执行。"),
         settings_panel(column![enabled_row].spacing(0)),
@@ -93,10 +91,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     container(content).width(Length::Fill).into()
 }

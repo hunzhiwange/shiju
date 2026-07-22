@@ -40,6 +40,16 @@ fn get_selector_reads_nested_array_items() {
 }
 
 #[test]
+fn get_selector_reads_array_root_with_bracket_only_segment() {
+    let mut pool = VariablePool::default();
+    pool.insert_node_output("code", "items", json!([{"name": "first"}, {"name": "second"}]));
+
+    let selector = ["code", "items", "[1]", "name"].map(str::to_string);
+
+    assert_eq!(pool.get_selector(&selector), Some(&Value::String("second".to_string())));
+}
+
+#[test]
 fn get_selector_reads_dotted_path_parts() {
     let mut pool = VariablePool::default();
     pool.insert_node_output(

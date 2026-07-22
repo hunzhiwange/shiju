@@ -70,6 +70,10 @@ pub(super) fn task_status_tag_colors(status: crate::app::task::TaskStatus) -> (C
         crate::app::task::TaskStatus::Archived => {
             (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249))
         }
+        // 自定义状态暂用中性灰，待工作流迁移任务接管自定义列样式。
+        crate::app::task::TaskStatus::Custom(_) => {
+            (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246))
+        }
     }
 }
 

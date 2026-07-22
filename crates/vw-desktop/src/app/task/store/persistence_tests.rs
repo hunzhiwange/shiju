@@ -1,150 +1,130 @@
-#[test]
-fn persistence_test_module_is_linked() {
-    let name = "persistence";
-    assert_eq!(name.len(), 11);
+#![cfg(not(target_arch = "wasm32"))]
+
+use super::*;
+
+fn legacy_task_dir(project: &std::path::Path) -> std::path::PathBuf {
+    project.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
 }
 
-fn project_path(temp: &tempfile::TempDir) -> String {
-    temp.path().to_string_lossy().to_string()
-}
-
-fn task_with_id(
-    id: &str,
-    status: crate::app::task::models::TaskStatus,
-) -> crate::app::task::models::Task {
-    let mut task = crate::app::task::models::Task::new(3);
-    task.id = id.to_string();
-    task.status = status;
-    task.order = 2;
-    task.description = "description".into();
-    task.prompt = "prompt".into();
-    task.agent = None;
-    task.acp_agent = Some("codex".into());
-    task.auto_promote_delay_ms = Some(1_500);
-    task.last_error = Some("old error".into());
-    task.pause_reason = Some("paused".into());
-    task.retry_count = 4;
-    task.execution_started_at_ms = Some(10);
-    task.last_execution_duration_ms = Some(20);
-    task.merge_source_branch = Some("feature".into());
-    task.merge_target_branch = Some("main".into());
-    task.selected_worktree_path = Some("/tmp/worktree".into());
-    task.subtasks = vec![crate::app::task::models::SubTask::new("subtask".into())];
-    task
-}
-
-#[test]
-fn max_sequence_for_date_ignores_malformed_ids() {
-    let mut index = crate::app::task::models::TaskIndex::new();
-    index.tasks.insert("T20260612.0001".into(), "pending".into());
-    index.tasks.insert("T20260612.0100".into(), "pending".into());
-    index.tasks.insert("T20260612.bad".into(), "pending".into());
-    index.tasks.insert("T20260613.9999".into(), "pending".into());
-
-    assert_eq!(super::max_sequence_for_date(&index, "20260612"), 100);
-    assert_eq!(super::max_sequence_for_date(&index, "20260101"), 0);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn save_and_load_index_roundtrips_meta_and_orders() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let mut index = crate::app::task::models::TaskIndex::new();
-    index.last_task_date = Some("20260612".into());
-    index.last_task_seq = 9;
-    index.tasks.insert("T20260612.0009".into(), "pending".into());
-    index.tasks.insert("T20260612.0010".into(), "running".into());
-    index.order_by_status.insert("pending".into(), vec!["T20260612.0009".into()]);
-
-    super::save_index(&project, &index).expect("save index");
-    let loaded = super::load_index(&project);
-
-    assert_eq!(loaded.last_task_date.as_deref(), Some("20260612"));
-    assert_eq!(loaded.last_task_seq, 9);
-    assert_eq!(loaded.tasks.get("T20260612.0009").map(String::as_str), Some("pending"));
-    assert_eq!(loaded.tasks.get("T20260612.0010").map(String::as_str), Some("running"));
+fn assert_native_cutover(error: io::Error) {
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
     assert_eq!(
-        loaded.order_by_status.get("running").expect("running order"),
-        &vec!["T20260612.0010".to_string()]
+        error.to_string(),
+        "native desktop task persistence moved to the global Agent Scheduler"
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn save_and_load_task_roundtrips_logs_and_fields() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let mut task = task_with_id("T20260612.0001", crate::app::task::models::TaskStatus::Running);
-    task.logs = vec![
-        crate::app::task::models::TaskLogEntry::new_message("created".into()),
-        crate::app::task::models::TaskLogEntry::new_status_change(
-            crate::app::task::models::TaskStatus::Pending,
-            crate::app::task::models::TaskStatus::Running,
-        ),
-    ];
+fn native_rebuild_index_fails_closed_without_creating_task_storage() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
 
-    super::save_task(&project, &task).expect("save task");
-    let loaded = super::load_task(&project, &task.id).expect("loaded task");
+    let error = rebuild_index_from_task_files(&path).expect_err("native rebuild disabled");
 
-    assert_eq!(loaded.id, task.id);
-    assert_eq!(loaded.status, crate::app::task::models::TaskStatus::Running);
-    assert_eq!(loaded.agent.as_deref(), Some(crate::app::task::models::TASK_AGENT_MAIN));
-    assert_eq!(loaded.acp_agent.as_deref(), Some("codex"));
-    assert_eq!(loaded.auto_promote_delay_ms, Some(1_500));
-    assert_eq!(loaded.last_error.as_deref(), Some("old error"));
-    assert_eq!(loaded.pause_reason.as_deref(), Some("paused"));
-    assert_eq!(loaded.retry_count, 4);
-    assert_eq!(loaded.execution_started_at_ms, Some(10));
-    assert_eq!(loaded.last_execution_duration_ms, Some(20));
-    assert_eq!(loaded.merge_source_branch.as_deref(), Some("feature"));
-    assert_eq!(loaded.merge_target_branch.as_deref(), Some("main"));
-    assert_eq!(loaded.selected_worktree_path.as_deref(), Some("/tmp/worktree"));
-    assert_eq!(loaded.logs.len(), 2);
-    assert_eq!(loaded.logs[0].message, "created");
-    assert_eq!(loaded.logs[1].status_from, Some(crate::app::task::models::TaskStatus::Pending));
+    assert_native_cutover(error);
+    assert!(!legacy_task_dir(project.path()).exists());
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn load_all_tasks_skips_deleted_and_delete_task_removes_index_entry() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let live = task_with_id("T20260612.0001", crate::app::task::models::TaskStatus::Pending);
-    let mut deleted = task_with_id("T20260612.0002", crate::app::task::models::TaskStatus::Pending);
-    deleted.deleted = true;
+fn native_load_index_ignores_legacy_index_and_returns_fresh_state() {
+    let project = tempfile::tempdir().expect("temp project");
+    let task_dir = legacy_task_dir(project.path());
+    std::fs::create_dir_all(&task_dir).expect("legacy task directory");
+    let mut legacy_index = TaskIndex::new();
+    legacy_index.tasks.insert("T20260717.0001".to_string(), "running".to_string());
+    legacy_index.last_task_date = Some("20260717".to_string());
+    legacy_index.last_task_seq = 1;
+    std::fs::write(
+        task_dir.join("_index.json"),
+        serde_json::to_vec(&legacy_index).expect("serialize legacy index"),
+    )
+    .expect("write legacy index");
+    let path = project.path().to_string_lossy();
 
-    super::save_task(&project, &live).expect("save live");
-    super::save_task(&project, &deleted).expect("save deleted");
-    let mut index = crate::app::task::models::TaskIndex::new();
-    index.tasks.insert(live.id.clone(), "pending".into());
-    index.tasks.insert(deleted.id.clone(), "pending".into());
-    index.order_by_status.insert("pending".into(), vec![live.id.clone(), deleted.id.clone()]);
-    super::save_index(&project, &index).expect("save index");
+    let index = load_index(&path);
 
-    let all = super::load_all_tasks(&project);
-    assert_eq!(all.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(), vec![live.id.as_str()]);
-
-    super::delete_task_file(&project, &live.id).expect("delete task");
-    assert!(super::load_task(&project, &live.id).is_none());
-    assert!(!super::load_index(&project).tasks.contains_key(&live.id));
+    assert!(index.tasks.is_empty());
+    assert!(index.order_by_status.values().all(Vec::is_empty));
+    assert_eq!(index.last_task_date, None);
+    assert_eq!(index.last_task_seq, 0);
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn rebuild_index_from_task_files_preserves_sqlite_index() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let mut index = crate::app::task::models::TaskIndex::new();
-    index.last_task_date = Some("20260612".into());
-    index.last_task_seq = 3;
-    index.tasks.insert("T20260612.0003".into(), "completed".into());
-    index.order_by_status.insert("completed".into(), vec!["T20260612.0003".into()]);
+fn native_save_index_fails_closed_without_writing_legacy_index() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let index = TaskIndex::new();
 
-    super::save_index(&project, &index).expect("save index");
-    let rebuilt = super::rebuild_index_from_task_files(&project).expect("rebuild index");
+    let error = save_index(&path, &index).expect_err("native index save disabled");
 
-    assert_eq!(rebuilt.last_task_date.as_deref(), Some("20260612"));
-    assert_eq!(rebuilt.last_task_seq, 3);
-    assert_eq!(rebuilt.tasks.get("T20260612.0003").map(String::as_str), Some("completed"));
+    assert_native_cutover(error);
+    assert!(!legacy_task_dir(project.path()).join("_index.json").exists());
+}
+
+#[test]
+fn native_load_task_ignores_existing_legacy_task_file() {
+    let project = tempfile::tempdir().expect("temp project");
+    let task_dir = legacy_task_dir(project.path());
+    std::fs::create_dir_all(&task_dir).expect("legacy task directory");
+    let mut task = Task::new(1);
+    task.id = "T20260717.0001".to_string();
+    std::fs::write(
+        task_dir.join(format!("{}.json", task.id)),
+        serde_json::to_vec(&task).expect("serialize legacy task"),
+    )
+    .expect("write legacy task");
+    let path = project.path().to_string_lossy();
+
+    assert!(load_task(&path, &task.id).is_none());
+}
+
+#[test]
+fn native_save_task_fails_closed_without_creating_task_storage() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let task = Task::new(1);
+    let error = save_task(&path, &task).expect_err("native save disabled");
+
+    assert_native_cutover(error);
+    assert!(!legacy_task_dir(project.path()).exists());
+}
+
+#[test]
+fn native_delete_task_fails_closed_and_preserves_legacy_file() {
+    let project = tempfile::tempdir().expect("temp project");
+    let task_dir = legacy_task_dir(project.path());
+    std::fs::create_dir_all(&task_dir).expect("legacy task directory");
+    let task_id = "T20260717.0001";
+    let task_file = task_dir.join(format!("{task_id}.json"));
+    std::fs::write(&task_file, b"legacy task").expect("write legacy task");
+    let path = project.path().to_string_lossy();
+
+    let error = delete_task_file(&path, task_id).expect_err("native delete disabled");
+
+    assert_native_cutover(error);
+    assert_eq!(std::fs::read(&task_file).expect("preserved task"), b"legacy task");
+}
+
+#[test]
+fn native_load_all_tasks_ignores_legacy_index_and_task_files() {
+    let project = tempfile::tempdir().expect("temp project");
+    let task_dir = legacy_task_dir(project.path());
+    std::fs::create_dir_all(&task_dir).expect("legacy task directory");
+    let mut task = Task::new(1);
+    task.id = "T20260717.0001".to_string();
+    std::fs::write(
+        task_dir.join(format!("{}.json", task.id)),
+        serde_json::to_vec(&task).expect("serialize legacy task"),
+    )
+    .expect("write legacy task");
+    let mut index = TaskIndex::new();
+    index.tasks.insert(task.id.clone(), task.status.to_string_key().to_string());
+    std::fs::write(
+        task_dir.join("_index.json"),
+        serde_json::to_vec(&index).expect("serialize legacy index"),
+    )
+    .expect("write legacy index");
+    let path = project.path().to_string_lossy();
+
+    assert!(load_all_tasks(&path).is_empty());
 }

@@ -3,6 +3,131 @@
 use super::*;
 use iced::widget::{column, row};
 
+fn mix_color(left: Color, right: Color, factor: f32) -> Color {
+    let factor = factor.clamp(0.0, 1.0);
+    Color {
+        r: left.r + (right.r - left.r) * factor,
+        g: left.g + (right.g - left.g) * factor,
+        b: left.b + (right.b - left.b) * factor,
+        a: left.a + (right.a - left.a) * factor,
+    }
+}
+
+fn toolbar_icon_style(theme: &Theme, enabled: bool, active: bool) -> iced::widget::svg::Style {
+    let palette = theme.extended_palette();
+    let color = if !enabled {
+        theme.palette().text.scale_alpha(0.35)
+    } else if active {
+        palette.background.base.text
+    } else {
+        theme.palette().text
+    };
+
+    iced::widget::svg::Style { color: Some(color) }
+}
+
+fn toolbar_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    enabled: bool,
+    active: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = if !enabled {
+        None
+    } else if active {
+        match status {
+            iced::widget::button::Status::Pressed => Some(Background::Color(mix_color(
+                palette.background.strong.color,
+                palette.background.base.color,
+                0.30,
+            ))),
+            _ => Some(Background::Color(mix_color(
+                palette.background.weak.color,
+                palette.background.base.color,
+                0.55,
+            ))),
+        }
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => {
+                Some(Background::Color(palette.background.weak.color))
+            }
+            iced::widget::button::Status::Pressed => {
+                Some(Background::Color(palette.background.strong.color))
+            }
+            _ => None,
+        }
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border {
+            width: 1.0,
+            color: if active { palette.background.strong.color } else { Color::TRANSPARENT },
+            radius: 6.0.into(),
+        },
+        text_color: if enabled {
+            theme.palette().text
+        } else {
+            theme.palette().text.scale_alpha(0.35)
+        },
+        ..Default::default()
+    }
+}
+
+fn zoom_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    radius: iced::border::Radius,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        iced::widget::button::Status::Pressed => {
+            Some(Background::Color(palette.background.strong.color))
+        }
+        iced::widget::button::Status::Hovered => {
+            Some(Background::Color(palette.background.weak.color))
+        }
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+fn zoom_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    active: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = if active {
+        Some(Background::Color(theme.palette().primary.scale_alpha(0.14)))
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => {
+                Some(Background::Color(palette.background.weak.color.scale_alpha(0.55)))
+            }
+            iced::widget::button::Status::Pressed => {
+                Some(Background::Color(palette.background.strong.color))
+            }
+            _ => None,
+        }
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
+        text_color: if active { theme.palette().primary } else { theme.palette().text },
+        ..Default::default()
+    }
+}
+
 /// 构建 center toolbar 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
@@ -26,17 +151,7 @@ pub(super) fn build_center_toolbar(state: &WorkflowState) -> Element<'static, Me
             .width(Length::Fixed(18.0))
             .height(Length::Fixed(18.0))
             .content_fit(iced::ContentFit::Contain)
-            .style(move |theme: &Theme, _| {
-                let palette = theme.extended_palette();
-                let color = if !enabled {
-                    theme.palette().text.scale_alpha(0.35)
-                } else if active {
-                    palette.background.base.text
-                } else {
-                    theme.palette().text
-                };
-                iced::widget::svg::Style { color: Some(color) }
-            })
+            .style(move |theme: &Theme, _| toolbar_icon_style(theme, enabled, active))
             .into();
 
         let button = button(
@@ -49,64 +164,7 @@ pub(super) fn build_center_toolbar(state: &WorkflowState) -> Element<'static, Me
         .padding(0)
         .width(Length::Fixed(32.0))
         .height(Length::Fixed(32.0))
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let mix = |left: Color, right: Color, factor: f32| -> Color {
-                let factor = factor.clamp(0.0, 1.0);
-                Color {
-                    r: left.r + (right.r - left.r) * factor,
-                    g: left.g + (right.g - left.g) * factor,
-                    b: left.b + (right.b - left.b) * factor,
-                    a: left.a + (right.a - left.a) * factor,
-                }
-            };
-
-            let background = if !enabled {
-                None
-            } else if active {
-                match status {
-                    iced::widget::button::Status::Pressed => Some(Background::Color(mix(
-                        palette.background.strong.color,
-                        palette.background.base.color,
-                        0.30,
-                    ))),
-                    _ => Some(Background::Color(mix(
-                        palette.background.weak.color,
-                        palette.background.base.color,
-                        0.55,
-                    ))),
-                }
-            } else {
-                match status {
-                    iced::widget::button::Status::Hovered => {
-                        Some(Background::Color(palette.background.weak.color))
-                    }
-                    iced::widget::button::Status::Pressed => {
-                        Some(Background::Color(palette.background.strong.color))
-                    }
-                    _ => None,
-                }
-            };
-
-            iced::widget::button::Style {
-                background,
-                border: Border {
-                    width: 1.0,
-                    color: if active {
-                        palette.background.strong.color
-                    } else {
-                        Color::TRANSPARENT
-                    },
-                    radius: 6.0.into(),
-                },
-                text_color: if enabled {
-                    theme.palette().text
-                } else {
-                    theme.palette().text.scale_alpha(0.35)
-                },
-                ..Default::default()
-            }
-        });
+        .style(move |theme: &Theme, status| toolbar_button_style(theme, status, enabled, active));
 
         let button: Element<'static, Message> = if let Some(message) = message {
             button.on_press(Message::WorkflowTool(message)).into()
@@ -188,28 +246,6 @@ pub(super) fn build_center_toolbar(state: &WorkflowState) -> Element<'static, Me
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_zoom_control(state: &WorkflowState) -> Element<'static, Message> {
-    let zoom_button_style = |radius: iced::border::Radius| {
-        move |theme: &Theme, status: iced::widget::button::Status| {
-            let palette = theme.extended_palette();
-            let background = match status {
-                iced::widget::button::Status::Pressed => {
-                    Some(Background::Color(palette.background.strong.color))
-                }
-                iced::widget::button::Status::Hovered => {
-                    Some(Background::Color(palette.background.weak.color))
-                }
-                _ => None,
-            };
-
-            iced::widget::button::Style {
-                background,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius },
-                text_color: theme.palette().text,
-                ..Default::default()
-            }
-        }
-    };
-
     let zoom_label = format!("{:.0}%", (state.zoom * 100.0).round());
 
     let zoom_minus: Element<'static, Message> = button(
@@ -220,12 +256,18 @@ pub(super) fn build_zoom_control(state: &WorkflowState) -> Element<'static, Mess
             .align_y(iced::alignment::Vertical::Center),
     )
     .on_press(Message::WorkflowTool(WorkflowMessage::Zoom(1.0 / 1.1, None)))
-    .style(zoom_button_style(iced::border::Radius {
-        top_left: 12.0,
-        top_right: 0.0,
-        bottom_left: 12.0,
-        bottom_right: 0.0,
-    }))
+    .style(move |theme: &Theme, status| {
+        zoom_button_style(
+            theme,
+            status,
+            iced::border::Radius {
+                top_left: 12.0,
+                top_right: 0.0,
+                bottom_left: 12.0,
+                bottom_right: 0.0,
+            },
+        )
+    })
     .width(Length::Fixed(34.0))
     .height(Length::Fixed(ZOOM_CONTROL_HEIGHT))
     .padding(0)
@@ -239,12 +281,18 @@ pub(super) fn build_zoom_control(state: &WorkflowState) -> Element<'static, Mess
             .align_y(iced::alignment::Vertical::Center),
     )
     .on_press(Message::WorkflowTool(WorkflowMessage::Zoom(1.1, None)))
-    .style(zoom_button_style(iced::border::Radius {
-        top_left: 0.0,
-        top_right: 12.0,
-        bottom_left: 0.0,
-        bottom_right: 12.0,
-    }))
+    .style(move |theme: &Theme, status| {
+        zoom_button_style(
+            theme,
+            status,
+            iced::border::Radius {
+                top_left: 0.0,
+                top_right: 12.0,
+                bottom_left: 0.0,
+                bottom_right: 12.0,
+            },
+        )
+    })
     .width(Length::Fixed(34.0))
     .height(Length::Fixed(ZOOM_CONTROL_HEIGHT))
     .padding(0)
@@ -258,7 +306,7 @@ pub(super) fn build_zoom_control(state: &WorkflowState) -> Element<'static, Mess
             .align_y(iced::alignment::Vertical::Center),
     )
     .on_press(Message::WorkflowTool(WorkflowMessage::ToggleZoomMenu))
-    .style(zoom_button_style(0.0.into()))
+    .style(move |theme: &Theme, status| zoom_button_style(theme, status, 0.0.into()))
     .width(Length::Fill)
     .height(Length::Fixed(ZOOM_CONTROL_HEIGHT))
     .padding(0)
@@ -297,38 +345,14 @@ pub(super) fn build_zoom_menu_overlay(
 ) -> Element<'static, Message> {
     let current_percent = (state.zoom * 100.0).round().clamp(0.0, 10_000.0) as u32;
 
-    let menu_button = |label: String,
-                       active: bool,
-                       message: WorkflowMessage|
-     -> Element<'static, Message> {
-        button(container(text(label).size(12)).width(Length::Fill).padding([6, 10]))
-            .on_press(Message::WorkflowTool(message))
-            .style(move |theme: &Theme, status| {
-                let palette = theme.extended_palette();
-                let background = if active {
-                    Some(Background::Color(theme.palette().primary.scale_alpha(0.14)))
-                } else {
-                    match status {
-                        iced::widget::button::Status::Hovered => {
-                            Some(Background::Color(palette.background.weak.color.scale_alpha(0.55)))
-                        }
-                        iced::widget::button::Status::Pressed => {
-                            Some(Background::Color(palette.background.strong.color))
-                        }
-                        _ => None,
-                    }
-                };
-
-                iced::widget::button::Style {
-                    background,
-                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                    text_color: if active { theme.palette().primary } else { theme.palette().text },
-                    ..Default::default()
-                }
-            })
-            .width(Length::Fill)
-            .into()
-    };
+    let menu_button =
+        |label: String, active: bool, message: WorkflowMessage| -> Element<'static, Message> {
+            button(container(text(label).size(12)).width(Length::Fill).padding([6, 10]))
+                .on_press(Message::WorkflowTool(message))
+                .style(move |theme: &Theme, status| zoom_menu_button_style(theme, status, active))
+                .width(Length::Fill)
+                .into()
+        };
 
     let mut items =
         column![menu_button("适配窗口".to_string(), false, WorkflowMessage::ZoomFit,)].spacing(2);

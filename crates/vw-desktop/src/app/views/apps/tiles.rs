@@ -5,33 +5,18 @@
 //! ## 主要功能
 //!
 //! - `render_tiles_grid`: 渲染应用瓦片网格，包括内置工具和用户书签
-//! - `render_header`: 渲染应用页面的头部，包含标题、搜索框和关闭按钮
+//! - `render_header`: 渲染应用页面的头部，包含标题和搜索框
 //!
 //! ## 瓦片类型
 //!
 //! 模块支持以下类型的瓦片：
-//! - 设计工具
 //! - 历史项目
 //! - 网址书签（用户自定义）
-//! - JSON 工具
-//! - JSON/YAML 互转工具
-//! - SQL 美化工具
-//! - HTML 美化工具
-//! - Markdown 编辑器
-//! - 思维导图
-//! - JSON 比对工具
-//! - 二维码生成器
-//! - 随机密码生成器
-//! - 进制转换器
-//! - 时间戳转换器
-//! - 颜色转换工具
-//! - 电脑垃圾清理工具
 
 use super::ui;
 use crate::app::assets::Icon;
 use crate::app::message::{ProjectMessage, ViewMessage};
 use crate::app::{App, Message};
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
 use iced::{Color, Element, Length, Theme};
 
@@ -67,6 +52,11 @@ fn compute_tile_columns(app: &App, tile_width: f32, gap: f32) -> usize {
         cols = 1;
     }
     cols
+}
+
+#[cfg(test)]
+fn builtin_tile_titles() -> Vec<&'static str> {
+    vec!["历史项目", "添加网址", "知识库", "工作流", "任务编排"]
 }
 
 /// 渲染应用瓦片网格
@@ -106,17 +96,6 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
 
     // 存储所有匹配的瓦片元素
     let mut tiles: Vec<Element<'_, Message>> = Vec::new();
-
-    // 设计工具瓦片
-    if matches("设计") {
-        tiles.push(ui::tile(
-            Icon::LayoutTextWindow,
-            "设计".to_string(),
-            Color::from_rgb8(0x0D, 0x99, 0xFF), // 蓝色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenDesign)))],
-            msg(Message::View(ViewMessage::OpenDesign)),
-        ));
-    }
 
     // 历史项目瓦片
     if matches("历史项目") {
@@ -177,28 +156,6 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
         ));
     }
 
-    // JSON 工具瓦片
-    if matches("JSON工具") {
-        tiles.push(ui::tile(
-            Icon::LayoutTextWindow,
-            "JSON工具".to_string(),
-            Color::from_rgb8(0xF2, 0xA9, 0x00), // 橙色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenJsonTool)))],
-            msg(Message::View(ViewMessage::OpenJsonTool)),
-        ));
-    }
-
-    // JSON/YAML 互转工具瓦片
-    if matches("JSON/YAML互转工具") {
-        tiles.push(ui::tile(
-            Icon::Yaml,
-            "JSON/YAML互转工具".to_string(),
-            Color::from_rgb8(0x00, 0xB3, 0x8A), // 青绿色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenJsonYamlTool)))],
-            msg(Message::View(ViewMessage::OpenJsonYamlTool)),
-        ));
-    }
-
     if matches("知识库") || matches("Knowledge") {
         tiles.push(ui::tile(
             Icon::Journals,
@@ -206,49 +163,6 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
             Color::from_rgb8(0x35, 0x85, 0xD6),
             vec![("打开", msg(Message::View(ViewMessage::OpenKnowledge)))],
             msg(Message::View(ViewMessage::OpenKnowledge)),
-        ));
-    }
-
-    // SQL 美化工具瓦片
-    if matches("SQL美化工具") {
-        tiles.push(ui::tile(
-            Icon::LayoutTextWindow,
-            "SQL美化工具".to_string(),
-            Color::from_rgb8(0x2E, 0xB8, 0x72), // 绿色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenSqlTool)))],
-            msg(Message::View(ViewMessage::OpenSqlTool)),
-        ));
-    }
-
-    if matches("Redis客户端") {
-        tiles.push(ui::tile(
-            Icon::GearWideConnected,
-            "Redis客户端".to_string(),
-            Color::from_rgb8(0xD9, 0x4F, 0x2B),
-            vec![("打开", msg(Message::View(ViewMessage::OpenRedisTool)))],
-            msg(Message::View(ViewMessage::OpenRedisTool)),
-        ));
-    }
-
-    // HTML 美化工具瓦片
-    if matches("HTML美化工具") {
-        tiles.push(ui::tile(
-            Icon::LayoutTextWindow,
-            "HTML美化工具".to_string(),
-            Color::from_rgb8(0xFF, 0x6A, 0x00), // 橙红色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenHtmlTool)))],
-            msg(Message::View(ViewMessage::OpenHtmlTool)),
-        ));
-    }
-
-    // Markdown 编辑器瓦片
-    if matches("Markdown编辑器") {
-        tiles.push(ui::tile(
-            Icon::Markdown,
-            "Markdown编辑器".to_string(),
-            Color::from_rgb8(0x55, 0x84, 0xF2), // 蓝色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenMarkdownTool)))],
-            msg(Message::View(ViewMessage::OpenMarkdownTool)),
         ));
     }
 
@@ -263,101 +177,13 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
         ));
     }
 
-    // 思维导图瓦片
-    if matches("思维导图") {
+    if matches("任务编排") {
         tiles.push(ui::tile(
-            Icon::Journals,
-            "思维导图".to_string(),
-            Color::from_rgb8(0x55, 0x84, 0xF2), // 蓝色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenMindMapTool)))],
-            msg(Message::View(ViewMessage::OpenMindMapTool)),
-        ));
-    }
-
-    // JSON 比对工具瓦片
-    if matches("JSON比对工具") {
-        tiles.push(ui::tile(
-            Icon::Columns,
-            "JSON比对工具".to_string(),
-            Color::from_rgb8(0x00, 0xB3, 0x5F), // 深绿色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenJsonDiffTool)))],
-            msg(Message::View(ViewMessage::OpenJsonDiffTool)),
-        ));
-    }
-
-    // 二维码生成器瓦片
-    if matches("二维码生成器") {
-        tiles.push(ui::tile(
-            Icon::QrCode,
-            "二维码生成器".to_string(),
-            Color::from_rgb8(0x8A, 0x3F, 0xFF), // 紫色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenQrTool)))],
-            msg(Message::View(ViewMessage::OpenQrTool)),
-        ));
-    }
-
-    // 随机密码生成器瓦片
-    if matches("随机密码生成器") {
-        tiles.push(ui::tile(
-            Icon::Keyboard,
-            "随机密码生成器".to_string(),
-            Color::from_rgb8(0xFF, 0x6A, 0x00), // 橙红色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenPasswordTool)))],
-            msg(Message::View(ViewMessage::OpenPasswordTool)),
-        ));
-    }
-
-    // 进制转换器瓦片
-    if matches("进制转换器") {
-        tiles.push(ui::tile(
-            Icon::Code,
-            "进制转换器".to_string(),
-            Color::from_rgb8(0x00, 0xA3, 0xFF), // 天蓝色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenBaseTool)))],
-            msg(Message::View(ViewMessage::OpenBaseTool)),
-        ));
-    }
-
-    // 时间戳转换器瓦片
-    if matches("时间戳转换器") {
-        tiles.push(ui::tile(
-            Icon::LayoutTextWindow,
-            "时间戳转换器".to_string(),
-            Color::from_rgb8(0xFF, 0x4D, 0x7D), // 粉红色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenTimestampTool)))],
-            msg(Message::View(ViewMessage::OpenTimestampTool)),
-        ));
-    }
-
-    // 颜色转换工具瓦片
-    if matches("颜色转换工具") {
-        tiles.push(ui::tile(
-            Icon::Sliders,
-            "颜色转换工具".to_string(),
-            Color::from_rgb8(0x1F, 0xC9, 0xB7), // 青色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenColorTool)))],
-            msg(Message::View(ViewMessage::OpenColorTool)),
-        ));
-    }
-
-    // 电脑垃圾清理工具瓦片
-    if matches("电脑垃圾清理工具") {
-        tiles.push(ui::tile(
-            Icon::Trash,
-            "电脑垃圾清理工具".to_string(),
-            Color::from_rgb8(0xE1, 0x5B, 0x64), // 红色主题色
-            vec![("打开", msg(Message::View(ViewMessage::OpenCleanerTool)))],
-            msg(Message::View(ViewMessage::OpenCleanerTool)),
-        ));
-    }
-
-    if matches("大文件查找工具") {
-        tiles.push(ui::tile(
-            Icon::FolderOpen,
-            "大文件查找工具".to_string(),
-            Color::from_rgb8(0x6B, 0x7C, 0xFF),
-            vec![("打开", msg(Message::View(ViewMessage::OpenLargeFileTool)))],
-            msg(Message::View(ViewMessage::OpenLargeFileTool)),
+            Icon::GearWideConnected,
+            "任务编排".to_string(),
+            Color::from_rgb8(0x28, 0x8F, 0x61),
+            vec![("打开", msg(Message::View(ViewMessage::OpenWorkflowManager)))],
+            msg(Message::View(ViewMessage::OpenWorkflowManager)),
         ));
     }
 
@@ -467,24 +293,7 @@ pub(super) fn render_header(app: &App, blocked: bool) -> Element<'static, Messag
     let search_box: Element<'static, Message> =
         stack(vec![search_input.into(), clear_overlay]).width(Length::Fixed(280.0)).into();
 
-    // 关闭按钮：带有提示文本
-    let close_btn = Tooltip::new(
-        button(ui::icon_svg(Icon::X, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(theme.palette().text),
-        }))
-        .on_press(if blocked {
-            Message::None
-        } else {
-            Message::View(ViewMessage::TabClosed("apps".to_string()))
-        })
-        .style(ui::icon_button_style)
-        .padding(6),
-        ui::tooltip_bubble("关闭应用中心"),
-        TooltipPosition::Top,
-    )
-    .gap(8); // 提示框与按钮的间距
-
-    // 头部布局：标题 | 占位 | 搜索框 | 关闭按钮
+    // 头部布局：标题 | 占位 | 搜索框
     row![
         column![
             text("应用中心")
@@ -496,9 +305,7 @@ pub(super) fn render_header(app: &App, blocked: bool) -> Element<'static, Messag
         ]
         .spacing(4),
         Space::new().width(Length::Fill),
-        search_box,
-        Space::new().width(Length::Fixed(10.0)),
-        close_btn
+        search_box
     ]
     .align_y(iced::Alignment::Center)
     .into()

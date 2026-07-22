@@ -12,20 +12,25 @@
 //! - 目标网关端点配置
 //! - 复用的 `reqwest::Client`
 
-mod cleaner_api;
+mod agent_scheduler_api;
+#[cfg(test)]
+#[path = "agent_scheduler_api_tests.rs"]
+mod agent_scheduler_api_tests;
 mod config_api;
 mod cron_api;
 pub mod desktop_settings_api;
 mod file_api;
 mod git_api;
 mod knowledge_api;
+mod mcp_api;
 mod permission_api;
 mod project_api;
 mod provider_api;
 mod question_api;
-mod redis_api;
 mod request_helpers;
 mod session_api;
+mod staff_api;
+mod task_lifecycle_api;
 mod task_pool_api;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -34,10 +39,16 @@ mod workflow_api;
 
 pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use self::desktop_settings_api::{
-    DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto,
+    DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
+    DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
+    ExternalAppsStateDto,
 };
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
+};
+pub use self::workflow_api::{
+    GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome, GatewayWorkflowStreamError,
+    GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 use crate::endpoint::GatewayEndpoint;
 #[cfg(not(target_arch = "wasm32"))]
@@ -89,6 +100,26 @@ impl GatewayClient {
         crate::stream::stream_chat_blocking(endpoint, directory, body, on_event)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    /// 以阻塞方式建立聊天流，并在连续无响应超过 `idle_timeout` 时结束请求。
+    ///
+    /// 该超时只限制响应空窗，不限制整次流的最长运行时间。
+    pub fn stream_chat_blocking_with_idle_timeout(
+        endpoint: &GatewayEndpoint,
+        directory: Option<&str>,
+        body: &crate::stream::GatewayChatStreamRequest,
+        idle_timeout: std::time::Duration,
+        on_event: impl FnMut(crate::stream::GatewayChatStreamEvent) -> bool,
+    ) -> Result<(), String> {
+        crate::stream::stream_chat_blocking_with_idle_timeout(
+            endpoint,
+            directory,
+            body,
+            idle_timeout,
+            on_event,
+        )
+    }
+
     /// 以异步方式建立聊天流，并逐条回调返回事件。
     ///
     /// 回调返回 `false` 时会主动结束消费，常用于 UI 已停止监听或调用方拿到终止事件后提前退出。
@@ -99,6 +130,27 @@ impl GatewayClient {
         on_event: impl FnMut(crate::stream::GatewayChatStreamEvent) -> bool,
     ) -> Result<(), String> {
         crate::stream::stream_chat(endpoint, directory, body, on_event).await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// 以异步方式建立聊天流，并在连续无响应超过 `idle_timeout` 时结束请求。
+    ///
+    /// 该超时面向任务执行这类自动化场景，只限制响应空窗，不限制整次流的最长运行时间。
+    pub async fn stream_chat_with_idle_timeout(
+        endpoint: &GatewayEndpoint,
+        directory: Option<&str>,
+        body: &crate::stream::GatewayChatStreamRequest,
+        idle_timeout: std::time::Duration,
+        on_event: impl FnMut(crate::stream::GatewayChatStreamEvent) -> bool,
+    ) -> Result<(), String> {
+        crate::stream::stream_chat_with_idle_timeout(
+            endpoint,
+            directory,
+            body,
+            idle_timeout,
+            on_event,
+        )
+        .await
     }
 }
 

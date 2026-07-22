@@ -1,5 +1,7 @@
 //! 处理 ACP 系统设置页的加载与启用状态更新。
 
+use std::time::Duration;
+
 use crate::app::config::{AcpSettingsSnapshot, set_global_acp_agent_enabled_async};
 use crate::app::{App, Message};
 use iced::Task;
@@ -53,6 +55,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Err(err) => {
                     app.acp_settings.save_error = Some(err);
                 }
+            }
+            Task::none()
+        }
+        AcpMessage::CopyCommand { agent, command } => {
+            app.acp_settings.copied_agent = Some(agent.clone());
+            Task::batch(vec![
+                iced::clipboard::write(command),
+                crate::app::message::after(
+                    Duration::from_secs(2),
+                    Message::Settings(SettingsMessage::Acp(AcpMessage::ClearCopiedCommand(agent))),
+                ),
+            ])
+        }
+        AcpMessage::ClearCopiedCommand(agent) => {
+            if app.acp_settings.copied_agent.as_deref() == Some(agent.as_str()) {
+                app.acp_settings.copied_agent = None;
             }
             Task::none()
         }

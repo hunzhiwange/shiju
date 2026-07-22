@@ -124,6 +124,55 @@ fn worktree_path() -> PathBuf {
     if wt.is_empty() { PathBuf::from(".") } else { PathBuf::from(wt) }
 }
 
+fn collect_revert_plan(
+    all: &[super::message::WithParts],
+    input: &RevertInput,
+) -> Option<(super::session::RevertInfo, Vec<snapshot::Patch>)> {
+    let mut last_user_id: Option<String> = None;
+    let mut revert_info: Option<super::session::RevertInfo> = None;
+    let mut patches: Vec<snapshot::Patch> = Vec::new();
+
+    for msg in all {
+        if matches!(msg.info, super::message::Info::User(_)) {
+            last_user_id = Some(msg.info.id().to_string());
+        }
+
+        let mut remaining_useful = false;
+        for part in &msg.parts {
+            if revert_info.is_some() {
+                if let super::message::Part::Patch(p) = part {
+                    patches.push(snapshot::Patch { hash: p.hash.clone(), files: p.files.clone() });
+                }
+                continue;
+            }
+
+            let matches_target = (msg.info.id() == input.message_id && input.part_id.is_none())
+                || input.part_id.as_deref() == Some(part.id());
+
+            if matches_target {
+                let part_id = if remaining_useful { input.part_id.clone() } else { None };
+                let message_id = if part_id.is_none() {
+                    last_user_id.clone().unwrap_or_else(|| msg.info.id().to_string())
+                } else {
+                    msg.info.id().to_string()
+                };
+                revert_info = Some(super::session::RevertInfo {
+                    message_id,
+                    part_id,
+                    snapshot: None,
+                    diff: None,
+                });
+            }
+
+            if matches!(part, super::message::Part::Text(_) | super::message::Part::Tool(_)) {
+                remaining_useful = true;
+            }
+        }
+    }
+
+    revert_info.map(|info| (info, patches))
+}
+
 /// 执行会话回退操作
 ///
 /// 将会话状态回退到指定的消息或消息部分之前的状态。此函数会：
@@ -164,62 +213,8 @@ pub async fn revert(input: RevertInput) -> Result<super::session::Info, Error> {
     // 按消息 ID 排序，确保时间顺序
     all.sort_by(|a, b| a.info.id().cmp(b.info.id()));
 
-    // 记录最后一个用户消息的 ID，用于确定回退起点
-    let mut last_user_id: Option<String> = None;
-    // 回退信息，包含回退点的位置和快照
-    let mut revert_info: Option<super::session::RevertInfo> = None;
-    // 需要反向应用的补丁列表
-    let mut patches: Vec<snapshot::Patch> = Vec::new();
-
-    // 遍历所有消息，找到回退点并收集后续补丁
-    for msg in &all {
-        // 更新最后一个用户消息的 ID
-        if matches!(msg.info, super::message::Info::User(_)) {
-            last_user_id = Some(msg.info.id().to_string());
-        }
-
-        // 标记当前消息是否有剩余有用内容
-        let mut remaining_useful = false;
-        for part in &msg.parts {
-            // 如果已经找到回退点，只收集后续的补丁
-            if revert_info.is_some() {
-                if let super::message::Part::Patch(p) = part {
-                    patches.push(snapshot::Patch { hash: p.hash.clone(), files: p.files.clone() });
-                }
-                continue;
-            }
-
-            // 检查当前部分是否匹配目标
-            let matches_target = (msg.info.id() == input.message_id && input.part_id.is_none())
-                || input.part_id.as_deref() == Some(part.id());
-
-            // 找到回退目标，创建回退信息
-            if matches_target {
-                // 如果还有剩余有用内容，保留部分 ID；否则清空
-                let part_id = if remaining_useful { input.part_id.clone() } else { None };
-                // 如果没有部分 ID，回退到最后一个用户消息；否则回退到当前消息
-                let message_id = if part_id.is_none() {
-                    last_user_id.clone().unwrap_or_else(|| msg.info.id().to_string())
-                } else {
-                    msg.info.id().to_string()
-                };
-                revert_info = Some(super::session::RevertInfo {
-                    message_id,
-                    part_id,
-                    snapshot: None,
-                    diff: None,
-                });
-            }
-
-            // 检查当前部分是否包含有用内容（文本或工具调用）
-            if matches!(part, super::message::Part::Text(_) | super::message::Part::Tool(_)) {
-                remaining_useful = true;
-            }
-        }
-    }
-
     // 如果没有找到回退点，直接返回当前会话信息
-    let Some(mut revert_info) = revert_info else {
+    let Some((mut revert_info, patches)) = collect_revert_plan(&all, &input) else {
         return Ok(super::session::get(&input.session_id).await?);
     };
 
@@ -398,14 +393,12 @@ pub async fn cleanup_after_message(session_id: &str, message_id: &str) -> Result
     cleanup_message_range(session_id, message_id, false).await
 }
 
-async fn cleanup_message_range(
-    session_id: &str,
+fn collect_cleanup_messages(
+    msgs: Vec<super::message::WithParts>,
     message_id: &str,
     include_target: bool,
-) -> Result<(), Error> {
-    let mut msgs = super::message::messages(session_id, None).await?;
-    msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
-    let mut remove: Vec<super::message::WithParts> = Vec::new();
+) -> Vec<super::message::WithParts> {
+    let mut remove = Vec::new();
     let mut hit = false;
 
     for msg in msgs {
@@ -419,6 +412,18 @@ async fn cleanup_message_range(
             remove.push(msg);
         }
     }
+
+    remove
+}
+
+async fn cleanup_message_range(
+    session_id: &str,
+    message_id: &str,
+    include_target: bool,
+) -> Result<(), Error> {
+    let mut msgs = super::message::messages(session_id, None).await?;
+    msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
+    let remove = collect_cleanup_messages(msgs, message_id, include_target);
 
     for msg in remove {
         let message_id = msg.info.id().to_string();

@@ -275,6 +275,20 @@ pub fn session_row_highlight_color(theme: &Theme) -> Color {
     }
 }
 
+fn tooltip_bubble_style(_theme: &Theme) -> ContainerStyle {
+    iced::widget::container::Style {
+        text_color: Some(Color::WHITE),
+        background: Some(Background::Color(Color::from_rgb8(28, 28, 30))),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 12.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.32),
+            offset: iced::Vector::new(0.0, 4.0),
+            blur_radius: 16.0,
+        },
+        snap: false,
+    }
+}
+
 /// 执行本模块的界面辅助逻辑。
 ///
 /// # 参数
@@ -286,19 +300,7 @@ pub fn session_row_highlight_color(theme: &Theme) -> Color {
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn tooltip_bubble<'a>(tip: String) -> iced::widget::Container<'a, Message> {
-    container(text(tip).size(12)).padding([6, 10]).style(|_theme: &Theme| {
-        iced::widget::container::Style {
-            text_color: Some(Color::WHITE),
-            background: Some(Background::Color(Color::from_rgb8(28, 28, 30))),
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 12.0.into() },
-            shadow: iced::Shadow {
-                color: Color::BLACK.scale_alpha(0.32),
-                offset: iced::Vector::new(0.0, 4.0),
-                blur_radius: 16.0,
-            },
-            snap: false,
-        }
-    })
+    container(text(tip).size(12)).padding([6, 10]).style(tooltip_bubble_style)
 }
 
 /// 生成主题相关样式。

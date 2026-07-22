@@ -220,13 +220,13 @@ fn normalize_absolute_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
-            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
-            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+            }
             Component::CurDir => {}
             Component::ParentDir => {
                 normalized.pop();
             }
-            Component::Normal(value) => normalized.push(value),
         }
     }
     normalized

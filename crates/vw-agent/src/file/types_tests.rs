@@ -154,3 +154,59 @@ fn search_input_keeps_all_fields() {
     assert_eq!(cloned.r#type.as_deref(), Some("file"));
     assert!(format!("{:?}", cloned).contains("needle"));
 }
+
+#[test]
+fn lowercase_enum_types_reject_unknown_or_mis_cased_values() {
+    assert!(serde_json::from_str::<Status>("\"Added\"").is_err());
+    assert!(serde_json::from_str::<Status>("\"renamed\"").is_err());
+    assert!(serde_json::from_str::<NodeType>("\"Directory\"").is_err());
+    assert!(serde_json::from_str::<NodeType>("\"symlink\"").is_err());
+    assert!(serde_json::from_str::<ContentType>("\"Text\"").is_err());
+    assert!(serde_json::from_str::<ContentType>("\"archive\"").is_err());
+}
+
+#[test]
+fn content_deserialization_defaults_omitted_optional_fields_to_none() {
+    let content: Content = serde_json::from_value(serde_json::json!({
+        "type": "text",
+        "content": ""
+    }))
+    .expect("deserialize content without optional fields");
+
+    assert!(matches!(content.r#type, ContentType::Text));
+    assert!(content.content.is_empty());
+    assert!(content.diff.is_none());
+    assert!(content.encoding.is_none());
+    assert!(content.mime_type.is_none());
+}
+
+#[test]
+fn struct_deserialization_rejects_missing_required_fields() {
+    let info = serde_json::json!({
+        "path": "src/lib.rs",
+        "added": 1,
+        "removed": 0
+    });
+    let node = serde_json::json!({
+        "name": "lib.rs",
+        "path": "src/lib.rs",
+        "absolute": "/workspace/src/lib.rs",
+        "type": "file"
+    });
+    let content = serde_json::json!({ "type": "binary" });
+
+    assert!(serde_json::from_value::<Info>(info).is_err());
+    assert!(serde_json::from_value::<Node>(node).is_err());
+    assert!(serde_json::from_value::<Content>(content).is_err());
+}
+
+#[test]
+fn io_error_conversion_preserves_kind_and_message() {
+    let converted = Error::from(std::io::Error::new(std::io::ErrorKind::NotFound, "missing file"));
+
+    let Error::Io(error) = converted else {
+        panic!("io errors must convert to Error::Io");
+    };
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    assert_eq!(error.to_string(), "missing file");
+}

@@ -167,3 +167,63 @@ fn helper_functions_cover_edge_cases() {
     assert!(!is_public_bind("::1"));
     assert!(is_public_bind("192.168.1.10"));
 }
+
+#[test]
+fn configured_skeys_reject_invalid_hashes_and_expiration_timestamps() {
+    let invalid_hash = GatewaySkey {
+        enabled: true,
+        skey: None,
+        skey_hash: "not-a-sha256-hash".to_string(),
+        masked_skey: String::new(),
+        name: "invalid-hash".to_string(),
+        expires_at: None,
+    };
+    let invalid_expiration = GatewaySkey {
+        enabled: true,
+        skey: Some("valid-skey".to_string()),
+        skey_hash: String::new(),
+        masked_skey: String::new(),
+        name: "invalid-expiration".to_string(),
+        expires_at: Some("not-rfc3339".to_string()),
+    };
+
+    let guard = PairingGuard::from_skeys(true, &[invalid_hash, invalid_expiration]);
+
+    assert_eq!(guard.active_skey_count(), 0);
+    assert!(!guard.is_authenticated("valid-skey"));
+}
+
+#[test]
+fn skey_helpers_trim_hash_input_and_mask_boundary_lengths() {
+    assert_eq!(hash_skey("  secret  "), hash_token("secret"));
+    assert_eq!(masked_skey_name("   "), "");
+    assert_eq!(masked_skey_name("short"), "*****");
+    assert_eq!(masked_skey_name("12345678"), "********");
+    assert_eq!(masked_skey_name("123456789"), "1234***6789");
+    assert_eq!(masked_skey_name(" 密钥-123456789 "), "密钥-1***6789");
+}
+
+#[test]
+fn failed_attempt_pruning_removes_only_stale_clients() {
+    let now = Instant::now();
+    let mut attempts = HashMap::from([
+        (
+            "stale".to_string(),
+            FailedAttemptState {
+                count: 1,
+                lockout_until: None,
+                last_attempt: now
+                    - std::time::Duration::from_secs(FAILED_ATTEMPT_RETENTION_SECS + 1),
+            },
+        ),
+        (
+            "fresh".to_string(),
+            FailedAttemptState { count: 2, lockout_until: None, last_attempt: now },
+        ),
+    ]);
+
+    prune_failed_attempts(&mut attempts, now);
+
+    assert!(!attempts.contains_key("stale"));
+    assert!(attempts.contains_key("fresh"));
+}

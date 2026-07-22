@@ -723,9 +723,7 @@ fn write_index_content(repo_path: &str, file_path: &str, content: String) -> Res
     let oid = repo.blob(content.as_bytes()).map_err(|e| e.message().to_string())?;
     let mut index = repo.index().map_err(|e| e.message().to_string())?;
     let path = std::path::Path::new(file_path);
-    let entry = index
-        .get_path(path, 0)
-        .ok_or_else(|| "index entry not found".to_string())?;
+    let entry = index.get_path(path, 0).ok_or_else(|| "index entry not found".to_string())?;
     let mode = format!("{:o}", entry.mode);
     let status = std::process::Command::new("git")
         .arg("update-index")

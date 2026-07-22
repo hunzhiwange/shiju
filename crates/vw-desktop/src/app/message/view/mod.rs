@@ -172,6 +172,7 @@ pub enum ViewMessage {
     CheckAppUpdate,
     CheckAppUpdateFinished(Result<String, String>),
     RunAppUpdate,
+    AppUpdateProgressTick,
     AppUpdateFinished(Result<String, String>),
     /// CLI 工具安装完成
     ///
@@ -181,8 +182,6 @@ pub enum ViewMessage {
     InstallCliToolFinished(Result<String, String>),
     /// 关闭 CLI 安装弹窗
     CloseInstallCliModal,
-    /// 打开设计工具
-    OpenDesign,
     /// 打开使用量统计视图
     OpenUsage,
     /// 推进通用状态动画帧
@@ -230,6 +229,8 @@ pub enum ViewMessage {
     ToggleFilePopover,
     /// 切换 ACP 选择弹窗
     ToggleAcpPopover,
+    /// 切换推理强度选择弹窗
+    ToggleReasoningEffortPopover,
     /// 切换使用量详情弹窗
     ToggleUsagePopover,
     /// 切换会话工具选择弹窗
@@ -250,6 +251,8 @@ pub enum ViewMessage {
     CloseFilePopover,
     /// 关闭 ACP 选择弹窗
     CloseAcpPopover,
+    /// 关闭推理强度选择弹窗
+    CloseReasoningEffortPopover,
     /// 关闭使用量详情弹窗
     CloseUsagePopover,
     /// 关闭执行器选择弹窗
@@ -294,12 +297,6 @@ pub enum ViewMessage {
     SettingsDragStarted,
     /// 文件管理器面板拖拽开始
     FileManagerDragStarted,
-    /// 图层面板拖拽开始
-    LayerPanelDragStarted,
-    /// AI 生成操作面板拖拽开始
-    DesignPlannerPanelDragStarted,
-    /// 属性面板拖拽开始
-    PropertiesPanelDragStarted,
     /// 分割条拖拽开始
     SplitDragStarted,
     /// 鼠标指针移动
@@ -363,38 +360,14 @@ pub enum ViewMessage {
     TabHovered(Option<String>),
     /// 打开应用中心
     OpenApps,
-    /// 打开 JSON 格式化工具
-    OpenJsonTool,
-    /// 打开 JSON/YAML 转换工具
-    OpenJsonYamlTool,
     /// 打开知识库工作台
     OpenKnowledge,
-    /// 打开 SQL 格式化工具
-    OpenSqlTool,
-    /// 打开 Redis 客户端工具
-    OpenRedisTool,
-    /// 打开 HTML 格式化工具
-    OpenHtmlTool,
-    /// 打开 JSON 差异对比工具
-    OpenJsonDiffTool,
-    /// 打开 Markdown 编辑器工具
-    OpenMarkdownTool,
     /// 打开 Dify 工作流无限画布工具
     OpenWorkflowTool,
-    /// 打开思维导图工具
-    OpenMindMapTool,
-    /// 打开密码生成器工具
-    OpenPasswordTool,
-    /// 打开 Base64 编解码工具
-    OpenBaseTool,
-    /// 打开时间戳转换工具
-    OpenTimestampTool,
-    /// 打开二维码生成器工具
-    OpenQrTool,
-    /// 打开颜色选择器工具
-    OpenColorTool,
-    OpenCleanerTool,
-    OpenLargeFileTool,
+    /// 打开任务工作流管理面板
+    OpenWorkflowManager,
+    /// 打开任务工作流管理面板并切换到阶段能力
+    OpenWorkflowManagerStageActions,
     /// 打开最近使用的应用
     AppsOpenMostRecent,
     /// 应用中心搜索内容改变
@@ -513,6 +486,13 @@ pub enum ViewMessage {
     /// # 参数
     /// - 步骤索引
     UsageStepToggled(u32),
+    /// 使用量步骤原始 LLM 载荷加载完成
+    ///
+    /// # 参数
+    /// - 会话 ID
+    /// - 步骤索引
+    /// - 原始载荷读取结果
+    UsageStepRawLoaded(String, u32, Result<Option<serde_json::Value>, String>),
     /// 在系统文件管理器中打开指定路径
     ///
     /// # 参数
@@ -681,10 +661,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CheckAppUpdate
         | ViewMessage::CheckAppUpdateFinished(_)
         | ViewMessage::RunAppUpdate
+        | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)
         | ViewMessage::InstallCliToolFinished(_)
         | ViewMessage::CloseInstallCliModal
-        | ViewMessage::OpenDesign
         | ViewMessage::OpenUsage
         | ViewMessage::ToggleMenu(_)
         | ViewMessage::MenuAction(_)
@@ -692,6 +672,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleModePopover
         | ViewMessage::ToggleFilePopover
         | ViewMessage::ToggleAcpPopover
+        | ViewMessage::ToggleReasoningEffortPopover
         | ViewMessage::ToggleUsagePopover
         | ViewMessage::ToggleSessionToolSelectorPopover
         | ViewMessage::ToggleSendModePopover
@@ -702,6 +683,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CloseModePopover
         | ViewMessage::CloseFilePopover
         | ViewMessage::CloseAcpPopover
+        | ViewMessage::CloseReasoningEffortPopover
         | ViewMessage::CloseUsagePopover
         | ViewMessage::CloseSendModePopover
         | ViewMessage::CloseExecutorPopover
@@ -722,23 +704,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::MenuHovered(_)
         | ViewMessage::TabHovered(_)
         | ViewMessage::OpenApps
-        | ViewMessage::OpenJsonTool
-        | ViewMessage::OpenJsonYamlTool
         | ViewMessage::OpenKnowledge
-        | ViewMessage::OpenSqlTool
-        | ViewMessage::OpenRedisTool
-        | ViewMessage::OpenHtmlTool
-        | ViewMessage::OpenJsonDiffTool
-        | ViewMessage::OpenMarkdownTool
         | ViewMessage::OpenWorkflowTool
-        | ViewMessage::OpenMindMapTool
-        | ViewMessage::OpenPasswordTool
-        | ViewMessage::OpenBaseTool
-        | ViewMessage::OpenTimestampTool
-        | ViewMessage::OpenQrTool
-        | ViewMessage::OpenColorTool
-        | ViewMessage::OpenCleanerTool
-        | ViewMessage::OpenLargeFileTool
+        | ViewMessage::OpenWorkflowManager
+        | ViewMessage::OpenWorkflowManagerStageActions
         | ViewMessage::AppsOpenMostRecent
         | ViewMessage::AppsSearchChanged(_)
         | ViewMessage::OpenWebUrl(_)
@@ -748,6 +717,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::UsageModelInfoLoaded(_)
         | ViewMessage::UsageSessionFilePathLoaded(_, _)
         | ViewMessage::UsageStepToggled(_)
+        | ViewMessage::UsageStepRawLoaded(_, _, _)
         | ViewMessage::OpenPathInFinder(_)
         | ViewMessage::OpenProjectInExternalPreferred
         | ViewMessage::OpenProjectInExternalWith(_)
@@ -779,9 +749,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::GlobalCursorLeft
         | ViewMessage::SettingsDragStarted
         | ViewMessage::FileManagerDragStarted
-        | ViewMessage::LayerPanelDragStarted
-        | ViewMessage::DesignPlannerPanelDragStarted
-        | ViewMessage::PropertiesPanelDragStarted
         | ViewMessage::SplitDragStarted
         | ViewMessage::PointerMoved(_, _)
         | ViewMessage::HoveredFilePath(_)
@@ -804,105 +771,91 @@ fn handle_global_key(
     modifiers: iced::keyboard::Modifiers,
 ) -> Task<Message> {
     if app.screen == crate::app::Screen::WorkflowTool {
-        let workflow_message = if modifiers.command() {
-            match &key {
-                iced::keyboard::Key::Character(c) if c == "+" || c == "=" => {
-                    Some(crate::apps::workflow::WorkflowMessage::Zoom(1.1, None))
-                }
-                iced::keyboard::Key::Character(c) if c == "-" => {
-                    Some(crate::apps::workflow::WorkflowMessage::Zoom(1.0 / 1.1, None))
-                }
-                iced::keyboard::Key::Character(c) if c == "0" => {
-                    Some(crate::apps::workflow::WorkflowMessage::ZoomFit)
-                }
-                iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("o") => {
-                    Some(crate::apps::workflow::WorkflowMessage::OpenFile)
-                }
-                iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("r") => {
-                    Some(crate::apps::workflow::WorkflowMessage::Reload)
-                }
-                _ => None,
-            }
-        } else {
-            match &key {
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowLeft) => {
-                    Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(-48.0, 0.0)))
-                }
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowRight) => {
-                    Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(48.0, 0.0)))
-                }
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
-                    Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, -48.0)))
-                }
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown) => {
-                    Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, 48.0)))
-                }
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
-                | iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete) => {
-                    if app.workflow_state.selected_node_id.is_some() {
-                        Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedNode)
-                    } else {
-                        Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedEdge)
-                    }
-                }
-                iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) => {
-                    Some(crate::apps::workflow::WorkflowMessage::CancelInteraction)
-                }
-                _ => None,
-            }
-        };
-
-        if let Some(workflow_message) = workflow_message {
+        if let Some(workflow_message) =
+            workflow_key_message(&key, modifiers, app.workflow_state.selected_node_id.is_some())
+        {
             return crate::apps::workflow::update(app, workflow_message);
         }
     }
 
-    if modifiers.command() {
-        let message = match &key {
-            iced::keyboard::Key::Character(c) if c == "+" || c == "=" => {
-                Some(Message::Design(crate::app::message::DesignMessage::ZoomIn))
-            }
-            iced::keyboard::Key::Character(c) if c == "-" => {
-                Some(Message::Design(crate::app::message::DesignMessage::ZoomOut))
-            }
-            iced::keyboard::Key::Character(c) if c == "0" => {
-                Some(Message::Design(crate::app::message::DesignMessage::ZoomFit))
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("z") => {
-                if modifiers.shift() {
-                    Some(Message::Design(crate::app::message::DesignMessage::Redo))
-                } else {
-                    Some(Message::Design(crate::app::message::DesignMessage::Undo))
-                }
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("x") => {
-                Some(Message::Design(crate::app::message::DesignMessage::Cut))
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
-                Some(Message::CopyShortcut)
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("v") => {
-                Some(Message::Design(crate::app::message::DesignMessage::Paste))
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("s") => {
-                if modifiers.shift() {
-                    Some(Message::Design(crate::app::message::DesignMessage::SaveAs))
-                } else {
-                    Some(Message::Design(crate::app::message::DesignMessage::Save))
-                }
-            }
-            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("o") => {
-                Some(Message::Design(crate::app::message::DesignMessage::Open))
-            }
-            _ => None,
-        };
-
-        if let Some(message) = message {
-            return Task::done(message);
-        }
+    if let Some(message) = global_command_message(&key, modifiers) {
+        return Task::done(message);
     }
 
     Task::none()
+}
+
+fn workflow_key_message(
+    key: &iced::keyboard::Key,
+    modifiers: iced::keyboard::Modifiers,
+    has_selected_node: bool,
+) -> Option<crate::apps::workflow::WorkflowMessage> {
+    if modifiers.command() {
+        return match key {
+            iced::keyboard::Key::Character(c) if c == "+" || c == "=" => {
+                Some(crate::apps::workflow::WorkflowMessage::Zoom(1.1, None))
+            }
+            iced::keyboard::Key::Character(c) if c == "-" => {
+                Some(crate::apps::workflow::WorkflowMessage::Zoom(1.0 / 1.1, None))
+            }
+            iced::keyboard::Key::Character(c) if c == "0" => {
+                Some(crate::apps::workflow::WorkflowMessage::ZoomFit)
+            }
+            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("o") => {
+                Some(crate::apps::workflow::WorkflowMessage::OpenFile)
+            }
+            iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("r") => {
+                Some(crate::apps::workflow::WorkflowMessage::Reload)
+            }
+            _ => None,
+        };
+    }
+
+    match key {
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowLeft) => {
+            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(-48.0, 0.0)))
+        }
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowRight) => {
+            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(48.0, 0.0)))
+        }
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
+            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, -48.0)))
+        }
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown) => {
+            Some(crate::apps::workflow::WorkflowMessage::PanBy(Vector::new(0.0, 48.0)))
+        }
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::Backspace)
+        | iced::keyboard::Key::Named(iced::keyboard::key::Named::Delete) => {
+            if has_selected_node {
+                Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedNode)
+            } else {
+                Some(crate::apps::workflow::WorkflowMessage::DeleteSelectedEdge)
+            }
+        }
+        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) => {
+            Some(crate::apps::workflow::WorkflowMessage::CancelInteraction)
+        }
+        _ => None,
+    }
+}
+
+fn global_command_message(
+    key: &iced::keyboard::Key,
+    modifiers: iced::keyboard::Modifiers,
+) -> Option<Message> {
+    if !modifiers.command() {
+        return None;
+    }
+
+    match key {
+        iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("p") => {
+            Some(Message::Search(crate::app::message::SearchMessage::Open))
+        }
+        iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
+            Some(Message::CopyShortcut)
+        }
+        _ => None,
+    }
 }
 #[cfg(test)]
 mod tests;

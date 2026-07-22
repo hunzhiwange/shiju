@@ -1,134 +1,312 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::fs::{self, OpenOptions};
+use directories::UserDirs;
+use serde_json::{Map, Value};
+use std::collections::BTreeSet;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::io::AsyncWriteExt;
-
+use std::fs::{File, OpenOptions};
+#[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
+use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::atomic::{AtomicU64, Ordering};
+use vw_api_types::id::TenantScope;
 use vw_config_types::config::Config;
 
-use crate::app::agent::config::schema::CONFIG_JSON_FILENAME;
-use crate::app::agent::config::schema::config_io::{read_config_root_json, upsert_config_payload};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::SystemConfigStore;
+use crate::app::agent::config::schema::CONFIG_OVERRIDE_FILENAME;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::schema::config_io::{
+    merge_config_payload, read_project_config_override,
+};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::schema::config_load::load_or_init_config_for_tenant;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::schema::config_secrets::decrypt_config_secrets;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::schema::config_secrets::encrypt_config_secrets;
-use crate::app::agent::config::schema::workspace::sync_directory;
-use crate::app::agent::security::pairing::{hash_skey, masked_skey_name};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::schema::config_validate::validate_config;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::global_database::GlobalDatabase;
 
-fn normalize_gateway_skeys(config: &mut Config) {
-    for entry in &mut config.gateway.skeys {
-        if let Some(raw) = entry.skey.take() {
-            let raw = raw.trim();
-            if !raw.is_empty() {
-                entry.skey_hash = hash_skey(raw);
-                if entry.name.trim().is_empty() {
-                    entry.name = masked_skey_name(raw);
-                }
-            }
-        }
-        entry.skey_hash = entry.skey_hash.trim().to_ascii_lowercase();
-        entry.name = entry.name.trim().to_string();
-        entry.expires_at = entry
-            .expires_at
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToString::to_string);
-    }
+#[cfg(not(target_arch = "wasm32"))]
+static PROJECT_OVERRIDE_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-    config.gateway.skeys.retain(|entry| !entry.skey_hash.trim().is_empty());
+#[cfg(not(target_arch = "wasm32"))]
+struct TemporaryOverrideFile {
+    path: PathBuf,
+    keep: bool,
 }
 
-pub async fn save_config(config: &Config) -> Result<()> {
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for TemporaryOverrideFile {
+    fn drop(&mut self) {
+        if !self.keep {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn save_config_to_store(
+    config: &Config,
+    tenant: &TenantScope,
+    store: &SystemConfigStore,
+) -> Result<()> {
+    let mut config_to_save = config.clone();
+    config_to_save.gateway.skeys.clear();
+    validate_config(&config_to_save)?;
+    encrypt_config_secrets(&mut config_to_save)?;
+    let payload =
+        serde_json::to_string(&config_to_save).context("Failed to serialize system config")?;
+    store.upsert(tenant, &payload)
+}
+
+pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Result<()> {
     #[cfg(target_arch = "wasm32")]
     {
+        let _ = (config, tenant);
         Ok(())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        // Encrypt secrets before serialization
-        let mut config_to_save = config.clone();
-        normalize_gateway_skeys(&mut config_to_save);
-        encrypt_config_secrets(&mut config_to_save)?;
-
-        let mut root = read_config_root_json(&config.config_path).await?;
-        let config_json =
-            serde_json::to_value(&config_to_save).context("Failed to serialize config")?;
-        upsert_config_payload(&mut root, config_json);
-        let json_str = serde_json::to_string_pretty(&root).context("Failed to serialize config")?;
-
-        let parent_dir =
-            config.config_path.parent().context("Config path must have a parent directory")?;
-
-        fs::create_dir_all(parent_dir).await.with_context(|| {
-            format!("Failed to create config directory: {}", parent_dir.display())
-        })?;
-
-        let file_name =
-            config.config_path.file_name().and_then(|v| v.to_str()).unwrap_or(CONFIG_JSON_FILENAME);
-        let temp_path = parent_dir.join(format!(".{file_name}.tmp-{}", uuid::Uuid::new_v4()));
-        let backup_path = parent_dir.join(format!("{file_name}.bak"));
-
-        let mut temp_file =
-            OpenOptions::new().create_new(true).write(true).open(&temp_path).await.with_context(
-                || format!("Failed to create temporary config file: {}", temp_path.display()),
-            )?;
-        #[cfg(unix)]
+        #[cfg(test)]
+        if config.config_path.file_name().is_some_and(|name| name == ".vibewindow.json")
+            && config.config_path.parent().is_some_and(Path::is_dir)
         {
-            use std::{fs::Permissions, os::unix::fs::PermissionsExt};
-            fs::set_permissions(&temp_path, Permissions::from_mode(0o600)).await.with_context(
-                || {
-                    format!(
-                        "Failed to set secure permissions on temporary config file: {}",
-                        temp_path.display()
-                    )
-                },
-            )?;
-        }
-        temp_file
-            .write_all(json_str.as_bytes())
-            .await
-            .context("Failed to write temporary config contents")?;
-        temp_file.sync_all().await.context("Failed to fsync temporary config file")?;
-        drop(temp_file);
-
-        let had_existing_config = config.config_path.exists();
-        if had_existing_config {
-            fs::copy(&config.config_path, &backup_path).await.with_context(|| {
-                format!(
-                    "Failed to create config backup before atomic replace: {}",
-                    backup_path.display()
-                )
-            })?;
-        }
-
-        if let Err(e) = fs::rename(&temp_path, &config.config_path).await {
-            let _ = fs::remove_file(&temp_path).await;
-            if had_existing_config && backup_path.exists() {
-                fs::copy(&backup_path, &config.config_path)
-                    .await
-                    .context("Failed to restore config backup")?;
-            }
-            anyhow::bail!("Failed to atomically replace config file: {e}");
-        }
-
-        #[cfg(unix)]
-        {
-            use std::{fs::Permissions, os::unix::fs::PermissionsExt};
-            fs::set_permissions(&config.config_path, Permissions::from_mode(0o600))
+            validate_config(config)?;
+            let payload = serde_json::to_vec_pretty(config)
+                .context("Failed to serialize test runtime config")?;
+            tokio::fs::write(&config.config_path, payload)
                 .await
-                .with_context(|| {
-                    format!(
-                        "Failed to enforce secure permissions on config file: {}",
-                        config.config_path.display()
-                    )
-                })?;
+                .with_context(|| format!("Failed to write {}", config.config_path.display()))?;
+            return Ok(());
         }
 
-        sync_directory(parent_dir).await?;
-
-        if had_existing_config {
-            let _ = fs::remove_file(&backup_path).await;
+        let home = UserDirs::new()
+            .map(|dirs| dirs.home_dir().to_path_buf())
+            .context("Could not find home directory")?;
+        #[cfg(test)]
+        {
+            let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
+            return save_config_to_store(config, tenant, &store);
         }
 
+        #[cfg(not(test))]
+        let config = config.clone();
+        #[cfg(not(test))]
+        let tenant = tenant.clone();
+        #[cfg(not(test))]
+        tokio::task::spawn_blocking(move || {
+            let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
+            save_config_to_store(&config, &tenant, &store)
+        })
+        .await
+        .context("join system config save task")?
+    }
+}
+
+pub async fn save_config(config: &Config) -> Result<()> {
+    save_config_for_tenant(config, &TenantScope::default()).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn open_temporary_override(project_root: &Path) -> Result<(File, TemporaryOverrideFile)> {
+    for _ in 0..32 {
+        let sequence = PROJECT_OVERRIDE_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let path = project_root
+            .join(format!(".{CONFIG_OVERRIDE_FILENAME}.tmp-{}-{sequence}", std::process::id()));
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&path) {
+            Ok(file) => return Ok((file, TemporaryOverrideFile { path, keep: false })),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(error).context("Failed to create project config override temp file");
+            }
+        }
+    }
+    bail!("Failed to allocate project config override temp file");
+}
+
+/// 原子写入显式项目根目录的 raw 配置覆盖。
+pub(super) fn save_project_config_override(project_root: &Path, payload: &Value) -> Result<()> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (project_root, payload);
+        bail!("Project config overrides are not supported in WASM");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if !payload.is_object() {
+            bail!("project config override root must be an object");
+        }
+        if !project_root.is_dir() {
+            bail!("project root must be an existing directory");
+        }
+
+        let destination = project_root.join(CONFIG_OVERRIDE_FILENAME);
+        let mut contents = serde_json::to_vec_pretty(payload)
+            .context("Failed to serialize project config override")?;
+        contents.push(b'\n');
+        let (mut file, mut temporary) = open_temporary_override(project_root)?;
+        file.write_all(&contents).context("Failed to write project config override temp file")?;
+        file.sync_all().context("Failed to fsync project config override temp file")?;
+        drop(file);
+
+        std::fs::rename(&temporary.path, &destination)
+            .context("Failed to atomically replace project config override")?;
+        temporary.keep = true;
+
+        #[cfg(unix)]
+        File::open(project_root)
+            .and_then(|directory| directory.sync_all())
+            .context("Failed to fsync project config override directory")?;
         Ok(())
     }
+}
+
+pub(super) fn merge_raw_project_patch(target: &mut Value, patch: Value) {
+    match (target, patch) {
+        (Value::Object(target_object), Value::Object(patch_object)) => {
+            for (key, patch_value) in patch_object {
+                if let Some(current) = target_object.get_mut(&key)
+                    && current.is_object()
+                    && patch_value.is_object()
+                {
+                    merge_raw_project_patch(current, patch_value);
+                } else {
+                    target_object.insert(key, patch_value);
+                }
+            }
+        }
+        (target_value, patch_value) => *target_value = patch_value,
+    }
+}
+
+pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&Value>) -> Value {
+    match shape {
+        Value::Object(shape_object) => {
+            let encrypted_object = encrypted_effective.and_then(Value::as_object);
+            let selected = shape_object
+                .iter()
+                .map(|(key, child_shape)| {
+                    let encrypted_child = encrypted_object.and_then(|object| object.get(key));
+                    (key.clone(), select_override_shape(child_shape, encrypted_child))
+                })
+                .collect();
+            Value::Object(selected)
+        }
+        Value::Null => Value::Null,
+        _ => encrypted_effective.cloned().unwrap_or_else(|| shape.clone()),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn prepare_project_override(
+    base: &Config,
+    raw_override: Value,
+    patch: Value,
+) -> Result<Value> {
+    let mut next_override = raw_override;
+    merge_raw_project_patch(&mut next_override, patch);
+    if let Some(gateway) = next_override.get_mut("gateway").and_then(Value::as_object_mut) {
+        gateway.remove("skeys");
+    }
+
+    let mut effective_payload =
+        serde_json::to_value(base).context("Failed to serialize tenant base config")?;
+    merge_config_payload(&mut effective_payload, next_override.clone());
+    let mut effective: Config = serde_json::from_value(effective_payload)
+        .context("Failed to deserialize effective project config")?;
+    effective.config_path = base.config_path.clone();
+    effective.workspace_dir = base.workspace_dir.clone();
+    effective.gateway.skeys.clear();
+    let config_dir = base
+        .config_path
+        .parent()
+        .context("Tenant base config path must have a parent directory")?;
+    decrypt_config_secrets(&mut effective, config_dir)?;
+    validate_config(&effective)?;
+    encrypt_config_secrets(&mut effective)?;
+    let encrypted_effective =
+        serde_json::to_value(effective).context("Failed to serialize effective project config")?;
+    Ok(select_override_shape(&next_override, Some(&encrypted_effective)))
+}
+
+pub(super) fn merge_patch_between(before: &Value, after: &Value) -> Option<Value> {
+    if before == after {
+        return None;
+    }
+    match (before, after) {
+        (Value::Object(before_object), Value::Object(after_object)) => {
+            let keys =
+                before_object.keys().chain(after_object.keys()).cloned().collect::<BTreeSet<_>>();
+            let mut patch = Map::new();
+            for key in keys {
+                match (before_object.get(&key), after_object.get(&key)) {
+                    (Some(before_value), Some(after_value)) => {
+                        if let Some(value) = merge_patch_between(before_value, after_value) {
+                            patch.insert(key, value);
+                        }
+                    }
+                    (Some(_), None) => {
+                        patch.insert(key, Value::Null);
+                    }
+                    (None, Some(after_value)) => {
+                        patch.insert(key, after_value.clone());
+                    }
+                    (None, None) => {}
+                }
+            }
+            (!patch.is_empty()).then_some(Value::Object(patch))
+        }
+        _ => Some(after.clone()),
+    }
+}
+
+pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> Result<Config> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (project_root, patch);
+        bail!("Project config overrides are not supported in WASM");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if !patch.is_object() {
+            bail!("config patch must be a JSON object");
+        }
+        let tenant = TenantScope::default();
+        let base = load_or_init_config_for_tenant(&tenant, None).await?;
+        let override_path = project_root.join(CONFIG_OVERRIDE_FILENAME);
+        let raw_override = read_project_config_override(&override_path)
+            .await?
+            .unwrap_or_else(|| Value::Object(Map::new()));
+        let next_override = prepare_project_override(&base, raw_override, patch)?;
+        save_project_config_override(project_root, &next_override)?;
+        load_or_init_config_for_tenant(&tenant, Some(project_root)).await
+    }
+}
+
+pub(crate) async fn update_project_config_from_configs(
+    project_root: &Path,
+    before: &Config,
+    after: &Config,
+) -> Result<Config> {
+    let before = serde_json::to_value(before).context("Failed to serialize previous config")?;
+    let after = serde_json::to_value(after).context("Failed to serialize updated config")?;
+    let patch = merge_patch_between(&before, &after).unwrap_or_else(|| Value::Object(Map::new()));
+    update_project_config(project_root, patch).await
 }

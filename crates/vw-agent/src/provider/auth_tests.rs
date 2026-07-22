@@ -1,10 +1,34 @@
 use super::*;
 
 #[test]
-fn method_serializes_with_lowercase_type_tag() {
-    let value = serde_json::to_value(Method::Api { label: "API Key".into() }).unwrap();
-    assert_eq!(value["type"], "api");
-    assert_eq!(value["label"], "API Key");
+fn method_variants_serialize_with_lowercase_type_tags() {
+    let api = serde_json::to_value(Method::Api { label: "API Key".into() }).unwrap();
+    let oauth = serde_json::to_value(Method::Oauth { label: "OAuth Login".into() }).unwrap();
+
+    assert_eq!(api, serde_json::json!({"type": "api", "label": "API Key"}));
+    assert_eq!(oauth, serde_json::json!({"type": "oauth", "label": "OAuth Login"}));
+}
+
+#[test]
+fn method_variants_deserialize_from_lowercase_type_tags() {
+    let api: Method =
+        serde_json::from_value(serde_json::json!({"type": "api", "label": "Token"})).unwrap();
+    let oauth: Method =
+        serde_json::from_value(serde_json::json!({"type": "oauth", "label": "Browser"})).unwrap();
+
+    assert!(matches!(api, Method::Api { label } if label == "Token"));
+    assert!(matches!(oauth, Method::Oauth { label } if label == "Browser"));
+}
+
+#[test]
+fn method_deserialization_rejects_unknown_or_missing_type_tags() {
+    let unknown = serde_json::json!({"type": "sso", "label": "SSO"});
+    let uppercase = serde_json::json!({"type": "API", "label": "API Key"});
+    let missing = serde_json::json!({"label": "API Key"});
+
+    assert!(serde_json::from_value::<Method>(unknown).is_err());
+    assert!(serde_json::from_value::<Method>(uppercase).is_err());
+    assert!(serde_json::from_value::<Method>(missing).is_err());
 }
 
 #[test]
@@ -14,18 +38,38 @@ fn auth_error_display_is_stable() {
 }
 
 #[test]
-fn authorization_and_method_round_trip_json() {
+fn authorization_round_trip_preserves_all_fields() {
     let auth = Authorization {
         url: "https://example.test/oauth".to_string(),
         method: "oauth".to_string(),
         instructions: "Open the URL".to_string(),
     };
     let value = serde_json::to_value(&auth).unwrap();
-    assert_eq!(value["url"], "https://example.test/oauth");
+    assert_eq!(
+        value,
+        serde_json::json!({
+            "url": "https://example.test/oauth",
+            "method": "oauth",
+            "instructions": "Open the URL",
+        })
+    );
 
-    let method: Method =
-        serde_json::from_value(serde_json::json!({"type": "oauth", "label": "OAuth"})).unwrap();
-    assert!(matches!(method, Method::Oauth { label } if label == "OAuth"));
+    let decoded: Authorization = serde_json::from_value(value).unwrap();
+    assert_eq!(decoded.url, "https://example.test/oauth");
+    assert_eq!(decoded.method, "oauth");
+    assert_eq!(decoded.instructions, "Open the URL");
+}
+
+#[test]
+fn authorization_deserialization_requires_all_fields() {
+    let missing_url = serde_json::json!({"method": "oauth", "instructions": "Open"});
+    let missing_method = serde_json::json!({"url": "https://example.test", "instructions": "Open"});
+    let missing_instructions =
+        serde_json::json!({"url": "https://example.test", "method": "oauth"});
+
+    assert!(serde_json::from_value::<Authorization>(missing_url).is_err());
+    assert!(serde_json::from_value::<Authorization>(missing_method).is_err());
+    assert!(serde_json::from_value::<Authorization>(missing_instructions).is_err());
 }
 
 #[tokio::test]
@@ -36,13 +80,38 @@ async fn auth_stubs_return_documented_values() {
 }
 
 #[tokio::test]
-async fn api_stores_key_in_auth_store() {
+async fn authorize_returns_none_for_boundary_inputs() {
+    assert!(authorize("", 0).await.unwrap().is_none());
+    assert!(authorize("provider", usize::MAX).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn callback_rejects_missing_blank_and_nonempty_codes() {
+    for code in [None, Some(""), Some("authorization-code")] {
+        assert!(matches!(callback("provider", usize::MAX, code).await, Err(Error::Unsupported)));
+    }
+}
+
+#[tokio::test]
+async fn api_stores_and_replaces_key_in_auth_store() {
     let provider_id = format!("provider-auth-test-{}", uuid::Uuid::new_v4());
-    api(&provider_id, "secret-key").await.expect("api key should store");
+    api(&provider_id, "first-placeholder-key").await.expect("api key should store");
 
     let stored = crate::app::agent::auth::get(&provider_id).expect("auth should be stored");
     match stored {
-        crate::app::agent::auth::Info::Api(info) => assert_eq!(info.key, "secret-key"),
+        crate::app::agent::auth::Info::Api(info) => assert_eq!(info.key, "first-placeholder-key"),
+        other => panic!("unexpected auth info: {other:?}"),
+    }
+
+    api(&provider_id, "replacement-placeholder-key")
+        .await
+        .expect("replacement api key should store");
+
+    let stored = crate::app::agent::auth::get(&provider_id).expect("auth should be stored");
+    match stored {
+        crate::app::agent::auth::Info::Api(info) => {
+            assert_eq!(info.key, "replacement-placeholder-key");
+        }
         other => panic!("unexpected auth info: {other:?}"),
     }
 

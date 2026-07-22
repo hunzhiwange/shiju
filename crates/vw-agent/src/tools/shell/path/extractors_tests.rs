@@ -46,6 +46,36 @@ fn ignores_echo_arguments() {
 }
 
 #[test]
+fn flag_paths_support_separate_equals_and_attached_values() {
+    let args = vec![
+        "-o".into(),
+        "result.txt".into(),
+        "--temporary-directory=tmp".into(),
+        "-Tcache".into(),
+        "input.txt".into(),
+    ];
+
+    assert_eq!(
+        extractors::extract_paths("sort", &args),
+        vec!["result.txt", "tmp", "cache", "input.txt"]
+    );
+}
+
+#[test]
+fn exact_path_flag_without_value_is_ignored_safely() {
+    let args = vec!["-d".into()];
+
+    assert!(extractors::extract_paths("unzip", &args).is_empty());
+}
+
+#[test]
+fn fixed_path_positions_ignore_extra_positionals() {
+    let args = vec!["source".into(), "destination".into(), "extra".into()];
+
+    assert_eq!(extractors::extract_paths("cp", &args), vec!["source", "destination"]);
+}
+
+#[test]
 fn strips_wrappers_before_extracting() {
     let cmd = parse_command("timeout 10 ls /tmp");
     assert_eq!(super::extract_candidate_paths(&cmd), vec!["/tmp"]);

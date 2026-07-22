@@ -1,8 +1,6 @@
-// Tests for plan6 task 810.
-const SOURCE: &str = include_str!("custom_provider.rs");
-
 use crate::app::state::{CustomProviderModelDraft, ProviderHeaderDraft};
-use crate::app::{App, Message};
+use crate::app::{App, Message, message};
+use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 fn test_app() -> App {
@@ -13,30 +11,24 @@ fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
-fn source_declares_symbol(name: &str) -> bool {
-    let needles = [
-        format!("fn {name}"),
-        format!("pub fn {name}"),
-        format!("struct {name}"),
-        format!("pub struct {name}"),
-        format!("enum {name}"),
-        format!("pub enum {name}"),
-        format!("type {name}"),
-        format!("pub type {name}"),
-        format!("const {name}"),
-        format!("pub const {name}"),
-        format!("static {name}"),
-        format!("pub static {name}"),
-        format!("impl {name}"),
-    ];
+fn element_tree(element: iced::Element<'_, Message>) -> Tree {
+    Tree::new(element.as_widget())
+}
 
-    needles.iter().any(|needle| SOURCE.contains(needle))
+fn tree_node_count(tree: &Tree) -> usize {
+    1 + tree.children.iter().map(tree_node_count).sum::<usize>()
 }
 
 #[test]
-fn overlays_return_base_or_create_modal_with_single_empty_rows() {
-    let mut app = test_app();
+fn overlays_return_base_when_modal_is_closed() {
+    let app = test_app();
+
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
+}
+
+#[test]
+fn overlays_build_create_modal_with_single_and_empty_collections() {
+    let mut app = test_app();
 
     app.provider_settings.custom_provider_modal_open = true;
     app.provider_settings.custom.provider_id = "local-ai".to_string();
@@ -44,6 +36,29 @@ fn overlays_return_base_or_create_modal_with_single_empty_rows() {
     app.provider_settings.custom.base_url = "http://localhost:11434/v1".to_string();
     app.provider_settings.custom.api_key = "sk-local".to_string();
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
+
+    app.provider_settings.custom.headers.clear();
+    app.provider_settings.custom.models.clear();
+    keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
+}
+
+#[test]
+fn helper_rows_build_label_plain_input_and_secure_input_controls() {
+    keep_element(super::custom_provider::field_row("标签", "说明", text("control")));
+    keep_element(super::custom_provider::text_row(
+        "显示名称",
+        "展示给用户的 provider 名称。",
+        "我是 AI 提供商",
+        "Local AI",
+        |v| Message::Settings(message::SettingsMessage::CustomProviderNameChanged(v)),
+    ));
+    keep_element(super::custom_provider::secure_text_row(
+        "API Key",
+        "可选默认密钥；填写后会作为 Authorization 头使用。",
+        "sk-...",
+        "test-key",
+        |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
+    ));
 }
 
 #[test]
@@ -74,8 +89,20 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
 }
 
 #[test]
-fn custom_provider_tests_keeps_planned_coverage_targets() {
-    for name in ["field_row", "text_row", "secure_text_row", "view_overlays"] {
-        assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
-    }
+fn overlays_adds_one_editable_row_per_configured_header() {
+    let mut app = test_app();
+    app.provider_settings.custom_provider_modal_open = true;
+    let single_header =
+        element_tree(super::custom_provider::view_overlays(&app, text("dialog").into()));
+
+    app.provider_settings
+        .custom
+        .headers
+        .push(ProviderHeaderDraft { key: "x-team".to_string(), value: "desktop".to_string() });
+    let two_headers =
+        element_tree(super::custom_provider::view_overlays(&app, text("dialog").into()));
+
+    assert_eq!(single_header.children.len(), 2);
+    assert_eq!(two_headers.children.len(), 2);
+    assert!(tree_node_count(&two_headers) > tree_node_count(&single_header));
 }

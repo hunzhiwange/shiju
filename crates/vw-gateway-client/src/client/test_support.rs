@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
@@ -7,12 +8,20 @@ use serde_json::Value;
 
 use super::GatewayClient;
 use crate::endpoint::GatewayEndpoint;
+use vw_api_types::id::TenantScope;
 
 #[derive(Debug)]
 pub struct RecordedRequest {
     pub method: String,
     pub path: String,
+    pub headers: BTreeMap<String, String>,
     pub body: Value,
+}
+
+impl RecordedRequest {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers.get(&name.to_ascii_lowercase()).map(String::as_str)
+    }
 }
 
 pub struct TestServer {
@@ -44,7 +53,24 @@ pub fn server(responses: Vec<(u16, Value)>) -> TestServer {
     server_raw(responses.into_iter().map(|(status, body)| (status, body.to_string())).collect())
 }
 
+pub fn server_with_tenant_scope(
+    responses: Vec<(u16, Value)>,
+    tenant_scope: TenantScope,
+) -> TestServer {
+    server_raw_with_tenant_scope(
+        responses.into_iter().map(|(status, body)| (status, body.to_string())).collect(),
+        tenant_scope,
+    )
+}
+
 pub fn server_raw(responses: Vec<(u16, String)>) -> TestServer {
+    server_raw_with_tenant_scope(responses, TenantScope::default())
+}
+
+pub fn server_raw_with_tenant_scope(
+    responses: Vec<(u16, String)>,
+    tenant_scope: TenantScope,
+) -> TestServer {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
     let port = listener.local_addr().expect("local addr").port();
     let (tx, rx) = mpsc::channel();
@@ -57,7 +83,8 @@ pub fn server_raw(responses: Vec<(u16, String)>) -> TestServer {
             write_response(&mut stream, status, &body);
         }
     });
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("client");
+    let endpoint = GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant_scope);
+    let client = GatewayClient::new(endpoint).expect("client");
     TestServer { client, base_url, requests: rx, handle }
 }
 
@@ -79,10 +106,14 @@ fn read_request(stream: &mut TcpStream) -> RecordedRequest {
     let mut parts = request_line.split_whitespace();
     let method = parts.next().expect("method").to_string();
     let path = parts.next().expect("path").to_string();
-    let content_length = lines
+    let headers = lines
         .filter_map(|line| line.split_once(':'))
-        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
-        .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+        .map(|(name, value)| (name.trim().to_ascii_lowercase(), value.trim().to_string()))
+        .collect::<BTreeMap<_, _>>();
+    let content_length = headers
+        .get("content-length")
+        .map(String::as_str)
+        .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0);
 
     let mut body_bytes = bytes[(header_end + 4)..].to_vec();
@@ -98,7 +129,7 @@ fn read_request(stream: &mut TcpStream) -> RecordedRequest {
         serde_json::from_slice(&body_bytes).expect("json body")
     };
 
-    RecordedRequest { method, path, body }
+    RecordedRequest { method, path, headers, body }
 }
 
 fn find_header_end(bytes: &[u8]) -> Option<usize> {

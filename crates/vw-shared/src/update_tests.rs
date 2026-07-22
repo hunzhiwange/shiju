@@ -350,6 +350,14 @@ fn candidate_binary_names_uses_current_exe_then_defaults() {
 
 #[cfg(all(not(windows), not(target_arch = "wasm32")))]
 #[test]
+fn candidate_binary_names_uses_defaults_when_current_path_has_no_file_name() {
+    let names = super::candidate_binary_names(std::path::Path::new("/"), None);
+
+    assert_eq!(names, vec!["vibewindow", "vw-webview"]);
+}
+
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
+#[test]
 fn push_unique_ignores_none_and_duplicates() {
     let mut values = vec!["vibewindow".to_string()];
 
@@ -400,6 +408,18 @@ fn find_extracted_binary_reports_empty_archive() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn find_extracted_binary_reports_missing_root() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let missing = temp_dir.path().join("missing");
+
+    let error = super::find_extracted_binary(&missing, &[]).unwrap_err();
+
+    assert!(error.to_string().contains("Failed to read"));
+    assert!(error.to_string().contains(&missing.display().to_string()));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn ensure_executable_sets_unix_mode() {
     let temp_dir = tempfile::tempdir().unwrap();
     let binary = temp_dir.path().join("vibewindow");
@@ -412,6 +432,33 @@ fn ensure_executable_sets_unix_mode() {
         use std::os::unix::fs::PermissionsExt;
         assert_eq!(std::fs::metadata(&binary).unwrap().permissions().mode() & 0o777, 0o755);
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn ensure_executable_reports_missing_path() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let missing = temp_dir.path().join("missing-vibewindow");
+
+    let error = super::ensure_executable(&missing).unwrap_err();
+
+    assert!(error.to_string().contains("Failed to set executable permissions"));
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+#[test]
+fn find_extracted_binary_skips_non_utf8_file_names() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    std::fs::write(temp_dir.path().join(OsString::from_vec(vec![0xff, b'b'])), "skip").unwrap();
+    let binary = temp_dir.path().join("vibewindow");
+    std::fs::write(&binary, "binary").unwrap();
+
+    let found = super::find_extracted_binary(temp_dir.path(), &["vibewindow".to_string()]).unwrap();
+
+    assert_eq!(found, binary);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -512,6 +559,42 @@ async fn download_binary_stages_direct_binary_with_explicit_name() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+async fn download_binary_reports_download_progress() {
+    let body = b"progress-binary".to_vec();
+    let mut server = TestServer::respond("200 OK", "application/octet-stream", body.clone());
+    let temp_dir = tempfile::tempdir().unwrap();
+    let asset = super::ReleaseAsset {
+        name: "download.bin".to_string(),
+        download_url: server.url.clone(),
+        binary_name: Some("custom-bin".to_string()),
+        target: None,
+    };
+    let mut progress_events = Vec::new();
+
+    let binary = super::download_binary_with_progress(
+        &asset,
+        temp_dir.path(),
+        &["preferred".to_string()],
+        |progress| progress_events.push(progress),
+    )
+    .await
+    .unwrap();
+    let _ = server.join();
+
+    assert_eq!(std::fs::read_to_string(binary).unwrap(), "progress-binary");
+    assert!(progress_events.len() >= 2);
+    assert_eq!(progress_events.first().unwrap().downloaded_bytes, 0);
+    let last = progress_events.last().unwrap();
+    assert_eq!(last.asset_name, "download.bin");
+    assert_eq!(last.download_url, asset.download_url);
+    assert_eq!(last.downloaded_bytes, body.len() as u64);
+    assert_eq!(last.total_bytes, Some(body.len() as u64));
+    assert!(last.bytes_per_second >= 0.0);
+    assert!(last.average_bytes_per_second >= 0.0);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
 async fn download_binary_keeps_direct_binary_when_archive_name_matches_destination() {
     let mut server = TestServer::respond("200 OK", "application/octet-stream", b"binary".to_vec());
     let temp_dir = tempfile::tempdir().unwrap();
@@ -545,6 +628,64 @@ async fn download_binary_reports_status_errors() {
 
     let error = super::download_binary(&asset, temp_dir.path(), &[]).await.unwrap_err();
     let _ = server.join();
+
+    assert!(error.to_string().contains("Download failed with status: 404"));
+}
+
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
+#[tokio::test]
+async fn desktop_self_update_attempts_download_for_newer_version() {
+    let _lock = update_env_lock().lock().await;
+    let target = super::get_target_triple().unwrap();
+    let mut download_server =
+        TestServer::respond("404 Not Found", "text/plain", b"missing".to_vec());
+    let manifest = json!({
+        "version": "v999.0.0",
+        "assets": [
+            {
+                "name": "vibewindow-test.bin",
+                "url": download_server.url.clone(),
+                "target": target,
+                "binary_name": "vibewindow"
+            }
+        ]
+    });
+    let mut manifest_server =
+        TestServer::respond("200 OK", "application/json", manifest.to_string().into_bytes());
+    let _guard = EnvGuard::set(super::APP_UPDATE_API_ENV, &manifest_server.url);
+
+    let error = super::desktop_self_update().await.unwrap_err();
+    let _ = manifest_server.join();
+    let _ = download_server.join();
+
+    assert!(error.to_string().contains("Download failed with status: 404"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn self_update_force_attempts_download_before_installing() {
+    let _lock = update_env_lock().lock().await;
+    let target = super::get_target_triple().unwrap();
+    let mut download_server =
+        TestServer::respond("404 Not Found", "text/plain", b"missing".to_vec());
+    let manifest = json!({
+        "version": "v999.0.0",
+        "assets": [
+            {
+                "name": "vibewindow-test.bin",
+                "url": download_server.url.clone(),
+                "target": target,
+                "binary_name": "vibewindow"
+            }
+        ]
+    });
+    let mut manifest_server =
+        TestServer::respond("200 OK", "application/json", manifest.to_string().into_bytes());
+    let _guard = EnvGuard::set(super::APP_UPDATE_API_ENV, &manifest_server.url);
+
+    let error = super::self_update(true, false).await.unwrap_err();
+    let _ = manifest_server.join();
+    let _ = download_server.join();
 
     assert!(error.to_string().contains("Download failed with status: 404"));
 }
@@ -675,6 +816,34 @@ fn replace_binary_removes_stale_staged_and_backup_files_before_install() {
     assert!(!backup.exists());
 }
 
+#[cfg(unix)]
+#[test]
+fn replace_binary_reports_missing_source_without_touching_current_binary() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let current = temp_dir.path().join("vibewindow");
+    let missing_new_binary = temp_dir.path().join("missing-vibewindow");
+    std::fs::write(&current, "old").unwrap();
+
+    let error = super::replace_binary(&missing_new_binary, &current).unwrap_err();
+
+    assert!(error.to_string().contains("Failed to copy updated binary"));
+    assert_eq!(std::fs::read_to_string(current).unwrap(), "old");
+}
+
+#[cfg(unix)]
+#[test]
+fn replace_binary_reports_missing_current_binary_after_staging_update() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let current = temp_dir.path().join("vibewindow");
+    let new_binary = temp_dir.path().join("new-vibewindow");
+    std::fs::write(&new_binary, "new").unwrap();
+
+    let error = super::replace_binary(&new_binary, &current).unwrap_err();
+
+    assert!(error.to_string().contains("Failed to move current binary"));
+    assert_eq!(std::fs::read_to_string(temp_dir.path().join(".vibewindow.update")).unwrap(), "new");
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn self_update_check_only_returns_without_requiring_assets() {
@@ -700,4 +869,50 @@ async fn self_update_returns_when_already_current_and_not_forced() {
 
     super::self_update(false, false).await.unwrap();
     let _ = server.join();
+}
+
+#[test]
+fn current_version_matches_cargo_package_version() {
+    assert_eq!(super::current_version(), env!("CARGO_PKG_VERSION"));
+    assert!(!super::current_version().is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn get_current_exe_returns_existing_path() {
+    let exe = super::get_current_exe().unwrap();
+
+    assert!(exe.exists());
+}
+
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
+#[tokio::test]
+async fn desktop_self_update_with_progress_short_circuits_for_current_version() {
+    let _lock = update_env_lock().lock().await;
+    let body = format!(r#"{{"version":"v{}","assets":[]}}"#, super::current_version());
+    let mut server = TestServer::respond("200 OK", "application/json", body.into_bytes());
+    let _guard = EnvGuard::set(super::APP_UPDATE_API_ENV, &server.url);
+
+    let mut progress_events = Vec::new();
+    let message =
+        super::desktop_self_update_with_progress(|p| progress_events.push(p)).await.unwrap();
+    let _ = server.join();
+
+    assert!(message.contains("当前已是最新版本"));
+    assert!(message.contains(super::current_version()));
+    assert!(progress_events.is_empty());
+}
+
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
+#[tokio::test]
+async fn desktop_self_update_short_circuits_for_current_version() {
+    let _lock = update_env_lock().lock().await;
+    let body = format!(r#"{{"version":"v{}","assets":[]}}"#, super::current_version());
+    let mut server = TestServer::respond("200 OK", "application/json", body.into_bytes());
+    let _guard = EnvGuard::set(super::APP_UPDATE_API_ENV, &server.url);
+
+    let message = super::desktop_self_update().await.unwrap();
+    let _ = server.join();
+
+    assert!(message.contains("当前已是最新版本"));
 }

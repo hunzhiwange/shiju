@@ -2,7 +2,8 @@
 const SOURCE: &str = include_str!("custom_model_modal.rs");
 
 use crate::app::state::CustomProviderModelModalState;
-use crate::app::{App, Message};
+use crate::app::{App, Message, message};
+use iced::advanced::widget::Tree;
 use iced::widget::text;
 
 fn test_app() -> App {
@@ -11,6 +12,10 @@ fn test_app() -> App {
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
+}
+
+fn element_tree(element: iced::Element<'_, Message>) -> Tree {
+    Tree::new(element.as_widget())
 }
 
 fn source_declares_symbol(name: &str) -> bool {
@@ -47,6 +52,42 @@ fn overlays_return_base_add_modal_and_edit_modal() {
 
     app.provider_settings.custom_model_modal.as_mut().expect("modal").edit_index = Some(0);
     keep_element(super::custom_model_modal::view_overlays(&app, text("dialog").into()));
+}
+
+#[test]
+fn helper_rows_build_label_control_and_input_rows() {
+    keep_element(super::custom_model_modal::field_row("标签", "说明", text("control")));
+    keep_element(super::custom_model_modal::text_row(
+        "模型 ID",
+        "用于请求 provider 的真实 model_id。",
+        "例如 gpt-4o-mini",
+        "gpt-5-mini",
+        |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalIdChanged(v)),
+    ));
+    keep_element(super::custom_model_modal::text_row(
+        "显示名称",
+        "仅影响 UI 展示，可留空回退为 model_id。",
+        "可选",
+        "",
+        |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalNameChanged(v)),
+    ));
+}
+
+#[test]
+fn overlays_wrap_base_only_when_model_draft_exists() {
+    let mut app = test_app();
+    let closed =
+        element_tree(super::custom_model_modal::view_overlays(&app, text("dialog").into()));
+
+    app.provider_settings.custom_model_modal = Some(CustomProviderModelModalState {
+        edit_index: None,
+        model_id: String::new(),
+        display_name: String::new(),
+    });
+    let open = element_tree(super::custom_model_modal::view_overlays(&app, text("dialog").into()));
+
+    assert!(closed.children.is_empty());
+    assert_eq!(open.children.len(), 2);
 }
 
 #[test]

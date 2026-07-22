@@ -178,6 +178,24 @@ mod tests {
         assert_eq!(MAX_PROCESSES, 8);
     }
 
+    #[test]
+    fn process_status_as_str_covers_every_state() {
+        assert_eq!(ProcessStatus::Running.as_str(), "running");
+        assert_eq!(ProcessStatus::Completed.as_str(), "completed");
+        assert_eq!(ProcessStatus::Failed.as_str(), "failed");
+        assert_eq!(ProcessStatus::Killed.as_str(), "killed");
+    }
+
+    #[test]
+    fn parse_id_accepts_unsigned_ids_and_rejects_other_json_types() {
+        assert_eq!(parse_id(&json!({"id": 7}), "output").unwrap(), 7);
+
+        for args in [json!({}), json!({"id": -1}), json!({"id": "7"})] {
+            let error = parse_id(&args, "output").unwrap_err();
+            assert_eq!(error.to_string(), "Missing 'id' parameter for output action");
+        }
+    }
+
     /// 测试 spawn 操作启动后台进程
     ///
     /// 验证：
@@ -368,6 +386,166 @@ mod tests {
         let snapshot = tool.get_snapshot(id).expect("snapshot should exist");
         assert_eq!(snapshot.title.as_deref(), Some("更清晰的标题"));
         assert_eq!(snapshot.metadata["priority"], "high");
+    }
+
+    #[tokio::test]
+    async fn process_metadata_update_returns_false_for_unknown_process() {
+        let tool = make_tool();
+
+        assert!(!tool.update_metadata(99, Some(Some("missing".to_string())), Some(json!({}))));
+    }
+
+    #[tokio::test]
+    async fn process_metadata_update_can_clear_title_without_replacing_metadata() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo metadata_clear_test",
+                "title": "original title",
+                "metadata": { "priority": "high" }
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap() as usize;
+
+        assert!(tool.update_metadata(id, Some(None), None));
+
+        let snapshot = tool.get_snapshot(id).expect("snapshot should exist");
+        assert_eq!(snapshot.title, None);
+        assert_eq!(snapshot.metadata["priority"], "high");
+    }
+
+    #[tokio::test]
+    async fn spawn_trims_non_empty_title_and_defaults_metadata() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "sleep 60",
+                "title": "  background job  ",
+                "approved": true
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success, "spawn should succeed: {:?}", spawn_result.error);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap() as usize;
+
+        let snapshot = tool.get_snapshot(id).expect("snapshot should exist");
+        assert_eq!(snapshot.title.as_deref(), Some("background job"));
+        assert_eq!(snapshot.metadata, json!({}));
+
+        let kill_result = tool.execute(json!({"action": "kill", "id": id})).await.unwrap();
+        assert!(kill_result.success);
+    }
+
+    #[tokio::test]
+    async fn spawn_ignores_blank_title() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo blank_title_test",
+                "title": "   "
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success, "spawn should succeed: {:?}", spawn_result.error);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap() as usize;
+
+        let snapshot = tool.get_snapshot(id).expect("snapshot should exist");
+        assert_eq!(snapshot.title, None);
+    }
+
+    #[tokio::test]
+    async fn spawn_missing_command_returns_error() {
+        let tool = make_tool();
+
+        let error = tool.execute(json!({"action": "spawn"})).await.unwrap_err();
+
+        assert_eq!(error.to_string(), "Missing 'command' parameter for spawn action");
+    }
+
+    #[tokio::test]
+    async fn spawn_rejects_when_max_concurrent_processes_reached() {
+        let tool = make_tool();
+        let mut ids = Vec::new();
+
+        for _ in 0..MAX_PROCESSES {
+            let spawn_result = tool
+                .execute(json!({
+                    "action": "spawn",
+                    "command": "sleep 60"
+                }))
+                .await
+                .unwrap();
+            assert!(spawn_result.success, "spawn should succeed: {:?}", spawn_result.error);
+            let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+            ids.push(output["id"].as_u64().unwrap());
+        }
+
+        let rejected = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "sleep 60"
+            }))
+            .await
+            .unwrap();
+        assert!(!rejected.success);
+        assert!(
+            rejected.error.as_deref().unwrap_or_default().contains("Maximum concurrent processes")
+        );
+
+        for id in ids {
+            let _ = tool.execute(json!({"action": "kill", "id": id})).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn refresh_processes_marks_failed_processes() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "grep"
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success, "spawn should succeed: {:?}", spawn_result.error);
+
+        let entry = wait_for_process_status(&tool, "grep", "failed").await;
+
+        assert_eq!(entry["status"], "failed");
+        assert!(entry["exit_code"].as_i64().unwrap_or_default() != 0);
+    }
+
+    #[tokio::test]
+    async fn refresh_processes_removes_stale_completed_entries() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo stale_process_test"
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap() as usize;
+
+        let _ = wait_for_process_status(&tool, "echo stale_process_test", "completed").await;
+        {
+            let mut processes = tool.processes.write().unwrap();
+            let entry = processes.get_mut(&id).expect("process entry should exist");
+            entry.completed_at =
+                Some(Utc::now() - chrono::Duration::seconds(PROCESS_MAX_AGE_SECS + 1));
+        }
+
+        assert!(tool.list_snapshots().into_iter().all(|entry| entry.id != id));
     }
 
     /// 测试未知 action 返回错误
@@ -562,6 +740,112 @@ mod tests {
         assert!(result.error.as_deref().unwrap().contains("long-running"));
     }
 
+    struct FailingBuildRuntime;
+
+    impl RuntimeAdapter for FailingBuildRuntime {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn name(&self) -> &str {
+            "test-failing-build"
+        }
+
+        fn has_shell_access(&self) -> bool {
+            true
+        }
+
+        fn has_filesystem_access(&self) -> bool {
+            true
+        }
+
+        fn storage_path(&self) -> PathBuf {
+            PathBuf::from("/tmp")
+        }
+
+        fn supports_long_running(&self) -> bool {
+            true
+        }
+
+        fn build_shell_command(
+            &self,
+            _command: &str,
+            _workspace_dir: &std::path::Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            Err(anyhow::anyhow!("runtime unavailable"))
+        }
+    }
+
+    struct MissingExecutableRuntime;
+
+    impl RuntimeAdapter for MissingExecutableRuntime {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn name(&self) -> &str {
+            "test-missing-executable"
+        }
+
+        fn has_shell_access(&self) -> bool {
+            true
+        }
+
+        fn has_filesystem_access(&self) -> bool {
+            true
+        }
+
+        fn storage_path(&self) -> PathBuf {
+            PathBuf::from("/tmp")
+        }
+
+        fn supports_long_running(&self) -> bool {
+            true
+        }
+
+        fn build_shell_command(
+            &self,
+            _command: &str,
+            workspace_dir: &std::path::Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            let mut cmd = tokio::process::Command::new("__vw_process_missing_binary__");
+            cmd.current_dir(workspace_dir);
+            Ok(cmd)
+        }
+    }
+
+    #[tokio::test]
+    async fn spawn_reports_runtime_command_build_errors() {
+        let tool = ProcessTool::new(test_security(), Arc::new(FailingBuildRuntime));
+        let result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo test"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.success);
+        assert!(
+            result.error.as_deref().unwrap_or_default().contains("Failed to build runtime command")
+        );
+    }
+
+    #[tokio::test]
+    async fn spawn_reports_process_spawn_errors() {
+        let tool = ProcessTool::new(test_security(), Arc::new(MissingExecutableRuntime));
+        let result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo test"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap_or_default().contains("Failed to spawn process"));
+    }
+
     /// 测试 `append_bounded` 函数在缓冲区溢出时截断旧数据
     ///
     /// 流程：
@@ -582,6 +866,19 @@ mod tests {
         assert!(guard.data.len() <= MAX_OUTPUT_BYTES);
         // 验证丢弃的字节数被正确记录
         assert!(guard.dropped_prefix_bytes >= 100);
+    }
+
+    #[test]
+    fn append_bounded_preserves_utf8_when_cutoff_splits_a_character() {
+        let buf = Mutex::new(OutputBuffer::default());
+        let data = format!("é{}", "x".repeat(MAX_OUTPUT_BYTES - 1));
+
+        append_bounded(&buf, &data);
+
+        let guard = buf.lock().unwrap();
+        assert_eq!(guard.data.len(), MAX_OUTPUT_BYTES - 1);
+        assert!(guard.data.chars().all(|character| character == 'x'));
+        assert_eq!(guard.dropped_prefix_bytes, 2);
     }
 
     /// 测试 `slice_unseen_output` 在缓冲区滚动后正确追踪未读数据
@@ -615,6 +912,94 @@ mod tests {
             analyzed,
             dropped.saturating_add(u64::try_from(current.len()).expect("len should fit in u64"))
         );
+    }
+
+    #[test]
+    fn slice_unseen_output_restarts_when_analyzed_offset_was_dropped() {
+        let mut analyzed = 2;
+
+        let delta = slice_unseen_output("tail", 5, &mut analyzed);
+
+        assert_eq!(delta, "tail");
+        assert_eq!(analyzed, 9);
+    }
+
+    #[test]
+    fn slice_unseen_output_advances_to_next_utf8_boundary() {
+        let mut analyzed = 1;
+
+        let delta = slice_unseen_output("étail", 0, &mut analyzed);
+
+        assert_eq!(delta, "tail");
+        assert_eq!(analyzed, 6);
+    }
+
+    #[tokio::test]
+    async fn output_waits_for_running_process_without_output() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "sleep 1"
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap();
+
+        let result = tool.execute(json!({"action": "output", "id": id})).await.unwrap();
+
+        assert!(result.success);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&result.output).unwrap(),
+            json!({
+                "stdout": "",
+                "stderr": ""
+            })
+        );
+        let _ = tool.execute(json!({"action": "kill", "id": id})).await;
+    }
+
+    #[tokio::test]
+    async fn kill_missing_id_returns_parse_error() {
+        let tool = make_tool();
+
+        let error = tool.execute(json!({"action": "kill"})).await.unwrap_err();
+
+        assert_eq!(error.to_string(), "Missing 'id' parameter for kill action");
+    }
+
+    #[tokio::test]
+    async fn kill_nonexistent_id_returns_error_result() {
+        let tool = make_tool();
+
+        let result = tool.execute(json!({"action": "kill", "id": 9999})).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap_or_default().contains("No process with id 9999"));
+    }
+
+    #[tokio::test]
+    async fn kill_completed_process_reports_already_done() {
+        let tool = make_tool();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo kill_completed_test"
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success);
+        let output: serde_json::Value = serde_json::from_str(&spawn_result.output).unwrap();
+        let id = output["id"].as_u64().unwrap();
+
+        let _ = wait_for_process_status(&tool, "echo kill_completed_test", "completed").await;
+
+        let kill_result = tool.execute(json!({"action": "kill", "id": id})).await.unwrap();
+
+        assert!(kill_result.success);
+        assert!(kill_result.output.contains("already completed"));
     }
 
     /// 测试进程输出集成系统调用异常检测器的增量分析

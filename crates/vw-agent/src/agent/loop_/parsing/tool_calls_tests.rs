@@ -56,6 +56,34 @@ fn parse_tool_calls_extracts_content_from_choices_json() {
 }
 
 #[test]
+fn parse_tool_calls_skips_empty_choices_before_tool_content() {
+    let payload = json!({
+        "choices": [
+            {"message": {"content": "   "}},
+            {
+                "message": {
+                    "content": "usable text",
+                    "tool_calls": [{
+                        "id": "call-later-choice",
+                        "function": {
+                            "name": "bash",
+                            "arguments": {"cmd": "pwd"}
+                        }
+                    }]
+                }
+            }
+        ]
+    });
+
+    let (text, calls) = parse_tool_calls(&payload.to_string());
+
+    assert_eq!(text, "usable text");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].name, "shell");
+    assert_eq!(calls[0].tool_call_id.as_deref(), Some("call-later-choice"));
+}
+
+#[test]
 fn parse_tool_calls_extracts_minimax_invoke_calls() {
     let response = r#"before
 <minimax:toolcall>
@@ -287,6 +315,23 @@ fn detect_tool_call_parse_issue_catches_supported_payload_markers() {
         "✁",
         "TOOL_CALL",
         "<FunctionCall>",
+    ] {
+        assert!(detect_tool_call_parse_issue(marker, &[]).is_some(), "{marker}");
+    }
+}
+
+#[test]
+fn detect_tool_call_parse_issue_catches_tag_and_fence_aliases() {
+    for marker in [
+        "<toolcall>",
+        "<tool-call>",
+        "```tool_call\ninvalid\n```",
+        "```toolcall\ninvalid\n```",
+        "```tool-call\ninvalid\n```",
+        "```tool file_read\ninvalid\n```",
+        "```tool shell\ninvalid\n```",
+        "```tool memory_store\ninvalid\n```",
+        "```tool custom\ninvalid\n```",
     ] {
         assert!(detect_tool_call_parse_issue(marker, &[]).is_some(), "{marker}");
     }

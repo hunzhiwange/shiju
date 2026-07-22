@@ -580,6 +580,7 @@ fn ensure_vwacp_state(state: Option<&SessionAcpxState>) -> SessionAcpxState {
         available_models: None,
         available_commands: None,
         config_options: None,
+        desired_config_options: None,
         session_options: None,
     })
 }

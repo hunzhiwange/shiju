@@ -60,7 +60,8 @@ pub async fn provide<R>(
     let ctx = if let Some(ctx) = existing {
         ctx
     } else {
-        let (project, sandbox) = project::from_directory(&directory).await?;
+        let tenant = project::default_tenant_scope();
+        let (project, sandbox) = project::from_directory(&tenant, &directory).await?;
         let ctx = Arc::new(Context { directory: key.clone(), worktree: sandbox, project });
         if let Some(init) = init {
             let ctx2 = ctx.clone();

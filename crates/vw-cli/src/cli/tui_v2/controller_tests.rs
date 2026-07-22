@@ -1,15 +1,20 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{
+    Event as CrosstermEvent, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers,
+    MouseEvent, MouseEventKind,
+};
 use ratatui::layout::Rect;
 
 use super::controller::{
     TuiController, TuiControllerCommand, TuiControllerEvent, TuiOverlayCommand,
     TuiRenderFeedbackLike, build_prompt_submission,
 };
+use super::model::overlay::UiCommandPaletteOverlay;
 use super::model::{
-    PromptSubmission, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay,
+    McpServerTransport, PromptSubmission, UiConfirmOverlay, UiMcpOverlay, UiMcpServerInfo,
+    UiMemoryEntry, UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay,
     UiQuestionOption, UiQuestionOverlay, UiQuestionPrompt, UiSearchMatch, UiSearchOverlay,
     UiSystemMessage, UiSystemMessageLevel, UiTaskOverlay, UiTaskStepItem, UiTodoItem,
     UiTodoOverlay, UiTokenUsage, UiTurnTerminal,
@@ -35,6 +40,30 @@ fn controller_tick_and_sync_layout_are_stable() {
     );
     assert_eq!(state.scroll.viewport_height, 18);
     assert_eq!(state.scroll.viewport_width, 78);
+
+    controller.sync_layout(
+        &mut state,
+        &FakeFeedback(FullscreenLayoutSlots {
+            scrollable: Rect::new(0, 3, 80, 20),
+            ..FullscreenLayoutSlots::default()
+        }),
+    );
+    assert_eq!(state.scroll.viewport_height, 18);
+}
+
+#[test]
+fn controller_poll_tick_advances_spinner_without_terminal_input() {
+    let mut controller = TuiController::new(Duration::ZERO);
+
+    match controller.next_event() {
+        Ok(event) => {
+            assert!(matches!(event, TuiControllerEvent::Tick));
+            assert_eq!(controller.spinner_frame(), 1);
+        }
+        Err(error) => {
+            assert!(format!("{error:#}").contains("Failed to initialize input reader"));
+        }
+    }
 }
 
 #[test]
@@ -235,6 +264,451 @@ fn confirm_error_search_question_todo_and_task_overlay_keys_are_handled() {
     assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
 }
 
+#[test]
+fn terminal_non_press_events_are_ignored() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    assert_eq!(
+        controller.handle_event(
+            &mut state,
+            TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent {
+                code: KeyCode::Char('x'),
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Release,
+                state: KeyEventState::NONE,
+            })),
+        ),
+        TuiControllerCommand::Continue
+    );
+    assert_eq!(
+        controller.handle_event(
+            &mut state,
+            TuiControllerEvent::Terminal(CrosstermEvent::Resize(80, 24)),
+        ),
+        TuiControllerCommand::Continue
+    );
+    assert_eq!(
+        controller.handle_event(
+            &mut state,
+            TuiControllerEvent::Terminal(CrosstermEvent::Mouse(MouseEvent {
+                kind: MouseEventKind::Moved,
+                column: 1,
+                row: 1,
+                modifiers: KeyModifiers::NONE,
+            })),
+        ),
+        TuiControllerCommand::Continue
+    );
+    assert!(state.prompt.value.is_empty());
+}
+
+#[test]
+fn controller_rejects_modified_prompt_text_and_invalid_question_choices() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    assert_eq!(
+        key_mod(&mut controller, &mut state, KeyCode::Char('x'), KeyModifiers::ALT),
+        TuiControllerCommand::Continue
+    );
+    assert!(state.prompt.value.is_empty());
+
+    state.overlays.push(UiOverlay::Question(UiQuestionOverlay {
+        request_id: "empty".to_string(),
+        session_id: "session".to_string(),
+        prompts: Vec::new(),
+        answers: Vec::new(),
+        tool: None,
+        selected_index: 0,
+    }));
+    assert_eq!(
+        key(&mut controller, &mut state, KeyCode::Char('9')),
+        TuiControllerCommand::Continue
+    );
+    assert!(active_question(&state).answers.is_empty());
+}
+
+#[test]
+fn ctrl_exit_confirms_when_session_has_context() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    assert_eq!(
+        key_mod(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::CONTROL),
+        TuiControllerCommand::Quit
+    );
+
+    state.session.session_id = Some("session".to_string());
+    assert_eq!(
+        key_mod(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::CONTROL),
+        TuiControllerCommand::Overlay(TuiOverlayCommand::ConfirmExit)
+    );
+
+    state.session.session_id = None;
+    push_system_message(&mut state, "existing");
+    assert_eq!(
+        key_mod(&mut controller, &mut state, KeyCode::Char('d'), KeyModifiers::CONTROL),
+        TuiControllerCommand::Overlay(TuiOverlayCommand::ConfirmExit)
+    );
+}
+
+#[test]
+fn prompt_editing_covers_newline_delete_cursor_and_shortcuts() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    key(&mut controller, &mut state, KeyCode::Char('a'));
+    key(&mut controller, &mut state, KeyCode::Char('b'));
+    key(&mut controller, &mut state, KeyCode::Backspace);
+    assert_eq!(state.prompt.value, "a");
+    key(&mut controller, &mut state, KeyCode::Char('b'));
+    key(&mut controller, &mut state, KeyCode::Left);
+    key(&mut controller, &mut state, KeyCode::Right);
+    key(&mut controller, &mut state, KeyCode::Left);
+    key(&mut controller, &mut state, KeyCode::Delete);
+    assert_eq!(state.prompt.value, "a");
+
+    key_mod(&mut controller, &mut state, KeyCode::Enter, KeyModifiers::SHIFT);
+    key(&mut controller, &mut state, KeyCode::Char('z'));
+    assert_eq!(state.prompt.value, "a\nz");
+
+    key(&mut controller, &mut state, KeyCode::Up);
+    key(&mut controller, &mut state, KeyCode::Down);
+
+    key(&mut controller, &mut state, KeyCode::Home);
+    assert_eq!(state.prompt.cursor.char_index, 2);
+    key(&mut controller, &mut state, KeyCode::End);
+    assert_eq!(state.prompt.cursor.char_index, 3);
+
+    assert_eq!(
+        key(&mut controller, &mut state, KeyCode::F(5)),
+        TuiControllerCommand::Overlay(TuiOverlayCommand::OpenMcpPanel)
+    );
+    assert_eq!(
+        key(&mut controller, &mut state, KeyCode::F(6)),
+        TuiControllerCommand::Overlay(TuiOverlayCommand::OpenMemoryPanel)
+    );
+}
+
+#[test]
+fn prompt_boundaries_cover_empty_enter_busy_blank_and_suggestion_previous() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
+
+    state.prompt.start_submission(PromptSubmission::new("running"));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
+    assert!(state.prompt.queued_commands.is_empty());
+    state
+        .prompt
+        .finish_submission(super::model::PromptSubmissionStatus::Done { finish_reason: None });
+
+    key(&mut controller, &mut state, KeyCode::Char('/'));
+    key(&mut controller, &mut state, KeyCode::Down);
+    let after_down = state.prompt.selected_suggestion_index;
+    key(&mut controller, &mut state, KeyCode::BackTab);
+    assert_ne!(state.prompt.selected_suggestion_index, after_down);
+}
+
+#[test]
+fn search_overlay_keys_cover_empty_wrap_clear_unread_and_tail_paths() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    state.overlays.push(UiOverlay::Search(UiSearchOverlay::default()));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(state.overlays.active().is_none());
+
+    state.overlays.push(UiOverlay::Search(UiSearchOverlay::default()));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Up), TuiControllerCommand::Continue);
+    assert_eq!(active_search(&state).selected_index, None);
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Down), TuiControllerCommand::Continue);
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Delete), TuiControllerCommand::Continue);
+    assert!(active_search(&state).query.is_empty());
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
+    assert!(state.overlays.active().is_some());
+
+    push_system_message(&mut state, "one");
+    push_system_message(&mut state, "two");
+    let first_id = state.messages[0].id().clone();
+    let second_id = state.messages[1].id().clone();
+    state.scroll.last_seen_message = Some(0);
+    let _ = state.overlays.stack.pop();
+    state.overlays.push(UiOverlay::Search(UiSearchOverlay {
+        query: "tw".to_string(),
+        matches: vec![
+            UiSearchMatch {
+                message_id: Some(first_id),
+                start: 0,
+                end: 3,
+                preview: "one".to_string(),
+            },
+            UiSearchMatch {
+                message_id: Some(second_id),
+                start: 0,
+                end: 3,
+                preview: "two".to_string(),
+            },
+        ],
+        selected_index: Some(0),
+        case_sensitive: false,
+    }));
+
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_search(&state).selected_index, Some(1));
+    key(&mut controller, &mut state, KeyCode::Backspace);
+    assert_eq!(active_search(&state).query, "t");
+    key(&mut controller, &mut state, KeyCode::End);
+    assert!(state.overlays.active().is_none());
+    assert!(state.scroll.follow_tail);
+
+    state.overlays.push(UiOverlay::Search(UiSearchOverlay::default()));
+    key(&mut controller, &mut state, KeyCode::Char('u'));
+    assert!(state.overlays.active().is_none());
+    assert_eq!(state.scroll.top_message, 0);
+
+    state.overlays.push(UiOverlay::Search(UiSearchOverlay {
+        matches: vec![UiSearchMatch {
+            message_id: Some(UiMessageId::new("missing")),
+            start: 0,
+            end: 1,
+            preview: "missing".to_string(),
+        }],
+        selected_index: Some(0),
+        ..UiSearchOverlay::default()
+    }));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
+    assert!(matches!(state.overlays.active(), Some(UiOverlay::Search(_))));
+}
+
+#[test]
+fn question_overlay_keys_cover_custom_answers_selection_bounds_and_multi_toggle() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    state.overlays.push(UiOverlay::Question(question_overlay()));
+    assert_eq!(
+        key_mod(&mut controller, &mut state, KeyCode::Char('p'), KeyModifiers::CONTROL),
+        TuiControllerCommand::Continue
+    );
+    key(&mut controller, &mut state, KeyCode::Tab);
+    key(&mut controller, &mut state, KeyCode::Char('x'));
+    key(&mut controller, &mut state, KeyCode::Char('y'));
+    assert_eq!(active_question(&state).answers[1], vec!["__custom__:xy".to_string()]);
+    key(&mut controller, &mut state, KeyCode::Backspace);
+    assert_eq!(active_question(&state).answers[1], vec!["__custom__:x".to_string()]);
+    key(&mut controller, &mut state, KeyCode::Delete);
+    assert!(active_question(&state).answers[1].is_empty());
+    key(&mut controller, &mut state, KeyCode::Down);
+    assert_eq!(active_question(&state).selected_index, 1);
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_question(&state).selected_index, 0);
+
+    let _ = state.overlays.stack.pop();
+    state.overlays.push(UiOverlay::Question(multiple_question_overlay()));
+    key(&mut controller, &mut state, KeyCode::Char('1'));
+    assert_eq!(active_question(&state).answers[0], vec!["Allow".to_string()]);
+    key(&mut controller, &mut state, KeyCode::Char('2'));
+    assert_eq!(active_question(&state).answers[0], vec!["Allow".to_string(), "Deny".to_string()]);
+    key(&mut controller, &mut state, KeyCode::Char('1'));
+    assert_eq!(active_question(&state).answers[0], vec!["Deny".to_string()]);
+
+    let _ = state.overlays.stack.pop();
+    state.overlays.push(UiOverlay::Question(UiQuestionOverlay {
+        request_id: "empty".to_string(),
+        session_id: "session".to_string(),
+        prompts: Vec::new(),
+        answers: Vec::new(),
+        tool: None,
+        selected_index: 9,
+    }));
+    key(&mut controller, &mut state, KeyCode::Tab);
+    assert_eq!(active_question(&state).selected_index, 0);
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(state.overlays.active().is_none());
+}
+
+#[test]
+fn todo_task_mcp_memory_and_generic_overlays_cover_navigation_boundaries() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    state.overlays.push(UiOverlay::Todo(UiTodoOverlay::default()));
+    key(&mut controller, &mut state, KeyCode::Down);
+    key(&mut controller, &mut state, KeyCode::Enter);
+    assert_eq!(active_todo(&state).selected_index, 0);
+    assert!(matches!(
+        key(&mut controller, &mut state, KeyCode::Char('r')),
+        TuiControllerCommand::Overlay(TuiOverlayCommand::TodoRefresh(_))
+    ));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(state.overlays.active().is_none());
+
+    state.overlays.push(UiOverlay::Todo(UiTodoOverlay {
+        items: vec![
+            UiTodoItem {
+                id: "1".to_string(),
+                content: "one".to_string(),
+                status: "completed".to_string(),
+                priority: "medium".to_string(),
+            },
+            UiTodoItem {
+                id: "2".to_string(),
+                content: "two".to_string(),
+                status: "pending".to_string(),
+                priority: "low".to_string(),
+            },
+        ],
+        ..UiTodoOverlay::default()
+    }));
+    key(&mut controller, &mut state, KeyCode::Down);
+    assert_eq!(active_todo(&state).selected_index, 1);
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_todo(&state).selected_index, 0);
+    key(&mut controller, &mut state, KeyCode::Char(' '));
+    assert_eq!(active_todo(&state).items[0].status, "pending");
+
+    state.overlays.push(UiOverlay::Task(UiTaskOverlay {
+        steps: vec![task_step("missing-1", 1), task_step("missing-2", 2)],
+        ..UiTaskOverlay::default()
+    }));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(!matches!(state.overlays.active(), Some(UiOverlay::Task(_))));
+
+    state.overlays.push(UiOverlay::Task(UiTaskOverlay {
+        steps: vec![task_step("missing-1", 1), task_step("missing-2", 2)],
+        ..UiTaskOverlay::default()
+    }));
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_task(&state).selected_index, 1);
+    key(&mut controller, &mut state, KeyCode::Down);
+    assert_eq!(active_task(&state).selected_index, 0);
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
+    assert!(matches!(state.overlays.active(), Some(UiOverlay::Task(_))));
+
+    state.overlays.push(UiOverlay::Mcp(UiMcpOverlay {
+        servers: vec![
+            UiMcpServerInfo {
+                name: "one".to_string(),
+                transport: McpServerTransport::Stdio,
+                address: "cmd".to_string(),
+            },
+            UiMcpServerInfo {
+                name: "two".to_string(),
+                transport: McpServerTransport::Http,
+                address: "http://localhost".to_string(),
+            },
+        ],
+        config_source: "project".to_string(),
+        selected_index: 0,
+    }));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(!matches!(state.overlays.active(), Some(UiOverlay::Mcp(_))));
+
+    state.overlays.push(UiOverlay::Mcp(UiMcpOverlay {
+        servers: vec![
+            UiMcpServerInfo {
+                name: "one".to_string(),
+                transport: McpServerTransport::Stdio,
+                address: "cmd".to_string(),
+            },
+            UiMcpServerInfo {
+                name: "two".to_string(),
+                transport: McpServerTransport::Http,
+                address: "http://localhost".to_string(),
+            },
+        ],
+        config_source: "project".to_string(),
+        selected_index: 0,
+    }));
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_mcp(&state).selected_index, 1);
+    key(&mut controller, &mut state, KeyCode::Down);
+    assert_eq!(active_mcp(&state).selected_index, 0);
+
+    state.overlays.push(UiOverlay::Memory(UiMemoryOverlay {
+        entries: vec![
+            UiMemoryEntry {
+                scope: "project".to_string(),
+                filename: "A.md".to_string(),
+                path: "/tmp/A.md".to_string(),
+                preview_lines: Vec::new(),
+                total_lines: 0,
+            },
+            UiMemoryEntry {
+                scope: "global".to_string(),
+                filename: "B.md".to_string(),
+                path: "/tmp/B.md".to_string(),
+                preview_lines: vec!["line".to_string()],
+                total_lines: 1,
+            },
+        ],
+        selected_index: 0,
+    }));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Esc), TuiControllerCommand::Continue);
+    assert!(!matches!(state.overlays.active(), Some(UiOverlay::Memory(_))));
+
+    state.overlays.push(UiOverlay::Memory(UiMemoryOverlay {
+        entries: vec![
+            UiMemoryEntry {
+                scope: "project".to_string(),
+                filename: "A.md".to_string(),
+                path: "/tmp/A.md".to_string(),
+                preview_lines: Vec::new(),
+                total_lines: 0,
+            },
+            UiMemoryEntry {
+                scope: "global".to_string(),
+                filename: "B.md".to_string(),
+                path: "/tmp/B.md".to_string(),
+                preview_lines: vec!["line".to_string()],
+                total_lines: 1,
+            },
+        ],
+        selected_index: 0,
+    }));
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(active_memory(&state).selected_index, 1);
+    key(&mut controller, &mut state, KeyCode::Tab);
+    assert_eq!(active_memory(&state).selected_index, 0);
+
+    state.overlays.push(UiOverlay::CommandPalette(UiCommandPaletteOverlay::default()));
+    assert_eq!(
+        key(&mut controller, &mut state, KeyCode::Char('x')),
+        TuiControllerCommand::Continue
+    );
+    assert!(matches!(state.overlays.active(), Some(UiOverlay::CommandPalette(_))));
+    key(&mut controller, &mut state, KeyCode::Esc);
+    assert!(!matches!(state.overlays.active(), Some(UiOverlay::CommandPalette(_))));
+}
+
+#[test]
+fn scroll_keys_cover_empty_and_anchor_navigation() {
+    let mut controller = TuiController::default();
+    let mut state = TuiState::default();
+
+    assert_eq!(key(&mut controller, &mut state, KeyCode::PageDown), TuiControllerCommand::Continue);
+    assert_eq!(state.scroll.top_message, 0);
+
+    push_system_message(&mut state, "one");
+    push_system_message(&mut state, "two");
+    push_system_message(&mut state, "three");
+    state.scroll.sync_viewport(1, 80);
+
+    key(&mut controller, &mut state, KeyCode::End);
+    assert_eq!(state.scroll.top_message, 2);
+    assert!(state.scroll.follow_tail);
+    key(&mut controller, &mut state, KeyCode::PageUp);
+    assert_eq!(state.scroll.top_message, 1);
+    assert!(!state.scroll.follow_tail);
+    key(&mut controller, &mut state, KeyCode::Up);
+    assert_eq!(state.scroll.top_message, 0);
+    key(&mut controller, &mut state, KeyCode::Home);
+    assert_eq!(state.scroll.top_message, 0);
+}
+
 fn key(
     controller: &mut TuiController,
     state: &mut TuiState,
@@ -294,6 +768,89 @@ fn question_overlay() -> UiQuestionOverlay {
         tool: None,
         selected_index: 0,
     }
+}
+
+fn multiple_question_overlay() -> UiQuestionOverlay {
+    UiQuestionOverlay {
+        request_id: "multi".to_string(),
+        session_id: "session".to_string(),
+        prompts: vec![UiQuestionPrompt {
+            header: "Approval".to_string(),
+            question: "Allow?".to_string(),
+            options: vec![
+                UiQuestionOption {
+                    label: "Allow".to_string(),
+                    description: "continue".to_string(),
+                    preview: None,
+                },
+                UiQuestionOption {
+                    label: "Deny".to_string(),
+                    description: "stop".to_string(),
+                    preview: None,
+                },
+            ],
+            multiple: true,
+            allow_custom_input: false,
+        }],
+        answers: vec![Vec::new()],
+        tool: None,
+        selected_index: 0,
+    }
+}
+
+fn task_step(message_id: &str, step_index: u32) -> UiTaskStepItem {
+    UiTaskStepItem {
+        message_id: UiMessageId::new(message_id),
+        step_index,
+        state: super::model::UiStepState::Complete,
+        started_ms: 1,
+        finished_ms: Some(2),
+        model: None,
+        finish_reason: None,
+        usage: UiTokenUsage::default(),
+    }
+}
+
+fn active_search(state: &TuiState) -> &UiSearchOverlay {
+    let Some(UiOverlay::Search(overlay)) = state.overlays.active() else {
+        panic!("search overlay should be active");
+    };
+    overlay
+}
+
+fn active_question(state: &TuiState) -> &UiQuestionOverlay {
+    let Some(UiOverlay::Question(overlay)) = state.overlays.active() else {
+        panic!("question overlay should be active");
+    };
+    overlay
+}
+
+fn active_todo(state: &TuiState) -> &UiTodoOverlay {
+    let Some(UiOverlay::Todo(overlay)) = state.overlays.active() else {
+        panic!("todo overlay should be active");
+    };
+    overlay
+}
+
+fn active_task(state: &TuiState) -> &UiTaskOverlay {
+    let Some(UiOverlay::Task(overlay)) = state.overlays.active() else {
+        panic!("task overlay should be active");
+    };
+    overlay
+}
+
+fn active_mcp(state: &TuiState) -> &UiMcpOverlay {
+    let Some(UiOverlay::Mcp(overlay)) = state.overlays.active() else {
+        panic!("mcp overlay should be active");
+    };
+    overlay
+}
+
+fn active_memory(state: &TuiState) -> &UiMemoryOverlay {
+    let Some(UiOverlay::Memory(overlay)) = state.overlays.active() else {
+        panic!("memory overlay should be active");
+    };
+    overlay
 }
 
 struct FakeFeedback(FullscreenLayoutSlots);

@@ -217,45 +217,56 @@ pub(crate) async fn apply_semantic_guard(
 
         // 如果检测到威胁
         if let Some(detection) = semantic_guard.detect(&msg.content).await {
-            // 记录安全事件到追踪系统
-            runtime_trace::record_event(
-                "channel_message_blocked_semantic_guard",
-                Some(msg.channel.as_str()),
-                None,
-                None,
-                None,
-                Some(false),
-                Some("blocked by semantic prompt-injection guard"),
-                serde_json::json!({
-                    "sender": msg.sender,
-                    "message_id": msg.id,
-                    "score": detection.score,
-                    "threshold": semantic_threshold,
-                    "category": detection.category,
-                    "collection": semantic_collection,
-                }),
-            );
-
-            // 向用户发送警告消息
-            if let Some(channel) = target_channel {
-                let warning = format!(
-                    "Request blocked by `security.semantic_guard` before provider execution.\n\
- semantic_match={:.2} (threshold {:.2}), category={}",
-                    detection.score, semantic_threshold, detection.category
-                );
-                let _ = channel
-                    .send(
-                        &SendMessage::new(warning, &msg.reply_target)
-                            .in_thread(msg.thread_ts.clone()),
-                    )
-                    .await;
-            }
-            // 返回 None 表示消息被拦截
+            block_semantic_guard_message(
+                msg,
+                target_channel,
+                &detection,
+                semantic_threshold,
+                &semantic_collection,
+            )
+            .await;
             return None;
         }
     }
 
     Some(canary_enabled)
+}
+
+pub(crate) async fn block_semantic_guard_message(
+    msg: &traits::ChannelMessage,
+    target_channel: Option<&Arc<dyn Channel>>,
+    detection: &crate::security::semantic_guard::SemanticMatch,
+    semantic_threshold: f64,
+    semantic_collection: &str,
+) {
+    runtime_trace::record_event(
+        "channel_message_blocked_semantic_guard",
+        Some(msg.channel.as_str()),
+        None,
+        None,
+        None,
+        Some(false),
+        Some("blocked by semantic prompt-injection guard"),
+        serde_json::json!({
+            "sender": msg.sender,
+            "message_id": msg.id,
+            "score": detection.score,
+            "threshold": semantic_threshold,
+            "category": detection.category,
+            "collection": semantic_collection,
+        }),
+    );
+
+    if let Some(channel) = target_channel {
+        let warning = format!(
+            "Request blocked by `security.semantic_guard` before provider execution.\n\
+ semantic_match={:.2} (threshold {:.2}), category={}",
+            detection.score, semantic_threshold, detection.category
+        );
+        let _ = channel
+            .send(&SendMessage::new(warning, &msg.reply_target).in_thread(msg.thread_ts.clone()))
+            .await;
+    }
 }
 
 /// 通知用户 provider 初始化失败

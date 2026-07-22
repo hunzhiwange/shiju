@@ -17,8 +17,7 @@
 //! - `stats` - 统计信息收集和展示
 //! - `stdio` - 标准输入输出处理
 //! - `transcript` - 对话记录，保存和加载会话历史
-//! - `tui` - 终端用户界面（Terminal User Interface）
-//! - `tui_v2` - 新 TUI 的 gateway-first 骨架与后续迁移入口
+//! - `tui_v2` - gateway-first 终端用户界面（Terminal User Interface）
 //! - `tui_utils` - TUI 工具函数和辅助方法
 //!
 //! # 导出项
@@ -26,8 +25,6 @@
 //! - `run` - 公开的运行入口函数，用于启动 CLI 代理
 //! - `logo_text_lines` - Logo 文本行，用于显示欢迎信息
 //! - `render_execution_indicator` - 执行指示器渲染，显示代理正在工作
-
-pub(crate) use super::AgentTuiMode;
 
 pub(crate) mod interactive;
 pub(crate) mod interactive_input;
@@ -39,9 +36,6 @@ pub(crate) mod logo;
 #[path = "logo_tests.rs"]
 mod logo_tests;
 pub(crate) mod processor;
-#[cfg(test)]
-#[path = "processor_tests.rs"]
-mod processor_tests;
 pub(crate) mod render;
 #[cfg(test)]
 #[path = "render_tests.rs"]
@@ -75,24 +69,11 @@ pub(crate) mod theme;
 #[path = "theme_tests.rs"]
 mod theme_tests;
 pub(crate) mod transcript;
-pub(crate) mod tui;
 pub(crate) mod tui_utils;
 #[cfg(test)]
 #[path = "tui_utils_tests.rs"]
 mod tui_utils_tests;
 pub(crate) mod tui_v2;
-
-/// 导出 Logo 文本行生成函数
-///
-/// 该函数返回用于在 CLI 启动时显示的品牌标识文本。
-/// 仅在 crate 内部使用。
-pub(crate) use logo::logo_text_lines;
-
-/// 导出执行指示器渲染函数
-///
-/// 该函数用于在代理执行任务时渲染动态指示器，
-/// 向用户提供视觉反馈。仅在 crate 内部使用。
-pub(crate) use render::render_execution_indicator;
 
 /// 导出主运行入口函数
 ///

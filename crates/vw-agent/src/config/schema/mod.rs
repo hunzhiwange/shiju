@@ -42,9 +42,6 @@ mod config_tests;
 #[path = "config_validate_tests.rs"]
 mod config_validate_tests;
 #[cfg(test)]
-#[path = "proxy_tests.rs"]
-mod proxy_tests;
-#[cfg(test)]
 #[path = "workspace_tests.rs"]
 mod workspace_tests;
 
@@ -80,11 +77,19 @@ pub use ui::*;
 
 pub use config::{AcpAgentConfig, Config, ConfigExt};
 pub(crate) use config_env::apply_env_overrides;
+pub(crate) use config_io::parse_config_contents;
 pub(crate) use config_load::load_or_init_config;
-pub(crate) use config_save::save_config;
+pub use config_load::load_or_init_config_for_tenant;
+pub(crate) use config_load::load_or_init_config_for_tenant_without_env;
+pub(crate) use config_save::{
+    save_config, save_config_for_tenant, update_project_config, update_project_config_from_configs,
+};
+pub(crate) use config_secrets::{decrypt_config_secrets, encrypt_config_secrets};
 pub(crate) use config_validate::validate_config;
 pub use workspace::default_config_and_workspace_dirs;
 pub(crate) use workspace::resolve_runtime_config_dirs;
 
-const CONFIG_JSON_FILENAME: &str = "vibewindow.json";
+/// 旧用户配置迁移来源文件名。
+const LEGACY_CONFIG_JSON_FILENAME: &str = "vibewindow.json";
+pub const CONFIG_OVERRIDE_FILENAME: &str = ".vibewindow.json";
 pub const CONFIG_AGENT_KEY: &str = "agent";

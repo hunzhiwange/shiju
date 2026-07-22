@@ -167,3 +167,22 @@ fn name_and_schema() {
     assert_eq!(tool.name(), "sop_list");
     assert!(tool.parameters_schema()["properties"]["filter"].is_object());
 }
+
+#[tokio::test]
+async fn list_rejects_poisoned_engine_lock() {
+    let engine = engine_with_sops(vec![test_sop("pump-shutdown", SopPriority::Critical)]);
+    let engine_to_poison = engine.clone();
+    let panic = std::thread::spawn(move || {
+        let _guard = engine_to_poison.lock().unwrap();
+        panic!("poison test engine lock");
+    })
+    .join();
+    assert!(panic.is_err());
+
+    let error = SopListTool::new(engine)
+        .execute(json!({}))
+        .await
+        .expect_err("a poisoned engine lock must be rejected");
+
+    assert!(error.to_string().contains("Engine lock poisoned"));
+}

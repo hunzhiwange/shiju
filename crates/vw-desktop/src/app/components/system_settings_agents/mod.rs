@@ -34,8 +34,8 @@ use self::shared::{
     agent_sidebar_button_style, detail_tab_button, entry_kind_label, section_card, selected_entry,
 };
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel_style, settings_text_input_style, settings_value_badge,
+    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
@@ -230,10 +230,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         content = content.push(
             text("正在刷新提供商 / 模型 / 工具列表 ...").size(12).style(settings_muted_text_style),
         );
-    }
-
-    if let Some(error) = &settings.save_error {
-        content = content.push(settings_error_banner(error));
     }
 
     content.into()

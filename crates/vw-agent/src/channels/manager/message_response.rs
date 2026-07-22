@@ -218,7 +218,7 @@ pub(crate) async fn handle_llm_result(
                             );
                             modified_content = truncate_with_ellipsis(
                                 &modified_content,
-                                CHANNEL_HOOK_MAX_OUTBOUND_CHARS,
+                                CHANNEL_HOOK_MAX_OUTBOUND_CHARS.saturating_sub(3),
                             );
                         }
 

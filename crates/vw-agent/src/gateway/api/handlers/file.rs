@@ -15,16 +15,7 @@
 //! - `GET /file` - 列出目录内容
 //! - `GET /file/content` - 读取文件内容
 //! - `GET /file/status` - 获取 Git 状态
-//! - `POST /files/large/scan` - 扫描大文件
-//! - `POST /files/large/scan/start` - 启动大文件扫描任务
-//! - `GET /files/large/scan/status` - 查询大文件扫描进度
-//! - `POST /files/large/scan/cancel` - 取消大文件扫描任务
-//! - `POST /files/large/delete` - 删除已选大文件
-
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
 
 use axum::Json;
 use axum::Router;
@@ -35,13 +26,7 @@ use base64::Engine;
 use serde::Deserialize;
 use serde::Serialize;
 use vw_api_types::common::OperationAck;
-use vw_api_types::file::{
-    CopyFileRequest, DeleteFileRequest, LargeFileCategoryDto, LargeFileDeleteFailureDto,
-    LargeFileDeleteRequest, LargeFileDeleteResponse, LargeFileEntryDto, LargeFileScanCancelRequest,
-    LargeFileScanProgressDto, LargeFileScanRequest, LargeFileScanResponse,
-    LargeFileScanStartRequest, LargeFileScanStartResponse, LargeFileScanStatusResponse,
-    MoveFileRequest, WriteFileResponse,
-};
+use vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest, WriteFileResponse};
 
 use crate::app::agent::file;
 use crate::app::agent::gateway::ApiError;
@@ -51,7 +36,6 @@ use crate::app::agent::gateway::instance::normalize_rel_path;
 use crate::app::agent::gateway::instance::resolve_directory;
 use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project::instance;
-use crate::app::agent::{project, storage};
 
 /// 创建文件操作路由器
 ///
@@ -65,11 +49,6 @@ use crate::app::agent::{project, storage};
 /// - `/file` - 列出指定路径的目录内容
 /// - `/file/content` - 读取指定文件的内容
 /// - `/file/status` - 获取工作目录的 Git 状态
-/// - `/files/large/scan` - 扫描大文件
-/// - `/files/large/scan/start` - 启动大文件扫描任务
-/// - `/files/large/scan/status` - 查询大文件扫描进度
-/// - `/files/large/scan/cancel` - 取消大文件扫描任务
-/// - `/files/large/delete` - 删除已选大文件
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -86,31 +65,6 @@ where
         .route("/files/move", post(file_move_v1))
         .route("/files/copy", post(file_copy_v1))
         .route("/files/delete", post(file_delete_v1))
-        .route("/files/large/scan", post(large_file_scan_v1))
-        .route("/files/large/scan/start", post(large_file_scan_start_v1))
-        .route("/files/large/scan/status", get(large_file_scan_status_v1))
-        .route("/files/large/scan/cancel", post(large_file_scan_cancel_v1))
-        .route("/files/large/delete", post(large_file_delete_v1))
-}
-
-const LARGE_FILE_MIN_BYTES: u64 = 50 * 1024 * 1024;
-const ONE_GB: u64 = 1024 * 1024 * 1024;
-const FIVE_HUNDRED_MB: u64 = 500 * 1024 * 1024;
-const ONE_HUNDRED_MB: u64 = 100 * 1024 * 1024;
-
-static LARGE_FILE_JOB_COUNTER: AtomicU64 = AtomicU64::new(1);
-static LARGE_FILE_JOBS: OnceLock<Mutex<HashMap<String, LargeFileScanJob>>> = OnceLock::new();
-
-#[derive(Clone)]
-struct LargeFileScanJob {
-    progress: Arc<Mutex<LargeFileScanProgressDto>>,
-    cancel: Arc<AtomicBool>,
-    result: Arc<Mutex<Option<Result<LargeFileScanResponse, String>>>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LargeFileScanStatusQuery {
-    job_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -756,399 +710,6 @@ async fn file_delete_v1(
     Ok(Json(OperationAck { ok: true, message: None }))
 }
 
-async fn large_file_scan_v1(
-    Json(body): Json<LargeFileScanRequest>,
-) -> Result<Json<LargeFileScanResponse>, ApiError> {
-    let root = body.root.clone();
-    let report = tokio::task::spawn_blocking(move || scan_large_files(root))
-        .await
-        .map_err(|err| ApiError::bad_request(err.to_string()))??;
-
-    Ok(Json(report))
-}
-
-async fn large_file_scan_start_v1(
-    Json(body): Json<LargeFileScanStartRequest>,
-) -> Result<Json<LargeFileScanStartResponse>, ApiError> {
-    let job_id = next_large_file_job_id();
-    let progress = Arc::new(Mutex::new(LargeFileScanProgressDto {
-        phase_label: "准备扫描".to_string(),
-        current_path: body.root.clone(),
-        total_files: 0,
-        processed_files: 0,
-        matched_files: 0,
-        progress_value: 0.0,
-    }));
-    let cancel = Arc::new(AtomicBool::new(false));
-    let result = Arc::new(Mutex::new(None));
-
-    let job = LargeFileScanJob {
-        progress: progress.clone(),
-        cancel: cancel.clone(),
-        result: result.clone(),
-    };
-    large_file_jobs()
-        .lock()
-        .map_err(|_| ApiError::internal("large file job registry poisoned"))?
-        .insert(job_id.clone(), job);
-
-    let root = body.root;
-    tokio::task::spawn_blocking(move || {
-        let scan_result = scan_large_files_with_progress(root, Some(progress), Some(cancel))
-            .map_err(|err| err.to_string());
-        if let Ok(mut slot) = result.lock() {
-            *slot = Some(scan_result);
-        }
-    });
-
-    Ok(Json(LargeFileScanStartResponse { job_id }))
-}
-
-async fn large_file_scan_status_v1(
-    Query(query): Query<LargeFileScanStatusQuery>,
-) -> Result<Json<LargeFileScanStatusResponse>, ApiError> {
-    let job = {
-        let jobs = large_file_jobs()
-            .lock()
-            .map_err(|_| ApiError::internal("large file job registry poisoned"))?;
-        jobs.get(&query.job_id).cloned()
-    }
-    .ok_or_else(|| ApiError::not_found("large file scan job not found"))?;
-
-    let progress = job
-        .progress
-        .lock()
-        .map_err(|_| ApiError::internal("large file scan progress poisoned"))?
-        .clone();
-    let result = job
-        .result
-        .lock()
-        .map_err(|_| ApiError::internal("large file scan result poisoned"))?
-        .clone();
-
-    let finished = result.is_some();
-    let (report, error) = match result {
-        Some(Ok(report)) => (Some(report), None),
-        Some(Err(error)) => (None, Some(error)),
-        None => (None, None),
-    };
-
-    if finished && let Ok(mut jobs) = large_file_jobs().lock() {
-        jobs.remove(&query.job_id);
-    }
-
-    Ok(Json(LargeFileScanStatusResponse {
-        job_id: query.job_id,
-        progress,
-        finished,
-        report,
-        error,
-    }))
-}
-
-async fn large_file_scan_cancel_v1(
-    Json(body): Json<LargeFileScanCancelRequest>,
-) -> Result<Json<OperationAck>, ApiError> {
-    let job = {
-        let jobs = large_file_jobs()
-            .lock()
-            .map_err(|_| ApiError::internal("large file job registry poisoned"))?;
-        jobs.get(&body.job_id).cloned()
-    }
-    .ok_or_else(|| ApiError::not_found("large file scan job not found"))?;
-
-    job.cancel.store(true, Ordering::Relaxed);
-    Ok(Json(OperationAck { ok: true, message: Some("scan cancellation requested".to_string()) }))
-}
-
-async fn large_file_delete_v1(
-    Json(body): Json<LargeFileDeleteRequest>,
-) -> Result<Json<LargeFileDeleteResponse>, ApiError> {
-    let root = body.root.clone();
-    let paths = body.paths.clone();
-    let summary = tokio::task::spawn_blocking(move || delete_large_files(&root, paths))
-        .await
-        .map_err(|err| ApiError::bad_request(err.to_string()))??;
-
-    Ok(Json(summary))
-}
-
-fn large_file_jobs() -> &'static Mutex<HashMap<String, LargeFileScanJob>> {
-    LARGE_FILE_JOBS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn next_large_file_job_id() -> String {
-    let counter = LARGE_FILE_JOB_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or_default();
-    format!("large-file-{millis}-{counter}")
-}
-
-fn scan_large_files(root: String) -> Result<LargeFileScanResponse, ApiError> {
-    scan_large_files_with_progress(root, None, None)
-}
-
-fn scan_large_files_with_progress(
-    root: String,
-    progress: Option<Arc<Mutex<LargeFileScanProgressDto>>>,
-    cancel: Option<Arc<AtomicBool>>,
-) -> Result<LargeFileScanResponse, ApiError> {
-    let root_path = PathBuf::from(&root);
-    if !root_path.exists() {
-        return Err(ApiError::bad_request("扫描目录不存在"));
-    }
-    if !root_path.is_dir() {
-        return Err(ApiError::bad_request("扫描目标不是目录"));
-    }
-
-    let root_path =
-        root_path.canonicalize().map_err(|err| ApiError::bad_request(err.to_string()))?;
-    let root = root_path.to_string_lossy().to_string();
-    set_large_file_progress(&progress, "预扫描目录结构", root.clone(), 0, 0, 0, 0.02);
-
-    let mut candidates = Vec::new();
-    let mut seen_files = 0_usize;
-    for entry in
-        walkdir::WalkDir::new(&root_path).follow_links(false).into_iter().filter_map(Result::ok)
-    {
-        if is_large_file_scan_cancelled(&cancel) {
-            return Err(ApiError::bad_request("已取消扫描"));
-        }
-
-        let entry_path = entry.path().to_string_lossy().to_string();
-        if entry.file_type().is_file() {
-            candidates.push(entry.path().to_path_buf());
-            seen_files += 1;
-        }
-
-        if seen_files.is_multiple_of(64) || !entry.file_type().is_file() {
-            let pulse = 0.02 + ((seen_files % 240) as f32 / 240.0) * 0.18;
-            set_large_file_progress(
-                &progress,
-                "预扫描目录结构",
-                entry_path,
-                seen_files,
-                seen_files,
-                0,
-                pulse.min(0.20),
-            );
-        }
-    }
-
-    let total_candidates = candidates.len();
-    set_large_file_progress(
-        &progress,
-        "扫描文件大小",
-        root.clone(),
-        0,
-        total_candidates,
-        0,
-        if total_candidates == 0 { 1.0 } else { 0.20 },
-    );
-
-    let mut giga_files = Vec::new();
-    let mut large_files = Vec::new();
-    let mut medium_files = Vec::new();
-    let mut small_files = Vec::new();
-    let mut total_bytes = 0_u64;
-    let mut total_files = 0_usize;
-
-    for path in candidates {
-        if is_large_file_scan_cancelled(&cancel) {
-            return Err(ApiError::bad_request("已取消扫描"));
-        }
-
-        let path_display = path.to_string_lossy().to_string();
-        let Some(file) = classify_large_file(&path)? else {
-            advance_large_file_progress(&progress, path_display, false);
-            continue;
-        };
-
-        total_bytes = total_bytes.saturating_add(file.size_bytes);
-        total_files += 1;
-
-        if file.size_bytes >= ONE_GB {
-            giga_files.push(file);
-        } else if file.size_bytes >= FIVE_HUNDRED_MB {
-            large_files.push(file);
-        } else if file.size_bytes >= ONE_HUNDRED_MB {
-            medium_files.push(file);
-        } else {
-            small_files.push(file);
-        }
-        advance_large_file_progress(&progress, path_display, true);
-    }
-
-    set_large_file_progress(
-        &progress,
-        "整理结果",
-        root.clone(),
-        total_candidates,
-        total_candidates,
-        total_files,
-        0.98,
-    );
-
-    let mut categories = vec![
-        build_large_file_category(
-            "giga",
-            "1GB 以上",
-            "优先检查虚拟机镜像、素材包、数据库快照",
-            giga_files,
-        ),
-        build_large_file_category(
-            "500m",
-            "500MB - 1GB",
-            "通常是安装包、视频缓存、训练数据或构建产物",
-            large_files,
-        ),
-        build_large_file_category(
-            "100m",
-            "100MB - 500MB",
-            "常见于导出文件、依赖缓存、下载目录",
-            medium_files,
-        ),
-        build_large_file_category("50m", "50MB - 100MB", "适合作为首轮整理补充项", small_files),
-    ];
-    categories.retain(|category| !category.files.is_empty());
-
-    set_large_file_progress(
-        &progress,
-        "扫描完成",
-        root.clone(),
-        total_candidates,
-        total_candidates,
-        total_files,
-        1.0,
-    );
-
-    Ok(LargeFileScanResponse { root, total_bytes, total_files, categories })
-}
-
-fn is_large_file_scan_cancelled(cancel: &Option<Arc<AtomicBool>>) -> bool {
-    cancel.as_ref().is_some_and(|flag| flag.load(Ordering::Relaxed))
-}
-
-fn set_large_file_progress(
-    progress: &Option<Arc<Mutex<LargeFileScanProgressDto>>>,
-    phase_label: &str,
-    current_path: String,
-    processed_files: usize,
-    total_files: usize,
-    matched_files: usize,
-    progress_value: f32,
-) {
-    let Some(progress) = progress else {
-        return;
-    };
-
-    if let Ok(mut state) = progress.lock() {
-        state.phase_label = phase_label.to_string();
-        state.current_path = current_path;
-        state.processed_files = processed_files;
-        state.total_files = total_files;
-        state.matched_files = matched_files;
-        state.progress_value = progress_value.clamp(0.0, 1.0);
-    }
-}
-
-fn advance_large_file_progress(
-    progress: &Option<Arc<Mutex<LargeFileScanProgressDto>>>,
-    current_path: String,
-    matched: bool,
-) {
-    let Some(progress) = progress else {
-        return;
-    };
-
-    if let Ok(mut state) = progress.lock() {
-        state.phase_label = "扫描文件大小".to_string();
-        state.current_path = current_path;
-        state.processed_files += 1;
-        if matched {
-            state.matched_files += 1;
-        }
-        let total = state.total_files.max(1) as f32;
-        state.progress_value =
-            (0.2 + (state.processed_files as f32 / total) * 0.78).clamp(0.2, 0.98);
-    }
-}
-
-fn classify_large_file(path: &Path) -> Result<Option<LargeFileEntryDto>, ApiError> {
-    let metadata = match std::fs::metadata(path) {
-        Ok(metadata) => metadata,
-        Err(_) => return Ok(None),
-    };
-    if !metadata.is_file() {
-        return Ok(None);
-    }
-
-    let size_bytes = metadata.len();
-    if size_bytes < LARGE_FILE_MIN_BYTES {
-        return Ok(None);
-    }
-
-    Ok(Some(LargeFileEntryDto {
-        name: path.file_name().and_then(|name| name.to_str()).unwrap_or("未知文件").to_string(),
-        path: path.to_string_lossy().to_string(),
-        parent: path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
-        size_bytes,
-    }))
-}
-
-fn build_large_file_category(
-    id: &str,
-    title: &str,
-    subtitle: &str,
-    mut files: Vec<LargeFileEntryDto>,
-) -> LargeFileCategoryDto {
-    files.sort_by(|left, right| right.size_bytes.cmp(&left.size_bytes));
-    let total_bytes = files.iter().map(|file| file.size_bytes).sum();
-
-    LargeFileCategoryDto {
-        id: id.to_string(),
-        title: title.to_string(),
-        subtitle: subtitle.to_string(),
-        total_bytes,
-        files,
-    }
-}
-
-fn delete_large_files(root: &str, paths: Vec<String>) -> Result<LargeFileDeleteResponse, ApiError> {
-    let root =
-        PathBuf::from(root).canonicalize().map_err(|err| ApiError::bad_request(err.to_string()))?;
-    if !root.is_dir() {
-        return Err(ApiError::bad_request("删除范围不是目录"));
-    }
-
-    let mut deleted_paths = Vec::new();
-    let mut failed_paths = Vec::new();
-
-    for path in paths {
-        let candidate = PathBuf::from(&path);
-        let full = if candidate.is_absolute() { candidate } else { root.join(&candidate) };
-        if !contains_path(&root, &full) {
-            failed_paths.push(LargeFileDeleteFailureDto {
-                path,
-                error: "path escapes scan root".to_string(),
-            });
-            continue;
-        }
-
-        match std::fs::remove_file(&full) {
-            Ok(_) => deleted_paths.push(path),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => deleted_paths.push(path),
-            Err(error) => {
-                failed_paths.push(LargeFileDeleteFailureDto { path, error: error.to_string() })
-            }
-        }
-    }
-
-    Ok(LargeFileDeleteResponse { deleted_paths, failed_paths })
-}
-
 fn resolve_directory_or_agent_root(
     query: &InstanceQuery,
     agent_key: Option<&str>,
@@ -1192,9 +753,22 @@ fn contains_path(root: &Path, candidate: &Path) -> bool {
     let candidate = if candidate.exists() {
         candidate.canonicalize().unwrap_or_else(|_| candidate.to_path_buf())
     } else {
-        let parent = candidate.parent().unwrap_or(root.as_path());
-        let base = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
-        base.join(candidate.file_name().unwrap_or_default())
+        let mut missing_parts = Vec::new();
+        let mut current = candidate;
+        while !current.exists() {
+            if let Some(name) = current.file_name() {
+                missing_parts.push(name.to_os_string());
+            }
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            current = parent;
+        }
+        let mut base = current.canonicalize().unwrap_or_else(|_| current.to_path_buf());
+        for part in missing_parts.iter().rev() {
+            base.push(part);
+        }
+        base
     };
     candidate.starts_with(&root)
 }
@@ -1207,10 +781,7 @@ async fn resolve_file_root(
         return decode_worktree_directory(worktree_id);
     }
 
-    let mut info = storage::read::<project::Info>(&["project", project_id])
-        .await
-        .map_err(|_| ApiError::not_found("project not found"))?;
-    info.sandboxes.retain(|path| std::path::Path::new(path).is_dir());
+    let info = crate::app::agent::gateway::instance::load_local_project(project_id).await?;
 
     if !info.worktree.trim().is_empty() {
         return Ok(info.worktree);

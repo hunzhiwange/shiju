@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use iced::widget::{column, container, text};
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Alignment, Color, Element, Length, Theme};
 
 use crate::app::components::chat_panel::utils::{
     chat_context_menu, chat_context_target_key, chat_secondary_muted_text_color,
@@ -13,8 +13,8 @@ use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
 
 use super::super::{
-    selected_chat_text_for_target, tool_permission_state, tool_permission_target_summary,
-    tool_permission_title,
+    ToolPermissionState, selected_chat_text_for_target, tool_permission_state,
+    tool_permission_target_summary, tool_permission_title,
 };
 use super::{FileListState, FilesViewContext};
 
@@ -37,6 +37,59 @@ pub(super) fn write_tool_summary(render_state: &FileListState) -> Option<String>
     }
 }
 
+pub(super) fn write_tool_title(
+    verb: &str,
+    is_running: bool,
+    permission_state: Option<ToolPermissionState>,
+    is_error: bool,
+) -> String {
+    if is_running {
+        format!("{verb}中")
+    } else if let Some(permission_state) = permission_state {
+        tool_permission_title(verb, permission_state)
+    } else if is_error {
+        format!("{verb}失败")
+    } else {
+        verb.to_string()
+    }
+}
+
+pub(super) fn write_tool_detail_text(
+    verb: &str,
+    is_running: bool,
+    error_text: Option<&str>,
+    fallback_summary: &str,
+) -> String {
+    if is_running {
+        format!("{verb}中…")
+    } else if let Some(error_text) = error_text.map(str::trim).filter(|text| !text.is_empty()) {
+        error_text.to_string()
+    } else {
+        fallback_summary.to_string()
+    }
+}
+
+pub(super) fn write_tool_detail_color(theme: &Theme, is_error: bool) -> Color {
+    if is_error {
+        theme.extended_palette().danger.base.color.scale_alpha(0.9)
+    } else {
+        chat_secondary_muted_text_color(theme)
+    }
+}
+
+pub(super) fn write_tool_context_menu_message(
+    target: u64,
+    point: iced::Point,
+    text: String,
+) -> Message {
+    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
+        target,
+        x: point.x,
+        y: point.y,
+        text,
+    })
+}
+
 pub(crate) fn build_write_tool_view<'a>(
     view_ctx: &FilesViewContext<'a>,
     render_state: &FileListState,
@@ -56,15 +109,8 @@ pub(crate) fn build_write_tool_view<'a>(
     let permission_target = tool_value
         .as_ref()
         .and_then(|value| tool_permission_target_summary(&view_ctx.tool_name, value));
-    let title = if view_ctx.is_running {
-        format!("{}中", view_ctx.verb)
-    } else if let Some(permission_state) = permission_state {
-        tool_permission_title(view_ctx.verb, permission_state)
-    } else if view_ctx.is_error {
-        format!("{}失败", view_ctx.verb)
-    } else {
-        view_ctx.verb.to_string()
-    };
+    let title =
+        write_tool_title(view_ctx.verb, view_ctx.is_running, permission_state, view_ctx.is_error);
     let is_error = view_ctx.is_error;
 
     let summary = permission_target.clone().or_else(|| write_tool_summary(render_state));
@@ -72,25 +118,16 @@ pub(crate) fn build_write_tool_view<'a>(
     let body: Element<'a, Message> = if render_state.total_items > 0 {
         container(list_column).width(Length::Fill).into()
     } else {
-        let detail_text = if view_ctx.is_running {
-            format!("{}中…", view_ctx.verb)
-        } else if let Some(error_text) =
-            view_ctx.error_text.as_deref().map(str::trim).filter(|text| !text.is_empty())
-        {
-            error_text.to_string()
-        } else {
-            fallback_summary.clone()
-        };
+        let detail_text = write_tool_detail_text(
+            view_ctx.verb,
+            view_ctx.is_running,
+            view_ctx.error_text.as_deref(),
+            &fallback_summary,
+        );
 
         container(
             column![text(detail_text).size(14).style(move |theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(if is_error {
-                        theme.extended_palette().danger.base.color.scale_alpha(0.9)
-                    } else {
-                        chat_secondary_muted_text_color(theme)
-                    }),
-                }
+                iced::widget::text::Style { color: Some(write_tool_detail_color(theme, is_error)) }
             })]
             .align_x(Alignment::Start),
         )
@@ -103,12 +140,7 @@ pub(crate) fn build_write_tool_view<'a>(
     let content: Element<'a, Message> = RightClickArea::new(
         body,
         Box::new(move |point| {
-            Message::Chat(message::ChatMessage::OpenMessageContextMenu {
-                target: context_key,
-                x: point.x,
-                y: point.y,
-                text: fallback_context_text.clone(),
-            })
+            write_tool_context_menu_message(context_key, point, fallback_context_text.clone())
         }),
     )
     .preserve_on_right_click()

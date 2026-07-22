@@ -29,3 +29,15 @@ fn with_embedder_preserves_constructor_configuration() {
     assert_eq!(memory.cache_max, 12);
     assert!(memory.db_path.ends_with("memory/brain.db"));
 }
+
+#[test]
+fn sqlite_memory_reports_blocked_memory_directory() {
+    let workspace = tempfile::TempDir::new().unwrap();
+    let storage = crate::app::agent::memory::paths::project_data_dir(workspace.path()).unwrap();
+    std::fs::create_dir_all(&storage).unwrap();
+    std::fs::write(storage.join("memory"), b"not a directory").unwrap();
+
+    let result = SqliteMemory::new(workspace.path());
+
+    assert!(result.is_err());
+}

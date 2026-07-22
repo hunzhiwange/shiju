@@ -38,3 +38,20 @@ fn heartbeat_deserializes_legacy_aliases() {
     assert_eq!(heartbeat.target.as_deref(), Some("telegram"));
     assert_eq!(heartbeat.to.as_deref(), Some("chat-1"));
 }
+
+#[test]
+fn sop_execution_mode_display_covers_remaining_modes() {
+    assert_eq!(super::SopExecutionMode::Supervised.to_string(), "supervised");
+    assert_eq!(super::SopExecutionMode::StepByStep.to_string(), "step_by_step");
+}
+
+#[test]
+fn cron_deserialization_applies_enabled_default() {
+    let cron: super::CronConfig = serde_json::from_value(serde_json::json!({
+        "max_run_history": 12
+    }))
+    .unwrap();
+
+    assert!(cron.enabled);
+    assert_eq!(cron.max_run_history, 12);
+}

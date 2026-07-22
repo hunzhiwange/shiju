@@ -5,6 +5,58 @@
 
 use super::*;
 
+fn named_instance_field<'a>(key: &'a str, prefix: &str) -> Option<&'a str> {
+    let rest = key.strip_prefix(prefix)?.strip_prefix('.')?;
+    let (_, field) = rest.split_once('.')?;
+    Some(field)
+}
+
+fn is_static_multiline_channel_key(key: &str) -> bool {
+    matches!(
+        key,
+        "telegram.allowed_users"
+            | "telegram.group_reply.allowed_sender_ids"
+            | "discord.allowed_users"
+            | "discord.group_reply.allowed_sender_ids"
+            | "slack.allowed_users"
+            | "slack.group_reply.allowed_sender_ids"
+            | "mattermost.allowed_users"
+            | "mattermost.group_reply.allowed_sender_ids"
+            | "imessage.allowed_contacts"
+            | "matrix.allowed_users"
+            | "signal.allowed_from"
+            | "whatsapp.allowed_numbers"
+            | "linq.allowed_senders"
+            | "wati.allowed_numbers"
+            | "nextcloud_talk.allowed_users"
+            | "email.allowed_senders"
+            | "irc.channels"
+            | "irc.allowed_users"
+            | "lark.allowed_users"
+            | "lark.group_reply.allowed_sender_ids"
+            | "feishu.allowed_users"
+            | "feishu.group_reply.allowed_sender_ids"
+            | "dingtalk.allowed_users"
+            | "qq.allowed_users"
+            | "nostr.relays"
+            | "nostr.allowed_pubkeys"
+            | "clawdtalk.allowed_destinations"
+    )
+}
+
+fn is_named_instance_multiline_channel_key(key: &str) -> bool {
+    matches!(named_instance_field(key, "matrix_instances"), Some("allowed_users"))
+        || matches!(
+            named_instance_field(key, "feishu_instances"),
+            Some("allowed_users" | "group_reply.allowed_sender_ids")
+        )
+        || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
+}
+
+fn is_multiline_channel_key(key: &str) -> bool {
+    is_static_multiline_channel_key(key) || is_named_instance_multiline_channel_key(key)
+}
+
 #[derive(Debug, Clone)]
 /// 表示 ChannelsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct ChannelsSettingsState {
@@ -19,6 +71,7 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) webhook: Option<vw_config_types::channels::WebhookConfig>,
     pub(crate) imessage: Option<vw_config_types::channels::IMessageConfig>,
     pub(crate) matrix: Option<vw_config_types::channels::MatrixConfig>,
+    pub(crate) matrix_instances: Vec<vw_config_types::channels::MatrixInstanceConfig>,
     pub(crate) signal: Option<vw_config_types::channels::SignalConfig>,
     pub(crate) whatsapp: Option<vw_config_types::channels::WhatsAppConfig>,
     pub(crate) linq: Option<vw_config_types::channels::LinqConfig>,
@@ -29,7 +82,9 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) irc: Option<vw_config_types::channels::IrcConfig>,
     pub(crate) lark: Option<vw_config_types::channels::LarkConfig>,
     pub(crate) feishu: Option<vw_config_types::channels::FeishuConfig>,
+    pub(crate) feishu_instances: Vec<vw_config_types::channels::FeishuInstanceConfig>,
     pub(crate) dingtalk: Option<vw_config_types::channels::DingTalkConfig>,
+    pub(crate) dingtalk_instances: Vec<vw_config_types::channels::DingTalkInstanceConfig>,
     pub(crate) qq: Option<vw_config_types::channels::QQConfig>,
     pub(crate) nostr: Option<vw_config_types::channels::NostrConfig>,
     pub(crate) clawdtalk: Option<vw_config_types::channels::ClawdTalkConfig>,
@@ -52,6 +107,7 @@ impl Default for ChannelsSettingsState {
             webhook: None,
             imessage: None,
             matrix: None,
+            matrix_instances: Vec::new(),
             signal: None,
             whatsapp: None,
             linq: None,
@@ -62,7 +118,9 @@ impl Default for ChannelsSettingsState {
             irc: None,
             lark: None,
             feishu: None,
+            feishu_instances: Vec::new(),
             dingtalk: None,
+            dingtalk_instances: Vec::new(),
             qq: None,
             nostr: None,
             clawdtalk: None,
@@ -88,70 +146,8 @@ impl ChannelsSettingsState {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn refresh_text_inputs(&mut self) {
-        self.text_inputs.retain(|key, _| {
-            !matches!(
-                key.as_str(),
-                "telegram.allowed_users"
-                    | "telegram.group_reply.allowed_sender_ids"
-                    | "discord.allowed_users"
-                    | "discord.group_reply.allowed_sender_ids"
-                    | "slack.allowed_users"
-                    | "slack.group_reply.allowed_sender_ids"
-                    | "mattermost.allowed_users"
-                    | "mattermost.group_reply.allowed_sender_ids"
-                    | "imessage.allowed_contacts"
-                    | "matrix.allowed_users"
-                    | "signal.allowed_from"
-                    | "whatsapp.allowed_numbers"
-                    | "linq.allowed_senders"
-                    | "wati.allowed_numbers"
-                    | "nextcloud_talk.allowed_users"
-                    | "email.allowed_senders"
-                    | "irc.channels"
-                    | "irc.allowed_users"
-                    | "lark.allowed_users"
-                    | "lark.group_reply.allowed_sender_ids"
-                    | "feishu.allowed_users"
-                    | "feishu.group_reply.allowed_sender_ids"
-                    | "dingtalk.allowed_users"
-                    | "qq.allowed_users"
-                    | "nostr.relays"
-                    | "nostr.allowed_pubkeys"
-                    | "clawdtalk.allowed_destinations"
-            )
-        });
-        self.text_editors.retain(|key, _| {
-            matches!(
-                key.as_str(),
-                "telegram.allowed_users"
-                    | "telegram.group_reply.allowed_sender_ids"
-                    | "discord.allowed_users"
-                    | "discord.group_reply.allowed_sender_ids"
-                    | "slack.allowed_users"
-                    | "slack.group_reply.allowed_sender_ids"
-                    | "mattermost.allowed_users"
-                    | "mattermost.group_reply.allowed_sender_ids"
-                    | "imessage.allowed_contacts"
-                    | "matrix.allowed_users"
-                    | "signal.allowed_from"
-                    | "whatsapp.allowed_numbers"
-                    | "linq.allowed_senders"
-                    | "wati.allowed_numbers"
-                    | "nextcloud_talk.allowed_users"
-                    | "email.allowed_senders"
-                    | "irc.channels"
-                    | "irc.allowed_users"
-                    | "lark.allowed_users"
-                    | "lark.group_reply.allowed_sender_ids"
-                    | "feishu.allowed_users"
-                    | "feishu.group_reply.allowed_sender_ids"
-                    | "dingtalk.allowed_users"
-                    | "qq.allowed_users"
-                    | "nostr.relays"
-                    | "nostr.allowed_pubkeys"
-                    | "clawdtalk.allowed_destinations"
-            )
-        });
+        self.text_inputs.retain(|key, _| !is_multiline_channel_key(key));
+        self.text_editors.retain(|key, _| is_static_multiline_channel_key(key));
 
         let insert_list = |map: &mut HashMap<String, String>, key: &str, values: &[String]| {
             map.insert(key.to_string(), values.join(", "));
@@ -253,6 +249,11 @@ impl ChannelsSettingsState {
             insert_list(&mut self.text_inputs, "matrix.allowed_users", &cfg.allowed_users);
             insert_editor(&mut self.text_editors, "matrix.allowed_users", &cfg.allowed_users);
         }
+        for (index, instance) in self.matrix_instances.iter().enumerate() {
+            let key = format!("matrix_instances.{index}.allowed_users");
+            insert_list(&mut self.text_inputs, &key, &instance.config.allowed_users);
+            insert_editor(&mut self.text_editors, &key, &instance.config.allowed_users);
+        }
         if let Some(cfg) = self.signal.as_ref() {
             insert_list(&mut self.text_inputs, "signal.allowed_from", &cfg.allowed_from);
             insert_editor(&mut self.text_editors, "signal.allowed_from", &cfg.allowed_from);
@@ -328,9 +329,33 @@ impl ChannelsSettingsState {
                     .unwrap_or(&[]),
             );
         }
+        for (index, instance) in self.feishu_instances.iter().enumerate() {
+            let allowed_users_key = format!("feishu_instances.{index}.allowed_users");
+            insert_list(&mut self.text_inputs, &allowed_users_key, &instance.config.allowed_users);
+            insert_editor(
+                &mut self.text_editors,
+                &allowed_users_key,
+                &instance.config.allowed_users,
+            );
+            let group_reply_key =
+                format!("feishu_instances.{index}.group_reply.allowed_sender_ids");
+            let allowed_sender_ids = instance
+                .config
+                .group_reply
+                .as_ref()
+                .map(|group_reply| group_reply.allowed_sender_ids.as_slice())
+                .unwrap_or(&[]);
+            insert_list(&mut self.text_inputs, &group_reply_key, allowed_sender_ids);
+            insert_editor(&mut self.text_editors, &group_reply_key, allowed_sender_ids);
+        }
         if let Some(cfg) = self.dingtalk.as_ref() {
             insert_list(&mut self.text_inputs, "dingtalk.allowed_users", &cfg.allowed_users);
             insert_editor(&mut self.text_editors, "dingtalk.allowed_users", &cfg.allowed_users);
+        }
+        for (index, instance) in self.dingtalk_instances.iter().enumerate() {
+            let key = format!("dingtalk_instances.{index}.allowed_users");
+            insert_list(&mut self.text_inputs, &key, &instance.config.allowed_users);
+            insert_editor(&mut self.text_editors, &key, &instance.config.allowed_users);
         }
         if let Some(cfg) = self.qq.as_ref() {
             insert_list(&mut self.text_inputs, "qq.allowed_users", &cfg.allowed_users);

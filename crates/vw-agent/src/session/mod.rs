@@ -20,6 +20,12 @@ pub mod revert;
 pub mod session;
 /// 声明 status 子模块，保持当前领域的职责拆分清晰。
 pub mod status;
+/// 声明 store 子模块，提供原生全局数据库会话持久化。
+#[cfg(not(target_arch = "wasm32"))]
+pub mod store;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "store_tests.rs"]
+mod store_tests;
 /// 声明 summary 子模块，保持当前领域的职责拆分清晰。
 pub mod summary;
 /// 声明 system 子模块，保持当前领域的职责拆分清晰。

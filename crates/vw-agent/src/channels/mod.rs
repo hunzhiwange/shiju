@@ -597,9 +597,15 @@ pub(crate) enum ChannelHealthState {
 /// 包装通道实例及其人类可读的显示名称。
 pub(crate) struct ConfiguredChannel {
     /// 用于日志和 UI 显示的名称
-    pub(crate) display_name: &'static str,
+    pub(crate) display_name: String,
     /// 通道实例
     pub(crate) channel: Arc<dyn Channel>,
+}
+
+impl ConfiguredChannel {
+    pub(crate) fn new(display_name: impl Into<String>, channel: Arc<dyn Channel>) -> Self {
+        Self { display_name: display_name.into(), channel }
+    }
 }
 
 // ============================================================================

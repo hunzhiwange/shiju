@@ -304,6 +304,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_delay_rejects_missing_and_out_of_range_amounts() {
+        let missing = parse_delay("hours").unwrap_err().to_string();
+        assert!(missing.contains("cannot parse integer"));
+
+        let out_of_range = parse_delay("9223372036854775808s").unwrap_err().to_string();
+        assert!(out_of_range.contains("number too large"));
+    }
+
+    #[test]
     fn add_once_at_and_pause_resume_roundtrip() {
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp);
@@ -366,6 +375,95 @@ mod tests {
         let config = test_config(&tmp);
 
         handle_command(CronCommands::List, &config).unwrap();
+    }
+
+    #[test]
+    fn add_at_normalizes_offset_timestamp_to_utc() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let at = "2099-01-15T14:00:00+08:00";
+        let expected =
+            chrono::DateTime::parse_from_rfc3339(at).unwrap().with_timezone(&chrono::Utc);
+
+        handle_command(
+            CronCommands::AddAt { at: at.into(), command: "echo offset".into() },
+            &config,
+        )
+        .unwrap();
+
+        let jobs = list_jobs(&config).unwrap();
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].schedule, Schedule::At { at: expected });
+        assert_eq!(jobs[0].command, "echo offset");
+    }
+
+    #[test]
+    fn update_timezone_replaces_existing_timezone() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let job = make_job(&config, "*/5 * * * *", Some("UTC"), "echo test");
+
+        run_update(&config, &job.id, None, Some("Asia/Shanghai"), None, None).unwrap();
+
+        let updated = get_job(&config, &job.id).unwrap();
+        assert_eq!(
+            updated.schedule,
+            Schedule::Cron { expr: "*/5 * * * *".into(), tz: Some("Asia/Shanghai".into()) }
+        );
+    }
+
+    #[test]
+    fn update_expression_for_missing_job_returns_lookup_error() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+
+        let error = run_update(&config, "missing-job", Some("0 9 * * *"), None, None, None)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("Cron job 'missing-job' not found"));
+    }
+
+    #[test]
+    fn blocked_command_does_not_apply_requested_schedule_change() {
+        let tmp = TempDir::new().unwrap();
+        let mut config = test_config(&tmp);
+        config.autonomy.allowed_commands = vec!["echo".into()];
+        let job = make_job(&config, "*/5 * * * *", Some("UTC"), "echo original");
+
+        let error = run_update(
+            &config,
+            &job.id,
+            Some("0 9 * * *"),
+            Some("Asia/Shanghai"),
+            Some("date"),
+            None,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("Command blocked by security policy"));
+        let unchanged = get_job(&config, &job.id).unwrap();
+        assert_eq!(
+            unchanged.schedule,
+            Schedule::Cron { expr: "*/5 * * * *".into(), tz: Some("UTC".into()) }
+        );
+        assert_eq!(unchanged.command, "echo original");
+    }
+
+    #[test]
+    fn missing_job_mutations_propagate_not_found_errors() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+
+        for command in [
+            CronCommands::Pause { id: "missing-pause".into() },
+            CronCommands::Resume { id: "missing-resume".into() },
+            CronCommands::Remove { id: "missing-remove".into() },
+        ] {
+            let error = handle_command(command, &config).unwrap_err().to_string();
+            assert!(error.contains("not found"));
+        }
     }
 
     #[test]

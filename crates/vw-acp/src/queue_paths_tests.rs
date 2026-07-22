@@ -1,5 +1,34 @@
 use super::*;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+
+struct EnvVarGuard {
+    key: &'static str,
+    previous: Option<OsString>,
+}
+
+impl EnvVarGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self { key, previous }
+    }
+
+    fn clear(key: &'static str) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe { std::env::remove_var(key) };
+        Self { key, previous }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
 
 #[test]
 fn queue_key_for_session_is_stable_short_hash() {
@@ -91,8 +120,83 @@ fn default_home_dir_matches_platform_environment() {
     }
 }
 
+#[cfg(not(windows))]
+#[tokio::test]
+async fn default_queue_paths_use_home_environment() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let _home = EnvVarGuard::set("HOME", "/tmp/vw-acp-default-home");
+    let session_id = "session-1";
+    let home = Path::new("/tmp/vw-acp-default-home");
+
+    assert_eq!(default_home_dir(), Some(home.to_path_buf()));
+    assert_eq!(default_queue_base_dir(), Some(queue_base_dir(home)));
+    assert_eq!(
+        default_queue_lock_file_path(session_id),
+        Some(queue_lock_file_path(session_id, home))
+    );
+    assert_eq!(default_queue_socket_base_dir(), queue_socket_base_dir(home));
+    assert_eq!(default_queue_socket_path(session_id), Some(queue_socket_path(session_id, home)));
+}
+
+#[cfg(not(windows))]
+#[tokio::test]
+async fn default_queue_paths_return_none_without_home_environment() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let _home = EnvVarGuard::clear("HOME");
+
+    assert_eq!(default_home_dir(), None);
+    assert_eq!(default_queue_base_dir(), None);
+    assert_eq!(default_queue_lock_file_path("session-1"), None);
+    assert_eq!(default_queue_socket_base_dir(), None);
+    assert_eq!(default_queue_socket_path("session-1"), None);
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_default_home_dir_uses_userprofile() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let _userprofile = EnvVarGuard::set("USERPROFILE", r"C:\Users\tester");
+    let _homedrive = EnvVarGuard::clear("HOMEDRIVE");
+    let _homepath = EnvVarGuard::clear("HOMEPATH");
+
+    assert_eq!(default_home_dir(), Some(PathBuf::from(r"C:\Users\tester")));
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_default_home_dir_uses_drive_and_path_without_userprofile() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let _userprofile = EnvVarGuard::clear("USERPROFILE");
+    let _homedrive = EnvVarGuard::set("HOMEDRIVE", r"C:");
+    let _homepath = EnvVarGuard::set("HOMEPATH", r"\Users\tester");
+    let mut expected = PathBuf::from(r"C:");
+    expected.push(r"\Users\tester");
+
+    assert_eq!(default_home_dir(), Some(expected));
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_default_queue_paths_handle_missing_home_environment() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let _userprofile = EnvVarGuard::clear("USERPROFILE");
+    let _homedrive = EnvVarGuard::clear("HOMEDRIVE");
+    let _homepath = EnvVarGuard::clear("HOMEPATH");
+    let session_id = "session-1";
+
+    assert_eq!(default_home_dir(), None);
+    assert_eq!(default_queue_base_dir(), None);
+    assert_eq!(default_queue_lock_file_path(session_id), None);
+    assert_eq!(default_queue_socket_base_dir(), None);
+    assert_eq!(
+        default_queue_socket_path(session_id),
+        Some(queue_socket_path(session_id, PathBuf::new()))
+    );
+}
+
 #[test]
 fn default_queue_paths_are_derived_from_default_home() {
+    let _lock = TEST_HOME_ENV_LOCK.blocking_lock();
     let session_id = "session-1";
     let expected_home = default_home_dir();
 

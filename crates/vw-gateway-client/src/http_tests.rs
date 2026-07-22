@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 
 use crate::client::test_support;
 use crate::endpoint::{GatewayAuth, GatewayEndpoint};
+use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
 #[test]
 fn directory_query_and_format_query_skip_blank_values() {
@@ -24,63 +25,67 @@ fn directory_query_and_format_query_skip_blank_values() {
 }
 
 #[test]
-fn success_logging_is_quiet_only_for_git_command() {
-    assert!(super::is_quiet_success_path("/v1/git/command"));
-    assert!(!super::is_quiet_success_path("/v1/git/commit"));
-    assert!(!super::is_quiet_success_path("/v1/project/worktrees"));
-}
-
-#[test]
-fn apply_auth_prefers_skey_as_bearer_token() {
-    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234).with_auth(GatewayAuth {
-        skey: Some("skey-1".to_string()),
-    });
-    let request = super::apply_auth(reqwest::Client::new().get("http://example.test"), &endpoint)
-        .build()
-        .expect("request");
+fn apply_request_context_keeps_auth_and_selected_tenant_headers() {
+    let tenant_scope = TenantScope::new("platform-east", "company-blue").expect("tenant scope");
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234)
+        .with_auth(GatewayAuth { skey: Some("skey-1".to_string()) })
+        .with_tenant_scope(tenant_scope);
+    let request =
+        super::apply_request_context(reqwest::Client::new().get("http://example.test"), &endpoint)
+            .build()
+            .expect("request");
 
     assert_eq!(request.headers()["authorization"].to_str().unwrap(), "Bearer skey-1");
+    assert_eq!(request.headers()[PLATFORM_ID_HEADER].to_str().unwrap(), "platform-east");
+    assert_eq!(request.headers()[COMPANY_ID_HEADER].to_str().unwrap(), "company-blue");
     assert!(!request.headers().contains_key("x-skey"));
 }
 
 #[test]
-fn apply_auth_ignores_blank_skey() {
-    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234).with_auth(GatewayAuth {
-        skey: Some(" ".to_string()),
-    });
-    let request = super::apply_auth(reqwest::Client::new().get("http://example.test"), &endpoint)
-        .build()
-        .expect("request");
+fn apply_request_context_ignores_blank_skey_but_keeps_default_tenant() {
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234)
+        .with_auth(GatewayAuth { skey: Some(" ".to_string()) });
+    let request =
+        super::apply_request_context(reqwest::Client::new().get("http://example.test"), &endpoint)
+            .build()
+            .expect("request");
 
     assert!(!request.headers().contains_key("authorization"));
     assert!(!request.headers().contains_key("x-skey"));
+    assert_eq!(request.headers()[PLATFORM_ID_HEADER], "10000");
+    assert_eq!(request.headers()[COMPANY_ID_HEADER], "100000000");
 }
 
 #[test]
-fn apply_auth_without_credentials_leaves_auth_headers_absent() {
+fn apply_request_context_without_credentials_leaves_only_tenant_headers() {
     let anonymous = GatewayEndpoint::new("127.0.0.1", 1234);
-    let request = super::apply_auth(reqwest::Client::new().get("http://example.test"), &anonymous)
-        .build()
-        .expect("request");
+    let request =
+        super::apply_request_context(reqwest::Client::new().get("http://example.test"), &anonymous)
+            .build()
+            .expect("request");
     assert!(!request.headers().contains_key("authorization"));
     assert!(!request.headers().contains_key("x-skey"));
 
     let empty_auth = GatewayEndpoint::new("127.0.0.1", 1234).with_auth(GatewayAuth::default());
-    let request = super::apply_auth(reqwest::Client::new().get("http://example.test"), &empty_auth)
-        .build()
-        .expect("request");
+    let request = super::apply_request_context(
+        reqwest::Client::new().get("http://example.test"),
+        &empty_auth,
+    )
+    .build()
+    .expect("request");
 
     assert!(!request.headers().contains_key("authorization"));
     assert!(!request.headers().contains_key("x-skey"));
+    assert_eq!(request.headers()[PLATFORM_ID_HEADER], "10000");
+    assert_eq!(request.headers()[COMPANY_ID_HEADER], "100000000");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn apply_blocking_auth_matches_async_auth_behavior() {
-    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234).with_auth(GatewayAuth {
-        skey: Some("skey-2".to_string()),
-    });
-    let request = super::apply_blocking_auth(
+fn apply_blocking_request_context_matches_async_headers() {
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 1234)
+        .with_auth(GatewayAuth { skey: Some("skey-2".to_string()) });
+    let request = super::apply_blocking_request_context(
         reqwest::blocking::Client::new().get("http://example.test"),
         &endpoint,
     )
@@ -88,6 +93,8 @@ fn apply_blocking_auth_matches_async_auth_behavior() {
     .expect("request");
 
     assert_eq!(request.headers()["authorization"].to_str().unwrap(), "Bearer skey-2");
+    assert_eq!(request.headers()[PLATFORM_ID_HEADER], "10000");
+    assert_eq!(request.headers()[COMPANY_ID_HEADER], "100000000");
     assert!(!request.headers().contains_key("x-skey"));
 }
 
@@ -115,6 +122,25 @@ async fn parse_json_response_decodes_success_and_reports_decode_failures() {
 }
 
 #[tokio::test]
+async fn parse_json_response_delegates_non_success_status_to_gateway_error() {
+    let server = test_support::server_raw(vec![(429, "retry later".to_string())]);
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
+    let response = reqwest::Client::new()
+        .get(format!("{}/limited", server.base_url()))
+        .send()
+        .await
+        .expect("response");
+
+    let error = super::parse_json_response::<Value>("GET", &endpoint, "/limited", response)
+        .await
+        .expect_err("non-success response should fail");
+
+    assert_eq!(error, "gateway request failed: 429 Too Many Requests retry later");
+    assert_eq!(server.take_request().path, "/limited");
+    server.join();
+}
+
+#[tokio::test]
 async fn response_error_includes_status_and_body_when_present() {
     let server = test_support::server(vec![(500, json!({"error": "bad"}))]);
     let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
@@ -126,6 +152,37 @@ async fn response_error_includes_status_and_body_when_present() {
     assert!(error.contains("500 Internal Server Error"));
     assert!(error.contains("\"bad\""));
     assert_eq!(server.take_request().path, "/failure");
+    server.join();
+}
+
+#[tokio::test]
+async fn response_error_omits_body_segment_when_response_is_empty() {
+    let server = test_support::server_raw(vec![(204, String::new())]);
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
+    let response =
+        reqwest::Client::new().get(format!("{}/empty", server.base_url())).send().await.unwrap();
+
+    let error = super::response_error("GET", &endpoint, "/empty", response).await;
+
+    assert_eq!(error, "gateway request failed: 204 No Content");
+    assert_eq!(server.take_request().path, "/empty");
+    server.join();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn response_error_blocking_omits_body_segment_when_response_is_empty() {
+    let server = test_support::server_raw(vec![(204, String::new())]);
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
+    let response = reqwest::blocking::Client::new()
+        .get(format!("{}/empty", server.base_url()))
+        .send()
+        .unwrap();
+
+    let error = super::response_error_blocking("GET", &endpoint, "/empty", response);
+
+    assert_eq!(error, "gateway request failed: 204 No Content");
+    assert_eq!(server.take_request().path, "/empty");
     server.join();
 }
 
@@ -162,6 +219,25 @@ async fn transport_error_returns_original_reqwest_message() {
     let message = super::transport_error("GET", &endpoint, "/closed", error);
 
     assert!(!message.trim().is_empty());
+    assert!(super::is_gateway_unavailable_error(&message));
+}
+
+#[test]
+fn retryable_gateway_error_classifies_transient_failures_only() {
+    assert!(super::is_retryable_gateway_error("gateway request failed: 503 Service Unavailable"));
+    assert!(super::is_retryable_gateway_error("error sending request for url: connection reset"));
+    assert!(super::is_retryable_gateway_error("request timed out"));
+    assert!(!super::is_retryable_gateway_error("gateway request failed: 400 Bad Request"));
+    assert!(!super::is_retryable_gateway_error("invalid api key"));
+}
+
+#[test]
+fn gateway_unavailable_error_classifies_connection_failures_only() {
+    assert!(super::is_gateway_unavailable_error("error sending request for url"));
+    assert!(super::is_gateway_unavailable_error("connection refused"));
+    assert!(super::is_gateway_unavailable_error("request timed out"));
+    assert!(!super::is_gateway_unavailable_error("gateway request failed: 500"));
+    assert!(!super::is_gateway_unavailable_error("invalid api key"));
 }
 
 #[test]

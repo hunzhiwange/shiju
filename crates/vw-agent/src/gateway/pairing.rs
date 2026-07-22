@@ -156,7 +156,7 @@ pub async fn handle_pair(
                     "paired": true,
                     "persisted": false,
                     "token": token,
-                    "message": "Paired for this process, but failed to persist token to vibewindow.json. Check config path and write permissions.",
+                    "message": "Paired for this process, but failed to persist token to the system config database. Check database access permissions.",
                 });
                 return (StatusCode::OK, Json(body));
             }
@@ -286,7 +286,7 @@ pub async fn persist_pairing_tokens(
     // 使用 context() 添加错误上下文，便于故障排查
     save_config(&updated_cfg)
         .await
-        .context("Failed to persist paired tokens to vibewindow.json")?;
+        .context("Failed to persist paired tokens to the system config database")?;
 
     // 更新内存中的共享配置，保持运行时状态与持久化状态一致
     // 这确保后续的配置读取能够获取到最新的配对令牌列表

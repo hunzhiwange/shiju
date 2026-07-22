@@ -22,6 +22,13 @@ fn base64_decode_handles_padding_variants_and_empty_chunks() {
 }
 
 #[test]
+fn base64_decode_handles_binary_byte_boundaries() {
+    assert_eq!(base64_decode("AA=="), Some("\0".to_string()));
+    assert_eq!(base64_decode("AAA="), Some("\0\0".to_string()));
+    assert_eq!(base64_decode("AAAA"), Some("\0\0\0".to_string()));
+}
+
+#[test]
 fn bot_user_id_from_token_uses_first_segment_only() {
     assert_eq!(bot_user_id_from_token("TWE=.ignored.ignored"), Some("Ma".to_string()));
     assert_eq!(bot_user_id_from_token("bad!.ignored"), None);

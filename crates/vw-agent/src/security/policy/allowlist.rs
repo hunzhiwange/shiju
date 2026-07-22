@@ -7,6 +7,17 @@ use super::path_utils::{expand_user_path, looks_like_path};
 use super::shell_lexer::{skip_env_assignments, split_unquoted_segments, strip_wrapping_quotes};
 use super::shell_redirect::{attached_short_option_value, redirection_target};
 
+enum RedirectionPathCheck {
+    NotRedirection,
+    Allowed,
+    Blocked(String),
+}
+
+enum TokenPathCheck {
+    Ignored,
+    Blocked(String),
+}
+
 /// 判断 allowlist 条目是否匹配当前可执行文件。
 ///
 /// `allowed` 是配置中的允许项，可以是 `*`、命令 basename 或路径；`executable`
@@ -14,7 +25,7 @@ use super::shell_redirect::{attached_short_option_value, redirection_target};
 /// 表示该条目允许执行该命令。空条目永远不匹配，路径条目会先展开 `~`，避免
 /// 用户目录写法差异绕过路径比较。
 pub fn is_allowlist_entry_match(allowed: &str, executable: &str, executable_base: &str) -> bool {
-    let allowed = strip_wrapping_quotes(allowed).trim();
+    let allowed = strip_wrapping_quotes(allowed.trim()).trim();
     if allowed.is_empty() {
         return false;
     }
@@ -41,68 +52,135 @@ pub fn find_forbidden_path_argument<F>(command: &str, is_path_allowed: F) -> Opt
 where
     F: Fn(&str) -> bool,
 {
-    let forbidden_candidate = |raw: &str| {
-        let candidate = strip_wrapping_quotes(raw).trim();
-        if candidate.is_empty() || candidate.contains("://") {
-            return None;
-        }
-        // URL 由上面的协议检查排除；这里仅把看起来像文件系统路径的参数交给
-        // 策略层，避免把普通标志值误判为路径。
-        if looks_like_path(candidate) && !is_path_allowed(candidate) {
-            Some(candidate.to_string())
-        } else {
-            None
-        }
-    };
-
-    for segment in split_unquoted_segments(command) {
+    let segments = split_unquoted_segments(command);
+    for segment in segments {
         let cmd_part = skip_env_assignments(&segment);
         let mut words = cmd_part.split_whitespace();
-        let Some(executable) = words.next() else {
+        let executable_word = words.next();
+        if executable_word.is_none() {
             continue;
-        };
+        }
+        let executable = executable_word.expect("executable word was checked");
 
-        if let Some(target) = redirection_target(strip_wrapping_quotes(executable)) {
-            if let Some(blocked) = forbidden_candidate(target) {
-                return Some(blocked);
-            }
+        if let RedirectionPathCheck::Blocked(blocked) =
+            check_redirection_path(executable, &is_path_allowed)
+        {
+            return Some(blocked);
         }
 
         for token in words {
-            let candidate = strip_wrapping_quotes(token).trim();
-            if candidate.is_empty() || candidate.contains("://") {
-                continue;
-            }
-
-            if let Some(target) = redirection_target(candidate) {
-                if let Some(blocked) = forbidden_candidate(target) {
-                    return Some(blocked);
-                }
-            }
-
-            if candidate.starts_with('-') {
-                // 许多工具把路径塞进 `--flag=value` 或 `-ofile`，需要检查值部分；
-                // 但不把普通开关本身当作路径，避免扩大误报面。
-                if let Some((_, value)) = candidate.split_once('=') {
-                    if let Some(blocked) = forbidden_candidate(value) {
-                        return Some(blocked);
-                    }
-                }
-                if let Some(value) = attached_short_option_value(candidate) {
-                    if let Some(blocked) = forbidden_candidate(value) {
-                        return Some(blocked);
-                    }
-                }
-                continue;
-            }
-
-            if let Some(blocked) = forbidden_candidate(candidate) {
-                return Some(blocked);
+            match check_argument_token(token, &is_path_allowed) {
+                TokenPathCheck::Blocked(blocked) => return Some(blocked),
+                TokenPathCheck::Ignored => {}
             }
         }
     }
 
     None
+}
+
+fn check_argument_token<F>(token: &str, is_path_allowed: &F) -> TokenPathCheck
+where
+    F: Fn(&str) -> bool,
+{
+    let candidate = strip_wrapping_quotes(token).trim();
+    if candidate.is_empty() {
+        return TokenPathCheck::Ignored;
+    }
+    if candidate.contains("://") {
+        return TokenPathCheck::Ignored;
+    }
+
+    match check_redirection_path(candidate, is_path_allowed) {
+        RedirectionPathCheck::Blocked(blocked) => return TokenPathCheck::Blocked(blocked),
+        RedirectionPathCheck::Allowed => return TokenPathCheck::Ignored,
+        RedirectionPathCheck::NotRedirection => {}
+    }
+
+    if candidate.starts_with('-') {
+        return check_option_token(candidate, is_path_allowed);
+    }
+
+    check_plain_token(candidate, is_path_allowed)
+}
+
+fn check_option_token<F>(candidate: &str, is_path_allowed: &F) -> TokenPathCheck
+where
+    F: Fn(&str) -> bool,
+{
+    let blocked = forbidden_option_value(candidate, is_path_allowed);
+    if blocked.is_none() {
+        return TokenPathCheck::Ignored;
+    }
+    TokenPathCheck::Blocked(blocked.expect("blocked option path was checked"))
+}
+
+fn check_plain_token<F>(candidate: &str, is_path_allowed: &F) -> TokenPathCheck
+where
+    F: Fn(&str) -> bool,
+{
+    let blocked = forbidden_path_candidate(candidate, is_path_allowed);
+    if blocked.is_none() {
+        return TokenPathCheck::Ignored;
+    }
+    TokenPathCheck::Blocked(blocked.expect("blocked plain path was checked"))
+}
+
+fn check_redirection_path<F>(token: &str, is_path_allowed: &F) -> RedirectionPathCheck
+where
+    F: Fn(&str) -> bool,
+{
+    let target = redirection_target(strip_wrapping_quotes(token));
+    if target.is_none() {
+        return RedirectionPathCheck::NotRedirection;
+    }
+    let target = target.expect("redirection target was checked");
+    match forbidden_path_candidate(target, is_path_allowed) {
+        Some(blocked) => RedirectionPathCheck::Blocked(blocked),
+        None => RedirectionPathCheck::Allowed,
+    }
+}
+
+fn forbidden_option_value<F>(candidate: &str, is_path_allowed: &F) -> Option<String>
+where
+    F: Fn(&str) -> bool,
+{
+    let long_option_value = candidate.split_once('=');
+    if long_option_value.is_some() {
+        let (_, value) = long_option_value.expect("long option value was checked");
+        return forbidden_path_candidate(value, is_path_allowed);
+    }
+
+    let short_option_value = attached_short_option_value(candidate);
+    if short_option_value.is_none() {
+        return None;
+    }
+    forbidden_path_candidate(
+        short_option_value.expect("short option value was checked"),
+        is_path_allowed,
+    )
+}
+
+fn forbidden_path_candidate<F>(raw: &str, is_path_allowed: &F) -> Option<String>
+where
+    F: Fn(&str) -> bool,
+{
+    let candidate = strip_wrapping_quotes(raw.trim()).trim();
+    if candidate.is_empty() {
+        return None;
+    }
+    if candidate.contains("://") {
+        return None;
+    }
+    // URL 由上面的协议检查排除；这里仅把看起来像文件系统路径的参数交给
+    // 策略层，避免把普通标志值误判为路径。
+    if !looks_like_path(candidate) {
+        return None;
+    }
+    if is_path_allowed(candidate) {
+        return None;
+    }
+    Some(candidate.to_string())
 }
 
 #[cfg(test)]

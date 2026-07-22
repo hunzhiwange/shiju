@@ -75,6 +75,8 @@ mod policy_tests;
 #[path = "summary_tests.rs"]
 mod summary_tests;
 #[cfg(test)]
+pub(crate) mod test_support;
+#[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
 #[cfg(test)]

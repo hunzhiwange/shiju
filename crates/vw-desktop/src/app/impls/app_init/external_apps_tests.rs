@@ -98,6 +98,74 @@ fn priority_external_apps_uses_linux_order_for_linux_and_unknown_platforms() {
 }
 
 #[test]
+fn select_external_app_prefers_available_configured_app_over_priority() {
+    let available = HashMap::from([(ExternalOpenApp::Trae, true), (ExternalOpenApp::VSCode, true)]);
+
+    assert_eq!(
+        select_external_app(
+            &json!({ "open_external_app": "vscode" }),
+            &available,
+            Some(RuntimePlatform::Linux),
+        ),
+        ExternalOpenApp::VSCode
+    );
+}
+
+#[test]
+fn select_external_app_skips_unavailable_configured_and_priority_apps() {
+    let available = HashMap::from([
+        (ExternalOpenApp::Trae, false),
+        (ExternalOpenApp::Windsurf, true),
+        (ExternalOpenApp::Cursor, false),
+        (ExternalOpenApp::VSCode, true),
+    ]);
+
+    assert_eq!(
+        select_external_app(
+            &json!({ "open_external_app": "cursor" }),
+            &available,
+            Some(RuntimePlatform::Linux),
+        ),
+        ExternalOpenApp::Windsurf
+    );
+}
+
+#[test]
+fn select_external_app_uses_priority_for_unknown_configuration() {
+    let available = HashMap::from([
+        (ExternalOpenApp::Trae, false),
+        (ExternalOpenApp::Kiro, true),
+        (ExternalOpenApp::VSCode, true),
+    ]);
+
+    assert_eq!(
+        select_external_app(
+            &json!({ "open_external_app": "unknown" }),
+            &available,
+            Some(RuntimePlatform::Windows),
+        ),
+        ExternalOpenApp::Kiro
+    );
+}
+
+#[test]
+fn select_external_app_defaults_to_finder_without_available_candidates() {
+    assert_eq!(select_external_app(&json!({}), &HashMap::new(), None), ExternalOpenApp::Finder);
+}
+
+#[test]
+fn select_external_app_treats_missing_availability_entry_as_unavailable() {
+    assert_eq!(
+        select_external_app(
+            &json!({ "open_external_app": "vscode" }),
+            &HashMap::new(),
+            Some(RuntimePlatform::Linux),
+        ),
+        ExternalOpenApp::Finder
+    );
+}
+
+#[test]
 fn resolve_external_apps_honors_configured_available_finder() {
     let (platform, exists, selected) = resolve_external_apps(&json!({
         "open_external_app": "finder",

@@ -4,10 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, settings_value_badge,
-    with_settings_help_modal,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_text_input_style, settings_value_badge, with_settings_help_modal,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -82,6 +81,38 @@ fn slider_row<'a>(
     )
 }
 
+fn enabled_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationEnabledToggled(value))
+}
+
+fn lead_agent_changed(value: String) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationLeadAgentChanged(value))
+}
+
+fn max_inbox_messages_per_agent_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationMaxInboxMessagesPerAgentChanged(
+        value.round() as u32,
+    ))
+}
+
+fn max_dead_letters_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationMaxDeadLettersChanged(
+        value.round() as u32
+    ))
+}
+
+fn max_context_entries_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationMaxContextEntriesChanged(
+        value.round() as u32
+    ))
+}
+
+fn max_seen_message_ids_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::CoordinationMaxSeenMessageIdsChanged(
+        value.round() as u32
+    ))
+}
+
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -106,7 +137,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "开启多代理 delegate coordination 总线。",
         s.enabled,
         "开启 Delegate Coordination",
-        |v| Message::Settings(message::SettingsMessage::CoordinationEnabledToggled(v)),
+        enabled_toggled,
     );
 
     let lead_agent_row = text_row(
@@ -114,14 +145,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "逻辑主协调 agent 标识，通常保持为 delegate-lead。",
         "delegate-lead",
         &s.lead_agent_input,
-        |v| Message::Settings(message::SettingsMessage::CoordinationLeadAgentChanged(v)),
+        lead_agent_changed,
     );
 
-    let inbox_slider = slider(1.0..=10_000.0, s.max_inbox_messages_per_agent as f32, |v| {
-        Message::Settings(message::SettingsMessage::CoordinationMaxInboxMessagesPerAgentChanged(
-            v.round() as u32,
-        ))
-    })
+    let inbox_slider = slider(
+        1.0..=10_000.0,
+        s.max_inbox_messages_per_agent as f32,
+        max_inbox_messages_per_agent_changed,
+    )
     .width(Length::Fill);
 
     let inbox_row = slider_row(
@@ -131,12 +162,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s.max_inbox_messages_per_agent,
     );
 
-    let dead_letters_slider = slider(1.0..=10_000.0, s.max_dead_letters as f32, |v| {
-        Message::Settings(message::SettingsMessage::CoordinationMaxDeadLettersChanged(
-            v.round() as u32
-        ))
-    })
-    .width(Length::Fill);
+    let dead_letters_slider =
+        slider(1.0..=10_000.0, s.max_dead_letters as f32, max_dead_letters_changed)
+            .width(Length::Fill);
 
     let dead_letters_row = slider_row(
         "死信上限",
@@ -145,12 +173,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s.max_dead_letters,
     );
 
-    let context_entries_slider = slider(1.0..=20_000.0, s.max_context_entries as f32, |v| {
-        Message::Settings(message::SettingsMessage::CoordinationMaxContextEntriesChanged(
-            v.round() as u32
-        ))
-    })
-    .width(Length::Fill);
+    let context_entries_slider =
+        slider(1.0..=20_000.0, s.max_context_entries as f32, max_context_entries_changed)
+            .width(Length::Fill);
 
     let context_entries_row = slider_row(
         "上下文条目上限",
@@ -159,12 +184,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s.max_context_entries,
     );
 
-    let seen_ids_slider = slider(1.0..=100_000.0, s.max_seen_message_ids as f32, |v| {
-        Message::Settings(message::SettingsMessage::CoordinationMaxSeenMessageIdsChanged(
-            v.round() as u32
-        ))
-    })
-    .width(Length::Fill);
+    let seen_ids_slider =
+        slider(1.0..=100_000.0, s.max_seen_message_ids as f32, max_seen_message_ids_changed)
+            .width(Length::Fill);
 
     let seen_ids_row = slider_row(
         "去重窗口上限",
@@ -173,7 +195,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         s.max_seen_message_ids,
     );
 
-    let mut col = column![
+    let col = column![
         row![
             settings_page_intro("协调配置", "配置 delegate 协调总线的容量、留存与去重窗口。"),
             container(text(" ")).width(Length::Fill),
@@ -198,10 +220,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

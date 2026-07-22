@@ -68,10 +68,7 @@ fn is_named_error(value: &Value, expected: &str) -> bool {
         .is_some_and(|name| name == expected)
 }
 
-fn is_auth_required_message(value: Option<&str>) -> bool {
-    let Some(value) = value else {
-        return false;
-    };
+fn is_auth_required_message(value: &str) -> bool {
     let normalized = value.to_ascii_lowercase();
     normalized.contains("auth required")
         || normalized.contains("authentication required")
@@ -89,7 +86,7 @@ fn is_acp_auth_required_payload(acp: Option<&OutputErrorAcpPayload>) -> bool {
     if !AUTH_REQUIRED_ACP_CODES.contains(&acp.code) {
         return false;
     }
-    if is_auth_required_message(Some(acp.message.as_str())) {
+    if is_auth_required_message(acp.message.as_str()) {
         return true;
     }
 

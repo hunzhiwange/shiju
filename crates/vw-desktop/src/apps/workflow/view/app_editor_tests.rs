@@ -62,6 +62,46 @@ fn app_editor_modal_renders_copied_uuid_state() {
 }
 
 #[test]
+fn app_editor_modal_renders_uuid_as_not_copied_when_copy_marker_differs() {
+    let state = workflow_state_with_editor(
+        WorkflowAppEditorMode::Edit("app_1".to_string()),
+        Some("uuid-1"),
+        Some("app_1"),
+        Some("uuid-2"),
+    );
+
+    let _element = build_app_editor_modal(&state);
+}
+
+#[test]
+fn app_editor_modal_renders_inactive_app_with_matching_copy_marker() {
+    let state = workflow_state_with_editor(
+        WorkflowAppEditorMode::Edit("app_1".to_string()),
+        Some("uuid-1"),
+        Some("another_app"),
+        Some("uuid-1"),
+    );
+
+    let element = build_app_editor_modal(&state);
+
+    assert_eq!(element.as_widget().size(), iced::Size::new(Length::Fill, Length::Fill));
+    assert_eq!(element.as_widget().children().len(), 3);
+}
+
+#[test]
+fn app_editor_modal_renders_empty_fields_zero_limit_and_disabled_icon_replacement() {
+    let mut draft = editor_draft(WorkflowAppEditorMode::Create);
+    draft.name.clear();
+    draft.description.clear();
+    draft.icon.clear();
+    draft.use_icon_as_answer_icon = false;
+    draft.max_active_requests_input = "0".to_string();
+    let state = WorkflowState { app_editor: Some(draft), ..WorkflowState::default() };
+
+    let _element = build_app_editor_modal(&state);
+}
+
+#[test]
 fn app_uuid_field_renders_missing_uuid_state() {
     let state = workflow_state_with_editor(
         WorkflowAppEditorMode::Edit("app_1".to_string()),
@@ -71,6 +111,18 @@ fn app_uuid_field_renders_missing_uuid_state() {
     );
 
     let _element = build_app_uuid_field(&state, "app_1");
+}
+
+#[test]
+fn app_uuid_field_renders_missing_target_state() {
+    let state = workflow_state_with_editor(
+        WorkflowAppEditorMode::Edit("app_1".to_string()),
+        Some("uuid-1"),
+        Some("app_1"),
+        None,
+    );
+
+    let _element = build_app_uuid_field(&state, "missing_app");
 }
 
 #[test]

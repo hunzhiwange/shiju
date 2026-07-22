@@ -7,6 +7,7 @@
 use super::{Error, IconUpdate, Info, UpdateInput, Vcs, update};
 use base64::Engine;
 use std::path::PathBuf;
+use vw_api_types::id::ProjectScope;
 
 #[cfg(target_arch = "wasm32")]
 /// wasm 目标下的图标发现占位实现。
@@ -14,7 +15,7 @@ use std::path::PathBuf;
 /// # 错误
 ///
 /// 当前实现不会失败，保留 `Result` 是为了与原生目标签名一致。
-pub async fn discover(_input: &Info) -> Result<(), Error> {
+pub async fn discover(_scope: &ProjectScope, _input: &Info) -> Result<(), Error> {
     Ok(())
 }
 
@@ -28,7 +29,7 @@ pub async fn discover(_input: &Info) -> Result<(), Error> {
 ///
 /// 读取候选图标失败或项目更新失败时返回错误；无候选、非 Git 项目、目录不存在
 /// 等不需要处理的情况返回 `Ok(())`。
-pub async fn discover(input: &Info) -> Result<(), Error> {
+pub async fn discover(scope: &ProjectScope, input: &Info) -> Result<(), Error> {
     if input.vcs != Some(Vcs::Git) {
         return Ok(());
     }
@@ -90,12 +91,15 @@ pub async fn discover(input: &Info) -> Result<(), Error> {
     let base64 = base64::engine::general_purpose::STANDARD.encode(bytes);
     let url = format!("data:{};base64,{}", mime, base64);
 
-    let _ = update(UpdateInput {
-        project_id: input.id.clone(),
-        name: None,
-        icon: Some(IconUpdate { url: Some(Some(url)), override_icon: None, color: None }),
-        commands: None,
-    })
+    let _ = update(
+        scope,
+        UpdateInput {
+            project_id: input.id.clone(),
+            name: None,
+            icon: Some(IconUpdate { url: Some(Some(url)), override_icon: None, color: None }),
+            commands: None,
+        },
+    )
     .await?;
     Ok(())
 }

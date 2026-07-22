@@ -380,6 +380,12 @@ impl PromptSection for ToolsSection {
         if !ctx.dispatcher_instructions.is_empty() {
             out.push('\n');
             out.push_str(ctx.dispatcher_instructions);
+        } else if out.ends_with('\n') {
+            out.pop();
+        }
+
+        if out.ends_with('\n') {
+            out.pop();
         }
 
         Ok(out)

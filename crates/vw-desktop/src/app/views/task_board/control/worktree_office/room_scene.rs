@@ -1,9 +1,11 @@
-use iced::widget::{Space, column, container, row, text};
+use iced::widget::{Space, button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 
+use crate::app::message::TaskBoardMessage;
 use crate::app::task::{TaskStatus, WorktreeSlotSnapshot, WorktreeState};
 use crate::app::{App, Message};
 
+use super::super::super::common::{button_style_danger, button_style_secondary};
 use super::super::helpers::{
     format_duration_ms, running_dots, slot_task, task_status_tag_colors,
     worktree_log_preview_lines, worktree_room_props, worktree_state_actor, worktree_state_hint,
@@ -417,6 +419,16 @@ pub(super) fn build_worktree_pixel_card<'a>(
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
     let room_plate = worktree_room_plate(&slot.id, slot.state);
+    let recycle_btn = button(text("回收").size(10))
+        .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
+            slot_id: slot.id.clone(),
+        }))
+        .padding([2, 8])
+        .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
+            button_style_danger
+        } else {
+            button_style_secondary
+        });
 
     container(
         column![
@@ -428,7 +440,9 @@ pub(super) fn build_worktree_pixel_card<'a>(
                 text(worktree_state_label(slot.state)).size(11).style(move |theme: &Theme| {
                     let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                     iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
-                })
+                }),
+                Space::new().width(Length::Fill),
+                recycle_btn,
             ]
             .spacing(6)
             .align_y(Alignment::Center),
@@ -438,7 +452,7 @@ pub(super) fn build_worktree_pixel_card<'a>(
     )
     .padding([8, 8])
     .width(Length::FillPortion(1))
-    .height(Length::Fixed(254.0))
+    .height(Length::Fixed(268.0))
     .style(move |theme: &Theme| {
         let (bg, text_color, border_color) = worktree_state_palette(theme, slot.state);
         iced::widget::container::Style {

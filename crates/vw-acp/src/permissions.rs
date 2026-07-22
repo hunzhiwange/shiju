@@ -7,9 +7,8 @@
 
 use agent_client_protocol::{
     PermissionOption, PermissionOptionKind, RequestPermissionOutcome, RequestPermissionRequest,
-    RequestPermissionResponse, SelectedPermissionOutcome,
+    RequestPermissionResponse, SelectedPermissionOutcome, ToolKind,
 };
-use serde_json::Value;
 
 use crate::errors::PermissionPromptUnavailableError;
 use crate::permission_prompt::{
@@ -33,22 +32,13 @@ fn permission_mode_rank(mode: PermissionMode) -> u8 {
 }
 
 fn selected(option_id: String) -> RequestPermissionResponse {
-    serde_json::from_value(serde_json::json!({
-        "outcome": {
-            "outcome": "selected",
-            "optionId": option_id
-        }
-    }))
-    .expect("valid ACP permission response")
+    RequestPermissionResponse::new(RequestPermissionOutcome::Selected(
+        SelectedPermissionOutcome::new(option_id),
+    ))
 }
 
 fn cancelled() -> RequestPermissionResponse {
-    serde_json::from_value(serde_json::json!({
-        "outcome": {
-            "outcome": "cancelled"
-        }
-    }))
-    .expect("valid ACP permission cancellation response")
+    RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled)
 }
 
 fn pick_option<'a>(
@@ -102,17 +92,49 @@ fn infer_tool_kind_from_title(title: &str) -> Option<&'static str> {
     Some("other")
 }
 
-fn tool_call_record(params: &RequestPermissionRequest) -> Option<serde_json::Map<String, Value>> {
-    serde_json::to_value(&params.tool_call).ok()?.as_object().cloned()
+fn tool_kind_name(kind: ToolKind) -> &'static str {
+    let mut name = "other";
+    if kind == ToolKind::Read {
+        name = "read";
+    }
+    if kind == ToolKind::Edit {
+        name = "edit";
+    }
+    if kind == ToolKind::Delete {
+        name = "delete";
+    }
+    if kind == ToolKind::Move {
+        name = "move";
+    }
+    if kind == ToolKind::Search {
+        name = "search";
+    }
+    if kind == ToolKind::Execute {
+        name = "execute";
+    }
+    if kind == ToolKind::Think {
+        name = "think";
+    }
+    if kind == ToolKind::Fetch {
+        name = "fetch";
+    }
+    if kind == ToolKind::SwitchMode {
+        name = "switch_mode";
+    }
+    name
 }
 
-fn tool_call_string_field(params: &RequestPermissionRequest, field: &str) -> Option<String> {
-    tool_call_record(params)?.get(field)?.as_str().map(ToOwned::to_owned)
+fn tool_call_title_field(params: &RequestPermissionRequest) -> Option<String> {
+    params.tool_call.fields.title.clone()
+}
+
+fn tool_call_kind_field(params: &RequestPermissionRequest) -> Option<String> {
+    params.tool_call.fields.kind.map(tool_kind_name).map(str::to_string)
 }
 
 fn infer_tool_kind(params: &RequestPermissionRequest) -> Option<String> {
-    tool_call_string_field(params, "kind").or_else(|| {
-        tool_call_string_field(params, "title")
+    tool_call_kind_field(params).or_else(|| {
+        tool_call_title_field(params)
             .and_then(|value| infer_tool_kind_from_title(&value).map(str::to_string))
     })
 }
@@ -122,13 +144,17 @@ fn is_auto_approved_read_kind(kind: Option<&str>) -> bool {
 }
 
 fn prompt_for_tool_permission(params: &RequestPermissionRequest) -> Result<bool, std::io::Error> {
-    let tool_name = tool_call_string_field(params, "title").unwrap_or_else(|| "tool".to_string());
+    let tool_name = tool_call_title_field(params).unwrap_or_else(|| "tool".to_string());
     let tool_kind = infer_tool_kind(params).unwrap_or_else(|| "other".to_string());
     prompt_for_permission(&PermissionPromptOptions {
         prompt: format!("\n[permission] Allow {tool_name} [{tool_kind}]? (y/N) "),
         header: None,
         details: None,
     })
+}
+
+fn prompt_for_tool_permission_or_false(params: &RequestPermissionRequest) -> bool {
+    prompt_for_tool_permission(params).unwrap_or(false)
 }
 
 fn response_for_prompt_decision(
@@ -150,18 +176,22 @@ pub fn permission_mode_satisfies(actual: PermissionMode, required: PermissionMod
 }
 
 #[allow(clippy::result_large_err)]
-pub fn resolve_permission_request(
+fn resolve_permission_request_with_prompt(
     params: &RequestPermissionRequest,
     mode: PermissionMode,
     non_interactive_policy: Option<NonInteractivePermissionPolicy>,
+    can_prompt: bool,
+    prompt: fn(&RequestPermissionRequest) -> bool,
 ) -> Result<RequestPermissionResponse, PermissionPromptUnavailableError> {
     let options = &params.options;
     if options.is_empty() {
         return Ok(cancelled());
     }
 
-    let allow_option =
+    let allow_once_option =
         pick_option(options, &[PermissionOptionKind::AllowOnce, PermissionOptionKind::AllowAlways]);
+    let allow_always_option =
+        pick_option(options, &[PermissionOptionKind::AllowAlways, PermissionOptionKind::AllowOnce]);
     let reject_option = pick_option(
         options,
         &[PermissionOptionKind::RejectOnce, PermissionOptionKind::RejectAlways],
@@ -169,7 +199,7 @@ pub fn resolve_permission_request(
 
     match mode {
         PermissionMode::ApproveAll => {
-            return Ok(selected(allow_option.unwrap_or(&options[0]).option_id.to_string()));
+            return Ok(selected(allow_always_option.unwrap_or(&options[0]).option_id.to_string()));
         }
         PermissionMode::DenyAll => {
             return Ok(reject_option
@@ -181,7 +211,7 @@ pub fn resolve_permission_request(
 
     let kind = infer_tool_kind(params);
     if is_auto_approved_read_kind(kind.as_deref())
-        && let Some(option) = allow_option
+        && let Some(option) = allow_always_option
     {
         return Ok(selected(option.option_id.to_string()));
     }
@@ -195,17 +225,28 @@ pub fn resolve_permission_request(
         };
     }
 
-    if !can_prompt_for_permission() {
+    if !can_prompt {
         return Ok(reject_option
             .map(|option| selected(option.option_id.to_string()))
             .unwrap_or_else(cancelled));
     }
 
-    Ok(response_for_prompt_decision(
-        prompt_for_tool_permission(params).unwrap_or(false),
-        allow_option,
-        reject_option,
-    ))
+    Ok(response_for_prompt_decision(prompt(params), allow_once_option, reject_option))
+}
+
+#[allow(clippy::result_large_err)]
+pub fn resolve_permission_request(
+    params: &RequestPermissionRequest,
+    mode: PermissionMode,
+    non_interactive_policy: Option<NonInteractivePermissionPolicy>,
+) -> Result<RequestPermissionResponse, PermissionPromptUnavailableError> {
+    resolve_permission_request_with_prompt(
+        params,
+        mode,
+        non_interactive_policy,
+        can_prompt_for_permission(),
+        prompt_for_tool_permission_or_false,
+    )
 }
 
 pub fn classify_permission_decision(
@@ -223,15 +264,15 @@ pub fn classify_permission_decision(
         return PermissionDecision::Cancelled;
     };
 
-    match selected_option.kind {
-        PermissionOptionKind::AllowOnce | PermissionOptionKind::AllowAlways => {
-            PermissionDecision::Approved
-        }
-        PermissionOptionKind::RejectOnce | PermissionOptionKind::RejectAlways => {
-            PermissionDecision::Denied
-        }
-        _ => PermissionDecision::Cancelled,
+    let kind = selected_option.kind;
+    let mut decision = PermissionDecision::Cancelled;
+    if kind == PermissionOptionKind::AllowOnce || kind == PermissionOptionKind::AllowAlways {
+        decision = PermissionDecision::Approved;
     }
+    if kind == PermissionOptionKind::RejectOnce || kind == PermissionOptionKind::RejectAlways {
+        decision = PermissionDecision::Denied;
+    }
+    decision
 }
 
 #[cfg(test)]

@@ -380,11 +380,11 @@ fn clear_file_search_state(app: &mut App) {
     app.file_search_selected_index = 0;
 }
 
-fn normalized_lower_path(path: &str) -> String {
+pub(super) fn normalized_lower_path(path: &str) -> String {
     path.replace('\\', "/").to_ascii_lowercase()
 }
 
-fn fuzzy_subsequence_score(candidate: &str, query: &str) -> Option<i64> {
+pub(super) fn fuzzy_subsequence_score(candidate: &str, query: &str) -> Option<i64> {
     if query.is_empty() {
         return Some(0);
     }
@@ -416,8 +416,10 @@ fn fuzzy_subsequence_score(candidate: &str, query: &str) -> Option<i64> {
             }
         }
 
-        if idx == 0 || matches!(cand[idx.saturating_sub(1)], '/' | '_' | '-' | '.' | ' ') {
+        if idx == 0 {
             score += 15;
+        } else if matches!(cand[idx - 1], '/' | '_' | '-' | '.' | ' ') {
+            score += 5;
         }
 
         prev_match = Some(idx);
@@ -427,7 +429,7 @@ fn fuzzy_subsequence_score(candidate: &str, query: &str) -> Option<i64> {
     Some(score)
 }
 
-fn file_match_score(path: &str, query: &str) -> Option<i64> {
+pub(super) fn file_match_score(path: &str, query: &str) -> Option<i64> {
     let normalized = normalized_lower_path(path);
     let file_name = normalized.rsplit('/').next().unwrap_or(&normalized);
 
@@ -461,11 +463,11 @@ fn file_match_score(path: &str, query: &str) -> Option<i64> {
     Some(score)
 }
 
-fn is_file_search_char(c: char) -> bool {
+pub(super) fn is_file_search_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || matches!(c, '/' | '\\' | '.' | '_' | '-' | ':' | '#')
 }
 
-fn trailing_token(text: &str) -> &str {
+pub(super) fn trailing_token(text: &str) -> &str {
     let mut token_start = 0usize;
     for (i, c) in text.char_indices() {
         if c.is_whitespace() {
@@ -475,14 +477,14 @@ fn trailing_token(text: &str) -> &str {
     &text[token_start..]
 }
 
-fn active_file_search_query(text: &str) -> Option<&str> {
+pub(super) fn active_file_search_query(text: &str) -> Option<&str> {
     let token = trailing_token(text);
     let at_index = token.rfind('@')?;
     let query = &token[at_index + 1..];
     query.chars().all(is_file_search_char).then_some(query)
 }
 
-fn replace_or_append_file_mention(text: &str, mention_with_at: &str) -> String {
+pub(super) fn replace_or_append_file_mention(text: &str, mention_with_at: &str) -> String {
     let token = trailing_token(text);
     let token_start = text.len().saturating_sub(token.len());
     let mention_with_space = format!("{} ", mention_with_at);

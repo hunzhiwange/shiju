@@ -75,6 +75,7 @@ fn readonly_security() -> Arc<SecurityPolicy> {
 ///
 /// 如果配置保存失败，测试将 panic。
 async fn test_config(tmp: &TempDir) -> Arc<Config> {
+    std::fs::create_dir_all(tmp.path().join("workspace")).unwrap();
     let config: Config = Config {
         workspace_dir: tmp.path().join("workspace"),
         config_path: tmp.path().join("vibewindow.json"),

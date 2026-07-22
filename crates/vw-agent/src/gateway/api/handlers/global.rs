@@ -14,13 +14,14 @@ use std::time::Duration;
 
 use axum::Json;
 use axum::Router;
-use axum::extract::State;
+use axum::extract::{Extension, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post};
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
+use vw_api_types::id::TenantScope;
 
 use crate::app::agent::bus;
 use crate::app::agent::config;
@@ -98,7 +99,7 @@ async fn global_event_sse() -> Sse<impl tokio_stream::Stream<Item = Result<Event
     let unsub = bus::global_subscribe(move |evt| {
         let directory = evt.directory.unwrap_or_else(|| "global".to_string());
         let payload = serde_json::json!({ "directory": directory, "payload": evt.payload });
-        let data = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+        let data = payload.to_string();
         let _ = tx_sub.try_send(Event::default().data(data));
     });
 
@@ -111,19 +112,17 @@ async fn global_event_sse() -> Sse<impl tokio_stream::Stream<Item = Result<Event
         let _ = tx_task.try_send(Event::default().data(serde_json::to_string(&connected).unwrap()));
 
         let mut interval = tokio::time::interval(Duration::from_secs(30));
-        loop {
+        let mut stream_open = true;
+        while stream_open {
             interval.tick().await;
             let hb = serde_json::json!({
                 "directory": "global",
                 "payload": { "type": "server.heartbeat", "properties": {} }
             });
-            if tx_task
+            stream_open = tx_task
                 .send(Event::default().data(serde_json::to_string(&hb).unwrap()))
                 .await
-                .is_err()
-            {
-                break;
-            }
+                .is_ok();
         }
         unsub();
     });
@@ -131,25 +130,46 @@ async fn global_event_sse() -> Sse<impl tokio_stream::Stream<Item = Result<Event
     Sse::new(ReceiverStream::new(rx).map(Ok)).keep_alive(KeepAlive::new())
 }
 
-async fn global_config_get() -> Json<Value> {
-    Json(serde_json::to_value(config::get_global().await).unwrap_or(Value::Null))
+fn config_response(mut value: config::Config) -> Result<Json<Value>, ApiError> {
+    config::encrypt_config_secrets(&mut value)
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    let value =
+        serde_json::to_value(value).map_err(|error| ApiError::internal(error.to_string()))?;
+    Ok(Json(value))
+}
+
+async fn global_config_get(
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<Value>, ApiError> {
+    let config = config::get_global_for_tenant(&tenant)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    config_response(config)
 }
 
 async fn global_config_acp_get() -> Json<Value> {
     Json(serde_json::to_value(merged_global_acp_config().await).unwrap_or(Value::Null))
 }
 
-async fn global_config_patch(Json(patch): Json<Value>) -> Result<Json<Value>, ApiError> {
-    config::update_global(patch).await.map_err(|e| ApiError::bad_request(e.to_string()))?;
+async fn global_config_patch(
+    Extension(tenant): Extension<TenantScope>,
+    Json(patch): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    config::update_global_for_tenant(&tenant, patch)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
     Ok(Json(Value::Null))
 }
 
 async fn global_config_patch_stateful(
+    Extension(tenant): Extension<TenantScope>,
     State(state): State<AppState>,
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
-    let response = global_config_patch(Json(patch)).await?;
-    let next = config::get_global().await;
+    let response = global_config_patch(Extension(tenant.clone()), Json(patch)).await?;
+    let next = config::get_global_for_tenant(&tenant)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
     state.pairing.update_from_skeys(next.gateway.auth_enabled, &next.gateway.skeys);
     *state.config.lock() = next;
     Ok(response)

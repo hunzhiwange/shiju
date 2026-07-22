@@ -10,16 +10,17 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style, provider_logo_svg,
-    rounded_action_btn_style, settings_divider, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_value_badge,
+    rounded_action_btn_style, settings_divider, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_value_badge,
 };
+use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, progress_bar, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 
 const PROVIDER_LABEL_WIDTH: f32 = SETTINGS_LABEL_WIDTH + 40.0;
 
-fn provider_action_panel_style(theme: &Theme) -> iced::widget::container::Style {
+pub(super) fn provider_action_panel_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
 
     iced::widget::container::Style {
@@ -39,7 +40,7 @@ fn provider_action_panel_style(theme: &Theme) -> iced::widget::container::Style 
     }
 }
 
-fn provider_item_row<'a>(
+pub(super) fn provider_item_row<'a>(
     logo_id: impl Into<String>,
     title: impl Into<String>,
     description: impl Into<String>,
@@ -71,6 +72,54 @@ fn provider_item_row<'a>(
     .padding([14, 0])
     .width(Length::Fill)
     .into()
+}
+
+pub(super) struct PopularProviderMatch {
+    pub(super) display: String,
+    pub(super) provider_id: Option<String>,
+    pub(super) is_connected: bool,
+}
+
+pub(super) fn popular_provider_match(
+    pattern: &str,
+    catalog_items: &[ModelCatalogEntry],
+    providers: &[ProviderSummary],
+) -> PopularProviderMatch {
+    let pat_lower = pattern.to_ascii_lowercase();
+    let found_catalog = catalog_items.iter().find(|p| {
+        let id_lower = p.provider_id.to_ascii_lowercase();
+        let name_lower = p.provider_name.to_ascii_lowercase();
+        id_lower == pat_lower
+            || id_lower.contains(&pat_lower)
+            || name_lower == pat_lower
+            || name_lower.contains(&pat_lower)
+    });
+
+    if let Some(p) = found_catalog {
+        let is_connected = providers.iter().any(|pp| pp.id == p.provider_id && pp.connected);
+        return PopularProviderMatch {
+            display: p.provider_name.clone(),
+            provider_id: Some(p.provider_id.clone()),
+            is_connected,
+        };
+    }
+
+    if let Some(p) = providers.iter().find(|p| {
+        let id_lower = p.id.to_ascii_lowercase();
+        let name_lower = p.name.to_ascii_lowercase();
+        id_lower == pat_lower
+            || id_lower.contains(&pat_lower)
+            || name_lower == pat_lower
+            || name_lower.contains(&pat_lower)
+    }) {
+        return PopularProviderMatch {
+            display: p.name.clone(),
+            provider_id: Some(p.id.clone()),
+            is_connected: p.connected,
+        };
+    }
+
+    PopularProviderMatch { display: pattern.to_string(), provider_id: None, is_connected: false }
 }
 
 /// 渲染“模型提供商”设置页面的已连接/热门/自定义提供商视图。
@@ -142,10 +191,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(10),
         ));
-    }
-
-    if let Some(err) = &s.save_error {
-        root = root.push(settings_error_banner(err));
     }
 
     root = root.push(settings_section_card(
@@ -237,31 +282,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             popular_panel.push(text("暂无热门提供商。").size(13).style(settings_muted_text_style));
     } else {
         for (i, pat) in s.popular_patterns.iter().enumerate() {
-            let pat_lower = pat.to_ascii_lowercase();
-            let found_catalog = s.catalog_items.iter().find(|p| {
-                let id_lower = p.provider_id.to_ascii_lowercase();
-                let name_lower = p.provider_name.to_ascii_lowercase();
-                id_lower == pat_lower
-                    || id_lower.contains(&pat_lower)
-                    || name_lower == pat_lower
-                    || name_lower.contains(&pat_lower)
-            });
-
-            let (display, provider_id, is_connected) = if let Some(p) = found_catalog {
-                let connected = s.providers.iter().any(|pp| pp.id == p.provider_id && pp.connected);
-                (p.provider_name.clone(), Some(p.provider_id.clone()), connected)
-            } else if let Some(p) = s.providers.iter().find(|p| {
-                let id_lower = p.id.to_ascii_lowercase();
-                let name_lower = p.name.to_ascii_lowercase();
-                id_lower == pat_lower
-                    || id_lower.contains(&pat_lower)
-                    || name_lower == pat_lower
-                    || name_lower.contains(&pat_lower)
-            }) {
-                (p.name.clone(), Some(p.id.clone()), p.connected)
-            } else {
-                (pat.clone(), None, false)
-            };
+            let PopularProviderMatch { display, provider_id, is_connected } =
+                popular_provider_match(pat, &s.catalog_items, &s.providers);
 
             let logo_id = provider_id.clone().unwrap_or_else(|| "agent".to_owned());
             let mut controls = row![].spacing(8).align_y(Alignment::Center);

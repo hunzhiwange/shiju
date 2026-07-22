@@ -75,6 +75,15 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ]
             .align_y(Alignment::Center),
             settings_divider(),
+        ]
+        .spacing(12);
+
+        // 如果存在错误信息，在标题下方添加错误提示。
+        if let Some(err) = &s.connect_error {
+            modal_col = modal_col.push(settings_error_banner(err));
+        }
+
+        modal_col = modal_col.push(
             // API 密钥输入行
             row![
                 text("API 密钥").width(120),
@@ -88,13 +97,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ]
             .spacing(20)
             .align_y(Alignment::Center),
-        ]
-        .spacing(12);
-
-        // 如果存在错误信息，在内容中添加错误提示
-        if let Some(err) = &s.connect_error {
-            modal_col = modal_col.push(settings_error_banner(err));
-        }
+        );
 
         // 添加底部操作按钮行
         modal_col = modal_col.push(

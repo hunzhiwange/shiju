@@ -1,6 +1,9 @@
 use super::*;
 use crate::app::agent::observability::traits::ObserverMetric;
+use std::sync::Once;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+static INFO_TRACING: Once = Once::new();
 
 fn engine_for(workspace_dir: std::path::PathBuf) -> HeartbeatEngine {
     let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
@@ -9,6 +12,49 @@ fn engine_for(workspace_dir: std::path::PathBuf) -> HeartbeatEngine {
         workspace_dir,
         observer,
     )
+}
+
+struct InfoSubscriber;
+
+impl tracing::Subscriber for InfoSubscriber {
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        *metadata.level() <= tracing::Level::INFO
+    }
+
+    fn new_span(&self, _span: &tracing::span::Attributes<'_>) -> tracing::Id {
+        tracing::Id::from_u64(1)
+    }
+
+    fn record(&self, _span: &tracing::Id, _values: &tracing::span::Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &tracing::Id, _follows: &tracing::Id) {}
+
+    fn event(&self, _event: &tracing::Event<'_>) {}
+
+    fn enter(&self, _span: &tracing::Id) {}
+
+    fn exit(&self, _span: &tracing::Id) {}
+
+    fn register_callsite(
+        &self,
+        metadata: &'static tracing::Metadata<'static>,
+    ) -> tracing::subscriber::Interest {
+        if self.enabled(metadata) {
+            tracing::subscriber::Interest::always()
+        } else {
+            tracing::subscriber::Interest::never()
+        }
+    }
+
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(tracing::metadata::LevelFilter::INFO)
+    }
+}
+
+fn enable_info_tracing() {
+    INFO_TRACING.call_once(|| {
+        let _ = tracing::subscriber::set_global_default(InfoSubscriber);
+    });
 }
 
 #[derive(Default)]
@@ -134,6 +180,7 @@ async fn run_returns_immediately_when_disabled() {
 
 #[tokio::test(start_paused = true)]
 async fn run_enabled_records_tick_and_processes_tasks_until_aborted() {
+    enable_info_tracing();
     let temp = tempfile::tempdir().unwrap();
     tokio::fs::write(temp.path().join("HEARTBEAT.md"), "- A\n- B").await.unwrap();
     let observer = Arc::new(RecordingObserver::default());
@@ -154,6 +201,37 @@ async fn run_enabled_records_tick_and_processes_tasks_until_aborted() {
     }
 
     assert!(observer.ticks.load(Ordering::Relaxed) >= 1);
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+    }
+
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+}
+
+#[tokio::test(start_paused = true)]
+async fn run_enabled_continues_without_error_when_no_tasks_exist() {
+    let temp = tempfile::tempdir().unwrap();
+    let observer = Arc::new(RecordingObserver::default());
+    let engine = HeartbeatEngine::new(
+        HeartbeatConfig { enabled: true, interval_minutes: 1, ..HeartbeatConfig::default() },
+        temp.path().to_path_buf(),
+        observer.clone(),
+    );
+
+    let task = tokio::spawn(async move { engine.run().await });
+
+    for _ in 0..10 {
+        if observer.ticks.load(Ordering::Relaxed) >= 2 {
+            break;
+        }
+        tokio::task::yield_now().await;
+        tokio::time::advance(Duration::from_secs(5 * 60)).await;
+    }
+
+    assert!(observer.ticks.load(Ordering::Relaxed) >= 1);
+    assert_eq!(observer.errors.load(Ordering::Relaxed), 0);
+    assert!(!task.is_finished());
 
     task.abort();
     assert!(task.await.unwrap_err().is_cancelled());

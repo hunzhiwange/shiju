@@ -64,9 +64,40 @@ async fn with_interrupt_returns_inner_result_when_run_finishes_first() {
     assert_eq!(result, 9);
 }
 
+#[tokio::test]
+async fn with_interrupt_wraps_inner_error_when_run_fails_first() {
+    let error = with_interrupt(
+        || async { Err::<(), _>(InnerError) },
+        || async {
+            panic!("interrupt handler should not run");
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert!(matches!(error, WithInterruptError::Inner(InnerError)));
+}
+
 #[cfg(unix)]
 #[tokio::test]
-async fn with_interrupt_runs_handler_and_returns_interrupted_on_signal() {
+async fn with_interrupt_runs_handler_and_returns_interrupted_on_sigint() {
+    with_interrupt_runs_handler_for_signal(libc::SIGINT).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn with_interrupt_runs_handler_and_returns_interrupted_on_sigterm() {
+    with_interrupt_runs_handler_for_signal(libc::SIGTERM).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn with_interrupt_runs_handler_and_returns_interrupted_on_sighup() {
+    with_interrupt_runs_handler_for_signal(libc::SIGHUP).await;
+}
+
+#[cfg(unix)]
+async fn with_interrupt_runs_handler_for_signal(signal: libc::c_int) {
     let _guard = SIGNAL_TEST_LOCK.lock().await;
     let handler_called = Arc::new(AtomicBool::new(false));
     let handler_called_for_callback = handler_called.clone();
@@ -74,7 +105,7 @@ async fn with_interrupt_runs_handler_and_returns_interrupted_on_signal() {
     let error = with_interrupt(
         || async {
             sleep(Duration::from_millis(20)).await;
-            assert_eq!(unsafe { libc::raise(libc::SIGHUP) }, 0);
+            assert_eq!(unsafe { libc::raise(signal) }, 0);
             sleep(Duration::from_secs(5)).await;
             Ok::<_, InnerError>(())
         },
@@ -104,4 +135,15 @@ fn with_interrupt_error_display_preserves_variants() {
         "Interrupted"
     );
     assert!(signal.to_string().contains("failed to install signal handler"));
+}
+
+#[test]
+fn with_interrupt_signal_handler_error_exposes_io_error_as_source() {
+    let error: WithInterruptError<InnerError> =
+        WithInterruptError::SignalHandler(io::Error::other("signal install failed"));
+
+    let source =
+        std::error::Error::source(&error).expect("signal handler error should have source");
+
+    assert_eq!(source.to_string(), "signal install failed");
 }

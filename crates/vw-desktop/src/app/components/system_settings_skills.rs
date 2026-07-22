@@ -3,12 +3,12 @@
 mod browser;
 mod catalog;
 mod help;
+mod plugins;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_segment_button_style,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
@@ -62,22 +62,6 @@ pub(super) fn skills_tab_labels() -> &'static [(&'static str, SkillsSettingsTab)
         ("插件", SkillsSettingsTab::Plugins),
         ("系统配置", SkillsSettingsTab::SystemConfig),
     ]
-}
-
-fn plugins_placeholder() -> Element<'static, Message> {
-    column![
-        settings_section_card("插件", "预留占位，后续在这里接入插件浏览与管理能力。"),
-        settings_panel(
-            column![
-                text("插件内容暂未开放。"),
-                text("当前仅保留占位，不展示具体内容。").size(12).style(settings_muted_text_style),
-            ]
-            .spacing(6)
-        ),
-    ]
-    .spacing(16)
-    .width(Length::Fill)
-    .into()
 }
 
 fn system_config_view(app: &App) -> Element<'_, Message> {
@@ -137,7 +121,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
-    let mut config_card = column![
+    let config_card = column![
         settings_section_card(
             "系统配置",
             "这里保留社区同步与 prompt injection 配置，目录发现顺序单独放在顺序页。",
@@ -146,10 +130,6 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        config_card = config_card.push(settings_error_banner(err));
-    }
 
     config_card.into()
 }
@@ -162,7 +142,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = match s.active_tab {
         SkillsSettingsTab::Skills => browser::view(app),
         SkillsSettingsTab::DiscoveryOrder => browser::discovery_order_view(app),
-        SkillsSettingsTab::Plugins => plugins_placeholder(),
+        SkillsSettingsTab::Plugins => plugins::view(app),
         SkillsSettingsTab::SystemConfig => system_config_view(app),
     };
 

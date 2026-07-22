@@ -8,7 +8,7 @@
 //! - **编辑器组件**：主编辑器、Markdown 编辑器、编辑器工具栏
 //! - **面板组件**：聊天面板、文件树、Git 面板、预览面板、搜索面板、终端面板
 //! - **设置组件**：完整的系统设置模块集合（代理、模型、安全、调度等）
-//! - **交互组件**：通知、对话框、覆盖层、思维导图
+//! - **交互组件**：通知、对话框、覆盖层
 //! - **辅助组件**：输入面板、动画文本、提及高亮器、标签栏、顶部栏
 //!
 //! ## 设计原则
@@ -60,6 +60,15 @@ pub mod code_review;
 #[cfg(test)]
 #[path = "code_review_tests.rs"]
 mod code_review_tests;
+
+/// 通用颜色选择器组件
+pub mod color_picker;
+
+/// 通用数字输入组件
+pub mod number_input;
+
+/// SVG path 解析到 Iced canvas path 的轻量 helper
+pub mod svg_path;
 
 /// 主编辑器组件
 ///
@@ -115,17 +124,6 @@ mod install_cli_modal_tests;
 /// 专门用于编辑 Markdown 文档的编辑器，支持实时预览、
 /// Markdown 语法高亮和快捷操作。
 pub mod markdown_editor;
-#[cfg(test)]
-#[path = "markdown_editor_tests.rs"]
-mod markdown_editor_tests;
-
-/// 思维导图组件
-///
-/// 提供可视化思维导图功能，用于展示和编辑层次化信息结构。
-pub mod mind_map;
-#[cfg(test)]
-#[path = "mind_map_tests.rs"]
-mod mind_map_tests;
 
 /// 模型悬浮提示组件
 ///
@@ -190,6 +188,11 @@ mod system_settings_tests;
 /// 配置 researcher、coder、reviewer 等委托代理的独立模型与工具权限。
 pub mod system_settings_agents;
 
+/// 系统设置：员工配置
+///
+/// 配置任务看板员工名册、agent 绑定和能力入口。
+pub mod system_settings_staff;
+
 /// 系统设置：代理间通信
 ///
 /// 配置多个代理之间的进程间通信（IPC）机制。
@@ -204,6 +207,11 @@ pub mod system_settings_autonomy;
 ///
 /// 管理 Agent Client Protocol 后端目录、初始化说明和启用状态。
 pub mod system_settings_acp;
+
+/// 系统设置：MCP 配置
+///
+/// 管理全局 MCP 服务器配置。
+pub mod system_settings_mcp;
 
 /// 系统设置：通用组件
 ///

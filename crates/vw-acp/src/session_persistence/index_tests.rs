@@ -44,7 +44,11 @@ fn test_record(id: &str, last_used_at: &str) -> SessionRecord {
 }
 
 fn temp_dir(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("vw-acp-index-{name}-{}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "vw-acp-index-{name}-{}-{}",
+        std::process::id(),
+        temp_suffix()
+    ))
 }
 
 async fn create_clean_dir(name: &str) -> PathBuf {
@@ -78,6 +82,37 @@ fn parse_index_entry_requires_typed_required_fields_and_allows_missing_name() {
     assert_eq!(entry.file, "record.json");
     assert!(parse_index_entry(&serde_json::json!({"file": 1})).is_none());
     assert!(parse_index_entry(&serde_json::json!(true)).is_none());
+    assert_eq!(
+        parse_index_entry(&serde_json::json!({
+            "file": "named.json",
+            "vwacpRecordId": "named",
+            "acpSessionId": "acp",
+            "agentCommand": "agent",
+            "cwd": "/tmp/project",
+            "closed": true,
+            "lastUsedAt": "2026-01-02T00:00:00Z",
+            "name": "named session"
+        }))
+        .expect("named entry")
+        .name
+        .as_deref(),
+        Some("named session")
+    );
+    assert_eq!(
+        parse_index_entry(&serde_json::json!({
+            "file": "unnamed.json",
+            "vwacpRecordId": "unnamed",
+            "acpSessionId": "acp",
+            "agentCommand": "agent",
+            "cwd": "/tmp/project",
+            "closed": true,
+            "lastUsedAt": "2026-01-02T00:00:00Z",
+            "name": null
+        }))
+        .expect("null name entry")
+        .name,
+        None
+    );
     assert!(
         parse_index_entry(&serde_json::json!({
             "file": "record.json",
@@ -136,7 +171,12 @@ async fn read_session_index_rejects_invalid_payload_shapes() {
     let dir = create_clean_dir("invalid-index").await;
     let cases = [
         "not json".to_string(),
+        serde_json::json!(["not", "object"]).to_string(),
         serde_json::json!({"schema": "other", "files": [], "entries": []}).to_string(),
+        serde_json::json!({"schema": SESSION_INDEX_SCHEMA, "entries": []}).to_string(),
+        serde_json::json!({"schema": SESSION_INDEX_SCHEMA, "files": []}).to_string(),
+        serde_json::json!({"schema": SESSION_INDEX_SCHEMA, "files": {}, "entries": []}).to_string(),
+        serde_json::json!({"schema": SESSION_INDEX_SCHEMA, "files": [], "entries": {}}).to_string(),
         serde_json::json!({
             "schema": SESSION_INDEX_SCHEMA,
             "files": ["record.json", 1],
@@ -168,11 +208,21 @@ async fn read_session_index_rejects_invalid_payload_shapes() {
 }
 
 #[tokio::test]
+async fn read_session_index_returns_none_when_file_is_missing() {
+    let dir = create_clean_dir("missing-index").await;
+
+    assert!(read_session_index(&dir).await.is_none());
+
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+}
+
+#[tokio::test]
 async fn rebuild_session_index_records_valid_json_files_and_skips_invalid_entries() {
     let dir = create_clean_dir("rebuild").await;
     tokio::fs::create_dir_all(dir.join("nested.json")).await.expect("create nested dir");
     tokio::fs::write(session_index_path(&dir), "{}").await.expect("write old index");
     tokio::fs::write(dir.join("broken.json"), "{").await.expect("write invalid json");
+    tokio::fs::write(dir.join("notes.txt"), "ignored").await.expect("write ignored file");
     tokio::fs::write(
         dir.join("wrong-schema.json"),
         serde_json::json!({
@@ -221,6 +271,45 @@ async fn rebuild_session_index_records_valid_json_files_and_skips_invalid_entrie
     let _ = tokio::fs::remove_dir_all(&dir).await;
 }
 
+#[cfg(all(unix, not(target_os = "macos")))]
+#[tokio::test]
+async fn rebuild_session_index_skips_non_utf8_json_file_names() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let dir = create_clean_dir("non-utf8-file").await;
+    let file_name = OsString::from_vec(vec![0xff, b'.', b'j', b's', b'o', b'n']);
+    tokio::fs::write(dir.join(file_name), b"{}").await.expect("write non-utf8 file");
+
+    let index = rebuild_session_index(&dir).await.expect("rebuild index");
+
+    assert_eq!(index.files.len(), 1);
+    assert!(index.entries.is_empty());
+
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+}
+
+#[tokio::test]
+async fn rebuild_session_index_returns_read_dir_error_for_missing_directory() {
+    let dir = temp_dir("missing-rebuild-dir");
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+
+    let error = rebuild_session_index(&dir).await.expect_err("missing directory should fail");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+}
+
+#[tokio::test]
+async fn write_session_index_returns_error_when_directory_is_missing() {
+    let dir = temp_dir("missing-write-dir");
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+    let index = SessionIndex { files: Vec::new(), entries: Vec::new() };
+
+    let error = write_session_index(&dir, &index).await.expect_err("missing directory should fail");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+}
+
 #[tokio::test]
 async fn load_or_rebuild_session_index_reuses_current_index() {
     let dir = create_clean_dir("load-current").await;
@@ -251,6 +340,41 @@ async fn load_or_rebuild_session_index_reuses_current_index() {
 }
 
 #[tokio::test]
+async fn load_or_rebuild_session_index_rebuilds_when_cached_file_order_differs() {
+    let dir = create_clean_dir("load-reordered").await;
+    write_record_file(&dir, "a.json", &test_record("record-a", "2026-01-02T00:00:00Z")).await;
+    write_record_file(&dir, "b.json", &test_record("record-b", "2026-01-01T00:00:00Z")).await;
+    tokio::fs::write(
+        session_index_path(&dir),
+        serde_json::json!({
+            "schema": SESSION_INDEX_SCHEMA,
+            "files": ["b.json", "a.json"],
+            "entries": [{
+                "file": "b.json",
+                "vwacpRecordId": "cached-b",
+                "acpSessionId": "cached-acp",
+                "agentCommand": "cached-agent",
+                "cwd": "/tmp/cached",
+                "closed": false,
+                "lastUsedAt": "2026-01-03T00:00:00Z"
+            }]
+        })
+        .to_string(),
+    )
+    .await
+    .expect("write reordered index");
+
+    let index = load_or_rebuild_session_index(&dir).await.expect("rebuild reordered index");
+
+    assert_eq!(index.files, vec!["a.json".to_string(), "b.json".to_string()]);
+    assert_eq!(index.entries.len(), 2);
+    assert!(index.entries.iter().any(|entry| entry.vwacp_record_id == "record-a"));
+    assert!(index.entries.iter().any(|entry| entry.vwacp_record_id == "record-b"));
+
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+}
+
+#[tokio::test]
 async fn load_or_rebuild_session_index_rebuilds_when_file_list_changes() {
     let dir = create_clean_dir("load-stale").await;
     write_record_file(&dir, "old.json", &test_record("old", "2026-01-01T00:00:00Z")).await;
@@ -274,4 +398,15 @@ async fn load_or_rebuild_session_index_rebuilds_when_file_list_changes() {
     assert_eq!(index.entries.len(), 2);
 
     let _ = tokio::fs::remove_dir_all(&dir).await;
+}
+
+#[tokio::test]
+async fn load_or_rebuild_session_index_returns_read_dir_error_for_missing_directory() {
+    let dir = temp_dir("missing-load-dir");
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+
+    let error =
+        load_or_rebuild_session_index(&dir).await.expect_err("missing directory should fail");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
 }

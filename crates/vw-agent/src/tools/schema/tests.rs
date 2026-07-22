@@ -513,3 +513,66 @@ fn test_clean_nested_unknown_schema_keyword() {
     // 验证验证关键字被移除
     assert!(cleaned["not"].get("minimum").is_none());
 }
+
+#[test]
+fn unresolved_ref_preserves_metadata_without_leaking_ref() {
+    let cleaned = SchemaCleanr::clean_for_gemini(json!({
+        "$ref": "https://example.com/schemas/Remote",
+        "description": "remote value",
+        "title": "Remote"
+    }));
+
+    assert_eq!(
+        cleaned,
+        json!({
+            "description": "remote value",
+            "title": "Remote"
+        })
+    );
+}
+
+#[test]
+fn definitions_ref_decodes_tilde_and_cleans_target() {
+    let cleaned = SchemaCleanr::clean_for_gemini(json!({
+        "$ref": "#/definitions/Tilde~0Name",
+        "definitions": {
+            "Tilde~Name": {
+                "type": "string",
+                "format": "hostname"
+            }
+        }
+    }));
+
+    assert_eq!(cleaned, json!({"type": "string"}));
+}
+
+#[test]
+fn provider_strategies_expose_expected_keyword_boundaries() {
+    assert!(CleaningStrategy::Anthropic.unsupported_keywords().contains(&"$ref"));
+    assert!(!CleaningStrategy::Anthropic.unsupported_keywords().contains(&"minLength"));
+    assert!(
+        CleaningStrategy::Conservative.unsupported_keywords().contains(&"additionalProperties")
+    );
+    assert!(CleaningStrategy::OpenAI.unsupported_keywords().is_empty());
+}
+
+#[test]
+fn clean_handles_non_object_values_and_multi_type_arrays() {
+    assert_eq!(SchemaCleanr::clean_for_gemini(json!("string")), json!("string"));
+    assert_eq!(
+        SchemaCleanr::clean_for_gemini(json!([{"type": "string", "pattern": "x"}, 7])),
+        json!([{"type": "string"}, 7])
+    );
+    assert_eq!(
+        SchemaCleanr::clean_for_gemini(json!({"type": ["string", "integer", "null"]})),
+        json!({"type": ["string", "integer"]})
+    );
+}
+
+#[test]
+fn validate_rejects_non_object_schema() {
+    let error =
+        SchemaCleanr::validate(&json!(["string"])).expect_err("array schema should be rejected");
+
+    assert_eq!(error.to_string(), "Schema 必须是一个对象");
+}

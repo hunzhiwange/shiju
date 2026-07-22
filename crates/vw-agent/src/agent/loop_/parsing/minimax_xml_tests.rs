@@ -46,6 +46,51 @@ before <minimax:tool_call>
 }
 
 #[test]
+fn parses_case_insensitive_tags_and_trims_names_keys_and_values() {
+    let response =
+        r#"<INVOKE NAME="  shell  "><PARAMETER NAME=" command ">  echo ok  </PARAMETER></INVOKE>"#;
+
+    let (text, calls) = parse_minimax_invoke_calls(response).unwrap();
+
+    assert_eq!(text, "");
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].name, "shell");
+    assert_eq!(calls[0].arguments, serde_json::json!({"command": "echo ok"}));
+}
+
+#[test]
+fn skips_blank_invoke_names() {
+    assert!(
+        parse_minimax_invoke_calls(
+            r#"<invoke name="   "><parameter name="command">pwd</parameter></invoke>"#
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn blank_parameter_names_fall_back_to_body_content() {
+    let response = r#"<invoke name="shell"><parameter name="   ">ignored</parameter></invoke>"#;
+
+    let (_text, calls) = parse_minimax_invoke_calls(response).unwrap();
+
+    assert_eq!(calls.len(), 1);
+    assert_eq!(
+        calls[0].arguments,
+        serde_json::json!({"content": r#"<parameter name="   ">ignored</parameter>"#})
+    );
+}
+
+#[test]
+fn empty_invoke_body_produces_empty_arguments() {
+    let (_text, calls) = parse_minimax_invoke_calls(r#"<invoke name="shell"></invoke>"#).unwrap();
+
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].name, "shell");
+    assert_eq!(calls[0].arguments, serde_json::json!({}));
+}
+
+#[test]
 fn minimax_parser_returns_none_without_complete_invoke_calls() {
     assert!(parse_minimax_invoke_calls("plain text only").is_none());
     assert!(

@@ -1,7 +1,7 @@
 //! 系统安全设置界面组件
 //!
 //! 本模块提供安全配置的可视化界面，允许用户通过图形界面配置 VibeWindow 的各项安全参数。
-//! 所有配置项都对应 `~/.vibewindow/vibewindow.json` 配置文件中的 `security` 字段。
+//! 所有配置项都对应共享数据库中的 `security` 字段，并统一通过 Gateway 读写。
 //!
 //! # 主要功能
 //!
@@ -18,10 +18,10 @@
 //! 通过 [`view`] 函数创建安全设置界面的 UI 元素，该函数返回一个 Iced 框架的 `Element`。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, slider, text, text_input};
@@ -547,7 +547,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         sandbox_rows = sandbox_rows.push(settings_divider()).push(firejail_args_row);
     }
 
-    let mut col = column![
+    let col = column![
         row![
             settings_page_intro("安全配置", "配置沙箱、资源限制、审计与安全门控策略。"),
             container(text(" ")).width(Length::Fill),
@@ -652,10 +652,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

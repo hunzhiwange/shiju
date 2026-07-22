@@ -272,16 +272,7 @@ pub fn init() {
         #[cfg(not(target_arch = "wasm32"))]
         {
             // 定义清理任务的执行函数
-            let run: scheduler::RunFn = std::sync::Arc::new(|| {
-                Box::pin(async move {
-                    // 在阻塞线程池中执行清理，避免阻塞异步运行时
-                    tokio::task::spawn_blocking(cleanup)
-                        .await
-                        .map_err(|e| e.to_string())?
-                        .map_err(|e| e.to_string())?;
-                    Ok(())
-                })
-            });
+            let run: scheduler::RunFn = std::sync::Arc::new(|| Box::pin(run_cleanup_task()));
             // 注册定时任务
             scheduler::register(scheduler::Task {
                 id: "tool.truncation.cleanup".to_string(),
@@ -291,6 +282,16 @@ pub fn init() {
             });
         }
     });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn run_cleanup_task() -> std::result::Result<(), String> {
+    // 在阻塞线程池中执行清理，避免阻塞异步运行时
+    tokio::task::spawn_blocking(cleanup)
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// 清理过期的工具输出文件
@@ -320,58 +321,62 @@ pub fn cleanup() -> std::io::Result<()> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let tool_dir = dir();
-        // 确保输出目录存在
-        ensure_dir_exists(&tool_dir);
+        cleanup_dir(&dir(), now_ms())
+    }
+}
 
-        // 计算截止时间戳（当前时间 - 保留时长）
-        let retention_ms = u64::try_from(RETENTION.as_millis()).unwrap_or(u64::MAX);
-        let cutoff_ts = now_ms().saturating_sub(retention_ms);
-        // 生成截止时间对应的工具 ID
-        let cutoff_id = id::create(id::Prefix::Tool, false, Some(cutoff_ts))
-            .unwrap_or_else(|_| "tool".to_string());
-        // 提取截止 ID 的时间戳
-        let cutoff = id::timestamp(&cutoff_id).unwrap_or(0);
+#[cfg(not(target_arch = "wasm32"))]
+fn cleanup_dir(tool_dir: &Path, now_ms: u64) -> std::io::Result<()> {
+    // 确保输出目录存在
+    ensure_dir_exists(tool_dir);
 
-        // 读取目录内容
-        let Ok(entries) = std::fs::read_dir(&tool_dir) else {
-            return Ok(());
+    // 计算截止时间戳（当前时间 - 保留时长）
+    let retention_ms = u64::try_from(RETENTION.as_millis()).unwrap_or(u64::MAX);
+    let cutoff_ts = now_ms.saturating_sub(retention_ms);
+    // 生成截止时间对应的工具 ID
+    let cutoff_id =
+        id::create(id::Prefix::Tool, false, Some(cutoff_ts)).unwrap_or_else(|_| "tool".to_string());
+    // 提取截止 ID 的时间戳
+    let cutoff = id::timestamp(&cutoff_id).unwrap_or(0);
+
+    // 读取目录内容
+    let Ok(entries) = std::fs::read_dir(tool_dir) else {
+        return Ok(());
+    };
+
+    // 遍历目录中的条目
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        // 只处理文件，跳过目录
+        if !path.is_file() {
+            continue;
+        }
+
+        // 提取文件名
+        let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+            continue;
         };
 
-        // 遍历目录中的条目
-        for entry in entries.flatten() {
-            let path = entry.path();
-
-            // 只处理文件，跳过目录
-            if !path.is_file() {
-                continue;
-            }
-
-            // 提取文件名
-            let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
-                continue;
-            };
-
-            // 只处理以 "tool_" 开头的文件
-            if !name.starts_with("tool_") {
-                continue;
-            }
-
-            // 从文件名提取时间戳
-            let Some(ts) = id::timestamp(name) else {
-                continue;
-            };
-
-            // 跳过未过期的文件
-            if ts >= cutoff {
-                continue;
-            }
-
-            // 删除过期文件，忽略错误
-            let _ = std::fs::remove_file(path);
+        // 只处理以 "tool_" 开头的文件
+        if !name.starts_with("tool_") {
+            continue;
         }
-        Ok(())
+
+        // 从文件名提取时间戳
+        let Some(ts) = id::timestamp(name) else {
+            continue;
+        };
+
+        // 跳过未过期的文件
+        if ts >= cutoff {
+            continue;
+        }
+
+        // 删除过期文件，忽略错误
+        let _ = std::fs::remove_file(path);
     }
+    Ok(())
 }
 
 /// 处理工具输出
@@ -404,6 +409,11 @@ pub fn cleanup() -> std::io::Result<()> {
 /// - **非 WASM 平台**：完整功能，包括文件保存
 /// - **WASM 平台**：跳过文件保存步骤
 pub fn output(text: &str, options: Options, _agent: Option<&agent::Info>) -> Result {
+    let tool_dir = dir();
+    output_with_dir(text, options, &tool_dir)
+}
+
+fn output_with_dir(text: &str, options: Options, tool_dir: &Path) -> Result {
     // 计算原始输出的总字节数和总行数
     let total_bytes = text.len();
     let total_lines = text.split('\n').count();
@@ -427,8 +437,7 @@ pub fn output(text: &str, options: Options, _agent: Option<&agent::Info>) -> Res
     let unit = if preview.hit_bytes { "bytes" } else { "lines" };
 
     // 确保输出目录存在
-    let tool_dir = dir();
-    ensure_dir_exists(&tool_dir);
+    ensure_dir_exists(tool_dir);
 
     // 尝试保存完整输出到文件
     let mut output_path: Option<PathBuf> = None;

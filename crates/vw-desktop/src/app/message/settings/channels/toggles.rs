@@ -1,17 +1,18 @@
 //! 处理渠道设置子模块的状态变更、字段转换和持久化。
 
 use crate::app::App;
+use std::collections::BTreeSet;
 use vw_config_types::channels::ClawdTalkConfig;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::channels::EmailConfig;
 use vw_config_types::channels::{
-    DingTalkConfig, DiscordConfig, IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode,
-    LinqConfig, MatrixConfig, MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
-    QQReceiveMode, SignalConfig, SlackConfig, TelegramConfig, WatiConfig, WebhookConfig,
-    WhatsAppConfig,
+    DEFAULT_CHANNEL_INSTANCE_ID, DingTalkInstanceConfig, DiscordConfig, FeishuInstanceConfig,
+    IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, MatrixInstanceConfig,
+    MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
+    SlackConfig, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
 
-use super::helpers::default_feishu_config;
+use super::helpers::{default_dingtalk_config, default_feishu_config, default_matrix_config};
 
 /// 处理 `toggle_enabled` 对应的用户输入、异步结果或状态转换。
 ///
@@ -69,15 +70,12 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
                 enabled.then(|| IMessageConfig { allowed_contacts: Vec::new() })
         }
         "matrix" => {
-            app.channels_settings.matrix = enabled.then(|| MatrixConfig {
-                homeserver: String::new(),
-                access_token: String::new(),
-                user_id: None,
-                device_id: None,
-                room_id: String::new(),
-                allowed_users: Vec::new(),
-                mention_only: false,
-            })
+            if enabled {
+                app.channels_settings.matrix.get_or_insert_with(default_matrix_config);
+            } else {
+                app.channels_settings.matrix = None;
+                app.channels_settings.matrix_instances.clear();
+            }
         }
         "signal" => {
             app.channels_settings.signal = enabled.then(|| SignalConfig {
@@ -157,13 +155,21 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
                 max_draft_edits: 20,
             })
         }
-        "feishu" => app.channels_settings.feishu = enabled.then(default_feishu_config),
+        "feishu" => {
+            if enabled {
+                app.channels_settings.feishu.get_or_insert_with(default_feishu_config);
+            } else {
+                app.channels_settings.feishu = None;
+                app.channels_settings.feishu_instances.clear();
+            }
+        }
         "dingtalk" => {
-            app.channels_settings.dingtalk = enabled.then(|| DingTalkConfig {
-                client_id: String::new(),
-                client_secret: String::new(),
-                allowed_users: Vec::new(),
-            })
+            if enabled {
+                app.channels_settings.dingtalk.get_or_insert_with(default_dingtalk_config);
+            } else {
+                app.channels_settings.dingtalk = None;
+                app.channels_settings.dingtalk_instances.clear();
+            }
         }
         "qq" => {
             app.channels_settings.qq = enabled.then(|| QQConfig {
@@ -199,6 +205,87 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
 
     if enabled {
         app.channels_settings.expanded_panels.insert(channel.to_string());
+    }
+}
+
+fn next_instance_id<'a>(
+    has_legacy_instance: bool,
+    instance_ids: impl Iterator<Item = &'a str>,
+) -> String {
+    let mut used = BTreeSet::new();
+    if has_legacy_instance {
+        used.insert(DEFAULT_CHANNEL_INSTANCE_ID.to_string());
+    }
+    for id in instance_ids {
+        used.insert(id.to_string());
+    }
+
+    for candidate in 1.. {
+        let id = candidate.to_string();
+        if !used.contains(&id) {
+            return id;
+        }
+    }
+
+    unreachable!("unbounded channel instance id search should return");
+}
+
+pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
+    match channel {
+        "matrix" => {
+            let id = next_instance_id(
+                app.channels_settings.matrix.is_some(),
+                app.channels_settings.matrix_instances.iter().map(|instance| instance.id.as_str()),
+            );
+            app.channels_settings
+                .matrix_instances
+                .push(MatrixInstanceConfig { id, config: default_matrix_config() });
+        }
+        "feishu" => {
+            let id = next_instance_id(
+                app.channels_settings.feishu.is_some(),
+                app.channels_settings.feishu_instances.iter().map(|instance| instance.id.as_str()),
+            );
+            app.channels_settings
+                .feishu_instances
+                .push(FeishuInstanceConfig { id, config: default_feishu_config() });
+        }
+        "dingtalk" => {
+            let id = next_instance_id(
+                app.channels_settings.dingtalk.is_some(),
+                app.channels_settings
+                    .dingtalk_instances
+                    .iter()
+                    .map(|instance| instance.id.as_str()),
+            );
+            app.channels_settings
+                .dingtalk_instances
+                .push(DingTalkInstanceConfig { id, config: default_dingtalk_config() });
+        }
+        _ => return,
+    }
+
+    app.channels_settings.expanded_panels.insert(channel.to_string());
+}
+
+pub(super) fn remove_channel_instance(app: &mut App, channel: &str, index: usize) {
+    match channel {
+        "matrix" => {
+            if index < app.channels_settings.matrix_instances.len() {
+                app.channels_settings.matrix_instances.remove(index);
+            }
+        }
+        "feishu" => {
+            if index < app.channels_settings.feishu_instances.len() {
+                app.channels_settings.feishu_instances.remove(index);
+            }
+        }
+        "dingtalk" => {
+            if index < app.channels_settings.dingtalk_instances.len() {
+                app.channels_settings.dingtalk_instances.remove(index);
+            }
+        }
+        _ => {}
     }
 }
 

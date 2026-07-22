@@ -23,6 +23,16 @@ pub struct MatrixConfig {
     pub mention_only: bool,
 }
 
+/// 命名 Matrix 通道实例配置。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MatrixInstanceConfig {
+    /// 稳定实例 ID，用于员工绑定和 profile ref。
+    pub id: String,
+    /// Matrix 通道原有配置字段。
+    #[serde(flatten)]
+    pub config: MatrixConfig,
+}
+
 /// Signal 通道配置。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SignalConfig {
@@ -158,6 +168,16 @@ pub struct DingTalkConfig {
     pub client_secret: String,
     #[serde(default)]
     pub allowed_users: Vec<String>,
+}
+
+/// 命名 DingTalk 通道实例配置。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DingTalkInstanceConfig {
+    /// 稳定实例 ID，用于员工绑定和 profile ref。
+    pub id: String,
+    /// DingTalk 通道原有配置字段。
+    #[serde(flatten)]
+    pub config: DingTalkConfig,
 }
 
 /// QQ 接收模式。

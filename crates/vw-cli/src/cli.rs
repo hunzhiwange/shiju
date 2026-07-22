@@ -23,6 +23,7 @@ use vw_agent::channels::ChannelCommands;
 use vw_agent::cron::CronCommands;
 use vw_agent::integrations::IntegrationCommands;
 use vw_agent::memory::cli::MemoryCommands;
+use vw_agent::plugins::PluginCommands;
 use vw_agent::security;
 use vw_agent::service::ServiceCommands;
 use vw_agent::skill::SkillCommands;
@@ -32,22 +33,6 @@ mod runtime;
 
 pub(crate) use runtime::run;
 pub(crate) use runtime::{processor, session, setup, tui_v2};
-
-pub(crate) mod legacy_runtime {
-    pub(crate) use super::runtime::{logo_text_lines, render_execution_indicator};
-
-    pub(crate) mod theme {
-        pub(crate) use super::super::runtime::theme::*;
-    }
-
-    pub(crate) mod transcript {
-        pub(crate) use super::super::runtime::transcript::*;
-    }
-
-    pub(crate) mod tui_utils {
-        pub(crate) use super::super::runtime::tui_utils::*;
-    }
-}
 
 /// Shell 补全脚本支持的 shell 类型枚举
 ///
@@ -90,23 +75,6 @@ pub(crate) enum EstopLevelArg {
     /// 工具冻结 - 禁用指定的工具，保持其他功能正常
     #[value(name = "tool-freeze")]
     ToolFreeze,
-}
-
-/// 交互式 Agent 会话使用的 TUI 宿主模式。
-///
-/// 该枚举只影响 `vibewindow agent` 的交互式会话；
-/// 单消息模式会忽略该参数，继续走非交互执行路径。
-#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
-pub(crate) enum AgentTuiMode {
-    /// 保持 legacy TUI 作为交互宿主。
-    #[value(name = "legacy")]
-    Legacy,
-    /// 显式进入 tui_v2 宿主。
-    #[value(name = "v2")]
-    V2,
-    /// 进入 tui_v2，并在每次 turn 后对照 legacy processor。
-    #[value(name = "v2-shadow")]
-    V2Shadow,
 }
 
 /// VibeWindow CLI 主入口结构体
@@ -182,10 +150,6 @@ Examples:
         /// 单条消息模式（不进入交互模式）
         #[arg(short, long)]
         message: Option<String>,
-
-        /// 交互模式使用的 TUI 宿主（仅对未传 `--message` 的会话生效）
-        #[arg(long, value_enum, default_value_t = AgentTuiMode::Legacy)]
-        tui_mode: AgentTuiMode,
 
         /// 使用的提供商（openrouter, anthropic, openai, openai-codex）
         #[arg(short, long)]
@@ -470,6 +434,14 @@ Examples:
         cron_command: CronCommands,
     },
 
+    /// 运行 Agent Scheduler 组件
+    #[command(name = "agent-scheduler")]
+    AgentScheduler {
+        /// Agent Scheduler 子命令
+        #[command(subcommand)]
+        agent_scheduler_command: AgentSchedulerCommands,
+    },
+
     /// 列出支持的 AI 提供商
     Providers,
 
@@ -520,6 +492,13 @@ Examples:
         skill_command: SkillCommands,
     },
 
+    /// 管理插件包
+    Plugins {
+        /// 插件子命令
+        #[command(subcommand)]
+        plugin_command: PluginCommands,
+    },
+
     /// 从 CLI 管理项目任务
     ///
     /// 创建和读取存储在 .vibewindow/tasks 目录中的项目任务。
@@ -529,6 +508,7 @@ Examples:
     ///
     /// ```bash
     /// vibewindow task create --prompt "检查 OAuth 回调并修复"
+    /// vibewindow task create --prompt "检查 OAuth 回调并修复" --task-split off
     /// vibewindow task create --project-dir /path/to/repo --description "补充测试" --subtask "单元测试" --subtask "集成测试"
     /// vibewindow task read
     /// vibewindow task read --id T20260317.0001
@@ -542,6 +522,7 @@ current working directory.
 
 Examples:
   vibewindow task create --prompt \"检查 OAuth 回调并修复\"
+  vibewindow task create --prompt \"检查 OAuth 回调并修复\" --task-split off
   vibewindow task create --project-dir /path/to/repo --description \"补充测试\" --subtask \"单元测试\" --subtask \"集成测试\"
   vibewindow task read
   vibewindow task read --id T20260317.0001
@@ -685,6 +666,9 @@ pub(crate) enum TaskCommands {
         /// 执行器 ID：internal、opencode、claude、codex
         #[arg(long)]
         executor: Option<String>,
+        /// 任务拆分模式：follow-system、on、off
+        #[arg(long = "task-split", value_enum)]
+        task_split: Option<TaskSplitCliMode>,
         /// 子任务项（可重复指定）
         #[arg(long = "subtask")]
         subtasks: Vec<String>,
@@ -707,6 +691,42 @@ pub(crate) enum TaskCommands {
         #[arg(long, default_value = "50")]
         limit: usize,
     },
+}
+
+/// Agent Scheduler 运行时子命令
+#[derive(Subcommand, Debug)]
+pub(crate) enum AgentSchedulerCommands {
+    /// 启动单个 Rust Matrix worker
+    #[command(name = "matrix-worker")]
+    MatrixWorker {
+        /// 平台作用域 ID
+        #[arg(long, default_value = "local", value_parser = parse_required_scope_id)]
+        platform_id: String,
+        /// 公司作用域 ID
+        #[arg(long, default_value = "local", value_parser = parse_required_scope_id)]
+        company_id: String,
+        /// Agent Scheduler 项目目录
+        #[arg(long)]
+        project_dir: String,
+        /// workers 表中的 worker id
+        #[arg(long)]
+        worker_id: String,
+    },
+}
+
+fn parse_required_scope_id(value: &str) -> Result<String, String> {
+    if value.trim().is_empty() {
+        return Err("scope id must not be empty".to_string());
+    }
+    Ok(value.to_string())
+}
+
+/// CLI 任务拆分模式。
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+pub(crate) enum TaskSplitCliMode {
+    FollowSystem,
+    On,
+    Off,
 }
 
 /// 紧急停止子命令

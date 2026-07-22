@@ -35,6 +35,8 @@ impl ScriptedProvider {
     }
 }
 
+struct FailingProvider;
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for ScriptedProvider {
@@ -70,6 +72,33 @@ impl Provider for ScriptedProvider {
             usage: Some(TokenUsage::default()),
             reasoning_content: None,
         }))
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Provider for FailingProvider {
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities { native_tool_calling: true, vision: false }
+    }
+
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        Ok("unused".into())
+    }
+
+    async fn chat(
+        &self,
+        _request: ChatRequest<'_>,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<ChatResponse> {
+        anyhow::bail!("provider chat failed")
     }
 }
 
@@ -245,6 +274,36 @@ async fn native_research_records_unknown_tool_and_accepts_plain_text_completion(
 }
 
 #[tokio::test]
+async fn native_research_with_progress_records_followup_messages() {
+    let provider = ScriptedProvider::new(
+        true,
+        vec![
+            response(None, vec![call("echo", r#"{"text":"progress"}"#)]),
+            response(Some("done without marker"), Vec::new()),
+        ],
+    );
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(EchoTool { name: "echo", fail: false })];
+    let mut cfg = config(3);
+    cfg.show_progress = true;
+
+    let result =
+        run_research_phase(&cfg, &provider, &tools, "inspect", "model-progress", 0.3, observer())
+            .await
+            .unwrap();
+
+    assert_eq!(result.context, "done without marker");
+    assert_eq!(result.tool_call_count, 1);
+
+    let requests = provider.requests();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].messages.len(), 4);
+    assert_eq!(requests[1].messages[2].role, "assistant");
+    assert!(requests[1].messages[2].content.contains("Called tool `echo`"));
+    assert_eq!(requests[1].messages[3].role, "user");
+    assert!(requests[1].messages[3].content.contains("Tool result:\nprogress"));
+}
+
+#[tokio::test]
 async fn prompt_guided_research_injects_tool_instructions_and_parses_xml_call() {
     let provider = ScriptedProvider::new(
         false,
@@ -276,6 +335,28 @@ async fn prompt_guided_research_injects_tool_instructions_and_parses_xml_call() 
 }
 
 #[tokio::test]
+async fn response_without_text_or_tool_calls_leaves_empty_context() {
+    let provider = ScriptedProvider::new(true, vec![response(None, Vec::new())]);
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(EchoTool { name: "echo", fail: false })];
+
+    let result = run_research_phase(
+        &config(2),
+        &provider,
+        &tools,
+        "inspect",
+        "model-empty",
+        0.0,
+        observer(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(result.context, "");
+    assert_eq!(result.tool_call_count, 0);
+    assert_eq!(provider.requests().len(), 1);
+}
+
+#[tokio::test]
 async fn tool_execution_errors_are_captured_as_failed_summaries() {
     let provider = ScriptedProvider::new(
         true,
@@ -297,12 +378,35 @@ async fn tool_execution_errors_are_captured_as_failed_summaries() {
 }
 
 #[tokio::test]
+async fn provider_chat_errors_are_returned_to_caller() {
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(EchoTool { name: "echo", fail: false })];
+    let err = run_research_phase(
+        &config(1),
+        &FailingProvider,
+        &tools,
+        "inspect",
+        "model-error",
+        0.0,
+        observer(),
+    )
+    .await
+    .unwrap_err();
+
+    assert!(err.to_string().contains("provider chat failed"));
+}
+
+#[tokio::test]
 async fn invalid_tool_arguments_fall_back_to_empty_object() {
     let tools: Vec<Box<dyn Tool>> = vec![Box::new(EchoTool { name: "echo", fail: false })];
     let result = execute_tool_call(&tools, &call("echo", "not-json")).await;
 
     assert!(result.success);
     assert_eq!(result.output, "<missing>");
+}
+
+#[test]
+fn truncate_zero_limit_returns_ellipsis() {
+    assert_eq!(truncate("abcdef", 0), "...");
 }
 
 #[tokio::test]

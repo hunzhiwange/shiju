@@ -21,3 +21,18 @@ fn message_bus_with_limits_keeps_custom_limits() {
 
     assert_eq!(bus.limits(), limits);
 }
+
+#[test]
+fn message_bus_recovers_from_poisoned_state_lock() {
+    let bus = InMemoryMessageBus::new();
+    let inner = bus.inner.clone();
+
+    let _ = std::thread::spawn(move || {
+        let _guard = inner.lock().expect("lock bus state");
+        panic!("poison bus state");
+    })
+    .join();
+
+    assert_eq!(bus.subscriber_count(), 0);
+    assert_eq!(bus.limits(), InMemoryMessageBusLimits::recommended());
+}

@@ -138,7 +138,7 @@ pub async fn do_stream_request_aisdk(
     max_output_tokens: Option<u64>,
     retries: u64,
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
-    on_event: &mut impl FnMut(StreamEvent),
+    on_event: &mut (impl FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
     // 检查是否存在自定义 headers（排除 user-agent）
     // AI SDK 不支持自定义 headers，如果有则直接返回错误

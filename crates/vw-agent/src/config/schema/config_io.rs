@@ -3,10 +3,11 @@
 //! 该模块只处理 JSON/TOML 容器形状和历史别名兼容，不负责业务校验。所有迁移都保持显式日志，方便用户
 //! 发现旧配置键仍在生效或被忽略。
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
+use vw_config_types::config::Config;
 
 use crate::app::agent::config::schema::CONFIG_AGENT_KEY;
 
@@ -23,7 +24,8 @@ pub(crate) fn normalize_top_level_table_aliases(raw_toml: &mut toml::Value) {
         if root.contains_key("gateway") {
             let _ = root.remove("Gateway");
             tracing::warn!("Legacy table [Gateway] ignored because [gateway] is already present.");
-        } else if let Some(value) = root.remove("Gateway") {
+        } else {
+            let value = root.remove("Gateway").expect("Gateway exists after contains_key");
             root.insert("gateway".to_string(), value);
             tracing::warn!("Legacy table [Gateway] mapped to [gateway].");
         }
@@ -33,7 +35,8 @@ pub(crate) fn normalize_top_level_table_aliases(raw_toml: &mut toml::Value) {
         if root.contains_key("acp") {
             let _ = root.remove("acp2");
             tracing::warn!("Legacy table [acp2] ignored because [acp] is already present.");
-        } else if let Some(value) = root.remove("acp2") {
+        } else {
+            let value = root.remove("acp2").expect("acp2 exists after contains_key");
             root.insert("acp".to_string(), value);
             tracing::warn!("Legacy table [acp2] mapped to [acp].");
         }
@@ -53,6 +56,45 @@ pub(crate) async fn read_config_root_json(path: &Path) -> Result<serde_json::Val
         return Ok(serde_json::json!({}));
     }
     serde_json::from_str(&contents).context("Failed to parse config file")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 读取显式项目根目录中的配置覆盖。
+///
+/// 文件不存在时返回 `None`；存在时必须包含 JSON 对象。该函数不向父目录搜索，也不修改覆盖文件。
+pub(crate) async fn read_project_config_override(path: &Path) -> Result<Option<serde_json::Value>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let contents =
+        fs::read_to_string(path).await.context("Failed to read project config override")?;
+    let value: serde_json::Value =
+        serde_json::from_str(&contents).context("Failed to parse project config override")?;
+    if !value.is_object() {
+        bail!("project config override root must be an object");
+    }
+    Ok(Some(value))
+}
+
+/// 将项目覆盖递归合并到数据库基础 payload。
+///
+/// 对象逐层合并，`null` 删除基础字段，其他值直接替换。调用方负责保证两个根值均为对象。
+pub(crate) fn merge_config_payload(target: &mut serde_json::Value, patch: serde_json::Value) {
+    match (target, patch) {
+        (serde_json::Value::Object(target_object), serde_json::Value::Object(patch_object)) => {
+            for (key, patch_value) in patch_object {
+                if patch_value.is_null() {
+                    target_object.remove(&key);
+                } else if let Some(current) = target_object.get_mut(&key) {
+                    merge_config_payload(current, patch_value);
+                } else {
+                    target_object.insert(key, patch_value);
+                }
+            }
+        }
+        (target_value, patch_value) => *target_value = patch_value,
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -82,9 +124,7 @@ pub(crate) fn upsert_config_payload(
     if !root.is_object() {
         *root = serde_json::json!({});
     }
-    let Some(root_obj) = root.as_object_mut() else {
-        return;
-    };
+    let root_obj = root.as_object_mut().expect("root initialized as JSON object");
 
     root_obj.remove(CONFIG_AGENT_KEY);
     root_obj.remove("model");
@@ -124,4 +164,53 @@ pub(crate) fn normalize_legacy_alias_conflicts(config_payload: &mut serde_json::
             obj.insert("acp".to_string(), value);
         }
     }
+}
+
+/// 解析用户配置原文并归一化为当前配置结构，不应用环境变量覆盖。
+///
+/// 当前 JSON 与旧 TOML 都受支持。JSON 根必须是对象；未知键会记录键路径，但不会记录配置值。
+/// 该函数只负责格式解析和历史别名归一化，密钥处理与业务校验由调用方显式执行。
+pub(crate) fn parse_config_contents(contents: &str) -> Result<Config> {
+    if contents.trim().is_empty() {
+        bail!("config source is empty");
+    }
+
+    match serde_json::from_str::<serde_json::Value>(contents) {
+        Ok(mut payload) => {
+            if !payload.is_object() {
+                bail!("config JSON root must be an object");
+            }
+            normalize_legacy_alias_conflicts(&mut payload);
+            let normalized =
+                serde_json::to_string(&payload).context("Failed to normalize JSON config")?;
+            let mut deserializer = serde_json::Deserializer::from_str(&normalized);
+            deserialize_config(&mut deserializer, "JSON")
+        }
+        Err(json_error) => {
+            let mut raw_toml: toml::Value = toml::from_str(contents).with_context(|| {
+                format!("Failed to parse config as JSON or TOML; JSON error: {json_error}")
+            })?;
+            normalize_top_level_table_aliases(&mut raw_toml);
+            let normalized =
+                toml::to_string(&raw_toml).context("Failed to normalize TOML config")?;
+            let deserializer = toml::Deserializer::new(&normalized);
+            deserialize_config(deserializer, "TOML")
+        }
+    }
+}
+
+fn deserialize_config<'de, D>(deserializer: D, format: &str) -> Result<Config>
+where
+    D: serde::Deserializer<'de>,
+{
+    let mut ignored_paths = Vec::new();
+    let config = serde_ignored::deserialize(deserializer, |path| {
+        ignored_paths.push(path.to_string());
+    })
+    .map_err(|error| anyhow::anyhow!("Failed to deserialize {format} config: {error}"))?;
+
+    for path in ignored_paths {
+        tracing::warn!(key = %path, format, "Unknown config key ignored during migration");
+    }
+    Ok(config)
 }

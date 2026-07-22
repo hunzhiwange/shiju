@@ -83,3 +83,14 @@ fn vibewindow_client_defaults_to_cli_and_uses_env_value() {
     env.set("VIBEWINDOW_CLIENT", "desktop");
     assert_eq!(super::vibewindow_client(), "desktop");
 }
+
+#[test]
+fn public_lazy_flags_can_be_read_and_remain_stable() {
+    let models_path = super::VIBEWINDOW_MODELS_PATH.clone();
+    let disable_fetch = *super::VIBEWINDOW_DISABLE_MODELS_FETCH;
+    let models_url = super::VIBEWINDOW_MODELS_URL.clone();
+
+    assert_eq!(super::VIBEWINDOW_MODELS_PATH.clone(), models_path);
+    assert_eq!(*super::VIBEWINDOW_DISABLE_MODELS_FETCH, disable_fetch);
+    assert_eq!(super::VIBEWINDOW_MODELS_URL.clone(), models_url);
+}

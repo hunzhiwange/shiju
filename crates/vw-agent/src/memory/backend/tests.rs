@@ -45,10 +45,25 @@ fn default_backend_key_is_sqlite() {
 }
 
 #[test]
+fn default_backend_matches_first_selectable_profile() {
+    let default_profile = memory_backend_profile(default_memory_backend_key());
+    let first_selectable = selectable_memory_backends()
+        .first()
+        .expect("at least one memory backend should be selectable");
+
+    assert_eq!(&default_profile, first_selectable);
+}
+
+#[test]
 fn selectable_backends_are_stable_user_facing_choices() {
     let keys: Vec<_> = selectable_memory_backends().iter().map(|profile| profile.key).collect();
 
     assert_eq!(keys, vec!["sqlite", "lucid", "markdown", "none"]);
+}
+
+#[test]
+fn mysql_alias_returns_mariadb_profile() {
+    assert_eq!(memory_backend_profile("mysql"), memory_backend_profile("mariadb"));
 }
 
 /// 测试 Lucid 后端的配置属性
@@ -79,6 +94,15 @@ fn unknown_profile_preserves_extensibility_defaults() {
     assert_eq!(profile.key, "custom");
     assert!(profile.auto_save_default);
     assert!(!profile.uses_sqlite_hygiene);
+}
+
+#[test]
+fn invalid_backend_spellings_use_custom_profile() {
+    let custom_profile = memory_backend_profile("custom-memory");
+
+    for backend in ["", " ", "SQLite", "sqlite ", "MYSQL"] {
+        assert_eq!(memory_backend_profile(backend), custom_profile, "backend={backend:?}");
+    }
 }
 
 #[test]

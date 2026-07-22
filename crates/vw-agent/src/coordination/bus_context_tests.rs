@@ -1,5 +1,6 @@
 use super::bus_context::apply_context_patch_locked;
 use super::envelope::{CoordinationEnvelope, CoordinationPayload};
+use super::errors::CoordinationError;
 use super::state::BusState;
 use super::types::InMemoryMessageBusLimits;
 use serde_json::json;
@@ -39,6 +40,72 @@ fn apply_context_patch_locked_rejects_stale_version() {
 
     apply_context_patch_locked(&mut state, &envelope, "shared/key", 1, &json!("value"))
         .expect_err("stale expected version should fail");
+}
+
+#[test]
+fn apply_context_patch_locked_rejects_invalid_delegate_key() {
+    let mut state = BusState::with_limits(InMemoryMessageBusLimits::recommended());
+    let envelope = context_envelope(Some("corr-a"));
+
+    let error =
+        apply_context_patch_locked(&mut state, &envelope, "delegate/corr-a", 0, &json!("value"))
+            .expect_err("delegate key without tail should fail");
+
+    assert_eq!(
+        error,
+        CoordinationError::InvalidDelegateContextKey {
+            key: "delegate/corr-a".to_string(),
+            message_id: envelope.id,
+        }
+    );
+}
+
+#[test]
+fn apply_context_patch_locked_rejects_delegate_key_without_correlation() {
+    let mut state = BusState::with_limits(InMemoryMessageBusLimits::recommended());
+    let envelope = context_envelope(None);
+
+    let error = apply_context_patch_locked(
+        &mut state,
+        &envelope,
+        "delegate/corr-a/state",
+        0,
+        &json!("value"),
+    )
+    .expect_err("delegate key without envelope correlation should fail");
+
+    assert_eq!(
+        error,
+        CoordinationError::MissingDelegateContextCorrelation {
+            key: "delegate/corr-a/state".to_string(),
+            message_id: envelope.id,
+        }
+    );
+}
+
+#[test]
+fn apply_context_patch_locked_rejects_delegate_correlation_mismatch() {
+    let mut state = BusState::with_limits(InMemoryMessageBusLimits::recommended());
+    let envelope = context_envelope(Some("corr-b"));
+
+    let error = apply_context_patch_locked(
+        &mut state,
+        &envelope,
+        "delegate/corr-a/state",
+        0,
+        &json!("value"),
+    )
+    .expect_err("delegate key correlation must match envelope correlation");
+
+    assert_eq!(
+        error,
+        CoordinationError::DelegateContextCorrelationMismatch {
+            key: "delegate/corr-a/state".to_string(),
+            message_id: envelope.id,
+            key_correlation_id: "corr-a".to_string(),
+            envelope_correlation_id: "corr-b".to_string(),
+        }
+    );
 }
 
 #[test]
@@ -97,5 +164,29 @@ fn apply_context_patch_locked_evicts_delegate_indexes_when_capacity_is_full() {
     assert!(state.delegate_context_order.is_empty());
     assert!(!state.delegate_context_order_by_correlation.contains_key("corr-a"));
     assert!(!state.context_order_by_correlation.contains_key("corr-a"));
+    assert_eq!(state.stats.context_evictions_total, 1);
+}
+
+#[test]
+fn apply_context_patch_locked_evicts_uncorrelated_shared_key_when_capacity_is_full() {
+    let mut state = BusState::with_limits(InMemoryMessageBusLimits {
+        max_context_entries: 1,
+        ..InMemoryMessageBusLimits::recommended()
+    });
+    let envelope = context_envelope(None);
+
+    apply_context_patch_locked(&mut state, &envelope, "shared/first", 0, &json!("first"))
+        .expect("first shared patch should be accepted");
+    apply_context_patch_locked(&mut state, &envelope, "shared/second", 0, &json!("second"))
+        .expect("second shared patch should evict the oldest key");
+
+    assert!(!state.context.contains_key("shared/first"));
+    assert_eq!(state.context["shared/second"].value, json!("second"));
+    assert_eq!(
+        state.context_order.iter().cloned().collect::<Vec<_>>(),
+        vec!["shared/second".to_string()]
+    );
+    assert!(state.context_order_by_correlation.is_empty());
+    assert!(state.context_correlation_by_key.is_empty());
     assert_eq!(state.stats.context_evictions_total, 1);
 }

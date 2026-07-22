@@ -18,6 +18,17 @@ fn api_error(message: &str) -> Error {
     })
 }
 
+fn cached_client(
+    client: Arc<AcpClient>,
+    output_tx: Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>,
+) -> Arc<CachedAcpClient> {
+    Arc::new(CachedAcpClient {
+        client,
+        prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
+        output_tx: Arc::new(Mutex::new(output_tx)),
+    })
+}
+
 #[test]
 fn to_api_error_wraps_display_text_with_acp_prefix() {
     let err = to_api_error("agent failed");
@@ -31,9 +42,11 @@ fn to_api_error_wraps_display_text_with_acp_prefix() {
 }
 
 #[test]
-fn acp_session_changed_message_detection_is_case_insensitive() {
+fn acp_session_changed_message_detection_is_case_insensitive_and_requires_exact_marker() {
     assert!(is_acp_session_changed_message("ACP SESSION CHANGED: old -> new"));
     assert!(is_acp_session_changed_message("prefix acp session changed: details"));
+    assert!(!is_acp_session_changed_message("acp session changed"));
+    assert!(!is_acp_session_changed_message("acp session changed : details"));
     assert!(!is_acp_session_changed_message("session changed without acp marker"));
 }
 
@@ -54,6 +67,7 @@ fn is_acp_session_changed_error_checks_only_known_api_error_variants() {
     assert!(is_acp_session_changed_error(&unknown_error("acp session changed: one")));
     assert!(is_acp_session_changed_error(&api_error("acp session changed: two")));
     assert!(!is_acp_session_changed_error(&unknown_error("other error")));
+    assert!(!is_acp_session_changed_error(&api_error("other error")));
     assert!(!is_acp_session_changed_error(&Error::Aborted));
 }
 
@@ -76,7 +90,7 @@ fn acp_replay_strategy_values_are_distinct() {
 }
 
 #[test]
-fn cached_acp_client_cache_entry_stores_client_lock_and_output_sender() {
+fn cached_acp_client_stores_client_lock_and_forwards_output() {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let client = Arc::new(AcpClient::new(
         "unit",
@@ -86,20 +100,11 @@ fn cached_acp_client_cache_entry_stores_client_lock_and_output_sender() {
             env: Default::default(),
         },
     ));
-    let cached = Arc::new(CachedAcpClient {
-        client: client.clone(),
-        prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
-        output_tx: Arc::new(Mutex::new(Some(tx))),
-    });
+    let cached = cached_client(client.clone(), Some(tx));
 
     assert!(Arc::ptr_eq(&cached.client, &client));
     assert!(cached.prompt_lock.try_lock().is_ok());
     assert!(cached.output_tx.lock().as_ref().is_some());
-
-    ACP_CLIENT_CACHE.lock().insert("unit-key".to_string(), cached.clone());
-    let cached_from_map =
-        ACP_CLIENT_CACHE.lock().get("unit-key").cloned().expect("cache entry should be stored");
-    assert!(Arc::ptr_eq(&cached_from_map, &cached));
 
     let message: AcpJsonRpcMessage = serde_json::from_value(serde_json::json!({
         "jsonrpc": "2.0",
@@ -115,6 +120,21 @@ fn cached_acp_client_cache_entry_stores_client_lock_and_output_sender() {
         .send(message)
         .expect("message should send");
     assert!(rx.try_recv().is_ok());
+}
 
-    ACP_CLIENT_CACHE.lock().remove("unit-key");
+#[test]
+fn cached_acp_client_entry_keeps_key_and_shared_client() {
+    let client = Arc::new(AcpClient::new(
+        "unit",
+        vw_acp::AcpAgentConfig {
+            command: "unit-agent".to_string(),
+            args: Vec::new(),
+            env: Default::default(),
+        },
+    ));
+    let cached = cached_client(client, None);
+    let entry = CachedAcpClientEntry { key: "unit-key".to_string(), client: cached.clone() };
+
+    assert_eq!(entry.key, "unit-key");
+    assert!(Arc::ptr_eq(&entry.client, &cached));
 }

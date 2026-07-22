@@ -46,6 +46,15 @@ fn has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending() 
 }
 
 #[test]
+fn has_incomplete_todos_treats_cancelled_as_incomplete() {
+    let session = unique_session("todos-cancelled");
+    let ctx = ctx(&session);
+    seed(&ctx, vec![item("1", "cancelled", "cancelled")]);
+
+    assert!(super::has_incomplete_todos(&ctx));
+}
+
+#[test]
 fn read_todos_or_empty_returns_current_items_or_empty_list() {
     let empty_session = unique_session("todos-empty");
     assert!(super::read_todos_or_empty(&ctx(&empty_session)).is_empty());
@@ -95,6 +104,25 @@ fn build_todo_status_patches_skips_completed_and_target_status_items() {
 
     let completed = vec![item("1", "done", "completed")];
     assert!(super::build_todo_status_patches(&completed, "completed", false).is_empty());
+}
+
+#[test]
+fn build_todo_status_patches_returns_empty_for_empty_input() {
+    assert!(super::build_todo_status_patches(&[], "completed", false).is_empty());
+    assert!(super::build_todo_status_patches(&[], "in_progress", true).is_empty());
+}
+
+#[test]
+fn build_todo_status_patches_only_updates_first_eligible_item() {
+    let items = vec![
+        item("1", "done", "completed"),
+        item("2", "first", "pending"),
+        item("3", "second", "pending"),
+    ];
+
+    let patches = super::build_todo_status_patches(&items, "in_progress", true);
+
+    assert_eq!(patches, vec![serde_json::json!({ "id": "2", "status": "in_progress" })]);
 }
 
 #[test]
@@ -158,6 +186,30 @@ fn maybe_mark_all_todos_completed_returns_false_when_nothing_needs_update() {
 }
 
 #[test]
+fn maybe_mark_all_todos_completed_returns_false_for_empty_list_without_side_effects() {
+    let session_id = unique_session("todos-complete-empty");
+    let ctx = ctx(&session_id);
+    seed(&ctx, Vec::new());
+    let mut session = Session::new(session_id);
+    let mut tool_state = super::super::ToolSessionState::default();
+    let mut event_count = 0usize;
+
+    let marked = super::maybe_mark_all_todos_completed(
+        &mut session,
+        &ctx,
+        &mut |_event| {
+            event_count += 1;
+            true
+        },
+        &mut tool_state,
+    );
+
+    assert!(!marked);
+    assert_eq!(event_count, 0);
+    assert!(session.messages.is_empty());
+}
+
+#[test]
 fn maybe_mark_todo_in_progress_updates_first_pending_item_silently() {
     let session_id = unique_session("todos-progress");
     let ctx = ctx(&session_id);
@@ -194,5 +246,19 @@ fn maybe_mark_todo_in_progress_noops_when_first_incomplete_is_already_in_progres
     let items = read(&ctx);
     assert_eq!(items[0].status, "in_progress");
     assert_eq!(items[1].status, "pending");
+    assert!(session.messages.is_empty());
+}
+
+#[test]
+fn maybe_mark_todo_in_progress_noops_for_empty_list_without_side_effects() {
+    let session_id = unique_session("todos-progress-empty");
+    let ctx = ctx(&session_id);
+    seed(&ctx, Vec::new());
+    let mut session = Session::new(session_id);
+    let mut tool_state = super::super::ToolSessionState::default();
+
+    super::maybe_mark_todo_in_progress(&mut session, &ctx, &mut tool_state);
+
+    assert!(super::read_todos_or_empty(&ctx).is_empty());
     assert!(session.messages.is_empty());
 }

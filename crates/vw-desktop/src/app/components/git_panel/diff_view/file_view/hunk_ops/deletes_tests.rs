@@ -69,19 +69,33 @@ fn render_delete_ops_tolerates_missing_source_lines_and_zero_len() {
 }
 
 #[test]
-fn render_delete_ops_covers_selected_staged_and_hovered_branches() {
+fn render_delete_ops_handles_selected_and_hovered_rows_independently_at_nonzero_offset() {
     let mut app = App::new().0;
-    app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 0)];
+    app.merge_view = true;
+    app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 1)];
     app.git_diff_selected_lines = vec![GitDiffSelectedLine {
         file: "src/lib.rs".to_string(),
-        line: 0,
+        line: 1,
         is_old: true,
         text: "old one".to_string(),
     }];
-    app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 0, true));
+    app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 2, true));
 
-    assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["old one"]), 1);
+    assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "old one", "old two"]), 2);
+}
 
+#[test]
+fn render_delete_ops_file_staging_does_not_require_line_staging() {
+    let mut app = App::new().0;
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
+
+    assert!(app.staged_old_lines_selected.is_empty());
     assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["old one"]), 1);
+}
+
+#[test]
+fn render_delete_ops_emits_requested_rows_when_offset_reaches_missing_tail() {
+    let app = App::new().0;
+
+    assert_eq!(render_count(&app, "src/lib.rs", 1, 3, &["keep", "old one"]), 3);
 }

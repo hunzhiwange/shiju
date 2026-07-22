@@ -48,6 +48,15 @@ fn test_tool(dir: &std::path::Path) -> GitOperationsTool {
     GitOperationsTool::new(security, dir.to_path_buf())
 }
 
+fn assert_anyhow_error_contains<T>(result: anyhow::Result<T>, expected: &str) {
+    let error = match result {
+        Ok(_) => panic!("expected an error containing {expected:?}"),
+        Err(error) => error,
+    };
+    let message = error.to_string();
+    assert!(message.contains(expected), "expected error containing {expected:?}, got {message:?}");
+}
+
 /// 测试参数净化功能能够阻止命令注入攻击
 ///
 /// 该测试验证 `sanitize_git_args` 方法能够正确识别并拒绝以下危险模式：
@@ -162,6 +171,39 @@ fn sanitize_git_allows_safe() {
     assert!(tool.sanitize_git_args(".").is_ok());
 }
 
+#[test]
+fn sanitize_git_blocks_transport_and_tool_overrides_case_insensitively() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    for argument in [
+        "--upload-pack=helper",
+        "--receive-pack=helper",
+        "--UPLOAD-PACK=helper",
+        "--RECEIVE-PACK=helper",
+        "--PAGER=helper",
+        "--EDITOR=helper",
+        "--NO-VERIFY",
+    ] {
+        assert_anyhow_error_contains(
+            tool.sanitize_git_args(argument),
+            "Blocked potentially dangerous git argument",
+        );
+    }
+}
+
+#[test]
+fn sanitize_git_preserves_safe_tokens_and_accepts_empty_input() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_eq!(
+        tool.sanitize_git_args("  feature/topic   src/lib.rs  ").unwrap(),
+        vec!["feature/topic", "src/lib.rs"]
+    );
+    assert!(tool.sanitize_git_args("   \n\t  ").unwrap().is_empty());
+}
+
 /// 测试写权限需求检测功能
 ///
 /// 该测试验证 `requires_write_access` 方法能够正确区分需要写权限的操作
@@ -219,6 +261,46 @@ fn is_read_only_detection() {
     assert!(!tool.is_read_only("add"));
 }
 
+#[test]
+fn access_classification_covers_all_internal_operation_names() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    for operation in ["commit", "add", "checkout", "stash", "reset", "revert"] {
+        assert!(tool.requires_write_access(operation), "{operation} should require write access");
+        assert!(!tool.is_read_only(operation), "{operation} should not be read-only");
+    }
+
+    for operation in ["status", "diff", "log", "show", "branch", "rev-parse"] {
+        assert!(tool.is_read_only(operation), "{operation} should be read-only");
+        assert!(
+            !tool.requires_write_access(operation),
+            "{operation} should not require write access"
+        );
+    }
+
+    assert!(!tool.requires_write_access("unknown"));
+    assert!(!tool.is_read_only("unknown"));
+}
+
+#[test]
+fn tool_metadata_and_schema_describe_the_supported_contract() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_eq!(tool.name(), "git_operations");
+    assert!(tool.description().contains("结构化 Git 操作"));
+
+    let schema = tool.parameters_schema();
+    assert_eq!(schema["type"], "object");
+    assert_eq!(schema["required"], json!(["operation"]));
+    assert_eq!(
+        schema["properties"]["operation"]["enum"],
+        json!(["status", "diff", "log", "branch", "commit", "add", "checkout", "stash"])
+    );
+    assert_eq!(schema["properties"]["action"]["enum"], json!(["push", "pop", "list", "drop"]));
+}
+
 /// 测试在只读模式下写操作被正确阻止
 ///
 /// 当自治级别设置为 `ReadOnly` 时，任何写操作都应被阻止。
@@ -231,8 +313,8 @@ fn is_read_only_detection() {
 async fn blocks_readonly_mode_for_write_ops() {
     let tmp = TempDir::new().unwrap();
 
-    // 初始化 Git 仓库以便命令能够执行
-    std::process::Command::new("git").args(["init"]).current_dir(tmp.path()).output().unwrap();
+    // 权限检查只需要仓库标记，不能执行到 Git 命令。
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
 
     // 配置只读安全策略
     let security =
@@ -342,8 +424,8 @@ async fn rejects_missing_operation() {
 async fn rejects_unknown_operation() {
     let tmp = TempDir::new().unwrap();
 
-    // 初始化 Git 仓库
-    std::process::Command::new("git").args(["init"]).current_dir(tmp.path()).output().unwrap();
+    // 分发未知操作只需要仓库标记，不启动 Git 进程。
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
 
     let tool = test_tool(tmp.path());
 
@@ -373,4 +455,166 @@ fn truncates_multibyte_commit_message_without_panicking() {
 
     // 验证截断后恰好为 2000 个字符
     assert_eq!(truncated.chars().count(), 2000);
+}
+
+#[test]
+fn truncate_commit_message_preserves_values_at_the_limit() {
+    let message = "界".repeat(2000);
+
+    assert_eq!(GitOperationsTool::truncate_commit_message(&message), message);
+}
+
+#[test]
+fn truncate_commit_message_caps_ascii_and_appends_ellipsis() {
+    let truncated = GitOperationsTool::truncate_commit_message(&"x".repeat(2001));
+
+    assert_eq!(truncated, format!("{}...", "x".repeat(1997)));
+    assert_eq!(truncated.chars().count(), 2000);
+}
+
+#[tokio::test]
+async fn execute_rejects_non_repository_before_dispatch() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    let result = tool.execute(json!({"operation": "status"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Not in a git repository"));
+}
+
+#[tokio::test]
+async fn execute_finds_parent_repository_before_dispatch() {
+    let tmp = TempDir::new().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    let nested = tmp.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    let tool = test_tool(&nested);
+
+    let result = tool.execute(json!({"operation": "unsupported"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Unknown operation: unsupported"));
+}
+
+#[tokio::test]
+async fn execute_rejects_exhausted_action_budget_before_dispatch() {
+    let tmp = TempDir::new().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    let security =
+        Arc::new(SecurityPolicy { max_actions_per_hour: 0, ..SecurityPolicy::default() });
+    let tool = GitOperationsTool::new(security, tmp.path().to_path_buf());
+
+    let result = tool.execute(json!({"operation": "status"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Action blocked: rate limit exceeded"));
+}
+
+#[tokio::test]
+async fn commit_rejects_missing_and_blank_messages_before_git() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_anyhow_error_contains(tool.git_commit(json!({})).await, "Missing 'message' parameter");
+    assert_anyhow_error_contains(
+        tool.git_commit(json!({"message": "  \n\t\n  "})).await,
+        "Commit message cannot be empty",
+    );
+}
+
+#[tokio::test]
+async fn add_rejects_missing_and_dangerous_paths_before_git() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_anyhow_error_contains(tool.git_add(json!({})).await, "Missing 'paths' parameter");
+    assert_anyhow_error_contains(
+        tool.git_add(json!({"paths": "src | helper"})).await,
+        "Blocked potentially dangerous git argument",
+    );
+}
+
+#[tokio::test]
+async fn diff_rejects_dangerous_files_before_git() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_anyhow_error_contains(
+        tool.git_diff(json!({"files": "src; helper"})).await,
+        "Blocked potentially dangerous git argument",
+    );
+}
+
+#[tokio::test]
+async fn checkout_rejects_invalid_branch_specifications_before_git() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_anyhow_error_contains(tool.git_checkout(json!({})).await, "Missing 'branch' parameter");
+    for branch in ["", "main other"] {
+        assert_anyhow_error_contains(
+            tool.git_checkout(json!({"branch": branch})).await,
+            "Invalid branch specification",
+        );
+    }
+    for branch in ["feature@{1}", "main^", "main~1"] {
+        assert_anyhow_error_contains(
+            tool.git_checkout(json!({"branch": branch})).await,
+            "Branch name contains invalid characters",
+        );
+    }
+}
+
+#[tokio::test]
+async fn stash_rejects_unknown_action_and_oversized_index_before_git() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    assert_anyhow_error_contains(
+        tool.git_stash(json!({"action": "clear"})).await,
+        "Unknown stash action: clear",
+    );
+    assert_anyhow_error_contains(
+        tool.git_stash(json!({"action": "drop", "index": u64::MAX})).await,
+        "stash index too large",
+    );
+}
+
+#[tokio::test]
+async fn commit_sanitizes_multiline_message_before_reporting_git_failure() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    let result = tool.git_commit(json!({"message": "  subject  \n\n  body line  "})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert!(result.error.as_deref().unwrap_or("").contains("Commit failed: Git command failed"));
+}
+
+#[tokio::test]
+async fn add_checkout_and_stash_report_non_repository_git_failures() {
+    let tmp = TempDir::new().unwrap();
+    let tool = test_tool(tmp.path());
+
+    let add = tool.git_add(json!({"paths": "src/lib.rs"})).await.unwrap();
+    assert!(!add.success);
+    assert!(add.error.as_deref().unwrap_or("").contains("Add failed: Git command failed"));
+
+    let checkout = tool.git_checkout(json!({"branch": "feature/tests"})).await.unwrap();
+    assert!(!checkout.success);
+    assert!(
+        checkout.error.as_deref().unwrap_or("").contains("Checkout failed: Git command failed")
+    );
+
+    for action in ["push", "save", "pop", "list", "drop"] {
+        let stash = tool.git_stash(json!({"action": action, "index": 0})).await.unwrap();
+        assert!(!stash.success, "{action} should fail outside a repository");
+        assert!(
+            stash.error.as_deref().unwrap_or("").contains(&format!("Stash {action} failed")),
+            "unexpected {action} error: {:?}",
+            stash.error
+        );
+    }
 }

@@ -1,0 +1,50 @@
+{
+  "name": "vibewindow-demo-plugin",
+  "version": "0.1.0",
+  "description": "A complete local demo plugin showing VibeWindow plugin skills, MCP, hooks, and interface metadata.",
+  "author": {
+    "name": "VibeWindow Team",
+    "email": "dev@example.com",
+    "url": "https://example.com/vibewindow"
+  },
+  "homepage": "https://example.com/vibewindow/plugins/demo",
+  "repository": "https://example.com/vibewindow",
+  "license": "MIT",
+  "keywords": [
+    "demo",
+    "skills",
+    "mcp",
+    "hooks",
+    "interface"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "VibeWindow Demo Plugin",
+    "shortDescription": "Demo plugin covering supported local plugin modules.",
+    "longDescription": "This sample plugin demonstrates the currently supported VibeWindow plugin surfaces: skill discovery, local stdio MCP servers, trusted lifecycle hooks, and interface metadata with local assets.",
+    "developerName": "VibeWindow Team",
+    "category": "Development",
+    "capabilities": [
+      "Skills",
+      "MCP",
+      "Hooks",
+      "Interface"
+    ],
+    "websiteURL": "https://example.com/vibewindow",
+    "privacyPolicyURL": "https://example.com/privacy",
+    "termsOfServiceURL": "https://example.com/terms",
+    "defaultPrompt": [
+      "Use the demo plugin to inspect available plugin surfaces.",
+      "Call the demo MCP echo tool with a short message.",
+      "Explain how this plugin is wired into VibeWindow."
+    ],
+    "brandColor": "#2563EB",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg",
+    "screenshots": [
+      "./assets/screenshot.svg"
+    ]
+  }
+}

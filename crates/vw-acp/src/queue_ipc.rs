@@ -814,3 +814,7 @@ pub async fn try_set_config_option_on_running_owner(
         true,
     ))
 }
+
+#[cfg(test)]
+#[path = "queue_ipc_tests.rs"]
+mod queue_ipc_tests;

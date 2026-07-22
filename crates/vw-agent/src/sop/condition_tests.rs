@@ -242,6 +242,13 @@ fn direct_float_comparison() {
     assert!(!evaluate_condition("> 3.14", Some("3.13")));
 }
 
+#[test]
+fn direct_lte_accepts_equal_and_lower_payloads() {
+    assert!(evaluate_condition("<= 10", Some("10")));
+    assert!(evaluate_condition(" <= 10 ", Some("9.5")));
+    assert!(!evaluate_condition("<= 10", Some("10.5")));
+}
+
 /// 测试 parse_op_value 函数的基本解析能力
 ///
 /// 验证能正确解析操作符和比较值。

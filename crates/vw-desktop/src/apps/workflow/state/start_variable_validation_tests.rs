@@ -76,6 +76,28 @@ fn file_default_parser_deduplicates_file_list_sequence_values() {
 }
 
 #[test]
+fn file_default_parser_handles_file_list_scalar_and_missing_values() {
+    let value = Value::String(" remote://one ".to_string());
+
+    assert_eq!(
+        parse_start_variable_file_default_values("file-list", Some(&value)),
+        vec!["remote://one".to_string()]
+    );
+    assert_eq!(
+        parse_start_variable_file_default_values("file-list", Some(&Value::Bool(true))),
+        vec!["true".to_string()]
+    );
+    assert!(
+        parse_start_variable_file_default_values(
+            "file-list",
+            Some(&Value::Mapping(Default::default()))
+        )
+        .is_empty()
+    );
+    assert!(parse_start_variable_file_default_values("file-list", None).is_empty());
+}
+
+#[test]
 fn file_list_max_length_validation_accepts_only_supported_range() {
     assert!(is_valid_start_variable_file_list_max_length("1"));
     assert!(is_valid_start_variable_file_list_max_length(" 10 "));
@@ -163,6 +185,17 @@ fn normalizing_file_variable_without_custom_clears_extensions() {
 }
 
 #[test]
+fn normalizing_file_variable_with_blank_default_clears_default_files() {
+    let mut variable = draft("file");
+    variable.default_file_values = vec![" ".to_string()];
+
+    normalize_start_variable_draft(&mut variable);
+
+    assert!(variable.default_value.is_empty());
+    assert!(variable.default_file_values.is_empty());
+}
+
+#[test]
 fn normalizing_file_list_clamps_count_and_serializes_truncated_defaults() {
     let mut variable = draft("file-list");
     variable.allowed_file_types = vec!["custom".to_string()];
@@ -193,6 +226,25 @@ fn normalizing_file_list_empty_defaults_clears_default_value() {
 }
 
 #[test]
+fn normalizing_file_list_applies_default_file_settings_and_clears_non_custom_extensions() {
+    let mut variable = draft("file-list");
+    variable.allowed_file_extensions = vec!["png".to_string()];
+    variable.allowed_file_extensions_input = ".PNG".to_string();
+    variable.max_length_input = String::new();
+
+    normalize_start_variable_draft(&mut variable);
+
+    assert_eq!(variable.allowed_file_types, vec!["image".to_string()]);
+    assert_eq!(
+        variable.allowed_file_upload_methods,
+        vec!["local_file".to_string(), "remote_url".to_string()]
+    );
+    assert!(variable.allowed_file_extensions.is_empty());
+    assert!(variable.allowed_file_extensions_input.is_empty());
+    assert_eq!(variable.max_length_input, "5");
+}
+
+#[test]
 fn normalizing_select_removes_invalid_default_and_non_select_fields() {
     let mut variable = draft("select");
     variable.options = vec![" One ".to_string(), "Two".to_string(), " ".to_string()];
@@ -208,6 +260,18 @@ fn normalizing_select_removes_invalid_default_and_non_select_fields() {
     assert!(variable.max_length_input.is_empty());
     assert!(variable.allowed_file_types.is_empty());
     assert!(variable.default_file_values.is_empty());
+}
+
+#[test]
+fn normalizing_select_keeps_trimmed_matching_default() {
+    let mut variable = draft("select");
+    variable.options = vec![" One ".to_string(), "Two".to_string()];
+    variable.default_value = " One ".to_string();
+
+    normalize_start_variable_draft(&mut variable);
+
+    assert_eq!(variable.options, vec!["One".to_string(), "Two".to_string()]);
+    assert_eq!(variable.default_value, " One ");
 }
 
 #[test]
@@ -241,6 +305,16 @@ fn normalizing_checkbox_canonicalizes_known_defaults_and_keeps_unknown() {
     invalid_variable.default_value = "maybe".to_string();
     normalize_start_variable_draft(&mut invalid_variable);
     assert_eq!(invalid_variable.default_value, "maybe");
+}
+
+#[test]
+fn normalizing_checkbox_canonicalizes_explicit_false_default() {
+    let mut variable = draft("checkbox");
+    variable.default_value = " FALSE ".to_string();
+
+    normalize_start_variable_draft(&mut variable);
+
+    assert_eq!(variable.default_value, "false");
 }
 
 #[test]
@@ -296,6 +370,25 @@ fn validation_accepts_select_and_file_drafts() {
 }
 
 #[test]
+fn validation_accepts_non_file_max_length_select_empty_default_and_custom_file() {
+    let mut text = draft("text-input");
+    text.max_length_input = "0".to_string();
+    validate_start_variable_editor_draft(&text, &[], WorkflowStartVariableEditorMode::Create)
+        .expect("zero max length should be a non-negative integer");
+
+    let mut select = draft("select");
+    select.options = vec![" red ".to_string()];
+    validate_start_variable_editor_draft(&select, &[], WorkflowStartVariableEditorMode::Create)
+        .expect("empty select default should be valid");
+
+    let mut file = valid_file_draft("file");
+    file.allowed_file_types = vec!["custom".to_string()];
+    file.allowed_file_extensions = vec![".png".to_string()];
+    validate_start_variable_editor_draft(&file, &[], WorkflowStartVariableEditorMode::Create)
+        .expect("custom file type with extensions should be valid");
+}
+
+#[test]
 fn validation_rejects_empty_label_empty_name_invalid_name_and_unsupported_type() {
     let mut variable = draft("text-input");
     variable.label.clear();
@@ -334,6 +427,16 @@ fn validation_rejects_duplicate_names_except_current_edit_index() {
         WorkflowStartVariableEditorMode::Edit(0),
     )
     .expect("editing the same index should allow the name");
+
+    let existing = draft("text-input");
+    let other_existing = draft("number");
+    let edit_error = validate_start_variable_editor_draft(
+        &variable,
+        &[existing, other_existing],
+        WorkflowStartVariableEditorMode::Edit(1),
+    )
+    .expect_err("editing a different index should still reject duplicate");
+    assert_eq!(edit_error, "变量名不能重复");
 }
 
 #[test]
@@ -353,6 +456,9 @@ fn validation_rejects_select_without_options_duplicate_options_or_invalid_defaul
     assert_eq!(validate_error(&variable), "下拉选项至少需要一个有效选项");
 
     variable.options = vec!["one".to_string(), "one".to_string()];
+    assert_eq!(validate_error(&variable), "下拉选项不能重复");
+
+    variable.options = vec![" one ".to_string(), "one".to_string()];
     assert_eq!(validate_error(&variable), "下拉选项不能重复");
 
     variable.options = vec!["one".to_string(), "two".to_string()];

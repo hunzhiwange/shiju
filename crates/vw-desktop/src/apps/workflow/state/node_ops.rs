@@ -28,13 +28,6 @@ impl WorkflowState {
             WorkflowNodeEditorTab::Description
         };
         let start_variable_focus_index = initial_start_variable_focus(visual_draft.as_ref());
-        let validation = validate_node_editor_draft(
-            block_type,
-            &title,
-            "",
-            &raw_data_editor.text(),
-            visual_draft.as_ref(),
-        );
         self.app_editor = None;
         self.node_editor = Some(WorkflowNodeEditorDraft {
             mode: WorkflowNodeEditorMode::Create,
@@ -48,7 +41,7 @@ impl WorkflowState {
             hovered_start_variable_index: None,
             start_variable_focus_index,
             start_variable_editor: None,
-            validation,
+            validation: WorkflowNodeEditorValidation::default(),
             show_raw_data_editor: false,
             raw_data_editor,
         });
@@ -71,14 +64,6 @@ impl WorkflowState {
             WorkflowNodeEditorTab::Description
         };
         let start_variable_focus_index = initial_start_variable_focus(visual_draft.as_ref());
-        let validation = validate_node_editor_draft(
-            &node.block_type,
-            &node.title,
-            &node.description,
-            &raw_data_editor.text(),
-            visual_draft.as_ref(),
-        );
-
         self.context_menu = None;
         self.quick_insert_panel_open = false;
         self.action_menu_open = false;
@@ -98,7 +83,7 @@ impl WorkflowState {
             hovered_start_variable_index: None,
             start_variable_focus_index,
             start_variable_editor: None,
-            validation,
+            validation: WorkflowNodeEditorValidation::default(),
             show_raw_data_editor: false,
             raw_data_editor,
         });

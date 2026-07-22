@@ -36,6 +36,8 @@
     pub(crate) chat_message_expanded: HashSet<usize>,
     /// 聊天消息持久化高度缓存
     pub(crate) chat_message_estimated_heights: Vec<f32>,
+    /// 聊天虚拟滚动统一状态源
+    pub(crate) chat_virtualizer: crate::app::components::chat_panel::virtualizer::ChatVirtualizer,
     /// 聊天消息高度索引
     pub(crate) chat_height_index: crate::app::components::chat_panel::height_index::ChatHeightIndex,
     /// 聊天消息测量高度缓存
@@ -108,6 +110,10 @@
     pub(crate) usage_session_file_path: Option<String>,
     /// 展开的使用量步骤索引集合
     pub(crate) usage_step_expanded: HashSet<u32>,
+    /// 使用量步骤原始 LLM 载荷缓存
+    pub(crate) usage_step_raw_payloads: HashMap<UsageStepRawKey, UsageStepRawPayloadResult>,
+    /// 正在加载原始 LLM 载荷的使用量步骤
+    pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
     /// 是否显示合并视图
     pub(crate) merge_view: bool,
     /// 展开的文件路径列表
@@ -173,6 +179,11 @@
     pub(crate) cli_install_modal_use_app_update_action: bool,
     /// CLI 更新检测是否进行中
     pub(crate) cli_install_modal_is_checking_update: bool,
+    /// 应用自更新下载进度
+    pub(crate) app_update_progress: Option<vw_shared::update::UpdateProgress>,
+    /// 应用自更新下载进度接收器
+    pub(crate) app_update_progress_rx:
+        Option<std::sync::mpsc::Receiver<vw_shared::update::UpdateProgress>>,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据
@@ -288,6 +299,8 @@
     pub(crate) session_chat_cache: HashMap<String, crate::app::session::SharedChatMessages>,
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
+    /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
+    pub(crate) session_history_reset_boundaries: HashMap<String, Vec<Option<String>>>,
     /// 会话运行时状态映射（会话 ID -> 运行时状态）
     pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
     /// 已归档的会话 ID 集合

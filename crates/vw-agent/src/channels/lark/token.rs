@@ -99,22 +99,15 @@ pub(crate) fn should_refresh_lark_tenant_token(
 ///
 /// 返回令牌有效期（秒），最小值为 1。若无法解析则使用默认 TTL。
 pub(crate) fn extract_lark_token_ttl_seconds(body: &serde_json::Value) -> u64 {
-    // 尝试从 expire 或 expires_in 字段获取无符号整数
-    let ttl = body
-        .get("expire")
-        .or_else(|| body.get("expires_in"))
-        .and_then(|v| v.as_u64())
-        // 若无符号整数解析失败，尝试有符号整数
-        .or_else(|| {
-            body.get("expire")
-                .or_else(|| body.get("expires_in"))
-                .and_then(|v| v.as_i64())
-                .and_then(|v| u64::try_from(v).ok())
-        })
-        // 无法解析时使用默认 TTL
-        .unwrap_or(LARK_DEFAULT_TOKEN_TTL.as_secs());
-    // 确保最小值为 1 秒，避免零或负值导致的计算问题
-    ttl.max(1)
+    let Some(value) = body.get("expire").or_else(|| body.get("expires_in")) else {
+        return LARK_DEFAULT_TOKEN_TTL.as_secs();
+    };
+
+    if let Some(ttl) = value.as_i64() {
+        return u64::try_from(ttl.max(1)).unwrap_or(1);
+    }
+
+    value.as_u64().unwrap_or(LARK_DEFAULT_TOKEN_TTL.as_secs()).max(1)
 }
 
 /// 计算下次令牌刷新的截止时间

@@ -69,6 +69,7 @@ pub mod file_edit;
 pub mod file_read;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_write;
+pub mod get_mcp_prompt;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod git_operations;
 #[cfg(not(target_arch = "wasm32"))]
@@ -80,6 +81,8 @@ pub mod grep;
 mod hooks;
 pub mod http_request;
 pub mod image_info;
+pub mod list_mcp_prompts;
+pub mod list_mcp_resource_templates;
 pub mod list_mcp_resources;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ls;
@@ -87,6 +90,9 @@ pub mod ls;
 pub mod lsp;
 pub mod mcp_auth;
 pub mod mcp_common;
+pub mod mcp_inspect;
+pub mod mcp_status;
+pub mod mcp_tool;
 pub mod memory_forget;
 pub mod memory_recall;
 pub mod memory_store;
@@ -176,6 +182,7 @@ pub use file_edit::FileEditTool;
 pub use file_read::FileReadTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_write::FileWriteTool;
+pub use get_mcp_prompt::GetMcpPromptTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use git_operations::GitOperationsTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -186,12 +193,15 @@ pub use glob_search::GlobSearchTool;
 pub use grep::GrepTool;
 pub use http_request::HttpRequestTool;
 pub use image_info::ImageInfoTool;
+pub use list_mcp_prompts::ListMcpPromptsTool;
+pub use list_mcp_resource_templates::ListMcpResourceTemplatesTool;
 pub use list_mcp_resources::ListMcpResourcesTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use lsp::LspTool;
 pub use mcp_auth::McpAuthTool;
+pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;
 pub use memory_recall::MemoryRecallTool;
 pub use memory_store::MemoryStoreTool;
@@ -331,6 +341,13 @@ use crate::app::agent::security::SecurityPolicy;
 use std::collections::HashMap;
 #[cfg(test)]
 use std::sync::Arc;
+
+#[cfg(test)]
+mod mcp_tool_tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod coverage_tests;
 
 #[cfg(test)]
 #[path = "tests/mod_tests.rs"]

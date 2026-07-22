@@ -66,6 +66,66 @@ mod tests {
         assert_eq!(req.messages.len(), 2);
     }
 
+    #[test]
+    fn chat_completions_request_rejects_missing_messages() {
+        let error = serde_json::from_str::<ChatCompletionsRequest>(
+            r#"{"model":"anthropic/claude-sonnet-4"}"#,
+        )
+        .expect_err("messages should be required");
+
+        assert!(error.to_string().contains("missing field `messages`"));
+    }
+
+    #[test]
+    fn chat_completions_request_rejects_message_without_content() {
+        let error =
+            serde_json::from_str::<ChatCompletionsRequest>(r#"{"messages":[{"role":"user"}]}"#)
+                .expect_err("message content should be required");
+
+        assert!(error.to_string().contains("missing field `content`"));
+    }
+
+    #[test]
+    fn chat_completions_request_rejects_message_without_role() {
+        let error =
+            serde_json::from_str::<ChatCompletionsRequest>(r#"{"messages":[{"content":"Hello"}]}"#)
+                .expect_err("message role should be required");
+
+        assert!(error.to_string().contains("missing field `role`"));
+    }
+
+    #[test]
+    fn chat_completions_request_accepts_null_optional_fields() {
+        let req: ChatCompletionsRequest = serde_json::from_str(
+            r#"{
+                "model": null,
+                "messages": [{"role": "user", "content": "Hello"}],
+                "temperature": null,
+                "stream": null
+            }"#,
+        )
+        .expect("null optional fields should deserialize");
+
+        assert!(req.model.is_none());
+        assert!(req.temperature.is_none());
+        assert!(req.stream.is_none());
+    }
+
+    #[test]
+    fn chat_completions_request_ignores_unknown_compatibility_fields() {
+        let req: ChatCompletionsRequest = serde_json::from_str(
+            r#"{
+                "messages": [{"role": "user", "content": "Hello", "name": "caller"}],
+                "max_tokens": 64
+            }"#,
+        )
+        .expect("unknown OpenAI-compatible fields should be ignored");
+
+        assert_eq!(req.messages.len(), 1);
+        assert_eq!(req.messages[0].role, "user");
+        assert_eq!(req.messages[0].content, "Hello");
+    }
+
     /// 测试 ChatCompletionsResponse 的序列化
     ///
     /// 验证聊天完成响应结构能够正确序列化为 JSON 格式，
@@ -93,14 +153,27 @@ mod tests {
             },
         };
 
-        // 序列化响应结构为 JSON 字符串
-        let json = serde_json::to_string(&response).unwrap();
+        let json = serde_json::to_value(response).unwrap();
 
-        // 验证 JSON 输出包含所有关键值
-        assert!(json.contains("chatcmpl-test"));
-        assert!(json.contains("chat.completion"));
-        assert!(json.contains("Hello!"));
-        assert!(json.contains("stop"));
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "id": "chatcmpl-test",
+                "object": "chat.completion",
+                "created": 1_234_567_890_u64,
+                "model": "test-model",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hello!"},
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15
+                }
+            })
+        );
     }
 
     /// 测试 ModelsResponse 的序列化
@@ -127,6 +200,15 @@ mod tests {
         assert!(json.contains("\"object\":\"list\""));
         assert!(json.contains("anthropic/claude-sonnet-4"));
         assert!(json.contains("vibewindow"));
+    }
+
+    #[test]
+    fn models_response_serializes_empty_data_array() {
+        let response = ModelsResponse { object: "list", data: Vec::new() };
+
+        let json = serde_json::to_value(response).unwrap();
+
+        assert_eq!(json, serde_json::json!({"object": "list", "data": []}));
     }
 
     /// 测试流式响应块（ChatCompletionsChunk）的序列化
@@ -185,13 +267,47 @@ mod tests {
         assert!(!json.contains("content"));
     }
 
+    #[test]
+    fn streaming_chunk_omits_each_absent_delta_field_independently() {
+        let role_only = ChatCompletionsChunk {
+            id: "chatcmpl-role".to_string(),
+            object: "chat.completion.chunk",
+            created: 1_234_567_890,
+            model: "test-model".to_string(),
+            choices: vec![ChunkChoice {
+                index: 0,
+                delta: ChunkDelta { role: Some("assistant"), content: None },
+                finish_reason: None,
+            }],
+        };
+        let content_only = ChatCompletionsChunk {
+            id: "chatcmpl-content".to_string(),
+            object: "chat.completion.chunk",
+            created: 1_234_567_890,
+            model: "test-model".to_string(),
+            choices: vec![ChunkChoice {
+                index: 0,
+                delta: ChunkDelta { role: None, content: Some("Hello".to_string()) },
+                finish_reason: None,
+            }],
+        };
+
+        let role_only = serde_json::to_value(role_only).unwrap();
+        let content_only = serde_json::to_value(content_only).unwrap();
+
+        assert_eq!(role_only["choices"][0]["delta"], serde_json::json!({"role": "assistant"}));
+        assert_eq!(content_only["choices"][0]["delta"], serde_json::json!({"content": "Hello"}));
+        assert!(role_only["choices"][0]["finish_reason"].is_null());
+        assert!(content_only["choices"][0]["finish_reason"].is_null());
+    }
+
     /// 测试 chunk_bytes 函数生成的流式完成块包含对象类型和 DONE 标记
     ///
     /// 验证构造的流式响应字节包含正确的 object 字段值，
     /// 以及在流结束时包含 "data: [DONE]" 标记。
     /// 这是 OpenAI 兼容流式 API 的标准终止信号。
     #[test]
-    fn chunk_bytes_done_contains_object_and_done_marker() {
+    fn chunk_bytes_done_emits_json_frame_then_done_marker() {
         // 调用 chunk_bytes 构造包含 DONE 标记的流式响应块
         let bytes = chunk_bytes(
             "chatcmpl-test".to_string(),
@@ -206,26 +322,52 @@ mod tests {
         // 将字节转换为字符串以验证内容
         let s = String::from_utf8(bytes.to_vec()).unwrap();
 
-        // 验证包含正确的对象类型和 DONE 标记
-        assert!(s.contains("\"object\":\"chat.completion.chunk\""));
-        assert!(s.contains("data: [DONE]"));
+        let frames = s.split("\n\n").filter(|frame| !frame.is_empty()).collect::<Vec<_>>();
+        assert_eq!(frames.len(), 2);
+        let json = frames[0].strip_prefix("data: ").expect("first frame should contain data");
+        let chunk: serde_json::Value = serde_json::from_str(json).unwrap();
+
+        assert_eq!(chunk["object"], "chat.completion.chunk");
+        assert_eq!(chunk["choices"][0]["delta"]["role"], "assistant");
+        assert_eq!(chunk["choices"][0]["delta"]["content"], "failed");
+        assert_eq!(chunk["choices"][0]["finish_reason"], "stop");
+        assert_eq!(frames[1], "data: [DONE]");
     }
 
-    /// 测试 unix_timestamp 函数返回合理的时间戳值
-    ///
-    /// 验证生成的时间戳在预期范围内：
-    /// - 大于 2024-01-01 的时间戳（确保不是过时值）
-    /// - 小于 2030-01-01 的时间戳（确保没有溢出或错误）
-    ///
-    /// 这是一个合理性检查，不验证精确值因为时间在变化。
     #[test]
-    fn unix_timestamp_is_reasonable() {
-        // 获取当前 Unix 时间戳
-        let ts = unix_timestamp();
+    fn chunk_bytes_preserves_escaped_content_in_single_sse_frame() {
+        let bytes = chunk_bytes(
+            "chatcmpl-test".to_string(),
+            1_234_567_890,
+            "test-model".to_string(),
+            None,
+            Some("line one\n\"quoted\"".to_string()),
+            None,
+            false,
+        );
+        let text = String::from_utf8(bytes.to_vec()).unwrap();
+        let json = text
+            .strip_prefix("data: ")
+            .and_then(|frame| frame.strip_suffix("\n\n"))
+            .expect("chunk should be one SSE data frame");
+        let chunk: serde_json::Value = serde_json::from_str(json).unwrap();
 
-        // 验证时间戳在合理范围内（2024-01-01 之后，2030-01-01 之前）
-        assert!(ts > 1_704_067_200);
-        assert!(ts < 1_893_456_000);
+        assert_eq!(chunk["choices"][0]["delta"]["content"], "line one\n\"quoted\"");
+        assert!(chunk["choices"][0]["delta"].get("role").is_none());
+        assert!(chunk["choices"][0]["finish_reason"].is_null());
+        assert!(!text.contains("data: [DONE]"));
+    }
+
+    /// 验证 unix_timestamp 返回调用边界内的当前秒级时间戳。
+    #[test]
+    fn unix_timestamp_is_within_call_boundaries() {
+        let before =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let ts = unix_timestamp();
+        let after =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+
+        assert!((before..=after).contains(&ts));
     }
 
     /// 测试请求体大小限制常量配置为 512KB

@@ -35,6 +35,36 @@ use super::traits::Sandbox;
 use crate::app::agent::config::{SandboxBackend, SecurityConfig};
 use std::sync::Arc;
 
+fn unavailable_backend_message(backend: &SandboxBackend) -> Option<&'static str> {
+    match backend {
+        SandboxBackend::Landlock => {
+            Some("Landlock requested but not available, falling back to application-layer")
+        }
+        SandboxBackend::Firejail => {
+            Some("Firejail requested but not available, falling back to application-layer")
+        }
+        SandboxBackend::Bubblewrap => {
+            Some("Bubblewrap requested but not available, falling back to application-layer")
+        }
+        SandboxBackend::Docker => {
+            Some("Docker requested but not available, falling back to application-layer")
+        }
+        SandboxBackend::Auto | SandboxBackend::None => None,
+    }
+}
+
+fn unavailable_backend_fallback(backend: &SandboxBackend) -> Arc<dyn Sandbox> {
+    let message = unavailable_backend_message(backend)
+        .expect("fallback message should exist for explicit sandbox backends");
+    tracing::warn!("{}", message);
+    Arc::new(super::traits::NoopSandbox)
+}
+
+fn application_layer_fallback() -> Arc<dyn Sandbox> {
+    tracing::info!("No sandbox backend available, using application-layer security");
+    Arc::new(super::traits::NoopSandbox)
+}
+
 /// 根据配置创建沙箱实例
 ///
 /// 此函数是创建沙箱的主要入口点。它会根据配置中的 `backend` 字段和 `enabled` 标志
@@ -107,10 +137,7 @@ pub fn create_sandbox(config: &SecurityConfig) -> Arc<dyn Sandbox> {
                     }
                 }
             }
-            tracing::warn!(
-                "Landlock requested but not available, falling back to application-layer"
-            );
-            Arc::new(super::traits::NoopSandbox)
+            unavailable_backend_fallback(backend)
         }
 
         // Firejail 后端：Linux 用户空间沙箱工具
@@ -122,10 +149,7 @@ pub fn create_sandbox(config: &SecurityConfig) -> Arc<dyn Sandbox> {
                     return Arc::new(sandbox);
                 }
             }
-            tracing::warn!(
-                "Firejail requested but not available, falling back to application-layer"
-            );
-            Arc::new(super::traits::NoopSandbox)
+            unavailable_backend_fallback(backend)
         }
 
         // Bubblewrap 后端：轻量级命名空间容器
@@ -140,10 +164,7 @@ pub fn create_sandbox(config: &SecurityConfig) -> Arc<dyn Sandbox> {
                     }
                 }
             }
-            tracing::warn!(
-                "Bubblewrap requested but not available, falling back to application-layer"
-            );
-            Arc::new(super::traits::NoopSandbox)
+            unavailable_backend_fallback(backend)
         }
 
         // Docker 后端：容器化隔离
@@ -152,8 +173,7 @@ pub fn create_sandbox(config: &SecurityConfig) -> Arc<dyn Sandbox> {
             if let Ok(sandbox) = super::docker::DockerSandbox::new() {
                 return Arc::new(sandbox);
             }
-            tracing::warn!("Docker requested but not available, falling back to application-layer");
-            Arc::new(super::traits::NoopSandbox)
+            unavailable_backend_fallback(backend)
         }
 
         // 自动模式：根据系统环境智能选择最佳沙箱
@@ -234,8 +254,7 @@ fn detect_best_sandbox() -> Arc<dyn Sandbox> {
 
     // 所有沙箱都不可用时的降级方案
     // 使用应用层安全控制，仅提供基础的安全检查
-    tracing::info!("No sandbox backend available, using application-layer security");
-    Arc::new(super::traits::NoopSandbox)
+    application_layer_fallback()
 }
 
 // 单元测试模块

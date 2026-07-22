@@ -232,7 +232,10 @@ pub(super) fn tooltip_dark_style(_theme: &Theme) -> iced::widget::container::Sty
 /// # 返回值
 ///
 /// 返回配置好的容器样式
-pub(super) fn file_reference_style(theme: &Theme, is_hovered: bool) -> iced::widget::container::Style {
+pub(super) fn file_reference_style(
+    theme: &Theme,
+    is_hovered: bool,
+) -> iced::widget::container::Style {
     let p = theme.extended_palette();
     // 悬停时背景更不透明
     let bg = if is_hovered {
@@ -436,8 +439,8 @@ pub fn extract_file_mentions(text: &str) -> Vec<String> {
                 if !mention.is_empty() {
                     files.push(mention.to_string());
                 }
-                continue;
             }
+            continue;
         }
         i += 1;
     }

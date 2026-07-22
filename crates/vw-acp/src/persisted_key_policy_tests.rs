@@ -23,6 +23,20 @@ fn persisted_key_policy_reports_nested_violations() {
 }
 
 #[test]
+fn assert_persisted_key_policy_returns_joined_error_message() {
+    let error = assert_persisted_key_policy(&json!({
+        "badKey": true,
+        "nested": {"alsoBad": 1}
+    }))
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "Persisted key policy violation (expected snake_case keys): badKey, nested.alsoBad"
+    );
+}
+
+#[test]
 fn persisted_key_policy_descends_short_output_and_result_paths() {
     let violations = find_persisted_key_policy_violations(&json!({
         "output": {
@@ -82,6 +96,27 @@ fn persisted_key_policy_only_skips_exact_tool_result_payload_paths() {
 }
 
 #[test]
+fn persisted_key_policy_checks_array_entries_and_allows_scalar_inputs() {
+    let violations = find_persisted_key_policy_violations(&json!([
+        {
+            "valid_key": true
+        },
+        {
+            "badKey": true,
+            "nested": [
+                {
+                    "alsoBad": true
+                }
+            ]
+        },
+        null
+    ]));
+
+    assert_eq!(violations, vec!["badKey", "nested.alsoBad"]);
+    assert!(find_persisted_key_policy_violations(&json!(null)).is_empty());
+}
+
+#[test]
 fn snake_case_key_rejects_empty_and_uppercase_starts() {
     assert!(is_snake_case_key("valid_key_1"));
     assert!(!is_snake_case_key(""));
@@ -89,8 +124,46 @@ fn snake_case_key_rejects_empty_and_uppercase_starts() {
 }
 
 #[test]
+fn snake_case_key_rejects_non_snake_case_boundaries() {
+    assert!(!is_snake_case_key("1_bad"));
+    assert!(!is_snake_case_key("_bad"));
+    assert!(!is_snake_case_key("bad-key"));
+    assert!(!is_snake_case_key("badKey"));
+}
+
+#[test]
 fn tool_result_field_path_helper_rejects_short_paths() {
     let path = vec!["messages".to_string(), "Agent".to_string()];
 
     assert!(!matches_tool_result_field_path(&path));
+}
+
+#[test]
+fn tool_result_field_path_helper_rejects_missing_marker_and_wrong_prefix() {
+    let missing_marker_path = vec![
+        "messages".to_string(),
+        "Agent".to_string(),
+        "other_results".to_string(),
+        "tool-1".to_string(),
+        "output".to_string(),
+    ];
+    let wrong_prefix_path = vec![
+        "other".to_string(),
+        "Agent".to_string(),
+        "tool_results".to_string(),
+        "tool-1".to_string(),
+        "output".to_string(),
+    ];
+    let extra_segment_path = vec![
+        "messages".to_string(),
+        "Agent".to_string(),
+        "tool_results".to_string(),
+        "tool-1".to_string(),
+        "nested".to_string(),
+        "output".to_string(),
+    ];
+
+    assert!(!matches_tool_result_field_path(&missing_marker_path));
+    assert!(!matches_tool_result_field_path(&wrong_prefix_path));
+    assert!(!matches_tool_result_field_path(&extra_segment_path));
 }

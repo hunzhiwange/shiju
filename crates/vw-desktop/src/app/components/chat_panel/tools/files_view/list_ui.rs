@@ -198,7 +198,7 @@ pub(super) fn fallback_edit_diff_payload(
     Some((title, file, after))
 }
 
-fn edit_file_row_content<'a>(
+pub(super) fn edit_file_row_content<'a>(
     msg_idx: usize,
     tool_idx: usize,
     abs: &str,
@@ -229,7 +229,7 @@ fn edit_file_row_content<'a>(
         .into()
 }
 
-fn edit_file_name_link<'a>(
+pub(super) fn edit_file_name_link<'a>(
     msg_idx: usize,
     tool_idx: usize,
     abs: &str,
@@ -251,7 +251,7 @@ fn edit_file_name_link<'a>(
     Tooltip::new(link, file_name_tooltip(label), TooltipPosition::Top).gap(6).into()
 }
 
-fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
+pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
     text(verb)
         .size(14)
         .style(move |theme: &Theme| {
@@ -270,12 +270,12 @@ fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-fn edit_file_name_color(theme: &Theme, is_hovered: bool) -> Color {
+pub(super) fn edit_file_name_color(theme: &Theme, is_hovered: bool) -> Color {
     let base = theme.extended_palette().primary.base.color;
     if is_hovered { base } else { base.scale_alpha(0.86) }
 }
 
-fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
+pub(super) fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
     container(text(label).size(12))
         .padding([6, 8])
         .style(|_theme: &Theme| iced::widget::container::Style {
@@ -287,7 +287,7 @@ fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
         .into()
 }
 
-fn diff_eye_button<'a>(on_press: Message) -> Element<'a, Message> {
+pub(super) fn diff_eye_button<'a>(on_press: Message) -> Element<'a, Message> {
     let eye = icon_svg(Icon::ChevronRight)
         .width(Length::Fixed(12.0))
         .height(Length::Fixed(12.0))
@@ -316,7 +316,10 @@ fn diff_eye_button<'a>(on_press: Message) -> Element<'a, Message> {
         .into()
 }
 
-fn diff_eye_button_slot<'a>(is_hovered: bool, on_press: Message) -> Element<'a, Message> {
+pub(super) fn diff_eye_button_slot<'a>(
+    is_hovered: bool,
+    on_press: Message,
+) -> Element<'a, Message> {
     if is_hovered {
         diff_eye_button(on_press)
     } else {
@@ -328,7 +331,7 @@ pub(super) fn tool_file_hover_key(msg_idx: usize, tool_idx: usize, abs: &str) ->
     format!("{msg_idx}:{tool_idx}:{abs}")
 }
 
-fn tool_file_left<'a>(
+pub(super) fn tool_file_left<'a>(
     verb: &'static str,
     file_name: String,
     light: bool,
@@ -393,7 +396,7 @@ fn tool_file_left<'a>(
     row_view.into()
 }
 
-fn edit_result_label(tool_name: &str, is_running: bool, is_error: bool) -> &'static str {
+pub(super) fn edit_result_label(tool_name: &str, is_running: bool, is_error: bool) -> &'static str {
     if matches!(tool_name, "write" | "file_write") {
         if is_running {
             "写入中"
@@ -411,7 +414,7 @@ fn edit_result_label(tool_name: &str, is_running: bool, is_error: bool) -> &'sta
     }
 }
 
-fn edit_change_counts<'a>(adds: usize, dels: usize) -> Element<'a, Message> {
+pub(super) fn edit_change_counts<'a>(adds: usize, dels: usize) -> Element<'a, Message> {
     row![
         text(format!("+{}", adds)).size(14).font(bold_font()).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.extended_palette().success.base.color) }

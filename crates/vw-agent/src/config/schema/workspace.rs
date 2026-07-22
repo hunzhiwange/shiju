@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
 
-use crate::app::agent::config::schema::CONFIG_JSON_FILENAME;
+use crate::app::agent::config::schema::CONFIG_OVERRIDE_FILENAME;
 
 /// 活动工作空间状态标记文件名
 ///
@@ -131,7 +131,7 @@ fn active_workspace_state_path(marker_root: &Path) -> PathBuf {
 ///
 /// - 使用路径规范化（canonicalize）来正确处理符号链接
 /// - 例如在 macOS 上，`/var` 可能是 `/private/var` 的符号链接
-fn is_temp_directory(path: &Path) -> bool {
+pub(super) fn is_temp_directory(path: &Path) -> bool {
     let temp = std::env::temp_dir();
     // 使用规范化路径来正确处理符号链接（例如 macOS 的 /var → /private/var）
     let canon_temp = temp.canonicalize().unwrap_or_else(|_| temp.clone());
@@ -365,7 +365,13 @@ async fn write_active_workspace_marker(marker_root: &Path, config_dir: &Path) ->
 /// - 镜像标记写入失败时仅记录警告，不中断流程
 pub(crate) async fn persist_active_workspace_config_dir(config_dir: &Path) -> Result<()> {
     let default_config_dir = default_config_dir()?;
+    persist_active_workspace_config_dir_with_default(config_dir, &default_config_dir).await
+}
 
+pub(super) async fn persist_active_workspace_config_dir_with_default(
+    config_dir: &Path,
+    default_config_dir: &Path,
+) -> Result<()> {
     // 安全守卫：拒绝将临时目录持久化为活动工作空间
     // 防止测试运行或一次性调用劫持守护进程的配置解析
     #[cfg(not(test))]
@@ -418,7 +424,7 @@ pub(crate) async fn persist_active_workspace_config_dir(config_dir: &Path) -> Re
 /// 按以下顺序尝试解析：
 ///
 /// 1. **工作空间目录本身就是配置目录**：
-///    - 检查是否存在 `config.json` 或 `vibewindow.json`
+///    - 检查是否存在 `config.json` 或项目覆盖 `.vibewindow.json`
 ///
 /// 2. **旧版布局**：
 ///    - 检查父目录下的 `.vibewindow` 子目录
@@ -430,10 +436,10 @@ pub(crate) fn resolve_config_dir_for_workspace(workspace_dir: &Path) -> (PathBuf
     let workspace_config_dir = workspace_dir.to_path_buf();
 
     // 情况1：工作空间目录直接包含配置文件（现代布局）
-    if workspace_config_dir.join(CONFIG_JSON_FILENAME).exists() {
+    if workspace_config_dir.join("config.json").exists() {
         return (workspace_config_dir.clone(), workspace_config_dir.join("workspace"));
     }
-    if workspace_config_dir.join("vibewindow.json").exists() {
+    if workspace_config_dir.join(CONFIG_OVERRIDE_FILENAME).exists() {
         return (workspace_config_dir.clone(), workspace_config_dir.join("workspace"));
     }
 
@@ -441,13 +447,9 @@ pub(crate) fn resolve_config_dir_for_workspace(workspace_dir: &Path) -> (PathBuf
     let legacy_config_dir = workspace_dir.parent().map(|parent| parent.join(".vibewindow"));
     if let Some(legacy_dir) = legacy_config_dir {
         // 检查旧版配置目录中是否存在配置文件
-        if legacy_dir.join(CONFIG_JSON_FILENAME).exists() {
+        if legacy_dir.join("config.json").exists() {
             return (legacy_dir, workspace_config_dir);
         }
-        if legacy_dir.join("vibewindow.json").exists() {
-            return (legacy_dir, workspace_config_dir);
-        }
-
         // 如果工作空间目录名为 "workspace"，假定使用旧版布局
         if workspace_dir.file_name().is_some_and(|name| name == std::ffi::OsStr::new("workspace")) {
             return (legacy_dir, workspace_config_dir);
@@ -539,8 +541,25 @@ pub(crate) async fn resolve_runtime_config_dirs(
     default_vibewindow_dir: &Path,
     default_workspace_dir: &Path,
 ) -> Result<(PathBuf, PathBuf, ConfigResolutionSource)> {
+    let env_config_dir = std::env::var("VIBEWINDOW_CONFIG_DIR").ok();
+    let env_workspace = std::env::var("VIBEWINDOW_WORKSPACE").ok();
+    resolve_runtime_config_dirs_from_env(
+        default_vibewindow_dir,
+        default_workspace_dir,
+        env_config_dir.as_deref(),
+        env_workspace.as_deref(),
+    )
+    .await
+}
+
+pub(super) async fn resolve_runtime_config_dirs_from_env(
+    default_vibewindow_dir: &Path,
+    default_workspace_dir: &Path,
+    env_config_dir: Option<&str>,
+    env_workspace: Option<&str>,
+) -> Result<(PathBuf, PathBuf, ConfigResolutionSource)> {
     // 优先级1：检查 VIBEWINDOW_CONFIG_DIR 环境变量
-    if let Ok(custom_config_dir) = std::env::var("VIBEWINDOW_CONFIG_DIR") {
+    if let Some(custom_config_dir) = env_config_dir {
         let custom_config_dir = custom_config_dir.trim();
         if !custom_config_dir.is_empty() {
             let vibewindow_dir = PathBuf::from(custom_config_dir);
@@ -553,7 +572,7 @@ pub(crate) async fn resolve_runtime_config_dirs(
     }
 
     // 优先级2：检查 VIBEWINDOW_WORKSPACE 环境变量
-    if let Ok(custom_workspace) = std::env::var("VIBEWINDOW_WORKSPACE") {
+    if let Some(custom_workspace) = env_workspace {
         if !custom_workspace.is_empty() {
             let (vibewindow_dir, workspace_dir) =
                 resolve_config_dir_for_workspace(&PathBuf::from(custom_workspace));

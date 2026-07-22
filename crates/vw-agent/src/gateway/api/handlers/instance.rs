@@ -68,6 +68,22 @@ struct VcsInfo {
     branch: String,
 }
 
+fn branch_for_worktree(worktree: &str) -> String {
+    if worktree.trim().is_empty() {
+        return String::new();
+    }
+    git_std_command()
+        .current_dir(worktree)
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+
 async fn vcs_get(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
@@ -76,20 +92,7 @@ async fn vcs_get(
     let result = with_instance(dir, move || {
         Box::pin(async move {
             let worktree = instance::worktree();
-            if worktree.trim().is_empty() {
-                return Ok(VcsInfo { branch: String::new() });
-            }
-            let out = git_std_command()
-                .current_dir(&worktree)
-                .args(["rev-parse", "--abbrev-ref", "HEAD"])
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::null())
-                .output()
-                .ok()
-                .filter(|o| o.status.success())
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .unwrap_or_default();
-            Ok(VcsInfo { branch: out })
+            Ok(VcsInfo { branch: branch_for_worktree(&worktree) })
         })
     })
     .await?;
@@ -111,7 +114,7 @@ async fn instance_event_sse(
                 if !evt.directory.as_deref().map_or(true, |d| d == filter_dir2) {
                     return;
                 }
-                let data = serde_json::to_string(&evt.payload).unwrap_or_else(|_| "{}".to_string());
+                let data = serde_json::to_string(&evt.payload).unwrap_or("{}".to_string());
                 let _ = tx_sub.try_send(Event::default().data(data));
             });
 

@@ -85,10 +85,7 @@ pub(super) fn panel_style(theme: &Theme) -> iced::widget::container::Style {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn accent_badge_style(
-    theme: &Theme,
-    accent: Color,
-) -> iced::widget::container::Style {
+pub(super) fn accent_badge_style(theme: &Theme, accent: Color) -> iced::widget::container::Style {
     // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     iced::widget::container::Style {
         // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -244,6 +241,25 @@ pub(super) fn delete_action_btn_style(
     style
 }
 
+pub(super) fn notification_copy_label(copied: bool) -> &'static str {
+    if copied { "✓" } else { "复制" }
+}
+
+pub(super) fn notification_text_editor_style(theme: &Theme) -> iced::widget::text_editor::Style {
+    let value = theme.palette().text;
+    iced::widget::text_editor::Style {
+        background: Background::Color(Color::TRANSPARENT),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+        value,
+        selection: if is_dark_theme(theme) {
+            Color::from_rgba8(0x8B, 0x93, 0x9C, 0.34)
+        } else {
+            Color::from_rgba8(0xD9, 0xDE, 0xE5, 0.92)
+        },
+        placeholder: value.scale_alpha(0.7),
+    }
+}
+
 /// 处理 view 对应的局部职责。
 ///
 /// # 参数
@@ -349,33 +365,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .size(13)
                             .padding(0)
                             .height(Length::Shrink)
-                            .style(|theme: &Theme, _status| {
-                                let value = theme.palette().text;
-                                iced::widget::text_editor::Style {
-                                    // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                    background: Background::Color(Color::TRANSPARENT),
-                                    // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                    border: Border {
-                                        // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                        width: 0.0,
-                                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                        color: Color::TRANSPARENT,
-                                        // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                        radius: 0.0.into(),
-                                    },
-                                    value,
-                                    // selection 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                    selection: if is_dark_theme(theme) {
-                                        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                        Color::from_rgba8(0x8B, 0x93, 0x9C, 0.34)
-                                    } else {
-                                        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                        Color::from_rgba8(0xD9, 0xDE, 0xE5, 0.92)
-                                    },
-                                    // placeholder 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                    placeholder: value.scale_alpha(0.7),
-                                }
-                            }),
+                            .style(|theme: &Theme, _status| notification_text_editor_style(theme)),
                     )
                     .width(Length::Fill)
                     .into()
@@ -395,7 +385,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 };
 
             let copied = app.copied_notification_id == Some(n.id);
-            let copy_label = if copied { "✓" } else { "复制" };
+            let copy_label = notification_copy_label(copied);
 
             container(
                 column![

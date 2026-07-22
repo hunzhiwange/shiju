@@ -38,11 +38,15 @@ minijinja = { version = "2.20.0", features = ["json", "loop_controls"] }
 nanohtml2text = "0.2.1"
 once_cell = "1"
 parking_lot = "0.12"
-pdf-extract = "0.10.0"
+pdf-extract = "0.12.0"
+postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
 pulldown-cmark = "0.9"
 prometheus = "0.14"
 rand = "0.8.6"
+r2d2 = "0.8.10"
+r2d2_postgres = "0.18.2"
 regex = "1"
+rhai = { version = "1.23", features = ["serde"] }
 rust-embed = "8.11.0"
 rustls-pki-types = "1.14.0"
 schemars = "0.8"
@@ -65,6 +69,7 @@ tree-sitter = { version = "0.24", optional = true }
 tree-sitter-bash = { version = "0.23", optional = true }
 unicode-width = "0.1"
 urlencoding = "2.1"
+url = "2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 walkdir = "2"
 webpki-roots = "0.26"
@@ -84,10 +89,10 @@ axum = { version = "0.8.8", features = ["json", "ws", "macros"] }
 crossterm = "0.29"
 dialoguer = "0.11"
 fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
-git2 = { version = "0.20.4", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
+git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 hostname = "0.4"
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "rustls-tls"] }
-matrix-sdk = { version = "0.16.0", optional = true, default-features = false, features = ["rustls-tls", "e2e-encryption", "automatic-room-key-forwarding", "sqlite", "markdown"] }
+matrix-sdk = { version = "0.16.1", optional = true, default-features = false, features = ["rustls-tls", "e2e-encryption", "automatic-room-key-forwarding", "sqlite", "markdown"] }
 mysql = { version = "27.0.0", optional = true }
 nostr-sdk = { version = "0.37", features = ["nip04", "nip59"] }
 nusb = "0.2.2"
@@ -95,21 +100,19 @@ opentelemetry = { version = "0.31.0", optional = true }
 opentelemetry-otlp = { version = "0.31.0", optional = true }
 opentelemetry_sdk = { version = "0.31.0", optional = true }
 portable-pty = "0.9"
-postgres = { version = "0.19.12", optional = true, features = ["with-chrono-0_4"] }
 probe-rs = { version = "0.31.0", optional = true }
 prost = { version = "0.14.3", optional = true }
 qrcode = { version = "0.14", optional = true }
 ratatui = "0.30.0"
 reqwest = { version = "0.12", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "rustls-tls-webpki-roots"] }
 reqwest-eventsource = "0.6.0"
-redis = { version = "0.29", default-features = false, features = ["tls-rustls", "cluster", "sentinel"] }
 ring = "0.17.14"
 rmcp = { version = "0.8.0", features = ["server", "transport-io", "transport-child-process", "client", "transport-sse-client-reqwest", "transport-streamable-http-client-reqwest", "auth"] }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustyline = "17.0"
 tempfile = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
-tokio-postgres-rustls = { version = "0.13.0", optional = true }
+tokio-postgres-rustls = "0.13.0"
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 tokio-serial = "5.4.5"
 tokio-stream = { version = "0.1.18", features = ["fs", "sync"] }
@@ -158,7 +161,7 @@ firecrawl = []
 "web-fetch-html2md" = []
 "web-fetch-plaintext" = []
 probe = ["dep:probe-rs"]
-memory-postgres = ["dep:postgres", "dep:tokio-postgres-rustls"]
+memory-postgres = []
 memory-mariadb = ["dep:mysql"]
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 runtime-wasm = ["dep:wasmi"]
@@ -167,4 +170,4 @@ sandbox-landlock = ["dep:landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
 channel-matrix = ["dep:matrix-sdk"]
-whatsapp-web = ["dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:qrcode"]
+whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:qrcode"]

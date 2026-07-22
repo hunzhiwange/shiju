@@ -46,6 +46,7 @@ fn extract_text_content_accepts_text_and_resource_uri_blocks() {
 fn numeric_usage_helpers_accept_common_json_number_shapes() {
     assert_eq!(json_number_to_i64(&json!(-3)), Some(-3));
     assert_eq!(json_number_to_i64(&json!(7_u64)), Some(7));
+    assert_eq!(json_number_to_i64(&json!(u64::MAX)), Some(-1));
     assert_eq!(json_number_to_i64(&json!(8.75)), Some(8));
     assert_eq!(json_number_to_i64(&json!("8")), None);
 
@@ -529,4 +530,212 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
     assert!(matches!(&events[0], StreamEvent::Delta(text) if text == "hello"));
     assert!(matches!(&events[1], StreamEvent::ReasoningDelta(text) if text == "thinking"));
     assert!(matches!(&events[2], StreamEvent::Delta(text) if text.starts_with("tool shell\n")));
+}
+
+#[test]
+fn content_extractors_handle_nested_resources_and_reject_malformed_blocks() {
+    assert_eq!(
+        extract_delta_from_acp_message(&update_message(json!({
+            "sessionUpdate": "agent_message_chunk",
+            "content": {
+                "type": "resource",
+                "resource": {"uri": "file:///tmp/nested.txt"}
+            }
+        })))
+        .as_deref(),
+        Some("file:///tmp/nested.txt")
+    );
+    assert_eq!(
+        extract_reasoning_delta_from_acp_message(&update_message(json!({
+            "sessionUpdate": "agent_thought_chunk",
+            "content": {"type": "resource_link", "uri": "file:///tmp/thought.txt"}
+        })))
+        .as_deref(),
+        Some("file:///tmp/thought.txt")
+    );
+
+    for content in [
+        json!({"type": "text", "text": 1}),
+        json!({"type": "resource_link"}),
+        json!({"type": "resource", "resource": {}}),
+        json!({"text": "missing type"}),
+    ] {
+        assert!(extract_text_content(&content).is_none());
+    }
+    assert!(
+        extract_reasoning_delta_from_acp_message(&update_message(json!({
+            "sessionUpdate": "agent_thought_chunk"
+        })))
+        .is_none()
+    );
+}
+
+#[test]
+fn token_usage_helpers_skip_invalid_aliases_and_default_missing_values() {
+    let source = object(json!({
+        "input_tokens": "invalid",
+        "inputTokens": 9,
+        "outputTokens": null
+    }));
+    assert_eq!(token_usage_value(&source, &["input_tokens", "inputTokens"]), 9);
+    assert_eq!(token_usage_value(&source, &["output_tokens", "outputTokens"]), 0);
+
+    let usage = extract_usage_from_acp_message(&update_message(json!({
+        "sessionUpdate": "usage_update",
+        "_meta": {"usage": "invalid"},
+        "input_tokens": 3
+    })))
+    .expect("usage update");
+    assert_eq!(
+        usage,
+        ui_types::TokenUsage {
+            input_tokens: 3,
+            output_tokens: 0,
+            cached_tokens: 0,
+            reasoning_tokens: 0,
+        }
+    );
+}
+
+#[test]
+fn tool_helpers_ignore_blank_labels_and_serialize_non_string_input() {
+    let update = object(json!({
+        "kind": "  ",
+        "title": " Display Name ",
+        "rawInput": false
+    }));
+    assert_eq!(tool_kind_from_update(&update), None);
+    assert_eq!(tool_title_from_update(&update), Some("Display Name"));
+    assert_eq!(transcript_tool_name(&update), "Display Name");
+    assert_eq!(transcript_tool_title(&update, "Display Name"), "Display Name");
+    assert_eq!(tool_input_string(&update), "false");
+
+    let blank = object(json!({"kind": " ", "title": "\t"}));
+    assert_eq!(transcript_tool_name(&blank), "tool_call");
+    assert_eq!(transcript_tool_title(&blank, "tool_call"), "tool_call");
+}
+
+#[test]
+fn tool_result_helpers_skip_blank_fields_and_reject_invalid_dtos() {
+    assert_eq!(
+        extract_tool_result_text_value(&json!({"output": " ", "stderr": "failure"})).as_deref(),
+        Some("failure")
+    );
+    assert_eq!(structured_patch_diff_text(&[]), None);
+
+    let result: ToolResultDto = serde_json::from_value(json!({
+        "content": [
+            {"type": "json", "value": {"output": " "}},
+            {"type": "text", "text": "later text"}
+        ]
+    }))
+    .expect("tool result dto");
+    assert_eq!(extract_tool_result_dto_text(&result).as_deref(), Some("later text"));
+
+    assert!(parse_tool_result_dto(&object(json!({"rawOutput": "not a dto"}))).is_none());
+    assert!(parse_tool_result_dto(&object(json!({}))).is_none());
+}
+
+#[test]
+fn tool_status_helpers_cover_aliases_empty_status_and_null_metadata() {
+    assert_eq!(normalize_tool_status(&object(json!({"status": "PENDING"})), None), "running");
+    assert_eq!(normalize_tool_status(&object(json!({"status": "failure"})), None), "error");
+    assert_eq!(normalize_tool_status(&object(json!({"status": "done"})), None), "completed");
+
+    let failed: ToolResultDto = serde_json::from_value(json!({
+        "success": false,
+        "render_hint": {"metadata": null}
+    }))
+    .expect("tool result dto");
+    assert_eq!(normalize_tool_status(&object(json!({"status": " "})), Some(&failed)), "error");
+    assert_eq!(metadata_from_tool_result(Some(&failed)), json!({}));
+}
+
+#[test]
+fn transcript_tool_delta_uses_safe_defaults_for_optional_fields() {
+    let delta = transcript_tool_delta_from_update(&object(json!({
+        "sessionUpdate": "tool_call",
+        "toolCallId": "call-defaults"
+    })))
+    .expect("tool transcript");
+    let payload: Value =
+        serde_json::from_str(delta.lines().nth(1).expect("json payload")).expect("payload");
+
+    assert!(delta.starts_with("tool tool_call\n"));
+    assert_eq!(payload["status"], "running");
+    assert_eq!(payload["input"], "{}");
+    assert_eq!(payload["title"], "tool_call");
+    assert_eq!(payload["metadata"], json!({}));
+    assert_eq!(payload["output"], "");
+    assert!(payload["error"].is_null());
+    assert!(payload["result"].is_null());
+}
+
+#[test]
+fn tool_call_extractor_rejects_unrelated_or_incomplete_updates() {
+    assert!(
+        extract_tool_call_from_acp_message(&update_message(json!({
+            "sessionUpdate": "agent_message_chunk",
+            "toolCallId": "call-1"
+        })))
+        .is_none()
+    );
+    assert!(
+        extract_tool_call_from_acp_message(&update_message(json!({
+            "sessionUpdate": "tool_call"
+        })))
+        .is_none()
+    );
+    assert!(
+        extract_tool_call_from_acp_message(&acp_message(json!({
+            "jsonrpc": "2.0",
+            "method": "session/update",
+            "params": {}
+        })))
+        .is_none()
+    );
+}
+
+#[test]
+fn forward_acp_message_ignores_unknown_updates_without_mutating_state() {
+    let mut latest_usage = ui_types::TokenUsage {
+        input_tokens: 1,
+        output_tokens: 2,
+        cached_tokens: 3,
+        reasoning_tokens: 4,
+    };
+    let original_usage = latest_usage.clone();
+    let mut delta_count = 7usize;
+    let mut events = Vec::new();
+
+    forward_acp_message(
+        &update_message(json!({"sessionUpdate": "unknown"})),
+        &mut |event| events.push(event),
+        &mut latest_usage,
+        &mut delta_count,
+    );
+
+    assert!(events.is_empty());
+    assert_eq!(delta_count, 7);
+    assert_eq!(latest_usage, original_usage);
+}
+
+#[test]
+fn forward_acp_message_saturates_delta_count_at_usize_max() {
+    let mut latest_usage = ui_types::TokenUsage::default();
+    let mut delta_count = usize::MAX;
+    let mut events = Vec::new();
+
+    forward_acp_message(
+        &update_message(json!({
+            "sessionUpdate": "agent_message_chunk",
+            "content": "still emitted"
+        })),
+        &mut |event| events.push(event),
+        &mut latest_usage,
+        &mut delta_count,
+    );
+
+    assert_eq!(delta_count, usize::MAX);
+    assert!(matches!(&events[..], [StreamEvent::Delta(text)] if text == "still emitted"));
 }

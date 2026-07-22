@@ -63,7 +63,7 @@ impl Tool for VerifyPlanExecutionTool {
         let context = current_tool_use_context()
             .ok_or_else(|| anyhow::anyhow!("missing active tool context"))?;
         let state = context.plan_mode_state();
-        let todos = crate::session::ui_store::load_session_todos(context.session());
+        let todos = crate::app::agent::tools::todo::read_session_todos(context.session());
         let pending_count = todos
             .iter()
             .filter(|todo| matches!(todo.status.as_str(), "pending" | "in_progress"))

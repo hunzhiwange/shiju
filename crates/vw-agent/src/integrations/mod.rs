@@ -277,7 +277,7 @@ fn show_integration_info(config: &Config, name: &str) -> Result<()> {
             println!("  Setup:");
             println!("    1. Install: brew install ollama");
             println!("    2. Pull a model: ollama pull llama3");
-            println!("    3. Set provider to 'ollama' in vibewindow.json");
+            println!("    3. Set provider to 'ollama' in system settings");
         }
         "iMessage" => {
             println!("  Setup (macOS only):");

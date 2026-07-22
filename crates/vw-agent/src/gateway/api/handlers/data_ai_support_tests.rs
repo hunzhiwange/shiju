@@ -17,13 +17,28 @@ use vw_api_types::data::{
 
 #[derive(Default)]
 struct ScriptedProvider {
-    responses: Mutex<Vec<String>>,
+    responses: Mutex<Vec<Result<String, String>>>,
     calls: Mutex<Vec<String>>,
 }
 
 impl ScriptedProvider {
     fn new(responses: Vec<String>) -> Self {
-        Self { responses: Mutex::new(responses), calls: Mutex::new(Vec::new()) }
+        Self {
+            responses: Mutex::new(responses.into_iter().map(Ok).collect()),
+            calls: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn with_results(responses: Vec<Result<&str, &str>>) -> Self {
+        Self {
+            responses: Mutex::new(
+                responses
+                    .into_iter()
+                    .map(|result| result.map(str::to_string).map_err(str::to_string))
+                    .collect(),
+            ),
+            calls: Mutex::new(Vec::new()),
+        }
     }
 }
 
@@ -42,7 +57,10 @@ impl Provider for ScriptedProvider {
             system_prompt.unwrap_or_default()
         ));
         let mut responses = self.responses.lock().unwrap();
-        Ok(if responses.is_empty() { "fallback".to_string() } else { responses.remove(0) })
+        if responses.is_empty() {
+            return Ok("fallback".to_string());
+        }
+        responses.remove(0).map_err(anyhow::Error::msg)
     }
 }
 
@@ -216,6 +234,24 @@ fn parse_execution_plan_accepts_plain_and_embedded_json() {
     assert!(err.message.contains("执行计划 JSON"));
 }
 
+#[test]
+fn parse_execution_plan_skips_json_with_wrong_schema_before_valid_plan() {
+    let plan = parse_execution_plan(
+        r#"先给出元数据 {"kind":"draft"}，再给出计划
+        {"connection_id":"conn-a","query_kind":"sql","sql":"SELECT 1"}"#,
+    )
+    .unwrap();
+
+    assert_eq!(plan.connection_id, "conn-a");
+    assert_eq!(plan.query_kind, AiDataQueryKind::Sql);
+    assert_eq!(plan.sql.as_deref(), Some("SELECT 1"));
+
+    let err =
+        parse_execution_plan(r#"{"connection_id":"conn-a","query_kind":"unknown"}"#).unwrap_err();
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("执行计划 JSON"));
+}
+
 #[tokio::test]
 async fn plan_and_summary_use_provider_prompts() {
     let provider = Arc::new(ScriptedProvider::new(vec![
@@ -266,6 +302,94 @@ async fn plan_and_summary_use_provider_prompts() {
     .unwrap();
     assert_eq!(answer, "一共有 1 条");
     assert_eq!(provider.calls.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn plan_and_summary_map_provider_failures_with_operation_context() {
+    let connection = connection("conn-a", AiDataConnectionKind::Sqlite);
+    let plan_provider = Arc::new(ScriptedProvider::with_results(vec![Err("planner offline")]));
+    let err = plan_with_model(
+        &state(plan_provider),
+        &AiDataAiQueryRequest { prompt: "count rows".to_string(), ..Default::default() },
+        &connection,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("AI 规划失败"));
+    assert!(err.message.contains("planner offline"));
+
+    let summary_provider = Arc::new(ScriptedProvider::with_results(vec![Err("summary offline")]));
+    let plan =
+        parse_execution_plan(r#"{"connection_id":"conn-a","query_kind":"sql","sql":"SELECT 1"}"#)
+            .unwrap();
+    let err = summarize_result(
+        &state(summary_provider),
+        "count rows",
+        &plan,
+        &AiDataQueryResponse {
+            page: AiDataPageDto {
+                per_page: 0,
+                current_page: 1,
+                total_page: 0,
+                total_record: 0,
+                from: 0,
+                to: 0,
+            },
+            items: vec![],
+            report_config: None,
+            next_cursor: None,
+            has_next_page: false,
+            debug: None,
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("AI 总结失败"));
+    assert!(err.message.contains("summary offline"));
+}
+
+#[tokio::test]
+async fn summarize_result_limits_prompt_sample_to_twenty_items() {
+    let provider = Arc::new(ScriptedProvider::new(vec!["summary".to_string()]));
+    let plan = parse_execution_plan(
+        r#"{"connection_id":"conn-a","query_kind":"sql","sql":"SELECT value FROM answers"}"#,
+    )
+    .unwrap();
+    let items = (0..25).map(|row| json!({"row": row})).collect();
+
+    let answer = summarize_result(
+        &state(provider.clone()),
+        "summarize rows",
+        &plan,
+        &AiDataQueryResponse {
+            page: AiDataPageDto {
+                per_page: 25,
+                current_page: 1,
+                total_page: 1,
+                total_record: 25,
+                from: 1,
+                to: 25,
+            },
+            items,
+            report_config: None,
+            next_cursor: None,
+            has_next_page: false,
+            debug: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(answer, "summary");
+    let calls = provider.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1);
+    assert!(calls[0].contains(r#""row": 19"#));
+    assert!(!calls[0].contains(r#""row": 20"#));
 }
 
 #[tokio::test]
@@ -323,4 +447,69 @@ async fn handle_ai_query_executes_sqlite_plan_and_rejects_connection_switching()
     .unwrap_err();
     assert_eq!(err.status, StatusCode::BAD_REQUEST);
     assert!(err.message.contains("未授权"));
+}
+
+#[tokio::test]
+async fn handle_ai_query_keeps_query_result_when_summary_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("summary-failure.db");
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    conn.execute_batch("CREATE TABLE answers (value INTEGER); INSERT INTO answers VALUES (7);")
+        .unwrap();
+
+    let provider = Arc::new(ScriptedProvider::with_results(vec![
+        Ok(r#"{"connection_id":"conn-a","query_kind":"sql","sql":"SELECT value FROM answers"}"#),
+        Err("summary unavailable"),
+    ]));
+    let sqlite = AiDataConnectionDto {
+        sqlite_path: Some(db_path.to_string_lossy().to_string()),
+        base_url: None,
+        ..connection("conn-a", AiDataConnectionKind::Sqlite)
+    };
+
+    let Json(response) = handle_ai_query(
+        State(state(provider)),
+        AiDataSettings::default(),
+        vec![sqlite],
+        vec![],
+        AiDataAiQueryRequest {
+            prompt: "answer?".to_string(),
+            connection_id: Some("conn-a".to_string()),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response.result.items, vec![json!({"value": 7})]);
+    assert!(response.answer.is_none());
+    assert!(response.raw_model_response.unwrap().contains("SELECT value"));
+}
+
+#[tokio::test]
+async fn handle_ai_query_maps_runtime_rejection_to_bad_request() {
+    let provider = Arc::new(ScriptedProvider::new(vec![
+        r#"{"connection_id":"conn-a","query_kind":"sql","sql":"SELECT 1"}"#.to_string(),
+    ]));
+    let disabled = AiDataConnectionDto {
+        enabled: false,
+        ..connection("conn-a", AiDataConnectionKind::Sqlite)
+    };
+
+    let err = handle_ai_query(
+        State(state(provider)),
+        AiDataSettings::default(),
+        vec![disabled],
+        vec![],
+        AiDataAiQueryRequest {
+            prompt: "query disabled connection".to_string(),
+            connection_id: Some("conn-a".to_string()),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("已被禁用"));
 }

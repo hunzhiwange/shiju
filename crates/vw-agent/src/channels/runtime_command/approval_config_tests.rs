@@ -88,7 +88,7 @@ fn context(
 }
 
 fn runtime_config_file(root: &Path) -> PathBuf {
-    root.join("vibewindow.json")
+    root.join(".vibewindow.json")
 }
 
 async fn write_json_config(path: &Path, config: &Config) {
@@ -171,6 +171,106 @@ async fn persist_adds_auto_approve_and_removes_always_ask_entries() {
 }
 
 #[tokio::test]
+async fn persist_removes_always_ask_when_tool_is_already_auto_approved() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    write_json_config(
+        &config_path,
+        &config_with_approvals(&["shell", "existing"], &["shell", "other"]),
+    )
+    .await;
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+
+    let persisted_path = persist_non_cli_approval_to_config(&ctx, "shell").await.unwrap();
+    assert_eq!(persisted_path, Some(config_path.clone()));
+
+    let persisted = read_json_value(&config_path).await;
+    assert_eq!(persisted["autonomy"]["auto_approve"], serde_json::json!(["shell", "existing"]));
+    assert_eq!(persisted["autonomy"]["always_ask"], serde_json::json!(["other"]));
+}
+
+#[tokio::test]
+async fn persist_supports_leading_whitespace_json_config() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    let json =
+        serde_json::to_string_pretty(&config_with_approvals(&["existing"], &["shell"])).unwrap();
+    fs::write(&config_path, format!("\n  {json}")).await.unwrap();
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+
+    let persisted_path = persist_non_cli_approval_to_config(&ctx, "shell").await.unwrap();
+    assert_eq!(persisted_path, Some(config_path.clone()));
+
+    let persisted = read_json_value(&config_path).await;
+    let auto_approve = persisted["autonomy"]["auto_approve"].as_array().unwrap();
+    let always_ask = persisted["autonomy"]["always_ask"].as_array().unwrap();
+    assert!(auto_approve.iter().any(|entry| entry == "existing"));
+    assert!(auto_approve.iter().any(|entry| entry == "shell"));
+    assert!(!always_ask.iter().any(|entry| entry == "shell"));
+}
+
+#[tokio::test]
+async fn persist_and_remove_accept_toml_config_payloads() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    fs::write(
+        &config_path,
+        r#"
+default_temperature = 0.0
+
+[autonomy]
+level = "supervised"
+workspace_only = true
+allowed_commands = []
+forbidden_paths = []
+max_actions_per_hour = 1
+max_cost_per_day_cents = 0
+auto_approve = ["existing"]
+always_ask = ["shell", "other"]
+"#,
+    )
+    .await
+    .unwrap();
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+
+    let persisted_path = persist_non_cli_approval_to_config(&ctx, "shell").await.unwrap();
+    assert_eq!(persisted_path, Some(config_path.clone()));
+
+    let persisted = read_json_value(&config_path).await;
+    let auto_approve = persisted["autonomy"]["auto_approve"].as_array().unwrap();
+    let always_ask = persisted["autonomy"]["always_ask"].as_array().unwrap();
+    assert!(auto_approve.iter().any(|entry| entry == "existing"));
+    assert!(auto_approve.iter().any(|entry| entry == "shell"));
+    assert!(always_ask.iter().any(|entry| entry == "other"));
+    assert!(!always_ask.iter().any(|entry| entry == "shell"));
+
+    let removed = remove_non_cli_approval_from_config(&ctx, "shell").await.unwrap();
+    assert_eq!(removed, Some((config_path.clone(), true)));
+
+    let persisted = read_json_value(&config_path).await;
+    let auto_approve = persisted["autonomy"]["auto_approve"].as_array().unwrap();
+    let always_ask = persisted["autonomy"]["always_ask"].as_array().unwrap();
+    assert!(auto_approve.iter().any(|entry| entry == "existing"));
+    assert!(!auto_approve.iter().any(|entry| entry == "shell"));
+    assert!(always_ask.iter().any(|entry| entry == "other"));
+}
+
+#[tokio::test]
 async fn remove_deletes_auto_approve_only_when_present() {
     let tmp = tempfile::tempdir().unwrap();
     let config_path = runtime_config_file(tmp.path());
@@ -211,9 +311,15 @@ async fn config_persistence_reports_read_and_parse_errors() {
     assert!(err.to_string().contains("Failed to read"));
     let err = remove_non_cli_approval_from_config(&ctx, "shell").await.unwrap_err();
     assert!(err.to_string().contains("Failed to read"));
+    let err = describe_non_cli_approvals(&ctx, "sender", "telegram", "chat-1").await.unwrap_err();
+    assert!(err.to_string().contains("Failed to read"));
 
     fs::write(runtime_config_file(tmp.path()), "{not-json").await.unwrap();
     let err = describe_non_cli_approvals(&ctx, "sender", "telegram", "chat-1").await.unwrap_err();
+    assert!(err.to_string().contains("Failed to parse"));
+
+    fs::write(runtime_config_file(tmp.path()), "autonomy = [").await.unwrap();
+    let err = remove_non_cli_approval_from_config(&ctx, "shell").await.unwrap_err();
     assert!(err.to_string().contains("Failed to parse"));
 }
 
@@ -240,6 +346,61 @@ async fn describe_approvals_reports_empty_runtime_state_without_config_path() {
     assert!(response.contains("Pending approvals (sender+chat/channel scoped): (none)"));
     assert!(response.contains("Runtime non_cli_excluded_tools: (none)"));
     assert!(response.contains("Persisted config approvals: unavailable"));
+}
+
+#[tokio::test]
+async fn describe_approvals_reports_empty_persisted_state_with_config_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    write_json_config(&config_path, &config_with_approvals(&[], &[])).await;
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+
+    let response = describe_non_cli_approvals(&ctx, "sender", "telegram", "chat-1").await.unwrap();
+
+    assert!(response.contains("Persisted autonomy.auto_approve: (none)"));
+    assert!(response.contains("Persisted autonomy.always_ask: (none)"));
+    assert!(response.contains(&format!("Config path: {}", config_path.display())));
+}
+
+#[tokio::test]
+async fn describe_approvals_reads_toml_persisted_state() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    fs::write(
+        &config_path,
+        r#"
+default_temperature = 0.0
+
+[autonomy]
+level = "supervised"
+workspace_only = true
+allowed_commands = []
+forbidden_paths = []
+max_actions_per_hour = 0
+max_cost_per_day_cents = 0
+auto_approve = ["toml_b", "toml_a"]
+always_ask = ["ask_b", "ask_a"]
+"#,
+    )
+    .await
+    .unwrap();
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+
+    let response = describe_non_cli_approvals(&ctx, "sender", "telegram", "chat-1").await.unwrap();
+
+    assert!(response.contains("Persisted autonomy.auto_approve: toml_a, toml_b"));
+    assert!(response.contains("Persisted autonomy.always_ask: ask_a, ask_b"));
+    assert!(response.contains(&format!("Config path: {}", config_path.display())));
 }
 
 #[tokio::test]
@@ -312,4 +473,54 @@ async fn describe_approvals_reports_runtime_pending_excluded_and_persisted_state
     assert!(response.contains("Persisted autonomy.auto_approve: persist_a, persist_b"));
     assert!(response.contains("Persisted autonomy.always_ask: ask_b"));
     assert!(response.contains(&format!("Config path: {}", config_path.display())));
+}
+
+#[tokio::test]
+async fn describe_approvals_filters_pending_requests_to_current_scope() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config_path = runtime_config_file(tmp.path());
+    write_json_config(&config_path, &config_with_approvals(&[], &[])).await;
+    let ctx = context(
+        tmp.path(),
+        Some(tmp.path().to_path_buf()),
+        autonomy_config(&[], &[], &[], NonCliNaturalLanguageApprovalMode::Direct, HashMap::new()),
+        &[],
+    );
+    ctx.approval_manager.create_non_cli_pending_request(
+        APPROVAL_ALL_TOOLS_ONCE_TOKEN,
+        "sender",
+        "telegram",
+        "chat-1",
+        Some("allow all".to_string()),
+        Value::Null,
+        None,
+        None,
+    );
+    ctx.approval_manager.create_non_cli_pending_request(
+        "shell",
+        "other-sender",
+        "telegram",
+        "chat-1",
+        Some("wrong sender".to_string()),
+        Value::Null,
+        None,
+        None,
+    );
+    ctx.approval_manager.create_non_cli_pending_request(
+        "browser",
+        "sender",
+        "telegram",
+        "chat-2",
+        Some("wrong chat".to_string()),
+        Value::Null,
+        None,
+        None,
+    );
+
+    let response = describe_non_cli_approvals(&ctx, "sender", "telegram", "chat-1").await.unwrap();
+
+    assert!(response.contains("tool=all tools/commands (one-time bypass token)"));
+    assert!(response.contains("reason=allow all"));
+    assert!(!response.contains("tool=shell"));
+    assert!(!response.contains("tool=browser"));
 }

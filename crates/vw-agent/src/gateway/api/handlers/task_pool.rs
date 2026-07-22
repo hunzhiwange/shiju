@@ -1,64 +1,165 @@
-//! 任务池调度路由模块。
+//! 任务池 worktree 池路由模块。
 
 use axum::Json;
 use axum::Router;
 use axum::routing::post;
-use vw_api_types::task::{TaskPoolScheduleRequest, TaskPoolScheduleResponse, TaskPoolStatus};
+use std::sync::LazyLock;
+use vw_api_types::id::TaskId;
+use vw_api_types::task::{
+    TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
+    TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
+    TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
+    TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeMergeUnlockResponse,
+    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse,
+    TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeReleaseResponse,
+    TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotRecycleResponse,
+    TaskPoolWorktreeSnapshotRequest, TaskPoolWorktreeSnapshotResponse,
+};
 
 use crate::app::agent::gateway::ApiError;
+use crate::app::agent::project;
+use crate::task_worktree_pool::TaskWorktreePoolService;
+
+static TASK_WORKTREE_POOL_SERVICE: LazyLock<TaskWorktreePoolService> =
+    LazyLock::new(TaskWorktreePoolService::new);
 
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new().route("/task-pool/schedule", post(task_pool_schedule_v1))
+    Router::new()
+        .route("/task-pool/worktrees/snapshot", post(handle_api_task_pool_worktree_snapshot))
+        .route("/task-pool/worktrees/maintain", post(handle_api_task_pool_worktree_maintain))
+        .route("/task-pool/worktrees/acquire", post(handle_api_task_pool_worktree_acquire))
+        .route("/task-pool/worktrees/release", post(handle_api_task_pool_worktree_release))
+        .route("/task-pool/worktrees/recycle", post(handle_api_task_pool_worktree_recycle))
+        .route(
+            "/task-pool/worktrees/slots/recycle",
+            post(handle_api_task_pool_worktree_slot_recycle),
+        )
+        .route("/task-pool/worktrees/merge-lock", post(handle_api_task_pool_worktree_merge_lock))
+        .route(
+            "/task-pool/worktrees/merge-unlock",
+            post(handle_api_task_pool_worktree_merge_unlock),
+        )
 }
 
-async fn task_pool_schedule_v1(
-    Json(body): Json<TaskPoolScheduleRequest>,
-) -> Result<Json<TaskPoolScheduleResponse>, ApiError> {
-    Ok(Json(schedule_task_pool(&body)))
+pub async fn handle_api_task_pool_worktree_snapshot(
+    Json(body): Json<TaskPoolWorktreeSnapshotRequest>,
+) -> Result<Json<TaskPoolWorktreeSnapshotResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .snapshot(&project)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
 }
 
-fn schedule_task_pool(request: &TaskPoolScheduleRequest) -> TaskPoolScheduleResponse {
-    let settings = &request.settings;
-    if !settings.auto_execute || !settings.auto_promote_pool_tasks {
-        return TaskPoolScheduleResponse { promote_task_ids: Vec::new() };
+pub async fn handle_api_task_pool_worktree_maintain(
+    Json(body): Json<TaskPoolWorktreeMaintenanceRequest>,
+) -> Result<Json<TaskPoolWorktreeMaintenanceResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .maintain(&project, body.desired_capacity)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_acquire(
+    Json(body): Json<TaskPoolWorktreeAcquireRequest>,
+) -> Result<Json<TaskPoolWorktreeAcquireResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .acquire_and_prepare(&project, &body.task_id)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_release(
+    Json(body): Json<TaskPoolWorktreeReleaseRequest>,
+) -> Result<Json<TaskPoolWorktreeReleaseResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .release_task_slot(&project, &body.task_id)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_recycle(
+    Json(body): Json<TaskPoolWorktreeRecycleRequest>,
+) -> Result<Json<TaskPoolWorktreeRecycleResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .recycle_task_slot(&project, &body.task_id, body.taint_reason)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_slot_recycle(
+    Json(body): Json<TaskPoolWorktreeSlotRecycleRequest>,
+) -> Result<Json<TaskPoolWorktreeSlotRecycleResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .recycle_slot(&project, &body.slot_id)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_merge_lock(
+    Json(body): Json<TaskPoolWorktreeMergeLockRequest>,
+) -> Result<Json<TaskPoolWorktreeMergeLockResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let response = task_worktree_pool_service()
+        .try_lock_merge_target(&project, &body.task_id, &body.target_branch)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(response))
+}
+
+pub async fn handle_api_task_pool_worktree_merge_unlock(
+    Json(body): Json<TaskPoolWorktreeMergeUnlockRequest>,
+) -> Result<Json<TaskPoolWorktreeMergeUnlockResponse>, ApiError> {
+    let project = load_project(body.project_id.as_ref()).await?;
+    let holder_before = merge_lock_holder(&project, &body.target_branch).await?;
+    let response = task_worktree_pool_service()
+        .unlock_merge_target(&project, &body.task_id, &body.target_branch)
+        .await
+        .map_err(map_task_worktree_pool_error)?;
+    Ok(Json(TaskPoolWorktreeMergeUnlockResponse {
+        released: holder_before.as_ref() == Some(&body.task_id)
+            && response.holder_task_id.as_ref() != Some(&body.task_id),
+    }))
+}
+
+pub(crate) fn task_worktree_pool_service() -> &'static TaskWorktreePoolService {
+    &TASK_WORKTREE_POOL_SERVICE
+}
+
+async fn load_project(project_id: &str) -> Result<project::Info, ApiError> {
+    crate::app::agent::gateway::instance::load_local_project(project_id).await
+}
+
+async fn merge_lock_holder(
+    project: &project::Info,
+    target_branch: &str,
+) -> Result<Option<TaskId>, ApiError> {
+    task_worktree_pool_service()
+        .merge_lock_holder(project, target_branch)
+        .await
+        .map_err(map_task_worktree_pool_error)
+}
+
+fn map_task_worktree_pool_error(error: anyhow::Error) -> ApiError {
+    let message = error.to_string();
+    if message.contains("task worktree slot missing") {
+        return ApiError::not_found(message);
     }
-
-    let max_concurrent = settings.max_concurrent.max(1);
-    let max_pending = max_concurrent.saturating_mul(2);
-    let pending_count = request
-        .tasks
-        .iter()
-        .filter(|task| {
-            !task.deleted
-                && !task.archived
-                && matches!(task.status, TaskPoolStatus::Pending | TaskPoolStatus::Planning)
-        })
-        .count() as u32;
-    if pending_count >= max_pending {
-        return TaskPoolScheduleResponse { promote_task_ids: Vec::new() };
-    }
-
-    let default_delay_ms = settings.auto_promote_delay_seconds.saturating_mul(1000);
-    let mut candidates: Vec<(u32, u32, String)> = request
-        .tasks
-        .iter()
-        .filter(|task| !task.deleted && !task.archived && task.status == TaskPoolStatus::Pool)
-        .filter(|task| {
-            let delay_ms = task.auto_promote_delay_ms.unwrap_or(default_delay_ms);
-            task.created_at_ms.saturating_add(delay_ms) <= request.now_ms
-        })
-        .map(|task| (task.priority, task.order, task.id.clone()))
-        .collect();
-    candidates.sort_by_key(|(priority, order, _)| (*priority, *order));
-
-    let max_promote = max_pending.saturating_sub(pending_count) as usize;
-    let promote_task_ids =
-        candidates.into_iter().take(max_promote).map(|(_, _, task_id)| task_id).collect();
-
-    TaskPoolScheduleResponse { promote_task_ids }
+    ApiError::bad_request(message)
 }
 
 #[cfg(test)]

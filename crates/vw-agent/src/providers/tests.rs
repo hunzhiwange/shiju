@@ -74,6 +74,28 @@ fn provider_name_validation_rejects_unknown_or_bad_custom_urls() {
             .to_string()
             .contains("http/https")
     );
+    assert!(
+        create_provider("custom:http://[invalid", None)
+            .err()
+            .expect("malformed custom URL should error")
+            .to_string()
+            .contains("invalid custom provider URL")
+    );
+}
+
+#[tokio::test]
+async fn api_error_includes_status_and_redacts_response_body_secrets() {
+    let response = axum::http::Response::builder()
+        .status(axum::http::StatusCode::UNAUTHORIZED)
+        .body(reqwest::Body::from("upstream rejected sk-secret-value"))
+        .unwrap()
+        .into();
+
+    let error = api_error("Example", response).await.to_string();
+
+    assert!(error.contains("Example API error (401 Unauthorized)"));
+    assert!(error.contains("[REDACTED]"));
+    assert!(!error.contains("sk-secret-value"));
 }
 
 #[test]

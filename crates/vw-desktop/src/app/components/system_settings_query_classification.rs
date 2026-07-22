@@ -6,8 +6,8 @@
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_checkbox_style,
-    settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_panel_style, settings_section_card, settings_text_input_style,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_panel_style,
+    settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{QueryClassificationMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -92,10 +92,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
     ]
     .spacing(16);
-
-    if let Some(err) = &s.save_error {
-        list = list.push(settings_error_banner(err));
-    }
 
     if s.rules.is_empty() {
         list = list.push(settings_panel(

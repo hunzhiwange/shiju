@@ -177,6 +177,7 @@ fn has_supported_shell_shape(command: &str) -> bool {
             '\'' => single_quote = true,
             '"' => double_quote = true,
             '`' => backtick = true,
+            '(' => paren_depth += 1,
             '$' | '<' | '>' => {
                 if chars.peek() == Some(&'(') {
                     paren_depth += 1;

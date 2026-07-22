@@ -604,6 +604,18 @@ fn ai_provider_entries_reflect_provider_and_model_configuration() {
 }
 
 #[test]
+fn openrouter_requires_api_key_even_when_selected() {
+    let entries = all_integrations();
+    let mut config =
+        Config { default_provider: Some("openrouter".to_string()), ..Config::default() };
+
+    assert_eq!((entry(&entries, "OpenRouter").status_fn)(&config), IntegrationStatus::Available);
+
+    config.api_key = Some("sk-test".to_string());
+    assert_eq!((entry(&entries, "OpenRouter").status_fn)(&config), IntegrationStatus::Active);
+}
+
+#[test]
 fn available_and_always_active_ai_entries_are_stable() {
     let entries = all_integrations();
     let config = Config::default();

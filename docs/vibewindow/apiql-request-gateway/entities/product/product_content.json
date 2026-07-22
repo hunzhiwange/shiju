@@ -1,0 +1,289 @@
+{
+  "entity_class": "product:product_content",
+  "connection_id": "data_database",
+  "table": "product_content",
+  "connect": ":data_database",
+  "table_name": "商品内容表",
+  "primary_key": "id",
+  "auto_increment": "id",
+  "unique_indexes": {
+    "PRIMARY": {
+      "field": [
+        "id"
+      ],
+      "comment": "ID"
+    },
+    "uniq_sku_no": {
+      "field": [
+        "platform_id",
+        "company_id",
+        "sku_no"
+      ],
+      "comment": "商品条码"
+    }
+  },
+  "description": "商品内容表.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "商品描述信息",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "description",
+      "sortable": true
+    },
+    {
+      "name": "packingList",
+      "type": "string",
+      "label": "包装清单",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 300
+      },
+      "validator": {
+        "scenes": [
+          "max_length:300"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "packing_list",
+      "sortable": true
+    },
+    {
+      "name": "afterService",
+      "type": "string",
+      "label": "售后服务",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 300
+      },
+      "validator": {
+        "scenes": [
+          "max_length:300"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "after_service",
+      "sortable": true
+    },
+    {
+      "name": "attrCustom",
+      "type": "string",
+      "label": "自定义属性",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "attr_custom",
+      "sortable": true
+    },
+    {
+      "name": "attrCustomField",
+      "type": "string",
+      "label": "自定义字段",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "attr_custom_field",
+      "sortable": true
+    },
+    {
+      "name": "productId",
+      "type": "int",
+      "label": "商品ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_id",
+      "sortable": true
+    },
+    {
+      "name": "imagesList",
+      "type": "string",
+      "label": "图片",
+      "column_struct": {
+        "type": "text",
+        "default": null,
+        "format": "format_images_list"
+      },
+      "column": "images_list",
+      "sortable": true
+    }
+  ],
+  "properties": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "商品描述信息",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "description",
+      "sortable": true
+    },
+    {
+      "name": "packingList",
+      "type": "string",
+      "label": "包装清单",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 300
+      },
+      "validator": {
+        "scenes": [
+          "max_length:300"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "packing_list",
+      "sortable": true
+    },
+    {
+      "name": "afterService",
+      "type": "string",
+      "label": "售后服务",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 300
+      },
+      "validator": {
+        "scenes": [
+          "max_length:300"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "after_service",
+      "sortable": true
+    },
+    {
+      "name": "attrCustom",
+      "type": "string",
+      "label": "自定义属性",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "attr_custom",
+      "sortable": true
+    },
+    {
+      "name": "attrCustomField",
+      "type": "string",
+      "label": "自定义字段",
+      "column_struct": {
+        "type": "text",
+        "default": null
+      },
+      "column": "attr_custom_field",
+      "sortable": true
+    },
+    {
+      "name": "productId",
+      "type": "int",
+      "label": "商品ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_id",
+      "sortable": true
+    },
+    {
+      "name": "imagesList",
+      "type": "string",
+      "label": "图片",
+      "column_struct": {
+        "type": "text",
+        "default": null,
+        "format": "format_images_list"
+      },
+      "column": "images_list",
+      "sortable": true
+    }
+  ],
+  "constants": {
+    "UPDATE_ID": "product_id"
+  }
+}

@@ -1,7 +1,9 @@
 use crate::app::components::notification::{
-    accent_badge_style, compact_action_btn_style, copy_action_btn_style,
-    delete_action_btn_style, is_dark_theme, item_style, panel_style,
+    accent_badge_style, compact_action_btn_style, copy_action_btn_style, delete_action_btn_style,
+    is_dark_theme, item_style, notification_copy_label, notification_text_editor_style,
+    panel_style, view,
 };
+use crate::app::{App, Message};
 use iced::widget::button;
 use iced::{Background, Color, Theme};
 
@@ -10,6 +12,14 @@ fn background_color(background: Option<Background>) -> Color {
         Some(Background::Color(color)) => color,
         _ => panic!("expected color background"),
     }
+}
+
+fn test_app() -> App {
+    App::new().0
+}
+
+fn keep_element(element: iced::Element<'_, Message>) {
+    let _ = element;
 }
 
 #[test]
@@ -67,4 +77,67 @@ fn compact_copy_and_delete_button_styles_keep_expected_semantics() {
     assert_ne!(copied.text_color, compact.text_color);
     assert_ne!(delete.text_color, compact.text_color);
     assert!(delete.border.color.a > 0.0);
+}
+
+#[test]
+fn copied_and_delete_styles_apply_semantic_colors_in_both_themes() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let compact = compact_action_btn_style(&theme, button::Status::Hovered);
+        let copied = copy_action_btn_style(&theme, button::Status::Hovered, true);
+        let delete = delete_action_btn_style(&theme, button::Status::Hovered);
+
+        assert_ne!(copied.text_color, compact.text_color);
+        assert_ne!(delete.text_color, compact.text_color);
+        assert!(copied.border.color.a > 0.0);
+        assert!(delete.border.color.a > 0.0);
+    }
+}
+
+#[test]
+fn notification_copy_label_and_text_editor_style_reflect_copy_and_theme_state() {
+    assert_eq!(notification_copy_label(false), "复制");
+    assert_eq!(notification_copy_label(true), "✓");
+
+    let light = notification_text_editor_style(&Theme::Light);
+    let dark = notification_text_editor_style(&Theme::Dark);
+
+    assert_eq!(light.border.width, 0.0);
+    assert_eq!(light.background, Background::Color(Color::TRANSPARENT));
+    assert_ne!(light.selection, dark.selection);
+    assert!(light.selection.a > dark.selection.a);
+}
+
+#[test]
+fn view_builds_empty_notification_panel() {
+    let app = test_app();
+
+    keep_element(view(&app));
+}
+
+#[test]
+fn view_builds_notification_items_with_editors_and_copy_feedback() {
+    let mut app = test_app();
+    let _ = crate::app::message::notification::update(
+        &mut app,
+        crate::app::message::NotificationMessage::Add("first".to_string()),
+    );
+    let _ = crate::app::message::notification::update(
+        &mut app,
+        crate::app::message::NotificationMessage::Add("second".to_string()),
+    );
+    app.copied_notification_id = Some(app.notifications[1].id);
+
+    keep_element(view(&app));
+}
+
+#[test]
+fn view_builds_notification_items_without_editor_content() {
+    let mut app = test_app();
+    let _ = crate::app::message::notification::update(
+        &mut app,
+        crate::app::message::NotificationMessage::Add("plain".to_string()),
+    );
+    app.notification_editors.clear();
+
+    keep_element(view(&app));
 }

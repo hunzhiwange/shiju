@@ -273,7 +273,25 @@ pub(crate) fn parse_acp_options(
         }
     }
 
-    for implicit_key in ["reasoning_effort", "thought_level"] {
+    if let Some(value) = merged_options.get("reasoning_effort") {
+        let effort = serde_json::from_value::<vw_api_types::ReasoningEffortDto>(value.clone())
+            .map_err(|_| acp_option_error("reasoning_effort must be a supported string"))?;
+        let value = match effort {
+            vw_api_types::ReasoningEffortDto::None => "none",
+            vw_api_types::ReasoningEffortDto::Low => "low",
+            vw_api_types::ReasoningEffortDto::Medium => "medium",
+            vw_api_types::ReasoningEffortDto::High => "high",
+            vw_api_types::ReasoningEffortDto::Xhigh => "xhigh",
+            vw_api_types::ReasoningEffortDto::Max => "max",
+        };
+        let config_id =
+            resolve_compatible_config_id(acp_agent_name, &acp_cfg.command, "reasoning_effort");
+        if !session_config_options.iter().any(|(existing, _)| existing == &config_id) {
+            session_config_options.push((config_id, value.to_string()));
+        }
+    }
+
+    for implicit_key in ["thought_level"] {
         let Some(value) = merged_options.get(implicit_key) else {
             continue;
         };

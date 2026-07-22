@@ -349,7 +349,6 @@ pub fn tool_question_view<'a>(
 
     let card = mouse_area(
         container(column![head_row, body].spacing(10))
-            .padding([8, 10])
             .width(Length::Fill)
             .style(simplified_block_style),
     )

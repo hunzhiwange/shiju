@@ -5,6 +5,7 @@ use matrix_sdk::ruma::{
 };
 use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
+use vw_config_types::channels::chat::DEFAULT_CHANNEL_INSTANCE_ID;
 
 impl MatrixChannel {
     /// 清理错误日志，避免泄露敏感信息
@@ -35,6 +36,69 @@ impl MatrixChannel {
     /// 标准化可选字段
     fn normalize_optional_field(value: Option<String>) -> Option<String> {
         value.map(|entry| entry.trim().to_string()).filter(|entry| !entry.is_empty())
+    }
+
+    pub(crate) fn normalize_room_reference(value: &str) -> String {
+        let trimmed = value.trim();
+        let permalink = trimmed
+            .strip_prefix("https://matrix.to/#/")
+            .or_else(|| trimmed.strip_prefix("http://matrix.to/#/"));
+        let reference = if let Some(reference) = permalink {
+            let reference = reference.split_once('?').map(|(head, _)| head).unwrap_or(reference);
+            Self::percent_decode(reference)
+        } else {
+            trimmed.to_string()
+        };
+
+        if Self::looks_like_bare_room_alias(&reference) {
+            format!("#{reference}")
+        } else {
+            reference
+        }
+    }
+
+    fn looks_like_bare_room_alias(value: &str) -> bool {
+        let Some((localpart, server_name)) = value.split_once(':') else {
+            return false;
+        };
+        if localpart.is_empty() || server_name.is_empty() {
+            return false;
+        }
+        if matches!(value.as_bytes().first(), Some(b'!' | b'#' | b'@' | b'$')) {
+            return false;
+        }
+
+        !value.contains('/') && !value.contains('?') && !value.chars().any(char::is_whitespace)
+    }
+
+    fn percent_decode(value: &str) -> String {
+        fn hex_value(byte: u8) -> Option<u8> {
+            match byte {
+                b'0'..=b'9' => Some(byte - b'0'),
+                b'a'..=b'f' => Some(byte - b'a' + 10),
+                b'A'..=b'F' => Some(byte - b'A' + 10),
+                _ => None,
+            }
+        }
+
+        let bytes = value.as_bytes();
+        let mut decoded = Vec::with_capacity(bytes.len());
+        let mut index = 0;
+        while index < bytes.len() {
+            if bytes[index] == b'%'
+                && index + 2 < bytes.len()
+                && let (Some(high), Some(low)) =
+                    (hex_value(bytes[index + 1]), hex_value(bytes[index + 2]))
+            {
+                decoded.push((high << 4) | low);
+                index += 3;
+            } else {
+                decoded.push(bytes[index]);
+                index += 1;
+            }
+        }
+
+        String::from_utf8_lossy(&decoded).into_owned()
     }
 
     /// 创建新的 Matrix 频道实例
@@ -77,9 +141,32 @@ impl MatrixChannel {
         device_id_hint: Option<String>,
         vibewindow_dir: Option<PathBuf>,
     ) -> Self {
+        Self::new_with_session_hint_instance_id_and_vibewindow_dir(
+            homeserver,
+            access_token,
+            room_id,
+            allowed_users,
+            owner_hint,
+            device_id_hint,
+            None,
+            vibewindow_dir,
+        )
+    }
+
+    /// 创建带有会话提示、实例 ID 和数据目录的 Matrix 频道实例
+    pub fn new_with_session_hint_instance_id_and_vibewindow_dir(
+        homeserver: String,
+        access_token: String,
+        room_id: String,
+        allowed_users: Vec<String>,
+        owner_hint: Option<String>,
+        device_id_hint: Option<String>,
+        instance_id: Option<String>,
+        vibewindow_dir: Option<PathBuf>,
+    ) -> Self {
         let homeserver = homeserver.trim_end_matches('/').to_string();
         let access_token = access_token.trim().to_string();
-        let room_id = room_id.trim().to_string();
+        let room_id = Self::normalize_room_reference(&room_id);
         let allowed_users = allowed_users
             .into_iter()
             .map(|user| user.trim().to_string())
@@ -94,6 +181,7 @@ impl MatrixChannel {
             mention_only: false,
             session_owner_hint: Self::normalize_optional_field(owner_hint),
             session_device_id_hint: Self::normalize_optional_field(device_id_hint),
+            instance_id: Self::normalize_optional_field(instance_id),
             vibewindow_dir,
             resolved_room_id_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
             sdk_client: std::sync::Arc::new(tokio::sync::OnceCell::new()),
@@ -147,9 +235,34 @@ impl MatrixChannel {
         format!("Bearer {}", self.access_token)
     }
 
+    fn matrix_store_instance_dir(&self) -> Option<PathBuf> {
+        self.vibewindow_dir.as_ref().map(|dir| {
+            let matrix_dir = dir.join("state").join("matrix");
+            match self.instance_id.as_deref() {
+                Some(instance_id) if instance_id != DEFAULT_CHANNEL_INSTANCE_ID => {
+                    matrix_dir.join(Self::encode_path_segment(instance_id))
+                }
+                _ => matrix_dir,
+            }
+        })
+    }
+
+    pub(crate) fn matrix_store_dir_for_user_id(&self, user_id: &str) -> Option<PathBuf> {
+        let store_dir = self.matrix_store_instance_dir()?;
+        let user_id = user_id.trim();
+        if user_id.is_empty() {
+            return Some(store_dir);
+        }
+
+        Some(store_dir.join(Self::encode_path_segment(user_id)))
+    }
+
     /// 获取 Matrix 加密状态存储目录
     pub(crate) fn matrix_store_dir(&self) -> Option<PathBuf> {
-        self.vibewindow_dir.as_ref().map(|dir| dir.join("state").join("matrix"))
+        match self.session_owner_hint.as_deref() {
+            Some(user_id) => self.matrix_store_dir_for_user_id(user_id),
+            None => self.matrix_store_instance_dir(),
+        }
     }
 
     /// 检查用户是否在允许列表中

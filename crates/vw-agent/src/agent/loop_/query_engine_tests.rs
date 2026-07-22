@@ -92,6 +92,7 @@ enum ProviderStep {
 #[derive(Default)]
 struct ProviderState {
     steps: Mutex<VecDeque<ProviderStep>>,
+    system_error: Option<&'static str>,
     seen_messages: Mutex<Vec<Vec<ChatMessage>>>,
     seen_models: Mutex<Vec<String>>,
     seen_temperatures: Mutex<Vec<f64>>,
@@ -107,6 +108,15 @@ impl ScriptedProvider {
         Self {
             state: Arc::new(ProviderState {
                 steps: Mutex::new(steps.into_iter().collect()),
+                ..ProviderState::default()
+            }),
+        }
+    }
+
+    fn with_system_error(error: &'static str) -> Self {
+        Self {
+            state: Arc::new(ProviderState {
+                system_error: Some(error),
                 ..ProviderState::default()
             }),
         }
@@ -134,6 +144,9 @@ impl Provider for ScriptedProvider {
         _model: &str,
         _temperature: f64,
     ) -> anyhow::Result<String> {
+        if let Some(error) = self.state.system_error {
+            anyhow::bail!("{error}");
+        }
         Ok("summary".to_string())
     }
 
@@ -198,7 +211,7 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         history: vec![ChatMessage::system("system prompt")],
         tools_registry: Vec::new(),
         observer: Arc::new(RecordingObserver::new(Arc::new(NoopObserver))),
-        provider: Box::new(provider),
+        provider: Arc::new(provider),
         memory,
         provider_name: "scripted".to_string(),
         model_name: "model-a".to_string(),
@@ -281,6 +294,52 @@ fn recording_observer_accumulates_successful_llm_usage_and_forwards_calls() {
     assert_eq!(inner.events.lock().unwrap().len(), 2);
     assert_eq!(inner.metrics.load(Ordering::SeqCst), 1);
     assert_eq!(inner.flushes.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn recording_observer_records_success_with_missing_usage_as_zero() {
+    let observer = RecordingObserver::new(Arc::new(NoopObserver));
+
+    observer.record_event(&ObserverEvent::LlmResponse {
+        provider: "p".to_string(),
+        model: "m".to_string(),
+        duration: std::time::Duration::from_millis(1),
+        success: true,
+        error_message: None,
+        input_tokens: None,
+        output_tokens: None,
+        cached_tokens: None,
+        reasoning_tokens: None,
+    });
+
+    let usage = observer.usage_snapshot();
+    assert_eq!(usage.llm_calls, 1);
+    assert_eq!(usage.total_tokens(), 0);
+    assert_eq!(usage.reasoning_tokens, 0);
+}
+
+#[test]
+fn recording_observer_saturates_oversized_token_counts() {
+    let observer = RecordingObserver::new(Arc::new(NoopObserver));
+
+    observer.record_event(&ObserverEvent::LlmResponse {
+        provider: "p".to_string(),
+        model: "m".to_string(),
+        duration: std::time::Duration::from_millis(1),
+        success: true,
+        error_message: None,
+        input_tokens: Some(u64::MAX),
+        output_tokens: Some(u64::MAX),
+        cached_tokens: Some(u64::MAX),
+        reasoning_tokens: Some(u64::MAX),
+    });
+
+    let usage = observer.usage_snapshot();
+    assert_eq!(usage.llm_calls, 1);
+    assert_eq!(usage.input_tokens, i64::MAX);
+    assert_eq!(usage.output_tokens, i64::MAX);
+    assert_eq!(usage.cached_tokens, i64::MAX);
+    assert_eq!(usage.reasoning_tokens, i64::MAX);
 }
 
 #[test]
@@ -382,6 +441,47 @@ async fn submit_message_success_enriches_history_and_records_usage() {
 }
 
 #[tokio::test]
+async fn submit_message_without_memory_context_uses_timestamp_prefix() {
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("final answer", None))]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+
+    let result = engine.submit_message("plain request").await.expect("submit should succeed");
+
+    assert_eq!(result, "final answer");
+    let seen = provider_handle.seen_messages();
+    let user_message = &seen[0][1].content;
+    assert!(!user_message.contains("[Memory context]"));
+    assert!(user_message.starts_with('['));
+    assert!(user_message.contains("] plain request"));
+}
+
+#[tokio::test]
+async fn submit_message_success_trims_history_after_turn() {
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("new answer", None))]);
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.max_history_messages = 1;
+    engine.history = vec![
+        ChatMessage::system("system"),
+        ChatMessage::user("old request"),
+        ChatMessage::assistant("old answer"),
+    ];
+
+    let result = engine.submit_message("new request").await.expect("submit should succeed");
+
+    assert_eq!(result, "new answer");
+    let history = engine.history_snapshot();
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].role, "system");
+    assert_eq!(history[1].content, "new answer");
+    let state = engine.session_state();
+    assert_eq!(state.budget.non_system_messages, 1);
+    assert_eq!(state.budget.remaining_history_messages, 0);
+}
+
+#[tokio::test]
 async fn submit_message_error_rolls_back_history_and_turn_count() {
     let provider = ScriptedProvider::with_steps(vec![ProviderStep::Error("boom")]);
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
@@ -418,6 +518,50 @@ async fn govern_history_trims_non_system_messages() {
     );
 }
 
+#[tokio::test]
+async fn govern_history_compacts_when_enabled_and_over_recent_window() {
+    let provider = ScriptedProvider::default();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.max_history_messages = 21;
+    engine.history = vec![ChatMessage::system("system")];
+    for index in 0..23 {
+        engine.history.push(ChatMessage::user(format!("message-{index}")));
+    }
+
+    engine.govern_history().await;
+
+    let history = engine.history_snapshot();
+    assert_eq!(history.len(), 22);
+    assert_eq!(history[0].role, "system");
+    assert!(history[1].content.contains("[Compaction summary]"));
+    assert!(history[1].content.contains("summary"));
+    assert_eq!(history[2].content, "message-3");
+    assert_eq!(history.last().unwrap().content, "message-22");
+}
+
+#[tokio::test]
+async fn govern_history_compaction_error_falls_back_to_local_summary() {
+    let provider = ScriptedProvider::with_system_error("summary failed");
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.max_history_messages = 21;
+    engine.history = vec![ChatMessage::system("system")];
+    for index in 0..23 {
+        engine.history.push(ChatMessage::user(format!("message-{index}")));
+    }
+
+    engine.govern_history().await;
+
+    let history = engine.history_snapshot();
+    assert_eq!(history.len(), 22);
+    assert_eq!(history[0].role, "system");
+    assert!(history[1].content.contains("[Compaction summary]"));
+    assert!(history[1].content.contains("USER: message-0"));
+    assert_eq!(history[2].content, "message-3");
+    assert_eq!(history.last().unwrap().content, "message-22");
+}
+
 #[test]
 fn build_tool_descriptions_tracks_optional_tools() {
     let mut config = Config::default();
@@ -437,4 +581,16 @@ fn build_tool_descriptions_tracks_optional_tools() {
     assert!(descriptions.iter().any(|(name, _)| *name == "WebFetch"));
     assert!(descriptions.iter().any(|(name, _)| *name == "WebSearch"));
     assert!(descriptions.iter().any(|(name, _)| *name == "composio"));
+}
+
+#[test]
+fn build_tool_descriptions_includes_browser_open_when_enabled() {
+    let mut config = Config::default();
+    config.browser.enabled = true;
+    config.browser.browser_open = "system".to_string();
+
+    let descriptions = build_tool_descriptions(&config);
+
+    assert!(descriptions.iter().any(|(name, _)| *name == "BrowserOpen"));
+    assert!(descriptions.iter().any(|(name, _)| *name == "Browser"));
 }

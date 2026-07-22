@@ -229,6 +229,15 @@ mod tests {
     }
 
     #[test]
+    fn public_validate_rejects_malformed_code() {
+        let dir = tempdir().unwrap();
+        let store = SecretStore::new(dir.path(), true);
+        let (validator, _) = OtpValidator::from_config(&test_config(), dir.path(), &store).unwrap();
+
+        assert!(!validator.validate("not-a-code").unwrap());
+    }
+
+    #[test]
     fn adjacent_time_windows_are_accepted_once() {
         let dir = tempdir().unwrap();
         let store = SecretStore::new(dir.path(), true);
@@ -244,6 +253,20 @@ mod tests {
     }
 
     #[test]
+    fn expired_replay_cache_allows_same_window_code_again() {
+        let dir = tempdir().unwrap();
+        let store = SecretStore::new(dir.path(), false);
+        let config = OtpConfig { token_ttl_secs: 300, cache_valid_secs: 1, ..test_config() };
+        let (validator, _) = OtpValidator::from_config(&config, dir.path(), &store).unwrap();
+
+        let now = 1_700_000_000u64;
+        let code = validator.code_for_timestamp(now);
+
+        assert!(validator.validate_at(&code, now).unwrap());
+        assert!(validator.validate_at(&code, now + 2).unwrap());
+    }
+
+    #[test]
     fn zero_ttl_uses_one_second_period_in_uri_and_codes() {
         let dir = tempdir().unwrap();
         let store = SecretStore::new(dir.path(), false);
@@ -252,6 +275,37 @@ mod tests {
 
         assert!(uri.as_deref().unwrap().contains("period=1"));
         assert_ne!(validator.code_for_timestamp(100), validator.code_for_timestamp(101));
+    }
+
+    #[test]
+    fn existing_secret_directory_reports_read_failure() {
+        let dir = tempdir().unwrap();
+        let store = SecretStore::new(dir.path(), false);
+        fs::create_dir_all(secret_file_path(dir.path())).unwrap();
+
+        let err = OtpValidator::from_config(&test_config(), dir.path(), &store).unwrap_err();
+        assert!(format!("{err:#}").contains("Failed to read OTP secret file"));
+    }
+
+    #[test]
+    fn encrypted_existing_secret_reports_decrypt_failure() {
+        let dir = tempdir().unwrap();
+        let store = SecretStore::new(dir.path(), true);
+        fs::write(secret_file_path(dir.path()), "enc2:not-hex").unwrap();
+
+        let err = OtpValidator::from_config(&test_config(), dir.path(), &store).unwrap_err();
+        assert!(format!("{err:#}").contains("Failed to decrypt OTP secret file"));
+    }
+
+    #[test]
+    fn secret_write_reports_parent_directory_failure() {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("not-a-directory");
+        fs::write(&config_path, "file blocks directory creation").unwrap();
+        let store = SecretStore::new(&config_path, false);
+
+        let err = OtpValidator::from_config(&test_config(), &config_path, &store).unwrap_err();
+        assert!(format!("{err:#}").contains("Failed to create directory"));
     }
 
     #[test]
@@ -271,6 +325,25 @@ mod tests {
         let encoded = encode_base32_secret(secret);
         assert_eq!(decode_base32_secret(&encoded).unwrap(), secret);
         assert_eq!(compute_totp_code(secret, 1), "287082");
+    }
+
+    #[test]
+    fn base32_decoder_reports_empty_and_incomplete_secrets() {
+        let empty = decode_base32_secret(" \t-\n==").unwrap_err();
+        assert!(format!("{empty:#}").contains("OTP secret is empty"));
+
+        let incomplete = decode_base32_secret("A").unwrap_err();
+        assert!(format!("{incomplete:#}").contains("did not decode to any bytes"));
+
+        let invalid = decode_base32_secret("JBSW*3DP").unwrap_err();
+        assert!(format!("{invalid:#}").contains("invalid base32 character '*'"));
+    }
+
+    #[test]
+    fn base32_helpers_handle_empty_input_and_normalized_encoding() {
+        assert_eq!(encode_base32_secret(&[]), "");
+        assert_eq!(encode_base32_secret(b"f"), "MY");
+        assert_eq!(decode_base32_secret("jbsw-y3dp====").unwrap(), b"Hello");
     }
 
     #[test]

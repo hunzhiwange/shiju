@@ -70,31 +70,63 @@ fn filepath_uses_global_paths_and_legacy_auth_location() {
     assert!(path.ends_with(".vibewindow/auth.json") || path.ends_with("auth.json"));
 }
 
+/// 在当前进程解析出的鉴权文件路径上写入内容并在结束后恢复，避免污染本机文件。
+struct AuthFileGuard {
+    _env: EnvGuard,
+    path: PathBuf,
+    previous: Option<String>,
+}
+
+impl AuthFileGuard {
+    fn write(contents: &str) -> Self {
+        // `EnvGuard` 持有进程级 env 锁，保证读写 `filepath()` 期间无并发干扰。
+        let home = unique_dir("records-home");
+        let env = EnvGuard::set_test_home(&home);
+        let path = super::filepath();
+        let previous = std::fs::read_to_string(&path).ok();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("auth parent should be created");
+        }
+        std::fs::write(&path, contents).expect("auth file should be written");
+        Self { _env: env, path, previous }
+    }
+}
+
+impl Drop for AuthFileGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(prev) => {
+                let _ = std::fs::write(&self.path, prev);
+            }
+            None => {
+                let _ = std::fs::remove_file(&self.path);
+            }
+        }
+    }
+}
+
 #[test]
 fn get_and_all_read_auth_records_from_resolved_file() {
-    let home = unique_dir("records-home");
-    let _guard = EnvGuard::set_test_home(&home);
-    let path = super::filepath();
-    if !path.starts_with(&home) {
-        return;
-    }
-    let Some(parent) = path.parent() else {
-        panic!("auth path should have a parent");
-    };
-    std::fs::create_dir_all(parent).expect("auth parent should be created");
-    std::fs::write(
-        &path,
-        json!({
+    let _guard = AuthFileGuard::write(
+        &json!({
             "openai": {"type": "api", "key": "openai-key"},
             "bad": {"type": "api"}
         })
         .to_string(),
-    )
-    .expect("auth file should be written");
+    );
 
+    // `bad` 缺少 key 字段，反序列化失败被过滤，因此只剩一条记录。
     assert_api_key(super::get("openai"), "openai-key");
     assert!(super::get("missing").is_none());
     let all = super::all();
     assert_eq!(all.len(), 1);
     assert_api_key(all.get("openai").cloned(), "openai-key");
+}
+
+#[test]
+fn get_and_all_return_empty_when_auth_file_invalid() {
+    let _guard = AuthFileGuard::write("not-json");
+
+    assert!(super::get("openai").is_none());
+    assert!(super::all().is_empty());
 }

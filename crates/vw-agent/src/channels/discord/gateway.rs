@@ -71,10 +71,11 @@ pub(super) struct GatewayConnection {
 pub(super) async fn fetch_gateway_url(
     client: &reqwest::Client,
     bot_token: &str,
+    api_base_url: &str,
 ) -> anyhow::Result<String> {
     // 向 Discord API 请求 Gateway 信息
     let gw_resp: serde_json::Value = client
-        .get("https://discord.com/api/v10/gateway/bot")
+        .get(format!("{}/gateway/bot", api_base_url.trim_end_matches('/')))
         .header("Authorization", format!("Bot {bot_token}"))
         .send()
         .await?
@@ -83,11 +84,11 @@ pub(super) async fn fetch_gateway_url(
 
     // 从响应中提取 URL，如果不存在则使用 Discord 官方默认 Gateway 地址
     // 默认值 "wss://gateway.discord.gg" 是 Discord 的主 Gateway 端点
-    Ok(gw_resp
-        .get("url")
-        .and_then(|u| u.as_str())
-        .unwrap_or("wss://gateway.discord.gg")
-        .to_string())
+    Ok(gateway_url_from_response(&gw_resp))
+}
+
+fn gateway_url_from_response(gw_resp: &serde_json::Value) -> String {
+    gw_resp.get("url").and_then(|u| u.as_str()).unwrap_or("wss://gateway.discord.gg").to_string()
 }
 
 /// 建立 Discord Gateway WebSocket 连接
@@ -168,9 +169,12 @@ pub(super) async fn read_gateway_hello(read: &mut SplitStream<GatewayWs>) -> any
     // 等待接收第一条消息（应该是 Hello 消息）
     // 如果连接立即关闭，返回错误
     let hello = read.next().await.ok_or(anyhow::anyhow!("No hello"))??;
+    if hello.is_close() {
+        anyhow::bail!("No hello");
+    }
 
     // 解析 Hello 消息的 JSON 数据
-    let hello_data: serde_json::Value = serde_json::from_str(&hello.to_string())?;
+    let hello_data: serde_json::Value = serde_json::from_str(hello.to_text()?)?;
 
     // 从消息的 "d.heartbeat_interval" 字段提取心跳间隔
     // 如果字段缺失，使用 Discord 推荐的默认值 41250 毫秒

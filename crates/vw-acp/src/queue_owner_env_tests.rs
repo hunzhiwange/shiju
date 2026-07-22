@@ -142,6 +142,83 @@ fn parse_queue_owner_payload_maps_remaining_supported_modes_and_optional_values(
 }
 
 #[test]
+fn parse_queue_owner_payload_maps_empty_optional_collections() {
+    let options = parse_queue_owner_payload(
+        r#"{
+            "sessionId": "session-1",
+            "permissionMode": "approve-all",
+            "mcpServers": [],
+            "authCredentials": {
+                "numeric": 1,
+                "flag": true
+            }
+        }"#,
+    )
+    .expect("empty optional collections should parse");
+
+    assert_eq!(options.mcp_servers.as_ref().map(Vec::len), Some(0));
+    assert_eq!(
+        options
+            .auth_credentials
+            .as_ref()
+            .map(|entries: &std::collections::HashMap<String, String>| entries.len()),
+        Some(0)
+    );
+}
+
+#[test]
+fn parse_queue_owner_payload_clamps_large_retry_and_depth_values() {
+    let options = parse_queue_owner_payload(
+        r#"{
+            "sessionId": "session-1",
+            "permissionMode": "deny-all",
+            "ttlMs": 340282366920938463463374607431768211455,
+            "maxQueueDepth": 340282366920938463463374607431768211455,
+            "promptRetries": 340282366920938463463374607431768211455
+        }"#,
+    )
+    .expect("large numeric optional values should parse");
+
+    assert_eq!(options.ttl_ms, None);
+    assert_eq!(options.max_queue_depth, Some(usize::MAX));
+    assert_eq!(options.prompt_retries, Some(u64::MAX));
+}
+
+#[test]
+fn parse_queue_owner_payload_drops_negative_ttl_and_keeps_plain_integer_optionals() {
+    let options = parse_queue_owner_payload(
+        r#"{
+            "sessionId": "session-1",
+            "permissionMode": "deny-all",
+            "ttlMs": -1,
+            "maxQueueDepth": 5,
+            "promptRetries": 4
+        }"#,
+    )
+    .expect("negative ttl with plain integer optionals should parse");
+
+    assert_eq!(options.ttl_ms, None);
+    assert_eq!(options.max_queue_depth, Some(5));
+    assert_eq!(options.prompt_retries, Some(4));
+}
+
+#[test]
+fn parse_queue_owner_payload_rounds_fractional_depth_and_retries_to_nearest() {
+    let options = parse_queue_owner_payload(
+        r#"{
+            "sessionId": "session-1",
+            "permissionMode": "deny-all",
+            "maxQueueDepth": 3.5,
+            "promptRetries": 2.4
+        }"#,
+    )
+    .expect("fractional depth and retries should round to nearest");
+
+    assert_eq!(options.max_queue_depth, Some(4));
+    assert_eq!(options.prompt_retries, Some(2));
+}
+
+#[test]
 fn parse_queue_owner_payload_ignores_unsupported_optional_values() {
     let options = parse_queue_owner_payload(
         r#"{
@@ -205,6 +282,19 @@ fn parse_queue_owner_payload_rejects_blank_session_id() {
 }
 
 #[test]
+fn parse_queue_owner_payload_rejects_non_string_session_id() {
+    let error = parse_queue_owner_payload(
+        r#"{
+            "sessionId": 42,
+            "permissionMode": "approve-all"
+        }"#,
+    )
+    .expect_err("non-string sessionId should fail");
+
+    assert_eq!(error.to_string(), "queue owner payload missing sessionId");
+}
+
+#[test]
 fn parse_queue_owner_payload_rejects_invalid_permission_mode() {
     let error = parse_queue_owner_payload(
         r#"{
@@ -215,6 +305,24 @@ fn parse_queue_owner_payload_rejects_invalid_permission_mode() {
     .expect_err("invalid permission mode should fail");
 
     assert_eq!(error.to_string(), "queue owner payload has invalid permissionMode");
+}
+
+#[test]
+fn parse_queue_owner_payload_rejects_missing_or_non_string_permission_mode() {
+    for payload in [
+        r#"{
+            "sessionId": "session-1"
+        }"#,
+        r#"{
+            "sessionId": "session-1",
+            "permissionMode": true
+        }"#,
+    ] {
+        let error =
+            parse_queue_owner_payload(payload).expect_err("invalid permission mode should fail");
+
+        assert_eq!(error.to_string(), "queue owner payload has invalid permissionMode");
+    }
 }
 
 #[test]
@@ -266,6 +374,16 @@ fn queue_owner_runtime_options_from_env_parses_trimmed_payload() {
 }
 
 #[test]
+fn queue_owner_runtime_options_from_env_propagates_payload_parse_error() {
+    let _lock = queue_owner_env_test_lock();
+    let _env = EnvGuard::set(QUEUE_OWNER_PAYLOAD_ENV, "[]");
+
+    let error = queue_owner_runtime_options_from_env().expect_err("invalid payload should fail");
+
+    assert_eq!(error.to_string(), "queue owner payload must be an object");
+}
+
+#[test]
 fn run_queue_owner_from_env_rejects_missing_or_blank_payload_before_runtime() {
     let _lock = queue_owner_env_test_lock();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -289,5 +407,23 @@ fn run_queue_owner_from_env_rejects_missing_or_blank_payload_before_runtime() {
     assert!(matches!(
         blank_error,
         crate::QueueOwnerRunFromEnvError::Payload(QueueOwnerPayloadError::MissingPayload)
+    ));
+}
+
+#[test]
+fn run_queue_owner_from_env_rejects_invalid_payload_before_runtime() {
+    let _lock = queue_owner_env_test_lock();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("test runtime should build");
+    let _env = EnvGuard::set(QUEUE_OWNER_PAYLOAD_ENV, "[]");
+
+    let error =
+        runtime.block_on(run_queue_owner_from_env()).expect_err("invalid payload should fail");
+
+    assert!(matches!(
+        error,
+        crate::QueueOwnerRunFromEnvError::Payload(QueueOwnerPayloadError::InvalidPayload(_))
     ));
 }

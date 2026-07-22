@@ -15,11 +15,9 @@ PACKAGE_APP="${PACKAGE_APP:-0}"
 CREATE_DMG="${CREATE_DMG:-0}"
 
 if [ -n "$TARGET" ]; then
-  CARGO_TARGET_ARGS=(--target "$TARGET")
   TARGET_DIR="target/$TARGET/$PROFILE"
   TARGET_SUFFIX="-$TARGET"
 else
-  CARGO_TARGET_ARGS=()
   TARGET_DIR="target/$PROFILE"
   TARGET_SUFFIX=""
 fi
@@ -29,6 +27,22 @@ if [ "$PROFILE" = "release" ]; then
 else
   CARGO_PROFILE_ARGS=(--profile "$PROFILE")
 fi
+
+cargo_build() {
+  if [ -n "$TARGET" ]; then
+    cargo build "${CARGO_PROFILE_ARGS[@]}" --target "$TARGET" "$@"
+  else
+    cargo build "${CARGO_PROFILE_ARGS[@]}" "$@"
+  fi
+}
+
+cargo_bundle() {
+  if [ -n "$TARGET" ]; then
+    cargo bundle "${CARGO_PROFILE_ARGS[@]}" --target "$TARGET" "$@"
+  else
+    cargo bundle "${CARGO_PROFILE_ARGS[@]}" "$@"
+  fi
+}
 
 need_cargo_bundle() {
   if cargo bundle --help >/dev/null 2>&1; then
@@ -67,7 +81,7 @@ ensure_app_icon() {
 if [ "$MODE" = "cli" ]; then
   if [ ! -f "$TARGET_DIR/${CLI_BIN_NAME}" ] || [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
     echo "Building CLI (${CLI_BIN_NAME})..."
-    cargo build "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-cli --bin "$CLI_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" --all-features
   fi
   mkdir -p "$OUT_DIR"
   SRC_BIN="$TARGET_DIR/${CLI_BIN_NAME}"
@@ -96,27 +110,27 @@ need_cargo_bundle
 
 if [ ! -d "$APP_BUNDLE_PRIMARY" ] && [ ! -d "$APP_BUNDLE_FALLBACK" ]; then
   echo "Bundling main application..."
-  cargo bundle "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-desktop --bin vibe-window --all-features
+  cargo_bundle -p vw-desktop --bin vibe-window --all-features
 fi
 
 if [ ! -f "$TARGET_DIR/vw-webview" ]; then
   echo "Building helper binary..."
-  cargo build "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-webview --bin vw-webview --all-features
+  cargo_build -p vw-webview --bin vw-webview --all-features
 fi
 if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
   if [ ! -f "$TARGET_DIR/${CLI_BIN_NAME}" ]; then
     echo "Building CLI binary (to include in app bundle)..."
-    cargo build "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-cli --bin "$CLI_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_BIN_NAME" --all-features
   fi
   if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ] && [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
     echo "Building CLI compatibility binary (to include in app bundle)..."
-    cargo build "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --all-features
   fi
 fi
 if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
   if [ ! -f "$TARGET_DIR/${ACP_BIN_NAME}" ]; then
     echo "Building ACP binary (to include in app bundle)..."
-    cargo build "${CARGO_PROFILE_ARGS[@]}" "${CARGO_TARGET_ARGS[@]}" -p vw-acp --bin "$ACP_BIN_NAME" --all-features
+    cargo_build -p vw-acp --bin "$ACP_BIN_NAME" --all-features
   fi
 fi
 
@@ -182,6 +196,9 @@ if [ "$CREATE_DMG" = "1" ]; then
   DMG_STAGE="$OUT_DIR/dmg-stage"
   rm -f "$OUT_DIR/$DMG_NAME"
   rm -rf "$DMG_STAGE"
-  hdiutil create -volname "VibeWindow" -srcfolder "$APP_BUNDLE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
+  mkdir -p "$DMG_STAGE"
+  ditto "$APP_BUNDLE" "$DMG_STAGE/$(basename "$APP_BUNDLE")"
+  ln -s /Applications "$DMG_STAGE/Applications"
+  hdiutil create -volname "VibeWindow" -srcfolder "$DMG_STAGE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
   echo "DMG package: $OUT_DIR/$DMG_NAME"
 fi

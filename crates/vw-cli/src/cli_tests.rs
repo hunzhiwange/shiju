@@ -1,7 +1,545 @@
-use clap::CommandFactory;
+use clap::{CommandFactory, Parser};
+use std::{
+    fs,
+    io::{self, Write},
+    path::Path,
+};
+
+struct FlushFailWriter {
+    bytes: Vec<u8>,
+}
+
+impl Write for FlushFailWriter {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.bytes.extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::Error::other("intentional flush failure"))
+    }
+}
 
 #[test]
 fn cli_definition_builds_without_panicking() {
     let command = crate::cli::Cli::command();
     assert_eq!(command.get_name(), "vibewindow");
+}
+
+#[test]
+fn completion_shell_names_parse_to_each_supported_variant() {
+    use crate::cli::CompletionShell;
+
+    for (name, expected) in [
+        ("bash", CompletionShell::Bash),
+        ("fish", CompletionShell::Fish),
+        ("zsh", CompletionShell::Zsh),
+        ("powershell", CompletionShell::PowerShell),
+        ("elvish", CompletionShell::Elvish),
+    ] {
+        let cli = crate::cli::Cli::try_parse_from(["vibewindow", "completions", name])
+            .expect("supported completion shell should parse");
+        let crate::cli::Commands::Completions { shell } = cli.command else {
+            panic!("expected completions command");
+        };
+        assert_eq!(shell, expected);
+    }
+}
+
+#[test]
+fn shell_completion_generation_covers_every_renderer() {
+    use crate::cli::CompletionShell;
+
+    let mut rendered_scripts = Vec::new();
+    for shell in [
+        CompletionShell::Bash,
+        CompletionShell::Fish,
+        CompletionShell::Zsh,
+        CompletionShell::PowerShell,
+        CompletionShell::Elvish,
+    ] {
+        let mut output = Vec::new();
+        crate::cli::write_shell_completion(shell, &mut output)
+            .expect("completion generation should write to memory");
+        let script = String::from_utf8(output).expect("completion output should be UTF-8");
+        assert!(script.contains("vibewindow"));
+        rendered_scripts.push(script);
+    }
+
+    for (index, script) in rendered_scripts.iter().enumerate() {
+        assert!(
+            rendered_scripts[..index].iter().all(|other| other != script),
+            "each shell should use a distinct completion renderer"
+        );
+    }
+}
+
+#[test]
+fn shell_completion_propagates_writer_flush_failure() {
+    let mut writer = FlushFailWriter { bytes: Vec::new() };
+
+    let error = crate::cli::write_shell_completion(crate::cli::CompletionShell::Bash, &mut writer)
+        .expect_err("flush failure should be returned");
+
+    assert!(!writer.bytes.is_empty(), "generation should precede flushing");
+    assert!(error.to_string().contains("intentional flush failure"));
+}
+
+#[test]
+fn global_config_dir_parses_before_or_after_subcommand() {
+    for arguments in [
+        ["vibewindow", "--config-dir", "/tmp/config", "status"],
+        ["vibewindow", "status", "--config-dir", "/tmp/config"],
+    ] {
+        let cli = crate::cli::Cli::try_parse_from(arguments)
+            .expect("global config directory should parse in either position");
+        assert_eq!(cli.config_dir.as_deref(), Some("/tmp/config"));
+        assert!(matches!(cli.command, crate::cli::Commands::Status));
+    }
+}
+
+#[test]
+fn agent_command_preserves_defaults_and_explicit_values() {
+    let defaults = crate::cli::Cli::try_parse_from(["vibewindow", "agent"])
+        .expect("agent defaults should parse");
+    let crate::cli::Commands::Agent {
+        message,
+        provider,
+        model,
+        temperature,
+        peripheral,
+        autonomy_level,
+        max_actions_per_hour,
+        max_tool_iterations,
+        max_history_messages,
+        compact_context,
+        memory_backend,
+    } = defaults.command
+    else {
+        panic!("expected agent command");
+    };
+    assert_eq!(message, None);
+    assert_eq!(provider, None);
+    assert_eq!(model, None);
+    assert_eq!(temperature, 0.7);
+    assert!(peripheral.is_empty());
+    assert_eq!(autonomy_level, None);
+    assert_eq!(max_actions_per_hour, None);
+    assert_eq!(max_tool_iterations, None);
+    assert_eq!(max_history_messages, None);
+    assert!(!compact_context);
+    assert_eq!(memory_backend, None);
+
+    let explicit = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "agent",
+        "--message",
+        "hello",
+        "--provider",
+        "openai",
+        "--model",
+        "gpt-test",
+        "--temperature",
+        "2",
+        "--peripheral",
+        "board:/dev/one",
+        "--peripheral",
+        "board:/dev/two",
+        "--max-actions-per-hour",
+        "12",
+        "--max-tool-iterations",
+        "7",
+        "--max-history-messages",
+        "33",
+        "--compact-context",
+        "--memory-backend",
+        "none",
+    ])
+    .expect("explicit agent options should parse");
+    let crate::cli::Commands::Agent {
+        message,
+        provider,
+        model,
+        temperature,
+        peripheral,
+        max_actions_per_hour,
+        max_tool_iterations,
+        max_history_messages,
+        compact_context,
+        memory_backend,
+        ..
+    } = explicit.command
+    else {
+        panic!("expected agent command");
+    };
+    assert_eq!(message.as_deref(), Some("hello"));
+    assert_eq!(provider.as_deref(), Some("openai"));
+    assert_eq!(model.as_deref(), Some("gpt-test"));
+    assert_eq!(temperature, 2.0);
+    assert_eq!(peripheral, ["board:/dev/one", "board:/dev/two"]);
+    assert_eq!(max_actions_per_hour, Some(12));
+    assert_eq!(max_tool_iterations, Some(7));
+    assert_eq!(max_history_messages, Some(33));
+    assert!(compact_context);
+    assert_eq!(memory_backend.as_deref(), Some("none"));
+}
+
+#[test]
+fn agent_temperature_rejects_non_finite_out_of_range_and_non_numeric_values() {
+    for value in ["-0.1", "2.1", "NaN", "not-a-number"] {
+        assert!(
+            crate::cli::Cli::try_parse_from([
+                "vibewindow",
+                "agent",
+                &format!("--temperature={value}"),
+            ])
+            .is_err(),
+            "temperature {value:?} should be rejected"
+        );
+    }
+}
+
+#[test]
+fn gateway_and_daemon_commands_parse_endpoints_and_reject_invalid_ports() {
+    let gateway = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "gateway",
+        "--port",
+        "0",
+        "--host",
+        "127.0.0.1",
+    ])
+    .expect("gateway endpoint should parse");
+    assert!(matches!(
+        gateway.command,
+        crate::cli::Commands::Gateway {
+            port: Some(0),
+            host: Some(ref host),
+        } if host == "127.0.0.1"
+    ));
+
+    let daemon = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "daemon",
+        "--port",
+        "65535",
+        "--host",
+        "0.0.0.0",
+    ])
+    .expect("daemon endpoint should parse");
+    assert!(matches!(
+        daemon.command,
+        crate::cli::Commands::Daemon {
+            port: Some(65535),
+            host: Some(ref host),
+        } if host == "0.0.0.0"
+    ));
+
+    for command in ["gateway", "daemon"] {
+        assert!(
+            crate::cli::Cli::try_parse_from(["vibewindow", command, "--port", "65536"]).is_err(),
+            "{command} should reject a port outside the u16 range"
+        );
+    }
+}
+
+#[test]
+fn estop_command_parses_each_level_repeated_targets_and_resume_options() {
+    use crate::cli::EstopLevelArg;
+
+    for (name, expected) in [
+        ("kill-all", EstopLevelArg::KillAll),
+        ("network-kill", EstopLevelArg::NetworkKill),
+        ("domain-block", EstopLevelArg::DomainBlock),
+        ("tool-freeze", EstopLevelArg::ToolFreeze),
+    ] {
+        let cli = crate::cli::Cli::try_parse_from(["vibewindow", "estop", "--level", name])
+            .expect("supported estop level should parse");
+        assert!(matches!(
+            cli.command,
+            crate::cli::Commands::Estop {
+                level: Some(level),
+                ..
+            } if level == expected
+        ));
+    }
+
+    let targets = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "estop",
+        "--level",
+        "domain-block",
+        "--domain",
+        "example.com",
+        "--domain",
+        "internal.test",
+        "--tool",
+        "shell",
+        "--tool",
+        "browser",
+    ])
+    .expect("repeated estop targets should parse");
+    let crate::cli::Commands::Estop { domains, tools, .. } = targets.command else {
+        panic!("expected estop command");
+    };
+    assert_eq!(domains, ["example.com", "internal.test"]);
+    assert_eq!(tools, ["shell", "browser"]);
+
+    let resume = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "estop",
+        "resume",
+        "--network",
+        "--domain",
+        "example.com",
+        "--tool",
+        "shell",
+        "--otp",
+        "123456",
+    ])
+    .expect("estop resume options should parse");
+    assert!(matches!(
+        resume.command,
+        crate::cli::Commands::Estop {
+            estop_command: Some(crate::cli::EstopSubcommands::Resume {
+                network: true,
+                ref domains,
+                ref tools,
+                otp: Some(ref otp),
+            }),
+            ..
+        } if domains.as_slice() == ["example.com"]
+            && tools.as_slice() == ["shell"]
+            && otp.as_str() == "123456"
+    ));
+}
+
+#[test]
+fn doctor_command_covers_optional_root_and_nested_defaults() {
+    let root = crate::cli::Cli::try_parse_from(["vibewindow", "doctor"])
+        .expect("doctor without a nested command should parse");
+    assert!(matches!(root.command, crate::cli::Commands::Doctor { doctor_command: None }));
+
+    let models = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "doctor",
+        "models",
+        "--provider",
+        "openai",
+        "--use-cache",
+    ])
+    .expect("doctor models options should parse");
+    assert!(matches!(
+        models.command,
+        crate::cli::Commands::Doctor {
+            doctor_command: Some(crate::cli::DoctorCommands::Models {
+                provider: Some(ref provider),
+                use_cache: true,
+            })
+        } if provider == "openai"
+    ));
+
+    let traces = crate::cli::Cli::try_parse_from(["vibewindow", "doctor", "traces"])
+        .expect("doctor traces defaults should parse");
+    assert!(matches!(
+        traces.command,
+        crate::cli::Commands::Doctor {
+            doctor_command: Some(crate::cli::DoctorCommands::Traces {
+                id: None,
+                event: None,
+                contains: None,
+                limit: 20,
+            })
+        }
+    ));
+}
+
+#[test]
+fn task_commands_parse_create_and_read_defaults_and_overrides() {
+    let create = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "task",
+        "--project-dir",
+        "/tmp/project",
+        "create",
+        "--prompt",
+        "ship it",
+        "--priority",
+        "4",
+        "--task-split",
+        "follow-system",
+        "--subtask",
+        "first",
+        "--subtask",
+        "second",
+    ])
+    .expect("task create options should parse");
+    let crate::cli::Commands::Task {
+        project_dir,
+        task_command:
+            crate::cli::TaskCommands::Create { priority, prompt, task_split, subtasks, .. },
+    } = create.command
+    else {
+        panic!("expected task create command");
+    };
+    assert_eq!(project_dir, "/tmp/project");
+    assert_eq!(priority, 4);
+    assert_eq!(prompt.as_deref(), Some("ship it"));
+    assert_eq!(task_split, Some(crate::cli::TaskSplitCliMode::FollowSystem));
+    assert_eq!(subtasks, ["first", "second"]);
+
+    let read = crate::cli::Cli::try_parse_from(["vibewindow", "task", "read"])
+        .expect("task read defaults should parse");
+    assert!(matches!(
+        read.command,
+        crate::cli::Commands::Task {
+            ref project_dir,
+            task_command: crate::cli::TaskCommands::Read {
+                id: None,
+                status: None,
+                include_archived: false,
+                include_deleted: false,
+                limit: 50,
+            },
+        } if project_dir == "."
+    ));
+}
+
+#[test]
+fn matrix_worker_command_parses_worker_id_and_project_dir() {
+    let cli = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "agent-scheduler",
+        "matrix-worker",
+        "--project-dir",
+        "/tmp/project",
+        "--worker-id",
+        "matrix-dev",
+    ])
+    .expect("matrix worker command should parse");
+
+    match cli.command {
+        crate::cli::Commands::AgentScheduler { agent_scheduler_command } => {
+            match agent_scheduler_command {
+                crate::cli::AgentSchedulerCommands::MatrixWorker {
+                    project_dir, worker_id, ..
+                } => {
+                    assert_eq!(project_dir, "/tmp/project");
+                    assert_eq!(worker_id, "matrix-dev");
+                }
+            }
+        }
+        other => panic!("expected agent-scheduler matrix-worker command, got {other:?}"),
+    }
+}
+
+#[test]
+fn cli_agent_scheduler_scope_defaults_and_overrides_are_explicit() {
+    let defaults = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "agent-scheduler",
+        "matrix-worker",
+        "--project-dir",
+        "/tmp/project",
+        "--worker-id",
+        "matrix-dev",
+    ])
+    .expect("matrix worker defaults should parse");
+    let crate::cli::Commands::AgentScheduler { agent_scheduler_command } = defaults.command else {
+        panic!("expected agent-scheduler command");
+    };
+    let crate::cli::AgentSchedulerCommands::MatrixWorker { platform_id, company_id, .. } =
+        agent_scheduler_command;
+    assert_eq!(platform_id, "local");
+    assert_eq!(company_id, "local");
+
+    let overrides = crate::cli::Cli::try_parse_from([
+        "vibewindow",
+        "agent-scheduler",
+        "matrix-worker",
+        "--project-dir",
+        "/tmp/project",
+        "--worker-id",
+        "matrix-dev",
+        "--platform-id",
+        "desktop",
+        "--company-id",
+        "acme",
+    ])
+    .expect("matrix worker scope overrides should parse");
+    let crate::cli::Commands::AgentScheduler { agent_scheduler_command } = overrides.command else {
+        panic!("expected agent-scheduler command");
+    };
+    let crate::cli::AgentSchedulerCommands::MatrixWorker { platform_id, company_id, .. } =
+        agent_scheduler_command;
+    assert_eq!(platform_id, "desktop");
+    assert_eq!(company_id, "acme");
+
+    for blank_argument in ["--platform-id", "--company-id"] {
+        let error = crate::cli::Cli::try_parse_from([
+            "vibewindow",
+            "agent-scheduler",
+            "matrix-worker",
+            "--project-dir",
+            "/tmp/project",
+            "--worker-id",
+            "matrix-dev",
+            blank_argument,
+            "   ",
+        ])
+        .expect_err("blank scheduler scope argument should be rejected");
+        assert!(error.to_string().contains("must not be empty"));
+    }
+}
+
+#[test]
+fn matrix_local_script_commands_reference_rust_worker() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("vw-cli crate should live under crates/vw-cli");
+    let script = fs::read_to_string(repo_root.join("dev/matrix/matrix-local.sh"))
+        .expect("matrix-local.sh should be readable");
+    let readme = fs::read_to_string(repo_root.join("dev/matrix/README.md"))
+        .expect("Matrix README should be readable");
+
+    assert!(
+        !script.contains("matrix-worker-local.py"),
+        "matrix-local.sh should not call the Python Matrix worker"
+    );
+    assert!(
+        script.contains("agent-scheduler matrix-worker"),
+        "matrix-local.sh should launch the Rust Matrix worker CLI"
+    );
+    assert!(
+        script.contains("target/debug/vibewindow"),
+        "matrix-local.sh should prefer the current repo debug binary before PATH"
+    );
+    assert!(
+        script.contains("stop_existing_matrix_workers"),
+        "matrix-local.sh should clean up duplicate Matrix worker processes"
+    );
+    for worker_id in ["matrix-dev", "matrix-test", "matrix-review"] {
+        assert!(script.contains(worker_id), "matrix-local.sh should reference {worker_id}");
+    }
+
+    assert!(
+        !readme.contains("matrix-worker-local.py"),
+        "Matrix README should describe the Rust worker path"
+    );
+    assert!(
+        readme.contains("agent-scheduler matrix-worker"),
+        "Matrix README should document the Rust worker CLI"
+    );
+}
+
+#[test]
+fn native_task_commands_use_global_agent_scheduler_store() {
+    let source = include_str!("lib.rs");
+    assert!(source.contains("create_native_task("));
+    assert!(source.contains("load_native_task("));
+    assert!(source.contains("list_native_tasks("));
+    for forbidden in ["task::create_task(", "task::load_task(", "task::load_all_tasks("] {
+        assert!(!source.contains(forbidden), "legacy native task call remains: {forbidden}");
+    }
 }

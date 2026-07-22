@@ -597,3 +597,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         _ => Task::none(),
     }
 }
+
+#[cfg(test)]
+#[path = "tab_tests.rs"]
+mod tests;

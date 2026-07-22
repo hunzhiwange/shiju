@@ -8,19 +8,16 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-static ENV_LOCK: Mutex<()> = Mutex::new(());
-
 struct EnvVarGuard {
-    _lock: MutexGuard<'static, ()>,
+    _lock: tokio::sync::MutexGuard<'static, ()>,
     saved_home: Option<String>,
 }
 
 impl EnvVarGuard {
-    fn set_home(home: &Path) -> Self {
-        let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    async fn set_home(home: &Path) -> Self {
+        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
         let saved_home = std::env::var("HOME").ok();
         unsafe { std::env::set_var("HOME", home) };
         Self { _lock: lock, saved_home }
@@ -156,10 +153,32 @@ fn lock_age_ms_treats_missing_or_invalid_timestamps_as_stale() {
     assert!(lock_age_ms(Some("1970-01-01T00:00:00Z")) > EVENT_LOCK_STALE_MS);
 }
 
+#[tokio::test]
+async fn remove_stale_event_lock_treats_missing_lock_as_recovered() {
+    let home = temp_home("missing-lock");
+    let lock_path = session_event_lock_path("missing-session", &home);
+
+    assert!(remove_stale_event_lock(&lock_path).await);
+    assert!(!path_exists(&lock_path).await);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn remove_stale_event_lock_keeps_unreadable_lock_path() {
+    let home = temp_home("unreadable-lock");
+    let _env = EnvVarGuard::set_home(&home).await;
+    let lock_path = session_event_lock_path("directory-lock", &home);
+    tokio::fs::create_dir_all(&lock_path).await.expect("create directory at lock path");
+
+    assert!(!remove_stale_event_lock(&lock_path).await);
+    assert!(path_exists(&lock_path).await);
+
+    let _ = tokio::fs::remove_dir_all(&home).await;
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn remove_stale_event_lock_removes_dead_or_malformed_lock_and_keeps_live_lock() {
     let home = temp_home("stale-lock");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "lock-session";
     let lock_path = session_event_lock_path(session_id, &home);
     ensure_session_dir(&home).await.expect("create session dir");
@@ -186,7 +205,7 @@ async fn remove_stale_event_lock_removes_dead_or_malformed_lock_and_keeps_live_l
 #[tokio::test(flavor = "current_thread")]
 async fn acquire_events_lock_creates_lock_and_release_is_idempotent() {
     let home = temp_home("lock-release");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "release-session";
     let lock_path = session_event_lock_path(session_id, &home);
 
@@ -202,9 +221,49 @@ async fn acquire_events_lock_creates_lock_and_release_is_idempotent() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn release_events_lock_returns_remove_errors() {
+    let home = temp_home("lock-release-error");
+    let _env = EnvVarGuard::set_home(&home).await;
+    let lock_path = session_event_lock_path("release-directory", &home);
+    tokio::fs::create_dir_all(&lock_path).await.expect("create directory at lock path");
+    let lock = LockHandle { file_path: lock_path };
+
+    let error = release_events_lock(&lock).await.expect_err("directory lock release should fail");
+
+    assert_ne!(error.kind(), ErrorKind::NotFound);
+
+    let _ = tokio::fs::remove_dir_all(&home).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn open_counts_existing_segments_when_record_has_no_segment_count() {
+    let home = temp_home("open-counts");
+    let _env = EnvVarGuard::set_home(&home).await;
+    let session_id = "open-count-session";
+    ensure_session_dir(&home).await.expect("create session dir");
+    tokio::fs::write(session_event_segment_path(session_id, 1, &home), b"old\n")
+        .await
+        .expect("write existing segment");
+    tokio::fs::write(session_event_active_path(session_id, &home), b"active\n")
+        .await
+        .expect("write active segment");
+    let mut record = test_record(session_id, &home);
+    record.event_log.segment_count = 0;
+
+    let mut writer =
+        SessionEventWriter::open(record, SessionEventWriterOptions::default()).await.expect("open");
+
+    assert_eq!(writer.get_record().event_log.segment_count, 0);
+    assert_eq!(writer.segment_count, 2);
+
+    writer.close(SessionEventAppendOptions { checkpoint: false }).await.expect("close");
+    let _ = tokio::fs::remove_dir_all(&home).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn append_messages_empty_batch_keeps_record_and_files_unchanged() {
     let home = temp_home("empty-append");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "empty-session";
     let record = test_record(session_id, &home);
     let active_path = session_event_active_path(session_id, &home);
@@ -227,7 +286,7 @@ async fn append_messages_empty_batch_keeps_record_and_files_unchanged() {
 #[tokio::test(flavor = "current_thread")]
 async fn append_message_updates_record_writes_checkpoint_and_rejects_closed_writer() {
     let home = temp_home("append-checkpoint");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "checkpoint-session";
     let record = test_record(session_id, &home);
     let message = request_message("req-1", "session/prompt");
@@ -269,9 +328,58 @@ async fn append_message_updates_record_writes_checkpoint_and_rejects_closed_writ
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn checkpoint_persists_current_record_before_close() {
+    let home = temp_home("explicit-checkpoint");
+    let _env = EnvVarGuard::set_home(&home).await;
+    let session_id = "explicit-checkpoint-session";
+    let record = test_record(session_id, &home);
+    let message = request_message("req-checkpoint", "session/prompt");
+
+    let mut writer =
+        SessionEventWriter::open(record, SessionEventWriterOptions::default()).await.expect("open");
+    writer
+        .append_message(&message, SessionEventAppendOptions { checkpoint: false })
+        .await
+        .expect("append message");
+    writer.checkpoint().await.expect("checkpoint");
+
+    let checkpoint = resolve_session_record(session_id).await.expect("resolve checkpoint");
+    assert_eq!(checkpoint.last_seq, 1);
+    assert_eq!(checkpoint.last_request_id.as_deref(), Some("req-checkpoint"));
+
+    writer.close(SessionEventAppendOptions { checkpoint: false }).await.expect("close");
+    let _ = tokio::fs::remove_dir_all(&home).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn close_with_checkpoint_persists_record_and_is_idempotent() {
+    let home = temp_home("close-checkpoint");
+    let _env = EnvVarGuard::set_home(&home).await;
+    let session_id = "close-checkpoint-session";
+    let record = test_record(session_id, &home);
+    let message = request_message("req-close", "session/prompt");
+
+    let mut writer =
+        SessionEventWriter::open(record, SessionEventWriterOptions::default()).await.expect("open");
+    writer
+        .append_message(&message, SessionEventAppendOptions { checkpoint: false })
+        .await
+        .expect("append message");
+    writer.close(SessionEventAppendOptions { checkpoint: true }).await.expect("close");
+    writer.close(SessionEventAppendOptions { checkpoint: true }).await.expect("close again");
+
+    let checkpoint = resolve_session_record(session_id).await.expect("resolve checkpoint");
+    assert_eq!(checkpoint.last_seq, 1);
+    assert_eq!(checkpoint.last_request_id.as_deref(), Some("req-close"));
+    assert!(!path_exists(&session_event_lock_path(session_id, &home)).await);
+
+    let _ = tokio::fs::remove_dir_all(&home).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn append_messages_tracks_numeric_request_id_and_ignores_notification_id() {
     let home = temp_home("numeric-id");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "numeric-session";
     let record = test_record(session_id, &home);
     let messages =
@@ -294,7 +402,7 @@ async fn append_messages_tracks_numeric_request_id_and_ignores_notification_id()
 #[tokio::test(flavor = "current_thread")]
 async fn append_messages_rotates_segments_and_caps_retained_segment_count() {
     let home = temp_home("rotate");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "rotate-session";
     let record = test_record(session_id, &home);
     let messages = vec![
@@ -340,7 +448,7 @@ async fn append_messages_rotates_segments_and_caps_retained_segment_count() {
 #[tokio::test(flavor = "current_thread")]
 async fn list_session_events_orders_segments_before_active_and_skips_invalid_lines() {
     let home = temp_home("list");
-    let _env = EnvVarGuard::set_home(&home);
+    let _env = EnvVarGuard::set_home(&home).await;
     let session_id = "list-session";
     ensure_session_dir(&home).await.expect("create session dir");
 

@@ -18,14 +18,16 @@ use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use vw_api_types::chat::GatewayChatStreamRequest;
+use vw_api_types::chat::{GatewayChatStreamRequest, ReasoningEffortDto};
+use vw_api_types::id::TenantScope;
+
+use super::shared::with_tenant_instance;
 
 use crate::app::agent::agent;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::approval_state;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
-use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session as agent_session;
@@ -244,6 +246,7 @@ fn merge_gateway_request_options(
     top_p: Option<f64>,
     acp_agent: Option<String>,
     acp_allowed_tools: Option<Vec<String>>,
+    reasoning_effort: Option<ReasoningEffortDto>,
 ) -> Value {
     let mut merged = match options {
         Some(Value::Object(map)) => map,
@@ -301,6 +304,16 @@ fn merge_gateway_request_options(
         );
     }
 
+    merged.remove("reasoning_effort");
+    merged.remove("thought_level");
+    if acp_requested && let Some(reasoning_effort) = reasoning_effort {
+        merged.insert(
+            "reasoning_effort".to_string(),
+            serde_json::to_value(reasoning_effort)
+                .expect("ReasoningEffortDto always serializes to a string"),
+        );
+    }
+
     Value::Object(merged)
 }
 
@@ -312,6 +325,12 @@ struct DelegateRequestOverrides {
     chat_system_prompt: Option<String>,
     temperature: Option<f64>,
     top_p: Option<f64>,
+}
+
+#[derive(Debug)]
+struct PreparedStreamHistory {
+    history: Vec<ui_models::ChatMessage>,
+    query: String,
 }
 
 #[derive(Debug, Clone)]
@@ -331,6 +350,125 @@ fn normalize_tool_ids(tools: Vec<String>) -> Option<Vec<String>> {
         normalized.push(trimmed.to_string());
     }
     (!normalized.is_empty()).then_some(normalized)
+}
+
+fn prepare_stream_history(
+    history_messages: Vec<Value>,
+    resume_history_only: bool,
+) -> PreparedStreamHistory {
+    let total_messages = history_messages.len();
+    let mut history = Vec::new();
+    let mut query = String::new();
+
+    for (idx, message) in history_messages.into_iter().enumerate() {
+        let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
+        let content =
+            message.get("content").and_then(Value::as_str).unwrap_or_default().to_string();
+
+        let normalized_content =
+            if role == "tool" { tool_content_to_session_text(&content) } else { content };
+
+        if idx + 1 == total_messages && role == "user" {
+            query = normalized_content;
+            continue;
+        }
+
+        let mapped_role = match role {
+            "assistant" => ui_models::ChatRole::Assistant,
+            "system" => ui_models::ChatRole::System,
+            "tool" => ui_models::ChatRole::Tool,
+            _ => ui_models::ChatRole::User,
+        };
+
+        history.push(ui_models::ChatMessage {
+            role: mapped_role,
+            content: normalized_content,
+            think_timing: Vec::new(),
+        });
+    }
+
+    if !resume_history_only
+        && query.is_empty()
+        && let Some(last_user_idx) =
+            history.iter().rposition(|message| matches!(message.role, ui_models::ChatRole::User))
+    {
+        query = history.remove(last_user_idx).content;
+    }
+
+    PreparedStreamHistory { history, query }
+}
+
+fn stream_payload_for_non_done_event(
+    ev: agent_session::processor::StreamEvent,
+    assistant_text: &mut String,
+    assistant_finish_reason: &mut Option<String>,
+    assistant_model: &mut Option<String>,
+    patch_recorder: &mut StreamPatchRecorder,
+    stream_session_id: &str,
+    stream_message_ids: Option<&StreamTurnMessageIds>,
+    root_dir: &str,
+) -> Option<Value> {
+    match ev {
+        agent_session::processor::StreamEvent::Delta(delta) => {
+            assistant_text.push_str(&delta);
+            Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
+        }
+        agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
+            if let Some(assistant_id) =
+                stream_message_ids.as_ref().map(|ids| ids.assistant_id.as_str())
+            {
+                patch_recorder.begin_step(stream_session_id, assistant_id, root_dir, step_index);
+            }
+            Some(serde_json::json!({
+                "type": "chat.step_start",
+                "step_index": step_index,
+                "created_ms": created_ms,
+                "model": model
+            }))
+        }
+        agent_session::processor::StreamEvent::StepFinish {
+            step_index,
+            finished_ms,
+            usage,
+            finish_reason,
+            model,
+        } => {
+            if finish_reason.is_some() {
+                *assistant_finish_reason = finish_reason.clone();
+            }
+            if model.is_some() {
+                *assistant_model = model.clone();
+            }
+            Some(serde_json::json!({
+                "type": "chat.step_finish",
+                "step_index": step_index,
+                "finished_ms": finished_ms,
+                "usage": usage,
+                "finish_reason": finish_reason,
+                "model": model
+            }))
+        }
+        agent_session::processor::StreamEvent::PostToolRound { step_index } => {
+            if let Some(assistant_id) =
+                stream_message_ids.as_ref().map(|ids| ids.assistant_id.as_str())
+            {
+                patch_recorder.finish_tool_round(
+                    stream_session_id,
+                    assistant_id,
+                    root_dir,
+                    step_index,
+                );
+            }
+            Some(serde_json::json!({
+                "type": "chat.post_tool_round",
+                "step_index": step_index
+            }))
+        }
+        agent_session::processor::StreamEvent::Error(err) => {
+            Some(serde_json::json!({ "type": "chat.error", "error": err }))
+        }
+        agent_session::processor::StreamEvent::Done(_) => None,
+    }
 }
 
 async fn resolve_delegate_request_overrides(
@@ -380,6 +518,7 @@ async fn resolve_delegate_request_overrides(
 }
 
 async fn start_gateway_chat_stream(
+    tenant: TenantScope,
     dir: String,
     body: GatewayChatStreamRequest,
 ) -> Result<UnboundedReceiver<Value>, ApiError> {
@@ -388,6 +527,7 @@ async fn start_gateway_chat_stream(
         messages,
         system: _,
         model,
+        reasoning_effort,
         agent,
         allowed_tools,
         acp_agent,
@@ -407,6 +547,7 @@ async fn start_gateway_chat_stream(
         delegate_overrides.top_p,
         acp_agent,
         acp_allowed_tools,
+        reasoning_effort,
     );
     let resume_history_only =
         options.get("desktop_resume_history_only").and_then(Value::as_bool).unwrap_or(false);
@@ -424,49 +565,12 @@ async fn start_gateway_chat_stream(
     let runtime_handle = tokio::runtime::Handle::current();
 
     std::thread::spawn(move || {
-        let total_messages = history_messages.len();
-        let mut history = Vec::new();
-        let mut query = String::new();
+        let PreparedStreamHistory { history, query } =
+            prepare_stream_history(history_messages, resume_history_only);
         let mut assistant_text = String::new();
         let mut assistant_finish_reason: Option<String> = None;
         let mut assistant_model = model.clone();
         let mut patch_recorder = StreamPatchRecorder::default();
-
-        for (idx, message) in history_messages.into_iter().enumerate() {
-            let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
-            let content =
-                message.get("content").and_then(Value::as_str).unwrap_or_default().to_string();
-
-            let normalized_content =
-                if role == "tool" { tool_content_to_session_text(&content) } else { content };
-
-            if idx + 1 == total_messages && role == "user" {
-                query = normalized_content;
-                continue;
-            }
-
-            let mapped_role = match role {
-                "assistant" => ui_models::ChatRole::Assistant,
-                "system" => ui_models::ChatRole::System,
-                "tool" => ui_models::ChatRole::Tool,
-                _ => ui_models::ChatRole::User,
-            };
-
-            history.push(ui_models::ChatMessage {
-                role: mapped_role,
-                content: normalized_content,
-                think_timing: Vec::new(),
-            });
-        }
-
-        if !resume_history_only
-            && query.is_empty()
-            && let Some(last_user_idx) = history
-                .iter()
-                .rposition(|message| matches!(message.role, ui_models::ChatRole::User))
-        {
-            query = history.remove(last_user_idx).content;
-        }
 
         let approval_reply_target = if stream_session_id.trim().is_empty() {
             "desktop".to_string()
@@ -498,86 +602,27 @@ async fn start_gateway_chat_stream(
             },
             move |ev| {
                 let payload = match ev {
-                    agent_session::processor::StreamEvent::Delta(delta) => {
-                        assistant_text.push_str(&delta);
-                        serde_json::json!({ "type": "chat.delta", "delta": delta })
-                    }
-                    agent_session::processor::StreamEvent::StepStart {
-                        step_index,
-                        created_ms,
-                        model,
-                    } => {
-                        if let Some(assistant_id) =
-                            stream_message_ids.as_ref().map(|ids| ids.assistant_id.as_str())
-                        {
-                            patch_recorder.begin_step(
-                                &stream_session_id,
-                                assistant_id,
-                                &root_dir,
-                                step_index,
-                            );
-                        }
-                        serde_json::json!({
-                            "type": "chat.step_start",
-                            "step_index": step_index,
-                            "created_ms": created_ms,
-                            "model": model
-                        })
-                    }
-                    agent_session::processor::StreamEvent::StepFinish {
-                        step_index,
-                        finished_ms,
-                        usage,
-                        finish_reason,
-                        model,
-                    } => {
-                        if finish_reason.is_some() {
-                            assistant_finish_reason = finish_reason.clone();
-                        }
-                        if model.is_some() {
-                            assistant_model = model.clone();
-                        }
-                        serde_json::json!({
-                            "type": "chat.step_finish",
-                            "step_index": step_index,
-                            "finished_ms": finished_ms,
-                            "usage": usage,
-                            "finish_reason": finish_reason,
-                            "model": model
-                        })
-                    }
-                    agent_session::processor::StreamEvent::PostToolRound { step_index } => {
-                        if let Some(assistant_id) =
-                            stream_message_ids.as_ref().map(|ids| ids.assistant_id.as_str())
-                        {
-                            patch_recorder.finish_tool_round(
-                                &stream_session_id,
-                                assistant_id,
-                                &root_dir,
-                                step_index,
-                            );
-                        }
-                        serde_json::json!({
-                            "type": "chat.post_tool_round",
-                            "step_index": step_index
-                        })
-                    }
                     agent_session::processor::StreamEvent::Done(usage) => {
                         let (message_id, parent_message_id) = if !stream_session_id.is_empty()
                             && !(resume_history_only && query.trim().is_empty())
                         {
                             let stream_message_ids = stream_message_ids.clone();
                             let patch_parts = patch_recorder.take_parts();
-                            match runtime_handle.block_on(persist_stream_chat_turn(
-                                &stream_session_id,
-                                &query,
-                                &assistant_text,
-                                assistant_model.as_deref(),
-                                &usage,
-                                assistant_finish_reason.as_deref(),
-                                stream_message_ids.as_ref(),
-                                &patch_parts,
-                            )) {
+                            match runtime_handle.block_on(
+                                crate::session::ui_store::with_tenant_scope(
+                                    tenant.clone(),
+                                    persist_stream_chat_turn(
+                                        &stream_session_id,
+                                        &query,
+                                        &assistant_text,
+                                        assistant_model.as_deref(),
+                                        &usage,
+                                        assistant_finish_reason.as_deref(),
+                                        stream_message_ids.as_ref(),
+                                        &patch_parts,
+                                    ),
+                                ),
+                            ) {
                                 Ok((assistant_id, user_id)) => (Some(assistant_id), Some(user_id)),
                                 Err(_) => (None, None),
                             }
@@ -591,9 +636,17 @@ async fn start_gateway_chat_stream(
                             "parent_message_id": parent_message_id
                         })
                     }
-                    agent_session::processor::StreamEvent::Error(err) => {
-                        serde_json::json!({ "type": "chat.error", "error": err })
-                    }
+                    other => stream_payload_for_non_done_event(
+                        other,
+                        &mut assistant_text,
+                        &mut assistant_finish_reason,
+                        &mut assistant_model,
+                        &mut patch_recorder,
+                        &stream_session_id,
+                        stream_message_ids.as_ref(),
+                        &root_dir,
+                    )
+                    .expect("done events are handled before non-done event encoding"),
                 };
                 tx.send(payload).is_ok()
             },
@@ -607,15 +660,30 @@ pub(crate) async fn collect_gateway_chat_stream(
     dir: String,
     body: GatewayChatStreamRequest,
 ) -> Result<GatewayChatStreamCollected, ApiError> {
-    let mut rx = with_instance(dir.clone(), move || {
-        Box::pin(async move { start_gateway_chat_stream(dir, body).await })
+    collect_gateway_chat_stream_with_observer(dir, body, |_| {}).await
+}
+
+pub(crate) async fn collect_gateway_chat_stream_with_observer(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    let tenant = TenantScope::default();
+    let rx = with_tenant_instance(tenant.clone(), dir.clone(), move || {
+        Box::pin(async move { start_gateway_chat_stream(tenant, dir, body).await })
     })
     .await?;
+    collect_gateway_chat_stream_payloads(rx, observe_payload).await
+}
+
+async fn collect_gateway_chat_stream_payloads(
+    mut rx: UnboundedReceiver<Value>,
+    mut observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
     let mut output = String::new();
-    let mut message_id = None;
-    let mut parent_message_id = None;
 
     while let Some(payload) = rx.recv().await {
+        observe_payload(&payload);
         match payload.get("type").and_then(Value::as_str) {
             Some("chat.delta") => {
                 if let Some(delta) = payload.get("delta").and_then(Value::as_str) {
@@ -623,8 +691,9 @@ pub(crate) async fn collect_gateway_chat_stream(
                 }
             }
             Some("chat.done") => {
-                message_id = payload.get("message_id").and_then(Value::as_str).map(str::to_string);
-                parent_message_id =
+                let message_id =
+                    payload.get("message_id").and_then(Value::as_str).map(str::to_string);
+                let parent_message_id =
                     payload.get("parent_message_id").and_then(Value::as_str).map(str::to_string);
                 return Ok(GatewayChatStreamCollected { output, message_id, parent_message_id });
             }
@@ -639,7 +708,7 @@ pub(crate) async fn collect_gateway_chat_stream(
         }
     }
 
-    Ok(GatewayChatStreamCollected { output, message_id, parent_message_id })
+    Err(ApiError::internal("gateway chat stream closed before completion"))
 }
 
 /// 处理桌面聊天流式请求。
@@ -664,10 +733,12 @@ pub(super) async fn chat_stream(
     headers: HeaderMap,
     Json(body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
-    let sse = with_instance(dir.clone(), move || {
+    let tenant_for_stream = tenant.clone();
+    let sse = with_tenant_instance(tenant, dir.clone(), move || {
         Box::pin(async move {
-            let rx = start_gateway_chat_stream(dir, body).await?;
+            let rx = start_gateway_chat_stream(tenant_for_stream, dir, body).await?;
             let stream = UnboundedReceiverStream::new(rx).map(|payload| {
                 let frame = format!("data: {}\n\n", payload);
                 Ok::<Bytes, Infallible>(Bytes::from(frame))

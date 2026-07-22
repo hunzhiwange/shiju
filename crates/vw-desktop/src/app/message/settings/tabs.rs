@@ -5,8 +5,8 @@ use iced::Task;
 
 use super::messages::{
     AcpMessage, AgentsMessage, BrowserMessage, ChannelsMessage, GatewayMessage, HttpRequestMessage,
-    MemoryMessage, ModelRoutesMessage, QueryClassificationMessage, RuntimeMessage, SettingsMessage,
-    WebSearchMessage,
+    McpMessage, MemoryMessage, ModelRoutesMessage, QueryClassificationMessage, RuntimeMessage,
+    SettingsMessage, StaffMessage, StaffResourceMessage, WebSearchMessage,
 };
 use super::models::models_refresh_task;
 use super::providers::refresh_task;
@@ -72,6 +72,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
                     Task::done(Message::Settings(SettingsMessage::SkillsRefresh)),
                 ])
+            } else if tab == SystemTab::Staff {
+                app.staff_settings.loading = true;
+                app.staff_settings.save_error = None;
+                app.staff_settings.save_success = false;
+                app.agents_settings.loading = true;
+                app.skills_settings.loading = true;
+                Task::batch(vec![
+                    Task::done(Message::Settings(SettingsMessage::Staff(StaffMessage::Refresh))),
+                    Task::done(Message::Settings(SettingsMessage::Staff(StaffMessage::Resources(
+                        StaffResourceMessage::Refresh,
+                    )))),
+                    Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
+                    Task::done(Message::Settings(SettingsMessage::SkillsRefresh)),
+                ])
             } else if tab == SystemTab::Browser {
                 app.browser_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
@@ -96,6 +110,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.acp_settings.loading = true;
                 app.acp_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
+            } else if tab == SystemTab::Mcp {
+                app.mcp_settings.loading = true;
+                app.mcp_settings.save_error = None;
+                Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
             } else if tab == SystemTab::Gateway {
                 app.gateway_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Gateway(GatewayMessage::Refresh)))

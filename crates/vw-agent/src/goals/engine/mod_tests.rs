@@ -133,6 +133,46 @@ fn find_stalled_goals_ignores_non_in_progress_statuses() {
 }
 
 #[test]
+fn select_next_actionable_returns_none_when_all_steps_are_exhausted() {
+    let state = GoalState {
+        goals: vec![
+            goal(
+                "g1",
+                GoalStatus::InProgress,
+                GoalPriority::Critical,
+                vec![step("a", StepStatus::Pending, GoalEngine::max_step_attempts())],
+            ),
+            goal(
+                "g2",
+                GoalStatus::InProgress,
+                GoalPriority::High,
+                vec![step("b", StepStatus::Blocked, 0)],
+            ),
+        ],
+    };
+
+    assert_eq!(GoalEngine::select_next_actionable(&state), None);
+}
+
+#[test]
+fn build_step_prompt_omits_completed_steps_and_context_when_absent() {
+    let goal = goal(
+        "g1",
+        GoalStatus::InProgress,
+        GoalPriority::Medium,
+        vec![step("first", StepStatus::Pending, 0)],
+    );
+
+    let prompt = GoalEngine::build_step_prompt(&goal, &goal.steps[0]);
+
+    assert!(prompt.contains("[Goal Loop] Executing step for goal: Goal g1"));
+    assert!(prompt.contains("Current step: Step first"));
+    assert!(!prompt.contains("Completed steps:"));
+    assert!(!prompt.contains("Context so far:"));
+    assert!(!prompt.contains("WARNING:"));
+}
+
+#[test]
 fn build_reflection_prompt_marks_in_progress_step_as_pending() {
     let mut goal = goal(
         "g1",
@@ -145,6 +185,63 @@ fn build_reflection_prompt_marks_in_progress_step_as_pending() {
     let prompt = GoalEngine::build_reflection_prompt(&goal);
 
     assert!(prompt.contains("[pending] Step running: still running"));
+}
+
+#[tokio::test]
+async fn load_state_reads_existing_goal_file() {
+    let tmp = TempDir::new().unwrap();
+    let state_dir = tmp.path().join("state");
+    tokio::fs::create_dir_all(&state_dir).await.unwrap();
+    tokio::fs::write(
+        state_dir.join("goals.json"),
+        r#"{
+            "goals": [{
+                "id": "g1",
+                "description": "loaded goal",
+                "status": "in_progress",
+                "priority": "critical",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:01:00Z",
+                "steps": [{
+                    "id": "s1",
+                    "description": "loaded step",
+                    "status": "failed",
+                    "result": "failed once",
+                    "attempts": 2
+                }],
+                "context": "existing context",
+                "last_error": "previous error"
+            }]
+        }"#,
+    )
+    .await
+    .unwrap();
+    let engine = GoalEngine::new(tmp.path());
+
+    let state = engine.load_state().await.unwrap();
+
+    assert_eq!(state.goals.len(), 1);
+    assert_eq!(state.goals[0].status, GoalStatus::InProgress);
+    assert_eq!(state.goals[0].priority, GoalPriority::Critical);
+    assert_eq!(state.goals[0].steps[0].status, StepStatus::Failed);
+    assert_eq!(state.goals[0].steps[0].result.as_deref(), Some("failed once"));
+    assert_eq!(state.goals[0].steps[0].attempts, 2);
+    assert_eq!(state.goals[0].last_error.as_deref(), Some("previous error"));
+}
+
+#[tokio::test]
+async fn load_state_propagates_error_when_goal_path_is_directory() {
+    let tmp = TempDir::new().unwrap();
+    let goal_path = tmp.path().join("state").join("goals.json");
+    tokio::fs::create_dir_all(&goal_path).await.unwrap();
+    let engine = GoalEngine::new(tmp.path());
+
+    let error = engine
+        .load_state()
+        .await
+        .expect_err("a directory cannot be loaded as a serialized goal state");
+
+    assert!(!error.to_string().is_empty());
 }
 
 #[tokio::test]
@@ -176,4 +273,23 @@ async fn save_state_overwrites_existing_goal_file() {
     assert_eq!(loaded.goals[0].id, "second");
     assert_eq!(loaded.goals[0].status, GoalStatus::Completed);
     assert_eq!(loaded.goals[0].priority, GoalPriority::Critical);
+}
+
+#[tokio::test]
+async fn save_state_creates_state_directory_without_leaving_tmp_file() {
+    let tmp = TempDir::new().unwrap();
+    let engine = GoalEngine::new(tmp.path());
+    let state = GoalState {
+        goals: vec![goal(
+            "g1",
+            GoalStatus::Completed,
+            GoalPriority::High,
+            vec![step("done", StepStatus::Completed, 1)],
+        )],
+    };
+
+    engine.save_state(&state).await.unwrap();
+
+    assert!(tmp.path().join("state").join("goals.json").exists());
+    assert!(!tmp.path().join("state").join("goals.json.tmp").exists());
 }

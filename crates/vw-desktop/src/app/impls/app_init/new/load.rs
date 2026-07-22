@@ -3,8 +3,6 @@
 
 use super::state::NewAppInit;
 use super::*;
-#[cfg(target_arch = "wasm32")]
-use crate::app::state::RedisToolPersistedState;
 
 /// 模块内可见函数，执行 load_new_app_init 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -18,11 +16,6 @@ pub(super) fn load_new_app_init() -> NewAppInit {
     let system_settings_cfg = config::load_system_settings_config();
     #[cfg(target_arch = "wasm32")]
     let system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
-
-    #[cfg(not(target_arch = "wasm32"))]
-    let redis_tool_persisted = config::load_redis_tool_state();
-    #[cfg(target_arch = "wasm32")]
-    let redis_tool_persisted = RedisToolPersistedState::default();
 
     let now = {
         #[cfg(not(target_arch = "wasm32"))]
@@ -50,7 +43,11 @@ pub(super) fn load_new_app_init() -> NewAppInit {
 
     #[cfg(not(target_arch = "wasm32"))]
     let global_acp_cfg = config::load_enabled_acp_config_result().unwrap_or_else(|err| {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            tracing::debug!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+        } else {
+            tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+        }
         full_agent_cfg.acp.clone()
     });
     #[cfg(target_arch = "wasm32")]
@@ -64,7 +61,6 @@ pub(super) fn load_new_app_init() -> NewAppInit {
     NewAppInit {
         cfg,
         system_settings_cfg,
-        redis_tool_persisted,
         gateway_client_cfg,
         full_agent_cfg,
         global_acp_cfg,

@@ -1,4 +1,8 @@
 use super::*;
+use agent_client_protocol::{
+    BlobResourceContents, EmbeddedResource, EmbeddedResourceResource, ResourceLink,
+    TextResourceContents,
+};
 use serde_json::json;
 
 fn validation_error(value: serde_json::Value) -> String {
@@ -25,6 +29,65 @@ fn parse_prompt_source_accepts_structured_text_and_image_blocks() {
 }
 
 #[test]
+fn content_block_from_value_converts_supported_block_variants() {
+    let text = content_block_from_value(&json!({"type": "text", "text": "hello"}), 0)
+        .expect("text block converts");
+    assert_eq!(prompt_to_display_text(&[text]), "hello");
+
+    let image = content_block_from_value(
+        &json!({"type": "image", "mimeType": "image/png", "data": "QUJDRA=="}),
+        1,
+    )
+    .expect("image block converts");
+    assert_eq!(prompt_to_display_text(&[image]), "[image] image/png");
+
+    let resource_link = content_block_from_value(
+        &json!({
+            "type": "resource_link",
+            "uri": "file:///tmp/doc.md",
+            "name": "Doc",
+            "title": "Guide",
+            "description": "ignored",
+            "size": 7
+        }),
+        2,
+    )
+    .expect("resource link converts");
+    assert_eq!(
+        serde_json::to_value(&resource_link).expect("resource link serializes"),
+        json!({
+            "type": "resource_link",
+            "uri": "file:///tmp/doc.md",
+            "name": "Doc",
+            "title": "Guide"
+        })
+    );
+
+    let resource = content_block_from_value(
+        &json!({
+            "type": "resource",
+            "resource": {
+                "uri": "file:///tmp/doc.md",
+                "text": "body",
+                "mimeType": "text/markdown"
+            }
+        }),
+        3,
+    )
+    .expect("resource block converts");
+    assert_eq!(
+        serde_json::to_value(&resource).expect("resource serializes"),
+        json!({
+            "type": "resource",
+            "resource": {
+                "uri": "file:///tmp/doc.md",
+                "text": "body"
+            }
+        })
+    );
+}
+
+#[test]
 fn parse_prompt_source_falls_back_to_text_for_non_json_input() {
     let prompt = parse_prompt_source("  hello  ").expect("plain text prompt");
 
@@ -42,6 +105,8 @@ fn invalid_structured_prompt_reports_block_index() {
 #[test]
 fn base64_validation_rejects_bad_padding() {
     assert!(is_base64_data("QUJDRA=="));
+    assert!(is_base64_data("+/=="));
+    assert!(!is_base64_data("QU=A"));
     assert!(!is_base64_data("QU=JD"));
     assert!(!is_base64_data("abc"));
     assert!(!is_base64_data(""));
@@ -116,6 +181,21 @@ fn content_block_validation_reports_invalid_block_shapes() {
 }
 
 #[test]
+fn get_content_block_validation_error_reports_validity() {
+    assert_eq!(
+        get_content_block_validation_error(&json!({"type": "text", "text": "hello"}), 0),
+        None
+    );
+
+    let error = get_content_block_validation_error(
+        &json!({"type": "resource_link", "uri": "file:///tmp/doc.md", "title": 1}),
+        1,
+    )
+    .expect("invalid resource link");
+    assert!(error.contains("prompt[1] resource_link block title must be a string when present"));
+}
+
+#[test]
 fn parse_prompt_source_accepts_resource_blocks_and_discards_extra_fields() {
     let prompt = parse_prompt_source(
         r#"[
@@ -159,6 +239,18 @@ fn parse_prompt_source_reports_conversion_errors_for_acp_required_fields() {
         parse_prompt_source(r#"[{"type":"resource","resource":{"uri":"file:///a"}}]"#)
             .expect_err("resource without text cannot become ACP content");
     assert!(resource_error.to_string().contains("could not be converted"));
+}
+
+#[test]
+fn parse_structured_prompt_distinguishes_non_arrays_and_invalid_json() {
+    assert_eq!(
+        parse_structured_prompt(r#"{"type":"text","text":"hello"}"#).expect("object input"),
+        None
+    );
+    assert_eq!(parse_structured_prompt("[not json").expect("invalid json"), None);
+
+    let empty = parse_structured_prompt("[]").expect("array parses").expect("array recognized");
+    assert!(empty.is_empty());
 }
 
 #[test]
@@ -215,4 +307,37 @@ fn display_text_handles_direct_content_blocks_and_trims_joined_output() {
     let prompt = vec!["  first  ".to_string().into(), "second".to_string().into()];
 
     assert_eq!(prompt_to_display_text(&prompt), "first  \n\nsecond");
+}
+
+#[test]
+fn display_text_prefers_name_over_blank_title_and_resource_uri_over_blank_text() {
+    let prompt = vec![
+        ContentBlock::ResourceLink(ResourceLink::new("Doc", "file:///tmp/doc.md").title("   ")),
+        ContentBlock::Resource(EmbeddedResource::new(
+            EmbeddedResourceResource::TextResourceContents(TextResourceContents::new(
+                "body",
+                "file:///tmp/note.md",
+            )),
+        )),
+        ContentBlock::Resource(EmbeddedResource::new(
+            EmbeddedResourceResource::TextResourceContents(TextResourceContents::new(
+                "   ",
+                "file:///tmp/fallback.md",
+            )),
+        )),
+    ];
+
+    assert_eq!(prompt_to_display_text(&prompt), "Doc\n\nbody\n\nfile:///tmp/fallback.md");
+}
+
+#[test]
+fn display_text_uses_blob_resource_uri() {
+    let resource = ContentBlock::Resource(EmbeddedResource::new(
+        EmbeddedResourceResource::BlobResourceContents(BlobResourceContents::new(
+            "AAAA",
+            "file:///blob.bin",
+        )),
+    ));
+
+    assert_eq!(prompt_to_display_text(&[resource]), "file:///blob.bin");
 }

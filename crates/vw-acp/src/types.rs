@@ -9,13 +9,13 @@
 //!
 //! 这些类型是 crate 内部的通用语言层，修改时需要特别注意兼容性影响。
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use agent_client_protocol::{
-    AgentCapabilities, JsonRpcMessage, McpServer, SessionConfigOption, SessionNotification,
-    SetSessionConfigOptionResponse, StopReason,
+    AgentCapabilities, JsonRpcMessage, McpServer, SessionConfigOption, SessionModelState,
+    SessionNotification, SetSessionConfigOptionResponse, StopReason,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -353,6 +353,8 @@ impl PromptRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionInfo {
     pub session_id: String,
+    pub models: Option<SessionModelState>,
+    pub config_options: Option<Vec<SessionConfigOption>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -513,6 +515,8 @@ pub struct SessionAcpxState {
     pub available_commands: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config_options: Option<Vec<SessionConfigOption>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desired_config_options: Option<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_options: Option<SessionStateOptions>,
 }

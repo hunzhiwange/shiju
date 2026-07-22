@@ -4,10 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_editor_style,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_text_editor_style, settings_text_input_style,
 };
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -24,6 +23,23 @@ impl std::fmt::Display for LabeledOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.label)
     }
+}
+
+fn browser_open_options() -> [LabeledOption; 3] {
+    [
+        LabeledOption { value: "default", label: "默认" },
+        LabeledOption { value: "new_window", label: "新窗口" },
+        LabeledOption { value: "new_tab", label: "新标签页" },
+    ]
+}
+
+fn backend_options() -> [LabeledOption; 4] {
+    [
+        LabeledOption { value: "agent_browser", label: "代理浏览器（默认）" },
+        LabeledOption { value: "native", label: "原生浏览器（WebDriver）" },
+        LabeledOption { value: "computer_use", label: "系统控制（Sidecar）" },
+        LabeledOption { value: "auto", label: "自动" },
+    ]
 }
 
 fn field_row<'a>(
@@ -153,11 +169,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(8),
     );
 
-    let browser_open_options = [
-        LabeledOption { value: "default", label: "默认" },
-        LabeledOption { value: "new_window", label: "新窗口" },
-        LabeledOption { value: "new_tab", label: "新标签页" },
-    ];
+    let browser_open_options = browser_open_options();
     let browser_open_selected =
         browser_open_options.iter().find(|opt| opt.value == s.browser_open).cloned();
     let browser_open_pick = pick_list(browser_open_options, browser_open_selected, |value| {
@@ -193,12 +205,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let backend_options = [
-        LabeledOption { value: "agent_browser", label: "代理浏览器（默认）" },
-        LabeledOption { value: "native", label: "原生浏览器（WebDriver）" },
-        LabeledOption { value: "computer_use", label: "系统控制（Sidecar）" },
-        LabeledOption { value: "auto", label: "自动" },
-    ];
+    let backend_options = backend_options();
     let backend_selected = backend_options.iter().find(|opt| opt.value == s.backend).cloned();
     let backend_pick = pick_list(backend_options, backend_selected, |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::BackendChanged(
@@ -391,10 +398,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     content = content.push(computer_use_section);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     container(content).width(Length::Fill).into()
 }

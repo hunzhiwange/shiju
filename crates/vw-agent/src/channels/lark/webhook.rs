@@ -33,7 +33,83 @@
 
 use super::LarkChannel;
 use super::ack::random_lark_ack_reaction;
+use axum::{Json, Router, extract::State, routing::post};
 use std::sync::Arc;
+
+#[derive(Clone)]
+struct AppState {
+    verification_token: String,
+    channel: Arc<LarkChannel>,
+    tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
+}
+
+fn build_app_state(
+    channel: &LarkChannel,
+    tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
+) -> AppState {
+    AppState {
+        verification_token: channel.verification_token.clone(),
+        channel: Arc::new(channel.clone()),
+        tx,
+    }
+}
+
+fn build_lark_webhook_router(state: AppState) -> Router {
+    Router::new().route("/lark", post(handle_event)).with_state(state)
+}
+
+async fn handle_event(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> axum::response::Response {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    if let Some(challenge) = payload.get("challenge").and_then(|c| c.as_str()) {
+        let token_ok = payload
+            .get("token")
+            .and_then(|t| t.as_str())
+            .map_or(true, |t| t == state.verification_token);
+
+        if !token_ok {
+            return (StatusCode::FORBIDDEN, "invalid token").into_response();
+        }
+
+        let resp = serde_json::json!({ "challenge": challenge });
+        return (StatusCode::OK, Json(resp)).into_response();
+    }
+
+    let messages = state.channel.parse_event_payload_async(&payload).await;
+
+    if !messages.is_empty() {
+        if let Some(message_id) =
+            payload.pointer("/event/message/message_id").and_then(|m| m.as_str())
+        {
+            let ack_text = messages.first().map_or("", |msg| msg.content.as_str());
+            let ack_emoji = random_lark_ack_reaction(payload.get("event"), ack_text).to_string();
+            spawn_ack_reaction(Arc::clone(&state.channel), message_id.to_string(), ack_emoji);
+        }
+    }
+
+    for msg in messages {
+        if state.tx.send(msg).await.is_err() {
+            tracing::warn!("Lark: message channel closed");
+            break;
+        }
+    }
+
+    (StatusCode::OK, "ok").into_response()
+}
+
+#[cfg(not(test))]
+fn spawn_ack_reaction(channel: Arc<LarkChannel>, message_id: String, ack_emoji: String) {
+    tokio::spawn(async move {
+        channel.try_add_ack_reaction(&message_id, &ack_emoji).await;
+    });
+}
+
+#[cfg(test)]
+fn spawn_ack_reaction(_channel: Arc<LarkChannel>, _message_id: String, _ack_emoji: String) {}
 
 impl LarkChannel {
     /// 启动 HTTP 回调服务器监听飞书事件（传统方式）
@@ -97,112 +173,6 @@ impl LarkChannel {
     ) -> anyhow::Result<()> {
         // 确保机器人 Open ID 已初始化
         self.ensure_bot_open_id().await;
-        use axum::{Json, Router, extract::State, routing::post};
-
-        /// HTTP 服务器应用状态
-        ///
-        /// 包含处理飞书事件回调所需的所有共享状态信息，
-        /// 在处理每个请求时通过 Axum 的状态提取机制传递给处理器。
-        #[derive(Clone)]
-        struct AppState {
-            /// 飞书事件验证令牌
-            /// 用于验证请求是否来自飞书平台，防止伪造请求
-            verification_token: String,
-            /// 飞书频道实例的共享引用
-            /// 用于调用频道方法（如解析事件、发送反应等）
-            channel: Arc<LarkChannel>,
-            /// 消息发送通道
-            /// 将解析后的消息发送到上游处理器
-            tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
-        }
-
-        /// 处理飞书事件回调请求
-        ///
-        /// 这是核心的事件处理函数，负责处理飞书推送的所有回调请求。
-        ///
-        /// # 处理逻辑
-        ///
-        /// 1. **URL 验证**：检查是否为飞书开发后台的验证请求
-        ///    - 验证 token（如果配置了）
-        ///    - 返回 challenge 响应以完成验证
-        ///
-        /// 2. **事件处理**：解析事件载荷并处理消息
-        ///    - 使用频道实例解析事件
-        ///    - 为消息添加确认反应表情
-        ///    - 将消息发送到处理通道
-        ///
-        /// # 返回值
-        ///
-        /// 返回 Axum 的 Response 对象：
-        /// - 200 OK: 处理成功
-        /// - 403 FORBIDDEN: token 验证失败
-        async fn handle_event(
-            State(state): State<AppState>,
-            Json(payload): Json<serde_json::Value>,
-        ) -> axum::response::Response {
-            use axum::http::StatusCode;
-            use axum::response::IntoResponse;
-
-            // 处理飞书 URL 验证请求
-            // 飞书在配置事件订阅时会发送包含 challenge 字段的验证请求
-            if let Some(challenge) = payload.get("challenge").and_then(|c| c.as_str()) {
-                // 验证请求中的 token，确保请求来自飞书平台
-                let token_ok = payload
-                    .get("token")
-                    .and_then(|t| t.as_str())
-                    .map_or(true, |t| t == state.verification_token);
-
-                if !token_ok {
-                    // token 不匹配，拒绝请求
-                    return (StatusCode::FORBIDDEN, "invalid token").into_response();
-                }
-
-                // 返回 challenge 响应，完成 URL 验证
-                let resp = serde_json::json!({ "challenge": challenge });
-                return (StatusCode::OK, Json(resp)).into_response();
-            }
-
-            // 解析事件消息
-            let messages = state.channel.parse_event_payload_async(&payload).await;
-
-            // 如果成功解析到消息，为第一条消息添加确认反应
-            if !messages.is_empty() {
-                // 从事件载荷中提取消息 ID
-                if let Some(message_id) =
-                    payload.pointer("/event/message/message_id").and_then(|m| m.as_str())
-                {
-                    // 获取消息内容用于选择合适的反应表情
-                    let ack_text = messages.first().map_or("", |msg| msg.content.as_str());
-
-                    // 根据消息内容选择随机的确认表情
-                    let ack_emoji =
-                        random_lark_ack_reaction(payload.get("event"), ack_text).to_string();
-
-                    // 克隆所需数据以便在异步任务中使用
-                    let reaction_channel = Arc::clone(&state.channel);
-                    let reaction_message_id = message_id.to_string();
-
-                    // 在后台异步添加确认反应，不阻塞主流程
-                    tokio::spawn(async move {
-                        reaction_channel
-                            .try_add_ack_reaction(&reaction_message_id, &ack_emoji)
-                            .await;
-                    });
-                }
-            }
-
-            // 将所有解析出的消息发送到上游处理器
-            for msg in messages {
-                if state.tx.send(msg).await.is_err() {
-                    // 通道已关闭，无法继续发送消息
-                    tracing::warn!("Lark: message channel closed");
-                    break;
-                }
-            }
-
-            // 返回成功响应，告知飞书平台已接收事件
-            (StatusCode::OK, "ok").into_response()
-        }
 
         // 获取配置的监听端口
         let port = self.port.ok_or_else(|| {
@@ -210,14 +180,10 @@ impl LarkChannel {
         })?;
 
         // 初始化应用状态
-        let state = AppState {
-            verification_token: self.verification_token.clone(),
-            channel: Arc::new(self.clone()),
-            tx,
-        };
+        let state = build_app_state(self, tx);
 
         // 创建 Axum 路由，监听 POST /lark 路径
-        let app = Router::new().route("/lark", post(handle_event)).with_state(state);
+        let app = build_lark_webhook_router(state);
 
         // 绑定到指定端口的所有网络接口
         let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
@@ -227,9 +193,7 @@ impl LarkChannel {
         let listener = tokio::net::TcpListener::bind(addr).await?;
 
         // 运行 HTTP 服务器（阻塞直到服务器停止）
-        axum::serve(listener, app).await?;
-
-        Ok(())
+        Ok(axum::serve(listener, app).await?)
     }
 }
 

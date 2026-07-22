@@ -14,6 +14,9 @@
 //! - `context`：处理上下文插入相关的消息（文件路径、代码片段、位置选择）
 //! - `session`：处理会话管理相关的消息（发送、取消、队列操作、模型选择）
 
+use crate::app::components::chat_panel::message_measure::{
+    ChatMessageMeasurement, collect_visible_chat_message_measurements,
+};
 use crate::app::{App, Message, TodoPanelPlacement, message, models};
 use iced::Task;
 use iced::widget::{scrollable, text_editor};
@@ -39,6 +42,8 @@ pub(super) fn arm_autoscroll_hold(app: &mut App) {
 
 pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     arm_autoscroll_hold(app);
+    app.chat_virtualizer.snap_to_tail();
+    app.sync_chat_virtualizer_compat_fields();
     iced::widget::operation::snap_to(
         app.chat_scroll_id.clone(),
         scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
@@ -58,7 +63,10 @@ pub(super) fn throttled_stream_autoscroll_task(app: &mut App) -> Option<Task<Mes
     Some(scroll_chat_to_bottom_task(app))
 }
 
-pub(super) fn scroll_chat_to_bottom_with_followups(app: &App) -> Task<Message> {
+pub(super) fn scroll_chat_to_bottom_with_followups(app: &mut App) -> Task<Message> {
+    arm_autoscroll_hold(app);
+    app.chat_virtualizer.snap_to_tail();
+    app.sync_chat_virtualizer_compat_fields();
     Task::batch([
         iced::widget::operation::snap_to(
             app.chat_scroll_id.clone(),
@@ -70,6 +78,11 @@ pub(super) fn scroll_chat_to_bottom_with_followups(app: &App) -> Task<Message> {
         message::after(Duration::from_millis(96), Message::Chat(ChatMessage::ScrollToBottom)),
         message::after(Duration::from_millis(160), Message::Chat(ChatMessage::ScrollToBottom)),
     ])
+}
+
+pub(super) fn measure_visible_chat_messages_task() -> Task<Message> {
+    iced::advanced::widget::operate(collect_visible_chat_message_measurements())
+        .map(|measurements| Message::Chat(ChatMessage::VisibleMessageMeasurements(measurements)))
 }
 
 fn think_block_key(msg_idx: usize, think_idx: usize) -> u64 {
@@ -135,6 +148,7 @@ pub enum ChatMessage {
     ///
     /// 启用/禁用自动选择最佳模型的功能
     AutoModelToggled(bool),
+    ReasoningEffortSelected(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
     AcpAgentSelected(Option<String>),
     SessionAgentSelected(Option<String>),
     AcpHistoryModeSelected(crate::app::state::AcpHistoryReplayMode),
@@ -206,10 +220,18 @@ pub enum ChatMessage {
     /// 切换任务模式使用的 ACP 智能体
     TaskModeExecutorChanged(Option<String>),
 
+    /// 切换任务模式使用的推理强度
+    TaskModeReasoningEffortChanged(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
+
     /// 任务模式模型变化
     ///
     /// 支持手工填写任务模式使用的模型标识符
     TaskModeModelChanged(String),
+
+    /// 任务模式任务拆分策略变化
+    ///
+    /// 控制当前任务是否跟随系统设置、强制开启或关闭任务拆分
+    TaskModeTaskSplitModeChanged(crate::app::task::TaskSplitMode),
 
     /// 任务模式子任务内容变化
     ///
@@ -463,6 +485,11 @@ pub enum ChatMessage {
     /// 对工具卡片内部的文本片段执行只读编辑器操作
     ToolTextEditorAction(usize, usize, usize, text_editor::Action),
 
+    /// Markdown 块编辑器动作
+    ///
+    /// 对助手正文 Markdown 块（消息索引 + 文本块索引 + 块索引）执行只读编辑器操作
+    MarkdownBlockEditorAction(usize, usize, usize, text_editor::Action),
+
     /// 思考块编辑器动作
     ///
     /// 对消息中思考块内容进行编辑时的编辑器操作
@@ -546,6 +573,9 @@ pub enum ChatMessage {
         /// 视口高度
         viewport_h: f32,
     },
+
+    /// 已渲染聊天消息的真实布局测量结果
+    VisibleMessageMeasurements(Vec<ChatMessageMeasurement>),
 
     /// 滚动到底部
     ///
@@ -791,6 +821,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::MessageEditorAction(_, _)
         | ChatMessage::SpecialTextEditorAction(_, _, _)
         | ChatMessage::ToolTextEditorAction(_, _, _, _)
+        | ChatMessage::MarkdownBlockEditorAction(_, _, _, _)
         | ChatMessage::ThinkEditorAction(_, _, _)
         | ChatMessage::ToggleThink(_, _, _)
         | ChatMessage::ThinkHover(_, _)
@@ -805,6 +836,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ToggleTodoPanel
         | ChatMessage::TodoAnimTick
         | ChatMessage::ScrollChanged { .. }
+        | ChatMessage::VisibleMessageMeasurements(_)
         | ChatMessage::ScrollToBottom
         | ChatMessage::LocateChatMessage(_)
         | ChatMessage::LocateChatMessageIndex(_)
@@ -844,7 +876,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::WorkflowModeToggled(_)
         | ChatMessage::TaskModePriorityChanged(_)
         | ChatMessage::TaskModeExecutorChanged(_)
+        | ChatMessage::TaskModeReasoningEffortChanged(_)
         | ChatMessage::TaskModeModelChanged(_)
+        | ChatMessage::TaskModeTaskSplitModeChanged(_)
         | ChatMessage::TaskModeSubtaskChanged { .. }
         | ChatMessage::TaskModeSubtaskEditorAction { .. }
         | ChatMessage::TaskModeAddSubtask
@@ -902,6 +936,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::SendToSession { .. }
         | ChatMessage::CancelPressed
         | ChatMessage::AutoModelToggled(_)
+        | ChatMessage::ReasoningEffortSelected(_)
         | ChatMessage::AcpAgentSelected(_)
         | ChatMessage::SessionAgentSelected(_)
         | ChatMessage::AcpHistoryModeSelected(_)
@@ -992,10 +1027,26 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
     } else {
         let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
-        app.sync_chat_message_editors_window(visible_start_idx, visible_end_idx);
+        let pending_chunk_starts =
+            app.pending_chat_message_editors_window_chunks(visible_start_idx, visible_end_idx);
+        if !pending_chunk_starts.is_empty()
+            && let Some(session_id) = app.active_session_id.clone()
+        {
+            app.mark_chat_ui_chunks_preparing(&pending_chunk_starts);
+            task = task.chain(message::project::prepare_session_ui_chunks_task(
+                session_id,
+                app.active_shared_chat_messages(),
+                pending_chunk_starts,
+                None,
+                app.dialogue_flow_show_reasoning_summary,
+            ));
+        }
     }
 
     task
 }
+#[cfg(test)]
+#[path = "input_tests.rs"]
+mod input_tests;
 #[cfg(test)]
 mod tests;

@@ -50,6 +50,89 @@ fn constructor_helpers_and_result_parsers_are_covered() {
 }
 
 #[test]
+fn search_result_item_serialization_omits_absent_optional_fields() {
+    let without_optional_fields =
+        SearchResultItem { title: "Only title".to_string(), url: None, snippet: None };
+    let with_optional_fields = SearchResultItem {
+        title: "Complete".to_string(),
+        url: Some("https://example.test".to_string()),
+        snippet: Some("Summary".to_string()),
+    };
+
+    assert_eq!(
+        serde_json::to_value(without_optional_fields).unwrap(),
+        json!({"title": "Only title"})
+    );
+    assert_eq!(
+        serde_json::to_value(with_optional_fields).unwrap(),
+        json!({
+            "title": "Complete",
+            "url": "https://example.test",
+            "snippet": "Summary"
+        })
+    );
+}
+
+#[test]
+fn formatted_results_keep_first_url_and_append_later_lines_to_snippet() {
+    let (provider, rows) = WebSearchTool::parse_formatted_results(
+        "Search results for: q (via DuckDuckGo)\n\
+         1. Result\n\
+         http://first.test\n\
+         https://second.test\n\
+         final detail",
+    );
+
+    assert_eq!(provider.as_deref(), Some("DuckDuckGo"));
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].url.as_deref(), Some("http://first.test"));
+    assert_eq!(rows[0].snippet.as_deref(), Some("https://second.test final detail"));
+}
+
+#[test]
+fn build_client_accepts_valid_and_rejects_invalid_user_agent() {
+    assert!(tool("duckduckgo", None).build_client().is_ok());
+
+    let invalid = WebSearchTool::new(
+        Arc::new(SecurityPolicy::default()),
+        "duckduckgo".to_string(),
+        None,
+        None,
+        2,
+        1,
+        "invalid\nuser-agent".to_string(),
+    );
+    assert!(invalid.build_client().is_err());
+}
+
+#[test]
+fn serper_parser_prefers_organic_results_and_omits_blank_description() {
+    let output = tool("serper", Some("key"))
+        .parse_serper_results(
+            &json!({
+                "organic": [{
+                    "title": "Organic",
+                    "link": "https://organic.test",
+                    "snippet": "   "
+                }],
+                "results": [{
+                    "title": "Fallback",
+                    "url": "https://fallback.test",
+                    "description": "fallback"
+                }]
+            }),
+            "q",
+            "serper",
+        )
+        .unwrap();
+
+    assert!(output.contains("Organic"));
+    assert!(output.contains("https://organic.test"));
+    assert!(!output.contains("Fallback"));
+    assert!(!output.ends_with("   "));
+}
+
+#[test]
 fn args_schema_and_spec_cover_claude_surface() {
     let args: Args =
         serde_json::from_value(json!({"query": "rust", "numResults": 3, "lang": "en"})).unwrap();
@@ -99,4 +182,12 @@ async fn execute_rejects_readonly_empty_unknown_and_missing_key_without_network(
             .to_string()
             .contains("API key")
     );
+}
+
+#[tokio::test]
+async fn execute_rejects_invalid_parameter_types_before_provider_dispatch() {
+    let error =
+        tool("duckduckgo", None).execute(json!({"query": 7, "num": "many"})).await.unwrap_err();
+
+    assert!(error.to_string().contains("Missing or invalid parameters"));
 }

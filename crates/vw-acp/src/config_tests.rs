@@ -5,8 +5,8 @@ use std::fmt::Debug;
 use std::fs;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::MutexGuard;
 
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
@@ -14,8 +14,6 @@ use serde_json::{Value, json};
 use super::*;
 use crate::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME};
 use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 struct TempDir {
     path: PathBuf,
@@ -54,16 +52,12 @@ struct EnvVarGuard {
 
 impl EnvVarGuard {
     fn new(keys: &[&'static str]) -> Self {
-        let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
         let saved = keys.iter().map(|key| (*key, std::env::var(key).ok())).collect();
         Self { _lock: lock, saved }
     }
 
     fn set(&self, key: &str, value: &Path) {
-        unsafe { std::env::set_var(key, value) };
-    }
-
-    fn set_str(&self, key: &str, value: &str) {
         unsafe { std::env::set_var(key, value) };
     }
 
@@ -360,181 +354,47 @@ fn merge_agent_maps_overlays_project_entries() {
 }
 
 #[test]
-fn config_dir_from_workspace_handles_current_and_legacy_layouts() {
-    let temp = TempDir::new("workspace-dir");
-    let current = temp.join("current");
-    fs::create_dir_all(&current).expect("create current");
-    fs::write(current.join("vibewindow.json"), "{}").expect("write current config");
-    assert_eq!(config_dir_from_workspace(&current), current);
+fn project_config_override_path_uses_explicit_project_parent() {
+    let project_path = Path::new("/tmp/project/.vwacprc.json");
 
-    let workspace = temp.join("workspace");
-    let legacy = temp.join(".vibewindow");
-    fs::create_dir_all(&legacy).expect("create legacy");
-    fs::write(legacy.join("vibewindow.json"), "{}").expect("write legacy config");
-    assert_eq!(config_dir_from_workspace(&workspace), legacy);
-
-    let fallback_temp = TempDir::new("workspace-dir-fallback");
-    let standalone = fallback_temp.join("standalone");
-    assert_eq!(config_dir_from_workspace(&standalone), standalone);
-
-    let workspace_fallback = fallback_temp.join("workspace");
-    assert_eq!(config_dir_from_workspace(&workspace_fallback), fallback_temp.join(".vibewindow"));
-
-    assert_eq!(config_dir_from_workspace(Path::new("relative")), PathBuf::from("relative"));
-    assert_eq!(config_dir_from_workspace(Path::new("")), PathBuf::from(""));
-}
-
-#[test]
-fn parse_active_workspace_marker_handles_absent_empty_relative_and_absolute_values() {
-    let temp = TempDir::new("marker");
-    let marker = temp.join("active_workspace.toml");
-    assert_eq!(parse_active_workspace_marker(&marker).expect("missing marker"), None);
-
-    fs::write(&marker, "config_dir\n").expect("write marker without equals");
-    assert_eq!(parse_active_workspace_marker(&marker).expect("marker without equals"), None);
-
-    fs::write(&marker, "ignored = true\n").expect("write marker without config dir");
-    assert_eq!(parse_active_workspace_marker(&marker).expect("marker without config dir"), None);
-
-    fs::write(&marker, "config_dir = \"\"\n").expect("write empty marker");
-    assert_eq!(parse_active_workspace_marker(&marker).expect("empty marker"), None);
-
-    let env = EnvVarGuard::new(&["HOME"]);
-    env.set("HOME", temp.path());
-    fs::write(&marker, "ignored = true\nconfig_dir = \"relative-dir\"\n").expect("write marker");
     assert_eq!(
-        parse_active_workspace_marker(&marker).expect("relative marker"),
-        Some(vw_config_types::paths::home_config_dir(temp.path()).join("relative-dir"))
-    );
-
-    let absolute = temp.join("absolute-dir");
-    fs::write(&marker, format!("config_dir = \"{}\"\n", absolute.display())).expect("write marker");
-    assert_eq!(parse_active_workspace_marker(&marker).expect("absolute marker"), Some(absolute));
-}
-
-#[test]
-fn parse_active_workspace_marker_reports_read_errors() {
-    let temp = TempDir::new("marker-read-error");
-    let error = parse_active_workspace_marker(temp.path()).expect_err("directory read should fail");
-    assert!(matches!(error, ConfigError::Read { .. }));
-}
-
-#[test]
-fn discover_vibewindow_config_path_uses_env_workspace_marker_and_project_fallbacks() {
-    let temp = TempDir::new("discover");
-    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
-    env.clear("VIBEWINDOW_CONFIG_DIR");
-    env.clear("VIBEWINDOW_WORKSPACE");
-    env.set("HOME", temp.path());
-
-    let config_dir = temp.join("explicit");
-    env.set("VIBEWINDOW_CONFIG_DIR", &config_dir);
-    assert_eq!(
-        discover_vibewindow_config_path(&temp.join("project/.vwacprc.json"))
-            .expect("explicit config dir"),
-        config_dir.join("vibewindow.json")
-    );
-    env.set_str("VIBEWINDOW_CONFIG_DIR", "   ");
-
-    let workspace = temp.join("workspace");
-    let legacy = temp.join(".vibewindow");
-    fs::create_dir_all(&legacy).expect("create legacy");
-    fs::write(legacy.join("vibewindow.json"), "{}").expect("write legacy");
-    env.set("VIBEWINDOW_WORKSPACE", &workspace);
-    assert_eq!(
-        discover_vibewindow_config_path(&temp.join("project/.vwacprc.json"))
-            .expect("workspace config"),
-        legacy.join("vibewindow.json")
-    );
-    env.set_str("VIBEWINDOW_WORKSPACE", "   ");
-
-    let default_dir = vw_config_types::paths::home_config_dir(temp.path());
-    fs::create_dir_all(&default_dir).expect("create default dir");
-    fs::write(default_dir.join("active_workspace.toml"), "config_dir = \"active\"\n")
-        .expect("write marker");
-    assert_eq!(
-        discover_vibewindow_config_path(&temp.join("project/.vwacprc.json")).expect("marker"),
-        default_dir.join("active").join("vibewindow.json")
-    );
-    fs::remove_file(default_dir.join("active_workspace.toml")).expect("remove marker");
-
-    let project_dir = temp.join("project");
-    fs::create_dir_all(&project_dir).expect("create project");
-    fs::write(project_dir.join("vibewindow.json"), "{}").expect("write project config");
-    assert_eq!(
-        discover_vibewindow_config_path(&project_dir.join(".vwacprc.json")).expect("project"),
-        project_dir.join("vibewindow.json")
-    );
-
-    fs::remove_file(project_dir.join("vibewindow.json")).expect("remove project config");
-    assert_eq!(
-        discover_vibewindow_config_path(&project_dir.join(".vwacprc.json")).expect("default"),
-        default_dir.join("vibewindow.json")
+        project_config_override_path(project_path),
+        PathBuf::from("/tmp/project/.vibewindow.json")
     );
 }
 
 #[test]
-fn parse_active_workspace_marker_requires_home_for_relative_config_dir() {
-    if cfg!(windows) {
-        return;
-    }
-
-    let temp = TempDir::new("marker-relative-home-missing");
-    let marker = temp.join("active_workspace.toml");
-    fs::write(&marker, "config_dir = relative\n").expect("write marker");
-    let env = EnvVarGuard::new(&["HOME"]);
-    env.clear("HOME");
-
-    assert!(matches!(parse_active_workspace_marker(&marker), Err(ConfigError::HomeDirUnavailable)));
-}
-
-#[test]
-fn discover_vibewindow_config_path_handles_no_parent_and_missing_home_errors() {
-    let temp = TempDir::new("discover-no-parent");
-    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
-    env.clear("VIBEWINDOW_CONFIG_DIR");
-    env.clear("VIBEWINDOW_WORKSPACE");
-    env.set("HOME", temp.path());
-
+fn project_config_override_path_falls_back_for_parentless_path() {
     assert_eq!(
-        discover_vibewindow_config_path(Path::new("")).expect("discover default"),
-        vw_config_types::paths::home_config_dir(temp.path()).join("vibewindow.json")
+        project_config_override_path(Path::new("/")),
+        Path::new(".").join(".vibewindow.json")
     );
-    drop(env);
-
-    if cfg!(windows) {
-        return;
-    }
-
-    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
-    env.clear("HOME");
-    env.clear("VIBEWINDOW_CONFIG_DIR");
-    env.clear("VIBEWINDOW_WORKSPACE");
-
-    assert!(matches!(
-        discover_vibewindow_config_path(Path::new("project/.vwacprc.json")),
-        Err(ConfigError::HomeDirUnavailable)
-    ));
-}
-
-#[test]
-fn discover_vibewindow_config_path_propagates_marker_read_errors() {
-    let temp = TempDir::new("discover-marker-read-error");
-    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
-    env.clear("VIBEWINDOW_CONFIG_DIR");
-    env.clear("VIBEWINDOW_WORKSPACE");
-    env.set("HOME", temp.path());
-    let default_dir = vw_config_types::paths::home_config_dir(temp.path());
-    fs::create_dir_all(default_dir.join("active_workspace.toml")).expect("create marker directory");
-
-    assert!(matches!(
-        discover_vibewindow_config_path(Path::new("project/.vwacprc.json")),
-        Err(ConfigError::Read { .. })
-    ));
 }
 
 #[test]
 fn path_wrappers_report_current_dir_errors() {
+    if std::env::var_os("VW_ACP_CONFIG_CWD_ERROR_CHILD").is_none() {
+        let status = std::process::Command::new(std::env::current_exe().expect("current exe"))
+            .arg("--exact")
+            .arg("config::config_tests::path_wrappers_report_current_dir_errors_child")
+            .arg("--ignored")
+            .env("VW_ACP_CONFIG_CWD_ERROR_CHILD", "1")
+            .status()
+            .expect("run cwd error child test");
+        assert!(status.success());
+    } else {
+        path_wrappers_report_current_dir_errors_in_child();
+    }
+}
+
+#[test]
+#[ignore]
+fn path_wrappers_report_current_dir_errors_child() {
+    assert!(std::env::var_os("VW_ACP_CONFIG_CWD_ERROR_CHILD").is_some());
+    path_wrappers_report_current_dir_errors_in_child();
+}
+
+fn path_wrappers_report_current_dir_errors_in_child() {
     let temp = TempDir::new("current-dir-error");
     let deleted = temp.join("deleted");
     fs::create_dir_all(&deleted).expect("create deleted cwd");
@@ -554,7 +414,24 @@ fn path_wrappers_report_current_dir_errors() {
 }
 
 #[test]
-fn load_resolved_config_reports_default_path_errors() {
+fn path_wrappers_handle_owned_and_borrowed_pathbuf_relative_inputs() {
+    let relative = PathBuf::from("relative-project");
+    let expected = std::env::current_dir().expect("current dir").join(&relative);
+
+    assert_eq!(resolve_path(relative.clone()).expect("owned relative path"), expected);
+    assert_eq!(resolve_path(&relative).expect("borrowed relative pathbuf"), expected);
+    assert_eq!(
+        project_config_path(relative.clone()).expect("owned project path"),
+        expected.join(".vwacprc.json")
+    );
+    assert_eq!(
+        project_config_path(&relative).expect("borrowed project pathbuf"),
+        expected.join(".vwacprc.json")
+    );
+}
+
+#[test]
+fn load_resolved_config_reports_missing_default_home_but_accepts_explicit_paths() {
     if cfg!(windows) {
         return;
     }
@@ -565,10 +442,8 @@ fn load_resolved_config_reports_default_path_errors() {
     env.clear("VIBEWINDOW_WORKSPACE");
 
     assert!(matches!(block_on(load_resolved_config(".")), Err(ConfigError::HomeDirUnavailable)));
-    assert!(matches!(
-        block_on(load_resolved_config_from_paths("global.json", "project/.vwacprc.json")),
-        Err(ConfigError::HomeDirUnavailable)
-    ));
+    block_on(load_resolved_config_from_paths("global.json", "project/.vwacprc.json"))
+        .expect("explicit config paths should not require a home directory");
 }
 
 #[cfg(unix)]
@@ -617,6 +492,56 @@ fn load_resolved_config_uses_default_paths_and_global_fallback_values() {
     assert!(config.disable_exec);
     assert_eq!(config.global_path, path_to_string(&global_path));
     assert_eq!(config.project_path, path_to_string(&cwd.join(".vwacprc.json")));
+}
+
+#[test]
+fn load_resolved_config_succeeds_for_owned_and_path_inputs() {
+    let temp = TempDir::new("load-wrapper-inputs");
+    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
+    env.clear("VIBEWINDOW_CONFIG_DIR");
+    env.clear("VIBEWINDOW_WORKSPACE");
+    env.set("HOME", temp.path());
+
+    let cwd = temp.join("project");
+    fs::create_dir_all(&cwd).expect("create project dir");
+
+    let owned_config = block_on(load_resolved_config(cwd.clone())).expect("owned cwd");
+    let path_config = block_on(load_resolved_config(cwd.as_path())).expect("path cwd");
+
+    assert_eq!(owned_config.default_agent, DEFAULT_AGENT_NAME);
+    assert_eq!(path_config.default_agent, DEFAULT_AGENT_NAME);
+    assert_eq!(owned_config.project_path, path_to_string(&cwd.join(".vwacprc.json")));
+    assert_eq!(path_config.project_path, path_to_string(&cwd.join(".vwacprc.json")));
+}
+
+#[test]
+fn load_resolved_config_from_paths_defaults_for_path_argument_combinations() {
+    let temp = TempDir::new("load-path-combinations");
+    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
+    env.clear("VIBEWINDOW_CONFIG_DIR");
+    env.clear("VIBEWINDOW_WORKSPACE");
+    env.set("HOME", temp.path());
+
+    let owned_global = temp.join("owned-global.json");
+    let borrowed_project = temp.join("borrowed-project/.vwacprc.json");
+    let config =
+        block_on(load_resolved_config_from_paths(owned_global.clone(), borrowed_project.as_path()))
+            .expect("owned global path");
+    assert_eq!(config.default_agent, DEFAULT_AGENT_NAME);
+
+    let borrowed_global = temp.join("borrowed-global.json");
+    let owned_project = temp.join("owned-project/.vwacprc.json");
+    let config =
+        block_on(load_resolved_config_from_paths(borrowed_global.as_path(), owned_project.clone()))
+            .expect("owned project path");
+    assert_eq!(config.default_agent, DEFAULT_AGENT_NAME);
+
+    let config = block_on(load_resolved_config_from_paths(
+        "relative-global.json",
+        "relative-project/.vwacprc.json",
+    ))
+    .expect("relative string paths");
+    assert_eq!(config.default_agent, DEFAULT_AGENT_NAME);
 }
 
 #[test]
@@ -747,7 +672,7 @@ fn load_resolved_config_defaults_queue_owner_ttl_to_five_minutes() {
         .expect("load default config");
 
     assert_eq!(config.default_agent, DEFAULT_AGENT_NAME);
-    assert_eq!(config.default_permissions, PermissionMode::ApproveReads);
+    assert_eq!(config.default_permissions, PermissionMode::ApproveAll);
     assert_eq!(config.non_interactive_permissions, NonInteractivePermissionPolicy::Deny);
     assert_eq!(config.auth_policy, AuthPolicy::Skip);
     assert_eq!(config.ttl_ms, 300_000);
@@ -768,7 +693,7 @@ fn load_resolved_config_project_values_override_global_values() {
     env.set("HOME", temp.path());
     let global_path = temp.join("global.json");
     let project_path = temp.join("project/.vwacprc.json");
-    let vibewindow_path = temp.join("project/vibewindow.json");
+    let vibewindow_path = temp.join("project/.vibewindow.json");
     write_json(
         &vibewindow_path,
         json!({
@@ -885,6 +810,95 @@ fn load_resolved_config_uses_global_timeout_and_mcp_when_project_omits_fields() 
 }
 
 #[test]
+fn mcp_server_management_resolved_config_preserves_raw_servers_and_settings() {
+    let temp = TempDir::new("mcp-management");
+    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
+    env.clear("VIBEWINDOW_CONFIG_DIR");
+    env.clear("VIBEWINDOW_WORKSPACE");
+    env.set("HOME", temp.path());
+    let global_path = temp.join("global.json");
+    let project_path = temp.join("project/.vwacprc.json");
+    write_json(
+        &project_path,
+        json!({
+            "mcpServers": [{
+                "name": "project-mcp",
+                "type": "http",
+                "url": "https://example.test/mcp",
+                "enabled": false,
+                "required": true,
+                "timeout": 2,
+                "allowedTools": ["read"],
+                "deniedTools": ["delete"]
+            }]
+        }),
+    );
+
+    let config = block_on(load_resolved_config_from_paths(&global_path, &project_path))
+        .expect("load config");
+
+    assert!(matches!(config.mcp_servers.as_slice(), [McpServer::Http(_)]));
+    assert_eq!(config.mcp_server_management.len(), 1);
+    let management = &config.mcp_server_management[0];
+    assert_eq!(management.name, "project-mcp");
+    assert!(!management.enabled);
+    assert!(management.required);
+    assert_eq!(management.timeout_ms, Some(2_000));
+    assert_eq!(management.allowed_tools, vec!["read"]);
+    assert_eq!(management.denied_tools, vec!["delete"]);
+}
+
+#[test]
+fn load_resolved_config_uses_global_values_when_project_omits_fields() {
+    let temp = TempDir::new("global-fallbacks");
+    let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
+    env.clear("VIBEWINDOW_CONFIG_DIR");
+    env.clear("VIBEWINDOW_WORKSPACE");
+    env.set("HOME", temp.path());
+    let global_path = temp.join("global.json");
+    let project_path = temp.join("project/.vwacprc.json");
+    write_json(
+        &global_path,
+        json!({
+            "defaultAgent": " Global Agent ",
+            "defaultPermissions": "approve-reads",
+            "nonInteractivePermissions": "fail",
+            "authPolicy": "fail",
+            "ttl": 7.25,
+            "queueMaxDepth": 11,
+            "format": "json",
+            "disableExec": true,
+            "auth": {
+                "github": " global-token "
+            },
+            "acp": {
+                "shared": agent("from-global-acp")
+            },
+            "agents": {
+                "shared": agent("from-global-agents"),
+                "global-only": agent("global")
+            }
+        }),
+    );
+    write_json(&project_path, json!({}));
+
+    let config = block_on(load_resolved_config_from_paths(&global_path, &project_path))
+        .expect("load config");
+
+    assert_eq!(config.default_agent, "global agent");
+    assert_eq!(config.default_permissions, PermissionMode::ApproveReads);
+    assert_eq!(config.non_interactive_permissions, NonInteractivePermissionPolicy::Fail);
+    assert_eq!(config.auth_policy, AuthPolicy::Fail);
+    assert_eq!(config.ttl_ms, 7_250);
+    assert_eq!(config.queue_max_depth, 11);
+    assert_eq!(config.format, OutputFormat::Json);
+    assert!(config.disable_exec);
+    assert_eq!(config.auth.get("github"), Some(&"global-token".to_string()));
+    assert_eq!(config.agents.get("shared").expect("shared").command, "from-global-agents");
+    assert_eq!(config.agents.get("global-only").expect("global").command, "global");
+}
+
+#[test]
 fn load_resolved_config_reports_read_errors_for_each_config_source() {
     let temp = TempDir::new("load-read-errors");
 
@@ -910,14 +924,14 @@ fn load_resolved_config_reports_read_errors_for_each_config_source() {
 
     let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
     env.set("HOME", temp.path());
-    let config_dir = temp.join("vibewindow-dir");
-    fs::create_dir_all(config_dir.join("vibewindow.json")).expect("create vibewindow dir path");
-    env.set("VIBEWINDOW_CONFIG_DIR", &config_dir);
+    let project_dir = temp.join("project");
+    fs::create_dir_all(project_dir.join(".vibewindow.json"))
+        .expect("create project override directory path");
     env.clear("VIBEWINDOW_WORKSPACE");
     assert!(matches!(
         block_on(load_resolved_config_from_paths(
             temp.join("global.json"),
-            temp.join("project/.vwacprc.json")
+            project_dir.join(".vwacprc.json")
         )),
         Err(ConfigError::Read { .. })
     ));
@@ -929,14 +943,13 @@ fn load_resolved_config_reports_invalid_vibewindow_agents() {
     let env = EnvVarGuard::new(&["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"]);
     env.set("HOME", temp.path());
     env.clear("VIBEWINDOW_WORKSPACE");
-    let config_dir = temp.join("vibewindow");
-    env.set("VIBEWINDOW_CONFIG_DIR", &config_dir);
-    write_json(&config_dir.join("vibewindow.json"), json!({ "acp": [] }));
+    let project_dir = temp.join("project");
+    write_json(&project_dir.join(".vibewindow.json"), json!({ "acp": [] }));
 
     assert_invalid(
         block_on(load_resolved_config_from_paths(
             temp.join("global.json"),
-            temp.join("project/.vwacprc.json"),
+            project_dir.join(".vwacprc.json"),
         )),
         "Invalid config agents",
     );
@@ -1091,6 +1104,7 @@ fn to_config_display_hides_auth_values_and_sorts_auth_methods() {
         ]),
         disable_exec: true,
         mcp_servers: Vec::new(),
+        mcp_server_management: Vec::new(),
         global_path: "global".to_string(),
         project_path: "project".to_string(),
         has_global_config: true,
@@ -1101,8 +1115,22 @@ fn to_config_display_hides_auth_values_and_sorts_auth_methods() {
 
     assert_eq!(display.ttl, 12);
     assert_eq!(display.timeout, Some(34));
+    assert_eq!(display.default_agent, "agent");
+    assert_eq!(display.default_permissions, PermissionMode::ApproveAll);
+    assert_eq!(display.non_interactive_permissions, NonInteractivePermissionPolicy::Fail);
+    assert_eq!(display.auth_policy, AuthPolicy::Fail);
+    assert_eq!(display.queue_max_depth, 5);
+    assert_eq!(display.format, OutputFormat::Json);
     assert_eq!(display.auth_methods, vec!["alpha".to_string(), "zeta".to_string()]);
-    assert_eq!(display.agents.get("agent").expect("agent").command, "agent");
+    assert_eq!(
+        display.agents.get("agent"),
+        Some(&ConfigAgentEntry {
+            name: Some("Agent".to_string()),
+            command: "agent".to_string(),
+            args: vec!["--flag".to_string()],
+            env: HashMap::from([("ENV".to_string(), "value".to_string())]),
+        })
+    );
     assert!(display.disable_exec);
 }
 
@@ -1118,7 +1146,16 @@ fn init_global_config_file_at_creates_parent_dirs_and_default_payload() {
     let contents = fs::read_to_string(&config_path).expect("read config");
     let payload: Value = serde_json::from_str(&contents).expect("parse config");
     assert_eq!(payload.get("defaultAgent"), Some(&json!(DEFAULT_AGENT_NAME)));
+    assert_eq!(payload.get("defaultPermissions"), Some(&json!("approve-all")));
+    assert_eq!(payload.get("nonInteractivePermissions"), Some(&json!("deny")));
+    assert_eq!(payload.get("authPolicy"), Some(&json!("skip")));
+    assert_eq!(payload.get("ttl"), Some(&json!(300)));
     assert_eq!(payload.get("timeout"), Some(&Value::Null));
+    assert_eq!(payload.get("queueMaxDepth"), Some(&json!(16)));
+    assert_eq!(payload.get("format"), Some(&json!("text")));
+    assert_eq!(payload.get("agents"), Some(&json!({})));
+    assert_eq!(payload.get("auth"), Some(&json!({})));
+    assert!(contents.ends_with('\n'));
 }
 
 #[test]
@@ -1151,6 +1188,37 @@ fn init_global_config_file_at_reports_write_errors_without_parent_path() {
         block_on(init_global_config_file_at(Path::new(""))).expect_err("empty path should fail");
 
     assert!(matches!(error, ConfigError::Write { .. }));
+}
+
+#[test]
+fn init_global_config_file_at_reports_write_errors_for_pathbuf_inputs() {
+    assert!(matches!(
+        block_on(init_global_config_file_at(PathBuf::from(""))),
+        Err(ConfigError::Write { .. })
+    ));
+
+    let empty = PathBuf::from("");
+    assert!(matches!(block_on(init_global_config_file_at(&empty)), Err(ConfigError::Write { .. })));
+}
+
+#[test]
+fn init_global_config_file_at_handles_owned_existing_path_and_borrowed_create_errors() {
+    let temp = TempDir::new("init-path-combinations");
+    let existing = temp.join("existing.json");
+    fs::write(&existing, "{}").expect("write existing config");
+
+    let result = block_on(init_global_config_file_at(existing.clone())).expect("owned existing");
+    assert!(!result.created);
+    assert_eq!(result.path, path_to_string(&existing));
+
+    let file_parent = temp.join("parent-file");
+    fs::write(&file_parent, "not a dir").expect("write parent file");
+    let child = file_parent.join("config.json");
+
+    assert!(matches!(
+        block_on(init_global_config_file_at(child.as_path())),
+        Err(ConfigError::CreateDir { .. })
+    ));
 }
 
 #[test]

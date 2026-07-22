@@ -89,6 +89,9 @@ impl Tool for EnterPlanModeTool {
     }
 
     async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
+        if !input.is_object() {
+            anyhow::bail!("invalid enter plan mode arguments: expected object");
+        }
         let args: Args = serde_json::from_value(input)
             .map_err(|error| anyhow::anyhow!("invalid enter plan mode arguments: {error}"))?;
         let context = current_tool_use_context()

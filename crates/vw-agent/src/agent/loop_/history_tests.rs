@@ -104,6 +104,20 @@ async fn auto_compact_history_returns_false_when_under_limit() {
 }
 
 #[tokio::test]
+async fn auto_compact_history_returns_false_when_recent_window_covers_all_messages() {
+    let provider = Testcov0094Provider::ok("unused");
+    let mut history = vec![ChatMessage::user("older"), ChatMessage::assistant("newer")];
+
+    let compacted = auto_compact_history(&mut history, &provider, "test-model", 1).await.unwrap();
+
+    assert!(!compacted);
+    assert_eq!(provider.calls(), 0);
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].content, "older");
+    assert_eq!(history[1].content, "newer");
+}
+
+#[tokio::test]
 async fn auto_compact_history_preserves_system_and_recent_messages() {
     let provider = Testcov0094Provider::ok("- remembered decision");
     let mut history = vec![ChatMessage::system("system")];

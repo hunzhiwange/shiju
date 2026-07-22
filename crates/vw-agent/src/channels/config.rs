@@ -7,14 +7,14 @@
 //! - **消息超时配置**：计算和管理通道消息的有效超时时间和预算
 //! - **运行时配置存储**：提供全局的运行时配置状态存储
 //! - **默认配置解析**：解析默认的 Provider、Model 和其他运行时参数
-//! - **配置文件加载**：从磁盘加载配置文件并解密敏感信息
-//! - **动态配置更新**：检测配置文件变化并热更新运行时配置
+//! - **项目覆盖加载**：从工作区加载项目覆盖并解密敏感信息
+//! - **动态配置更新**：检测项目覆盖变化并热更新运行时配置
 //!
 //! ## 配置层次
 //!
 //! 配置按以下优先级加载：
 //! 1. 环境变量覆盖
-//! 2. 配置文件（`vibewindow.json`）
+//! 2. 项目覆盖（`.vibewindow.json`）
 //! 3. 默认值
 //!
 //! ## 安全考虑
@@ -240,9 +240,9 @@ pub(crate) fn runtime_autonomy_policy_from_config(config: &Config) -> RuntimeAut
 ///
 /// # 配置文件名
 ///
-/// 配置文件固定命名为 `vibewindow.json`
+/// 项目覆盖文件固定命名为 `.vibewindow.json`
 pub(crate) fn runtime_config_path(ctx: &ChannelRuntimeContext) -> Option<PathBuf> {
-    ctx.provider_runtime_options.vibewindow_dir.as_ref().map(|dir| dir.join("vibewindow.json"))
+    ctx.provider_runtime_options.vibewindow_dir.as_ref().map(|dir| dir.join(".vibewindow.json"))
 }
 
 /// 获取运行时默认值的快照

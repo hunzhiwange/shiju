@@ -1,0 +1,48 @@
+{
+  "hooks": [
+    {
+      "event": "before_tool_call",
+      "command": "python3",
+      "args": [
+        "./scripts/demo_hook.py",
+        "before"
+      ],
+      "timeout_secs": 5,
+      "working_dir": ".",
+      "mode": "blocking"
+    },
+    {
+      "event": "after_tool_call",
+      "command": "python3",
+      "args": [
+        "./scripts/demo_hook.py",
+        "after"
+      ],
+      "timeout_secs": 5,
+      "working_dir": ".",
+      "mode": "blocking"
+    },
+    {
+      "event": "before_llm_call",
+      "command": "python3",
+      "args": [
+        "./scripts/demo_hook.py",
+        "before-llm"
+      ],
+      "timeout_secs": 5,
+      "working_dir": ".",
+      "mode": "blocking"
+    },
+    {
+      "event": "user_prompt_submit",
+      "command": "python3",
+      "args": [
+        "./scripts/demo_hook.py",
+        "prompt"
+      ],
+      "timeout_secs": 5,
+      "working_dir": ".",
+      "mode": "blocking"
+    }
+  ]
+}

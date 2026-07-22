@@ -193,3 +193,17 @@ fn github_scout_uses_default_queries() {
 
     assert_eq!(scout.queries, vec!["vibewindow skill", "ai agent skill"]);
 }
+
+#[test]
+fn github_scout_accepts_valid_token_without_changing_queries() {
+    let scout = GitHubScout::new(Some("test-token".to_string()));
+
+    assert_eq!(scout.queries, vec!["vibewindow skill", "ai agent skill"]);
+}
+
+#[test]
+fn github_scout_rejects_invalid_header_value_without_panicking() {
+    let scout = GitHubScout::new(Some("line\nbreak".to_string()));
+
+    assert_eq!(scout.queries, vec!["vibewindow skill", "ai agent skill"]);
+}

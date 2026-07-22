@@ -1,4 +1,6 @@
 use crate::app::App;
+use crate::app::state::ToolDetailDialog;
+use iced::widget::{Id, text_editor};
 
 fn test_app() -> App {
     let (app, _task) = App::new();
@@ -72,6 +74,28 @@ fn base_layout_builds_git_fullscreen_without_bottom_panel() {
     let mut app = test_app();
     app.git_diff_fullscreen = true;
     app.terminal.is_visible = true;
+
+    let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 6.0, 0.0);
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn base_layout_builds_with_tool_detail_overlay() {
+    let mut app = test_app();
+    app.tool_detail_dialog = Some(ToolDetailDialog {
+        msg_idx: 1,
+        tool_idx: 2,
+        title: "Tool output".to_string(),
+        content: "line 1\nline 2".to_string(),
+        editor: text_editor::Content::with_text("line 1\nline 2"),
+        editor_id: Id::unique(),
+        context_menu_open: false,
+        context_menu_pos: None,
+        scroll_top_line: 0.0,
+        scroll_remainder: 0.0,
+        viewport_height: 100.0,
+    });
 
     let element = super::build_base_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 6.0, 0.0);
 

@@ -1,9 +1,11 @@
 use super::*;
 use axum::Json;
+use axum::body::{Body, to_bytes};
 use axum::extract::Path;
-use axum::http::StatusCode;
+use axum::http::{Method, Request, StatusCode};
 use std::path::{Path as FsPath, PathBuf};
 use std::sync::OnceLock;
+use tower::ServiceExt;
 
 async fn env_lock() -> tokio::sync::MutexGuard<'static, ()> {
     static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
@@ -27,6 +29,7 @@ fn test_home() -> &'static PathBuf {
 }
 
 fn auth_file() -> PathBuf {
+    let _ = test_home();
     let paths = crate::app::agent::global::paths();
     vw_shared::auth::store::resolve_filepath(&paths.home, &paths.data)
 }
@@ -45,6 +48,20 @@ fn reset_auth_store() {
 
 fn api_info(key: &str) -> auth::Info {
     auth::Info::Api(auth::ApiInfo { key: key.to_string() })
+}
+
+fn json_request(method: Method, uri: &str, body: serde_json::Value) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body.to_string()))
+        .expect("request should build")
+}
+
+async fn response_json(response: axum::response::Response) -> serde_json::Value {
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+    serde_json::from_slice(&body).expect("response should be json")
 }
 
 #[cfg(unix)]
@@ -191,4 +208,99 @@ async fn auth_remove_maps_write_errors_to_bad_request() {
 #[test]
 fn router_builds_without_panic() {
     let _r: Router<()> = router();
+}
+
+#[tokio::test]
+async fn router_put_persists_credentials_and_returns_true() {
+    let _guard = env_lock().await;
+    reset_auth_store();
+    let app: Router<()> = router();
+
+    let response = app
+        .oneshot(json_request(
+            Method::PUT,
+            "/auth/provider.route",
+            serde_json::json!({"type": "api", "key": "sk-route"}),
+        ))
+        .await
+        .expect("route should respond");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await, serde_json::json!(true));
+    match auth::get("provider.route") {
+        Some(auth::Info::Api(api)) => assert_eq!(api.key, "sk-route"),
+        _ => panic!("expected route to store api credentials"),
+    }
+}
+
+#[tokio::test]
+async fn router_delete_removes_credentials_and_returns_true() {
+    let _guard = env_lock().await;
+    reset_auth_store();
+    auth::set("provider.route", &api_info("sk-route")).expect("should seed auth");
+    let app: Router<()> = router();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri("/auth/provider.route")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("route should respond");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await, serde_json::json!(true));
+    assert!(auth::get("provider.route").is_none());
+}
+
+#[tokio::test]
+async fn router_put_rejects_invalid_auth_info_body() {
+    let _guard = env_lock().await;
+    reset_auth_store();
+    let app: Router<()> = router();
+
+    let response = app
+        .oneshot(json_request(
+            Method::PUT,
+            "/auth/provider.route",
+            serde_json::json!({"type": "unknown", "key": "sk-route"}),
+        ))
+        .await
+        .expect("route should respond");
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(auth::get("provider.route").is_none());
+}
+
+#[tokio::test]
+async fn router_rejects_unsupported_method_and_missing_provider_path() {
+    let app: Router<()> = router();
+
+    let method_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/auth/provider.route")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("route should respond");
+    assert_eq!(method_response.status(), StatusCode::METHOD_NOT_ALLOWED);
+
+    let path_response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::DELETE)
+                .uri("/auth")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("route should respond");
+    assert_eq!(path_response.status(), StatusCode::NOT_FOUND);
 }

@@ -69,4 +69,79 @@ mod tests {
         // 验证：日志条目应包含成功状态
         assert!(entries[0].contains("success=true"));
     }
+
+    #[tokio::test]
+    async fn log_entry_uses_hh_mm_ss_timestamp_and_exact_payload_format() {
+        let hook = CommandLoggerHook::new();
+        let result = ToolResult { success: true, output: "ok".into(), error: None };
+
+        hook.on_after_tool_call("shell", &result, Duration::from_millis(7)).await;
+
+        let entries = hook.entries();
+        let (timestamp, payload) = entries[0]
+            .strip_prefix('[')
+            .and_then(|entry| entry.split_once("] "))
+            .expect("log entry should contain a bracketed timestamp");
+        assert!(chrono::NaiveTime::parse_from_str(timestamp, "%H:%M:%S").is_ok());
+        assert_eq!(payload, "shell (7ms) success=true");
+    }
+
+    #[tokio::test]
+    async fn log_entry_omits_tool_result_output_and_error_details() {
+        let hook = CommandLoggerHook::new();
+        let result = ToolResult {
+            success: false,
+            output: "private-output-marker".into(),
+            error: Some("private-error-marker".into()),
+        };
+
+        hook.on_after_tool_call("fetch", &result, Duration::from_millis(5)).await;
+
+        let entries = hook.entries();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].ends_with("fetch (5ms) success=false"));
+        assert!(!entries[0].contains("private-output-marker"));
+        assert!(!entries[0].contains("private-error-marker"));
+    }
+
+    #[tokio::test]
+    async fn entries_returns_a_snapshot_independent_from_the_internal_log() {
+        let hook = CommandLoggerHook::new();
+        let result = ToolResult { success: true, output: String::new(), error: None };
+
+        hook.on_after_tool_call("shell", &result, Duration::from_millis(1)).await;
+
+        let mut snapshot = hook.entries();
+        snapshot[0].push_str("-changed");
+        snapshot.clear();
+
+        let persisted = hook.entries();
+        assert_eq!(persisted.len(), 1);
+        assert!(persisted[0].ends_with("shell (1ms) success=true"));
+        assert!(!persisted[0].contains("-changed"));
+    }
+
+    #[tokio::test]
+    async fn concurrent_tool_calls_are_all_appended_to_the_log() {
+        let hook = Arc::new(CommandLoggerHook::new());
+        let first_hook = Arc::clone(&hook);
+        let second_hook = Arc::clone(&hook);
+
+        let first = tokio::spawn(async move {
+            let result = ToolResult { success: true, output: String::new(), error: None };
+            first_hook.on_after_tool_call("first", &result, Duration::from_millis(1)).await;
+        });
+        let second = tokio::spawn(async move {
+            let result = ToolResult { success: false, output: String::new(), error: None };
+            second_hook.on_after_tool_call("second", &result, Duration::from_millis(2)).await;
+        });
+
+        first.await.expect("first logging task should complete");
+        second.await.expect("second logging task should complete");
+
+        let entries = hook.entries();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().any(|entry| entry.ends_with("first (1ms) success=true")));
+        assert!(entries.iter().any(|entry| entry.ends_with("second (2ms) success=false")));
+    }
 }

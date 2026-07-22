@@ -298,3 +298,41 @@ fn otel_observer_creation_with_valid_endpoint_succeeds() {
     let result = OtelObserver::new(Some("http://127.0.0.1:12345"), Some("vibewindow-test"));
     assert!(result.is_ok(), "observer creation must succeed even with unreachable endpoint");
 }
+
+#[test]
+fn otel_observer_defaults_and_downcast_are_available() {
+    let obs =
+        OtelObserver::new(None, None).expect("default observer configuration should be valid");
+
+    assert_eq!(obs.name(), "otel");
+    assert!(obs.as_any().downcast_ref::<OtelObserver>().is_some());
+}
+
+#[test]
+fn otel_extreme_durations_use_safe_start_time_fallbacks() {
+    let obs = test_observer();
+
+    obs.record_event(&ObserverEvent::LlmResponse {
+        provider: "openrouter".into(),
+        model: "claude-sonnet".into(),
+        duration: Duration::MAX,
+        success: true,
+        error_message: None,
+        input_tokens: None,
+        output_tokens: None,
+        cached_tokens: None,
+        reasoning_tokens: None,
+    });
+    obs.record_event(&ObserverEvent::AgentEnd {
+        provider: "openrouter".into(),
+        model: "claude-sonnet".into(),
+        duration: Duration::MAX,
+        tokens_used: None,
+        cost_usd: None,
+    });
+    obs.record_event(&ObserverEvent::ToolCall {
+        tool: "shell".into(),
+        duration: Duration::MAX,
+        success: false,
+    });
+}

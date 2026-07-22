@@ -1,5 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
+use crate::app::state::TunnelSettingsState;
 use crate::app::{App, Message, update_tunnel_config_async};
 use iced::Task;
 use vw_config_types::gateway::{
@@ -24,8 +25,7 @@ fn trim_to_option(value: &str) -> Option<String> {
     if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
 }
 
-fn persist_tunnel_settings(app: &mut App) -> Task<Message> {
-    let s = &app.tunnel_settings;
+fn build_tunnel_config(s: &TunnelSettingsState) -> TunnelConfig {
     let tailscale_funnel = s.tailscale_funnel;
     let provider = normalize_provider(&s.provider);
     let cloudflare_token = s.cloudflare_token.trim().to_string();
@@ -46,27 +46,29 @@ fn persist_tunnel_settings(app: &mut App) -> Task<Message> {
         || custom_health_url.is_some()
         || custom_url_pattern.is_some();
 
-    update_tunnel_config_async(move |tunnel| {
-        *tunnel = TunnelConfig::default();
-        tunnel.provider = provider.clone();
-        tunnel.cloudflare =
-            include_cloudflare.then(|| CloudflareTunnelConfig { token: cloudflare_token.clone() });
-        tunnel.tailscale = include_tailscale.then(|| TailscaleTunnelConfig {
+    TunnelConfig {
+        provider,
+        cloudflare: include_cloudflare
+            .then_some(CloudflareTunnelConfig { token: cloudflare_token }),
+        tailscale: include_tailscale.then_some(TailscaleTunnelConfig {
             funnel: tailscale_funnel,
-            hostname: tailscale_hostname.clone(),
-        });
-        tunnel.ngrok = include_ngrok.then(|| NgrokTunnelConfig {
-            auth_token: ngrok_auth_token.clone(),
-            domain: ngrok_domain.clone(),
-        });
-        tunnel.custom = include_custom.then(|| CustomTunnelConfig {
+            hostname: tailscale_hostname,
+        }),
+        ngrok: include_ngrok
+            .then_some(NgrokTunnelConfig { auth_token: ngrok_auth_token, domain: ngrok_domain }),
+        custom: include_custom.then_some(CustomTunnelConfig {
             url: None,
             auth_token: None,
-            start_command: custom_start_command.clone(),
-            health_url: custom_health_url.clone(),
-            url_pattern: custom_url_pattern.clone(),
-        });
-    })
+            start_command: custom_start_command,
+            health_url: custom_health_url,
+            url_pattern: custom_url_pattern,
+        }),
+    }
+}
+
+fn persist_tunnel_settings(app: &mut App) -> Task<Message> {
+    let config = build_tunnel_config(&app.tunnel_settings);
+    update_tunnel_config_async(move |tunnel| *tunnel = config)
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。

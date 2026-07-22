@@ -43,6 +43,28 @@ fn invalid_identifiers_are_rejected() {
     assert!(validate_identifier("bad-name", "table").is_err());
 }
 
+#[test]
+fn identifier_validation_accepts_ascii_boundaries() {
+    for valid in ["_", "A", "z9_", "_0"] {
+        assert!(validate_identifier(valid, "table").is_ok(), "{valid} should be valid");
+    }
+}
+
+#[test]
+fn identifier_validation_errors_include_field_value_and_failed_rule() {
+    let invalid_prefix = validate_identifier("数据库", "storage schema").unwrap_err().to_string();
+    assert_eq!(
+        invalid_prefix,
+        "storage schema must start with an ASCII letter or underscore; got '数据库'"
+    );
+
+    let invalid_body = validate_identifier("table名", "storage table").unwrap_err().to_string();
+    assert_eq!(
+        invalid_body,
+        "storage table can only contain ASCII letters, numbers, and underscores; got 'table名'"
+    );
+}
+
 /// 测试分类字符串解析能够正确映射已知和自定义值
 ///
 /// 验证以下映射关系：
@@ -61,6 +83,21 @@ fn parse_category_maps_known_and_custom_values() {
     );
 }
 
+#[test]
+fn custom_category_serialization_preserves_text_and_reserved_name_semantics() {
+    let custom = MemoryCategory::Custom("团队_notes".into());
+    let serialized = MariadbMemory::category_to_str(&custom);
+    assert_eq!(serialized, "团队_notes");
+    assert_eq!(
+        MariadbMemory::parse_category(&serialized),
+        MemoryCategory::Custom("团队_notes".into())
+    );
+
+    let reserved = MariadbMemory::category_to_str(&MemoryCategory::Custom("core".into()));
+    assert_eq!(reserved, "core");
+    assert_eq!(MariadbMemory::parse_category(&reserved), MemoryCategory::Core);
+}
+
 /// 测试模式名规范化处理 PostgreSQL 默认模式
 ///
 /// 规范化规则：
@@ -77,37 +114,53 @@ fn normalize_schema_handles_default_postgres_schema() {
     assert_eq!(normalize_schema("vibewindow"), Some("vibewindow".into()));
 }
 
+#[test]
+fn normalize_schema_trims_mixed_case_default_and_custom_values() {
+    assert_eq!(normalize_schema("\tPuBlIc\n"), None);
+    assert_eq!(normalize_schema("\tAudit_Log\n"), Some("Audit_Log".into()));
+}
+
+#[test]
+fn name_reports_backend_without_opening_a_connection() {
+    let pool_options =
+        mysql::PoolOpts::default().with_constraints(mysql::PoolConstraints::new_const::<0, 1>());
+    let options = OptsBuilder::default()
+        .ip_or_hostname(Some("127.0.0.1"))
+        .tcp_port(1)
+        .prefer_socket(false)
+        .pool_opts(pool_options);
+    let memory = MariadbMemory {
+        pool: Pool::new(options).expect("a pool with zero minimum connections should be lazy"),
+        qualified_table: "`memories`".into(),
+    };
+
+    assert_eq!(memory.name(), "mariadb");
+}
+
 /// 测试在 Tokio 运行时中构造函数不会发生 panic
 ///
-/// 此测试验证即使连接失败，`MariadbMemory::new` 也应该返回错误
-/// 而不是发生 panic。测试使用一个不可达的数据库端点（127.0.0.1:1）
-/// 来确保连接会失败。
+/// 此测试验证即使连接 URL 无效，`MariadbMemory::new` 也应该返回错误
+/// 而不是在 Tokio 运行时中发生 panic。
 ///
 /// # 测试策略
 ///
 /// 1. 使用 `std::panic::catch_unwind` 捕获任何可能的 panic
 /// 2. 确保构造函数调用本身不会 panic
-/// 3. 确保对不可达端点返回连接错误
+/// 3. 确保无效 URL 返回解析错误且不发起网络连接
 #[tokio::test(flavor = "current_thread")]
 async fn new_does_not_panic_inside_tokio_runtime() {
     // 使用 catch_unwind 包装构造函数调用，捕获可能的 panic
     let outcome = std::panic::catch_unwind(|| {
-        MariadbMemory::new(
-            "mysql://vibewindow:password@127.0.0.1:1/vibewindow",
-            "public",
-            "memories",
-            Some(1),
-            false,
-        )
+        MariadbMemory::new("not a mysql url", "public", "memories", Some(1), false)
     });
 
     // 验证构造函数没有 panic
     assert!(outcome.is_ok(), "MariadbMemory::new should not panic");
-    // 验证对不可达端点返回了错误而非成功
-    assert!(
-        outcome.unwrap().is_err(),
-        "MariadbMemory::new should return a connect error for an unreachable endpoint"
-    );
+    let error = match outcome.unwrap() {
+        Ok(_) => panic!("invalid URL should fail"),
+        Err(error) => error.to_string(),
+    };
+    assert!(error.contains("invalid MariaDB connection URL"));
 }
 
 /// MariaDB 完整存储往返集成测试

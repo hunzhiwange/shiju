@@ -5,7 +5,12 @@ fn test_module_is_wired() {
     assert!(module.ends_with("presentation_tests"));
 }
 
-use super::{ConventionalCommitType, ExternalOpenApp, RuntimePlatform, TopBarGatewayTab};
+use super::{
+    AppTab, ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform,
+    TopBarGatewayTab,
+};
+use crate::app::Screen;
+use crate::app::components::model_hover_tooltip::HoverAnchor;
 
 #[test]
 fn top_bar_gateway_tab_defaults_to_gateway() {
@@ -14,11 +19,35 @@ fn top_bar_gateway_tab_defaults_to_gateway() {
 
 #[test]
 fn runtime_platform_parses_gateway_aliases_and_rejects_unknown_values() {
-    assert_eq!(RuntimePlatform::from_gateway_str("macos"), Some(RuntimePlatform::MacOs));
-    assert_eq!(RuntimePlatform::from_gateway_str(" Darwin "), Some(RuntimePlatform::MacOs));
-    assert_eq!(RuntimePlatform::from_gateway_str("win32"), Some(RuntimePlatform::Windows));
-    assert_eq!(RuntimePlatform::from_gateway_str("LINUX"), Some(RuntimePlatform::Linux));
-    assert_eq!(RuntimePlatform::from_gateway_str("freebsd"), None);
+    let cases = [
+        ("macos", Some(RuntimePlatform::MacOs)),
+        (" Darwin ", Some(RuntimePlatform::MacOs)),
+        ("MAC", Some(RuntimePlatform::MacOs)),
+        ("windows", Some(RuntimePlatform::Windows)),
+        (" Win32 ", Some(RuntimePlatform::Windows)),
+        ("LINUX", Some(RuntimePlatform::Linux)),
+        ("", None),
+        ("freebsd", None),
+    ];
+
+    for (value, expected) in cases {
+        assert_eq!(RuntimePlatform::from_gateway_str(value), expected);
+    }
+}
+
+#[test]
+fn runtime_platform_current_target_matches_compilation_target() {
+    #[cfg(target_os = "macos")]
+    assert_eq!(RuntimePlatform::current_target(), Some(RuntimePlatform::MacOs));
+
+    #[cfg(windows)]
+    assert_eq!(RuntimePlatform::current_target(), Some(RuntimePlatform::Windows));
+
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "macos"), not(windows)))]
+    assert_eq!(RuntimePlatform::current_target(), Some(RuntimePlatform::Linux));
+
+    #[cfg(target_arch = "wasm32")]
+    assert_eq!(RuntimePlatform::current_target(), None);
 }
 
 #[test]
@@ -56,17 +85,80 @@ fn external_open_app_identifiers_and_labels_cover_all_variants() {
 }
 
 #[test]
-fn conventional_commit_types_round_trip_prefixes_and_display() {
-    let prefixes = ConventionalCommitType::all()
-        .into_iter()
-        .map(|kind| {
-            assert_eq!(kind.to_string(), kind.as_str());
-            kind.as_str()
-        })
-        .collect::<Vec<_>>();
+fn app_tab_clone_preserves_identity_navigation_and_optional_project() {
+    let tab = AppTab {
+        id: "project-1".to_string(),
+        title: "Project One".to_string(),
+        screen: Screen::Project,
+        project_path: Some("/workspace/project-one".to_string()),
+    };
 
-    assert_eq!(prefixes.len(), 19);
-    assert_eq!(ConventionalCommitType::from_prefix("feat"), Some(ConventionalCommitType::Feat));
-    assert_eq!(ConventionalCommitType::from_prefix("locale"), Some(ConventionalCommitType::Locale));
+    assert_eq!(tab.clone(), tab);
+    assert_ne!(
+        tab,
+        AppTab {
+            id: "home".to_string(),
+            title: "Home".to_string(),
+            screen: Screen::Home,
+            project_path: None,
+        }
+    );
+}
+
+#[test]
+fn model_popover_hover_clone_preserves_each_variant_payload() {
+    let model = ModelPopoverHover::Model {
+        provider_id: "openai".to_string(),
+        model_id: "gpt-test".to_string(),
+        anchor: Some(HoverAnchor { x: 12.5, y: 24.0 }),
+    };
+    let ModelPopoverHover::Model { provider_id, model_id, anchor } = model.clone() else {
+        panic!("cloned model hover should preserve its variant");
+    };
+    assert_eq!(provider_id, "openai");
+    assert_eq!(model_id, "gpt-test");
+    let anchor = anchor.expect("model hover anchor");
+    assert_eq!((anchor.x, anchor.y), (12.5, 24.0));
+
+    let text = ModelPopoverHover::Text { text: "Model details".to_string(), anchor: None };
+    let ModelPopoverHover::Text { text, anchor } = text.clone() else {
+        panic!("cloned text hover should preserve its variant");
+    };
+    assert_eq!(text, "Model details");
+    assert!(anchor.is_none());
+}
+
+#[test]
+fn conventional_commit_types_round_trip_every_prefix_and_display_in_declared_order() {
+    let expected = [
+        (ConventionalCommitType::Feat, "feat"),
+        (ConventionalCommitType::Fix, "fix"),
+        (ConventionalCommitType::Docs, "docs"),
+        (ConventionalCommitType::Style, "style"),
+        (ConventionalCommitType::Refactor, "refactor"),
+        (ConventionalCommitType::Perf, "perf"),
+        (ConventionalCommitType::Test, "test"),
+        (ConventionalCommitType::Build, "build"),
+        (ConventionalCommitType::Ci, "ci"),
+        (ConventionalCommitType::Chore, "chore"),
+        (ConventionalCommitType::Revert, "revert"),
+        (ConventionalCommitType::Init, "init"),
+        (ConventionalCommitType::Config, "config"),
+        (ConventionalCommitType::Release, "release"),
+        (ConventionalCommitType::Deploy, "deploy"),
+        (ConventionalCommitType::Merge, "merge"),
+        (ConventionalCommitType::Wip, "wip"),
+        (ConventionalCommitType::Typo, "typo"),
+        (ConventionalCommitType::Locale, "locale"),
+    ];
+
+    assert_eq!(ConventionalCommitType::all(), expected.map(|(kind, _)| kind));
+    for (kind, prefix) in expected {
+        assert_eq!(kind.as_str(), prefix);
+        assert_eq!(kind.to_string(), prefix);
+        assert_eq!(ConventionalCommitType::from_prefix(prefix), Some(kind));
+    }
     assert_eq!(ConventionalCommitType::from_prefix("unknown"), None);
+    assert_eq!(ConventionalCommitType::from_prefix("FEAT"), None);
+    assert_eq!(ConventionalCommitType::from_prefix(" feat"), None);
 }

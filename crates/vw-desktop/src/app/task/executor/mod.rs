@@ -46,7 +46,7 @@ pub use programs::{ExecutorCommand, build_executor_command};
 pub use runner::{
     TaskPlanGenerationOutcome, TaskPlanSubTask, execute_gateway_prompt_with_streaming,
     execute_task_async, execute_task_merge_async, execute_task_plan_async,
-    execute_task_review_async, write_task_plan_files,
+    execute_task_retry_async, execute_task_review_async, write_task_plan_files,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use scheduling::{
@@ -63,15 +63,8 @@ pub use worktree_admin::{
     commit_merge_all_worktrees_async_with_logs, commit_merge_all_worktrees_with_logs,
     delete_all_managed_worktrees, delete_all_managed_worktrees_async,
     delete_all_managed_worktrees_async_with_logs, delete_all_managed_worktrees_with_logs,
-    recycle_task_worktree, recycle_task_worktree_async, release_task_worktree,
-    release_task_worktree_async, reset_all_managed_worktrees, reset_all_managed_worktrees_async,
+    reset_all_managed_worktrees, reset_all_managed_worktrees_async,
     reset_all_managed_worktrees_async_with_logs, reset_all_managed_worktrees_with_logs,
-};
-/// 对外暴露当前模块需要复用的能力。
-pub use worktree_pool::{
-    can_dispatch_merge_task, current_task_worktree_path, force_unlock_task_merge_target,
-    maintain_worktree_pool, task_has_live_worktree, task_merge_lock_holder,
-    worktree_pool_needs_maintenance, worktree_pool_snapshot,
 };
 
 #[cfg(not(target_arch = "wasm32"))]

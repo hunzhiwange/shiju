@@ -2,23 +2,23 @@
 
 use iced::widget::svg::{self};
 use iced::widget::{column, container, mouse_area, row, text, text_editor};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Theme};
 use std::collections::HashSet;
 
 use crate::app::assets::Icon;
 use crate::app::models;
 use crate::app::{App, Message, message};
 
+use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::{
-    chat_text_font, chat_text_line_height, is_safe_for_text_editor, read_only_text_style,
+    chat_text_font, chat_text_line_height, read_only_text_style,
 };
 use super::super::utils::{
     bold_font, chat_secondary_muted_text_color, chat_secondary_subtle_text_color, icon_svg,
     normalize_display_text,
 };
 use super::styles::{
-    THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, neutral_card_surface, subtle_card_shadow,
-    think_block_text_color, thinking_status_text,
+    THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, think_block_text_color, thinking_status_text,
 };
 use super::text::{should_segment_text_block, think_text_body};
 
@@ -75,7 +75,7 @@ pub(super) fn think_block_view<'a>(
         ("思考".to_string(), None)
     };
 
-    let toggle_icon = if expanded { Icon::ChevronUp } else { Icon::ChevronDown };
+    let toggle_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
     let is_hovered = app.chat_think_hovered_idx == Some(key);
     let toggle_icon = icon_svg(toggle_icon)
         .width(Length::Fixed(10.0))
@@ -151,7 +151,10 @@ pub(super) fn think_block_view<'a>(
                     text_content.clone(),
                     prefer_plain_text,
                 ));
-            } else if !is_streaming_msg && is_safe_for_text_editor(&text_content) {
+            } else if !is_streaming_msg
+                && selectable_text_policy(&text_content, false)
+                    != SelectableTextPolicy::PreviewWithCopyFallback
+            {
                 if let Some(editor_content) = app.chat_think_editors.get(&scroll_key) {
                     let on_action = move |action| {
                         Message::Chat(message::ChatMessage::ThinkEditorAction(
@@ -217,15 +220,7 @@ pub(super) fn think_block_view<'a>(
         }
     }
 
-    let think_box = container(think_col).padding([10, 12]).style(|theme: &Theme| {
-        let (bg, border) = neutral_card_surface(theme);
-        iced::widget::container::Style {
-            background: Some(Background::Color(bg)),
-            border: Border { width: 1.0, color: border, radius: 14.0.into() },
-            shadow: subtle_card_shadow(theme),
-            ..Default::default()
-        }
-    });
+    let think_box = container(think_col);
 
     think_box.width(Length::Fill).into()
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="VibeWindow demo plugin icon">
+  <rect width="128" height="128" rx="28" fill="#0f172a"/>
+  <rect x="24" y="26" width="80" height="58" rx="10" fill="#2563eb"/>
+  <path d="M36 44h56M36 58h34M36 72h48" stroke="#bfdbfe" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="88" cy="92" r="15" fill="#22c55e"/>
+  <path d="M81 92l5 5 10-12" stroke="#052e16" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

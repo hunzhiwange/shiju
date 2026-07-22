@@ -6,6 +6,12 @@ use iced::Subscription;
 use super::agent_stream::agent_stream;
 use super::message;
 use super::{App, Message, Screen};
+use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
+
+#[cfg(not(target_arch = "wasm32"))]
+type WorkflowRunBoxStream<T> = iced::futures::stream::BoxStream<'static, T>;
+#[cfg(target_arch = "wasm32")]
+type WorkflowRunBoxStream<T> = iced::futures::stream::LocalBoxStream<'static, T>;
 
 fn map_global_event(
     event: iced::Event,
@@ -115,6 +121,10 @@ impl App {
             Subscription::batch(subs)
         };
 
+        let workflow_run = workflow_run_subscription_request(self)
+            .map(|req| Subscription::run_with(req, workflow_run_stream))
+            .unwrap_or_else(Subscription::none);
+
         let events = iced::event::listen_with(map_global_event);
 
         let terminal_subs = if self.terminal.is_visible {
@@ -137,14 +147,6 @@ impl App {
         } else {
             Subscription::none()
         };
-
-        let markdown_stream =
-            if self.screen == Screen::MarkdownTool && self.markdown_tool_stream_enabled {
-                iced::time::every(std::time::Duration::from_millis(16))
-                    .map(|_| Message::MarkdownTool(message::MarkdownToolMessage::StreamTick))
-            } else {
-                Subscription::none()
-            };
 
         let question_poll =
             if self.any_session_requesting() || self.question_modal_request_id.is_some() {
@@ -230,24 +232,7 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let preview_lsp_tick = Subscription::none();
 
-        let design_generation_stream_tick = if self.screen == Screen::Design
-            && self.active_design_state().is_some_and(|state| {
-                state.design_generation_stream_rx.is_some() || state.design_generation_loading
-            }) {
-            iced::time::every(std::time::Duration::from_millis(33))
-                .map(|_| Message::Design(message::DesignMessage::DesignGenerationStreamTick))
-        } else {
-            Subscription::none()
-        };
-
-        let figma_progress_tick = if self.screen == Screen::Design
-            && self.active_design_state().is_some_and(|state| state.figma_progress_rx.is_some())
-        {
-            iced::time::every(std::time::Duration::from_millis(33))
-                .map(|_| Message::Design(message::DesignMessage::FigmaProgressTick))
-        } else {
-            Subscription::none()
-        };
+        let design_generation_stream_tick = Subscription::none();
 
         let provider_models_sync_tick =
             if self.show_settings && self.provider_settings.models_syncing {
@@ -256,6 +241,13 @@ impl App {
             } else {
                 Subscription::none()
             };
+
+        let app_update_progress_tick = if self.app_update_progress_rx.is_some() {
+            iced::time::every(std::time::Duration::from_millis(50))
+                .map(|_| Message::View(message::ViewMessage::AppUpdateProgressTick))
+        } else {
+            Subscription::none()
+        };
 
         let gateway_health_tick = iced::time::every(std::time::Duration::from_secs(60))
             .map(|_| Message::GatewayHealthTick);
@@ -266,7 +258,6 @@ impl App {
             crate::app::wasm_ime::subscription(),
             events,
             terminal_subs,
-            markdown_stream,
             question_poll,
             permission_poll,
             todo_poll,
@@ -276,11 +267,63 @@ impl App {
             project_sessions_refresh,
             preview_lsp_tick,
             design_generation_stream_tick,
-            figma_progress_tick,
             provider_models_sync_tick,
+            app_update_progress_tick,
+            workflow_run,
             gateway_health_tick,
         ])
     }
+}
+
+pub(super) fn workflow_run_subscription_request(
+    app: &App,
+) -> Option<WorkflowRunSubscriptionRequest> {
+    app.workflow_state.saved_app_run_subscription_request()
+}
+
+fn workflow_run_stream(req: &WorkflowRunSubscriptionRequest) -> WorkflowRunBoxStream<Message> {
+    use iced::futures::SinkExt;
+    use vw_gateway_client::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};
+
+    let req = req.clone();
+    Box::pin(iced::stream::channel(
+        100,
+        move |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
+            let result = match crate::app::config::gateway_client() {
+                Ok(client) => {
+                    let body = GatewayWorkflowStreamRequest {
+                        query: req.query.clone(),
+                        inputs: req.inputs.clone(),
+                        response_mode: GatewayWorkflowResponseMode::Streaming,
+                        user: req.user.clone(),
+                        conversation_id: None,
+                    };
+                    client
+                        .stream_workflow_application(&req.uuid, &body, |event| {
+                            output
+                                .try_send(Message::WorkflowTool(
+                                    crate::apps::workflow::WorkflowMessage::SavedAppRunEvent {
+                                        uuid: req.uuid.clone(),
+                                        event,
+                                    },
+                                ))
+                                .is_ok()
+                        })
+                        .await
+                }
+                Err(error) => Err(error),
+            };
+
+            let _ = output
+                .send(Message::WorkflowTool(
+                    crate::apps::workflow::WorkflowMessage::SavedAppRunFinished {
+                        uuid: req.uuid,
+                        result,
+                    },
+                ))
+                .await;
+        },
+    ))
 }
 #[cfg(test)]
 #[path = "app_subscription_tests.rs"]

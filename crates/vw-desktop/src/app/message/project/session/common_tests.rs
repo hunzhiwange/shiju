@@ -19,6 +19,12 @@ fn parse_clamped_u32_clamps_fallback_for_invalid_input() {
 }
 
 #[test]
+fn parse_clamped_u32_handles_type_extremes_and_overflow() {
+    assert_eq!(super::parse_clamped_u32("4294967295", 7, 0, u32::MAX), u32::MAX);
+    assert_eq!(super::parse_clamped_u32("4294967296", 7, 0, 10), 7);
+}
+
+#[test]
 fn parse_clamped_u64_accepts_trimmed_values_and_applies_bounds() {
     assert_eq!(super::parse_clamped_u64(" 123 ", 7, 10, 200), 123);
     assert_eq!(super::parse_clamped_u64("9", 7, 10, 200), 10);
@@ -32,9 +38,23 @@ fn parse_clamped_u64_clamps_fallback_for_invalid_input() {
 }
 
 #[test]
+fn parse_clamped_u64_handles_type_extremes_and_overflow() {
+    assert_eq!(super::parse_clamped_u64("18446744073709551615", 7, 0, u64::MAX), u64::MAX);
+    assert_eq!(super::parse_clamped_u64("18446744073709551616", 7, 0, 10), 7);
+}
+
+#[test]
 fn trim_to_option_discards_surrounding_whitespace_and_empty_values() {
     assert_eq!(super::trim_to_option("  value  ".to_string()), Some("value".to_string()));
     assert_eq!(super::trim_to_option("\n\t ".to_string()), None);
+}
+
+#[test]
+fn trim_to_option_trims_unicode_boundaries_and_preserves_internal_whitespace() {
+    assert_eq!(
+        super::trim_to_option("\u{2003}two  words\u{2003}".to_string()),
+        Some("two  words".to_string())
+    );
 }
 
 #[test]
@@ -43,6 +63,7 @@ fn clear_new_session_picker_messages_preserves_picker_selection() {
     app.new_session_picker_project = Some("/project".to_string());
     app.new_session_picker_options = vec![("/project".to_string(), "Main".to_string())];
     app.new_session_worktree_name = "feature".to_string();
+    app.new_session_last_directory = Some("/project/previous".to_string());
     app.new_session_confirm_delete_directory = Some("/project/wt".to_string());
     app.new_session_force_delete_directory = Some("/project/wt".to_string());
     app.new_session_delete_error = Some("delete failed".to_string());
@@ -54,6 +75,7 @@ fn clear_new_session_picker_messages_preserves_picker_selection() {
     assert_eq!(app.new_session_picker_project.as_deref(), Some("/project"));
     assert_eq!(app.new_session_picker_options.len(), 1);
     assert_eq!(app.new_session_worktree_name, "feature");
+    assert_eq!(app.new_session_last_directory.as_deref(), Some("/project/previous"));
     assert!(app.new_session_confirm_delete_directory.is_none());
     assert!(app.new_session_force_delete_directory.is_none());
     assert!(app.new_session_delete_error.is_none());
@@ -67,6 +89,7 @@ fn reset_new_session_picker_state_clears_selection_options_and_messages() {
     app.new_session_picker_project = Some("/project".to_string());
     app.new_session_picker_options = vec![("/project".to_string(), "Main".to_string())];
     app.new_session_worktree_name = "feature".to_string();
+    app.new_session_last_directory = Some("/project/previous".to_string());
     app.new_session_confirm_delete_directory = Some("/project/wt".to_string());
     app.new_session_force_delete_directory = Some("/project/wt".to_string());
     app.new_session_delete_error = Some("delete failed".to_string());
@@ -78,6 +101,7 @@ fn reset_new_session_picker_state_clears_selection_options_and_messages() {
     assert!(app.new_session_picker_project.is_none());
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
+    assert_eq!(app.new_session_last_directory.as_deref(), Some("/project/previous"));
     assert!(app.new_session_confirm_delete_directory.is_none());
     assert!(app.new_session_force_delete_directory.is_none());
     assert!(app.new_session_delete_error.is_none());

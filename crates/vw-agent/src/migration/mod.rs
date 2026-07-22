@@ -912,3 +912,7 @@ fn backup_target_memory(workspace_dir: &Path) -> Result<Option<PathBuf>> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;

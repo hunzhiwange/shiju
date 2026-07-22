@@ -8,7 +8,10 @@ use crate::app::agent::config::{BrowserConfig, Config, MemoryConfig, WasmRuntime
 use crate::app::agent::memory;
 use crate::app::agent::runtime::WasmRuntime;
 use serde_json::json;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
+
+const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool";
 
 fn test_config(tmp: &TempDir) -> Config {
     Config {
@@ -16,6 +19,100 @@ fn test_config(tmp: &TempDir) -> Config {
         config_path: tmp.path().join("vibewindow.json"),
         ..Config::default()
     }
+}
+
+fn write_mcp_toolset_server(tmp: &TempDir) -> PathBuf {
+    let script = tmp.path().join("fixture_mcp_server.py");
+    std::fs::write(
+        &script,
+        r#"
+import json
+import sys
+
+TOOL = {
+    "name": "Echo Tool",
+    "description": "Echo a message from the MCP fixture.",
+    "inputSchema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "message": {"type": "string"}
+        },
+        "required": ["message"]
+    },
+    "annotations": {
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True
+    }
+}
+
+def send(payload):
+    sys.stdout.write(json.dumps(payload, separators=(",", ":")) + "\n")
+    sys.stdout.flush()
+
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    message = json.loads(line)
+    method = message.get("method")
+    request_id = message.get("id")
+    if method == "initialize":
+        params = message.get("params") or {}
+        send({
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "protocolVersion": params.get("protocolVersion", "2025-06-18"),
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": "fixture-mcp", "version": "1.0.0"},
+                "instructions": "Fixture instructions for dynamic MCP tool tests."
+            }
+        })
+    elif method == "tools/list":
+        send({"jsonrpc": "2.0", "id": request_id, "result": {"tools": [TOOL]}})
+    elif method == "tools/call":
+        params = message.get("params") or {}
+        arguments = params.get("arguments") or {}
+        text = "echo:" + str(arguments.get("message", ""))
+        send({
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "content": [{"type": "text", "text": text}],
+                "structuredContent": {"echoed": arguments.get("message", "")},
+                "isError": False
+            }
+        })
+    elif request_id is not None:
+        send({"jsonrpc": "2.0", "id": request_id, "result": {}})
+"#,
+    )
+    .expect("fixture MCP server script should be written");
+    script
+}
+
+fn write_mcp_toolset_workspace(tmp: &TempDir) -> PathBuf {
+    let workspace = tmp.path().join("workspace");
+    std::fs::create_dir_all(&workspace).expect("workspace should be created");
+    let script = write_mcp_toolset_server(tmp);
+    let config = json!({
+        "mcpServers": [{
+            "name": "Fixture Server",
+            "command": std::env::var("PYTHON").unwrap_or_else(|_| "python3".to_string()),
+            "args": [script.to_string_lossy()]
+        }]
+    });
+    std::fs::write(
+        workspace.join(".vwacprc.json"),
+        serde_json::to_vec_pretty(&config).expect("MCP config should serialize"),
+    )
+    .expect("MCP config should be written");
+    workspace
+}
+
+fn mcp_toolset_context(workspace: &Path) -> ToolRuntimeContext {
+    ToolRuntimeContext::new("mcp-toolset-test", Some(workspace.to_string_lossy().to_string()))
 }
 
 #[test]
@@ -296,6 +393,41 @@ fn registry_specs_expose_bash_and_compact_search_surface() {
     assert!(!names.iter().any(|name| name == "glob_search"));
     assert!(!names.iter().any(|name| name == "content_search"));
     assert!(!names.iter().any(|name| name == "codesearch"));
+}
+
+#[test]
+fn mcp_toolset_tools_are_registered_from_config() {
+    let tmp = TempDir::new().unwrap();
+    let workspace = write_mcp_toolset_workspace(&tmp);
+    let specs = tool_specs_for_context(&mcp_toolset_context(&workspace));
+
+    let spec = specs
+        .iter()
+        .find(|spec| spec.id == MCP_TOOLSET_TOOL_ID)
+        .expect("configured MCP tool should be registered");
+
+    assert_eq!(spec.display_name, "Fixture Server: Echo Tool");
+    assert_eq!(spec.input_schema["required"], json!(["message"]));
+    assert!(spec.read_only);
+    assert!(!spec.destructive);
+    assert!(spec.concurrency_safe);
+}
+
+#[test]
+fn mcp_toolset_tools_can_be_executed_from_registry() {
+    let tmp = TempDir::new().unwrap();
+    let workspace = write_mcp_toolset_workspace(&tmp);
+    let result = execute_tool_call(
+        MCP_TOOLSET_TOOL_ID,
+        r#"{"message":"hello"}"#,
+        &mcp_toolset_context(&workspace),
+    )
+    .expect("configured MCP tool should execute through the registry");
+
+    assert!(result.is_success());
+    assert_eq!(result.model_text(), "echo:hello");
+    assert_eq!(result.data["server"], json!("Fixture Server"));
+    assert_eq!(result.data["tool"], json!("Echo Tool"));
 }
 
 #[test]

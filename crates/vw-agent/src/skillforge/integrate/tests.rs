@@ -232,3 +232,49 @@ fn integrate_replaces_separators_in_skill_directory_name() {
     assert!(path.join("SKILL.toml").is_file());
     assert!(path.join("SKILL.md").is_file());
 }
+
+#[test]
+fn integrate_reports_skill_directory_creation_failure_with_path() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let output_file = dir.path().join("output-file");
+    std::fs::write(&output_file, "occupied").unwrap();
+    let integrator = Integrator::new(output_file.to_string_lossy().to_string());
+
+    let error = integrator
+        .integrate(&candidate_with_missing_optional_fields())
+        .expect_err("a file cannot contain a skill directory");
+
+    assert!(error.to_string().contains("Failed to create dir"));
+    assert!(error.to_string().contains("quoted\"skill"));
+}
+
+#[test]
+fn integrate_reports_toml_write_failure_with_path() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("quoted\"skill");
+    std::fs::create_dir_all(skill_dir.join("SKILL.toml")).unwrap();
+    let integrator = Integrator::new(dir.path().to_string_lossy().to_string());
+
+    let error = integrator
+        .integrate(&candidate_with_missing_optional_fields())
+        .expect_err("a directory cannot be overwritten by TOML content");
+
+    assert!(error.to_string().contains("Failed to write"));
+    assert!(error.to_string().contains("SKILL.toml"));
+}
+
+#[test]
+fn integrate_reports_markdown_write_failure_with_path() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("quoted\"skill");
+    std::fs::create_dir_all(skill_dir.join("SKILL.md")).unwrap();
+    let integrator = Integrator::new(dir.path().to_string_lossy().to_string());
+
+    let error = integrator
+        .integrate(&candidate_with_missing_optional_fields())
+        .expect_err("a directory cannot be overwritten by Markdown content");
+
+    assert!(error.to_string().contains("Failed to write"));
+    assert!(error.to_string().contains("SKILL.md"));
+    assert!(skill_dir.join("SKILL.toml").is_file());
+}

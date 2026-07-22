@@ -132,6 +132,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             app.chat_message_ids.clone(),
                         );
                         app.usage = usage;
+                        app.active_session_view_state.updated_ms = session.updated_ms;
+                        app.replace_active_session_steps(session.steps.clone());
+                        app.replace_active_session_calls(session.calls.clone());
                         true
                     }
                 } else {

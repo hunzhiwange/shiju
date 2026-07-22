@@ -70,7 +70,7 @@ impl WorkflowState {
     pub fn set_node_editor_title(&mut self, value: String) {
         if let Some(editor) = self.node_editor.as_mut() {
             editor.title = value;
-            refresh_node_editor_validation(editor);
+            clear_node_editor_validation(editor);
         }
     }
 
@@ -78,7 +78,7 @@ impl WorkflowState {
         if let Some(editor) = self.node_editor.as_mut() {
             editor.description = value;
             editor.description_editor = text_editor::Content::with_text(&editor.description);
-            refresh_node_editor_validation(editor);
+            clear_node_editor_validation(editor);
         }
     }
 
@@ -86,7 +86,7 @@ impl WorkflowState {
         if let Some(editor) = self.node_editor.as_mut() {
             editor.description_editor.perform(action);
             editor.description = editor.description_editor.text();
-            refresh_node_editor_validation(editor);
+            clear_node_editor_validation(editor);
         }
     }
 
@@ -137,7 +137,7 @@ impl WorkflowState {
                 editor.visual_draft = visual_draft;
                 clamp_node_editor_start_variable_focus(editor);
             }
-            refresh_node_editor_validation(editor);
+            clear_node_editor_validation(editor);
         }
     }
 
@@ -147,7 +147,7 @@ impl WorkflowState {
                 let _ = sync_node_editor_raw_from_visual(editor);
             }
             editor.show_raw_data_editor = value;
-            refresh_node_editor_validation(editor);
+            clear_node_editor_validation(editor);
         }
     }
 
@@ -159,7 +159,7 @@ impl WorkflowState {
             let changed = editor.visual_draft.as_mut().map(update).unwrap_or(false);
             if changed {
                 let _ = sync_node_editor_raw_from_visual(editor);
-                refresh_node_editor_validation(editor);
+                clear_node_editor_validation(editor);
             }
         }
     }
@@ -447,7 +447,7 @@ impl WorkflowState {
 
         let _ = sync_node_editor_raw_from_visual(editor);
         clamp_node_editor_start_variable_focus(editor);
-        refresh_node_editor_validation(editor);
+        clear_node_editor_validation(editor);
         Ok(())
     }
 
@@ -474,7 +474,7 @@ impl WorkflowState {
             if changed {
                 let _ = sync_node_editor_raw_from_visual(editor);
                 clamp_node_editor_start_variable_focus(editor);
-                refresh_node_editor_validation(editor);
+                clear_node_editor_validation(editor);
             }
         }
     }

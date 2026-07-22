@@ -3,13 +3,13 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_error_banner,
+    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
     settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
-use crate::app::views::design::properties::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -80,6 +80,14 @@ fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
     .into()
 }
 
+fn number_display(value: u32, suffix: &str) -> String {
+    if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") }
+}
+
+fn normalize_number_value(raw: f32, min: u32, max: u32) -> u32 {
+    raw.round().clamp(min as f32, max as f32) as u32
+}
+
 fn number_row<'a>(
     label: &'static str,
     description: &'static str,
@@ -89,14 +97,14 @@ fn number_row<'a>(
     suffix: &'static str,
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
-    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
+    let display = number_display(value, suffix);
 
     field_row(
         label,
         description,
         row![
             NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
-                on_change(raw.round().clamp(min as f32, max as f32) as u32)
+                on_change(normalize_number_value(raw, min, max))
             })
             .settings_style(),
             settings_value_badge(display),
@@ -235,7 +243,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_panel(list).into()
     };
 
-    let mut content = column![
+    let content = column![
         settings_page_intro(
             "网络请求配置",
             "配置网络请求工具的开关、超时、响应大小限制和域名白名单。"
@@ -260,10 +268,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     container(content).width(Length::Fill).into()
 }

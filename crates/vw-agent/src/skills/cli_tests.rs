@@ -61,6 +61,14 @@ fn write_installed_skill(workspace: &Path, name: &str, body: &str) -> std::path:
     skill_dir
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn write_manifest_skill(workspace: &Path, name: &str, body: &str) -> std::path::PathBuf {
+    let skill_dir = workspace.join(".vibewindow").join("skills").join(name);
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(skill_dir.join("SKILL.toml"), body).unwrap();
+    skill_dir
+}
+
 #[cfg(target_arch = "wasm32")]
 #[test]
 fn wasm_cli_stub_is_explicitly_unsupported() {
@@ -89,6 +97,42 @@ fn handle_list_covers_empty_and_populated_workspaces() {
 
     handle_command(SkillCommands::List, &config).unwrap();
     write_installed_skill(workspace.path(), "listed", "# Listed\nA listed skill\n");
+    handle_command(SkillCommands::List, &config).unwrap();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_list_loads_manifest_tools_and_tags() {
+    let _lock = env_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
+    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let config = isolated_config(workspace.path());
+
+    write_manifest_skill(
+        workspace.path(),
+        "detailed",
+        r#"[skill]
+name = "detailed"
+description = "A detailed skill"
+version = "1.2.3"
+tags = ["alpha", "beta"]
+
+[[tools]]
+name = "inspect"
+description = "Inspect safely"
+kind = "builtin"
+command = "inspect"
+"#,
+    );
+    let skills = load_skills_full_with_config(workspace.path(), &config);
+    let detailed = skills.iter().find(|skill| skill.name == "detailed").unwrap();
+    assert_eq!(detailed.tags, ["alpha", "beta"]);
+    assert_eq!(detailed.tools.len(), 1);
+    assert_eq!(detailed.tools[0].name, "inspect");
+
     handle_command(SkillCommands::List, &config).unwrap();
 }
 
@@ -128,7 +172,63 @@ fn handle_audit_reports_success_missing_and_findings() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn handle_remove_validates_names_and_removes_existing_skill() {
+fn handle_audit_resolves_installed_skill_name() {
+    let _lock = env_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
+    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let config = isolated_config(workspace.path());
+    let installed =
+        write_installed_skill(workspace.path(), "installed-safe", "# Safe\nSafe skill\n");
+
+    handle_command(SkillCommands::Audit { source: "installed-safe".into() }, &config).unwrap();
+
+    assert!(installed.is_dir());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_audit_reports_error_for_existing_file_source() {
+    let _lock = env_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
+    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let config = isolated_config(workspace.path());
+    let source = workspace.path().join("not-a-skill.md");
+    std::fs::write(&source, "# Not a directory\n").unwrap();
+
+    let err = handle_command(
+        SkillCommands::Audit { source: source.to_string_lossy().to_string() },
+        &config,
+    )
+    .unwrap_err()
+    .to_string();
+
+    assert!(!err.is_empty());
+    assert!(source.is_file());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_remove_rejects_each_unsafe_name_form() {
+    let workspace = tempfile::tempdir().unwrap();
+    let config = isolated_config(workspace.path());
+
+    for name in ["..", "nested/skill", r"nested\skill"] {
+        let err = handle_command(SkillCommands::Remove { name: name.into() }, &config)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("Invalid skill name"), "{name}: {err}");
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_remove_removes_existing_skill_and_reports_missing_repeat() {
     let _lock = env_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
@@ -138,11 +238,6 @@ fn handle_remove_validates_names_and_removes_existing_skill() {
     let config = isolated_config(workspace.path());
     let skill = write_installed_skill(workspace.path(), "remove-me", "# Remove\nRemove skill\n");
 
-    let invalid = handle_command(SkillCommands::Remove { name: "../bad".into() }, &config)
-        .unwrap_err()
-        .to_string();
-    assert!(invalid.contains("Invalid skill name"));
-
     handle_command(SkillCommands::Remove { name: "remove-me".into() }, &config).unwrap();
     assert!(!skill.exists());
 
@@ -150,6 +245,61 @@ fn handle_remove_validates_names_and_removes_existing_skill() {
         .unwrap_err()
         .to_string();
     assert!(missing.contains("Skill not found"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_remove_reports_missing_when_skills_dir_has_not_been_created() {
+    let workspace = tempfile::tempdir().unwrap();
+    let config = isolated_config(workspace.path());
+    let skills_path = workspace.path().join(".vibewindow").join("skills");
+
+    let err = handle_command(SkillCommands::Remove { name: "missing".into() }, &config)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("Skill not found"));
+    assert!(!skills_path.exists());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_remove_reports_filesystem_error_when_target_is_not_directory() {
+    let workspace = tempfile::tempdir().unwrap();
+    let config = isolated_config(workspace.path());
+    let skills_path = workspace.path().join(".vibewindow").join("skills");
+    std::fs::create_dir_all(&skills_path).unwrap();
+    let skill_path = skills_path.join("file-skill");
+    std::fs::write(&skill_path, "not a directory").unwrap();
+
+    let err = handle_command(SkillCommands::Remove { name: "file-skill".into() }, &config)
+        .unwrap_err()
+        .to_string();
+
+    assert!(!err.is_empty());
+    assert!(skill_path.is_file());
+}
+
+#[cfg(all(not(target_arch = "wasm32"), unix))]
+#[test]
+fn handle_remove_rejects_symlink_that_escapes_skills_directory() {
+    let workspace = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let config = isolated_config(workspace.path());
+    let skills_path = workspace.path().join(".vibewindow").join("skills");
+    std::fs::create_dir_all(&skills_path).unwrap();
+    let marker = outside.path().join("marker.txt");
+    std::fs::write(&marker, "keep").unwrap();
+    let link = skills_path.join("escape");
+    std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+
+    let err = handle_command(SkillCommands::Remove { name: "escape".into() }, &config)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("Skill path escapes skills directory"));
+    assert!(link.exists());
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "keep");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -175,4 +325,57 @@ fn handle_install_accepts_local_skill_source() {
     .unwrap();
 
     assert!(workspace.path().join(".vibewindow/skills/local-skill/SKILL.md").is_file());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_install_rejects_missing_local_source() {
+    let _lock = env_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
+    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let config = isolated_config(workspace.path());
+    let missing = workspace.path().join("missing-source");
+
+    let err = handle_command(
+        SkillCommands::Install { source: missing.to_string_lossy().to_string() },
+        &config,
+    )
+    .unwrap_err()
+    .to_string();
+
+    assert!(err.contains("failed to install local skill source"));
+    assert!(!missing.exists());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn handle_install_reports_skills_directory_creation_failure() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join(".vibewindow"), "not a directory").unwrap();
+    let config = isolated_config(workspace.path());
+
+    let err = handle_command(SkillCommands::Install { source: "missing-source".into() }, &config)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("failed to create"));
+    assert!(err.contains(".vibewindow/skills"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn print_install_success_covers_git_and_skills_sh_messages() {
+    let install_root = tempfile::tempdir().unwrap();
+
+    print_install_success(InstallResult::Git {
+        installed_dir: install_root.path().join("git-skill"),
+        files_scanned: 3,
+    });
+    print_install_success(InstallResult::SkillsSh {
+        installed_dir: install_root.path().join("skills-sh-skill"),
+        files_scanned: 4,
+    });
 }

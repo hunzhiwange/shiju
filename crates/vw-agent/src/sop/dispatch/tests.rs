@@ -81,6 +81,65 @@ mod tests {
         SopAuditLogger::new(memory)
     }
 
+    fn poison_engine_lock(engine: &Arc<Mutex<SopEngine>>) {
+        let engine = Arc::clone(engine);
+        let result = std::thread::spawn(move || {
+            let _guard = engine.lock().unwrap();
+            panic!("poison engine lock for dispatch test");
+        })
+        .join();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn action_helpers_return_run_id_and_label_for_every_variant() {
+        let mut sop = test_sop("action-sop", vec![SopTrigger::Manual]);
+        let step = sop.steps.remove(0);
+        let actions = [
+            (
+                SopRunAction::ExecuteStep {
+                    run_id: "execute-run".into(),
+                    step: step.clone(),
+                    context: "execute context".into(),
+                },
+                "execute-run",
+                "ExecuteStep",
+            ),
+            (
+                SopRunAction::WaitApproval {
+                    run_id: "approval-run".into(),
+                    step,
+                    context: "approval context".into(),
+                },
+                "approval-run",
+                "WaitApproval",
+            ),
+            (
+                SopRunAction::Completed {
+                    run_id: "completed-run".into(),
+                    sop_name: "action-sop".into(),
+                },
+                "completed-run",
+                "Completed",
+            ),
+            (
+                SopRunAction::Failed {
+                    run_id: "failed-run".into(),
+                    sop_name: "action-sop".into(),
+                    reason: "failed for test".into(),
+                },
+                "failed-run",
+                "Failed",
+            ),
+        ];
+
+        for (action, expected_run_id, expected_label) in &actions {
+            assert_eq!(extract_run_id_from_action(action), *expected_run_id);
+            assert_eq!(action_label(action), *expected_label);
+        }
+    }
+
     /// 测试：分发匹配的 SOP 事件应成功启动执行
     ///
     /// 验证当接收到与 SOP 触发器匹配的 MQTT 事件时，
@@ -183,6 +242,44 @@ mod tests {
         assert!(matches!(&results[0], DispatchResult::NoMatch));
     }
 
+    #[tokio::test]
+    async fn dispatch_skips_matching_sop_without_steps() {
+        let mut sop = test_sop("empty-sop", vec![SopTrigger::Manual]);
+        sop.steps.clear();
+        let engine = test_engine(vec![sop]);
+        let audit = test_audit();
+
+        let event = SopEvent {
+            source: SopTriggerSource::Manual,
+            topic: None,
+            payload: None,
+            timestamp: now_iso8601(),
+        };
+        let results = dispatch_sop_event(&engine, &audit, event).await;
+
+        assert!(
+            matches!(&results[..], [DispatchResult::Skipped { sop_name, reason }] if sop_name == "empty-sop" && reason == "SOP 'empty-sop' has no steps defined")
+        );
+    }
+
+    #[tokio::test]
+    async fn dispatch_rejects_poisoned_engine_lock() {
+        let engine = test_engine(vec![test_sop("manual-sop", vec![SopTrigger::Manual])]);
+        let audit = test_audit();
+        poison_engine_lock(&engine);
+
+        let event = SopEvent {
+            source: SopTriggerSource::Manual,
+            topic: None,
+            payload: None,
+            timestamp: now_iso8601(),
+        };
+        let results = dispatch_sop_event(&engine, &audit, event).await;
+
+        assert!(results.is_empty());
+        crate::app::agent::health::mark_component_ok("sop_dispatch");
+    }
+
     /// 测试：批量锁定应能同时启动多个匹配的 SOP
     ///
     /// 验证当单个事件匹配多个 SOP 时（如多个 SOP 监听同一个 Webhook 路径），
@@ -274,6 +371,57 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn process_headless_results_handles_every_dispatch_outcome() {
+        let step = test_sop("headless-sop", vec![SopTrigger::Manual]).steps.remove(0);
+        let results = vec![
+            DispatchResult::Started {
+                run_id: "execute-run".into(),
+                sop_name: "execute-sop".into(),
+                action: SopRunAction::ExecuteStep {
+                    run_id: "execute-run".into(),
+                    step: step.clone(),
+                    context: "execute context".into(),
+                },
+            },
+            DispatchResult::Started {
+                run_id: "approval-run".into(),
+                sop_name: "approval-sop".into(),
+                action: SopRunAction::WaitApproval {
+                    run_id: "approval-run".into(),
+                    step,
+                    context: "approval context".into(),
+                },
+            },
+            DispatchResult::Started {
+                run_id: "completed-run".into(),
+                sop_name: "completed-sop".into(),
+                action: SopRunAction::Completed {
+                    run_id: "completed-run".into(),
+                    sop_name: "completed-sop".into(),
+                },
+            },
+            DispatchResult::Started {
+                run_id: "failed-run".into(),
+                sop_name: "failed-sop".into(),
+                action: SopRunAction::Failed {
+                    run_id: "failed-run".into(),
+                    sop_name: "failed-sop".into(),
+                    reason: "expected failure".into(),
+                },
+            },
+            DispatchResult::Skipped {
+                sop_name: "skipped-sop".into(),
+                reason: "concurrency limit".into(),
+            },
+            DispatchResult::NoMatch,
+        ];
+
+        process_headless_results(&results).await;
+
+        assert_eq!(results.len(), 6);
+    }
+
     #[test]
     fn cron_cache_skips_invalid_expression() {
         let sop =
@@ -292,6 +440,65 @@ mod tests {
         assert_eq!(cache.schedules().len(), 1);
         assert_eq!(cache.schedules()[0].0, "valid-cron");
         assert_eq!(cache.schedules()[0].1, "0 */5 * * *");
+    }
+
+    #[test]
+    fn cron_cache_skips_expression_that_normalizes_but_does_not_parse() {
+        let sop = test_sop(
+            "unparseable-cron",
+            vec![SopTrigger::Cron { expression: "bogus * * * *".into() }],
+        );
+        let engine = test_engine(vec![sop]);
+
+        let cache = SopCronCache::from_engine(&engine);
+
+        assert!(cache.schedules().is_empty());
+    }
+
+    #[test]
+    fn cron_cache_ignores_non_cron_triggers() {
+        let sop = test_sop(
+            "mixed-triggers",
+            vec![
+                SopTrigger::Manual,
+                SopTrigger::Cron { expression: "0 */5 * * *".into() },
+                SopTrigger::Webhook { path: "/ignored".into() },
+            ],
+        );
+        let engine = test_engine(vec![sop]);
+
+        let cache = SopCronCache::from_engine(&engine);
+
+        assert_eq!(cache.schedules().len(), 1);
+        assert_eq!(cache.schedules()[0].0, "mixed-triggers");
+        assert_eq!(cache.schedules()[0].1, "0 */5 * * *");
+    }
+
+    #[test]
+    fn cron_cache_returns_empty_when_engine_lock_is_poisoned() {
+        let engine = test_engine(vec![test_sop(
+            "cron-sop",
+            vec![SopTrigger::Cron { expression: "0 */5 * * *".into() }],
+        )]);
+        poison_engine_lock(&engine);
+
+        let cache = SopCronCache::from_engine(&engine);
+
+        assert!(cache.schedules().is_empty());
+    }
+
+    #[tokio::test]
+    async fn cron_sop_empty_cache_returns_no_results_and_advances_window() {
+        let engine = test_engine(vec![]);
+        let audit = test_audit();
+        let cache = SopCronCache::from_engine(&engine);
+        let mut last_check = chrono::Utc::now() - chrono::Duration::minutes(5);
+        let previous_check = last_check;
+
+        let results = check_sop_cron_triggers(&engine, &audit, &cache, &mut last_check).await;
+
+        assert!(results.is_empty());
+        assert!(last_check > previous_check);
     }
 
     #[tokio::test]
@@ -336,7 +543,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cron_sop_window_check_does_not_miss_tick() {
+    async fn cron_sop_delayed_window_fires_once_and_updates_last_check() {
         let sop = test_sop("every-min", vec![SopTrigger::Cron { expression: "* * * * *".into() }]);
         let engine = test_engine(vec![sop]);
         let audit = test_audit();
@@ -346,10 +553,10 @@ mod tests {
         let mut last_check = chrono::Utc::now() - chrono::Duration::minutes(5);
         let results = check_sop_cron_triggers(&engine, &audit, &cache, &mut last_check).await;
 
-        // At least one tick should have been caught
+        // Multiple ticks fell in the window, but the SOP must be dispatched only once.
         let started =
             results.iter().filter(|r| matches!(r, DispatchResult::Started { .. })).count();
-        assert!(started >= 1, "Window-based check should catch ticks from 5 minutes ago");
+        assert_eq!(started, 1, "A delayed window must fire a cron SOP at most once");
 
         // last_check should be updated to approximately now
         let now = chrono::Utc::now();

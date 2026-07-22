@@ -13,6 +13,7 @@ use crate::filesystem::{FileSystemHandlers, FileSystemHandlersOptions};
 use crate::terminal::{TerminalManager, TerminalManagerOptions};
 use crate::types::{
     AcpAgentConfig, AuthPolicy, NonInteractivePermissionPolicy, PermissionMode, PermissionStats,
+    SessionUpdateCallback,
 };
 
 use super::{AcpEventClient, InternalEvent};
@@ -136,6 +137,24 @@ async fn session_notification_forwards_resource_link_uri() {
 }
 
 #[tokio::test]
+async fn session_notification_ignores_non_text_message_chunks() {
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+    let client = event_client(event_tx, Some("session-1".to_string()));
+
+    client
+        .session_notification(acp::SessionNotification::new(
+            "session-1",
+            acp::SessionUpdate::AgentMessageChunk(acp::ContentChunk::new(
+                acp::ContentBlock::Image(acp::ImageContent::new("data", "image/png")),
+            )),
+        ))
+        .await
+        .expect("image message notification");
+
+    assert!(event_rx.try_recv().is_err());
+}
+
+#[tokio::test]
 async fn session_notification_ignores_empty_or_non_text_chunks() {
     let (event_tx, mut event_rx) = mpsc::unbounded_channel();
     let client = event_client(event_tx, Some("session-1".to_string()));
@@ -163,6 +182,29 @@ async fn session_notification_ignores_empty_or_non_text_chunks() {
         .expect("non-text thought notification");
 
     assert!(event_rx.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn session_notification_without_expected_session_does_not_report_session_change() {
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+    let client = event_client(event_tx, None);
+
+    client
+        .session_notification(acp::SessionNotification::new(
+            "actual",
+            acp::SessionUpdate::AgentMessageChunk(acp::ContentChunk::new(acp::ContentBlock::Text(
+                acp::TextContent::new("hello"),
+            ))),
+        ))
+        .await
+        .expect("session notification");
+
+    match event_rx.recv().await.expect("event") {
+        InternalEvent::Delta(delta) => assert_eq!(delta, "hello"),
+        other => panic!("unexpected event: {other:?}"),
+    }
+    assert!(event_rx.try_recv().is_err());
+    assert!(client.expected_session_id.lock().is_none());
 }
 
 #[tokio::test]
@@ -254,6 +296,30 @@ async fn request_permission_returns_cancelled_for_cancelling_session() {
 }
 
 #[tokio::test]
+async fn request_permission_without_options_tracks_resolved_cancellation() {
+    let (event_tx, _event_rx) = mpsc::unbounded_channel();
+    let client = event_client(event_tx, None);
+    let request = acp::RequestPermissionRequest::new(
+        "session-1",
+        acp::ToolCallUpdate::new(
+            "tool-1",
+            acp::ToolCallUpdateFields::new()
+                .kind(acp::ToolKind::Edit)
+                .title("write file".to_string()),
+        ),
+        Vec::new(),
+    );
+
+    let response = client.request_permission(request).await.expect("permission response");
+
+    assert!(matches!(response.outcome, acp::RequestPermissionOutcome::Cancelled));
+    assert_eq!(
+        *client.permission_stats.lock(),
+        PermissionStats { requested: 1, approved: 0, denied: 0, cancelled: 1 }
+    );
+}
+
+#[tokio::test]
 async fn request_permission_tracks_denied_decision() {
     let (event_tx, _event_rx) = mpsc::unbounded_channel();
     let mut client = event_client(event_tx, None);
@@ -335,12 +401,20 @@ async fn delegated_methods_map_errors_from_each_backend() {
         .terminal_output(acp::TerminalOutputRequest::new("session-1", "missing"))
         .await
         .expect_err("missing output terminal should fail");
+    let kill_err = client
+        .kill_terminal(acp::KillTerminalRequest::new("session-1", "missing"))
+        .await
+        .expect_err("missing kill terminal should fail");
+    client
+        .release_terminal(acp::ReleaseTerminalRequest::new("session-1", "missing"))
+        .await
+        .expect("missing release terminal should be idempotent");
     let wait_err = client
         .wait_for_terminal_exit(acp::WaitForTerminalExitRequest::new("session-1", "missing"))
         .await
         .expect_err("missing wait terminal should fail");
 
-    for err in [write_err, create_err, output_err, wait_err] {
+    for err in [write_err, create_err, output_err, kill_err, wait_err] {
         assert!(err.to_string().contains("Internal error"));
     }
     let _ = fs::remove_dir_all(root);
@@ -408,6 +482,38 @@ async fn build_event_client_carries_runtime_configuration() {
     );
     assert!(Arc::ptr_eq(&event_client.permission_stats, &client.permission_stats));
     assert!(Arc::ptr_eq(&event_client.cancelling_session_ids, &client.cancelling_session_ids));
+}
+
+#[tokio::test]
+async fn build_event_client_carries_session_update_callback() {
+    let (event_tx, _event_rx) = mpsc::unbounded_channel();
+    let expected_session_id = Arc::new(Mutex::new(Some("session-1".to_string())));
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let seen_for_callback = seen.clone();
+    let callback: SessionUpdateCallback = Arc::new(move |notification| {
+        seen_for_callback.lock().push(notification.session_id.to_string());
+    });
+    let client = super::AcpClient::new(
+        "test",
+        AcpAgentConfig { command: "noop".to_string(), args: Vec::new(), env: Default::default() },
+    )
+    .with_auth_policy(AuthPolicy::Skip)
+    .with_session_update_callback(Some(callback));
+
+    let event_client =
+        client.build_event_client(PathBuf::from(".").as_path(), expected_session_id, event_tx);
+
+    event_client
+        .session_notification(acp::SessionNotification::new(
+            "session-1",
+            acp::SessionUpdate::AgentMessageChunk(acp::ContentChunk::new(acp::ContentBlock::Text(
+                acp::TextContent::new("hello"),
+            ))),
+        ))
+        .await
+        .expect("session notification");
+
+    assert_eq!(&*seen.lock(), &["session-1".to_string()]);
 }
 
 #[tokio::test]

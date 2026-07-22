@@ -98,3 +98,7 @@ impl EmbeddingProvider for AlibabaEmbedding {
         Ok(embeddings)
     }
 }
+
+#[cfg(test)]
+#[path = "alibaba_tests.rs"]
+mod alibaba_tests;

@@ -1,46 +1,222 @@
-use super::tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
+use super::tool_renderer::{
+    SharedToolRenderKind, render_shared_tool_view, shared_tool_render_kind,
+};
+use crate::app::{App, Message};
+
+fn app() -> App {
+    let mut app = App::new().0;
+    app.project_path = Some("/tmp/vibe-window".to_string());
+    app
+}
+
+fn keep_element(element: iced::Element<'_, Message>) {
+    std::hint::black_box(element);
+}
 
 #[test]
 fn shared_tool_render_kind_routes_known_tools() {
-    assert_eq!(
-        shared_tool_render_kind("tool bash\n{}"),
-        Some(SharedToolRenderKind::Bash)
-    );
+    assert_eq!(shared_tool_render_kind("tool bash\n{}"), Some(SharedToolRenderKind::Bash));
     assert_eq!(
         shared_tool_render_kind("tool enter_plan_mode\n{}"),
         Some(SharedToolRenderKind::PlanMode)
     );
-    assert_eq!(
-        shared_tool_render_kind("tool skill\n{}"),
-        Some(SharedToolRenderKind::Skill)
-    );
+    assert_eq!(shared_tool_render_kind("tool skill\n{}"), Some(SharedToolRenderKind::Skill));
     assert_eq!(
         shared_tool_render_kind("tool workflow_node\n{}"),
         Some(SharedToolRenderKind::Workflow)
     );
-    assert_eq!(
-        shared_tool_render_kind("tool custom_tool\n{}"),
-        Some(SharedToolRenderKind::Text)
-    );
+    assert_eq!(shared_tool_render_kind("tool custom_tool\n{}"), Some(SharedToolRenderKind::Text));
 }
 
 #[test]
 fn shared_tool_render_kind_routes_aliases_and_special_tools() {
-    assert_eq!(
-        shared_tool_render_kind("tool image_info\n{}"),
-        Some(SharedToolRenderKind::Bash)
-    );
-    assert_eq!(
-        shared_tool_render_kind("tool glob_search\n{}"),
-        Some(SharedToolRenderKind::Files)
-    );
+    assert_eq!(shared_tool_render_kind("tool image_info\n{}"), Some(SharedToolRenderKind::Bash));
+    assert_eq!(shared_tool_render_kind("tool glob_search\n{}"), Some(SharedToolRenderKind::Files));
     assert_eq!(
         shared_tool_render_kind("tool browser_open\n{}"),
         Some(SharedToolRenderKind::Advanced)
     );
-    assert_eq!(
-        shared_tool_render_kind("tool mcp_demo\n{}"),
-        Some(SharedToolRenderKind::Advanced)
-    );
+    assert_eq!(shared_tool_render_kind("tool mcp_demo\n{}"), Some(SharedToolRenderKind::Mcp));
+    assert_eq!(shared_tool_render_kind("tool MCP\n{}"), Some(SharedToolRenderKind::Mcp));
     assert_eq!(shared_tool_render_kind("invalid"), None);
+}
+
+#[test]
+fn shared_tool_render_kind_routes_all_supported_kinds() {
+    for (raw, expected) in [
+        ("tool shell\n{}", SharedToolRenderKind::Bash),
+        ("tool brief\n{}", SharedToolRenderKind::Brief),
+        ("tool Config\n{}", SharedToolRenderKind::Config),
+        ("tool todowrite\n{}", SharedToolRenderKind::TodoCompact),
+        ("tool todoread\n{}", SharedToolRenderKind::TodoRead),
+        ("tool apply_patch\n{}", SharedToolRenderKind::ApplyPatch),
+        ("tool file_read\n{}", SharedToolRenderKind::Read),
+        ("tool pdf_read\n{}", SharedToolRenderKind::Read),
+        ("tool read_file\n{}", SharedToolRenderKind::Read),
+        ("tool write\n{}", SharedToolRenderKind::Files),
+        ("tool file_write\n{}", SharedToolRenderKind::Files),
+        ("tool file_edit\n{}", SharedToolRenderKind::Files),
+        ("tool notebook_edit\n{}", SharedToolRenderKind::Files),
+        ("tool glob\n{}", SharedToolRenderKind::Files),
+        ("tool grep\n{}", SharedToolRenderKind::Files),
+        ("tool content_search\n{}", SharedToolRenderKind::Files),
+        ("tool codesearch\n{}", SharedToolRenderKind::Files),
+        ("tool lsp\n{}", SharedToolRenderKind::Lsp),
+        ("tool git_operations\n{}", SharedToolRenderKind::GitDiff),
+        ("tool AskUserQuestion\n{}", SharedToolRenderKind::Question),
+        ("tool fetch_webpage\n{}", SharedToolRenderKind::Web),
+        ("tool http_request\n{}", SharedToolRenderKind::Web),
+        ("tool web_search\n{}", SharedToolRenderKind::Web),
+        ("tool exit_plan_mode\n{}", SharedToolRenderKind::PlanMode),
+        ("tool plan_enter\n{}", SharedToolRenderKind::PlanMode),
+        ("tool plan_exit\n{}", SharedToolRenderKind::PlanMode),
+        ("tool verify_plan_execution\n{}", SharedToolRenderKind::PlanMode),
+        ("tool AgentTool\n{}", SharedToolRenderKind::Advanced),
+        ("tool Agent\n{}", SharedToolRenderKind::Advanced),
+        ("tool browser\n{}", SharedToolRenderKind::Advanced),
+        ("tool open_browser_page\n{}", SharedToolRenderKind::Advanced),
+        ("tool enter_worktree\n{}", SharedToolRenderKind::Advanced),
+        ("tool exit_worktree\n{}", SharedToolRenderKind::Advanced),
+        ("tool task_complete\n{}", SharedToolRenderKind::Advanced),
+        ("tool tool_search\n{}", SharedToolRenderKind::ToolSearch),
+        ("tool mcp_linear\n{}", SharedToolRenderKind::Mcp),
+        ("tool custom\n{}", SharedToolRenderKind::Text),
+    ] {
+        assert_eq!(shared_tool_render_kind(raw), Some(expected), "{raw}");
+    }
+}
+
+#[test]
+fn shared_tool_render_kind_detects_mcp_from_generic_tool_payload() {
+    let raw = r#"tool tools
+{"output":"[{\"server\":{\"name\":\"rustcodegraph\"},\"resources\":[]}]"}"#;
+
+    assert_eq!(shared_tool_render_kind(raw), Some(SharedToolRenderKind::Mcp));
+}
+
+#[test]
+fn shared_tool_render_kind_uses_render_hint_canonical_name() {
+    assert_eq!(
+        shared_tool_render_kind(
+            r#"tool unknown
+{"renderHint":{"metadata":{"canonical_tool_id":"git_diff"}}}"#
+        ),
+        Some(SharedToolRenderKind::GitDiff)
+    );
+}
+
+#[test]
+fn render_shared_tool_view_rejects_unparseable_tool_blocks() {
+    let app = app();
+
+    assert!(render_shared_tool_view(&app, 0, 0, "tool bash").is_none());
+    assert!(render_shared_tool_view(&app, 0, 0, "bash\n{}").is_none());
+    assert!(render_shared_tool_view(&app, 0, 0, "tool \n{}").is_none());
+}
+
+#[test]
+fn render_shared_tool_view_dispatches_each_tool_kind() {
+    let app = app();
+
+    for (idx, visible) in [
+        (
+            0,
+            r#"tool bash
+{"input":"echo ok","output":"ok"}"#,
+        ),
+        (
+            1,
+            r#"tool brief
+{"result":{"data":{"message":"sent","attachments":[]}}}"#,
+        ),
+        (
+            2,
+            r#"tool config
+{"status":"completed","result":{"data":{"success":true,"operation":"get","setting":"model","value":"gpt-5"}}}"#,
+        ),
+        (
+            3,
+            r#"tool todowrite
+{"status":"completed","input":"{\"todos\":[{\"status\":\"pending\",\"content\":\"todo\"}]}"}"#,
+        ),
+        (
+            4,
+            r#"tool todoread
+{"status":"completed","output":"[]"}"#,
+        ),
+        (
+            5,
+            r#"tool apply_patch
+{"status":"running","input":"*** Begin Patch\n*** End Patch"}"#,
+        ),
+        (
+            6,
+            r#"tool read
+{"input":"{\"filePath\":\"src/main.rs\",\"offset\":1,\"limit\":2}"}"#,
+        ),
+        (
+            7,
+            r#"tool write
+{"input":"{\"path\":\"src/main.rs\",\"content\":\"fn main() {}\"}","status":"completed"}"#,
+        ),
+        (
+            8,
+            r#"tool lsp
+{"status":"completed","output":"plain lsp output"}"#,
+        ),
+        (
+            9,
+            r#"tool git_diff
+{"input":"{}","status":"completed","result":{"data":{"hunks":[{"file":"src/main.rs","lines":[{"text":"+new"}]}]}}}"#,
+        ),
+        (
+            10,
+            r#"tool question
+{"status":"completed","summary":"finished"}"#,
+        ),
+        (
+            11,
+            r#"tool web_fetch
+{"status":"completed","summary":"Fetched","output":"body"}"#,
+        ),
+        (
+            12,
+            r#"tool enter_plan_mode
+{"status":"completed","result":{"data":{"active":true,"message":"Plan mode enabled","goal":"cover tests"}}}"#,
+        ),
+        (
+            13,
+            r#"tool AgentTool
+{"input":"{\"agent\":\"reviewer\",\"prompt\":\"inspect the patch\"}","result":{"data":{"message":"done","agent":"reviewer","session_id":"s1"}}}"#,
+        ),
+        (
+            14,
+            r#"tool skill
+{"status":"completed","input":"{\"name\":\"imagegen\"}","output":"ok"}"#,
+        ),
+        (
+            15,
+            r#"tool workflow_node
+{"status":"completed","metadata":{"title":"Node","node_type":"task"},"output":"ok"}"#,
+        ),
+        (
+            16,
+            r#"tool custom
+{"status":"completed","output":"custom output"}"#,
+        ),
+        (
+            17,
+            r#"tool tool_search
+{"status":"completed","summary":"Found 2 tools","output":"large result"}"#,
+        ),
+        (
+            18,
+            r#"tool mcp_linear
+{"status":"completed","summary":"Fetched resources","output":"[]"}"#,
+        ),
+    ] {
+        let element = render_shared_tool_view(&app, 9, idx, visible)
+            .unwrap_or_else(|| panic!("expected shared tool view for {idx}"));
+        keep_element(element);
+    }
 }

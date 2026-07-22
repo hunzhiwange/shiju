@@ -14,42 +14,170 @@ use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style,
 };
 use crate::app::message::TaskBoardMessage;
+use crate::app::state::TaskBoardViewMode;
+use crate::app::task::WorktreeState;
 use crate::app::{App, Message};
 
 use self::helpers::{running_dots, worktree_state_label};
 use self::worktree_office::build_worktree_pixel_office;
 use super::common::{button_style_danger, button_style_primary, button_style_secondary};
 
+fn status_chip_style(theme: &Theme, tone: Color) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(if tone.a > 0.0 {
+            tone.scale_alpha(0.14)
+        } else {
+            palette.background.weak.color
+        })),
+        border: Border {
+            width: 1.0,
+            color: if tone.a > 0.0 {
+                tone.scale_alpha(0.30)
+            } else {
+                palette.background.strong.color.scale_alpha(0.68)
+            },
+            radius: 999.0.into(),
+        },
+        text_color: Some(if tone.a > 0.0 { tone } else { theme.palette().text.scale_alpha(0.72) }),
+        ..Default::default()
+    }
+}
+
+fn rounded_settings_panel_style(theme: &Theme, radius: f32) -> iced::widget::container::Style {
+    let mut style = settings_panel_style(theme);
+    style.border.radius = radius.into();
+    style
+}
+
+fn top_controls_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    rounded_settings_panel_style(theme, 24.0)
+}
+
+fn control_outer_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    rounded_settings_panel_style(theme, 22.0)
+}
+
+fn faded_base_text_style(theme: &Theme, alpha: f32) -> iced::widget::text::Style {
+    iced::widget::text::Style {
+        color: Some(theme.extended_palette().background.base.text.scale_alpha(alpha)),
+    }
+}
+
+fn worktree_title_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.8)
+}
+
+fn worktree_summary_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.86)
+}
+
+fn worktree_refreshing_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.72)
+}
+
+fn worktree_action_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.82)
+}
+
+fn worktree_slot_title_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.extended_palette().background.base.text) }
+}
+
+fn worktree_slot_path_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.84)
+}
+
+fn worktree_slot_taint_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.76)
+}
+
+fn worktree_loading_text_style(theme: &Theme) -> iced::widget::text::Style {
+    faded_base_text_style(theme, 0.78)
+}
+
+fn confirm_hint_text_style(_theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(Color::from_rgb8(153, 27, 27)) }
+}
+
+fn confirm_panel_style(_theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(Color::from_rgba(
+            254.0 / 255.0,
+            226.0 / 255.0,
+            226.0 / 255.0,
+            0.92,
+        ))),
+        border: Border { width: 1.0, color: Color::from_rgb8(248, 113, 113), radius: 6.0.into() },
+        ..Default::default()
+    }
+}
+
+fn worktree_action_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(p.background.base.color.scale_alpha(0.22))),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(0.24),
+            radius: 6.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn worktree_slot_row_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(p.background.base.color.scale_alpha(0.35))),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(0.32),
+            radius: 6.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn worktree_status_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(p.background.weak.color.scale_alpha(0.35))),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(0.4),
+            radius: 8.0.into(),
+        },
+        text_color: Some(Color::from_rgba(0.95, 0.97, 1.0, 0.92)),
+        ..Default::default()
+    }
+}
+
+fn worktree_confirm_hint(confirm_kind: &str) -> &'static str {
+    match confirm_kind {
+        "cleanup" => "高风险确认中：红色按钮将执行一键清理；按 Esc 或点击空白处可取消",
+        "delete" => "高风险确认中：红色按钮将删除所有 worktree；按 Esc 或点击空白处可取消",
+        "merge" => "高风险确认中：红色按钮将执行一键合并；按 Esc 或点击空白处可取消",
+        _ => "高风险确认中：按 Esc 或点击空白处可取消",
+    }
+}
+
+fn worktree_action_status(action_kind: Option<&'static str>, now_ms: u64) -> String {
+    match action_kind {
+        Some("cleanup") => format!("正在清理{}", running_dots(now_ms)),
+        Some("delete") => format!("正在删除所有 worktree{}", running_dots(now_ms)),
+        Some("merge") => format!("正在一键合并{}", running_dots(now_ms)),
+        Some("slot_recycle") => format!("正在回收 worktree{}", running_dots(now_ms)),
+        _ => "正在处理 worktree 操作".to_string(),
+    }
+}
+
 /// 构建任务看板控制面板，包含所有控制按钮和 Worktree 池状态显示。
 pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     let status_chip = |label: String, tone: Color| -> Element<'a, Message> {
         container(text(label).size(11))
             .padding([5, 10])
-            .style(move |theme: &Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(if tone.a > 0.0 {
-                        tone.scale_alpha(0.14)
-                    } else {
-                        palette.background.weak.color
-                    })),
-                    border: Border {
-                        width: 1.0,
-                        color: if tone.a > 0.0 {
-                            tone.scale_alpha(0.30)
-                        } else {
-                            palette.background.strong.color.scale_alpha(0.68)
-                        },
-                        radius: 999.0.into(),
-                    },
-                    text_color: Some(if tone.a > 0.0 {
-                        tone
-                    } else {
-                        theme.palette().text.scale_alpha(0.72)
-                    }),
-                    ..Default::default()
-                }
-            })
+            .style(move |theme: &Theme| status_chip_style(theme, tone))
             .into()
     };
 
@@ -109,37 +237,29 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
         None
     };
 
-    let auto_exec_text = if app.task_board_settings.auto_execute {
-        "自动执行任务池 · 开".to_string()
-    } else {
-        "自动执行任务池 · 关".to_string()
-    };
-    let auto_exec_btn = button(text(auto_exec_text).size(14))
-        .on_press(Message::TaskBoard(TaskBoardMessage::ToggleAutoPromotePoolTasks(
-            !app.task_board_settings.auto_execute,
-        )))
-        .padding([6, 12])
-        .style(if app.task_board_settings.auto_execute {
+    let kanban_mode_btn = button(text("看板").size(12))
+        .on_press_maybe(
+            (app.task_board_view_mode != TaskBoardViewMode::Kanban)
+                .then_some(Message::TaskBoard(TaskBoardMessage::ToggleStaffMode(false))),
+        )
+        .padding([6, 10])
+        .style(if app.task_board_view_mode == TaskBoardViewMode::Kanban {
             button_style_primary
         } else {
             button_style_secondary
         });
-
-    let code_review_text = if app.task_board_settings.code_review_enabled {
-        "代码审核 · 开".to_string()
-    } else {
-        "代码审核 · 关".to_string()
-    };
-    let code_review_btn = button(text(code_review_text).size(14))
-        .on_press(Message::TaskBoard(TaskBoardMessage::ToggleCodeReview(
-            !app.task_board_settings.code_review_enabled,
-        )))
-        .padding([6, 12])
-        .style(if app.task_board_settings.code_review_enabled {
+    let staff_mode_btn = button(text("员工").size(12))
+        .on_press_maybe(
+            (app.task_board_view_mode != TaskBoardViewMode::Staff)
+                .then_some(Message::TaskBoard(TaskBoardMessage::ToggleStaffMode(true))),
+        )
+        .padding([6, 10])
+        .style(if app.task_board_view_mode == TaskBoardViewMode::Staff {
             button_style_primary
         } else {
             button_style_secondary
         });
+    let mode_toggle = row![kanban_mode_btn, staff_mode_btn].spacing(4).align_y(Alignment::Center);
 
     let settings_btn = button(text("看板设置").size(12))
         .on_press(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal))
@@ -190,11 +310,10 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     }
 
     let controls_row = row![
+        mode_toggle,
         exec_btn,
         new_task_btn,
         settings_btn,
-        auto_exec_btn,
-        code_review_btn,
         archive_completed_btn,
         refresh_btn,
         close_btn
@@ -213,17 +332,11 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             .spacing(12),
     )
     .padding(Padding::from([16, 18]))
-    .style(|theme: &Theme| {
-        let mut style = settings_panel_style(theme);
-        style.border.radius = 24.0.into();
-        style
-    });
+    .style(top_controls_panel_style);
 
     let mut content = column![top_controls].spacing(12);
     if let Some(snapshot) = &app.task_board_worktree_snapshot {
-        let title_line = text("工作池").size(13).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.base.text.scale_alpha(0.8)),
-        });
+        let title_line = text("工作池").size(13).style(worktree_title_text_style);
         let lock_text = if snapshot.merge_target_locks.is_empty() {
             "合并锁: 无".to_string()
         } else {
@@ -249,9 +362,7 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             lock_text
         ))
         .size(12)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.base.text.scale_alpha(0.86)),
-        });
+        .style(worktree_summary_text_style);
 
         let toggle_label = if app.task_board_worktree_panel_expanded {
             "收起槽位明细"
@@ -340,68 +451,28 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
         title_row = title_row.push(office_toggle_btn).push(toggle_btn);
         if app.task_board_worktree_snapshot_loading {
             let loading_text = format!("后台刷新中{}", running_dots(now_ms));
-            title_row = title_row.push(text(loading_text).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.72)),
-                }
-            }));
+            title_row =
+                title_row.push(text(loading_text).size(12).style(worktree_refreshing_text_style));
         }
 
         let mut panel_col = column![title_row, summary_line].spacing(4);
         if let Some(confirm_kind) = app.task_board_worktree_manual_confirm_kind {
-            let confirm_hint = match confirm_kind {
-                "cleanup" => "高风险确认中：红色按钮将执行一键清理；按 Esc 或点击空白处可取消",
-                "delete" => "高风险确认中：红色按钮将删除所有 worktree；按 Esc 或点击空白处可取消",
-                "merge" => "高风险确认中：红色按钮将执行一键合并；按 Esc 或点击空白处可取消",
-                _ => "高风险确认中：按 Esc 或点击空白处可取消",
-            };
-            let confirm_panel = container(text(confirm_hint).size(11).style(|_theme: &Theme| {
-                iced::widget::text::Style { color: Some(Color::from_rgb8(153, 27, 27)) }
-            }))
+            let confirm_panel = container(
+                text(worktree_confirm_hint(confirm_kind)).size(11).style(confirm_hint_text_style),
+            )
             .padding([8, 10])
             .width(Length::Fill)
-            .style(|_theme: &Theme| iced::widget::container::Style {
-                background: Some(Background::Color(Color::from_rgba(
-                    254.0 / 255.0,
-                    226.0 / 255.0,
-                    226.0 / 255.0,
-                    0.92,
-                ))),
-                border: Border {
-                    width: 1.0,
-                    color: Color::from_rgb8(248, 113, 113),
-                    radius: 6.0.into(),
-                },
-                ..Default::default()
-            });
+            .style(confirm_panel_style);
             panel_col = panel_col.push(confirm_panel);
         }
         if worktree_manual_action_running || !app.task_board_worktree_action_logs.is_empty() {
-            let action_status = match app.task_board_worktree_manual_action_kind {
-                Some("cleanup") => format!("正在清理{}", running_dots(now_ms)),
-                Some("delete") => format!("正在删除所有 worktree{}", running_dots(now_ms)),
-                Some("merge") => format!("正在一键合并{}", running_dots(now_ms)),
-                _ => "正在处理 worktree 操作".to_string(),
-            };
-            let status_panel = container(text(action_status).size(11).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.82)),
-                }
-            }))
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.base.color.scale_alpha(0.22))),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(0.24),
-                        radius: 6.0.into(),
-                    },
-                    ..Default::default()
-                }
-            });
+            let action_status =
+                worktree_action_status(app.task_board_worktree_manual_action_kind, now_ms);
+            let status_panel =
+                container(text(action_status).size(11).style(worktree_action_text_style))
+                    .padding([8, 10])
+                    .width(Length::Fill)
+                    .style(worktree_action_panel_style);
             panel_col = panel_col.push(status_panel);
         }
         if app.task_board_worktree_panel_expanded {
@@ -409,111 +480,68 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             for slot in &snapshot.slots {
                 let owner = slot.leased_task_id.as_deref().unwrap_or("-");
                 let taint = slot.taint_reason.as_deref().unwrap_or("-");
+                let recycle_btn = button(text("回收").size(11))
+                    .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
+                        slot_id: slot.id.clone(),
+                    }))
+                    .padding([3, 8])
+                    .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
+                        button_style_danger
+                    } else {
+                        button_style_secondary
+                    });
                 let slot_row = container(
                     column![
-                        text(format!(
-                            "{} [{}] 分支={} 任务={} ",
-                            slot.id,
-                            worktree_state_label(slot.state),
-                            slot.branch,
-                            owner,
-                        ))
-                        .size(12)
-                        .style(|theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(theme.extended_palette().background.base.text),
-                            }
-                        }),
-                        text(format!("路径={}", slot.path)).size(12).style(|theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(
-                                    theme.extended_palette().background.base.text.scale_alpha(0.84),
-                                ),
-                            }
-                        }),
-                        text(format!("污染原因={}", taint)).size(12).style(|theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(
-                                    theme.extended_palette().background.base.text.scale_alpha(0.76),
-                                ),
-                            }
-                        }),
+                        row![
+                            text(format!(
+                                "{} [{}] 分支={} 任务={} ",
+                                slot.id,
+                                worktree_state_label(slot.state),
+                                slot.branch,
+                                owner,
+                            ))
+                            .size(12)
+                            .width(Length::Fill)
+                            .style(worktree_slot_title_text_style),
+                            recycle_btn,
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
+                        text(format!("路径={}", slot.path))
+                            .size(12)
+                            .style(worktree_slot_path_text_style),
+                        text(format!("污染原因={}", taint))
+                            .size(12)
+                            .style(worktree_slot_taint_text_style),
                     ]
                     .spacing(2),
                 )
                 .padding([6, 8])
                 .width(Length::Fill)
-                .style(|theme: &Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::container::Style {
-                        background: Some(Background::Color(
-                            p.background.base.color.scale_alpha(0.35),
-                        )),
-                        border: Border {
-                            width: 1.0,
-                            color: p.background.strong.color.scale_alpha(0.32),
-                            radius: 6.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                });
+                .style(worktree_slot_row_style);
                 slots_col = slots_col.push(slot_row);
             }
             panel_col = panel_col.push(slots_col);
         }
 
-        let status_panel =
-            container(panel_col).padding([8, 10]).width(Length::Fill).style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.weak.color.scale_alpha(0.35))),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(0.4),
-                        radius: 8.0.into(),
-                    },
-                    text_color: Some(Color::from_rgba(0.95, 0.97, 1.0, 0.92)),
-                    ..Default::default()
-                }
-            });
+        let status_panel = container(panel_col)
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(worktree_status_panel_style);
         content = content.push(status_panel);
         if app.task_board_worktree_pixel_office {
             content = content.push(build_worktree_pixel_office(app, snapshot));
         }
     } else if app.project_path.is_some() && app.task_board_worktree_snapshot_loading {
         let loading_panel =
-            container(text("Worktree 池后台加载中...").size(12).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.78)),
-                }
-            }))
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(p.background.weak.color.scale_alpha(0.35))),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(0.4),
-                        radius: 8.0.into(),
-                    },
-                    text_color: Some(Color::from_rgba(0.95, 0.97, 1.0, 0.92)),
-                    ..Default::default()
-                }
-            });
+            container(text("Worktree 池后台加载中...").size(12).style(worktree_loading_text_style))
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(worktree_status_panel_style);
         content = content.push(loading_panel);
     }
 
-    container(content)
-        .padding([18, 20])
-        .width(Length::Fill)
-        .style(|theme: &Theme| {
-            let mut style = settings_panel_style(theme);
-            style.border.radius = 22.0.into();
-            style
-        })
-        .into()
+    container(content).padding([18, 20]).width(Length::Fill).style(control_outer_panel_style).into()
 }
 
 #[cfg(test)]

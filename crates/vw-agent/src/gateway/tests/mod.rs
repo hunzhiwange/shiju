@@ -37,14 +37,22 @@
 
 use super::*;
 
-use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
-use crate::app::agent::providers::Provider;
+pub(crate) use crate::app::agent::channels::{
+    LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel,
+};
+pub(crate) use crate::app::agent::config::Config;
+pub(crate) use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
+pub(crate) use crate::app::agent::providers::Provider;
+pub(crate) use crate::app::agent::security::pairing::PairingGuard;
+pub(crate) use crate::app::agent::tools::Tool;
 use async_trait::async_trait;
 use axum::extract::ConnectInfo;
 use axum::http::HeaderValue;
 use parking_lot::Mutex;
 use std::net::SocketAddr;
+pub(crate) use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+pub(crate) use std::time::Duration;
 
 /// 生成测试用随机密钥
 ///

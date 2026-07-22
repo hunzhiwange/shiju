@@ -5,14 +5,40 @@ use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::providers::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use axum::body::to_bytes;
-use axum::extract::{Path, State};
+use axum::extract::{Path as AxumPath, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use std::collections::BTreeMap;
+use std::ffi::OsString;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::broadcast;
+
+struct HomeEnvGuard(Option<OsString>);
+
+impl HomeEnvGuard {
+    fn set(home: &Path) -> Self {
+        let previous = std::env::var_os("HOME");
+        unsafe {
+            std::env::set_var("HOME", home);
+        }
+        Self(previous)
+    }
+}
+
+impl Drop for HomeEnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(previous) = &self.0 {
+                std::env::set_var("HOME", previous);
+            } else {
+                std::env::remove_var("HOME");
+            }
+        }
+    }
+}
 
 #[test]
 fn exported_handlers_are_available() {
@@ -109,6 +135,20 @@ async fn integrations_requires_auth_when_pairing_enabled() {
 }
 
 #[tokio::test]
+async fn integration_settings_requires_auth_when_pairing_enabled() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let state = state_with(config_in(&temp), true, Some("paired-token"));
+
+    let (status, value) = response_json(
+        handle_api_integrations_settings(State(state), HeaderMap::new()).await.into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(value["error"].as_str().unwrap_or_default().contains("Unauthorized"));
+}
+
+#[tokio::test]
 async fn integrations_lists_registry_entries_with_status() {
     let temp = tempfile::tempdir().expect("tempdir");
     let mut config = config_in(&temp);
@@ -122,6 +162,12 @@ async fn integrations_lists_registry_entries_with_status() {
 
     assert_eq!(status, StatusCode::OK);
     let integrations = value["integrations"].as_array().expect("integrations array");
+    assert!(integrations.iter().all(|entry| {
+        entry["name"].as_str().is_some_and(|value| !value.is_empty())
+            && entry["description"].as_str().is_some_and(|value| !value.is_empty())
+            && entry["category"].as_str().is_some_and(|value| !value.is_empty())
+            && entry["status"].as_str().is_some_and(|value| !value.is_empty())
+    }));
     assert!(integrations.iter().any(|entry| {
         entry["name"] == "OpenAI" && entry["status"] == serde_json::json!("Active")
     }));
@@ -144,6 +190,33 @@ async fn integration_settings_include_revision_and_active_provider() {
     assert!(value["revision"].as_str().is_some_and(|revision| !revision.is_empty()));
     assert_eq!(value["active_default_provider_integration_id"], "google");
     assert!(value["integrations"].as_array().is_some_and(|items| !items.is_empty()));
+    assert!(!value.to_string().contains("test-key"));
+}
+
+#[tokio::test]
+async fn integration_credentials_put_requires_auth_before_processing_body() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let state = state_with(config_in(&temp), true, Some("paired-token"));
+    let body = IntegrationCredentialsUpdateBody {
+        revision: Some("stale".to_string()),
+        fields: BTreeMap::new(),
+    };
+
+    let (status, value) = response_json(
+        handle_api_integration_credentials_put(
+            State(state),
+            HeaderMap::new(),
+            AxumPath("missing".to_string()),
+            JsonResponse(body),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(value["error"].as_str().unwrap_or_default().contains("Unauthorized"));
+    assert!(value.get("revision").is_none());
 }
 
 #[tokio::test]
@@ -159,7 +232,7 @@ async fn integration_credentials_put_rejects_stale_revision() {
         handle_api_integration_credentials_put(
             State(state),
             HeaderMap::new(),
-            Path("openai".to_string()),
+            AxumPath("openai".to_string()),
             JsonResponse(body),
         )
         .await
@@ -168,6 +241,7 @@ async fn integration_credentials_put_rejects_stale_revision() {
     .await;
 
     assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(value["error"], "Integration settings are out of date. Refresh and retry.");
     assert!(value["revision"].as_str().is_some());
 }
 
@@ -181,7 +255,7 @@ async fn integration_credentials_put_maps_unknown_integration_to_not_found() {
         handle_api_integration_credentials_put(
             State(state),
             HeaderMap::new(),
-            Path("missing".to_string()),
+            AxumPath("missing".to_string()),
             JsonResponse(body),
         )
         .await
@@ -190,11 +264,11 @@ async fn integration_credentials_put_maps_unknown_integration_to_not_found() {
     .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(value["error"].as_str().unwrap_or_default().contains("Unknown integration id"));
+    assert_eq!(value["error"], "Unknown integration id: missing");
 }
 
 #[tokio::test]
-async fn integration_credentials_put_rejects_unsupported_field() {
+async fn integration_credentials_put_maps_unsupported_api_url_to_internal_server() {
     let temp = tempfile::tempdir().expect("tempdir");
     let state = state_with(config_in(&temp), false, None);
     let mut fields = BTreeMap::new();
@@ -205,7 +279,7 @@ async fn integration_credentials_put_rejects_unsupported_field() {
         handle_api_integration_credentials_put(
             State(state),
             HeaderMap::new(),
-            Path("openai".to_string()),
+            AxumPath("openai".to_string()),
             JsonResponse(body),
         )
         .await
@@ -215,6 +289,59 @@ async fn integration_credentials_put_rejects_unsupported_field() {
 
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(value["error"].as_str().unwrap_or_default().contains("does not support api_url"));
+}
+
+#[tokio::test]
+async fn integration_credentials_put_maps_unknown_field_to_bad_request() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let state = state_with(config_in(&temp), false, None);
+    let mut fields = BTreeMap::new();
+    fields.insert("token".to_string(), "redacted-fixture".to_string());
+    let body = IntegrationCredentialsUpdateBody { revision: None, fields };
+
+    let (status, value) = response_json(
+        handle_api_integration_credentials_put(
+            State(state),
+            HeaderMap::new(),
+            AxumPath("openai".to_string()),
+            JsonResponse(body),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(value["error"], "Unsupported field 'token' for integration 'openai'");
+}
+
+#[tokio::test]
+async fn integration_credentials_put_maps_invalid_update_to_bad_request() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let mut config = config_in(&temp);
+    config.gateway.host.clear();
+    let state = state_with(config, false, None);
+    let body = IntegrationCredentialsUpdateBody { revision: None, fields: BTreeMap::new() };
+
+    let (status, value) = response_json(
+        handle_api_integration_credentials_put(
+            State(state),
+            HeaderMap::new(),
+            AxumPath("openai".to_string()),
+            JsonResponse(body),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(
+        value["error"]
+            .as_str()
+            .unwrap_or_default()
+            .starts_with("Invalid integration config update: gateway.host must not be empty")
+    );
 }
 
 #[tokio::test]
@@ -231,7 +358,7 @@ async fn integration_credentials_put_reports_unchanged_when_revision_is_same() {
         handle_api_integration_credentials_put(
             State(state),
             HeaderMap::new(),
-            Path("openai".to_string()),
+            AxumPath("openai".to_string()),
             JsonResponse(body),
         )
         .await
@@ -245,7 +372,11 @@ async fn integration_credentials_put_reports_unchanged_when_revision_is_same() {
 
 #[tokio::test]
 async fn integration_credentials_put_saves_and_updates_state() {
+    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
+    let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), false, None);
     let mut fields = BTreeMap::new();
     fields.insert("api_key".to_string(), " sk-test ".to_string());
@@ -256,7 +387,7 @@ async fn integration_credentials_put_saves_and_updates_state() {
         handle_api_integration_credentials_put(
             State(state.clone()),
             HeaderMap::new(),
-            Path("openai".to_string()),
+            AxumPath("openai".to_string()),
             JsonResponse(body),
         )
         .await
@@ -268,12 +399,26 @@ async fn integration_credentials_put_saves_and_updates_state() {
     assert_eq!(value["status"], "ok");
     assert_eq!(state.config.lock().default_provider.as_deref(), Some("openai"));
     assert_eq!(state.config.lock().api_key.as_deref(), Some("sk-test"));
-    assert!(temp.path().join("vibewindow.json").exists());
+    let store = crate::app::agent::config::SystemConfigStore::new(
+        crate::global_database::GlobalDatabase::for_home(temp.path()).expect("global database"),
+    )
+    .expect("system config store");
+    let payload = store
+        .get(&vw_api_types::id::TenantScope::default())
+        .expect("stored config lookup")
+        .expect("stored config payload");
+    let stored: serde_json::Value = serde_json::from_str(&payload).expect("stored config json");
+    assert_eq!(stored["default_provider"], "openai");
+    assert_eq!(stored["default_model"], "gpt-5.2");
 }
 
 #[tokio::test]
 async fn integration_credentials_put_accepts_valid_bearer_token() {
+    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().expect("tempdir");
+    let _home = HomeEnvGuard::set(temp.path());
     let state = state_with(config_in(&temp), true, Some("paired-token"));
     let body = IntegrationCredentialsUpdateBody { revision: None, fields: BTreeMap::new() };
 
@@ -281,7 +426,7 @@ async fn integration_credentials_put_accepts_valid_bearer_token() {
         handle_api_integration_credentials_put(
             State(state),
             auth_headers("paired-token"),
-            Path("openai".to_string()),
+            AxumPath("openai".to_string()),
             JsonResponse(body),
         )
         .await
@@ -290,4 +435,38 @@ async fn integration_credentials_put_accepts_valid_bearer_token() {
     .await;
 
     assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn integration_credentials_put_reports_config_persistence_failure() {
+    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().expect("tempdir");
+    let invalid_home = temp.path().join("not-a-directory");
+    std::fs::write(&invalid_home, "fixture").expect("invalid home fixture");
+    let _home = HomeEnvGuard::set(&invalid_home);
+    let state = state_with(config_in(&temp), false, None);
+    let mut fields = BTreeMap::new();
+    fields.insert("api_key".to_string(), "new-key".to_string());
+
+    let (status, value) = response_json(
+        handle_api_integration_credentials_put(
+            State(state.clone()),
+            HeaderMap::new(),
+            AxumPath("openai".to_string()),
+            JsonResponse(IntegrationCredentialsUpdateBody { revision: None, fields }),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(
+        value["error"]
+            .as_str()
+            .is_some_and(|message| message.starts_with("Failed to save config:"))
+    );
+    assert!(state.config.lock().api_key.is_none());
 }

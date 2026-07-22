@@ -240,3 +240,16 @@ fn multi_fans_out_flush() {
     assert_eq!(fc1.load(Ordering::SeqCst), 1);
     assert_eq!(fc2.load(Ordering::SeqCst), 1);
 }
+
+/// 测试 `as_any` 方法的下转型能力
+///
+/// 验证 MultiObserver 通过 Observer trait 的 `as_any` 方法能正确下转型回具体类型。
+/// 这在运行时需要操作具体观察者类型时有用（如批量子类型专属操作）。
+#[test]
+fn multi_as_any_downcast() {
+    let m = MultiObserver::new(vec![]);
+    let obs: &dyn Observer = &m;
+    let downcasted = obs.as_any().downcast_ref::<MultiObserver>();
+    assert!(downcasted.is_some());
+    assert_eq!(downcasted.unwrap().name(), "multi");
+}

@@ -1,12 +1,12 @@
 //! ACP 配置文件的加载、解析与归一化。
 //!
-//! 本模块负责把全局配置、项目配置以及命令行传入的配置标识整合成
+//! 本模块负责把 ACP 全局配置、项目配置、项目 `.vibewindow.json` 覆盖以及命令行传入的配置标识整合成
 //! 统一的运行时配置结构，供 CLI 和会话运行时共享使用。
 //!
 //! # 主要职责
 //!
 //! - 解析磁盘上的配置文件
-//! - 合并全局配置与项目级配置
+//! - 合并 ACP 全局配置与项目级配置
 //! - 生成面向运行时的已解析配置视图
 //! - 提供初始化默认配置文件的辅助逻辑
 
@@ -21,12 +21,12 @@ use tokio::fs;
 
 use crate::ParseMcpServersError;
 use crate::agent_registry::{AgentCommandSpec, DEFAULT_AGENT_NAME, normalize_agent_name};
-use crate::mcp_servers::parse_mcp_servers;
+use crate::mcp_servers::{McpServerConfig, McpServerManagement, parse_mcp_server_configs};
 use crate::types::{AuthPolicy, NonInteractivePermissionPolicy, OutputFormat, PermissionMode};
 
 const DEFAULT_TIMEOUT_MS: Option<u64> = None;
 const DEFAULT_TTL_MS: u64 = 300_000;
-const DEFAULT_PERMISSION_MODE: PermissionMode = PermissionMode::ApproveReads;
+const DEFAULT_PERMISSION_MODE: PermissionMode = PermissionMode::ApproveAll;
 const DEFAULT_NON_INTERACTIVE_PERMISSION_POLICY: NonInteractivePermissionPolicy =
     NonInteractivePermissionPolicy::Deny;
 const DEFAULT_AUTH_POLICY: AuthPolicy = AuthPolicy::Skip;
@@ -92,6 +92,8 @@ pub struct ResolvedAcpxConfig {
     pub auth: HashMap<String, String>,
     pub disable_exec: bool,
     pub mcp_servers: Vec<McpServer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_server_management: Vec<McpServerManagement>,
     pub global_path: String,
     pub project_path: String,
     pub has_global_config: bool,
@@ -392,22 +394,6 @@ fn merge_agent_maps(
     merged
 }
 
-fn config_dir_from_workspace(workspace_dir: &Path) -> PathBuf {
-    if workspace_dir.join("vibewindow.json").exists() {
-        return workspace_dir.to_path_buf();
-    }
-    if let Some(parent) = workspace_dir.parent() {
-        let legacy_dir = parent.join(".vibewindow");
-        if legacy_dir.join("vibewindow.json").exists() {
-            return legacy_dir;
-        }
-        if workspace_dir.file_name().is_some_and(|name| name == "workspace") {
-            return legacy_dir;
-        }
-    }
-    workspace_dir.to_path_buf()
-}
-
 #[cfg(windows)]
 fn default_vibewindow_config_dir() -> Result<PathBuf, ConfigError> {
     if let Some(home) = env::var_os("USERPROFILE") {
@@ -427,64 +413,9 @@ fn default_vibewindow_config_dir() -> Result<PathBuf, ConfigError> {
     Ok(vw_config_types::paths::home_config_dir(PathBuf::from(home)))
 }
 
-fn parse_active_workspace_marker(marker_path: &Path) -> Result<Option<PathBuf>, ConfigError> {
-    let contents = match std::fs::read_to_string(marker_path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(ConfigError::Read { path: path_to_string(marker_path), source: error });
-        }
-    };
-
-    for line in contents.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with("config_dir") {
-            continue;
-        }
-        let Some((_, value)) = trimmed.split_once('=') else {
-            continue;
-        };
-        let value = value.trim().trim_matches('"').trim();
-        if value.is_empty() {
-            return Ok(None);
-        }
-        let parsed = PathBuf::from(value);
-        let default_dir = default_vibewindow_config_dir()?;
-        let config_dir = if parsed.is_absolute() { parsed } else { default_dir.join(parsed) };
-        return Ok(Some(config_dir));
-    }
-
-    Ok(None)
-}
-
-fn discover_vibewindow_config_path(project_path: &Path) -> Result<PathBuf, ConfigError> {
-    if let Ok(config_dir) = env::var("VIBEWINDOW_CONFIG_DIR") {
-        let config_dir = config_dir.trim();
-        if !config_dir.is_empty() {
-            return Ok(PathBuf::from(config_dir).join("vibewindow.json"));
-        }
-    }
-
-    if let Ok(workspace) = env::var("VIBEWINDOW_WORKSPACE") {
-        let workspace = workspace.trim();
-        if !workspace.is_empty() {
-            return Ok(config_dir_from_workspace(&PathBuf::from(workspace)).join("vibewindow.json"));
-        }
-    }
-
-    let default_dir = default_vibewindow_config_dir()?;
-    let marker_path = default_dir.join("active_workspace.toml");
-    if let Some(config_dir) = parse_active_workspace_marker(&marker_path)? {
-        return Ok(config_dir.join("vibewindow.json"));
-    }
-
+fn project_config_override_path(project_path: &Path) -> PathBuf {
     let project_dir = project_path.parent().unwrap_or_else(|| Path::new("."));
-    let workspace_config = project_dir.join("vibewindow.json");
-    if workspace_config.exists() {
-        return Ok(workspace_config);
-    }
-
-    Ok(default_dir.join("vibewindow.json"))
+    project_dir.join(".vibewindow.json")
 }
 
 fn parse_auth(
@@ -560,6 +491,18 @@ fn merge_maps(
     merged
 }
 
+fn parse_mcp_server_config_pair(
+    value: &Value,
+    source_path: &str,
+) -> Result<(Vec<McpServer>, Vec<McpServerManagement>), ConfigError> {
+    let configs = parse_mcp_server_configs(value, source_path)?;
+    let (servers, management): (Vec<_>, Vec<_>) = configs
+        .into_iter()
+        .map(|McpServerConfig { server, management }| (server, management))
+        .unzip();
+    Ok((servers, management))
+}
+
 fn resolve_path(path: impl AsRef<Path>) -> Result<PathBuf, ConfigError> {
     let path = path.as_ref();
     if path.is_absolute() {
@@ -592,7 +535,7 @@ pub async fn load_resolved_config_from_paths(
 ) -> Result<ResolvedAcpxConfig, ConfigError> {
     let global_path = global_path.as_ref().to_path_buf();
     let project_path = project_path.as_ref().to_path_buf();
-    let vibewindow_path = discover_vibewindow_config_path(&project_path)?;
+    let vibewindow_path = project_config_override_path(&project_path);
     let global_path_string = path_to_string(&global_path);
     let project_path_string = path_to_string(&project_path);
     let vibewindow_path_string = path_to_string(&vibewindow_path);
@@ -686,18 +629,18 @@ pub async fn load_resolved_config_from_paths(
         parse_auth(config_value(project_config, "auth"), &project_path_string)?,
     );
 
-    let mcp_servers = if field_exists(project_config, "mcpServers") {
-        parse_mcp_servers(
+    let (mcp_servers, mcp_server_management) = if field_exists(project_config, "mcpServers") {
+        parse_mcp_server_config_pair(
             config_value(project_config, "mcpServers").unwrap_or(&Value::Null),
             &project_path_string,
         )?
     } else if field_exists(global_config, "mcpServers") {
-        parse_mcp_servers(
+        parse_mcp_server_config_pair(
             config_value(global_config, "mcpServers").unwrap_or(&Value::Null),
             &global_path_string,
         )?
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
 
     let disable_exec =
@@ -721,6 +664,7 @@ pub async fn load_resolved_config_from_paths(
         auth,
         disable_exec,
         mcp_servers,
+        mcp_server_management,
         global_path: global_path_string,
         project_path: project_path_string,
         has_global_config: global_result.exists,

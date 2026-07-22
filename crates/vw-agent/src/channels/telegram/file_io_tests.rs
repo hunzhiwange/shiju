@@ -126,6 +126,21 @@ async fn get_file_path_reports_missing_result_path() {
 }
 
 #[tokio::test]
+async fn get_file_path_rejects_non_string_result_path() {
+    let server = TestServer::spawn(vec![ResponseSpec {
+        status: StatusCode::OK,
+        body: br#"{"ok":true,"result":{"file_path":42}}"#.to_vec(),
+        content_type: "application/json",
+    }])
+    .await;
+    let channel = test_channel(&server.base_url);
+
+    let error = channel.get_file_path("file-123").await.expect_err("numeric path should fail");
+
+    assert!(error.to_string().contains("missing file_path"));
+}
+
+#[tokio::test]
 async fn download_file_reads_bytes_from_file_endpoint() {
     let server = TestServer::spawn(vec![ResponseSpec {
         status: StatusCode::OK,

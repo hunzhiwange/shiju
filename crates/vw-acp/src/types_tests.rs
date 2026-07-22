@@ -1,9 +1,52 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use agent_client_protocol::StopReason;
 use serde_json::json;
 
 use super::*;
+
+fn test_record() -> SessionRecord {
+    SessionRecord {
+        schema: SESSION_RECORD_SCHEMA.to_string(),
+        vwacp_record_id: "record-1".to_string(),
+        acp_session_id: "session-1".to_string(),
+        agent_session_id: None,
+        agent_command: "agent".to_string(),
+        agent_config: None,
+        cwd: "/tmp/project".to_string(),
+        name: None,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+        last_used_at: "2026-01-01T00:00:00Z".to_string(),
+        last_seq: 0,
+        last_request_id: None,
+        event_log: SessionEventLog {
+            active_path: "/tmp/project/events.jsonl".to_string(),
+            segment_count: 1,
+            max_segment_bytes: 1024,
+            max_segments: 4,
+            last_write_at: None,
+            last_write_error: None,
+        },
+        closed: Some(false),
+        closed_at: None,
+        pid: None,
+        agent_started_at: None,
+        last_prompt_at: None,
+        last_agent_exit_code: None,
+        last_agent_exit_signal: None,
+        last_agent_exit_at: None,
+        last_agent_disconnect_reason: None,
+        protocol_version: None,
+        agent_capabilities: None,
+        title: None,
+        messages: Vec::new(),
+        updated_at: "2026-01-01T00:00:00Z".to_string(),
+        cumulative_token_usage: SessionTokenUsage::default(),
+        request_token_usage: HashMap::new(),
+        vwacp: None,
+    }
+}
 
 #[test]
 fn exit_code_constants_match_public_contract() {
@@ -123,6 +166,14 @@ fn optional_fields_are_omitted_from_serialized_output() {
 
 #[test]
 fn dto_structs_use_expected_field_names_and_defaults() {
+    assert_eq!(
+        serde_json::to_value(OutputFormatterContext { session_id: "session-1".to_string() })
+            .unwrap(),
+        json!({
+            "sessionId": "session-1"
+        })
+    );
+
     let policy = OutputPolicy {
         format: OutputFormat::Json,
         json_strict: true,
@@ -140,6 +191,26 @@ fn dto_structs_use_expected_field_names_and_defaults() {
             "suppressNonJsonStderr": false,
             "queueErrorAlreadyEmitted": true,
             "suppressSdkConsoleErrors": false
+        })
+    );
+
+    assert_eq!(
+        serde_json::to_value(OutputErrorEmissionPolicy { queue_error_already_emitted: true })
+            .unwrap(),
+        json!({
+            "queueErrorAlreadyEmitted": true
+        })
+    );
+
+    assert_eq!(
+        serde_json::to_value(AcpAgentConfig {
+            command: "agent".to_string(),
+            args: Vec::new(),
+            env: HashMap::new(),
+        })
+        .unwrap(),
+        json!({
+            "command": "agent"
         })
     );
 
@@ -184,6 +255,21 @@ fn prompt_request_defaults_to_new_session_and_accepts_strategy_override() {
 
 #[test]
 fn session_send_outcome_serializes_direct_and_queued_results() {
+    let direct = SessionSendOutcome::SessionSendResult(Box::new(SessionSendResult {
+        stop_reason: StopReason::EndTurn,
+        permission_stats: PermissionStats { requested: 2, approved: 1, denied: 1, cancelled: 0 },
+        session_id: "session-1".to_string(),
+        record: test_record(),
+        resumed: true,
+        load_error: Some("record was stale".to_string()),
+    }));
+    let value = serde_json::to_value(direct).unwrap();
+    assert_eq!(value["stopReason"], json!("end_turn"));
+    assert_eq!(value["permissionStats"]["requested"], json!(2));
+    assert_eq!(value["record"]["schema"], json!(SESSION_RECORD_SCHEMA));
+    assert_eq!(value["resumed"], json!(true));
+    assert_eq!(value["loadError"], json!("record was stale"));
+
     let queued = SessionSendOutcome::SessionEnqueueResult(SessionEnqueueResult {
         queued: true,
         session_id: "session-1".to_string(),
@@ -198,4 +284,62 @@ fn session_send_outcome_serializes_direct_and_queued_results() {
             "requestId": "request-1"
         })
     );
+}
+
+#[test]
+fn nested_session_message_content_round_trips() {
+    let mut tool_results = HashMap::new();
+    tool_results.insert(
+        "tool-1".to_string(),
+        SessionToolResult {
+            tool_use_id: "tool-1".to_string(),
+            tool_name: "inspect".to_string(),
+            is_error: false,
+            content: SessionToolResultContent::Image(SessionMessageImage {
+                source: "data:image/png;base64,AA==".to_string(),
+                size: Some(SessionMessageImageSize { width: 640, height: 480 }),
+            }),
+            output: Some(json!({ "ok": true })),
+            result: None,
+        },
+    );
+
+    let message = SessionMessage::Agent(SessionAgentMessage {
+        content: vec![
+            SessionAgentContent::Text("hello".to_string()),
+            SessionAgentContent::Thinking(SessionThinking {
+                text: "reasoning".to_string(),
+                signature: Some("sig-1".to_string()),
+            }),
+            SessionAgentContent::RedactedThinking("hidden".to_string()),
+            SessionAgentContent::ToolUse(SessionToolUse {
+                id: "tool-1".to_string(),
+                name: "inspect".to_string(),
+                raw_input: "{\"path\":\"src\"}".to_string(),
+                input: json!({ "path": "src" }),
+                is_input_complete: true,
+                thought_signature: Some("tool-sig".to_string()),
+            }),
+        ],
+        tool_results,
+        reasoning_details: Some(json!({ "provider": "agent" })),
+    });
+
+    let value = serde_json::to_value(&message).unwrap();
+    assert_eq!(value["Agent"]["content"][1]["Thinking"]["signature"], json!("sig-1"));
+    assert_eq!(
+        value["Agent"]["tool_results"]["tool-1"]["content"]["Image"]["size"]["width"],
+        json!(640)
+    );
+
+    let round_trip: SessionMessage = serde_json::from_value(value).unwrap();
+    assert_eq!(round_trip, message);
+}
+
+#[test]
+fn invalid_protocol_literals_are_rejected() {
+    assert!(serde_json::from_value::<OutputFormat>(json!("verbose")).is_err());
+    assert!(serde_json::from_value::<PermissionMode>(json!("approve_all")).is_err());
+    assert!(serde_json::from_value::<OutputErrorCode>(json!("permission_denied")).is_err());
+    assert!(serde_json::from_value::<ClientOperationMethod>(json!("terminal/wait")).is_err());
 }

@@ -56,46 +56,51 @@ fn check_vibewindow_user() -> Result<()> {
     match output {
         Ok(output) if output.status.success() => {
             let passwd_entry = String::from_utf8_lossy(&output.stdout);
-            let parts: Vec<&str> = passwd_entry.split(':').collect();
-            if parts.len() >= 7 {
-                let uid = parts[2];
-                let gid = parts[3];
-                let home = parts[5];
-                let shell = parts[6];
-
-                if uid.parse::<u32>().unwrap_or(999) >= 1000 {
-                    bail!(
-                        "User 'vibewindow' exists but has unexpected UID {} (expected system UID < 1000).\n\
-                         Recreate with: sudo {} && sudo {}",
-                        uid,
-                        del_cmd,
-                        add_cmd
-                    );
-                }
-
-                if !shell.contains("nologin") && !shell.contains("false") {
-                    bail!(
-                        "User 'vibewindow' exists but has unexpected shell '{}'.\n\
-                         Expected nologin/false for security. Fix with: sudo {} && sudo {}",
-                        shell,
-                        del_cmd,
-                        add_cmd
-                    );
-                }
-
-                if home != "/var/lib/vibewindow" && home != "/nonexistent" {
-                    eprintln!(
-                        "⚠️  Warning: vibewindow user has home directory '{}' (expected /var/lib/vibewindow or /nonexistent)",
-                        home
-                    );
-                }
-
-                let _ = gid;
-            }
-            Ok(())
+            validate_vibewindow_user_entry(&passwd_entry, del_cmd, add_cmd)
         }
         _ => Ok(()),
     }
+}
+
+/// 校验一条 passwd 记录中的 OpenRC 服务用户安全属性。
+fn validate_vibewindow_user_entry(passwd_entry: &str, del_cmd: &str, add_cmd: &str) -> Result<()> {
+    let parts: Vec<&str> = passwd_entry.split(':').collect();
+    if parts.len() >= 7 {
+        let uid = parts[2];
+        let gid = parts[3];
+        let home = parts[5];
+        let shell = parts[6];
+
+        if uid.parse::<u32>().unwrap_or(999) >= 1000 {
+            bail!(
+                "User 'vibewindow' exists but has unexpected UID {} (expected system UID < 1000).\n\
+                 Recreate with: sudo {} && sudo {}",
+                uid,
+                del_cmd,
+                add_cmd
+            );
+        }
+
+        if !shell.contains("nologin") && !shell.contains("false") {
+            bail!(
+                "User 'vibewindow' exists but has unexpected shell '{}'.\n\
+                 Expected nologin/false for security. Fix with: sudo {} && sudo {}",
+                shell,
+                del_cmd,
+                add_cmd
+            );
+        }
+
+        if home != "/var/lib/vibewindow" && home != "/nonexistent" {
+            eprintln!(
+                "⚠️  Warning: vibewindow user has home directory '{}' (expected /var/lib/vibewindow or /nonexistent)",
+                home
+            );
+        }
+
+        let _ = gid;
+    }
+    Ok(())
 }
 
 /// 确保 `vibewindow` 系统用户存在。
@@ -275,13 +280,21 @@ fn resolve_invoking_user_config_dir() -> Option<PathBuf> {
 /// 如果目标配置已存在则直接复用；如果原用户目录存在 `vibewindow.json`，则复制整套
 /// 配置目录到系统配置目录。复制不会覆盖目标已有文件。
 fn migrate_openrc_runtime_state_if_needed(config_dir: &Path) -> Result<()> {
+    migrate_openrc_runtime_state_with(config_dir, resolve_invoking_user_config_dir)
+}
+
+/// 使用惰性解析的来源目录迁移 OpenRC 运行状态。
+fn migrate_openrc_runtime_state_with<F>(config_dir: &Path, resolve_source_dir: F) -> Result<()>
+where
+    F: FnOnce() -> Option<PathBuf>,
+{
     let target_config = config_dir.join("vibewindow.json");
     if target_config.exists() {
         println!("✅ Reusing existing OpenRC config at {}", target_config.display());
         return Ok(());
     }
 
-    let Some(source_dir) = resolve_invoking_user_config_dir() else {
+    let Some(source_dir) = resolve_source_dir() else {
         return Ok(());
     };
 
@@ -394,8 +407,7 @@ fn ensure_openrc_runtime_dirs_writable(
 /// 系统级 OpenRC 服务通常应使用稳定的全局路径，避免用户目录权限、清理或移动导致
 /// 服务无法启动。
 fn warn_if_binary_in_home(exe_path: &Path) {
-    let path_str = exe_path.to_string_lossy();
-    if path_str.contains("/home/") || path_str.contains(".cargo/bin") {
+    if binary_path_appears_in_home(exe_path) {
         eprintln!(
             "⚠️  Warning: Binary path '{}' appears to be in a user home directory.\n\
              For system-wide OpenRC service, consider installing to /usr/local/bin:\n\
@@ -403,6 +415,44 @@ fn warn_if_binary_in_home(exe_path: &Path) {
             exe_path.display(),
             exe_path.display()
         );
+    }
+}
+
+/// 判断服务二进制路径是否位于不稳定的用户目录中。
+fn binary_path_appears_in_home(exe_path: &Path) -> bool {
+    let path_str = exe_path.to_string_lossy();
+    path_str.contains("/home/") || path_str.contains(".cargo/bin")
+}
+
+#[cfg(test)]
+pub(super) mod test_support {
+    use anyhow::Result;
+    use std::path::{Path, PathBuf};
+
+    pub fn binary_path_appears_in_home(exe_path: &Path) -> bool {
+        super::binary_path_appears_in_home(exe_path)
+    }
+
+    pub fn copy_dir_recursive(source: &Path, target: &Path) -> Result<()> {
+        super::copy_dir_recursive(source, target)
+    }
+
+    pub fn migrate_openrc_runtime_state_with<F>(
+        config_dir: &Path,
+        resolve_source_dir: F,
+    ) -> Result<()>
+    where
+        F: FnOnce() -> Option<PathBuf>,
+    {
+        super::migrate_openrc_runtime_state_with(config_dir, resolve_source_dir)
+    }
+
+    pub fn validate_vibewindow_user_entry(
+        passwd_entry: &str,
+        del_cmd: &str,
+        add_cmd: &str,
+    ) -> Result<()> {
+        super::validate_vibewindow_user_entry(passwd_entry, del_cmd, add_cmd)
     }
 }
 

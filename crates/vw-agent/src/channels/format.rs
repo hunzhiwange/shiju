@@ -47,19 +47,20 @@ use super::*;
 /// assert_eq!(cleaned, "这是回复内容继续");
 /// ```
 pub(crate) fn strip_tool_call_tags(message: &str) -> String {
-    /// 工具调用开标签列表
+    /// 工具调用标签列表
     ///
-    /// 包含所有需要被识别和移除的工具调用标签格式
-    const TOOL_CALL_OPEN_TAGS: [&str; 7] = [
-        "<function_calls>",
-        "<function_call>",
-        "<tool_call>",
-        "<toolcall>",
-        "<tool-call>",
-        "<tool>",
-        "<invoke>",
-    ];
+    /// 包含所有需要被识别和移除的工具调用标签格式及对应闭标签
     const TOOL_CALL_SENTINEL: &str = "ฦ";
+    const TOOL_CALL_TAGS: [(&str, &str); 8] = [
+        ("<function_calls>", "</function_calls>"),
+        ("<function_call>", "</function_call>"),
+        ("<tool_call>", "</tool_call>"),
+        ("<toolcall>", "</toolcall>"),
+        ("<tool-call>", "</tool-call>"),
+        ("<tool>", "</tool>"),
+        ("<invoke>", "</invoke>"),
+        (TOOL_CALL_SENTINEL, TOOL_CALL_SENTINEL),
+    ];
 
     /// 在字符串中查找第一个出现的标签
     ///
@@ -73,43 +74,15 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
     /// # 返回值
     ///
     /// 返回 `Some((位置, 标签))` 如果找到任一标签，否则返回 `None`
-    fn find_first_tag<'a>(haystack: &str, tags: &'a [&'a str]) -> Option<(usize, &'a str)> {
-        let xml_tag = tags
-            .iter()
-            .filter_map(|tag| haystack.find(tag).map(|idx| (idx, *tag)))
-            .min_by_key(|(idx, _)| *idx);
-        let sentinel = haystack.find(TOOL_CALL_SENTINEL).map(|idx| (idx, TOOL_CALL_SENTINEL));
-        match (xml_tag, sentinel) {
-            (Some(xml), Some(sentinel)) => Some(if xml.0 <= sentinel.0 { xml } else { sentinel }),
-            (Some(xml), None) => Some(xml),
-            (None, Some(sentinel)) => Some(sentinel),
-            (None, None) => None,
-        }
-    }
-
-    /// 获取开标签对应的闭标签
-    ///
-    /// 根据开标签字符串返回匹配的闭标签
-    ///
-    /// # 参数
-    ///
-    /// - `open_tag`: 开标签字符串
-    ///
-    /// # 返回值
-    ///
-    /// 返回对应的闭标签，如果开标签未知则返回 `None`
-    fn matching_close_tag(open_tag: &str) -> Option<&'static str> {
-        match open_tag {
-            "<function_calls>" => Some("</function_calls>"),
-            "<function_call>" => Some("</function_call>"),
-            "<tool_call>" => Some("</tool_call>"),
-            "<toolcall>" => Some("</toolcall>"),
-            "<tool-call>" => Some("</tool-call>"),
-            "<tool>" => Some("</tool>"),
-            "<invoke>" => Some("</invoke>"),
-            TOOL_CALL_SENTINEL => Some(TOOL_CALL_SENTINEL),
-            _ => None,
-        }
+    fn find_first_tag<'a>(
+        haystack: &str,
+        tags: &'a [(&'a str, &'a str)],
+    ) -> Option<(usize, &'a str, &'a str)> {
+        tags.iter()
+            .filter_map(|(open_tag, close_tag)| {
+                haystack.find(open_tag).map(|idx| (idx, *open_tag, *close_tag))
+            })
+            .min_by_key(|(idx, _, _)| *idx)
     }
 
     fn trim_block_open_boundary(input: &str) -> String {
@@ -153,9 +126,7 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
                 serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
             if let Some(Ok(_value)) = stream.next() {
                 let consumed = stream.byte_offset();
-                if consumed > 0 {
-                    return Some(trim_offset + byte_idx + consumed);
-                }
+                return Some(trim_offset + byte_idx + consumed);
             }
         }
 
@@ -193,17 +164,13 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
     let mut remaining = message;
 
     // 循环处理消息中的所有工具调用标签
-    while let Some((start, open_tag)) = find_first_tag(remaining, &TOOL_CALL_OPEN_TAGS) {
+    while let Some((start, open_tag, close_tag)) = find_first_tag(remaining, &TOOL_CALL_TAGS) {
         // 提取标签前的内容
         let before = &remaining[..start];
         if !before.is_empty() {
             kept_segments.push(trim_block_open_boundary(before));
         }
 
-        // 获取对应的闭标签，如果无法匹配则终止处理
-        let Some(close_tag) = matching_close_tag(open_tag) else {
-            break;
-        };
         let after_open = &remaining[start + open_tag.len()..];
 
         // 尝试找到闭标签
@@ -869,32 +836,28 @@ pub(crate) fn strip_isolated_tool_json_artifacts(
 
         if let Some(Ok(value)) = stream.next() {
             let consumed = stream.byte_offset();
-            if consumed > 0 {
-                let end = start + consumed;
-                // 检查是否为孤立的 JSON 片段
-                if is_line_isolated_json_segment(message, start, end) {
-                    // 尝试净化工具相关 JSON
-                    if let Some((replacement, marks_tool_call)) =
-                        sanitize_tool_json_value(&value, known_tool_names, saw_tool_call_payload)
-                    {
-                        if marks_tool_call {
-                            saw_tool_call_payload = true;
-                        }
-                        // 添加替换内容（非空时）
-                        if !replacement.trim().is_empty() {
-                            cleaned.push_str(replacement.trim());
-                        }
-                        cursor = end;
-                        continue;
+            let end = start + consumed;
+            // 检查是否为孤立的 JSON 片段
+            if is_line_isolated_json_segment(message, start, end) {
+                // 尝试净化工具相关 JSON
+                if let Some((replacement, marks_tool_call)) =
+                    sanitize_tool_json_value(&value, known_tool_names, saw_tool_call_payload)
+                {
+                    if marks_tool_call {
+                        saw_tool_call_payload = true;
                     }
+                    // 添加替换内容（非空时）
+                    if !replacement.trim().is_empty() {
+                        cleaned.push_str(replacement.trim());
+                    }
+                    cursor = end;
+                    continue;
                 }
             }
         }
 
         // JSON 不是工具相关内容，保留开头的字符
-        let Some(ch) = message[start..].chars().next() else {
-            break;
-        };
+        let ch = message[start..].chars().next().expect("json marker start must be valid");
         cleaned.push(ch);
         cursor = start + ch.len_utf8();
     }

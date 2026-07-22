@@ -1,0 +1,250 @@
+use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
+
+fn chat_message(role: ChatRole, content: &str) -> ModelChatMessage {
+    ModelChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+}
+
+fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
+    vw_shared::session::info::Info {
+        id: id.to_string(),
+        slug: format!("{id}-slug"),
+        project_id: "project-1".to_string(),
+        directory: directory.to_string(),
+        parent_id: None,
+        summary: None,
+        share: None,
+        title: title.to_string(),
+        version: "0.0.0".to_string(),
+        time: vw_shared::session::info::TimeInfo {
+            created: 10,
+            updated: 20,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
+    }
+}
+
+#[test]
+fn session_directory_for_save_skips_blank_session_directory() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Title", "  \n")];
+    app.project_path = Some("/project".to_string());
+
+    assert_eq!(super::session_directory_for_save(&app, "session-1").as_deref(), Some("/project"));
+}
+
+#[test]
+fn session_directory_for_save_prefers_known_session_directory() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Title", "  /session/root  ")];
+    app.project_path = Some("/project/root".to_string());
+
+    assert_eq!(
+        super::session_directory_for_save(&app, "session-1").as_deref(),
+        Some("  /session/root  ")
+    );
+}
+
+#[test]
+fn session_directory_for_save_rejects_blank_fallbacks() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Title", " \n\t ")];
+    app.project_path = Some("   ".to_string());
+
+    assert_eq!(super::session_directory_for_save(&app, "session-1"), None);
+}
+
+#[test]
+fn load_session_or_default_replaces_mismatched_cached_message_ids() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Title", "/project")];
+    app.store_session_chat_snapshot(
+        "session-1".to_string(),
+        crate::app::session::shared_chat_messages(vec![
+            chat_message(ChatRole::User, "question"),
+            chat_message(ChatRole::Assistant, "answer"),
+        ]),
+        vec![Some("only-one-id".to_string())],
+    );
+
+    let loaded = super::load_session_or_default(&app, "session-1".to_string());
+
+    assert_eq!(loaded.messages.len(), 2);
+    assert_eq!(loaded.message_ids, vec![None, None]);
+    assert!(loaded.calls.is_empty());
+    assert!(loaded.steps.is_empty());
+}
+
+#[test]
+fn load_session_or_default_keeps_inactive_session_metadata_without_cache() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Stored title", "/project")];
+
+    let loaded = super::load_session_or_default(&app, "session-1".to_string());
+
+    assert_eq!(loaded.id, "session-1");
+    assert_eq!(loaded.title, "Stored title");
+    assert_eq!(loaded.created_ms, 10);
+    assert_eq!(loaded.updated_ms, 20);
+    assert!(loaded.messages.is_empty());
+    assert!(loaded.message_ids.is_empty());
+    assert!(loaded.calls.is_empty());
+    assert!(loaded.steps.is_empty());
+}
+
+#[test]
+fn load_session_or_default_uses_active_chat_ids_calls_and_steps() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Active", "/project")];
+    app.active_session_id = Some("session-1".to_string());
+    app.chat = vec![chat_message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![Some("message-1".to_string())];
+
+    let loaded = super::load_session_or_default(&app, "session-1".to_string());
+
+    assert_eq!(loaded.messages.len(), 1);
+    assert_eq!(loaded.messages[0].role, ChatRole::User);
+    assert_eq!(loaded.messages[0].content, "question");
+    assert_eq!(loaded.message_ids, app.chat_message_ids);
+    assert_eq!(loaded.calls.len(), app.active_session_view_state.calls.len());
+    assert_eq!(loaded.steps.len(), app.active_session_view_state.steps.len());
+}
+
+#[test]
+fn load_session_or_default_preserves_matching_cached_message_ids() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Cached", "/project")];
+    app.store_session_chat_snapshot(
+        "session-1".to_string(),
+        crate::app::session::shared_chat_messages(vec![chat_message(ChatRole::User, "cached")]),
+        vec![Some("cached-id".to_string())],
+    );
+
+    let loaded = super::load_session_or_default(&app, "session-1".to_string());
+
+    assert_eq!(loaded.messages[0].content, "cached");
+    assert_eq!(loaded.message_ids, vec![Some("cached-id".to_string())]);
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn save_session_hook_observes_arguments_and_is_cleared_after_scope() {
+    use std::cell::RefCell;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+
+    let session =
+        super::load_session_or_default(&crate::app::App::new().0, "session-1".to_string());
+    let observed = Rc::new(RefCell::new(None));
+    let hook_observed = Rc::clone(&observed);
+
+    let result = super::with_save_session_hook(
+        move |session, directory| {
+            *hook_observed.borrow_mut() = Some((session.id.clone(), directory.map(str::to_string)));
+            Some(PathBuf::from("/saved/session.json"))
+        },
+        || super::call_save_session_hook(&session, Some("/project")),
+    );
+
+    assert_eq!(result, Some(Some(PathBuf::from("/saved/session.json"))));
+    assert_eq!(
+        observed.borrow().as_ref(),
+        Some(&("session-1".to_string(), Some("/project".to_string())))
+    );
+    assert!(super::call_save_session_hook(&session, None).is_none());
+}
+
+#[test]
+fn update_rejects_empty_generated_title_without_mutating_sessions() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Original", "/project")];
+    app.project_sessions.insert(
+        "project-1".to_string(),
+        vec![session_info("session-1", "Project original", "/project")],
+    );
+
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::SessionTitleGenerated("session-1".to_string(), String::new()),
+    );
+
+    assert_eq!(app.sessions[0].title, "Original");
+    assert_eq!(app.project_sessions["project-1"][0].title, "Project original");
+}
+
+#[test]
+fn update_generated_title_updates_loaded_and_project_session_copies() {
+    let (mut app, _task) = crate::app::App::new();
+    app.sessions = vec![session_info("session-1", "Original", "/project")];
+    app.project_sessions.insert(
+        "project-1".to_string(),
+        vec![
+            session_info("session-1", "Project original", "/project"),
+            session_info("session-2", "Other", "/project"),
+        ],
+    );
+
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::SessionTitleGenerated(
+            "session-1".to_string(),
+            "Generated title".to_string(),
+        ),
+    );
+
+    assert_eq!(app.sessions[0].title, "Generated title");
+    assert_eq!(app.project_sessions["project-1"][0].title, "Generated title");
+    assert_eq!(app.project_sessions["project-1"][1].title, "Other");
+}
+
+#[test]
+fn update_unhandled_message_leaves_chat_state_unchanged() {
+    let (mut app, _task) = crate::app::App::new();
+    app.chat = vec![chat_message(ChatRole::User, "existing")];
+
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::InputChanged("ignored by stream router".to_string()),
+    );
+
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "existing");
+}
+
+#[test]
+fn maybe_generate_session_title_returns_none_without_active_default_session() {
+    let (mut app, _task) = crate::app::App::new();
+
+    let no_active = super::maybe_generate_session_title(&app);
+    assert_eq!(no_active.units(), 0);
+
+    app.active_session_id = Some("session-1".to_string());
+    let missing_session = super::maybe_generate_session_title(&app);
+    assert_eq!(missing_session.units(), 0);
+
+    app.sessions = vec![session_info("session-1", "Named session", "/project")];
+    app.chat = vec![chat_message(ChatRole::User, "first question")];
+    let named_session = super::maybe_generate_session_title(&app);
+    assert_eq!(named_session.units(), 0);
+
+    app.sessions[0].title = "新会话".to_string();
+    app.chat.push(chat_message(ChatRole::User, "second question"));
+    let multiple_user_messages = super::maybe_generate_session_title(&app);
+    assert_eq!(multiple_user_messages.units(), 0);
+}
+
+#[test]
+fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
+    let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("session-1".to_string());
+    app.sessions = vec![session_info("session-1", "新会话", "/project")];
+    app.chat = vec![chat_message(ChatRole::User, "first question")];
+    app.auto_model = false;
+    app.model = "openai/gpt-5".to_string();
+
+    let task = super::maybe_generate_session_title(&app);
+
+    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}

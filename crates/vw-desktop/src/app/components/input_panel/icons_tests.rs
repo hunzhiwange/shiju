@@ -99,3 +99,82 @@ fn raw_svg_handle_accepts_asset_handle_without_theme_style() {
 
     assert_size(&element, Length::Fixed(15.0), Length::Fixed(15.0));
 }
+
+#[test]
+fn normalize_acp_agent_icon_name_handles_empty_and_whitespace() {
+    assert_eq!(normalize_acp_agent_icon_name(""), "");
+    assert_eq!(normalize_acp_agent_icon_name("   "), "");
+    assert_eq!(normalize_acp_agent_icon_name("\t\n"), "");
+}
+
+#[test]
+fn normalize_acp_agent_icon_name_handles_all_direct_matches() {
+    for &name in &[
+        "claude", "auggie", "codex", "copilot", "cursor", "droid", "gemini", "kiro", "kilocode",
+        "kimi", "opencode", "openclaw", "pi", "qoder", "qwen", "trae",
+    ] {
+        assert_eq!(normalize_acp_agent_icon_name(name), name, "direct match failed for {name:?}");
+    }
+}
+
+#[test]
+fn normalize_acp_agent_icon_name_handles_concatenated_aliases() {
+    assert_eq!(normalize_acp_agent_icon_name("claudecode"), "claude");
+    assert_eq!(normalize_acp_agent_icon_name("githubcopilot"), "copilot");
+    assert_eq!(normalize_acp_agent_icon_name("factorydroid"), "droid");
+    assert_eq!(normalize_acp_agent_icon_name("kimi-code-cli"), "kimi");
+}
+
+#[test]
+fn normalize_acp_agent_icon_name_handles_remaining_cli_and_hyphenated_aliases() {
+    let cases = [
+        ("claude-code", "claude"),
+        ("auggie-cli", "auggie"),
+        ("codex cli", "codex"),
+        ("copilot-cli", "copilot"),
+        ("github-copilot", "copilot"),
+        ("factory-droid", "droid"),
+        ("gemini-cli", "gemini"),
+        ("kiro-cli-chat", "kiro"),
+        ("kimi-code", "kimi"),
+        ("qoder-cli", "qoder"),
+        ("qwen-code", "qwen"),
+        ("trae-cli", "trae"),
+    ];
+
+    for (input, expected) in cases {
+        assert_eq!(normalize_acp_agent_icon_name(input), expected, "alias {input:?}");
+    }
+}
+
+#[test]
+fn is_dark_mode_works_across_common_themes() {
+    assert!(is_dark_mode(&Theme::Dark));
+    assert!(is_dark_mode(&Theme::Dracula));
+    assert!(is_dark_mode(&Theme::CatppuccinMocha));
+    assert!(is_dark_mode(&Theme::TokyoNight));
+    assert!(!is_dark_mode(&Theme::Light));
+    assert!(!is_dark_mode(&Theme::SolarizedLight));
+    assert!(!is_dark_mode(&Theme::CatppuccinLatte));
+}
+
+#[test]
+fn default_acp_icon_accepts_zero_size_without_panic() {
+    let element = default_acp_icon(0.0);
+    assert_size(&element, Length::Fixed(0.0), Length::Fixed(0.0));
+}
+
+#[test]
+fn auto_and_max_icon_produce_valid_handles_for_themed_widgets() {
+    let auto: Element<'_, Message> = themed_svg_handle(auto_icon(), 10.0).into();
+    let max: Element<'_, Message> = themed_svg_handle(max_icon(), 10.0).into();
+    assert_size(&auto, Length::Fixed(10.0), Length::Fixed(10.0));
+    assert_size(&max, Length::Fixed(10.0), Length::Fixed(10.0));
+}
+
+#[test]
+fn provider_logo_handle_returns_non_empty_handle_for_any_provider_id() {
+    let handle = provider_logo_handle("openai");
+    let element: Element<'_, Message> = themed_svg_handle(handle, 14.0).into();
+    assert_size(&element, Length::Fixed(14.0), Length::Fixed(14.0));
+}

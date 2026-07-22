@@ -167,16 +167,7 @@ pub(super) fn build_action_bar(state: &WorkflowState) -> Element<'static, Messag
             .width(Length::Fixed(16.0))
             .height(Length::Fixed(16.0))
             .content_fit(iced::ContentFit::Contain)
-            .style(move |theme: &Theme, _| {
-                let color = if !enabled {
-                    Color::from_rgba8(160, 160, 160, 1.0)
-                } else if active {
-                    theme.palette().primary
-                } else {
-                    theme.palette().text
-                };
-                iced::widget::svg::Style { color: Some(color) }
-            })
+            .style(move |theme: &Theme, _| action_bar_icon_style(theme, enabled, active))
             .into();
 
         let button = button(
@@ -190,33 +181,7 @@ pub(super) fn build_action_bar(state: &WorkflowState) -> Element<'static, Messag
         .width(Length::Fixed(ACTION_BAR_BUTTON_SIZE))
         .height(Length::Fixed(ACTION_BAR_BUTTON_SIZE))
         .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let background = if !enabled {
-                None
-            } else if active {
-                Some(Background::Color(theme.palette().primary.scale_alpha(0.14)))
-            } else {
-                match status {
-                    iced::widget::button::Status::Hovered => {
-                        Some(Background::Color(palette.background.weak.color))
-                    }
-                    iced::widget::button::Status::Pressed => {
-                        Some(Background::Color(palette.background.strong.color))
-                    }
-                    _ => None,
-                }
-            };
-
-            iced::widget::button::Style {
-                background,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                text_color: if enabled {
-                    theme.palette().text
-                } else {
-                    Color::from_rgba8(160, 160, 160, 1.0)
-                },
-                ..Default::default()
-            }
+            action_bar_button_style(theme, status, enabled, active)
         });
 
         let button: Element<'static, Message> = if let Some(message) = message {
@@ -265,6 +230,52 @@ pub(super) fn build_action_bar(state: &WorkflowState) -> Element<'static, Messag
     .into()
 }
 
+fn action_bar_icon_style(theme: &Theme, enabled: bool, active: bool) -> iced::widget::svg::Style {
+    let color = if !enabled {
+        Color::from_rgba8(160, 160, 160, 1.0)
+    } else if active {
+        theme.palette().primary
+    } else {
+        theme.palette().text
+    };
+    iced::widget::svg::Style { color: Some(color) }
+}
+
+fn action_bar_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    enabled: bool,
+    active: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = if !enabled {
+        None
+    } else if active {
+        Some(Background::Color(theme.palette().primary.scale_alpha(0.14)))
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => {
+                Some(Background::Color(palette.background.weak.color))
+            }
+            iced::widget::button::Status::Pressed => {
+                Some(Background::Color(palette.background.strong.color))
+            }
+            _ => None,
+        }
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
+        text_color: if enabled {
+            theme.palette().text
+        } else {
+            Color::from_rgba8(160, 160, 160, 1.0)
+        },
+        ..Default::default()
+    }
+}
+
 /// 构建 action menu overlay 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
@@ -279,14 +290,7 @@ pub(super) fn build_action_menu_overlay(state: &WorkflowState) -> Element<'stati
             .width(Length::Fixed(14.0))
             .height(Length::Fixed(14.0))
             .content_fit(iced::ContentFit::Contain)
-            .style(move |theme: &Theme, _| {
-                let color = if enabled {
-                    theme.palette().text
-                } else {
-                    theme.palette().text.scale_alpha(0.35)
-                };
-                iced::widget::svg::Style { color: Some(color) }
-            });
+            .style(move |theme: &Theme, _| action_menu_icon_style(theme, enabled));
 
         let button = button(
             container(
@@ -302,33 +306,7 @@ pub(super) fn build_action_menu_overlay(state: &WorkflowState) -> Element<'stati
             .width(Length::Fill)
             .padding([6, 10]),
         )
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let background = if !enabled {
-                None
-            } else {
-                match status {
-                    iced::widget::button::Status::Hovered => {
-                        Some(Background::Color(palette.background.weak.color.scale_alpha(0.55)))
-                    }
-                    iced::widget::button::Status::Pressed => {
-                        Some(Background::Color(palette.background.strong.color))
-                    }
-                    _ => None,
-                }
-            };
-
-            iced::widget::button::Style {
-                background,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                text_color: if enabled {
-                    theme.palette().text
-                } else {
-                    theme.palette().text.scale_alpha(0.35)
-                },
-                ..Default::default()
-            }
-        })
+        .style(move |theme: &Theme, status| action_menu_button_style(theme, status, enabled))
         .width(Length::Fill);
 
         if let Some(message) = message {
@@ -386,6 +364,43 @@ pub(super) fn build_action_menu_overlay(state: &WorkflowState) -> Element<'stati
     .width(Length::Fixed(240.0))
     .style(floating_panel_style)
     .into()
+}
+
+fn action_menu_icon_style(theme: &Theme, enabled: bool) -> iced::widget::svg::Style {
+    let color = if enabled { theme.palette().text } else { theme.palette().text.scale_alpha(0.35) };
+    iced::widget::svg::Style { color: Some(color) }
+}
+
+fn action_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    enabled: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = if !enabled {
+        None
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => {
+                Some(Background::Color(palette.background.weak.color.scale_alpha(0.55)))
+            }
+            iced::widget::button::Status::Pressed => {
+                Some(Background::Color(palette.background.strong.color))
+            }
+            _ => None,
+        }
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
+        text_color: if enabled {
+            theme.palette().text
+        } else {
+            theme.palette().text.scale_alpha(0.35)
+        },
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]

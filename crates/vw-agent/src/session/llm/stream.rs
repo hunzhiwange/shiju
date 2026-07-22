@@ -58,6 +58,46 @@ use super::messages::{build_chat_messages, build_system_messages, has_tool_calls
 use super::options::merge_deep_value;
 use super::types::{Error, StreamEvent, StreamInput};
 
+fn request_options_map_enable_acp(options: &HashMap<String, Value>) -> bool {
+    options.get("acp_test").and_then(Value::as_bool).unwrap_or(false)
+        || options
+            .get("acp_agent")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty())
+}
+
+fn request_options_value_enable_acp(options: &Value) -> bool {
+    options.get("acp_test").and_then(Value::as_bool).unwrap_or(false)
+        || options
+            .get("acp_agent")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty())
+}
+
+fn acp_route_provider_info() -> provider::Info {
+    provider::Info {
+        id: "acp".to_string(),
+        name: "ACP".to_string(),
+        source: provider::ProviderSource::Config,
+        env: Vec::new(),
+        key: None,
+        options: HashMap::new(),
+        models: HashMap::new(),
+    }
+}
+
+fn resolve_stream_provider_info(
+    provider_id: &str,
+    provider_info: Option<provider::Info>,
+    acp_requested: bool,
+) -> Result<provider::Info, Error> {
+    match provider_info {
+        Some(provider_info) => Ok(provider_info),
+        None if acp_requested && provider_id == "acp" => Ok(acp_route_provider_info()),
+        None => Err(Error::ProviderNotFound(provider_id.to_string())),
+    }
+}
+
 /// 执行 LLM 流式请求的核心函数
 ///
 /// 该函数是会话层与 AI 提供商交互的主要入口点，负责：
@@ -196,6 +236,7 @@ pub async fn stream(
     // - cfg: 全局配置
     // - provider_info: 提供商特定配置和端点信息
     // - auth_info: 认证信息（API key、OAuth token 等）
+    let acp_requested_by_input = request_options_map_enable_acp(&input.agent.options);
     let (cfg, provider_info, auth_info) = tokio::join!(
         async { config::get().await },
         async { provider::get_provider(&input.model.provider_id).await },
@@ -204,8 +245,11 @@ pub async fn stream(
     let _ = cfg; // 全局配置当前未使用，但保留以备将来扩展
 
     // 确保提供商存在，否则返回错误
-    let provider_info =
-        provider_info.ok_or_else(|| Error::ProviderNotFound(input.model.provider_id.clone()))?;
+    let provider_info = resolve_stream_provider_info(
+        &input.model.provider_id,
+        provider_info,
+        acp_requested_by_input,
+    )?;
 
     // 检测是否为 Codex 模式（OpenAI provider + OAuth 认证）
     // Codex 模式有特殊的参数处理逻辑
@@ -376,7 +420,7 @@ pub async fn stream(
     // 验证 adapter 类型：aisdk 流式请求仅支持 OpenAI 和 OpenAI-compatible adapter
     // 特例：zai-coding-plan 和 zhipuai-coding-plan 提供商不受此限制
     let adapter = input.model.api.adapter.trim();
-    let force_acp = merged_options.get("acp_test").and_then(Value::as_bool).unwrap_or(false);
+    let force_acp = request_options_value_enable_acp(&merged_options);
     let is_acp_adapter =
         force_acp || matches!(adapter, "acp" | "agent-client-protocol" | "agent_client_protocol");
     let request_retries = if is_acp_adapter { 0 } else { retries };
@@ -628,6 +672,8 @@ fn is_acp_retryable_assistant_error(err: &message::AssistantError) -> bool {
                 || normalized.contains("timeout")
                 || normalized.contains("acp agent disconnected during request")
                 || normalized.contains("queue owner disconnected before prompt completion")
+                || normalized.contains("error decoding response body")
+                || normalized.contains("eof while parsing a value")
         }
         message::AssistantError::APIError { message, .. } => {
             let normalized = message.to_ascii_lowercase();
@@ -635,6 +681,8 @@ fn is_acp_retryable_assistant_error(err: &message::AssistantError) -> bool {
                 || normalized.contains("timed out")
                 || normalized.contains("timeout")
                 || normalized.contains("acp agent disconnected during request")
+                || normalized.contains("error decoding response body")
+                || normalized.contains("eof while parsing a value")
         }
         _ => false,
     }

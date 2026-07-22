@@ -110,7 +110,7 @@ impl WatiChannel {
         if !self.is_number_allowed(&normalized_phone) {
             tracing::warn!(
                 "WATI: ignoring message from unauthorized sender: {normalized_phone}. \
-                Add to channels.wati.allowed_numbers in vibewindow.json."
+                Add it to channels.wati.allowed_numbers in system settings."
             );
             return messages;
         }

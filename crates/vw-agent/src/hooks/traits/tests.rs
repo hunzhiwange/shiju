@@ -8,8 +8,11 @@
 //! ## 测试覆盖
 //!
 //! - `hook_result_is_cancel`: 测试 `HookResult::is_cancel()` 方法的正确性
+//! - `hook_result_clone_preserves_variant_payloads`: 验证克隆保留继续值和取消原因
 //! - `default_priority_is_zero`: 验证未覆盖 `priority()` 时的默认值为 0
-//! - `default_modifying_hooks_pass_through`: 验证未覆盖的钩子方法默认透传输入
+//! - `default_modifying_hooks_pass_through_all_inputs`: 验证默认修改钩子透传各类输入
+//! - `default_modifying_hooks_preserve_structured_payloads`: 验证结构化输入逐字段透传
+//! - `wasm_hook_handler_bounds_accept_non_send_non_sync_types`: 验证 WASM 边界约束
 
 use super::*;
 
@@ -72,6 +75,27 @@ mod tests {
         // Cancel 变体应被判定为取消
         let cancel: HookResult<String> = HookResult::Cancel("blocked".into());
         assert!(cancel.is_cancel());
+    }
+
+    /// 验证 `HookResult` 克隆后保留原变体及其完整载荷。
+    #[test]
+    fn hook_result_clone_preserves_variant_payloads() {
+        let continued = HookResult::Continue(vec!["first".to_string(), "第二项".to_string()]);
+        let cancelled: HookResult<Vec<String>> = HookResult::Cancel("策略拒绝".to_string());
+        let continued_clone = continued.clone();
+        let cancelled_clone = cancelled.clone();
+
+        assert_eq!(expect_continue(continued), vec!["first".to_string(), "第二项".to_string()]);
+        assert_eq!(
+            expect_continue(continued_clone),
+            vec!["first".to_string(), "第二项".to_string()]
+        );
+        assert!(cancelled.is_cancel());
+
+        match cancelled_clone {
+            HookResult::Cancel(reason) => assert_eq!(reason, "策略拒绝"),
+            HookResult::Continue(_) => panic!("expected cloned result to remain cancelled"),
+        }
     }
 
     /// 测试默认优先级为零
@@ -177,5 +201,62 @@ mod tests {
             ),
             ("cli".to_string(), "user".to_string(), "hello".to_string())
         );
+    }
+
+    /// 验证默认修改型钩子不会丢失结构化载荷中的字段、顺序或边界值。
+    #[tokio::test]
+    async fn default_modifying_hooks_preserve_structured_payloads() {
+        let hook = TestHook::new("test", 0);
+        let messages = vec![
+            ChatMessage { role: "system".to_string(), content: String::new() },
+            ChatMessage { role: "user".to_string(), content: "你好\0world".to_string() },
+        ];
+        let args = serde_json::json!({
+            "array": [null, true, 42],
+            "nested": {"text": "值"}
+        });
+        let message = ChannelMessage {
+            id: "message-id".to_string(),
+            sender: "sender-id".to_string(),
+            reply_target: "reply-id".to_string(),
+            content: String::new(),
+            channel: "channel-id".to_string(),
+            timestamp: u64::MAX,
+            thread_ts: Some("thread-id".to_string()),
+        };
+
+        let (passed_messages, model) =
+            expect_continue(hook.before_llm_call(messages, "模型/版本".to_string()).await);
+        assert_eq!(passed_messages.len(), 2);
+        assert_eq!(passed_messages[0].role, "system");
+        assert_eq!(passed_messages[0].content, "");
+        assert_eq!(passed_messages[1].role, "user");
+        assert_eq!(passed_messages[1].content, "你好\0world");
+        assert_eq!(model, "模型/版本");
+
+        let (tool_name, passed_args) =
+            expect_continue(hook.before_tool_call("工具".to_string(), args.clone()).await);
+        assert_eq!(tool_name, "工具");
+        assert_eq!(passed_args, args);
+
+        let passed_message = expect_continue(hook.on_message_received(message).await);
+        assert_eq!(passed_message.id, "message-id");
+        assert_eq!(passed_message.sender, "sender-id");
+        assert_eq!(passed_message.reply_target, "reply-id");
+        assert_eq!(passed_message.content, "");
+        assert_eq!(passed_message.channel, "channel-id");
+        assert_eq!(passed_message.timestamp, u64::MAX);
+        assert_eq!(passed_message.thread_ts.as_deref(), Some("thread-id"));
+    }
+
+    /// WASM 平台的边界 trait 不应额外要求 `Send + Sync`。
+    #[cfg(target_arch = "wasm32")]
+    #[test]
+    fn wasm_hook_handler_bounds_accept_non_send_non_sync_types() {
+        use std::{cell::RefCell, rc::Rc};
+
+        fn assert_hook_handler_bounds<T: HookHandlerBounds>() {}
+
+        assert_hook_handler_bounds::<Rc<RefCell<()>>>();
     }
 }

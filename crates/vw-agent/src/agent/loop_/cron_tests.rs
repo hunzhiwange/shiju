@@ -55,6 +55,24 @@ fn replaces_none_delivery_mode() {
 }
 
 #[test]
+fn replaces_blank_delivery_mode_without_overwriting_existing_target() {
+    let mut args = serde_json::json!({
+        "prompt": "check status",
+        "delivery": {
+            "mode": "  ",
+            "channel": "discord",
+            "to": "channel-1"
+        }
+    });
+
+    maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", Some("chat-1"));
+
+    assert_eq!(args["delivery"]["mode"], "announce");
+    assert_eq!(args["delivery"]["channel"], "discord");
+    assert_eq!(args["delivery"]["to"], "channel-1");
+}
+
+#[test]
 fn preserves_explicit_non_announce_delivery_mode() {
     let mut args = serde_json::json!({
         "prompt": "check status",
@@ -86,6 +104,15 @@ fn skips_unsupported_channel() {
 }
 
 #[test]
+fn skips_missing_reply_target() {
+    let mut args = serde_json::json!({"prompt": "check status"});
+
+    maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", None);
+
+    assert!(args.get("delivery").is_none());
+}
+
+#[test]
 fn skips_blank_reply_target() {
     let mut args = serde_json::json!({"prompt": "check status"});
 
@@ -106,6 +133,18 @@ fn skips_non_object_args() {
 #[test]
 fn skips_args_without_agent_job_signal() {
     let mut args = serde_json::json!({"command": "echo hello"});
+
+    maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", Some("chat-1"));
+
+    assert!(args.get("delivery").is_none());
+}
+
+#[test]
+fn skips_explicit_non_agent_job_type_even_with_prompt() {
+    let mut args = serde_json::json!({
+        "job_type": "shell",
+        "prompt": "check status"
+    });
 
     maybe_inject_cron_add_delivery("cron_add", &mut args, "telegram", Some("chat-1"));
 

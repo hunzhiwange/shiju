@@ -52,16 +52,14 @@ impl MessageTap {
         if !is_acp_json_rpc_message(&value) {
             return;
         }
-        if let Some(callback) = &self.on_output_message {
-            let Ok(message) = serde_json::from_value::<AcpJsonRpcMessage>(value.clone()) else {
-                return;
-            };
+        if let Some(callback) = &self.on_output_message
+            && let Ok(message) = serde_json::from_value::<AcpJsonRpcMessage>(value.clone())
+        {
             callback(self.direction, message);
         }
-        if let Some(callback) = &self.on_message {
-            let Ok(message) = serde_json::from_value::<AcpJsonRpcMessage>(value) else {
-                return;
-            };
+        if let Some(callback) = &self.on_message
+            && let Ok(message) = serde_json::from_value::<AcpJsonRpcMessage>(value)
+        {
             callback(self.direction, message);
         }
     }

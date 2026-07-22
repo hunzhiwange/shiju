@@ -74,6 +74,22 @@ pub(crate) struct AgentBrowserResponse {
     pub(crate) error: Option<String>,
 }
 
+fn response_from_output(status_success: bool, stdout: &str, stderr: &str) -> AgentBrowserResponse {
+    if let Ok(response) = serde_json::from_str::<AgentBrowserResponse>(stdout) {
+        return response;
+    }
+
+    if status_success {
+        AgentBrowserResponse {
+            success: true,
+            data: Some(json!({ "output": stdout.trim() })),
+            error: None,
+        }
+    } else {
+        AgentBrowserResponse { success: false, data: None, error: Some(stderr.trim().to_string()) }
+    }
+}
+
 impl BrowserTool {
     /// 检查 `agent-browser` CLI 工具是否已安装并可用
     ///
@@ -173,27 +189,7 @@ impl BrowserTool {
             debug!("agent-browser stderr: {}", stderr);
         }
 
-        // 优先尝试解析 JSON 响应格式
-        if let Ok(resp) = serde_json::from_str::<AgentBrowserResponse>(&stdout) {
-            return Ok(resp);
-        }
-
-        // 兼容处理：对于非 JSON 输出，根据退出码构造响应
-        if output.status.success() {
-            // 命令执行成功，将原始输出包装为 JSON 格式
-            Ok(AgentBrowserResponse {
-                success: true,
-                data: Some(json!({ "output": stdout.trim() })),
-                error: None,
-            })
-        } else {
-            // 命令执行失败，返回错误信息
-            Ok(AgentBrowserResponse {
-                success: false,
-                data: None,
-                error: Some(stderr.trim().to_string()),
-            })
-        }
+        Ok(response_from_output(output.status.success(), &stdout, &stderr))
     }
 
     /// 执行浏览器操作并将其转换为工具结果

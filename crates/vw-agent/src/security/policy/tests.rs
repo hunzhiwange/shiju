@@ -206,3 +206,47 @@ fn normalize_path_collapses_dot_and_parent_components() {
     );
     assert_eq!(normalize_path(Path::new("src/./lib.rs")), PathBuf::from("src/lib.rs"));
 }
+
+#[test]
+fn shell_permission_rejects_read_only_writes_and_variable_expansion() {
+    let read_only = SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        allowed_commands: vec!["touch".into()],
+        ..SecurityPolicy::default()
+    };
+    let write = read_only.check_shell_permission("touch file", &context(&read_only, true));
+    assert!(matches!(write.permission, Some(Permission::Deny { .. })));
+
+    let policy =
+        SecurityPolicy { allowed_commands: vec!["echo".into()], ..SecurityPolicy::default() };
+    let expansion = policy.check_shell_permission("echo $HOME", &context(&policy, true));
+    assert!(matches!(expansion.permission, Some(Permission::Deny { .. })));
+}
+
+#[test]
+fn shell_permission_reports_paths_outside_the_workspace() {
+    let policy = SecurityPolicy {
+        workspace_dir: PathBuf::from("/workspace"),
+        allowed_commands: vec!["cat".into()],
+        ..SecurityPolicy::default()
+    };
+
+    let result = policy.check_shell_permission("cat /outside/file", &context(&policy, true));
+
+    assert!(
+        matches!(result.permission, Some(Permission::Deny { ref reason }) if reason.contains("Path blocked"))
+    );
+}
+
+#[test]
+fn path_violation_guidance_changes_when_allowed_roots_exist() {
+    let policy = SecurityPolicy {
+        allowed_roots: vec![PathBuf::from("/shared")],
+        ..SecurityPolicy::default()
+    };
+
+    let message = policy.resolved_path_violation_message(Path::new("/outside/file"));
+
+    assert!(message.contains("matching parent directory"));
+    assert!(!message.contains("for example"));
+}

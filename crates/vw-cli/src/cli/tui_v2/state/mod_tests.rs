@@ -100,6 +100,31 @@ fn session_preview_conversions_and_refresh_cover_empty_session_id() {
 }
 
 #[test]
+fn session_preview_from_chat_session_uses_last_message_and_snapshot_counts() {
+    let session = ChatSession {
+        id: "snapshot".to_string(),
+        title: "Snapshot".to_string(),
+        messages: vec![ChatMessage {
+            role: ChatRole::Assistant,
+            content: "latest answer".to_string(),
+            think_timing: Vec::new(),
+        }],
+        message_ids: vec![None],
+        calls: vec![json!({"call": 1}), json!({"call": 2})],
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 9,
+    };
+
+    let preview = TuiSessionPreview::from_chat_session(&session);
+
+    assert_eq!(preview.id, "snapshot");
+    assert_eq!(preview.message_count, 1);
+    assert_eq!(preview.call_count, 2);
+    assert_eq!(preview.last_content.as_deref(), Some("latest answer"));
+}
+
+#[test]
 fn tool_snapshot_parsing_handles_json_error_and_plain_payloads() {
     let snapshot = ChatSession {
         id: "tools".to_string(),
@@ -234,4 +259,9 @@ fn model_catalog_entry_formats_detail_and_matches_queries() {
     assert!(entry.matches_query("ANTHROPIC/CLAUDE"));
     assert!(entry.matches_query(" "));
     assert!(!entry.matches_query("gemini"));
+
+    let unnamed = TuiModelCatalogEntry { model_name: "  ".to_string(), ..entry.clone() };
+    let matching = TuiModelCatalogEntry { model_name: "claude".to_string(), ..entry };
+    assert_eq!(unnamed.suggestion_detail(), "供应商: Anthropic");
+    assert_eq!(matching.suggestion_detail(), "供应商: Anthropic");
 }

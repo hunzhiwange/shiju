@@ -1,34 +1,22 @@
 use super::*;
 
-use serde_json::{Map, Value};
 use std::thread;
 
 #[test]
-fn global_logger_initializes_and_accepts_llm_tags() {
-    let mut extra = Map::new();
-    extra.insert("requestID".to_string(), Value::String("logging-test".to_string()));
+fn global_logger_reuses_the_same_instance() {
+    let first = &*LOGGER;
+    let second = &*LOGGER;
 
-    LOGGER
-        .clone_logger()
-        .tag("providerID", "test-provider")
-        .tag("modelID", "test-model")
-        .info("llm logging test", Some(extra));
+    assert!(std::ptr::eq(first, second));
 }
 
 #[test]
-fn cloned_loggers_can_be_used_from_multiple_threads() {
-    let handles = (0..4)
-        .map(|idx| {
-            thread::spawn(move || {
-                LOGGER
-                    .clone_logger()
-                    .tag("worker", &idx.to_string())
-                    .info("llm logging thread test", None);
-            })
-        })
-        .collect::<Vec<_>>();
+fn global_logger_reference_is_shared_across_threads() {
+    let expected_address = std::ptr::from_ref(&*LOGGER) as usize;
+    let handles =
+        (0..4).map(|_| thread::spawn(|| std::ptr::from_ref(&*LOGGER) as usize)).collect::<Vec<_>>();
 
     for handle in handles {
-        handle.join().expect("logger thread should not panic");
+        assert_eq!(handle.join().expect("logger access should not panic"), expected_address);
     }
 }

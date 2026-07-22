@@ -1,49 +1,112 @@
-//! SkillTool 工具的单元测试模块
+//! `SkillTool` 的聚焦单元测试。
 //!
-//! 本模块包含针对 `SkillTool` 的测试用例，主要验证工具的 JSON Schema 定义
-//! 是否符合预期的结构和必需字段要求。
-//!
-//! # 测试覆盖
-//!
-//! - Schema 结构验证：确保返回的 schema 是有效的 JSON 对象格式
-//! - 必需字段验证：确保 `name` 字段被正确标记为必需字段
+//! 这里覆盖参数解析、工具元数据、安全策略拒绝和同步/异步桥接等无需真实技能目录、
+//! 用户交互或外部进程的确定性行为。
 
-use super::super::*;
+use super::{Args, SkillTool, block_on};
+use crate::app::agent::config;
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use crate::app::agent::tools::traits::Tool;
 use serde_json::json;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-/// 测试 SkillTool 的 schema 包含所有必需字段
-///
-/// 此测试验证 `SkillTool::schema()` 返回的 JSON Schema 符合以下要求：
-///
-/// # 验证项
-///
-/// 1. **类型验证**：schema 的顶层 `type` 字段应为 `"object"`
-/// 2. **属性验证**：`properties` 中必须包含 `name` 字段，且其为对象类型
-/// 3. **必需字段验证**：`required` 数组应包含 `"name"` 字符串
-///
-/// # 示例
-///
-/// 期望的 schema 结构示例：
-/// ```json
-/// {
-///     "type": "object",
-///     "properties": {
-///         "name": { ... }
-///     },
-///     "required": ["name"]
-/// }
-/// ```
+fn tool_with_security(security: SecurityPolicy) -> SkillTool {
+    SkillTool {
+        security: Arc::new(security),
+        session_id: "skill-test-session".to_string(),
+        force_prompt_on_allow: false,
+        workspace_dir: PathBuf::from("unused-skill-test-workspace"),
+        root_config: Arc::new(config::Config::default()),
+        description_text: Arc::from("cached skill description"),
+    }
+}
+
 #[test]
-fn skill_schema_has_required_fields() {
-    // 获取 SkillTool 的 JSON Schema 定义
-    let schema = SkillTool::schema();
+fn args_deserialize_name_and_ignore_unknown_fields() {
+    let args: Args = serde_json::from_value(json!({
+        "name": "rustcodegraph",
+        "ignored": true,
+    }))
+    .expect("valid skill arguments should deserialize");
 
-    // 验证 schema 类型为对象
-    assert_eq!(schema["type"], "object");
+    assert_eq!(args.name, "rustcodegraph");
+}
 
-    // 验证 properties 中存在 name 字段，且其为对象类型
-    assert!(schema["properties"]["name"].is_object());
+#[test]
+fn args_reject_missing_or_non_string_name() {
+    let missing = serde_json::from_value::<Args>(json!({}));
+    let non_string = serde_json::from_value::<Args>(json!({ "name": 239 }));
 
-    // 验证 name 字段被标记为必需字段
-    assert_eq!(schema["required"], json!(["name"]));
+    assert!(missing.is_err());
+    assert!(non_string.is_err());
+}
+
+#[test]
+fn tool_metadata_uses_stable_name_schema_and_cached_description() {
+    let tool = tool_with_security(SecurityPolicy::default());
+
+    assert_eq!(tool.name(), "skill");
+    assert_eq!(tool.description(), "cached skill description");
+    assert_eq!(tool.parameters_schema(), SkillTool::schema());
+}
+
+#[tokio::test]
+async fn execute_rejects_action_in_read_only_mode_before_parsing_arguments() {
+    let security =
+        SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() };
+    let tool = tool_with_security(security);
+
+    let result = tool.execute(json!({})).await.expect("tool execution should return a result");
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert_eq!(
+        result.error.as_deref(),
+        Some("Security policy: read-only mode, cannot perform 'skill'")
+    );
+}
+
+#[tokio::test]
+async fn execute_rejects_action_when_budget_is_exhausted() {
+    let security = SecurityPolicy { max_actions_per_hour: 0, ..SecurityPolicy::default() };
+    let tool = tool_with_security(security);
+
+    let result = tool
+        .execute(json!({ "name": "unused" }))
+        .await
+        .expect("tool execution should return a result");
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert_eq!(result.error.as_deref(), Some("Rate limit exceeded: action budget exhausted"));
+}
+
+#[tokio::test]
+async fn execute_reports_invalid_parameters_without_loading_skills() {
+    let tool = tool_with_security(SecurityPolicy::default());
+
+    let result = tool
+        .execute(json!({ "name": false }))
+        .await
+        .expect("tool execution should return a result");
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert!(
+        result
+            .error
+            .as_deref()
+            .is_some_and(|error| error.starts_with("Missing or invalid parameters:"))
+    );
+}
+
+#[test]
+fn block_on_completes_future_without_existing_runtime() {
+    assert_eq!(block_on(async { 239_u16 }), 239);
+}
+
+#[tokio::test]
+async fn block_on_completes_future_inside_existing_runtime() {
+    assert_eq!(block_on(async { "bridged" }), "bridged");
 }

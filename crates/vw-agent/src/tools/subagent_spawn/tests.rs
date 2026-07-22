@@ -20,7 +20,60 @@
 use super::super::*;
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use async_trait::async_trait;
 use serde_json::json;
+use std::sync::Mutex;
+
+#[derive(Debug, PartialEq)]
+struct RecordedChatCall {
+    system_prompt: Option<String>,
+    message: String,
+    model: String,
+    temperature: f64,
+}
+
+struct StubProvider {
+    reply: Result<String, String>,
+    calls: Mutex<Vec<RecordedChatCall>>,
+}
+
+impl StubProvider {
+    fn succeeding(response: &str) -> Self {
+        Self { reply: Ok(response.to_string()), calls: Mutex::new(Vec::new()) }
+    }
+
+    fn failing(error: &str) -> Self {
+        Self { reply: Err(error.to_string()), calls: Mutex::new(Vec::new()) }
+    }
+
+    fn calls(&self) -> std::sync::MutexGuard<'_, Vec<RecordedChatCall>> {
+        self.calls.lock().unwrap()
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Provider for StubProvider {
+    async fn chat_with_system(
+        &self,
+        system_prompt: Option<&str>,
+        message: &str,
+        model: &str,
+        temperature: f64,
+    ) -> anyhow::Result<String> {
+        self.calls.lock().unwrap().push(RecordedChatCall {
+            system_prompt: system_prompt.map(str::to_string),
+            message: message.to_string(),
+            model: model.to_string(),
+            temperature,
+        });
+
+        match &self.reply {
+            Ok(response) => Ok(response.clone()),
+            Err(error) => Err(anyhow::anyhow!(error.clone())),
+        }
+    }
+}
 
 /// 创建用于测试的默认安全策略
 ///
@@ -142,6 +195,56 @@ fn subagent_spawn_uses_workspace_identity_context_without_agent_prompt() {
     assert_eq!(merged, "## Project Context\n\nIDENTITY");
 }
 
+#[test]
+fn merged_system_prompt_orders_workspace_skill_and_agent_sections() {
+    let tool = make_tool(sample_agents(), test_security())
+        .with_workspace_identity_context("workspace identity".to_string())
+        .with_skill_contexts(HashMap::from([(
+            "researcher".to_string(),
+            "skill instructions".to_string(),
+        )]));
+
+    let merged = tool.merged_system_prompt("researcher", Some("  agent prompt  "));
+
+    assert_eq!(merged.as_deref(), Some("workspace identity\n\nskill instructions\n\nagent prompt"));
+}
+
+#[test]
+fn merged_system_prompt_ignores_blank_sections() {
+    let tool = make_tool(sample_agents(), test_security())
+        .with_workspace_identity_context("  \n ".to_string())
+        .with_skill_contexts(HashMap::from([("researcher".to_string(), "  ".to_string())]));
+
+    assert_eq!(tool.merged_system_prompt("researcher", Some(" \n ")), None);
+}
+
+#[test]
+fn merged_system_prompt_ignores_skill_context_for_other_agent() {
+    let tool = make_tool(sample_agents(), test_security()).with_skill_contexts(HashMap::from([(
+        "writer".to_string(),
+        "writer-only instructions".to_string(),
+    )]));
+
+    assert_eq!(
+        tool.merged_system_prompt("researcher", Some("research prompt")).as_deref(),
+        Some("research prompt")
+    );
+}
+
+#[test]
+fn context_builders_replace_previous_values() {
+    let tool = make_tool(sample_agents(), test_security())
+        .with_workspace_identity_context("old workspace".to_string())
+        .with_workspace_identity_context("new workspace".to_string())
+        .with_skill_contexts(HashMap::from([("researcher".to_string(), "old skill".to_string())]))
+        .with_skill_contexts(HashMap::from([("researcher".to_string(), "new skill".to_string())]));
+
+    assert_eq!(
+        tool.merged_system_prompt("researcher", None).as_deref(),
+        Some("new workspace\n\nnew skill")
+    );
+}
+
 /// 测试工具名称和参数 schema 的正确性
 ///
 /// 验证：
@@ -161,6 +264,17 @@ fn name_and_schema() {
     assert!(required.contains(&json!("agent")));
     assert!(required.contains(&json!("task")));
     assert_eq!(schema["additionalProperties"], json!(false));
+}
+
+#[test]
+fn schema_reports_when_no_agents_are_configured() {
+    let tool = make_tool(HashMap::new(), test_security());
+
+    let schema = tool.parameters_schema();
+
+    assert_eq!(schema["properties"]["agent"]["minLength"], json!(1));
+    assert_eq!(schema["properties"]["task"]["minLength"], json!(1));
+    assert!(schema["properties"]["agent"]["description"].as_str().unwrap().contains("（未配置）"));
 }
 
 /// 测试工具描述不为空
@@ -192,6 +306,25 @@ async fn missing_task_param() {
     let tool = make_tool(sample_agents(), test_security());
     let result = tool.execute(json!({"agent": "researcher"})).await;
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn non_string_required_parameters_are_rejected() {
+    let tool = make_tool(sample_agents(), test_security());
+
+    let agent_error = tool
+        .execute(json!({"agent": 7, "task": "work"}))
+        .await
+        .err()
+        .expect("non-string agent should return an error");
+    assert!(agent_error.to_string().contains("Missing 'agent' parameter"));
+
+    let task_error = tool
+        .execute(json!({"agent": "researcher", "task": false}))
+        .await
+        .err()
+        .expect("non-string task should return an error");
+    assert!(task_error.to_string().contains("Missing 'task' parameter"));
 }
 
 /// 测试空白 agent 名称被拒绝
@@ -230,6 +363,19 @@ async fn unknown_agent_returns_error() {
     assert!(result.error.unwrap().contains("Unknown agent"));
 }
 
+#[tokio::test]
+async fn unknown_agent_error_lists_available_agents() {
+    let tool = make_tool(sample_agents(), test_security());
+
+    let result = tool.execute(json!({"agent": "writer", "task": "test"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(
+        result.error.as_deref(),
+        Some("Unknown agent 'writer'. Available agents: researcher")
+    );
+}
+
 /// 测试只读模式下 spawn 被阻止
 ///
 /// 当安全策略的自主级别设置为 ReadOnly 时，
@@ -243,6 +389,40 @@ async fn spawn_blocked_in_readonly_mode() {
     let result = tool.execute(json!({"agent": "researcher", "task": "test"})).await.unwrap();
     assert!(!result.success);
     assert!(result.error.as_deref().unwrap_or("").contains("read-only mode"));
+}
+
+#[tokio::test]
+async fn spawn_called_via_agent_tool_skips_duplicate_security_enforcement() {
+    let readonly =
+        Arc::new(SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() });
+    let tool = make_tool(HashMap::new(), readonly);
+
+    let result = tool
+        .execute(json!({
+            "_via_agent_tool": true,
+            "agent": "researcher",
+            "task": "test"
+        }))
+        .await
+        .unwrap();
+
+    assert!(!result.success);
+    assert!(result.error.as_deref().unwrap().contains("Unknown agent"));
+    assert!(!result.error.as_deref().unwrap().contains("read-only mode"));
+}
+
+#[tokio::test]
+async fn invalid_provider_returns_creation_error_without_spawning() {
+    let mut agents = sample_agents();
+    agents.get_mut("researcher").unwrap().provider = "not-a-provider".to_string();
+    let tool = make_tool(agents, test_security());
+
+    let result = tool.execute(json!({"agent": "researcher", "task": "test"})).await.unwrap();
+
+    assert!(!result.success);
+    let error = result.error.as_deref().unwrap();
+    assert!(error.contains("Failed to create provider 'not-a-provider'"));
+    assert!(error.contains("agent 'researcher'"));
 }
 
 /// 测试速率限制时 spawn 被阻止
@@ -350,4 +530,135 @@ async fn schema_lists_agent_names() {
     let schema = tool.parameters_schema();
     let desc = schema["properties"]["agent"]["description"].as_str().unwrap();
     assert!(desc.contains("researcher"));
+}
+
+#[tokio::test]
+async fn simple_background_formats_response_and_forwards_configuration() {
+    let agents = sample_agents();
+    let config = agents.get("researcher").unwrap();
+    let provider = StubProvider::succeeding("research result");
+
+    let result = run_simple_background(
+        "researcher",
+        config,
+        &provider,
+        Some("system instructions"),
+        "full prompt",
+    )
+    .await
+    .unwrap();
+
+    assert!(result.success);
+    assert_eq!(result.output, "[Agent 'researcher' (ollama/llama3)]\nresearch result");
+    assert_eq!(result.error, None);
+    assert_eq!(
+        provider.calls().as_slice(),
+        [RecordedChatCall {
+            system_prompt: Some("system instructions".to_string()),
+            message: "full prompt".to_string(),
+            model: "llama3".to_string(),
+            temperature: 0.3,
+        }]
+    );
+}
+
+#[tokio::test]
+async fn simple_background_renders_empty_response_and_uses_default_temperature() {
+    let mut agents = sample_agents();
+    let config = agents.get_mut("researcher").unwrap();
+    config.temperature = None;
+    let provider = StubProvider::succeeding(" \n ");
+
+    let result =
+        run_simple_background("researcher", config, &provider, None, "task").await.unwrap();
+
+    assert!(result.success);
+    assert!(result.output.ends_with("\n[Empty response]"));
+    assert_eq!(provider.calls()[0].temperature, 0.7);
+    assert_eq!(provider.calls()[0].system_prompt, None);
+}
+
+#[tokio::test]
+async fn simple_background_converts_provider_error_to_failed_tool_result() {
+    let agents = sample_agents();
+    let config = agents.get("researcher").unwrap();
+    let provider = StubProvider::failing("upstream unavailable");
+
+    let result =
+        run_simple_background("researcher", config, &provider, None, "task").await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.output, "");
+    assert_eq!(result.error.as_deref(), Some("Agent 'researcher' failed: upstream unavailable"));
+    assert_eq!(provider.calls().len(), 1);
+}
+
+#[tokio::test]
+async fn agentic_background_rejects_empty_allowed_tools() {
+    let mut agents = sample_agents();
+    let config = agents.get_mut("researcher").unwrap();
+    config.agentic = true;
+    let provider = StubProvider::succeeding("unused");
+    let multimodal_config = crate::app::agent::config::MultimodalConfig::default();
+
+    let result = run_agentic_background(
+        "researcher",
+        config,
+        &provider,
+        None,
+        "task",
+        &[],
+        &multimodal_config,
+        test_security(),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.success);
+    assert_eq!(
+        result.error.as_deref(),
+        Some("Agent 'researcher' has agentic=true but allowed_tools is empty")
+    );
+    assert!(provider.calls().is_empty());
+}
+
+#[tokio::test]
+async fn agentic_background_rejects_allowlist_without_executable_tools() {
+    let mut agents = sample_agents();
+    let config = agents.get_mut("researcher").unwrap();
+    config.agentic = true;
+    config.allowed_tools = vec!["missing_tool".to_string()];
+    let provider = StubProvider::succeeding("unused");
+    let multimodal_config = crate::app::agent::config::MultimodalConfig::default();
+
+    let result = run_agentic_background(
+        "researcher",
+        config,
+        &provider,
+        None,
+        "task",
+        &[],
+        &multimodal_config,
+        test_security(),
+    )
+    .await
+    .unwrap();
+
+    assert!(!result.success);
+    assert_eq!(
+        result.error.as_deref(),
+        Some("Agent 'researcher' has no executable tools after filtering allowlist (missing_tool)")
+    );
+    assert!(provider.calls().is_empty());
+}
+
+#[test]
+fn noop_observer_discards_events_and_metrics_and_supports_downcast() {
+    let observer = NoopObserver;
+
+    observer.record_event(&ObserverEvent::TurnComplete);
+    observer.record_metric(&ObserverMetric::ActiveSessions(1));
+
+    assert_eq!(observer.name(), "noop");
+    assert!(observer.as_any().is::<NoopObserver>());
 }

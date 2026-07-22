@@ -24,7 +24,8 @@ fn filepath() -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests;
+#[path = "mod_tests.rs"]
+mod mod_tests;
 
 /// 读取指定 provider 的认证信息。
 ///

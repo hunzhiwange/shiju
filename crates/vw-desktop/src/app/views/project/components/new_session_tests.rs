@@ -8,6 +8,14 @@ fn test_module_is_wired() {
 use super::*;
 use crate::app::message::ProjectMessage;
 
+fn test_app() -> crate::app::App {
+    crate::app::App::new().0
+}
+
+fn keep_element(element: Element<'_, Message>) {
+    std::hint::black_box(element);
+}
+
 fn color_from_background(background: Option<Background>) -> Color {
     match background {
         Some(Background::Color(color)) => color,
@@ -69,10 +77,13 @@ fn create_worktree_button_style_uses_blue_state_colors() {
         create_worktree_button_style(&Theme::Light, iced::widget::button::Status::Hovered);
     let pressed =
         create_worktree_button_style(&Theme::Light, iced::widget::button::Status::Pressed);
+    let disabled =
+        create_worktree_button_style(&Theme::Light, iced::widget::button::Status::Disabled);
 
     assert_color_near(color_from_background(active.background), Color::from_rgb8(59, 130, 246));
     assert_color_near(color_from_background(hovered.background), Color::from_rgb8(37, 99, 235));
     assert_color_near(color_from_background(pressed.background), Color::from_rgb8(29, 78, 216));
+    assert_color_near(color_from_background(disabled.background), Color::from_rgb8(59, 130, 246));
 }
 
 #[test]
@@ -141,12 +152,18 @@ fn worktree_display_name_uses_file_name_when_available() {
 }
 
 #[test]
+fn worktree_display_name_preserves_root_when_file_name_is_unavailable() {
+    assert_eq!(worktree_display_name("/"), "/");
+}
+
+#[test]
 fn project_display_title_prefers_non_empty_edit_name() {
     let projects = vec!["/repo/a".to_owned(), "/repo/b".to_owned()];
     let edits = vec![" Alpha ".to_owned(), "   ".to_owned()];
 
     assert_eq!(project_display_title("/repo/a", &projects, &edits), " Alpha ");
     assert_eq!(project_display_title("/repo/b", &projects, &edits), "/repo/b");
+    assert_eq!(project_display_title("/repo/a", &projects, &[]), "/repo/a");
     assert_eq!(project_display_title("/repo/missing", &projects, &edits), "/repo/missing");
 }
 
@@ -200,4 +217,71 @@ fn worktree_messages_carry_expected_payloads() {
         }
         other => panic!("unexpected message: {other:?}"),
     }
+}
+
+#[test]
+fn new_session_button_builds_inactive_and_active_states() {
+    let mut app = test_app();
+
+    keep_element(new_session_button(&app, "/repo/app".to_owned()));
+
+    app.new_session_picker_project = Some("/repo/app".to_owned());
+    keep_element(new_session_button(&app, "/repo/app".to_owned()));
+}
+
+#[test]
+fn picker_layer_builds_empty_overlay_when_no_project_selected() {
+    let app = test_app();
+
+    keep_element(new_session_picker_layer(&app));
+}
+
+#[test]
+fn picker_layer_builds_loading_state_for_selected_project() {
+    let mut app = test_app();
+    app.new_session_picker_project = Some("/repo/app".to_owned());
+    app.recent_projects = vec!["/repo/app".to_owned()];
+    app.recent_projects_edits = vec!["App".to_owned()];
+
+    keep_element(new_session_picker_layer(&app));
+}
+
+#[test]
+fn picker_layer_builds_worktree_options_and_create_form() {
+    let mut app = test_app();
+    app.new_session_picker_project = Some("/repo/app".to_owned());
+    app.new_session_picker_options = vec![
+        ("/repo/app".to_owned(), "主工作区".to_owned()),
+        ("/repo/app-feature".to_owned(), "feature".to_owned()),
+        ("__create_worktree__".to_owned(), "创建新工作区".to_owned()),
+    ];
+    app.new_session_worktree_name = "feature-login".to_owned();
+
+    keep_element(new_session_picker_layer(&app));
+}
+
+#[test]
+fn picker_layer_builds_error_and_confirmation_panels() {
+    let mut app = test_app();
+    app.new_session_picker_project = Some("/repo/app".to_owned());
+    app.new_session_picker_options = vec![("/repo/app-feature".to_owned(), "feature".to_owned())];
+    app.new_session_delete_error = Some("dirty worktree".to_owned());
+    app.new_session_reset_error = Some("reset failed".to_owned());
+    app.new_session_confirm_delete_directory = Some("/repo/app-feature".to_owned());
+    app.new_session_force_delete_directory = Some("/repo/app-force".to_owned());
+    app.new_session_confirm_reset_directory = Some("/repo/app-reset".to_owned());
+
+    keep_element(new_session_picker_layer(&app));
+}
+
+#[test]
+fn picker_layer_builds_with_long_custom_project_title_and_small_window_height() {
+    let mut app = test_app();
+    app.window_size = (900.0, 120.0);
+    app.new_session_picker_project = Some("/repo/app".to_owned());
+    app.recent_projects = vec!["/repo/app".to_owned()];
+    app.recent_projects_edits = vec!["非常非常非常非常非常非常非常非常长的项目显示名称".to_owned()];
+    app.new_session_picker_options = vec![("/repo/app".to_owned(), "主工作区".to_owned())];
+
+    keep_element(new_session_picker_layer(&app));
 }

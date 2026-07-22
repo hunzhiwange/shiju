@@ -18,7 +18,7 @@
 //! - 错误消息格式验证
 
 use super::super::*;
-use super::{Kind, Options, assert_external_directory};
+use super::{Kind, Options, assert_external_directory, normalize_path, resolve_full_path};
 use crate::app::agent::security::AutonomyLevel;
 use std::path::PathBuf;
 
@@ -45,6 +45,27 @@ fn test_policy(workspace: PathBuf) -> SecurityPolicy {
         workspace_dir: workspace,
         ..SecurityPolicy::default()
     }
+}
+
+#[test]
+fn default_options_enforce_file_checks() {
+    let options = Options::default();
+
+    assert!(!options.bypass);
+    assert_eq!(options.kind, Kind::File);
+}
+
+#[test]
+fn relative_paths_are_trimmed_joined_and_normalized() {
+    let workspace = PathBuf::from(std::path::MAIN_SEPARATOR_STR).join("workspace");
+    let policy = test_policy(workspace.clone());
+
+    let resolved = resolve_full_path(&policy, "  nested/../target.txt  ");
+
+    assert_eq!(normalize_path(&resolved), workspace.join("target.txt"));
+
+    let absolute = PathBuf::from(std::path::MAIN_SEPARATOR_STR).join("external").join("data.txt");
+    assert_eq!(resolve_full_path(&policy, &format!("  {}  ", absolute.display())), absolute);
 }
 
 /// 测试空目标路径是否返回成功
@@ -150,6 +171,42 @@ async fn outside_workspace_is_denied_without_allowlist() {
     assert!(err.contains("workspace allowlist") || err.contains("allowed_roots"));
 }
 
+#[tokio::test]
+async fn outside_file_denial_reports_parent_directory() {
+    let root = tempfile::TempDir::new().unwrap();
+    let policy = test_policy(root.path().to_path_buf());
+    let outside_parent = root.path().parent().unwrap().join("external_file_parent");
+    let outside_file = outside_parent.join("secret.txt");
+
+    let err = assert_external_directory(
+        &policy,
+        Some(outside_file.to_string_lossy().as_ref()),
+        Some(Options { bypass: false, kind: Kind::File }),
+    )
+    .await
+    .unwrap_err();
+
+    assert!(err.contains(outside_parent.to_string_lossy().as_ref()));
+    assert!(!err.contains("secret.txt"));
+}
+
+#[tokio::test]
+async fn outside_file_denial_reports_original_path_when_parent_is_missing() {
+    let root = tempfile::TempDir::new().unwrap();
+    let policy = test_policy(root.path().to_path_buf());
+    let filesystem_root = PathBuf::from(std::path::MAIN_SEPARATOR_STR);
+
+    let err = assert_external_directory(
+        &policy,
+        Some(filesystem_root.to_string_lossy().as_ref()),
+        Some(Options { bypass: false, kind: Kind::File }),
+    )
+    .await
+    .unwrap_err();
+
+    assert!(err.contains(filesystem_root.to_string_lossy().as_ref()));
+}
+
 /// 测试允许列表中的路径访问权限
 ///
 /// # 测试场景
@@ -189,6 +246,24 @@ async fn allowed_roots_path_is_allowed() {
             &policy,
             Some(allowed.path().to_string_lossy().as_ref()),
             Some(Options { bypass: false, kind: Kind::Directory }),
+        )
+        .await
+        .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn tool_output_directory_is_allowed_outside_workspace() {
+    let root = tempfile::TempDir::new().unwrap();
+    let policy = test_policy(root.path().to_path_buf());
+    let tool_output_file =
+        crate::app::agent::global::paths().data.join("tool-output").join("result.txt");
+
+    assert!(
+        assert_external_directory(
+            &policy,
+            Some(tool_output_file.to_string_lossy().as_ref()),
+            Some(Options { bypass: false, kind: Kind::File }),
         )
         .await
         .is_ok()

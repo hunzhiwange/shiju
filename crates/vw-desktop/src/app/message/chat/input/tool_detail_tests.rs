@@ -27,6 +27,17 @@ fn tool_detail_from_raw_marks_error_title_and_uses_error_text() {
 }
 
 #[test]
+fn tool_detail_from_raw_marks_denied_title_and_uses_output_text() {
+    let raw = r#"tool shell
+{"status":"denied","output":"blocked by policy"}"#;
+
+    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+
+    assert!(title.ends_with("失败"));
+    assert_eq!(content, "blocked by policy");
+}
+
+#[test]
 fn tool_detail_from_raw_marks_running_title() {
     let raw = r#"tool shell
 {"status":"running","output":""}"#;
@@ -44,6 +55,42 @@ fn tool_detail_from_raw_falls_back_to_trimmed_rest_for_non_json() {
 
     assert_eq!(title, "工具");
     assert_eq!(content, "plain output");
+}
+
+#[test]
+fn tool_detail_from_raw_preserves_trimmed_json_without_output_or_error() {
+    let raw = "  tool shell  \n  {\"status\":\"success\",\"metadata\":{\"attempt\":1}}  ";
+
+    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+
+    assert!(!title.ends_with("失败"));
+    assert!(!title.ends_with("运行中"));
+    assert_eq!(content, r#"{"status":"success","metadata":{"attempt":1}}"#);
+}
+
+#[test]
+fn tool_detail_from_raw_formats_mcp_json_and_uses_mcp_title() {
+    let raw = r#"tool MCP
+{"status":"success","output":"[{\"server\":{\"name\":\"rustcodegraph\"}}]"}"#;
+
+    let (title, content) = super::tool_detail_from_raw(raw).expect("valid MCP detail");
+
+    assert_eq!(title, "MCP");
+    assert_eq!(
+        content,
+        "[\n  {\n    \"server\": {\n      \"name\": \"rustcodegraph\"\n    }\n  }\n]"
+    );
+}
+
+#[test]
+fn tool_detail_from_raw_formats_generic_mcp_payload() {
+    let raw = r#"tool tools
+{"status":"success","output":"[{\"server\":{\"name\":\"rustcodegraph\"},\"resources\":[]}]"}"#;
+
+    let (title, content) = super::tool_detail_from_raw(raw).expect("valid MCP detail");
+
+    assert_eq!(title, "MCP");
+    assert!(content.contains("\"resources\": []"));
 }
 
 #[test]
@@ -102,4 +149,208 @@ fn tool_detail_scroll_helpers_clamp_to_available_lines() {
 
     super::apply_tool_detail_scroll_lines(&mut app, -10);
     assert_eq!(app.tool_detail_dialog.as_ref().expect("dialog").scroll_top_line, 0.0);
+}
+
+#[test]
+fn tool_detail_handlers_are_safe_without_an_open_dialog() {
+    let (mut app, _task) = crate::app::App::new();
+
+    super::handle_tool_detail_editor_action(&mut app, iced::widget::text_editor::Action::SelectAll);
+    super::handle_tool_detail_open_context_menu(&mut app, 1.0, 2.0);
+    super::handle_tool_detail_close_context_menu(&mut app);
+    super::handle_tool_detail_context_menu_copy(&mut app);
+    super::handle_tool_detail_context_menu_cut(&mut app);
+    super::handle_tool_detail_context_menu_paste(&mut app);
+    super::handle_tool_detail_context_menu_delete(&mut app);
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
+        20.0,
+    );
+    super::handle_tool_detail_scrollbar_changed(&mut app, 2.0, 20.0);
+    super::apply_tool_detail_scroll_lines(&mut app, 1);
+
+    assert!(app.tool_detail_dialog.is_none());
+    assert_eq!(super::tool_detail_max_scroll_top_line(&app), 0.0);
+}
+
+#[test]
+fn context_menu_handlers_update_state_and_preserve_unselected_content() {
+    let (mut app, _task) = crate::app::App::new();
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\nhello".into());
+
+    super::handle_tool_detail_open_context_menu(&mut app, 12.0, 24.0);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert!(dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, Some((12.0, 24.0)));
+
+    super::handle_tool_detail_context_menu_copy(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+    assert_eq!(dialog.editor.text(), "hello");
+
+    super::handle_tool_detail_open_context_menu(&mut app, 3.0, 4.0);
+    super::handle_tool_detail_context_menu_paste(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+    assert_eq!(dialog.editor.text(), "hello");
+
+    super::handle_tool_detail_open_context_menu(&mut app, 5.0, 6.0);
+    super::handle_tool_detail_close_context_menu(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+}
+
+#[test]
+fn cut_and_delete_handlers_remove_selected_content_and_close_menu() {
+    let (mut app, _task) = crate::app::App::new();
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\ncut me".into());
+    {
+        let dialog = app.tool_detail_dialog.as_mut().expect("dialog");
+        dialog.editor.perform(iced::widget::text_editor::Action::SelectAll);
+        dialog.context_menu_open = true;
+        dialog.context_menu_pos = Some((1.0, 2.0));
+    }
+
+    super::handle_tool_detail_context_menu_cut(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.editor.text(), "");
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+
+    super::handle_tool_detail_editor_action(
+        &mut app,
+        iced::widget::text_editor::Action::Edit(iced::widget::text_editor::Edit::Paste(
+            std::sync::Arc::new("delete me".to_string()),
+        )),
+    );
+    {
+        let dialog = app.tool_detail_dialog.as_mut().expect("dialog");
+        dialog.editor.perform(iced::widget::text_editor::Action::SelectAll);
+        dialog.context_menu_open = true;
+        dialog.context_menu_pos = Some((3.0, 4.0));
+    }
+
+    super::handle_tool_detail_context_menu_delete(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.editor.text(), "");
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+}
+
+#[test]
+fn editor_scroll_action_updates_position_and_closes_context_menu() {
+    let (mut app, _task) = crate::app::App::new();
+    app.current_line_height = 10.0;
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\none\ntwo\nthree\nfour".into());
+    {
+        let dialog = app.tool_detail_dialog.as_mut().expect("dialog");
+        dialog.viewport_height = 20.0;
+        dialog.context_menu_open = true;
+        dialog.context_menu_pos = Some((8.0, 9.0));
+    }
+
+    super::handle_tool_detail_editor_action(
+        &mut app,
+        iced::widget::text_editor::Action::Scroll { lines: 2 },
+    );
+
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 2.0);
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+}
+
+#[test]
+fn wheel_scroll_accumulates_fractional_lines_and_supports_pixels() {
+    let (mut app, _task) = crate::app::App::new();
+    app.current_line_height = 10.0;
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\none\ntwo\nthree\nfour".into());
+    super::handle_tool_detail_open_context_menu(&mut app, 1.0, 2.0);
+
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Lines { x: 0.0, y: -0.5 },
+        -5.0,
+    );
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.viewport_height, 0.0);
+    assert_eq!(dialog.scroll_top_line, 0.0);
+    assert_eq!(dialog.scroll_remainder, 0.625);
+    assert!(!dialog.context_menu_open);
+
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Lines { x: 0.0, y: -0.5 },
+        20.0,
+    );
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 1.0);
+    assert_eq!(dialog.scroll_remainder, 0.25);
+
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Pixels { x: 0.0, y: -15.0 },
+        20.0,
+    );
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 2.0);
+    assert_eq!(dialog.scroll_remainder, 0.75);
+
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Lines { x: 0.0, y: 1.0 },
+        20.0,
+    );
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 2.0);
+    assert_eq!(dialog.scroll_remainder, -0.5);
+
+    super::handle_tool_detail_editor_wheel_scrolled(
+        &mut app,
+        iced::mouse::ScrollDelta::Lines { x: 0.0, y: 1.0 },
+        20.0,
+    );
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 1.0);
+    assert_eq!(dialog.scroll_remainder, -0.75);
+}
+
+#[test]
+fn scrollbar_change_rounds_and_clamps_requested_top_line() {
+    let (mut app, _task) = crate::app::App::new();
+    app.current_line_height = 10.0;
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\none\ntwo\nthree\nfour".into());
+    {
+        let dialog = app.tool_detail_dialog.as_mut().expect("dialog");
+        dialog.viewport_height = 20.0;
+        dialog.context_menu_open = true;
+        dialog.context_menu_pos = Some((4.0, 8.0));
+    }
+
+    super::handle_tool_detail_scrollbar_changed(&mut app, 1.6, 20.0);
+    let dialog = app.tool_detail_dialog.as_ref().expect("dialog");
+    assert_eq!(dialog.scroll_top_line, 2.0);
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+
+    super::handle_tool_detail_scrollbar_changed(&mut app, -100.0, 20.0);
+    assert_eq!(app.tool_detail_dialog.as_ref().expect("dialog").scroll_top_line, 0.0);
+
+    super::handle_tool_detail_scrollbar_changed(&mut app, 100.0, 20.0);
+    assert_eq!(app.tool_detail_dialog.as_ref().expect("dialog").scroll_top_line, 2.0);
+}
+
+#[test]
+fn close_tool_detail_removes_dialog() {
+    let (mut app, _task) = crate::app::App::new();
+    super::handle_open_tool_detail(&mut app, 7, 8, "tool shell\ncontent".into());
+    assert!(app.tool_detail_dialog.is_some());
+
+    super::handle_close_tool_detail(&mut app);
+
+    assert!(app.tool_detail_dialog.is_none());
 }

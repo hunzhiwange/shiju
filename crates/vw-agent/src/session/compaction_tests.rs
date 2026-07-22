@@ -4,6 +4,8 @@ use crate::app::agent::session::message;
 use serde_json::Map;
 use std::collections::HashMap;
 
+static COMPACTION_STORAGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn capability_io(text: bool) -> provider::CapabilityIO {
     provider::CapabilityIO { text, audio: false, image: false, video: false, pdf: false }
 }
@@ -157,6 +159,16 @@ fn completed_tool(
     })
 }
 
+fn pending_tool(session_id: &str, message_id: &str, part_id: &str, raw: String) -> message::Part {
+    message::Part::Tool(message::ToolPart {
+        base: part_base(session_id, message_id, part_id),
+        call_id: format!("call-{part_id}"),
+        tool: "shell".to_string(),
+        state: message::ToolState::Pending(message::ToolStatePending { input: Map::new(), raw }),
+        metadata: None,
+    })
+}
+
 fn token_info(
     total: Option<i64>,
     input: i64,
@@ -248,6 +260,28 @@ async fn overflow_treats_negative_counts_as_zero() {
     assert!(!is_overflow(&token_info(None, -10, -20, -30, -40), &model).await);
 }
 
+#[tokio::test]
+async fn overflow_caps_reserved_output_space_at_compaction_buffer() {
+    let model = model_with_limits(100_000, None, 50_000);
+
+    assert!(!is_overflow(&token_info(Some(55_999), 0, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(56_000), 0, 0, 0, 0), &model).await);
+}
+
+#[tokio::test]
+async fn instance_directory_opt_returns_directory_inside_project_context() {
+    let project = tempfile::tempdir().expect("project dir");
+    let expected = project.path().to_string_lossy().to_string();
+
+    let directory = instance::provide(project.path(), None, move || {
+        Box::pin(async move { instance_directory_opt() })
+    })
+    .await
+    .expect("project instance should provide");
+
+    assert_eq!(directory.as_deref(), Some(expected.as_str()));
+}
+
 #[test]
 fn find_user_message_matches_user_messages_only() {
     let session_id = "find-user-session";
@@ -289,6 +323,13 @@ fn extract_recent_text_uses_recent_twenty_messages_and_truncates() {
     let truncated = extract_recent_text(&messages, 12);
     assert_eq!(truncated.len(), 12);
     assert_eq!(truncated, "user: text-0");
+}
+
+#[test]
+fn extract_recent_text_returns_empty_at_zero_character_limit() {
+    let messages = vec![user_message("zero-limit-session", "msg_1", "visible text")];
+
+    assert_eq!(extract_recent_text(&messages, 0), "");
 }
 
 #[tokio::test]
@@ -442,7 +483,32 @@ async fn create_writes_user_message_with_compaction_part() {
 }
 
 #[tokio::test]
+async fn create_preserves_manual_compaction_flag() {
+    let session_id = unique_session("compaction-create-manual");
+
+    create(CreateInput {
+        session_id: session_id.clone(),
+        agent: "agent-fixture".to_string(),
+        model: model_ref(),
+        auto: false,
+    })
+    .await
+    .expect("create should write manual compaction request");
+
+    let stored = message::messages(&session_id, None).await.expect("stored messages");
+    let message_id = stored[0].info.id().to_string();
+    let parts = message::parts(&session_id, &message_id).await.expect("parts");
+    let message::Part::Compaction(part) = &parts[0] else {
+        panic!("part should be compaction");
+    };
+    assert!(!part.auto);
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
 async fn prune_marks_only_old_unprotected_outputs_after_thresholds() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
     let session_id = unique_session("compaction-prune");
     let mut old_assistant = assistant_message(&session_id, "msg_002", "msg_001", "", None);
     old_assistant.parts = vec![
@@ -517,6 +583,7 @@ async fn prune_marks_only_old_unprotected_outputs_after_thresholds() {
 
 #[tokio::test]
 async fn prune_stops_at_summary_messages() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
     let session_id = unique_session("compaction-prune-summary");
     let mut old_assistant = assistant_message(&session_id, "msg_002", "msg_001", "", None);
     old_assistant.parts = vec![
@@ -560,6 +627,132 @@ async fn prune_stops_at_summary_messages() {
         };
         assert!(state.time.compacted.is_none());
     }
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn prune_keeps_candidate_when_prunable_tokens_equal_minimum() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("compaction-prune-minimum");
+    let mut old_assistant = assistant_message(&session_id, "msg_002", "msg_001", "", None);
+    old_assistant.parts = vec![
+        completed_tool(
+            &session_id,
+            "msg_002",
+            "part_a_candidate",
+            "shell",
+            "a".repeat(80_000),
+            None,
+        ),
+        completed_tool(
+            &session_id,
+            "msg_002",
+            "part_z_protected_budget",
+            "shell",
+            "z".repeat(120_000),
+            None,
+        ),
+    ];
+
+    for msg in [
+        user_message(&session_id, "msg_001", "first"),
+        old_assistant,
+        user_message(&session_id, "msg_003", "second"),
+        user_message(&session_id, "msg_004", "third"),
+    ] {
+        write_message_with_parts(&msg).await;
+    }
+
+    prune(&session_id).await.expect("prune should keep the exact minimum");
+
+    let parts = message::parts(&session_id, "msg_002").await.expect("old parts");
+    for part in parts {
+        let message::Part::Tool(tool) = part else {
+            continue;
+        };
+        let message::ToolState::Completed(state) = tool.state else {
+            continue;
+        };
+        assert!(state.time.compacted.is_none());
+    }
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn prune_stops_at_previously_compacted_tool() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("compaction-prune-compacted");
+    let mut old_assistant = assistant_message(&session_id, "msg_002", "msg_001", "", None);
+    old_assistant.parts = vec![
+        completed_tool(&session_id, "msg_002", "part_a_older", "shell", "a".repeat(200_000), None),
+        completed_tool(&session_id, "msg_002", "part_b_older", "shell", "b".repeat(200_000), None),
+        completed_tool(
+            &session_id,
+            "msg_002",
+            "part_z_compacted",
+            "shell",
+            "z".repeat(200_000),
+            Some(42),
+        ),
+    ];
+
+    for msg in [
+        user_message(&session_id, "msg_001", "first"),
+        old_assistant,
+        user_message(&session_id, "msg_003", "second"),
+        user_message(&session_id, "msg_004", "third"),
+    ] {
+        write_message_with_parts(&msg).await;
+    }
+
+    prune(&session_id).await.expect("prune should stop at compacted tool");
+
+    let parts = message::parts(&session_id, "msg_002").await.expect("old parts");
+    let compacted = parts
+        .iter()
+        .filter_map(|part| match part {
+            message::Part::Tool(tool) => match &tool.state {
+                message::ToolState::Completed(state) => {
+                    Some((tool.base.id.as_str(), state.time.compacted))
+                }
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<HashMap<_, _>>();
+    assert_eq!(compacted.get("part_a_older"), Some(&None));
+    assert_eq!(compacted.get("part_b_older"), Some(&None));
+    assert_eq!(compacted.get("part_z_compacted"), Some(&Some(42)));
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn prune_skips_unfinished_tool_states() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("compaction-prune-pending");
+    let mut old_assistant = assistant_message(&session_id, "msg_002", "msg_001", "", None);
+    old_assistant.parts =
+        vec![pending_tool(&session_id, "msg_002", "part_pending", "p".repeat(400_000))];
+
+    for msg in [
+        user_message(&session_id, "msg_001", "first"),
+        old_assistant,
+        user_message(&session_id, "msg_003", "second"),
+        user_message(&session_id, "msg_004", "third"),
+    ] {
+        write_message_with_parts(&msg).await;
+    }
+
+    prune(&session_id).await.expect("prune should ignore unfinished tools");
+
+    let parts = message::parts(&session_id, "msg_002").await.expect("old parts");
+    let message::Part::Tool(tool) = &parts[0] else {
+        panic!("part should be tool");
+    };
+    assert!(matches!(&tool.state, message::ToolState::Pending(_)));
 
     cleanup_session(&session_id).await;
 }

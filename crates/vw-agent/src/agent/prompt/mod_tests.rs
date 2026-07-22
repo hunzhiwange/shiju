@@ -86,6 +86,30 @@ fn builder_skips_empty_sections_and_trims_trailing_whitespace() {
 }
 
 #[test]
+fn builder_propagates_section_errors() {
+    struct FailingSection;
+
+    impl PromptSection for FailingSection {
+        fn name(&self) -> &str {
+            "failing"
+        }
+
+        fn build(&self, _ctx: &PromptContext<'_>) -> Result<String> {
+            anyhow::bail!("section failed")
+        }
+    }
+
+    let tools: Vec<Box<dyn Tool>> = Vec::new();
+    let ctx = empty_context(Path::new("/tmp"), &tools);
+    let error = SystemPromptBuilder::default()
+        .add_section(Box::new(FailingSection))
+        .build(&ctx)
+        .unwrap_err();
+
+    assert_eq!(error.to_string(), "section failed");
+}
+
+#[test]
 fn tools_section_returns_empty_without_tools_and_renders_dispatcher_instructions() {
     let empty_tools: Vec<Box<dyn Tool>> = Vec::new();
     let empty_ctx = empty_context(Path::new("/tmp"), &empty_tools);
@@ -102,6 +126,18 @@ fn tools_section_returns_empty_without_tools_and_renders_dispatcher_instructions
     assert!(rendered.contains("inspect"));
     assert!(rendered.contains("Inspect workspace"));
     assert!(rendered.contains("Use XML tools."));
+}
+
+#[test]
+fn tools_section_omits_dispatcher_instructions_when_blank() {
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(TestTool)];
+    let ctx = empty_context(Path::new("/tmp"), &tools);
+    let rendered = ToolsSection.build(&ctx).unwrap();
+
+    assert!(rendered.contains("Parameters: `"));
+    assert!(rendered.contains("\"path\""));
+    assert!(!rendered.ends_with('\n'));
+    assert!(!rendered.contains("Use XML tools."));
 }
 
 #[test]
@@ -183,6 +219,18 @@ fn workspace_section_limits_large_directory_listing() {
 }
 
 #[test]
+fn workspace_section_handles_unreadable_directory() {
+    let missing =
+        std::env::temp_dir().join(format!("vibewindow_prompt_missing_{}", uuid::Uuid::new_v4()));
+    let tools: Vec<Box<dyn Tool>> = Vec::new();
+    let ctx = empty_context(&missing, &tools);
+    let rendered = WorkspaceSection.build(&ctx).unwrap();
+
+    assert!(rendered.contains(&format!("Working directory: `{}`", missing.display())));
+    assert!(rendered.contains("<directories>\n</directories>"));
+}
+
+#[test]
 fn is_git_repo_detects_parent_repository() {
     let repo_workspace = workspace("vibewindow_prompt_git_parent");
     let nested = repo_workspace.join("a/b/c");
@@ -239,6 +287,23 @@ fn identity_section_includes_missing_markers_for_absent_identity_files() {
     assert!(rendered.contains("## Project Context"));
     assert!(rendered.contains("project rules"));
     assert!(rendered.contains("[File not found: SOUL.md]"));
+
+    let _ = std::fs::remove_dir_all(workspace);
+}
+
+#[test]
+fn identity_section_truncates_large_identity_files() {
+    let workspace = workspace("vibewindow_prompt_identity_large");
+    let content = "a".repeat(BOOTSTRAP_MAX_CHARS + 100);
+    std::fs::write(workspace.join("AGENTS.md"), content).unwrap();
+
+    let tools: Vec<Box<dyn Tool>> = Vec::new();
+    let ctx = empty_context(&workspace, &tools);
+    let rendered = IdentitySection.build(&ctx).unwrap();
+
+    assert!(rendered.contains("### AGENTS.md"));
+    assert!(rendered.contains("truncated at 20000 chars"));
+    assert!(rendered.contains("use `read` for full file"));
 
     let _ = std::fs::remove_dir_all(workspace);
 }

@@ -704,3 +704,7 @@ where
             .draw(self.tree, renderer, theme, defaults, layout, cursor, &bounds);
     }
 }
+
+#[cfg(test)]
+#[path = "side_tests.rs"]
+mod tests;

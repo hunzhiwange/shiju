@@ -622,4 +622,33 @@ mod tests {
         let ch = make_channel();
         assert_eq!(ch.phone_number(), "+15551234567");
     }
+
+    #[test]
+    fn linq_parse_uses_sender_and_media_value_fallbacks() {
+        let ch = LinqChannel::new("tok".into(), "+15551234567".into(), vec!["*".into()]);
+        let payload = serde_json::json!({
+            "event_type": "message.received",
+            "created_at": "invalid timestamp",
+            "data": {
+                "sender": "1234567890",
+                "chat_id": "chat-789",
+                "message": {
+                    "parts": [{
+                        "type": "image",
+                        "value": " https://example.com/fallback.png ",
+                        "mime_type": " IMAGE/PNG "
+                    }]
+                }
+            }
+        });
+
+        let before = chrono::Utc::now().timestamp().cast_unsigned();
+        let messages = ch.parse_webhook_payload(&payload);
+        let after = chrono::Utc::now().timestamp().cast_unsigned();
+
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].sender, "+1234567890");
+        assert_eq!(messages[0].content, "[IMAGE:https://example.com/fallback.png]");
+        assert!((before..=after).contains(&messages[0].timestamp));
+    }
 }

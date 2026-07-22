@@ -1,13 +1,12 @@
 //! Provider 相关配置读取与网关端点解析。
 //!
 //! 本模块负责：
-//! - 定位 `vibewindow.json` 配置文件
-//! - 在本地平台读取配置文件内容
+//! - 定位项目根 `.vibewindow.json` 覆盖文件
+//! - 在本地平台读取项目覆盖内容
 //! - 在 wasm 平台通过网关读取配置
 //! - 提取 provider 覆盖项与默认模型配置
 //! - 推导浏览器环境下的默认网关端点
 
-use directories::UserDirs;
 #[cfg(target_arch = "wasm32")]
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
@@ -17,32 +16,36 @@ use vw_config_types::config::Config;
 #[cfg(target_arch = "wasm32")]
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
-/// 配置文件名。
-const CONFIG_JSON_FILENAME: &str = "vibewindow.json";
+/// 项目配置覆盖文件名。
+const CONFIG_OVERRIDE_FILENAME: &str = ".vibewindow.json";
 
 #[cfg(target_arch = "wasm32")]
 static WASM_GATEWAY_ENDPOINT: Lazy<Mutex<Option<GatewayEndpoint>>> = Lazy::new(|| Mutex::new(None));
 
-/// 解析默认配置目录，优先使用测试或外部显式指定的目录。
-///
-/// 若未显式指定，则默认落在用户主目录下的活跃 VibeWindow 配置目录。
-fn default_config_dir() -> Option<PathBuf> {
-    std::env::var_os("VIBEWINDOW_CONFIG_DIR")
+/// 解析显式项目根；未指定时使用当前工作目录。
+fn project_root() -> Option<PathBuf> {
+    std::env::var_os("VIBEWINDOW_WORKSPACE")
+        .filter(|value| !value.to_string_lossy().trim().is_empty())
         .map(PathBuf::from)
-        .or_else(|| UserDirs::new().map(|u| vw_config_types::paths::home_config_dir(u.home_dir())))
+        .or_else(|| std::env::current_dir().ok())
 }
 
-/// 返回配置文件路径。
+/// 返回项目根 `.vibewindow.json` 覆盖文件路径。
 ///
 /// # 返回值
 ///
-/// 成功时返回配置文件绝对路径；若当前环境无法解析用户目录则返回 `None`
+/// 成功时返回覆盖文件路径；若当前环境无法解析项目根则返回 `None`。
+pub fn project_config_override_path() -> Option<PathBuf> {
+    project_root().map(|root| root.join(CONFIG_OVERRIDE_FILENAME))
+}
+
+/// 兼容旧调用名，当前仅返回项目覆盖文件路径。
 pub fn config_path() -> Option<PathBuf> {
-    default_config_dir().map(|d| d.join(CONFIG_JSON_FILENAME))
+    project_config_override_path()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 从本地配置文件读取配置；读取失败时回退到默认配置。
+/// 从项目覆盖文件读取配置；读取失败时回退到默认配置。
 ///
 /// 该函数会对以下场景统一回退：
 /// - 配置路径不可用
@@ -50,7 +53,7 @@ pub fn config_path() -> Option<PathBuf> {
 /// - 配置文件为空
 /// - JSON 反序列化失败
 pub async fn get() -> Config {
-    let Some(path) = config_path() else {
+    let Some(path) = project_config_override_path() else {
         return Config::default();
     };
     let Ok(contents) = tokio::fs::read_to_string(&path).await else {

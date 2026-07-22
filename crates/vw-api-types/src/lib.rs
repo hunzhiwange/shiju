@@ -8,6 +8,8 @@
 //!
 //! # 模块概览
 //!
+//! - [`agent_scheduler`][]: Agent Scheduler 任务、Worker、Team、lease、事件与 outbox DTO
+//! - [`apiql`][]: ApiQL 只读列表、分页响应与实体配置 DTO
 //! - [`chat`][]: 聊天消息、流式事件与聊天请求体
 //! - [`data`][]: AI-DATA 连接、报表、查询与 AI 规划协议
 //! - [`session`][]: 会话详情、列表、归档、分叉与网关会话操作
@@ -17,9 +19,10 @@
 //! - [`knowledge`][]: 知识库、文档、检索与运行时能力 DTO
 //! - [`provider`][]: 模型提供商与模型能力信息
 //! - [`settings`][]: 运行时、安全、多代理与浏览器等设置
+//! - [`staff`][]: 员工任务流本地 IPC 消息 DTO
 //! - [`task`][]: 后台任务、任务事件流与执行请求
+//! - [`task_lifecycle`][]: 任务生命周期 workflow 跨网关 DTO
 //! - [`todo`][]: 会话待办项与待办更新请求
-//! - [`tool`][]: 现有网关工具与 Redis 工具相关 DTO
 //! - [`tools`][]: Claude Tools V2 共享规格与结果 DTO
 //! - [`workflow`][]: Dify Workflow 执行请求、响应与节点事件 DTO
 //! - [`question`][]: 交互式问题与用户回答结构
@@ -35,8 +38,9 @@
 //! - 避免在 DTO 中引入隐式业务逻辑
 //! - 通过新类型包装 ID，降低字符串误用风险
 
+pub mod agent_scheduler;
+pub mod apiql;
 pub mod chat;
-pub mod cleaner;
 pub mod common;
 pub mod data;
 pub mod error;
@@ -44,24 +48,29 @@ pub mod file;
 pub mod git;
 pub mod id;
 pub mod knowledge;
+pub mod mcp;
 pub mod project;
 pub mod provider;
 pub mod question;
 pub mod session;
 pub mod settings;
+pub mod staff;
 pub mod task;
+pub mod task_lifecycle;
 pub mod todo;
-pub mod tool;
 pub mod tools;
 pub mod workflow;
 pub mod worktree;
 
 #[cfg(test)]
+#[path = "agent_scheduler_tests.rs"]
+mod agent_scheduler_tests;
+#[cfg(test)]
+#[path = "apiql_tests.rs"]
+mod apiql_tests;
+#[cfg(test)]
 #[path = "chat_tests.rs"]
 mod chat_tests;
-#[cfg(test)]
-#[path = "cleaner_tests.rs"]
-mod cleaner_tests;
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;
@@ -99,14 +108,17 @@ mod session_tests;
 #[path = "settings_tests.rs"]
 mod settings_tests;
 #[cfg(test)]
+#[path = "staff_tests.rs"]
+mod staff_tests;
+#[cfg(test)]
+#[path = "task_lifecycle_tests.rs"]
+mod task_lifecycle_tests;
+#[cfg(test)]
 #[path = "task_tests.rs"]
 mod task_tests;
 #[cfg(test)]
 #[path = "todo_tests.rs"]
 mod todo_tests;
-#[cfg(test)]
-#[path = "tool_tests.rs"]
-mod tool_tests;
 #[cfg(test)]
 #[path = "tools_tests.rs"]
 mod tools_tests;
@@ -117,6 +129,7 @@ mod workflow_tests;
 #[path = "worktree_tests.rs"]
 mod worktree_tests;
 
+pub use chat::ReasoningEffortDto;
 pub use common::*;
 pub use error::*;
 pub use id::*;

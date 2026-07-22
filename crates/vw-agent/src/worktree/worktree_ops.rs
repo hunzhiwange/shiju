@@ -56,7 +56,9 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
         return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
     }
 
-    let _ = project::add_sandbox(&project_id, &info.directory).await;
+    if let Ok(scope) = project::project_scope_for_default_tenant(project_id.as_str()) {
+        let _ = project::add_sandbox(&scope, &info.directory).await;
+    }
 
     let extra = input.and_then(|value| value.start_command).unwrap_or_default();
     let ready_info = info.clone();
@@ -158,7 +160,9 @@ pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
         }
     }
 
-    let _ = project::remove_sandbox(&project_id, &entry.path).await;
+    if let Ok(scope) = project::project_scope_for_default_tenant(project_id.as_str()) {
+        let _ = project::remove_sandbox(&scope, &entry.path).await;
+    }
     Ok(true)
 }
 

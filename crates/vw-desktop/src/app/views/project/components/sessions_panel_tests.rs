@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::state::{AcpHistoryReplayMode, ChatSendBehavior, QueueItem, SessionRuntimeState};
-use iced::widget::button;
+use iced::widget::{button, svg};
 use vw_shared::session::info::{Info, Summary, TimeInfo};
 
 fn test_app() -> crate::app::App {
@@ -9,6 +9,21 @@ fn test_app() -> crate::app::App {
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
+}
+
+fn color_from_background(background: Option<Background>) -> Color {
+    match background {
+        Some(Background::Color(color)) => color,
+        _ => panic!("expected color background"),
+    }
+}
+
+fn assert_color_near(actual: Color, expected: Color) {
+    let epsilon = 0.001;
+    assert!((actual.r - expected.r).abs() < epsilon, "red mismatch: {actual:?}");
+    assert!((actual.g - expected.g).abs() < epsilon, "green mismatch: {actual:?}");
+    assert!((actual.b - expected.b).abs() < epsilon, "blue mismatch: {actual:?}");
+    assert!((actual.a - expected.a).abs() < epsilon, "alpha mismatch: {actual:?}");
 }
 
 fn session(id: &str, title: &str, directory: &str, archived: bool) -> Info {
@@ -40,6 +55,7 @@ fn queue_item(query: &str) -> QueueItem {
         attachments: Vec::new(),
         root: None,
         model: None,
+        reasoning_effort: None,
         acp_test: false,
         acp_agent: None,
         acp_allowed_tools: None,
@@ -79,6 +95,97 @@ fn button_styles_cover_light_and_dark_states() {
             assert!(session_row_button_style(&theme, true, status).background.is_some());
         }
     }
+}
+
+#[test]
+fn menu_button_style_tracks_hover_pressed_and_theme_variants() {
+    let active = session_menu_button_style(&Theme::Light, button::Status::Active);
+    let hovered = session_menu_button_style(&Theme::Light, button::Status::Hovered);
+    let pressed_dark = session_menu_button_style(&Theme::Dark, button::Status::Pressed);
+
+    assert_eq!(color_from_background(active.background), Color::TRANSPARENT);
+    assert_eq!(hovered.border.width, 1.0);
+    assert_ne!(color_from_background(hovered.background), Color::TRANSPARENT);
+    assert_ne!(color_from_background(pressed_dark.background), Color::TRANSPARENT);
+    assert_eq!(pressed_dark.text_color, Theme::Dark.palette().text);
+}
+
+#[test]
+fn menu_button_style_covers_dark_hover_and_light_press() {
+    let hovered_dark = session_menu_button_style(&Theme::Dark, button::Status::Hovered);
+    let pressed_light = session_menu_button_style(&Theme::Light, button::Status::Pressed);
+
+    assert_eq!(hovered_dark.border.width, 1.0);
+    assert_ne!(color_from_background(hovered_dark.background), Color::TRANSPARENT);
+    assert_eq!(pressed_light.border.width, 0.0);
+    assert_ne!(color_from_background(pressed_light.background), Color::TRANSPARENT);
+}
+
+#[test]
+fn menu_separator_and_panel_styles_use_visible_surfaces() {
+    let separator = menu_separator_style(&Theme::Light);
+    let panel = floating_menu_panel_style(&Theme::Dark);
+
+    assert!(separator.background.is_some());
+    assert!(panel.background.is_some());
+    assert_eq!(panel.border.radius.top_left, 16.0);
+}
+
+#[test]
+fn status_styles_keep_expected_colors_and_alpha() {
+    let running = running_status_color(0.0);
+    let queued = queued_status_color(1.0);
+    let badge_color = Color::from_rgb8(46, 184, 114);
+    let badge = status_badge_style(badge_color);
+
+    assert_color_near(running, Color::from_rgb8(245, 158, 11));
+    assert_ne!(queued, Color::from_rgb8(239, 68, 68));
+    assert_color_near(running_status_color(1.0), Color::from_rgb8(239, 68, 68));
+    assert_color_near(queued_status_color(0.0), Color::from_rgb8(245, 158, 11));
+    assert_color_near(color_from_background(badge.background), badge_color.scale_alpha(0.16));
+    assert_eq!(badge.text_color, Some(badge_color));
+    assert_eq!(badge.border.width, 0.0);
+    assert_eq!(status_text_style(badge_color).color, Some(badge_color));
+    assert_eq!(
+        muted_status_icon_style(&Theme::Light).color,
+        Some(Theme::Light.palette().text.scale_alpha(0.3)),
+    );
+    assert_eq!(additions_text_style(&Theme::Light).color, Some(Color::from_rgb8(46, 184, 114)),);
+    assert_eq!(deletions_text_style(&Theme::Light).color, Some(Color::from_rgb8(239, 68, 68)),);
+}
+
+#[test]
+fn task_pool_and_load_more_styles_adjust_base_styles() {
+    let task_pool = task_pool_button_style(&Theme::Light, button::Status::Hovered);
+    let load_more = load_more_button_style(&Theme::Dark, button::Status::Pressed);
+    let icon = task_pool_icon_style(&Theme::Dark, svg::Status::Idle);
+
+    assert_eq!(task_pool.border.radius.top_left, 14.0);
+    assert_eq!(load_more.border.width, 0.0);
+    assert_eq!(load_more.border.color, Color::TRANSPARENT);
+    assert_eq!(icon.color, Some(Theme::Dark.palette().text));
+}
+
+#[test]
+fn panel_title_prefers_non_blank_recent_edit_name() {
+    let projects = vec!["/tmp/a".to_string(), "/tmp/b".to_string()];
+    let edits = vec!["Alpha".to_string(), "   ".to_string()];
+
+    assert_eq!(project_panel_title("/tmp/a", &projects, &edits), "Alpha");
+    assert_eq!(project_panel_title("/tmp/b", &projects, &edits), "/tmp/b");
+    assert_eq!(
+        project_panel_title("/tmp/missing-edit", &["/tmp/missing-edit".to_string()], &[]),
+        "/tmp/missing-edit"
+    );
+    assert_eq!(project_panel_title("/tmp/c", &projects, &edits), "/tmp/c");
+}
+
+#[test]
+fn session_workspace_label_covers_main_named_and_fallback_paths() {
+    assert_eq!(session_workspace_label("/tmp/project", "/tmp/project"), "主工作区");
+    assert_eq!(session_workspace_label("/tmp/project/worktree-a", "/tmp/project"), "worktree-a",);
+    assert_eq!(session_workspace_label("", "/tmp/project"), "工作区");
+    assert_eq!(session_workspace_label("/", "/tmp/project"), "工作区");
 }
 
 #[test]
@@ -168,6 +275,40 @@ fn session_items_builds_runtime_status_variants() {
     ];
 
     keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), 10, 10, false));
+}
+
+#[test]
+fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
+    let mut app = test_app();
+    app.session_menu_id = Some("summaryless".to_string());
+    app.session_menu_anchor = None;
+
+    let mut summaryless = session("summaryless", "没有摘要的会话", "/", false);
+    summaryless.summary = None;
+    let sessions =
+        vec![summaryless, session("normal", "普通会话", "/tmp/project/worktree-d", false)];
+
+    keep_element(session_items_list(&app, "/tmp/project", Some(&sessions), 0, 10, false));
+}
+
+#[test]
+fn standalone_panel_fragments_build_inactive_and_pressed_variants() {
+    keep_element(session_menu_button("删除", Message::None));
+    keep_element(project_sessions_header(
+        "长项目标题".to_string(),
+        "/tmp/project/with/a/very/long/path".to_string(),
+        4,
+        true,
+        false,
+    ));
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let inactive = outline_panel_button_style(&theme, false, button::Status::Active);
+        let active_pressed = outline_panel_button_style(&theme, true, button::Status::Pressed);
+        assert_eq!(inactive.text_color, theme.palette().text);
+        assert!(active_pressed.background.is_some());
+        assert!(active_pressed.border.width > 0.0);
+    }
 }
 
 #[test]

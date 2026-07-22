@@ -105,6 +105,16 @@ fn list_command_accepts_each_valid_category_and_status_combination() {
 }
 
 #[test]
+fn list_command_accepts_coming_soon_status_without_category() {
+    let result = handle_command(
+        IntegrationCommands::List { category: None, status: Some("coming-soon".to_string()) },
+        &config(),
+    );
+
+    assert!(result.is_ok());
+}
+
+#[test]
 fn handle_command_dispatches_search_list_and_info() {
     let cfg = config();
 

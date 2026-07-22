@@ -4,9 +4,9 @@
 //! 不改变任何运行时行为。
 
 use super::{
-    AdvancedToolSurfaceState, SessionToolBucket, SessionToolGroup, SessionToolSelectorState,
-    SessionToolSelectorTab, SkillsDirectoryScope, explicit_advanced_tool_surface_spec, tool_bucket,
-    tool_display_name, tool_group,
+    AdvancedToolSurfaceState, SessionToolBucket, SessionToolGroup, SessionToolInventory,
+    SessionToolSelectorState, SessionToolSelectorTab, SkillsDirectoryScope,
+    explicit_advanced_tool_surface_spec, tool_bucket, tool_display_name, tool_group,
 };
 
 #[test]
@@ -24,7 +24,10 @@ fn tool_selector_buckets_match_runtime_surfaces() {
 #[test]
 fn tool_selector_filters_tools_by_enabled_bucket() {
     let mut selector = SessionToolSelectorState::default();
+    assert!(!selector.has_tool_filter());
+
     assert!(selector.toggle_bucket(SessionToolBucket::Browser));
+    assert!(selector.has_tool_filter());
 
     let filtered = selector.filter_tools(&[
         "read".to_string(),
@@ -240,4 +243,276 @@ fn reconcile_drops_explicit_tools_no_longer_available() {
 #[test]
 fn tool_display_name_title_cases_unknown_ids() {
     assert_eq!(tool_display_name("custom-tool_id"), "Custom Tool Id");
+}
+
+#[test]
+fn advanced_surface_specs_cover_exact_mappings_and_reject_unknown_tools() {
+    let expected = [
+        ("enter_plan_mode", "进入规划模式", AdvancedToolSurfaceState::Available),
+        ("exit_plan_mode", "退出规划模式", AdvancedToolSurfaceState::Available),
+        ("verify_plan_execution", "校验计划执行", AdvancedToolSurfaceState::Available),
+        ("enter_worktree", "进入 worktree", AdvancedToolSurfaceState::Available),
+        ("exit_worktree", "退出 worktree", AdvancedToolSurfaceState::Available),
+        ("mcp_linear", "mcp_* 集成", AdvancedToolSurfaceState::Planned),
+        ("tool_search", "tool_search", AdvancedToolSurfaceState::Available),
+    ];
+
+    for (tool_id, expected_label, expected_state) in expected {
+        let spec = explicit_advanced_tool_surface_spec(tool_id).expect("known advanced surface");
+        assert_eq!(spec.label, expected_label);
+        assert_eq!(spec.state, expected_state);
+    }
+
+    assert_eq!(AdvancedToolSurfaceState::Available.label(), "available");
+    assert_eq!(AdvancedToolSurfaceState::Planned.label(), "planned");
+    assert!(explicit_advanced_tool_surface_spec("mcp").is_none());
+    assert!(explicit_advanced_tool_surface_spec("unknown_tool").is_none());
+}
+
+#[test]
+fn tool_selector_defaults_enable_every_bucket_without_filters() {
+    let selector = SessionToolSelectorState::default();
+
+    for bucket in SessionToolBucket::ALL {
+        assert!(selector.is_bucket_enabled(bucket));
+    }
+    assert!(!selector.has_tool_filter());
+    assert!(!selector.has_manual_context_selection());
+    assert_eq!(selector.active_tab(), SessionToolSelectorTab::Agent);
+    assert_eq!(selector.query(), "");
+    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::Project);
+
+    let inventory = SessionToolInventory::default();
+    assert!(inventory.base_tools.is_empty());
+    assert!(!inventory.restricts_tools);
+}
+
+#[test]
+fn tool_selector_toggle_bucket_reenables_removed_bucket() {
+    let mut selector = SessionToolSelectorState::default();
+
+    assert!(selector.toggle_bucket(SessionToolBucket::Browser));
+    assert!(!selector.is_bucket_enabled(SessionToolBucket::Browser));
+    assert!(selector.toggle_bucket(SessionToolBucket::Browser));
+    assert!(selector.is_bucket_enabled(SessionToolBucket::Browser));
+    assert!(!selector.has_tool_filter());
+}
+
+#[test]
+fn tool_selector_reset_clears_filters_but_preserves_view_preferences() {
+    let mut selector = SessionToolSelectorState::default();
+    let tools = vec!["read".to_string(), "bash".to_string(), "browser".to_string()];
+
+    assert!(selector.toggle_bucket(SessionToolBucket::Browser));
+    assert!(selector.toggle_tool(&tools, "bash"));
+    selector.toggle_manual_tool("read");
+    selector.toggle_manual_skill("skill-a");
+    selector.select_tab(SessionToolSelectorTab::Skills);
+    selector.toggle_group_collapsed(SessionToolGroup::Files);
+    selector.select_skill_directory_scope(SkillsDirectoryScope::Global);
+    selector.set_query("read".to_string());
+
+    selector.reset();
+
+    assert_eq!(selector.filter_tools(&tools), tools);
+    assert!(!selector.has_tool_filter());
+    assert!(!selector.has_manual_context_selection());
+    assert_eq!(selector.active_tab(), SessionToolSelectorTab::Skills);
+    assert!(selector.is_group_collapsed(SessionToolGroup::Files));
+    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::Global);
+    assert_eq!(selector.query(), "");
+}
+
+#[test]
+fn tool_selector_group_toggle_reenables_partial_group_and_ignores_empty_group() {
+    let mut selector = SessionToolSelectorState::default();
+    let tools = vec!["read".to_string(), "file_write".to_string(), "bash".to_string()];
+
+    assert!(selector.toggle_tool(&tools, "read"));
+    assert_eq!(selector.filter_tools(&tools), vec!["file_write".to_string(), "bash".to_string()]);
+    assert!(selector.toggle_group_tools(&tools, SessionToolGroup::Files));
+    assert_eq!(selector.filter_tools(&tools), tools);
+    assert!(selector.toggle_group_tools(&tools, SessionToolGroup::Integration));
+    assert_eq!(selector.filter_tools(&tools), tools);
+}
+
+#[test]
+fn tool_selector_falls_back_when_explicit_selection_misses_new_inventory() {
+    let mut selector = SessionToolSelectorState::default();
+    let tools = vec!["read".to_string(), "bash".to_string()];
+
+    assert!(selector.toggle_tool(&tools, "bash"));
+    assert_eq!(selector.filter_tools(&tools), vec!["read".to_string()]);
+    assert_eq!(selector.filter_tools(&["bash".to_string()]), vec!["bash".to_string()]);
+}
+
+#[test]
+fn tool_selector_handles_empty_single_and_unknown_tool_boundaries() {
+    let mut selector = SessionToolSelectorState::default();
+    let tools = vec!["read".to_string(), "bash".to_string()];
+
+    assert!(selector.toggle_tool(&tools, "bash"));
+    assert!(selector.has_custom_tool_selection());
+    assert!(selector.toggle_tool(&tools, "unknown_tool"));
+    assert_eq!(selector.filter_tools(&tools), vec!["read".to_string()]);
+    assert!(!selector.invert_tools(&[]));
+    assert!(!selector.invert_tools(&["read".to_string()]));
+
+    selector.select_all_tools(&[]);
+
+    assert!(!selector.has_custom_tool_selection());
+    assert_eq!(selector.filter_tools(&tools), tools);
+}
+
+#[test]
+fn tool_selector_normalizes_explicit_selection_after_bucket_filter_changes() {
+    let mut selector = SessionToolSelectorState::default();
+    let tools = vec!["read".to_string(), "browser".to_string()];
+
+    assert!(selector.toggle_tool(&tools, "browser"));
+    assert_eq!(selector.filter_tools(&tools), vec!["read".to_string()]);
+
+    assert!(selector.toggle_bucket(SessionToolBucket::ReadOnly));
+    selector.reconcile_tools(&tools);
+
+    assert!(!selector.has_custom_tool_selection());
+    assert_eq!(selector.filter_tools(&tools), vec!["browser".to_string()]);
+
+    selector.select_all_tools(&["read".to_string()]);
+    assert_eq!(selector.filter_tools(&["read".to_string()]), Vec::<String>::new());
+}
+
+#[test]
+fn tool_selector_toggles_group_collapse_and_manual_skill_off_again() {
+    let mut selector = SessionToolSelectorState::default();
+
+    selector.toggle_group_collapsed(SessionToolGroup::Memory);
+    selector.toggle_manual_skill("skill-a");
+    assert!(selector.is_group_collapsed(SessionToolGroup::Memory));
+    assert!(selector.is_manual_skill_selected("skill-a"));
+
+    selector.toggle_group_collapsed(SessionToolGroup::Memory);
+    selector.toggle_manual_skill("skill-a");
+    assert!(!selector.is_group_collapsed(SessionToolGroup::Memory));
+    assert!(!selector.is_manual_skill_selected("skill-a"));
+}
+
+#[test]
+fn selector_tab_labels_and_tool_groups_cover_every_variant() {
+    assert_eq!(SessionToolSelectorTab::Agent.label(), "代理");
+    assert_eq!(SessionToolSelectorTab::Tools.label(), "工具");
+    assert_eq!(SessionToolSelectorTab::Skills.label(), "技能");
+
+    let cases = [
+        ("file_write", SessionToolGroup::Files),
+        ("code_search", SessionToolGroup::Search),
+        ("git_operations", SessionToolGroup::Execute),
+        ("http_request", SessionToolGroup::Web),
+        ("question", SessionToolGroup::Collaboration),
+        ("memory_forget", SessionToolGroup::Memory),
+        ("state_get", SessionToolGroup::Integration),
+        ("unregistered_tool", SessionToolGroup::Other),
+    ];
+
+    for (tool_id, expected) in cases {
+        assert_eq!(tool_group(tool_id), expected);
+    }
+    assert_eq!(tool_bucket("unregistered_tool"), SessionToolBucket::Other);
+}
+
+#[test]
+fn legacy_read_file_alias_keeps_read_only_bucket_and_existing_other_group() {
+    assert_eq!(tool_bucket("read_file"), SessionToolBucket::ReadOnly);
+    assert_eq!(tool_group("read_file"), SessionToolGroup::Other);
+    assert_eq!(tool_display_name("read_file"), "Read File");
+}
+
+#[test]
+fn tool_buckets_cover_supported_runtime_aliases() {
+    let cases = [
+        ("file_read", SessionToolBucket::ReadOnly),
+        ("pdf_read", SessionToolBucket::ReadOnly),
+        ("ls", SessionToolBucket::ReadOnly),
+        ("lsp", SessionToolBucket::ReadOnly),
+        ("write", SessionToolBucket::Edit),
+        ("edit", SessionToolBucket::Edit),
+        ("edit_file", SessionToolBucket::Edit),
+        ("editfile", SessionToolBucket::Edit),
+        ("notebook_edit", SessionToolBucket::Edit),
+        ("shell", SessionToolBucket::Execution),
+        ("process", SessionToolBucket::Execution),
+        ("browser_open", SessionToolBucket::Browser),
+        ("fetch_webpage", SessionToolBucket::Browser),
+        ("screenshot", SessionToolBucket::Browser),
+        ("image_info", SessionToolBucket::Browser),
+        ("delegate_coordination_status", SessionToolBucket::Agent),
+        ("cron_add", SessionToolBucket::Agent),
+        ("cron_runs", SessionToolBucket::Agent),
+        ("todoread", SessionToolBucket::Agent),
+        ("sop_status", SessionToolBucket::Agent),
+    ];
+
+    for (tool_id, expected) in cases {
+        assert_eq!(tool_bucket(tool_id), expected);
+    }
+}
+
+#[test]
+fn tool_groups_cover_supported_runtime_aliases() {
+    let cases = [
+        ("write", SessionToolGroup::Files),
+        ("lsp", SessionToolGroup::Search),
+        ("edit", SessionToolGroup::Execute),
+        ("notebook_edit", SessionToolGroup::Execute),
+        ("fetch_webpage", SessionToolGroup::Web),
+        ("screenshot", SessionToolGroup::Web),
+        ("Agent", SessionToolGroup::Collaboration),
+        ("cron_update", SessionToolGroup::Collaboration),
+        ("todoread", SessionToolGroup::Collaboration),
+        ("sop_approve", SessionToolGroup::Collaboration),
+        ("proxy_config", SessionToolGroup::Integration),
+        ("agents_send", SessionToolGroup::Integration),
+        ("wasm_module", SessionToolGroup::Integration),
+    ];
+
+    for (tool_id, expected) in cases {
+        assert_eq!(tool_group(tool_id), expected);
+    }
+}
+
+#[test]
+fn tool_display_names_cover_known_runtime_surfaces() {
+    let cases = [
+        ("read", "读取文件"),
+        ("pdf_read", "读取文档"),
+        ("ls", "目录列表"),
+        ("file_write", "写入文件"),
+        ("apply_patch", "补丁编辑"),
+        ("grep", "文本搜索"),
+        ("content_search", "内容搜索"),
+        ("glob", "文件匹配"),
+        ("glob_search", "组合搜索"),
+        ("codesearch", "代码检索"),
+        ("shell", "命令行"),
+        ("process", "后台进程"),
+        ("git_operations", "Git 操作"),
+        ("browser", "浏览器交互"),
+        ("browser_open", "打开页面"),
+        ("http_request", "网络请求"),
+        ("web_fetch", "网页抓取"),
+        ("web_search_tool", "联网搜索"),
+        ("agent", "委托代理"),
+        ("question", "用户提问"),
+        ("skill", "加载技能"),
+        ("memory_recall", "读取记忆"),
+        ("memory_store", "写入记忆"),
+        ("memory_forget", "删除记忆"),
+        ("tool_search", "工具搜索"),
+    ];
+
+    for (tool_id, expected) in cases {
+        assert_eq!(tool_display_name(tool_id), expected);
+    }
+    assert_eq!(tool_display_name("__custom--tool__"), "Custom Tool");
+    assert_eq!(tool_display_name("---"), "");
 }

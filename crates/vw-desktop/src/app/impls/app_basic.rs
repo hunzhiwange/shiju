@@ -99,27 +99,12 @@ impl App {
         match self.screen {
             Screen::Home => "Vibe Window 氛围视窗 - 项目".to_string(),
             Screen::Project => "Vibe Window 氛围视窗 - 项目".to_string(),
-            Screen::Design => "Vibe Window 氛围视窗 - 设计".to_string(),
             Screen::Preview => "Vibe Window 氛围视窗 - 预览".to_string(),
             Screen::Apps => "Vibe Window 氛围视窗 - 应用".to_string(),
             Screen::Usage => "Vibe Window 氛围视窗 - 用量".to_string(),
-            Screen::JsonTool => "Vibe Window 氛围视窗 - JSON工具".to_string(),
-            Screen::JsonYamlTool => "Vibe Window 氛围视窗 - JSON/YAML互转工具".to_string(),
             Screen::Knowledge => "Vibe Window 氛围视窗 - 知识库".to_string(),
-            Screen::SqlTool => "Vibe Window 氛围视窗 - SQL美化工具".to_string(),
-            Screen::RedisTool => "Vibe Window 氛围视窗 - Redis客户端".to_string(),
-            Screen::HtmlTool => "Vibe Window 氛围视窗 - HTML美化工具".to_string(),
-            Screen::JsonDiffTool => "Vibe Window 氛围视窗 - JSON比对工具".to_string(),
-            Screen::MarkdownTool => "Vibe Window 氛围视窗 - Markdown编辑器".to_string(),
             Screen::WorkflowTool => "Vibe Window 氛围视窗 - 工作流".to_string(),
-            Screen::MindMapTool => "Vibe Window 氛围视窗 - 思维导图".to_string(),
-            Screen::PasswordTool => "Vibe Window 氛围视窗 - 随机密码生成器".to_string(),
-            Screen::BaseTool => "Vibe Window 氛围视窗 - 进制转换器".to_string(),
-            Screen::TimestampTool => "Vibe Window 氛围视窗 - 时间戳转换器".to_string(),
-            Screen::QrTool => "Vibe Window 氛围视窗 - 二维码生成器".to_string(),
-            Screen::ColorTool => "Vibe Window 氛围视窗 - 颜色转换工具".to_string(),
-            Screen::CleanerTool => "Vibe Window 氛围视窗 - 垃圾清理工具".to_string(),
-            Screen::LargeFileTool => "Vibe Window 氛围视窗 - 大文件查找工具".to_string(),
+            Screen::WorkflowManager => "Vibe Window 氛围视窗 - 任务编排".to_string(),
             Screen::TaskBoard => "Vibe Window 氛围视窗 - 任务看板".to_string(),
         }
     }
@@ -304,20 +289,6 @@ impl App {
         message: impl Into<String>,
     ) -> iced::Task<crate::app::Message> {
         self.show_toast(ToastKind::Warning, message)
-    }
-
-    /// 公开函数，执行 active_design_state 对应的应用流程。
-    /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub fn active_design_state(&self) -> Option<&crate::app::views::design::state::DesignState> {
-        self.active_tab_id.as_ref().and_then(|id| self.design_states.get(id))
-    }
-
-    /// 公开函数，执行 active_design_state_mut 对应的应用流程。
-    /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub fn active_design_state_mut(
-        &mut self,
-    ) -> Option<&mut crate::app::views::design::state::DesignState> {
-        self.active_tab_id.as_ref().and_then(|id| self.design_states.get_mut(id))
     }
 
     /// 公开函数，执行 theme 对应的应用流程。

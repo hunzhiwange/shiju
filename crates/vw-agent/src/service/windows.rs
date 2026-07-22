@@ -1,7 +1,7 @@
 use crate::app::agent::config::Config;
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::common::{run_capture, run_checked};
@@ -14,6 +14,10 @@ pub(super) fn windows_task_name() -> &'static str {
 }
 
 pub(super) fn install_windows(config: &Config) -> Result<()> {
+    install_windows_with_schtasks(config, Path::new("schtasks"))
+}
+
+pub(super) fn install_windows_with_schtasks(config: &Config, schtasks: &Path) -> Result<()> {
     let exe = std::env::current_exe().context("Failed to resolve current executable")?;
     let logs_dir =
         config.config_path.parent().map_or_else(|| PathBuf::from("."), PathBuf::from).join("logs");
@@ -31,8 +35,8 @@ pub(super) fn install_windows(config: &Config) -> Result<()> {
     fs::write(&wrapper, &wrapper_content)?;
 
     let task_name = windows_task_name();
-    let _ = Command::new("schtasks").args(["/Delete", "/TN", task_name, "/F"]).output();
-    run_checked(Command::new("schtasks").args([
+    let _ = Command::new(schtasks).args(["/Delete", "/TN", task_name, "/F"]).output();
+    run_checked(Command::new(schtasks).args([
         "/Create",
         "/TN",
         task_name,
@@ -53,21 +57,43 @@ pub(super) fn install_windows(config: &Config) -> Result<()> {
 }
 
 pub(super) fn start_windows() -> Result<()> {
-    run_checked(Command::new("schtasks").args(["/Run", "/TN", windows_task_name()]))?;
+    start_windows_with_schtasks(Path::new("schtasks"))
+}
+
+pub(super) fn start_windows_with_schtasks(schtasks: &Path) -> Result<()> {
+    run_checked(Command::new(schtasks).args(["/Run", "/TN", windows_task_name()]))?;
     println!("✅ Service started");
     Ok(())
 }
 
 pub(super) fn stop_windows() -> Result<()> {
-    let _ = run_checked(Command::new("schtasks").args(["/End", "/TN", windows_task_name()]));
+    stop_windows_with_schtasks(Path::new("schtasks"))
+}
+
+pub(super) fn stop_windows_with_schtasks(schtasks: &Path) -> Result<()> {
+    let _ = run_checked(Command::new(schtasks).args(["/End", "/TN", windows_task_name()]));
     println!("✅ Service stopped");
     Ok(())
 }
 
+pub(super) fn restart_windows() -> Result<()> {
+    restart_windows_with_schtasks(Path::new("schtasks"))
+}
+
+pub(super) fn restart_windows_with_schtasks(schtasks: &Path) -> Result<()> {
+    stop_windows_with_schtasks(schtasks)?;
+    start_windows_with_schtasks(schtasks)?;
+    println!("✅ Service restarted");
+    Ok(())
+}
+
 pub(super) fn status_windows() -> Result<()> {
+    status_windows_with_schtasks(Path::new("schtasks"))
+}
+
+pub(super) fn status_windows_with_schtasks(schtasks: &Path) -> Result<()> {
     let task_name = windows_task_name();
-    let out =
-        run_capture(Command::new("schtasks").args(["/Query", "/TN", task_name, "/FO", "LIST"]));
+    let out = run_capture(Command::new(schtasks).args(["/Query", "/TN", task_name, "/FO", "LIST"]));
     match out {
         Ok(text) => {
             let running = text.contains("Running");
@@ -82,8 +108,11 @@ pub(super) fn status_windows() -> Result<()> {
 }
 
 pub(super) fn uninstall_windows(config: &Config) -> Result<()> {
-    let _ =
-        run_checked(Command::new("schtasks").args(["/Delete", "/TN", windows_task_name(), "/F"]));
+    uninstall_windows_with_schtasks(config, Path::new("schtasks"))
+}
+
+pub(super) fn uninstall_windows_with_schtasks(config: &Config, schtasks: &Path) -> Result<()> {
+    let _ = run_checked(Command::new(schtasks).args(["/Delete", "/TN", windows_task_name(), "/F"]));
     let wrapper = config
         .config_path
         .parent()

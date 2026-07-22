@@ -1941,6 +1941,170 @@ workflow:
 }
 
 #[tokio::test]
+async fn run_workflow_knowledge_retrieval_reads_dify_native_fields() {
+    let knowledge_provider = Arc::new(FakeKnowledgeProvider { requests: Mutex::new(Vec::new()) });
+    let runtime = WorkflowRuntime {
+        provider: Arc::new(WorkflowTestProvider),
+        knowledge_provider: Some(knowledge_provider.clone()),
+        document_extractor: None,
+        tool_provider: None,
+        agent_provider: None,
+        pause_store: None,
+        model: "test-model".to_string(),
+        temperature: 0.0,
+    };
+    let request = WorkflowRunRequest {
+        workflow_uuid: None,
+        workflow_yaml: Some(dify_native_knowledge_retrieval_workflow()),
+        query: None,
+        inputs: BTreeMap::from([("query".to_string(), Value::String("退货规则".to_string()))]),
+        max_steps: 10,
+    };
+
+    let response = run_workflow(runtime, request).await.expect("workflow response");
+
+    assert_eq!(response.status, WorkflowRunStatus::Succeeded);
+    let requests = knowledge_provider.requests.lock().expect("requests lock");
+    assert_eq!(requests[0].query, "退货规则");
+    assert_eq!(requests[0].top_k, 10);
+    assert_eq!(requests[0].dataset_ids, ["demo".to_string()]);
+}
+
+fn dify_native_knowledge_retrieval_workflow() -> String {
+    r#"
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data:
+          title: Start
+          type: start
+          variables:
+            - variable: query
+      - id: kb
+        data:
+          title: Knowledge
+          type: knowledge-retrieval
+          query_variable_selector:
+            - start
+            - query
+          dataset_ids:
+            - demo
+          multiple_retrieval_config:
+            top_k: 10
+      - id: answer
+        data:
+          title: Answer
+          type: answer
+          answer: "{{#kb.result#}}"
+    edges:
+      - source: start
+        sourceHandle: source
+        target: kb
+      - source: kb
+        sourceHandle: source
+        target: answer
+"#
+    .to_string()
+}
+
+#[tokio::test]
+async fn run_workflow_dhb_demo_yaml_runs_end_to_end() {
+    let knowledge_provider = Arc::new(FakeKnowledgeProvider { requests: Mutex::new(Vec::new()) });
+    let runtime = WorkflowRuntime {
+        provider: Arc::new(WorkflowTestProvider),
+        knowledge_provider: Some(knowledge_provider.clone()),
+        document_extractor: None,
+        tool_provider: None,
+        agent_provider: None,
+        pause_store: None,
+        model: "test-model".to_string(),
+        temperature: 0.0,
+    };
+    let request = WorkflowRunRequest {
+        workflow_uuid: None,
+        workflow_yaml: Some(dhb_demo_workflow()),
+        query: Some("如何批量导入商品？".to_string()),
+        inputs: BTreeMap::new(),
+        max_steps: 20,
+    };
+
+    let response = run_workflow(runtime, request).await.expect("workflow response");
+
+    assert_eq!(response.status, WorkflowRunStatus::Succeeded);
+    let requests = knowledge_provider.requests.lock().expect("requests lock");
+    assert_eq!(requests[0].query, "如何批量导入商品？");
+    assert_eq!(requests[0].dataset_ids, ["ff2277f0-f858-4801-80cb-2545e3aa9d26".to_string()]);
+    assert_eq!(requests[0].top_k, 10);
+}
+
+/// 精简等价于 `dhb-zhishiku.yml`：start → knowledge-retrieval → llm → answer，
+/// 保留检索节点原生 `query_variable_selector` 与 `multiple_retrieval_config.top_k:10`，
+/// dataset_ids 为本地 UUID，LLM 节点模型为 `deepseek/deepseek-v4-pro`。
+fn dhb_demo_workflow() -> String {
+    r#"
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data:
+          title: 开始
+          type: start
+          variables:
+            - variable: query
+      - id: kb
+        data:
+          title: 问答_帮助文档
+          type: knowledge-retrieval
+          query_variable_selector:
+            - start
+            - sys.query
+          dataset_ids:
+            - ff2277f0-f858-4801-80cb-2545e3aa9d26
+          retrieval_mode: multiple
+          multiple_retrieval_config:
+            top_k: 10
+            score_threshold: null
+      - id: llm
+        data:
+          title: 客户问答助手
+          type: llm
+          model:
+            name: deepseek/deepseek-v4-pro
+            provider: langgenius/tongyi/tongyi
+          context:
+            enabled: true
+            variable_selector:
+              - kb
+              - result
+          prompt_template:
+            - role: system
+              text: |
+                <context>
+                {{#context#}}
+                </context>
+            - role: user
+              text: '{{#sys.query#}}'
+      - id: answer
+        data:
+          title: 直接回复
+          type: answer
+          answer: '{{#llm.text#}}'
+    edges:
+      - source: start
+        sourceHandle: source
+        target: kb
+      - source: kb
+        sourceHandle: source
+        target: llm
+      - source: llm
+        sourceHandle: source
+        target: answer
+"#
+    .to_string()
+}
+
+#[tokio::test]
 async fn run_workflow_document_extractor_reads_inline_text_file() {
     let runtime = WorkflowRuntime {
         provider: Arc::new(WorkflowTestProvider),

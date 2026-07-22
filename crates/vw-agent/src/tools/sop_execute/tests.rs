@@ -277,7 +277,21 @@ fn name_and_schema() {
 
     // 验证：检查工具名称
     assert_eq!(tool.name(), "sop_execute");
+    assert!(tool.description().contains("手动按名称触发"));
 
     // 验证：检查参数 schema 格式正确
     assert!(tool.parameters_schema()["required"].is_array());
+}
+
+#[tokio::test]
+async fn execute_sop_without_steps_reports_start_failure() {
+    let mut sop = test_sop("empty-sop", SopExecutionMode::Auto);
+    sop.steps.clear();
+    let engine = engine_with_sops(vec![sop]);
+    let tool = SopExecuteTool::new(engine);
+
+    let result = tool.execute(json!({"name": "empty-sop"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.error.unwrap().contains("SOP 'empty-sop' has no steps defined"));
 }

@@ -20,7 +20,6 @@ It updates these package manifests:
   crates/vw-cli/Cargo.toml
   crates/vw-config-types/Cargo.toml
   crates/vw-desktop/Cargo.toml
-  crates/vw-figma-json/Cargo.toml
   crates/vw-gateway-client/Cargo.toml
   crates/vw-provider-resolver/Cargo.toml
   crates/vw-shared/Cargo.toml
@@ -220,7 +219,6 @@ MANIFEST_FILES=(
   "crates/vw-cli/Cargo.toml"
   "crates/vw-config-types/Cargo.toml"
   "crates/vw-desktop/Cargo.toml"
-  "crates/vw-figma-json/Cargo.toml"
   "crates/vw-gateway-client/Cargo.toml"
   "crates/vw-provider-resolver/Cargo.toml"
   "crates/vw-shared/Cargo.toml"
@@ -228,7 +226,6 @@ MANIFEST_FILES=(
 )
 
 LOCK_PACKAGE_NAMES=(
-  "vw-fig2json"
   "vw-acp"
   "vw-agent"
   "vw-api-types"

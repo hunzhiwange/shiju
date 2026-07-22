@@ -382,6 +382,8 @@ fn install(entry: &mut Entry, task: Task) {
     // 启动定时器任务
     let handle = spawn(async move {
         let mut ticker = tokio::time::interval(interval);
+        // interval 首次 tick 会立即返回；启动执行已由 run_once 处理。
+        ticker.tick().await;
         loop {
             // 等待下一个间隔
             ticker.tick().await;

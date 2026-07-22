@@ -4,9 +4,8 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::GoalLoopMessage;
 use crate::app::{App, Message, message};
@@ -153,7 +152,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let mut content = column![
+    let content = column![
         settings_page_intro("目标循环配置", "配置周期执行的间隔、步数上限和可选投递目标。"),
         settings_section_card("基础行为", "控制目标循环是否启用以及调度节奏。"),
         settings_panel(
@@ -174,10 +173,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }

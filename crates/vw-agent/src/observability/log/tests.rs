@@ -175,3 +175,48 @@ fn log_observer_all_metrics_no_panic() {
     // 测试队列深度指标
     obs.record_metric(&ObserverMetric::QueueDepth(999));
 }
+
+#[test]
+fn log_observer_records_placeholder_events_and_supports_downcast() {
+    let obs = LogObserver::new();
+
+    obs.record_event(&ObserverEvent::ToolCallStart { tool: "shell".into() });
+    obs.record_event(&ObserverEvent::TurnComplete);
+    obs.record_event(&ObserverEvent::LlmRequest {
+        provider: "openrouter".into(),
+        model: "claude-sonnet".into(),
+        messages_count: 0,
+    });
+
+    assert!(obs.as_any().downcast_ref::<LogObserver>().is_some());
+}
+
+#[test]
+fn log_observer_duration_overflow_falls_back_without_panicking() {
+    let obs = LogObserver::new();
+
+    obs.record_event(&ObserverEvent::AgentEnd {
+        provider: "openrouter".into(),
+        model: "claude-sonnet".into(),
+        duration: Duration::MAX,
+        tokens_used: None,
+        cost_usd: None,
+    });
+    obs.record_event(&ObserverEvent::ToolCall {
+        tool: "shell".into(),
+        duration: Duration::MAX,
+        success: true,
+    });
+    obs.record_event(&ObserverEvent::LlmResponse {
+        provider: "openrouter".into(),
+        model: "claude-sonnet".into(),
+        duration: Duration::MAX,
+        success: true,
+        error_message: None,
+        input_tokens: None,
+        output_tokens: None,
+        cached_tokens: None,
+        reasoning_tokens: None,
+    });
+    obs.record_metric(&ObserverMetric::RequestLatency(Duration::MAX));
+}

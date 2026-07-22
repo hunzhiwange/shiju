@@ -170,7 +170,8 @@ async fn response_json(response: Response) -> (StatusCode, serde_json::Value) {
 
 #[tokio::test]
 async fn memory_list_requires_auth_when_pairing_enabled() {
-    let state = state_with_memory(Arc::new(RecordingMemory::default()), true);
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), true);
 
     let (status, value) = response_json(
         handle_api_memory_list(
@@ -185,6 +186,8 @@ async fn memory_list_requires_auth_when_pairing_enabled() {
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(value["error"].as_str().unwrap_or_default().contains("Unauthorized"));
+    assert!(mem.recalled.lock().is_empty());
+    assert!(mem.listed.lock().is_empty());
 }
 
 #[tokio::test]
@@ -206,6 +209,50 @@ async fn memory_list_uses_recall_when_query_is_present() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(value["entries"][0]["content"], "rust");
     assert_eq!(mem.recalled.lock().as_slice(), &[("rust".to_string(), 50)]);
+}
+
+#[tokio::test]
+async fn memory_list_treats_empty_query_as_recall_and_ignores_category() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), false);
+
+    let (status, value) = response_json(
+        handle_api_memory_list(
+            State(state),
+            HeaderMap::new(),
+            Query(MemoryQuery { query: Some(String::new()), category: Some("daily".to_string()) }),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(value["entries"][0]["content"], "");
+    assert_eq!(mem.recalled.lock().as_slice(), &[(String::new(), 50)]);
+    assert!(mem.listed.lock().is_empty());
+}
+
+#[tokio::test]
+async fn memory_list_without_filters_lists_all_entries() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), false);
+
+    let (status, value) = response_json(
+        handle_api_memory_list(
+            State(state),
+            HeaderMap::new(),
+            Query(MemoryQuery { query: None, category: None }),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(value["entries"][0]["key"], "list");
+    assert_eq!(mem.listed.lock().as_slice(), &[None]);
+    assert!(mem.recalled.lock().is_empty());
 }
 
 #[tokio::test]
@@ -233,6 +280,31 @@ async fn memory_list_maps_builtin_and_custom_categories() {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(mem.listed.lock().as_slice(), &[Some(expected)]);
     }
+}
+
+#[tokio::test]
+async fn memory_store_requires_auth_without_writing() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), true);
+
+    let (status, value) = response_json(
+        handle_api_memory_store(
+            State(state),
+            HeaderMap::new(),
+            JsonResponse(MemoryStoreBody {
+                key: "secret".to_string(),
+                content: "must not be stored".to_string(),
+                category: Some("core".to_string()),
+            }),
+        )
+        .await
+        .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(value["error"].as_str().unwrap_or_default().contains("Unauthorized"));
+    assert!(mem.stored.lock().is_empty());
 }
 
 #[tokio::test]
@@ -288,6 +360,62 @@ async fn memory_store_defaults_to_core_and_accepts_custom_category() {
 }
 
 #[tokio::test]
+async fn memory_store_maps_all_explicit_builtin_categories() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), false);
+
+    for category in ["core", "daily", "conversation"] {
+        let (status, value) = response_json(
+            handle_api_memory_store(
+                State(state.clone()),
+                HeaderMap::new(),
+                JsonResponse(MemoryStoreBody {
+                    key: category.to_string(),
+                    content: format!("{category} content"),
+                    category: Some(category.to_string()),
+                }),
+            )
+            .await
+            .into_response(),
+        )
+        .await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["status"], "ok");
+    }
+
+    assert_eq!(
+        mem.stored.lock().as_slice(),
+        &[
+            ("core".to_string(), "core content".to_string(), MemoryCategory::Core,),
+            ("daily".to_string(), "daily content".to_string(), MemoryCategory::Daily,),
+            (
+                "conversation".to_string(),
+                "conversation content".to_string(),
+                MemoryCategory::Conversation,
+            ),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn memory_delete_requires_auth_without_forgetting() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), true);
+
+    let (status, value) = response_json(
+        handle_api_memory_delete(State(state), HeaderMap::new(), Path("known".to_string()))
+            .await
+            .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(value["error"].as_str().unwrap_or_default().contains("Unauthorized"));
+    assert!(mem.forgotten.lock().is_empty());
+}
+
+#[tokio::test]
 async fn memory_delete_returns_deleted_flag() {
     let mem = Arc::new(RecordingMemory::default());
     let state = state_with_memory(mem.clone(), false);
@@ -302,6 +430,24 @@ async fn memory_delete_returns_deleted_flag() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(value["deleted"], true);
     assert_eq!(mem.forgotten.lock().as_slice(), &["known".to_string()]);
+}
+
+#[tokio::test]
+async fn memory_delete_preserves_false_for_missing_key() {
+    let mem = Arc::new(RecordingMemory::default());
+    let state = state_with_memory(mem.clone(), false);
+
+    let (status, value) = response_json(
+        handle_api_memory_delete(State(state), HeaderMap::new(), Path("missing".to_string()))
+            .await
+            .into_response(),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["deleted"], false);
+    assert_eq!(mem.forgotten.lock().as_slice(), &["missing".to_string()]);
 }
 
 #[tokio::test]

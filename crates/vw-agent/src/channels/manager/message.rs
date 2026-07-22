@@ -73,11 +73,8 @@ pub(crate) async fn process_channel_message(
         load_prior_turns(ctx.as_ref(), &history_key, &msg.content, had_prior_history).await;
     let expose_internal_tool_details =
         msg.channel == "cli" || should_expose_internal_tool_details(&msg.content);
-    let excluded_tools_snapshot = if msg.channel == "cli" {
-        Vec::new()
-    } else {
-        snapshot_non_cli_excluded_tools(ctx.as_ref())
-    };
+    let excluded_tools_snapshot =
+        excluded_tools_snapshot_for_channel(ctx.as_ref(), msg.channel.as_str());
     // 工具可见性写入系统提示而不是运行期临时过滤，便于模型理解哪些能力不可用。
     let mut system_prompt = build_channel_system_prompt(
         ctx.system_prompt.as_str(),
@@ -105,80 +102,19 @@ pub(crate) async fn process_channel_message(
         "Draft streaming decision"
     );
 
-    let (delta_tx, delta_rx) = if use_streaming {
-        let (tx, rx) = tokio::sync::mpsc::channel::<String>(64);
-        (Some(tx), Some(rx))
-    } else {
-        (None, None)
-    };
+    let StreamingUiState { delta_tx, draft_message_id, draft_updater } =
+        prepare_streaming_ui_state(
+            target_channel.as_ref(),
+            &msg,
+            expose_internal_tool_details,
+            use_streaming,
+        )
+        .await;
 
-    let draft_message_id = if use_streaming {
-        if let Some(channel) = target_channel.as_ref() {
-            // 先发占位草稿，再异步累积 delta，降低慢模型在聊天通道中的无反馈时间。
-            match channel
-                .send_draft(
-                    &SendMessage::new("...", &msg.reply_target).in_thread(msg.thread_ts.clone()),
-                )
-                .await
-            {
-                Ok(id) => id,
-                Err(e) => {
-                    tracing::debug!("Failed to send draft on {}: {e}", channel.name());
-                    None
-                }
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    maybe_add_processing_reaction(target_channel.as_ref(), &msg).await;
 
-    let draft_updater = if let (Some(mut rx), Some(draft_id_ref), Some(channel_ref)) =
-        (delta_rx, draft_message_id.as_deref(), target_channel.as_ref())
-    {
-        let channel = Arc::clone(channel_ref);
-        let reply_target = msg.reply_target.clone();
-        let draft_id = draft_id_ref.to_string();
-        let suppress_internal_progress = !expose_internal_tool_details;
-        Some(crate::app::agent::util::spawn(async move {
-            let mut accumulated = String::new();
-            while let Some(delta) = rx.recv().await {
-                if delta == crate::app::agent::agent::loop_::DRAFT_CLEAR_SENTINEL {
-                    accumulated.clear();
-                    continue;
-                }
-                let (is_internal_progress, visible_delta) = split_internal_progress_delta(&delta);
-                if suppress_internal_progress && is_internal_progress {
-                    continue;
-                }
-
-                // 通道草稿 API 通常是替换整条消息，因此这里保留完整累计内容。
-                accumulated.push_str(visible_delta);
-                if let Err(e) = channel.update_draft(&reply_target, &draft_id, &accumulated).await {
-                    tracing::debug!("Draft update failed: {e}");
-                }
-            }
-        }))
-    } else {
-        None
-    };
-
-    if let Some(channel) = target_channel.as_ref() {
-        if let Err(e) = channel.add_reaction(&msg.reply_target, &msg.id, "\u{1F440}").await {
-            tracing::debug!("Failed to add reaction: {e}");
-        }
-    }
-
-    let typing_cancellation = target_channel.as_ref().map(|_| CancellationToken::new());
-    let typing_task = match (target_channel.as_ref(), typing_cancellation.as_ref()) {
-        (Some(channel), Some(token)) => Some(spawn_scoped_typing_task(
-            Arc::clone(channel),
-            msg.reply_target.clone(),
-            token.clone(),
-        )),
-        _ => None,
-    };
+    let (typing_cancellation, typing_task) =
+        start_typing_feedback(target_channel.as_ref(), msg.reply_target.clone());
 
     let history_len_before_tools = history.len();
 
@@ -196,16 +132,7 @@ pub(crate) async fn process_channel_message(
     )
     .await;
 
-    if let Some(handle) = draft_updater {
-        let _ = handle.await;
-    }
-
-    if let Some(token) = typing_cancellation.as_ref() {
-        token.cancel();
-    }
-    if let Some(handle) = typing_task {
-        log_worker_join_result(handle.await);
-    }
+    finish_feedback_tasks(draft_updater, typing_cancellation, typing_task).await;
 
     let reaction_done_emoji = reaction_done_emoji(&llm_result);
 
@@ -227,6 +154,151 @@ pub(crate) async fn process_channel_message(
         &canary_guard,
     )
     .await;
+}
+
+struct StreamingUiState {
+    delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    draft_message_id: Option<String>,
+    draft_updater: Option<tokio::task::JoinHandle<()>>,
+}
+
+fn excluded_tools_snapshot_for_channel(
+    ctx: &ChannelRuntimeContext,
+    channel_name: &str,
+) -> Vec<String> {
+    if channel_name == "cli" { Vec::new() } else { snapshot_non_cli_excluded_tools(ctx) }
+}
+
+async fn prepare_streaming_ui_state(
+    target_channel: Option<&Arc<dyn Channel>>,
+    msg: &traits::ChannelMessage,
+    expose_internal_tool_details: bool,
+    use_streaming: bool,
+) -> StreamingUiState {
+    let (delta_tx, delta_rx) = if use_streaming {
+        let (tx, rx) = tokio::sync::mpsc::channel::<String>(64);
+        (Some(tx), Some(rx))
+    } else {
+        (None, None)
+    };
+
+    let draft_message_id = maybe_send_initial_draft(target_channel, msg, use_streaming).await;
+    let draft_updater = spawn_draft_updater(
+        delta_rx,
+        draft_message_id.as_deref(),
+        target_channel,
+        msg.reply_target.clone(),
+        expose_internal_tool_details,
+    );
+
+    StreamingUiState { delta_tx, draft_message_id, draft_updater }
+}
+
+async fn maybe_send_initial_draft(
+    target_channel: Option<&Arc<dyn Channel>>,
+    msg: &traits::ChannelMessage,
+    use_streaming: bool,
+) -> Option<String> {
+    if !use_streaming {
+        return None;
+    }
+
+    let Some(channel) = target_channel else {
+        return None;
+    };
+
+    // 先发占位草稿，再异步累积 delta，降低慢模型在聊天通道中的无反馈时间。
+    match channel
+        .send_draft(&SendMessage::new("...", &msg.reply_target).in_thread(msg.thread_ts.clone()))
+        .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            tracing::debug!("Failed to send draft on {}: {e}", channel.name());
+            None
+        }
+    }
+}
+
+fn spawn_draft_updater(
+    delta_rx: Option<tokio::sync::mpsc::Receiver<String>>,
+    draft_message_id: Option<&str>,
+    target_channel: Option<&Arc<dyn Channel>>,
+    reply_target: String,
+    expose_internal_tool_details: bool,
+) -> Option<tokio::task::JoinHandle<()>> {
+    let (Some(mut rx), Some(draft_id_ref), Some(channel_ref)) =
+        (delta_rx, draft_message_id, target_channel)
+    else {
+        return None;
+    };
+
+    let channel = Arc::clone(channel_ref);
+    let draft_id = draft_id_ref.to_string();
+    let suppress_internal_progress = !expose_internal_tool_details;
+    Some(crate::app::agent::util::spawn(async move {
+        let mut accumulated = String::new();
+        while let Some(delta) = rx.recv().await {
+            if delta == crate::app::agent::agent::loop_::DRAFT_CLEAR_SENTINEL {
+                accumulated.clear();
+                continue;
+            }
+            let (is_internal_progress, visible_delta) = split_internal_progress_delta(&delta);
+            if suppress_internal_progress && is_internal_progress {
+                continue;
+            }
+
+            // 通道草稿 API 通常是替换整条消息，因此这里保留完整累计内容。
+            accumulated.push_str(visible_delta);
+            if let Err(e) = channel.update_draft(&reply_target, &draft_id, &accumulated).await {
+                tracing::debug!("Draft update failed: {e}");
+            }
+        }
+    }))
+}
+
+async fn maybe_add_processing_reaction(
+    target_channel: Option<&Arc<dyn Channel>>,
+    msg: &traits::ChannelMessage,
+) {
+    let Some(channel) = target_channel else {
+        return;
+    };
+
+    if let Err(e) = channel.add_reaction(&msg.reply_target, &msg.id, "\u{1F440}").await {
+        tracing::debug!("Failed to add reaction: {e}");
+    }
+}
+
+fn start_typing_feedback(
+    target_channel: Option<&Arc<dyn Channel>>,
+    reply_target: String,
+) -> (Option<CancellationToken>, Option<tokio::task::JoinHandle<()>>) {
+    let typing_cancellation = target_channel.map(|_| CancellationToken::new());
+    let typing_task = match (target_channel, typing_cancellation.as_ref()) {
+        (Some(channel), Some(token)) => {
+            Some(spawn_scoped_typing_task(Arc::clone(channel), reply_target, token.clone()))
+        }
+        _ => None,
+    };
+    (typing_cancellation, typing_task)
+}
+
+async fn finish_feedback_tasks(
+    draft_updater: Option<tokio::task::JoinHandle<()>>,
+    typing_cancellation: Option<CancellationToken>,
+    typing_task: Option<tokio::task::JoinHandle<()>>,
+) {
+    if let Some(handle) = draft_updater {
+        let _ = handle.await;
+    }
+
+    if let Some(token) = typing_cancellation.as_ref() {
+        token.cancel();
+    }
+    if let Some(handle) = typing_task {
+        log_worker_join_result(handle.await);
+    }
 }
 
 #[cfg(test)]

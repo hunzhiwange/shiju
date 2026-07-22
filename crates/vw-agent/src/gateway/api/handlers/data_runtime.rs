@@ -4,10 +4,16 @@
 //! Cube 或 HTTP 查询，并对结果做分页、字段裁剪、模板格式化和字段转换。
 //! 安全边界集中在只读 SQL 校验、排序字段白名单化和 HTTP 请求范围构造。
 
-use std::collections::BTreeMap;
+#[cfg(feature = "memory-mariadb")]
+use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet};
+#[cfg(feature = "memory-mariadb")]
+use std::sync::Arc;
 use std::time::Duration;
 
 use once_cell::sync::Lazy;
+#[cfg(feature = "memory-mariadb")]
+use parking_lot::Mutex;
 use regex::Regex;
 use rusqlite::types::ValueRef;
 use serde_json::{Map, Value, json};
@@ -24,6 +30,9 @@ static SINGLE_PLACEHOLDER_RE: Lazy<Regex> = Lazy::new(|| {
 });
 static ORDER_BY_SEGMENT_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)^([A-Za-z0-9_.]+)(\s+(ASC|DESC))?$").expect("order by regex"));
+#[cfg(feature = "memory-mariadb")]
+static MYSQL_POOLS: Lazy<Mutex<HashMap<String, Arc<mysql::Pool>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 const FORMAT_SYS_NUMBER: i64 = 1;
 const FORMAT_SYS_PRICE: i64 = 2;
@@ -54,6 +63,18 @@ struct ResolvedQuery {
     template_code: Option<String>,
     append_pagination: bool,
     debug: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ReadOnlySqlQuery {
+    pub(crate) sql: String,
+    pub(crate) count_sql: Option<String>,
+    pub(crate) params: BTreeMap<String, Value>,
+    pub(crate) page: u32,
+    pub(crate) limit: u32,
+    pub(crate) count_mode: AiDataCountMode,
+    pub(crate) order_by: Option<String>,
+    pub(crate) debug: bool,
 }
 
 /// 测试 AI-DATA 连接是否可用。
@@ -105,13 +126,8 @@ pub(super) async fn test_connection(
                     .await?;
             Ok(format!("HTTP OK: {}", response.0))
         }
-        AiDataConnectionKind::Mysql => {
-            Err("当前构建未启用 MySQL 执行器；如需接入请启用 memory-mariadb feature".to_string())
-        }
-        AiDataConnectionKind::Postgres => {
-            Err("当前构建未启用 PostgreSQL 执行器；如需接入请启用 memory-postgres feature"
-                .to_string())
-        }
+        AiDataConnectionKind::Mysql => test_mysql_connection(connection).await,
+        AiDataConnectionKind::Postgres => test_postgres_connection(connection).await,
     }
 }
 
@@ -157,14 +173,42 @@ pub(super) async fn connection_catalog(
             "default_path": connection.default_path,
             "headers": connection.headers.keys().collect::<Vec<_>>()
         })),
-        AiDataConnectionKind::Mysql => {
-            Err("当前构建未启用 MySQL 目录读取；如需接入请启用 memory-mariadb feature".to_string())
-        }
-        AiDataConnectionKind::Postgres => {
-            Err("当前构建未启用 PostgreSQL 目录读取；如需接入请启用 memory-postgres feature"
-                .to_string())
-        }
+        AiDataConnectionKind::Mysql => mysql_catalog(connection),
+        AiDataConnectionKind::Postgres => postgres_catalog(connection),
     }
+}
+
+pub(crate) async fn execute_read_only_sql_query(
+    connection: AiDataConnectionDto,
+    query: ReadOnlySqlQuery,
+) -> Result<AiDataQueryResponse, String> {
+    if !connection.enabled {
+        return Err("AI-DATA 连接已被禁用".to_string());
+    }
+
+    execute_sql_query(&ResolvedQuery {
+        connection,
+        report_config: None,
+        query_kind: AiDataQueryKind::Sql,
+        sql: Some(query.sql),
+        count_sql: query.count_sql,
+        cube_query: None,
+        http_method: "GET".to_string(),
+        http_path: None,
+        http_body: None,
+        params: query.params,
+        page: query.page.max(1),
+        limit: query.limit.clamp(1, 10_000),
+        count_mode: query.count_mode,
+        order_by: query.order_by,
+        search_fields: None,
+        template_fields: None,
+        transformer_fields: None,
+        template_code: None,
+        append_pagination: true,
+        debug: query.debug,
+    })
+    .await
 }
 
 /// 执行 AI-DATA 查询请求。
@@ -487,15 +531,27 @@ async fn execute_sql_query(resolved: &ResolvedQuery) -> Result<AiDataQueryRespon
         ),
     };
 
-    let total_record = match rendered_count_sql.as_ref() {
-        Some(sql) => execute_sql_count(&resolved.connection, sql.clone()).await?,
-        None => 0,
-    };
-
-    let mut items = match resolved.count_mode {
-        AiDataCountMode::Only => Vec::new(),
-        AiDataCountMode::Disabled | AiDataCountMode::Enabled => {
-            execute_sql_rows(&resolved.connection, paged_sql.clone()).await?
+    let (total_record, mut items) = match resolved.count_mode {
+        AiDataCountMode::Disabled => {
+            (0, execute_sql_rows(&resolved.connection, paged_sql.clone()).await?)
+        }
+        AiDataCountMode::Only => {
+            let count_sql = rendered_count_sql
+                .as_ref()
+                .expect("count SQL is rendered for count-only mode")
+                .clone();
+            (execute_sql_count(&resolved.connection, count_sql).await?, Vec::new())
+        }
+        AiDataCountMode::Enabled => {
+            let count_sql = rendered_count_sql
+                .as_ref()
+                .expect("count SQL is rendered for enabled count mode")
+                .clone();
+            let (total_record, items) = tokio::try_join!(
+                execute_sql_count(&resolved.connection, count_sql),
+                execute_sql_rows(&resolved.connection, paged_sql.clone()),
+            )?;
+            (total_record, items)
         }
     };
     post_process_items(&mut items, resolved)?;
@@ -639,13 +695,8 @@ async fn execute_sql_rows(
                 .await
                 .map_err(|e| e.to_string())?
         }
-        AiDataConnectionKind::Mysql => {
-            Err("当前构建未启用 MySQL 执行器；如需接入请启用 memory-mariadb feature".to_string())
-        }
-        AiDataConnectionKind::Postgres => {
-            Err("当前构建未启用 PostgreSQL 执行器；如需接入请启用 memory-postgres feature"
-                .to_string())
-        }
+        AiDataConnectionKind::Mysql => execute_mysql_rows(connection, sql).await,
+        AiDataConnectionKind::Postgres => execute_postgres_rows(connection, sql).await,
         AiDataConnectionKind::Cube | AiDataConnectionKind::Http => {
             Err("当前连接类型不支持 SQL 查询".to_string())
         }
@@ -660,13 +711,8 @@ async fn execute_sql_count(connection: &AiDataConnectionDto, sql: String) -> Res
                 .await
                 .map_err(|e| e.to_string())?
         }
-        AiDataConnectionKind::Mysql => {
-            Err("当前构建未启用 MySQL 执行器；如需接入请启用 memory-mariadb feature".to_string())
-        }
-        AiDataConnectionKind::Postgres => {
-            Err("当前构建未启用 PostgreSQL 执行器；如需接入请启用 memory-postgres feature"
-                .to_string())
-        }
+        AiDataConnectionKind::Mysql => execute_mysql_count(connection, sql).await,
+        AiDataConnectionKind::Postgres => execute_postgres_count(connection, sql).await,
         AiDataConnectionKind::Cube | AiDataConnectionKind::Http => {
             Err("当前连接类型不支持 SQL 计数查询".to_string())
         }
@@ -679,6 +725,170 @@ fn sqlite_path(connection: &AiDataConnectionDto) -> Result<String, String> {
         .clone()
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| "SQLite 连接缺少 sqlite_path".to_string())
+}
+
+fn database_connection_url(
+    connection: &AiDataConnectionDto,
+    label: &str,
+) -> Result<String, String> {
+    connection
+        .connection_url
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| format!("{label} 连接缺少 connection_url"))
+}
+
+fn mysql_executor_disabled() -> String {
+    "当前构建未启用 MySQL 执行器；如需接入请启用 memory-mariadb feature".to_string()
+}
+
+fn postgres_executor_disabled() -> String {
+    "当前构建未启用 PostgreSQL 执行器；如需接入请启用 memory-postgres feature".to_string()
+}
+
+#[cfg(not(feature = "memory-mariadb"))]
+fn mysql_catalog(connection: &AiDataConnectionDto) -> Result<Value, String> {
+    let _ = database_connection_url(connection, "MySQL")?;
+    Err("当前构建未启用 MySQL 目录读取；如需接入请启用 memory-mariadb feature".to_string())
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_catalog(connection: &AiDataConnectionDto) -> Result<Value, String> {
+    let _ = database_connection_url(connection, "MySQL")?;
+    Err("MySQL 目录读取暂未接入 AI-DATA catalog".to_string())
+}
+
+#[cfg(not(feature = "memory-postgres"))]
+fn postgres_catalog(connection: &AiDataConnectionDto) -> Result<Value, String> {
+    let _ = database_connection_url(connection, "PostgreSQL")?;
+    Err("当前构建未启用 PostgreSQL 目录读取；如需接入请启用 memory-postgres feature".to_string())
+}
+
+#[cfg(feature = "memory-postgres")]
+fn postgres_catalog(connection: &AiDataConnectionDto) -> Result<Value, String> {
+    let _ = database_connection_url(connection, "PostgreSQL")?;
+    Err("PostgreSQL 目录读取暂未接入 AI-DATA catalog".to_string())
+}
+
+#[cfg(not(feature = "memory-mariadb"))]
+async fn test_mysql_connection(connection: &AiDataConnectionDto) -> Result<String, String> {
+    let _ = database_connection_url(connection, "MySQL")?;
+    Err(mysql_executor_disabled())
+}
+
+#[cfg(feature = "memory-mariadb")]
+async fn test_mysql_connection(connection: &AiDataConnectionDto) -> Result<String, String> {
+    let url = database_connection_url(connection, "MySQL")?;
+    tokio::task::spawn_blocking(move || {
+        use mysql::prelude::Queryable;
+
+        let pool = mysql_pool(&url).map_err(|e| format!("MySQL 连接失败: {e}"))?;
+        let mut conn = pool.get_conn().map_err(|e| format!("MySQL 连接失败: {e}"))?;
+        conn.query_drop("SELECT 1").map_err(|e| format!("MySQL 连接失败: {e}"))?;
+        Ok::<String, String>("MySQL OK".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(not(feature = "memory-postgres"))]
+async fn test_postgres_connection(connection: &AiDataConnectionDto) -> Result<String, String> {
+    let _ = database_connection_url(connection, "PostgreSQL")?;
+    Err(postgres_executor_disabled())
+}
+
+#[cfg(feature = "memory-postgres")]
+async fn test_postgres_connection(connection: &AiDataConnectionDto) -> Result<String, String> {
+    let url = database_connection_url(connection, "PostgreSQL")?;
+    tokio::task::spawn_blocking(move || {
+        let mut client =
+            postgres::Client::connect(&url, postgres::NoTls).map_err(|e| e.to_string())?;
+        client.simple_query("SELECT 1").map_err(|e| e.to_string())?;
+        Ok::<String, String>("PostgreSQL OK".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(not(feature = "memory-mariadb"))]
+async fn execute_mysql_rows(
+    connection: &AiDataConnectionDto,
+    _sql: String,
+) -> Result<Vec<Value>, String> {
+    let _ = database_connection_url(connection, "MySQL")?;
+    Err(mysql_executor_disabled())
+}
+
+#[cfg(feature = "memory-mariadb")]
+async fn execute_mysql_rows(
+    connection: &AiDataConnectionDto,
+    sql: String,
+) -> Result<Vec<Value>, String> {
+    let url = database_connection_url(connection, "MySQL")?;
+    tokio::task::spawn_blocking(move || mysql_query_rows(&url, &sql))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[cfg(not(feature = "memory-postgres"))]
+async fn execute_postgres_rows(
+    connection: &AiDataConnectionDto,
+    _sql: String,
+) -> Result<Vec<Value>, String> {
+    let _ = database_connection_url(connection, "PostgreSQL")?;
+    Err(postgres_executor_disabled())
+}
+
+#[cfg(feature = "memory-postgres")]
+async fn execute_postgres_rows(
+    connection: &AiDataConnectionDto,
+    sql: String,
+) -> Result<Vec<Value>, String> {
+    let url = database_connection_url(connection, "PostgreSQL")?;
+    tokio::task::spawn_blocking(move || postgres_query_rows(&url, &sql))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[cfg(not(feature = "memory-mariadb"))]
+async fn execute_mysql_count(
+    connection: &AiDataConnectionDto,
+    _sql: String,
+) -> Result<u64, String> {
+    let _ = database_connection_url(connection, "MySQL")?;
+    Err(mysql_executor_disabled())
+}
+
+#[cfg(feature = "memory-mariadb")]
+async fn execute_mysql_count(connection: &AiDataConnectionDto, sql: String) -> Result<u64, String> {
+    let url = database_connection_url(connection, "MySQL")?;
+    tokio::task::spawn_blocking(move || {
+        mysql_query_rows(&url, &sql).and_then(count_from_query_items)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(not(feature = "memory-postgres"))]
+async fn execute_postgres_count(
+    connection: &AiDataConnectionDto,
+    _sql: String,
+) -> Result<u64, String> {
+    let _ = database_connection_url(connection, "PostgreSQL")?;
+    Err(postgres_executor_disabled())
+}
+
+#[cfg(feature = "memory-postgres")]
+async fn execute_postgres_count(
+    connection: &AiDataConnectionDto,
+    sql: String,
+) -> Result<u64, String> {
+    let url = database_connection_url(connection, "PostgreSQL")?;
+    tokio::task::spawn_blocking(move || {
+        postgres_query_rows(&url, &sql).and_then(count_from_query_items)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn sqlite_catalog(path: &str) -> Result<Value, String> {
@@ -757,6 +967,225 @@ fn sqlite_value_ref_to_json(value: ValueRef<'_>) -> Value {
         ValueRef::Real(v) => json!(v),
         ValueRef::Text(v) => Value::String(String::from_utf8_lossy(v).to_string()),
         ValueRef::Blob(v) => Value::String(format!("0x{}", hex::encode(v))),
+    }
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_query_rows(url: &str, sql: &str) -> Result<Vec<Value>, String> {
+    use mysql::prelude::Queryable;
+
+    let pool = mysql_pool(url)?;
+    let mut conn = pool.get_conn().map_err(|e| e.to_string())?;
+    let result = conn.query_iter(sql).map_err(|e| e.to_string())?;
+    let columns = result
+        .columns()
+        .as_ref()
+        .iter()
+        .map(|column| (column.name_str().to_string(), column.column_type(), column.flags()))
+        .collect::<Vec<_>>();
+    let mut items = Vec::new();
+    for row_result in result {
+        let row = row_result.map_err(|e| e.to_string())?;
+        let mut object = Map::new();
+        for ((name, column_type, flags), value) in columns.iter().zip(row.unwrap()) {
+            object.insert(name.clone(), mysql_value_to_json(value, *column_type, *flags));
+        }
+        items.push(Value::Object(object));
+    }
+    Ok(items)
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_pool(url: &str) -> Result<Arc<mysql::Pool>, String> {
+    if let Some(pool) = MYSQL_POOLS.lock().get(url).cloned() {
+        return Ok(pool);
+    }
+    let opts = mysql::Opts::from_url(url).map_err(|e| format!("Invalid MySQL URL: {e}"))?;
+    let pool = Arc::new(mysql::Pool::new(opts).map_err(|e| e.to_string())?);
+    MYSQL_POOLS.lock().insert(url.to_string(), pool.clone());
+    Ok(pool)
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_value_to_json(
+    value: mysql::Value,
+    column_type: mysql::consts::ColumnType,
+    flags: mysql::consts::ColumnFlags,
+) -> Value {
+    match value {
+        mysql::Value::NULL => Value::Null,
+        mysql::Value::Bytes(bytes) => mysql_bytes_to_json(bytes, column_type, flags),
+        mysql::Value::Int(value) => json!(value),
+        mysql::Value::UInt(value) => json!(value),
+        mysql::Value::Float(value) => json!(value),
+        mysql::Value::Double(value) => json!(value),
+        mysql::Value::Date(year, month, day, 0, 0, 0, 0) => {
+            json!(format!("{year:04}-{month:02}-{day:02}"))
+        }
+        mysql::Value::Date(year, month, day, hour, minute, second, micros) => json!(format!(
+            "{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02}.{micros:06}"
+        )),
+        mysql::Value::Time(negative, days, hours, minutes, seconds, micros) => {
+            let sign = if negative { "-" } else { "" };
+            json!(format!("{sign}{days} {hours:02}:{minutes:02}:{seconds:02}.{micros:06}"))
+        }
+    }
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_bytes_to_json(
+    bytes: Vec<u8>,
+    column_type: mysql::consts::ColumnType,
+    flags: mysql::consts::ColumnFlags,
+) -> Value {
+    use mysql::consts::ColumnType;
+
+    match column_type {
+        ColumnType::MYSQL_TYPE_TINY
+        | ColumnType::MYSQL_TYPE_SHORT
+        | ColumnType::MYSQL_TYPE_INT24
+        | ColumnType::MYSQL_TYPE_LONG
+        | ColumnType::MYSQL_TYPE_LONGLONG
+        | ColumnType::MYSQL_TYPE_YEAR => mysql_integer_bytes_to_json(&bytes, flags),
+        ColumnType::MYSQL_TYPE_DECIMAL
+        | ColumnType::MYSQL_TYPE_NEWDECIMAL
+        | ColumnType::MYSQL_TYPE_FLOAT
+        | ColumnType::MYSQL_TYPE_DOUBLE => mysql_float_bytes_to_json(&bytes),
+        ColumnType::MYSQL_TYPE_BIT => mysql_bit_bytes_to_json(&bytes),
+        ColumnType::MYSQL_TYPE_JSON => match String::from_utf8(bytes) {
+            Ok(text) => serde_json::from_str(&text).unwrap_or(Value::String(text)),
+            Err(error) => Value::String(format!("0x{}", hex::encode(error.into_bytes()))),
+        },
+        _ => match String::from_utf8(bytes) {
+            Ok(text) => Value::String(text),
+            Err(error) => Value::String(format!("0x{}", hex::encode(error.into_bytes()))),
+        },
+    }
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_integer_bytes_to_json(bytes: &[u8], flags: mysql::consts::ColumnFlags) -> Value {
+    let text = String::from_utf8_lossy(bytes);
+    if flags.contains(mysql::consts::ColumnFlags::UNSIGNED_FLAG) {
+        return text
+            .trim()
+            .parse::<u64>()
+            .map_or_else(|_| Value::String(text.to_string()), |value| json!(value));
+    }
+    text.trim()
+        .parse::<i64>()
+        .map_or_else(|_| Value::String(text.to_string()), |value| json!(value))
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_float_bytes_to_json(bytes: &[u8]) -> Value {
+    let text = String::from_utf8_lossy(bytes);
+    let Ok(value) = text.trim().parse::<f64>() else {
+        return Value::String(text.to_string());
+    };
+    serde_json::Number::from_f64(value)
+        .map_or_else(|| Value::String(text.to_string()), Value::Number)
+}
+
+#[cfg(feature = "memory-mariadb")]
+fn mysql_bit_bytes_to_json(bytes: &[u8]) -> Value {
+    if bytes.is_empty() {
+        return json!(0_u64);
+    }
+    let value = bytes.iter().fold(0_u64, |acc, byte| (acc << 8) | u64::from(*byte));
+    json!(value)
+}
+
+#[cfg(feature = "memory-postgres")]
+fn postgres_query_rows(url: &str, sql: &str) -> Result<Vec<Value>, String> {
+    let mut client = postgres::Client::connect(url, postgres::NoTls).map_err(|e| e.to_string())?;
+    let rows = client.query(sql, &[]).map_err(|e| e.to_string())?;
+    let mut items = Vec::new();
+    for row in rows {
+        let mut object = Map::new();
+        for (index, column) in row.columns().iter().enumerate() {
+            object.insert(column.name().to_string(), postgres_cell_to_json(&row, index)?);
+        }
+        items.push(Value::Object(object));
+    }
+    Ok(items)
+}
+
+#[cfg(feature = "memory-postgres")]
+fn postgres_cell_to_json(row: &postgres::Row, index: usize) -> Result<Value, String> {
+    let column_type = row.columns()[index].type_();
+    use postgres::types::Type;
+
+    if *column_type == Type::BOOL {
+        return postgres_optional_cell::<bool, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::INT2 {
+        return postgres_optional_cell::<i16, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::INT4 {
+        return postgres_optional_cell::<i32, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::INT8 {
+        return postgres_optional_cell::<i64, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::FLOAT4 {
+        return postgres_optional_cell::<f32, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::FLOAT8 {
+        return postgres_optional_cell::<f64, _>(row, index, |value| json!(value));
+    }
+    if *column_type == Type::DATE {
+        return postgres_optional_cell::<chrono::NaiveDate, _>(row, index, |value| {
+            json!(value.to_string())
+        });
+    }
+    if *column_type == Type::TIMESTAMP {
+        return postgres_optional_cell::<chrono::NaiveDateTime, _>(row, index, |value| {
+            json!(value.to_string())
+        });
+    }
+    if *column_type == Type::TIMESTAMPTZ {
+        return postgres_optional_cell::<chrono::DateTime<chrono::Utc>, _>(row, index, |value| {
+            json!(value.to_rfc3339())
+        });
+    }
+
+    row.try_get::<_, Option<String>>(index)
+        .map(|value| value.map_or(Value::Null, Value::String))
+        .map_err(|_| format!("PostgreSQL column type is not supported: {}", column_type.name()))
+}
+
+#[cfg(feature = "memory-postgres")]
+fn postgres_optional_cell<T, F>(
+    row: &postgres::Row,
+    index: usize,
+    to_json: F,
+) -> Result<Value, String>
+where
+    T: for<'a> postgres::types::FromSql<'a>,
+    F: FnOnce(T) -> Value,
+{
+    row.try_get::<_, Option<T>>(index)
+        .map(|value| value.map_or(Value::Null, to_json))
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(any(feature = "memory-mariadb", feature = "memory-postgres"))]
+fn count_from_query_items(items: Vec<Value>) -> Result<u64, String> {
+    let Some(first) = items.first().and_then(Value::as_object) else {
+        return Ok(0);
+    };
+    let Some(value) = first.values().next() else {
+        return Ok(0);
+    };
+    match value {
+        Value::Number(number) => number
+            .as_u64()
+            .or_else(|| number.as_i64().map(|value| value.max(0) as u64))
+            .ok_or_else(|| "SQL count value is not an integer".to_string()),
+        Value::String(text) => text.parse::<u64>().map_err(|e| e.to_string()),
+        Value::Null => Ok(0),
+        _ => Err("SQL count value is not a scalar".to_string()),
     }
 }
 
@@ -1336,6 +1765,7 @@ fn collect_mock_goods_options_records(
     report_config: Option<&Value>,
 ) -> Vec<MockGoodsOptionsRecord> {
     let mut records = Vec::new();
+    let mut consumed_arg_keys = BTreeSet::new();
 
     for key in [
         "mock_data",
@@ -1345,7 +1775,10 @@ fn collect_mock_goods_options_records(
         "mock_goods_options",
         "mockGoodsOptions",
     ] {
-        if let Some(value) = btree_value_by_normalized_key(transformer_args, key) {
+        if let Some((actual_key, value)) = btree_entry_by_normalized_key(transformer_args, key) {
+            if !consumed_arg_keys.insert(actual_key.to_string()) {
+                continue;
+            }
             extend_mock_goods_options_records(value, &mut records);
         }
     }
@@ -1589,10 +2022,17 @@ fn btree_value_by_normalized_key<'a>(
     map: &'a BTreeMap<String, Value>,
     key: &str,
 ) -> Option<&'a Value> {
+    btree_entry_by_normalized_key(map, key).map(|(_, value)| value)
+}
+
+fn btree_entry_by_normalized_key<'a>(
+    map: &'a BTreeMap<String, Value>,
+    key: &str,
+) -> Option<(&'a str, &'a Value)> {
     let normalized_key = normalize_field_code(key);
     map.iter()
         .find(|(candidate, _)| normalize_field_code(candidate) == normalized_key)
-        .map(|(_, value)| value)
+        .map(|(candidate, value)| (candidate.as_str(), value))
 }
 
 fn json_value_by_normalized_key<'a>(map: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {

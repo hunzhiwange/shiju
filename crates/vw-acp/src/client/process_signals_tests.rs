@@ -1,8 +1,8 @@
 use std::process::Command;
 
 use super::{
-    child_exit_summary, cleanup_process_group, send_kill_signal_to_process_group,
-    send_terminate_signal_to_process_group,
+    child_exit_summary, cleanup_process_targets, process_cleanup_targets,
+    send_kill_signal_to_process_group, send_terminate_signal_to_process_group,
 };
 
 #[test]
@@ -43,6 +43,31 @@ fn process_group_signal_helpers_ignore_empty_and_missing_targets() {
 }
 
 #[cfg(unix)]
+#[test]
+fn process_cleanup_targets_include_descendant_process_groups() {
+    let entries = super::parse_process_table_entries(
+        r#"
+        100 1 100
+        101 100 101
+        102 101 102
+        103 100 100
+        104 1 100
+        105 104 105
+        200 1 200
+        "#,
+    );
+
+    let targets = super::process_cleanup_targets_from_entries(100, &entries);
+    let mut process_groups = targets.process_groups;
+    process_groups.sort_unstable();
+    let mut processes = targets.processes;
+    processes.sort_unstable();
+
+    assert_eq!(process_groups, vec![100, 101, 102, 105]);
+    assert_eq!(processes, vec![100, 101, 102, 103, 104, 105]);
+}
+
+#[cfg(unix)]
 #[tokio::test]
 async fn cleanup_process_group_kills_term_ignoring_process_group() {
     use std::os::unix::process::{CommandExt, ExitStatusExt};
@@ -78,7 +103,7 @@ async fn cleanup_process_group_kills_term_ignoring_process_group() {
         std::thread::sleep(Duration::from_millis(10));
     }
 
-    cleanup_process_group(Some(process_group_id)).await;
+    cleanup_process_targets(process_cleanup_targets(Some(process_group_id))).await;
     let _ = std::fs::remove_file(&ready_path);
 
     let deadline = Instant::now() + Duration::from_secs(2);

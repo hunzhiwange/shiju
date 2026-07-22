@@ -1,0 +1,26 @@
+{
+  "mcpServers": [
+    {
+      "name": "vibewindow-demo",
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "./plugins/vibewindow-demo-plugin/scripts/demo_mcp_server.py"
+      ],
+      "env": [
+        {
+          "name": "VIBEWINDOW_DEMO_MCP",
+          "value": "1"
+        }
+      ],
+      "timeout": 5,
+      "allowedTools": [
+        "demo_echo",
+        "demo_sum"
+      ],
+      "_meta": {
+        "description": "Local stdio MCP demo server packaged by vibewindow-demo-plugin."
+      }
+    }
+  ]
+}

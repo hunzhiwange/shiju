@@ -728,10 +728,12 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             description: "Native support + AppleScript",
             category: IntegrationCategory::Platform,
             status_fn: |_| {
-                // 根据编译目标判断是否为 macOS 平台
-                if cfg!(target_os = "macos") {
+                #[cfg(target_os = "macos")]
+                {
                     IntegrationStatus::Active
-                } else {
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
                     IntegrationStatus::Available
                 }
             },
@@ -741,10 +743,12 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             description: "Native support",
             category: IntegrationCategory::Platform,
             status_fn: |_| {
-                // 根据编译目标判断是否为 Linux 平台
-                if cfg!(target_os = "linux") {
+                #[cfg(target_os = "linux")]
+                {
                     IntegrationStatus::Active
-                } else {
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
                     IntegrationStatus::Available
                 }
             },

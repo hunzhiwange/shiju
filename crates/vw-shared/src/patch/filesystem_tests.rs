@@ -294,3 +294,111 @@ fn preview_changes_reports_move_target() {
     assert_eq!(preview["changes"][&target_path]["move_path"], target_path);
     assert_eq!(preview["changes"][&target_path]["new_content"], "one\nthree\n");
 }
+
+#[test]
+fn apply_hunks_to_files_add_absolute_path_ignores_root() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let other_dir = tempfile::tempdir().expect("temp dir should be created");
+    let file_path = other_dir.path().join("absolute.txt");
+    let hunks = vec![Hunk::Add {
+        path: file_path.to_string_lossy().to_string(),
+        contents: "abs".to_string(),
+    }];
+
+    let affected =
+        apply_hunks_to_files(&hunks, Some(temp_dir.path())).expect("absolute add should apply");
+
+    assert_eq!(fs::read_to_string(&file_path).unwrap(), "abs");
+    assert_eq!(affected.added, vec![file_path.to_string_lossy().to_string()]);
+}
+
+#[test]
+fn apply_hunks_to_files_handles_mixed_add_update_delete() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    fs::write(temp_dir.path().join("note.txt"), "alpha\nbeta\n").unwrap();
+    fs::write(temp_dir.path().join("gone.txt"), "remove").unwrap();
+    let hunks = vec![
+        Hunk::Add { path: "fresh.txt".to_string(), contents: "fresh".to_string() },
+        Hunk::Update {
+            path: "note.txt".to_string(),
+            move_path: None,
+            chunks: vec![replace_chunk(&["beta"], &["gamma"])],
+        },
+        Hunk::Delete { path: "gone.txt".to_string() },
+    ];
+
+    let affected =
+        apply_hunks_to_files(&hunks, Some(temp_dir.path())).expect("mixed hunks should apply");
+
+    assert_eq!(
+        affected.added,
+        vec![temp_dir.path().join("fresh.txt").to_string_lossy().to_string()]
+    );
+    assert_eq!(
+        affected.modified,
+        vec![temp_dir.path().join("note.txt").to_string_lossy().to_string()]
+    );
+    assert_eq!(
+        affected.deleted,
+        vec![temp_dir.path().join("gone.txt").to_string_lossy().to_string()]
+    );
+}
+
+#[test]
+fn apply_patch_applies_relative_without_root() {
+    let _lock = CWD_LOCK.lock().expect("cwd lock should be acquired");
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let _guard = CurrentDirGuard::enter(temp_dir.path());
+    let patch = r#"
+*** Begin Patch
+*** Add File: rel.txt
++rel
+*** End Patch
+"#;
+
+    let affected = apply_patch(patch, None).expect("patch should apply");
+
+    assert_eq!(fs::read_to_string(temp_dir.path().join("rel.txt")).unwrap(), "rel");
+    assert_eq!(affected.added, vec!["rel.txt"]);
+}
+
+#[test]
+fn preview_changes_invalid_input_returns_parse_error() {
+    let err = preview_changes("not a patch", None).expect_err("invalid patch should fail");
+
+    assert!(matches!(err, Error::Parse(_)));
+}
+
+#[test]
+fn preview_changes_delete_missing_file_returns_io_error() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    let patch = r#"
+*** Begin Patch
+*** Delete File: missing.txt
+*** End Patch
+"#;
+
+    let err = preview_changes(patch, Some(temp_dir.path()))
+        .expect_err("missing delete target should fail");
+
+    assert!(matches!(err, Error::Io(_)));
+}
+
+#[test]
+fn preview_changes_update_missing_lines_returns_compute_error() {
+    let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+    fs::write(temp_dir.path().join("note.txt"), "alpha\nbeta\n").unwrap();
+    let patch = r#"
+*** Begin Patch
+*** Update File: note.txt
+@@
+-delta
++gamma
+*** End Patch
+"#;
+
+    let err = preview_changes(patch, Some(temp_dir.path()))
+        .expect_err("unmatched update hunk should fail");
+
+    assert!(matches!(err, Error::ComputeReplacements(_)));
+}

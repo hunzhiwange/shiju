@@ -3,14 +3,6 @@ use iced::widget::svg;
 use std::collections::HashMap;
 
 pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
-    // Figma 图标
-    m.insert(
-        Icon::Figma,
-        svg::Handle::from_memory(include_bytes!(
-            "../../../../../assets/icons/file-types/figma.svg"
-        )),
-    );
-
     // === 文件类型图标 ===
 
     // Rust 语言文件图标

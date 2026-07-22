@@ -44,13 +44,24 @@ pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 ///
 /// 该结构会把原始 JSON 响应规整为更适合 UI 层消费的字段。
 pub use client::{
-    DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto,
-    PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
+    DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
+    DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
+    ExternalAppsStateDto, PendingPermissionReplyDto, PendingPermissionRequestDto,
+    PendingPermissionToolDto,
+};
+/// Workflow streaming 请求与事件类型。
+pub use client::{
+    GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome, GatewayWorkflowStreamError,
+    GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 /// 网关认证参数与基础端点配置。
 ///
 /// 用于描述请求应发送到哪个网关实例，以及需要附加哪些认证信息。
 pub use endpoint::{GatewayAuth, GatewayEndpoint};
+/// 判断错误文本是否表示网关当前不可达。
+///
+/// 调用方可在有本地或默认回退的读取路径中用它避免把预期离线状态记录为告警。
+pub use http::is_gateway_unavailable_error;
 /// 会话相关请求与响应类型。
 ///
 /// 这些类型直接复用 `vw-api-types` 中的定义，避免调用方重复依赖多个 crate。
@@ -87,28 +98,19 @@ pub use stream::{
 ///
 /// 方便上层从单一依赖入口访问完整的接口类型集合。
 pub use vw_api_types;
-pub use vw_api_types::cleaner::{
-    CleanerCleanupRequest, CleanerInfoResponse, CleanerRunResponse, CleanerScanDetail,
-    CleanerScanGroup, CleanerScanItem, CleanerScanReport, CleanerStatusResponse,
-};
 pub use vw_api_types::knowledge::{
-    KnowledgeChunkDto, KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,
-    KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeIndexingMode,
-    KnowledgeRetrievalMode, KnowledgeRetrieveRequest, KnowledgeRetrieveResponse,
-    KnowledgeRuntimeStatus,
+    KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
+    KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,
+    KnowledgeDocumentDto, KnowledgeDocumentImportLimitsDto, KnowledgeDocumentImportQueuedResponse,
+    KnowledgeDocumentImportRequest, KnowledgeDocumentImportResponse,
+    KnowledgeDocumentImportTypeDto, KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus,
+    KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto, KnowledgeEmbeddingTestRequest,
+    KnowledgeEmbeddingTestResponse, KnowledgeImportSupportDto, KnowledgeIndexJobDto,
+    KnowledgeIndexJobStatus, KnowledgeIndexingMode, KnowledgeMatchType, KnowledgeRetrievalMode,
+    KnowledgeRetrieveRequest, KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
 };
 pub use vw_api_types::project::{
     ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse, ProjectChangeRecordDto,
-};
-pub use vw_api_types::tool::{
-    GatewayRedisCommandRequest, GatewayRedisCommandResponse, GatewayRedisConfigBundle,
-    GatewayRedisConnectionConfig, GatewayRedisConnectionTestResponse,
-    GatewayRedisConnectionUpsertBody, GatewayRedisDeleteResponse, GatewayRedisHistoryListQuery,
-    GatewayRedisHistoryPage, GatewayRedisHistoryRecord, GatewayRedisImportResponse,
-    GatewayRedisInfoEntry, GatewayRedisKeyAnalysis, GatewayRedisKeyAnalysisRequest,
-    GatewayRedisKeyCreateRequest, GatewayRedisKeyListQuery, GatewayRedisKeyPage,
-    GatewayRedisKeyspaceStat, GatewayRedisRuntimeOverview, GatewayRedisSettings,
-    GatewayRedisSettingsUpdateBody, GatewayRedisToolState,
 };
 pub use vw_api_types::workflow::{
     WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowRecord, WorkflowRecordDeleteResponse,

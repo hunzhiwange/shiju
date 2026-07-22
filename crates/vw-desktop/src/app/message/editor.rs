@@ -150,15 +150,21 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
             // 更新所有预览标签页的编辑器字号和行高
             for tab in app.preview_tabs.iter_mut() {
+                let previous_line_height = tab.editor.inner.line_height();
                 tab.editor.set_font_size(app.current_font_size);
                 if app.auto_adjust_line_height {
                     tab.editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
+                } else {
+                    tab.editor.set_line_height(previous_line_height);
                 }
             }
 
             // 更新 Git 复制模态框中的代码编辑器
             app.git_copy_modal_code_editor
-                .set_font_size(app.current_font_size.clamp(10.0, 30.0), true);
+                .set_font_size(
+                    app.current_font_size.clamp(10.0, 30.0),
+                    app.auto_adjust_line_height,
+                );
             if app.auto_adjust_line_height {
                 app.git_copy_modal_code_editor
                     .set_line_height(app.current_line_height.clamp(10.0, 60.0));

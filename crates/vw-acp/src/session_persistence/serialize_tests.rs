@@ -49,6 +49,7 @@ fn test_record() -> SessionRecord {
             available_models: None,
             available_commands: None,
             config_options: None,
+            desired_config_options: None,
             session_options: Some(SessionStateOptions {
                 model: Some("gpt".to_string()),
                 allowed_tools: None,

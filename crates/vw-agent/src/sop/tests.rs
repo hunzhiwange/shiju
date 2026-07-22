@@ -440,4 +440,279 @@ mod tests {
         assert!(matches!(manifest.triggers[2], SopTrigger::Cron { .. }));
         assert!(matches!(manifest.triggers[3], SopTrigger::Manual));
     }
+
+    #[test]
+    fn resolve_sops_dir_empty_override_uses_workspace_default() {
+        let workspace = Path::new("/workspace");
+
+        assert_eq!(resolve_sops_dir(workspace, Some("")), workspace.join("sops"));
+    }
+
+    #[test]
+    fn parse_numbered_item_accepts_digits_and_rejects_invalid_prefixes() {
+        assert_eq!(parse_numbered_item("12. Run checks"), Some("Run checks"));
+        assert_eq!(parse_numbered_item("1. "), Some(""));
+        assert_eq!(parse_numbered_item(". Missing number"), None);
+        assert_eq!(parse_numbered_item("one. Not numeric"), None);
+        assert_eq!(parse_numbered_item("1.No separating space"), None);
+    }
+
+    #[test]
+    fn parse_steps_stops_at_next_second_level_heading() {
+        let steps = parse_steps(
+            "## Steps\n1. **First** — Included body.\n## Notes\n2. **Ignored** — Outside steps.\n",
+        );
+
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].title, "First");
+        assert_eq!(steps[0].body, "Included body.");
+    }
+
+    #[test]
+    fn parse_steps_normalizes_numbers_and_handles_sub_bullet_edges() {
+        let steps = parse_steps(
+            "## STEPS\n7. **First** – Initial body.\n- tools: shell, , memory_store\n- requires_confirmation: TRUE\n- note: preserve this bullet\n42. Plain second step\n- tools:\n- requires_confirmation: false\n",
+        );
+
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[0].number, 1);
+        assert_eq!(steps[0].title, "First");
+        assert_eq!(steps[0].suggested_tools, vec!["shell", "memory_store"]);
+        assert!(steps[0].requires_confirmation);
+        assert_eq!(steps[0].body, "Initial body.\n- note: preserve this bullet");
+
+        assert_eq!(steps[1].number, 2);
+        assert_eq!(steps[1].title, "Plain second step");
+        assert!(steps[1].suggested_tools.is_empty());
+        assert!(!steps[1].requires_confirmation);
+    }
+
+    #[test]
+    fn extract_bold_title_rejects_unclosed_marker() {
+        assert!(extract_bold_title("**Unclosed title").is_none());
+    }
+
+    #[test]
+    fn load_sops_read_dir_error_returns_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("not-a-directory");
+        fs::write(&file_path, "content").unwrap();
+
+        let sops = load_sops_from_directory(&file_path, SopExecutionMode::Supervised);
+
+        assert!(sops.is_empty());
+    }
+
+    #[test]
+    fn load_sops_skips_invalid_entries_and_sorts_by_name() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("SOP.toml"), "ignored root file").unwrap();
+        fs::create_dir(dir.path().join("missing-manifest")).unwrap();
+
+        let invalid_dir = dir.path().join("invalid");
+        fs::create_dir(&invalid_dir).unwrap();
+        fs::write(invalid_dir.join("SOP.toml"), "not valid TOML = [").unwrap();
+
+        for (directory, name) in [("first-on-disk", "zeta"), ("second-on-disk", "alpha")] {
+            let sop_dir = dir.path().join(directory);
+            fs::create_dir(&sop_dir).unwrap();
+            fs::write(
+                sop_dir.join("SOP.toml"),
+                format!(
+                    "[sop]\nname = \"{name}\"\ndescription = \"{name} description\"\n\n[[triggers]]\ntype = \"manual\"\n"
+                ),
+            )
+            .unwrap();
+        }
+
+        let sops = load_sops_from_directory(dir.path(), SopExecutionMode::Supervised);
+        let names: Vec<&str> = sops.iter().map(|sop| sop.name.as_str()).collect();
+
+        assert_eq!(names, vec!["alpha", "zeta"]);
+    }
+
+    #[test]
+    fn load_sops_uses_explicit_directory() {
+        let workspace = tempfile::tempdir().unwrap();
+        let configured_dir = tempfile::tempdir().unwrap();
+        let sop_dir = configured_dir.path().join("configured");
+        fs::create_dir(&sop_dir).unwrap();
+        fs::write(
+            sop_dir.join("SOP.toml"),
+            "[sop]\nname = \"configured\"\ndescription = \"Configured SOP\"\n\n[[triggers]]\ntype = \"manual\"\n",
+        )
+        .unwrap();
+
+        let sops =
+            load_sops(workspace.path(), configured_dir.path().to_str(), SopExecutionMode::Auto);
+
+        assert_eq!(sops.len(), 1);
+        assert_eq!(sops[0].name, "configured");
+        assert_eq!(sops[0].execution_mode, SopExecutionMode::Auto);
+    }
+
+    #[test]
+    fn load_sop_invalid_manifest_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("SOP.toml"), "invalid = [").unwrap();
+
+        let result = load_sop(dir.path(), SopExecutionMode::Supervised);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_sop_reports_numbering_gaps_and_empty_titles() {
+        let sop = Sop {
+            name: "numbering".into(),
+            description: "Validate step numbering".into(),
+            version: "1.0.0".into(),
+            priority: SopPriority::Normal,
+            execution_mode: SopExecutionMode::Supervised,
+            triggers: vec![SopTrigger::Manual],
+            steps: vec![
+                SopStep {
+                    number: 2,
+                    title: String::new(),
+                    body: String::new(),
+                    suggested_tools: Vec::new(),
+                    requires_confirmation: false,
+                },
+                SopStep {
+                    number: 4,
+                    title: "Later step".into(),
+                    body: String::new(),
+                    suggested_tools: Vec::new(),
+                    requires_confirmation: false,
+                },
+            ],
+            cooldown_secs: 0,
+            max_concurrent: 1,
+            location: None,
+        };
+
+        let warnings = validate_sop(&sop);
+
+        assert_eq!(
+            warnings,
+            vec![
+                "Step numbering gap: expected 1, got 2".to_string(),
+                "Step 2 has an empty title".to_string(),
+                "Step numbering gap: expected 2, got 4".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn sop_commands_round_trip_through_json() {
+        let commands = [
+            SopCommands::List,
+            SopCommands::Validate { name: None },
+            SopCommands::Validate { name: Some("inspect".into()) },
+            SopCommands::Show { name: "inspect".into() },
+        ];
+
+        for command in commands {
+            let json = serde_json::to_string(&command).unwrap();
+            let decoded: SopCommands = serde_json::from_str(&json).unwrap();
+            assert_eq!(decoded, command);
+        }
+    }
+
+    #[test]
+    fn handle_validate_missing_named_sop_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = crate::app::agent::config::Config::default();
+        config.workspace_dir = dir.path().to_path_buf();
+        config.sop.sops_dir = Some(dir.path().join("missing").to_string_lossy().into_owned());
+
+        let error = handle_command(SopCommands::Validate { name: Some("absent".into()) }, &config)
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), "SOP not found: absent");
+    }
+
+    #[test]
+    fn handle_show_missing_named_sop_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = crate::app::agent::config::Config::default();
+        config.workspace_dir = dir.path().to_path_buf();
+        config.sop.sops_dir = Some(dir.path().join("missing").to_string_lossy().into_owned());
+
+        let error =
+            handle_command(SopCommands::Show { name: "absent".into() }, &config).unwrap_err();
+
+        assert_eq!(error.to_string(), "SOP not found: absent");
+    }
+
+    #[test]
+    fn handle_list_and_validate_empty_directory_succeed() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = crate::app::agent::config::Config::default();
+        config.workspace_dir = dir.path().to_path_buf();
+        config.sop.sops_dir = Some(dir.path().join("missing").to_string_lossy().into_owned());
+
+        assert!(handle_command(SopCommands::List, &config).is_ok());
+        assert!(handle_command(SopCommands::Validate { name: None }, &config).is_ok());
+    }
+
+    #[test]
+    fn handle_commands_accept_valid_named_sop() {
+        let dir = tempfile::tempdir().unwrap();
+        let sop_dir = dir.path().join("inspect");
+        fs::create_dir(&sop_dir).unwrap();
+        fs::write(
+            sop_dir.join("SOP.toml"),
+            r#"[sop]
+name = "inspect"
+description = "Inspect a valid SOP"
+version = "1.2.3"
+priority = "high"
+execution_mode = "auto"
+cooldown_secs = 30
+max_concurrent = 2
+
+[[triggers]]
+type = "manual"
+"#,
+        )
+        .unwrap();
+        fs::write(
+            sop_dir.join("SOP.md"),
+            "## Steps\n1. **Inspect** — Check the system.\n- tools: shell\n- requires_confirmation: true\n",
+        )
+        .unwrap();
+
+        let mut config = crate::app::agent::config::Config::default();
+        config.workspace_dir = dir.path().to_path_buf();
+        config.sop.sops_dir = Some(dir.path().to_string_lossy().into_owned());
+
+        assert!(handle_command(SopCommands::List, &config).is_ok());
+        assert!(
+            handle_command(SopCommands::Validate { name: Some("inspect".into()) }, &config).is_ok()
+        );
+        assert!(handle_command(SopCommands::Show { name: "inspect".into() }, &config).is_ok());
+    }
+
+    #[test]
+    fn handle_validate_reports_loaded_sop_warnings() {
+        let dir = tempfile::tempdir().unwrap();
+        let sop_dir = dir.path().join("incomplete");
+        fs::create_dir(&sop_dir).unwrap();
+        fs::write(
+            sop_dir.join("SOP.toml"),
+            "[sop]\nname = \"incomplete\"\ndescription = \"Missing steps\"\n\n[[triggers]]\ntype = \"manual\"\n",
+        )
+        .unwrap();
+
+        let mut config = crate::app::agent::config::Config::default();
+        config.workspace_dir = dir.path().to_path_buf();
+        config.sop.sops_dir = Some(dir.path().to_string_lossy().into_owned());
+
+        let error =
+            handle_command(SopCommands::Validate { name: Some("incomplete".into()) }, &config)
+                .unwrap_err();
+
+        assert_eq!(error.to_string(), "Validation completed with warnings");
+    }
 }

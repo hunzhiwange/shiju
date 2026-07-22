@@ -10,7 +10,7 @@ use crate::app::agent::{auth, config};
 
 use super::{
     copilot_auth_token, do_stream_request_acp, is_copilot_acp_agent, is_github_copilot_provider,
-    is_usable_copilot_token, with_copilot_auth_environment,
+    is_usable_copilot_token, parse_close_client_after_request, with_copilot_auth_environment,
 };
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -179,6 +179,27 @@ fn copilot_auth_environment_preserves_explicit_agent_env() {
 }
 
 #[test]
+fn copilot_auth_environment_preserves_both_explicit_token_variables() {
+    let mut cfg = copilot_config();
+    cfg.env.insert("GH_COPILOT_TOKEN".to_string(), "explicit-gh-token".to_string());
+    cfg.env.insert("GITHUB_COPILOT_TOKEN".to_string(), "explicit-github-token".to_string());
+
+    let cfg = with_copilot_auth_environment(
+        &test_model("github-copilot"),
+        &test_provider(Some("provider-token")),
+        None,
+        "copilot",
+        cfg,
+    );
+
+    assert_eq!(cfg.env.get("GH_COPILOT_TOKEN").map(String::as_str), Some("explicit-gh-token"));
+    assert_eq!(
+        cfg.env.get("GITHUB_COPILOT_TOKEN").map(String::as_str),
+        Some("explicit-github-token")
+    );
+}
+
+#[test]
 fn copilot_auth_token_uses_provider_env_before_auth_fallback() {
     let _guard = EnvGuard::set("VW_AGENT_COPILOT_TEST_TOKEN", " env-token ");
     let mut provider = test_provider(None);
@@ -190,6 +211,83 @@ fn copilot_auth_token_uses_provider_env_before_auth_fallback() {
     );
 
     assert_eq!(token.as_deref(), Some("env-token"));
+}
+
+#[test]
+fn copilot_auth_token_prefers_provider_key_over_env_and_auth() {
+    let _guard = EnvGuard::set("VW_AGENT_COPILOT_PROVIDER_KEY_TEST_TOKEN", "env-token");
+    let mut provider = test_provider(Some(" provider-token "));
+    provider.env = vec!["VW_AGENT_COPILOT_PROVIDER_KEY_TEST_TOKEN".to_string()];
+
+    let token = copilot_auth_token(
+        &provider,
+        Some(&auth::Info::Api(auth::ApiInfo { key: "auth-token".to_string() })),
+    );
+
+    assert_eq!(token.as_deref(), Some("provider-token"));
+}
+
+#[test]
+fn copilot_auth_token_falls_back_from_dummy_provider_key_to_env() {
+    let _guard = EnvGuard::set("VW_AGENT_COPILOT_DUMMY_KEY_TEST_TOKEN", " env-token ");
+    let mut provider = test_provider(Some(auth::OAUTH_DUMMY_KEY));
+    provider.env = vec!["VW_AGENT_COPILOT_DUMMY_KEY_TEST_TOKEN".to_string()];
+
+    let token = copilot_auth_token(
+        &provider,
+        Some(&auth::Info::Api(auth::ApiInfo { key: "auth-token".to_string() })),
+    );
+
+    assert_eq!(token.as_deref(), Some("env-token"));
+}
+
+#[test]
+fn copilot_auth_token_falls_back_from_blank_env_to_api_auth() {
+    let _guard = EnvGuard::set("VW_AGENT_COPILOT_BLANK_ENV_TEST_TOKEN", "   ");
+    let mut provider = test_provider(None);
+    provider.env = vec!["VW_AGENT_COPILOT_BLANK_ENV_TEST_TOKEN".to_string()];
+
+    let token = copilot_auth_token(
+        &provider,
+        Some(&auth::Info::Api(auth::ApiInfo { key: " auth-token ".to_string() })),
+    );
+
+    assert_eq!(token.as_deref(), Some("auth-token"));
+}
+
+#[test]
+fn copilot_auth_token_skips_dummy_env_before_api_auth() {
+    let _guard = EnvGuard::set("VW_AGENT_COPILOT_DUMMY_ENV_TEST_TOKEN", auth::OAUTH_DUMMY_KEY);
+    let mut provider = test_provider(None);
+    provider.env = vec!["VW_AGENT_COPILOT_DUMMY_ENV_TEST_TOKEN".to_string()];
+
+    let token = copilot_auth_token(
+        &provider,
+        Some(&auth::Info::Api(auth::ApiInfo { key: " auth-token ".to_string() })),
+    );
+
+    assert_eq!(token.as_deref(), Some("auth-token"));
+}
+
+#[test]
+fn copilot_auth_token_rejects_blank_and_non_api_auth_fallbacks() {
+    let provider = test_provider(None);
+    let blank_api = auth::Info::Api(auth::ApiInfo { key: "   ".to_string() });
+    let oauth = auth::Info::Oauth(auth::OauthInfo {
+        refresh: "refresh-token".to_string(),
+        access: "access-token".to_string(),
+        expires: 0,
+        account_id: None,
+        enterprise_url: None,
+    });
+    let well_known = auth::Info::Wellknown(auth::WellKnownInfo {
+        key: "well-known-key".to_string(),
+        token: "well-known-token".to_string(),
+    });
+
+    assert_eq!(copilot_auth_token(&provider, Some(&blank_api)), None);
+    assert_eq!(copilot_auth_token(&provider, Some(&oauth)), None);
+    assert_eq!(copilot_auth_token(&provider, Some(&well_known)), None);
 }
 
 #[test]
@@ -246,6 +344,73 @@ fn copilot_auth_environment_ignores_non_copilot_provider() {
     );
 
     assert!(cfg.env.is_empty());
+}
+
+#[test]
+fn close_client_after_request_option_defaults_to_false() {
+    assert!(!parse_close_client_after_request(&json!({})).expect("missing option should parse"));
+}
+
+#[test]
+fn close_client_after_request_option_treats_non_object_as_missing() {
+    assert!(!parse_close_client_after_request(&json!(null)).expect("null should use the default"));
+    assert!(!parse_close_client_after_request(&json!([])).expect("array should use the default"));
+}
+
+#[test]
+fn close_client_after_request_option_accepts_boolean_only() {
+    assert!(
+        parse_close_client_after_request(&json!({"acp_close_client_after_request": true}))
+            .expect("boolean option should parse")
+    );
+    assert!(
+        parse_close_client_after_request(&json!({"acp_close_client_after_request": "true"}))
+            .is_err()
+    );
+}
+
+#[test]
+fn close_client_after_request_option_accepts_explicit_false() {
+    assert!(
+        !parse_close_client_after_request(&json!({"acp_close_client_after_request": false}))
+            .expect("false should remain disabled")
+    );
+}
+
+#[test]
+fn close_client_after_request_option_reports_non_boolean_error() {
+    let error = parse_close_client_after_request(&json!({
+        "acp_close_client_after_request": 1
+    }))
+    .expect_err("numeric option should be rejected");
+
+    match error {
+        crate::app::agent::session::llm::Error::Api(message::AssistantError::Unknown {
+            message,
+        }) => assert_eq!(
+            message,
+            "acp option error: acp_close_client_after_request must be a boolean"
+        ),
+        other => panic!("expected ACP option error, got {other:?}"),
+    }
+}
+
+#[test]
+fn close_client_after_request_option_rejects_explicit_null() {
+    let error = parse_close_client_after_request(&json!({
+        "acp_close_client_after_request": null
+    }))
+    .expect_err("explicit null must not silently use the default");
+
+    match error {
+        crate::app::agent::session::llm::Error::Api(message::AssistantError::Unknown {
+            message,
+        }) => assert_eq!(
+            message,
+            "acp option error: acp_close_client_after_request must be a boolean"
+        ),
+        other => panic!("expected ACP option error, got {other:?}"),
+    }
 }
 
 #[tokio::test]

@@ -31,6 +31,8 @@ fn mention_helpers_cover_plain_nick_and_absent_mentions() {
     assert!(contains_bot_mention("hi <@42>", "42"));
     assert!(contains_bot_mention("hi <@!42>", "42"));
     assert!(!contains_bot_mention("hi <@24>", "42"));
+    assert!(!contains_bot_mention("hi <@420>", "42"));
+    assert!(!contains_bot_mention("hi <@!420>", "42"));
 }
 
 #[test]
@@ -38,4 +40,12 @@ fn normalize_incoming_content_rejects_empty_or_mention_only_messages() {
     assert_eq!(normalize_incoming_content("", false, "42"), None);
     assert_eq!(normalize_incoming_content("   ", false, "42"), None);
     assert_eq!(normalize_incoming_content("<@42> <@!42>", true, "42"), None);
+}
+
+#[test]
+fn normalize_incoming_content_keeps_words_separated_after_removing_mentions() {
+    assert_eq!(
+        normalize_incoming_content("run<@42>status and<@!42>report", true, "42"),
+        Some("run status and report".to_string())
+    );
 }

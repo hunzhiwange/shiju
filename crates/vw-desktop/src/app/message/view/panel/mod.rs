@@ -41,6 +41,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CheckAppUpdate
         | ViewMessage::CheckAppUpdateFinished(_)
         | ViewMessage::RunAppUpdate
+        | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)
         | ViewMessage::InstallCliToolFinished(_)
         | ViewMessage::CloseInstallCliModal
@@ -60,6 +61,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleSendModePopover
         | ViewMessage::ToggleFilePopover
         | ViewMessage::ToggleAcpPopover
+        | ViewMessage::ToggleReasoningEffortPopover
         | ViewMessage::ToggleUsagePopover
         | ViewMessage::ToggleSessionToolSelectorPopover
         | ViewMessage::ToggleSessionActionsPopover
@@ -70,6 +72,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CloseSendModePopover
         | ViewMessage::CloseFilePopover
         | ViewMessage::CloseAcpPopover
+        | ViewMessage::CloseReasoningEffortPopover
         | ViewMessage::CloseUsagePopover
         | ViewMessage::CloseExecutorPopover
         | ViewMessage::ModelPopoverHoverChanged(_)
@@ -84,31 +87,18 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::HomeAppsBarNext => tabs::update(app, message),
 
         ViewMessage::OpenApps
-        | ViewMessage::OpenDesign
         | ViewMessage::OpenUsage
-        | ViewMessage::OpenJsonTool
-        | ViewMessage::OpenJsonYamlTool
         | ViewMessage::OpenKnowledge
-        | ViewMessage::OpenSqlTool
-        | ViewMessage::OpenRedisTool
-        | ViewMessage::OpenHtmlTool
-        | ViewMessage::OpenJsonDiffTool
-        | ViewMessage::OpenMarkdownTool
         | ViewMessage::OpenWorkflowTool
-        | ViewMessage::OpenMindMapTool
-        | ViewMessage::OpenPasswordTool
-        | ViewMessage::OpenBaseTool
-        | ViewMessage::OpenTimestampTool
-        | ViewMessage::OpenQrTool
-        | ViewMessage::OpenColorTool
-        | ViewMessage::OpenCleanerTool
-        | ViewMessage::OpenLargeFileTool
+        | ViewMessage::OpenWorkflowManager
+        | ViewMessage::OpenWorkflowManagerStageActions
         | ViewMessage::AppsOpenMostRecent
         | ViewMessage::AppsSearchChanged(_) => apps::update(app, message),
 
         ViewMessage::UsageModelInfoLoaded(_)
         | ViewMessage::UsageSessionFilePathLoaded(_, _)
-        | ViewMessage::UsageStepToggled(_) => usage::update(app, message),
+        | ViewMessage::UsageStepToggled(_)
+        | ViewMessage::UsageStepRawLoaded(_, _, _) => usage::update(app, message),
 
         ViewMessage::OpenWebUrl(_)
         | ViewMessage::OpenWebUrlWithTitle(_, _)

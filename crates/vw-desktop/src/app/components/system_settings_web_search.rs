@@ -4,10 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
@@ -258,10 +257,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ))
         .push(hint_row("仅接受正整数；最终会限制在 1-10 之间。"))
         .push(hint_row("仅接受正整数秒；留空时回退到默认值 15。"));
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }

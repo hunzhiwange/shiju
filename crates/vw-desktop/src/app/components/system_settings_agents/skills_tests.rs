@@ -1,8 +1,9 @@
 use super::skills::{
-    enabled_skill_ids, scope_description, scope_source_matches, skill_card_button_style,
-    skill_source_label,
+    discovery_order_text, enabled_skill_ids, scope_description, scope_source_matches,
+    skill_card_button_style, skill_source_label, view,
 };
 use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope};
+use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Theme};
 
@@ -58,6 +59,57 @@ fn skill_card_button_style_covers_selected_hovered_and_pressed_states() {
     assert!(matches!(hovered.background, Some(Background::Color(_))));
     assert!(matches!(pressed_dark.background, Some(Background::Color(_))));
     assert_eq!(selected.border.radius.top_left, 16.0);
+}
+
+#[test]
+fn discovery_order_text_distinguishes_open_project_and_global_context() {
+    let (mut app, _) = crate::app::App::new();
+    let global_order = discovery_order_text(&app);
+
+    assert!(global_order.ends_with(" -> 内置技能"));
+    assert!(!global_order.contains("父级 .vibewindow/skills"));
+
+    app.project_path = Some("/workspace/demo".to_string());
+    let project_order = discovery_order_text(&app);
+
+    assert!(project_order.starts_with("/workspace/demo/.vibewindow/skills"));
+    assert!(project_order.contains("/workspace/demo/skills -> 父级 .vibewindow/skills"));
+}
+
+#[test]
+fn skills_view_renders_empty_loading_and_filtered_catalog_states() {
+    let (mut app, _) = crate::app::App::new();
+    let entry = app.agents_settings.entries[0].clone();
+    app.skills_settings.directory_scope = SkillsDirectoryScope::Project;
+    app.skills_settings.loading = true;
+
+    let loading_tree = Tree::new(view(&app, &entry).as_widget());
+    assert_eq!(loading_tree.children.len(), 3);
+    assert_eq!(loading_tree.children[2].children.len(), 2);
+
+    app.skills_settings.loading = false;
+    app.skills_settings.catalog = vec![
+        skill("project-enabled", true, "workspace"),
+        skill("project-disabled", false, "workspace"),
+        skill("global", true, "global"),
+    ];
+    app.skills_settings.directory_scope = SkillsDirectoryScope::All;
+
+    let catalog_tree = Tree::new(view(&app, &entry).as_widget());
+    assert_eq!(catalog_tree.children.len(), 3);
+    assert_eq!(catalog_tree.children[2].children.len(), 2);
+    assert_eq!(catalog_tree.children[2].children[1].children.len(), 3);
+}
+
+#[test]
+fn unselected_skill_card_style_covers_dark_hover_and_light_press() {
+    let dark_hovered = skill_card_button_style(&Theme::Dark, button::Status::Hovered, false);
+    let light_pressed = skill_card_button_style(&Theme::Light, button::Status::Pressed, false);
+    let dark_active = skill_card_button_style(&Theme::Dark, button::Status::Active, false);
+
+    assert!(matches!(dark_hovered.background, Some(Background::Color(_))));
+    assert!(matches!(light_pressed.background, Some(Background::Color(_))));
+    assert!(matches!(dark_active.background, Some(Background::Color(_))));
 }
 
 fn skill(id: &str, enabled: bool, source: &str) -> SkillsCatalogItem {

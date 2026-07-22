@@ -63,6 +63,21 @@ mod tests {
     }
 
     #[test]
+    fn diag_item_constructors_preserve_fields() {
+        let cases = [
+            (DiagItem::ok("config", "valid"), Severity::Ok, "config", "valid"),
+            (DiagItem::warn("workspace", "limited"), Severity::Warn, "workspace", "limited"),
+            (DiagItem::error("daemon", "unavailable"), Severity::Error, "daemon", "unavailable"),
+        ];
+
+        for (item, expected_severity, expected_category, expected_message) in cases {
+            assert_eq!(item.severity, expected_severity);
+            assert_eq!(item.category, expected_category);
+            assert_eq!(item.message, expected_message);
+        }
+    }
+
+    #[test]
     fn diag_item_into_result_preserves_fields_and_result_icon() {
         let result = DiagItem::warn("daemon", "scheduler component not tracked").into_result();
 
@@ -70,6 +85,44 @@ mod tests {
         assert_eq!(result.category, "daemon");
         assert_eq!(result.message, "scheduler component not tracked");
         assert_eq!(result.icon(), "⚠️ ");
+    }
+
+    #[test]
+    fn diag_result_icons_match_all_severities() {
+        let cases = [(Severity::Ok, "✅"), (Severity::Warn, "⚠️ "), (Severity::Error, "❌")];
+
+        for (severity, expected_icon) in cases {
+            let result = DiagResult { severity, category: String::new(), message: String::new() };
+
+            assert_eq!(result.icon(), expected_icon);
+        }
+    }
+
+    #[test]
+    fn severity_serializes_to_lowercase_names() {
+        let cases = [(Severity::Ok, "ok"), (Severity::Warn, "warn"), (Severity::Error, "error")];
+
+        for (severity, expected) in cases {
+            assert_eq!(serde_json::to_value(severity).unwrap(), serde_json::json!(expected));
+        }
+    }
+
+    #[test]
+    fn diag_result_serializes_structured_payload() {
+        let result = DiagResult {
+            severity: Severity::Error,
+            category: "workspace".into(),
+            message: "path is not writable".into(),
+        };
+
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            serde_json::json!({
+                "severity": "error",
+                "category": "workspace",
+                "message": "path is not writable",
+            })
+        );
     }
 
     /// 测试模型探测错误分类 - 不支持的 Provider 标记为跳过

@@ -45,9 +45,8 @@ pub(crate) use reducer::{
 pub(crate) use runtime_pipeline::apply_runtime_event;
 pub(crate) use selectors::{
     TuiAssistantTurnEntry, TuiStatusSummary, TuiStickyPromptSummary, TuiTranscriptItem,
-    TuiUnseenRangeSummary, TuiViewportSummary, TuiVisibleTranscriptWindow, TuiWindowSummary,
-    select_status_summary, select_transcript_message_anchors,
-    select_visible_grouped_transcript_window,
+    TuiUnseenRangeSummary, TuiVisibleTranscriptWindow, TuiWindowSummary, select_status_summary,
+    select_transcript_message_anchors, select_visible_grouped_transcript_window,
 };
 
 #[cfg(test)]

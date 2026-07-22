@@ -84,6 +84,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_tool_completion_payload_handles_zero_and_requires_closing_parenthesis() {
+        assert_eq!(
+            parse_tool_completion_payload("shell (0s)"),
+            Some(("shell".to_string(), Some(0)))
+        );
+        assert_eq!(parse_tool_completion_payload("shell (2s"), None);
+    }
+
+    #[test]
     fn parse_ws_delta_event_maps_tool_failure() {
         let delta = format!("{DRAFT_PROGRESS_SENTINEL}❌ shell (3s)");
         assert_eq!(
@@ -180,9 +189,77 @@ mod tests {
     }
 
     #[test]
+    fn parse_ws_private_event_prefers_structured_result_metadata() {
+        let result = ToolResultDto {
+            tool_use_id: Some("call_result".to_string()),
+            tool_id: Some("file_read".into()),
+            success: Some(false),
+            content: Vec::new(),
+            data: serde_json::Value::Null,
+            model_result: serde_json::Value::Null,
+            render_hint: None,
+            permission_request: None,
+            context_updates: Vec::new(),
+            extra_messages: Vec::new(),
+            telemetry: None,
+        };
+        let progress = format!(
+            "{DRAFT_WS_EVENT_SENTINEL}{}",
+            serde_json::json!({
+                "event": "tool_result",
+                "success": true,
+                "duration_secs": 4,
+                "tool_call_id": "call_top_level",
+                "result": result,
+            })
+        );
+
+        assert_eq!(
+            parse_ws_private_event(&progress),
+            Some(WsDeltaEvent::ToolResult {
+                name: "file_read".to_string(),
+                success: false,
+                duration_secs: Some(4),
+                tool_call_id: Some("call_result".to_string()),
+                result: Some(result),
+            })
+        );
+    }
+
+    #[test]
+    fn parse_ws_private_event_falls_back_when_structured_result_is_invalid() {
+        let progress = format!(
+            "{DRAFT_WS_EVENT_SENTINEL}{}",
+            serde_json::json!({
+                "event": "tool_result",
+                "name": "shell",
+                "success": true,
+                "tool_call_id": "call_top_level",
+                "result": "not-a-tool-result",
+            })
+        );
+
+        assert_eq!(
+            parse_ws_private_event(&progress),
+            Some(WsDeltaEvent::ToolResult {
+                name: "shell".to_string(),
+                success: true,
+                duration_secs: None,
+                tool_call_id: Some("call_top_level".to_string()),
+                result: None,
+            })
+        );
+    }
+
+    #[test]
     fn parse_ws_private_event_rejects_invalid_or_unrelated_payloads() {
         assert_eq!(parse_ws_private_event("plain progress"), None);
         assert_eq!(parse_ws_private_event(&format!("{DRAFT_WS_EVENT_SENTINEL}not-json")), None);
+        assert_eq!(parse_ws_private_event(&format!("{DRAFT_WS_EVENT_SENTINEL}{{}}")), None);
+        assert_eq!(
+            parse_ws_private_event(&format!("{DRAFT_WS_EVENT_SENTINEL}{{\"event\":1}}")),
+            None
+        );
         assert_eq!(
             parse_ws_private_event(&format!(
                 "{DRAFT_WS_EVENT_SENTINEL}{{\"event\":\"tool_call\"}}"
@@ -201,6 +278,21 @@ mod tests {
         assert_eq!(parse_ws_delta_event(&delta), Some(WsDeltaEvent::ContentChunk(delta)));
     }
 
+    #[test]
+    fn parse_ws_delta_event_maps_tool_failure_without_parseable_duration() {
+        let delta = format!("{DRAFT_PROGRESS_SENTINEL}❌ shell (later)");
+        assert_eq!(
+            parse_ws_delta_event(&delta),
+            Some(WsDeltaEvent::ToolResult {
+                name: "shell".to_string(),
+                success: false,
+                duration_secs: None,
+                tool_call_id: None,
+                result: None,
+            })
+        );
+    }
+
     /// 测试从 WebSocket 协议头读取 Bearer 令牌
     ///
     /// 验证当不存在 Authorization 头时，
@@ -214,6 +306,43 @@ mod tests {
         );
 
         assert_eq!(extract_ws_bearer_token(&headers).as_deref(), Some("protocol-token"));
+    }
+
+    #[test]
+    fn extract_ws_bearer_token_uses_first_nonempty_protocol_token() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static(" , vibewindow.v1, bearer.first-token, bearer.second-token"),
+        );
+
+        assert_eq!(extract_ws_bearer_token(&headers).as_deref(), Some("first-token"));
+    }
+
+    #[test]
+    fn extract_ws_bearer_token_falls_back_after_non_utf8_authorization() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_bytes(b"\xff").expect("non-UTF-8 header value should be valid"),
+        );
+        headers.insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static("vibewindow.v1, bearer.protocol-token"),
+        );
+
+        assert_eq!(extract_ws_bearer_token(&headers).as_deref(), Some("protocol-token"));
+    }
+
+    #[test]
+    fn extract_ws_bearer_token_rejects_non_utf8_protocol_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_bytes(b"\xff").expect("non-UTF-8 header value should be valid"),
+        );
+
+        assert!(extract_ws_bearer_token(&headers).is_none());
     }
 
     #[test]
@@ -352,6 +481,14 @@ mod tests {
         let history = vec![ChatMessage::system("sys")];
 
         let result = finalize_ws_response("", &history, &tools);
+        assert_eq!(result, EMPTY_WS_RESPONSE_FALLBACK);
+    }
+
+    #[test]
+    fn finalize_ws_response_uses_static_fallback_for_whitespace_only_response() {
+        let history = vec![ChatMessage::system("sys")];
+
+        let result = finalize_ws_response(" \n\t ", &history, &[]);
         assert_eq!(result, EMPTY_WS_RESPONSE_FALLBACK);
     }
 

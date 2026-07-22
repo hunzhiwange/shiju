@@ -1,17 +1,181 @@
-//! 会话 Gateway 处理器的持久化行为测试。
+//! 会话 Gateway 路由、租户作用域与持久化行为测试。
 //!
-//! 这些测试覆盖流式聊天落盘时的模型标识拆分、用户/助手消息生成以及预分配
-//! 消息 id 的复用，确保 HTTP 流式响应和本地会话存储之间保持一致。
+//! 这些测试覆盖路由方法契约、请求级租户隔离，以及流式聊天落盘时的模型标识
+//! 拆分、用户/助手消息生成和预分配消息 id 复用。
 
 use super::stream::{StreamTurnMessageIds, persist_stream_chat_turn, split_stream_model_ref};
+use super::{router, session_tenant_scope};
 
+use crate::app::agent::config::Config;
+use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
+use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::project;
+use crate::app::agent::providers::Provider;
+use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::session as agent_session;
 use crate::session::ui_types as ui_models;
+use axum::Router;
+use axum::body::{Body, to_bytes};
+use axum::extract::Extension;
+use axum::http::{Method, Request, StatusCode};
+use axum::middleware::from_fn;
+use axum::routing::get;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::broadcast;
+use tower::ServiceExt;
+use vw_api_types::id::TenantScope;
+
+struct StaticProvider;
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for StaticProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        Ok(message.to_string())
+    }
+}
+
+fn state() -> AppState {
+    let (event_tx, _) = broadcast::channel(16);
+    AppState {
+        config: Arc::new(parking_lot::Mutex::new(Config::default())),
+        provider: Arc::new(StaticProvider),
+        model: "test-model".to_string(),
+        temperature: 0.0,
+        mem: Arc::new(NoneMemory::new()),
+        auto_save: false,
+        webhook_secret_hash: None,
+        pairing: Arc::new(PairingGuard::new(false, &[])),
+        trust_forwarded_headers: false,
+        rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
+        idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+        whatsapp: None,
+        whatsapp_app_secret: None,
+        linq: None,
+        linq_signing_secret: None,
+        nextcloud_talk: None,
+        nextcloud_talk_webhook_secret: None,
+        wati: None,
+        qq: None,
+        qq_webhook_enabled: false,
+        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        tools_registry: Arc::new(Vec::new()),
+        tools_registry_exec: Arc::new(Vec::new()),
+        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        max_tool_iterations: 10,
+        event_tx,
+        session_query_engines: Default::default(),
+    }
+}
+
+fn test_app() -> Router {
+    router().layer(Extension(TenantScope::default())).with_state(state())
+}
+
+async fn response_status(method: Method, uri: &str) -> StatusCode {
+    test_app()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(uri)
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("route should respond")
+        .status()
+}
+
+async fn tenant_scope_probe() -> String {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    format!("{}/{}", tenant.platform_id().as_ref(), tenant.company_id().as_ref())
+}
+
+fn tenant_scope_probe_app() -> Router {
+    Router::new().route("/scope", get(tenant_scope_probe)).layer(from_fn(session_tenant_scope))
+}
+
+async fn scope_response(tenant: Option<TenantScope>) -> axum::response::Response {
+    let mut request = Request::builder().uri("/scope").body(Body::empty()).expect("request");
+    if let Some(tenant) = tenant {
+        request.extensions_mut().insert(tenant);
+    }
+    tenant_scope_probe_app().oneshot(request).await.expect("scope response")
+}
 
 #[test]
 fn session_router_can_be_constructed() {
-    let _router = crate::app::agent::gateway::api::handlers::session::router();
+    let _: Router<AppState> = router();
+}
+
+#[tokio::test]
+async fn session_router_registers_expected_paths_and_methods() {
+    let cases = [
+        (Method::GET, "/chat/stream"),
+        (Method::PUT, "/session"),
+        (Method::POST, "/session/status"),
+        (Method::PUT, "/session/session-a"),
+        (Method::POST, "/session/session-a/children"),
+        (Method::POST, "/session/session-a/todo"),
+        (Method::GET, "/session/session-a/fork"),
+        (Method::GET, "/session/session-a/reset"),
+        (Method::POST, "/session/session-a/diff"),
+        (Method::GET, "/session/session-a/summarize"),
+        (Method::POST, "/session/session-a/message"),
+        (Method::POST, "/session/session-a/message/message-a"),
+        (Method::GET, "/session/session-a/message/message-a/part/part-a"),
+        (Method::POST, "/session/ui-previews"),
+        (Method::POST, "/session/archived"),
+        (Method::POST, "/session/scope"),
+        (Method::POST, "/session/session-a/ui"),
+        (Method::POST, "/session/session-a/preview"),
+        (Method::POST, "/session/session-a/path"),
+        (Method::POST, "/session/session-a/step/0/llm-raw"),
+        (Method::POST, "/session/session-a/any"),
+        (Method::GET, "/session/session-a/title"),
+    ];
+
+    for (method, uri) in cases {
+        assert_eq!(response_status(method, uri).await, StatusCode::METHOD_NOT_ALLOWED, "{uri}");
+    }
+}
+
+#[tokio::test]
+async fn session_router_rejects_unknown_paths() {
+    assert_eq!(
+        response_status(Method::GET, "/session/session-a/unknown").await,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
+async fn session_tenant_scope_forwards_each_request_scope() {
+    let first = TenantScope::new("platform-a", "company-a").expect("first tenant");
+    let second = TenantScope::new("platform-b", "company-b").expect("second tenant");
+
+    let (first_response, second_response) =
+        tokio::join!(scope_response(Some(first)), scope_response(Some(second)));
+    assert_eq!(first_response.status(), StatusCode::OK);
+    assert_eq!(second_response.status(), StatusCode::OK);
+
+    let first_body = to_bytes(first_response.into_body(), usize::MAX).await.expect("first body");
+    let second_body = to_bytes(second_response.into_body(), usize::MAX).await.expect("second body");
+    assert_eq!(first_body.as_ref(), b"platform-a/company-a");
+    assert_eq!(second_body.as_ref(), b"platform-b/company-b");
+}
+
+#[tokio::test]
+async fn session_tenant_scope_rejects_requests_without_extension() {
+    let response = scope_response(None).await;
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[test]

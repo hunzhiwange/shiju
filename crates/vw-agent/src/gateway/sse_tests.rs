@@ -121,6 +121,21 @@ async fn handle_sse_events_rejects_missing_bearer_when_skey_auth_is_required() {
 }
 
 #[tokio::test]
+async fn handle_sse_events_rejects_invalid_bearer_when_skey_auth_is_required() {
+    let (sender, _receiver) = broadcast::channel(4);
+    let state = state_with_pairing(sender, true, &[String::from("paired-token")]);
+    let mut headers = HeaderMap::new();
+    headers.insert(header::AUTHORIZATION, "Bearer wrong-token".parse().unwrap());
+
+    let response = handle_sse_events(State(state), headers).await.into_response();
+    let status = response.status();
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body.as_ref(), b"Unauthorized \xE2\x80\x94 provide Authorization: Bearer <skey>");
+}
+
+#[tokio::test]
 async fn handle_sse_events_streams_json_data_without_pairing() {
     let (sender, _receiver) = broadcast::channel(4);
     let state = state_with_pairing(sender.clone(), false, &[]);
@@ -137,6 +152,22 @@ async fn handle_sse_events_streams_json_data_without_pairing() {
     let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
 
     assert_eq!(body.as_ref(), b"data: {\"type\":\"agent_start\"}\n\n");
+}
+
+#[tokio::test]
+async fn handle_sse_events_ignores_invalid_bearer_when_skey_auth_is_disabled() {
+    let (sender, _receiver) = broadcast::channel(4);
+    let state = state_with_pairing(sender.clone(), false, &[]);
+    let mut headers = HeaderMap::new();
+    headers.insert(header::AUTHORIZATION, "Bearer unpaired-token".parse().unwrap());
+
+    let response = handle_sse_events(State(state), headers).await.into_response();
+    let status = response.status();
+    drop(sender);
+    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body should be readable");
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.is_empty());
 }
 
 #[tokio::test]
@@ -225,10 +256,49 @@ fn broadcast_observer_records_inner_observer_and_broadcasts_supported_events() {
         for (key, expected_value) in expected.as_object().expect("expected object") {
             assert_eq!(actual.get(key), Some(expected_value));
         }
-        assert!(actual.get("timestamp").and_then(serde_json::Value::as_str).is_some());
+        let timestamp = actual
+            .get("timestamp")
+            .and_then(serde_json::Value::as_str)
+            .expect("supported event should include a timestamp");
+        assert!(chrono::DateTime::parse_from_rfc3339(timestamp).is_ok());
     }
 
     assert_eq!(inner_state.lock().events, 6);
+}
+
+#[test]
+fn broadcast_observer_serializes_missing_agent_end_statistics_as_null() {
+    let (sender, mut receiver) = broadcast::channel(1);
+    let observer = BroadcastObserver::new(Box::new(TestObserver::default()), sender);
+
+    observer.record_event(&ObserverEvent::AgentEnd {
+        provider: "local".to_string(),
+        model: "llama".to_string(),
+        duration: Duration::ZERO,
+        tokens_used: None,
+        cost_usd: None,
+    });
+
+    let actual = receiver.try_recv().expect("agent end event should broadcast");
+    assert_eq!(actual.get("duration_ms"), Some(&serde_json::json!(0)));
+    assert_eq!(actual.get("tokens_used"), Some(&serde_json::Value::Null));
+    assert_eq!(actual.get("cost_usd"), Some(&serde_json::Value::Null));
+}
+
+#[test]
+fn broadcast_observer_forwards_supported_event_when_broadcast_has_no_receivers() {
+    let (sender, receiver) = broadcast::channel(1);
+    drop(receiver);
+    let inner = TestObserver::default();
+    let inner_state = inner.state.clone();
+    let observer = BroadcastObserver::new(Box::new(inner), sender);
+
+    observer.record_event(&ObserverEvent::AgentStart {
+        provider: "local".to_string(),
+        model: "llama".to_string(),
+    });
+
+    assert_eq!(inner_state.lock().events, 1);
 }
 
 #[test]

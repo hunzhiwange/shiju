@@ -12,14 +12,21 @@
 //!
 //! 该模块属于输入面板（input_panel）组件的一部分，负责渲染任务模式下的配置表单。
 
+use std::fmt;
+
 use iced::widget::scrollable;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
-use iced::widget::{Space, button, column, container, row, text, text_editor, text_input};
+use iced::widget::{
+    Space, button, column, container, pick_list, row, text, text_editor, text_input,
+};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::{acp_agent_icon, icon_svg};
+use crate::app::components::input_panel::reasoning_selector::{
+    reasoning_effort_label, reasoning_effort_options,
+};
 use crate::app::components::input_panel::styles::{
     popover_style, selectable_list_button_style, selector_chevron_color, selector_label_font,
     selector_pill_button_style, selector_text_color, square_icon_button_style,
@@ -27,11 +34,28 @@ use crate::app::components::input_panel::styles::{
 };
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::state::SessionRuntimeState;
+use crate::app::task::TaskSplitMode;
 use crate::app::{App, Message, message};
+use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
 const ACP_SELECTOR_SCROLLBAR_WIDTH: f32 = 4.0;
 const ACP_SELECTOR_LIST_RIGHT_PADDING: f32 = 5.0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct TaskModeReasoningEffortOption(pub(super) Option<ReasoningEffortDto>);
+
+impl fmt::Display for TaskModeReasoningEffortOption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(reasoning_effort_label(self.0))
+    }
+}
+
+pub(super) fn task_mode_reasoning_effort_options(
+    agent: Option<&str>,
+) -> Vec<Option<ReasoningEffortDto>> {
+    reasoning_effort_options(agent.unwrap_or_default()).to_vec()
+}
 
 /// 构建任务模式配置表单
 ///
@@ -70,7 +94,9 @@ pub fn task_mode_form<'a>(
     task_mode_enabled: bool,
     task_mode_priority: &str,
     task_mode_model: &str,
+    task_mode_task_split_mode: TaskSplitMode,
     task_mode_executor: Option<String>,
+    task_mode_reasoning_effort: Option<ReasoningEffortDto>,
     task_mode_subtasks: &'a [String],
 ) -> Element<'a, Message> {
     // 如果任务模式未启用，返回空白占位符
@@ -101,6 +127,19 @@ pub fn task_mode_form<'a>(
     let model_row = row![text("大模型").size(12), Space::new().width(Length::Fill), model_input]
         .align_y(Alignment::Center)
         .spacing(10);
+
+    let task_split_field =
+        pick_list(TaskSplitMode::all().to_vec(), Some(task_mode_task_split_mode), |mode| {
+            Message::Chat(message::ChatMessage::TaskModeTaskSplitModeChanged(mode))
+        })
+        .text_size(12)
+        .padding([6, 10])
+        .width(Length::Fixed(180.0));
+
+    let task_split_row =
+        row![text("任务拆分").size(12), Space::new().width(Length::Fill), task_split_field]
+            .align_y(Alignment::Center)
+            .spacing(10);
 
     // 构建子任务列表容器
     // 遍历所有子任务，为每个子任务创建编辑卡片
@@ -363,12 +402,30 @@ pub fn task_mode_form<'a>(
         row![text("ACP 智能体").size(12), Space::new().width(Length::Fill), executor_btn]
             .align_y(Alignment::Center);
 
+    let reasoning_effort_field = pick_list(
+        task_mode_reasoning_effort_options(effective_acp_agent.as_deref())
+            .into_iter()
+            .map(TaskModeReasoningEffortOption)
+            .collect::<Vec<_>>(),
+        Some(TaskModeReasoningEffortOption(task_mode_reasoning_effort)),
+        |option| Message::Chat(message::ChatMessage::TaskModeReasoningEffortChanged(option.0)),
+    )
+    .text_size(12)
+    .padding([6, 10])
+    .width(Length::Fixed(180.0));
+    let reasoning_effort_row =
+        row![text("推理强度").size(12), Space::new().width(Length::Fill), reasoning_effort_field]
+            .align_y(Alignment::Center)
+            .spacing(10);
+
     // 组装完整的表单布局
     // 包含优先级配置、执行器选择、子任务列表和新增按钮
     let form = column![
         priority_row,
         model_row,
+        task_split_row,
         executor_row,
+        reasoning_effort_row,
         text("子任务").size(12),
         subtask_rows,
         row![add_subtask_btn, Space::new().width(Length::Fill)].align_y(Alignment::Center)

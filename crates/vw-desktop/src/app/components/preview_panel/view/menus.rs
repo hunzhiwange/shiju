@@ -97,26 +97,25 @@ fn build_context_menu(app: &App) -> Element<'_, Message> {
     container(items)
         .width(Length::Fixed(188.0))
         .padding([6, 8])
-        .style(|theme: &iced::Theme| iced::widget::container::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(Color::from_rgba(
-                theme.palette().background.r,
-                theme.palette().background.g,
-                theme.palette().background.b,
-                0.98,
-            ))),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border {
-                // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                width: 1.0,
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Color::from_rgb8(0xCC, 0xCC, 0xCC),
-                // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                radius: iced::border::Radius::from(8.0),
-            },
-            ..Default::default()
-        })
+        .style(context_menu_container_style)
         .into()
+}
+
+pub(super) fn context_menu_container_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(Color::from_rgba(
+            theme.palette().background.r,
+            theme.palette().background.g,
+            theme.palette().background.b,
+            0.98,
+        ))),
+        border: Border {
+            width: 1.0,
+            color: Color::from_rgb8(0xCC, 0xCC, 0xCC),
+            radius: iced::border::Radius::from(8.0),
+        },
+        ..Default::default()
+    }
 }
 
 /// 构建 nav popup 对应的 Iced 界面片段或中间数据。
@@ -138,46 +137,15 @@ fn build_nav_popup(app: &App) -> Element<'_, Message> {
     };
 
     let list = column(items.iter().map(|(name, is_dir)| {
-        let full_path = std::path::Path::new(parent_path).join(name).to_string_lossy().to_string();
-        let icon = if *is_dir { Icon::FolderOpen } else { file_icon_for(name) };
-        let is_dir = *is_dir;
+        let icon = nav_popup_item_icon(name, *is_dir);
 
         button(
             row![container(small_icon_svg(icon)).width(Length::Fixed(16.0)), text(name).size(13)]
                 .spacing(6)
                 .align_y(iced::Alignment::Center),
         )
-        .on_press(Message::Batch(vec![
-            Message::Preview(message::PreviewMessage::CloseNavPopup),
-            if is_dir {
-                // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Message::Project(crate::app::message::ProjectMessage::ToggleTreeDir(full_path))
-            } else {
-                // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Message::Preview(message::PreviewMessage::Open(full_path))
-            },
-        ]))
-        .style(|theme: &iced::Theme, status| {
-            let p = theme.palette().primary;
-            let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-            let pressed_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
-            let bg = match status {
-                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
-                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
-                _ => None,
-            };
-            iced::widget::button::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: bg,
-                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                text_color: theme.palette().text,
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
-                ..Default::default()
-            }
-        })
+        .on_press(nav_popup_item_message(parent_path, name, *is_dir))
+        .style(nav_popup_item_button_style)
         .width(Length::Fill)
         .padding([4, 8])
         .into()
@@ -187,32 +155,58 @@ fn build_nav_popup(app: &App) -> Element<'_, Message> {
     let popup = container(scrollable(list).height(Length::Fixed(300.0)))
         .width(Length::Fixed(240.0))
         .padding(4)
-        .style(|theme: &iced::Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(palette.background.weak.color)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border {
-                    // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    width: 1.0,
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: palette.primary.weak.color,
-                    // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    radius: 8.0.into(),
-                },
-                // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                shadow: iced::Shadow {
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: Color::BLACK,
-                    // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    offset: Vector::new(0.0, 4.0),
-                    // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    blur_radius: 12.0,
-                },
-                ..Default::default()
-            }
-        });
+        .style(nav_popup_container_style);
 
     popup.into()
+}
+
+pub(super) fn nav_popup_item_icon(name: &str, is_dir: bool) -> Icon {
+    if is_dir { Icon::FolderOpen } else { file_icon_for(name) }
+}
+
+pub(super) fn nav_popup_item_message(parent_path: &str, name: &str, is_dir: bool) -> Message {
+    let full_path = std::path::Path::new(parent_path).join(name).to_string_lossy().to_string();
+
+    Message::Batch(vec![
+        Message::Preview(message::PreviewMessage::CloseNavPopup),
+        if is_dir {
+            Message::Project(crate::app::message::ProjectMessage::ToggleTreeDir(full_path))
+        } else {
+            Message::Preview(message::PreviewMessage::Open(full_path))
+        },
+    ])
+}
+
+pub(super) fn nav_popup_item_button_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.palette().primary;
+    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
+    let pressed_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
+    let bg = match status {
+        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
+        iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
+        _ => None,
+    };
+    iced::widget::button::Style {
+        background: bg,
+        text_color: theme.palette().text,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn nav_popup_container_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(palette.background.weak.color)),
+        border: Border { width: 1.0, color: palette.primary.weak.color, radius: 8.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK,
+            offset: Vector::new(0.0, 4.0),
+            blur_radius: 12.0,
+        },
+        ..Default::default()
+    }
 }

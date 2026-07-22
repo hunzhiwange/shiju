@@ -10,8 +10,6 @@ use super::canonical_tool_name;
 use super::tool_meta::tool_inline_summary;
 /// 重新导出 use super::tool_parse::{tool_call_id_from_raw, tool_error_text, tool_status, tool_summary_text}，让上层模块通过稳定路径访问。
 use super::tool_parse::{tool_call_id_from_raw, tool_error_text, tool_status, tool_summary_text};
-/// 重新导出 use crate::app::components::chat_panel::utils::truncate_chars，让上层模块通过稳定路径访问。
-use crate::app::components::chat_panel::utils::truncate_chars;
 
 /// 解析或展示工具权限请求的 pending permission targets message 状态。
 ///
@@ -483,14 +481,14 @@ fn permission_request_input_summary(
         .map(|text| text.trim().to_string())
         .filter(|text| !text.is_empty())
     {
-        return Some(summary);
+        return Some(summary.chars().take(80).collect());
     }
 
     match input {
         // Value 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         Value::String(text) => {
             let trimmed = text.trim();
-            if trimmed.is_empty() { None } else { Some(truncate_chars(trimmed, 80).to_string()) }
+            if trimmed.is_empty() { None } else { Some(trimmed.chars().take(80).collect()) }
         }
         _ => None,
     }

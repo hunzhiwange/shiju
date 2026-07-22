@@ -5,6 +5,7 @@ use iced::{Element, Point, Theme};
 #[derive(Debug, Clone, PartialEq)]
 enum TestMessage {
     Close,
+    ReplaceClose,
 }
 
 fn label(value: &'static str) -> Element<'static, TestMessage> {
@@ -36,6 +37,24 @@ fn above_overlay_builder_updates_all_runtime_flags() {
 }
 
 #[test]
+fn above_overlay_repeated_builders_keep_latest_values() {
+    let overlay = AboveOverlay::new(label("content"), label("overlay"))
+        .show(true)
+        .show(false)
+        .gap(7.5)
+        .gap(-2.5)
+        .snap_within_viewport(false)
+        .snap_within_viewport(true)
+        .on_close(TestMessage::Close)
+        .on_close(TestMessage::ReplaceClose);
+
+    assert!(!overlay.show);
+    assert_eq!(overlay.gap, -2.5);
+    assert!(overlay.snap_within_viewport);
+    assert_eq!(overlay.on_close, Some(TestMessage::ReplaceClose));
+}
+
+#[test]
 fn point_above_overlay_new_sets_hidden_defaults() {
     let overlay = PointAboveOverlay::new(label("content"), label("overlay"));
 
@@ -60,6 +79,16 @@ fn point_above_overlay_builder_updates_anchor_and_flags() {
     assert_eq!(overlay.gap, 4.0);
     assert!(!overlay.snap_within_viewport);
     assert_eq!(overlay.on_close, Some(TestMessage::Close));
+}
+
+#[test]
+fn point_above_overlay_preserves_negative_anchor_and_gap() {
+    let overlay = PointAboveOverlay::new(label("content"), label("overlay"))
+        .anchor(Point::new(-12.0, -18.0))
+        .gap(-4.0);
+
+    assert_eq!(overlay.anchor, Point::new(-12.0, -18.0));
+    assert_eq!(overlay.gap, -4.0);
 }
 
 #[test]

@@ -27,9 +27,7 @@ pub mod models {
     pub use vw_provider_resolver::models::*;
 }
 
-pub mod provider {
-    pub use vw_provider_resolver::provider::*;
-}
+pub mod provider;
 
 pub mod transform;
 

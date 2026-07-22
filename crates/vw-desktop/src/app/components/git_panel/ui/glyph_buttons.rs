@@ -14,6 +14,36 @@ use crate::app::Message;
 /// 重新导出 use super::shared::{header_plain_glyph_button_style, subtle_button_style, with_tooltip}，让上层模块通过稳定路径访问。
 use super::shared::{header_plain_glyph_button_style, subtle_button_style, with_tooltip};
 
+/// 返回中号字形按钮的交互样式。
+pub(super) fn medium_glyph_button_style(status: button::Status) -> button::Style {
+    subtle_button_style(status, 8.0)
+}
+
+/// 返回小号字形按钮的交互样式。
+pub(super) fn small_glyph_button_style(status: button::Status) -> button::Style {
+    subtle_button_style(status, 6.0)
+}
+
+/// 返回中号无提示字形按钮的主题样式。
+pub(super) fn medium_plain_glyph_button_style(theme: &Theme) -> button::Style {
+    button::Style {
+        background: Some(Background::Color(Color::TRANSPARENT)),
+        border: Border { radius: 8.0.into(), ..Default::default() },
+        text_color: theme.extended_palette().background.strong.text,
+        ..Default::default()
+    }
+}
+
+/// 返回小号无提示字形按钮的主题样式。
+pub(super) fn small_plain_glyph_button_style(theme: &Theme) -> button::Style {
+    button::Style {
+        background: Some(Background::Color(Color::TRANSPARENT)),
+        border: Border { radius: 6.0.into(), ..Default::default() },
+        text_color: theme.extended_palette().background.strong.text,
+        ..Default::default()
+    }
+}
+
 /// 构建 medium glyph button 控件，并绑定既有消息或样式。
 ///
 /// # 参数
@@ -38,7 +68,7 @@ pub fn medium_glyph_button(
     let button = button(text(glyph).size(14))
         .on_press(on)
         .padding([4, 8])
-        .style(|_theme: &Theme, status| subtle_button_style(status, 8.0));
+        .style(|_theme: &Theme, status| medium_glyph_button_style(status));
     with_tooltip(button, tip, true, 6.0)
 }
 
@@ -66,7 +96,7 @@ pub fn small_glyph_button(
     let button = button(text(glyph).size(12))
         .on_press(on)
         .padding([2, 6])
-        .style(|_theme: &Theme, status| subtle_button_style(status, 6.0));
+        .style(|_theme: &Theme, status| small_glyph_button_style(status));
     with_tooltip(button, tip, true, 4.0)
 }
 
@@ -94,15 +124,7 @@ pub fn medium_plain_glyph_button(
     button(text(glyph).size(14))
         .on_press(on)
         .padding([4, 8])
-        .style(|theme: &Theme, _status| iced::widget::button::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(Color::TRANSPARENT)),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border { radius: 8.0.into(), ..Default::default() },
-            // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            text_color: theme.extended_palette().background.strong.text,
-            ..Default::default()
-        })
+        .style(|theme: &Theme, _status| medium_plain_glyph_button_style(theme))
         .into()
 }
 
@@ -130,15 +152,7 @@ pub fn small_plain_glyph_button(
     button(text(glyph).size(12))
         .on_press(on)
         .padding([1, 4])
-        .style(|theme: &Theme, _status| iced::widget::button::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(Color::TRANSPARENT)),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border { radius: 6.0.into(), ..Default::default() },
-            // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            text_color: theme.extended_palette().background.strong.text,
-            ..Default::default()
-        })
+        .style(|theme: &Theme, _status| small_plain_glyph_button_style(theme))
         .into()
 }
 

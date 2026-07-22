@@ -202,6 +202,43 @@ fn cron_json_serializes_schedule_variants_and_delivery_fields() {
 }
 
 #[test]
+fn cron_json_serializes_absent_optional_job_and_run_fields_as_null() {
+    let at = Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).unwrap();
+    let mut cron_job = job(Schedule::At { at });
+    cron_job.agent = None;
+    cron_job.acp_agent = None;
+    cron_job.project_path = None;
+    cron_job.delivery.channel = None;
+    cron_job.delivery.to = None;
+    cron_job.last_run = None;
+    cron_job.last_status = None;
+    cron_job.last_output = None;
+
+    let value = cron_job_json(&cron_job);
+    assert!(value["agent"].is_null());
+    assert!(value["acp_agent"].is_null());
+    assert!(value["project_path"].is_null());
+    assert!(value["delivery_channel"].is_null());
+    assert!(value["delivery_to"].is_null());
+    assert!(value["last_run"].is_null());
+    assert!(value["last_status"].is_null());
+    assert!(value["last_output"].is_null());
+
+    let run = CronRun {
+        id: 8,
+        job_id: "job-1".to_string(),
+        started_at: at,
+        finished_at: at,
+        status: "running".to_string(),
+        output: None,
+        duration_ms: None,
+    };
+    let value = cron_run_json(&run);
+    assert!(value["output"].is_null());
+    assert!(value["duration_ms"].is_null());
+}
+
+#[test]
 fn cron_add_schedule_infers_and_validates_kinds() {
     let mut body = add_body();
     assert!(matches!(cron_add_schedule(&body).unwrap(), Schedule::Cron { .. }));
@@ -230,6 +267,32 @@ fn cron_add_schedule_infers_and_validates_kinds() {
 }
 
 #[test]
+fn cron_add_schedule_reports_missing_values_and_accepts_localized_kinds() {
+    let mut body = add_body();
+    body.schedule = Some("   ".to_string());
+    assert_eq!(cron_add_schedule(&body).unwrap_err(), "Cron expression is required");
+
+    body.schedule_kind = Some("指定时间".to_string());
+    body.at = Some(" 2026-01-02T03:04:05Z ".to_string());
+    assert_eq!(
+        cron_add_schedule(&body).unwrap(),
+        Schedule::At { at: Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).unwrap() }
+    );
+
+    body.schedule_kind = Some("固定间隔".to_string());
+    body.at = None;
+    body.every_ms = Some(250);
+    assert_eq!(cron_add_schedule(&body).unwrap(), Schedule::Every { every_ms: 250 });
+
+    body.schedule_kind = Some("at".to_string());
+    body.every_ms = None;
+    assert_eq!(cron_add_schedule(&body).unwrap_err(), "RFC3339 time is required for at schedule");
+
+    body.schedule_kind = Some("every".to_string());
+    assert_eq!(cron_add_schedule(&body).unwrap_err(), "every_ms must be greater than 0");
+}
+
+#[test]
 fn cron_update_schedule_supports_partial_updates_and_localized_kinds() {
     assert!(cron_update_schedule(&update_body()).unwrap().is_none());
 
@@ -254,6 +317,27 @@ fn cron_update_schedule_supports_partial_updates_and_localized_kinds() {
     let mut body = update_body();
     body.schedule_kind = Some("weird".to_string());
     assert!(cron_update_schedule(&body).unwrap_err().contains("Unsupported"));
+}
+
+#[test]
+fn cron_update_schedule_rejects_invalid_at_and_every_values() {
+    let mut body = update_body();
+    body.schedule_kind = Some("at".to_string());
+    body.at = Some("tomorrow".to_string());
+    assert!(cron_update_schedule(&body).unwrap_err().contains("Invalid RFC3339"));
+
+    let mut body = update_body();
+    body.schedule_kind = Some("every".to_string());
+    body.every_ms = Some(0);
+    assert_eq!(cron_update_schedule(&body).unwrap_err(), "every_ms must be greater than 0");
+
+    let mut body = update_body();
+    body.schedule_kind = Some("Cron".to_string());
+    body.schedule = Some(" */10 * * * * * ".to_string());
+    assert_eq!(
+        cron_update_schedule(&body).unwrap(),
+        Some(Schedule::Cron { expr: "*/10 * * * * *".to_string(), tz: None })
+    );
 }
 
 #[test]
@@ -300,6 +384,29 @@ fn cron_add_job_type_delivery_patch_and_log_fields_normalize_input() {
 }
 
 #[test]
+fn cron_add_delivery_and_patch_apply_safe_defaults_for_blank_values() {
+    let mut body = add_body();
+    body.delivery_mode = Some("  ".to_string());
+    body.delivery_channel = Some("  ".to_string());
+    body.delivery_to = Some("  ".to_string());
+    body.agent = Some("  ".to_string());
+    body.project_path = Some("  ".to_string());
+    body.fallbacks = Some(vec![" ".to_string(), "model-a".to_string(), "model-a".to_string()]);
+
+    let delivery = cron_add_delivery(&body);
+    assert_eq!(delivery.mode, "none");
+    assert_eq!(delivery.channel, None);
+    assert_eq!(delivery.to, None);
+    assert!(delivery.best_effort);
+
+    let patch = cron_add_patch(&body);
+    assert_eq!(patch.delivery, Some(delivery));
+    assert_eq!(patch.agent, None);
+    assert_eq!(patch.project_path, None);
+    assert_eq!(patch.fallbacks, Some(vec!["model-a".to_string()]));
+}
+
+#[test]
 fn cron_add_job_type_defaults_from_prompt_and_command() {
     let mut body = add_body();
     body.job_type = Some(" ".to_string());
@@ -312,6 +419,30 @@ fn cron_add_job_type_defaults_from_prompt_and_command() {
     assert_eq!(trimmed_optional(Some("  value  ".to_string())).as_deref(), Some("value"));
     assert_eq!(trimmed_optional(Some("  ".to_string())), None);
     assert_eq!(trimmed_optional(None), None);
+}
+
+#[test]
+fn cron_update_schedule_treats_blank_kind_as_default_and_requires_matching_value() {
+    let mut body = update_body();
+    body.schedule_kind = Some("   ".to_string());
+    assert_eq!(cron_update_schedule(&body).unwrap(), None);
+
+    body.schedule = Some(" 0 */15 * * * * ".to_string());
+    assert_eq!(
+        cron_update_schedule(&body).unwrap(),
+        Some(Schedule::Cron { expr: "0 */15 * * * *".to_string(), tz: None })
+    );
+
+    let mut body = update_body();
+    body.schedule_kind = Some("at".to_string());
+    assert_eq!(
+        cron_update_schedule(&body).unwrap_err(),
+        "RFC3339 time is required for at schedule"
+    );
+
+    let mut body = update_body();
+    body.schedule_kind = Some("every".to_string());
+    assert_eq!(cron_update_schedule(&body).unwrap_err(), "every_ms must be greater than 0");
 }
 
 #[tokio::test]
@@ -348,6 +479,38 @@ async fn cron_handlers_reject_requests_when_pairing_is_required() {
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn cron_mutating_handlers_reject_requests_before_writing_when_pairing_is_required() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = temp_config(dir.path());
+    let headers = HeaderMap::new();
+
+    let (status, body) = response_json(
+        handle_api_cron_add(
+            State(state_with_config(config.clone(), true)),
+            headers.clone(),
+            JsonResponse(add_body()),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body["error"].as_str().unwrap().contains("Unauthorized"));
+
+    let (status, body) = response_json(
+        handle_api_cron_update(
+            State(state_with_config(config, true)),
+            headers,
+            Path("missing".to_string()),
+            JsonResponse(update_body()),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body["error"].as_str().unwrap().contains("Unauthorized"));
 }
 
 #[tokio::test]
@@ -470,6 +633,36 @@ async fn cron_add_handler_covers_agent_and_bad_request_branches() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body["error"].as_str().unwrap().contains("every_ms"));
 
+    let mut invalid_cron = add_body();
+    invalid_cron.schedule = Some("not a cron".to_string());
+    let (status, body) = response_json(
+        handle_api_cron_add(
+            State(state_with_config(config.clone(), false)),
+            headers.clone(),
+            JsonResponse(invalid_cron),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap().contains("Failed to add cron job"));
+
+    let mut missing_prompt = add_body();
+    missing_prompt.job_type = Some("agent".to_string());
+    missing_prompt.command = None;
+    missing_prompt.prompt = Some(" ".to_string());
+    let (status, body) = response_json(
+        handle_api_cron_add(
+            State(state_with_config(config.clone(), false)),
+            headers.clone(),
+            JsonResponse(missing_prompt),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap().contains("Agent prompt"));
+
     let mut agent = add_body();
     agent.job_type = Some("agent".to_string());
     agent.command = None;
@@ -556,4 +749,26 @@ async fn cron_update_and_delete_handlers_report_errors() {
     .await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(body["error"].as_str().unwrap().contains("Failed to remove"));
+}
+
+#[tokio::test]
+async fn cron_update_handler_reports_missing_job_after_valid_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = temp_config(dir.path());
+    let mut update = update_body();
+    update.name = Some("Updated".to_string());
+    update.delivery_channel = Some(" telegram ".to_string());
+
+    let (status, body) = response_json(
+        handle_api_cron_update(
+            State(state_with_config(config, false)),
+            HeaderMap::new(),
+            Path("missing".to_string()),
+            JsonResponse(update),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(body["error"].as_str().unwrap().contains("Failed to update cron job"));
 }

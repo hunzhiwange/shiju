@@ -112,28 +112,7 @@ pub fn settings_section_card<'a>(
     )
     .padding([14, 16])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let palette = theme.extended_palette();
-        let is_dark = is_dark_theme(theme);
-
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                palette.background.weak.color.scale_alpha(0.20)
-            } else {
-                Color::from_rgba8(246, 248, 252, 0.96)
-            })),
-            border: Border {
-                width: 1.0,
-                color: if is_dark {
-                    palette.background.strong.color.scale_alpha(0.8)
-                } else {
-                    Color::from_rgba8(15, 23, 42, 0.06)
-                },
-                radius: 16.0.into(),
-            },
-            ..Default::default()
-        }
-    })
+    .style(settings_section_card_style)
 }
 
 /// 构建或处理 `settings_page_intro` 对应的界面片段与交互数据。
@@ -169,21 +148,7 @@ pub fn settings_page_intro<'a>(title: &'a str, description: &'a str) -> Element<
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn settings_divider() -> Element<'static, Message> {
-    container(Space::new())
-        .width(Length::Fill)
-        .height(1.0)
-        .style(|theme: &Theme| {
-            let color = if is_dark_theme(theme) {
-                theme.extended_palette().background.strong.color.scale_alpha(0.72)
-            } else {
-                Color::from_rgba8(15, 23, 42, 0.06)
-            };
-            iced::widget::container::Style {
-                background: Some(Background::Color(color)),
-                ..Default::default()
-            }
-        })
-        .into()
+    container(Space::new()).width(Length::Fill).height(1.0).style(settings_divider_style).into()
 }
 
 /// 构建或处理 `settings_value_badge` 对应的界面片段与交互数据。
@@ -202,29 +167,7 @@ pub fn settings_divider() -> Element<'static, Message> {
 pub fn settings_value_badge(value: impl ToString) -> Element<'static, Message> {
     container(text(value.to_string()).size(13))
         .padding([7, 12])
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            let is_dark = is_dark_theme(theme);
-
-            iced::widget::container::Style {
-                text_color: Some(theme.palette().text),
-                background: Some(Background::Color(if is_dark {
-                    palette.background.weak.color.scale_alpha(0.36)
-                } else {
-                    Color::from_rgba8(246, 248, 252, 0.96)
-                })),
-                border: Border {
-                    width: 1.0,
-                    color: if is_dark {
-                        palette.background.strong.color.scale_alpha(0.84)
-                    } else {
-                        Color::from_rgba8(15, 23, 42, 0.08)
-                    },
-                    radius: 999.0.into(),
-                },
-                ..Default::default()
-            }
-        })
+        .style(settings_value_badge_style)
         .into()
 }
 
@@ -245,19 +188,7 @@ pub fn settings_error_banner<'a>(message: &'a str) -> Element<'a, Message> {
     container(text(message).size(13))
         .padding([10, 12])
         .width(Length::Fill)
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                text_color: Some(palette.danger.base.color),
-                background: Some(Background::Color(palette.danger.weak.color.scale_alpha(0.18))),
-                border: Border {
-                    width: 1.0,
-                    color: palette.danger.base.color.scale_alpha(0.45),
-                    radius: 14.0.into(),
-                },
-                ..Default::default()
-            }
-        })
+        .style(settings_error_banner_style)
         .into()
 }
 
@@ -278,18 +209,93 @@ pub fn settings_success_banner<'a>(message: &'a str) -> Element<'a, Message> {
     container(text(message).size(13))
         .padding([10, 12])
         .width(Length::Fill)
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                text_color: Some(palette.success.base.color),
-                background: Some(Background::Color(palette.success.weak.color.scale_alpha(0.18))),
-                border: Border {
-                    width: 1.0,
-                    color: palette.success.base.color.scale_alpha(0.45),
-                    radius: 14.0.into(),
-                },
-                ..Default::default()
-            }
-        })
+        .style(settings_success_banner_style)
         .into()
+}
+
+pub(super) fn settings_section_card_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            palette.background.weak.color.scale_alpha(0.20)
+        } else {
+            Color::from_rgba8(246, 248, 252, 0.96)
+        })),
+        border: Border {
+            width: 1.0,
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.8)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.06)
+            },
+            radius: 16.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn settings_divider_style(theme: &Theme) -> iced::widget::container::Style {
+    let color = if is_dark_theme(theme) {
+        theme.extended_palette().background.strong.color.scale_alpha(0.72)
+    } else {
+        Color::from_rgba8(15, 23, 42, 0.06)
+    };
+    iced::widget::container::Style {
+        background: Some(Background::Color(color)),
+        ..Default::default()
+    }
+}
+
+pub(super) fn settings_value_badge_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+
+    iced::widget::container::Style {
+        text_color: Some(theme.palette().text),
+        background: Some(Background::Color(if is_dark {
+            palette.background.weak.color.scale_alpha(0.36)
+        } else {
+            Color::from_rgba8(246, 248, 252, 0.96)
+        })),
+        border: Border {
+            width: 1.0,
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.84)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.08)
+            },
+            radius: 999.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn settings_error_banner_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        text_color: Some(palette.danger.base.color),
+        background: Some(Background::Color(palette.danger.weak.color.scale_alpha(0.18))),
+        border: Border {
+            width: 1.0,
+            color: palette.danger.base.color.scale_alpha(0.45),
+            radius: 14.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn settings_success_banner_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        text_color: Some(palette.success.base.color),
+        background: Some(Background::Color(palette.success.weak.color.scale_alpha(0.18))),
+        border: Border {
+            width: 1.0,
+            color: palette.success.base.color.scale_alpha(0.45),
+            radius: 14.0.into(),
+        },
+        ..Default::default()
+    }
 }

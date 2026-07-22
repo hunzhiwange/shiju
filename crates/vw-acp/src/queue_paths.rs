@@ -5,6 +5,9 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
+#[cfg(test)]
+pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn short_hash(value: &str, length: usize) -> String {
     let digest = Sha256::digest(value.as_bytes());
     let hex = format!("{digest:x}");
@@ -82,9 +85,7 @@ pub fn queue_socket_path(session_id: &str, home_dir: impl AsRef<Path>) -> PathBu
 
     #[cfg(not(windows))]
     {
-        queue_socket_base_dir(home_dir)
-            .unwrap_or_else(env::temp_dir)
-            .join(format!("{key}.sock"))
+        queue_socket_base_dir(home_dir).unwrap_or_else(env::temp_dir).join(format!("{key}.sock"))
     }
 }
 

@@ -66,3 +66,7 @@ pub async fn probe_queue_owner_health(session_id: &str) -> QueueOwnerHealth {
         queue_depth: Some(owner.queue_depth),
     }
 }
+
+#[cfg(test)]
+#[path = "queue_ipc_health_tests.rs"]
+mod queue_ipc_health_tests;

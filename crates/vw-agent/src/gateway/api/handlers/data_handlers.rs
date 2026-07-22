@@ -4,7 +4,7 @@
 //! 参数校验、持久化编排和错误映射，实际执行与存储细节分别委托给 runtime
 //! 和 storage_support。
 
-use axum::{Json, extract::Path, extract::State};
+use axum::{Json, extract::Extension, extract::Path, extract::State};
 use uuid::Uuid;
 use vw_api_types::data::{
     AiDataAiQueryRequest, AiDataAiQueryResponse, AiDataConnectionCatalogResponse,
@@ -12,14 +12,17 @@ use vw_api_types::data::{
     AiDataQueryRequest, AiDataQueryResponse, AiDataReportDto, AiDataReportUpsertBody,
     AiDataSettings, AiDataSettingsUpdateBody,
 };
+use vw_api_types::id::TenantScope;
 
 use super::{ai_support, runtime, storage_support};
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::state::AppState;
 
 /// 读取 AI-DATA 设置。
-pub(super) async fn data_settings_get() -> Result<Json<AiDataSettings>, ApiError> {
-    Ok(Json(storage_support::load_settings().await))
+pub(super) async fn data_settings_get(
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<AiDataSettings>, ApiError> {
+    Ok(Json(storage_support::load_settings(tenant).await))
 }
 
 /// 更新 AI-DATA 设置。
@@ -28,18 +31,21 @@ pub(super) async fn data_settings_get() -> Result<Json<AiDataSettings>, ApiError
 ///
 /// 当设置持久化失败时返回 `ApiError`。
 pub(super) async fn data_settings_put(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<AiDataSettingsUpdateBody>,
 ) -> Result<Json<AiDataSettings>, ApiError> {
-    let mut settings = storage_support::load_settings().await;
+    let mut settings = storage_support::load_settings(tenant.clone()).await;
     settings.default_limit = body.default_limit.clamp(1, 10_000);
     settings.default_timeout_secs = body.default_timeout_secs.clamp(1, 600);
-    storage_support::save_settings(&settings).await?;
+    storage_support::save_settings(tenant, &settings).await?;
     Ok(Json(settings))
 }
 
 /// 列出全部 AI-DATA 连接。
-pub(super) async fn data_connections_list() -> Result<Json<Vec<AiDataConnectionDto>>, ApiError> {
-    let mut connections = storage_support::load_connections().await;
+pub(super) async fn data_connections_list(
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<Vec<AiDataConnectionDto>>, ApiError> {
+    let mut connections = storage_support::load_connections(tenant).await;
     storage_support::sort_connections(&mut connections);
     Ok(Json(connections))
 }
@@ -50,9 +56,10 @@ pub(super) async fn data_connections_list() -> Result<Json<Vec<AiDataConnectionD
 ///
 /// 当连接不存在时返回 404 风格的 `ApiError`。
 pub(super) async fn data_connection_get(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
 ) -> Result<Json<AiDataConnectionDto>, ApiError> {
-    let connection = storage_support::load_connections()
+    let connection = storage_support::load_connections(tenant)
         .await
         .into_iter()
         .find(|item| item.id == connection_id)
@@ -66,12 +73,13 @@ pub(super) async fn data_connection_get(
 ///
 /// 当请求体校验失败或持久化失败时返回 `ApiError`。
 pub(super) async fn data_connection_create(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<AiDataConnectionUpsertBody>,
 ) -> Result<Json<AiDataConnectionDto>, ApiError> {
     validate_connection_upsert(&body)?;
 
     let now_ms = storage_support::now_ms();
-    let mut connections = storage_support::load_connections().await;
+    let mut connections = storage_support::load_connections(tenant.clone()).await;
     let connection = AiDataConnectionDto {
         id: Uuid::new_v4().to_string(),
         name: body.name.trim().to_string(),
@@ -91,11 +99,11 @@ pub(super) async fn data_connection_create(
     };
     connections.push(connection.clone());
     storage_support::sort_connections(&mut connections);
-    storage_support::save_connections(&connections).await?;
+    storage_support::save_connections(tenant.clone(), &connections).await?;
 
-    let mut settings = storage_support::load_settings().await;
+    let mut settings = storage_support::load_settings(tenant.clone()).await;
     settings.selected_connection_id = Some(connection.id.clone());
-    storage_support::save_settings(&settings).await?;
+    storage_support::save_settings(tenant, &settings).await?;
 
     Ok(Json(connection))
 }
@@ -106,13 +114,14 @@ pub(super) async fn data_connection_create(
 ///
 /// 当连接不存在、请求体校验失败或持久化失败时返回 `ApiError`。
 pub(super) async fn data_connection_update(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
     Json(body): Json<AiDataConnectionUpsertBody>,
 ) -> Result<Json<AiDataConnectionDto>, ApiError> {
     validate_connection_upsert(&body)?;
 
     let now_ms = storage_support::now_ms();
-    let mut connections = storage_support::load_connections().await;
+    let mut connections = storage_support::load_connections(tenant.clone()).await;
     let Some(index) = connections.iter().position(|item| item.id == connection_id) else {
         return Err(ApiError::not_found("AI-DATA 连接不存在"));
     };
@@ -137,11 +146,11 @@ pub(super) async fn data_connection_update(
     };
     connections[index] = updated.clone();
     storage_support::sort_connections(&mut connections);
-    storage_support::save_connections(&connections).await?;
+    storage_support::save_connections(tenant.clone(), &connections).await?;
 
-    let mut settings = storage_support::load_settings().await;
+    let mut settings = storage_support::load_settings(tenant.clone()).await;
     settings.selected_connection_id = Some(updated.id.clone());
-    storage_support::save_settings(&settings).await?;
+    storage_support::save_settings(tenant, &settings).await?;
 
     Ok(Json(updated))
 }
@@ -152,21 +161,22 @@ pub(super) async fn data_connection_update(
 ///
 /// 当连接不存在或持久化失败时返回 `ApiError`。
 pub(super) async fn data_connection_delete(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let mut connections = storage_support::load_connections().await;
+    let mut connections = storage_support::load_connections(tenant.clone()).await;
     let Some(index) = connections.iter().position(|item| item.id == connection_id) else {
         return Err(ApiError::not_found("AI-DATA 连接不存在"));
     };
 
     let removed = connections.remove(index);
     storage_support::sort_connections(&mut connections);
-    storage_support::save_connections(&connections).await?;
+    storage_support::save_connections(tenant.clone(), &connections).await?;
 
-    let mut settings = storage_support::load_settings().await;
+    let mut settings = storage_support::load_settings(tenant.clone()).await;
     if settings.selected_connection_id.as_deref() == Some(removed.id.as_str()) {
         settings.selected_connection_id = connections.first().map(|item| item.id.clone());
-        storage_support::save_settings(&settings).await?;
+        storage_support::save_settings(tenant, &settings).await?;
     }
 
     Ok(Json(serde_json::json!({ "deleted_id": removed.id })))
@@ -178,10 +188,11 @@ pub(super) async fn data_connection_delete(
 ///
 /// 当连接不存在或持久化失败时返回 `ApiError`。
 pub(super) async fn data_connection_activate(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
 ) -> Result<Json<AiDataSettings>, ApiError> {
     let now_ms = storage_support::now_ms();
-    let mut connections = storage_support::load_connections().await;
+    let mut connections = storage_support::load_connections(tenant.clone()).await;
     let Some(index) = connections.iter().position(|item| item.id == connection_id) else {
         return Err(ApiError::not_found("AI-DATA 连接不存在"));
     };
@@ -189,11 +200,11 @@ pub(super) async fn data_connection_activate(
     connections[index].last_used_ms = Some(now_ms);
     let selected_id = connections[index].id.clone();
     storage_support::sort_connections(&mut connections);
-    storage_support::save_connections(&connections).await?;
+    storage_support::save_connections(tenant.clone(), &connections).await?;
 
-    let mut settings = storage_support::load_settings().await;
+    let mut settings = storage_support::load_settings(tenant.clone()).await;
     settings.selected_connection_id = Some(selected_id);
-    storage_support::save_settings(&settings).await?;
+    storage_support::save_settings(tenant, &settings).await?;
     Ok(Json(settings))
 }
 
@@ -203,14 +214,15 @@ pub(super) async fn data_connection_activate(
 ///
 /// 连接层失败会被包装为 `ok: false` 的响应，连接记录不存在才返回 `ApiError`。
 pub(super) async fn data_connection_test(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
 ) -> Result<Json<AiDataConnectionTestResponse>, ApiError> {
-    let connection = storage_support::load_connections()
+    let connection = storage_support::load_connections(tenant.clone())
         .await
         .into_iter()
         .find(|item| item.id == connection_id)
         .ok_or_else(|| ApiError::not_found("AI-DATA 连接不存在"))?;
-    let timeout_secs = storage_support::load_settings().await.default_timeout_secs;
+    let timeout_secs = storage_support::load_settings(tenant).await.default_timeout_secs;
     let started = std::time::Instant::now();
     let result = runtime::test_connection(&connection, timeout_secs).await;
     let latency_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
@@ -226,15 +238,16 @@ pub(super) async fn data_connection_test(
 ///
 /// 当连接不存在或目录读取失败时返回 `ApiError`。
 pub(super) async fn data_connection_catalog(
+    Extension(tenant): Extension<TenantScope>,
     Path(connection_id): Path<String>,
 ) -> Result<Json<AiDataConnectionCatalogResponse>, ApiError> {
-    let connection = storage_support::load_connections()
+    let connection = storage_support::load_connections(tenant.clone())
         .await
         .into_iter()
         .find(|item| item.id == connection_id)
         .ok_or_else(|| ApiError::not_found("AI-DATA 连接不存在"))?;
 
-    let timeout_secs = storage_support::load_settings().await.default_timeout_secs;
+    let timeout_secs = storage_support::load_settings(tenant).await.default_timeout_secs;
     let catalog = runtime::connection_catalog(&connection, timeout_secs)
         .await
         .map_err(ApiError::bad_request)?;
@@ -358,10 +371,11 @@ pub(super) async fn data_report_delete(
 ///
 /// 当连接、报表、模板或底层数据源执行失败时返回 `ApiError`。
 pub(super) async fn data_query(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<AiDataQueryRequest>,
 ) -> Result<Json<AiDataQueryResponse>, ApiError> {
-    let settings = storage_support::load_settings().await;
-    let connections = storage_support::load_connections().await;
+    let settings = storage_support::load_settings(tenant.clone()).await;
+    let connections = storage_support::load_connections(tenant).await;
     let reports = storage_support::load_reports().await;
     let response = runtime::execute_query(&settings, &connections, &reports, body)
         .await
@@ -375,11 +389,12 @@ pub(super) async fn data_query(
 ///
 /// 当模型规划或底层查询失败时返回 `ApiError`。
 pub(super) async fn data_ai_query(
+    Extension(tenant): Extension<TenantScope>,
     State(state): State<AppState>,
     Json(body): Json<AiDataAiQueryRequest>,
 ) -> Result<Json<AiDataAiQueryResponse>, ApiError> {
-    let settings = storage_support::load_settings().await;
-    let connections = storage_support::load_connections().await;
+    let settings = storage_support::load_settings(tenant.clone()).await;
+    let connections = storage_support::load_connections(tenant).await;
     let reports = storage_support::load_reports().await;
     ai_support::handle_ai_query(State(state), settings, connections, reports, body).await
 }

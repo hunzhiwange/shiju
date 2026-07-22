@@ -134,6 +134,7 @@ fn name_and_schema() {
     let tool = SopApproveTool::new(engine);
 
     assert_eq!(tool.name(), "sop_approve");
+    assert!(tool.description().contains("批准"));
     assert!(tool.parameters_schema()["required"].is_array());
 }
 

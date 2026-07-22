@@ -37,3 +37,29 @@ fn prefix_returns_all_progressive_parts_for_unknown_command() {
         vec!["unknown-tool", "unknown-tool sub", "unknown-tool sub arg"]
     );
 }
+
+#[test]
+fn prefix_with_single_token_arity_one_breaks_immediately() {
+    assert_eq!(prefix(&["ls"]), vec!["ls"]);
+}
+
+#[test]
+fn prefix_with_single_token_arity_two_returns_one_part() {
+    assert_eq!(prefix(&["cargo"]), vec!["cargo"]);
+}
+
+#[test]
+fn prefix_with_known_parent_and_unknown_subcommand_continues_through_all_tokens() {
+    assert_eq!(
+        prefix(&["npm", "install", "foo", "--save"]),
+        vec!["npm", "npm install", "npm install foo", "npm install foo --save"]
+    );
+}
+
+#[test]
+fn prefix_with_long_unknown_chain_returns_all_progressive_parts() {
+    assert_eq!(
+        prefix(&["a", "b", "c", "d", "e"]),
+        vec!["a", "a b", "a b c", "a b c d", "a b c d e"]
+    );
+}

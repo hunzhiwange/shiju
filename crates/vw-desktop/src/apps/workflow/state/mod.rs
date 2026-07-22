@@ -10,7 +10,7 @@ use super::model::{
 };
 use iced::{Point, Vector, widget::text_editor};
 use serde_yaml::{Mapping, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod app_ui;
@@ -49,12 +49,19 @@ mod ids_tests;
 #[path = "if_else_helpers_tests.rs"]
 mod if_else_helpers_tests;
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+#[cfg(test)]
 #[path = "node_editor_branches_tests.rs"]
 mod node_editor_branches_tests;
 #[cfg(test)]
 #[path = "node_editor_integrations_tests.rs"]
 mod node_editor_integrations_tests;
 
+#[cfg(test)]
+use app_ui::organized_node_positions;
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) use core::workflow_run_inputs_from_document;
 use draft_build::*;
 use ids::*;
 use if_else_helpers::*;
@@ -110,6 +117,78 @@ pub struct WorkflowSavedAppSummary {
     pub description: String,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WorkflowRunSubscriptionRequest {
+    pub uuid: String,
+    pub query: String,
+    pub inputs: BTreeMap<String, serde_json::Value>,
+    pub user: String,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct WorkflowRunPromptDraft {
+    pub uuid: String,
+    pub query: String,
+    pub loading: bool,
+    pub inputs: Vec<WorkflowRunInputDraft>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct WorkflowRunInputDraft {
+    pub name: String,
+    pub label: String,
+    pub input_type: String,
+    pub required: bool,
+    pub hidden: bool,
+    pub options: Vec<String>,
+    pub value: String,
+    pub placeholder: String,
+    pub hint: String,
+    pub max_length_input: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkflowRunStatus {
+    Running,
+    Succeeded,
+    Failed,
+    Canceled,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WorkflowRunPreview {
+    pub uuid: String,
+    pub run_id: Option<String>,
+    pub status: WorkflowRunStatus,
+    pub nodes: Vec<WorkflowRunNodePreview>,
+    pub text_output: String,
+    pub error: Option<WorkflowRunErrorPreview>,
+    pub is_finished: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WorkflowRunNodePreview {
+    pub id: String,
+    pub title: String,
+    pub status: Option<String>,
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowRunErrorPreview {
+    pub status: u32,
+    pub code: String,
+    pub message: String,
+}
+
+/// 运行预览中“查看详细”弹窗的状态：保存标题与可滚动、可选中复制的完整内容。
+#[derive(Debug, Default)]
+pub struct WorkflowRunDetailDialog {
+    pub title: String,
+    pub content: text_editor::Content,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -375,6 +454,17 @@ pub struct WorkflowState {
     pub saved_app_actions_menu_uuid: Option<String>,
     pub saved_app_search_query: String,
     pub copied_saved_app_uuid: Option<String>,
+    pub saved_app_run_prompt: Option<WorkflowRunPromptDraft>,
+    pub running_saved_app_uuid: Option<String>,
+    pub running_saved_app_query: String,
+    pub running_saved_app_inputs: BTreeMap<String, serde_json::Value>,
+    pub saved_app_run_preview: Option<WorkflowRunPreview>,
+    /// 各应用上一次运行填写的参数草稿，按 uuid 缓存，方便下次打开运行弹窗时回填。
+    pub last_run_drafts: HashMap<String, WorkflowRunPromptDraft>,
+    /// 运行预览中“查看详细”弹窗，展开节点或输出的完整内容。
+    pub saved_app_run_detail: Option<WorkflowRunDetailDialog>,
+    /// 运行预览错误详情是否刚被复制，用于在按钮上短暂显示 ✓。
+    pub run_error_copied: bool,
     pub active_is_dirty: bool,
     pub app_editor: Option<WorkflowAppEditorDraft>,
     pub node_editor: Option<WorkflowNodeEditorDraft>,

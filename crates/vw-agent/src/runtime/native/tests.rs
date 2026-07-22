@@ -79,6 +79,20 @@ mod tests {
     }
 
     #[test]
+    fn storage_path_from_home_dir_uses_home_when_available_or_relative_fallback() {
+        let home = Path::new("/tmp/vibewindow-home");
+
+        assert_eq!(
+            storage_path_from_home_dir(Some(home)),
+            vw_config_types::paths::home_config_dir(home)
+        );
+        assert_eq!(
+            storage_path_from_home_dir(None),
+            PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        );
+    }
+
+    #[test]
     fn selected_shell_accessors_return_injected_shell_metadata() {
         let runtime = NativeRuntime::new_for_test(Some(ShellProgram {
             kind: ShellKind::Sh,
@@ -87,6 +101,53 @@ mod tests {
 
         assert_eq!(runtime.selected_shell_kind(), Some("sh"));
         assert_eq!(runtime.selected_shell_program(), Some(Path::new("/bin/sh")));
+    }
+
+    #[test]
+    fn shell_kind_names_cover_every_supported_variant() {
+        let cases = [
+            (ShellKind::Zsh, "zsh"),
+            (ShellKind::Sh, "sh"),
+            (ShellKind::Bash, "bash"),
+            (ShellKind::Pwsh, "pwsh"),
+            (ShellKind::PowerShell, "powershell"),
+            (ShellKind::Cmd, "cmd"),
+        ];
+
+        for (kind, expected) in cases {
+            assert_eq!(kind.as_str(), expected);
+        }
+    }
+
+    #[test]
+    fn shell_kind_launch_styles_match_shell_argument_contracts() {
+        let cases = [
+            (ShellKind::Zsh, ShellLaunchStyle::ZshLoginInteractive),
+            (ShellKind::Sh, ShellLaunchStyle::Posix),
+            (ShellKind::Bash, ShellLaunchStyle::BashLogin),
+            (ShellKind::Pwsh, ShellLaunchStyle::PowerShell),
+            (ShellKind::PowerShell, ShellLaunchStyle::PowerShell),
+            (ShellKind::Cmd, ShellLaunchStyle::Cmd),
+        ];
+
+        for (kind, expected) in cases {
+            assert_eq!(kind.launch_style(), expected);
+        }
+    }
+
+    #[test]
+    fn selected_shell_accessors_return_none_without_shell() {
+        let runtime = NativeRuntime::new_for_test(None);
+
+        assert!(runtime.selected_shell_kind().is_none());
+        assert!(runtime.selected_shell_program().is_none());
+    }
+
+    #[test]
+    fn native_as_any_supports_native_runtime_downcast() {
+        let runtime = NativeRuntime::new_for_test(None);
+
+        assert!(runtime.as_any().downcast_ref::<NativeRuntime>().is_some());
     }
 
     /// 测试 Windows 下 Shell 检测优先选择 Git Bash
@@ -114,6 +175,25 @@ mod tests {
 
         // 应该优先选择 Git Bash
         assert_eq!(shell.kind, ShellKind::Bash);
+    }
+
+    #[test]
+    fn shell_candidate_lists_preserve_platform_detection_priority() {
+        assert_eq!(
+            windows_shell_candidates().map(|(name, kind)| (name, kind.as_str())),
+            [
+                ("bash", "bash"),
+                ("sh", "sh"),
+                ("pwsh", "pwsh"),
+                ("powershell", "powershell"),
+                ("cmd", "cmd"),
+                ("cmd.exe", "cmd"),
+            ]
+        );
+        assert_eq!(
+            unix_shell_candidates().map(|(name, kind)| (name, kind.as_str())),
+            [("zsh", "zsh"), ("bash", "bash"), ("sh", "sh")]
+        );
     }
 
     /// 测试 Windows 下 Shell 检测的回退顺序
@@ -167,6 +247,46 @@ mod tests {
         .expect("pwsh should be detected");
 
         assert_eq!(shell.kind, ShellKind::Pwsh);
+    }
+
+    #[test]
+    fn detect_shell_windows_prefers_sh_over_powershell_variants() {
+        let mut map = HashMap::new();
+        map.insert("sh", r"C:\Program Files\Git\bin\sh.exe");
+        map.insert("pwsh", r"C:\Program Files\PowerShell\7\pwsh.exe");
+        map.insert("powershell", r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
+
+        let shell = detect_native_shell_with(
+            true,
+            |name| map.get(name).map(PathBuf::from),
+            Some(PathBuf::from(r"C:\Windows\System32\cmd.exe")),
+            None,
+        )
+        .expect("sh should be detected before PowerShell variants");
+
+        assert_eq!(shell.kind, ShellKind::Sh);
+        assert_eq!(shell.program, PathBuf::from(r"C:\Program Files\Git\bin\sh.exe"));
+    }
+
+    #[test]
+    fn detect_shell_windows_uses_cmd_exe_alias_before_comspec() {
+        let shell = detect_native_shell_with(
+            true,
+            |name| (name == "cmd.exe").then(|| PathBuf::from(r"C:\Tools\cmd.exe")),
+            Some(PathBuf::from(r"C:\Windows\System32\cmd.exe")),
+            None,
+        )
+        .expect("cmd.exe alias should be detected");
+
+        assert_eq!(shell.kind, ShellKind::Cmd);
+        assert_eq!(shell.program, PathBuf::from(r"C:\Tools\cmd.exe"));
+    }
+
+    #[test]
+    fn detect_shell_windows_returns_none_without_candidates_or_comspec() {
+        let shell = detect_native_shell_with(true, |_name| None, None, None);
+
+        assert!(shell.is_none());
     }
 
     /// 测试 Windows 下排除 System32 中的 WSL bash.exe
@@ -242,6 +362,19 @@ mod tests {
         assert!(!is_windows_wsl_bash_launcher(Path::new(r"C:\Program Files\Git\bin\bash.exe")));
     }
 
+    #[test]
+    fn wsl_launcher_detection_normalizes_case_and_path_separators() {
+        assert!(is_windows_wsl_bash_launcher(Path::new("C:/WINDOWS/System32/BASH.EXE")));
+        assert!(is_windows_wsl_bash_launcher(Path::new("D:/Windows/Sysnative/bash.exe")));
+        assert!(!is_windows_wsl_bash_launcher(Path::new("C:/Windows/System32/bash.exe.backup")));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn resolve_shell_on_path_returns_none_for_missing_executable_name() {
+        assert!(resolve_shell_on_path("__vibewindow_missing_shell_for_native_runtime__").is_none());
+    }
+
     /// 测试 Unix 系统下优先使用用户默认 Shell
     ///
     /// Unix 系统通过环境变量 `$SHELL` 指定用户的默认 Shell。
@@ -257,6 +390,24 @@ mod tests {
 
         assert_eq!(shell.kind, ShellKind::Zsh);
         assert_eq!(shell.program, PathBuf::from("/bin/zsh"));
+    }
+
+    #[test]
+    fn detect_shell_unix_prefers_existing_supported_user_shell_over_resolver() {
+        let dir = tempfile::tempdir().unwrap();
+        let user_shell = dir.path().join("custom-bash");
+        std::fs::write(&user_shell, b"").unwrap();
+
+        let shell = detect_native_shell_with(
+            false,
+            |name| (name == "zsh").then(|| PathBuf::from("/fallback/zsh")),
+            None,
+            Some(user_shell.clone()),
+        )
+        .expect("existing supported user shell should be selected");
+
+        assert_eq!(shell.kind, ShellKind::Bash);
+        assert_eq!(shell.program, user_shell);
     }
 
     /// 测试 Unix 系统下 Shell 检测的优先级回退
@@ -280,6 +431,58 @@ mod tests {
 
         // 应该按优先级选择 zsh
         assert_eq!(shell.kind, ShellKind::Zsh);
+    }
+
+    #[test]
+    fn detect_shell_unix_falls_back_to_bash_when_user_shell_is_missing() {
+        let process_id = std::process::id();
+        let missing_user_shell = std::env::temp_dir()
+            .join(format!("vibewindow-native-runtime-{process_id}"))
+            .join("zsh");
+
+        let shell = detect_native_shell_with(
+            false,
+            |name| (name == "bash").then(|| PathBuf::from("/usr/bin/bash")),
+            None,
+            Some(missing_user_shell),
+        )
+        .expect("bash fallback should be detected");
+
+        assert_eq!(shell.kind, ShellKind::Bash);
+        assert_eq!(shell.program, PathBuf::from("/usr/bin/bash"));
+    }
+
+    #[test]
+    fn detect_shell_unix_returns_none_without_user_or_system_shell() {
+        let shell = detect_native_shell_with(false, |_name| None, None, None);
+
+        assert!(shell.is_none());
+    }
+
+    #[test]
+    fn classify_unix_shell_program_handles_case_wrappers_and_missing_names() {
+        assert_eq!(
+            classify_unix_shell_program(Path::new("/usr/local/bin/ZSH")),
+            Some(ShellKind::Zsh)
+        );
+        assert_eq!(
+            classify_unix_shell_program(Path::new("/opt/tools/bash-wrapper")),
+            Some(ShellKind::Bash)
+        );
+        assert_eq!(classify_unix_shell_program(Path::new("/bin/sh")), Some(ShellKind::Sh));
+        assert!(classify_unix_shell_program(Path::new("/bin/dash")).is_none());
+        assert!(classify_unix_shell_program(Path::new("/")).is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn classify_unix_shell_program_rejects_non_utf8_file_name() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+
+        let program = PathBuf::from(OsString::from_vec(vec![b'z', b's', b'h', 0xff]));
+
+        assert!(classify_unix_shell_program(&program).is_none());
     }
 
     #[test]
@@ -445,6 +648,29 @@ mod tests {
         assert!(pwsh_debug.contains("-NoLogo"));
         assert!(pwsh_debug.contains("-NonInteractive"));
         assert!(pwsh_debug.contains("Get-Date"));
+    }
+
+    #[test]
+    fn native_build_shell_command_preserves_program_arguments_and_workspace() {
+        use std::ffi::OsStr;
+
+        let runtime = NativeRuntime::new_for_test(Some(ShellProgram {
+            kind: ShellKind::Sh,
+            program: PathBuf::from("custom-sh"),
+        }));
+        let workspace = std::env::temp_dir().join("vibewindow-native-runtime-workspace");
+
+        let command = runtime
+            .build_shell_command("printf 'hello world'", &workspace)
+            .expect("sh command should build");
+        let command = command.as_std();
+
+        assert_eq!(command.get_program(), OsStr::new("custom-sh"));
+        let args = command.get_args().collect::<Vec<_>>();
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0], OsStr::new("-c"));
+        assert_eq!(args[1], OsStr::new("printf 'hello world'"));
+        assert_eq!(command.get_current_dir(), Some(workspace.as_path()));
     }
 
     /// 测试 Shell 命令构建（集成测试）

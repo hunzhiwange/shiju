@@ -1,4 +1,25 @@
 #[test]
+fn proxy_config_default_values() {
+    let config = super::ProxyConfig::default();
+    assert!(!config.enabled);
+    assert_eq!(config.http_proxy, None);
+    assert_eq!(config.https_proxy, None);
+    assert_eq!(config.all_proxy, None);
+    assert!(config.no_proxy.is_empty());
+    assert_eq!(config.scope, super::ProxyScope::Vibewindow);
+    assert!(config.services.is_empty());
+}
+
+#[test]
+fn proxy_config_supported_helpers_return_constants() {
+    assert_eq!(super::ProxyConfig::supported_service_keys(), super::SUPPORTED_PROXY_SERVICE_KEYS,);
+    assert_eq!(
+        super::ProxyConfig::supported_service_selectors(),
+        super::SUPPORTED_PROXY_SERVICE_SELECTORS,
+    );
+}
+
+#[test]
 fn proxy_normalization_and_scope_matching_work() {
     let config = super::ProxyConfig {
         enabled: true,
@@ -18,10 +39,111 @@ fn proxy_normalization_and_scope_matching_work() {
 }
 
 #[test]
+fn proxy_has_any_proxy_url_variants() {
+    let none_set = super::ProxyConfig::default();
+    assert!(!none_set.has_any_proxy_url());
+
+    let https_only =
+        super::ProxyConfig { https_proxy: Some("https://proxy".into()), ..Default::default() };
+    assert!(https_only.has_any_proxy_url());
+
+    let all_only =
+        super::ProxyConfig { all_proxy: Some("socks5://proxy".into()), ..Default::default() };
+    assert!(all_only.has_any_proxy_url());
+}
+
+#[test]
+fn proxy_should_apply_disabled() {
+    let config = super::ProxyConfig {
+        enabled: false,
+        scope: super::ProxyScope::Vibewindow,
+        ..Default::default()
+    };
+    assert!(!config.should_apply_to_service("provider.openai"));
+}
+
+#[test]
+fn proxy_should_apply_environment_scope() {
+    let config = super::ProxyConfig {
+        enabled: true,
+        scope: super::ProxyScope::Environment,
+        ..Default::default()
+    };
+    assert!(!config.should_apply_to_service("provider.openai"));
+}
+
+#[test]
+fn proxy_should_apply_vibewindow_scope() {
+    let config = super::ProxyConfig {
+        enabled: true,
+        scope: super::ProxyScope::Vibewindow,
+        ..Default::default()
+    };
+    assert!(config.should_apply_to_service("provider.openai"));
+}
+
+#[test]
+fn proxy_should_apply_services_empty_key() {
+    let config = super::ProxyConfig {
+        enabled: true,
+        scope: super::ProxyScope::Services,
+        services: vec!["provider.*".into()],
+        ..Default::default()
+    };
+    assert!(!config.should_apply_to_service(""));
+    assert!(!config.should_apply_to_service("   "));
+}
+
+#[test]
 fn proxy_selector_helpers_cover_keys_and_wildcards() {
     assert!(super::is_supported_proxy_service_selector("provider.openai"));
     assert!(super::is_supported_proxy_service_selector("tool.*"));
+    assert!(!super::is_supported_proxy_service_selector("unknown.service"));
     assert!(super::service_selector_matches("provider.*", "provider.openrouter"));
     assert!(!super::service_selector_matches("provider.*", "provider"));
+    assert!(super::service_selector_matches("provider.openai", "provider.openai"));
+    assert!(!super::service_selector_matches("provider.openai", "provider.anthropic"));
+    assert!(!super::service_selector_matches("provider*", "provider.openai"));
     assert_eq!(super::normalize_proxy_url_option(Some("   ")), None);
+}
+
+#[test]
+fn proxy_normalize_proxy_url_option_none() {
+    assert_eq!(super::normalize_proxy_url_option(None), None);
+    assert_eq!(
+        super::normalize_proxy_url_option(Some("http://proxy:8080")),
+        Some("http://proxy:8080".to_string()),
+    );
+}
+
+#[test]
+fn proxy_normalize_comma_values_edge_cases() {
+    assert!(super::normalize_comma_values(vec![] as Vec<String>).is_empty());
+    assert_eq!(super::normalize_comma_values(vec!["value".into()]), vec!["value"]);
+    assert_eq!(super::normalize_comma_values(vec!["a,b,c".into()]), vec!["a", "b", "c"]);
+    assert!(super::normalize_comma_values(vec!["   ,  ,  ".into()]).is_empty());
+    assert_eq!(super::normalize_comma_values(vec!["a,,b".into()]), vec!["a", "b"]);
+    assert_eq!(super::normalize_comma_values(vec!["a".into(), "a".into()]), vec!["a"]);
+    assert_eq!(
+        super::normalize_comma_values(vec!["a,b".into(), "c,d".into()]),
+        vec!["a", "b", "c", "d"],
+    );
+}
+
+#[test]
+fn proxy_normalize_service_list() {
+    assert_eq!(
+        super::normalize_service_list(vec!["Provider.OpenAI".into(), "provider.*".into()]),
+        vec!["provider.*", "provider.openai"],
+    );
+    assert!(super::normalize_service_list(vec![] as Vec<String>).is_empty());
+}
+
+#[test]
+fn proxy_normalize_no_proxy() {
+    assert_eq!(
+        super::normalize_no_proxy_list(vec![" localhost, 127.0.0.1 ".into()]),
+        vec!["127.0.0.1", "localhost"],
+    );
+    assert!(super::normalize_no_proxy_list(vec![] as Vec<String>).is_empty());
 }

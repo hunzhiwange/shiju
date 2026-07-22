@@ -45,8 +45,6 @@ impl AcpClient {
                         if let Some(active_runtime) = runtime.take() {
                             self.shutdown_actor_runtime(active_runtime, Some("idle_timeout"), false)
                                 .await;
-                        } else {
-                            self.store_reusable_session(None);
                         }
                         continue;
                     }
@@ -55,15 +53,22 @@ impl AcpClient {
                             let _ = (&mut active_runtime.io_closed_rx).await;
                         }
                     } => {
-                        if runtime.as_ref().is_some_and(|active_runtime| active_runtime.io_task.is_finished()) {
-                            if let Some(active_runtime) = runtime.take() {
-                                self.shutdown_actor_runtime(active_runtime, Some("io_closed"), false)
-                                    .await;
-                            } else {
-                                self.store_reusable_session(None);
-                            }
+                        if runtime.as_ref().is_some_and(|active_runtime| active_runtime.io_task.is_finished())
+                            && let Some(active_runtime) = runtime.take()
+                        {
+                            self.shutdown_actor_runtime(active_runtime, Some("io_closed"), false)
+                                .await;
                         }
                         continue;
+                    }
+                }
+            } else if Arc::strong_count(&self.actor_state) <= 1 {
+                match command_rx.try_recv() {
+                    Ok(command) => Some(command),
+                    Err(mpsc::error::TryRecvError::Empty)
+                    | Err(mpsc::error::TryRecvError::Disconnected) => {
+                        self.store_reusable_session(None);
+                        break;
                     }
                 }
             } else {

@@ -1144,6 +1144,8 @@ fn looks_like_unavailable_workflow_model(error: &anyhow::Error) -> bool {
 }
 
 fn build_llm_messages(node: &WorkflowNode, pool: &VariablePool) -> Vec<ChatMessage> {
+    let render_pool = llm_render_pool(node, pool);
+    let pool = &render_pool;
     let mut messages = Vec::new();
     for item in array_field(&node.data, "prompt_template") {
         let role = string_field(item, "role").unwrap_or("user");
@@ -1162,6 +1164,56 @@ fn build_llm_messages(node: &WorkflowNode, pool: &VariablePool) -> Vec<ChatMessa
         messages.push(ChatMessage::user(query));
     }
     messages
+}
+
+/// 构造用于渲染 LLM prompt 的变量池：在原池基础上注入 Dify 的 `context` 变量。
+///
+/// Dify 的 LLM 节点通过 `data.context.variable_selector` 间接引用上游（通常是
+/// knowledge-retrieval）节点的输出，并在 prompt 里以 `{{#context#}}` 展开。引擎此前
+/// 不解析该字段，导致 `{{#context#}}` 始终为空，知识库检索结果无法进入 prompt。
+fn llm_render_pool(node: &WorkflowNode, pool: &VariablePool) -> VariablePool {
+    let Some(text) = llm_context_text(node, pool) else {
+        return pool.clone();
+    };
+    let mut render_pool = pool.clone();
+    render_pool.insert_selector(&["context".to_string()], Value::String(text));
+    render_pool
+}
+
+/// 解析 LLM 节点的 `data.context`，返回拼接后的上下文纯文本。
+///
+/// 仅在 `enabled == true` 且 `variable_selector` 指向的值存在时返回 `Some`。检索结果为
+/// chunk 数组时，提取每个元素的 `content` 拼接为纯文本（与 Dify 行为一致），避免把带转义
+/// 的原始 JSON 灌给模型。
+fn llm_context_text(node: &WorkflowNode, pool: &VariablePool) -> Option<String> {
+    let context = node.data.get("context")?;
+    if !context.get("enabled").and_then(Value::as_bool).unwrap_or(false) {
+        return None;
+    }
+    let selector = selector_from_value(context.get("variable_selector")?);
+    if selector.is_empty() {
+        return None;
+    }
+    let value = pool.get_selector(&selector)?;
+    Some(context_value_to_text(value))
+}
+
+/// 把 `context` 引用到的值转为纯文本：数组逐项提取 `content` 拼接，其余按值文本化。
+fn context_value_to_text(value: &Value) -> String {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .map(|item| {
+                item.get("content")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| value_to_text(item))
+            })
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        other => value_to_text(other),
+    }
 }
 
 fn execute_if_else_node(node: &WorkflowNode, pool: &VariablePool) -> Result<NodeExecution, String> {
@@ -1641,12 +1693,18 @@ async fn execute_knowledge_retrieval_node(
         .ok_or_else(|| "knowledge provider 未配置".to_string())?;
     let selector = parameter_extractor_input_selector(&node.data)
         .ok_or_else(|| "knowledge-retrieval 节点缺少 query_selector".to_string())?;
-    let query = pool.get_selector(&selector).map(value_to_text).unwrap_or_default();
+    let query = pool
+        .get_selector(&selector)
+        .or_else(|| pool.get_selector(&system_variable_fallback_selector(&selector)?))
+        .map(value_to_text)
+        .unwrap_or_default();
     let request = WorkflowKnowledgeRequest {
         query: query.clone(),
         dataset_ids: string_array_field(&node.data, "dataset_ids"),
-        top_k: node.data.get("top_k").and_then(Value::as_u64).unwrap_or(3) as usize,
-        score_threshold: node.data.get("score_threshold").and_then(Value::as_f64),
+        top_k: knowledge_retrieval_field(&node.data, "top_k").and_then(Value::as_u64).unwrap_or(3)
+            as usize,
+        score_threshold: knowledge_retrieval_field(&node.data, "score_threshold")
+            .and_then(Value::as_f64),
         metadata_filter: node.data.get("metadata_filter").cloned(),
     };
     let chunks = provider.retrieve(request.clone()).await?;
@@ -2677,8 +2735,28 @@ fn question_classifier_execution(
     }
 }
 
+/// 读取 knowledge-retrieval 检索参数：顶层字段优先，缺失时回落到 Dify 原生的
+/// `multiple_retrieval_config` 嵌套字段。
+fn knowledge_retrieval_field<'a>(data: &'a Value, field: &str) -> Option<&'a Value> {
+    data.get(field)
+        .filter(|value| !value.is_null())
+        .or_else(|| data.get("multiple_retrieval_config").and_then(|config| config.get(field)))
+}
+
+/// Dify 的 knowledge-retrieval `query_variable_selector` 常形如
+/// `[<start_node_id>, "sys.query"]`，其末段是点号系统变量名而非节点局部变量。
+/// 当原选择器命中不到节点输出时，回落到系统变量选择器（如 `["sys", "query"]`）。
+fn system_variable_fallback_selector(selector: &[String]) -> Option<Vec<String>> {
+    let last = selector.last()?;
+    let (namespace, name) = last.split_once('.')?;
+    if namespace != "sys" || name.is_empty() {
+        return None;
+    }
+    Some(vec![namespace.to_string(), name.to_string()])
+}
+
 fn parameter_extractor_input_selector(data: &Value) -> Option<Vec<String>> {
-    ["input_selector", "query_selector", "variable_selector"]
+    ["input_selector", "query_selector", "variable_selector", "query_variable_selector"]
         .iter()
         .find_map(|field| data.get(field).map(selector_from_value))
         .filter(|selector| !selector.is_empty())

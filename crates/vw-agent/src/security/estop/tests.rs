@@ -408,4 +408,92 @@ mod tests {
         // 验证系统已成功恢复
         assert!(!manager.status().kill_all);
     }
+
+    #[test]
+    fn load_unreadable_state_fails_closed() {
+        let dir = tempdir().unwrap();
+        let state_path = dir.path().join("estop-state.json");
+        fs::create_dir(&state_path).unwrap();
+        let cfg = estop_config(&state_path);
+
+        let manager = EstopManager::load(&cfg, dir.path()).unwrap();
+
+        assert!(manager.status().kill_all);
+        assert!(manager.status().is_engaged());
+    }
+
+    #[test]
+    fn engage_reports_state_directory_creation_failure() {
+        let dir = tempdir().unwrap();
+        let parent_file = dir.path().join("not-a-directory");
+        fs::write(&parent_file, "occupied").unwrap();
+        let state_path = parent_file.join("estop-state.json");
+        let cfg = estop_config(&state_path);
+        let mut manager = EstopManager::load(&cfg, dir.path()).unwrap();
+
+        let error = manager
+            .engage(EstopLevel::KillAll)
+            .expect_err("a file cannot be used as the state directory");
+
+        assert!(error.to_string().contains("Failed to create estop state dir"));
+    }
+
+    #[test]
+    fn engage_rejects_blank_tool_name() {
+        let dir = tempdir().unwrap();
+        let cfg = estop_config(&dir.path().join("estop-state.json"));
+        let mut manager = EstopManager::load(&cfg, dir.path()).unwrap();
+
+        let error = manager
+            .engage(EstopLevel::ToolFreeze(vec!["   ".into()]))
+            .expect_err("blank tool names must be rejected");
+
+        assert!(error.to_string().contains("Tool name must not be empty"));
+        assert!(manager.status().frozen_tools.is_empty());
+    }
+
+    #[test]
+    fn resume_rejects_blank_and_invalid_otp_codes() {
+        let dir = tempdir().unwrap();
+        let state_path = dir.path().join("estop-state.json");
+        let mut cfg = estop_config(&state_path);
+        cfg.require_otp_to_resume = true;
+        let otp_cfg = OtpConfig { enabled: true, ..OtpConfig::default() };
+        let store = SecretStore::new(dir.path(), true);
+        let (validator, _) = OtpValidator::from_config(&otp_cfg, dir.path(), &store).unwrap();
+        let mut manager = EstopManager::load(&cfg, dir.path()).unwrap();
+        manager.engage(EstopLevel::KillAll).unwrap();
+
+        let blank_error = manager
+            .resume(ResumeSelector::KillAll, Some("   "), Some(&validator))
+            .expect_err("blank OTP must be treated as missing");
+        assert!(blank_error.to_string().contains("OTP code is required"));
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_secs())
+            .unwrap_or(0);
+        let valid_code = validator.code_for_timestamp(now);
+        let invalid_code = if valid_code == "000000" { "000001" } else { "000000" };
+        let invalid_error = manager
+            .resume(ResumeSelector::KillAll, Some(invalid_code), Some(&validator))
+            .expect_err("invalid OTP must deny resume");
+
+        assert!(invalid_error.to_string().contains("Invalid OTP code"));
+        assert!(manager.status().kill_all);
+    }
+
+    #[test]
+    fn resolve_state_file_path_preserves_absolute_path() {
+        let dir = tempdir().unwrap();
+        let absolute = dir.path().join("absolute-estop.json");
+
+        assert_eq!(
+            resolve_state_file_path(
+                Path::new("ignored-config-dir"),
+                &absolute.display().to_string()
+            ),
+            absolute
+        );
+    }
 }

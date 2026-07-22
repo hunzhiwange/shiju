@@ -45,6 +45,7 @@ pub(crate) struct AcpSettingsState {
     pub(crate) enabled: std::collections::BTreeSet<String>,
     pub(crate) loading: bool,
     pub(crate) saving_agent: Option<String>,
+    pub(crate) copied_agent: Option<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) status_message: Option<String>,
 }
@@ -56,6 +57,105 @@ impl Default for AcpSettingsState {
             enabled: std::collections::BTreeSet::new(),
             loading: false,
             saving_agent: None,
+            copied_agent: None,
+            save_error: None,
+            status_message: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct McpNewServerState {
+    pub(crate) name_input: String,
+    pub(crate) transport: McpNewServerTransport,
+    pub(crate) command_input: String,
+    pub(crate) args_input: String,
+    pub(crate) url_input: String,
+    pub(crate) timeout_input: String,
+    pub(crate) enabled: bool,
+    pub(crate) required: bool,
+}
+
+impl Default for McpNewServerState {
+    fn default() -> Self {
+        Self {
+            name_input: String::new(),
+            transport: McpNewServerTransport::Stdio,
+            command_input: String::new(),
+            args_input: String::new(),
+            url_input: String::new(),
+            timeout_input: "30".to_string(),
+            enabled: true,
+            required: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpNewServerTransport {
+    Stdio,
+    Http,
+    Sse,
+}
+
+impl McpNewServerTransport {
+    pub const ALL: [Self; 3] = [Self::Stdio, Self::Http, Self::Sse];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Stdio => "stdio",
+            Self::Http => "http",
+            Self::Sse => "sse",
+        }
+    }
+}
+
+impl std::fmt::Display for McpNewServerTransport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct McpSettingsState {
+    pub(crate) active_tab: McpSettingsTab,
+    pub(crate) editor: text_editor::Content,
+    pub(crate) runtime_overrides: Vec<serde_json::Value>,
+    pub(crate) new_server_expanded: bool,
+    pub(crate) expanded_previews: std::collections::BTreeSet<String>,
+    pub(crate) new_server: McpNewServerState,
+    pub(crate) loading: bool,
+    pub(crate) inspect_loading: bool,
+    pub(crate) saving: bool,
+    pub(crate) server_count: usize,
+    pub(crate) inspect: Option<vw_gateway_client::vw_api_types::mcp::McpInspectResponse>,
+    pub(crate) inspect_error: Option<String>,
+    pub(crate) save_error: Option<String>,
+    pub(crate) status_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpSettingsTab {
+    Servers,
+    Runtime,
+    Json,
+}
+
+impl Default for McpSettingsState {
+    fn default() -> Self {
+        Self {
+            active_tab: McpSettingsTab::Servers,
+            editor: text_editor::Content::with_text("[]"),
+            runtime_overrides: Vec::new(),
+            new_server_expanded: false,
+            expanded_previews: std::collections::BTreeSet::new(),
+            new_server: McpNewServerState::default(),
+            loading: false,
+            inspect_loading: false,
+            saving: false,
+            server_count: 0,
+            inspect: None,
+            inspect_error: None,
             save_error: None,
             status_message: None,
         }

@@ -32,6 +32,7 @@ use crate::app::state::QueueItem;
 
 const MAX_QUEUE_PANEL_HEIGHT: f32 = 132.0;
 const QUEUE_SCROLLBAR_WIDTH: u32 = 4;
+const MAX_QUEUE_LABEL_CHARS: usize = 42;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
@@ -143,6 +144,30 @@ pub(super) fn format_queue_time(created_ms: u64) -> String {
         .unwrap_or_default()
 }
 
+pub(super) fn queue_item_label(query: &str) -> String {
+    let label = query.lines().next().unwrap_or("").trim();
+
+    if label.chars().count() > MAX_QUEUE_LABEL_CHARS {
+        format!("{}…", label.chars().take(MAX_QUEUE_LABEL_CHARS).collect::<String>())
+    } else {
+        label.to_string()
+    }
+}
+
+pub(super) fn queue_item_meta_label(created_ms: u64, is_next: bool) -> String {
+    let time_label = format_queue_time(created_ms);
+
+    if is_next {
+        if time_label.is_empty() {
+            "下一条".to_string()
+        } else {
+            format!("下一条 · {}", time_label)
+        }
+    } else {
+        time_label
+    }
+}
+
 /// 构建并渲染任务队列面板
 ///
 /// 该函数创建一个可滚动的任务队列列表，显示所有待处理的查询任务。
@@ -197,27 +222,12 @@ pub fn queue_panel(
     for (i, item) in queue.iter().enumerate() {
         // 获取查询文本的第一行作为显示标签
         // 如果第一行为空则使用空字符串
-        let mut label = item.query.lines().next().unwrap_or("").trim().to_string();
-
-        // 截断过长的文本，保留前 42 个字符并添加省略号
-        // 使用 chars().count() 正确处理 Unicode 字符
-        if label.chars().count() > 42 {
-            label = format!("{}…", label.chars().take(42).collect::<String>());
-        }
+        let label = queue_item_label(&item.query);
 
         let is_next = is_requesting && i == 0;
 
         // 格式化创建时间并构建时间文本组件
-        let time_label = format_queue_time(item.created_ms);
-        let meta_label = if is_next {
-            if time_label.is_empty() {
-                "下一条".to_string()
-            } else {
-                format!("下一条 · {}", time_label)
-            }
-        } else {
-            time_label
-        };
+        let meta_label = queue_item_meta_label(item.created_ms, is_next);
         let time_text =
             text(meta_label).size(11).style(|theme: &Theme| iced::widget::text::Style {
                 // 使用次要颜色的 75% 透明度，使时间文本不那么突出

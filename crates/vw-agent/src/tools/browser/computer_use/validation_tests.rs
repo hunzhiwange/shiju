@@ -43,6 +43,21 @@ fn endpoint_url_keeps_remote_public_hosts_https_only() {
 }
 
 #[test]
+fn endpoint_url_trims_endpoint_and_allows_private_http_in_remote_mode() {
+    let c = client(
+        ComputerUseConfig {
+            endpoint: "  http://127.0.0.1:8787/v1/actions  ".into(),
+            allow_remote_endpoint: true,
+            ..Default::default()
+        },
+        vec![],
+    );
+
+    let endpoint = c.endpoint_url().expect("private HTTP endpoint should be accepted");
+    assert_eq!(endpoint.as_str(), "http://127.0.0.1:8787/v1/actions");
+}
+
+#[test]
 fn endpoint_url_rejects_empty_bad_scheme_public_and_zero_timeout() {
     for (config, expected) in [
         (
@@ -74,10 +89,21 @@ fn endpoint_url_rejects_empty_bad_scheme_public_and_zero_timeout() {
 }
 
 #[test]
-fn available_returns_boolean_for_valid_local_endpoint() {
-    let c = client(ComputerUseConfig::default(), vec!["example.com".into()]);
+fn available_propagates_endpoint_validation_before_network_probe() {
+    let c = client(ComputerUseConfig { timeout_ms: 0, ..Default::default() }, vec![]);
 
-    assert!(matches!(c.available(), Ok(true) | Ok(false)));
+    let err = c.available().expect_err("invalid endpoint config should fail before probing");
+    assert!(err.to_string().contains("timeout_ms must be > 0"));
+}
+
+#[test]
+fn available_reports_unreachable_valid_loopback_endpoint() {
+    let c = client(
+        ComputerUseConfig { endpoint: "http://127.0.0.1:0/actions".into(), ..Default::default() },
+        vec![],
+    );
+
+    assert!(!c.available().expect("valid endpoint should produce availability state"));
 }
 
 #[test]
@@ -104,12 +130,38 @@ fn validate_url_rejects_unsafe_shapes_and_accepts_allowlisted_hosts() {
 }
 
 #[test]
+fn validate_url_trims_input_and_rejects_missing_host() {
+    let c = client(ComputerUseConfig::default(), vec!["example.com".into()]);
+
+    assert!(c.validate_url("  https://example.com/path  ").is_ok());
+    let err = c.validate_url("https://").expect_err("URL without a host should be rejected");
+    assert!(err.to_string().contains("Invalid URL: no host"));
+}
+
+#[test]
+fn validate_url_rejects_private_ipv6_hosts() {
+    let c = client(ComputerUseConfig::default(), vec!["*".into()]);
+
+    for url in ["https://[::1]/", "https://[::ffff:127.0.0.1]/"] {
+        let err = c.validate_url(url).expect_err("private IPv6 host should be rejected");
+        assert!(err.to_string().contains("Blocked local/private host"), "{url}: {err}");
+    }
+}
+
+#[test]
 fn validate_coordinate_enforces_lower_and_upper_bounds() {
     let c = client(ComputerUseConfig::default(), vec![]);
     assert!(c.validate_coordinate("x", 0, Some(10)).is_ok());
     assert!(c.validate_coordinate("x", -1, Some(10)).is_err());
     assert!(c.validate_coordinate("x", 11, Some(10)).is_err());
     assert!(c.validate_coordinate("x", 1, Some(-1)).is_err());
+}
+
+#[test]
+fn validate_coordinate_without_limit_accepts_large_nonnegative_value() {
+    let c = client(ComputerUseConfig::default(), vec![]);
+
+    assert!(c.validate_coordinate("x", i64::MAX, None).is_ok());
 }
 
 #[test]
@@ -137,6 +189,18 @@ fn validate_output_path_rejects_escape_empty_and_null_paths() {
     }
 }
 
+#[test]
+fn validate_output_path_applies_security_policy() {
+    let mut security = SecurityPolicy::default();
+    security.forbidden_paths = vec!["blocked".into()];
+    let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
+
+    let err = c
+        .validate_output_path("path", "blocked/out.png")
+        .expect_err("policy-blocked relative path should be rejected");
+    assert!(err.to_string().contains("path blocked by security policy"));
+}
+
 #[tokio::test]
 async fn resolve_output_path_creates_parent_and_rejects_non_files() {
     let tmp = TempDir::new().expect("tempdir should create");
@@ -157,6 +221,66 @@ async fn resolve_output_path_creates_parent_and_rejects_non_files() {
         .await
         .expect_err("directory output should fail");
     assert!(err.to_string().contains("not a regular file"));
+}
+
+#[tokio::test]
+async fn resolve_output_path_accepts_existing_regular_file() {
+    let tmp = TempDir::new().expect("tempdir should create");
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = tmp.path().to_path_buf();
+    let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
+
+    tokio::fs::write(tmp.path().join("existing.png"), b"existing")
+        .await
+        .expect("fixture file should create");
+    let resolved = c
+        .resolve_output_path_for_write("path", "existing.png")
+        .await
+        .expect("existing regular file should be accepted");
+
+    assert!(resolved.is_file());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn resolve_output_path_rejects_existing_symlink() {
+    let tmp = TempDir::new().expect("tempdir should create");
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = tmp.path().to_path_buf();
+    let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
+
+    let target = tmp.path().join("target.png");
+    tokio::fs::write(&target, b"target").await.expect("target fixture should create");
+    std::os::unix::fs::symlink(&target, tmp.path().join("output.png"))
+        .expect("symlink fixture should create");
+
+    let err = c
+        .resolve_output_path_for_write("path", "output.png")
+        .await
+        .expect_err("symlink output should be rejected");
+    assert!(err.to_string().contains("Refusing to write browser output through symlink"));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn resolve_output_path_rejects_symlinked_parent_escape() {
+    let tmp = TempDir::new().expect("tempdir should create");
+    let workspace = tmp.path().join("workspace");
+    let outside = tmp.path().join("outside");
+    tokio::fs::create_dir_all(&workspace).await.expect("workspace should create");
+    tokio::fs::create_dir_all(&outside).await.expect("outside fixture should create");
+    std::os::unix::fs::symlink(&outside, workspace.join("escape"))
+        .expect("directory symlink fixture should create");
+
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = workspace;
+    let c = client_with_policy(security, ComputerUseConfig::default(), vec![]);
+
+    let err = c
+        .resolve_output_path_for_write("path", "escape/out.png")
+        .await
+        .expect_err("resolved parent outside workspace should be rejected");
+    assert!(err.to_string().contains("Resolved path escapes workspace allowlist"));
 }
 
 #[test]
@@ -225,6 +349,49 @@ fn validate_action_reports_missing_or_invalid_parameters() {
     ] {
         let params = params.as_object().unwrap().clone();
         let err = c.validate_action(action, &params).expect_err("action should fail");
+        assert!(err.to_string().contains(expected), "{action}: {err}");
+    }
+}
+
+#[test]
+fn validate_action_accepts_keyboard_boundaries_and_optional_capture_path() {
+    let c = client(ComputerUseConfig::default(), vec![]);
+
+    let max_text = serde_json::json!({"text": "x".repeat(4096)});
+    assert!(c.validate_action("key_type", max_text.as_object().unwrap()).is_ok());
+
+    let max_key = serde_json::json!({"key": "A".repeat(32)});
+    assert!(c.validate_action("key_press", max_key.as_object().unwrap()).is_ok());
+
+    assert!(c.validate_action("screen_capture", &serde_json::Map::new()).is_ok());
+}
+
+#[test]
+fn validate_action_applies_utf8_byte_limit_and_ignores_non_string_optional_path() {
+    let c = client(ComputerUseConfig::default(), vec![]);
+    let multibyte_text = serde_json::json!({"text": "界".repeat(1366)});
+    let error = c
+        .validate_action("key_type", multibyte_text.as_object().unwrap())
+        .expect_err("UTF-8 input exceeding 4096 bytes should be rejected");
+    assert!(error.to_string().contains("exceeds maximum length"));
+
+    let non_string_path = serde_json::json!({"path": 7});
+    assert!(c.validate_action("screen_capture", non_string_path.as_object().unwrap()).is_ok());
+}
+
+#[test]
+fn validate_action_rejects_missing_or_wrong_typed_keyboard_parameters() {
+    let c = client(ComputerUseConfig::default(), vec![]);
+
+    for (action, params, expected) in [
+        ("key_type", serde_json::json!({}), "Missing 'text'"),
+        ("key_type", serde_json::json!({"text": 7}), "Missing 'text'"),
+        ("key_press", serde_json::json!({}), "Missing 'key'"),
+        ("key_press", serde_json::json!({"key": false}), "Missing 'key'"),
+    ] {
+        let err = c
+            .validate_action(action, params.as_object().unwrap())
+            .expect_err("missing or wrong-typed keyboard parameter should fail");
         assert!(err.to_string().contains(expected), "{action}: {err}");
     }
 }

@@ -20,6 +20,9 @@ static GAUGES: LazyLock<Mutex<HashMap<String, f64>>> = LazyLock::new(|| Mutex::n
 static TIMINGS: LazyLock<Mutex<HashMap<String, TimingBucket>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+#[cfg(test)]
+pub(crate) static TEST_PERF_METRICS_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }

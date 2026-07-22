@@ -28,41 +28,86 @@
 //! ```
 
 use crate::app::agent::config::schema::load_or_init_config;
-use crate::app::agent::security::gateway_skey_store;
+use crate::app::agent::security::gateway_skey_store::GatewaySkeyStore;
 use crate::app::agent::storage;
 use crate::app::agent::util::log;
+use crate::global_database::GlobalDatabase;
+use directories::UserDirs;
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+use vw_api_types::id::TenantScope;
 
-pub mod schema;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod migration;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "migration_tests.rs"]
+mod migration_tests;
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+pub mod schema;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod store;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "store_tests.rs"]
+mod store_tests;
+#[cfg(test)]
+#[path = "tests.rs"]
 mod tests;
 pub mod traits;
 #[cfg(test)]
 #[path = "traits_tests.rs"]
 mod traits_tests;
 pub use schema::*;
-pub(crate) use schema::{save_config, validate_config};
+pub(crate) use schema::{save_config, save_config_for_tenant, validate_config};
+#[cfg(not(target_arch = "wasm32"))]
+pub use store::SystemConfigStore;
 
-fn hydrate_gateway_skeys_from_store(config: &mut Config) {
-    match gateway_skey_store::load_existing_gateway_skeys() {
-        Ok(Some(skeys)) => {
-            config.gateway.skeys = skeys;
-        }
-        Ok(None) => {}
-        Err(error) => {
-            LOGGER.info(
-                "gateway_skey_store_load_failed",
-                Some({
-                    let mut m = Map::new();
-                    m.insert("error".to_string(), Value::String(error));
-                    m
-                }),
-            );
-        }
-    }
+fn gateway_skey_store() -> Result<GatewaySkeyStore, Error> {
+    let home = UserDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .ok_or_else(|| Error::Invalid("Could not find home directory".to_string()))?;
+    let database =
+        GlobalDatabase::for_home(home).map_err(|error| Error::Invalid(error.to_string()))?;
+    GatewaySkeyStore::new(database).map_err(|error| Error::Invalid(error.to_string()))
+}
+
+#[cfg(test)]
+fn hydrate_gateway_skeys_from_store(
+    config: &mut Config,
+    tenant: &TenantScope,
+    store: &GatewaySkeyStore,
+) -> Result<(), Error> {
+    config.gateway.skeys = store.load(tenant).map_err(|error| Error::Invalid(error.to_string()))?;
+    Ok(())
+}
+
+pub(crate) async fn load_gateway_skeys_for_tenant(
+    tenant: &TenantScope,
+) -> Result<Vec<vw_config_types::gateway::GatewaySkey>, Error> {
+    let tenant = tenant.clone();
+    tokio::task::spawn_blocking(move || {
+        gateway_skey_store()?.load(&tenant).map_err(|error| Error::Invalid(error.to_string()))
+    })
+    .await
+    .map_err(|error| Error::Invalid(format!("join gateway skey load task: {error}")))?
+}
+
+pub(crate) async fn replace_gateway_skeys_for_tenant(
+    tenant: &TenantScope,
+    skeys: &[vw_config_types::gateway::GatewaySkey],
+) -> Result<(), Error> {
+    let tenant = tenant.clone();
+    let skeys = skeys.to_vec();
+    tokio::task::spawn_blocking(move || {
+        gateway_skey_store()?
+            .replace_all(&tenant, &skeys)
+            .map_err(|error| Error::Invalid(error.to_string()))
+    })
+    .await
+    .map_err(|error| Error::Invalid(format!("join gateway skey replacement task: {error}")))?
 }
 
 fn take_gateway_skeys_from_patch(
@@ -303,11 +348,8 @@ fn merge_json_value(target: &mut Value, patch: Value) {
 /// println!("Current model: {}", config.model);
 /// ```
 pub async fn get() -> Config {
-    match load_or_init_config().await {
-        Ok(mut config) => {
-            hydrate_gateway_skeys_from_store(&mut config);
-            config
-        }
+    match get_global_for_tenant(&TenantScope::default()).await {
+        Ok(config) => config,
         Err(err) => {
             LOGGER.info(
                 "load_failed",
@@ -319,6 +361,85 @@ pub async fn get() -> Config {
             );
             Config::default()
         }
+    }
+}
+
+pub async fn get_global_for_tenant(tenant: &TenantScope) -> Result<Config, Error> {
+    let mut config = schema::load_or_init_config_for_tenant(tenant, None)
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    config.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;
+    Ok(config)
+}
+
+pub(crate) async fn get_global_for_tenant_without_env(
+    tenant: &TenantScope,
+) -> Result<Config, Error> {
+    schema::load_or_init_config_for_tenant_without_env(tenant, None)
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// 加载本地租户基础配置与显式项目覆盖合并后的有效配置。
+pub async fn get_project(project_root: &Path) -> Result<Config, Error> {
+    schema::load_or_init_config_for_tenant(&TenantScope::default(), Some(project_root))
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))
+}
+
+pub(crate) async fn get_project_without_env(project_root: &Path) -> Result<Config, Error> {
+    schema::load_or_init_config_for_tenant_without_env(&TenantScope::default(), Some(project_root))
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_project_blocking(project_root: &Path) -> Result<Config, Error> {
+    match tokio::runtime::Handle::try_current() {
+        Ok(_) => std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    tokio::runtime::Builder::new_multi_thread()
+                        .worker_threads(1)
+                        .enable_all()
+                        .build()
+                        .map_err(|error| {
+                            Error::Invalid(format!("failed to build runtime: {error}"))
+                        })?
+                        .block_on(get_project(project_root))
+                })
+                .join()
+                .unwrap_or_else(|_| Err(Error::Invalid("runtime worker panicked".into())))
+        }),
+        Err(_) => match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+            Ok(runtime) => runtime.block_on(get_project(project_root)),
+            Err(error) => Err(Error::Invalid(format!("failed to build runtime: {error}"))),
+        },
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn get_project_without_env_blocking(project_root: &Path) -> Result<Config, Error> {
+    match tokio::runtime::Handle::try_current() {
+        Ok(_) => std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    tokio::runtime::Builder::new_multi_thread()
+                        .worker_threads(1)
+                        .enable_all()
+                        .build()
+                        .map_err(|error| {
+                            Error::Invalid(format!("failed to build runtime: {error}"))
+                        })?
+                        .block_on(get_project_without_env(project_root))
+                })
+                .join()
+                .unwrap_or_else(|_| Err(Error::Invalid("runtime worker panicked".into())))
+        }),
+        Err(_) => match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+            Ok(runtime) => runtime.block_on(get_project_without_env(project_root)),
+            Err(error) => Err(Error::Invalid(format!("failed to build runtime: {error}"))),
+        },
     }
 }
 
@@ -477,14 +598,14 @@ pub async fn remove_global_provider(provider_id: &str) -> Result<(), Error> {
 /// });
 /// config::update_global(patch).await?;
 /// ```
-pub async fn update_global(mut patch: Value) -> Result<(), Error> {
+pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) -> Result<(), Error> {
     // 验证 patch 必须是对象
     if !patch.is_object() {
         return Err(Error::Invalid("config patch must be a JSON object".to_string()));
     }
 
     let gateway_skeys = take_gateway_skeys_from_patch(&mut patch)?;
-    let current = load_or_init_config().await.map_err(|e| Error::Invalid(e.to_string()))?;
+    let current = get_global_for_tenant(tenant).await?;
     // 将配置转换为 JSON 值
     let mut merged = serde_json::to_value(&current).map_err(Error::Json)?;
     // 深度合并补丁
@@ -496,13 +617,33 @@ pub async fn update_global(mut patch: Value) -> Result<(), Error> {
     next.workspace_dir = current.workspace_dir;
     next.config_path = current.config_path;
     if let Some(skeys) = gateway_skeys {
-        gateway_skey_store::save_gateway_skeys(&skeys).map_err(Error::Invalid)?;
-        next.gateway.skeys.clear();
-    } else if gateway_skey_store::load_existing_gateway_skeys().map_err(Error::Invalid)?.is_some() {
-        next.gateway.skeys.clear();
+        replace_gateway_skeys_for_tenant(tenant, &skeys).await?;
+        next.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;
     }
     validate_config(&next).map_err(|e| Error::Invalid(e.to_string()))?;
-    save_config(&next).await.map_err(|e| Error::Invalid(e.to_string()))
+    save_config_for_tenant(&next, tenant).await.map_err(|e| Error::Invalid(e.to_string()))
+}
+
+pub async fn update_global(patch: Value) -> Result<(), Error> {
+    update_global_for_tenant(&TenantScope::default(), patch).await
+}
+
+/// 将补丁写入显式项目根目录的 `.vibewindow.json` 覆盖文件。
+pub async fn update_project(project_root: &Path, patch: Value) -> Result<Config, Error> {
+    schema::update_project_config(project_root, patch)
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// 仅把两个项目配置快照之间的差异写入显式项目覆盖文件。
+pub async fn update_project_from_configs(
+    project_root: &Path,
+    before: &Config,
+    after: &Config,
+) -> Result<Config, Error> {
+    schema::update_project_config_from_configs(project_root, before, after)
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))
 }
 
 /// 更新配置（update_global 的别名）

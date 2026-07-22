@@ -80,6 +80,14 @@ fn required_builder() -> AgentBuilder {
         .observer(Arc::new(NoopObserver))
 }
 
+fn required_builder_with_tools(tools: Vec<Box<dyn Tool>>) -> AgentBuilder {
+    AgentBuilder::new()
+        .tools(tools)
+        .provider(Box::new(TestProvider))
+        .memory(Arc::new(NoneMemory::new()))
+        .observer(Arc::new(NoopObserver))
+}
+
 #[test]
 fn build_reports_first_missing_required_dependency() {
     let error = match AgentBuilder::new().build() {
@@ -139,18 +147,47 @@ fn build_reports_missing_observer_after_memory_is_present() {
 fn build_fills_defaults_when_optional_fields_are_absent() {
     let agent = required_builder().build().unwrap();
 
+    assert_eq!(agent.tools.len(), 1);
     assert_eq!(agent.tool_specs.len(), 1);
     assert_eq!(agent.tool_specs[0].id, "first_tool");
+    assert_eq!(agent.memory.name(), "none");
+    assert_eq!(agent.observer.name(), "noop");
+    assert_eq!(agent.config.max_tool_iterations, 20);
+    assert_eq!(agent.config.max_history_messages, 50);
+    assert!(!agent.config.parallel_tools);
+    assert_eq!(agent.config.tool_dispatcher, "auto");
     assert_eq!(agent.model_name, "anthropic/claude-sonnet-4-20250514");
     assert_eq!(agent.temperature, 0.7);
     assert_eq!(agent.workspace_dir, PathBuf::from("."));
+    assert_eq!(agent.identity_config.format, "openclaw");
     assert!(agent.security.is_none());
     assert!(agent.approval.is_none());
+    assert_eq!(agent.skills_prompt_mode, SkillsPromptInjectionMode::Compact);
     assert!(!agent.auto_save);
     assert!(agent.history.is_empty());
     assert!(agent.skills.is_empty());
+    assert!(!agent.classification_config.enabled);
     assert!(agent.available_hints.is_empty());
     assert!(agent.route_model_by_hint.is_empty());
+    assert!(!agent.research_config.enabled);
+    assert_eq!(agent.research_config.max_iterations, 5);
+    assert_eq!(agent.multimodal_config.max_images, 4);
+    assert_eq!(agent.multimodal_config.max_image_size_mb, 5);
+    assert!(!agent.multimodal_config.allow_remote_fetch);
+}
+
+#[test]
+fn build_collects_tool_specs_in_tool_order() {
+    let agent = required_builder_with_tools(vec![
+        Box::new(TestTool { name: "first_tool" }),
+        Box::new(TestTool { name: "second_tool" }),
+    ])
+    .build()
+    .unwrap();
+
+    let tool_spec_ids = agent.tool_specs.iter().map(|spec| spec.id.as_str()).collect::<Vec<_>>();
+
+    assert_eq!(tool_spec_ids, vec!["first_tool", "second_tool"]);
 }
 
 #[test]
@@ -216,4 +253,15 @@ fn build_uses_configured_optional_fields() {
     assert_eq!(agent.route_model_by_hint.get("fast").map(String::as_str), Some("test-model-fast"));
     assert!(agent.research_config.enabled);
     assert_eq!(agent.multimodal_config.max_images, 2);
+    assert_eq!(agent.multimodal_config.max_image_size_mb, 3);
+    assert!(agent.multimodal_config.allow_remote_fetch);
+}
+
+#[tokio::test]
+async fn build_uses_configured_memory_loader() {
+    let agent = required_builder().memory_loader(Box::new(TestMemoryLoader)).build().unwrap();
+
+    let loaded = agent.memory_loader.load_context(agent.memory.as_ref(), "message").await.unwrap();
+
+    assert_eq!(loaded, "loaded");
 }

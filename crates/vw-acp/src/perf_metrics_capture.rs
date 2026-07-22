@@ -122,18 +122,17 @@ fn snapshot_has_data(snapshot: &PerfMetricsSnapshot) -> bool {
 fn write_perf_metrics_capture(reason: CaptureReason, reset_after_write: bool) -> bool {
     let (capture_file_path, payload) = {
         let state = lock_state();
-        if !should_capture(&state) {
+        let Some(capture_file_path) =
+            state.capture_file_path.clone().filter(|path| !path.as_os_str().is_empty())
+        else {
             return false;
-        }
+        };
 
         let payload = build_payload(&state, reason);
         if !snapshot_has_data(&payload.metrics) {
             return false;
         }
 
-        let Some(capture_file_path) = state.capture_file_path.clone() else {
-            return false;
-        };
         (capture_file_path, payload)
     };
 

@@ -1,5 +1,9 @@
 use super::*;
 use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
+use agent_client_protocol::{
+    ModelInfo, SessionConfigOption, SessionConfigOptionCategory, SessionConfigSelectGroup,
+    SessionConfigSelectOption, SessionModelState,
+};
 
 fn test_record() -> SessionRecord {
     SessionRecord {
@@ -109,4 +113,116 @@ fn sync_advertised_model_state_ignores_missing_state() {
         vwacp.available_models.as_ref(),
         Some(&vec!["model-a".to_string(), "model-b".to_string()])
     );
+}
+
+#[test]
+fn sync_advertised_model_state_updates_current_and_available_models() {
+    let mut record = test_record();
+
+    sync_advertised_model_state(
+        &mut record,
+        Some(&SessionModelState::new(
+            "model-b",
+            vec![ModelInfo::new("model-b", "Model B"), ModelInfo::new("model-c", "Model C")],
+        )),
+    );
+
+    let vwacp = record.vwacp.as_ref().unwrap();
+    assert_eq!(vwacp.current_model_id.as_deref(), Some("model-b"));
+    assert_eq!(
+        vwacp.available_models.as_ref(),
+        Some(&vec!["model-b".to_string(), "model-c".to_string()])
+    );
+}
+
+#[test]
+fn config_resolution_prefers_categories_and_reports_available_values() {
+    let options = vec![
+        SessionConfigOption::select(
+            "custom_model",
+            "Model",
+            "model-a",
+            vec![
+                SessionConfigSelectOption::new("model-a", "Model A"),
+                SessionConfigSelectOption::new("model-b", "Model B"),
+            ],
+        )
+        .category(SessionConfigOptionCategory::Model),
+        SessionConfigOption::select(
+            "effort",
+            "Effort",
+            "high",
+            vec![SessionConfigSelectOption::new("high", "High")],
+        )
+        .category(SessionConfigOptionCategory::ThoughtLevel),
+    ];
+
+    assert_eq!(
+        resolve_model_config_value(Some(&options), "model-b").expect("supported model"),
+        Some("custom_model".to_string())
+    );
+    assert_eq!(
+        resolve_config_value(Some(&options), "reasoning_effort", "high").expect("supported effort"),
+        "effort"
+    );
+    assert_eq!(
+        resolve_config_value(Some(&options), "thought_level", "max")
+            .expect_err("unsupported effort"),
+        "Unsupported value max for config option effort; available values: high"
+    );
+}
+
+#[test]
+fn desired_config_options_roundtrip_without_overwriting_current_capabilities() {
+    let mut record = test_record();
+    set_desired_config_option(&mut record, "reasoning_effort", "high");
+    set_desired_config_option(&mut record, "temperature", "0.2");
+
+    let state = record.vwacp.as_ref().expect("vwacp state");
+    assert_eq!(
+        get_desired_config_options(Some(state)),
+        [
+            ("reasoning_effort".to_string(), "high".to_string()),
+            ("temperature".to_string(), "0.2".to_string()),
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(state.config_options, None);
+}
+
+#[test]
+fn config_state_updates_ignore_blank_values_and_missing_capabilities() {
+    let mut record = test_record();
+
+    set_desired_config_option(&mut record, " ", "high");
+    set_desired_config_option(&mut record, "effort", " ");
+    sync_config_options(&mut record, None);
+
+    assert!(record.vwacp.is_none());
+    assert!(get_desired_config_options(None).is_empty());
+    assert_eq!(resolve_model_config_value(None, "model-a"), Ok(None));
+    assert_eq!(
+        resolve_config_value(None, "effort", "high"),
+        Err("Agent did not advertise session config options; cannot set effort".to_string())
+    );
+}
+
+#[test]
+fn resolve_config_value_accepts_values_from_grouped_options() {
+    let grouped = SessionConfigOption::select(
+        "effort",
+        "Effort",
+        "medium",
+        vec![SessionConfigSelectGroup::new(
+            "quality",
+            "Quality",
+            vec![
+                SessionConfigSelectOption::new("medium", "Medium"),
+                SessionConfigSelectOption::new("high", "High"),
+            ],
+        )],
+    );
+
+    assert_eq!(resolve_config_value(Some(&[grouped]), "effort", "high"), Ok("effort".to_string()));
 }

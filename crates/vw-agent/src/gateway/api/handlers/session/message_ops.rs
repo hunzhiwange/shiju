@@ -9,10 +9,11 @@ use axum::extract::Query;
 use axum::http::HeaderMap;
 use vw_api_types::session::GatewaySessionMessageListQuery;
 
+use super::shared::with_tenant_instance;
+
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
-use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::session as agent_session;
 
 /// 列出会话消息。
@@ -36,14 +37,15 @@ pub(super) async fn session_message_list(
     headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::message::WithParts>>, ApiError> {
     let dir = resolve_directory(&InstanceQuery { directory: query.directory }, &headers);
-    let result = with_instance(dir, move || {
-        Box::pin(async move {
-            agent_session::message::messages(&session_id, query.limit)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))
+    let result =
+        with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
+            Box::pin(async move {
+                agent_session::message::messages(&session_id, query.limit)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))
+            })
         })
-    })
-    .await?;
+        .await?;
     Ok(Json(result))
 }
 
@@ -65,14 +67,15 @@ pub(super) async fn session_message_get(
     headers: HeaderMap,
 ) -> Result<Json<agent_session::message::WithParts>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let result = with_instance(dir, move || {
-        Box::pin(async move {
-            agent_session::message::get(&session_id, &message_id)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))
+    let result =
+        with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
+            Box::pin(async move {
+                agent_session::message::get(&session_id, &message_id)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))
+            })
         })
-    })
-    .await?;
+        .await?;
     Ok(Json(result))
 }
 
@@ -95,7 +98,7 @@ pub(super) async fn session_message_part_delete(
     headers: HeaderMap,
 ) -> Result<Json<bool>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    with_instance(dir, move || {
+    with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
         Box::pin(async move {
             agent_session::message::remove_part(&session_id, &message_id, &part_id)
                 .await
@@ -141,15 +144,16 @@ pub(super) async fn session_message_part_patch(
     }
 
     let dir = resolve_directory(&query, &headers);
-    let saved = with_instance(dir, move || {
-        Box::pin(async move {
-            agent_session::message::update_part(&part)
-                .await
-                .map_err(|e| ApiError::bad_request(e.to_string()))?;
-            Ok(part)
+    let saved =
+        with_tenant_instance(crate::session::ui_store::current_tenant_scope(), dir, move || {
+            Box::pin(async move {
+                agent_session::message::update_part(&part)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+                Ok(part)
+            })
         })
-    })
-    .await?;
+        .await?;
     Ok(Json(saved))
 }
 

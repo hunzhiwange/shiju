@@ -5,9 +5,9 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style,
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_panel_style, settings_section_card,
-    settings_success_banner, settings_text_input_style,
+    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_panel_style, settings_section_card, settings_success_banner,
+    settings_text_input_style,
 };
 use crate::app::message::SettingsMessage;
 use crate::app::message::settings::EmbeddingRoutesMessage;
@@ -76,6 +76,21 @@ fn secure_field_row<'a>(
     .into()
 }
 
+fn template_button<'a>(
+    label: &'static str,
+    description: &'static str,
+    message: EmbeddingRoutesMessage,
+) -> Element<'a, Message> {
+    button(
+        column![text(label).size(13), text(description).size(11).style(settings_muted_text_style),]
+            .spacing(4),
+    )
+    .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(message)))
+    .padding([10, 12])
+    .style(rounded_action_btn_style)
+    .into()
+}
+
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -114,8 +129,33 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(8)
     .align_y(Alignment::Start);
 
+    let templates_panel = settings_panel(
+        column![
+            text("快捷模板").size(13),
+            text("一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。")
+                .size(11)
+                .style(settings_muted_text_style),
+            row![
+                template_button(
+                    "阿里 DashScope",
+                    "alibaba-cn / text-embedding-v4 / 1024",
+                    EmbeddingRoutesMessage::InsertAlibabaTemplate,
+                ),
+                template_button(
+                    "豆包 Vision 250615",
+                    "custom:Volcengine Ark / doubao-embedding-vision-250615",
+                    EmbeddingRoutesMessage::InsertDoubaoTemplate,
+                ),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(10),
+    );
+
     let mut content = column![
         header,
+        templates_panel,
         settings_section_card(
             "路由规则",
             "每条路由定义一个匹配模式，并映射到具体的嵌入 provider/model。"
@@ -124,9 +164,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    } else if s.save_success {
+    if s.save_error.is_none() && s.save_success {
         content = content.push(settings_success_banner("保存成功"));
     }
 
@@ -134,7 +172,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         content = content.push(settings_panel(
             column![
                 text("暂无嵌入路由").size(14),
-                text("点击右上角「添加路由」创建第一条规则。")
+                text("点击上方模板按钮或右上角「添加路由」创建第一条规则。")
                     .size(12)
                     .style(settings_muted_text_style)
             ]

@@ -1041,7 +1041,7 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
     }));
 
     let status = select_status_summary(&state);
-    let header = build_status_header(&state, &status, "TUI v2", "local endpoint", 1);
+    let header = build_status_header(&state, &status, "TUI", "local endpoint", 1);
     let visible_window = select_visible_grouped_transcript_window(&state);
     let footer = build_status_footer(&state, &status, &visible_window);
     let prompt = build_prompt_host(&state);
@@ -1050,21 +1050,18 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
     let modal = build_modal_host(&state).expect("modal host should exist");
 
     assert_eq!(header.title, "S3-2 Host");
-    assert_eq!(header.badge, "TUI v2");
-    assert_eq!(header.provider, "openai");
+    assert_eq!(header.badge, "TUI");
     assert_eq!(header.scope, "workspace");
     assert_eq!(header.cwd, "/tmp/tui-v2-worktree");
-    assert!(footer.pills.iter().any(|pill| pill.label == "停在 m1"));
-    assert!(footer.pills.iter().any(|pill| pill.label.starts_with("视口 ")));
-    assert!(footer.pills.iter().any(|pill| pill.label == "令牌 0/0"));
-    assert!(footer.pills.iter().any(|pill| pill.label == "步骤 0"));
+    assert!(footer.pills.iter().any(|pill| pill.label == "终端 待命"));
     assert!(
         footer
             .detail
             .as_deref()
-            .is_some_and(|detail| detail.contains("消息=0") && detail.contains("窗口=-"))
+            .is_some_and(|detail| detail.contains("Enter 发送") && detail.contains("Shift+Enter"))
     );
     assert!(prompt.queued_commands.iter().any(|pill| pill.label.contains("/status")));
+    assert_eq!(prompt.footer_pills.len(), 1);
     assert!(prompt.footer_pills.iter().any(|pill| pill.label.contains("模型 gpt-5.4")));
     assert!(prompt.helper_text.contains("Enter 发送"));
     assert_eq!(prompt.path_label, "/tmp/tui-v2-worktree");
@@ -1075,14 +1072,12 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
             .iter()
             .any(|line| line.contains("项目: ~/src/tui-v2-worktree:main"))
     );
-    assert!(
-        project_context.body_lines.iter().any(|line| line.contains("会话文件: /tmp/tui-v2-host"))
-    );
+    assert!(!project_context.body_lines.iter().any(|line| line.contains("模型来源:")));
     assert!(modified_files.pills.iter().any(|pill| pill.label == "数量 2"));
     assert!(modified_files.body_lines.iter().any(|line| line == "• Cargo.toml"));
     assert_eq!(modal.title, "Recoverable Error");
-    assert!(modal.chips.iter().any(|pill| pill.label == "层级 2"));
-    assert!(modal.chips.iter().any(|pill| pill.label.contains("确认 > 错误")));
+    assert_eq!(modal.chips.len(), 1);
+    assert!(modal.chips.iter().any(|pill| pill.label == "类型 错误"));
 }
 
 #[test]
@@ -1110,9 +1105,9 @@ fn status_header_accepts_shadow_badge_label() {
     let state = TuiState::default();
     let status = select_status_summary(&state);
 
-    let header = build_status_header(&state, &status, "TUI v2 shadow", "local endpoint", 0);
+    let header = build_status_header(&state, &status, "TUI shadow", "local endpoint", 0);
 
-    assert_eq!(header.badge, "TUI v2 shadow");
+    assert_eq!(header.badge, "TUI shadow");
 }
 
 #[test]
@@ -1342,7 +1337,7 @@ fn status_footer_surfaces_token_and_step_pills() {
     let status = select_status_summary(&state);
     let visible_window = select_visible_grouped_transcript_window(&state);
     let footer = build_status_footer(&state, &status, &visible_window);
-    let header = build_status_header(&state, &status, "TUI v2", "local endpoint", 0);
+    let header = build_status_header(&state, &status, "TUI", "local endpoint", 0);
 
     assert_eq!(header.scope, "workspace");
     assert!(footer.pills.iter().any(|pill| pill.label == "令牌 5/13"));

@@ -3,6 +3,7 @@
 
 use super::message;
 use super::{AgentRequest, Message};
+use vw_gateway_client::vw_api_types;
 
 /// 模块内可见函数，执行 agent_stream 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -17,6 +18,7 @@ type AgentBoxStream<T> = iced::futures::stream::LocalBoxStream<'static, T>;
 
 const WORKFLOW_HISTORY_MAX_CHARS: usize = 12_000;
 
+#[allow(dead_code)]
 fn workflow_role_label(role: crate::app::models::ChatRole) -> &'static str {
     match role {
         crate::app::models::ChatRole::User => "User",
@@ -26,6 +28,7 @@ fn workflow_role_label(role: crate::app::models::ChatRole) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 fn workflow_history_context(history: &[crate::app::models::ChatMessage]) -> String {
     let mut lines = history
         .iter()
@@ -216,9 +219,7 @@ fn split_temporary_workflow_segment(value: &str) -> Vec<String> {
     }
     normalized
         .split('\n')
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
+        .filter_map(normalize_temporary_workflow_task_title)
         .collect()
 }
 
@@ -646,14 +647,27 @@ fn temporary_workflow_yaml(query: &str, model: Option<&str>) -> Result<String, S
     serde_yaml::to_string(&workflow).map_err(|error| format!("生成临时工作流失败: {error}"))
 }
 
+#[allow(dead_code)]
+fn workflow_mode_yaml(query: &str, model: Option<&str>) -> Result<String, String> {
+    temporary_workflow_yaml(query, model)
+}
+
+const TASK_PLAN_RUN_STREAM_PATH: &str = "/v1/task-plan-run/stream";
+#[allow(dead_code)]
 const WORKFLOW_CHAT_MESSAGES_PATH: &str = "/v1/workflow/applications/chat-messages";
+#[allow(dead_code)]
 const WORKFLOW_STREAM_CONNECT_TIMEOUT_SECS: u64 = 30;
+#[allow(dead_code)]
 const WORKFLOW_STREAM_REQUEST_TIMEOUT_SECS: u64 = 60 * 60 * 3;
 const WORKFLOW_NODE_PREVIEW_MAX_CHARS: usize = 12_000;
+#[allow(dead_code)]
 const WORKFLOW_NODE_STREAM_FLUSH_CHARS: usize = 360;
+#[allow(dead_code)]
 const WORKFLOW_NODE_STREAM_FLUSH_MS: u128 = 220;
+#[allow(dead_code)]
 const WORKFLOW_NODE_INLINE_YAML_MAX_CHARS: usize = 16_000;
 
+#[allow(dead_code)]
 enum WorkflowChatMessagesEvent {
     Delta(String),
     Done { usage: Option<serde_json::Value>, message_id: Option<String> },
@@ -665,6 +679,7 @@ enum WorkflowChatMessagesEvent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct WorkflowNodeStreamEvent {
     node_id: String,
     node_type: String,
@@ -677,6 +692,7 @@ struct WorkflowNodeStreamEvent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct WorkflowNodeDeltaStreamEvent {
     node_id: String,
     node_type: String,
@@ -687,6 +703,7 @@ struct WorkflowNodeDeltaStreamEvent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct WorkflowNodeOutputBuffer {
     text: String,
     pending_chars: usize,
@@ -695,6 +712,7 @@ struct WorkflowNodeOutputBuffer {
 }
 
 impl WorkflowNodeOutputBuffer {
+    #[allow(dead_code)]
     fn new() -> Self {
         Self {
             text: String::new(),
@@ -704,6 +722,7 @@ impl WorkflowNodeOutputBuffer {
         }
     }
 
+    #[allow(dead_code)]
     fn push(&mut self, delta: &str, replace: bool) {
         if replace {
             self.text.clear();
@@ -714,6 +733,7 @@ impl WorkflowNodeOutputBuffer {
         self.truncated |= compact_workflow_text_in_place(&mut self.text);
     }
 
+    #[allow(dead_code)]
     fn should_flush(&mut self, force: bool) -> bool {
         if force
             || self.pending_chars >= WORKFLOW_NODE_STREAM_FLUSH_CHARS
@@ -727,6 +747,7 @@ impl WorkflowNodeOutputBuffer {
     }
 }
 
+#[allow(dead_code)]
 fn parse_workflow_node_event(payload: &serde_json::Value) -> WorkflowNodeStreamEvent {
     let data = payload.get("data").unwrap_or(payload);
     WorkflowNodeStreamEvent {
@@ -753,6 +774,7 @@ fn parse_workflow_node_event(payload: &serde_json::Value) -> WorkflowNodeStreamE
     }
 }
 
+#[allow(dead_code)]
 fn parse_workflow_node_delta_event(payload: &serde_json::Value) -> WorkflowNodeDeltaStreamEvent {
     let data = payload.get("data").unwrap_or(payload);
     WorkflowNodeDeltaStreamEvent {
@@ -782,18 +804,22 @@ fn parse_workflow_node_delta_event(payload: &serde_json::Value) -> WorkflowNodeD
     }
 }
 
+#[allow(dead_code)]
 fn workflow_node_key(index: u32, node_id: &str) -> String {
     format!("{index}-{node_id}")
 }
 
+#[allow(dead_code)]
 fn workflow_node_stream_event_key(event: &WorkflowNodeStreamEvent) -> String {
     workflow_node_key(event.index, &event.node_id)
 }
 
+#[allow(dead_code)]
 fn workflow_node_delta_event_key(event: &WorkflowNodeDeltaStreamEvent) -> String {
     workflow_node_key(event.index, &event.node_id)
 }
 
+#[allow(dead_code)]
 fn workflow_node_stream_event_from_delta(
     event: &WorkflowNodeDeltaStreamEvent,
     output: &WorkflowNodeOutputBuffer,
@@ -810,14 +836,17 @@ fn workflow_node_stream_event_from_delta(
     }
 }
 
+#[allow(dead_code)]
 fn workflow_node_tool_call_id(event: &WorkflowNodeStreamEvent) -> String {
     format!("workflow-node-{}-{}", event.index, event.node_id)
 }
 
+#[allow(dead_code)]
 fn workflow_node_usage(outputs: Option<&serde_json::Value>) -> Option<serde_json::Value> {
     outputs.and_then(|value| value.get("usage")).cloned()
 }
 
+#[allow(dead_code)]
 fn workflow_node_inline_yaml(workflow_yaml: &str) -> Option<&str> {
     (workflow_yaml.chars().count() <= WORKFLOW_NODE_INLINE_YAML_MAX_CHARS).then_some(workflow_yaml)
 }
@@ -837,6 +866,7 @@ fn compact_workflow_text(text: &str) -> (String, bool) {
     (format!("{head}\n\n... 已截断 {omitted} 字符，仅保留预览 ...\n\n{tail}"), true)
 }
 
+#[allow(dead_code)]
 fn compact_workflow_text_in_place(text: &mut String) -> bool {
     let (compacted, truncated) = compact_workflow_text(text);
     if truncated {
@@ -845,6 +875,7 @@ fn compact_workflow_text_in_place(text: &mut String) -> bool {
     truncated
 }
 
+#[allow(dead_code)]
 fn workflow_output_preview_text(outputs: &serde_json::Value) -> String {
     for key in ["answer", "text", "result", "output", "data"] {
         if let Some(text) = outputs
@@ -879,6 +910,7 @@ fn workflow_preview_outputs(
     outputs
 }
 
+#[allow(dead_code)]
 fn workflow_node_preview_outputs(event: &WorkflowNodeStreamEvent) -> Option<serde_json::Value> {
     let outputs = event.outputs.as_ref().filter(|value| !value.is_null())?;
     Some(workflow_preview_outputs(
@@ -888,6 +920,7 @@ fn workflow_node_preview_outputs(event: &WorkflowNodeStreamEvent) -> Option<serd
     ))
 }
 
+#[allow(dead_code)]
 fn workflow_node_tool_block(
     event: &WorkflowNodeStreamEvent,
     running: bool,
@@ -944,6 +977,199 @@ fn workflow_node_tool_block(
     format!("tool workflow_node\n{payload}\n")
 }
 
+fn plan_run_event_type(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &'static str {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. } => "planning_started",
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { .. } => "plan_created",
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { .. } => "batch_started",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { .. } => "subtask_started",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { .. } => "subtask_finished",
+        vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. } => "blocked",
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. } => "finished",
+        vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "error",
+    }
+}
+
+fn plan_run_event_task_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &str {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Finished { task_id, .. } => task_id,
+        vw_api_types::task::TaskPlanRunStreamEventDto::Error { task_id, .. } => {
+            task_id.as_deref().unwrap_or("unknown")
+        }
+    }
+}
+
+fn plan_run_tool_call_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { task_id, .. } => {
+            format!("plan-run-{task_id}-planning")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, batch, .. } => {
+            format!("plan-run-{task_id}-batch-{batch}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
+            task_id,
+            subtask_id,
+            ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            task_id,
+            subtask_id,
+            ..
+        } => format!("plan-run-{task_id}-subtask-{subtask_id}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { task_id, subtask_id, .. } => {
+            format!("plan-run-{}-blocked-{}", task_id, subtask_id.as_deref().unwrap_or("task"))
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { task_id, .. } => {
+            format!("plan-run-{task_id}-finished")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Error { task_id, .. } => {
+            format!("plan-run-{}-error", task_id.as_deref().unwrap_or("unknown"))
+        }
+    }
+}
+
+fn plan_run_event_status(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &'static str {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { .. } => "running",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            success: false, ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "error",
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. } => "completed",
+    }
+}
+
+fn plan_run_event_summary(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. } => {
+            "规划任务".to_string()
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { subtask_count, .. } => {
+            format!("计划已创建 · {subtask_count} 个子任务")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { batch, .. } => {
+            format!("批次 {batch}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { batch, title, .. } => {
+            format!("批次 {batch} · {title}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            batch,
+            title,
+            success,
+            ..
+        } => {
+            let suffix = if *success { "完成" } else { "失败" };
+            format!("批次 {batch} · {title} · {suffix}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. } => "执行受阻".to_string(),
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. } => {
+            "计划执行完成".to_string()
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "计划执行失败".to_string(),
+    }
+}
+
+fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { plan_dir, .. } => {
+            format!("正在规划任务，计划目录: {plan_dir}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated {
+            plan_dir,
+            plan_md_path,
+            tasks_json_path,
+            subtask_count,
+            ..
+        } => format!(
+            "计划已创建，共 {subtask_count} 个子任务。\nplan.md: {plan_md_path}\ntasks.json: {tasks_json_path}\n目录: {plan_dir}"
+        ),
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted {
+            batch, subtask_ids, ..
+        } => format!("批次 {batch} 开始执行: {}", subtask_ids.join(", ")),
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
+            task_file, title, ..
+        } => format!("子任务开始: {title}\n任务文件: {task_file}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            success,
+            output,
+            error,
+            task_file,
+            ..
+        } => {
+            if *success {
+                format!(
+                    "子任务完成，任务文件已处理: {task_file}\n{}",
+                    output.as_deref().unwrap_or_default()
+                )
+            } else {
+                format!(
+                    "子任务失败，任务文件保留: {task_file}\n{}",
+                    error.as_deref().unwrap_or("执行失败")
+                )
+            }
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { reason, .. } => {
+            format!("执行受阻: {reason}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished {
+            status,
+            output,
+            plan_dir,
+            ..
+        } => format!("状态: {status}\n计划目录: {plan_dir}\n{output}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::Error { message, .. } => {
+            format!("计划执行失败: {message}")
+        }
+    }
+}
+
+fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
+    use serde_json::json;
+
+    let summary = plan_run_event_summary(event);
+    let output_value = workflow_preview_outputs(&plan_run_event_output_text(event), None, false);
+    let output =
+        serde_json::to_string(&output_value).unwrap_or_else(|_| "计划执行事件".to_string());
+    let error = matches!(
+        event,
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { success: false, .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. }
+    )
+    .then(|| plan_run_event_output_text(event));
+    let payload = json!({
+        "tool_call_id": plan_run_tool_call_id(event),
+        "status": plan_run_event_status(event),
+        "input": summary,
+        "summary": summary,
+        "output": output,
+        "error": error,
+        "metadata": {
+            "canonical_tool_id": "workflow_node",
+            "plan_run": true,
+            "event_type": plan_run_event_type(event),
+            "task_id": plan_run_event_task_id(event),
+        }
+    });
+    let payload = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+    format!("tool workflow_node\n{payload}\n")
+}
+
+#[allow(dead_code)]
 fn apply_workflow_auth(
     builder: reqwest::RequestBuilder,
     endpoint: &vw_gateway_client::GatewayEndpoint,
@@ -959,6 +1185,7 @@ fn apply_workflow_auth(
     }
 }
 
+#[allow(dead_code)]
 fn take_next_workflow_stream_payload(buffer: &mut String) -> Option<String> {
     let separator = if let Some(idx) = buffer.find("\r\n\r\n") {
         Some((idx, 4))
@@ -979,6 +1206,7 @@ fn take_next_workflow_stream_payload(buffer: &mut String) -> Option<String> {
     (!payload.is_empty()).then_some(payload)
 }
 
+#[allow(dead_code)]
 fn parse_workflow_chat_messages_event(payload: serde_json::Value) -> WorkflowChatMessagesEvent {
     match payload.get("event").and_then(serde_json::Value::as_str).unwrap_or_default() {
         "message" => WorkflowChatMessagesEvent::Delta(
@@ -1039,6 +1267,7 @@ fn parse_workflow_chat_messages_event(payload: serde_json::Value) -> WorkflowCha
     }
 }
 
+#[allow(dead_code)]
 async fn stream_workflow_chat_messages(
     endpoint: &vw_gateway_client::GatewayEndpoint,
     directory: Option<&str>,
@@ -1100,11 +1329,24 @@ async fn stream_workflow_chat_messages(
     Ok(())
 }
 
+async fn stream_task_plan_run(
+    endpoint: &vw_gateway_client::GatewayEndpoint,
+    body: &vw_api_types::task::TaskPlanRunRequest,
+    on_event: impl FnMut(vw_api_types::task::TaskPlanRunStreamEventDto) -> bool,
+) -> Result<(), String> {
+    tracing::info!(
+        target: "vw_desktop",
+        endpoint = %endpoint.describe(),
+        path = TASK_PLAN_RUN_STREAM_PATH,
+        "desktop connected task plan-run stream"
+    );
+    vw_gateway_client::GatewayClient::stream_task_plan_run(endpoint, body, on_event).await
+}
+
 fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
     use iced::futures::SinkExt;
     use iced::futures::StreamExt;
     use serde_json::{Value, json};
-    use std::collections::HashMap;
     use tracing::{debug, info};
 
     use crate::app::models;
@@ -1136,7 +1378,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             });
             let acp_cwd = req.root.clone();
             let mut options = serde_json::Map::new();
-            if req.full_access_enabled {
+            if req.full_access_enabled || req.acp_test {
                 options.insert("full_access".to_string(), json!(true));
             }
             if let Some(agent) = &req.agent {
@@ -1159,9 +1401,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 );
                 options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
                 options.insert("cwd".to_string(), json!(acp_cwd));
-                if req.full_access_enabled {
-                    options.insert("acp_permission_mode".to_string(), json!("approve-all"));
-                }
+                options.insert("acp_permission_mode".to_string(), json!("approve-all"));
             }
             if req.resume_history_only {
                 options.insert("desktop_resume_history_only".to_string(), json!(true));
@@ -1195,138 +1435,75 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             );
 
             let result = if workflow_mode_active {
-                let workflow_yaml = match temporary_workflow_yaml(&req.query, req.model.as_deref())
-                {
-                    Ok(workflow_yaml) => workflow_yaml,
-                    Err(error) => {
-                        let _ = output
-                            .send(Message::Chat(message::ChatMessage::AgentStreamError(
+                let Some(root) = req.root.as_deref().filter(|value| !value.trim().is_empty())
+                else {
+                    let _ = output
+                        .send(Message::Chat(message::ChatMessage::AgentStreamError(
+                            req.id,
+                            "启用工作流执行需要先选择项目根目录".to_string(),
+                        )))
+                        .await;
+                    return;
+                };
+                let plan_run_body = vw_api_types::task::TaskPlanRunRequest {
+                    query: req.query.clone(),
+                    root: root.to_string(),
+                    model: req.model.clone(),
+                    agent: req.agent.clone(),
+                    acp_agent: req.acp_agent.clone(),
+                };
+
+                stream_task_plan_run(&endpoint, &plan_run_body, |event| {
+                    let done_event = matches!(
+                        event,
+                        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
+                    );
+                    let error_event = match &event {
+                        vw_api_types::task::TaskPlanRunStreamEventDto::Error {
+                            message, ..
+                        } => Some(message.clone()),
+                        _ => None,
+                    };
+                    let event_type = plan_run_event_type(&event);
+                    info!(
+                        target: "vw_desktop",
+                        request_id = req.id,
+                        session_id = %req.session,
+                        event_type,
+                        "desktop received task plan-run event"
+                    );
+
+                    if output
+                        .try_send(Message::Chat(message::ChatMessage::AgentWorkflowNodeUpdate(
+                            req.id,
+                            plan_run_tool_block(&event),
+                        )))
+                        .is_err()
+                    {
+                        return false;
+                    }
+
+                    if done_event {
+                        stream_done = true;
+                        return output
+                            .try_send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                req.id,
+                                crate::app::models::TokenUsage::default(),
+                                None,
+                                None,
+                            )))
+                            .is_ok();
+                    }
+                    if let Some(error) = error_event {
+                        stream_done = true;
+                        return output
+                            .try_send(Message::Chat(message::ChatMessage::AgentStreamError(
                                 req.id, error,
                             )))
-                            .await;
-                        return;
+                            .is_ok();
                     }
-                };
-                let workflow_body = json!({
-                    "application_workflow": workflow_yaml,
-                    "query": req.query.clone(),
-                    "inputs": {
-                        "query": req.query.clone(),
-                        "conversation": workflow_history_context(&req.history),
-                        "max_steps": 20,
-                        "__vw_full_access": req.full_access_enabled,
-                        "__vw_root": req.root.clone()
-                    },
-                    "response_mode": "streaming",
-                    "user": format!("desktop-{}", req.session),
-                });
-
-                let mut workflow_nodes = HashMap::<String, WorkflowNodeStreamEvent>::new();
-                let mut workflow_node_outputs = HashMap::<String, WorkflowNodeOutputBuffer>::new();
-
-                stream_workflow_chat_messages(
-                    &endpoint,
-                    req.root.as_deref(),
-                    &workflow_body,
-                    |event| match event {
-                        WorkflowChatMessagesEvent::Delta(delta) => {
-                            let delta_len = delta.len();
-                            let delta_preview: String = delta.chars().take(80).collect();
-                            info!(
-                                target: "vw_desktop",
-                                request_id = req.id,
-                                session_id = %req.session,
-                                delta_len,
-                                delta_preview = %delta_preview,
-                                "desktop received workflow delta"
-                            );
-                            output
-                                .try_send(Message::Chat(message::ChatMessage::AgentStreamDelta(
-                                    req.id, delta,
-                                )))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::Done { usage, message_id } => {
-                            stream_done = true;
-                            output
-                                .try_send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                    req.id,
-                                    parse_usage(usage.as_ref()),
-                                    message_id,
-                                    None,
-                                )))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::Error(error) => {
-                            stream_done = true;
-                            output
-                                .try_send(Message::Chat(message::ChatMessage::AgentStreamError(
-                                    req.id, error,
-                                )))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::NodeStarted(event) => {
-                            workflow_nodes
-                                .insert(workflow_node_stream_event_key(&event), event.clone());
-                            output
-                                .try_send(Message::Chat(
-                                    message::ChatMessage::AgentWorkflowNodeUpdate(
-                                        req.id,
-                                        workflow_node_tool_block(&event, true, &workflow_yaml),
-                                    ),
-                                ))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::NodeDelta(event) => {
-                            let key = workflow_node_delta_event_key(&event);
-                            let buffer = workflow_node_outputs
-                                .entry(key.clone())
-                                .or_insert_with(WorkflowNodeOutputBuffer::new);
-                            buffer.push(&event.text, event.replace);
-                            if !buffer.should_flush(event.replace) {
-                                return true;
-                            }
-                            let mut node = workflow_nodes.get(&key).cloned().unwrap_or_else(|| {
-                                workflow_node_stream_event_from_delta(&event, buffer)
-                            });
-                            if !event.node_type.trim().is_empty() {
-                                node.node_type = event.node_type.clone();
-                            }
-                            if !event.title.trim().is_empty() {
-                                node.title = event.title.clone();
-                            }
-                            node.status = Some("running".to_string());
-                            node.outputs = Some(workflow_preview_outputs(
-                                &buffer.text,
-                                None,
-                                buffer.truncated,
-                            ));
-                            workflow_nodes.insert(key, node.clone());
-                            output
-                                .try_send(Message::Chat(
-                                    message::ChatMessage::AgentWorkflowNodeUpdate(
-                                        req.id,
-                                        workflow_node_tool_block(&node, true, &workflow_yaml),
-                                    ),
-                                ))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::NodeFinished(event) => {
-                            let key = workflow_node_stream_event_key(&event);
-                            workflow_nodes.insert(key.clone(), event.clone());
-                            workflow_node_outputs.remove(&key);
-                            output
-                                .try_send(Message::Chat(
-                                    message::ChatMessage::AgentWorkflowNodeUpdate(
-                                        req.id,
-                                        workflow_node_tool_block(&event, false, &workflow_yaml),
-                                    ),
-                                ))
-                                .is_ok()
-                        }
-                        WorkflowChatMessagesEvent::Other => true,
-                    },
-                )
+                    true
+                })
                 .await
             } else {
                 vw_gateway_client::GatewayClient::stream_chat(
@@ -1344,6 +1521,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             .get("model")
                             .cloned()
                             .and_then(|value| serde_json::from_value(value).ok()),
+                        reasoning_effort: req.acp_test.then_some(req.reasoning_effort).flatten(),
                         agent: req.agent.clone(),
                         allowed_tools: req.allowed_tools.clone(),
                         acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),

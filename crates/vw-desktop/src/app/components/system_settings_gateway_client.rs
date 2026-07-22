@@ -3,14 +3,14 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_text_input_style, settings_value_badge,
+    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_section_card, settings_text_input_style, settings_value_badge,
     with_settings_help_modal,
 };
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
-use crate::app::views::design::properties::number_input::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{Space, button, column, container, row, text, text_input};
 use iced::{Alignment, Color, Element, Length, Theme};
@@ -305,6 +305,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )))
         },
     );
+    let platform_id_row = text_row(
+        "平台 ID",
+        "当前网关请求所属的平台租户。",
+        "10000",
+        &s.platform_id_input,
+        |value| {
+            Message::Settings(SettingsMessage::GatewayClient(
+                GatewayClientMessage::PlatformIdChanged(value),
+            ))
+        },
+    );
+    let company_id_row = text_row(
+        "公司 ID",
+        "当前网关请求所属的公司租户。",
+        "100000000",
+        &s.company_id_input,
+        |value| {
+            Message::Settings(SettingsMessage::GatewayClient(
+                GatewayClientMessage::CompanyIdChanged(value),
+            ))
+        },
+    );
     let skey_row = secure_text_row(
         "skey",
         "可选 skey，会作为 Authorization: Bearer 发送。",
@@ -317,7 +339,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let mut content = column![
+    let content = column![
         row![
             container(settings_page_intro(
                 "客户端网关",
@@ -337,7 +359,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .spacing(12)
                     .width(Length::Fixed(360.0)),
                 Space::new().width(Length::Fixed(10.0)),
-                column![name_row, host_row, port_row].spacing(0).width(Length::Fill),
+                column![name_row, host_row, port_row, platform_id_row, company_id_row]
+                    .spacing(0)
+                    .width(Length::Fill),
             ]
             .spacing(12)
             .align_y(Alignment::Start),
@@ -350,10 +374,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }
@@ -407,7 +427,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     let help_text = r#"客户端网关配置说明
 
 一、作用
-- 这里配置桌面端发请求时要连接的 Gateway 地址与认证信息。
+- 这里配置桌面端发请求时要连接的 Gateway 地址、租户与认证信息。
 - 支持多个 Gateway 服务；当前选中的服务会成为 Desktop 的客户端请求目标。
 - 这些设置不会修改服务端网关的监听配置。
 
@@ -418,7 +438,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 2) port
 - 目标 Gateway 端口，默认 42617。
 
-3) skey
+3) platform_id / company_id
+- 平台与公司租户 ID，默认 10000 / 100000000；不能为空。
+
+4) skey
 - 可选 skey。填写后会作为 Authorization: Bearer <skey> 发送给网关。
 
 三、示例
@@ -431,11 +454,15 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         "name": "本地网关",
         "host": "127.0.0.1",
         "port": 42617,
+        "platform_id": "10000",
+        "company_id": "100000000",
         "skey": ""
       }
     ],
     "host": "127.0.0.1",
     "port": 42617,
+    "platform_id": "10000",
+    "company_id": "100000000",
     "skey": ""
   }
 }

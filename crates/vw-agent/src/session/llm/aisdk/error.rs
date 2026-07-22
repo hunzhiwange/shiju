@@ -32,6 +32,22 @@ fn aisdk_error_source_chain(e: &AiError) -> Option<String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn is_retryable_body_decode_error(
+    details: &str,
+    raw_error: &str,
+    source_chain: Option<&str>,
+) -> bool {
+    let mut text = format!("{details}\n{raw_error}");
+    if let Some(chain) = source_chain {
+        text.push('\n');
+        text.push_str(chain);
+    }
+    let normalized = text.to_ascii_lowercase();
+    normalized.contains("error decoding response body")
+        || normalized.contains("eof while parsing a value")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn aisdk_assistant_error_log_fields(
     assistant_error: &crate::app::agent::session::message::AssistantError,
 ) -> serde_json::Map<String, Value> {
@@ -132,7 +148,8 @@ pub(crate) fn assistant_error_from_aisdk(
             // 判断错误是否可重试：
             // - 429: 速率限制，稍后重试可能成功
             // - 5xx: 服务器端临时故障，通常可重试
-            let retryable = status_code.is_some_and(|s| s.as_u16() == 429 || s.is_server_error());
+            let retryable = status_code.is_some_and(|s| s.as_u16() == 429 || s.is_server_error())
+                || is_retryable_body_decode_error(&details, &raw_error, source_chain.as_deref());
             let mut metadata = std::collections::HashMap::from([
                 ("source".to_string(), "aisdk".to_string()),
                 ("raw_error".to_string(), raw_error.clone()),

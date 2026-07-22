@@ -1,9 +1,11 @@
 use crate::app::{Message, message::SettingsMessage};
 use iced::Task;
+#[cfg(not(target_arch = "wasm32"))]
 use serde::de::DeserializeOwned;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::OnceLock;
 use vw_config_types::{config::Config, security::IdentityConfig};
+use vw_gateway_client::vw_api_types::id::TenantScope;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use super::system_settings::load_gateway_client_bootstrap_config;
@@ -51,69 +53,21 @@ pub(super) fn apply_main_agent_overrides(config: &mut Config) {
     }
 }
 
-fn vibewindow_home_config_path() -> Option<std::path::PathBuf> {
-    #[cfg(windows)]
-    {
-        if let Some(home) = std::env::var_os("USERPROFILE") {
-            return Some(
-                vw_config_types::paths::home_config_dir(std::path::PathBuf::from(home))
-                    .join("vibewindow.json"),
-            );
-        }
-    }
-    std::env::var_os("HOME")
+#[cfg(not(target_arch = "wasm32"))]
+fn project_config_override_path() -> Option<std::path::PathBuf> {
+    std::env::var_os("VIBEWINDOW_WORKSPACE")
+        .filter(|value| !value.to_string_lossy().trim().is_empty())
         .map(std::path::PathBuf::from)
-        .map(|home| vw_config_types::paths::home_config_dir(home).join("vibewindow.json"))
+        .or_else(|| std::env::current_dir().ok())
+        .map(|root| root.join(".vibewindow.json"))
 }
 
-fn vibewindow_config_path() -> Option<std::path::PathBuf> {
-    if let Some(path) = std::env::var_os("VIBEWINDOW_CONFIG") {
-        let path = std::path::PathBuf::from(path);
-        if path.is_file() || path.extension().is_some() {
-            return Some(path);
-        }
-    }
-    if let Some(dir) = std::env::var_os("VIBEWINDOW_CONFIG_DIR") {
-        return Some(std::path::PathBuf::from(dir).join("vibewindow.json"));
-    }
-    if let Some(home_path) = vibewindow_home_config_path() {
-        return Some(home_path);
-    }
-    crate::app::project_dirs().map(|d| d.config_dir().join("vibewindow.json"))
-}
-
-fn vibewindow_legacy_config_path() -> Option<std::path::PathBuf> {
-    crate::app::project_dirs().map(|d| d.config_dir().join("vibewindow.json"))
-}
-
+#[cfg(not(target_arch = "wasm32"))]
 fn load_vibewindow_root_json() -> serde_json::Value {
-    let mut candidates = Vec::new();
-    if let Some(primary) = vibewindow_config_path()
-        && !candidates.iter().any(|p| p == &primary)
-    {
-        candidates.push(primary);
-    }
-    if let Some(home) = vibewindow_home_config_path()
-        && !candidates.iter().any(|p| p == &home)
-    {
-        candidates.push(home);
-    }
-    if let Some(legacy) = vibewindow_legacy_config_path()
-        && !candidates.iter().any(|p| p == &legacy)
-    {
-        candidates.push(legacy);
-    }
-
-    for path in candidates {
-        let Ok(content) = std::fs::read_to_string(path) else {
-            continue;
-        };
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
-            return v;
-        }
-    }
-
-    serde_json::json!({})
+    project_config_override_path()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .unwrap_or_else(|| serde_json::json!({}))
 }
 
 pub(super) fn set_config_value_at_path(
@@ -146,6 +100,7 @@ pub(super) fn set_config_value_at_path(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) fn load_config_value_at_path<T: DeserializeOwned>(path: &[&str]) -> Option<T> {
     let root = load_vibewindow_root_json();
     let mut current = &root;
@@ -200,7 +155,11 @@ pub fn gateway_client_endpoint() -> GatewayEndpoint {
         skey: Some(skey).filter(|value| !value.is_empty()),
         ..vw_gateway_client::GatewayAuth::default()
     };
-    GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX)).with_auth(auth)
+    let tenant_scope = TenantScope::new(active.platform_id.trim(), active.company_id.trim())
+        .expect("gateway client tenant IDs are validated before persistence");
+    GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))
+        .with_auth(auth)
+        .with_tenant_scope(tenant_scope)
 }
 
 pub fn gateway_client() -> Result<GatewayClient, String> {
@@ -235,7 +194,11 @@ pub fn load_tools_list_via_gateway() -> Vec<String> {
     match result {
         Ok(tools) => normalize_tool_ids(tools),
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load tools list via gateway");
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, "failed to load tools list via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, "failed to load tools list via gateway");
+            }
             Vec::new()
         }
     }

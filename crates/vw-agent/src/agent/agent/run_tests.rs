@@ -3,13 +3,30 @@ use super::run::{run, run_with_agent_factory};
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::{Observer, ObserverEvent};
-use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider};
-use anyhow::Result;
+use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
 struct StaticProvider;
+
+struct FailingProvider;
+
+#[derive(Clone)]
+struct MessageRecordingProvider {
+    messages: Arc<Mutex<Vec<Vec<ChatMessage>>>>,
+}
+
+impl MessageRecordingProvider {
+    fn new() -> Self {
+        Self { messages: Arc::new(Mutex::new(Vec::new())) }
+    }
+
+    fn messages(&self) -> Vec<Vec<ChatMessage>> {
+        self.messages.lock().unwrap().clone()
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -30,6 +47,58 @@ impl Provider for StaticProvider {
         _model: &str,
         _temperature: f64,
     ) -> Result<ChatResponse> {
+        Ok(ChatResponse {
+            text: Some("agent response".to_string()),
+            tool_calls: Vec::new(),
+            usage: None,
+            reasoning_content: None,
+        })
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Provider for FailingProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> Result<String> {
+        Ok("unused".to_string())
+    }
+
+    async fn chat(
+        &self,
+        _request: ChatRequest<'_>,
+        _model: &str,
+        _temperature: f64,
+    ) -> Result<ChatResponse> {
+        Err(anyhow!("provider failed"))
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Provider for MessageRecordingProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> Result<String> {
+        Ok("unused".to_string())
+    }
+
+    async fn chat(
+        &self,
+        request: ChatRequest<'_>,
+        _model: &str,
+        _temperature: f64,
+    ) -> Result<ChatResponse> {
+        self.messages.lock().unwrap().push(request.messages.to_vec());
         Ok(ChatResponse {
             text: Some("agent response".to_string()),
             tool_calls: Vec::new(),
@@ -70,8 +139,16 @@ impl Observer for RecordingObserver {
 }
 
 fn agent_for_config(config: &Config, observer: Arc<RecordingObserver>) -> Result<Agent> {
+    agent_for_config_with_provider(config, observer, Box::new(StaticProvider))
+}
+
+fn agent_for_config_with_provider(
+    config: &Config,
+    observer: Arc<RecordingObserver>,
+    provider: Box<dyn Provider>,
+) -> Result<Agent> {
     Agent::builder()
-        .provider(Box::new(StaticProvider))
+        .provider(provider)
         .tools(Vec::new())
         .memory(Arc::new(NoneMemory::new()))
         .observer(observer)
@@ -115,6 +192,21 @@ async fn run_rejects_missing_message_before_starting_agent() {
     let error = run(Config::default(), None, None, None, 0.7).await.unwrap_err();
 
     assert!(error.to_string().contains("provide a message"));
+}
+
+#[tokio::test]
+async fn run_propagates_default_agent_factory_error_for_unknown_provider() {
+    let mut config = Config::default();
+    config.memory.backend = "none".to_string();
+    config.default_provider = Some("task-0034-unknown-provider".to_string());
+    config.workspace_dir =
+        std::env::temp_dir().join(format!("vibe-window-task-0034-{}", std::process::id()));
+
+    let error = run(config, Some("hello".to_string()), None, None, 0.7)
+        .await
+        .expect_err("unknown provider should fail through the public run entrypoint");
+
+    assert!(error.to_string().contains("Unknown provider: task-0034-unknown-provider"));
 }
 
 #[tokio::test]
@@ -168,4 +260,69 @@ async fn run_uses_documented_provider_and_model_fallbacks() {
     let events = observer.events();
     assert!(has_agent_start(&events, "openrouter", "anthropic/claude-sonnet-4-20250514"));
     assert!(has_agent_end(&events, "openrouter", "anthropic/claude-sonnet-4-20250514"));
+}
+
+#[tokio::test]
+async fn run_propagates_agent_factory_error() {
+    let config = Config { default_provider: None, default_model: None, ..Config::default() };
+
+    let error = run_with_agent_factory(config, Some("hello".to_string()), None, None, 0.7, |_| {
+        Err(anyhow!("factory failed"))
+    })
+    .await
+    .unwrap_err();
+
+    assert!(error.to_string().contains("factory failed"));
+}
+
+#[tokio::test]
+async fn run_propagates_provider_error_without_recording_end_event() {
+    let observer = Arc::new(RecordingObserver::new());
+    let observer_for_agent = Arc::clone(&observer);
+    let config = Config { default_provider: None, default_model: None, ..Config::default() };
+
+    let error =
+        run_with_agent_factory(config, Some("hello".to_string()), None, None, 0.7, move |config| {
+            agent_for_config_with_provider(config, observer_for_agent, Box::new(FailingProvider))
+        })
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("provider failed"));
+
+    let events = observer.events();
+    assert!(events.iter().any(|event| matches!(event, ObserverEvent::AgentStart { .. })));
+    assert!(!events.iter().any(|event| matches!(event, ObserverEvent::AgentEnd { .. })));
+}
+
+#[tokio::test]
+async fn run_accepts_empty_message_string() {
+    let observer = Arc::new(RecordingObserver::new());
+    let observer_for_agent = Arc::clone(&observer);
+    let provider = MessageRecordingProvider::new();
+    let provider_for_agent = provider.clone();
+
+    let response = run_with_agent_factory(
+        Config::default(),
+        Some(String::new()),
+        None,
+        None,
+        0.0,
+        move |config| {
+            agent_for_config_with_provider(config, observer_for_agent, Box::new(provider_for_agent))
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(response, "agent response");
+
+    let messages = provider.messages();
+    let final_user_message = messages
+        .first()
+        .and_then(|request_messages| {
+            request_messages.iter().rfind(|message| message.role == "user")
+        })
+        .expect("provider should receive a user message");
+    assert!(final_user_message.content.ends_with("] "));
 }

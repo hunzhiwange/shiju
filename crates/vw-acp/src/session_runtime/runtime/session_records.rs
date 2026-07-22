@@ -100,6 +100,7 @@ async fn create_session_record_with_client(
             available_models: None,
             available_commands: None,
             config_options: None,
+            desired_config_options: None,
             session_options: None,
         }),
     };

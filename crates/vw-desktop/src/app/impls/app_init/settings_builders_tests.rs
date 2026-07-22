@@ -2,11 +2,13 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use vw_config_types::channels::{
-    ChannelsConfig, ClawdTalkConfig, DingTalkConfig, DiscordConfig, FeishuConfig, GroupReplyConfig,
-    IMessageConfig, IrcConfig, LarkConfig, LinqConfig, MatrixConfig, MattermostConfig,
-    NextcloudTalkConfig, NostrConfig, QQConfig, SignalConfig, SlackConfig, TelegramConfig,
-    WatiConfig, WebhookConfig, WhatsAppConfig,
+    ChannelsConfig, ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, DiscordConfig,
+    FeishuConfig, FeishuInstanceConfig, GroupReplyConfig, IMessageConfig, IrcConfig, LarkConfig,
+    LinqConfig, MatrixConfig, MatrixInstanceConfig, MattermostConfig, NextcloudTalkConfig,
+    NostrConfig, QQConfig, SignalConfig, SlackConfig, TelegramConfig, WatiConfig, WebhookConfig,
+    WhatsAppConfig,
 };
+use vw_config_types::staff::{StaffConfig, StaffMemberConfig};
 
 #[test]
 fn build_channels_settings_maps_empty_config_to_default_state() {
@@ -144,6 +146,105 @@ fn build_channels_settings_clones_channel_configs_and_refreshes_text_inputs() {
     assert_eq!(settings.text_inputs["clawdtalk.allowed_destinations"], "+16667778888");
 }
 
+#[test]
+fn build_staff_settings_uses_full_agent_staff_config() {
+    let mut full_agent_cfg = vw_config_types::config::Config::default();
+    full_agent_cfg.staff = StaffConfig {
+        members: vec![StaffMemberConfig {
+            id: "planner".to_string(),
+            name: "Planner".to_string(),
+            role: "planner".to_string(),
+            level: "manager".to_string(),
+            status: "available".to_string(),
+            enabled: true,
+            capacity: 2,
+            delegate_agent: Some("main".to_string()),
+            acp_agent: None,
+            ipc_agent_id: None,
+            channel_bindings: Vec::new(),
+            capabilities: Default::default(),
+        }],
+        ..StaffConfig::default()
+    };
+
+    let settings = super::build_staff_settings(&full_agent_cfg);
+
+    assert_eq!(settings.config, full_agent_cfg.staff);
+    assert_eq!(settings.selected_member_id.as_deref(), Some("planner"));
+    assert_eq!(settings.member_drafts.len(), 1);
+    assert_eq!(settings.capability_drafts.len(), 1);
+    assert!(!settings.loading);
+}
+
+mod channel_instance_settings {
+    use super::*;
+
+    #[test]
+    fn channels_settings_builds_named_channel_instances() {
+        let mut config = ChannelsConfig::default();
+        config.matrix_instances.push(MatrixInstanceConfig {
+            id: "planner".to_string(),
+            config: MatrixConfig {
+                homeserver: "https://matrix.profile.test".to_string(),
+                access_token: "matrix-profile-token".to_string(),
+                user_id: Some("@planner:matrix.profile.test".to_string()),
+                device_id: Some("PLANNER".to_string()),
+                room_id: "!planner:matrix.profile.test".to_string(),
+                allowed_users: vec!["@alice:matrix.profile.test".to_string()],
+                mention_only: true,
+            },
+        });
+        config.feishu_instances.push(FeishuInstanceConfig {
+            id: "cn".to_string(),
+            config: FeishuConfig {
+                app_id: "feishu-profile-app".to_string(),
+                app_secret: "feishu-profile-secret".to_string(),
+                encrypt_key: Some("feishu-profile-encrypt".to_string()),
+                verification_token: Some("feishu-profile-verify".to_string()),
+                allowed_users: vec!["feishu-profile-user".to_string()],
+                group_reply: Some(group_reply("feishu-profile-group")),
+                receive_mode: Default::default(),
+                port: Some(8088),
+                draft_update_interval_ms: 1234,
+                max_draft_edits: 7,
+            },
+        });
+        config.dingtalk_instances.push(DingTalkInstanceConfig {
+            id: "ops".to_string(),
+            config: DingTalkConfig {
+                client_id: "dingtalk-profile-client".to_string(),
+                client_secret: "dingtalk-profile-secret".to_string(),
+                allowed_users: vec!["dingtalk-profile-user".to_string()],
+            },
+        });
+
+        let settings = super::super::build_channels_settings(&config);
+
+        assert_eq!(settings.matrix_instances[0].id, "planner");
+        assert_eq!(settings.matrix_instances[0].config.room_id, "!planner:matrix.profile.test");
+        assert_eq!(settings.feishu_instances[0].id, "cn");
+        assert_eq!(settings.feishu_instances[0].config.app_id, "feishu-profile-app");
+        assert_eq!(settings.dingtalk_instances[0].id, "ops");
+        assert_eq!(settings.dingtalk_instances[0].config.client_id, "dingtalk-profile-client");
+        assert_eq!(
+            settings.text_inputs["matrix_instances.0.allowed_users"],
+            "@alice:matrix.profile.test"
+        );
+        assert_eq!(settings.text_inputs["feishu_instances.0.allowed_users"], "feishu-profile-user");
+        assert_eq!(
+            settings.text_inputs["feishu_instances.0.group_reply.allowed_sender_ids"],
+            "feishu-profile-group"
+        );
+        assert_eq!(
+            settings.text_inputs["dingtalk_instances.0.allowed_users"],
+            "dingtalk-profile-user"
+        );
+        assert!(settings.expanded_panels.contains("matrix"));
+        assert!(settings.expanded_panels.contains("feishu"));
+        assert!(settings.expanded_panels.contains("dingtalk"));
+    }
+}
+
 fn populated_channels_config() -> ChannelsConfig {
     ChannelsConfig {
         cli: false,
@@ -192,6 +293,7 @@ fn populated_channels_config() -> ChannelsConfig {
             allowed_users: vec!["@alice:matrix.test".to_string()],
             mention_only: false,
         }),
+        matrix_instances: Vec::new(),
         signal: Some(SignalConfig {
             http_url: "http://signal.test".to_string(),
             account: "+12223334444".to_string(),
@@ -268,11 +370,13 @@ fn populated_channels_config() -> ChannelsConfig {
             draft_update_interval_ms: 3000,
             max_draft_edits: 20,
         }),
+        feishu_instances: Vec::new(),
         dingtalk: Some(DingTalkConfig {
             client_id: "dingtalk-client".to_string(),
             client_secret: "dingtalk-secret".to_string(),
             allowed_users: vec!["dingtalk-user".to_string()],
         }),
+        dingtalk_instances: Vec::new(),
         qq: Some(QQConfig {
             app_id: "qq-app".to_string(),
             app_secret: "qq-secret".to_string(),

@@ -4,9 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};
@@ -23,6 +23,62 @@ impl std::fmt::Display for LabeledOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.label)
     }
+}
+
+const PROVIDER_OPTIONS: [LabeledOption; 5] = [
+    LabeledOption { value: "none", label: "未启用" },
+    LabeledOption { value: "cloudflare", label: "Cloudflare" },
+    LabeledOption { value: "tailscale", label: "Tailscale" },
+    LabeledOption { value: "ngrok", label: "ngrok" },
+    LabeledOption { value: "custom", label: "自定义" },
+];
+
+fn selected_provider(provider: &str) -> Option<LabeledOption> {
+    PROVIDER_OPTIONS
+        .iter()
+        .find(|option| option.value == provider)
+        .copied()
+        .or_else(|| PROVIDER_OPTIONS.iter().find(|option| option.value == "none").copied())
+}
+
+fn tunnel_message(message: TunnelMessage) -> Message {
+    Message::Settings(SettingsMessage::Tunnel(message))
+}
+
+fn provider_changed(value: LabeledOption) -> Message {
+    tunnel_message(TunnelMessage::ProviderChanged(value.value.to_string()))
+}
+
+fn cloudflare_token_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::CloudflareTokenChanged(value))
+}
+
+fn tailscale_funnel_toggled(value: bool) -> Message {
+    tunnel_message(TunnelMessage::TailscaleFunnelToggled(value))
+}
+
+fn tailscale_hostname_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::TailscaleHostnameChanged(value))
+}
+
+fn ngrok_auth_token_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::NgrokAuthTokenChanged(value))
+}
+
+fn ngrok_domain_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::NgrokDomainChanged(value))
+}
+
+fn custom_start_command_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::CustomStartCommandChanged(value))
+}
+
+fn custom_health_url_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::CustomHealthUrlChanged(value))
+}
+
+fn custom_url_pattern_changed(value: String) -> Message {
+    tunnel_message(TunnelMessage::CustomUrlPatternChanged(value))
 }
 
 fn field_row<'a>(
@@ -97,29 +153,13 @@ fn bool_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.tunnel_settings;
 
-    let provider_options = [
-        LabeledOption { value: "none", label: "未启用" },
-        LabeledOption { value: "cloudflare", label: "Cloudflare" },
-        LabeledOption { value: "tailscale", label: "Tailscale" },
-        LabeledOption { value: "ngrok", label: "ngrok" },
-        LabeledOption { value: "custom", label: "自定义" },
-    ];
-    let selected_provider = provider_options
-        .iter()
-        .find(|option| option.value == s.provider.as_str())
-        .copied()
-        .or_else(|| provider_options.iter().find(|option| option.value == "none").copied());
-
-    let provider_pick = pick_list(provider_options, selected_provider, |value| {
-        Message::Settings(SettingsMessage::Tunnel(TunnelMessage::ProviderChanged(
-            value.value.to_string(),
-        )))
-    })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(300.0));
+    let provider_pick =
+        pick_list(PROVIDER_OPTIONS, selected_provider(&s.provider), provider_changed)
+            .padding([10, 14])
+            .text_size(13)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fixed(300.0));
 
     let provider_row =
         field_row("提供者", "选择自动暴露网关到公网或私有网络的方式。", provider_pick);
@@ -136,11 +176,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     "Zero Trust 侧下发的 tunnel token。",
                     "Cloudflare Zero Trust token",
                     &s.cloudflare_token,
-                    |value| {
-                Message::Settings(SettingsMessage::Tunnel(TunnelMessage::CloudflareTokenChanged(
-                    value,
-                )))
-                    }
+                    cloudflare_token_changed
                 )]
                 .spacing(0)
             ),
@@ -159,11 +195,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "关闭时使用 serve，仅在 tailnet 内可见。",
                         s.tailscale_funnel,
                         "启用 funnel（关闭时使用 serve）",
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::TailscaleFunnelToggled(value),
-                            ))
-                        },
+                        tailscale_funnel_toggled,
                     ),
                     settings_divider(),
                     text_row(
@@ -171,11 +203,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "留空时将使用当前 Tailscale 节点名。",
                         "可选：my-node.tailnet.ts.net",
                         &s.tailscale_hostname,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::TailscaleHostnameChanged(value),
-                            ))
-                        },
+                        tailscale_hostname_changed,
                     ),
                     settings_divider(),
                     field_row(
@@ -203,11 +231,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "ngrok 控制台生成的 auth token。",
                         "ngrok auth token",
                         &s.ngrok_auth_token,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::NgrokAuthTokenChanged(value),
-                            ))
-                        },
+                        ngrok_auth_token_changed,
                     ),
                     settings_divider(),
                     text_row(
@@ -215,11 +239,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "可选，绑定预留的自定义域名。",
                         "可选：my-app.ngrok.app",
                         &s.ngrok_domain,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::NgrokDomainChanged(value),
-                            ))
-                        },
+                        ngrok_domain_changed,
                     ),
                 ]
                 .spacing(0)
@@ -239,11 +259,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "支持在命令中使用 {host} 与 {port} 占位符。",
                         "例如：bore local {port} --to bore.pub",
                         &s.custom_start_command,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::CustomStartCommandChanged(value),
-                            ))
-                        },
+                        custom_start_command_changed,
                     ),
                     settings_divider(),
                     text_row(
@@ -251,11 +267,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "可选，用于确认隧道服务是否已准备就绪。",
                         "可选：http://127.0.0.1:4040/api/tunnels",
                         &s.custom_health_url,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::CustomHealthUrlChanged(value),
-                            ))
-                        },
+                        custom_health_url_changed,
                     ),
                     settings_divider(),
                     text_row(
@@ -263,11 +275,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         "可选，可填前缀或正则片段用于提取公网地址。",
                         "可选：https:// 或正则片段",
                         &s.custom_url_pattern,
-                        |value| {
-                            Message::Settings(SettingsMessage::Tunnel(
-                                TunnelMessage::CustomUrlPatternChanged(value),
-                            ))
-                        },
+                        custom_url_pattern_changed,
                     ),
                 ]
                 .spacing(0)
@@ -292,7 +300,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
     };
 
-    let mut content = column![
+    let content = column![
         settings_page_intro(
             "隧道配置",
             "配置网关的暴露方式与 provider 细节。修改后会写入配置，需重启网关进程后才会真正生效。",
@@ -303,10 +311,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     container(content).width(Length::Fill).into()
 }

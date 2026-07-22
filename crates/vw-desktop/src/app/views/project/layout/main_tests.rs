@@ -116,3 +116,41 @@ fn main_area_builds_chat_only_with_file_manager() {
 
     render_main_area(&app);
 }
+
+#[test]
+fn main_area_builds_split_diff_without_file_manager() {
+    let mut app = test_app();
+    app.show_diff = true;
+    app.show_file_manager = false;
+    app.split_ratio = 0.6;
+
+    render_main_area(&app);
+}
+
+#[test]
+fn main_area_builds_split_diff_with_full_right_ratio() {
+    let mut app = test_app();
+    app.show_diff = true;
+    app.show_file_manager = false;
+    app.split_ratio = 1.0;
+
+    render_main_area(&app);
+}
+
+#[test]
+fn main_area_prioritizes_chat_fullscreen_over_git_diff() {
+    let mut app = test_app();
+    app.chat_panel_fullscreen = true;
+    app.git_diff_fullscreen = true;
+
+    render_main_area(&app);
+}
+
+#[test]
+fn main_area_prioritizes_chat_half_fullscreen_over_git_diff() {
+    let mut app = test_app();
+    app.chat_panel_half_fullscreen = true;
+    app.git_diff_half_fullscreen = true;
+
+    render_main_area(&app);
+}

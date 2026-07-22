@@ -1,0 +1,51 @@
+server_name: "localhost"
+pid_file: /data/homeserver.pid
+public_baseurl: "http://localhost:8008/"
+
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    bind_addresses: ["0.0.0.0"]
+    resources:
+      - names: [client, federation]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: synapse-local-password
+    database: synapse
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+log_config: "/data/localhost.log.config"
+media_store_path: /data/media_store
+registration_shared_secret: "vibewindow-local-registration-secret"
+enable_registration: true
+enable_registration_without_verification: true
+report_stats: false
+macaroon_secret_key: "vibewindow-local-macaroon-secret"
+form_secret: "vibewindow-local-form-secret"
+signing_key_path: "/data/localhost.signing.key"
+trusted_key_servers: []
+
+rc_message:
+  per_second: 100
+  burst_count: 100
+rc_registration:
+  per_second: 10
+  burst_count: 100
+rc_login:
+  address:
+    per_second: 10
+    burst_count: 100
+  account:
+    per_second: 10
+    burst_count: 100
+  failed_attempts:
+    per_second: 10
+    burst_count: 100

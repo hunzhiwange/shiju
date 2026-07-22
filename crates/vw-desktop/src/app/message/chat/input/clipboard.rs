@@ -12,19 +12,39 @@ use iced::Task;
 pub(super) fn read_clipboard_for_input() -> Task<Message> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        Task::perform(async move { read_native_clipboard_payload() }, |payload| {
-            Message::Chat(ChatMessage::ClipboardPasteResolved(payload))
-        })
+        Task::perform(async move { read_native_clipboard_payload() }, resolved_clipboard_message)
     }
 
     #[cfg(target_arch = "wasm32")]
     {
-        iced::clipboard::read().map(|content| {
-            Message::Chat(ChatMessage::ClipboardPasteResolved(match content {
-                Some(content) if !content.is_empty() => ClipboardPastePayload::Text(content),
-                _ => ClipboardPastePayload::Empty,
-            }))
-        })
+        iced::clipboard::read()
+            .map(|content| resolved_clipboard_message(clipboard_text_payload(content)))
+    }
+}
+
+fn resolved_clipboard_message(payload: ClipboardPastePayload) -> Message {
+    Message::Chat(ChatMessage::ClipboardPasteResolved(payload))
+}
+
+fn clipboard_text_payload(content: Option<String>) -> ClipboardPastePayload {
+    match content {
+        Some(content) if !content.is_empty() => ClipboardPastePayload::Text(content),
+        _ => ClipboardPastePayload::Empty,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clipboard_image_dimensions(width: usize, height: usize) -> Result<(u32, u32), &'static str> {
+    let width = u32::try_from(width).map_err(|_| "剪贴板图片宽度超出范围")?;
+    let height = u32::try_from(height).map_err(|_| "剪贴板图片高度超出范围")?;
+    Ok((width, height))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clipboard_attachment_payload(result: Result<String, String>) -> ClipboardPastePayload {
+    match result {
+        Ok(path) => ClipboardPastePayload::AttachmentPath(path),
+        Err(error) => ClipboardPastePayload::Error(error),
     }
 }
 
@@ -38,30 +58,19 @@ fn read_native_clipboard_payload() -> ClipboardPastePayload {
     };
 
     if let Ok(image) = clipboard.get_image() {
-        let width = match u32::try_from(image.width) {
-            Ok(width) => width,
-            Err(_) => {
-                return ClipboardPastePayload::Error("剪贴板图片宽度超出范围".to_string());
-            }
-        };
-        let height = match u32::try_from(image.height) {
-            Ok(height) => height,
-            Err(_) => {
-                return ClipboardPastePayload::Error("剪贴板图片高度超出范围".to_string());
-            }
+        let (width, height) = match clipboard_image_dimensions(image.width, image.height) {
+            Ok(dimensions) => dimensions,
+            Err(error) => return ClipboardPastePayload::Error(error.to_string()),
         };
 
-        return match persist_clipboard_image_attachment(width, height, image.bytes.as_ref()) {
-            Ok(path) => ClipboardPastePayload::AttachmentPath(path),
-            Err(error) => ClipboardPastePayload::Error(error),
-        };
+        return clipboard_attachment_payload(persist_clipboard_image_attachment(
+            width,
+            height,
+            image.bytes.as_ref(),
+        ));
     }
 
-    match clipboard.get_text() {
-        Ok(text) if !text.is_empty() => ClipboardPastePayload::Text(text),
-        Ok(_) => ClipboardPastePayload::Empty,
-        Err(_) => ClipboardPastePayload::Empty,
-    }
+    clipboard_text_payload(clipboard.get_text().ok())
 }
 #[cfg(test)]
 #[path = "clipboard_tests.rs"]

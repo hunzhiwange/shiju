@@ -51,6 +51,31 @@ fn unsubscribe_stops_future_events() {
 }
 
 #[test]
+fn unsubscribe_is_idempotent_and_preserves_peer_subscriber() {
+    let def = define("test.task76.bus.idempotent_unsubscribe");
+    let first_seen = Arc::new(Mutex::new(0usize));
+    let second_seen = Arc::new(Mutex::new(0usize));
+
+    let first_slot = Arc::clone(&first_seen);
+    let first_unsubscribe = subscribe(def, move |_| {
+        *first_slot.lock().unwrap() += 1;
+    });
+    let second_slot = Arc::clone(&second_seen);
+    let second_unsubscribe = subscribe(def, move |_| {
+        *second_slot.lock().unwrap() += 1;
+    });
+
+    first_unsubscribe();
+    first_unsubscribe();
+    publish_value(def, json!({}), None);
+
+    assert_eq!(*first_seen.lock().unwrap(), 0);
+    assert_eq!(*second_seen.lock().unwrap(), 1);
+
+    second_unsubscribe();
+}
+
+#[test]
 fn once_unsubscribes_after_matching_callback() {
     let def = define("test.plan6.bus.once");
     let seen = Arc::new(Mutex::new(Vec::new()));
@@ -72,10 +97,13 @@ fn once_unsubscribes_after_matching_callback() {
 #[test]
 fn global_subscribe_receives_directory_payload_and_unsubscribes() {
     let def = define("test.plan6.bus.global");
+    let event_type = def.r#type;
     let seen = Arc::new(Mutex::new(Vec::new()));
     let slot = Arc::clone(&seen);
     let unsubscribe = global_subscribe(move |event| {
-        slot.lock().unwrap().push((event.directory.clone(), event.payload));
+        if event.payload["type"] == event_type {
+            slot.lock().unwrap().push((event.directory.clone(), event.payload));
+        }
     });
 
     publish_value(def, json!({"ok": true}), Some("/tmp/project".to_string()));

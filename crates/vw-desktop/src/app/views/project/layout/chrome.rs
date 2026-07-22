@@ -38,6 +38,13 @@ pub fn right_column_chrome(
     container(right_column_base).width(Length::Fill).height(Length::Fill).into()
 }
 
+/// 计算遮罩分割线的宽度。
+///
+/// 分割线宽度由交互区域宽度减去间距计算，确保最小宽度为 1px。
+fn overlay_divider_width(spacing: f32) -> f32 {
+    (HResizeHandle::HIT_WIDTH - spacing).max(1.0)
+}
+
 /// 执行本模块的界面辅助逻辑。
 ///
 /// # 参数
@@ -50,7 +57,7 @@ pub fn right_column_chrome(
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn overlay_divider(spacing: f32) -> Element<'static, Message> {
     container(TopBorderCover)
-        .width(Length::Fixed((HResizeHandle::HIT_WIDTH - spacing).max(1.0)))
+        .width(Length::Fixed(overlay_divider_width(spacing)))
         .height(Length::Fill)
         .into()
 }

@@ -73,6 +73,66 @@ fn extract_global_flags(matches: &ArgMatches) -> GlobalFlagOptions {
     }
 }
 
+struct CliDispatch {
+    command_to_run: String,
+    agent_name: Option<String>,
+    prompt_parts: Vec<String>,
+    command_matches: Option<ArgMatches>,
+}
+
+fn collect_prompt_parts(matches: &ArgMatches) -> Vec<String> {
+    matches
+        .get_many::<String>("prompt")
+        .map(|values| values.map(|value| value.to_string()).collect())
+        .unwrap_or_default()
+}
+
+fn resolve_cli_dispatch(matches: &ArgMatches, plan: &vw_acp::PublicCliPlan) -> CliDispatch {
+    let (subcommand_name, inner_matches) = match matches.subcommand() {
+        Some((name, inner)) => (Some(name), Some(inner)),
+        None => (None, None),
+    };
+
+    let mut command_to_run = subcommand_name.map(ToString::to_string);
+    let mut agent_name = None;
+    let mut prompt_parts: Vec<String> = vec![];
+    let mut command_matches = inner_matches.cloned();
+
+    if let Some(name) = subcommand_name {
+        let is_agent_command = plan.agent_commands.iter().any(|cmd| cmd == name)
+            || plan.dynamic_agent_command.as_deref() == Some(name);
+        if is_agent_command {
+            agent_name = Some(name.to_string());
+            if let Some(inner) = inner_matches {
+                if let Some((inner_name, inner_inner)) = inner.subcommand() {
+                    command_to_run = Some(inner_name.to_string());
+                    command_matches = Some(inner_inner.clone());
+                    if inner_name == "prompt" || inner_name == "exec" {
+                        prompt_parts = collect_prompt_parts(inner_inner);
+                    }
+                } else {
+                    command_to_run = Some("prompt".to_string());
+                    prompt_parts = collect_prompt_parts(inner);
+                }
+            }
+        } else if name == "prompt" || name == "exec" {
+            prompt_parts = command_matches.as_ref().map(collect_prompt_parts).unwrap_or_default();
+        }
+    } else {
+        command_to_run = Some("prompt".to_string());
+        if let Some(vals) = matches.get_many::<String>("root_prompt") {
+            prompt_parts = vals.map(|s| s.to_string()).collect();
+        }
+    }
+
+    CliDispatch {
+        command_to_run: command_to_run.unwrap_or_else(|| "prompt".to_string()),
+        agent_name,
+        prompt_parts,
+        command_matches,
+    }
+}
+
 #[cfg(not(test))]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -250,54 +310,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let matches = program.get_matches_from(&args);
-    let (subcommand_name, inner_matches) = match matches.subcommand() {
-        Some((name, inner)) => (Some(name), Some(inner)),
-        None => (None, None),
-    };
-
-    let mut command_to_run = subcommand_name;
-    let mut agent_name = None;
-    let mut prompt_parts: Vec<String> = vec![];
-    let mut command_matches = inner_matches.cloned();
-
-    if let Some(name) = subcommand_name {
-        let is_agent_command = plan.agent_commands.iter().any(|cmd| cmd == name)
-            || plan.dynamic_agent_command.as_deref() == Some(name);
-        if is_agent_command {
-            agent_name = Some(name.to_string());
-            if let Some(inner) = inner_matches {
-                if let Some((inner_name, inner_inner)) = inner.subcommand() {
-                    command_to_run = Some(inner_name);
-                    command_matches = Some(inner_inner.clone());
-                    if (inner_name == "prompt" || inner_name == "exec")
-                        && let Some(vals) = inner_inner.get_many::<String>("prompt")
-                    {
-                        prompt_parts = vals.map(|s| s.to_string()).collect();
-                    }
-                } else {
-                    command_to_run = Some("prompt");
-                    if let Some(vals) = inner.get_many::<String>("prompt") {
-                        prompt_parts = vals.map(|s| s.to_string()).collect();
-                    }
-                }
-            }
-        } else if (name == "prompt" || name == "exec")
-            && let Some(vals) = command_matches.as_ref().unwrap().get_many::<String>("prompt")
-        {
-            prompt_parts = vals.map(|s| s.to_string()).collect();
-        }
-    } else {
-        command_to_run = Some("prompt");
-        if let Some(vals) = matches.get_many::<String>("root_prompt") {
-            prompt_parts = vals.map(|s| s.to_string()).collect();
-        }
-    }
-
-    if command_to_run.is_none() {
-        command_to_run = Some("prompt");
-    }
-
-    let command_to_run = command_to_run.unwrap();
+    let CliDispatch { command_to_run, agent_name, prompt_parts, command_matches } =
+        resolve_cli_dispatch(&matches, &plan);
+    let command_to_run = command_to_run.as_str();
 
     let global_flag_options = extract_global_flags(&matches);
     let global_flags = resolve_global_flags(&global_flag_options, &config)?;

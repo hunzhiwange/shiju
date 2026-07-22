@@ -51,6 +51,51 @@ pub fn icon_svg(icon: Icon) -> Svg<'static> {
     Svg::new(assets::get_icon(icon)).width(Length::Fixed(16.0)).height(Length::Fixed(16.0))
 }
 
+/// 计算工具栏图标按钮的样式
+pub(crate) fn icon_button_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+    is_highlighted: bool,
+) -> iced::widget::button::Style {
+    let p = theme.palette().primary;
+    let highlight_bg = Color::from_rgba(p.r, p.g, p.b, 0.12);
+    let highlight_hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
+    let bg = if is_highlighted {
+        match status {
+            iced::widget::button::Status::Hovered => highlight_hover_bg,
+            iced::widget::button::Status::Pressed => highlight_hover_bg,
+            _ => highlight_bg,
+        }
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => Color::from_rgba8(242, 242, 242, 1.0),
+            iced::widget::button::Status::Pressed => Color::from_rgba8(236, 236, 236, 1.0),
+            _ => Color::from_rgba8(250, 250, 250, 1.0),
+        }
+    };
+    let border_color = if is_highlighted { p } else { Color::from_rgba8(225, 225, 225, 1.0) };
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        border: Border { width: 1.0, color: border_color, radius: 8.0.into() },
+        ..Default::default()
+    }
+}
+
+/// 创建工具栏提示容器样式
+pub(crate) fn tooltip_content_style() -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        text_color: None,
+        background: Some(Background::Color(Color::from_rgba8(245, 245, 245, 1.0))),
+        border: Border {
+            width: 1.0,
+            color: Color::from_rgba8(210, 210, 210, 1.0),
+            radius: 8.0.into(),
+        },
+        shadow: iced::Shadow::default(),
+        snap: false,
+    }
+}
+
 /// 创建带工具提示的图标按钮组件
 ///
 /// 该函数创建一个带有悬停提示功能的图标按钮，支持高亮状态显示。
@@ -100,56 +145,11 @@ pub fn icon_button<'a>(
         .padding(6)
         .width(Length::Fixed(32.0))
         .height(Length::Fixed(32.0))
-        .style(move |theme, status| {
-            // 获取主题色
-            let p = theme.palette().primary;
-
-            // 高亮状态的背景颜色配置（使用主题色的半透明变体）
-            let highlight_bg = Color::from_rgba(p.r, p.g, p.b, 0.12);
-            let highlight_hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
-
-            // 根据高亮状态和交互状态确定背景颜色
-            let bg = if is_highlighted {
-                // 高亮状态：使用主题色半透明背景
-                match status {
-                    iced::widget::button::Status::Hovered => highlight_hover_bg,
-                    iced::widget::button::Status::Pressed => highlight_hover_bg,
-                    _ => highlight_bg,
-                }
-            } else {
-                // 普通状态：使用浅灰色背景
-                match status {
-                    iced::widget::button::Status::Hovered => Color::from_rgba8(242, 242, 242, 1.0),
-                    iced::widget::button::Status::Pressed => Color::from_rgba8(236, 236, 236, 1.0),
-                    _ => Color::from_rgba8(250, 250, 250, 1.0),
-                }
-            };
-
-            // 边框颜色：高亮时使用主题色，否则使用浅灰色
-            let border_color =
-                if is_highlighted { p } else { Color::from_rgba8(225, 225, 225, 1.0) };
-
-            iced::widget::button::Style {
-                background: Some(Background::Color(bg)),
-                border: Border { width: 1.0, color: border_color, radius: 8.0.into() },
-                ..Default::default()
-            }
-        });
+        .style(move |theme, status| icon_button_style(theme, status, is_highlighted));
 
     // 创建工具提示内容容器样式
-    let tip_content = container(text(tip.to_string())).padding([6, 10]).style(|_theme| {
-        iced::widget::container::Style {
-            text_color: None,
-            background: Some(Background::Color(Color::from_rgba8(245, 245, 245, 1.0))),
-            border: Border {
-                width: 1.0,
-                color: Color::from_rgba8(210, 210, 210, 1.0),
-                radius: 8.0.into(),
-            },
-            shadow: iced::Shadow::default(),
-            snap: false,
-        }
-    });
+    let tip_content =
+        container(text(tip.to_string())).padding([6, 10]).style(|_theme| tooltip_content_style());
 
     // 组合按钮和工具提示，设置10像素的间距
     Tooltip::new(btn, tip_content, position).gap(10).into()

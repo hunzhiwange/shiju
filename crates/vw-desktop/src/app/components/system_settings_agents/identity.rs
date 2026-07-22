@@ -49,7 +49,7 @@ pub(super) fn format_file_size(size_bytes: Option<u64>) -> Option<String> {
     }
 }
 
-fn workspace_identity_meta_line(
+pub(super) fn workspace_identity_meta_line(
     size_bytes: Option<u64>,
     modified_at_ms: Option<u64>,
 ) -> Option<String> {

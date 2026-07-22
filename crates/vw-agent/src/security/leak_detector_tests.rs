@@ -96,3 +96,33 @@ fn sensitivity_is_clamped_to_supported_range() {
         LeakResult::Detected { .. }
     ));
 }
+
+#[test]
+fn remaining_api_key_families_are_identified_and_redacted() {
+    for (content, expected) in [
+        (concat!("stripe pk_test_", "1234567890abcdefghijklmnop"), "Stripe publishable key"),
+        (
+            concat!("openai sk-", "12345678901234567890T3BlbkFJabcdefghijklmnopqrst"),
+            "OpenAI API key",
+        ),
+        ("github github_pat_1234567890abcdefghijklmnopqrstuv", "GitHub PAT"),
+    ] {
+        let (patterns, redacted) = detected(content);
+        assert!(patterns.iter().any(|pattern| pattern == expected));
+        assert!(redacted.contains("[REDACTED_API_KEY]"));
+    }
+}
+
+#[test]
+fn pem_key_variants_and_postgresql_urls_are_redacted() {
+    for (content, expected) in [
+        ("-----BEGIN RSA PRIVATE KEY-----\nkey\n-----END RSA PRIVATE KEY-----", "RSA private key"),
+        ("-----BEGIN EC PRIVATE KEY-----\nkey\n-----END EC PRIVATE KEY-----", "EC private key"),
+        ("-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----", "Private key"),
+        ("postgresql://user:pass@localhost/database", "PostgreSQL connection URL"),
+    ] {
+        let (patterns, redacted) = detected(content);
+        assert!(patterns.iter().any(|pattern| pattern == expected));
+        assert!(redacted.contains("[REDACTED_"));
+    }
+}

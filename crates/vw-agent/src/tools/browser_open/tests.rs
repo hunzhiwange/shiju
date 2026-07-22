@@ -14,6 +14,7 @@
 //! - **执行阶段限制测试**：`execute_*` 系列测试
 
 use super::super::*;
+use super::{display_browser_name, open_in_browser};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::url_validation::normalize_allowed_domains;
 use crate::app::agent::tools::url_validation::normalize_domain;
@@ -44,12 +45,56 @@ fn test_tool(allowed_domains: Vec<&str>) -> BrowserOpenTool {
 }
 
 #[test]
+fn browser_open_new_normalizes_domains_and_preserves_browser_name() {
+    let security = Arc::new(SecurityPolicy::default());
+    let tool = BrowserOpenTool::new(
+        security,
+        vec![" HTTPS://Docs.Example.com/path ".into(), "docs.example.com".into()],
+        "Firefox Developer Edition".into(),
+    );
+
+    assert_eq!(tool.allowed_domains, vec!["docs.example.com".to_string()]);
+    assert_eq!(tool.browser_name, "Firefox Developer Edition");
+}
+
+#[test]
 fn browser_open_spec_uses_claude_surface() {
     let tool = test_tool(vec!["example.com"]);
     let spec = tool.spec();
 
     assert_eq!(spec.id, BROWSER_OPEN_TOOL_ID);
+    assert_eq!(spec.name, BROWSER_OPEN_TOOL_ID);
+    assert_eq!(spec.display_name, BROWSER_OPEN_TOOL_ID);
     assert!(spec.aliases.iter().any(|alias| alias == BROWSER_OPEN_TOOL_ALIAS));
+    assert_eq!(spec.input_schema, tool.parameters_schema());
+    assert_eq!(spec.parameters, tool.parameters_schema());
+    assert!(!spec.read_only);
+    assert!(!spec.destructive);
+    assert!(!spec.concurrency_safe);
+    assert!(!spec.requires_user_interaction);
+    assert!(spec.strict);
+}
+
+#[test]
+fn browser_open_metadata_declares_one_required_url() {
+    let tool = test_tool(vec!["example.com"]);
+
+    assert_eq!(tool.name(), "browser_open");
+    assert!(tool.description().contains("HTTPS URL"));
+    assert!(tool.description().contains("`browser` 工具"));
+    assert_eq!(
+        tool.parameters_schema(),
+        json!({
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "在浏览器中打开的 HTTPS URL"
+                }
+            },
+            "required": ["url"]
+        })
+    );
 }
 
 /// 测试 normalize_domain 函数能够正确标准化域名
@@ -206,6 +251,62 @@ fn validate_requires_allowlist() {
     assert!(err.contains("allowed_domains"));
 }
 
+#[test]
+fn display_browser_name_maps_known_default_and_custom_identifiers() {
+    assert_eq!(display_browser_name("brave"), "Brave");
+    assert_eq!(display_browser_name("chrome"), "Chrome");
+    assert_eq!(display_browser_name("firefox"), "Firefox");
+    assert_eq!(display_browser_name("default"), "system default browser");
+    assert_eq!(display_browser_name(""), "system default browser");
+    assert_eq!(display_browser_name("custom-browser"), "custom-browser");
+}
+
+#[tokio::test]
+async fn open_in_browser_rejects_unsupported_browser_without_launching_process() {
+    let err =
+        open_in_browser("https://example.com", "Safari-Technology").await.unwrap_err().to_string();
+
+    assert!(err.contains("Unsupported browser 'Safari-Technology'"));
+    assert!(err.contains("default, new_window, new_tab, brave, chrome, or firefox"));
+}
+
+#[tokio::test]
+async fn execute_rejects_missing_and_non_string_url_before_browser_launch() {
+    let tool = test_tool(vec!["example.com"]);
+
+    for input in [json!({}), json!({"url": 42})] {
+        let err = tool.execute(input).await.unwrap_err().to_string();
+        assert_eq!(err, "Missing 'url' parameter");
+    }
+}
+
+#[tokio::test]
+async fn execute_returns_validation_error_before_browser_launch() {
+    let result =
+        test_tool(vec!["example.com"]).execute(json!({"url": "http://example.com"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    assert!(result.error.unwrap().contains("https://"));
+}
+
+#[tokio::test]
+async fn execute_wraps_unsupported_browser_error_without_launching_process() {
+    let security = Arc::new(SecurityPolicy {
+        autonomy: AutonomyLevel::Supervised,
+        ..SecurityPolicy::default()
+    });
+    let tool = BrowserOpenTool::new(security, vec!["example.com".into()], "safari".into());
+
+    let result = tool.execute(json!({"url": "https://example.com"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.output.is_empty());
+    let error = result.error.unwrap();
+    assert!(error.contains("Failed to open safari"));
+    assert!(error.contains("Unsupported browser 'safari'"));
+}
+
 /// 测试只读模式下阻止执行
 ///
 /// 当安全策略的 autonomy 级别为 ReadOnly 时，
@@ -238,4 +339,54 @@ async fn execute_blocks_when_rate_limited() {
     let result = tool.execute(json!({"url": "https://example.com"})).await.unwrap();
     assert!(!result.success);
     assert!(result.error.unwrap().contains("rate limit"));
+}
+
+#[tokio::test]
+async fn call_readonly_failure_returns_structured_render_hint() {
+    let security =
+        Arc::new(SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() });
+    let tool = BrowserOpenTool::new(security, vec!["example.com".into()], "default".into());
+
+    let result = tool.call(json!({"url": "https://example.com"})).await.unwrap();
+
+    assert_eq!(
+        result.data,
+        json!({
+            "success": false,
+            "output": "",
+            "error": "Action blocked: autonomy is read-only"
+        })
+    );
+    assert_eq!(result.model_result, json!("Action blocked: autonomy is read-only"));
+    assert!(result.content_blocks.is_empty());
+    let hint = result.render_hint.unwrap();
+    assert_eq!(hint.title.as_deref(), Some(BROWSER_OPEN_TOOL_ID));
+    assert_eq!(hint.kind.as_deref(), Some("browser_open"));
+    assert_eq!(hint.summary.as_deref(), Some("Failed to open URL in system default browser"));
+    assert_eq!(hint.metadata, json!({"browser": "system default browser"}));
+    assert!(!result.telemetry.unwrap().success);
+}
+
+#[tokio::test]
+async fn call_validation_failure_returns_structured_render_hint_without_browser_launch() {
+    let security = Arc::new(SecurityPolicy {
+        autonomy: AutonomyLevel::Supervised,
+        ..SecurityPolicy::default()
+    });
+    let tool = BrowserOpenTool::new(security, vec!["example.com".into()], "chrome".into());
+
+    let result = tool.call(json!({"url": "http://example.com"})).await.unwrap();
+
+    assert!(!result.telemetry.unwrap().success);
+    assert!(result.model_result.as_str().unwrap().contains("https://"));
+    let hint = result.render_hint.unwrap();
+    assert_eq!(hint.summary.as_deref(), Some("Failed to open URL in Chrome"));
+    assert_eq!(hint.metadata, json!({"browser": "Chrome"}));
+}
+
+#[tokio::test]
+async fn call_propagates_missing_url_error_before_browser_launch() {
+    let err = test_tool(vec!["example.com"]).call(json!({})).await.unwrap_err().to_string();
+
+    assert_eq!(err, "Missing 'url' parameter");
 }

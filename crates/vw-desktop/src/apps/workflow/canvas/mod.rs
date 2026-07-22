@@ -24,6 +24,9 @@ mod utils;
 #[path = "handles_tests.rs"]
 mod handles_tests;
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+#[cfg(test)]
 #[path = "render_tests.rs"]
 mod render_tests;
 #[cfg(test)]

@@ -241,3 +241,54 @@ fn numeric_comparison_returns_false_for_non_numeric_values() {
             .expect("numeric")
     );
 }
+
+#[test]
+fn select_case_handle_uses_legacy_id_and_default_equality() {
+    let mut pool = VariablePool::default();
+    pool.insert_node_output("node", "flag", Value::String("TRUE".into()));
+    let cases = json!([{
+        "id": "legacy",
+        "conditions": [{
+            "variable_selector": ["node", "flag"],
+            "value": 1
+        }]
+    }]);
+
+    assert_eq!(
+        select_case_handle(cases.as_array().expect("cases"), &pool).expect("handle"),
+        "legacy"
+    );
+}
+
+#[test]
+fn conditions_match_distinguishes_empty_collection_and_scalar_values() {
+    let mut pool = VariablePool::default();
+    pool.insert_node_output("node", "empty_object", json!({}));
+    pool.insert_node_output("node", "empty_array", json!([]));
+    pool.insert_node_output("node", "number", json!(0));
+    pool.insert_node_output("node", "boolean", json!(false));
+
+    let conditions = json!([
+        {
+            "comparison_operator": "empty",
+            "variable_selector": ["node", "empty_object"]
+        },
+        {
+            "comparison_operator": "empty",
+            "variable_selector": ["node", "empty_array"]
+        },
+        {
+            "comparison_operator": "not empty",
+            "variable_selector": ["node", "number"]
+        },
+        {
+            "comparison_operator": "not empty",
+            "variable_selector": ["node", "boolean"]
+        }
+    ]);
+
+    assert!(
+        conditions_match(conditions.as_array().expect("conditions"), "and", &pool)
+            .expect("collection and scalar emptiness")
+    );
+}

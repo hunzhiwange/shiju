@@ -2,8 +2,98 @@
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
 use iced::Element;
+use iced::widget::button;
 
 use super::{App, Message, message};
+
+fn question_modal_is_dark_theme(theme: &iced::Theme) -> bool {
+    let background = theme.palette().background;
+    background.r + background.g + background.b < 1.5
+}
+
+fn question_option_title_color(theme: &iced::Theme, selected: bool) -> iced::Color {
+    if selected { theme.extended_palette().primary.base.text } else { theme.palette().text }
+}
+
+fn question_option_description_color(theme: &iced::Theme, selected: bool) -> iced::Color {
+    let base =
+        if selected { theme.extended_palette().primary.base.text } else { theme.palette().text };
+    base.scale_alpha(if selected { 0.82 } else { 0.68 })
+}
+
+fn question_option_button_style(
+    theme: &iced::Theme,
+    status: button::Status,
+    selected: bool,
+) -> button::Style {
+    let palette = theme.extended_palette();
+    let is_dark = question_modal_is_dark_theme(theme);
+    let (background, border_color, text_color) = if selected {
+        let background = match status {
+            button::Status::Pressed => {
+                theme.palette().primary.scale_alpha(if is_dark { 0.38 } else { 0.20 })
+            }
+            button::Status::Hovered => {
+                theme.palette().primary.scale_alpha(if is_dark { 0.32 } else { 0.16 })
+            }
+            _ => theme.palette().primary.scale_alpha(if is_dark { 0.26 } else { 0.12 }),
+        };
+        (
+            background,
+            theme.palette().primary.scale_alpha(if is_dark { 0.62 } else { 0.34 }),
+            theme.extended_palette().primary.base.text,
+        )
+    } else {
+        let background = match status {
+            button::Status::Pressed => {
+                if is_dark {
+                    palette.background.strong.color.scale_alpha(0.92)
+                } else {
+                    iced::Color::from_rgba8(233, 237, 243, 0.98)
+                }
+            }
+            button::Status::Hovered => {
+                if is_dark {
+                    palette.background.weak.color.scale_alpha(0.82)
+                } else {
+                    iced::Color::from_rgba8(241, 244, 248, 0.98)
+                }
+            }
+            _ => {
+                if is_dark {
+                    palette.background.weak.color.scale_alpha(0.62)
+                } else {
+                    iced::Color::from_rgba8(247, 248, 250, 0.96)
+                }
+            }
+        };
+        (
+            background,
+            if is_dark {
+                palette.background.strong.color.scale_alpha(0.90)
+            } else {
+                iced::Color::from_rgba8(210, 216, 224, 1.0)
+            },
+            theme.palette().text,
+        )
+    };
+
+    button::Style {
+        background: Some(iced::Background::Color(background)),
+        text_color,
+        border: iced::Border { radius: 12.0.into(), width: 1.0, color: border_color },
+        shadow: if selected {
+            iced::Shadow {
+                color: theme.palette().primary.scale_alpha(if is_dark { 0.16 } else { 0.08 }),
+                offset: iced::Vector::new(0.0, 10.0),
+                blur_radius: 18.0,
+            }
+        } else {
+            iced::Shadow::default()
+        },
+        ..Default::default()
+    }
+}
 
 /// 模块内可见函数，执行 with_question_modal 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -17,7 +107,7 @@ pub(crate) fn with_question_modal<'a>(
             settings_modal_overlay, settings_text_input_style,
         };
         use iced::widget::{Space, button, column, container, row, text, text_input};
-        use iced::{Color, Length, Theme};
+        use iced::{Length, Theme};
 
         let header = req
             .questions
@@ -38,10 +128,14 @@ pub(crate) fn with_question_modal<'a>(
                 let selected = selected_answers.iter().any(|value| value == &label);
 
                 let button_label = column![
-                    text(label.clone()).size(13),
-                    text(option.description.clone()).size(11).style(|theme: &Theme| {
+                    text(label.clone()).size(13).style(move |theme: &Theme| {
                         iced::widget::text::Style {
-                            color: Some(theme.extended_palette().secondary.base.text),
+                            color: Some(question_option_title_color(theme, selected)),
+                        }
+                    }),
+                    text(option.description.clone()).size(11).style(move |theme: &Theme| {
+                        iced::widget::text::Style {
+                            color: Some(question_option_description_color(theme, selected)),
                         }
                     })
                 ]
@@ -54,13 +148,7 @@ pub(crate) fn with_question_modal<'a>(
                         message_label,
                     )))
                     .style(move |theme: &Theme, status| {
-                        let mut style = iced::widget::button::secondary(theme, status);
-                        if selected {
-                            let palette = theme.extended_palette();
-                            style.background = Some(palette.primary.base.color.into());
-                            style.text_color = Color::WHITE;
-                        }
-                        style
+                        question_option_button_style(theme, status, selected)
                     });
 
                 option_column = option_column.push(button);

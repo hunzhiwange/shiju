@@ -7,6 +7,7 @@ use crate::app::agent::providers::Provider;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tempfile::TempDir;
 
 struct StaticProvider;
 
@@ -24,7 +25,7 @@ impl Provider for StaticProvider {
     }
 }
 
-fn context() -> ChannelRuntimeContext {
+fn context(workspace_dir: PathBuf) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
         channels_by_name: Arc::new(HashMap::new()),
@@ -46,7 +47,7 @@ fn context() -> ChannelRuntimeContext {
         api_url: None,
         reliability: Arc::new(crate::app::agent::config::ReliabilityConfig::default()),
         provider_runtime_options: crate::app::agent::providers::ProviderRuntimeOptions::default(),
-        workspace_dir: Arc::new(PathBuf::from(".")),
+        workspace_dir: Arc::new(workspace_dir),
         message_timeout_secs: 30,
         interrupt_on_new_message: false,
         multimodal: crate::app::agent::config::MultimodalConfig::default(),
@@ -58,10 +59,10 @@ fn context() -> ChannelRuntimeContext {
     }
 }
 
-fn message() -> traits::ChannelMessage {
+fn message(sender: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
         id: "msg".to_string(),
-        sender: "sender".to_string(),
+        sender: sender.to_string(),
         reply_target: "reply".to_string(),
         content: "hello".to_string(),
         channel: "test".to_string(),
@@ -70,9 +71,23 @@ fn message() -> traits::ChannelMessage {
     }
 }
 
+fn setup() -> (TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let sender = format!("sender-{}", std::process::id());
+    let ctx = context(workspace.path().to_path_buf());
+    let msg = message(&sender);
+    (workspace, ctx, msg)
+}
+
+async fn cleanup_sender_session(ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage) {
+    let scope = resolve_channel_project_scope_id(ctx).await;
+    let key = format!("{scope}::{}", sender_session_key(msg));
+    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
+}
+
 #[tokio::test]
 async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled() {
-    let ctx = context();
+    let (_workspace, ctx, msg) = setup();
     let route = ChannelRouteSelection {
         provider: "provider".to_string(),
         model: "model".to_string(),
@@ -82,7 +97,25 @@ async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled
     cancellation.cancel();
 
     let result =
-        run_message_execution(&ctx, &message(), &route, Vec::new(), None, 30, &cancellation).await;
+        run_message_execution(&ctx, &msg, &route, Vec::new(), None, 30, &cancellation).await;
 
     assert!(matches!(result, LlmExecutionResult::Cancelled));
+    cleanup_sender_session(&ctx, &msg).await;
+}
+
+#[tokio::test]
+async fn run_message_execution_wraps_timeout_as_completed_result() {
+    let (_workspace, ctx, msg) = setup();
+    let route = ChannelRouteSelection {
+        provider: "provider".to_string(),
+        model: "model".to_string(),
+        task_mode_enabled: false,
+    };
+    let cancellation = CancellationToken::new();
+
+    let result =
+        run_message_execution(&ctx, &msg, &route, Vec::new(), None, 0, &cancellation).await;
+
+    assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
+    cleanup_sender_session(&ctx, &msg).await;
 }

@@ -6,40 +6,31 @@ use tokio::sync::Mutex;
 
 use super::*;
 use crate::app::agent::storage;
+use crate::gateway::settings_store::GatewaySettingsStore;
+use crate::global_database::GlobalDatabase;
+use vw_api_types::id::TenantScope;
 
 static DESKTOP_STORAGE_LOCK: Mutex<()> = Mutex::const_new(());
 
 struct DesktopStorageSnapshot {
-    preferences: Option<Value>,
     json_tool_content: Option<ToolContentBody>,
+    sql_tool_content: Option<ToolContentBody>,
     html_tool_content: Option<ToolContentBody>,
-    mindmap_tabs: Option<Value>,
-    project_preferences: Option<ProjectPreferencesBody>,
 }
 
 impl DesktopStorageSnapshot {
-    async fn capture(project_path: &str) -> Self {
-        let project_key = project_prefs_key(project_path);
-        let project_key_refs = project_key.iter().map(String::as_str).collect::<Vec<_>>();
-
+    async fn capture() -> Self {
         Self {
-            preferences: storage::read(&["desktop", "preferences"]).await.ok(),
             json_tool_content: storage::read(&["desktop", "tool_content", "json"]).await.ok(),
+            sql_tool_content: storage::read(&["desktop", "tool_content", "sql"]).await.ok(),
             html_tool_content: storage::read(&["desktop", "tool_content", "html"]).await.ok(),
-            mindmap_tabs: storage::read(&["desktop", "mindmap_tabs"]).await.ok(),
-            project_preferences: storage::read(&project_key_refs).await.ok(),
         }
     }
 
-    async fn restore(self, project_path: &str) {
-        restore_key(&["desktop", "preferences"], self.preferences).await;
+    async fn restore(self) {
         restore_key(&["desktop", "tool_content", "json"], self.json_tool_content).await;
+        restore_key(&["desktop", "tool_content", "sql"], self.sql_tool_content).await;
         restore_key(&["desktop", "tool_content", "html"], self.html_tool_content).await;
-        restore_key(&["desktop", "mindmap_tabs"], self.mindmap_tabs).await;
-
-        let project_key = project_prefs_key(project_path);
-        let project_key_refs = project_key.iter().map(String::as_str).collect::<Vec<_>>();
-        restore_key(&project_key_refs, self.project_preferences).await;
     }
 }
 
@@ -50,15 +41,10 @@ async fn restore_key<T: serde::Serialize>(key: &[&str], value: Option<T>) {
     }
 }
 
-async fn clear_desktop_storage(project_path: &str) {
-    storage::remove(&["desktop", "preferences"]).await.expect("clear preferences");
+async fn clear_desktop_storage() {
     storage::remove(&["desktop", "tool_content", "json"]).await.expect("clear json content");
+    storage::remove(&["desktop", "tool_content", "sql"]).await.expect("clear sql content");
     storage::remove(&["desktop", "tool_content", "html"]).await.expect("clear html content");
-    storage::remove(&["desktop", "mindmap_tabs"]).await.expect("clear mindmap tabs");
-
-    let project_key = project_prefs_key(project_path);
-    let project_key_refs = project_key.iter().map(String::as_str).collect::<Vec<_>>();
-    storage::remove(&project_key_refs).await.expect("clear project prefs");
 }
 
 #[test]
@@ -104,6 +90,45 @@ fn merge_preferences_patch_ignores_non_object_patch() {
 }
 
 #[test]
+fn merge_preferences_patch_replaces_nested_values_without_deep_merge() {
+    let mut current = json!({
+        "editor": {
+            "font_size": 14,
+            "word_wrap": true
+        },
+        "theme": "dark"
+    });
+
+    merge_preferences_patch(
+        &mut current,
+        &json!({
+            "editor": {
+                "font_size": 16
+            }
+        }),
+    );
+
+    assert_eq!(
+        current,
+        json!({
+            "editor": {
+                "font_size": 16
+            },
+            "theme": "dark"
+        })
+    );
+}
+
+#[test]
+fn merge_preferences_patch_normalizes_scalar_current_before_ignoring_scalar_patch() {
+    let mut current = json!("legacy-scalar");
+
+    merge_preferences_patch(&mut current, &json!(false));
+
+    assert_eq!(current, json!({}));
+}
+
+#[test]
 fn service_command_normalization_allows_only_lifecycle_commands() {
     assert_eq!(normalize_service_command(" STATUS "), Some("status"));
     assert_eq!(normalize_service_command("install"), Some("install"));
@@ -116,43 +141,140 @@ fn service_command_normalization_allows_only_lifecycle_commands() {
 }
 
 #[tokio::test]
-async fn preferences_handlers_default_patch_and_persist_values() {
-    let project_path = "/tmp/vw desktop prefs";
-    let _guard = DESKTOP_STORAGE_LOCK.lock().await;
-    let snapshot = DesktopStorageSnapshot::capture(project_path).await;
-    clear_desktop_storage(project_path).await;
+async fn service_command_handler_rejects_unknown_command_before_loading_config() {
+    let err = service_command_post(Path(ServiceCommandPath { command: "../../shell".to_string() }))
+        .await
+        .expect_err("unknown service command should fail");
 
-    let Json(defaults) = preferences_get().await.expect("preferences should load");
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert_eq!(err.to_string(), "unsupported service command");
+}
+
+#[test]
+fn service_command_response_round_trips_through_json() {
+    let response =
+        ServiceCommandResponse { command: "status".to_string(), output: "running".to_string() };
+
+    let payload = serde_json::to_string(&response).expect("serialize service command response");
+    let decoded: ServiceCommandResponse =
+        serde_json::from_str(&payload).expect("deserialize service command response");
+
+    assert_eq!(decoded, response);
+}
+
+#[test]
+fn preferences_handlers_default_patch_and_persist_values() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let database = GlobalDatabase::for_home(home.path()).expect("global database");
+    let store = GatewaySettingsStore::new(database.clone()).expect("gateway settings store");
+    let preferences_file = vw_config_types::paths::home_config_dir(home.path())
+        .join("storage/desktop/preferences.json");
+
+    let tenant = TenantScope::default();
+    let Json(defaults) =
+        preferences_get_from_store(&store, &tenant).expect("preferences should load");
     assert_eq!(defaults, Value::Null);
+    assert!(!preferences_file.exists());
 
-    let Json(patched) = preferences_patch(Json(json!({
-        "model": "openai/gpt-5.1-codex-max",
-        "auto_model": false
-    })))
-    .await
+    let Json(patched) = preferences_patch_in_store(
+        &store,
+        &tenant,
+        Json(json!({
+            "model": "openai/gpt-5.1-codex-max",
+            "auto_model": false
+        })),
+    )
     .expect("preferences should patch");
     assert_eq!(patched["model"], "openai/gpt-5.1-codex-max");
 
-    let Json(patched) = preferences_patch(Json(json!({
-        "model": null,
-        "temperature": 0.2
-    })))
-    .await
+    let Json(patched) = preferences_patch_in_store(
+        &store,
+        &tenant,
+        Json(json!({
+            "model": null,
+            "temperature": 0.2
+        })),
+    )
     .expect("preferences should patch again");
     assert_eq!(patched, json!({ "auto_model": false, "temperature": 0.2 }));
+    assert!(!preferences_file.exists());
 
-    let Json(stored) = preferences_get().await.expect("preferences should read back");
+    let reopened = GatewaySettingsStore::new(database).expect("reopen gateway settings store");
+    let Json(stored) =
+        preferences_get_from_store(&reopened, &tenant).expect("preferences should read back");
     assert_eq!(stored, patched);
 
-    snapshot.restore(project_path).await;
+    let legacy_home = tempfile::tempdir().expect("temporary legacy home");
+    let legacy_store = GatewaySettingsStore::new(
+        GlobalDatabase::for_home(legacy_home.path()).expect("legacy global database"),
+    )
+    .expect("legacy gateway settings store");
+    let legacy_path = vw_config_types::paths::home_config_dir(legacy_home.path())
+        .join("storage/desktop/preferences.json");
+    std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
+        .expect("create legacy directory");
+    std::fs::write(&legacy_path, r#"{"theme":"legacy"}"#).expect("write legacy preferences");
+    let Json(ignored) = preferences_get_from_store(&legacy_store, &tenant)
+        .expect("legacy preferences should be ignored");
+    assert_eq!(ignored, Value::Null);
+    legacy_store
+        .upsert(&tenant, "desktop.preferences", "default", r#"{"theme":"database"}"#)
+        .expect("seed conflicting database value");
+
+    let Json(conflict) =
+        preferences_get_from_store(&legacy_store, &tenant).expect("database preference should win");
+    assert_eq!(conflict, json!({ "theme": "database" }));
+    assert_eq!(
+        std::fs::read_to_string(&legacy_path).expect("legacy preferences remain"),
+        r#"{"theme":"legacy"}"#
+    );
+}
+
+#[test]
+fn preferences_handlers_isolate_same_key_by_tenant_scope() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let store =
+        GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("gateway settings store");
+    let first = TenantScope::new("platform-a", "company-a").expect("first tenant");
+    let second = TenantScope::new("platform-b", "company-b").expect("second tenant");
+
+    let Json(_) = preferences_patch_in_store(&store, &first, Json(json!({"theme": "first"})))
+        .expect("first preference");
+    let Json(_) = preferences_patch_in_store(&store, &second, Json(json!({"theme": "second"})))
+        .expect("second preference");
+
+    let Json(first_value) =
+        preferences_get_from_store(&store, &first).expect("first preference read");
+    let Json(second_value) =
+        preferences_get_from_store(&store, &second).expect("second preference read");
+    assert_eq!(first_value, json!({"theme": "first"}));
+    assert_eq!(second_value, json!({"theme": "second"}));
+}
+
+#[test]
+fn preferences_get_reports_corrupt_stored_payload() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let store =
+        GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("gateway settings store");
+    let tenant = TenantScope::default();
+    store
+        .upsert(&tenant, DESKTOP_PREFERENCES_NAMESPACE, DEFAULT_CONFIG_KEY, "not-json")
+        .expect("seed corrupt preferences");
+
+    let err =
+        preferences_get_from_store(&store, &tenant).expect_err("corrupt preferences should fail");
+
+    assert_eq!(err.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(err.to_string().starts_with("invalid desktop preferences:"));
 }
 
 #[tokio::test]
 async fn tool_content_handlers_validate_type_and_round_trip_content() {
-    let project_path = "/tmp/vw tool content";
     let _guard = DESKTOP_STORAGE_LOCK.lock().await;
-    let snapshot = DesktopStorageSnapshot::capture(project_path).await;
-    clear_desktop_storage(project_path).await;
+    let snapshot = DesktopStorageSnapshot::capture().await;
+    clear_desktop_storage().await;
 
     let Json(default_content) =
         tool_content_get(Path(ToolContentPath { tool_type: "json".to_string() }))
@@ -173,6 +295,17 @@ async fn tool_content_handlers_validate_type_and_round_trip_content() {
         .expect("saved content should load");
     assert_eq!(read_back, saved);
 
+    let Json(saved_sql) = tool_content_put(
+        Path(ToolContentPath { tool_type: "sql".to_string() }),
+        Json(ToolContentBody { content: "SELECT 1;".to_string() }),
+    )
+    .await
+    .expect("sql content should save");
+    let Json(read_sql) = tool_content_get(Path(ToolContentPath { tool_type: "sql".to_string() }))
+        .await
+        .expect("sql content should load");
+    assert_eq!(read_sql, saved_sql);
+
     let err = tool_content_get(Path(ToolContentPath { tool_type: "yaml".to_string() }))
         .await
         .expect_err("unsupported get should fail");
@@ -187,80 +320,229 @@ async fn tool_content_handlers_validate_type_and_round_trip_content() {
     .expect_err("unsupported put should fail");
     assert_eq!(err.status, StatusCode::BAD_REQUEST);
 
-    snapshot.restore(project_path).await;
-}
+    let Json(sql_after_rejection) =
+        tool_content_get(Path(ToolContentPath { tool_type: "sql".to_string() }))
+            .await
+            .expect("valid content should remain readable");
+    assert_eq!(sql_after_rejection, json!({ "content": "SELECT 1;" }));
 
-#[tokio::test]
-async fn mindmap_tabs_handlers_default_and_persist_any_json_shape() {
-    let project_path = "/tmp/vw mindmap tabs";
-    let _guard = DESKTOP_STORAGE_LOCK.lock().await;
-    let snapshot = DesktopStorageSnapshot::capture(project_path).await;
-    clear_desktop_storage(project_path).await;
-
-    let Json(default_tabs) = mindmap_tabs_get().await.expect("tabs should load");
-    assert_eq!(default_tabs, Value::Null);
-
-    let body = json!([
-        { "id": "tab-1", "title": "Roadmap" },
-        { "id": "tab-2", "nodes": [1, 2, 3] }
-    ]);
-    let Json(saved) = mindmap_tabs_put(Json(body.clone())).await.expect("tabs should save");
-    assert_eq!(saved, body);
-
-    let Json(read_back) = mindmap_tabs_get().await.expect("tabs should read back");
-    assert_eq!(read_back, body);
-
-    snapshot.restore(project_path).await;
+    snapshot.restore().await;
 }
 
 #[test]
-fn project_prefs_key_normalizes_paths_into_single_storage_segment() {
-    assert_eq!(
-        project_prefs_key("/Users/Ada Lovelace/work.demo"),
-        vec!["desktop", "project_prefs", "Users_Ada_Lovelace_work_demo"]
-    );
-    assert_eq!(project_prefs_key(" /.:\\ "), vec!["desktop", "project_prefs", "_root"]);
-}
+fn project_preferences_handlers_report_missing_and_round_trip() {
+    let project_path = "/tmp/vw project prefs/work.demo";
+    let home = tempfile::tempdir().expect("temporary home");
+    let database = GlobalDatabase::for_home(home.path()).expect("global database");
+    let store = GatewaySettingsStore::new(database.clone()).expect("gateway settings store");
+    let project_file = vw_config_types::paths::home_config_dir(home.path())
+        .join("storage/desktop/project_prefs/tmp_vw_project_prefs_work_demo.json");
 
-#[tokio::test]
-async fn project_preferences_handlers_report_missing_and_round_trip() {
-    let project_path = "/tmp/vw project prefs";
-    let _guard = DESKTOP_STORAGE_LOCK.lock().await;
-    let snapshot = DesktopStorageSnapshot::capture(project_path).await;
-    clear_desktop_storage(project_path).await;
-
-    let missing = project_preferences_get(Query(ProjectPreferencesQuery {
-        project_path: project_path.to_string(),
-    }))
-    .await
+    let tenant = TenantScope::default();
+    let missing = project_preferences_get_from_store(
+        &store,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
+    )
     .expect_err("missing prefs should fail");
     assert_eq!(missing.status, StatusCode::NOT_FOUND);
+    assert!(!project_file.exists());
 
     let body = ProjectPreferencesBody {
         model: "anthropic/claude-sonnet-4-5".to_string(),
         auto_model: true,
         acp_agent: Some("codex".to_string()),
     };
-    let Json(saved) = project_preferences_put(
+    let Json(saved) = project_preferences_put_in_store(
+        &store,
+        &tenant,
         Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
         Json(body.clone()),
     )
-    .await
     .expect("prefs should save");
     assert_eq!(saved.model, body.model);
     assert!(saved.auto_model);
     assert_eq!(saved.acp_agent, Some("codex".to_string()));
 
-    let Json(read_back) = project_preferences_get(Query(ProjectPreferencesQuery {
-        project_path: project_path.to_string(),
-    }))
-    .await
+    let reopened = GatewaySettingsStore::new(database).expect("reopen gateway settings store");
+    let Json(read_back) = project_preferences_get_from_store(
+        &reopened,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
+    )
     .expect("prefs should read back");
     assert_eq!(read_back.model, body.model);
     assert!(read_back.auto_model);
     assert_eq!(read_back.acp_agent, Some("codex".to_string()));
 
-    snapshot.restore(project_path).await;
+    assert!(!project_file.exists());
+    let stored = reopened
+        .get(&tenant, "desktop.project_preferences", project_path)
+        .expect("read exact project key")
+        .expect("project preference row");
+    assert_eq!(
+        serde_json::from_str::<Value>(&stored).expect("stored project preferences"),
+        serde_json::to_value(&body).expect("expected project preferences")
+    );
+
+    let legacy_home = tempfile::tempdir().expect("temporary legacy home");
+    let legacy_store = GatewaySettingsStore::new(
+        GlobalDatabase::for_home(legacy_home.path()).expect("legacy global database"),
+    )
+    .expect("legacy gateway settings store");
+    let legacy_path = vw_config_types::paths::home_config_dir(legacy_home.path())
+        .join("storage/desktop/project_prefs/tmp_vw_project_prefs_work_demo.json");
+    std::fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
+        .expect("create legacy project directory");
+    std::fs::write(&legacy_path, r#"{"model":"legacy","auto_model":false,"acp_agent":null}"#)
+        .expect("write legacy project preferences");
+    let ignored = project_preferences_get_from_store(
+        &legacy_store,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
+    )
+    .expect_err("legacy project preferences should be ignored");
+    assert_eq!(ignored.status, StatusCode::NOT_FOUND);
+    legacy_store
+        .upsert(&tenant, "desktop.project_preferences", project_path, &stored)
+        .expect("seed conflicting project database value");
+    let Json(conflict) = project_preferences_get_from_store(
+        &legacy_store,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
+    )
+    .expect("database project preferences should win");
+    assert_eq!(conflict.model, body.model);
+    assert_eq!(
+        std::fs::read_to_string(&legacy_path).expect("legacy project preferences remain"),
+        r#"{"model":"legacy","auto_model":false,"acp_agent":null}"#
+    );
+
+    let empty = project_preferences_get_from_store(
+        &reopened,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: "  ".to_string() }),
+    )
+    .expect_err("blank project path should fail");
+    assert_eq!(empty.status, StatusCode::BAD_REQUEST);
+}
+
+#[test]
+fn project_preferences_handlers_isolate_same_project_by_tenant_scope() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let store =
+        GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("gateway settings store");
+    let first = TenantScope::new("platform-a", "company-a").expect("first tenant");
+    let second = TenantScope::new("platform-b", "company-b").expect("second tenant");
+    let query = || Query(ProjectPreferencesQuery { project_path: "/shared/project".to_string() });
+
+    let Json(_) = project_preferences_put_in_store(
+        &store,
+        &first,
+        query(),
+        Json(ProjectPreferencesBody {
+            model: "first-model".to_string(),
+            auto_model: false,
+            acp_agent: None,
+        }),
+    )
+    .expect("first project preference");
+    let Json(_) = project_preferences_put_in_store(
+        &store,
+        &second,
+        query(),
+        Json(ProjectPreferencesBody {
+            model: "second-model".to_string(),
+            auto_model: true,
+            acp_agent: Some("codex".to_string()),
+        }),
+    )
+    .expect("second project preference");
+
+    let Json(first_value) = project_preferences_get_from_store(&store, &first, query())
+        .expect("first project preference read");
+    let Json(second_value) = project_preferences_get_from_store(&store, &second, query())
+        .expect("second project preference read");
+    assert_eq!(first_value.model, "first-model");
+    assert_eq!(second_value.model, "second-model");
+}
+
+#[test]
+fn project_preferences_put_rejects_blank_path_without_persisting() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let store =
+        GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("gateway settings store");
+    let tenant = TenantScope::default();
+    let blank_path = " \t ";
+
+    let err = project_preferences_put_in_store(
+        &store,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: blank_path.to_string() }),
+        Json(ProjectPreferencesBody {
+            model: "unused".to_string(),
+            auto_model: false,
+            acp_agent: None,
+        }),
+    )
+    .expect_err("blank project path should fail");
+
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert_eq!(err.to_string(), "project path must not be empty");
+    assert_eq!(
+        store
+            .list(&tenant, DESKTOP_PROJECT_PREFERENCES_NAMESPACE)
+            .expect("check rejected project namespace"),
+        Vec::new()
+    );
+}
+
+#[test]
+fn project_preferences_get_reports_corrupt_stored_payload() {
+    let home = tempfile::tempdir().expect("temporary home");
+    let store =
+        GatewaySettingsStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("gateway settings store");
+    let tenant = TenantScope::default();
+    let project_path = "/tmp/corrupt-project-preferences";
+    store
+        .upsert(&tenant, DESKTOP_PROJECT_PREFERENCES_NAMESPACE, project_path, r#"{"model":42}"#)
+        .expect("seed corrupt project preferences");
+
+    let err = project_preferences_get_from_store(
+        &store,
+        &tenant,
+        Query(ProjectPreferencesQuery { project_path: project_path.to_string() }),
+    )
+    .expect_err("corrupt project preferences should fail");
+
+    assert_eq!(err.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(err.to_string().starts_with("invalid desktop project preferences:"));
+}
+
+#[test]
+fn project_preferences_json_defaults_and_omits_optional_agent() {
+    let body: ProjectPreferencesBody = serde_json::from_value(json!({
+        "model": "default-model",
+        "auto_model": true
+    }))
+    .expect("deserialize project preferences without agent");
+    assert_eq!(body.acp_agent, None);
+
+    let response = ProjectPreferencesResponse {
+        model: body.model,
+        auto_model: body.auto_model,
+        acp_agent: body.acp_agent,
+    };
+    assert_eq!(
+        serde_json::to_value(response).expect("serialize project preferences response"),
+        json!({
+            "model": "default-model",
+            "auto_model": true
+        })
+    );
 }
 
 #[tokio::test]
@@ -290,6 +572,26 @@ fn decode_file_url_path_decodes_plain_and_file_url_paths() {
     assert_eq!(decode_file_url_path("/tmp/space path"), "/tmp/space path");
     assert_eq!(decode_file_url_path("file:///tmp/space%20path"), "/tmp/space path");
     assert_eq!(decode_file_url_path("file://relative%2Fpath"), "relative/path");
+}
+
+#[test]
+fn decode_file_url_path_preserves_invalid_percent_encoding() {
+    assert_eq!(decode_file_url_path("plain%GGpath"), "plain%GGpath");
+    #[cfg(not(windows))]
+    {
+        assert_eq!(decode_file_url_path("file:///tmp/%GG"), "/tmp/%GG");
+        assert_eq!(decode_file_url_path("file:///"), "/");
+    }
+}
+
+#[test]
+fn validate_project_path_accepts_nonblank_and_rejects_whitespace() {
+    assert!(super::validate_project_path("/tmp/project").is_ok());
+
+    let error = super::validate_project_path(" \n\t ")
+        .expect_err("whitespace-only project path should fail");
+    assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
+    assert_eq!(error.message, "project path must not be empty");
 }
 
 #[test]

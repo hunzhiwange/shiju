@@ -156,3 +156,82 @@ async fn send_text_chunks_marks_continuation_chunks() {
     assert!(!last["text"].as_str().unwrap().contains("(continues...)"));
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn send_text_chunks_sends_single_empty_chunk_as_plain_html_body() {
+    // 空消息只产生一个片段，走 chunk.to_string() 分支且不附带 thread_id。
+    let (base_url, mut requests, server) =
+        telegram_server(vec![(200, r#"{"ok":true,"result":{"message_id":1}}"#)]).await;
+    let channel =
+        TelegramChannel::new("token".into(), vec!["*".into()], false).with_api_base(base_url);
+
+    channel.send_text_chunks("", "chat-1", None).await.unwrap();
+
+    let body = request_json(&requests.recv().await.unwrap());
+    assert_eq!(body["chat_id"], "chat-1");
+    assert_eq!(body["parse_mode"], "HTML");
+    assert_eq!(body["text"], "");
+    assert!(body.get("message_thread_id").is_none());
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn send_text_chunks_marks_middle_chunk_with_both_continuation_hints() {
+    // 三段以上消息会命中中间片段的 "(continued)...(continues...)" 双向提示分支。
+    let long_message = "abcdefghij ".repeat(1200);
+    let chunk_count = split_message_for_telegram(&long_message).len();
+    assert!(chunk_count >= 3, "expected >=3 chunks, got {chunk_count}");
+
+    let responses =
+        (0..chunk_count).map(|_| (200, r#"{"ok":true,"result":{"message_id":1}}"#)).collect();
+    let (base_url, mut requests, server) = telegram_server(responses).await;
+    let channel =
+        TelegramChannel::new("token".into(), vec!["*".into()], false).with_api_base(base_url);
+
+    channel.send_text_chunks(&long_message, "chat-1", None).await.unwrap();
+
+    let _first = requests.recv().await.unwrap();
+    let middle = request_json(&requests.recv().await.unwrap());
+    let middle_text = middle["text"].as_str().unwrap();
+    assert!(middle_text.starts_with("(continued)"));
+    assert!(middle_text.ends_with("(continues...)"));
+
+    for _ in 2..chunk_count {
+        let _ = requests.recv().await.unwrap();
+    }
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn send_text_chunks_plain_fallback_keeps_thread_id_and_continues_after_first_chunk() {
+    let long_message = "a".repeat(4097);
+    let chunk_count = split_message_for_telegram(&long_message).len();
+    assert_eq!(chunk_count, 2);
+
+    let (base_url, mut requests, server) = telegram_server(vec![
+        (400, r#"{"ok":false,"description":"can't parse entities"}"#),
+        (200, r#"{"ok":true,"result":{"message_id":2}}"#),
+        (200, r#"{"ok":true,"result":{"message_id":3}}"#),
+    ])
+    .await;
+    let channel =
+        TelegramChannel::new("token".into(), vec!["*".into()], false).with_api_base(base_url);
+
+    channel.send_text_chunks(&long_message, "chat-1", Some("77")).await.unwrap();
+
+    let html_request = request_json(&requests.recv().await.unwrap());
+    assert_eq!(html_request["parse_mode"], "HTML");
+    assert_eq!(html_request["message_thread_id"], "77");
+
+    let plain_request = request_json(&requests.recv().await.unwrap());
+    assert_eq!(plain_request["chat_id"], "chat-1");
+    assert_eq!(plain_request["message_thread_id"], "77");
+    assert!(plain_request.get("parse_mode").is_none());
+    assert!(plain_request["text"].as_str().unwrap().ends_with("(continues...)"));
+
+    let next_html_request = request_json(&requests.recv().await.unwrap());
+    assert_eq!(next_html_request["parse_mode"], "HTML");
+    assert_eq!(next_html_request["message_thread_id"], "77");
+    assert!(next_html_request["text"].as_str().unwrap().starts_with("(continued)"));
+    server.await.unwrap();
+}

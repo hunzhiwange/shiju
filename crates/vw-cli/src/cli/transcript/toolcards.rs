@@ -1,9 +1,9 @@
 //! 构建 CLI 转录中的工具卡片文本。
 //! 模块负责把结构化工具状态压缩成人类可扫描的终端摘要。
 
+use super::super::theme::{TEXT_MUTED, TEXT_SUBTLE};
 use super::todocards::tool_badge_cli;
 use super::truncate::truncate_chars_cli;
-use crate::app::agent::agent::loop_::cli::theme::{TEXT_MUTED, TEXT_SUBTLE};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
@@ -41,12 +41,12 @@ pub(crate) fn render_tool_card(
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub(crate) fn tool_summary_cli(tool_name: &str, input: &str) -> String {
     let trimmed = input.trim();
-    if !trimmed.starts_with('{') {
-        return truncate_chars_cli(trimmed, 120);
-    }
     let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) else {
         return truncate_chars_cli(trimmed, 120);
     };
+    if !v.is_object() {
+        return generic_summary_cli(&v);
+    }
 
     match tool_name {
         "read" => {

@@ -157,6 +157,27 @@ fn assert_json_request(
     assert_eq!(body["caption"], caption);
 }
 
+fn assert_json_request_without_optional_fields(
+    request: &RecordedRequest,
+    method: &str,
+    media_field: &str,
+    chat_id: &str,
+    url: &str,
+) {
+    assert_eq!(request.path, format!("/bot123:SECRET/{method}"));
+    assert!(
+        request.content_type.starts_with("application/json"),
+        "expected JSON content type, got {}",
+        request.content_type
+    );
+
+    let body = request.json();
+    assert_eq!(body["chat_id"], chat_id);
+    assert_eq!(body[media_field], url);
+    assert!(body.get("message_thread_id").is_none());
+    assert!(body.get("caption").is_none());
+}
+
 fn assert_multipart_request(
     request: &RecordedRequest,
     method: &str,
@@ -185,11 +206,107 @@ fn assert_multipart_request(
     assert!(body.contains(file_contents));
 }
 
+fn assert_multipart_request_without_optional_fields(
+    request: &RecordedRequest,
+    method: &str,
+    media_field: &str,
+    chat_id: &str,
+    file_name: &str,
+    file_contents: &str,
+) {
+    assert_eq!(request.path, format!("/bot123:SECRET/{method}"));
+    assert!(
+        request.content_type.starts_with("multipart/form-data; boundary="),
+        "expected multipart content type, got {}",
+        request.content_type
+    );
+
+    let body = request.body_text();
+    assert!(body.contains(r#"name="chat_id""#));
+    assert!(body.contains(chat_id));
+    assert!(!body.contains(r#"name="message_thread_id""#));
+    assert!(!body.contains(r#"name="caption""#));
+    assert!(body.contains(&format!(r#"name="{media_field}"; filename="{file_name}""#)));
+    assert!(body.contains(file_contents));
+}
+
 fn assert_sanitized_error(error: anyhow::Error, expected_prefix: &str) {
     let message = error.to_string();
     assert!(message.contains(expected_prefix), "unexpected error message: {message}");
     assert!(message.contains("bot[redacted]"), "error should redact bot token: {message}");
     assert!(!message.contains("SECRET"), "error should not expose bot token: {message}");
+}
+
+#[tokio::test]
+async fn url_sending_methods_omit_optional_fields_when_absent() {
+    let server = TestServer::spawn(vec![
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url);
+
+    channel
+        .send_document_by_url("chat-document", None, "https://example.test/document.pdf", None)
+        .await
+        .expect("document URL send should succeed without optional fields");
+    channel
+        .send_photo_by_url("chat-photo", None, "https://example.test/photo.jpg", None)
+        .await
+        .expect("photo URL send should succeed without optional fields");
+    channel
+        .send_video_by_url("chat-video", None, "https://example.test/video.mp4", None)
+        .await
+        .expect("video URL send should succeed without optional fields");
+    channel
+        .send_audio_by_url("chat-audio", None, "https://example.test/audio.mp3", None)
+        .await
+        .expect("audio URL send should succeed without optional fields");
+    channel
+        .send_voice_by_url("chat-voice", None, "https://example.test/voice.ogg", None)
+        .await
+        .expect("voice URL send should succeed without optional fields");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 5);
+    assert_json_request_without_optional_fields(
+        &requests[0],
+        "sendDocument",
+        "document",
+        "chat-document",
+        "https://example.test/document.pdf",
+    );
+    assert_json_request_without_optional_fields(
+        &requests[1],
+        "sendPhoto",
+        "photo",
+        "chat-photo",
+        "https://example.test/photo.jpg",
+    );
+    assert_json_request_without_optional_fields(
+        &requests[2],
+        "sendVideo",
+        "video",
+        "chat-video",
+        "https://example.test/video.mp4",
+    );
+    assert_json_request_without_optional_fields(
+        &requests[3],
+        "sendAudio",
+        "audio",
+        "chat-audio",
+        "https://example.test/audio.mp3",
+    );
+    assert_json_request_without_optional_fields(
+        &requests[4],
+        "sendVoice",
+        "voice",
+        "chat-voice",
+        "https://example.test/voice.ogg",
+    );
 }
 
 #[tokio::test]
@@ -305,6 +422,8 @@ async fn url_sending_methods_redact_tokens_in_error_messages() {
         ResponseSpec::telegram_failure(),
         ResponseSpec::telegram_failure(),
         ResponseSpec::telegram_failure(),
+        ResponseSpec::telegram_failure(),
+        ResponseSpec::telegram_failure(),
     ])
     .await;
     let channel = test_channel(&server.base_url);
@@ -331,6 +450,18 @@ async fn url_sending_methods_redact_tokens_in_error_messages() {
         .await
         .expect_err("video URL send should fail");
     assert_sanitized_error(video_error, "Telegram sendVideo by URL failed");
+
+    let audio_error = channel
+        .send_audio_by_url("chat", Some("thread"), "https://example.test/audio.mp3", Some("cap"))
+        .await
+        .expect_err("audio URL send should fail");
+    assert_sanitized_error(audio_error, "Telegram sendAudio by URL failed");
+
+    let voice_error = channel
+        .send_voice_by_url("chat", Some("thread"), "https://example.test/voice.ogg", Some("cap"))
+        .await
+        .expect_err("voice URL send should fail");
+    assert_sanitized_error(voice_error, "Telegram sendVoice by URL failed");
 }
 
 #[tokio::test]
@@ -475,6 +606,227 @@ async fn multipart_sending_methods_send_expected_form_data() {
 }
 
 #[tokio::test]
+async fn multipart_sending_methods_omit_optional_fields_when_absent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let document_path = write_temp_file(&dir, "report.txt", "document file body");
+    let photo_path = write_temp_file(&dir, "photo.jpg", "photo file body");
+    let video_path = write_temp_file(&dir, "video.mp4", "video file body");
+    let audio_path = write_temp_file(&dir, "audio.mp3", "audio file body");
+    let voice_path = write_temp_file(&dir, "voice.ogg", "voice file body");
+
+    let server = TestServer::spawn(vec![
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url);
+
+    channel
+        .send_document("chat-document", None, &document_path, None)
+        .await
+        .expect("document file send should succeed without optional fields");
+    channel
+        .send_document_bytes(
+            "chat-document-bytes",
+            None,
+            b"document bytes body".to_vec(),
+            "document-bytes.txt",
+            None,
+        )
+        .await
+        .expect("document bytes send should succeed without optional fields");
+    channel
+        .send_photo("chat-photo", None, &photo_path, None)
+        .await
+        .expect("photo file send should succeed without optional fields");
+    channel
+        .send_photo_bytes(
+            "chat-photo-bytes",
+            None,
+            b"photo bytes body".to_vec(),
+            "photo-bytes.jpg",
+            None,
+        )
+        .await
+        .expect("photo bytes send should succeed without optional fields");
+    channel
+        .send_video("chat-video", None, &video_path, None)
+        .await
+        .expect("video file send should succeed without optional fields");
+    channel
+        .send_audio("chat-audio", None, &audio_path, None)
+        .await
+        .expect("audio file send should succeed without optional fields");
+    channel
+        .send_voice("chat-voice", None, &voice_path, None)
+        .await
+        .expect("voice file send should succeed without optional fields");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 7);
+    assert_multipart_request_without_optional_fields(
+        &requests[0],
+        "sendDocument",
+        "document",
+        "chat-document",
+        "report.txt",
+        "document file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[1],
+        "sendDocument",
+        "document",
+        "chat-document-bytes",
+        "document-bytes.txt",
+        "document bytes body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[2],
+        "sendPhoto",
+        "photo",
+        "chat-photo",
+        "photo.jpg",
+        "photo file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[3],
+        "sendPhoto",
+        "photo",
+        "chat-photo-bytes",
+        "photo-bytes.jpg",
+        "photo bytes body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[4],
+        "sendVideo",
+        "video",
+        "chat-video",
+        "video.mp4",
+        "video file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[5],
+        "sendAudio",
+        "audio",
+        "chat-audio",
+        "audio.mp3",
+        "audio file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[6],
+        "sendVoice",
+        "voice",
+        "chat-voice",
+        "voice.ogg",
+        "voice file body",
+    );
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+#[tokio::test]
+async fn multipart_file_methods_use_default_names_for_non_utf8_paths() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+    fn write_non_utf8_temp_file(
+        dir: &TempDir,
+        name_prefix: &[u8],
+        contents: &str,
+    ) -> std::path::PathBuf {
+        let mut name = name_prefix.to_vec();
+        name.push(0xff);
+        let path = dir.path().join(OsString::from_vec(name));
+        std::fs::write(&path, contents).expect("temporary test file should be written");
+        path
+    }
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let document_path = write_non_utf8_temp_file(&dir, b"document-", "document file body");
+    let photo_path = write_non_utf8_temp_file(&dir, b"photo-", "photo file body");
+    let video_path = write_non_utf8_temp_file(&dir, b"video-", "video file body");
+    let audio_path = write_non_utf8_temp_file(&dir, b"audio-", "audio file body");
+    let voice_path = write_non_utf8_temp_file(&dir, b"voice-", "voice file body");
+
+    let server = TestServer::spawn(vec![
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+        ResponseSpec::ok(),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url);
+
+    channel
+        .send_document("chat-document", None, &document_path, None)
+        .await
+        .expect("document file send should succeed");
+    channel
+        .send_photo("chat-photo", None, &photo_path, None)
+        .await
+        .expect("photo file send should succeed");
+    channel
+        .send_video("chat-video", None, &video_path, None)
+        .await
+        .expect("video file send should succeed");
+    channel
+        .send_audio("chat-audio", None, &audio_path, None)
+        .await
+        .expect("audio file send should succeed");
+    channel
+        .send_voice("chat-voice", None, &voice_path, None)
+        .await
+        .expect("voice file send should succeed");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 5);
+    assert_multipart_request_without_optional_fields(
+        &requests[0],
+        "sendDocument",
+        "document",
+        "chat-document",
+        "file",
+        "document file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[1],
+        "sendPhoto",
+        "photo",
+        "chat-photo",
+        "photo.jpg",
+        "photo file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[2],
+        "sendVideo",
+        "video",
+        "chat-video",
+        "video.mp4",
+        "video file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[3],
+        "sendAudio",
+        "audio",
+        "chat-audio",
+        "audio.mp3",
+        "audio file body",
+    );
+    assert_multipart_request_without_optional_fields(
+        &requests[4],
+        "sendVoice",
+        "voice",
+        "chat-voice",
+        "voice.ogg",
+        "voice file body",
+    );
+}
+
+#[tokio::test]
 async fn multipart_sending_methods_redact_tokens_in_error_messages() {
     let dir = tempfile::tempdir().expect("tempdir");
     let document_path = write_temp_file(&dir, "report.txt", "document file body");
@@ -548,6 +900,197 @@ async fn multipart_sending_methods_redact_tokens_in_error_messages() {
         .await
         .expect_err("voice file send should fail");
     assert_sanitized_error(voice_error, "Telegram sendVoice failed");
+}
+
+#[tokio::test]
+async fn url_methods_include_only_thread_id_when_caption_absent() {
+    let server =
+        TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = test_channel(&server.base_url);
+
+    // Inline document URL path: only thread_id present.
+    channel
+        .send_document_by_url(
+            "chat-document",
+            Some("thread-document"),
+            "https://example.test/document.pdf",
+            None,
+        )
+        .await
+        .expect("document URL send should succeed with only thread id");
+    // Inline photo URL path: only thread_id present.
+    channel
+        .send_photo_by_url(
+            "chat-photo",
+            Some("thread-photo"),
+            "https://example.test/photo.jpg",
+            None,
+        )
+        .await
+        .expect("photo URL send should succeed with only thread id");
+    // Shared helper path (send_media_by_url): only thread_id present.
+    channel
+        .send_video_by_url(
+            "chat-video",
+            Some("thread-video"),
+            "https://example.test/video.mp4",
+            None,
+        )
+        .await
+        .expect("video URL send should succeed with only thread id");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 3);
+    for (request, media_field, chat_id, thread_id, url) in [
+        (
+            &requests[0],
+            "document",
+            "chat-document",
+            "thread-document",
+            "https://example.test/document.pdf",
+        ),
+        (&requests[1], "photo", "chat-photo", "thread-photo", "https://example.test/photo.jpg"),
+        (&requests[2], "video", "chat-video", "thread-video", "https://example.test/video.mp4"),
+    ] {
+        let body = request.json();
+        assert_eq!(body["chat_id"], chat_id);
+        assert_eq!(body[media_field], url);
+        assert_eq!(body["message_thread_id"], thread_id);
+        assert!(body.get("caption").is_none(), "caption should be absent: {}", request.body_text());
+    }
+}
+
+#[tokio::test]
+async fn url_methods_include_only_caption_when_thread_id_absent() {
+    let server =
+        TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = test_channel(&server.base_url);
+
+    // Inline document URL path: only caption present.
+    channel
+        .send_document_by_url(
+            "chat-document",
+            None,
+            "https://example.test/document.pdf",
+            Some("document caption"),
+        )
+        .await
+        .expect("document URL send should succeed with only caption");
+    // Inline photo URL path: only caption present.
+    channel
+        .send_photo_by_url(
+            "chat-photo",
+            None,
+            "https://example.test/photo.jpg",
+            Some("photo caption"),
+        )
+        .await
+        .expect("photo URL send should succeed with only caption");
+    // Shared helper path (send_media_by_url): only caption present.
+    channel
+        .send_audio_by_url(
+            "chat-audio",
+            None,
+            "https://example.test/audio.mp3",
+            Some("audio caption"),
+        )
+        .await
+        .expect("audio URL send should succeed with only caption");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 3);
+    for (request, media_field, chat_id, url, caption) in [
+        (
+            &requests[0],
+            "document",
+            "chat-document",
+            "https://example.test/document.pdf",
+            "document caption",
+        ),
+        (&requests[1], "photo", "chat-photo", "https://example.test/photo.jpg", "photo caption"),
+        (&requests[2], "audio", "chat-audio", "https://example.test/audio.mp3", "audio caption"),
+    ] {
+        let body = request.json();
+        assert_eq!(body["chat_id"], chat_id);
+        assert_eq!(body[media_field], url);
+        assert!(
+            body.get("message_thread_id").is_none(),
+            "thread id should be absent: {}",
+            request.body_text()
+        );
+        assert_eq!(body["caption"], caption);
+    }
+}
+
+#[tokio::test]
+async fn multipart_methods_include_only_thread_id_when_caption_absent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let document_path = write_temp_file(&dir, "report.txt", "document file body");
+
+    let server = TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = test_channel(&server.base_url);
+
+    // File-based multipart: only thread_id present.
+    channel
+        .send_document("chat-document", Some("thread-document"), &document_path, None)
+        .await
+        .expect("document file send should succeed with only thread id");
+    // Bytes-based multipart: only thread_id present.
+    channel
+        .send_document_bytes(
+            "chat-document-bytes",
+            Some("thread-document-bytes"),
+            b"document bytes body".to_vec(),
+            "document-bytes.txt",
+            None,
+        )
+        .await
+        .expect("document bytes send should succeed with only thread id");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 2);
+    for request in &requests {
+        let body = request.body_text();
+        assert!(body.contains(r#"name="message_thread_id""#), "thread id missing: {body}");
+        assert!(!body.contains(r#"name="caption""#), "caption should be absent: {body}");
+    }
+}
+
+#[tokio::test]
+async fn multipart_methods_include_only_caption_when_thread_id_absent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let document_path = write_temp_file(&dir, "report.txt", "document file body");
+
+    let server = TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = test_channel(&server.base_url);
+
+    // File-based multipart: only caption present.
+    channel
+        .send_document("chat-document", None, &document_path, Some("document caption"))
+        .await
+        .expect("document file send should succeed with only caption");
+    // Bytes-based multipart: only caption present.
+    channel
+        .send_document_bytes(
+            "chat-document-bytes",
+            None,
+            b"document bytes body".to_vec(),
+            "document-bytes.txt",
+            Some("document bytes caption"),
+        )
+        .await
+        .expect("document bytes send should succeed with only caption");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 2);
+    for request in &requests {
+        let body = request.body_text();
+        assert!(
+            !body.contains(r#"name="message_thread_id""#),
+            "thread id should be absent: {body}"
+        );
+        assert!(body.contains(r#"name="caption""#), "caption missing: {body}");
+    }
 }
 
 #[tokio::test]

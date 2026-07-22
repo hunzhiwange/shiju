@@ -208,8 +208,9 @@ fn token_end(input: &str, from: usize) -> usize {
 pub fn scrub_secret_patterns(input: &str) -> String {
     // 定义敏感前缀及其最小有效长度
     // 元组格式：(前缀字符串, 令牌内容的最小字符数)
-    const PREFIXES: [(&str, usize); 26] = [
+    const PREFIXES: [(&str, usize); 27] = [
         ("sk-", 1),                  // OpenAI 密钥
+        ("syt_", 1),                 // Matrix 访问令牌
         ("xoxb-", 1),                // Slack Bot 令牌
         ("xoxp-", 1),                // Slack 用户令牌
         ("ghp_", 1),                 // GitHub 个人访问令牌

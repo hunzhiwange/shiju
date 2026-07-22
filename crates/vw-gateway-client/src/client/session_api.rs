@@ -253,6 +253,20 @@ impl GatewayClient {
         .await
     }
 
+    /// 读取指定会话步骤的原始 LLM 请求/响应载荷。
+    pub async fn session_step_llm_raw_get(
+        &self,
+        session_id: &str,
+        step_index: u32,
+        directory: Option<&str>,
+    ) -> Result<Option<serde_json::Value>, String> {
+        self.get_json_with_404(
+            &format!("/v1/session/{session_id}/step/{step_index}/llm-raw"),
+            &directory_query(directory),
+        )
+        .await
+    }
+
     /// 获取当前目录下被归档的会话 ID 列表。
     pub async fn session_archived_get(
         &self,

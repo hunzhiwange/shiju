@@ -86,6 +86,23 @@ fn advanced_yaml_rejects_invalid_or_non_mapping_data_without_visual_draft() {
 }
 
 #[test]
+fn advanced_yaml_accepts_valid_mapping_without_visual_draft() {
+    let validation = validate_node_editor_draft("answer", "", "", "answer: ok\n", None);
+
+    assert!(validation.field_errors.is_empty());
+}
+
+#[test]
+fn visual_draft_reports_raw_data_error_when_existing_yaml_is_not_mapping() {
+    let draft =
+        WorkflowNodeVisualDraft::Answer { answer_editor: text_editor::Content::with_text("Done") };
+
+    let validation = validate_node_editor_draft("answer", "", "", "- item\n", Some(&draft));
+
+    assert_eq!(error_paths(&validation), vec!["advanced_yaml.raw_data"]);
+}
+
+#[test]
 fn visual_drafts_accept_complete_valid_fields() {
     let start =
         WorkflowNodeVisualDraft::Start { variables: vec![valid_start_variable("file-list")] };
@@ -200,6 +217,17 @@ fn start_validation_reports_empty_select_options_and_file_list_max_length() {
 }
 
 #[test]
+fn start_file_validation_requires_at_least_one_file_type() {
+    let mut file = valid_start_variable("file");
+    file.allowed_file_types.clear();
+    let draft = WorkflowNodeVisualDraft::Start { variables: vec![file] };
+
+    let paths = validate("start", Some(&draft));
+
+    assert_eq!(paths, vec!["start.variables[0].allowed_file_types"]);
+}
+
+#[test]
 fn if_else_validation_reports_missing_case_and_condition_fields() {
     let draft = WorkflowNodeVisualDraft::IfElse {
         cases: vec![
@@ -247,6 +275,31 @@ fn if_else_validation_reports_missing_case_and_condition_fields() {
 }
 
 #[test]
+fn if_else_validation_reports_missing_comparison_operator_separately_from_value() {
+    let draft = WorkflowNodeVisualDraft::IfElse {
+        cases: vec![WorkflowIfElseCaseDraft {
+            raw_case: Value::Mapping(Mapping::new()),
+            case_id: "case-a".to_string(),
+            logical_operator: "and".to_string(),
+            conditions: vec![WorkflowIfElseConditionDraft {
+                raw_condition: Value::Mapping(Mapping::new()),
+                variable_selector_input: "start.query".to_string(),
+                comparison_operator: String::new(),
+                compare_value: String::new(),
+                var_type: "string".to_string(),
+            }],
+        }],
+    };
+
+    let paths = validate("if-else", Some(&draft));
+
+    assert_eq!(
+        paths,
+        vec!["if_else.cases[0].conditions[0].operator", "if_else.cases[0].conditions[0].value"]
+    );
+}
+
+#[test]
 fn knowledge_validation_reports_mode_query_dataset_and_model_errors() {
     let multiple = WorkflowNodeVisualDraft::KnowledgeRetrieval {
         query_selector_input: String::new(),
@@ -288,6 +341,27 @@ fn knowledge_validation_reports_mode_query_dataset_and_model_errors() {
     assert!(single_paths.contains(&"knowledge.single.model_name".to_string()));
     assert!(single_paths.contains(&"knowledge.single.model_mode".to_string()));
     assert_eq!(invalid_mode_paths, vec!["knowledge.retrieval_mode"]);
+}
+
+#[test]
+fn knowledge_multiple_validation_accepts_attachment_query_and_threshold_boundaries() {
+    for threshold in ["0", "1"] {
+        let draft = WorkflowNodeVisualDraft::KnowledgeRetrieval {
+            query_selector_input: String::new(),
+            query_attachment_selector_input: "start.files".to_string(),
+            dataset_ids_input: " , dataset-a , ".to_string(),
+            retrieval_mode: "multiple".to_string(),
+            top_k_input: "3".to_string(),
+            score_threshold_enabled: true,
+            score_threshold_input: threshold.to_string(),
+            reranking_enable: false,
+            single_model_provider: String::new(),
+            single_model_name: String::new(),
+            single_model_mode: String::new(),
+        };
+
+        assert!(validate("knowledge-retrieval", Some(&draft)).is_empty());
+    }
 }
 
 #[test]
@@ -343,6 +417,25 @@ fn tool_and_agent_validation_report_missing_ids_maps_and_memory_errors() {
             "agent.memory.window_size",
         ]
     );
+}
+
+#[test]
+fn agent_validation_skips_memory_window_when_memory_is_disabled() {
+    let agent = WorkflowNodeVisualDraft::Agent {
+        strategy_provider_name: "function_calling".to_string(),
+        strategy_name: "react".to_string(),
+        strategy_label: "React".to_string(),
+        plugin_unique_identifier: String::new(),
+        output_schema_editor: text_editor::Content::with_text("{}"),
+        parameters_editor: text_editor::Content::with_text("{}"),
+        memory_enabled: false,
+        memory_window_size_input: "0".to_string(),
+        memory_prompt_editor: text_editor::Content::with_text(""),
+    };
+
+    let paths = validate("agent", Some(&agent));
+
+    assert!(!paths.contains(&"agent.memory.window_size".to_string()));
 }
 
 #[test]
@@ -455,4 +548,49 @@ fn code_validation_reports_empty_input_variable_and_empty_outputs() {
     assert!(paths.contains(&"code.inputs[0].variable".to_string()));
     assert!(paths.contains(&"code.inputs[0].selector".to_string()));
     assert!(paths.contains(&"code.outputs".to_string()));
+}
+
+#[test]
+fn code_validation_accepts_each_supported_output_type_after_trimming() {
+    let supported_types = [
+        "string",
+        "number",
+        "boolean",
+        "array[number]",
+        "array[string]",
+        "array[boolean]",
+        "array[object]",
+        "object",
+    ];
+
+    let code = WorkflowNodeVisualDraft::Code {
+        language: "python3".to_string(),
+        inputs: Vec::new(),
+        code_editor: text_editor::Content::with_text("def main():\n    return {}\n"),
+        outputs: supported_types
+            .iter()
+            .enumerate()
+            .map(|(index, value_type)| WorkflowCodeOutputDraft {
+                key: format!("result_{index}"),
+                value_type: format!(" {value_type} "),
+            })
+            .collect(),
+        retry_config: WorkflowNodeRetryDraft { enabled: false, max_retries: 0, retry_interval: 0 },
+        error_strategy: "fail-branch".to_string(),
+        default_value_editor: text_editor::Content::with_text("not used"),
+    };
+
+    let paths = validate("code", Some(&code));
+
+    assert!(paths.iter().all(|path| !path.starts_with("code.outputs")));
+    assert!(!paths.contains(&"code.retry.max_retries".to_string()));
+    assert!(!paths.contains(&"code.retry.retry_interval".to_string()));
+    assert!(!paths.contains(&"code.default_value".to_string()));
+}
+
+#[test]
+fn code_validation_rejects_case_changed_output_types() {
+    assert!(!is_supported_code_output_type(" String "));
+    assert!(!is_supported_code_output_type("ARRAY[string]"));
+    assert!(!is_supported_code_output_type("array[integer]"));
 }

@@ -144,7 +144,7 @@ fn current_open_think_body(value: &str) -> Option<String> {
     let open_end = last_open_end?;
     let tail = &value[open_end..];
     let end = find_tool_start(tail).unwrap_or(tail.len());
-    Some(tail[..end].to_string())
+    Some(tail[..end].trim_end().to_string())
 }
 
 fn newest_open_thinking_text<'a>(

@@ -10,8 +10,14 @@
 use super::TerminalMessage;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::FocusArea;
-use crate::app::{App, Message};
+use crate::app::{App, Message, TerminalState};
 use iced::Task;
+
+fn apply_drag_started(terminal: &mut TerminalState, cursor_y: f32) {
+    terminal.is_dragging = true;
+    terminal.drag_anchor_y = Some(cursor_y);
+    terminal.drag_start_height = terminal.height;
+}
 
 /// 处理终端相关事件并更新应用状态
 ///
@@ -92,16 +98,8 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         // 处理终端面板拖拽开始事件
         // 用户开始拖拽终端面板边缘以调整其高度
         TerminalMessage::DragStarted => {
-            // 标记当前正在拖拽状态
-            app.terminal.is_dragging = true;
-
-            // 记录拖拽起始时的鼠标 Y 坐标作为锚点
-            // 用于后续计算拖拽距离
-            app.terminal.drag_anchor_y = Some(app.cursor_position.y);
-
-            // 记录拖拽开始时终端面板的高度
-            // 用于基于拖拽距离计算新高度
-            app.terminal.drag_start_height = app.terminal.height;
+            let cursor_y = app.cursor_position.y;
+            apply_drag_started(&mut app.terminal, cursor_y);
 
             Task::none()
         }

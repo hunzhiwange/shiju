@@ -921,12 +921,13 @@ impl RuntimeAdapter for WasmRuntime {
 
     /// 返回存储路径。
     ///
-    /// 如果配置了工作空间目录，则在工作空间下创建 .vibewindow 目录；
-    /// 否则在当前目录下创建 .vibewindow 目录。
+    /// 如果配置了工作空间目录，则在工作空间下创建模式配置目录；
+    /// 否则在当前目录下创建模式配置目录。
     fn storage_path(&self) -> PathBuf {
-        self.workspace_dir
-            .as_ref()
-            .map_or_else(|| PathBuf::from(".vibewindow"), |w| w.join(".vibewindow"))
+        self.workspace_dir.as_ref().map_or_else(
+            || PathBuf::from(vw_config_types::paths::HOME_CONFIG_DIR_NAME),
+            |w| w.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME),
+        )
     }
 
     /// 检查运行时是否支持长时间运行的进程。

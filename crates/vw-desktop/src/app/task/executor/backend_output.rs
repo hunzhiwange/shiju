@@ -178,6 +178,9 @@ pub(super) fn extract_claude_terminal_error(stdout: &str, stderr: &str) -> Optio
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub(super) const TASK_AUTOMATION_TOOL_GUARDRAIL: &str = "任务执行约束：不要调用名为 `node`、`node_repl` 或 `nodeRepl` 的 MCP/REPL 工具；解析 JSON、coverage 或报告数据时，优先使用 shell 命令、仓库已有工具或目标语言原生命令。";
+
+#[cfg(not(target_arch = "wasm32"))]
 /// 执行 build_model_prompt 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -185,8 +188,8 @@ pub(super) fn extract_claude_terminal_error(stdout: &str, stderr: &str) -> Optio
 pub(super) fn build_model_prompt(task: &Task, prompt: &str) -> String {
     let trimmed = prompt.trim_start();
     format!(
-        "task_id={}\n请一定要记住，作为自动化运行的系统，我无法进行交互式应答。请你自主决策并选择最佳路径，无需向我提问或请求选择。\n{}",
-        task.id, trimmed
+        "task_id={}\n请一定要记住，作为自动化运行的系统，我无法进行交互式应答。请你自主决策并选择最佳路径，无需向我提问或请求选择。\n{}\n{}",
+        task.id, TASK_AUTOMATION_TOOL_GUARDRAIL, trimmed
     )
 }
 

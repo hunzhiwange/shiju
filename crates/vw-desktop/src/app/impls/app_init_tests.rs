@@ -37,10 +37,27 @@ fn sort_acp_agents_sorts_without_codex() {
 }
 
 #[test]
+fn sort_acp_agents_returns_empty_list_for_empty_config() {
+    let acp_cfg = HashMap::new();
+
+    assert!(sort_acp_agents(&acp_cfg).is_empty());
+}
+
+#[test]
 fn display_name_for_path_uses_recent_project_meta_name() {
     let meta = vec![recent_project_meta("/workspace/app", "App Workspace")];
 
     assert_eq!(display_name_for_path(&meta, "/workspace/app"), "App Workspace");
+}
+
+#[test]
+fn display_name_for_path_uses_first_matching_meta_name() {
+    let meta = vec![
+        recent_project_meta("/workspace/app", "First Name"),
+        recent_project_meta("/workspace/app", "Second Name"),
+    ];
+
+    assert_eq!(display_name_for_path(&meta, "/workspace/app"), "First Name");
 }
 
 #[test]
@@ -70,11 +87,20 @@ fn load_web_bookmarks_returns_default_when_config_key_is_missing() {
     let bookmarks = load_web_bookmarks(&json!({}));
 
     assert_eq!(bookmarks.len(), 1);
-    assert_eq!(bookmarks[0].title, "订货宝管理端");
+    assert_eq!(bookmarks[0].title, "测试网站");
     assert_eq!(bookmarks[0].url, "https://example.com/");
     assert_eq!(bookmarks[0].width, None);
     assert_eq!(bookmarks[0].height, None);
     assert!(bookmarks[0].cookie_configs.is_none());
+}
+
+#[test]
+fn load_web_bookmarks_keeps_explicit_empty_array_empty() {
+    let bookmarks = load_web_bookmarks(&json!({
+        "web_bookmarks": []
+    }));
+
+    assert!(bookmarks.is_empty());
 }
 
 #[test]
@@ -193,11 +219,35 @@ fn load_web_bookmarks_keeps_valid_bookmark_without_cookie_configs() {
 }
 
 #[test]
+fn load_web_bookmarks_keeps_empty_cookie_array_and_ignores_invalid_optional_fields() {
+    let bookmarks = load_web_bookmarks(&json!({
+        "web_bookmarks": [
+            {
+                "title": "Dashboard",
+                "url": "https://dashboard.example.com/",
+                "width": null,
+                "height": "tall",
+                "cookie_configs": []
+            }
+        ]
+    }));
+
+    assert_eq!(bookmarks.len(), 1);
+    assert_eq!(bookmarks[0].width, None);
+    assert_eq!(bookmarks[0].height, None);
+    let cookie_configs = bookmarks[0]
+        .cookie_configs
+        .as_ref()
+        .expect("an explicit cookie array should remain present");
+    assert!(cookie_configs.is_empty());
+}
+
+#[test]
 fn load_web_bookmarks_returns_default_when_config_key_is_not_an_array() {
     let bookmarks = load_web_bookmarks(&json!({
         "web_bookmarks": "not an array"
     }));
 
     assert_eq!(bookmarks.len(), 1);
-    assert_eq!(bookmarks[0].title, "订货宝管理端");
+    assert_eq!(bookmarks[0].title, "测试网站");
 }

@@ -41,6 +41,21 @@ fn node_control_request_deserializes_method_and_node() {
 }
 
 #[test]
+fn node_control_request_deserializes_capability_and_arguments() {
+    let arguments = serde_json::json!({"command": "status", "timeout_secs": 5});
+    let request: NodeControlRequest = serde_json::from_value(serde_json::json!({
+        "method": "node.invoke",
+        "node_id": "node-a",
+        "capability": "shell",
+        "arguments": arguments.clone()
+    }))
+    .expect("valid request");
+
+    assert_eq!(request.capability.as_deref(), Some("shell"));
+    assert_eq!(request.arguments, arguments);
+}
+
+#[test]
 fn node_control_request_deserializes_defaults() {
     let request: NodeControlRequest = serde_json::from_value(serde_json::json!({
         "method": "node.invoke"
@@ -67,6 +82,11 @@ fn node_id_allowed_accepts_matching_node_or_wildcard() {
 #[test]
 fn node_id_allowed_rejects_non_matching_node() {
     assert!(!node_id_allowed("node-a", &["node-b".to_string()]));
+}
+
+#[test]
+fn node_id_allowed_rejects_partial_wildcard() {
+    assert!(!node_id_allowed("node-a", &["node-*".to_string()]));
 }
 
 #[tokio::test]
@@ -189,6 +209,50 @@ async fn handle_node_control_accepts_trimmed_node_token() {
 }
 
 #[tokio::test]
+async fn handle_node_control_ignores_blank_node_token_config() {
+    let response = request(
+        state_with(config_with_node_control(true, &[], Some("   ")), false, &[]),
+        HeaderMap::new(),
+        NodeControlRequest {
+            method: "node.list".to_string(),
+            node_id: None,
+            capability: None,
+            arguments: serde_json::Value::Null,
+        },
+    )
+    .await;
+
+    let (status, payload) = response_json(response).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(payload["method"], "node.list");
+}
+
+#[tokio::test]
+async fn handle_node_control_rejects_non_utf8_node_token() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "X-Node-Control-Token",
+        HeaderValue::from_bytes(b"\xff").expect("opaque header value should be accepted"),
+    );
+
+    let response = request(
+        state_with(config_with_node_control(true, &[], Some("shared-token")), false, &[]),
+        headers,
+        NodeControlRequest {
+            method: "node.list".to_string(),
+            node_id: None,
+            capability: None,
+            arguments: serde_json::Value::Null,
+        },
+    )
+    .await;
+
+    let (status, payload) = response_json(response).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(payload["error"], "Invalid X-Node-Control-Token");
+}
+
+#[tokio::test]
 async fn handle_node_control_lists_configured_nodes() {
     let response = request(
         state_with(config_with_node_control(true, &["node-1", "node-2"], None), false, &[]),
@@ -272,6 +336,25 @@ async fn handle_node_control_describes_allowed_node() {
 }
 
 #[tokio::test]
+async fn handle_node_control_describes_node_when_allowlist_is_empty() {
+    let response = request(
+        state_with(config_with_node_control(true, &[], None), false, &[]),
+        HeaderMap::new(),
+        NodeControlRequest {
+            method: "node.describe".to_string(),
+            node_id: Some("node-without-entry".to_string()),
+            capability: None,
+            arguments: serde_json::Value::Null,
+        },
+    )
+    .await;
+
+    let (status, payload) = response_json(response).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(payload["node_id"], "node-without-entry");
+}
+
+#[tokio::test]
 async fn handle_node_control_invoke_requires_node_id() {
     let response = request(
         state_with(config_with_node_control(true, &[], None), false, &[]),
@@ -331,6 +414,26 @@ async fn handle_node_control_invoke_returns_scaffold_error() {
     assert_eq!(payload["capability"], "shell");
     assert_eq!(payload["arguments"], arguments);
     assert_eq!(payload["error"], "node.invoke backend is not implemented yet in this scaffold");
+}
+
+#[tokio::test]
+async fn handle_node_control_invoke_preserves_missing_optional_fields() {
+    let response = request(
+        state_with(config_with_node_control(true, &["node-1"], None), false, &[]),
+        HeaderMap::new(),
+        NodeControlRequest {
+            method: "node.invoke".to_string(),
+            node_id: Some("node-1".to_string()),
+            capability: None,
+            arguments: serde_json::Value::Null,
+        },
+    )
+    .await;
+
+    let (status, payload) = response_json(response).await;
+    assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+    assert_eq!(payload["capability"], serde_json::Value::Null);
+    assert_eq!(payload["arguments"], serde_json::Value::Null);
 }
 
 #[tokio::test]

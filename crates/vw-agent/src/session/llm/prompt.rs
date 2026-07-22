@@ -139,6 +139,80 @@ async fn resolve_model(model: Option<String>) -> Result<provider::Model, String>
     provider::get_model(&parsed.provider_id, &parsed.model_id).await.map_err(|e| e.to_string())
 }
 
+fn request_options_enable_acp(options: &Value) -> bool {
+    options.get("acp_test").and_then(Value::as_bool).unwrap_or(false)
+        || options
+            .get("acp_agent")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty())
+}
+
+fn acp_route_model(options: &Value) -> provider::Model {
+    let model_id = options
+        .get("acp_agent")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("acp")
+        .to_string();
+    provider::Model {
+        id: model_id.clone(),
+        provider_id: "acp".to_string(),
+        api: provider::ApiInfo {
+            id: model_id.clone(),
+            url: String::new(),
+            adapter: "acp".to_string(),
+        },
+        name: model_id,
+        family: None,
+        capabilities: provider::Capabilities {
+            temperature: false,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: provider::CapabilityIO {
+                text: true,
+                audio: false,
+                image: false,
+                video: false,
+                pdf: false,
+            },
+            output: provider::CapabilityIO {
+                text: true,
+                audio: false,
+                image: false,
+                video: false,
+                pdf: false,
+            },
+            interleaved: provider::InterleavedCapability::Bool(false),
+        },
+        cost: provider::ModelCost {
+            input: 0.0,
+            output: 0.0,
+            cache: provider::ModelCostCache { read: 0.0, write: 0.0 },
+            experimental_over_200k: None,
+        },
+        limit: provider::ModelLimit { context: 8192, input: None, output: 4096 },
+        status: "active".to_string(),
+        options: HashMap::new(),
+        headers: HashMap::new(),
+        release_date: "1970-01-01".to_string(),
+        variants: HashMap::new(),
+    }
+}
+
+async fn resolve_model_for_options(
+    model: Option<String>,
+    options: &Value,
+) -> Result<provider::Model, String> {
+    let has_explicit_model = model.as_deref().map(str::trim).is_some_and(|value| !value.is_empty());
+    if !has_explicit_model && request_options_enable_acp(options) {
+        return Ok(acp_route_model(options));
+    }
+
+    resolve_model(model).await
+}
+
 /// 获取当前时间的 Unix 时间戳（毫秒）
 ///
 /// ## 返回值
@@ -590,6 +664,28 @@ pub fn stream_chat_with_tools_for_session(
     tools: HashMap<String, tools::ToolSpec>,
     mut on_event: impl FnMut(StreamEvent) + Send + 'static,
 ) {
+    stream_chat_with_tools_for_session_with_abort(
+        session_id,
+        messages,
+        system,
+        model,
+        options,
+        tools,
+        None,
+        move |ev| (&mut on_event)(ev),
+    );
+}
+
+pub(crate) fn stream_chat_with_tools_for_session_with_abort(
+    session_id: &str,
+    messages: Vec<Value>,
+    system: Vec<String>,
+    model: Option<String>,
+    options: Value,
+    tools: HashMap<String, tools::ToolSpec>,
+    abort: Option<tokio::sync::watch::Receiver<bool>>,
+    mut on_event: impl FnMut(StreamEvent) + Send + 'static,
+) {
     // Web 平台不支持此功能
     if cfg!(target_arch = "wasm32") {
         (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown {
@@ -601,7 +697,7 @@ pub fn stream_chat_with_tools_for_session(
     let session_id = session_id.to_string();
 
     // 解析模型标识符
-    let model = match block_on(resolve_model(model)) {
+    let model = match block_on(resolve_model_for_options(model, &options)) {
         Ok(m) => m,
         Err(e) => {
             (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown { message: e }));
@@ -629,7 +725,7 @@ pub fn stream_chat_with_tools_for_session(
                 permission: Default::default(),
             },
             system,
-            abort: None,
+            abort,
             messages,
             small: false,
             tools,

@@ -72,3 +72,44 @@ fn malformed_expression_returns_error() {
         SedParseError::MalformedSubstitute
     );
 }
+
+#[test]
+fn rejects_substitute_without_in_place_flag() {
+    assert_eq!(
+        SedEdit::parse(&parse_command("sed 's/old/new/' file.txt")).unwrap_err(),
+        SedParseError::NotInPlaceSubstitute
+    );
+}
+
+#[test]
+fn rejects_substitute_with_multiple_targets() {
+    assert_eq!(
+        SedEdit::parse(&parse_command("sed -i 's/old/new/' one.txt two.txt")).unwrap_err(),
+        SedParseError::InvalidTargetCount
+    );
+}
+
+#[test]
+fn rejected_script_preserves_validation_reason() {
+    assert_eq!(
+        SedEdit::parse(&parse_command("sed -i 'd' file.txt")).unwrap_err(),
+        SedParseError::Validation("only sed print and substitute commands are allowed".into())
+    );
+}
+
+#[test]
+fn invalid_regex_is_reported_when_content_is_applied() {
+    let edit = SedEdit::parse(&parse_command("sed -i 's/[/new/' file.txt")).unwrap();
+
+    assert!(matches!(
+        edit.apply_to_content("old text"),
+        Err(SedParseError::InvalidRegex(message)) if !message.is_empty()
+    ));
+}
+
+#[test]
+fn substitute_without_global_flag_replaces_first_match_on_each_line() {
+    let edit = SedEdit::parse(&parse_command("sed -i 's/old/new/' file.txt")).unwrap();
+
+    assert_eq!(edit.apply_to_content("old old\nold old").unwrap(), "new old\nnew old");
+}

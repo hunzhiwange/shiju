@@ -20,11 +20,16 @@ use crate::app::components::text_editor_context_menu::{
     focus_editor_task, paste_action, paste_task, selection_copy_task, selection_cut_task,
     selection_delete_task,
 };
-use crate::app::state::TaskBoardSettingsModalTab;
+use crate::app::state::{
+    TaskBoardDetailTab, TaskBoardSettingsModalTab, TaskBoardStaffAssignmentTab,
+    TaskBoardStaffFeedTab, TaskBoardStaffOrchestrationTab,
+};
 use crate::app::task::executor::TaskLogStream;
 use crate::app::task::{
-    SubTask, Task, TaskBoardSettings, TaskDraft, TaskImportPromptFormat, TaskLogEntry, TaskStatus,
-    normalize_task_acp_agent_input, normalize_task_model_input,
+    SubTask, Task, TaskBoardSettings, TaskBoardStaffCommand, TaskBoardStaffCommandAction,
+    TaskBoardStaffCommandStatus, TaskBoardStaffConfig, TaskDraft, TaskImportPromptFormat,
+    TaskLogEntry, TaskSplitMode, TaskStatus, normalize_task_acp_agent_input,
+    normalize_task_model_input,
 };
 
 mod helpers;
@@ -33,6 +38,7 @@ mod update;
 
 pub(crate) use helpers::import_prompt_template;
 pub use message::TaskBoardMessage;
+pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;
 #[cfg(test)]
 #[path = "task_board_tests.rs"]

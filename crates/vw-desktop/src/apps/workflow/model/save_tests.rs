@@ -171,6 +171,64 @@ fn patch_root_for_save_updates_app_graph_variables_viewport_and_removes_legacy_g
 }
 
 #[test]
+fn patch_root_for_save_creates_required_sections_from_non_mapping_root() {
+    let app_meta = WorkflowAppMeta {
+        name: "Fresh".to_string(),
+        description: String::new(),
+        icon: "F".to_string(),
+        icon_background: "#ffffff".to_string(),
+        mode: "workflow".to_string(),
+        use_icon_as_answer_icon: false,
+        max_active_requests: 1,
+    };
+    let document = WorkflowDocument {
+        name: "Fresh".to_string(),
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        viewport: WorkflowViewport::default(),
+    };
+
+    let patched = patch_root_for_save(
+        &app_meta,
+        &document,
+        &[],
+        &[],
+        &Value::String("not a root map".to_string()),
+        WorkflowViewport { x: -1.0, y: 2.5, zoom: 0.75 },
+    )
+    .expect("non-map roots should be normalized");
+
+    assert_eq!(map_value(map_value(&patched, "app"), "name").as_str(), Some("Fresh"));
+    let workflow = map_value(&patched, "workflow");
+    let graph = map_value(workflow, "graph");
+    assert!(map_value(graph, "nodes").as_sequence().unwrap().is_empty());
+    assert!(map_value(graph, "edges").as_sequence().unwrap().is_empty());
+    assert_eq!(map_value(map_value(graph, "viewport"), "x"), &yaml_value(-1.0_f64));
+    assert!(map_value(workflow, "environment_variables").as_sequence().unwrap().is_empty());
+    assert!(map_value(workflow, "conversation_variables").as_sequence().unwrap().is_empty());
+}
+
+#[test]
+fn patch_root_for_save_preserves_unrelated_root_metadata() {
+    let app_meta = WorkflowAppMeta { name: "Meta".to_string(), ..WorkflowAppMeta::default() };
+    let document = WorkflowDocument::default();
+    let raw_root = yaml_map(vec![("custom_metadata", Value::String("keep me".to_string()))]);
+
+    let patched = patch_root_for_save(
+        &app_meta,
+        &document,
+        &[],
+        &[],
+        &raw_root,
+        WorkflowViewport { x: 0.0, y: 0.0, zoom: 1.0 },
+    )
+    .expect("root metadata should be preserved");
+
+    assert_eq!(map_value(&patched, "custom_metadata").as_str(), Some("keep me"));
+    assert_eq!(map_value(map_value(&patched, "app"), "name").as_str(), Some("Meta"));
+}
+
+#[test]
 fn saved_node_value_rewrites_geometry_selection_handle_sides_parent_and_data() {
     let raw_node = yaml_map(vec![
         ("parentId", Value::String("old-parent".to_string())),
@@ -204,6 +262,24 @@ fn saved_node_value_rewrites_geometry_selection_handle_sides_parent_and_data() {
 }
 
 #[test]
+fn saved_node_value_normalizes_non_mapping_raw_and_removes_blank_parent() {
+    let mut node = test_node("node-3", "llm", Value::Sequence(Vec::new()));
+    node.parent_id = Some("   ".to_string());
+    node.selected = false;
+    node.source_side = WorkflowHandleSide::Left;
+    node.target_side = WorkflowHandleSide::Right;
+
+    let saved = saved_node_value(&node);
+
+    assert_eq!(map_value(&saved, "id").as_str(), Some("node-3"));
+    assert!(map_missing(&saved, "parentId"));
+    assert_eq!(map_value(&saved, "selected").as_bool(), Some(false));
+    assert_eq!(map_value(&saved, "sourcePosition").as_str(), Some("left"));
+    assert_eq!(map_value(&saved, "targetPosition").as_str(), Some("right"));
+    assert_eq!(map_value(map_value(&saved, "data"), "type").as_str(), Some("llm"));
+}
+
+#[test]
 fn saved_edge_value_rewrites_endpoints_handles_data_and_type() {
     let saved = saved_edge_value(&test_edge(Value::Null));
 
@@ -221,6 +297,25 @@ fn saved_edge_value_rewrites_endpoints_handles_data_and_type() {
     let raw_edge = yaml_map(vec![("type", Value::String("smoothstep".to_string()))]);
     let preserved = saved_edge_value(&test_edge(raw_edge));
     assert_eq!(map_value(&preserved, "type").as_str(), Some("smoothstep"));
+}
+
+#[test]
+fn saved_edge_value_removes_blank_handles_and_preserves_raw_data_fields() {
+    let mut edge =
+        test_edge(yaml_map(vec![("data", yaml_map(vec![("isInLoop", Value::Bool(true))]))]));
+    edge.source_handle = Some(" ".to_string());
+    edge.target_handle = Some(String::new());
+    edge.selected = false;
+
+    let saved = saved_edge_value(&edge);
+
+    assert!(map_missing(&saved, "sourceHandle"));
+    assert!(map_missing(&saved, "targetHandle"));
+    assert_eq!(map_value(&saved, "selected").as_bool(), Some(false));
+    let data = map_value(&saved, "data");
+    assert_eq!(map_value(data, "isInLoop").as_bool(), Some(true));
+    assert_eq!(map_value(data, "sourceType").as_str(), Some("start"));
+    assert_eq!(map_value(data, "targetType").as_str(), Some("answer"));
 }
 
 #[test]
@@ -278,6 +373,25 @@ fn raw_graph_and_workflow_lookup_handles_nested_and_legacy_shapes() {
 }
 
 #[test]
+fn raw_graph_value_requires_nested_workflow_graph_when_workflow_key_exists() {
+    let workflow_without_map = yaml_map(vec![
+        ("workflow", Value::String("not a workflow map".to_string())),
+        ("graph", yaml_map(vec![("legacy", Value::Bool(true))])),
+    ]);
+    let workflow_without_graph =
+        yaml_map(vec![("workflow", yaml_map(vec![])), ("graph", yaml_map(vec![]))]);
+    let workflow_graph_not_map = yaml_map(vec![(
+        "workflow",
+        yaml_map(vec![("graph", Value::String("not a graph map".to_string()))]),
+    )]);
+
+    assert!(raw_graph_value(&workflow_without_map).is_none());
+    assert!(raw_graph_value(&workflow_without_graph).is_none());
+    assert!(raw_graph_value(&workflow_graph_not_map).is_none());
+    assert!(raw_workflow_value(&workflow_without_map).is_none());
+}
+
+#[test]
 fn yaml_helpers_create_editor_yaml_maps_points_viewports_and_optional_strings() {
     let yaml = yaml_string_for_editor(&yaml_map(vec![("name", Value::String("demo".to_string()))]))
         .expect("yaml should serialize");
@@ -302,4 +416,29 @@ fn yaml_helpers_create_editor_yaml_maps_points_viewports_and_optional_strings() 
     assert_eq!(handle_side_name(WorkflowHandleSide::Bottom), "bottom");
     assert!(is_chat_mode("advanced-chat"));
     assert!(!is_chat_mode(" workflow "));
+}
+
+#[test]
+fn yaml_helpers_preserve_existing_maps_and_scalar_yaml_without_document_marker() {
+    let existing = yaml_map(vec![("kept", Value::Bool(true))]);
+    assert_eq!(
+        ensure_root_mapping(existing.clone())
+            .as_mapping()
+            .unwrap()
+            .get("kept")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let mut value = existing;
+    let map = ensure_value_mapping(&mut value);
+    assert_eq!(map.get("kept").and_then(Value::as_bool), Some(true));
+    set_optional_string(map, "maybe", None);
+    assert!(map.get("maybe").is_none());
+
+    let yaml = yaml_string_for_editor(&Value::String("plain".to_string()))
+        .expect("scalar YAML should serialize");
+    assert_eq!(yaml, "plain\n");
+    assert_eq!(yaml_value("value"), Value::String("value".to_string()));
+    assert!(is_chat_mode("   "));
 }

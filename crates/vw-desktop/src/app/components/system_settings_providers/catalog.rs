@@ -7,13 +7,65 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, provider_logo_svg, rounded_action_btn_style, settings_modal_card,
     settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
 };
+use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
 use std::collections::BTreeMap;
 
-fn catalog_surface_style(theme: &Theme) -> iced::widget::container::Style {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct CatalogProviderItem {
+    pub(super) provider_id: String,
+    pub(super) provider_name: String,
+    pub(super) model_count: usize,
+    pub(super) is_connected: bool,
+    pub(super) in_popular: bool,
+}
+
+pub(super) fn visible_catalog_providers(
+    catalog_items: &[ModelCatalogEntry],
+    configured_providers: &[ProviderSummary],
+    popular_patterns: &[String],
+    query: &str,
+) -> Vec<CatalogProviderItem> {
+    let mut providers = BTreeMap::<String, (String, usize)>::new();
+    for item in catalog_items {
+        providers
+            .entry(item.provider_id.clone())
+            .and_modify(|entry| entry.1 += 1)
+            .or_insert_with(|| (item.provider_name.clone(), 1));
+    }
+
+    let query = query.trim().to_ascii_lowercase();
+    providers
+        .into_iter()
+        .filter_map(|(provider_id, (provider_name, model_count))| {
+            if !query.is_empty()
+                && !provider_id.to_ascii_lowercase().contains(&query)
+                && !provider_name.to_ascii_lowercase().contains(&query)
+            {
+                return None;
+            }
+
+            Some(CatalogProviderItem {
+                is_connected: configured_providers
+                    .iter()
+                    .any(|provider| provider.id == provider_id && provider.connected),
+                in_popular: popular_patterns.iter().any(|pattern| pattern == &provider_id),
+                provider_id,
+                provider_name,
+                model_count,
+            })
+        })
+        .collect()
+}
+
+pub(super) fn model_count_label(model_count: usize) -> String {
+    if model_count == 1 { "1 个模型".to_string() } else { format!("{} 个模型", model_count) }
+}
+
+pub(super) fn catalog_surface_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
 
     iced::widget::container::Style {
@@ -27,7 +79,7 @@ fn catalog_surface_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-fn catalog_list_frame_style(theme: &Theme) -> iced::widget::container::Style {
+pub(super) fn catalog_list_frame_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
 
     iced::widget::container::Style {
@@ -47,7 +99,7 @@ fn catalog_list_frame_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-fn catalog_item_style(theme: &Theme) -> iced::widget::container::Style {
+pub(super) fn catalog_item_style(theme: &Theme) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
 
     iced::widget::container::Style {
@@ -92,28 +144,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let catalog_items = s.catalog_items.clone();
 
-        let mut providers = BTreeMap::<String, (String, usize)>::new();
-        for item in &catalog_items {
-            providers
-                .entry(item.provider_id.clone())
-                .and_modify(|entry| entry.1 += 1)
-                .or_insert_with(|| (item.provider_name.clone(), 1));
-        }
+        let visible_providers = visible_catalog_providers(
+            &catalog_items,
+            &s.providers,
+            &s.popular_patterns,
+            &s.catalog_query,
+        );
 
         let mut list = column![].spacing(8);
-        let q = s.catalog_query.trim().to_ascii_lowercase();
-        let mut visible_count = 0usize;
-        for (provider_id, (provider_name, model_count)) in providers {
-            if !q.is_empty() {
-                let provider_id_lower = provider_id.to_ascii_lowercase();
-                let provider_name_lower = provider_name.to_ascii_lowercase();
-                if !provider_id_lower.contains(&q) && !provider_name_lower.contains(&q) {
-                    continue;
-                }
-            }
-
-            let is_connected = s.providers.iter().any(|pp| pp.id == provider_id && pp.connected);
-            let in_popular = s.popular_patterns.iter().any(|x| x == &provider_id);
+        let visible_count = visible_providers.len();
+        for provider in visible_providers {
+            let CatalogProviderItem {
+                provider_id,
+                provider_name,
+                model_count,
+                is_connected,
+                in_popular,
+            } = provider;
             let connect_btn = if is_connected {
                 button(text("已连接")).padding([6, 10]).style(rounded_action_btn_style)
             } else {
@@ -135,11 +182,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     .style(rounded_action_btn_style)
             };
 
-            let subtitle = if model_count == 1 {
-                "1 个模型".to_string()
-            } else {
-                format!("{} 个模型", model_count)
-            };
+            let subtitle = model_count_label(model_count);
             let row_item = container(
                 row![
                     container(provider_logo_svg(&provider_id, 16.0))
@@ -169,7 +212,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .width(Length::Fill)
             .style(catalog_item_style);
 
-            visible_count += 1;
             list = list.push(row_item);
         }
 

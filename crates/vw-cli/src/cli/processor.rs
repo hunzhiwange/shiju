@@ -225,6 +225,7 @@ pub(crate) fn gateway_stream_request_from_processor_request(
         messages,
         system: None,
         model: req.model.clone(),
+        reasoning_effort: None,
         agent: None,
         allowed_tools: None,
         acp_agent: None,
@@ -348,3 +349,7 @@ fn gateway_role(role: models::ChatRole) -> &'static str {
 fn gateway_request_options(options: &Value) -> Option<Value> {
     if options.is_null() { None } else { Some(options.clone()) }
 }
+
+#[cfg(test)]
+#[path = "processor_tests.rs"]
+mod tests;

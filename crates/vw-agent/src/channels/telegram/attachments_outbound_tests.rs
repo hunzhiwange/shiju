@@ -68,6 +68,20 @@ impl Drop for TestServer {
     }
 }
 
+impl ResponseSpec {
+    fn json(body: &str) -> Self {
+        Self {
+            status: StatusCode::OK,
+            body: body.as_bytes().to_vec(),
+            content_type: "application/json",
+        }
+    }
+
+    fn bytes(body: Vec<u8>, content_type: &'static str) -> Self {
+        Self { status: StatusCode::OK, body, content_type }
+    }
+}
+
 async fn record_request(
     State(state): State<Arc<TestServerState>>,
     uri: OriginalUri,
@@ -98,6 +112,14 @@ fn png_bytes(width: u32, height: u32) -> Vec<u8> {
     bytes
 }
 
+fn decoded_data_uri_image(data_uri: &str) -> DynamicImage {
+    let encoded = data_uri.strip_prefix("data:image/jpeg;base64,").expect("jpeg data uri prefix");
+    let decoded = base64::engine::general_purpose::STANDARD.decode(encoded).expect("base64 jpeg");
+
+    assert!(decoded.starts_with(&[0xFF, 0xD8]));
+    image::load_from_memory(&decoded).expect("decoded jpeg image")
+}
+
 #[test]
 fn telegram_attachment_preserves_target_verbatim() {
     let attachment = TelegramAttachment {
@@ -112,12 +134,8 @@ fn telegram_attachment_preserves_target_verbatim() {
 async fn resolve_photo_data_uri_downloads_and_encodes_image() {
     let image = png_bytes(8, 6);
     let server = TestServer::spawn(vec![
-        ResponseSpec {
-            status: StatusCode::OK,
-            body: br#"{"ok":true,"result":{"file_path":"photos/file.png"}}"#.to_vec(),
-            content_type: "application/json",
-        },
-        ResponseSpec { status: StatusCode::OK, body: image, content_type: "image/png" },
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"photos/file.png"}}"#),
+        ResponseSpec::bytes(image, "image/png"),
     ])
     .await;
     let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
@@ -125,10 +143,8 @@ async fn resolve_photo_data_uri_downloads_and_encodes_image() {
 
     let data_uri = channel.resolve_photo_data_uri("photo-id").await.expect("data uri");
 
-    assert!(data_uri.starts_with("data:image/jpeg;base64,"));
-    let encoded = data_uri.trim_start_matches("data:image/jpeg;base64,");
-    let decoded = base64::engine::general_purpose::STANDARD.decode(encoded).expect("base64 jpeg");
-    assert!(decoded.starts_with(&[0xFF, 0xD8]));
+    let decoded = decoded_data_uri_image(&data_uri);
+    assert_eq!((decoded.width(), decoded.height()), (8, 6));
 
     let paths = server.paths().await;
     assert_eq!(
@@ -139,12 +155,7 @@ async fn resolve_photo_data_uri_downloads_and_encodes_image() {
 
 #[tokio::test]
 async fn resolve_photo_data_uri_errors_when_file_path_missing() {
-    let server = TestServer::spawn(vec![ResponseSpec {
-        status: StatusCode::OK,
-        body: br#"{"ok":true,"result":{}}"#.to_vec(),
-        content_type: "application/json",
-    }])
-    .await;
+    let server = TestServer::spawn(vec![ResponseSpec::json(r#"{"ok":true,"result":{}}"#)]).await;
     let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
         .with_api_base(server.base_url.clone());
 
@@ -155,4 +166,62 @@ async fn resolve_photo_data_uri_errors_when_file_path_missing() {
 
     assert!(error.to_string().contains("no file_path"));
     assert_eq!(server.paths().await, vec!["/bot123:ABC/getFile?file_id=photo-id"]);
+}
+
+#[tokio::test]
+async fn resolve_photo_data_uri_resizes_large_images_to_max_dimension() {
+    let image = png_bytes(1024, 256);
+    let server = TestServer::spawn(vec![
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"photos/wide.png"}}"#),
+        ResponseSpec::bytes(image, "image/png"),
+    ])
+    .await;
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
+        .with_api_base(server.base_url.clone());
+
+    let data_uri = channel.resolve_photo_data_uri("wide-photo").await.expect("data uri");
+
+    let decoded = decoded_data_uri_image(&data_uri);
+    assert_eq!((decoded.width(), decoded.height()), (512, 128));
+    assert_eq!(
+        server.paths().await,
+        vec!["/bot123:ABC/getFile?file_id=wide-photo", "/file/bot123:ABC/photos/wide.png"]
+    );
+}
+
+#[tokio::test]
+async fn resolve_photo_data_uri_errors_when_get_file_json_is_invalid() {
+    let server = TestServer::spawn(vec![ResponseSpec::json("not json")]).await;
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
+        .with_api_base(server.base_url.clone());
+
+    let error =
+        channel.resolve_photo_data_uri("photo-id").await.expect_err("invalid json should fail");
+
+    assert!(!error.to_string().is_empty());
+    assert_eq!(server.paths().await, vec!["/bot123:ABC/getFile?file_id=photo-id"]);
+}
+
+#[tokio::test]
+async fn resolve_photo_data_uri_errors_when_download_is_not_an_image() {
+    let server = TestServer::spawn(vec![
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"photos/not-image.bin"}}"#),
+        ResponseSpec::bytes(b"not an image".to_vec(), "application/octet-stream"),
+    ])
+    .await;
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
+        .with_api_base(server.base_url.clone());
+
+    let error =
+        channel.resolve_photo_data_uri("photo-id").await.expect_err("non-image body should fail");
+
+    assert!(
+        error.to_string().contains("format")
+            || error.to_string().contains("image")
+            || error.to_string().contains("reader")
+    );
+    assert_eq!(
+        server.paths().await,
+        vec!["/bot123:ABC/getFile?file_id=photo-id", "/file/bot123:ABC/photos/not-image.bin"]
+    );
 }

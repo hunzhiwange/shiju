@@ -26,9 +26,21 @@ impl Provider for StaticProvider {
     }
 }
 
-#[derive(Default)]
 struct RecordingChannel {
     sent: tokio::sync::Mutex<Vec<SendMessage>>,
+    fail_send: bool,
+}
+
+impl RecordingChannel {
+    fn failing() -> Self {
+        Self { sent: tokio::sync::Mutex::new(Vec::new()), fail_send: true }
+    }
+}
+
+impl Default for RecordingChannel {
+    fn default() -> Self {
+        Self { sent: tokio::sync::Mutex::new(Vec::new()), fail_send: false }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -39,6 +51,9 @@ impl Channel for RecordingChannel {
     }
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+        if self.fail_send {
+            anyhow::bail!("send failed");
+        }
         self.sent.lock().await.push(message.clone());
         Ok(())
     }
@@ -184,6 +199,50 @@ async fn task_mode_creates_task_and_sends_threaded_response() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+async fn task_mode_keeps_auto_model_when_route_uses_auto() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let ctx = context(temp.path());
+    set_route_selection(&ctx, "sender", route("default-provider", "auto", true));
+    let channel = Arc::new(RecordingChannel::default());
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    let handled = handle_task_mode_message_if_needed(
+        &ctx,
+        &message("  keep auto model  "),
+        "sender",
+        Some(&channel_dyn),
+    )
+    .await;
+
+    assert!(handled);
+    let sent = channel.sent.lock().await;
+    assert_eq!(sent.len(), 1);
+    let task_id = sent[0]
+        .content
+        .strip_prefix("任务已创建，任务编号：")
+        .expect("success response should include task id")
+        .to_string();
+    drop(sent);
+
+    let conn = rusqlite::Connection::open(
+        temp.path()
+            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join("tasks")
+            .join("_index.sqlite3"),
+    )
+    .expect("task db should open");
+    let (model, prompt): (String, String) = conn
+        .query_row("SELECT model, prompt FROM tasks WHERE id = ?1", [&task_id], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .expect("created task should be persisted");
+
+    assert_eq!(model, "auto");
+    assert_eq!(prompt, "keep auto model");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
 async fn task_mode_reports_task_creation_error() {
     let temp = tempfile::tempdir().expect("temp dir");
     let project_file = temp.path().join("project-file");
@@ -205,4 +264,24 @@ async fn task_mode_reports_task_creation_error() {
     let sent = channel.sent.lock().await;
     assert_eq!(sent.len(), 1);
     assert!(sent[0].content.starts_with("任务创建失败："));
+}
+
+#[tokio::test]
+async fn task_mode_still_consumes_message_when_reply_send_fails() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let ctx = context(temp.path());
+    set_sender_task_mode(&ctx, "sender", true);
+    let channel = Arc::new(RecordingChannel::failing());
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    let handled = handle_task_mode_message_if_needed(
+        &ctx,
+        &message("create even if reply fails"),
+        "sender",
+        Some(&channel_dyn),
+    )
+    .await;
+
+    assert!(handled);
+    assert!(channel.sent.lock().await.is_empty());
 }

@@ -1,3 +1,7 @@
+use super::panels::{
+    settings_divider_style, settings_error_banner_style, settings_section_card_style,
+    settings_success_banner_style, settings_value_badge_style,
+};
 use super::{
     settings_divider, settings_error_banner, settings_modal_card, settings_modal_overlay,
     settings_page_intro, settings_panel, settings_section_card, settings_success_banner,
@@ -5,7 +9,7 @@ use super::{
 };
 use crate::app::Message;
 use iced::widget::text;
-use iced::{Element, Length};
+use iced::{Background, Element, Length, Theme};
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
     let size = element.as_widget().size();
@@ -87,4 +91,115 @@ fn settings_banners_fill_available_width() {
 
     assert_size(&error, Length::Fill, Length::Shrink);
     assert_size(&success, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn settings_section_card_style_differs_between_themes() {
+    let dark = settings_section_card_style(&Theme::Dark);
+    let light = settings_section_card_style(&Theme::Light);
+
+    assert_ne!(dark.background, light.background);
+    assert_ne!(dark.border.color, light.border.color);
+    assert_eq!(dark.border.width, 1.0);
+    assert_eq!(dark.border.radius, 16.0.into());
+}
+
+#[test]
+fn settings_divider_style_differs_between_themes() {
+    let dark = settings_divider_style(&Theme::Dark);
+    let light = settings_divider_style(&Theme::Light);
+
+    assert_ne!(dark.background, light.background);
+}
+
+#[test]
+fn settings_value_badge_style_differs_between_themes() {
+    let dark = settings_value_badge_style(&Theme::Dark);
+    let light = settings_value_badge_style(&Theme::Light);
+
+    assert_ne!(dark.background, light.background);
+    assert_ne!(dark.border.color, light.border.color);
+    assert_eq!(dark.border.radius, 999.0.into());
+    assert!(dark.text_color.is_some());
+}
+
+#[test]
+fn settings_error_banner_style_uses_danger_palette() {
+    let style = settings_error_banner_style(&Theme::Dark);
+
+    assert!(style.background.is_some());
+    assert!(style.text_color.is_some());
+    assert_eq!(style.border.width, 1.0);
+    assert_eq!(style.border.radius, 14.0.into());
+
+    if let Some(Background::Color(bg)) = style.background {
+        assert!(bg.a > 0.0);
+    } else {
+        panic!("expected solid color background");
+    }
+}
+
+#[test]
+fn settings_success_banner_style_uses_success_palette() {
+    let style = settings_success_banner_style(&Theme::Dark);
+
+    assert!(style.background.is_some());
+    assert!(style.text_color.is_some());
+    assert_eq!(style.border.width, 1.0);
+    assert_eq!(style.border.radius, 14.0.into());
+
+    if let Some(Background::Color(bg)) = style.background {
+        assert!(bg.a > 0.0);
+    } else {
+        panic!("expected solid color background");
+    }
+}
+
+#[test]
+fn settings_banner_styles_have_same_shape_both_themes() {
+    let dark_err = settings_error_banner_style(&Theme::Dark);
+    let light_err = settings_error_banner_style(&Theme::Light);
+    let dark_ok = settings_success_banner_style(&Theme::Dark);
+    let light_ok = settings_success_banner_style(&Theme::Light);
+
+    assert_eq!(dark_err.border.width, light_err.border.width);
+    assert_eq!(dark_ok.border.width, light_ok.border.width);
+    assert_eq!(dark_err.border.radius, light_err.border.radius);
+    assert_eq!(dark_ok.border.radius, light_ok.border.radius);
+}
+
+#[test]
+fn settings_section_card_with_empty_strings_does_not_panic() {
+    let element: Element<'_, Message> = settings_section_card("", "").into();
+    assert_size(&element, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn settings_page_intro_with_empty_strings_does_not_panic() {
+    let element = settings_page_intro("", "");
+    assert_eq!(element.as_widget().children().len(), 2);
+}
+
+#[test]
+fn settings_value_badge_with_empty_string() {
+    let element = settings_value_badge("");
+    assert_size(&element, Length::Shrink, Length::Shrink);
+}
+
+#[test]
+fn settings_value_badge_with_owned_string() {
+    let element = settings_value_badge("hello".to_string());
+    assert_size(&element, Length::Shrink, Length::Shrink);
+}
+
+#[test]
+fn settings_error_banner_with_empty_message() {
+    let element = settings_error_banner("");
+    assert_size(&element, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn settings_success_banner_with_empty_message() {
+    let element = settings_success_banner("");
+    assert_size(&element, Length::Fill, Length::Shrink);
 }

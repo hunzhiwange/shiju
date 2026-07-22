@@ -17,9 +17,9 @@
 use super::super::*;
 use crate::app::agent::config::SopConfig;
 use crate::app::agent::memory::Memory;
-use crate::app::agent::sop::SopAuditLogger;
 use crate::app::agent::sop::engine::SopEngine;
 use crate::app::agent::sop::types::*;
+use crate::app::agent::sop::{SopAuditLogger, SopMetricsCollector};
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
@@ -265,9 +265,47 @@ fn name_and_schema() {
     let engine = Arc::new(Mutex::new(SopEngine::new(SopConfig::default())));
     let tool = SopAdvanceTool::new(engine);
     assert_eq!(tool.name(), "sop_advance");
+    assert!(tool.description().contains("前进到下一步"));
     let schema = tool.parameters_schema();
     assert!(schema["properties"]["run_id"].is_object());
     assert!(schema["properties"]["status"]["enum"].is_array());
+}
+
+#[test]
+fn with_collector_configures_metrics_collection() {
+    let engine = Arc::new(Mutex::new(SopEngine::new(SopConfig::default())));
+    let collector = Arc::new(SopMetricsCollector::new());
+    let tool = SopAdvanceTool::new(engine).with_collector(collector);
+
+    assert!(tool.collector.is_some());
+}
+
+#[tokio::test]
+async fn advance_with_skipped_status_moves_to_next_step() {
+    let (engine, run_id) = engine_with_active_run();
+    let tool = SopAdvanceTool::new(engine);
+
+    let result = tool
+        .execute(json!({
+            "run_id": run_id,
+            "status": "skipped",
+            "output": "Not applicable"
+        }))
+        .await
+        .unwrap();
+
+    assert!(result.success);
+    assert!(result.output.contains("Step two"));
+}
+
+#[tokio::test]
+async fn advance_requires_each_declared_parameter() {
+    let (engine, run_id) = engine_with_active_run();
+    let tool = SopAdvanceTool::new(engine);
+
+    assert!(tool.execute(json!({"status": "completed", "output": "done"})).await.is_err());
+    assert!(tool.execute(json!({"run_id": &run_id, "output": "done"})).await.is_err());
+    assert!(tool.execute(json!({"run_id": &run_id, "status": "completed"})).await.is_err());
 }
 
 /// 测试推进错误时不写入步骤审计日志

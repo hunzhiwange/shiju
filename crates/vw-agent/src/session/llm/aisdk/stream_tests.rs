@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use aisdk::Error as AiError;
+use aisdk::core::DynamicModel;
 use aisdk::core::capabilities::ToolCallSupport;
 use aisdk::core::language_model::{
     LanguageModel, LanguageModelOptions, LanguageModelResponse,
@@ -11,6 +12,7 @@ use aisdk::core::language_model::{
 };
 use aisdk::core::tools::{ToolCallInfo, ToolDetails, ToolResultInfo};
 use aisdk::core::{AssistantMessage, Message};
+use aisdk::providers::{AlibabaCn, OpenAICompatible};
 use async_trait::async_trait;
 use futures_util::Stream;
 use serde_json::{Value, json};
@@ -31,6 +33,7 @@ type BoxedProviderStream = Pin<Box<dyn Stream<Item = ChunkResult> + Send>>;
 struct FakeModel {
     open_error: Option<AiError>,
     items: Vec<ChunkResult>,
+    pending_stream: bool,
     captured_options: Arc<Mutex<Option<LanguageModelOptions>>>,
 }
 
@@ -38,7 +41,12 @@ impl FakeModel {
     fn with_items(items: Vec<ChunkResult>) -> (Self, Arc<Mutex<Option<LanguageModelOptions>>>) {
         let captured_options = Arc::new(Mutex::new(None));
         (
-            Self { open_error: None, items, captured_options: captured_options.clone() },
+            Self {
+                open_error: None,
+                items,
+                pending_stream: false,
+                captured_options: captured_options.clone(),
+            },
             captured_options,
         )
     }
@@ -47,6 +55,16 @@ impl FakeModel {
         Self {
             open_error: Some(error),
             items: Vec::new(),
+            pending_stream: false,
+            captured_options: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn with_pending_stream() -> Self {
+        Self {
+            open_error: None,
+            items: Vec::new(),
+            pending_stream: true,
             captured_options: Arc::new(Mutex::new(None)),
         }
     }
@@ -73,6 +91,10 @@ impl LanguageModel for FakeModel {
 
         if let Some(error) = self.open_error.clone() {
             return Err(error);
+        }
+
+        if self.pending_stream {
+            return Ok(Box::pin(futures_util::stream::pending()));
         }
 
         Ok(Box::pin(futures_util::stream::iter(self.items.clone())))
@@ -156,6 +178,11 @@ fn reasoning_helpers_normalize_labels_and_dashscope_routing() {
     assert_eq!(parse_reasoning_effort_label("max"), None);
 
     assert!(uses_dashscope_reasoning_body("alibaba-cn", "https://example.com"));
+    assert!(uses_dashscope_reasoning_body("ALIBABA-CN", "https://example.com"));
+    assert!(uses_dashscope_reasoning_body(
+        "openai",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+    ));
     assert!(uses_dashscope_reasoning_body(
         "openai",
         "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
@@ -171,6 +198,7 @@ fn reasoning_helpers_normalize_labels_and_dashscope_routing() {
 fn reasoning_request_config_splits_dashscope_body_from_top_level_effort() {
     let missing = json!({});
     let invalid = json!({ "reasoning_effort": "extreme" });
+    let wrong_type = json!({ "reasoning_effort": 3 });
     let dashscope = json!({ "reasoning_effort": "high" });
     let openai = json!({ "reasoning_effort": "medium" });
 
@@ -179,6 +207,14 @@ fn reasoning_request_config_splits_dashscope_body_from_top_level_effort() {
             "openai",
             "https://api.openai.com/v1/chat/completions",
             missing.as_object().unwrap()
+        ),
+        (None, None)
+    );
+    assert_eq!(
+        reasoning_request_config(
+            "openai",
+            "https://api.openai.com/v1/chat/completions",
+            wrong_type.as_object().unwrap()
         ),
         (None, None)
     );
@@ -323,6 +359,122 @@ async fn stream_sends_deltas_tool_calls_usage_and_clamped_request_options() {
 }
 
 #[tokio::test]
+async fn request_options_scale_values_use_stop_fallback_and_ignore_wrong_types() {
+    let (model, captured) = FakeModel::with_items(vec![]);
+    let mut events = Vec::new();
+    let options = json!({
+        "presence_penalty": "0.25",
+        "frequency_penalty": true,
+        "seed": -1,
+        "top_k": 1.5,
+        "reasoning_effort": 3,
+        "stop": " END "
+    });
+
+    let result = do_stream_request_aisdk_with_model(
+        "openai".to_string(),
+        model,
+        "https://api.openai.com/v1/chat/completions".to_string(),
+        false,
+        vec![Message::User("hello".into())],
+        &HashMap::new(),
+        Some(0.555),
+        Some(0.444),
+        None,
+        &options,
+        7,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(events.as_slice(), [StreamEvent::Done { .. }]));
+
+    let captured =
+        captured.lock().expect("capture lock").clone().expect("stream options should be captured");
+    assert_eq!(captured.temperature, Some(56));
+    assert_eq!(captured.top_p, Some(44));
+    assert_eq!(captured.max_retries, Some(7));
+    assert_eq!(captured.max_output_tokens, None);
+    assert_eq!(captured.presence_penalty, None);
+    assert_eq!(captured.frequency_penalty, None);
+    assert_eq!(captured.seed, None);
+    assert_eq!(captured.top_k, None);
+    assert!(captured.reasoning_effort.is_none());
+    assert_eq!(captured.stop_sequences, Some(vec!["END".to_string()]));
+}
+
+#[tokio::test]
+async fn stop_sequences_field_prevents_fallback_to_stop_when_empty() {
+    let (model, captured) = FakeModel::with_items(vec![]);
+    let mut events = Vec::new();
+
+    let result = do_stream_request_aisdk_with_model(
+        "openai".to_string(),
+        model,
+        "https://api.openai.com/v1/chat/completions".to_string(),
+        false,
+        vec![Message::User("hello".into())],
+        &HashMap::new(),
+        None,
+        None,
+        None,
+        &json!({ "stop_sequences": [], "stop": "fallback" }),
+        0,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+
+    assert!(result.is_ok());
+    let captured =
+        captured.lock().expect("capture lock").clone().expect("stream options should be captured");
+    assert_eq!(captured.stop_sequences, None);
+}
+
+#[tokio::test]
+async fn tool_definitions_are_added_in_sorted_key_order() {
+    let (model, captured) = FakeModel::with_items(vec![]);
+    let tools = HashMap::from([
+        (
+            "z-key".to_string(),
+            tools::ToolSpec::new("zeta", "Zeta tool", json!({ "type": "object" })),
+        ),
+        (
+            "a-key".to_string(),
+            tools::ToolSpec::new("alpha", "Alpha tool", json!({ "type": "object" })),
+        ),
+    ]);
+    let mut events = Vec::new();
+
+    let result = do_stream_request_aisdk_with_model(
+        "openai".to_string(),
+        model,
+        "https://api.openai.com/v1/chat/completions".to_string(),
+        false,
+        vec![Message::User("hello".into())],
+        &tools,
+        None,
+        None,
+        None,
+        &Value::Null,
+        0,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+
+    assert!(result.is_ok());
+    let captured =
+        captured.lock().expect("capture lock").clone().expect("stream options should be captured");
+    let debug = format!("{captured:?}");
+    let alpha = debug.find("alpha").expect("alpha tool should be present");
+    let zeta = debug.find("zeta").expect("zeta tool should be present");
+    assert!(alpha < zeta, "tools were not sorted: {debug}");
+}
+
+#[tokio::test]
 async fn dashscope_reasoning_option_is_sent_in_extra_body() {
     let (model, captured) = FakeModel::with_items(vec![]);
     let mut events = Vec::new();
@@ -393,6 +545,172 @@ async fn done_content_emits_when_no_prior_delta_and_ignores_other_done_content()
 }
 
 #[tokio::test]
+async fn empty_deltas_do_not_suppress_non_empty_done_content() {
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::TextDelta(String::new())),
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::ReasoningDelta(String::new())),
+        done(AiContent::Text("final text".to_string()), None),
+        done(
+            AiContent::Reasoning {
+                content: "final reasoning".to_string(),
+                extensions: Default::default(),
+            },
+            None,
+        ),
+    ])]);
+
+    let (result, events) = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &Value::Null,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(&events[0], StreamEvent::Delta(text) if text == "final text"));
+    assert!(matches!(
+        &events[1],
+        StreamEvent::ReasoningDelta(text) if text == "final reasoning"
+    ));
+    assert!(matches!(&events[2], StreamEvent::Done { .. }));
+}
+
+#[tokio::test]
+async fn prior_reasoning_delta_suppresses_done_reasoning_content() {
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::ReasoningDelta("partial".to_string())),
+        done(
+            AiContent::Reasoning {
+                content: "complete".to_string(),
+                extensions: Default::default(),
+            },
+            None,
+        ),
+    ])]);
+
+    let (result, events) = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &Value::Null,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(
+        events.as_slice(),
+        [StreamEvent::ReasoningDelta(text), StreamEvent::Done { .. }] if text == "partial"
+    ));
+}
+
+#[tokio::test]
+async fn done_tool_call_is_emitted_and_sets_tool_call_finish_reason() {
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![done(
+        AiContent::ToolCall(tool_call("call-done", "search", json!({ "q": "rust" }))),
+        None,
+    )])]);
+
+    let (result, events) = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &Value::Null,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(
+        &events[0],
+        StreamEvent::ToolCalls(calls)
+            if calls.len() == 1
+                && calls[0].id == "call-done"
+                && calls[0].name == "search"
+                && calls[0].arguments == "{\"q\":\"rust\"}"
+    ));
+    assert!(matches!(
+        &events[1],
+        StreamEvent::Done { finish_reason, .. }
+            if finish_reason.as_deref() == Some("tool_calls")
+    ));
+}
+
+#[tokio::test]
+async fn duplicate_available_tool_calls_and_empty_done_content_emit_once() {
+    let available = tool_call("call-available", "search", json!({ "q": "rust" }));
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::ToolCallAvailable(available.clone())),
+        AiStreamChunk::Delta(LanguageModelStreamChunkType::ToolCallAvailable(available)),
+        done(AiContent::Text(String::new()), None),
+        done(AiContent::Reasoning { content: String::new(), extensions: Default::default() }, None),
+    ])]);
+
+    let (result, events) = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &Value::Null,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(
+        events.as_slice(),
+        [StreamEvent::ToolCalls(calls), StreamEvent::Done { finish_reason, .. }]
+            if calls.len() == 1
+                && calls[0].id == "call-available"
+                && finish_reason.as_deref() == Some("tool_calls")
+    ));
+}
+
+#[tokio::test]
+async fn latest_reported_usage_is_used_for_done_event() {
+    let (model, _) = FakeModel::with_items(vec![Ok(vec![
+        done(
+            AiContent::NotSupported("first".to_string()),
+            Some(Usage {
+                input_tokens: Some(1),
+                output_tokens: Some(2),
+                cached_tokens: Some(3),
+                reasoning_tokens: Some(4),
+            }),
+        ),
+        done(
+            AiContent::NotSupported("second".to_string()),
+            Some(Usage {
+                input_tokens: Some(10),
+                output_tokens: Some(20),
+                cached_tokens: Some(30),
+                reasoning_tokens: Some(40),
+            }),
+        ),
+    ])]);
+
+    let (result, events) = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &Value::Null,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok());
+    assert!(matches!(
+        events.as_slice(),
+        [StreamEvent::Done { usage, .. }]
+            if usage.input_tokens == 10
+                && usage.output_tokens == 20
+                && usage.cached_tokens == 30
+                && usage.reasoning_tokens == 40
+    ));
+}
+
+#[tokio::test]
 async fn stream_open_failure_maps_aisdk_error() {
     let model = FakeModel::with_open_error(AiError::MissingField("api_key".to_string()));
 
@@ -411,6 +729,62 @@ async fn stream_open_failure_maps_aisdk_error() {
         Err(Error::Api(AssistantError::ProviderAuthError { provider_id, message }))
             if provider_id == "openai" && message == "api_key"
     ));
+}
+
+#[tokio::test]
+async fn dynamic_provider_stream_open_failures_execute_stream_setup() {
+    let openai_model = OpenAICompatible::<DynamicModel>::builder()
+        .provider_name("openai")
+        .api_key("test-token")
+        .model_name("gpt-test")
+        .base_url("http://127.0.0.1:9/v1")
+        .build()
+        .expect("openai compatible model");
+    let alibaba_model = AlibabaCn::<DynamicModel>::builder()
+        .provider_name("alibaba-cn")
+        .api_key("test-token")
+        .model_name("gpt-test")
+        .base_url("http://127.0.0.1:9/compatible-mode/v1")
+        .build()
+        .expect("alibaba model");
+
+    let mut events = Vec::new();
+    let openai_result = do_stream_request_aisdk_with_model(
+        "openai".to_string(),
+        openai_model,
+        "http://127.0.0.1:9/v1/chat/completions".to_string(),
+        false,
+        vec![Message::User("hello".into())],
+        &HashMap::new(),
+        Some(0.2),
+        Some(0.8),
+        Some(16),
+        &json!({ "reasoning_effort": "low" }),
+        0,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+    assert!(matches!(openai_result, Err(Error::Api(_))));
+
+    let alibaba_result = do_stream_request_aisdk_with_model(
+        "alibaba-cn".to_string(),
+        alibaba_model,
+        "http://127.0.0.1:9/compatible-mode/v1/chat/completions".to_string(),
+        false,
+        vec![Message::User("hello".into())],
+        &HashMap::new(),
+        Some(0.2),
+        Some(0.8),
+        Some(16),
+        &json!({ "reasoning_effort": "low" }),
+        0,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+    assert!(matches!(alibaba_result, Err(Error::Api(_))));
+    assert!(events.is_empty());
 }
 
 #[tokio::test]
@@ -500,6 +874,31 @@ async fn stream_returns_aborted_when_abort_flag_is_already_set() {
     )
     .await;
 
+    assert!(matches!(result, Err(Error::Aborted)));
+    assert!(events.is_empty());
+}
+
+#[tokio::test]
+async fn abort_change_interrupts_a_pending_stream() {
+    let model = FakeModel::with_pending_stream();
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    let options = Value::Null;
+
+    let request = run_fake_stream(
+        "openai",
+        "https://api.openai.com/v1/chat/completions",
+        model,
+        &options,
+        Some(&rx),
+    );
+    let trigger_abort = async move {
+        tokio::task::yield_now().await;
+        tx.send(true)
+    };
+
+    let ((result, events), send_result) = tokio::join!(request, trigger_abort);
+
+    assert!(send_result.is_ok());
     assert!(matches!(result, Err(Error::Aborted)));
     assert!(events.is_empty());
 }

@@ -23,3 +23,7 @@ rustflags = ["-C", "link-args=/STACK:8388608"]
 
 [target.wasm32-unknown-unknown]
 rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
+
+# Unit tests mutate process-wide environment variables and runtime caches.
+[env]
+RUST_TEST_THREADS = { value = "1", force = false }

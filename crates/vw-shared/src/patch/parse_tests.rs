@@ -98,6 +98,22 @@ fn parse_patch_keeps_full_input_when_heredoc_body_does_not_start_on_next_line() 
 }
 
 #[test]
+fn parse_patch_keeps_full_input_when_heredoc_end_marker_is_missing() {
+    let parsed = parse_patch(
+        "apply_patch <<PATCH\n*** Begin Patch\n*** Add File: note.txt\n+hello\n*** End Patch\n",
+    )
+    .expect("patch body should still parse when heredoc terminator is missing");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Add { path, contents }] => {
+            assert_eq!(path, "note.txt");
+            assert_eq!(contents, "hello");
+        }
+        other => panic!("expected single add hunk, got {other:?}"),
+    }
+}
+
+#[test]
 fn parse_patch_supports_double_quoted_and_unquoted_heredoc_markers() {
     let double_quoted = parse_patch(
         "apply_patch <<\"PATCH\"\n*** Begin Patch\n*** Delete File: a.txt\n*** End Patch\nPATCH\n",
@@ -158,6 +174,32 @@ fn parse_patch_supports_chinese_markers_and_fullwidth_colons() {
         Hunk::Delete { path } => assert_eq!(path, "old.txt"),
         other => panic!("expected delete hunk, got {other:?}"),
     }
+}
+
+#[test]
+fn parse_patch_accepts_header_colon_variants_and_colonless_headers() {
+    let parsed = parse_patch(
+        r#"
+*** Begin Patch
+*** Add File no-colon.txt
++plain
+*** 删除文件: ascii-colon.txt
+*** Update File: spaced.txt
+@@
+-old
++new
+*** End Patch
+"#,
+    )
+    .expect("header variants should parse");
+
+    assert_eq!(parsed.hunks.len(), 3);
+    assert!(matches!(
+        &parsed.hunks[0],
+        Hunk::Add { path, contents } if path == "no-colon.txt" && contents == "plain"
+    ));
+    assert!(matches!(&parsed.hunks[1], Hunk::Delete { path } if path == "ascii-colon.txt"));
+    assert!(matches!(&parsed.hunks[2], Hunk::Update { path, .. } if path == "spaced.txt"));
 }
 
 #[test]
@@ -232,6 +274,140 @@ fn parse_patch_errors_when_begin_is_after_end() {
     let err = parse_patch("*** End Patch\n*** Begin Patch").unwrap_err();
 
     assert_parse_error_contains(err, "Begin marker after End marker");
+}
+
+#[test]
+fn parse_patch_keeps_full_input_when_heredoc_end_marker_missing() {
+    // 打开 heredoc 且正文起始正确，但缺少结尾标记行，应回退为完整输入。
+    let parsed = parse_patch(
+        "apply_patch <<'PATCH'\n*** Begin Patch\n*** Delete File: a.txt\n*** End Patch\n",
+    )
+    .expect("patch should still parse from full input");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Delete { path }] => assert_eq!(path, "a.txt"),
+        other => panic!("expected delete hunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_patch_add_file_with_no_plus_lines_yields_empty_contents() {
+    // Add File 后紧跟下一个 header，没有任何 `+` 行，内容应为空且不触发末尾换行裁剪。
+    let parsed = parse_patch(
+        r#"
+*** Begin Patch
+*** Add File: empty.txt
+*** Delete File: gone.txt
+*** End Patch
+"#,
+    )
+    .expect("patch should parse");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Add { path, contents }, Hunk::Delete { path: del }] => {
+            assert_eq!(path, "empty.txt");
+            assert_eq!(contents, "");
+            assert_eq!(del, "gone.txt");
+        }
+        other => panic!("expected add then delete hunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_patch_update_chunk_terminated_by_next_header() {
+    // update chunk 在遇到下一个 `***` header 时结束，而非文件结尾标记。
+    let parsed = parse_patch(
+        r#"
+*** Begin Patch
+*** Update File: src/a.rs
+@@
+-old
++new
+*** Delete File: src/b.rs
+*** End Patch
+"#,
+    )
+    .expect("patch should parse");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Update { path, chunks, .. }, Hunk::Delete { path: del }] => {
+            assert_eq!(path, "src/a.rs");
+            assert_eq!(chunks.len(), 1);
+            assert_eq!(chunks[0].old_lines, vec!["old"]);
+            assert_eq!(chunks[0].new_lines, vec!["new"]);
+            assert_eq!(chunks[0].is_end_of_file, None);
+            assert_eq!(del, "src/b.rs");
+        }
+        other => panic!("expected update then delete hunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_patch_update_without_move_header() {
+    // update 之后不是 move header 时，move_path 应为 None 且不消费该行。
+    let parsed = parse_patch(
+        r#"
+*** Begin Patch
+*** Update File: src/a.rs
+@@
+ keep
+*** End Patch
+"#,
+    )
+    .expect("patch should parse");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Update { path, move_path, chunks }] => {
+            assert_eq!(path, "src/a.rs");
+            assert_eq!(move_path.as_deref(), None);
+            assert_eq!(chunks[0].old_lines, vec!["keep"]);
+            assert_eq!(chunks[0].new_lines, vec!["keep"]);
+        }
+        other => panic!("expected single update hunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_patch_update_with_no_chunks() {
+    // Update File 后直接结束，chunks 为空。
+    let parsed = parse_patch("*** Begin Patch\n*** Update File: src/a.rs\n*** End Patch")
+        .expect("patch should parse");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Update { path, move_path, chunks }] => {
+            assert_eq!(path, "src/a.rs");
+            assert_eq!(move_path.as_deref(), None);
+            assert!(chunks.is_empty());
+        }
+        other => panic!("expected single update hunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_patch_end_of_file_marker_terminates_chunk_collection() {
+    // *** End of File 标记结束 chunk 后，后续无更多 chunk。
+    let parsed = parse_patch(
+        r#"
+*** Begin Patch
+*** Update File: src/a.rs
+@@ ctx
+-a
++b
+*** End of File
+*** Delete File: src/b.rs
+*** End Patch
+"#,
+    )
+    .expect("patch should parse");
+
+    match parsed.hunks.as_slice() {
+        [Hunk::Update { chunks, .. }, Hunk::Delete { path }] => {
+            assert_eq!(chunks.len(), 1);
+            assert_eq!(chunks[0].is_end_of_file, Some(true));
+            assert_eq!(path, "src/b.rs");
+        }
+        other => panic!("expected update then delete hunk, got {other:?}"),
+    }
 }
 
 fn assert_parse_error_contains(err: Error, expected: &str) {

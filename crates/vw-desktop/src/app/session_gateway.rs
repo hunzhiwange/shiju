@@ -6,12 +6,16 @@
 use std::collections::HashSet;
 
 use crate::app::config;
+use vw_gateway_client::DesktopPluginCatalogEntryDto;
 use vw_gateway_client::DesktopSkillCatalogEntryDto;
 use vw_gateway_client::DesktopSkillDetailDto;
 use vw_gateway_client::ExternalAppsStateDto;
 use vw_gateway_client::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -33,6 +37,20 @@ where
 
 fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
     config::gateway_client()
+}
+
+pub(crate) fn active_tenant_scope() -> TenantScopeDto {
+    config::gateway_client_endpoint().tenant_scope().clone()
+}
+
+pub(crate) fn active_project_scope(project_id: ProjectId) -> Result<ProjectScopeDto, String> {
+    ProjectScopeDto::new(active_tenant_scope(), project_id).map_err(|error| error.to_string())
+}
+
+pub(crate) fn active_agent_scheduler_scope(
+    project_id: ProjectId,
+) -> Result<AgentSchedulerScopeDto, String> {
+    Ok(AgentSchedulerScopeDto::new(active_project_scope(project_id)?))
 }
 
 /// 执行 gateway_load_session_async 对应的领域操作。
@@ -97,6 +115,18 @@ pub async fn gateway_session_file_path_async(
     client.session_path_get(id, None).await.map(|path| path.map(std::path::PathBuf::from))
 }
 
+/// 执行 gateway_session_step_llm_raw_async 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub async fn gateway_session_step_llm_raw_async(
+    id: &str,
+    step_index: u32,
+) -> Result<Option<serde_json::Value>, String> {
+    let client = gateway_client()?;
+    client.session_step_llm_raw_get(id, step_index, None).await
+}
+
 /// 执行 gateway_resolve_session_scope_id_async 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -129,16 +159,30 @@ pub async fn gateway_save_session_async(
     directory: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
+    let mut session_to_save = session.clone();
+    if session_to_save.calls.is_empty()
+        && let Some(existing) = client.session_ui_get(&session.id, directory).await?
+        && !existing.calls.is_empty()
+    {
+        tracing::info!(
+            target: "vw_desktop",
+            session_id = %session.id,
+            call_count = existing.calls.len(),
+            "preserving existing raw call records while saving session ui snapshot"
+        );
+        session_to_save.calls = existing.calls;
+    }
     tracing::info!(
         target: "vw_desktop",
-        session_id = %session.id,
+        session_id = %session_to_save.id,
         directory = ?directory,
-        message_count = session.messages.len(),
-        step_count = session.steps.len(),
+        message_count = session_to_save.messages.len(),
+        step_count = session_to_save.steps.len(),
+        call_count = session_to_save.calls.len(),
         "desktop saving session ui snapshot"
     );
-    client.session_ui_save(&session.id, directory, session).await?;
-    Ok(Some(std::path::PathBuf::from(&session.id)))
+    client.session_ui_save(&session_to_save.id, directory, &session_to_save).await?;
+    Ok(Some(std::path::PathBuf::from(&session_to_save.id)))
 }
 
 /// 执行 gateway_set_session_scope_async 对应的领域操作。
@@ -342,6 +386,36 @@ pub async fn gateway_skill_delete_async(
     client.skill_delete(project_path, skill_id).await
 }
 
+/// 执行 gateway_plugins_async 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub async fn gateway_plugins_async() -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
+    let client = gateway_client()?;
+    client.plugins_get().await
+}
+
+/// 执行 gateway_plugin_set_enabled_async 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub async fn gateway_plugin_set_enabled_async(
+    plugin_id: &str,
+    enabled: bool,
+) -> Result<String, String> {
+    let client = gateway_client()?;
+    client.plugin_set_enabled(plugin_id, enabled).await
+}
+
+/// 执行 gateway_plugin_delete_async 对应的领域操作。
+///
+/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+pub async fn gateway_plugin_delete_async(plugin_id: &str) -> Result<String, String> {
+    let client = gateway_client()?;
+    client.plugin_delete(plugin_id).await
+}
+
 /// 执行 gateway_project_change_records_async 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -350,7 +424,18 @@ pub async fn gateway_project_change_records_async(
     directory: &str,
 ) -> Result<Vec<ProjectChangeRecordDto>, String> {
     let client = gateway_client()?;
-    client.project_change_records(directory).await.map(|response| response.items)
+    let project = client
+        .project_resolve(
+            &active_tenant_scope(),
+            &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
+                directory: directory.to_string(),
+                create_if_missing: false,
+            },
+        )
+        .await?
+        .project;
+    let scope = active_project_scope(project.id)?;
+    client.project_change_records(&scope, directory).await.map(|response| response.items)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

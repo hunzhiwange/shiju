@@ -81,17 +81,25 @@ pub(super) fn resolve_external_apps(
     }
 
     let open_external_platform = crate::app::state::RuntimePlatform::current_target();
-    let open_external_app = configured_external_app(cfg)
+    let open_external_app = select_external_app(cfg, &open_external_exists, open_external_platform);
+
+    (open_external_platform, open_external_exists, open_external_app)
+}
+
+fn select_external_app(
+    cfg: &serde_json::Value,
+    open_external_exists: &HashMap<ExternalOpenApp, bool>,
+    platform: Option<crate::app::state::RuntimePlatform>,
+) -> ExternalOpenApp {
+    configured_external_app(cfg)
         .filter(|app| open_external_exists.get(app).copied().unwrap_or(false))
         .or_else(|| {
-            priority_external_apps(open_external_platform)
+            priority_external_apps(platform)
                 .iter()
                 .copied()
                 .find(|app| open_external_exists.get(app).copied().unwrap_or(false))
         })
-        .unwrap_or(ExternalOpenApp::Finder);
-
-    (open_external_platform, open_external_exists, open_external_app)
+        .unwrap_or(ExternalOpenApp::Finder)
 }
 
 fn configured_external_app(cfg: &serde_json::Value) -> Option<ExternalOpenApp> {

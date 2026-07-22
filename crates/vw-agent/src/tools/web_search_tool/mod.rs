@@ -459,7 +459,7 @@ impl WebSearchTool {
     async fn search_serper(&self, query: &str, provider: &str) -> anyhow::Result<String> {
         let api_key = self.get_next_api_key().ok_or_else(|| {
             anyhow::anyhow!(
-                "web_search provider '{}' requires [web_search].api_key in vibewindow.json",
+                "web_search provider '{}' requires web_search.api_key in system settings",
                 provider
             )
         })?;
@@ -563,7 +563,7 @@ impl WebSearchTool {
     async fn search_firecrawl(&self, query: &str) -> anyhow::Result<String> {
         let auth_token = self.get_next_api_key().ok_or_else(|| {
             anyhow::anyhow!(
-                "web_search provider 'firecrawl' requires [web_search].api_key in vibewindow.json"
+                "web_search provider 'firecrawl' requires web_search.api_key in system settings"
             )
         })?;
 
@@ -665,7 +665,7 @@ impl WebSearchTool {
     async fn search_tavily(&self, query: &str) -> anyhow::Result<String> {
         let api_key = self.get_next_api_key().ok_or_else(|| {
             anyhow::anyhow!(
-                "web_search provider 'tavily' requires [web_search].api_key in vibewindow.json"
+                "web_search provider 'tavily' requires web_search.api_key in system settings"
             )
         })?;
 
@@ -1025,7 +1025,7 @@ impl Tool for WebSearchTool {
             "firecrawl" => search_tool.search_firecrawl(query).await?,
             "tavily" => search_tool.search_tavily(query).await?,
             _ => anyhow::bail!(
-                "Unknown search provider: '{}'. Set [web_search].provider to 'duckduckgo', 'brave', 'serper', 'google', 'bing', 'firecrawl', or 'tavily' in vibewindow.json",
+                "Unknown search provider: '{}'. Set web_search.provider to 'duckduckgo', 'brave', 'serper', 'google', 'bing', 'firecrawl', or 'tavily' in system settings",
                 search_tool.provider
             ),
         };

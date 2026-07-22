@@ -10,7 +10,7 @@ use super::model::{
 use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow_yaml};
 use super::state::{
     WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowNodeEditorTab,
-    WorkflowSavedAppSummary, WorkflowVariablePanelKind,
+    WorkflowRunInputDraft, WorkflowSavedAppSummary, WorkflowVariablePanelKind,
 };
 use crate::app::{App, Message};
 use iced::widget::text_editor;
@@ -22,6 +22,7 @@ mod app;
 mod canvas;
 mod document;
 mod node;
+mod run;
 
 #[cfg(test)]
 #[path = "app_tests.rs"]
@@ -41,6 +42,25 @@ mod node_tests;
 #[cfg(test)]
 mod tests;
 
+#[cfg(not(target_arch = "wasm32"))]
+fn render_workflow_svg_to_png(svg_data: &str) -> Option<Vec<u8>> {
+    use resvg::usvg::{self, Tree};
+    use tiny_skia::{Pixmap, Transform};
+
+    let mut opt = usvg::Options::default();
+    let mut fontdb = usvg::fontdb::Database::new();
+    fontdb.load_system_fonts();
+    opt.fontdb = std::sync::Arc::new(fontdb);
+
+    let tree = Tree::from_str(svg_data, &opt).ok()?;
+    let size = tree.size().to_int_size();
+    let mut pixmap = Pixmap::new(size.width(), size.height())?;
+
+    let mut pm = pixmap.as_mut();
+    resvg::render(&tree, Transform::default(), &mut pm);
+    pixmap.encode_png().ok()
+}
+
 #[derive(Debug, Clone)]
 pub enum WorkflowMessage {
     LoadSavedApps,
@@ -53,6 +73,24 @@ pub enum WorkflowMessage {
     CloseSavedAppActions,
     CopySavedAppUuid(String),
     ClearCopiedSavedAppUuid(String),
+    OpenSavedAppRunPrompt(String),
+    SavedAppRunPromptLoaded { uuid: String, result: Result<Vec<WorkflowRunInputDraft>, String> },
+    SavedAppRunQueryChanged(String),
+    SavedAppRunInputChanged(usize, String),
+    SavedAppRunInputToggled(usize, bool),
+    CancelSavedAppRunPrompt,
+    SubmitSavedAppRunPrompt,
+    SavedAppRunEvent { uuid: String, event: vw_gateway_client::GatewayWorkflowStreamEvent },
+    SavedAppRunFinished { uuid: String, result: Result<(), String> },
+    CancelSavedAppRun,
+    RetrySavedAppRunPreview,
+    CloseSavedAppRunPreview,
+    OpenSavedAppRunNodeDetail(usize),
+    OpenSavedAppRunOutputDetail,
+    SavedAppRunDetailAction(text_editor::Action),
+    CloseSavedAppRunDetail,
+    CopySavedAppRunError,
+    ClearSavedAppRunErrorCopied,
     RequestDeleteSavedApp(String),
     CancelDeleteSavedApp,
     DeleteSavedApp(String),
@@ -247,6 +285,7 @@ pub enum WorkflowSaveTarget {
 
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
     app::handle(app, message.clone())
+        .or_else(|| run::handle(app, message.clone()))
         .or_else(|| node::handle(app, message.clone()))
         .or_else(|| document::handle(app, message.clone()))
         .or_else(|| canvas::handle(app, message))
@@ -522,7 +561,7 @@ pub(super) fn export_png(app: &mut App) -> Task<Message> {
             {
                 let file = rfd::AsyncFileDialog::new().set_file_name(&file_name).save_file().await;
                 if let Some(file) = file {
-                    let png = crate::apps::mindmap::canvas::render_svg_to_png(&svg_data)
+                    let png = render_workflow_svg_to_png(&svg_data)
                         .ok_or_else(|| "导出 PNG 失败".to_string())?;
                     file.write(&png).await.map_err(|error| error.to_string())?;
                     let _ = open::that(file.path());
@@ -555,7 +594,7 @@ pub(super) fn export_jpeg(app: &mut App) -> Task<Message> {
             {
                 let file = rfd::AsyncFileDialog::new().set_file_name(&file_name).save_file().await;
                 if let Some(file) = file {
-                    let png = crate::apps::mindmap::canvas::render_svg_to_png(&svg_data)
+                    let png = render_workflow_svg_to_png(&svg_data)
                         .ok_or_else(|| "导出 JPEG 失败".to_string())?;
                     let image = image::load_from_memory(&png)
                         .map_err(|error| format!("解码 PNG 失败: {error}"))?;

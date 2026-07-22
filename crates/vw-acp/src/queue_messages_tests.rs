@@ -7,7 +7,7 @@ use crate::types::{
     SessionSendResult, SessionTokenUsage,
 };
 use agent_client_protocol::StopReason;
-use serde_json::json;
+use serde_json::{Value, json};
 
 fn test_record() -> SessionRecord {
     SessionRecord {
@@ -163,6 +163,23 @@ fn parse_queue_request_handles_control_variants_and_timeouts() {
             if request_id == "req-cancel" && owner_generation.is_none()
     ));
 
+    let set_mode = json!({
+        "type": "set_mode",
+        "requestId": "req-mode",
+        "ownerGeneration": 2,
+        "modeId": "focus",
+        "timeoutMs": 25
+    });
+    let set_mode = parse_queue_request(&set_mode).expect("valid mode request");
+    assert!(matches!(
+        set_mode,
+        QueueRequest::SetMode { request_id, owner_generation, mode_id, timeout_ms }
+            if request_id == "req-mode"
+                && owner_generation == Some(2)
+                && mode_id == "focus"
+                && timeout_ms == Some(25)
+    ));
+
     let set_model = parse_queue_request(&json!({
         "type": "set_model",
         "requestId": "req-model",
@@ -192,6 +209,105 @@ fn parse_queue_request_handles_control_variants_and_timeouts() {
 }
 
 #[test]
+fn parse_queue_request_treats_explicit_null_optionals_as_absent() {
+    let request = parse_queue_request(&json!({
+        "type": "submit_prompt",
+        "requestId": "req-1",
+        "message": "hello",
+        "permissionMode": "approve-all",
+        "resumePolicy": null,
+        "nonInteractivePermissions": null,
+        "suppressSdkConsoleErrors": null,
+        "prompt": null,
+        "waitForCompletion": true
+    }))
+    .expect("valid request");
+
+    match request {
+        QueueRequest::SubmitPrompt {
+            resume_policy,
+            non_interactive_permissions,
+            suppress_sdk_console_errors,
+            prompt,
+            ..
+        } => {
+            assert!(resume_policy.is_none());
+            assert!(non_interactive_permissions.is_none());
+            assert!(suppress_sdk_console_errors.is_none());
+            assert_eq!(prompt.len(), 1);
+        }
+        _ => panic!("unexpected request variant"),
+    }
+}
+
+#[test]
+fn parse_queue_request_rejects_unparsable_optional_policies() {
+    assert!(
+        parse_queue_request(&json!({
+            "type": "submit_prompt",
+            "requestId": "req-1",
+            "message": "hello",
+            "permissionMode": "approve-all",
+            "resumePolicy": "not-a-policy",
+            "waitForCompletion": true
+        }))
+        .is_none()
+    );
+
+    assert!(
+        parse_queue_request(&json!({
+            "type": "submit_prompt",
+            "requestId": "req-1",
+            "message": "hello",
+            "permissionMode": "approve-all",
+            "nonInteractivePermissions": "not-a-policy",
+            "waitForCompletion": true
+        }))
+        .is_none()
+    );
+}
+
+#[test]
+fn parse_queue_request_rejects_missing_required_envelope_fields() {
+    assert!(parse_queue_request(&json!({"requestId": "req-1"})).is_none());
+    assert!(parse_queue_request(&json!({"type": "submit_prompt"})).is_none());
+    assert!(
+        parse_queue_request(&json!({
+            "type": "submit_prompt",
+            "requestId": "req-1",
+            "message": "hello",
+            "permissionMode": "approve-all"
+        }))
+        .is_none()
+    );
+    assert!(
+        parse_queue_request(&json!({
+            "type": "submit_prompt",
+            "requestId": "req-1",
+            "message": "hello",
+            "permissionMode": "bogus-mode",
+            "waitForCompletion": true
+        }))
+        .is_none()
+    );
+    assert!(
+        parse_queue_request(&json!({
+            "type": "set_model",
+            "requestId": "req-1"
+        }))
+        .is_none()
+    );
+    assert!(
+        parse_queue_request(&json!({
+            "type": "set_config_option",
+            "requestId": "req-1",
+            "configId": "temperature"
+        }))
+        .is_none()
+    );
+}
+
+#[test]
 fn parse_queue_request_rejects_malformed_submit_and_control_inputs() {
     assert!(
         parse_queue_request(&json!({
@@ -213,6 +329,16 @@ fn parse_queue_request_rejects_malformed_submit_and_control_inputs() {
             "permissionMode": "approve-all",
             "suppressSdkConsoleErrors": "no",
             "waitForCompletion": true
+        }))
+        .is_none()
+    );
+
+    assert!(
+        parse_queue_request(&json!({
+            "type": "set_config_option",
+            "requestId": "req-1",
+            "configId": " ",
+            "value": "0.2"
         }))
         .is_none()
     );
@@ -353,6 +479,34 @@ fn parse_queue_owner_error_keeps_optional_acp_payload() {
 }
 
 #[test]
+fn parse_queue_owner_error_ignores_invalid_optional_fields() {
+    let message = json!({
+        "type": "error",
+        "requestId": "req-1",
+        "ownerGeneration": null,
+        "code": "RUNTIME",
+        "origin": "queue",
+        "message": "failed",
+        "detailCode": " ",
+        "retryable": "yes",
+        "acp": {"code": -1, "message": " "},
+        "outputAlreadyEmitted": "yes"
+    });
+    let message = parse_queue_owner_message(&message).expect("valid error message");
+    assert!(matches!(
+        message,
+        QueueOwnerMessage::Error {
+            owner_generation: None,
+            detail_code: None,
+            retryable: None,
+            acp: None,
+            output_already_emitted: None,
+            ..
+        }
+    ));
+}
+
+#[test]
 fn parse_queue_owner_message_rejects_malformed_variants() {
     assert!(
         parse_queue_owner_message(&json!({
@@ -372,6 +526,13 @@ fn parse_queue_owner_message_rejects_malformed_variants() {
         .is_none()
     );
 
+    for message in [
+        json!({"type": "result", "requestId": "req-1", "result": {}}),
+        json!({"type": "set_config_option_result", "requestId": "req-1", "response": []}),
+    ] {
+        assert!(parse_queue_owner_message(&message).is_none());
+    }
+
     assert!(
         parse_queue_owner_message(&json!({
             "type": "error",
@@ -389,6 +550,67 @@ fn parse_queue_owner_message_rejects_malformed_variants() {
 }
 
 #[test]
+fn parse_queue_owner_message_rejects_missing_envelope_and_unparsable_error_codes() {
+    assert!(parse_queue_owner_message(&json!({"requestId": "req-1"})).is_none());
+    assert!(parse_queue_owner_message(&json!({"type": "accepted"})).is_none());
+
+    assert!(
+        parse_queue_owner_message(&json!({
+            "type": "error",
+            "requestId": "req-1",
+            "code": "not-a-code",
+            "origin": "queue",
+            "message": "failed"
+        }))
+        .is_none()
+    );
+
+    assert!(
+        parse_queue_owner_message(&json!({
+            "type": "error",
+            "requestId": "req-1",
+            "code": "RUNTIME",
+            "origin": "not-an-origin",
+            "message": "failed"
+        }))
+        .is_none()
+    );
+
+    assert!(
+        parse_queue_owner_message(&json!({
+            "type": "error",
+            "requestId": "req-1",
+            "code": "RUNTIME",
+            "origin": "queue"
+        }))
+        .is_none()
+    );
+}
+
+#[test]
+fn parse_queue_owner_error_preserves_acp_payload_without_data() {
+    let message = parse_queue_owner_message(&json!({
+        "type": "error",
+        "requestId": "req-1",
+        "code": "RUNTIME",
+        "origin": "queue",
+        "message": "failed",
+        "acp": {"code": -32000, "message": "boom"}
+    }))
+    .expect("valid error message");
+
+    match message {
+        QueueOwnerMessage::Error { acp, .. } => {
+            let acp = acp.expect("acp payload");
+            assert_eq!(acp.code, -32000);
+            assert_eq!(acp.message, "boom");
+            assert!(acp.data.is_none());
+        }
+        _ => panic!("unexpected message variant"),
+    }
+}
+
+#[test]
 fn private_parsers_handle_boundary_values() {
     assert_eq!(parse_owner_generation(None), Ok(None));
     assert_eq!(parse_owner_generation(Some(&json!(null))), Ok(None));
@@ -401,6 +623,10 @@ fn private_parsers_handle_boundary_values() {
     assert_eq!(parse_timeout_ms(Some(&json!(null))), None);
     assert_eq!(parse_timeout_ms(Some(&json!(-1))), None);
     assert_eq!(parse_timeout_ms(Some(&json!("10"))), None);
+    assert_eq!(parse_timeout_ms(None), None);
+    let oversized_timeout =
+        serde_json::Number::from_f64((u64::MAX as f64) * 2.0).expect("finite timeout");
+    assert_eq!(parse_timeout_ms(Some(&Value::Number(oversized_timeout))), None);
 
     assert_eq!(
         parse_acp_error(Some(&json!({"code": -32000, "message": " detail "})))
@@ -408,6 +634,10 @@ fn private_parsers_handle_boundary_values() {
             .message,
         "detail"
     );
+    assert!(parse_acp_error(None).is_none());
+    assert!(parse_acp_error(Some(&json!("bad"))).is_none());
+    assert!(parse_acp_error(Some(&json!({"code": -32000}))).is_none());
+    assert!(parse_acp_error(Some(&json!({"code": -32000, "message": 1}))).is_none());
     assert!(parse_acp_error(Some(&json!({"code": -32000, "message": " "}))).is_none());
     assert!(parse_acp_error(Some(&json!({"code": "bad", "message": "detail"}))).is_none());
 }

@@ -39,10 +39,7 @@ impl AcpClient {
         self.cancel(active_prompt.session_id).await
     }
 
-    /// 请求取消当前活动提示词，并可选择等待完成。
-    ///
-    /// `wait_ms` 为 `0` 时只发送取消请求；大于 `0` 时最多等待对应毫秒数。
-    /// 返回 `false` 表示没有活动提示词、取消未发出或等待超时。
+    /// 请求取消当前活动提示词，并可等待完成通知。
     pub async fn cancel_active_prompt(&self, wait_ms: u64) -> Result<bool, AcpError> {
         let active_prompt = self.active_prompt.lock().clone();
         let Some(active_prompt) = active_prompt else {

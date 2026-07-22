@@ -99,6 +99,12 @@ fn non_boolean_full_access_option_defaults_to_disabled() {
 }
 
 #[test]
+fn non_object_full_access_options_default_to_disabled() {
+    assert!(!super::request_full_access_enabled(&serde_json::json!(true)));
+    assert!(!super::request_full_access_enabled(&serde_json::Value::Null));
+}
+
+#[test]
 fn handle_step_error_emits_error_for_non_empty_response_failure() {
     let mut session = super::Session::new(unique_session_id("step-error"));
     let mut llm_messages = Vec::new();
@@ -173,6 +179,61 @@ fn handle_step_error_retries_empty_llm_responses_until_limit() {
 }
 
 #[test]
+fn handle_step_error_recognizes_trimmed_empty_response_marker() {
+    let mut session = super::Session::new(unique_session_id("trimmed-empty-step-error"));
+    let mut llm_messages = Vec::new();
+    let mut retries = 0usize;
+    let mut step = 0;
+    let mut events = Vec::new();
+
+    let should_continue = super::handle_step_error(
+        &mut session,
+        &mut llm_messages,
+        &mut retries,
+        &mut step,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        format!(" \n{}\t", super::EMPTY_RESPONSE_ERR),
+    );
+
+    assert!(should_continue);
+    assert_eq!(retries, 1);
+    assert_eq!(step, 1);
+    assert_eq!(llm_messages[0]["content"].as_str(), Some(super::EMPTY_RESPONSE_RETRY_PROMPT));
+    assert!(events.is_empty());
+}
+
+#[test]
+fn handle_step_error_saturates_retry_counter_before_terminal_error() {
+    let mut session = super::Session::new(unique_session_id("saturated-step-error"));
+    let mut llm_messages = Vec::new();
+    let mut retries = usize::MAX;
+    let mut step = 3;
+    let mut events = Vec::new();
+
+    let should_continue = super::handle_step_error(
+        &mut session,
+        &mut llm_messages,
+        &mut retries,
+        &mut step,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        super::EMPTY_RESPONSE_ERR.to_string(),
+    );
+
+    assert!(!should_continue);
+    assert_eq!(retries, usize::MAX);
+    assert_eq!(step, 3);
+    assert!(llm_messages.is_empty());
+    assert_eq!(session.messages.len(), 1);
+    assert!(event_texts(&events)[0].contains("任务终止"));
+}
+
+#[test]
 fn handle_docs_request_lists_docs_files_and_finishes() {
     let workspace = tempfile::tempdir().expect("temp workspace should be created");
     std::fs::create_dir(workspace.path().join("docs")).expect("docs dir should be created");
@@ -220,6 +281,53 @@ fn handle_docs_request_emits_error_when_docs_directory_is_missing() {
 }
 
 #[test]
+fn handle_docs_request_stops_before_done_when_delta_is_rejected() {
+    let workspace = tempfile::tempdir().expect("temp workspace should be created");
+    std::fs::create_dir(workspace.path().join("docs")).expect("docs dir should be created");
+    std::fs::write(workspace.path().join("docs/guide.md"), "# Guide\n")
+        .expect("doc should be written");
+    let ctx = ToolRuntimeContext::new(
+        unique_session_id("docs-rejected-delta"),
+        Some(workspace.path().to_string_lossy().to_string()),
+    );
+    let mut session = super::Session::new(ctx.session.clone());
+    let mut events = Vec::new();
+
+    super::handle_docs_request(&mut session, &ctx, &mut |event| {
+        events.push(event);
+        false
+    });
+
+    assert_eq!(session.messages.len(), 1);
+    assert_eq!(session.messages[0].role, super::Role::Assistant);
+    assert_eq!(event_texts(&events), vec![format!("delta:{}", session.messages[0].content)]);
+}
+
+#[test]
+fn run_routes_docs_request_without_starting_an_llm_step() {
+    let workspace = tempfile::tempdir().expect("temp workspace should be created");
+    std::fs::create_dir(workspace.path().join("docs")).expect("docs dir should be created");
+    std::fs::write(workspace.path().join("docs/guide.md"), "# Guide\n")
+        .expect("doc should be written");
+    let mut req = request_with_session(&unique_session_id("run-docs"));
+    req.query = "请列出 docs 文件列表".to_string();
+    req.root = Some(workspace.path().to_string_lossy().to_string());
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorded_events = std::sync::Arc::clone(&events);
+
+    super::run(req, move |event| {
+        recorded_events.lock().expect("events lock should not be poisoned").push(event);
+        true
+    });
+
+    let events = events.lock().expect("events lock should not be poisoned");
+    assert_eq!(event_texts(events.as_slice()).len(), 2);
+    assert!(event_texts(events.as_slice())[0].contains("docs/guide.md"));
+    assert_eq!(event_texts(events.as_slice())[1], "done");
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::StepStart { .. })));
+}
+
+#[test]
 fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     let session_id = unique_session_id("structured-denied");
     let req = request_with_session(&session_id);
@@ -264,6 +372,49 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     assert_eq!(llm_messages[0]["role"].as_str(), Some("assistant"));
     assert_eq!(llm_messages[1]["role"].as_str(), Some("tool"));
     assert_eq!(llm_messages[1]["content"].as_str(), Some("tool denied: not_allowed"));
+}
+
+#[test]
+fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
+    let session_id = unique_session_id("structured-last-step-denied");
+    let req = request_with_session(&session_id);
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState::default();
+    let mut allowed_tools = HashSet::new();
+    allowed_tools.insert("otherwise_allowed".to_string());
+    let step_out = super::llm_runner::LlmStep {
+        tool_calls: vec![llm::ToolCall {
+            id: "call-last-step".to_string(),
+            name: "otherwise_allowed".to_string(),
+            arguments: "{}".to_string(),
+        }],
+        ..llm_step("")
+    };
+
+    let ran_todo_update = super::handle_structured_tool_calls(
+        &req,
+        &mut session,
+        &ctx,
+        &allowed_tools,
+        "base system",
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |_| true,
+        &mut tool_state,
+        &step_out,
+        "",
+        true,
+        101,
+    );
+
+    assert!(!ran_todo_update);
+    assert!(session.messages.is_empty());
+    assert_eq!(tool_state.non_todo_tool_runs, 0);
+    assert_eq!(llm_messages.len(), 2);
+    assert_eq!(llm_messages[1]["content"].as_str(), Some("tool denied: otherwise_allowed"));
 }
 
 #[test]
@@ -394,4 +545,38 @@ fn handle_empty_assistant_text_emits_terminal_error_after_retry_limit() {
     assert!(llm_messages.is_empty());
     assert_eq!(session.messages[0].role, super::Role::System);
     assert!(event_texts(&events)[0].contains("任务终止"));
+}
+
+#[test]
+fn handle_empty_assistant_text_retries_at_limit_boundary() {
+    let session_id = unique_session_id("empty-limit-boundary");
+    let req = request_with_session(&session_id);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut retries = super::EMPTY_RESPONSE_RETRY_LIMIT - 1;
+    let mut step = 9;
+    let mut events = Vec::new();
+
+    let should_continue = super::handle_empty_assistant_text(
+        &req,
+        &mut session,
+        &mut llm_messages,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut retries,
+        &mut step,
+        "boundary reasoning",
+        false,
+        100,
+    );
+
+    assert!(should_continue);
+    assert_eq!(retries, super::EMPTY_RESPONSE_RETRY_LIMIT);
+    assert_eq!(step, 10);
+    assert_eq!(llm_messages.len(), 2);
+    assert_eq!(llm_messages[0]["reasoning_content"].as_str(), Some("boundary reasoning"));
+    assert_eq!(llm_messages[1]["content"].as_str(), Some(super::EMPTY_RESPONSE_RETRY_PROMPT));
+    assert!(events.is_empty());
 }

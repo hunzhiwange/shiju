@@ -84,6 +84,14 @@ fn provider_selects_prompt_family_from_model_id() {
 }
 
 #[test]
+fn provider_prefers_the_first_matching_prompt_family() {
+    assert_eq!(provider(&test_model("gpt-5-claude-gemini-Trinity", "mixed")), vec![PROMPT_CODEX]);
+    assert_eq!(provider(&test_model("gpt-4-claude-gemini-Trinity", "mixed")), vec![PROMPT_BEAST]);
+    assert_eq!(provider(&test_model("gemini-claude-Trinity", "mixed")), vec![PROMPT_GEMINI]);
+    assert_eq!(provider(&test_model("claude-Trinity", "mixed")), vec![PROMPT_ANTHROPIC]);
+}
+
+#[test]
 fn instructions_are_trimmed_codex_prompt() {
     let instructions = instructions();
 
@@ -98,6 +106,36 @@ fn resolve_cwd_prefers_non_empty_root_and_trims_it() {
 }
 
 #[test]
+fn environment_text_preserves_structure_for_non_git_workspace() {
+    let text = environment_text("model", "provider", "/workspace", false, "");
+    let lines = text.lines().collect::<Vec<_>>();
+
+    assert_eq!(lines.len(), 11);
+    assert_eq!(lines[0], "你正在使用模型 model。精确模型 ID: provider/model");
+    assert_eq!(lines[1], "这里是一些运行环境信息：");
+    assert_eq!(lines[2], "<env>");
+    assert_eq!(lines[3], "  工作目录: /workspace");
+    assert_eq!(lines[4], "  是否为 Git 仓库: 否");
+    assert_eq!(lines[5], format!("  平台: {}", platform()));
+    assert!(lines[6].starts_with("  今日日期: "));
+    assert_eq!(lines[7], "</env>");
+    assert_eq!(lines[8], "<directories>");
+    assert_eq!(lines[9], "  ");
+    assert_eq!(lines[10], "</directories>");
+}
+
+#[test]
+fn today_date_string_uses_documented_four_component_format() {
+    let date = today_date_string();
+    let components = date.split_whitespace().collect::<Vec<_>>();
+
+    assert_eq!(components.len(), 4);
+    assert_eq!(components[0].len(), 3);
+    assert_eq!(components[1].len(), 3);
+    assert_eq!(components[3].len(), 4);
+}
+
+#[test]
 fn detect_git_from_dir_walks_up_to_parent_repo() {
     let dir = tempfile::tempdir().expect("temp dir");
     let nested = dir.path().join("a/b/c");
@@ -107,6 +145,27 @@ fn detect_git_from_dir_walks_up_to_parent_repo() {
     std::fs::create_dir(dir.path().join(".git")).unwrap();
     assert!(detect_git_from_dir(nested.to_str().unwrap()));
     assert!(!detect_git_from_dir("   "));
+}
+
+#[test]
+fn detect_git_from_dir_accepts_trimmed_path_and_git_file_marker() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let nested = dir.path().join("nested");
+    std::fs::create_dir(&nested).expect("nested dir");
+    std::fs::write(dir.path().join(".git"), "gitdir: /tmp/worktree-git-dir").expect("git marker");
+
+    let padded = format!("  {}  ", nested.display());
+    assert!(detect_git_from_dir(&padded));
+}
+
+#[test]
+fn resolve_is_git_falls_back_to_directory_detection_without_project_context() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let cwd = dir.path().to_string_lossy();
+
+    assert!(!resolve_is_git(&cwd));
+    std::fs::create_dir(dir.path().join(".git")).expect("git dir");
+    assert!(resolve_is_git(&cwd));
 }
 
 #[tokio::test]
@@ -119,4 +178,17 @@ async fn environment_from_ref_handles_missing_and_malformed_model_refs() {
 
     let malformed = environment_from_ref(Some("not-a-model-ref"), Some(root)).await;
     assert!(malformed.contains("unknown/not-a-model-ref"));
+
+    let missing_provider = environment_from_ref(Some("/orphan-model"), Some(root)).await;
+    assert!(missing_provider.contains("精确模型 ID: unknown//orphan-model"));
+}
+
+#[tokio::test]
+async fn environment_from_ref_preserves_parsed_ids_when_model_lookup_fails() {
+    let root = "/tmp/vw-agent-env-missing-model";
+
+    let text = environment_from_ref(Some("missing-provider/missing-model"), Some(root)).await;
+
+    assert!(text.contains("精确模型 ID: missing-provider/missing-model"));
+    assert!(text.contains(root));
 }

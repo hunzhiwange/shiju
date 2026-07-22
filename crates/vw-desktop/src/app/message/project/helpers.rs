@@ -308,12 +308,21 @@ async fn refresh_file_index_with_fallback(project_path: &str) -> Vec<String> {
             if fallback.is_empty() { files } else { fallback }
         }
         Err(error) => {
-            tracing::warn!(
-                target: "vw_desktop",
-                project_path,
-                error = %error,
-                "failed to refresh file index from gateway, falling back to local scan"
-            );
+            if vw_gateway_client::is_gateway_unavailable_error(&error) {
+                tracing::debug!(
+                    target: "vw_desktop",
+                    project_path,
+                    error = %error,
+                    "failed to refresh file index from gateway, falling back to local scan"
+                );
+            } else {
+                tracing::warn!(
+                    target: "vw_desktop",
+                    project_path,
+                    error = %error,
+                    "failed to refresh file index from gateway, falling back to local scan"
+                );
+            }
             refresh_local_file_index(project_path).await
         }
     }
@@ -438,8 +447,9 @@ pub(crate) async fn resolve_gateway_file_context(
     }
 
     let client = gateway_client()?;
+    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
     let maybe_worktree = client
-        .project_worktrees(&project.id.0)
+        .project_worktrees(&project_scope)
         .await?
         .items
         .into_iter()
@@ -537,12 +547,10 @@ fn map_loaded_project_info(project_path: String, project: ProjectDto) -> super::
 pub(crate) async fn load_gateway_recent_projects()
 -> Result<Vec<crate::app::RecentProjectMeta>, String> {
     let mut projects = gateway_client()?
-        .project_list(&ListProjectsRequest {
-            cursor: None,
-            limit: Some(100),
-            query: None,
-            status: None,
-        })
+        .project_list(
+            &crate::app::session_gateway::active_tenant_scope(),
+            &ListProjectsRequest { cursor: None, limit: Some(100), query: None, status: None },
+        )
         .await?
         .items;
     projects.sort_by(|left, right| {
@@ -578,10 +586,10 @@ pub(crate) async fn load_gateway_recent_projects()
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) async fn resolve_gateway_project(project_path: &str) -> Result<ProjectDto, String> {
     gateway_client()?
-        .project_resolve(&ResolveProjectRequest {
-            directory: project_path.to_string(),
-            create_if_missing: true,
-        })
+        .project_resolve(
+            &crate::app::session_gateway::active_tenant_scope(),
+            &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing: true },
+        )
         .await
         .map(|response| response.project)
 }
@@ -610,7 +618,8 @@ pub(crate) async fn load_project_worktree_picker_options(
 ) -> Result<Vec<(String, String)>, String> {
     let client = gateway_client()?;
     let project = resolve_gateway_project(project_path).await?;
-    let mut worktrees = client.project_worktrees(&project.id.0).await?.items;
+    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
+    let mut worktrees = client.project_worktrees(&project_scope).await?.items;
     worktrees.sort_by(|left, right| {
         left.name.cmp(&right.name).then(left.directory.cmp(&right.directory))
     });
@@ -667,9 +676,10 @@ pub(crate) async fn create_gateway_worktree_session(
 ) -> Result<vw_shared::session::info::Info, String> {
     let client = gateway_client()?;
     let project = resolve_gateway_project(&project_path).await?;
+    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
     let worktree = client
         .project_worktree_create(
-            &project.id.0,
+            &project_scope,
             &CreateWorktreeRequest {
                 name: requested_name.clone(),
                 branch: format!("vibewindow/{requested_name}"),
@@ -685,9 +695,10 @@ pub(crate) async fn create_gateway_worktree_session(
 async fn find_gateway_worktree(project_path: &str, directory: &str) -> Result<WorktreeDto, String> {
     let client = gateway_client()?;
     let project = resolve_gateway_project(project_path).await?;
+    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
     let target = normalize_path(directory);
     client
-        .project_worktrees(&project.id.0)
+        .project_worktrees(&project_scope)
         .await?
         .items
         .into_iter()
@@ -706,7 +717,11 @@ pub(crate) async fn delete_gateway_worktree(
 ) -> Result<(), String> {
     let client = gateway_client()?;
     let worktree = find_gateway_worktree(project_path, directory).await?;
-    let ack = client.worktree_delete(&worktree.id.0, &DeleteWorktreeRequest { force }).await?;
+    let project_scope =
+        crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
+    let ack = client
+        .worktree_delete(&project_scope, &worktree.id.0, &DeleteWorktreeRequest { force })
+        .await?;
     if ack.ok {
         Ok(())
     } else {
@@ -724,8 +739,11 @@ pub(crate) async fn reset_gateway_worktree(
 ) -> Result<(), String> {
     let client = gateway_client()?;
     let worktree = find_gateway_worktree(project_path, directory).await?;
+    let project_scope =
+        crate::app::session_gateway::active_project_scope(worktree.project_id.clone())?;
     let ack = client
         .worktree_reset(
+            &project_scope,
             &worktree.id.0,
             &ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: None },
         )

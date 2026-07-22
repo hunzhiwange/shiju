@@ -95,3 +95,11 @@ fn validate_url_enforces_policy_edges() {
         "empty allowed"
     );
 }
+
+#[test]
+fn extract_host_rejects_port_without_hostname() {
+    let error = extract_host("https://:443/path", UrlSchemePolicy::HttpsOnly, "tests")
+        .expect_err("an authority containing only a port must be rejected");
+
+    assert_eq!(error.to_string(), "URL must include a valid host");
+}

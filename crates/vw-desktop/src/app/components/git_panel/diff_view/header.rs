@@ -29,22 +29,115 @@ pub(super) fn mix_color(a: Color, b: Color, ratio: f32) -> Color {
     }
 }
 
+pub(super) fn clean_diff_header_title(
+    title: &str,
+    plus_token: &str,
+    minus_token: &str,
+    insertions: usize,
+    deletions: usize,
+) -> String {
+    let mut title_display = title.to_string();
+    let strip_token = |s: &mut String, token: &str| {
+        *s = s.replace(&format!("({token})"), "");
+        *s = s.replace(&format!("（{token}）"), "");
+        *s = s.replace(&format!("{token} "), "");
+        *s = s.replace(&format!(" {token}"), "");
+        *s = s.replace(token, "");
+    };
+
+    if insertions > 0 {
+        strip_token(&mut title_display, plus_token);
+    }
+
+    if deletions > 0 {
+        strip_token(&mut title_display, minus_token);
+    }
+
+    title_display.split_whitespace().collect::<Vec<&str>>().join(" ")
+}
+
+pub(super) fn diff_stat_badge_text_style(
+    theme: &iced::Theme,
+    positive: bool,
+) -> iced::widget::text::Style {
+    let ext = theme.extended_palette();
+    let pair = if positive { ext.success.base } else { ext.danger.base };
+    iced::widget::text::Style { color: Some(pair.color) }
+}
+
+pub(super) fn diff_stat_badge_container_style(
+    theme: &iced::Theme,
+    positive: bool,
+) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let pair = if positive { ext.success.base } else { ext.danger.base };
+    iced::widget::container::Style { text_color: Some(pair.color), ..Default::default() }
+}
+
+pub(super) fn diff_header_title_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.92)) }
+}
+
+pub(super) fn is_dark_diff_header_theme(theme: &iced::Theme) -> bool {
+    theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
+}
+
+pub(super) fn diff_header_accent(
+    theme: &iced::Theme,
+    insertions: usize,
+    deletions: usize,
+) -> Option<Color> {
+    let ext = theme.extended_palette();
+    if deletions > 0 && insertions == 0 {
+        Some(ext.danger.base.color)
+    } else if insertions > 0 && deletions == 0 {
+        Some(ext.success.base.color)
+    } else if insertions > 0 && deletions > 0 {
+        Some(mix_color(ext.success.base.color, ext.danger.base.color, 0.5))
+    } else {
+        None
+    }
+}
+
+pub(super) fn diff_header_container_style(
+    theme: &iced::Theme,
+    insertions: usize,
+    deletions: usize,
+) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let is_dark = is_dark_diff_header_theme(theme);
+    let neutral_bg = if is_dark {
+        ext.background.weak.color.scale_alpha(0.24)
+    } else {
+        ext.background.base.color.scale_alpha(0.98)
+    };
+    let neutral_border = ext.background.strong.color.scale_alpha(if is_dark { 0.30 } else { 0.18 });
+    let (background, border_color) = if let Some(accent) =
+        diff_header_accent(theme, insertions, deletions)
+    {
+        (
+            mix_color(neutral_bg, accent.scale_alpha(if is_dark { 0.12 } else { 0.08 }), 0.28),
+            mix_color(neutral_border, accent.scale_alpha(if is_dark { 0.24 } else { 0.16 }), 0.22),
+        )
+    } else {
+        (neutral_bg, neutral_border)
+    };
+    iced::widget::container::Style {
+        background: Some(Background::Color(background)),
+        border: Border { width: 1.0, color: border_color, radius: 10.0.into() },
+        ..Default::default()
+    }
+}
+
 fn diff_stat_badge<'a>(token: String, positive: bool) -> Element<'a, Message> {
     container(
-        text(token).size(11).line_height(iced::widget::text::LineHeight::Relative(1.0)).style(
-            move |theme: &iced::Theme| {
-                let ext = theme.extended_palette();
-                let pair = if positive { ext.success.base } else { ext.danger.base };
-                iced::widget::text::Style { color: Some(pair.color) }
-            },
-        ),
+        text(token)
+            .size(11)
+            .line_height(iced::widget::text::LineHeight::Relative(1.0))
+            .style(move |theme: &iced::Theme| diff_stat_badge_text_style(theme, positive)),
     )
     .padding([0, 2])
-    .style(move |theme: &iced::Theme| {
-        let ext = theme.extended_palette();
-        let pair = if positive { ext.success.base } else { ext.danger.base };
-        iced::widget::container::Style { text_color: Some(pair.color), ..Default::default() }
-    })
+    .style(move |theme: &iced::Theme| diff_stat_badge_container_style(theme, positive))
     .into()
 }
 
@@ -90,31 +183,8 @@ pub fn build_diff_header(
     let plus_token = format!("+{}", insertions);
     let minus_token = format!("-{}", deletions);
 
-    // 复制标题用于显示，后续会清理其中的统计信息
-    let mut title_display = title.clone();
-
-    // 内部辅助函数：从字符串中移除指定的统计标记
-    // 支持多种格式：(token)、（token）、token 前后空格、裸 token
-    let strip_token = |s: &mut String, token: &str| {
-        *s = s.replace(&format!("({token})"), "");
-        *s = s.replace(&format!("（{token}）"), "");
-        *s = s.replace(&format!("{token} "), "");
-        *s = s.replace(&format!(" {token}"), "");
-        *s = s.replace(token, "");
-    };
-
-    // 清理标题中已存在的新增统计标记
-    if insertions > 0 {
-        strip_token(&mut title_display, &plus_token);
-    }
-
-    // 清理标题中已存在的删除统计标记
-    if deletions > 0 {
-        strip_token(&mut title_display, &minus_token);
-    }
-
-    // 规范化标题中的空白字符，移除多余空格
-    title_display = title_display.split_whitespace().collect::<Vec<&str>>().join(" ");
+    let title_display =
+        clean_diff_header_title(&title, &plus_token, &minus_token, insertions, deletions);
 
     // 判断是否需要显示统计信息
     let show_plus = insertions > 0;
@@ -151,9 +221,7 @@ pub fn build_diff_header(
                 .size(12)
                 .line_height(iced::widget::text::LineHeight::Relative(1.0))
                 .wrapping(iced::widget::text::Wrapping::None)
-                .style(|theme: &iced::Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.92)),
-                }),
+                .style(diff_header_title_text_style),
         )
         .width(Length::Fill)
         .clip(true);
@@ -179,9 +247,7 @@ pub fn build_diff_header(
                 .size(12)
                 .line_height(iced::widget::text::LineHeight::Relative(1.0))
                 .wrapping(iced::widget::text::Wrapping::None)
-                .style(|theme: &iced::Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.92)),
-                }),
+                .style(diff_header_title_text_style),
         )
         .width(Length::Fill)
         .clip(true);
@@ -234,49 +300,6 @@ pub fn wrap_diff_header(
     container(header_content)
         .padding([8, 10])
         .width(Length::Fill)
-        .style(move |theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            let neutral_bg = if is_dark {
-                ext.background.weak.color.scale_alpha(0.24)
-            } else {
-                ext.background.base.color.scale_alpha(0.98)
-            };
-            let neutral_border =
-                ext.background.strong.color.scale_alpha(if is_dark { 0.30 } else { 0.18 });
-            let accent = if deletions > 0 && insertions == 0 {
-                Some(ext.danger.base.color)
-            } else if insertions > 0 && deletions == 0 {
-                Some(ext.success.base.color)
-            } else if insertions > 0 && deletions > 0 {
-                Some(mix_color(ext.success.base.color, ext.danger.base.color, 0.5))
-            } else {
-                None
-            };
-            let (background, border_color) = if let Some(accent) = accent {
-                (
-                    mix_color(
-                        neutral_bg,
-                        accent.scale_alpha(if is_dark { 0.12 } else { 0.08 }),
-                        0.28,
-                    ),
-                    mix_color(
-                        neutral_border,
-                        accent.scale_alpha(if is_dark { 0.24 } else { 0.16 }),
-                        0.22,
-                    ),
-                )
-            } else {
-                (neutral_bg, neutral_border)
-            };
-            iced::widget::container::Style {
-                background: Some(Background::Color(background)),
-                border: Border { width: 1.0, color: border_color, radius: 10.0.into() },
-                ..Default::default()
-            }
-        })
+        .style(move |theme: &iced::Theme| diff_header_container_style(theme, insertions, deletions))
         .into()
 }

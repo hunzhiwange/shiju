@@ -27,10 +27,9 @@
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     bool_support_label, format_context_limit, icon_btn, provider_logo_svg,
-    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_panel_style, settings_section_card, settings_text_input_style,
-    settings_value_badge,
+    rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
+    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_panel_style, settings_section_card, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
@@ -265,10 +264,6 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content = content.push(settings_section_card(
         "已连接模型",

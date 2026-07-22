@@ -103,3 +103,33 @@ fn init_schema_migrates_legacy_memories_table() {
 
     conn.prepare("SELECT session_id FROM memories").unwrap();
 }
+
+#[test]
+fn init_schema_accepts_existing_session_column_without_remigration() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE memories (
+            id TEXT PRIMARY KEY,
+            key TEXT NOT NULL UNIQUE,
+            content TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'core',
+            embedding BLOB,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            session_id TEXT
+        );",
+    )
+    .unwrap();
+
+    SqliteMemory::init_schema(&conn).unwrap();
+    SqliteMemory::init_schema(&conn).unwrap();
+
+    let session_columns: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('memories') WHERE name = 'session_id'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(session_columns, 1);
+}

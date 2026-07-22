@@ -1,6 +1,6 @@
 //! 退出 worktree 工具测试。
 //!
-//! 覆盖工具元数据、上下文错误、脏工作树阻断，以及真实 Git worktree 的退出路径。
+//! 覆盖工具元数据、上下文错误、工作树阻断、移除失败，以及真实 Git worktree 的退出路径。
 
 use super::ExitWorktreeTool;
 use crate::app::agent::project::instance;
@@ -188,6 +188,29 @@ async fn exit_worktree_fails_when_bound_directory_is_not_a_git_worktree() {
 }
 
 #[tokio::test]
+async fn exit_worktree_blocks_untracked_worktree_without_force() {
+    let dir = TempDir::new().expect("tempdir should create");
+    init_git_repo(&dir);
+    let (worktree_dir, branch) = create_worktree(&dir, "untracked-blocked");
+    std::fs::write(worktree_dir.join("draft.txt"), "draft\n").expect("untracked file should write");
+
+    let (result, binding) = call_exit_worktree_in_instance(
+        dir.path().to_path_buf(),
+        worktree_dir.clone(),
+        &branch,
+        json!({}),
+    )
+    .await;
+    let result = result.expect("untracked worktree should return structured block");
+
+    assert_eq!(result.data["exited"], false);
+    assert_eq!(result.data["dirty"], true);
+    assert_eq!(result.data["status"], "?? draft.txt\n");
+    assert_eq!(binding.directory.as_deref(), Some(worktree_dir.to_string_lossy().as_ref()));
+    assert!(worktree_dir.exists(), "untracked worktree should remain on disk");
+}
+
+#[tokio::test]
 async fn exit_worktree_blocks_dirty_worktree_without_force() {
     let dir = TempDir::new().expect("tempdir should create");
     init_git_repo(&dir);
@@ -220,6 +243,23 @@ async fn exit_worktree_blocks_dirty_worktree_without_force() {
     assert_eq!(result.telemetry.as_ref().map(|telemetry| telemetry.success), Some(false));
     assert_eq!(binding.directory.as_deref(), Some(worktree_dir.to_string_lossy().as_ref()));
     assert!(worktree_dir.exists(), "dirty worktree should remain on disk");
+}
+
+#[tokio::test]
+async fn exit_worktree_preserves_binding_when_remove_fails() {
+    let dir = TempDir::new().expect("tempdir should create");
+    init_git_repo(&dir);
+    let directory = dir.path().to_path_buf();
+
+    let (result, binding) =
+        call_exit_worktree_in_instance(directory.clone(), directory.clone(), "main", json!({}))
+            .await;
+    let error = result.expect_err("primary worktree removal should fail");
+
+    let message = error.to_string();
+    assert!(message.contains("worktree") || message.contains("working tree"), "{message}");
+    assert_eq!(binding.directory.as_deref(), Some(directory.to_string_lossy().as_ref()));
+    assert!(directory.exists(), "failed removal should leave the worktree on disk");
 }
 
 #[tokio::test]

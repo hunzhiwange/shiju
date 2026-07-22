@@ -28,7 +28,12 @@ async fn session_query_engine(
 
     let config = state.config.lock().clone();
     let created = Arc::new(tokio::sync::Mutex::new(
-        crate::app::agent::agent::loop_::query_engine::QueryEngine::new(config, session_id).await?,
+        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider(
+            config,
+            session_id,
+            Some(Arc::clone(&state.provider)),
+        )
+        .await?,
     ));
 
     let mut engines = state.session_query_engines.lock().await;
@@ -57,8 +62,12 @@ pub(crate) async fn fork_session_query_engine(
     let snapshot = source_engine.lock().await.snapshot();
     let config = state.config.lock().clone();
     let mut forked_engine =
-        crate::app::agent::agent::loop_::query_engine::QueryEngine::new(config, target_session_id)
-            .await?;
+        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider(
+            config,
+            target_session_id,
+            Some(Arc::clone(&state.provider)),
+        )
+        .await?;
     forked_engine.restore_snapshot(snapshot);
 
     let mut engines = state.session_query_engines.lock().await;

@@ -8,9 +8,13 @@ use super::super::parser::{BashAst, BashNode};
 use super::MAX_SUBCOMMAND_DEPTH;
 
 pub(super) fn from_ast(ast: &BashAst) -> Option<CommandInfo> {
-    let root = ast.root_node()?;
+    let Some(root) = ast.root_node() else {
+        return CommandInfo::from_command(ast.source());
+    };
     let mut cursor = root.walk();
-    root.named_children(&mut cursor).find_map(|child| build_command_info_from_node(ast, child, 0))
+    root.named_children(&mut cursor)
+        .find_map(|child| build_command_info_from_node(ast, child, 0))
+        .or_else(|| CommandInfo::from_command(ast.source()))
 }
 
 fn build_command_info_from_node(
@@ -128,15 +132,15 @@ fn build_simple_command(ast: &BashAst, node: BashNode<'_>, depth: usize) -> Opti
 }
 
 fn build_keyword_command(ast: &BashAst, node: BashNode<'_>, depth: usize) -> Option<CommandInfo> {
-    let named = named_children(node);
-    let first = named.first()?;
-    let name = flatten_word(ast, *first);
-    let args = named
+    let name = extract_text(ast, node).split_whitespace().next()?.to_string();
+    let mut args = named_children(node)
         .into_iter()
-        .skip(1)
         .map(|child| flatten_word(ast, child))
         .filter(|value: &String| !value.is_empty())
         .collect::<Vec<_>>();
+    if args.first().is_some_and(|value| value == &name) {
+        args.remove(0);
+    }
 
     let (
         subcommands,
@@ -250,10 +254,17 @@ fn parse_redirect_node(ast: &BashAst, node: BashNode<'_>) -> Option<Redirect> {
             is_fd_duplicate: false,
         }),
         "heredoc_redirect" => {
-            let target = field_children(node, "argument")
+            let mut target = field_children(node, "argument")
                 .into_iter()
                 .map(|child| flatten_word(ast, child))
                 .collect::<String>();
+            if target.is_empty() {
+                target = extract_text(ast, node)
+                    .split_once("<<")
+                    .map(|(_, rhs)| rhs.split_whitespace().next().unwrap_or_default())
+                    .unwrap_or_default()
+                    .to_string();
+            }
             Some(Redirect { kind: RedirectKind::Heredoc, target, is_fd_duplicate: false })
         }
         _ => None,

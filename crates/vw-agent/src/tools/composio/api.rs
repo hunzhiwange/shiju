@@ -698,3 +698,7 @@ pub(crate) fn composio_tool_version_latest() -> &'static str {
 pub(crate) fn composio_api_base_v3() -> &'static str {
     COMPOSIO_API_BASE_V3
 }
+
+#[cfg(test)]
+#[path = "api_tests.rs"]
+mod api_tests;

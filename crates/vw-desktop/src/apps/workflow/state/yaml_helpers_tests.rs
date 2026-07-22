@@ -94,6 +94,37 @@ fn prompt_text_by_role_reads_matching_mapping_text_only() {
 }
 
 #[test]
+fn prompt_text_by_role_skips_items_without_string_role_or_text() {
+    let prompt_template = vec![
+        serde_yaml::from_str::<Value>("text: missing role\n").expect("prompt item should parse"),
+        serde_yaml::from_str::<Value>("role: system\ntext:\n  - not text\n")
+            .expect("prompt item should parse"),
+        serde_yaml::from_str::<Value>("role: user\ntext: user prompt\n")
+            .expect("prompt item should parse"),
+    ];
+
+    assert_eq!(prompt_text_by_role(Some(&prompt_template), "system"), "");
+    assert_eq!(prompt_text_by_role(Some(&prompt_template), "user"), "user prompt");
+}
+
+#[test]
+fn prompt_text_by_role_continues_after_matching_item_without_string_text() {
+    let prompt_template = vec![
+        serde_yaml::from_str::<Value>("role: system\ntext:\n  - invalid\n")
+            .expect("prompt item should parse"),
+        serde_yaml::from_str::<Value>("role: system\ntext: valid system prompt\n")
+            .expect("prompt item should parse"),
+    ];
+
+    assert_eq!(prompt_text_by_role(Some(&prompt_template), "system"), "valid system prompt");
+}
+
+#[test]
+fn string_list_input_from_value_returns_empty_for_non_sequence() {
+    assert_eq!(string_list_input_from_value(Some(&Value::String("not a list".to_string()))), "");
+}
+
+#[test]
 fn merge_prompt_template_value_updates_existing_items_and_creates_missing_user() {
     let existing = serde_yaml::from_str::<Value>(
         r#"
@@ -144,6 +175,26 @@ fn merge_prompt_template_value_handles_scalar_existing_and_blank_user() {
 }
 
 #[test]
+fn merge_prompt_template_value_keeps_blank_user_absent_when_system_item_exists() {
+    let existing = serde_yaml::from_str::<Value>(
+        r#"
+- id: system-id
+  role: system
+  text: old
+"#,
+    )
+    .expect("existing prompt template should parse");
+
+    let merged = merge_prompt_template_value(existing, "updated".to_string(), "   ".to_string());
+    let items = sequence_items(&merged);
+
+    assert_eq!(items.len(), 1);
+    assert_eq!(mapping_value_str(&items[0], "id"), Some("system-id"));
+    assert_eq!(mapping_value_str(&items[0], "role"), Some("system"));
+    assert_eq!(mapping_value_str(&items[0], "text"), Some("updated"));
+}
+
+#[test]
 fn mapping_helpers_set_read_and_replace_nested_maps() {
     let mut map = Mapping::new();
     set_mapping_string(&mut map, "title", "Workflow");
@@ -184,6 +235,12 @@ fn yaml_editor_helpers_serialize_without_document_marker_and_parse_values() {
     assert_eq!(parse_yaml_editor_value("42").expect("number should parse").as_i64(), Some(42));
     let error = parse_yaml_editor_value("[").expect_err("invalid yaml should fail");
     assert!(error.contains("变量值 YAML 解析失败"));
+}
+
+#[test]
+fn value_yaml_for_editor_preserves_scalar_yaml_without_document_marker() {
+    assert_eq!(value_yaml_for_editor(&Value::String("plain".to_string())), "plain\n");
+    assert_eq!(value_yaml_for_editor(&Value::Bool(true)), "true\n");
 }
 
 #[test]
@@ -266,4 +323,15 @@ fn ensure_unique_variable_name_allows_current_id_and_rejects_other_duplicates() 
             .expect_err("duplicate conversation name should fail"),
         "会话变量名称不能重复"
     );
+}
+
+#[test]
+fn variable_name_access_returns_environment_and_conversation_fields() {
+    let environment = environment_variable("env-1", "api_key");
+    let conversation = conversation_variable("conv-1", "topic");
+
+    assert_eq!(WorkflowVariableNameAccess::id(&environment), "env-1");
+    assert_eq!(WorkflowVariableNameAccess::name(&environment), "api_key");
+    assert_eq!(WorkflowVariableNameAccess::id(&conversation), "conv-1");
+    assert_eq!(WorkflowVariableNameAccess::name(&conversation), "topic");
 }

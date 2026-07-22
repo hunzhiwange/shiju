@@ -421,6 +421,23 @@ mod tests {
         assert!(!bad_channel.health_check().await);
     }
 
+    #[tokio::test]
+    async fn listen_rejects_invalid_event_stream_url_before_connecting() {
+        let ch = SignalChannel::new(
+            "://invalid".to_string(),
+            "+1234567890".to_string(),
+            None,
+            vec!["*".to_string()],
+            false,
+            false,
+        );
+        let (tx, _rx) = mpsc::channel(1);
+
+        let error = ch.listen(tx).await.expect_err("invalid URL should be rejected").to_string();
+
+        assert!(error.contains("relative URL without a base"));
+    }
+
     /// 测试无群组 ID 时接受所有消息
     ///
     /// 当通道未配置群组 ID 时，应该接受：
@@ -578,6 +595,24 @@ mod tests {
             SignalChannel::parse_recipient_target("+abc123"),
             RecipientTarget::Group("+abc123".to_string())
         );
+    }
+
+    #[test]
+    fn parse_recipient_target_plain_group_id_is_group() {
+        assert_eq!(
+            SignalChannel::parse_recipient_target("plain-group-id"),
+            RecipientTarget::Group("plain-group-id".to_string())
+        );
+    }
+
+    #[test]
+    fn is_e164_validates_prefix_length_and_digits() {
+        assert!(SignalChannel::is_e164("+12"));
+        assert!(SignalChannel::is_e164("+123456789012345"));
+        assert!(!SignalChannel::is_e164("1234567890"));
+        assert!(!SignalChannel::is_e164("+1"));
+        assert!(!SignalChannel::is_e164("+1234567890123456"));
+        assert!(!SignalChannel::is_e164("+123abc"));
     }
 
     /// 测试有效 UUID 格式的识别
@@ -787,6 +822,18 @@ mod tests {
         assert!(ch.process_envelope(&env).is_none());
     }
 
+    #[test]
+    fn process_envelope_accepts_story_when_not_ignored() {
+        let ch = make_channel();
+        let mut env = make_envelope(Some("+1111111111"), Some("story text"));
+        env.story_message = Some(serde_json::json!({"timestamp": 1_700_000_000_000u64}));
+
+        let msg = ch.process_envelope(&env).expect("story is allowed when not ignored");
+
+        assert_eq!(msg.content, "story text");
+        assert_eq!(msg.sender, "+1111111111");
+    }
+
     /// 测试跳过仅包含附件的消息
     ///
     /// 当消息没有文本内容只有附件时，应该被过滤掉。
@@ -807,6 +854,51 @@ mod tests {
             timestamp: Some(1_700_000_000_000),
         };
         assert!(ch.process_envelope(&env).is_none());
+    }
+
+    #[test]
+    fn process_envelope_keeps_attachment_with_text() {
+        let ch = make_channel_with_group("dm");
+        let env = Envelope {
+            source: Some("+1111111111".to_string()),
+            source_number: Some("+1111111111".to_string()),
+            data_message: Some(DataMessage {
+                message: Some("caption".to_string()),
+                timestamp: Some(1_700_000_000_000),
+                group_info: None,
+                attachments: Some(vec![serde_json::json!({"contentType": "image/png"})]),
+            }),
+            story_message: None,
+            timestamp: Some(1_700_000_000_000),
+        };
+
+        let msg = ch.process_envelope(&env).expect("text keeps attachment message");
+
+        assert_eq!(msg.content, "caption");
+        assert_eq!(msg.reply_target, "+1111111111");
+    }
+
+    #[test]
+    fn process_envelope_uses_current_time_when_no_timestamp_present() {
+        let ch = make_channel();
+        let env = Envelope {
+            source: Some("+1111111111".to_string()),
+            source_number: Some("+1111111111".to_string()),
+            data_message: Some(DataMessage {
+                message: Some("untimed".to_string()),
+                timestamp: None,
+                group_info: None,
+                attachments: None,
+            }),
+            story_message: None,
+            timestamp: None,
+        };
+
+        let msg = ch.process_envelope(&env).expect("message without timestamp");
+
+        assert!(msg.id.starts_with("sig_"));
+        assert!(msg.timestamp > 0);
+        assert_eq!(msg.content, "untimed");
     }
 
     /// 测试 SSE 信封的反序列化

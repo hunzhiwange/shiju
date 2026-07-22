@@ -7,9 +7,14 @@ use crate::app::agent::config::traits::ChannelConfig;
 #[test]
 fn core_channel_metadata_is_stable() {
     assert_eq!(TelegramConfig::name(), "Telegram");
+    assert_eq!(TelegramConfig::desc(), "connect your bot");
     assert_eq!(DiscordConfig::name(), "Discord");
+    assert_eq!(DiscordConfig::desc(), "connect your bot");
     assert_eq!(SlackConfig::name(), "Slack");
+    assert_eq!(SlackConfig::desc(), "connect your bot");
+    assert_eq!(MattermostConfig::name(), "Mattermost");
     assert_eq!(MattermostConfig::desc(), "connect to your bot");
+    assert_eq!(WebhookConfig::name(), "Webhook");
     assert_eq!(WebhookConfig::desc(), "HTTP endpoint");
 }
 

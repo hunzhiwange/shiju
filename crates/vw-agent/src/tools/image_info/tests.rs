@@ -4,6 +4,7 @@
 //! 逃逸工作区的拒绝路径。
 
 use super::super::*;
+use super::MAX_IMAGE_BYTES;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -256,4 +257,57 @@ async fn execute_blocks_symlink_escape_outside_workspace() {
             || err.contains("outside"),
         "unexpected error message: {err}"
     );
+}
+
+#[test]
+fn dimension_extractors_reject_truncated_headers() {
+    assert_eq!(ImageInfoTool::extract_dimensions(&[0; 23], "png"), None);
+    assert_eq!(ImageInfoTool::extract_dimensions(&[0; 9], "gif"), None);
+    assert_eq!(ImageInfoTool::extract_dimensions(&[0; 25], "bmp"), None);
+}
+
+#[test]
+fn jpeg_dimensions_rejects_invalid_marker_and_truncated_segments() {
+    assert_eq!(ImageInfoTool::jpeg_dimensions(&[0xFF, 0xD8, 0x00, 0xE0]), None);
+    assert_eq!(ImageInfoTool::jpeg_dimensions(&[0xFF, 0xD8, 0xFF]), None);
+    assert_eq!(ImageInfoTool::jpeg_dimensions(&[0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x11]), None);
+}
+
+#[tokio::test]
+async fn execute_rejects_directory_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let policy = Arc::new(SecurityPolicy {
+        autonomy: AutonomyLevel::Full,
+        workspace_dir: dir.path().to_path_buf(),
+        workspace_only: true,
+        forbidden_paths: vec![],
+        ..SecurityPolicy::default()
+    });
+    let tool = ImageInfoTool::new(policy);
+
+    let result = tool.execute(json!({"path": "."})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.error.as_deref().unwrap().contains("Not a file"));
+}
+
+#[tokio::test]
+async fn execute_rejects_image_over_size_limit() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let image = dir.path().join("large.png");
+    let file = std::fs::File::create(&image).expect("fixture should be created");
+    file.set_len(MAX_IMAGE_BYTES + 1).expect("fixture size should be set");
+    let policy = Arc::new(SecurityPolicy {
+        autonomy: AutonomyLevel::Full,
+        workspace_dir: dir.path().to_path_buf(),
+        workspace_only: true,
+        forbidden_paths: vec![],
+        ..SecurityPolicy::default()
+    });
+    let tool = ImageInfoTool::new(policy);
+
+    let result = tool.execute(json!({"path": "large.png"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.error.as_deref().unwrap().contains("Image too large"));
 }

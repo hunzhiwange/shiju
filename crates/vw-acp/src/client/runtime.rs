@@ -97,8 +97,11 @@ impl AcpClient {
                 })
             }
             Err(err) => {
+                let cleanup_targets = process_cleanup_targets(child.id());
                 self.shutdown_io_task(io_task).await;
-                let finalized = self.finalize_child(child, stderr_task).await;
+                let finalized = self
+                    .finalize_child_with_cleanup_targets(child, stderr_task, cleanup_targets)
+                    .await;
                 Err(enrich_acp_error_with_process_context(err, &finalized))
             }
         }
@@ -120,12 +123,14 @@ impl AcpClient {
             io_closed_rx,
             io_task,
         } = runtime;
+        let cleanup_targets = process_cleanup_targets(child.id());
         drop(conn);
         drop(event_rx);
         drop(expected_session_id);
         drop(io_closed_rx);
         self.shutdown_io_task(io_task).await;
-        let finalized = self.finalize_child(child, stderr_task).await;
+        let finalized =
+            self.finalize_child_with_cleanup_targets(child, stderr_task, cleanup_targets).await;
         self.record_actor_exit(finalized.summary.clone(), reason, unexpected_during_prompt);
         self.store_reusable_session(None);
         finalized

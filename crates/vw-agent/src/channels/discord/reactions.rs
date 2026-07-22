@@ -14,6 +14,7 @@ use std::fmt::Write as _;
 /// 包含一系列用于消息确认的 Unicode 表情符号。
 /// 这些表情会在需要确认收到消息时随机选择使用。
 const DISCORD_ACK_REACTIONS: &[&str] = &["⚡️", "🦀", "🙌", "💪", "👌", "👀", "👣"];
+const DISCORD_API_BASE_URL: &str = "https://discord.com/api/v10";
 
 /// 生成均匀分布的随机索引
 ///
@@ -137,14 +138,22 @@ pub(super) fn encode_emoji_for_discord(emoji: &str) -> String {
 /// // 返回类似：https://discord.com/api/v10/channels/123456/messages/789012/reactions/%F0%9F%91%8D/@me
 /// ```
 pub(super) fn discord_reaction_url(channel_id: &str, message_id: &str, emoji: &str) -> String {
+    discord_reaction_url_with_base(DISCORD_API_BASE_URL, channel_id, message_id, emoji)
+}
+
+pub(super) fn discord_reaction_url_with_base(
+    api_base_url: &str,
+    channel_id: &str,
+    message_id: &str,
+    emoji: &str,
+) -> String {
     // 移除消息 ID 的 "discord_" 前缀（如果存在）
     let raw_id = message_id.strip_prefix("discord_").unwrap_or(message_id);
     // 编码表情符号
     let encoded_emoji = encode_emoji_for_discord(emoji);
+    let api_base_url = api_base_url.trim_end_matches('/');
     // 构建完整的 API URL
-    format!(
-        "https://discord.com/api/v10/channels/{channel_id}/messages/{raw_id}/reactions/{encoded_emoji}/@me"
-    )
+    format!("{api_base_url}/channels/{channel_id}/messages/{raw_id}/reactions/{encoded_emoji}/@me")
 }
 
 /// 获取确认表情列表（仅用于测试）

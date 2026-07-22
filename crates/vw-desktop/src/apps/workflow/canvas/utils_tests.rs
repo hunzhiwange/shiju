@@ -105,6 +105,10 @@ fn distance_to_segment_handles_degenerate_and_projected_segments() {
         distance_to_segment(Point::new(-3.0, 4.0), Point::ORIGIN, Point::new(10.0, 0.0)),
         5.0
     );
+    assert_eq!(
+        distance_to_segment(Point::new(13.0, 4.0), Point::ORIGIN, Point::new(10.0, 0.0)),
+        5.0
+    );
 }
 
 #[test]
@@ -116,9 +120,30 @@ fn wrap_text_lines_trims_wraps_and_truncates() {
 }
 
 #[test]
+fn wrap_text_lines_clamps_line_limit_and_preserves_existing_ellipsis() {
+    assert_eq!(wrap_text_lines("one\ntwo", 10, 0), vec!["one…".to_string()]);
+    assert_eq!(wrap_text_lines("abc…d", 4, 1), vec!["abc…".to_string()]);
+    assert_eq!(wrap_text_lines("abcd", 0, 0), vec!["abcd".to_string()]);
+}
+
+#[test]
+fn wrap_text_lines_skips_blank_raw_lines_and_marks_multiline_truncation() {
+    assert_eq!(
+        wrap_text_lines(" first \n\n second \n third ", 12, 2),
+        vec!["first".to_string(), "second…".to_string()]
+    );
+}
+
+#[test]
 fn display_width_counts_wide_and_unknown_characters() {
     assert_eq!(display_width("abc"), 3);
     assert_eq!(display_width("你好"), 4);
+}
+
+#[test]
+fn display_width_treats_zero_width_codepoints_as_one_column() {
+    assert_eq!(display_width("\u{0301}"), 1);
+    assert_eq!(display_width("a\u{0301}"), 2);
 }
 
 #[test]
@@ -183,6 +208,35 @@ fn group_and_plain_node_description_text_follow_state() {
 }
 
 #[test]
+fn code_node_description_falls_back_for_invalid_and_unknown_strategies() {
+    let document = WorkflowDocument::default();
+    let raw_nodes = [
+        Value::Null,
+        serde_yaml::from_str::<Value>("data: invalid\n").expect("yaml should parse"),
+        serde_yaml::from_str::<Value>("data:\n  error_strategy: 42\n").expect("yaml should parse"),
+        serde_yaml::from_str::<Value>("data:\n  error_strategy: '   '\n")
+            .expect("yaml should parse"),
+        serde_yaml::from_str::<Value>("data:\n  error_strategy: retry\n")
+            .expect("yaml should parse"),
+    ];
+
+    for raw_node in raw_nodes {
+        let mut node = code_node(None);
+        node.description = "保留原始描述".to_string();
+        node.raw_node = raw_node;
+
+        assert_eq!(node_description_text(&document, &node), "保留原始描述");
+    }
+
+    let mut trimmed = code_node(None);
+    trimmed.description = "不会显示".to_string();
+    trimmed.raw_node =
+        serde_yaml::from_str::<Value>("data:\n  error_strategy: '  fail-branch  '\n")
+            .expect("yaml should parse");
+    assert_eq!(node_description_text(&document, &trimmed), "异常时 异常分支");
+}
+
+#[test]
 fn color_and_coordinate_helpers_clamp_and_transform() {
     let left = Color::from_rgba(0.0, 0.2, 0.4, 0.6);
     let right = Color::from_rgba(1.0, 0.8, 0.6, 0.4);
@@ -211,6 +265,23 @@ fn color_and_coordinate_helpers_clamp_and_transform() {
 }
 
 #[test]
+fn color_and_bezier_helpers_cover_intermediate_and_endpoint_values() {
+    let left = Color::from_rgba(0.0, 0.2, 0.4, 0.6);
+    let right = Color::from_rgba(1.0, 0.8, 0.6, 0.4);
+    assert_eq!(blend(left, right, 0.5), Color::from_rgba(0.5, 0.5, 0.5, 0.5));
+    assert_eq!(with_alpha(left, 0.25), Color::from_rgba(0.0, 0.2, 0.4, 0.25));
+    assert_eq!(accent_color("llm"), workflow_node_accent_color("llm"));
+    assert_eq!(accent_color("unknown"), workflow_node_accent_color("unknown"));
+
+    let start = Point::new(1.0, 2.0);
+    let end = Point::new(9.0, 10.0);
+    let c1 = Point::new(3.0, 8.0);
+    let c2 = Point::new(7.0, 4.0);
+    assert_eq!(cubic_bezier_point(start, c1, c2, end, 0.0), start);
+    assert_eq!(cubic_bezier_point(start, c1, c2, end, 1.0), end);
+}
+
+#[test]
 fn theme_darkness_uses_palette_background() {
     assert!(theme_is_dark(&iced::Theme::Dark));
     assert!(!theme_is_dark(&iced::Theme::Light));
@@ -229,7 +300,8 @@ fn export_svg_handles_empty_documents() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn export_svg_renders_nodes_edges_labels_and_escapes_text() {
-    let mut source = basic_node("a", "llm", "A <B>", "description & more");
+    let mut source = basic_node("a", "llm", "A <B> \"Q\" 'S'", "description & more");
+    source.size = Size::new(320.0, 84.0);
     source.selected = true;
     let target = basic_node("b", "answer", "", "target");
     let document = WorkflowDocument {
@@ -241,8 +313,132 @@ fn export_svg_renders_nodes_edges_labels_and_escapes_text() {
     let svg = export_svg(&document);
 
     assert!(svg.contains("A &lt;B&gt;"));
+    assert!(svg.contains("&quot;Q&quot;"));
+    assert!(svg.contains("&apos;S&apos;"));
     assert!(svg.contains("description &amp; more"));
     assert!(svg.contains(">是<"));
     assert!(svg.contains("node-shadow"));
     assert!(svg.ends_with("</svg>"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn export_svg_skips_dangling_edges_and_renders_selected_edge_style() {
+    let mut later = basic_node("a", "llm", "Later", "");
+    later.z_index = 2.0;
+    let mut earlier = basic_node("b", "answer", "Earlier", "");
+    earlier.position = Point::new(260.0, 20.0);
+    earlier.z_index = -1.0;
+
+    let plain_edge = edge("a", "b", None);
+    let mut selected_edge = edge("a", "b", Some("false"));
+    selected_edge.id = "selected".to_string();
+    selected_edge.selected = true;
+    selected_edge.z_index = 1.0;
+    let document = WorkflowDocument {
+        nodes: vec![later, earlier],
+        edges: vec![
+            edge("missing", "b", None),
+            plain_edge,
+            edge("a", "missing", None),
+            selected_edge,
+        ],
+        ..WorkflowDocument::default()
+    };
+
+    let svg = export_svg(&document);
+
+    assert_eq!(svg.matches("<path ").count(), 2);
+    assert!(svg.contains("stroke-width=\"1.60\""));
+    assert!(svg.contains("stroke-width=\"2.80\""));
+    assert!(svg.contains(">否<"));
+    assert!(
+        svg.find(">Earlier<").expect("earlier node should render")
+            < svg.find(">Later<").expect("later node should render")
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn export_svg_renders_custom_edge_label_and_wrapped_compact_title() {
+    let mut source = basic_node("source", "tool", "ABCDEFGHIJKLMNO", "");
+    source.size = Size::new(120.0, 60.0);
+    let mut target = basic_node("target", "answer", "Target", "");
+    target.position = Point::new(240.0, 20.0);
+    let document = WorkflowDocument {
+        nodes: vec![source, target],
+        edges: vec![edge("source", "target", Some("fallback"))],
+        ..WorkflowDocument::default()
+    };
+
+    let svg = export_svg(&document);
+
+    assert!(svg.contains(">fallback<"));
+    assert!(svg.contains(">ABCDEFGH…<"));
+    assert!(svg.contains("rgba(148,163,184,0.300)"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn export_svg_uses_default_title_and_respects_description_height() {
+    let mut short = basic_node("short", "answer", "", "short description hidden");
+    short.size = Size::new(180.0, 60.0);
+    let mut tall = basic_node("tall", "answer", "Tall", "tall description visible");
+    tall.position = Point::new(260.0, 20.0);
+    tall.size = Size::new(220.0, 180.0);
+    let document = WorkflowDocument { nodes: vec![short, tall], ..WorkflowDocument::default() };
+
+    let svg = export_svg(&document);
+
+    assert!(svg.contains(">回复<"));
+    assert!(!svg.contains("short description hidden"));
+    assert!(svg.contains("tall description visible"));
+    assert!(svg.contains("font-size=\"13.00\""));
+    assert!(svg.contains("font-size=\"12.00\""));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn export_svg_renders_start_variable_rows_and_type_badges() {
+    let raw_node = serde_yaml::from_str::<Value>(
+        r#"
+data:
+  variables:
+    - variable: amount
+      type: number
+    - variable: accepted
+      type: checkbox
+    - variable: avatar
+      type: file
+    - variable: attachments
+      type: file-list
+    - variable: "note<&"
+      type: text-input
+"#,
+    )
+    .expect("start variable yaml should parse");
+    let mut start = basic_node("start", "start", "", "description should be hidden");
+    start.size = Size::new(240.0, 300.0);
+    start.raw_node = raw_node;
+    let document = WorkflowDocument { nodes: vec![start], ..WorkflowDocument::default() };
+
+    let svg = export_svg(&document);
+
+    assert!(svg.contains(">开始<"));
+    assert!(svg.contains(">amount<"));
+    assert!(svg.contains(">accepted<"));
+    assert!(svg.contains(">avatar<"));
+    assert!(svg.contains(">attachments<"));
+    assert!(svg.contains(">note&lt;&amp;<"));
+    assert!(svg.contains(">#<"));
+    assert!(svg.contains(">B<"));
+    assert!(svg.contains(">F<"));
+    assert!(svg.contains(">T<"));
+    assert!(!svg.contains("description should be hidden"));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[test]
+fn export_svg_returns_empty_on_wasm() {
+    assert!(export_svg(&WorkflowDocument::default()).is_empty());
 }

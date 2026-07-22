@@ -27,6 +27,8 @@ pub struct WhatsAppChannel {
     endpoint_id: String,
     verify_token: String,
     allowed_numbers: Vec<String>,
+    #[cfg(test)]
+    api_base_url: Option<String>,
 }
 
 impl WhatsAppChannel {
@@ -36,11 +38,49 @@ impl WhatsAppChannel {
         verify_token: String,
         allowed_numbers: Vec<String>,
     ) -> Self {
-        Self { access_token, endpoint_id, verify_token, allowed_numbers }
+        Self {
+            access_token,
+            endpoint_id,
+            verify_token,
+            allowed_numbers,
+            #[cfg(test)]
+            api_base_url: None,
+        }
     }
 
     fn http_client(&self) -> reqwest::Client {
         crate::app::agent::config::build_runtime_proxy_client("channel.whatsapp")
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_with_api_base_url(
+        access_token: String,
+        endpoint_id: String,
+        verify_token: String,
+        allowed_numbers: Vec<String>,
+        api_base_url: String,
+    ) -> Self {
+        let mut channel = Self::new(access_token, endpoint_id, verify_token, allowed_numbers);
+        channel.api_base_url = Some(api_base_url);
+        channel
+    }
+
+    fn graph_api_url(&self, path: &str) -> String {
+        #[cfg(test)]
+        if let Some(base_url) = &self.api_base_url {
+            return format!("{}/{}", base_url.trim_end_matches('/'), path.trim_start_matches('/'));
+        }
+
+        format!("https://graph.facebook.com/v18.0/{}", path.trim_start_matches('/'))
+    }
+
+    fn ensure_transport_allowed(&self, url: &str) -> anyhow::Result<()> {
+        #[cfg(test)]
+        if self.api_base_url.is_some() {
+            return Ok(());
+        }
+
+        ensure_https(url)
     }
 
     /// Check if a phone number is allowed (E.164 format: +1234567890)
@@ -91,7 +131,7 @@ impl WhatsAppChannel {
                     if !self.is_number_allowed(&normalized_from) {
                         tracing::warn!(
                             "WhatsApp: ignoring message from unauthorized number: {normalized_from}. \
-                            Add to channels.whatsapp.allowed_numbers in vibewindow.json."
+                            Add it to channels.whatsapp.allowed_numbers in system settings."
                         );
                         continue;
                     }
@@ -147,7 +187,7 @@ impl Channel for WhatsAppChannel {
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
         // WhatsApp Cloud API: POST to /v18.0/{phone_number_id}/messages
-        let url = format!("https://graph.facebook.com/v18.0/{}/messages", self.endpoint_id);
+        let url = self.graph_api_url(&format!("{}/messages", self.endpoint_id));
 
         // Normalize recipient (remove leading + if present for API)
         let to = message.recipient.strip_prefix('+').unwrap_or(&message.recipient);
@@ -163,7 +203,7 @@ impl Channel for WhatsAppChannel {
             }
         });
 
-        ensure_https(&url)?;
+        self.ensure_transport_allowed(&url)?;
 
         let resp = self
             .http_client()
@@ -202,9 +242,9 @@ impl Channel for WhatsAppChannel {
 
     async fn health_check(&self) -> bool {
         // Check if we can reach the WhatsApp API
-        let url = format!("https://graph.facebook.com/v18.0/{}", self.endpoint_id);
+        let url = self.graph_api_url(&self.endpoint_id);
 
-        if ensure_https(&url).is_err() {
+        if self.ensure_transport_allowed(&url).is_err() {
             return false;
         }
 
@@ -219,5 +259,5 @@ impl Channel for WhatsAppChannel {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
+#[path = "mod_tests.rs"]
+mod mod_tests;

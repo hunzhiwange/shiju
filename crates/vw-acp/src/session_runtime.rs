@@ -48,8 +48,6 @@ mod connect_load_tests;
 #[cfg(test)]
 mod lifecycle_tests;
 #[cfg(test)]
-mod prompt_runner_tests;
-#[cfg(test)]
 mod queue_owner_process_tests;
 // #[cfg(test)]
 // mod runtime_tests;

@@ -23,12 +23,15 @@ pub mod empty;
 mod global_status;
 pub mod header;
 pub mod height_index;
+pub mod message_measure;
 pub mod message_view;
+pub(crate) mod selectable_text;
 mod tool_names;
 pub mod tool_selector;
 pub mod tool_text_support;
 pub mod tools;
 pub mod utils;
+pub mod virtualizer;
 
 #[cfg(test)]
 #[path = "chunk_loader_tests.rs"]
@@ -43,6 +46,9 @@ mod height_index_tests;
 #[path = "latest_user_question_button_tests.rs"]
 mod latest_user_question_button_tests;
 #[cfg(test)]
+#[path = "message_measure_tests.rs"]
+mod message_measure_tests;
+#[cfg(test)]
 #[path = "message_view_tests.rs"]
 mod message_view_tests;
 #[cfg(test)]
@@ -55,6 +61,9 @@ mod permission_view_tests;
 #[path = "question_view_tests.rs"]
 mod question_view_tests;
 #[cfg(test)]
+#[path = "selectable_text_tests.rs"]
+mod selectable_text_tests;
+#[cfg(test)]
 #[path = "tool_names_tests.rs"]
 mod tool_names_tests;
 #[cfg(test)]
@@ -66,10 +75,13 @@ mod tool_selector_tests;
 #[cfg(test)]
 #[path = "tool_text_support_tests.rs"]
 mod tool_text_support_tests;
+#[cfg(test)]
+#[path = "virtualizer_tests.rs"]
+mod virtualizer_tests;
 
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, scrollable, stack, text};
+use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, text};
 use iced::{Background, Border, Color, Element, Length, Theme};
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
@@ -82,14 +94,18 @@ use crate::app::{App, Message, TodoPanelPlacement, message};
 use self::empty::{empty_session_placeholder, session_loading_placeholder};
 use self::global_status::chat_global_status_view;
 use self::header::chat_header_view;
-use self::height_index::{CHAT_MESSAGE_GAP, ChatHeightIndex};
+use self::height_index::CHAT_MESSAGE_GAP;
 use self::message_view::estimate_message_height_rough;
 use self::message_view::message_view;
 use self::utils::{chat_scroll_direction, icon_svg, truncate_chars};
+use self::virtualizer::ChatVirtualWindow;
+#[cfg(test)]
+use self::virtualizer::ChatVirtualizer;
 
 static FALLBACK_RENDER_CACHE_ENTRY: Lazy<ChatRenderCacheEntry> =
     Lazy::new(ChatRenderCacheEntry::default);
 
+#[cfg(test)]
 pub(crate) fn compute_visible_message_window_for_chat(
     chat_len: usize,
     message_heights: &[f32],
@@ -101,23 +117,15 @@ pub(crate) fn compute_visible_message_window_for_chat(
         return (0, 0);
     }
 
-    let index = ChatHeightIndex::from_heights(&message_heights[..clamped_len]);
-    let window = index.compute_window(scroll_offset_y, viewport_h, 0.0);
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&message_heights[..clamped_len]);
+    virtualizer.set_viewport_height(viewport_h);
+    virtualizer.set_relative_y(scroll_offset_y);
+    let window = virtualizer.compute_window(0.0);
     (window.visible_start_idx, window.visible_end_idx)
 }
 
-fn compute_visible_message_window(app: &App, message_heights: &[f32]) -> (usize, usize) {
-    if app.chat_height_index.len() == app.chat.len() && app.chat.len() == message_heights.len() {
-        let window = app.resolve_chat_height_window();
-        (window.visible_start_idx, window.visible_end_idx)
-    } else {
-        compute_visible_message_window_for_chat(
-            app.chat.len(),
-            message_heights,
-            app.chat_scroll_offset_y,
-            app.chat_scroll_viewport_h,
-        )
-    }
+pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {
+    app.chat_virtualizer.window()
 }
 
 #[allow(dead_code)]
@@ -145,7 +153,18 @@ pub(crate) fn is_chat_message_idx_visible(
     (visible_start_idx..visible_end_idx).contains(&target_idx)
 }
 
-fn user_question_preview(content: &str) -> String {
+pub(crate) fn active_user_question_idx(
+    user_question_idxs: &[usize],
+    visible_start_idx: usize,
+    visible_end_idx: usize,
+    viewport_h: f32,
+) -> Option<usize> {
+    user_question_idxs.iter().copied().find(|&msg_idx| {
+        is_chat_message_idx_visible(msg_idx, visible_start_idx, visible_end_idx, viewport_h)
+    })
+}
+
+pub(crate) fn user_question_preview(content: &str) -> String {
     let flattened = content.replace(['\n', '\r'], " ");
     let trimmed = flattened.split_whitespace().collect::<Vec<_>>().join(" ");
     if trimmed.is_empty() { "空提问".to_string() } else { truncate_chars(trimmed.trim(), 100) }
@@ -219,26 +238,15 @@ fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
 /// let main_view = container(chat_panel);
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let message_heights = &app.chat_message_estimated_heights;
-    let window = app.resolve_chat_height_window();
+    let window = chat_panel_virtual_window(app);
     let start_idx = window.render_start_idx;
     let end_idx = window.render_end_idx;
     let top_spacer_h = window.top_spacer_h;
     let bottom_spacer_h = window.bottom_spacer_h;
-    let (visible_start_idx, visible_end_idx) = if app.chat_height_index.len() == app.chat.len()
-        && app.chat.len() == message_heights.len()
-    {
-        (window.visible_start_idx, window.visible_end_idx)
-    } else {
-        compute_visible_message_window(app, message_heights)
-    };
-    let (question_visible_start_idx, question_visible_end_idx) =
-        compute_visible_message_window_for_chat(
-            app.chat.len(),
-            message_heights,
-            app.chat_scroll_offset_y,
-            app.chat_scroll_viewport_h,
-        );
+    let visible_start_idx = window.visible_start_idx;
+    let visible_end_idx = window.visible_end_idx;
+    let question_visible_start_idx = window.visible_start_idx;
+    let question_visible_end_idx = window.visible_end_idx;
     let user_question_idxs = user_question_indices(&app.chat);
 
     // 构建消息列，每条消息之间间隔 18px
@@ -276,7 +284,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .map(Cow::Owned)
             });
 
-        col = col.push(message_view(
+        let message = message_view(
             app,
             i,
             m.role,
@@ -285,7 +293,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             message_meta,
             render_cache,
             enable_heavy_tool_content,
-        ));
+        );
+        col = col.push(message_measure::MeasuredChatMessage::new(i, message));
     }
 
     if bottom_spacer_h > 0.0 {
@@ -295,10 +304,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 创建可滚动容器，包含消息列
     let scroll_content = scrollable(
         container(col).width(Length::Fill).center_x(Length::Fill).padding(iced::Padding {
-            top: 22.0,
-            right: 34.0,
-            bottom: 28.0,
-            left: 34.0,
+            top: 16.0,
+            right: 18.0,
+            bottom: 20.0,
+            left: 18.0,
         }),
     )
     .direction(chat_scroll_direction())
@@ -375,7 +384,7 @@ fn chat_todo_overlay<'a>(app: &'a App) -> Element<'a, Message> {
         TodoPanelSurface::ChatTopRight,
     );
 
-    container(panel)
+    container(opaque(panel))
         .padding(iced::Padding { top: 14.0, right: 22.0, bottom: 0.0, left: 0.0 })
         .width(Length::Fill)
         .height(Length::Fill)
@@ -533,14 +542,15 @@ fn user_question_nav_overlay<'a>(
     }
 
     let mut dots = column![].spacing(5).align_x(iced::alignment::Horizontal::Center);
+    let active_question_msg_idx = active_user_question_idx(
+        user_question_idxs,
+        visible_start_idx,
+        visible_end_idx,
+        app.chat_scroll_viewport_h,
+    );
 
     for (question_number, &msg_idx) in user_question_idxs.iter().enumerate() {
-        let is_visible = is_chat_message_idx_visible(
-            msg_idx,
-            visible_start_idx,
-            visible_end_idx,
-            app.chat_scroll_viewport_h,
-        );
+        let is_active = active_question_msg_idx == Some(msg_idx);
         let preview = app
             .chat
             .get(msg_idx)
@@ -549,8 +559,8 @@ fn user_question_nav_overlay<'a>(
         let tooltip_label = format!("问题 {}: {}", question_number + 1, preview);
 
         let dot = container(Space::new().width(Length::Shrink).height(Length::Shrink))
-            .width(Length::Fixed(if is_visible { 7.0 } else { 5.0 }))
-            .height(Length::Fixed(if is_visible { 7.0 } else { 5.0 }))
+            .width(Length::Fixed(if is_active { 7.0 } else { 5.0 }))
+            .height(Length::Fixed(if is_active { 7.0 } else { 5.0 }))
             .style(move |theme: &Theme| {
                 let primary = theme.extended_palette().primary.base.color;
                 let muted = if theme.palette().background.r
@@ -563,7 +573,7 @@ fn user_question_nav_overlay<'a>(
                     Color::from_rgba8(162, 168, 178, 0.96)
                 };
                 iced::widget::container::Style {
-                    background: Some(Background::Color(if is_visible {
+                    background: Some(Background::Color(if is_active {
                         primary.scale_alpha(0.96)
                     } else {
                         muted

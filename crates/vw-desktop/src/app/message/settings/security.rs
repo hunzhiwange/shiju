@@ -21,8 +21,10 @@
 //! - 默认采用安全优先策略
 
 use crate::app::config::update_security_config_async;
+use crate::app::state::SecuritySettingsState;
 use crate::app::{App, Message};
 use iced::Task;
+use vw_config_types::security::SecurityConfig;
 
 use super::messages::SettingsMessage;
 use super::util::parse_comma_or_newline_list;
@@ -202,8 +204,7 @@ fn normalize_security_otp_method(raw: &str) -> String {
 /// # 副作用
 ///
 /// 该函数会调用 `crate::app::update_security_config_async` 将配置异步写入磁盘
-fn persist_security_settings(app: &mut App) -> Task<Message> {
-    let s = &app.security_settings;
+fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &SecuritySettingsState) {
     let resources_max_memory_mb = s.resources_max_memory_mb.clamp(32, 65_536);
     let resources_max_cpu_time_seconds = s.resources_max_cpu_time_seconds.clamp(1, 86_400);
     let resources_max_subprocesses = s.resources_max_subprocesses.clamp(1, 10_000);
@@ -249,114 +250,117 @@ fn persist_security_settings(app: &mut App) -> Task<Message> {
     let syscall_anomaly_log_path = s.syscall_anomaly_log_path.trim().to_string();
     let semantic_guard_collection = s.semantic_guard_collection.trim().to_string();
 
-    // 更新安全配置文件
+    // 配置沙箱启用状态
+    // 将字符串转换为 Option<bool>，"auto" 对应 None
+    security.sandbox.enabled = match sandbox_enabled.as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    };
+
+    // 配置沙箱后端类型
+    security.sandbox.backend = match sandbox_backend.as_str() {
+        "landlock" => vw_config_types::security::SandboxBackend::Landlock,
+        "firejail" => vw_config_types::security::SandboxBackend::Firejail,
+        "bubblewrap" => vw_config_types::security::SandboxBackend::Bubblewrap,
+        "docker" => vw_config_types::security::SandboxBackend::Docker,
+        "none" => vw_config_types::security::SandboxBackend::None,
+        _ => vw_config_types::security::SandboxBackend::Auto,
+    };
+
+    // 配置 Firejail 自定义参数
+    security.sandbox.firejail_args = sandbox_firejail_args;
+
+    // 配置资源限制（带边界检查）
+    // 内存限制：32 MB - 64 GB
+    security.resources.max_memory_mb = resources_max_memory_mb;
+    // CPU 时间限制：1 秒 - 24 小时
+    security.resources.max_cpu_time_seconds = resources_max_cpu_time_seconds;
+    // 子进程数限制：1 - 10000
+    security.resources.max_subprocesses = resources_max_subprocesses;
+    // 内存监控开关
+    security.resources.memory_monitoring = resources_memory_monitoring;
+
+    // 配置审计日志
+    security.audit.enabled = audit_enabled;
+    // 如果路径为空，使用默认值 "audit.log"
+    security.audit.log_path =
+        if audit_log_path.is_empty() { "audit.log".to_string() } else { audit_log_path };
+    // 日志大小限制：1 MB - 10 GB
+    security.audit.max_size_mb = audit_max_size_mb;
+    // 审计事件签名开关
+    security.audit.sign_events = audit_sign_events;
+
+    // 配置 OTP 认证
+    security.otp.enabled = otp_enabled;
+    security.otp.method = match otp_method.as_str() {
+        "pairing" => vw_config_types::security::OtpMethod::Pairing,
+        "cli-prompt" => vw_config_types::security::OtpMethod::CliPrompt,
+        _ => vw_config_types::security::OtpMethod::Totp,
+    };
+    // OTP 令牌有效期：1 秒 - 10 分钟
+    security.otp.token_ttl_secs = otp_token_ttl_secs;
+    // OTP 缓存有效期：1 秒 - 24 小时
+    security.otp.cache_valid_secs = otp_cache_valid_secs;
+    // 需要 OTP 保护的配置项
+    security.otp.gated_actions = otp_gated_actions;
+    security.otp.gated_domains = otp_gated_domains;
+    security.otp.gated_domain_categories = otp_gated_domain_categories;
+
+    // 配置紧急停止机制
+    security.estop.enabled = estop_enabled;
+    // 如果状态文件路径为空，使用默认值
+    security.estop.state_file = if estop_state_file.is_empty() {
+        vw_config_types::paths::estop_state_file_path()
+    } else {
+        estop_state_file
+    };
+    // 恢复时是否需要 OTP 验证
+    security.estop.require_otp_to_resume = estop_require_otp_to_resume;
+
+    // 配置系统调用异常检测
+    security.syscall_anomaly.enabled = syscall_anomaly_enabled;
+    security.syscall_anomaly.strict_mode = syscall_anomaly_strict_mode;
+    security.syscall_anomaly.alert_on_unknown_syscall = syscall_anomaly_alert_on_unknown_syscall;
+
+    // 异常检测限流配置（防止告警风暴）
+    // 每分钟最大拒绝事件数：1 - 10000
+    security.syscall_anomaly.max_denied_events_per_minute =
+        syscall_anomaly_max_denied_events_per_minute;
+    // 每分钟最大总事件数：1 - 100000
+    security.syscall_anomaly.max_total_events_per_minute =
+        syscall_anomaly_max_total_events_per_minute;
+    // 每分钟最大告警数：1 - 10000
+    security.syscall_anomaly.max_alerts_per_minute = syscall_anomaly_max_alerts_per_minute;
+    // 告警冷却时间：1 秒 - 1 小时
+    security.syscall_anomaly.alert_cooldown_secs = syscall_anomaly_alert_cooldown_secs;
+
+    // 异常日志路径，如果为空使用默认值
+    security.syscall_anomaly.log_path = if syscall_anomaly_log_path.is_empty() {
+        "syscall-anomalies.log".to_string()
+    } else {
+        syscall_anomaly_log_path
+    };
+    // 基线系统调用列表（白名单）
+    security.syscall_anomaly.baseline_syscalls = syscall_anomaly_baseline_syscalls;
+
+    // 配置安全令牌和语义防护
+    security.canary_tokens = canary_tokens;
+    security.semantic_guard = semantic_guard;
+    // 语义防护集合名称，如果为空使用默认值
+    security.semantic_guard_collection = if semantic_guard_collection.is_empty() {
+        "semantic_guard".to_string()
+    } else {
+        semantic_guard_collection
+    };
+    // 语义防护阈值：0.0 - 1.0
+    security.semantic_guard_threshold = semantic_guard_threshold;
+}
+
+fn persist_security_settings(app: &mut App) -> Task<Message> {
+    let security_settings = app.security_settings.clone();
     update_security_config_async(move |security| {
-        // 配置沙箱启用状态
-        // 将字符串转换为 Option<bool>，"auto" 对应 None
-        security.sandbox.enabled = match sandbox_enabled.as_str() {
-            "true" => Some(true),
-            "false" => Some(false),
-            _ => None,
-        };
-
-        // 配置沙箱后端类型
-        security.sandbox.backend = match sandbox_backend.as_str() {
-            "landlock" => vw_config_types::security::SandboxBackend::Landlock,
-            "firejail" => vw_config_types::security::SandboxBackend::Firejail,
-            "bubblewrap" => vw_config_types::security::SandboxBackend::Bubblewrap,
-            "docker" => vw_config_types::security::SandboxBackend::Docker,
-            "none" => vw_config_types::security::SandboxBackend::None,
-            _ => vw_config_types::security::SandboxBackend::Auto,
-        };
-
-        // 配置 Firejail 自定义参数
-        security.sandbox.firejail_args = sandbox_firejail_args;
-
-        // 配置资源限制（带边界检查）
-        // 内存限制：32 MB - 64 GB
-        security.resources.max_memory_mb = resources_max_memory_mb;
-        // CPU 时间限制：1 秒 - 24 小时
-        security.resources.max_cpu_time_seconds = resources_max_cpu_time_seconds;
-        // 子进程数限制：1 - 10000
-        security.resources.max_subprocesses = resources_max_subprocesses;
-        // 内存监控开关
-        security.resources.memory_monitoring = resources_memory_monitoring;
-
-        // 配置审计日志
-        security.audit.enabled = audit_enabled;
-        // 如果路径为空，使用默认值 "audit.log"
-        security.audit.log_path =
-            if audit_log_path.is_empty() { "audit.log".to_string() } else { audit_log_path };
-        // 日志大小限制：1 MB - 10 GB
-        security.audit.max_size_mb = audit_max_size_mb;
-        // 审计事件签名开关
-        security.audit.sign_events = audit_sign_events;
-
-        // 配置 OTP 认证
-        security.otp.enabled = otp_enabled;
-        security.otp.method = match otp_method.as_str() {
-            "pairing" => vw_config_types::security::OtpMethod::Pairing,
-            "cli-prompt" => vw_config_types::security::OtpMethod::CliPrompt,
-            _ => vw_config_types::security::OtpMethod::Totp,
-        };
-        // OTP 令牌有效期：1 秒 - 10 分钟
-        security.otp.token_ttl_secs = otp_token_ttl_secs;
-        // OTP 缓存有效期：1 秒 - 24 小时
-        security.otp.cache_valid_secs = otp_cache_valid_secs;
-        // 需要 OTP 保护的配置项
-        security.otp.gated_actions = otp_gated_actions;
-        security.otp.gated_domains = otp_gated_domains;
-        security.otp.gated_domain_categories = otp_gated_domain_categories;
-
-        // 配置紧急停止机制
-        security.estop.enabled = estop_enabled;
-        // 如果状态文件路径为空，使用默认值
-        security.estop.state_file = if estop_state_file.is_empty() {
-            vw_config_types::paths::estop_state_file_path()
-        } else {
-            estop_state_file
-        };
-        // 恢复时是否需要 OTP 验证
-        security.estop.require_otp_to_resume = estop_require_otp_to_resume;
-
-        // 配置系统调用异常检测
-        security.syscall_anomaly.enabled = syscall_anomaly_enabled;
-        security.syscall_anomaly.strict_mode = syscall_anomaly_strict_mode;
-        security.syscall_anomaly.alert_on_unknown_syscall =
-            syscall_anomaly_alert_on_unknown_syscall;
-
-        // 异常检测限流配置（防止告警风暴）
-        // 每分钟最大拒绝事件数：1 - 10000
-        security.syscall_anomaly.max_denied_events_per_minute =
-            syscall_anomaly_max_denied_events_per_minute;
-        // 每分钟最大总事件数：1 - 100000
-        security.syscall_anomaly.max_total_events_per_minute =
-            syscall_anomaly_max_total_events_per_minute;
-        // 每分钟最大告警数：1 - 10000
-        security.syscall_anomaly.max_alerts_per_minute = syscall_anomaly_max_alerts_per_minute;
-        // 告警冷却时间：1 秒 - 1 小时
-        security.syscall_anomaly.alert_cooldown_secs = syscall_anomaly_alert_cooldown_secs;
-
-        // 异常日志路径，如果为空使用默认值
-        security.syscall_anomaly.log_path = if syscall_anomaly_log_path.is_empty() {
-            "syscall-anomalies.log".to_string()
-        } else {
-            syscall_anomaly_log_path
-        };
-        // 基线系统调用列表（白名单）
-        security.syscall_anomaly.baseline_syscalls = syscall_anomaly_baseline_syscalls;
-
-        // 配置安全令牌和语义防护
-        security.canary_tokens = canary_tokens;
-        security.semantic_guard = semantic_guard;
-        // 语义防护集合名称，如果为空使用默认值
-        security.semantic_guard_collection = if semantic_guard_collection.is_empty() {
-            "semantic_guard".to_string()
-        } else {
-            semantic_guard_collection
-        };
-        // 语义防护阈值：0.0 - 1.0
-        security.semantic_guard_threshold = semantic_guard_threshold;
+        apply_security_settings_to_config(security, &security_settings);
     })
 }
 

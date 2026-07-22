@@ -48,7 +48,7 @@ fn has_valid_acp_error(acp: Option<&OutputErrorAcpPayload>) -> bool {
     acp.is_some_and(|acp| !acp.message.trim().is_empty())
 }
 
-fn build_fallback_data(params: &BuildJsonRpcErrorParams) -> Option<Value> {
+fn build_fallback_data(params: &BuildJsonRpcErrorParams) -> Value {
     let mut data = Map::new();
     data.insert(
         "vwacpCode".to_string(),
@@ -69,7 +69,7 @@ fn build_fallback_data(params: &BuildJsonRpcErrorParams) -> Option<Value> {
     if let Some(session_id) = params.session_id.as_ref() {
         data.insert("sessionId".to_string(), Value::String(session_id.clone()));
     }
-    if data.is_empty() { None } else { Some(Value::Object(data)) }
+    Value::Object(data)
 }
 
 fn build_error_object(params: &BuildJsonRpcErrorParams) -> JsonRpcErrorObject {
@@ -85,7 +85,7 @@ fn build_error_object(params: &BuildJsonRpcErrorParams) -> JsonRpcErrorObject {
     JsonRpcErrorObject {
         code: output_error_jsonrpc_code(params.output_code),
         message: params.message.clone(),
-        data: build_fallback_data(params),
+        data: Some(build_fallback_data(params)),
     }
 }
 

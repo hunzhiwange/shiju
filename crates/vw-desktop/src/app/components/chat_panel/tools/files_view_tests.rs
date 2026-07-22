@@ -46,6 +46,13 @@ fn tool_files_view_rejects_invalid_or_skipped_tools() {
 }
 
 #[test]
+fn tool_files_view_rejects_plain_tool_without_files() {
+    let app = test_app();
+
+    assert!(tool_files_view(&app, 0, 0, "tool bash\n{\"status\":\"completed\"}").is_none());
+}
+
+#[test]
 fn tool_files_view_builds_read_search_and_write_views() {
     let mut app = test_app();
     app.tool_files_filter = "main".to_string();
@@ -104,4 +111,74 @@ fn tool_files_view_keeps_error_and_running_edit_cards() {
     )
     .expect("error read view");
     keep_element(failed);
+}
+
+#[test]
+fn tool_files_view_keeps_empty_search_and_edit_like_views() {
+    let app = test_app();
+
+    let search = tool_files_view(
+        &app,
+        3,
+        1,
+        r#"tool grep
+{"output":"","status":"completed"}"#,
+    )
+    .expect("empty search view");
+    keep_element(search);
+
+    let write = tool_files_view(
+        &app,
+        3,
+        2,
+        r#"tool write
+{"input":"{}","status":"completed"}"#,
+    )
+    .expect("empty write view");
+    keep_element(write);
+}
+
+#[test]
+fn tool_files_view_handles_denied_and_write_alias_views() {
+    let app = test_app();
+
+    let denied = tool_files_view(
+        &app,
+        4,
+        1,
+        r#"tool read
+{"input":"{\"path\":\"src/main.rs\"}","status":"denied","error":"permission denied"}"#,
+    )
+    .expect("denied read view");
+    keep_element(denied);
+
+    let file_write = tool_files_view(
+        &app,
+        4,
+        2,
+        r#"tool file_write
+{"input":"{\"path\":\"src/write.rs\",\"content\":\"hello\"}","status":"completed"}"#,
+    )
+    .expect("file_write view");
+    keep_element(file_write);
+
+    let file_edit = tool_files_view(
+        &app,
+        4,
+        3,
+        r#"tool file_edit
+{"input":"{\"path\":\"src/edit.rs\"}","status":"completed"}"#,
+    )
+    .expect("file_edit view");
+    keep_element(file_edit);
+
+    let notebook_edit = tool_files_view(
+        &app,
+        4,
+        4,
+        r#"tool notebook_edit
+{"input":"{\"path\":\"notebooks/demo.ipynb\"}","status":"completed"}"#,
+    )
+    .expect("notebook_edit view");
+    keep_element(notebook_edit);
 }

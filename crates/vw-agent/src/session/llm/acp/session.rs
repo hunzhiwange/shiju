@@ -20,7 +20,9 @@ use vw_acp::{
 use crate::app::agent::config;
 
 use super::config::build_acp_command_line;
-use super::{ACP_CLIENT_CACHE, CachedAcpClient, Error, ParsedAcpOptions, to_api_error};
+use super::{
+    ACP_CLIENT_CACHE, CachedAcpClient, CachedAcpClientEntry, Error, ParsedAcpOptions, to_api_error,
+};
 
 /// 复制非空工具名列表。
 ///
@@ -126,21 +128,39 @@ fn build_cached_acp_client(
 /// 获取或创建与配置完全匹配的 ACP 客户端。
 ///
 /// 返回值是共享 `Arc`；函数本身不执行网络请求，错误处理发生在后续会话和 prompt 调用中。
-pub(crate) fn get_cached_acp_client(
+pub(super) fn get_cached_acp_client(
     acp_agent_name: &str,
     acp_cfg: &config::schema::AcpAgentConfig,
     cwd: &Path,
     parsed_options: &ParsedAcpOptions,
-) -> Arc<CachedAcpClient> {
+) -> CachedAcpClientEntry {
     let key = acp_client_cache_key(acp_agent_name, acp_cfg, cwd, parsed_options);
     let mut cache = ACP_CLIENT_CACHE.lock();
     if let Some(existing) = cache.get(&key) {
-        return existing.clone();
+        return CachedAcpClientEntry { key, client: existing.clone() };
     }
 
     let client = build_cached_acp_client(acp_agent_name, acp_cfg, parsed_options);
-    cache.insert(key, client.clone());
-    client
+    cache.insert(key.clone(), client.clone());
+    CachedAcpClientEntry { key, client }
+}
+
+/// 关闭一次性 ACP 客户端缓存项。
+///
+/// 只有缓存中仍是同一个客户端且没有其他请求持有它时才会移除并关闭，避免误关正在
+/// 复用同一连接的交互会话。
+pub(super) async fn close_cached_acp_client_if_unshared(entry: &CachedAcpClientEntry) {
+    let removed = {
+        let mut cache = ACP_CLIENT_CACHE.lock();
+        let should_remove = cache.get(&entry.key).is_some_and(|existing| {
+            Arc::ptr_eq(existing, &entry.client) && Arc::strong_count(existing) <= 2
+        });
+        if should_remove { cache.remove(&entry.key) } else { None }
+    };
+
+    if let Some(client) = removed {
+        let _ = client.client.close().await;
+    }
 }
 
 /// 为会话记录构造事件日志配置。
@@ -247,6 +267,7 @@ async fn create_cached_session_record(
             available_models: None,
             available_commands: None,
             config_options: None,
+            desired_config_options: None,
             session_options: None,
         });
         state.session_options = Some(session_options);

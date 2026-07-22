@@ -28,19 +28,41 @@ mod tests {
     }
 
     #[test]
-    fn disabled_flag_overrides_specific_backend() {
-        let config = SecurityConfig {
-            sandbox: SandboxConfig {
-                enabled: Some(false),
-                backend: SandboxBackend::Docker,
-                firejail_args: Vec::new(),
-            },
-            ..Default::default()
-        };
+    fn disabled_flag_overrides_every_selectable_backend() {
+        for backend in [
+            SandboxBackend::Auto,
+            SandboxBackend::Landlock,
+            SandboxBackend::Firejail,
+            SandboxBackend::Bubblewrap,
+            SandboxBackend::Docker,
+        ] {
+            let config = SecurityConfig {
+                sandbox: SandboxConfig { enabled: Some(false), backend, firejail_args: Vec::new() },
+                ..Default::default()
+            };
 
-        let sandbox = create_sandbox(&config);
-        assert_eq!(sandbox.name(), "none");
-        assert!(sandbox.is_available());
+            let sandbox = create_sandbox(&config);
+            assert_eq!(sandbox.name(), "none");
+            assert!(sandbox.is_available());
+        }
+    }
+
+    #[test]
+    fn none_backend_returns_noop_regardless_of_enablement() {
+        for enabled in [None, Some(true)] {
+            let config = SecurityConfig {
+                sandbox: SandboxConfig {
+                    enabled,
+                    backend: SandboxBackend::None,
+                    firejail_args: Vec::new(),
+                },
+                ..Default::default()
+            };
+
+            let sandbox = create_sandbox(&config);
+            assert_eq!(sandbox.name(), "none");
+            assert!(sandbox.is_available());
+        }
     }
 
     #[test]
@@ -56,6 +78,51 @@ mod tests {
         let sandbox = create_sandbox(&config);
         // Should return some sandbox (at least NoopSandbox)
         assert!(sandbox.is_available());
+    }
+
+    #[test]
+    fn explicitly_enabled_auto_mode_keeps_detection_active() {
+        let config = SecurityConfig {
+            sandbox: SandboxConfig {
+                enabled: Some(true),
+                backend: SandboxBackend::Auto,
+                firejail_args: Vec::new(),
+            },
+            ..Default::default()
+        };
+
+        let sandbox = create_sandbox(&config);
+
+        assert!(sandbox.is_available());
+    }
+
+    #[test]
+    fn unavailable_backend_messages_cover_explicit_backends_only() {
+        let cases = [
+            (SandboxBackend::Landlock, "Landlock requested"),
+            (SandboxBackend::Firejail, "Firejail requested"),
+            (SandboxBackend::Bubblewrap, "Bubblewrap requested"),
+            (SandboxBackend::Docker, "Docker requested"),
+        ];
+
+        for (backend, expected_prefix) in cases {
+            let message = unavailable_backend_message(&backend).expect("explicit backend message");
+            assert!(message.starts_with(expected_prefix));
+            assert!(message.contains("falling back to application-layer"));
+        }
+        assert!(unavailable_backend_message(&SandboxBackend::Auto).is_none());
+        assert!(unavailable_backend_message(&SandboxBackend::None).is_none());
+    }
+
+    #[test]
+    fn fallback_helpers_return_available_noop_sandboxes() {
+        let unavailable = unavailable_backend_fallback(&SandboxBackend::Docker);
+        let application_layer = application_layer_fallback();
+
+        assert_eq!(unavailable.name(), "none");
+        assert!(unavailable.is_available());
+        assert_eq!(application_layer.name(), "none");
+        assert!(application_layer.is_available());
     }
 
     #[test]

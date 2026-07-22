@@ -84,20 +84,12 @@ fn parse_session_record_rejects_wrong_schema_and_negative_sequence() {
 }
 
 #[test]
-fn parse_event_log_falls_back_when_required_values_are_invalid() {
-    let fallback =
-        parse_event_log(Some(&serde_json::json!({"active_path": "/tmp/a"})), "session-1");
-
-    assert!(fallback.active_path.contains("session-1"));
-    assert!(fallback.segment_count > 0);
-}
-
-#[test]
 fn normalize_optional_name_trims_blank_and_rejects_non_strings() {
     assert_eq!(
         normalize_optional_name(Some(&Value::String("  name ".to_string()))),
         Some(Some("name".to_string()))
     );
+    assert_eq!(normalize_optional_name(None), Some(None));
     assert_eq!(normalize_optional_name(Some(&Value::String(" ".to_string()))), Some(None));
     assert_eq!(normalize_optional_name(Some(&Value::Bool(true))), None);
 }
@@ -133,7 +125,9 @@ fn parse_token_usage_defaults_missing_and_null_values() {
     assert_eq!(usage.cache_read_input_tokens, Some(4));
 
     assert!(parse_token_usage(Some(&Value::Bool(true))).is_none());
-    assert!(parse_token_usage(Some(&serde_json::json!({"input_tokens": -1}))).is_none());
+    assert!(
+        parse_token_usage(Some(&serde_json::json!({"cache_creation_input_tokens": -1}))).is_none()
+    );
 }
 
 #[test]
@@ -241,6 +235,24 @@ fn parse_vwacp_state_maps_supported_fields_and_ignores_invalid_optional_parts() 
     assert!(ignored.available_commands.is_none());
     assert!(ignored.config_options.is_none());
     assert!(ignored.session_options.is_none());
+    let empty = parse_vwacp_state(Some(&serde_json::json!({}))).unwrap().unwrap();
+    assert!(empty.session_options.is_none());
+}
+
+#[test]
+fn parse_vwacp_state_maps_desired_config_options() {
+    let state = parse_vwacp_state(Some(&serde_json::json!({
+        "desired_config_options": {
+            "reasoning_effort": "high",
+            "temperature": "0.2"
+        }
+    })))
+    .expect("vwacp parse")
+    .expect("vwacp state");
+
+    let desired = state.desired_config_options.expect("desired config options");
+    assert_eq!(desired.get("reasoning_effort").map(String::as_str), Some("high"));
+    assert_eq!(desired.get("temperature").map(String::as_str), Some("0.2"));
 }
 
 #[test]
@@ -298,12 +310,42 @@ fn parse_event_log_falls_back_for_missing_or_invalid_record_shapes() {
             "max_segment_bytes": 1,
             "max_segments": 1
         })),
+        Some(serde_json::json!({
+            "active_path": "/tmp/a",
+            "segment_count": 1,
+            "max_segment_bytes": 0,
+            "max_segments": 1
+        })),
+        Some(serde_json::json!({
+            "active_path": "/tmp/a",
+            "segment_count": 1,
+            "max_segment_bytes": 1,
+            "max_segments": 0
+        })),
     ];
 
     for raw in cases {
         let fallback = parse_event_log(raw.as_ref(), "session-fallback");
         assert!(fallback.active_path.contains("session-fallback"));
     }
+}
+
+#[cfg(not(windows))]
+#[tokio::test]
+async fn parse_event_log_fallback_uses_empty_home_when_default_home_is_missing() {
+    let _lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
+    let previous_home = std::env::var_os("HOME");
+    unsafe { std::env::remove_var("HOME") };
+
+    let fallback = parse_event_log(None, "session-no-home");
+    let empty_home_log = session_event_log("session-no-home", PathBuf::new());
+
+    match previous_home {
+        Some(value) => unsafe { std::env::set_var("HOME", value) },
+        None => unsafe { std::env::remove_var("HOME") },
+    }
+
+    assert_eq!(fallback.active_path, empty_home_log.active_path);
 }
 
 #[test]

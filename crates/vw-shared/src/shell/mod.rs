@@ -48,9 +48,9 @@ fn basename(p: &str) -> Option<String> {
     Path::new(p).file_name().and_then(|s| s.to_str()).map(|s| s.to_string())
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn which(program: &str) -> Option<PathBuf> {
     let paths = std::env::var_os("PATH")?;
-    let _splitter = if cfg!(windows) { ';' } else { ':' };
     for dir in std::env::split_paths(&paths) {
         let p = dir.join(program);
         if p.is_file() {
@@ -149,6 +149,14 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     if !candidate.is_dir() {
         return;
     }
+    push_known_path(paths, candidate);
+}
+
+/// 在不做存在性探测的前提下去重追加目录。
+///
+/// 用于已知稳定的兜底目录：即便目录暂时不可探测，也应保留在 PATH 中，缺失的目录
+/// 对查找无害，而漏掉关键目录会破坏 shebang 脚本的命令解析。
+fn push_known_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     if paths.iter().any(|existing| existing == &candidate) {
         return;
     }
@@ -209,6 +217,14 @@ fn infer_path_from_shell_profiles(home: &Path) -> Option<String> {
     touched.then_some(path_value)
 }
 
+/// 缓存补全后的 PATH。
+///
+/// 补全 PATH 依赖进程环境与 shell profile，这些在守护进程生命周期内保持稳定。
+/// 缓存可以避免在每次子进程启动时重复执行 profile 解析与目录探测；后者在高并发
+/// 启动场景下会产生大量 `is_dir` 系统调用，瞬时失败会把 `/opt/homebrew/bin` 这类
+/// 关键目录从子进程 PATH 中漏掉，进而导致 `npx` 等 shebang 脚本解析 `node` 失败。
+static EFFECTIVE_PATH: Lazy<Option<OsString>> = Lazy::new(build_effective_path);
+
 fn build_effective_path() -> Option<OsString> {
     let mut paths = Vec::new();
 
@@ -233,8 +249,10 @@ fn build_effective_path() -> Option<OsString> {
         }
     }
 
+    // 常见系统目录是稳定的兜底项；即便某次探测瞬时失败也必须保留，否则会把
+    // homebrew 等关键目录从子进程 PATH 中漏掉。这里不做 `is_dir` 过滤。
     for dir in COMMON_COMMAND_DIRS {
-        push_unique_path(&mut paths, PathBuf::from(dir));
+        push_known_path(&mut paths, PathBuf::from(dir));
     }
 
     if paths.is_empty() {
@@ -244,12 +262,27 @@ fn build_effective_path() -> Option<OsString> {
     std::env::join_paths(paths).ok()
 }
 
+/// 返回缓存的补全 PATH。
+///
+/// 测试构建下跳过缓存，便于用例通过修改进程环境验证 PATH 构建逻辑；生产构建则使用
+/// 进程级缓存，消除并发子进程启动时重复探测目录带来的瞬时竞态与开销。
+#[cfg(not(test))]
+fn cached_effective_path() -> Option<&'static OsString> {
+    EFFECTIVE_PATH.as_ref()
+}
+
+#[cfg(test)]
+fn cached_effective_path() -> Option<OsString> {
+    let _ = &*EFFECTIVE_PATH;
+    build_effective_path()
+}
+
 /// 返回补全后的 PATH 环境变量。
 ///
 /// 该值会合并当前进程 PATH、常见系统目录，以及从用户 `.zshrc` / `.bashrc`
 /// / `.profile` 中可安全推断出的 PATH 追加配置。
 pub fn effective_path_env() -> Option<String> {
-    build_effective_path().map(|value| value.to_string_lossy().to_string())
+    cached_effective_path().map(|value| value.to_string_lossy().to_string())
 }
 
 #[cfg(not(windows))]
@@ -296,7 +329,7 @@ pub fn shell_profile_env_var(env_name: &str) -> Option<String> {
     })
 }
 
-fn which_in_path_value(program: &str, path_value: &OsString) -> Option<PathBuf> {
+fn which_in_path_value(program: &str, path_value: &std::ffi::OsStr) -> Option<PathBuf> {
     for dir in std::env::split_paths(path_value) {
         let candidate = dir.join(program);
         if candidate.is_file() {
@@ -332,13 +365,34 @@ pub fn resolve_executable(program: &str) -> Option<PathBuf> {
         return candidate.is_file().then_some(candidate);
     }
 
-    if let Some(path_value) = build_effective_path()
+    if let Some(path_value) = std::env::var_os("PATH")
         && let Some(found) = which_in_path_value(program, &path_value)
     {
         return Some(found);
     }
 
-    which(program)
+    if let Some(path_value) = cached_effective_path()
+        && let Some(found) = which_in_path_value(program, path_value.as_ref())
+    {
+        return Some(found);
+    }
+
+    common_executable(program)
+}
+
+fn common_executable(program: &str) -> Option<PathBuf> {
+    let common_path = std::env::join_paths(COMMON_COMMAND_DIRS).ok()?;
+    which_in_path_value(program, &common_path)
+}
+
+fn git_program() -> PathBuf {
+    if std::env::var_os("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT").is_some()
+        && let Some(found) = common_executable("git")
+    {
+        return found;
+    }
+
+    resolved_program_or_original("git")
 }
 
 fn resolved_program_or_original(program: &str) -> PathBuf {
@@ -406,7 +460,8 @@ pub fn apply_git_defaults_tokio_command(command: &mut tokio::process::Command) {
 
 /// 构建标准 Git 命令对象。
 pub fn git_std_command() -> std::process::Command {
-    let mut command = std_command("git");
+    let mut command = std::process::Command::new(git_program());
+    apply_augmented_path_std_command(&mut command);
     apply_git_defaults_std_command(&mut command);
     command
 }
@@ -414,7 +469,8 @@ pub fn git_std_command() -> std::process::Command {
 /// 构建异步 Git 命令对象。
 #[cfg(feature = "shell-tokio")]
 pub fn git_tokio_command() -> tokio::process::Command {
-    let mut command = tokio_command("git");
+    let mut command = tokio::process::Command::new(git_program());
+    apply_augmented_path_tokio_command(&mut command);
     apply_git_defaults_tokio_command(&mut command);
     command
 }
@@ -423,7 +479,8 @@ pub fn git_tokio_command() -> tokio::process::Command {
 ///
 /// 当环境变量 `SHELL` 不可用或不合适时，根据操作系统选择默认 Shell。
 fn fallback() -> String {
-    if cfg!(windows) {
+    #[cfg(windows)]
+    {
         if let Some(p) = std::env::var("VIBEWINDOW_GIT_BASH_PATH").ok().as_ref() {
             let p = PathBuf::from(p);
             if p.is_file() {
@@ -442,11 +499,17 @@ fn fallback() -> String {
         return std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
     }
 
-    if cfg!(target_os = "macos") {
-        return "/bin/zsh".to_string();
+    #[cfg(target_os = "macos")]
+    {
+        "/bin/zsh".to_string()
     }
 
-    which("bash").map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "/bin/sh".to_string())
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        which("bash")
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/bin/sh".to_string())
+    }
 }
 
 /// 首选 Shell 路径

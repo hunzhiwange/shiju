@@ -213,7 +213,7 @@ impl<W: Write> OutputFormatter for JsonOutputFormatter<W> {
     }
 
     fn on_acp_message(&mut self, message: AcpJsonRpcMessage) {
-        let value = serde_json::to_value(message).unwrap_or_else(|_| Value::Object(Map::new()));
+        let value = serde_json::to_value(message).unwrap_or(Value::Object(Map::new()));
         let sanitized = self.sanitize_message_value(value);
         self.write_json_line(&sanitized);
     }
@@ -230,7 +230,7 @@ impl<W: Write> OutputFormatter for JsonOutputFormatter<W> {
             session_id: Some(self.session_id.clone()),
             acp: params.acp,
         });
-        let value = serde_json::to_value(response).unwrap_or_else(|_| Value::Object(Map::new()));
+        let value = serde_json::to_value(response).unwrap_or(Value::Object(Map::new()));
         self.write_json_line(&value);
     }
 

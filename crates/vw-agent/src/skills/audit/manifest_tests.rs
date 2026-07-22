@@ -51,3 +51,16 @@ command = ""
     assert!(summary.contains("empty script command"));
     assert!(summary.contains("prompts[0] contains high-risk pattern"));
 }
+
+#[test]
+fn manifest_audit_reports_missing_manifest_read_error() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let missing = dir.path().join("missing.toml");
+    let mut report = SkillAuditReport::default();
+
+    let error = audit_manifest_file(dir.path(), &missing, &mut report).unwrap_err().to_string();
+
+    assert!(error.contains("failed to read TOML manifest"), "{error}");
+    assert!(error.contains("missing.toml"), "{error}");
+    assert!(report.is_clean());
+}

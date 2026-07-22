@@ -5,19 +5,6 @@
 
 use super::*;
 
-/// 执行 to_file_url 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn to_file_url(path: &std::path::Path) -> String {
-    let normalized = path.to_string_lossy().replace('\\', "/").replace(' ', "%20");
-    if normalized.starts_with('/') {
-        format!("file://{}", normalized)
-    } else {
-        format!("file:///{}", normalized)
-    }
-}
-
 /// 执行 split_output_and_git_metadata 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -69,25 +56,27 @@ pub(crate) fn validate_ready_for_merge(
     task: &Task,
     project_path: Option<&str>,
 ) -> Result<(), String> {
-    let Some(project_path) = project_path else {
+    if project_path.is_none() {
         return Err("缺少项目路径，无法执行合并".to_string());
-    };
+    }
 
     let source_branch = task.merge_source_branch.as_deref().unwrap_or("").trim();
     if source_branch.is_empty() || source_branch == "HEAD" {
         return Err("缺少有效 source branch，无法自动合并".to_string());
     }
 
-    let target_branch = task.merge_target_branch.as_deref().unwrap_or("").trim();
-    if target_branch.is_empty() || target_branch == "HEAD" {
-        return Err("缺少有效 target branch，无法自动合并".to_string());
-    }
-
-    if source_branch == target_branch {
-        return Err(format!(
-            "source branch 与 target branch 相同，无法自动合并: {}",
-            source_branch
-        ));
+    if let Some(target_branch) =
+        task.merge_target_branch.as_deref().map(str::trim).filter(|branch| !branch.is_empty())
+    {
+        if target_branch == "HEAD" {
+            return Err("无效 target branch，无法自动合并: HEAD".to_string());
+        }
+        if source_branch == target_branch {
+            return Err(format!(
+                "source branch 与 target branch 相同，无法自动合并: {}",
+                source_branch
+            ));
+        }
     }
 
     let selected_worktree_path = task.selected_worktree_path.as_deref().unwrap_or("").trim();
@@ -95,72 +84,7 @@ pub(crate) fn validate_ready_for_merge(
         return Err("缺少任务 worktree，无法自动合并".to_string());
     }
 
-    if !crate::app::task::task_has_live_worktree(project_path, &task.id) {
-        return Err(format!(
-            "任务 worktree 已失效或已被回收，无法自动合并: {}",
-            selected_worktree_path
-        ));
-    }
-
     Ok(())
-}
-
-/// 执行 truncate_prompt_diff 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn truncate_prompt_diff(diff: &str, max_chars: usize) -> String {
-    let count = diff.chars().count();
-    if count <= max_chars {
-        return diff.to_string();
-    }
-    let truncated = diff.chars().take(max_chars).collect::<String>();
-    format!("{}\n\n[DIFF_TRUNCATED total_chars={}]", truncated, count)
-}
-
-/// 表示 CodeReviewPromptContext 相关的应用状态或派生数据。
-pub(crate) struct CodeReviewPromptContext {
-    pub(crate) prompt: String,
-}
-
-/// 执行 build_code_review_prompt_context 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn build_code_review_prompt_context(
-    task: &Task,
-    project_path: &str,
-    max_diff_chars: Option<usize>,
-) -> Result<CodeReviewPromptContext, String> {
-    let (resolved_source_branch, resolved_target_branch, commit1, commit2, diff) =
-        crate::app::task::build_review_diff_context(
-            project_path,
-            task.merge_source_branch.as_deref(),
-            task.merge_target_branch.as_deref(),
-        )?;
-    let prompt_diff = max_diff_chars
-        .map(|limit| truncate_prompt_diff(&diff, limit))
-        .unwrap_or_else(|| diff.clone());
-    let prompt = format!(
-        "你是代码 Review 专家。请基于下面给出的 git diff commit1 commit2 结果做审查，不要自行假设额外改动。\nsource_branch={}\ntarget_branch={}\nresolved_source_ref={}\nresolved_target_ref={}\ncommit1={}\ncommit2={}\ntask_id={}\n\n以下是命令 `git diff commit1 commit2` 的输出：\n{}\n\n请先给出审查结论，再给出可执行建议。\n如果不建议合并，必须输出精确 JSON：{{\"status\":\"error\",\"error\":\"风险太高或者其他什么原因\"}}。\n如果建议合并，请先给出简短 review 结论，再给出精确 JSON：{{\"status\":\"ok\"}}。",
-        task.merge_source_branch.as_deref().unwrap_or("待合并分支"),
-        task.merge_target_branch.as_deref().unwrap_or("目标分支"),
-        resolved_source_branch,
-        resolved_target_branch,
-        commit1,
-        commit2,
-        task.id,
-        prompt_diff
-    );
-    Ok(CodeReviewPromptContext { prompt })
-}
-
-/// 执行 build_code_review_prompt 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(crate) fn build_code_review_prompt(task: &Task, project_path: &str) -> Result<String, String> {
-    Ok(build_code_review_prompt_context(task, project_path, Some(120_000))?.prompt)
 }
 
 /// 执行 build_task_prompt_from_input 对应的领域操作。

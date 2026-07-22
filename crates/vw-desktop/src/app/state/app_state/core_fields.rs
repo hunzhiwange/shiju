@@ -36,6 +36,8 @@
     pub(crate) chat_message_expanded: HashSet<usize>,
     /// 聊天消息持久化高度缓存
     pub(crate) chat_message_estimated_heights: Vec<f32>,
+    /// 聊天虚拟滚动统一状态源
+    pub(crate) chat_virtualizer: crate::app::components::chat_panel::virtualizer::ChatVirtualizer,
     /// 聊天消息高度索引
     pub(crate) chat_height_index: crate::app::components::chat_panel::height_index::ChatHeightIndex,
     /// 聊天消息测量高度缓存
@@ -108,6 +110,10 @@
     pub(crate) usage_session_file_path: Option<String>,
     /// 展开的使用量步骤索引集合
     pub(crate) usage_step_expanded: HashSet<u32>,
+    /// 使用量步骤原始 LLM 载荷缓存
+    pub(crate) usage_step_raw_payloads: HashMap<UsageStepRawKey, UsageStepRawPayloadResult>,
+    /// 正在加载原始 LLM 载荷的使用量步骤
+    pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
     /// 是否显示合并视图
     pub(crate) merge_view: bool,
     /// 展开的文件路径列表

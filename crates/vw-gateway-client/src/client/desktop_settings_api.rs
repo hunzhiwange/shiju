@@ -39,6 +39,44 @@ pub struct DesktopSkillPathDto {
     pub path: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginCatalogEntryDto {
+    pub id: String,
+    pub display_name: String,
+    pub version: String,
+    pub description: String,
+    pub enabled: bool,
+    pub component_count: usize,
+    pub source_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginCapabilitiesDto {
+    pub skills: usize,
+    pub mcp_servers: usize,
+    pub hooks: usize,
+    pub interface: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginDetailDto {
+    pub id: String,
+    pub display_name: String,
+    pub version: String,
+    pub description: String,
+    pub enabled: bool,
+    pub source_path: Option<String>,
+    pub manifest_path: String,
+    pub capabilities: DesktopPluginCapabilitiesDto,
+    pub can_toggle: bool,
+    pub can_delete: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginPathDto {
+    pub path: String,
+}
+
 /// 外部应用探测结果的精简表示。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExternalAppsStateDto {
@@ -203,6 +241,53 @@ impl GatewayClient {
         self.skill_delete(project_path, skill_id).await
     }
 
+    /// 读取已发现插件目录。
+    pub async fn plugins_get(&self) -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
+        self.get_json("/v1/plugins", &[]).await
+    }
+
+    /// 读取指定插件详情。
+    pub async fn plugin_detail_get(
+        &self,
+        plugin_id: &str,
+    ) -> Result<DesktopPluginDetailDto, String> {
+        self.get_json("/v1/plugins/detail", &[("plugin_id".to_string(), plugin_id.to_string())])
+            .await
+    }
+
+    /// 设置本地插件启用状态。
+    pub async fn plugin_set_enabled(
+        &self,
+        plugin_id: &str,
+        enabled: bool,
+    ) -> Result<String, String> {
+        let response: DesktopPluginPathDto = self
+            .post_json(
+                "/v1/plugins/set-enabled",
+                &[],
+                &serde_json::json!({
+                    "plugin_id": plugin_id,
+                    "enabled": enabled,
+                }),
+            )
+            .await?;
+        Ok(response.path)
+    }
+
+    /// 删除本地插件目录。
+    pub async fn plugin_delete(&self, plugin_id: &str) -> Result<String, String> {
+        let response: DesktopPluginPathDto = self
+            .post_json(
+                "/v1/plugins/delete",
+                &[],
+                &serde_json::json!({
+                    "plugin_id": plugin_id,
+                }),
+            )
+            .await?;
+        Ok(response.path)
+    }
+
     /// 读取桌面端外部应用可用性状态。
     pub async fn desktop_external_apps_get(&self) -> Result<ExternalAppsStateDto, String> {
         let value: Value = self.get_json("/v1/desktop/external-apps", &[]).await?;
@@ -317,18 +402,6 @@ impl GatewayClient {
                 &serde_json::json!({ "content": content }),
             )
             .await?;
-        Ok(())
-    }
-
-    /// 读取脑图页签状态，空值表示尚未存储。
-    pub async fn desktop_mindmap_tabs_get(&self) -> Result<Option<Value>, String> {
-        let value: Value = self.get_json("/v1/desktop/mindmap-tabs", &[]).await?;
-        if value.is_null() { Ok(None) } else { Ok(Some(value)) }
-    }
-
-    /// 覆盖写入脑图页签状态。
-    pub async fn desktop_mindmap_tabs_put(&self, value: &Value) -> Result<(), String> {
-        let _: Value = self.put_json("/v1/desktop/mindmap-tabs", &[], value).await?;
         Ok(())
     }
 

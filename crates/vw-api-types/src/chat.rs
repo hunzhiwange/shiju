@@ -47,6 +47,24 @@ pub enum MessageStatus {
     Error,
 }
 
+/// 单次调用覆盖的推理强度。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffortDto {
+    /// 显式关闭推理。
+    None,
+    /// 低推理强度。
+    Low,
+    /// 中等推理强度。
+    Medium,
+    /// 高推理强度。
+    High,
+    /// 超高推理强度。
+    Xhigh,
+    /// 最大推理强度。
+    Max,
+}
+
 /// 消息内容片段。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -106,6 +124,9 @@ pub struct ChatOptionsDto {
     /// 指定工作树 ID。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worktree_id: Option<WorktreeId>,
+    /// 覆盖默认推理强度；缺失时沿用 agent 默认值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffortDto>,
 }
 
 /// 聊天调用附带的上下文。
@@ -151,6 +172,9 @@ pub struct GatewayChatStreamRequest {
     /// 指定模型。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 覆盖默认推理强度；缺失时沿用 agent 默认值。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffortDto>,
     /// 显式指定委托 agent。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,

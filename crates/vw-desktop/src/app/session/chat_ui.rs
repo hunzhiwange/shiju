@@ -30,7 +30,6 @@ pub enum PreparedChatUiPhase {
 /// CHAT_UI_CHUNK_SIZE 使用的固定配置值。
 pub const CHAT_UI_CHUNK_SIZE: usize = 32;
 const CHAT_HEAVY_EDITOR_CACHE_MESSAGE_MARGIN: usize = 24;
-const MAX_READ_ONLY_CHAT_EDITOR_CHARS: usize = 20_000;
 
 #[derive(Debug, Clone, Default)]
 struct ParsedChatUiArtifacts {
@@ -44,8 +43,6 @@ fn parse_chat_ui_artifacts(
     chat: &[ChatMessage],
     show_reasoning_summary: bool,
 ) -> ParsedChatUiArtifacts {
-    const MAX_EDITOR_CHARS: usize = 20_000;
-
     let mut parsed = ParsedChatUiArtifacts {
         visible_texts: vec![None; chat.len()],
         copy_hashes: vec![None; chat.len()],
@@ -69,13 +66,19 @@ fn parse_chat_ui_artifacts(
 
         parsed.visible_texts[msg_idx] = Some(visible.clone());
         parsed.copy_hashes[msg_idx] = Some(copy_hash);
-        let editor_text = match message.role {
-            ChatRole::Assistant => visible.as_str(),
-            ChatRole::Tool => entry.display_text.as_str(),
-            ChatRole::User | ChatRole::System => &message.content,
-        };
-        if editor_text.len() <= MAX_EDITOR_CHARS {
-            parsed.message_editor_texts[msg_idx] = Some(editor_text.to_string());
+        let editor_text =
+            crate::app::components::chat_panel::selectable_text::visible_editor_text_for_message(
+                message.role,
+                &message.content,
+                &visible,
+                &entry.display_text,
+            );
+        if crate::app::components::chat_panel::selectable_text::read_only_editor_content(
+            &editor_text,
+        )
+        .is_some()
+        {
+            parsed.message_editor_texts[msg_idx] = Some(editor_text);
         }
 
         parsed.render_cache.insert(msg_idx, entry);
@@ -93,6 +96,12 @@ fn resolve_render_cache_height(app: &App, idx: usize) -> Option<f32> {
         return None;
     }
     Some(cache_entry.estimated_expanded_height)
+}
+
+fn estimate_chat_message_height(message: &ChatMessage) -> f32 {
+    crate::app::components::chat_panel::message_view::estimate_message_height_rough(
+        &message.content,
+    )
 }
 
 /// 执行 chat_ui_chunk_start_idx 对应的领域操作。
@@ -138,6 +147,7 @@ fn chat_ui_visible_anchor_chunk_start(
     Some(chat_ui_chunk_start_idx(anchor_idx))
 }
 
+#[cfg(test)]
 fn sort_chunk_starts_by_anchor_distance(chunk_starts: &mut [usize], anchor_chunk_start: usize) {
     chunk_starts.sort_by_key(|chunk_start_idx| {
         (chunk_start_idx.abs_diff(anchor_chunk_start), *chunk_start_idx)
@@ -148,6 +158,7 @@ fn sort_chunk_starts_by_anchor_distance(chunk_starts: &mut [usize], anchor_chunk
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+#[cfg(test)]
 pub(super) fn prioritize_chat_ui_chunk_starts(
     chat_len: usize,
     start_idx: usize,
@@ -268,11 +279,7 @@ fn build_prepared_chat_ui_chunk(
 }
 
 fn read_only_chat_editor_content(text: &str) -> Option<text_editor::Content> {
-    if text.trim().is_empty() || text.len() > MAX_READ_ONLY_CHAT_EDITOR_CHARS {
-        return None;
-    }
-
-    Some(text_editor::Content::with_text(text))
+    crate::app::components::chat_panel::selectable_text::read_only_editor_content(text)
 }
 
 /// 执行 explore_summary_animation_key 对应的领域操作。
@@ -321,6 +328,24 @@ fn sync_chat_explore_summary_animations_for_message(
     });
 }
 
+/// 解析一段助手正文为 Markdown 块，并为每个块建立可划选只读编辑器。
+///
+/// 块结构存入 `chat_markdown_blocks`，对应编辑器存入 `chat_markdown_block_editors`，
+/// 二者键方案分别按消息+文本块索引、消息+文本块+块索引。
+fn sync_markdown_blocks_for_text(app: &mut App, msg_idx: usize, text_idx: usize, text: &str) {
+    use crate::app::components::chat_panel::message_view;
+
+    let blocks = message_view::parse_markdown_blocks(text);
+    for (block_idx, block) in blocks.iter().enumerate() {
+        if let Some(editor) = read_only_chat_editor_content(&block.text) {
+            let key = message_view::markdown_block_key(msg_idx, text_idx, block_idx);
+            app.chat_markdown_block_editors.insert(key, editor);
+        }
+    }
+    let block_key = ((msg_idx as u64) << 32) | (text_idx as u64);
+    app.chat_markdown_blocks.insert(block_key, blocks);
+}
+
 fn sync_chat_aux_text_editors_for_message(
     app: &mut App,
     msg_idx: usize,
@@ -328,11 +353,28 @@ fn sync_chat_aux_text_editors_for_message(
 ) {
     sync_chat_explore_summary_animations_for_message(app, msg_idx, render_entry);
 
+    let is_assistant_message =
+        matches!(app.chat.get(msg_idx).map(|message| message.role), Some(ChatRole::Assistant));
+
+    app.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != msg_idx);
+    app.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != msg_idx);
+
     for (text_idx, text) in render_entry.special_text_blocks.iter().enumerate() {
+        let key = ((msg_idx as u64) << 32) | (text_idx as u64);
         if let Some(editor) = read_only_chat_editor_content(text) {
-            let key = ((msg_idx as u64) << 32) | (text_idx as u64);
             app.chat_special_text_editors.insert(key, editor);
         }
+        if is_assistant_message {
+            sync_markdown_blocks_for_text(app, msg_idx, text_idx, text);
+        }
+    }
+
+    // 非特殊助手消息整体走 display_text，按文本块索引 0 缓存 Markdown 块。
+    if is_assistant_message
+        && !render_entry.has_special_blocks
+        && !render_entry.display_text.trim().is_empty()
+    {
+        sync_markdown_blocks_for_text(app, msg_idx, 0, &render_entry.display_text);
     }
 
     for (tool_idx, texts) in render_entry.tool_card_text_blocks.iter().enumerate() {
@@ -387,15 +429,40 @@ pub fn prepare_chat_ui_chunk_phase(
 }
 
 impl App {
+    pub(crate) fn sync_chat_virtualizer_compat_fields(&mut self) {
+        self.chat_message_estimated_heights = self.chat_virtualizer.estimated_heights().to_vec();
+        self.chat_height_index.set_heights(&self.chat_message_estimated_heights);
+        self.sync_chat_scroll_compat_fields();
+    }
+
+    pub(crate) fn sync_chat_scroll_compat_fields(&mut self) {
+        self.chat_scroll_offset_y = self.chat_virtualizer.relative_y();
+        self.chat_scroll_viewport_h = self.chat_virtualizer.viewport_height_px();
+    }
+
     /// 执行 protected_chat_ui_chunk_starts 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn protected_chat_ui_chunk_starts(&self) -> Vec<usize> {
+        fn push_protected_message_idx(
+            chunk_starts: &mut Vec<usize>,
+            chat_len: usize,
+            message_idx: usize,
+        ) {
+            if message_idx < chat_len {
+                let chunk_start_idx = chat_ui_chunk_start_idx(message_idx);
+                if !chunk_starts.contains(&chunk_start_idx) {
+                    chunk_starts.push(chunk_start_idx);
+                }
+            }
+        }
+
         let mut chunk_starts = Vec::new();
 
         if let Some(chunk_start_idx) = self.active_session_view_state.pinned_chat_ui_chunk_start
             && chunk_start_idx < self.chat.len()
+            && !chunk_starts.contains(&chunk_start_idx)
         {
             chunk_starts.push(chunk_start_idx);
         }
@@ -407,13 +474,76 @@ impl App {
                 Some(ChatRole::Assistant)
             )
         {
-            let chunk_start_idx = chat_ui_chunk_start_idx(last_idx);
-            if !chunk_starts.contains(&chunk_start_idx) {
-                chunk_starts.push(chunk_start_idx);
-            }
+            push_protected_message_idx(&mut chunk_starts, self.chat.len(), last_idx);
+        }
+
+        for &message_idx in &self.chat_message_expanded {
+            push_protected_message_idx(&mut chunk_starts, self.chat.len(), message_idx);
+        }
+
+        for &think_key in &self.chat_think_expanded {
+            push_protected_message_idx(
+                &mut chunk_starts,
+                self.chat.len(),
+                (think_key >> 32) as usize,
+            );
         }
 
         chunk_starts
+    }
+
+    fn chat_chunk_schedule_input(
+        &self,
+        start_idx: usize,
+        end_idx: usize,
+    ) -> crate::app::components::chat_panel::chunk_loader::ChatChunkScheduleInput {
+        let window = self.chat_virtualizer.window();
+        let has_visible_window = window.visible_start_idx < window.visible_end_idx;
+        let has_render_window = window.render_start_idx < window.render_end_idx;
+        let visible_start_idx =
+            if has_visible_window { window.visible_start_idx } else { start_idx };
+        let visible_end_idx = if has_visible_window { window.visible_end_idx } else { end_idx };
+        let render_start_idx = if has_render_window { window.render_start_idx } else { start_idx };
+        let render_end_idx = if has_render_window { window.render_end_idx } else { end_idx };
+        let anchor_idx = self
+            .chat_virtualizer
+            .anchor()
+            .map(|anchor| anchor.index.min(self.chat.len().saturating_sub(1)));
+        let direction_anchor_idx = anchor_idx.or_else(|| {
+            chat_ui_visible_window_bounds(self.chat.len(), visible_start_idx, visible_end_idx)
+                .map(|(start_idx, end_idx)| start_idx + (end_idx - start_idx - 1) / 2)
+        });
+        let scroll_direction = direction_anchor_idx
+            .map(chat_ui_chunk_start_idx)
+            .and_then(|anchor_chunk_start| {
+                self.active_session_view_state
+                    .last_visited_chat_ui_chunk_start
+                    .map(|last_chunk_start| anchor_chunk_start.cmp(&last_chunk_start))
+            })
+            .map(|ordering| match ordering {
+                Ordering::Greater => {
+                    crate::app::components::chat_panel::chunk_loader::ChatChunkScrollDirection::Down
+                }
+                Ordering::Less => {
+                    crate::app::components::chat_panel::chunk_loader::ChatChunkScrollDirection::Up
+                }
+                Ordering::Equal => crate::app::components::chat_panel::chunk_loader::
+                    ChatChunkScrollDirection::Stationary,
+            })
+            .unwrap_or(
+                crate::app::components::chat_panel::chunk_loader::ChatChunkScrollDirection::Stationary,
+            );
+
+        crate::app::components::chat_panel::chunk_loader::ChatChunkScheduleInput {
+            chat_len: self.chat.len(),
+            render_start_idx,
+            render_end_idx,
+            visible_start_idx,
+            visible_end_idx,
+            anchor_idx,
+            scroll_direction,
+            protected_chunk_starts: self.protected_chat_ui_chunk_starts(),
+        }
     }
 
     /// 执行 pin_chat_ui_chunk 对应的领域操作。
@@ -447,6 +577,14 @@ impl App {
 
         self.chat_special_text_editors.retain(|key, _| {
             let message_idx = (*key >> 32) as usize;
+            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
+        });
+        self.chat_markdown_blocks.retain(|key, _| {
+            let message_idx = (*key >> 32) as usize;
+            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
+        });
+        self.chat_markdown_block_editors.retain(|key, _| {
+            let message_idx = (*key >> 64) as usize;
             message_idx < chunk_start_idx || message_idx >= chunk_end_idx
         });
         self.chat_tool_text_editors.retain(|key, _| {
@@ -502,34 +640,9 @@ impl App {
 
         self.active_session_view_state.prepared_chat_ui_chunks.remove(&chunk_start_idx);
         self.active_session_view_state.preparing_chat_ui_chunks.remove(&chunk_start_idx);
+        self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
         self.clear_chat_ui_chunk_range(chunk_start_idx, chunk_end_idx, false);
         self.refine_chat_message_estimated_heights(chunk_start_idx, chunk_end_idx);
-    }
-
-    /// 执行 resolve_chat_height_window 对应的领域操作。
-    ///
-    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub(crate) fn resolve_chat_height_window(
-        &self,
-    ) -> crate::app::components::chat_panel::height_index::ChatHeightWindow {
-        const CHAT_VIRTUALIZATION_MIN_ITEMS: usize = 80;
-        if self.chat.is_empty()
-            || self.chat.len() < CHAT_VIRTUALIZATION_MIN_ITEMS
-            || self.current_session_runtime().is_requesting
-            || self.chat_height_index.len() != self.chat.len()
-            || self.chat_message_estimated_heights.len() != self.chat.len()
-        {
-            return crate::app::components::chat_panel::height_index::ChatHeightWindow::full(
-                self.chat.len(),
-            );
-        }
-
-        self.chat_height_index.compute_window(
-            self.chat_scroll_offset_y,
-            self.chat_scroll_viewport_h,
-            crate::app::components::chat_panel::height_index::CHAT_VIRTUALIZATION_OVERSCAN_PX,
-        )
     }
 
     /// 执行 visible_chat_message_window 对应的领域操作。
@@ -537,7 +650,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn visible_chat_message_window(&self) -> (usize, usize) {
-        let window = self.resolve_chat_height_window();
+        let window = self.chat_virtualizer.window();
         (window.visible_start_idx, window.visible_end_idx)
     }
 
@@ -546,28 +659,29 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn prune_chat_heavy_editor_caches(&mut self, start_idx: usize, end_idx: usize) {
-        let protected_chunk_starts = self.protected_chat_ui_chunk_starts();
+        let schedule_input = self.chat_chunk_schedule_input(start_idx, end_idx);
         let (keep_start, keep_end) =
-            crate::app::components::chat_panel::chunk_loader::heavy_cache_keep_bounds(
-                self.chat.len(),
-                start_idx,
-                end_idx,
+            crate::app::components::chat_panel::chunk_loader::heavy_cache_keep_bounds_for_schedule(
+                &schedule_input,
                 CHAT_HEAVY_EDITOR_CACHE_MESSAGE_MARGIN,
-                &protected_chunk_starts,
             );
+        let expanded_messages = self.chat_message_expanded.clone();
+        let expanded_thinking = self.chat_think_expanded.clone();
         let keep_message = |message_idx: usize| {
             (keep_start..keep_end).contains(&message_idx)
-                || self.chat_message_expanded.contains(&message_idx)
+                || expanded_messages.contains(&message_idx)
         };
 
         self.chat_special_text_editors.retain(|key, _| keep_message((*key >> 32) as usize));
+        self.chat_markdown_blocks.retain(|key, _| keep_message((*key >> 32) as usize));
+        self.chat_markdown_block_editors.retain(|key, _| keep_message((*key >> 64) as usize));
         self.chat_tool_text_editors.retain(|key, _| {
             let message_idx = (*key >> 64) as usize;
             keep_message(message_idx)
         });
         self.chat_think_editors.retain(|key, _| {
             let message_idx = (*key >> 32) as usize;
-            keep_message(message_idx) || self.chat_think_expanded.contains(key)
+            keep_message(message_idx) || expanded_thinking.contains(key)
         });
     }
 
@@ -576,13 +690,9 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn prune_chat_ui_chunks(&mut self, start_idx: usize, end_idx: usize) {
-        let protected_chunk_starts = self.protected_chat_ui_chunk_starts();
         let retained_chunk_starts =
-            crate::app::components::chat_panel::chunk_loader::retained_chunk_starts(
-                self.chat.len(),
-                start_idx,
-                end_idx,
-                &protected_chunk_starts,
+            crate::app::components::chat_panel::chunk_loader::retained_chunk_starts_for_schedule(
+                &self.chat_chunk_schedule_input(start_idx, end_idx),
             );
         let eviction_chunk_starts =
             crate::app::components::chat_panel::chunk_loader::eviction_chunk_starts(
@@ -623,16 +733,10 @@ impl App {
         end_idx: usize,
         include_neighbors: bool,
     ) -> Vec<usize> {
-        let base_chunk_start = self.preferred_base_chat_ui_chunk_start();
-        prioritize_chat_ui_chunk_starts(
-            self.chat.len(),
-            start_idx,
-            end_idx,
+        crate::app::components::chat_panel::chunk_loader::prioritized_chunk_starts(
+            &self.chat_chunk_schedule_input(start_idx, end_idx),
             include_neighbors,
-            self.active_session_view_state.last_visited_chat_ui_chunk_start,
-            base_chunk_start,
         )
-        .0
     }
 
     /// 执行 pending_chat_ui_chunk_starts 对应的领域操作。
@@ -645,14 +749,20 @@ impl App {
         end_idx: usize,
         include_neighbors: bool,
     ) -> Vec<usize> {
-        let (chunk_starts, anchor_chunk_start) = prioritize_chat_ui_chunk_starts(
-            self.chat.len(),
-            start_idx,
-            end_idx,
-            include_neighbors,
-            self.active_session_view_state.last_visited_chat_ui_chunk_start,
-            self.preferred_base_chat_ui_chunk_start(),
-        );
+        let schedule_input = self.chat_chunk_schedule_input(start_idx, end_idx);
+        let chunk_starts =
+            crate::app::components::chat_panel::chunk_loader::prioritized_chunk_starts(
+                &schedule_input,
+                include_neighbors,
+            );
+        let anchor_chunk_start =
+            schedule_input.anchor_idx.map(chat_ui_chunk_start_idx).or_else(|| {
+                chat_ui_visible_anchor_chunk_start(
+                    self.chat.len(),
+                    schedule_input.visible_start_idx,
+                    schedule_input.visible_end_idx,
+                )
+            });
         if let Some(anchor_chunk_start) = anchor_chunk_start {
             self.active_session_view_state.last_visited_chat_ui_chunk_start =
                 Some(anchor_chunk_start);
@@ -676,6 +786,18 @@ impl App {
     pub(crate) fn mark_chat_ui_chunks_preparing(&mut self, chunk_starts: &[usize]) {
         for &chunk_start_idx in chunk_starts {
             self.active_session_view_state.preparing_chat_ui_chunks.insert(chunk_start_idx);
+            self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
+        }
+    }
+
+    pub(crate) fn mark_chat_ui_chunk_preparing_or_dirty(&mut self, chunk_start_idx: usize) -> bool {
+        if self.active_session_view_state.preparing_chat_ui_chunks.contains(&chunk_start_idx) {
+            self.active_session_view_state.dirty_preparing_chat_ui_chunks.insert(chunk_start_idx);
+            false
+        } else {
+            self.active_session_view_state.preparing_chat_ui_chunks.insert(chunk_start_idx);
+            self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
+            true
         }
     }
 
@@ -692,6 +814,7 @@ impl App {
 
         self.active_session_view_state.prepared_chat_ui_chunks.remove(&chunk_start_idx);
         self.active_session_view_state.preparing_chat_ui_chunks.remove(&chunk_start_idx);
+        self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
         self.clear_chat_ui_chunk_range(chunk_start_idx, chunk_end_idx, true);
         self.refine_chat_message_estimated_heights(chunk_start_idx, chunk_end_idx);
     }
@@ -711,22 +834,16 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn sync_chat_message_estimated_heights_len(&mut self) {
-        let previous_len = self.chat_message_estimated_heights.len();
-        self.chat_message_estimated_heights.truncate(self.chat.len());
-        if self.chat_message_estimated_heights.len() < self.chat.len() {
-            let start_idx = self.chat_message_estimated_heights.len();
-            self.chat_message_estimated_heights.extend(self.chat[start_idx..].iter().map(
-                |message| {
-                    crate::app::components::chat_panel::message_view::estimate_message_height_rough(
-                        &message.content,
-                    )
-                },
-            ));
+        let mut heights = self.chat_virtualizer.estimated_heights().to_vec();
+        heights.truncate(self.chat.len());
+        if heights.len() < self.chat.len() {
+            let start_idx = heights.len();
+            heights.extend(self.chat[start_idx..].iter().map(estimate_chat_message_height));
         }
+
+        self.chat_virtualizer.set_estimated_heights(&heights);
         self.chat_message_measured_heights.retain(|idx, _| *idx < self.chat.len());
-        if previous_len != self.chat.len() || self.chat_height_index.len() != self.chat.len() {
-            self.chat_height_index.set_heights(&self.chat_message_estimated_heights);
-        }
+        self.sync_chat_virtualizer_compat_fields();
     }
 
     /// 执行 refine_chat_message_estimated_heights 对应的领域操作。
@@ -739,27 +856,21 @@ impl App {
         end_idx: usize,
     ) {
         self.sync_chat_message_estimated_heights_len();
-        if self.chat_height_index.len() != self.chat_message_estimated_heights.len() {
-            self.chat_height_index.set_heights(&self.chat_message_estimated_heights);
-        }
         let end_idx = end_idx.min(self.chat.len());
         let start_idx = start_idx.min(end_idx);
 
         for idx in start_idx..end_idx {
-            let estimated = resolve_render_cache_height(self, idx).unwrap_or_else(|| {
-                crate::app::components::chat_panel::message_view::estimate_message_height_rough(
-                    &self.chat[idx].content,
-                )
-            });
+            let estimated = resolve_render_cache_height(self, idx)
+                .unwrap_or_else(|| estimate_chat_message_height(&self.chat[idx]));
             let next_height = if let Some(measured) = self.chat_message_measured_heights.get(&idx) {
                 *measured
             } else {
-                let current = self.chat_message_estimated_heights[idx];
+                let current = self.chat_virtualizer.estimated_height(idx).unwrap_or(estimated);
                 (current * 0.35 + estimated * 0.65).max(estimated.min(current))
             };
-            self.chat_message_estimated_heights[idx] = next_height;
-            self.chat_height_index.update_height(idx, next_height);
+            self.chat_virtualizer.apply_measured_height(idx, next_height);
         }
+        self.sync_chat_virtualizer_compat_fields();
     }
 
     /// 执行 rebuild_chat_message_estimated_heights 对应的领域操作。
@@ -767,9 +878,9 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn rebuild_chat_message_estimated_heights(&mut self) {
-        self.chat_message_estimated_heights =
-            crate::app::components::chat_panel::rough_message_heights(&self.chat);
-        self.chat_height_index.set_heights(&self.chat_message_estimated_heights);
+        let heights = crate::app::components::chat_panel::rough_message_heights(&self.chat);
+        self.chat_virtualizer.set_estimated_heights(&heights);
+        self.sync_chat_virtualizer_compat_fields();
         self.refine_chat_message_estimated_heights(0, self.chat.len());
     }
 
@@ -784,14 +895,18 @@ impl App {
         self.active_session_view_state.message_meta_texts.clear();
         self.active_session_view_state.prepared_chat_ui_chunks.clear();
         self.active_session_view_state.preparing_chat_ui_chunks.clear();
+        self.active_session_view_state.dirty_preparing_chat_ui_chunks.clear();
         self.active_session_view_state.last_visited_chat_ui_chunk_start = None;
         self.active_session_view_state.pinned_chat_ui_chunk_start = None;
         self.chat_message_expanded.clear();
-        self.chat_message_estimated_heights.clear();
         self.chat_height_index.clear();
+        self.chat_virtualizer.set_estimated_heights(&[]);
+        self.sync_chat_virtualizer_compat_fields();
         self.chat_message_measured_heights.clear();
         self.chat_message_editors.clear();
         self.chat_special_text_editors.clear();
+        self.chat_markdown_blocks.clear();
+        self.chat_markdown_block_editors.clear();
         self.chat_tool_text_editors.clear();
         self.chat_think_editors.clear();
         self.chat_think_expanded.clear();
@@ -831,6 +946,7 @@ impl App {
         let chunk_end_idx = chunk_end_idx.min(self.chat.len());
 
         self.active_session_view_state.preparing_chat_ui_chunks.remove(&chunk_start_idx);
+        self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
         if self.chat_visible_text_cache.len() < self.chat.len() {
             self.chat_visible_text_cache.resize(self.chat.len(), None);
         }
@@ -842,6 +958,14 @@ impl App {
         }
         self.chat_special_text_editors.retain(|key, _| {
             let message_idx = (*key >> 32) as usize;
+            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
+        });
+        self.chat_markdown_blocks.retain(|key, _| {
+            let message_idx = (*key >> 32) as usize;
+            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
+        });
+        self.chat_markdown_block_editors.retain(|key, _| {
+            let message_idx = (*key >> 64) as usize;
             message_idx < chunk_start_idx || message_idx >= chunk_end_idx
         });
         self.chat_tool_text_editors.retain(|key, _| {
@@ -901,28 +1025,19 @@ impl App {
         self.prune_chat_heavy_editor_caches(visible_start_idx, visible_end_idx);
     }
 
-    /// 执行 sync_chat_message_editors_window 对应的领域操作。
+    /// 执行 pending_chat_message_editors_window_chunks 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub fn sync_chat_message_editors_window(&mut self, start_idx: usize, end_idx: usize) {
+    pub(crate) fn pending_chat_message_editors_window_chunks(
+        &mut self,
+        start_idx: usize,
+        end_idx: usize,
+    ) -> Vec<usize> {
         let pending_chunk_starts = self.pending_chat_ui_chunk_starts(start_idx, end_idx, false);
         self.prune_chat_ui_chunks(start_idx, end_idx);
         self.prune_chat_heavy_editor_caches(start_idx, end_idx);
-        if pending_chunk_starts.is_empty() {
-            return;
-        }
-        for chunk_start_idx in pending_chunk_starts {
-            let (chunk_start_idx, chunk_end_idx) =
-                chat_ui_chunk_bounds(self.chat.len(), chunk_start_idx);
-            let prepared = prepare_chat_ui_chunk_phase(
-                &self.chat[chunk_start_idx..chunk_end_idx],
-                chunk_start_idx,
-                false,
-                self.dialogue_flow_show_reasoning_summary,
-            );
-            self.apply_prepared_chat_ui_phase(prepared);
-        }
+        pending_chunk_starts
     }
 }
 

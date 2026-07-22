@@ -2,8 +2,21 @@
 
 use crate::app::message::settings::util::parse_comma_or_newline_list;
 use vw_config_types::channels::{
-    FeishuConfig, GroupReplyConfig, GroupReplyMode, LarkReceiveMode, QQReceiveMode,
+    DingTalkConfig, FeishuConfig, GroupReplyConfig, GroupReplyMode, LarkReceiveMode, MatrixConfig,
+    QQReceiveMode,
 };
+
+pub(super) fn default_matrix_config() -> MatrixConfig {
+    MatrixConfig {
+        homeserver: String::new(),
+        access_token: String::new(),
+        user_id: None,
+        device_id: None,
+        room_id: String::new(),
+        allowed_users: Vec::new(),
+        mention_only: false,
+    }
+}
 
 /// 处理 `default_feishu_config` 对应的用户输入、异步结果或状态转换。
 ///
@@ -20,6 +33,14 @@ pub(super) fn default_feishu_config() -> FeishuConfig {
         port: None,
         draft_update_interval_ms: 3000,
         max_draft_edits: 20,
+    }
+}
+
+pub(super) fn default_dingtalk_config() -> DingTalkConfig {
+    DingTalkConfig {
+        client_id: String::new(),
+        client_secret: String::new(),
+        allowed_users: Vec::new(),
     }
 }
 

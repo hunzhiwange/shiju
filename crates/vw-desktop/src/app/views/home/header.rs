@@ -30,74 +30,19 @@ pub(super) fn render(app: &App) -> Element<'_, Message> {
         "打开最近的项目",
         Message::Project(message::ProjectMessage::OpenProjectPressed),
     );
-    let design = secondary_button("进入设计器", Message::View(message::ViewMessage::OpenDesign));
 
-    let switches_row = row![
-        app_chip(
-            Icon::QrCode,
-            "二维码生成器",
-            Color::from_rgb8(0x8A, 0x3F, 0xFF),
-            Message::View(message::ViewMessage::OpenQrTool),
-        ),
-        app_chip(
-            Icon::LayoutTextWindow,
-            "时间戳转换器",
-            Color::from_rgb8(0xFF, 0x4D, 0x7D),
-            Message::View(message::ViewMessage::OpenTimestampTool),
-        ),
-        app_chip(
-            Icon::Code,
-            "进制转换器",
-            Color::from_rgb8(0x00, 0xA3, 0xFF),
-            Message::View(message::ViewMessage::OpenBaseTool),
-        ),
-        app_chip(
-            Icon::LayoutTextWindow,
-            "JSON工具",
-            Color::from_rgb8(0xF2, 0xA9, 0x00),
-            Message::View(message::ViewMessage::OpenJsonTool),
-        ),
-        app_chip(
-            Icon::LayoutTextWindow,
-            "SQL美化工具",
-            Color::from_rgb8(0x2E, 0xB8, 0x72),
-            Message::View(message::ViewMessage::OpenSqlTool),
-        ),
-        app_chip(
-            Icon::GearWideConnected,
-            "Redis客户端",
-            Color::from_rgb8(0xD9, 0x4F, 0x2B),
-            Message::View(message::ViewMessage::OpenRedisTool),
-        ),
-        app_chip(
-            Icon::Keyboard,
-            "随机密码生成器",
-            Color::from_rgb8(0xFF, 0x6A, 0x00),
-            Message::View(message::ViewMessage::OpenPasswordTool),
-        ),
-        app_chip(
-            Icon::Trash,
-            "电脑垃圾清理工具",
-            Color::from_rgb8(0xE1, 0x5B, 0x64),
-            Message::View(message::ViewMessage::OpenCleanerTool),
-        ),
-        app_chip(
-            Icon::FolderOpen,
-            "大文件查找工具",
-            Color::from_rgb8(0x6B, 0x7C, 0xFF),
-            Message::View(message::ViewMessage::OpenLargeFileTool),
-        ),
-    ]
+    let switches_row = row![app_chip(
+        Icon::Grid1x2,
+        "应用中心",
+        Color::from_rgb8(0x35, 0x85, 0xD6),
+        Message::View(message::ViewMessage::OpenApps),
+    ),]
     .spacing(6)
     .align_y(Alignment::Center);
 
     let switches = scrollable(switches_row)
         .id(app.home_apps_bar_scroll_id.clone())
-        .on_scroll(|viewport| {
-            Message::View(message::ViewMessage::HomeAppsBarScrollChanged(
-                viewport.relative_offset().x,
-            ))
-        })
+        .on_scroll(|viewport| home_apps_bar_scroll_changed(viewport.relative_offset().x))
         .direction(iced::widget::scrollable::Direction::Horizontal(
             iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
         ))
@@ -108,26 +53,97 @@ pub(super) fn render(app: &App) -> Element<'_, Message> {
         row![
             row![text("应用").size(18)].spacing(4).align_y(Alignment::Center),
             container(switches).width(Length::Fill).center_x(Length::Fill),
-            row![design, open, choose].spacing(10).align_y(Alignment::Center),
+            row![open, choose].spacing(10).align_y(Alignment::Center),
         ]
         .spacing(16)
         .align_y(Alignment::Center),
     )
     .padding([14, 18])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let mut style = settings_panel_style(theme);
-        style.border.width = 0.0;
-        style.border.color = Color::TRANSPARENT;
-        style.border.radius = 20.0.into();
-        style
-    })
+    .style(header_container_style)
     .into()
 }
 
+fn home_apps_bar_scroll_changed(relative_x: f32) -> Message {
+    Message::View(message::ViewMessage::HomeAppsBarScrollChanged(relative_x))
+}
+
+fn header_container_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = settings_panel_style(theme);
+    style.border.width = 0.0;
+    style.border.color = Color::TRANSPARENT;
+    style.border.radius = 20.0.into();
+    style
+}
+
+fn app_chip_icon_style(accent: Color) -> svg::Style {
+    svg::Style { color: Some(accent) }
+}
+
+fn app_chip_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    accent: Color,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let hovered = matches!(status, iced::widget::button::Status::Hovered);
+    let pressed = matches!(status, iced::widget::button::Status::Pressed);
+    let background = if pressed {
+        if is_dark_theme(theme) {
+            palette.background.strong.color.scale_alpha(0.92)
+        } else {
+            palette.background.weak.color.scale_alpha(0.92)
+        }
+    } else if hovered {
+        if is_dark_theme(theme) {
+            palette.background.weak.color.scale_alpha(0.86)
+        } else {
+            Color::WHITE.scale_alpha(0.94)
+        }
+    } else if is_dark_theme(theme) {
+        palette.background.base.color.scale_alpha(0.60)
+    } else {
+        Color::WHITE.scale_alpha(0.82)
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(background)),
+        border: Border {
+            width: 1.0,
+            color: if hovered {
+                accent.scale_alpha(0.34)
+            } else {
+                palette.background.strong.color.scale_alpha(0.72)
+            },
+            radius: 999.0.into(),
+        },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.14 } else { 0.05 }),
+            offset: Vector::new(0.0, 8.0),
+            blur_radius: 16.0,
+        },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+fn app_chip_tooltip_style() -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Color::from_rgba8(24, 24, 24, 0.96).into()),
+        text_color: Some(Color::WHITE),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.40),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: 18.0,
+        },
+        snap: false,
+    }
+}
+
 fn app_chip<'a>(icon: Icon, label: &'a str, accent: Color, on: Message) -> Element<'a, Message> {
-    let icon = icon_svg(icon, 14.0)
-        .style(move |_theme: &Theme, _status| svg::Style { color: Some(accent) });
+    let icon =
+        icon_svg(icon, 14.0).style(move |_theme: &Theme, _status| app_chip_icon_style(accent));
 
     let button = button(
         container(icon)
@@ -140,63 +156,11 @@ fn app_chip<'a>(icon: Icon, label: &'a str, accent: Color, on: Message) -> Eleme
     .width(Length::Fixed(34.0))
     .height(Length::Fixed(34.0))
     .padding(0)
-    .style(move |theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        let hovered = matches!(status, iced::widget::button::Status::Hovered);
-        let pressed = matches!(status, iced::widget::button::Status::Pressed);
-        let background = if pressed {
-            if is_dark_theme(theme) {
-                palette.background.strong.color.scale_alpha(0.92)
-            } else {
-                palette.background.weak.color.scale_alpha(0.92)
-            }
-        } else if hovered {
-            if is_dark_theme(theme) {
-                palette.background.weak.color.scale_alpha(0.86)
-            } else {
-                Color::WHITE.scale_alpha(0.94)
-            }
-        } else if is_dark_theme(theme) {
-            palette.background.base.color.scale_alpha(0.60)
-        } else {
-            Color::WHITE.scale_alpha(0.82)
-        };
+    .style(move |theme: &Theme, status| app_chip_button_style(theme, status, accent));
 
-        iced::widget::button::Style {
-            background: Some(Background::Color(background)),
-            border: Border {
-                width: 1.0,
-                color: if hovered {
-                    accent.scale_alpha(0.34)
-                } else {
-                    palette.background.strong.color.scale_alpha(0.72)
-                },
-                radius: 999.0.into(),
-            },
-            shadow: iced::Shadow {
-                color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.14 } else { 0.05 }),
-                offset: Vector::new(0.0, 8.0),
-                blur_radius: 16.0,
-            },
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
-    });
-
-    let tip_content =
-        container(text(label.to_string()).size(12)).padding([6, 8]).style(|_theme: &Theme| {
-            iced::widget::container::Style {
-                background: Some(Color::from_rgba8(24, 24, 24, 0.96).into()),
-                text_color: Some(Color::WHITE),
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(0.40),
-                    offset: Vector::new(0.0, 6.0),
-                    blur_radius: 18.0,
-                },
-                snap: false,
-            }
-        });
+    let tip_content = container(text(label.to_string()).size(12))
+        .padding([6, 8])
+        .style(|_theme: &Theme| app_chip_tooltip_style());
 
     Tooltip::new(button, tip_content, TooltipPosition::Bottom).gap(8.0).into()
 }

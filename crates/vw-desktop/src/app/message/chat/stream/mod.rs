@@ -11,11 +11,71 @@ mod todos;
 #[path = "permission_tests.rs"]
 mod permission_tests;
 
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
+
 use super::ChatMessage;
 use crate::app::session_gateway;
 use crate::app::{App, Message, models};
 use iced::Task;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+use std::cell::RefCell;
 use vw_shared::session::session_utils::is_default_title;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+type SaveSessionHook =
+    Box<dyn FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf>>;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+thread_local! {
+    static SAVE_SESSION_HOOK: RefCell<Option<SaveSessionHook>> = RefCell::new(None);
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+struct SaveSessionHookGuard;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+impl Drop for SaveSessionHookGuard {
+    fn drop(&mut self) {
+        SAVE_SESSION_HOOK.with(|hook| {
+            *hook.borrow_mut() = None;
+        });
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(super) fn with_save_session_hook<R>(
+    hook: impl FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + 'static,
+    f: impl FnOnce() -> R,
+) -> R {
+    SAVE_SESSION_HOOK.with(|slot| {
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+    let _guard = SaveSessionHookGuard;
+    f()
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+fn call_save_session_hook(
+    session: &models::ChatSession,
+    directory: Option<&str>,
+) -> Option<Option<std::path::PathBuf>> {
+    SAVE_SESSION_HOOK.with(|hook| hook.borrow_mut().as_mut().map(|hook| hook(session, directory)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn gateway_save_session_for_stream(
+    session: &models::ChatSession,
+    directory: Option<&str>,
+) -> Option<std::path::PathBuf> {
+    #[cfg(test)]
+    if let Some(result) = call_save_session_hook(session, directory) {
+        return result;
+    }
+
+    session_gateway::gateway_save_session(session, directory)
+}
 
 /// 模块内可见函数，执行 save_session_task 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -42,8 +102,19 @@ pub(super) fn save_session_task(
     session: models::ChatSession,
     directory: Option<String>,
 ) -> Task<Message> {
-    let _ = session_gateway::gateway_save_session(&session, directory.as_deref());
-    Task::none()
+    Task::perform(
+        async move {
+            let result = crate::app::message::spawn_blocking_opt(move || {
+                Some(gateway_save_session_for_stream(&session, directory.as_deref()))
+            })
+            .await
+            .flatten();
+            if result.is_none() {
+                tracing::warn!(target: "vw_desktop", "failed to save session");
+            }
+        },
+        |_| Message::Chat(ChatMessage::SessionSaveAck),
+    )
 }
 
 /// 模块内可见函数，执行 session_directory_for_save 对应的应用流程。
@@ -70,10 +141,11 @@ pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSess
         .map(|s| (s.title.clone(), s.time.created, s.time.updated))
         .unwrap_or_else(|| ("新会话".to_string(), now_ms(), 0));
     let is_active_session = app.active_session_id.as_deref() == Some(id.as_str());
-    let (messages, message_ids, steps) = if is_active_session {
+    let (messages, message_ids, calls, steps) = if is_active_session {
         (
             app.chat.clone(),
             app.chat_message_ids.clone(),
+            app.active_session_view_state.calls.clone(),
             app.active_session_view_state.steps.clone(),
         )
     } else if let Some(cached_chat) = app.cached_chat_messages(&id) {
@@ -82,20 +154,11 @@ pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSess
             .cached_chat_message_ids(&id)
             .filter(|ids| ids.len() == messages.len())
             .unwrap_or_else(|| vec![None; messages.len()]);
-        (messages, message_ids, Vec::new())
+        (messages, message_ids, Vec::new(), Vec::new())
     } else {
-        (Vec::new(), Vec::new(), Vec::new())
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new())
     };
-    models::ChatSession {
-        id,
-        title,
-        messages,
-        message_ids,
-        calls: vec![],
-        steps,
-        created_ms,
-        updated_ms,
-    }
+    models::ChatSession { id, title, messages, message_ids, calls, steps, created_ms, updated_ms }
 }
 
 /// 模块内可见函数，执行 start_next 对应的应用流程。

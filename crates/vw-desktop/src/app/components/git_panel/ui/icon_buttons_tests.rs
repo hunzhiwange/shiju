@@ -1,4 +1,4 @@
-use iced::Element;
+use iced::{Element, Length, Size};
 
 use crate::app::Message;
 use crate::app::assets::Icon;
@@ -32,4 +32,30 @@ fn compact_icon_buttons_build_elements() {
         small_plain_icon_button(Some(Icon::CheckSquare), "checked".into(), Message::None);
     let _: Element<'static, Message> =
         small_plain_icon_button(None, "empty slot".into(), Message::None);
+}
+
+#[test]
+fn square_icon_buttons_preserve_size_specific_geometry() {
+    let regular = square_icon_button(Icon::Trash, "regular".into(), Message::None);
+    let small = square_icon_button_small(Icon::Image, "small".into(), Message::None);
+    let tiny = square_icon_button_tiny(Icon::FileText, "tiny".into(), Message::None);
+    let micro = square_icon_button_micro(Icon::Gear, "micro".into(), Message::None);
+
+    for element in [&regular, &small] {
+        assert_eq!(element.as_widget().size(), Size::new(Length::Fixed(32.0), Length::Fixed(32.0)));
+        assert_eq!(element.as_widget().children().len(), 2);
+    }
+    assert_eq!(tiny.as_widget().size(), Size::new(Length::Fixed(28.0), Length::Fixed(28.0)));
+    assert_eq!(micro.as_widget().size(), Size::new(Length::Fixed(24.0), Length::Fixed(24.0)));
+}
+
+#[test]
+fn small_plain_icon_button_keeps_placeholder_width_without_icon() {
+    let with_icon = small_plain_icon_button(Some(Icon::CheckSquare), "icon".into(), Message::None);
+    let placeholder = small_plain_icon_button(None, String::new(), Message::None);
+
+    for element in [&with_icon, &placeholder] {
+        assert_eq!(element.as_widget().size().width, Length::Fixed(20.0));
+        assert_eq!(element.as_widget().children().len(), 2);
+    }
 }

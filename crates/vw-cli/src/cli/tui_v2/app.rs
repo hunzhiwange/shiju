@@ -6,7 +6,7 @@
 //! - 宿主管理 terminal lifecycle，包括 raw mode、alt screen 与退出清理
 //!
 //! 当前实现已覆盖到 Phase 6 的基础 overlay 宿主：
-//! - 不切换 legacy interactive 默认入口
+//! - 作为 CLI interactive 默认入口
 //! - 先接真实 gateway submit 流，不继续扩张 message row/virtual list
 //! - grouped/collapsed 仍留给后续 slice；search/task overlay 已接入当前宿主
 
@@ -91,19 +91,17 @@ const QUESTION_CUSTOM_ANSWER_PREFIX: &str = "__custom__:";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TuiRunMode {
     Standard,
-    Shadow,
 }
 
 impl TuiRunMode {
-    fn badge_label(self) -> &'static str {
+    pub(crate) fn badge_label(self) -> &'static str {
         match self {
-            Self::Standard => "TUI v2",
-            Self::Shadow => "TUI v2 shadow",
+            Self::Standard => "TUI",
         }
     }
 
-    fn shadow_compare_enabled(self) -> bool {
-        matches!(self, Self::Shadow)
+    pub(crate) fn shadow_compare_enabled(self) -> bool {
+        false
     }
 }
 
@@ -115,7 +113,7 @@ pub(crate) enum TodoSessionAccessAction {
 }
 
 impl TodoSessionAccessAction {
-    fn overlay_title(self) -> &'static str {
+    pub(crate) fn overlay_title(self) -> &'static str {
         match self {
             Self::OpenPanel => "待办面板不可用",
             Self::Refresh => "待办刷新失败",
@@ -123,7 +121,7 @@ impl TodoSessionAccessAction {
         }
     }
 
-    fn action_label(self) -> &'static str {
+    pub(crate) fn action_label(self) -> &'static str {
         match self {
             Self::OpenPanel => "打开待办面板",
             Self::Refresh => "刷新当前会话的待办列表",
@@ -212,7 +210,7 @@ fn dirs_home() -> Option<std::path::PathBuf> {
 
 /// 将 `mcpServers` JSON 值解析为 `UiMcpServerInfo` 列表。
 /// 支持对象映射格式和数组格式。
-fn parse_mcp_servers_json(value: &serde_json::Value) -> Vec<UiMcpServerInfo> {
+pub(crate) fn parse_mcp_servers_json(value: &serde_json::Value) -> Vec<UiMcpServerInfo> {
     match value {
         serde_json::Value::Object(map) => map
             .iter()
@@ -230,7 +228,10 @@ fn parse_mcp_servers_json(value: &serde_json::Value) -> Vec<UiMcpServerInfo> {
     }
 }
 
-fn mcp_server_entry_to_info(name: String, server: &serde_json::Value) -> UiMcpServerInfo {
+pub(crate) fn mcp_server_entry_to_info(
+    name: String,
+    server: &serde_json::Value,
+) -> UiMcpServerInfo {
     let transport_type = server.get("type").and_then(|v| v.as_str()).unwrap_or("stdio");
 
     let (transport, address) = match transport_type {
@@ -326,9 +327,9 @@ fn collect_memory_dir_entries(
 }
 
 /// 构建退出确认弹层的 body 文本，附带当前会话状态摘要。
-fn build_exit_confirm_body(state: &TuiState) -> String {
+pub(crate) fn build_exit_confirm_body(state: &TuiState) -> String {
     let mut lines: Vec<String> = Vec::new();
-    lines.push("确认离开 tui_v2 并返回 shell 吗？".to_string());
+    lines.push("确认离开 TUI 并返回 shell 吗？".to_string());
     lines.push(String::new());
 
     // 会话信息摘要
@@ -351,12 +352,6 @@ fn build_exit_confirm_body(state: &TuiState) -> String {
         .count();
     if msg_count > 0 {
         lines.push(format!("  消息数   : {msg_count} 条"));
-    }
-
-    if let Some(model) = &state.status.model_name
-        && !model.trim().is_empty()
-    {
-        lines.push(format!("  当前模型 : {model}"));
     }
 
     if state.prompt.is_busy() {
@@ -430,7 +425,7 @@ fn runtime_unknown_event_overlay(event_type: Option<&str>) -> UiErrorOverlay {
         return UiErrorOverlay {
             title: "权限事件回退".to_string(),
             message: format!(
-                "gateway 发出了一条权限或授权事件，但 tui_v2 无法将它解码到专用权限界面。请按 F2 打开待处理请求；如果没有出现，尝试升级协议后重试。\n事件类型: {}",
+                "gateway 发出了一条权限或授权事件，但 TUI 无法将它解码到专用权限界面。请按 F2 打开待处理请求；如果没有出现，尝试升级协议后重试。\n事件类型: {}",
                 event_type
             ),
             recoverable: true,
@@ -468,7 +463,7 @@ fn runtime_terminal_error_overlay(message: &str) -> UiErrorOverlay {
         return UiErrorOverlay {
             title: "权限请求失败".to_string(),
             message: format!(
-                "当前轮次触发了授权或权限边界，但 tui_v2 无法将它解码到专用权限界面。请按 F2 打开待处理请求；如果没有出现，先恢复会话后重试。\n{}",
+                "当前轮次触发了授权或权限边界，但 TUI 无法将它解码到专用权限界面。请按 F2 打开待处理请求；如果没有出现，先恢复会话后重试。\n{}",
                 if normalized.is_empty() {
                     "授权或权限请求处理失败"
                 } else {
@@ -489,7 +484,7 @@ fn runtime_terminal_error_overlay(message: &str) -> UiErrorOverlay {
     }
 }
 
-fn latest_session_preview(previews: &[ChatSessionMeta]) -> Option<&ChatSessionMeta> {
+pub(crate) fn latest_session_preview(previews: &[ChatSessionMeta]) -> Option<&ChatSessionMeta> {
     previews.iter().max_by(|left, right| {
         left.updated_ms
             .cmp(&right.updated_ms)
@@ -499,7 +494,7 @@ fn latest_session_preview(previews: &[ChatSessionMeta]) -> Option<&ChatSessionMe
     })
 }
 
-fn snapshot_from_preview(preview: &ChatSessionMeta) -> ChatSession {
+pub(crate) fn snapshot_from_preview(preview: &ChatSessionMeta) -> ChatSession {
     ChatSession {
         id: preview.id.clone(),
         title: preview.title.clone(),
@@ -512,7 +507,7 @@ fn snapshot_from_preview(preview: &ChatSessionMeta) -> ChatSession {
     }
 }
 
-fn empty_session_snapshot(session_id: &str) -> ChatSession {
+pub(crate) fn empty_session_snapshot(session_id: &str) -> ChatSession {
     ChatSession {
         id: session_id.to_string(),
         title: String::new(),
@@ -771,7 +766,7 @@ impl TuiApp {
         if preflight.started_gateway() {
             app.push_app_system_message(
                 format!(
-                    "Local gateway auto-started at {} before entering tui_v2.",
+                    "Local gateway auto-started at {} before entering TUI.",
                     app.runtime.endpoint().describe()
                 ),
                 UiSystemMessageLevel::Success,
@@ -1589,7 +1584,7 @@ impl TuiApp {
 
         let Some(request) = request else {
             self.push_app_system_message(
-                "Shadow compare skipped because no stable session binding was available for the current turn. Re-run with --tui-mode legacy to fall back.",
+                "Shadow compare skipped because no stable session binding was available for the current turn.",
                 UiSystemMessageLevel::Warning,
             );
             return;
@@ -1597,7 +1592,7 @@ impl TuiApp {
 
         let Some(gateway_result) = gateway_result else {
             self.push_app_system_message(
-                "Shadow compare skipped because the gateway turn did not produce a comparable terminal result. Re-run with --tui-mode legacy to fall back.",
+                "Shadow compare skipped because the gateway turn did not produce a comparable terminal result.",
                 UiSystemMessageLevel::Warning,
             );
             return;
@@ -1613,18 +1608,14 @@ impl TuiApp {
                 }
                 Err(diff) => {
                     self.push_app_system_message(
-                        format!(
-                            "Shadow compare diverged from legacy: {diff}. Re-run with --tui-mode legacy to fall back."
-                        ),
+                        format!("Shadow compare diverged from legacy: {diff}."),
                         UiSystemMessageLevel::Warning,
                     );
                 }
             },
             Err(err) => {
                 self.push_app_system_message(
-                    format!(
-                        "Shadow compare failed before legacy replay completed: {err}. Re-run with --tui-mode legacy to fall back."
-                    ),
+                    format!("Shadow compare failed before legacy replay completed: {err}."),
                     UiSystemMessageLevel::Warning,
                 );
             }
@@ -1708,7 +1699,7 @@ impl TuiApp {
         };
 
         let Some(target_session_id) = select_restore_session_id(session_id, &previews) else {
-            self.push_overlay_error("恢复失败", "当前没有可供 tui_v2 恢复的会话快照。");
+            self.push_overlay_error("恢复失败", "当前没有可供 TUI 恢复的会话快照。");
             return;
         };
 
@@ -1875,34 +1866,31 @@ impl TuiApp {
     }
 }
 
-/// 提供 tui_v2 fullscreen skeleton 的显式入口。
-///
-/// 该函数当前只用于后续切换或手动试跑，不直接替换 legacy interactive 路径。
+/// 提供 CLI TUI 的显式入口。
 pub(crate) fn run_tui_v2(config: &Config, setup: &CliSetup, run_mode: TuiRunMode) -> Result<()> {
     TuiApp::bootstrap(config, setup, run_mode)?.run()
 }
 
-fn default_session_title(directory: &Path) -> String {
+pub(crate) fn default_session_title(directory: &Path) -> String {
     directory
         .file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.trim().is_empty())
-        .map(|name| format!("TUI v2 {}", name.trim()))
-        .unwrap_or_else(|| "TUI v2 会话".to_string())
+        .map(|name| format!("TUI {}", name.trim()))
+        .unwrap_or_else(|| "TUI 会话".to_string())
 }
 
-fn bootstrap_message_base() -> UiMessageBase {
+pub(crate) fn bootstrap_message_base() -> UiMessageBase {
     UiMessageBase::new(UiMessageId::local("ui-bootstrap-system"))
 }
 
-fn bootstrap_system_message(run_mode: TuiRunMode) -> String {
+pub(crate) fn bootstrap_system_message(run_mode: TuiRunMode) -> String {
     match run_mode {
-        TuiRunMode::Standard => "S7-2b 宿主已启动。直接在输入区键入内容并按 Enter，即可发起真实的 gateway 轮次；按 F1 查看帮助，按 F2/F3/F4 打开问题、待办和任务面板；如需切换宿主，可重新运行 --tui-mode legacy 或 --tui-mode v2-shadow。".to_string(),
-        TuiRunMode::Shadow => "S7-2b 影子宿主已启动。每一轮都会先走 gateway，再回放 legacy processor 做对比；如需回退，可重新运行 --tui-mode legacy。".to_string(),
+        TuiRunMode::Standard => "TUI 已启动。直接在输入区键入内容并按 Enter，即可发起真实的 gateway 轮次；按 F1 查看帮助，按 F2/F3/F4 打开问题、待办和任务面板。".to_string(),
     }
 }
 
-fn provider_name_from_model(model_name: &str) -> Option<String> {
+pub(crate) fn provider_name_from_model(model_name: &str) -> Option<String> {
     normalize_optional_str_ref(Some(model_name))
         .and_then(|model_name| model_name.split_once('/').map(|(provider_name, _)| provider_name))
         .map(ToOwned::to_owned)
@@ -1942,7 +1930,7 @@ fn load_model_catalog_blocking() -> Vec<TuiModelCatalogEntry> {
     entries
 }
 
-fn normalize_catalog_text(value: &str, fallback: &str) -> String {
+pub(crate) fn normalize_catalog_text(value: &str, fallback: &str) -> String {
     let value = value.trim();
     if value.is_empty() { fallback.to_string() } else { value.to_string() }
 }
@@ -1974,6 +1962,7 @@ fn gateway_stream_request_from_state(
         messages: snapshot.messages.iter().map(gateway_message_from_chat_message).collect(),
         system: None,
         model: submission.model.clone(),
+        reasoning_effort: None,
         agent: None,
         allowed_tools: None,
         acp_agent: None,
@@ -1982,7 +1971,7 @@ fn gateway_stream_request_from_state(
     }
 }
 
-fn gateway_message_from_chat_message(message: &ChatMessage) -> serde_json::Value {
+pub(crate) fn gateway_message_from_chat_message(message: &ChatMessage) -> serde_json::Value {
     json!({
         "role": gateway_role(message.role),
         "content": message.content,
@@ -2015,7 +2004,9 @@ fn legacy_shadow_request_from_state(
     })
 }
 
-fn comparable_usage_from_runtime_terminal(terminal: &UiRuntimeTerminalEvent) -> TokenUsage {
+pub(crate) fn comparable_usage_from_runtime_terminal(
+    terminal: &UiRuntimeTerminalEvent,
+) -> TokenUsage {
     match terminal {
         UiRuntimeTerminalEvent::Done { usage, .. }
         | UiRuntimeTerminalEvent::Cancelled { usage, .. }
@@ -2032,7 +2023,7 @@ fn comparable_usage_from_runtime_terminal(terminal: &UiRuntimeTerminalEvent) -> 
     }
 }
 
-fn comparable_terminal_from_runtime_terminal(
+pub(crate) fn comparable_terminal_from_runtime_terminal(
     terminal: &UiRuntimeTerminalEvent,
 ) -> SessionProcessorComparableTerminal {
     match terminal {
@@ -2148,7 +2139,7 @@ fn usage_summary(usage: &TokenUsage) -> String {
     )
 }
 
-fn shadow_compare_success_message(result: &SessionProcessorComparableResult) -> String {
+pub(crate) fn shadow_compare_success_message(result: &SessionProcessorComparableResult) -> String {
     format!(
         "Shadow compare matched legacy on terminal/output/usage/steps (terminal={} steps={} output={}).",
         comparable_terminal_kind(result.terminal()),
@@ -2167,7 +2158,7 @@ impl ComparableTerminalAccess for SessionProcessorComparableResult {
     }
 }
 
-fn gateway_role(role: ChatRole) -> &'static str {
+pub(crate) fn gateway_role(role: ChatRole) -> &'static str {
     match role {
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",

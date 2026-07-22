@@ -106,6 +106,27 @@ fn normalize_cached_turns_merges_unexpected_roles_and_skips_system() {
 }
 
 #[test]
+fn normalize_cached_turns_drops_orphan_leading_roles_and_merges_without_separator_for_empty_last() {
+    let turns = vec![
+        ChatMessage::assistant("orphan"),
+        ChatMessage::tool("ignored"),
+        ChatMessage::user(""),
+        ChatMessage::user("late"),
+        ChatMessage::user(""),
+        ChatMessage::assistant(""),
+        ChatMessage::assistant("tail"),
+    ];
+
+    let normalized = normalize_cached_channel_turns(turns);
+
+    assert_eq!(normalized.len(), 2);
+    assert_eq!(normalized[0].role, "user");
+    assert_eq!(normalized[0].content, "late");
+    assert_eq!(normalized[1].role, "assistant");
+    assert_eq!(normalized[1].content, "tail");
+}
+
+#[test]
 fn append_sender_turn_keeps_recent_history_within_limit() {
     let ctx = test_context();
 
@@ -129,6 +150,27 @@ fn clear_sender_history_removes_existing_key_and_ignores_missing_key() {
 
     clear_sender_history(&ctx, "sender");
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key("sender"));
+}
+
+#[test]
+fn history_operations_recover_from_poisoned_history_lock() {
+    let ctx = test_context();
+    let histories = Arc::clone(&ctx.conversation_histories);
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+        let _guard = histories.lock().unwrap();
+        panic!("poison history lock");
+    }));
+
+    clear_sender_history(&ctx, "missing");
+    append_sender_turn(&ctx, "sender", ChatMessage::user("hello"));
+    assert!(compact_sender_history(&ctx, "sender"));
+    assert!(rollback_orphan_user_turn(&ctx, "sender", "hello"));
+    assert!(
+        !ctx.conversation_histories
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key("sender")
+    );
 }
 
 #[test]
@@ -161,6 +203,20 @@ fn compact_sender_history_reports_false_for_missing_or_empty_history() {
 
     ctx.conversation_histories.lock().unwrap().insert("empty".to_string(), Vec::new());
     assert!(!compact_sender_history(&ctx, "empty"));
+}
+
+#[test]
+fn compact_sender_history_clears_history_when_kept_turns_have_no_user_start() {
+    let ctx = test_context();
+    ctx.conversation_histories.lock().unwrap().insert(
+        "sender".to_string(),
+        vec![ChatMessage::system("ignored"), ChatMessage::assistant("orphan")],
+    );
+
+    assert!(!compact_sender_history(&ctx, "sender"));
+
+    let histories = ctx.conversation_histories.lock().unwrap();
+    assert!(histories.get("sender").expect("history entry should remain").is_empty());
 }
 
 #[test]

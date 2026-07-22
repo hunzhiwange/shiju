@@ -1,7 +1,7 @@
 //! read、glob、grep 等通用文件视图布局。
 
 use iced::widget::{Space, button, container, row, scrollable, text, text_input};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
@@ -14,11 +14,100 @@ use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
 
 use super::super::{
-    ToolTextTarget, tool_header_label, tool_header_title, tool_inline_summary,
+    ToolPermissionState, ToolTextTarget, tool_header_label, tool_header_title, tool_inline_summary,
     tool_permission_error_text, tool_permission_state, tool_permission_title, tool_summary_text,
     tool_text_editor,
 };
 use super::{FileListState, FilesViewContext};
+
+pub(super) fn common_tool_meta_text(render_state: &FileListState) -> String {
+    if !render_state.filter_query.is_empty() {
+        format!("{}/{} 项", render_state.display_count, render_state.total_items)
+    } else if render_state.truncated_middle {
+        format!(
+            "{}项 (省略{}项)",
+            render_state.total_items.min(render_state.max_items) + render_state.middle_omitted,
+            render_state.middle_omitted
+        )
+    } else if render_state.tail_omitted > 0 {
+        format!("{}项 (省略{}项)", render_state.total_items, render_state.tail_omitted)
+    } else {
+        format!("{}项", render_state.total_items)
+    }
+}
+
+pub(super) fn common_tool_title(
+    tool_name: &str,
+    verb: &str,
+    is_running: bool,
+    permission_state: Option<ToolPermissionState>,
+    is_error: bool,
+) -> String {
+    if is_running {
+        format!("{verb}中")
+    } else if let Some(permission_state) = permission_state {
+        tool_permission_title(tool_header_label(tool_name).as_str(), permission_state)
+    } else if is_error {
+        format!("{verb}失败")
+    } else {
+        tool_header_label(tool_name)
+    }
+}
+
+pub(super) fn common_tool_fallback_text(
+    is_error: bool,
+    total_items: usize,
+    output: &str,
+    permission_error_text: Option<String>,
+    error_text: Option<&str>,
+) -> Option<String> {
+    if is_error {
+        permission_error_text
+            .or_else(|| error_text.map(str::to_string))
+            .map(|text| text.trim().to_string())
+            .filter(|text| !text.is_empty())
+    } else if total_items == 0 {
+        let trimmed = output.trim();
+        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+    } else {
+        None
+    }
+}
+
+pub(super) fn common_tool_scroll_height(display_count: usize, max_items: usize) -> Length {
+    const MAX_GREP_HEIGHT: f32 = 220.0;
+    const GREP_LINE_HEIGHT: f32 = 32.0;
+    const GREP_VERTICAL_PADDING: f32 = 16.0;
+
+    let estimated_height =
+        (display_count.min(max_items) as f32 * GREP_LINE_HEIGHT) + GREP_VERTICAL_PADDING;
+    if estimated_height >= MAX_GREP_HEIGHT {
+        Length::Fixed(MAX_GREP_HEIGHT)
+    } else {
+        Length::Shrink
+    }
+}
+
+pub(super) fn common_tool_show_list_view(
+    is_running: bool,
+    total_items: usize,
+    has_fallback_body: bool,
+) -> bool {
+    is_running || total_items > 0 || !has_fallback_body
+}
+
+pub(super) fn common_tool_context_menu_message(
+    target: u64,
+    point: iced::Point,
+    text: String,
+) -> Message {
+    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
+        target,
+        x: point.x,
+        y: point.y,
+        text,
+    })
+}
 
 pub(crate) fn build_common_tool_view<'a>(
     view_ctx: &FilesViewContext<'a>,
@@ -31,19 +120,7 @@ pub(crate) fn build_common_tool_view<'a>(
     let selected_context_text =
         super::super::selected_chat_text_for_target(view_ctx.app, context_key);
 
-    let meta = if !render_state.filter_query.is_empty() {
-        format!("{}/{} 项", render_state.display_count, render_state.total_items)
-    } else if render_state.truncated_middle {
-        format!(
-            "{}项 (省略{}项)",
-            render_state.total_items.min(render_state.max_items) + render_state.middle_omitted,
-            render_state.middle_omitted
-        )
-    } else if render_state.tail_omitted > 0 {
-        format!("{}项 (省略{}项)", render_state.total_items, render_state.tail_omitted)
-    } else {
-        format!("{}项", render_state.total_items)
-    };
+    let meta = common_tool_meta_text(render_state);
 
     let meta_view: Element<'a, Message> = text(meta)
         .size(14)
@@ -63,15 +140,13 @@ pub(crate) fn build_common_tool_view<'a>(
     if summary.is_empty() {
         summary = tool_inline_summary(&view_ctx.tool_name, &view_ctx.input).unwrap_or_default();
     }
-    let title = if view_ctx.is_running {
-        format!("{}中", view_ctx.verb)
-    } else if let Some(permission_state) = permission_state {
-        tool_permission_title(tool_header_label(&view_ctx.tool_name).as_str(), permission_state)
-    } else if view_ctx.is_error {
-        format!("{}失败", view_ctx.verb)
-    } else {
-        tool_header_label(&view_ctx.tool_name)
-    };
+    let title = common_tool_title(
+        &view_ctx.tool_name,
+        view_ctx.verb,
+        view_ctx.is_running,
+        permission_state,
+        view_ctx.is_error,
+    );
 
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
@@ -140,18 +215,8 @@ pub(crate) fn build_common_tool_view<'a>(
         .width(Length::Fill)
         .into()
     } else {
-        const MAX_GREP_HEIGHT: f32 = 220.0;
-        const GREP_LINE_HEIGHT: f32 = 32.0;
-        const GREP_VERTICAL_PADDING: f32 = 16.0;
-
-        let estimated_height = (render_state.display_count.min(render_state.max_items) as f32
-            * GREP_LINE_HEIGHT)
-            + GREP_VERTICAL_PADDING;
-        let scroll_height = if estimated_height >= MAX_GREP_HEIGHT {
-            Length::Fixed(MAX_GREP_HEIGHT)
-        } else {
-            Length::Shrink
-        };
+        let scroll_height =
+            common_tool_scroll_height(render_state.display_count, render_state.max_items);
 
         let list_view: Element<'a, Message> = scrollable(
             container(list_column).width(Length::Fill).padding([6, 8]).style(|theme: &Theme| {
@@ -190,12 +255,7 @@ pub(crate) fn build_common_tool_view<'a>(
                     .clone()
                     .unwrap_or_else(|| view_ctx.output.trim().to_string());
                 move |point| {
-                    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
-                        target: context_key,
-                        x: point.x,
-                        y: point.y,
-                        text: context_text.clone(),
-                    })
+                    common_tool_context_menu_message(context_key, point, context_text.clone())
                 }
             }),
         )
@@ -203,19 +263,15 @@ pub(crate) fn build_common_tool_view<'a>(
         .into()
     };
 
-    let fallback_text = if view_ctx.is_error {
+    let fallback_text = common_tool_fallback_text(
+        view_ctx.is_error,
+        render_state.total_items,
+        &view_ctx.output,
         tool_value
             .as_ref()
-            .and_then(|value| tool_permission_error_text(&view_ctx.tool_name, value))
-            .or_else(|| view_ctx.error_text.clone())
-            .map(|text| text.trim().to_string())
-            .filter(|text| !text.is_empty())
-    } else if render_state.total_items == 0 {
-        let trimmed = view_ctx.output.trim();
-        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
-    } else {
-        None
-    };
+            .and_then(|value| tool_permission_error_text(&view_ctx.tool_name, value)),
+        view_ctx.error_text.as_deref(),
+    );
 
     let fallback_body = fallback_text.as_ref().map(|body_text| {
         if view_ctx.is_error {
@@ -288,8 +344,11 @@ pub(crate) fn build_common_tool_view<'a>(
         }
     });
 
-    let show_list_view =
-        view_ctx.is_running || render_state.total_items > 0 || fallback_body.is_none();
+    let show_list_view = common_tool_show_list_view(
+        view_ctx.is_running,
+        render_state.total_items,
+        fallback_body.is_some(),
+    );
 
     let list_view: Element<'a, Message> = if let Some(menu) = chat_context_menu(context_menu_open) {
         PointBelowOverlay::new(list_view, menu)
@@ -311,12 +370,7 @@ pub(crate) fn build_common_tool_view<'a>(
                     .clone()
                     .unwrap_or_else(|| view_ctx.output.trim().to_string());
                 move |point| {
-                    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
-                        target: context_key,
-                        x: point.x,
-                        y: point.y,
-                        text: context_text.clone(),
-                    })
+                    common_tool_context_menu_message(context_key, point, context_text.clone())
                 }
             }),
         )
@@ -328,5 +382,9 @@ pub(crate) fn build_common_tool_view<'a>(
         content = content.push(list_view);
     }
 
-    container(content).padding([2, 6]).width(Length::Fill).style(simplified_block_style).into()
+    container(content)
+        .padding(Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 })
+        .width(Length::Fill)
+        .style(simplified_block_style)
+        .into()
 }

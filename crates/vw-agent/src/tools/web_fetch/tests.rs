@@ -138,6 +138,50 @@ mod tests {
         assert_eq!(args.timeout, Some(12));
     }
 
+    #[test]
+    fn args_apply_defaults_and_camel_case_aliases() {
+        let defaults: Args = serde_json::from_value(json!({"url": "https://example.com"})).unwrap();
+        assert!(matches!(defaults.format, Format::Markdown));
+        assert_eq!(defaults.timeout, None);
+        assert!(defaults._prompt.is_none());
+
+        let aliases: Args = serde_json::from_value(json!({
+            "url": "https://example.com/docs",
+            "format": "html",
+            "timeoutSeconds": 17,
+            "instructions": "Extract the main content"
+        }))
+        .unwrap();
+        assert!(matches!(aliases.format, Format::Html));
+        assert_eq!(aliases.timeout, Some(17));
+        assert_eq!(aliases._prompt.as_deref(), Some("Extract the main content"));
+    }
+
+    #[test]
+    fn args_reject_unknown_format() {
+        let result: Result<Args, _> = serde_json::from_value(json!({
+            "url": "https://example.com",
+            "format": "pdf"
+        }));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn constructor_normalizes_provider_and_discards_blank_api_keys() {
+        let tool = test_tool_with_provider(
+            vec!["example.com"],
+            vec![],
+            "  TaViLy  ",
+            Some(" , key-a, , key-b, "),
+            Some("https://extract.example.com"),
+        );
+
+        assert_eq!(tool.provider, "tavily");
+        assert_eq!(tool.api_keys, vec!["key-a", "key-b"]);
+        assert_eq!(tool.api_url.as_deref(), Some("https://extract.example.com"));
+    }
+
     /// 测试 WebFetch spec 是否切换到 Claude 风格表面并保留旧别名
     #[test]
     fn spec_uses_claude_surface() {
@@ -146,6 +190,75 @@ mod tests {
 
         assert_eq!(spec.id, WEB_FETCH_TOOL_ID);
         assert!(spec.aliases.iter().any(|alias| alias == WEB_FETCH_TOOL_ALIAS));
+    }
+
+    #[test]
+    fn select_accept_header_prioritizes_requested_format() {
+        let markdown = WebFetchTool::select_accept_header(Format::Markdown);
+        let text = WebFetchTool::select_accept_header(Format::Text);
+        let html = WebFetchTool::select_accept_header(Format::Html);
+
+        assert!(markdown.starts_with("text/markdown;q=1.0"));
+        assert!(text.starts_with("text/plain;q=1.0"));
+        assert!(html.starts_with("text/html;q=1.0"));
+        assert_ne!(markdown, text);
+        assert_ne!(text, html);
+    }
+
+    #[test]
+    fn markdown_to_text_preserves_text_code_and_breaks() {
+        assert_eq!(
+            WebFetchTool::markdown_to_text("**bold** and `code`  \nnext"),
+            "bold and code\nnext"
+        );
+        assert_eq!(WebFetchTool::markdown_to_text("first\nsecond"), "first\nsecond");
+        assert_eq!(WebFetchTool::markdown_to_text("   "), "");
+    }
+
+    #[test]
+    fn convert_http_output_only_transforms_html_content_types() {
+        let tool = test_tool(vec!["example.com"]);
+        assert_eq!(
+            tool.convert_http_output("{\"ok\":true}", "application/json", Format::Text).unwrap(),
+            "{\"ok\":true}"
+        );
+        assert_eq!(
+            tool.convert_http_output(
+                "<h1>Title</h1>",
+                "application/xhtml+xml; charset=utf-8",
+                Format::Html,
+            )
+            .unwrap(),
+            "<h1>Title</h1>"
+        );
+
+        let unknown = test_tool_with_provider(vec!["example.com"], vec![], "unknown", None, None);
+        let error = unknown
+            .convert_http_output("<p>body</p>", "text/html", Format::Markdown)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("Unknown web_fetch provider"));
+    }
+
+    #[cfg(not(feature = "web-fetch-html2md"))]
+    #[test]
+    fn fast_html2md_without_feature_returns_configuration_error() {
+        let error = test_tool(vec!["example.com"])
+            .convert_html_to_output("<p>body</p>")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("requires Cargo feature 'web-fetch-html2md'"));
+    }
+
+    #[cfg(not(feature = "web-fetch-plaintext"))]
+    #[test]
+    fn nanohtml2text_without_feature_returns_configuration_error() {
+        let tool =
+            test_tool_with_provider(vec!["example.com"], vec![], "nanohtml2text", None, None);
+        let error = tool.convert_html_to_output("<p>body</p>").unwrap_err().to_string();
+
+        assert!(error.contains("requires Cargo feature 'web-fetch-plaintext'"));
     }
 
     /// 测试 HTML 到 Markdown 转换是否保留文档结构
@@ -388,6 +501,36 @@ mod tests {
         assert!(result.error.unwrap().contains("rate limit"));
     }
 
+    #[tokio::test]
+    async fn call_failure_reports_normalized_url_provider_and_format() {
+        let tool = test_tool_with_provider(vec!["example.com"], vec![], "unknown", None, None);
+        let result = tool
+            .call(json!({
+                "url": "http://example.com/path",
+                "format": "html"
+            }))
+            .await
+            .unwrap();
+
+        assert_eq!(result.data["success"], false);
+        assert!(result.model_result.as_str().unwrap().contains("Unknown web_fetch provider"));
+        assert!(!result.telemetry.as_ref().unwrap().success);
+
+        let hint = result.render_hint.unwrap();
+        assert_eq!(hint.summary.as_deref(), Some("Failed to fetch https://example.com/path"));
+        assert_eq!(hint.metadata["url"], "https://example.com/path");
+        assert_eq!(hint.metadata["provider"], "unknown");
+        assert_eq!(hint.metadata["format"], "html");
+    }
+
+    #[tokio::test]
+    async fn call_rejects_invalid_parameter_types_before_network() {
+        let error =
+            test_tool(vec!["example.com"]).call(json!({"url": 42})).await.unwrap_err().to_string();
+
+        assert!(error.contains("Missing or invalid parameters"));
+    }
+
     /// 测试响应截断在限制内时保持原样
     ///
     /// 当响应文本长度小于最大限制时，
@@ -419,6 +562,36 @@ mod tests {
         let text = "hello world this is long";
         let truncated = tool.truncate_response(text);
         assert!(truncated.contains("[Response truncated"));
+    }
+
+    #[test]
+    fn truncate_response_preserves_unicode_boundaries_and_exact_marker() {
+        let mut tool = test_tool(vec!["example.com"]);
+        tool.max_response_size = 3;
+
+        assert_eq!(
+            tool.truncate_response("你好世界"),
+            "你好世\n\n... [Response truncated due to size limit] ..."
+        );
+
+        tool.max_response_size = 0;
+        assert_eq!(tool.truncate_response(""), "");
+        assert_eq!(
+            tool.truncate_response("x"),
+            "\n\n... [Response truncated due to size limit] ..."
+        );
+    }
+
+    #[test]
+    fn effective_timeout_uses_config_request_and_safe_bounds() {
+        let mut tool = test_tool(vec!["example.com"]);
+        tool.timeout_secs = 45;
+
+        assert_eq!(tool.effective_timeout_secs(None), 45);
+        assert_eq!(tool.effective_timeout_secs(Some(1)), 1);
+        assert_eq!(tool.effective_timeout_secs(Some(0)), DEFAULT_TIMEOUT_SECS);
+        assert_eq!(tool.effective_timeout_secs(Some(MAX_TIMEOUT_SECS)), MAX_TIMEOUT_SECS);
+        assert_eq!(tool.effective_timeout_secs(Some(MAX_TIMEOUT_SECS + 1)), MAX_TIMEOUT_SECS);
     }
 
     /// 测试域名规范化移除协议前缀并统一小写
@@ -496,7 +669,7 @@ mod tests {
     /// 测试 Firecrawl 提供者要求 API 密钥
     ///
     /// 使用 Firecrawl 提供者但未提供 API 密钥时：
-    /// - 若启用 `firecrawl` feature，错误应提示需要 `[web_fetch].api_key`
+    /// - 若启用 `firecrawl` feature，错误应提示需要 `web_fetch.api_key`
     /// - 若未启用 feature，错误应提示需要 `firecrawl` Cargo feature
     #[tokio::test]
     async fn firecrawl_provider_requires_api_key() {
@@ -505,7 +678,7 @@ mod tests {
         assert!(!result.success);
         let error = result.error.unwrap_or_default();
         if cfg!(feature = "firecrawl") {
-            assert!(error.contains("requires [web_fetch].api_key"));
+            assert!(error.contains("requires web_fetch.api_key"));
         } else {
             assert!(error.contains("requires Cargo feature 'firecrawl'"));
         }
@@ -514,14 +687,14 @@ mod tests {
     /// 测试 Tavily 提供者要求 API 密钥
     ///
     /// 使用 Tavily 提供者但未提供 API 密钥时，
-    /// 执行应失败，错误消息应提示需要 `[web_fetch].api_key`。
+    /// 执行应失败，错误消息应提示需要 `web_fetch.api_key`。
     #[tokio::test]
     async fn tavily_provider_requires_api_key() {
         let tool = test_tool_with_provider(vec!["*"], vec![], "tavily", None, None);
         let result = tool.execute(json!({"url": "https://example.com"})).await.unwrap();
         assert!(!result.success);
         let error = result.error.unwrap_or_default();
-        assert!(error.contains("requires [web_fetch].api_key"));
+        assert!(error.contains("requires web_fetch.api_key"));
     }
 
     /// 测试多个 API 密钥的解析

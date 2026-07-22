@@ -166,6 +166,17 @@ pub(crate) struct SkillsCatalogItem {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct PluginCatalogItem {
+    pub(crate) id: String,
+    pub(crate) display_name: String,
+    pub(crate) version: String,
+    pub(crate) description: String,
+    pub(crate) enabled: bool,
+    pub(crate) component_count: usize,
+    pub(crate) source_path: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct SkillsSettingsState {
     /// 是否启用开放技能
     pub(crate) open_skills_enabled: bool,
@@ -185,6 +196,16 @@ pub(crate) struct SkillsSettingsState {
     pub(crate) loading: bool,
     /// 当前展示的技能目录项
     pub(crate) catalog: Vec<SkillsCatalogItem>,
+    /// 当前展示的插件目录项
+    pub(crate) plugin_catalog: Vec<PluginCatalogItem>,
+    /// 插件目录是否正在通过 gateway 加载
+    pub(crate) plugin_loading: bool,
+    /// 当前选中的插件 ID
+    pub(crate) selected_plugin_id: Option<String>,
+    /// 插件操作状态提示
+    pub(crate) plugin_status_message: Option<String>,
+    /// 当前插件状态提示是否为错误
+    pub(crate) plugin_status_is_error: bool,
     /// 当前选中的技能 ID
     pub(crate) selected_skill_id: Option<String>,
     /// 当前选中的技能详情
@@ -215,6 +236,11 @@ impl Default for SkillsSettingsState {
             directory_scope: SkillsDirectoryScope::Project,
             loading: false,
             catalog: Vec::new(),
+            plugin_catalog: Vec::new(),
+            plugin_loading: false,
+            selected_plugin_id: None,
+            plugin_status_message: None,
+            plugin_status_is_error: false,
             selected_skill_id: None,
             selected_skill_detail: None,
             detail_loading: false,
@@ -375,6 +401,8 @@ pub(crate) struct GatewaySettingsState {
     pub(crate) node_control_allowed_node_ids_input: String,
     pub(crate) service_action_running: Option<String>,
     pub(crate) service_action_output: Option<String>,
+    pub(crate) copied_service_command: Option<String>,
+    pub(crate) pending_service_command_confirmation: Option<String>,
     pub(crate) show_help_modal: bool,
     pub(crate) save_error: Option<String>,
 }
@@ -404,6 +432,8 @@ impl Default for GatewaySettingsState {
             node_control_allowed_node_ids_input: String::new(),
             service_action_running: None,
             service_action_output: None,
+            copied_service_command: None,
+            pending_service_command_confirmation: None,
             show_help_modal: false,
             save_error: None,
         }
@@ -416,6 +446,8 @@ pub(crate) struct GatewayClientServerDraft {
     pub(crate) name: String,
     pub(crate) host: String,
     pub(crate) port: u16,
+    pub(crate) platform_id: String,
+    pub(crate) company_id: String,
     pub(crate) skey: String,
 }
 
@@ -426,6 +458,8 @@ impl GatewayClientServerDraft {
             name: server.name.clone(),
             host: server.host.clone(),
             port: server.port.clamp(1, u16::MAX),
+            platform_id: server.platform_id.clone(),
+            company_id: server.company_id.clone(),
             skey: if server.skey.trim().is_empty() {
                 server.bearer_token.clone()
             } else {
@@ -440,6 +474,8 @@ impl GatewayClientServerDraft {
             name: self.name.clone(),
             host: self.host.clone(),
             port: self.port.clamp(1, u16::MAX),
+            platform_id: self.platform_id.clone(),
+            company_id: self.company_id.clone(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -456,6 +492,8 @@ pub(crate) struct GatewayClientSettingsState {
     pub(crate) name_input: String,
     pub(crate) host_input: String,
     pub(crate) port: u16,
+    pub(crate) platform_id_input: String,
+    pub(crate) company_id_input: String,
     pub(crate) skey_input: String,
     pub(crate) pending_remove_server_id: Option<String>,
     pub(crate) show_help_modal: bool,
@@ -470,10 +508,12 @@ impl Default for GatewayClientSettingsState {
         Self {
             selected_server_id: server.id.clone(),
             name_input: server.name.clone(),
-            servers: vec![server],
-            health: HashMap::new(),
             host_input: "127.0.0.1".to_string(),
             port: 42617,
+            platform_id_input: server.platform_id.clone(),
+            company_id_input: server.company_id.clone(),
+            servers: vec![server],
+            health: HashMap::new(),
             skey_input: String::new(),
             pending_remove_server_id: None,
             show_help_modal: false,

@@ -1,7 +1,5 @@
 use super::*;
 use crate::app::TodoPanelPlacement;
-#[cfg(target_arch = "wasm32")]
-use crate::app::state::RedisToolPersistedState;
 use iced::Task;
 use iced::Theme;
 use std::collections::{HashMap, HashSet};
@@ -43,30 +41,22 @@ impl App {
         let system_settings_cfg = config::load_system_settings_config();
         #[cfg(target_arch = "wasm32")]
         let system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
-        #[cfg(not(target_arch = "wasm32"))]
-        let redis_tool_persisted = config::load_redis_tool_state();
-        #[cfg(target_arch = "wasm32")]
-        let redis_tool_persisted = RedisToolPersistedState::default();
-
-        // 获取当前时间戳，需要根据目标平台使用不同的时间API
-        let now = {
+        let init_ms = {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
+                    .as_millis()
             }
             #[cfg(target_arch = "wasm32")]
             {
-                web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).unwrap_or_default()
+                web_time::SystemTime::now()
+                    .duration_since(web_time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
             }
         };
-
-        // 将时间戳转换为多种格式供后续使用
-        let init_secs = now.as_secs() as i64;
-        let init_ms = now.as_millis();
-        let init_utc = crate::app::message::timestamp_tool::format_utc(init_secs);
-
         // 解析应用程序配置中的各个选项
         // 终端显示开关
         let cfg_show_terminal =
@@ -143,47 +133,6 @@ impl App {
             .cloned()
             .unwrap_or_else(|| cfg_app_theme.clone());
 
-        // 面板显示和尺寸配置
-        // 图层面板配置
-        let cfg_show_layer_panel = cfg
-            .get("show_layer_panel")
-            .and_then(|v: &serde_json::Value| v.as_bool())
-            .unwrap_or(true);
-        let cfg_layer_panel_width = cfg
-            .get("layer_panel_width")
-            .and_then(|v: &serde_json::Value| v.as_f64())
-            .map(|v| v as f32)
-            .unwrap_or(250.0);
-        let cfg_show_design_planner_panel = cfg
-            .get("show_design_planner_panel")
-            .and_then(|v: &serde_json::Value| v.as_bool())
-            .unwrap_or(false);
-        let cfg_design_planner_panel_width = cfg
-            .get("design_planner_panel_width")
-            .and_then(|v: &serde_json::Value| v.as_f64())
-            .map(|v| v as f32)
-            .unwrap_or(380.0)
-            .clamp(260.0, 640.0);
-        let cfg_design_planner_corner = match cfg
-            .get("design_planner_corner")
-            .and_then(|v: &serde_json::Value| v.as_str())
-            .unwrap_or("bottom_left")
-        {
-            "top_left" => crate::app::views::design::state::DesignPlannerCorner::TopLeft,
-            "top_right" => crate::app::views::design::state::DesignPlannerCorner::TopRight,
-            "bottom_left" => crate::app::views::design::state::DesignPlannerCorner::BottomLeft,
-            _ => crate::app::views::design::state::DesignPlannerCorner::BottomLeft,
-        };
-        // 属性面板配置
-        let cfg_show_properties_panel = cfg
-            .get("show_properties_panel")
-            .and_then(|v: &serde_json::Value| v.as_bool())
-            .unwrap_or(true);
-        let cfg_properties_panel_width = cfg
-            .get("properties_panel_width")
-            .and_then(|v: &serde_json::Value| v.as_f64())
-            .map(|v| v as f32)
-            .unwrap_or(300.0);
         // 文件管理器配置
         let cfg_file_manager_width = cfg
             .get("file_manager_width")
@@ -222,7 +171,11 @@ impl App {
         let full_agent_cfg = vw_config_types::config::Config::default();
         #[cfg(not(target_arch = "wasm32"))]
         let global_acp_cfg = config::load_enabled_acp_config_result().unwrap_or_else(|err| {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, "failed to load ACP config via gateway");
+            }
             full_agent_cfg.acp.clone()
         });
         #[cfg(target_arch = "wasm32")]
@@ -308,6 +261,10 @@ impl App {
         let channels_settings = settings_builders::build_channels_settings(&channels_cfg);
         let chat_message_estimated_heights =
             crate::app::components::chat_panel::rough_message_heights(&chat);
+        let chat_virtualizer =
+            crate::app::components::chat_panel::virtualizer::ChatVirtualizer::from_estimated_heights(
+                &chat_message_estimated_heights,
+            );
         let chat_height_index =
             crate::app::components::chat_panel::height_index::ChatHeightIndex::from_heights(
                 &chat_message_estimated_heights,
@@ -325,11 +282,13 @@ impl App {
             input_text: String::new(),
             model: cfg_model.clone(),
             auto_model: cfg_auto_model,
+            reasoning_effort: None,
             acp_agent: cfg_acp_agent.clone(),
             acp_history_mode: cfg_acp_history_mode,
             acp_recent_count: cfg_acp_recent_count,
             acp_agents,
             acp_settings: super::state::AcpSettingsState::default(),
+            mcp_settings: super::state::McpSettingsState::default(),
             file_url_input: String::new(),
             files: vec![],
 
@@ -341,10 +300,13 @@ impl App {
             chat_copy_hash_cache: Vec::new(),
             chat_message_expanded: std::collections::HashSet::new(),
             chat_message_estimated_heights,
+            chat_virtualizer,
             chat_height_index,
             chat_message_measured_heights: HashMap::new(),
             chat_message_editors,
             chat_special_text_editors: HashMap::new(),
+            chat_markdown_blocks: HashMap::new(),
+            chat_markdown_block_editors: HashMap::new(),
             chat_tool_text_editors: HashMap::new(),
             chat_think_editors: HashMap::new(),
             chat_think_expanded: std::collections::HashSet::new(),
@@ -380,6 +342,8 @@ impl App {
             usage_model_info: None,
             usage_session_file_path: None,
             usage_step_expanded: std::collections::HashSet::new(),
+            usage_step_raw_payloads: std::collections::HashMap::new(),
+            usage_step_raw_loading: std::collections::HashSet::new(),
             merge_view: true,
 
             // ========== 文件和分支管理 ==========
@@ -426,6 +390,8 @@ impl App {
             cli_install_modal_show_install_action: false,
             cli_install_modal_use_app_update_action: false,
             cli_install_modal_is_checking_update: false,
+            app_update_progress: None,
+            app_update_progress_rx: None,
             question_modal_request_id: None,
             question_modal_request: None,
             question_modal_answers: vec![],
@@ -460,6 +426,7 @@ impl App {
             show_send_mode_popover: false,
             show_file_popover: false,
             show_acp_popover: false,
+            show_reasoning_effort_popover: false,
             show_usage_popover: false,
             show_session_tool_selector_popover: false,
             show_session_actions_popover: false,
@@ -516,15 +483,6 @@ impl App {
             chat_panel_half_fullscreen: false,
             show_chat_fullscreen_overlay: false,
             input_editor_id: iced::widget::Id::new("input_editor"),
-            json_tool_editor_id: iced::widget::Id::new("json_tool_editor"),
-            sql_tool_editor_id: iced::widget::Id::new("sql_tool_editor"),
-            html_tool_editor_id: iced::widget::Id::new("html_tool_editor"),
-            json_diff_left_editor_id: iced::widget::Id::new("json_diff_left_editor"),
-            json_diff_right_editor_id: iced::widget::Id::new("json_diff_right_editor"),
-            json_yaml_left_editor_id: iced::widget::Id::new("json_yaml_left_editor"),
-            json_yaml_right_editor_id: iced::widget::Id::new("json_yaml_right_editor"),
-            markdown_tool_editor_id: iced::widget::Id::new("markdown_tool_editor"),
-            pwd_editor_id: iced::widget::Id::new("pwd_editor"),
             file_search_scroll_id: iced::widget::Id::new("file_search"),
             preview_scroll_id: iced::widget::Id::new("preview"),
             preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
@@ -567,6 +525,7 @@ impl App {
             archived_session_ids: cfg_archived_session_ids,
             session_chat_cache: HashMap::new(),
             session_chat_message_id_cache: HashMap::new(),
+            session_history_reset_boundaries: HashMap::new(),
             session_previews: HashMap::new(),
             session_runtime_states: std::collections::HashMap::from([(
                 "__empty__".to_string(),
@@ -603,7 +562,7 @@ impl App {
             project_edit_icon_hovered: false,
             project_edit_icon_color: String::new(),
             project_edit_icon_color_picker_open: false,
-            project_edit_icon_color_format: crate::app::views::design::models::ColorFormat::Hex,
+            project_edit_icon_color_format: crate::app::components::color_picker::ColorFormat::Hex,
             project_edit_start_script: String::new(),
             project_edit_start_script_editor: iced::widget::text_editor::Content::new(),
             project_edit_worktree_enabled: false,
@@ -617,6 +576,7 @@ impl App {
             project_edit_task_board_scheduler_tick_interval_seconds_input: String::new(),
             project_edit_task_board_auto_promote_tick_interval_seconds_input: String::new(),
             project_edit_failed_retry_minutes_input: String::new(),
+            project_edit_failed_retry_max_attempts_input: String::new(),
             project_edit_running_timeout_minutes_input: String::new(),
             project_edit_pr_submitted_stall_timeout_seconds_input: String::new(),
 
@@ -941,6 +901,11 @@ impl App {
                 directory_scope: super::state::SkillsDirectoryScope::Project,
                 loading: false,
                 catalog: Vec::new(),
+                plugin_catalog: Vec::new(),
+                plugin_loading: false,
+                selected_plugin_id: None,
+                plugin_status_message: None,
+                plugin_status_is_error: false,
                 selected_skill_id: None,
                 selected_skill_detail: None,
                 detail_loading: false,
@@ -1075,6 +1040,8 @@ impl App {
                     .join("\n"),
                 service_action_running: None,
                 service_action_output: None,
+                copied_service_command: None,
+                pending_service_command_confirmation: None,
                 show_help_modal: false,
                 save_error: None,
             },
@@ -1093,6 +1060,8 @@ impl App {
                     if value.is_empty() { "127.0.0.1".to_string() } else { value }
                 },
                 port: gateway_client_cfg.active_server().port.clamp(1, u16::MAX),
+                platform_id_input: gateway_client_cfg.active_server().platform_id.clone(),
+                company_id_input: gateway_client_cfg.active_server().company_id.clone(),
                 skey_input: {
                     let active = gateway_client_cfg.active_server();
                     if active.skey.trim().is_empty() {
@@ -1212,6 +1181,7 @@ impl App {
                     save_error: None,
                 }
             },
+            staff_settings: settings_builders::build_staff_settings(&full_agent_cfg),
 
             // ========== 协调设置 ==========
             coordination_settings: super::state::CoordinationSettingsState {
@@ -1621,63 +1591,7 @@ impl App {
             preview_context_menu_pos: None,
             preview_nav_popup: None,
 
-            // ========== 设计器状态 ==========
-            design_states: HashMap::new(),
-            mouse_wheel_zoom_enabled: false,
-            show_slot_content: cfg
-                .get("show_slot_content")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            show_slot_overflow: cfg
-                .get("show_slot_overflow")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            show_design_settings: false,
-            design_settings_active_tab: DesignSettingsTab::General,
-            show_design_shortcuts: false,
-            show_design_variables: false,
-            show_zoom_menu: false,
-
-            // ========== 图层和属性面板 ==========
-            show_layer_panel: cfg_show_layer_panel,
-            layer_panel_width: cfg_layer_panel_width,
-            dragging_layer_panel: false,
-            layer_panel_drag_anchor_x: None,
-            layer_panel_start_width: cfg_layer_panel_width,
-            show_design_planner_panel: cfg_show_design_planner_panel,
-            design_planner_panel_width: cfg_design_planner_panel_width,
-            design_planner_corner: cfg_design_planner_corner,
-            dragging_design_planner_panel: false,
-            design_planner_panel_drag_anchor_x: None,
-            design_planner_panel_start_width: cfg_design_planner_panel_width,
-            show_properties_panel: cfg_show_properties_panel,
-            properties_panel_width: cfg_properties_panel_width,
-            dragging_properties_panel: false,
-            properties_panel_drag_anchor_x: None,
-            properties_panel_start_width: cfg_properties_panel_width,
-
-            // ========== 图层交互 ==========
-            active_layer_menu: None,
-            layer_menu_anchor: None,
-            dragging_layer: None,
-            drag_target_layer: None,
-            hovered_layer_id: None,
             error_message: None,
-
-            // ========== 设计器选择器 ==========
-            active_color_picker: None,
-            active_fill_picker: None,
-            active_effect_picker: None,
-            active_font_picker: None,
-            active_icon_picker: None,
-            active_tailwind_class_picker: None,
-            show_element_html_preview: false,
-            element_html_preview_editor: iced::widget::text_editor::Content::new(),
-            design_help_text: None,
-            tailwind_filter_query: String::new(),
-            font_filter_query: String::new(),
-            icon_picker_filter_query: String::new(),
-            icon_picker_family_tab: "lucide".to_string(),
             show_preview_settings: false,
             show_preview_fullscreen_overlay: false,
 
@@ -1687,249 +1601,8 @@ impl App {
             auto_adjust_line_height: system_settings_cfg.editor_auto_line_height,
             preview_auto_save_mode: system_settings_cfg.preview_auto_save,
             current_language: iced_code_editor::i18n::Language::default(),
-
-            // ========== JSON工具 ==========
-            json_tool_editor: {
-                let remember = cfg.get("json_tool_remember").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
-                if remember {
-                    iced::widget::text_editor::Content::with_text(&config::load_json_tool_content())
-                } else {
-                    iced::widget::text_editor::Content::new()
-                }
-            },
-            json_tool_remember: cfg
-                .get("json_tool_remember")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            json_tool_loading: false,
-            json_tool_notification: None,
-            json_tool_context_menu_open: false,
-            json_tool_context_menu_pos: None,
-            json_tool_scroll_top_line: 0.0,
-            json_tool_scroll_remainder: 0.0,
-            json_tool_viewport_height: 0.0,
-
-            // ========== JSON/YAML转换工具 ==========
-            json_yaml_left_editor: iced::widget::text_editor::Content::new(),
-            json_yaml_right_editor: iced::widget::text_editor::Content::new(),
-            json_yaml_loading: false,
-            json_yaml_notification: None,
-            json_yaml_left_context_menu_open: false,
-            json_yaml_left_context_menu_pos: None,
-            json_yaml_left_scroll_top_line: 0.0,
-            json_yaml_left_scroll_remainder: 0.0,
-            json_yaml_left_viewport_height: 0.0,
-            json_yaml_right_context_menu_open: false,
-            json_yaml_right_context_menu_pos: None,
-            json_yaml_right_scroll_top_line: 0.0,
-            json_yaml_right_scroll_remainder: 0.0,
-            json_yaml_right_viewport_height: 0.0,
-
-            // ========== SQL工具 ==========
-            sql_tool_editor: {
-                let remember = cfg.get("sql_tool_remember").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
-                if remember {
-                    iced::widget::text_editor::Content::with_text(&config::load_sql_tool_content())
-                } else {
-                    iced::widget::text_editor::Content::new()
-                }
-            },
-            sql_tool_remember: cfg
-                .get("sql_tool_remember")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            sql_tool_loading: false,
-            sql_tool_notification: None,
-            sql_tool_context_menu_open: false,
-            sql_tool_context_menu_pos: None,
-            sql_tool_scroll_top_line: 0.0,
-            sql_tool_scroll_remainder: 0.0,
-            sql_tool_viewport_height: 0.0,
-            redis_tool: super::state::RedisToolUiState::from_persisted(redis_tool_persisted),
             knowledge: super::state::KnowledgeUiState::default(),
-
-            // ========== HTML工具 ==========
-            html_tool_editor: {
-                let remember = cfg.get("html_tool_remember").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
-                if remember {
-                    iced::widget::text_editor::Content::with_text(&config::load_html_tool_content())
-                } else {
-                    iced::widget::text_editor::Content::new()
-                }
-            },
-            html_tool_remember: cfg
-                .get("html_tool_remember")
-                .and_then(|v: &serde_json::Value| v.as_bool())
-                .unwrap_or(false),
-            html_tool_loading: false,
-            html_tool_notification: None,
-            html_tool_context_menu_open: false,
-            html_tool_context_menu_pos: None,
-            html_tool_scroll_top_line: 0.0,
-            html_tool_scroll_remainder: 0.0,
-            html_tool_viewport_height: 0.0,
-
-            // ========== JSON差异比较工具 ==========
-            json_diff_left_editor: iced::widget::text_editor::Content::new(),
-            json_diff_right_editor: iced::widget::text_editor::Content::new(),
-            json_diff_results: Vec::new(),
-            json_diff_notification: None,
-            json_diff_notification_is_error: false,
-            json_diff_loading: false,
-            json_diff_left_context_menu_open: false,
-            json_diff_left_context_menu_pos: None,
-            json_diff_left_scroll_top_line: 0.0,
-            json_diff_left_scroll_remainder: 0.0,
-            json_diff_left_viewport_height: 0.0,
-            json_diff_right_context_menu_open: false,
-            json_diff_right_context_menu_pos: None,
-            json_diff_right_scroll_top_line: 0.0,
-            json_diff_right_scroll_remainder: 0.0,
-            json_diff_right_viewport_height: 0.0,
-
-            // ========== Markdown工具 ==========
-            markdown_tool_editor: {
-                const INITIAL_CONTENT: &str = "";
-                iced::widget::text_editor::Content::with_text(INITIAL_CONTENT)
-            },
-            markdown_tool_context_menu_open: false,
-            markdown_tool_context_menu_pos: None,
-            markdown_tool_scroll_top_line: 0.0,
-            markdown_tool_scroll_remainder: 0.0,
-            markdown_tool_viewport_height: 0.0,
-            markdown_tool_content: {
-                const INITIAL_CONTENT: &str = "";
-                iced::widget::markdown::Content::parse(INITIAL_CONTENT)
-            },
-            markdown_tool_view_mode: crate::app::components::markdown_editor::MarkdownViewMode::Split,
-            markdown_tool_notification: None,
-            markdown_tool_show_html2md: false,
-            markdown_tool_html_editor: iced::widget::text_editor::Content::new(),
-            markdown_tool_show_image: false,
-            markdown_tool_image_url_input: String::new(),
-            markdown_tool_remote_images: std::collections::HashMap::new(),
-            markdown_tool_remote_images_loading: std::collections::HashSet::new(),
-            markdown_tool_stream_enabled: false,
-            markdown_tool_stream_chars: usize::MAX,
-
-            // ========== 思维导图 ==========
-            mindmap_tabs: Vec::new(),
-            mindmap_active_tab_id: None,
             workflow_state: crate::apps::workflow::state::WorkflowState::default(),
-
-            // ========== 密码生成器 ==========
-            pwd_digits: true,
-            pwd_lowercase: true,
-            pwd_uppercase: true,
-            pwd_special: true,
-            pwd_length_input: "12".to_string(),
-            pwd_count_input: "1".to_string(),
-            pwd_output_editor: iced::widget::text_editor::Content::new(),
-            pwd_notification: None,
-            pwd_notification_is_error: false,
-            pwd_context_menu_open: false,
-            pwd_context_menu_pos: None,
-            pwd_scroll_top_line: 0.0,
-            pwd_scroll_remainder: 0.0,
-            pwd_viewport_height: 0.0,
-
-            // ========== 进制转换工具 ==========
-            base_from: 10,
-            base_to: 2,
-            base_input: String::new(),
-            base_output: String::new(),
-            base_notification: None,
-
-            // ========== 时间戳工具 ==========
-            ts_auto: true,
-            ts_now_unix_sec: init_secs.to_string(),
-            ts_now_unix_ms: init_ms.to_string(),
-            ts_now_utc_str: init_utc,
-            ts_input_ts: String::new(),
-            ts_unit: crate::app::message::timestamp_tool::TsUnit::Seconds,
-            ts_time_output: String::new(),
-            ts_time_input: String::new(),
-            ts_ts_output_sec: String::new(),
-            ts_ts_output_ms: String::new(),
-            ts_notification: None,
-
-            // ========== 二维码工具 ==========
-            qr_input: String::new(),
-            qr_size: 256,
-            qr_size_input: "256".to_string(),
-            qr_level: crate::app::message::qr_tool::QrEcLevel::M,
-            qr_image: None,
-            qr_loading: false,
-            qr_notification: None,
-            qr_notification_is_error: false,
-            qr_color_hex: "#000000".to_string(),
-            qr_color_format: crate::app::views::design::models::ColorFormat::Hex,
-            qr_icon_mode: crate::app::message::qr_tool::QrIconMode::None,
-            qr_icon_bytes: None,
-            qr_editor: iced::widget::text_editor::Content::new(),
-            qr_scroll_top_line: 0.0,
-            qr_scroll_remainder: 0.0,
-            qr_viewport_height: 0.0,
-            show_qr_color_picker: false,
-
-            // ========== 颜色工具 ==========
-            color_tool_color: iced::Color::from_rgb(0.0, 0.0, 0.0),
-            color_tool_format: crate::app::views::design::models::ColorFormat::Hex,
-            color_hex_input: "#000000ff".to_string(),
-            color_rgb_input: "rgba(0, 0, 0, 1.00)".to_string(),
-            color_hsl_input: "hsla(0, 0%, 0%, 1.00)".to_string(),
-            color_hsv_input: "hsva(0, 0%, 0%, 1.00)".to_string(),
-            color_notification: None,
-            cleaner_clear_system_temp: true,
-            cleaner_clear_app_cache: true,
-            cleaner_clear_logs: true,
-            cleaner_clear_package_cache: true,
-            cleaner_clear_downloads: false,
-            cleaner_empty_trash: false,
-            cleaner_clear_installers: false,
-            cleaner_clear_other_apps: true,
-            cleaner_clear_wechat_work: false,
-            cleaner_clear_wechat: false,
-            cleaner_clear_qq: false,
-            cleaner_clear_dingtalk: false,
-            cleaner_clear_feishu: false,
-            cleaner_clear_safari: false,
-            cleaner_clear_chrome: false,
-            cleaner_clear_edge: false,
-            cleaner_clear_firefox: false,
-            cleaner_clear_mail: false,
-            cleaner_running: false,
-            cleaner_cancelling: false,
-            cleaner_scanning: false,
-            cleaner_scanned: false,
-            cleaner_animation_frame: 0,
-            cleaner_scan_report: None,
-            cleaner_tree_expanded: std::collections::HashSet::new(),
-            cleaner_preview_mode: false,
-            cleaner_output_editor: iced::widget::text_editor::Content::new(),
-            cleaner_notification: None,
-            cleaner_last_run_completed: false,
-            cleaner_cancel_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            large_file_root: std::env::var("HOME").unwrap_or_else(|_| ".".to_string()),
-            large_file_scanning: false,
-            large_file_scanned: false,
-            large_file_animation_frame: 0,
-            large_file_active_filter: "all".to_string(),
-            large_file_report: None,
-            large_file_notification: None,
-            large_file_progress_label: "等待扫描".to_string(),
-            large_file_current_path: String::new(),
-            large_file_progress_value: 0.0,
-            large_file_processed_files: 0,
-            large_file_total_files: 0,
-            large_file_selected_entries: std::collections::HashSet::new(),
-            large_file_deleting: false,
-            large_file_scan_job_id: None,
-            large_file_cancel_flag: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            large_file_progress_state: std::sync::Arc::new(std::sync::Mutex::new(
-                crate::app::message::large_file_tool::LargeFileScanProgress::default(),
-            )),
-
             // ========== 标签页管理 ==========
             active_tab_id: Some("home".to_string()),
             hovered_tab_id: None,
@@ -1965,11 +1638,42 @@ impl App {
             copied_notification_id: None,
             active_toast: None,
             next_toast_id: 0,
+            workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
             // ========== 任务板基础状态 ==========
             show_task_board: false,
             task_board_loading: false,
+            task_board_view_mode: crate::app::state::TaskBoardViewMode::default(),
             task_board_tasks: Vec::new(),
+            task_board_staff_config: crate::app::task::TaskBoardStaffConfig::default(),
+            task_board_staff_config_workflow_id: None,
+            task_board_staff_projection:
+                crate::app::task::staff::TaskBoardStaffProjection::default(),
+            task_board_staff_config_load_error: None,
+            task_board_staff_capability_catalog: Vec::new(),
+            task_board_staff_capability_catalog_workflow_id: None,
+            task_board_staff_capability_draft: Vec::new(),
+            task_board_staff_capability_catalog_loading: false,
+            task_board_staff_capability_saving: false,
+            task_board_staff_capability_catalog_error: None,
+            task_board_staff_command_queue:
+                crate::app::task::staff::TaskBoardStaffCommandQueue::default(),
+            task_board_staff_events: Vec::new(),
+            task_board_staff_feed_tab:
+                crate::app::state::TaskBoardStaffFeedTab::default(),
+            task_board_staff_task_status_filter: Vec::new(),
+            task_board_staff_command_input: String::new(),
+            task_board_staff_filter_member_id: None,
+            task_board_staff_assignment_open: false,
+            task_board_staff_assignment_draft: None,
+            task_board_staff_workflow_binding_draft: None,
+            task_board_staff_stage_action_draft: None,
+            task_board_staff_stage_action_reset_confirm: false,
+            task_board_staff_workflow_options: Vec::new(),
+            task_board_staff_workflow_options_error: None,
+            task_board_staff_assignment_tabs: HashMap::new(),
+            task_board_staff_orchestration_tab:
+                crate::app::state::TaskBoardStaffOrchestrationTab::default(),
             task_board_create_modal_open: false,
             task_board_settings_modal_open: false,
             task_board_settings_modal_tab:
@@ -1992,8 +1696,12 @@ impl App {
             task_board_bulk_model_input: "auto".to_string(),
             task_board_bulk_agent: crate::app::task::TASK_AGENT_MAIN.to_string(),
             task_board_bulk_acp_agent: cfg_acp_agent.clone(),
+            task_board_bulk_reasoning_effort: None,
+            task_board_bulk_task_split_mode: crate::app::task::TaskSplitMode::FollowSystem,
+            task_board_manual_merge_queue: Vec::new(),
             task_board_selected_task: None,
             task_board_viewing_logs: None,
+            task_board_detail_tab: crate::app::state::TaskBoardDetailTab::default(),
             task_board_log_cache: std::collections::HashMap::new(),
             task_board_editing_task_id: None,
 
@@ -2006,19 +1714,7 @@ impl App {
             task_board_sort_ascending: false,
 
             // ========== 任务板设置 ==========
-            task_board_settings: {
-                let mut settings = crate::app::task::TaskBoardSettings::new();
-                settings.code_review_enabled = cfg
-                    .get("task_board_code_review_enabled")
-                    .and_then(|v: &serde_json::Value| v.as_bool())
-                    .unwrap_or(settings.code_review_enabled);
-                settings.auto_promote_pool_tasks = cfg
-                    .get("task_board_auto_promote_pool_tasks")
-                    .and_then(|v: &serde_json::Value| v.as_bool())
-                    .unwrap_or(settings.auto_promote_pool_tasks);
-                settings.auto_execute = settings.auto_promote_pool_tasks;
-                settings
-            },
+            task_board_settings: crate::app::task::TaskBoardSettings::new(),
 
             // ========== 任务执行器 ==========
             task_board_executor: crate::app::task::TaskExecutorState::new(),
@@ -2033,6 +1729,11 @@ impl App {
             task_board_next_auto_review_tick_at_ms: (init_ms as u64).saturating_add(30_000),
             // 下次自动提升tick（30秒后）
             task_board_next_auto_promote_tick_at_ms: (init_ms as u64).saturating_add(30_000),
+            // 下次自动合并tick（10秒后）
+            task_board_next_auto_merge_tick_at_ms: (init_ms as u64).saturating_add(10_000),
+            task_board_worktree_desired_capacity: None,
+            task_board_matrix_event_cursor: 0,
+            task_board_processed_matrix_event_ids: std::collections::VecDeque::new(),
             // 日志刷新和扫描游标
             task_board_last_log_flush_at_ms: 0,
             task_board_log_scan_cursor: 0,
@@ -2102,7 +1803,10 @@ impl App {
             app.terminal.apply_app_theme(&app.app_theme);
         }
 
-        let startup_task = startup::build_startup_task(&mut app);
+        let startup_task = Task::batch(vec![
+            startup::build_startup_task(&mut app),
+            crate::app::views::workflow_manager::load_lifecycle_workflows_task(false),
+        ]);
 
         (app, startup_task)
     }

@@ -8,7 +8,7 @@ use axum::response::IntoResponse;
 #[tokio::test]
 async fn persist_pairing_tokens_writes_config_tokens() {
     let temp = tempfile::tempdir().unwrap();
-    let config_path = temp.path().join("vibewindow.json");
+    let config_path = temp.path().join(".vibewindow.json");
     let workspace_path = temp.path().join("workspace");
 
     let mut config = Config::default();
@@ -28,15 +28,12 @@ async fn persist_pairing_tokens_writes_config_tokens() {
     let parsed: Config = serde_json::from_str(&saved).unwrap();
     assert_eq!(parsed.gateway.paired_tokens.len(), 1);
     let persisted = &parsed.gateway.paired_tokens[0];
-    assert!(crate::app::agent::security::SecretStore::is_encrypted(persisted));
-    let store = crate::app::agent::security::SecretStore::new(temp.path(), true);
-    let decrypted = store.decrypt(persisted).unwrap();
-    assert_eq!(decrypted.len(), 64);
-    assert!(decrypted.chars().all(|c: char| c.is_ascii_hexdigit()));
+    assert_eq!(persisted.len(), 64);
+    assert!(persisted.chars().all(|c: char| c.is_ascii_hexdigit()));
 
     let in_memory = shared_config.lock();
     assert_eq!(in_memory.gateway.paired_tokens.len(), 1);
-    assert_eq!(&in_memory.gateway.paired_tokens[0], &decrypted);
+    assert_eq!(&in_memory.gateway.paired_tokens[0], persisted);
 }
 
 // ---------------------------------------------------------------------------

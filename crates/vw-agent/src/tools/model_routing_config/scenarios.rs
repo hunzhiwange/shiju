@@ -1,6 +1,5 @@
 use super::ModelRoutingConfigTool;
-use crate::app::agent::config::schema::save_config;
-use crate::app::agent::config::{ClassificationRule, ModelRouteConfig};
+use crate::app::agent::config::{self, ClassificationRule, ModelRouteConfig};
 use crate::app::agent::util::MaybeSet;
 use serde_json::{Value, json};
 
@@ -36,7 +35,8 @@ impl ModelRoutingConfigTool {
             || !matches!(max_length_update, MaybeSet::Unset)
             || !matches!(priority_update, MaybeSet::Unset);
 
-        let mut cfg = self.load_config_without_env()?;
+        let mut cfg = config::get_project_blocking(&self.config.workspace_dir)?;
+        let before = cfg.clone();
 
         let existing_route = cfg.model_routes.iter().find(|route| route.hint == hint).cloned();
         let mut next_route = existing_route.unwrap_or(ModelRouteConfig {
@@ -116,7 +116,8 @@ impl ModelRoutingConfigTool {
         Self::normalize_and_sort_rules(&mut cfg.query_classification.rules);
         cfg.query_classification.enabled = !cfg.query_classification.rules.is_empty();
 
-        save_config(&cfg).await?;
+        cfg =
+            config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         Ok(ToolResult {
             success: true,
@@ -135,7 +136,8 @@ impl ModelRoutingConfigTool {
         let remove_classification =
             args.get("remove_classification").and_then(Value::as_bool).unwrap_or(true);
 
-        let mut cfg = self.load_config_without_env()?;
+        let mut cfg = config::get_project_blocking(&self.config.workspace_dir)?;
+        let before = cfg.clone();
 
         let before_routes = cfg.model_routes.len();
         cfg.model_routes.retain(|route| route.hint != hint);
@@ -156,7 +158,8 @@ impl ModelRoutingConfigTool {
         Self::normalize_and_sort_rules(&mut cfg.query_classification.rules);
         cfg.query_classification.enabled = !cfg.query_classification.rules.is_empty();
 
-        save_config(&cfg).await?;
+        cfg =
+            config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         Ok(ToolResult {
             success: true,

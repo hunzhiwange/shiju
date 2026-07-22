@@ -1,6 +1,6 @@
 use super::{
-    SkillTool, available_skill_names, base_dir_url, file_url, skill_file_id, skill_location,
-    skill_matches_name, skill_prompt_content, xml_escape,
+    Args, SkillTool, available_skill_names, base_dir_url, block_on, file_url, skill_file_id,
+    skill_location, skill_matches_name, skill_prompt_content, xml_escape,
 };
 use crate::app::agent::skills::Skill;
 use serde_json::json;
@@ -39,6 +39,15 @@ fn skill_file_id_uses_parent_for_standard_skill_files() {
     assert_eq!(skill_file_id(&toml).as_deref(), Some("other-skill"));
     assert_eq!(skill_file_id(&custom).as_deref(), Some("custom-name"));
     assert_eq!(skill_file_id(&missing), None);
+}
+
+#[test]
+fn skill_file_id_handles_case_insensitive_standard_names_and_parentless_paths() {
+    let uppercase = skill("Display Name", Some(PathBuf::from("/tmp/cased/SKILL.MD")), vec![]);
+    let parentless = skill("Display Name", Some(PathBuf::from("/")), vec![]);
+
+    assert_eq!(skill_file_id(&uppercase).as_deref(), Some("cased"));
+    assert_eq!(skill_file_id(&parentless), None);
 }
 
 #[test]
@@ -96,4 +105,23 @@ fn file_urls_are_absolute_and_directory_urls_have_trailing_slash() {
 
     assert_eq!(base_dir_url(PathBuf::from("/tmp/skill").as_path()), "file:////tmp/skill/");
     assert_eq!(base_dir_url(PathBuf::from("/tmp/skill/").as_path()), "file:////tmp/skill/");
+}
+
+#[test]
+fn args_require_a_string_name() {
+    let args: Args = serde_json::from_value(json!({"name": "review"})).unwrap();
+    assert_eq!(args.name, "review");
+
+    assert!(serde_json::from_value::<Args>(json!({})).is_err());
+    assert!(serde_json::from_value::<Args>(json!({"name": 7})).is_err());
+}
+
+#[test]
+fn block_on_runs_without_an_existing_tokio_runtime() {
+    assert_eq!(block_on(async { 21 * 2 }), 42);
+}
+
+#[tokio::test]
+async fn block_on_bridges_from_an_existing_tokio_runtime() {
+    assert_eq!(block_on(async { "bridged".to_string() }), "bridged");
 }

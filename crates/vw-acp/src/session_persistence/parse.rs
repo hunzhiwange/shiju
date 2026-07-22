@@ -113,6 +113,7 @@ fn parse_vwacp_state(raw: Option<&Value>) -> Option<Option<SessionAcpxState>> {
         available_models: None,
         available_commands: None,
         config_options: None,
+        desired_config_options: None,
         session_options: None,
     };
 
@@ -136,6 +137,9 @@ fn parse_vwacp_state(raw: Option<&Value>) -> Option<Option<SessionAcpxState>> {
     {
         state.config_options =
             serde_json::from_value::<Vec<SessionConfigOption>>(config_options.clone()).ok();
+    }
+    if let Some(desired_config_options) = record.get("desired_config_options") {
+        state.desired_config_options = serde_json::from_value(desired_config_options.clone()).ok();
     }
     if let Some(session_options) = record.get("session_options").and_then(as_record) {
         let model = session_options.get("model").and_then(Value::as_str).map(ToOwned::to_owned);

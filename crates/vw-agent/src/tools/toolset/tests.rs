@@ -1,7 +1,7 @@
 //! toolset 安全上下文测试。
 //!
-//! 验证 full-access 只影响当前工具执行所需的 workspace_only 判定，不削弱 forbidden
-//! path 等更高优先级的保护。
+//! 验证 full-access 放开当前工具执行所需的工作区与命令白名单判定，但不削弱
+//! forbidden path 等更高优先级的保护。
 
 use super::security_for_tool_context;
 use crate::app::agent::config::Config;
@@ -29,4 +29,20 @@ fn full_access_context_disables_workspace_only_for_tool_security() {
         full_access_security.forbidden_paths, security.forbidden_paths,
         "full access should not weaken forbidden path protections"
     );
+}
+
+#[test]
+fn full_access_context_allows_commands_outside_configured_allowlist() {
+    let workspace_dir = PathBuf::from("/tmp/vw-toolset-full-access-workspace");
+    let config = Config { workspace_dir: workspace_dir.clone(), ..Config::default() };
+
+    let security =
+        security_for_tool_context(&config, &workspace_dir, &ToolUseContext::new("test", None));
+    assert!(!security.is_command_allowed("curl https://example.com"));
+
+    let full_access_context = ToolUseContext::new("test", None).with_full_access_enabled(true);
+    let full_access_security =
+        security_for_tool_context(&config, &workspace_dir, &full_access_context);
+
+    assert!(full_access_security.is_command_allowed("curl https://example.com"));
 }

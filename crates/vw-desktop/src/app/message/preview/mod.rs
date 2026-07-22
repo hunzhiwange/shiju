@@ -440,7 +440,3 @@ mod lsp_tests;
 #[cfg(test)]
 #[path = "search_tests.rs"]
 mod search_tests;
-
-#[cfg(test)]
-#[path = "tab_tests.rs"]
-mod tab_tests;

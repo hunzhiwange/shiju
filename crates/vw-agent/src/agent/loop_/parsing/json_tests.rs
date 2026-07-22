@@ -46,6 +46,15 @@ fn parse_tool_call_id_uses_priority_order_and_ignores_blank_ids() {
 }
 
 #[test]
+fn parse_tool_call_id_uses_tool_call_id_and_rejects_non_strings() {
+    assert_eq!(
+        parse_tool_call_id(&serde_json::json!({"tool_call_id": " tool "}), None).as_deref(),
+        Some("tool")
+    );
+    assert_eq!(parse_tool_call_id(&serde_json::json!({"id": 7}), None), None);
+}
+
+#[test]
 fn tool_signature_is_order_independent_and_name_normalized() {
     let (name_a, args_a) =
         tool_call_signature(" Shell ", &serde_json::json!({"b": [{"z": 2, "a": 1}], "a": 1}));
@@ -89,6 +98,23 @@ fn parses_single_tool_call_values_from_nested_and_flat_shapes() {
     assert_eq!(flat_call.arguments, serde_json::json!({"query": "needle", "pattern": "needle"}));
     assert_eq!(fallback_call.arguments, serde_json::json!({"query": "Symbol"}));
     assert!(parse_tool_call_value(&serde_json::json!({"arguments": {}})).is_none());
+}
+
+#[test]
+fn parses_nested_tool_call_parameters_and_function_id() {
+    let value = serde_json::json!({
+        "id": "root-id",
+        "function": {
+            "id": "function-id",
+            "name": "shell",
+            "parameters": { "cmd": "date" }
+        }
+    });
+
+    let call = parse_tool_call_value(&value).unwrap();
+
+    assert_eq!(call.tool_call_id.as_deref(), Some("function-id"));
+    assert_eq!(call.arguments, serde_json::json!({"cmd": "date", "command": "date"}));
 }
 
 #[test]
@@ -151,6 +177,19 @@ fn parses_tool_calls_from_arrays_single_values_and_empty_wrappers() {
 }
 
 #[test]
+fn parse_tool_calls_from_json_value_returns_empty_for_non_calls() {
+    assert!(parse_tool_calls_from_json_value(&serde_json::json!({"tool_calls": []})).is_empty());
+    assert!(
+        parse_tool_calls_from_json_value(&serde_json::json!({"choices": [{"delta": {}}]}))
+            .is_empty()
+    );
+    assert!(
+        parse_tool_calls_from_json_value(&serde_json::json!({"message": {"name": ""}})).is_empty()
+    );
+    assert!(parse_tool_calls_from_json_value(&serde_json::json!(true)).is_empty());
+}
+
+#[test]
 fn extracts_first_json_value_after_close_tags() {
     let input = "</tool_call> text {\"a\":1} tail";
     let stripped = strip_leading_close_tags(input);
@@ -159,6 +198,15 @@ fn extracts_first_json_value_after_close_tags() {
     assert_eq!(value, serde_json::json!({"a": 1}));
     assert!(end <= stripped.len());
     assert_eq!(find_json_end("{\"a\":1} tail"), Some(7));
+}
+
+#[test]
+fn extracts_first_json_value_skips_invalid_candidates() {
+    let (value, end) =
+        extract_first_json_value_with_end("bad {not json} then {\"ok\":true} tail").unwrap();
+
+    assert_eq!(value, serde_json::json!({"ok": true}));
+    assert_eq!("bad {not json} then {\"ok\":true}".len(), end);
 }
 
 #[test]
@@ -176,4 +224,10 @@ fn json_value_extraction_handles_arrays_escapes_and_missing_json() {
     assert_eq!(&escaped[escaped_end..], " tail");
     assert!(find_json_end("[1,2]").is_none());
     assert!(find_json_end("{\"missing\": true").is_none());
+}
+
+#[test]
+fn json_value_helpers_handle_trimming_and_nested_objects() {
+    assert_eq!(strip_leading_close_tags("  plain"), "plain");
+    assert_eq!(find_json_end("  {\"outer\":{\"inner\":\"}\"}} rest"), Some(25));
 }

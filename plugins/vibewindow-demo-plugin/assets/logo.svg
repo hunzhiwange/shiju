@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120" role="img" aria-label="VibeWindow demo plugin logo">
+  <rect width="320" height="120" rx="16" fill="#111827"/>
+  <rect x="24" y="24" width="72" height="72" rx="14" fill="#2563eb"/>
+  <path d="M40 48h40M40 62h24M40 76h34" stroke="#dbeafe" stroke-width="6" stroke-linecap="round"/>
+  <text x="116" y="54" fill="#f8fafc" font-family="Arial, sans-serif" font-size="24" font-weight="700">VibeWindow</text>
+  <text x="116" y="82" fill="#93c5fd" font-family="Arial, sans-serif" font-size="18">Demo Plugin</text>
+</svg>

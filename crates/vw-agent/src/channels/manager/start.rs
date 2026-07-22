@@ -23,6 +23,7 @@
 //! 此模块通常在 VibeWindow 的通道服务器模式下被调用，用于启动多通道消息监听服务。
 
 use super::*;
+use anyhow::Context;
 
 /// 启动所有已配置的通道并将消息路由到代理核心
 ///
@@ -95,17 +96,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     let model = resolved_default_model(&config);
 
     // 构建 Provider 运行时选项
-    let provider_runtime_options = crate::app::agent::providers::ProviderRuntimeOptions {
-        auth_profile_override: None,
-        provider_api_url: config.api_url.clone(),
-        vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from),
-        secrets_encrypt: config.secrets.encrypt,
-        reasoning_enabled: config.runtime.reasoning_enabled,
-        reasoning_level: config.effective_provider_reasoning_level(),
-        custom_provider_api_mode: config.provider_api.map(|mode| mode.as_compatible_mode()),
-        max_tokens_override: None,
-        model_support_vision: config.model_support_vision,
-    };
+    let provider_runtime_options = build_provider_runtime_options(&config);
 
     // 创建带路由功能的 Provider 实例
     let provider: Arc<dyn Provider> = Arc::from(
@@ -127,14 +118,15 @@ pub async fn start_channels(config: Config) -> Result<()> {
         tracing::warn!("Provider warmup failed (non-fatal): {e}");
     }
 
-    // 获取配置文件的初始时间戳，用于后续配置变更检测
-    let initial_stamp = config_file_stamp(&config.config_path).await;
+    // 项目覆盖仅从工作区加载，系统基础配置由共享数据库提供。
+    let project_config_path = config.workspace_dir.join(".vibewindow.json");
+    let initial_stamp = config_file_stamp(&project_config_path).await;
 
     // 初始化运行时配置状态存储
     {
         let mut store = runtime_config_store().lock().unwrap_or_else(|e| e.into_inner());
         store.insert(
-            config.config_path.clone(),
+            project_config_path,
             RuntimeConfigState {
                 defaults: runtime_defaults_from_config(&config),
                 last_applied_stamp: initial_stamp,
@@ -157,11 +149,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     )?);
 
     // 配置 Composio 集成（如果启用）
-    let (composio_key, composio_entity_id) = if config.composio.enabled {
-        (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
-    } else {
-        (None, None)
-    };
+    let (composio_key, composio_entity_id) = resolve_composio_credentials(&config);
 
     // 构建工具注册表，包含所有可用工具和运行时配置
     let workspace = config.workspace_dir.clone();
@@ -187,89 +175,12 @@ pub async fn start_channels(config: Config) -> Result<()> {
 
     // 收集工具描述信息，用于构建系统提示
     // 这些描述将帮助 AI 理解每个工具的用途和使用场景
-    let mut tool_descs: Vec<(&str, &str)> = vec![
-        (
-            "shell",
-            "Execute terminal commands. Use when: running local checks, build/test commands, diagnostics. Don't use when: a safer dedicated tool exists, or command is destructive without approval.",
-        ),
-        (
-            "file_read",
-            "Read file contents. Use when: inspecting project files, configs, logs. Don't use when: a targeted search is enough.",
-        ),
-        (
-            "file_write",
-            "Write file contents. Use when: applying focused edits, scaffolding files, updating docs/code. Don't use when: side effects are unclear or file ownership is uncertain.",
-        ),
-        (
-            "memory_store",
-            "Save to memory. Use when: preserving durable preferences, decisions, key context. Don't use when: information is transient/noisy/sensitive without need.",
-        ),
-        (
-            "memory_recall",
-            "Search memory. Use when: retrieving prior decisions, user preferences, historical context. Don't use when: answer is already in current context.",
-        ),
-        (
-            "memory_forget",
-            "Delete a memory entry. Use when: memory is incorrect/stale or explicitly requested for removal. Don't use when: impact is uncertain.",
-        ),
-    ];
-
-    // 根据配置添加可选工具
-    if config.browser.enabled {
-        if !config.browser.browser_open.eq_ignore_ascii_case("disable") {
-            tool_descs.push((
-                "BrowserOpen",
-                "Open approved HTTPS URLs in system browser (allowlist-only, no scraping)",
-            ));
-        }
-        tool_descs.push((
-            "Browser",
-            "Drive a browser for navigation, DOM inspection, and page interaction",
-        ));
-    }
-    if config.web_fetch.enabled {
-        tool_descs.push((
-            "WebFetch",
-            "Fetch approved web pages and convert them to markdown, text, or html",
-        ));
-    }
-    if config.web_search.enabled {
-        tool_descs.push((
-            "WebSearch",
-            "Search the web and return structured search results with sources",
-        ));
-    }
-    if config.composio.enabled {
-        tool_descs.push((
-            "composio",
-            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover actions, 'list_accounts' to retrieve connected account IDs, 'execute' to run (optionally with connected_account_id), and 'connect' for OAuth.",
-        ));
-    }
-    tool_descs.push((
-        "schedule",
-        "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
-    ));
-    tool_descs.push((
-        "pushover",
-        "Send a Pushover notification to your device. Requires PUSHOVER_TOKEN and PUSHOVER_USER_KEY in .env file.",
-    ));
-
-    // 如果实际注册了子代理工具，添加代理相关工具说明。
-    if tools_registry.iter().any(|tool| tool.name() == "AgentTool") {
-        tool_descs.push((
-            "AgentTool",
-            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
-        ));
-    }
-
-    // 过滤掉非 CLI 通道排除的工具，确保系统提示不会为通道驱动的运行宣传这些工具
     let excluded = &config.autonomy.non_cli_excluded_tools;
-    if !excluded.is_empty() {
-        tool_descs.retain(|(name, _)| !excluded.iter().any(|ex| ex == name));
-    }
+    let agent_tool_registered = tools_registry.iter().any(|tool| tool.name() == "AgentTool");
+    let tool_descs = build_channel_tool_descriptions(&config, agent_tool_registered);
 
     // 构建系统提示
-    let bootstrap_max_chars = if config.agent.compact_context { Some(6000) } else { None };
+    let bootstrap_max_chars = bootstrap_max_chars(&config);
     let native_tools = provider.supports_native_tools();
     let mut system_prompt = build_system_prompt_with_mode(
         &workspace,
@@ -356,10 +267,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     crate::app::agent::health::mark_component_ok("channels");
 
     // 计算退避时间参数
-    let initial_backoff_secs =
-        config.reliability.channel_initial_backoff_secs.max(DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS);
-    let max_backoff_secs =
-        config.reliability.channel_max_backoff_secs.max(DEFAULT_CHANNEL_MAX_BACKOFF_SECS);
+    let (initial_backoff_secs, max_backoff_secs) = channel_listener_backoff_secs(&config);
 
     // 创建单消息总线 - 所有通道将消息发送到这里
     let (tx, rx) = tokio::sync::mpsc::channel::<traits::ChannelMessage>(100);
@@ -377,12 +285,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     drop(tx); // 释放我们的副本，以便在所有通道停止时关闭 rx
 
     // 构建通道名称到通道实例的映射
-    let channels_by_name = Arc::new(
-        channels
-            .iter()
-            .map(|ch| (ch.name().to_string(), Arc::clone(ch)))
-            .collect::<HashMap<_, _>>(),
-    );
+    let channels_by_name = build_channels_by_name(&channels);
 
     // 计算最大并发消息数
     let max_in_flight_messages = compute_max_in_flight_messages(channels.len());
@@ -390,12 +293,10 @@ pub async fn start_channels(config: Config) -> Result<()> {
     println!("  🚦 In-flight message limit: {max_in_flight_messages}");
 
     // 初始化 Provider 缓存
-    let mut provider_cache_seed: HashMap<String, Arc<dyn Provider>> = HashMap::new();
-    provider_cache_seed.insert(provider_name.clone(), Arc::clone(&provider));
+    let provider_cache_seed = seed_provider_cache(&provider_name, &provider);
     let message_timeout_secs =
         effective_channel_message_timeout_secs(config.channels_config.message_timeout_secs);
-    let interrupt_on_new_message =
-        config.channels_config.telegram.as_ref().is_some_and(|tg| tg.interrupt_on_new_message);
+    let interrupt_on_new_message = channel_interrupt_on_new_message(&config);
 
     // 构建通道运行时上下文
     let runtime_ctx = Arc::new(ChannelRuntimeContext {
@@ -422,17 +323,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
         message_timeout_secs,
         interrupt_on_new_message,
         multimodal: config.multimodal.clone(),
-        hooks: if config.hooks.enabled {
-            let mut runner = crate::app::agent::hooks::HookRunner::new();
-            if config.hooks.builtin.command_logger {
-                runner.register(Box::new(
-                    crate::app::agent::hooks::builtin::CommandLoggerHook::new(),
-                ));
-            }
-            Some(Arc::new(runner))
-        } else {
-            None
-        },
+        hooks: build_channel_hooks(&config)?,
         non_cli_excluded_tools: Arc::new(Mutex::new(
             config.autonomy.non_cli_excluded_tools.clone(),
         )),
@@ -450,6 +341,164 @@ pub async fn start_channels(config: Config) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn build_provider_runtime_options(
+    config: &Config,
+) -> crate::app::agent::providers::ProviderRuntimeOptions {
+    crate::app::agent::providers::ProviderRuntimeOptions {
+        auth_profile_override: None,
+        provider_api_url: config.api_url.clone(),
+        vibewindow_dir: Some(config.workspace_dir.clone()),
+        secrets_encrypt: config.secrets.encrypt,
+        reasoning_enabled: config.runtime.reasoning_enabled,
+        reasoning_level: config.effective_provider_reasoning_level(),
+        custom_provider_api_mode: config.provider_api.map(|mode| mode.as_compatible_mode()),
+        max_tokens_override: None,
+        model_support_vision: config.model_support_vision,
+    }
+}
+
+fn resolve_composio_credentials(config: &Config) -> (Option<&str>, Option<&str>) {
+    if config.composio.enabled {
+        (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
+    } else {
+        (None, None)
+    }
+}
+
+fn build_channel_tool_descriptions(
+    config: &Config,
+    agent_tool_registered: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let mut tool_descs = vec![
+        (
+            "shell",
+            "Execute terminal commands. Use when: running local checks, build/test commands, diagnostics. Don't use when: a safer dedicated tool exists, or command is destructive without approval.",
+        ),
+        (
+            "file_read",
+            "Read file contents. Use when: inspecting project files, configs, logs. Don't use when: a targeted search is enough.",
+        ),
+        (
+            "file_write",
+            "Write file contents. Use when: applying focused edits, scaffolding files, updating docs/code. Don't use when: side effects are unclear or file ownership is uncertain.",
+        ),
+        (
+            "memory_store",
+            "Save to memory. Use when: preserving durable preferences, decisions, key context. Don't use when: information is transient/noisy/sensitive without need.",
+        ),
+        (
+            "memory_recall",
+            "Search memory. Use when: retrieving prior decisions, user preferences, historical context. Don't use when: answer is already in current context.",
+        ),
+        (
+            "memory_forget",
+            "Delete a memory entry. Use when: memory is incorrect/stale or explicitly requested for removal. Don't use when: impact is uncertain.",
+        ),
+    ];
+
+    if config.browser.enabled {
+        if !config.browser.browser_open.eq_ignore_ascii_case("disable") {
+            tool_descs.push((
+                "BrowserOpen",
+                "Open approved HTTPS URLs in system browser (allowlist-only, no scraping)",
+            ));
+        }
+        tool_descs.push((
+            "Browser",
+            "Drive a browser for navigation, DOM inspection, and page interaction",
+        ));
+    }
+    if config.web_fetch.enabled {
+        tool_descs.push((
+            "WebFetch",
+            "Fetch approved web pages and convert them to markdown, text, or html",
+        ));
+    }
+    if config.web_search.enabled {
+        tool_descs.push((
+            "WebSearch",
+            "Search the web and return structured search results with sources",
+        ));
+    }
+    if config.composio.enabled {
+        tool_descs.push((
+            "composio",
+            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover actions, 'list_accounts' to retrieve connected account IDs, 'execute' to run (optionally with connected_account_id), and 'connect' for OAuth.",
+        ));
+    }
+    tool_descs.push((
+        "schedule",
+        "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
+    ));
+    tool_descs.push((
+        "pushover",
+        "Send a Pushover notification to your device. Requires PUSHOVER_TOKEN and PUSHOVER_USER_KEY in .env file.",
+    ));
+
+    if agent_tool_registered {
+        tool_descs.push((
+            "AgentTool",
+            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
+        ));
+    }
+
+    let excluded = &config.autonomy.non_cli_excluded_tools;
+    if !excluded.is_empty() {
+        tool_descs.retain(|(name, _)| !excluded.iter().any(|ex| ex == name));
+    }
+
+    tool_descs
+}
+
+fn bootstrap_max_chars(config: &Config) -> Option<usize> {
+    if config.agent.compact_context { Some(6000) } else { None }
+}
+
+fn channel_listener_backoff_secs(config: &Config) -> (u64, u64) {
+    (
+        config.reliability.channel_initial_backoff_secs.max(DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS),
+        config.reliability.channel_max_backoff_secs.max(DEFAULT_CHANNEL_MAX_BACKOFF_SECS),
+    )
+}
+
+fn build_channels_by_name(channels: &[Arc<dyn Channel>]) -> Arc<HashMap<String, Arc<dyn Channel>>> {
+    Arc::new(
+        channels
+            .iter()
+            .map(|ch| (ch.name().to_string(), Arc::clone(ch)))
+            .collect::<HashMap<_, _>>(),
+    )
+}
+
+fn seed_provider_cache(
+    provider_name: &str,
+    provider: &Arc<dyn Provider>,
+) -> HashMap<String, Arc<dyn Provider>> {
+    let mut provider_cache_seed: HashMap<String, Arc<dyn Provider>> = HashMap::new();
+    provider_cache_seed.insert(provider_name.to_string(), Arc::clone(provider));
+    provider_cache_seed
+}
+
+fn channel_interrupt_on_new_message(config: &Config) -> bool {
+    config.channels_config.telegram.as_ref().is_some_and(|tg| tg.interrupt_on_new_message)
+}
+
+fn build_channel_hooks(
+    config: &Config,
+) -> Result<Option<Arc<crate::app::agent::hooks::HookRunner>>> {
+    if !config.hooks.enabled {
+        return Ok(None);
+    }
+
+    let mut runner = crate::app::agent::hooks::HookRunner::new();
+    if config.hooks.builtin.command_logger {
+        runner.register(Box::new(crate::app::agent::hooks::builtin::CommandLoggerHook::new()));
+    }
+    crate::plugins::register_trusted_plugin_hooks(&mut runner, config)
+        .context("failed to register trusted plugin hooks")?;
+    Ok(Some(Arc::new(runner)))
 }
 
 #[cfg(test)]

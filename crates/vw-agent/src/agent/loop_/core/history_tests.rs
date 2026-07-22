@@ -45,6 +45,14 @@ fn autosave_memory_key_uses_prefix_and_unique_suffix() {
 }
 
 #[test]
+fn autosave_memory_key_allows_empty_prefix() {
+    let key = autosave_memory_key("");
+
+    assert!(key.starts_with('_'));
+    assert!(key.len() > 1);
+}
+
+#[test]
 fn tools_to_openai_format_maps_tool_specs() {
     let tools: Vec<Box<dyn Tool>> = vec![Box::new(Testcov0084Tool)];
 
@@ -55,6 +63,13 @@ fn tools_to_openai_format_maps_tool_specs() {
     assert_eq!(formatted[0]["function"]["name"], "testcov_0084");
     assert_eq!(formatted[0]["function"]["description"], "history coverage tool");
     assert_eq!(formatted[0]["function"]["parameters"]["required"][0], "query");
+}
+
+#[test]
+fn tools_to_openai_format_returns_empty_for_empty_registry() {
+    let tools: Vec<Box<dyn Tool>> = Vec::new();
+
+    assert!(tools_to_openai_format(&tools).is_empty());
 }
 
 #[test]
@@ -100,6 +115,17 @@ fn parsed_tool_calls_build_native_assistant_history() {
     assert!(history.contains("call-1"));
     assert!(history.contains("shell"));
     assert!(history.contains("think"));
+}
+
+#[test]
+fn parsed_tool_calls_build_history_with_empty_calls() {
+    let history = build_native_assistant_history_from_parsed_calls("answer", &[], Some("reason"))
+        .expect("empty parsed calls should build history");
+    let value: Value = serde_json::from_str(&history).expect("history should be valid json");
+
+    assert_eq!(value["content"], "answer");
+    assert!(value["tool_calls"].as_array().expect("tool calls should be an array").is_empty());
+    assert_eq!(value["reasoning_content"], "reason");
 }
 
 #[test]

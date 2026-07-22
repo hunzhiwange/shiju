@@ -73,7 +73,10 @@ mod tests {
     #[test]
     fn wasm_storage_path_with_workspace() {
         let rt = WasmRuntime::with_workspace(default_config(), PathBuf::from("/home/user/project"));
-        assert_eq!(rt.storage_path(), PathBuf::from("/home/user/project/.vibewindow"));
+        assert_eq!(
+            rt.storage_path(),
+            PathBuf::from("/home/user/project").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        );
     }
 
     // ── Config validation ──────────────────────────────────────
@@ -184,6 +187,51 @@ mod tests {
         let rt = WasmRuntime::new(cfg);
         let err = rt.validate_config().unwrap_err();
         assert!(err.to_string().contains("host[:port] only"));
+    }
+
+    #[test]
+    fn validate_rejects_empty_and_boundary_punctuated_hosts() {
+        for (host, expected) in [
+            ("   ", "empty entry"),
+            (".example.com", "start/end with '.'"),
+            ("example.com-", "start/end with '-'"),
+            ("api@example.com", "invalid characters"),
+        ] {
+            let mut cfg = default_config();
+            cfg.allowed_hosts = vec![host.into()];
+            let error = WasmRuntime::new(cfg).validate_config().unwrap_err().to_string();
+
+            assert!(error.contains(expected), "host {host:?} returned: {error}");
+        }
+    }
+
+    #[test]
+    fn validate_rejects_malformed_host_ports() {
+        for host in ["example.com:", ":443", "example.com:http", "example.com:443:8443"] {
+            let mut cfg = default_config();
+            cfg.allowed_hosts = vec![host.into()];
+            let error = WasmRuntime::new(cfg).validate_config().unwrap_err().to_string();
+
+            assert!(
+                error.contains("invalid port format") || error.contains("too many ':' separators"),
+                "host {host:?} returned: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_accepts_and_normalizes_host_with_numeric_port() {
+        let mut cfg = default_config();
+        cfg.allowed_hosts = vec![" API.Example.COM:443 ".into()];
+        let rt = WasmRuntime::new(cfg);
+
+        assert!(rt.validate_config().is_ok());
+        let caps = WasmCapabilities {
+            allowed_hosts: vec!["api.example.com:443".into()],
+            ..Default::default()
+        };
+        let effective = rt.validate_capabilities(&caps).unwrap();
+        assert_eq!(effective.allowed_hosts, vec!["api.example.com:443"]);
     }
 
     #[test]
@@ -451,6 +499,16 @@ mod tests {
         assert!(err.to_string().contains("invalid characters"));
     }
 
+    #[test]
+    fn validate_module_name_rejects_empty_and_overlong_input() {
+        let empty = WasmRuntime::validate_module_name("").unwrap_err().to_string();
+        assert!(empty.contains("cannot be empty"));
+
+        let overlong = "a".repeat(129);
+        let error = WasmRuntime::validate_module_name(&overlong).unwrap_err().to_string();
+        assert!(error.contains("too long"));
+    }
+
     // ── Module execution edge cases ────────────────────────────
 
     #[cfg(feature = "runtime-wasm")]
@@ -491,7 +549,7 @@ mod tests {
         let rt = WasmRuntime::new(default_config());
         let result = rt.execute_module("calc", dir.path(), &WasmCapabilities::default());
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("Failed to canonicalize WASM tools directory"));
+        assert!(err.contains("WASM tools path is not a directory"));
     }
 
     #[test]

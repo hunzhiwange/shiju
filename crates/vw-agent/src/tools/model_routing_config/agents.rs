@@ -1,7 +1,6 @@
 use super::ModelRoutingConfigTool;
 use super::{DEFAULT_AGENT_MAX_DEPTH, DEFAULT_AGENT_MAX_ITERATIONS};
-use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::config::schema::save_config;
+use crate::app::agent::config::{self, DelegateAgentConfig};
 use crate::app::agent::util::MaybeSet;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -33,7 +32,8 @@ impl ModelRoutingConfigTool {
             None
         };
 
-        let mut cfg = self.load_config_without_env()?;
+        let mut cfg = config::get_project_blocking(&self.config.workspace_dir)?;
+        let before = cfg.clone();
 
         let mut next_agent = cfg.agents.get(&name).cloned().unwrap_or(DelegateAgentConfig {
             label: None,
@@ -123,7 +123,8 @@ impl ModelRoutingConfigTool {
         }
 
         cfg.agents.insert(name.clone(), next_agent);
-        save_config(&cfg).await?;
+        cfg =
+            config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         Ok(ToolResult {
             success: true,
@@ -140,13 +141,15 @@ impl ModelRoutingConfigTool {
     pub(super) async fn handle_remove_agent(&self, args: &Value) -> anyhow::Result<ToolResult> {
         let name = Self::parse_non_empty_string(args, "name")?;
 
-        let mut cfg = self.load_config_without_env()?;
+        let mut cfg = config::get_project_blocking(&self.config.workspace_dir)?;
+        let before = cfg.clone();
 
         if cfg.agents.remove(&name).is_none() {
             anyhow::bail!("No delegate agent found with name '{name}'");
         }
 
-        save_config(&cfg).await?;
+        cfg =
+            config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         Ok(ToolResult {
             success: true,

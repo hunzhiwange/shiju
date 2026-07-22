@@ -188,68 +188,82 @@ fn continuation_label_from_history(history: &[models::ChatMessage]) -> String {
         .unwrap_or_default()
 }
 
-/// 模块内可见函数，执行 handle_agent_stream_delta 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
-    let Some(session_id) = app.find_session_by_request_id(id) else {
-        return Task::none();
-    };
-
-    let now = now_ms();
-    let is_active = app.active_session_id.as_ref() == Some(&session_id);
-    let mut live_chat: Vec<models::ChatMessage> = if is_active {
-        app.chat.clone()
-    } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
-        cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
+fn prepare_scroll_for_active_stream_growth(app: &mut App) {
+    if app.chat_auto_scroll {
+        app.chat_virtualizer.snap_to_tail();
     } else {
-        load_session_or_default(app, session_id.clone()).messages
-    };
-    let mut live_ids = if is_active {
-        app.chat_message_ids.clone()
-    } else {
-        app.session_chat_message_id_cache
-            .get(&session_id)
-            .cloned()
-            .unwrap_or_else(|| vec![None; live_chat.len()])
-    };
+        app.chat_virtualizer.preserve_current_anchor_around();
+    }
+    app.sync_chat_virtualizer_compat_fields();
+}
 
-    if let Some(last) = live_chat.last_mut()
-        && last.role == models::ChatRole::Assistant
+fn append_stream_delta_to_tail(
+    chat: &mut Vec<models::ChatMessage>,
+    message_ids: &mut Vec<Option<String>>,
+    delta: String,
+    now: u64,
+) -> usize {
+    if let Some(last_idx) = chat.len().checked_sub(1)
+        && chat[last_idx].role == models::ChatRole::Assistant
     {
+        let last = &mut chat[last_idx];
         update_think_timing_from_delta(last, &delta, now);
         last.content.push_str(&delta);
-    } else {
-        live_chat.push(models::ChatMessage {
-            role: models::ChatRole::Assistant,
-            content: delta.clone(),
-            think_timing: Vec::new(),
-        });
-        live_ids.push(None);
-        if let Some(last) = live_chat.last_mut() {
-            update_think_timing_from_delta(last, &delta, now);
-        }
+        return last_idx;
     }
 
-    app.store_session_chat_snapshot(
-        session_id.clone(),
-        crate::app::session::shared_chat_messages(live_chat.clone()),
-        live_ids.clone(),
-    );
+    if message_ids.len() < chat.len() {
+        message_ids.resize(chat.len(), None);
+    }
+    chat.push(models::ChatMessage {
+        role: models::ChatRole::Assistant,
+        content: delta.clone(),
+        think_timing: Vec::new(),
+    });
+    message_ids.push(None);
+    let last_idx = chat.len() - 1;
+    update_think_timing_from_delta(&mut chat[last_idx], &delta, now);
+    last_idx
+}
 
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.messages = live_chat.clone();
-    session.updated_ms = now;
-    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
-
-    if !is_active {
-        app.sync_task_pet_from_runtime();
-        return save_task;
+fn upsert_workflow_tool_to_tail(
+    chat: &mut Vec<models::ChatMessage>,
+    message_ids: &mut Vec<Option<String>>,
+    raw_tool_block: String,
+) -> usize {
+    if let Some(last_idx) = chat.len().checked_sub(1)
+        && chat[last_idx].role == models::ChatRole::Assistant
+    {
+        upsert_tool_block_by_call_id(&mut chat[last_idx].content, &raw_tool_block);
+        return last_idx;
     }
 
-    app.chat = live_chat;
-    app.chat_message_ids = live_ids;
+    if message_ids.len() < chat.len() {
+        message_ids.resize(chat.len(), None);
+    }
+    let mut content = String::new();
+    append_tool_block(&mut content, &raw_tool_block);
+    chat.push(models::ChatMessage {
+        role: models::ChatRole::Assistant,
+        content,
+        think_timing: Vec::new(),
+    });
+    message_ids.push(None);
+    chat.len() - 1
+}
+
+fn finish_active_stream_tail_update(
+    app: &mut App,
+    session_id: String,
+    changed_idx: usize,
+    now: u64,
+) -> Task<Message> {
+    app.session_chat_cache.remove(&session_id);
+    app.session_chat_message_id_cache.remove(&session_id);
+    prepare_scroll_for_active_stream_growth(app);
     app.sync_task_pet_from_runtime();
     app.sync_chat_message_estimated_heights_len();
+
     let mut tail_prewarm_task = Task::none();
     let mut should_snap_to_bottom = false;
     if let Some(last_idx) = app.chat.len().checked_sub(1) {
@@ -259,27 +273,76 @@ pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -
             let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
             last_idx >= visible_start_idx && last_idx < visible_end_idx
         };
-        should_snap_to_bottom = app.chat_auto_scroll && !tail_is_visible;
-        if (app.chat_auto_scroll || tail_is_visible)
-            && !app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start)
+        should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
+        if (should_snap_to_bottom || tail_is_visible)
+            && app.mark_chat_ui_chunk_preparing_or_dirty(tail_chunk_start)
         {
-            app.mark_chat_ui_chunks_preparing(&[tail_chunk_start]);
+            let shared_chat = crate::app::session::shared_chat_messages(app.chat.clone());
             tail_prewarm_task = crate::app::message::project::prepare_session_ui_task(
                 session_id.clone(),
-                app.active_shared_chat_messages(),
+                shared_chat,
                 tail_chunk_start,
                 false,
                 app.dialogue_flow_show_reasoning_summary,
             );
         }
     }
+
     app.active_session_view_state.updated_ms = now;
-    app.rebuild_active_session_message_meta();
+    app.refresh_active_session_tail_message_meta(changed_idx);
+
+    let mut session = load_session_or_default(app, session_id.clone());
+    session.updated_ms = now;
+    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
+
     if should_snap_to_bottom {
         Task::batch(vec![scroll_chat_to_bottom_task(app), tail_prewarm_task, save_task])
     } else {
         Task::batch(vec![tail_prewarm_task, save_task])
     }
+}
+
+/// 模块内可见函数，执行 handle_agent_stream_delta 对应的应用流程。
+/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+
+    let now = now_ms();
+    let is_active = app.active_session_id.as_ref() == Some(&session_id);
+    if is_active {
+        let changed_idx =
+            append_stream_delta_to_tail(&mut app.chat, &mut app.chat_message_ids, delta, now);
+        return finish_active_stream_tail_update(app, session_id, changed_idx, now);
+    }
+
+    let mut live_chat: Vec<models::ChatMessage> =
+        if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
+            cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
+        } else {
+            load_session_or_default(app, session_id.clone()).messages
+        };
+    let mut live_ids = app
+        .session_chat_message_id_cache
+        .get(&session_id)
+        .cloned()
+        .unwrap_or_else(|| vec![None; live_chat.len()]);
+
+    append_stream_delta_to_tail(&mut live_chat, &mut live_ids, delta, now);
+
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(live_chat.clone()),
+        live_ids.clone(),
+    );
+
+    let mut session = load_session_or_default(app, session_id.clone());
+    session.messages = live_chat.clone();
+    session.message_ids = live_ids;
+    session.updated_ms = now;
+    app.sync_task_pet_from_runtime();
+    save_session_task(session, session_directory_for_save(app, &session_id))
 }
 
 /// 模块内可见函数，执行 handle_agent_workflow_node_update 对应的应用流程。
@@ -295,36 +358,25 @@ pub(super) fn handle_agent_workflow_node_update(
 
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
-    let mut live_chat: Vec<models::ChatMessage> = if is_active {
-        app.chat.clone()
-    } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
-        cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
-    } else {
-        load_session_or_default(app, session_id.clone()).messages
-    };
-    let mut live_ids = if is_active {
-        app.chat_message_ids.clone()
-    } else {
-        app.session_chat_message_id_cache
-            .get(&session_id)
-            .cloned()
-            .unwrap_or_else(|| vec![None; live_chat.len()])
-    };
-
-    if let Some(last) = live_chat.last_mut()
-        && last.role == models::ChatRole::Assistant
-    {
-        upsert_tool_block_by_call_id(&mut last.content, &raw_tool_block);
-    } else {
-        let mut content = String::new();
-        append_tool_block(&mut content, &raw_tool_block);
-        live_chat.push(models::ChatMessage {
-            role: models::ChatRole::Assistant,
-            content,
-            think_timing: Vec::new(),
-        });
-        live_ids.push(None);
+    if is_active {
+        let changed_idx =
+            upsert_workflow_tool_to_tail(&mut app.chat, &mut app.chat_message_ids, raw_tool_block);
+        return finish_active_stream_tail_update(app, session_id, changed_idx, now);
     }
+
+    let mut live_chat: Vec<models::ChatMessage> =
+        if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
+            cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
+        } else {
+            load_session_or_default(app, session_id.clone()).messages
+        };
+    let mut live_ids = app
+        .session_chat_message_id_cache
+        .get(&session_id)
+        .cloned()
+        .unwrap_or_else(|| vec![None; live_chat.len()]);
+
+    upsert_workflow_tool_to_tail(&mut live_chat, &mut live_ids, raw_tool_block);
 
     app.store_session_chat_snapshot(
         session_id.clone(),
@@ -334,48 +386,10 @@ pub(super) fn handle_agent_workflow_node_update(
 
     let mut session = load_session_or_default(app, session_id.clone());
     session.messages = live_chat.clone();
+    session.message_ids = live_ids;
     session.updated_ms = now;
-    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
-
-    if !is_active {
-        app.sync_task_pet_from_runtime();
-        return save_task;
-    }
-
-    app.chat = live_chat;
-    app.chat_message_ids = live_ids;
     app.sync_task_pet_from_runtime();
-    app.sync_chat_message_estimated_heights_len();
-    let mut tail_prewarm_task = Task::none();
-    let mut should_snap_to_bottom = false;
-    if let Some(last_idx) = app.chat.len().checked_sub(1) {
-        app.refine_chat_message_estimated_heights(last_idx, last_idx + 1);
-        let tail_chunk_start = crate::app::session::chat_ui_chunk_start_idx(last_idx);
-        let tail_is_visible = {
-            let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
-            last_idx >= visible_start_idx && last_idx < visible_end_idx
-        };
-        should_snap_to_bottom = app.chat_auto_scroll && !tail_is_visible;
-        if (app.chat_auto_scroll || tail_is_visible)
-            && !app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start)
-        {
-            app.mark_chat_ui_chunks_preparing(&[tail_chunk_start]);
-            tail_prewarm_task = crate::app::message::project::prepare_session_ui_task(
-                session_id.clone(),
-                app.active_shared_chat_messages(),
-                tail_chunk_start,
-                false,
-                app.dialogue_flow_show_reasoning_summary,
-            );
-        }
-    }
-    app.active_session_view_state.updated_ms = now;
-    app.rebuild_active_session_message_meta();
-    if should_snap_to_bottom {
-        Task::batch(vec![scroll_chat_to_bottom_task(app), tail_prewarm_task, save_task])
-    } else {
-        Task::batch(vec![tail_prewarm_task, save_task])
-    }
+    save_session_task(session, session_directory_for_save(app, &session_id))
 }
 
 /// 模块内可见函数，执行 handle_agent_stream_done 对应的应用流程。
@@ -566,6 +580,7 @@ pub(super) fn handle_agent_post_tool_round(
         attachments: Vec::new(),
         root: active_request.root.clone(),
         model: active_request.model.clone(),
+        reasoning_effort: active_request.reasoning_effort,
         acp_test: active_request.acp_test,
         acp_agent: active_request.acp_agent.clone(),
         acp_allowed_tools: active_request.acp_allowed_tools.clone(),
@@ -612,6 +627,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         return Task::none();
     };
     crate::app::state::clear_pending_guide_handoff(id);
+    let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
 
     {
         let runtime = app.get_session_runtime_mut(&session_id);
@@ -622,7 +638,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     app.sync_task_pet_from_runtime();
     app.show_send_mode_popover = false;
 
-    if app.active_session_id.as_ref() == Some(&session_id) {
+    let save_task = if is_active_session {
         app.chat.push(models::ChatMessage {
             role: models::ChatRole::System,
             content: err,
@@ -636,14 +652,22 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         );
         app.session_chat_message_id_cache.insert(session_id.clone(), app.chat_message_ids.clone());
         app.sync_active_session_from_chat();
-    }
+
+        let mut session = load_session_or_default(app, session_id.clone());
+        session.messages = app.chat.clone();
+        session.message_ids = app.chat_message_ids.clone();
+        session.updated_ms = now_ms();
+        save_session_task(session, session_directory_for_save(app, &session_id))
+    } else {
+        Task::none()
+    };
 
     let next = start_next(app, &session_id);
 
-    if app.active_session_id.as_ref() == Some(&session_id) && app.chat_auto_scroll {
-        scroll_chat_to_bottom_task(app).chain(next)
+    if is_active_session && app.chat_auto_scroll {
+        scroll_chat_to_bottom_task(app).chain(save_task).chain(next)
     } else {
-        next
+        save_task.chain(next)
     }
 }
 #[cfg(test)]

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
 use time::OffsetDateTime;
 
@@ -94,6 +95,70 @@ impl TaskExecutorBackend {
             "codex" | "Codex" | "Codex CLI" => Some(TaskExecutorBackend::Codex),
             _ => None,
         }
+    }
+}
+
+/// TaskSplitMode 枚举描述任务拆分开关如何覆盖系统设置。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskSplitMode {
+    #[default]
+    FollowSystem,
+    Enabled,
+    Disabled,
+}
+
+impl TaskSplitMode {
+    /// 返回所有可选模式，供 UI 和 CLI 复用。
+    pub fn all() -> [TaskSplitMode; 3] {
+        [TaskSplitMode::FollowSystem, TaskSplitMode::Enabled, TaskSplitMode::Disabled]
+    }
+
+    /// 返回面向用户的稳定标签。
+    pub fn label(self) -> &'static str {
+        match self {
+            TaskSplitMode::FollowSystem => "遵循系统",
+            TaskSplitMode::Enabled => "开启",
+            TaskSplitMode::Disabled => "关闭",
+        }
+    }
+
+    /// 返回持久化和 CLI 使用的稳定 key。
+    pub fn to_string_key(self) -> &'static str {
+        match self {
+            TaskSplitMode::FollowSystem => "follow_system",
+            TaskSplitMode::Enabled => "enabled",
+            TaskSplitMode::Disabled => "disabled",
+        }
+    }
+
+    /// 解析外部输入。
+    ///
+    /// 返回结构化结果；无法识别的输入显式返回空值。
+    pub fn parse_key(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "follow_system" | "follow-system" | "system" | "default" | "inherit" => {
+                Some(TaskSplitMode::FollowSystem)
+            }
+            "enabled" | "enable" | "on" | "true" | "yes" | "1" => Some(TaskSplitMode::Enabled),
+            "disabled" | "disable" | "off" | "false" | "no" | "0" => Some(TaskSplitMode::Disabled),
+            _ => None,
+        }
+    }
+
+    /// 结合系统开关计算最终是否执行任务拆分。
+    pub fn enabled_with_system(self, system_enabled: bool) -> bool {
+        match self {
+            TaskSplitMode::FollowSystem => system_enabled,
+            TaskSplitMode::Enabled => true,
+            TaskSplitMode::Disabled => false,
+        }
+    }
+}
+
+impl fmt::Display for TaskSplitMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.label())
     }
 }
 
@@ -384,6 +449,8 @@ pub struct Task {
     pub deleted: bool,
     pub archived: bool,
     pub subtasks: Vec<SubTask>,
+    #[serde(default)]
+    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_ms: Option<u64>,
     #[serde(default)]
     pub last_error: Option<String>,
@@ -423,6 +490,7 @@ impl Default for Task {
             deleted: false,
             archived: false,
             subtasks: Vec::new(),
+            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,
@@ -459,6 +527,7 @@ impl Task {
             deleted: false,
             archived: false,
             subtasks: Vec::new(),
+            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_ms: None,
             last_error: None,
             pause_reason: None,
@@ -630,6 +699,8 @@ pub struct TaskBoardSettings {
     pub auto_execute: bool,
     #[serde(default = "default_code_review_enabled")]
     pub code_review_enabled: bool,
+    #[serde(default = "default_task_split_enabled")]
+    pub task_split_enabled: bool,
     pub max_concurrent: u32,
     pub default_priority: u32,
     pub auto_promote_pool_tasks: bool,
@@ -644,6 +715,8 @@ pub struct TaskBoardSettings {
     pub auto_promote_tick_interval_seconds: u64,
     #[serde(default = "default_failed_retry_minutes")]
     pub failed_retry_minutes: u32,
+    #[serde(default = "default_failed_retry_max_attempts")]
+    pub failed_retry_max_attempts: u32,
     #[serde(default = "default_running_timeout_minutes")]
     pub running_timeout_minutes: u32,
     #[serde(default = "default_recycle_worktree_on_task_finish")]
@@ -660,6 +733,7 @@ impl TaskBoardSettings {
         Self {
             auto_execute: true,
             code_review_enabled: false,
+            task_split_enabled: false,
             max_concurrent: 3,
             default_priority: 999,
             auto_promote_pool_tasks: true,
@@ -669,6 +743,7 @@ impl TaskBoardSettings {
             scheduler_tick_interval_seconds: default_scheduler_tick_interval_seconds(),
             auto_promote_tick_interval_seconds: default_auto_promote_tick_interval_seconds(),
             failed_retry_minutes: default_failed_retry_minutes(),
+            failed_retry_max_attempts: default_failed_retry_max_attempts(),
             running_timeout_minutes: default_running_timeout_minutes(),
             recycle_worktree_on_task_finish: default_recycle_worktree_on_task_finish(),
             pr_submitted_stall_timeout_seconds: default_pr_submitted_stall_timeout_seconds(),
@@ -685,6 +760,7 @@ impl TaskBoardSettings {
         self.auto_promote_tick_interval_seconds =
             self.auto_promote_tick_interval_seconds.clamp(1, 3600);
         self.failed_retry_minutes = self.failed_retry_minutes.clamp(1, 1440);
+        self.failed_retry_max_attempts = self.failed_retry_max_attempts.clamp(0, 10);
         self.running_timeout_minutes = self.running_timeout_minutes.clamp(1, 1440);
         self.pr_submitted_stall_timeout_seconds =
             self.pr_submitted_stall_timeout_seconds.clamp(5, 3600);
@@ -699,6 +775,10 @@ impl Default for TaskBoardSettings {
 }
 
 const fn default_code_review_enabled() -> bool {
+    false
+}
+
+const fn default_task_split_enabled() -> bool {
     false
 }
 
@@ -720,6 +800,10 @@ const fn default_auto_promote_tick_interval_seconds() -> u64 {
 
 const fn default_failed_retry_minutes() -> u32 {
     20
+}
+
+const fn default_failed_retry_max_attempts() -> u32 {
+    10
 }
 
 const fn default_running_timeout_minutes() -> u32 {
@@ -746,6 +830,7 @@ pub struct TaskDraft {
     pub description: String,
     pub prompt: String,
     pub subtasks: Vec<String>,
+    pub task_split_mode: TaskSplitMode,
     pub auto_promote_delay_seconds: String,
 }
 
@@ -759,6 +844,7 @@ impl Default for TaskDraft {
             description: String::new(),
             prompt: String::new(),
             subtasks: vec![String::new(), String::new(), String::new()],
+            task_split_mode: TaskSplitMode::FollowSystem,
             auto_promote_delay_seconds: "0".to_string(),
         }
     }

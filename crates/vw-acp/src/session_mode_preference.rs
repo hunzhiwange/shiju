@@ -1,6 +1,11 @@
 //! 会话模式与模型偏好的读取和写回逻辑。
 
-use agent_client_protocol::SessionModelState;
+use std::collections::BTreeMap;
+
+use agent_client_protocol::{
+    SessionConfigKind, SessionConfigOption, SessionConfigOptionCategory,
+    SessionConfigSelectOptions, SessionModelState,
+};
 
 use crate::{SessionAcpxState, SessionRecord, SessionStateOptions};
 
@@ -16,6 +21,7 @@ fn empty_session_vwacp_state() -> SessionAcpxState {
         available_models: None,
         available_commands: None,
         config_options: None,
+        desired_config_options: None,
         session_options: None,
     }
 }
@@ -91,4 +97,96 @@ pub fn sync_advertised_model_state(record: &mut SessionRecord, models: Option<&S
     vwacp.current_model_id = Some(models.current_model_id.to_string());
     vwacp.available_models =
         Some(models.available_models.iter().map(|model| model.model_id.to_string()).collect());
+}
+
+pub fn get_desired_config_options(state: Option<&SessionAcpxState>) -> BTreeMap<String, String> {
+    state.and_then(|state| state.desired_config_options.clone()).unwrap_or_default()
+}
+
+pub fn set_desired_config_option(record: &mut SessionRecord, config_id: &str, value: &str) {
+    let config_id = config_id.trim();
+    let value = value.trim();
+    if config_id.is_empty() || value.is_empty() {
+        return;
+    }
+    ensure_vwacp_state(record)
+        .desired_config_options
+        .get_or_insert_with(BTreeMap::new)
+        .insert(config_id.to_string(), value.to_string());
+}
+
+pub fn sync_config_options(record: &mut SessionRecord, options: Option<Vec<SessionConfigOption>>) {
+    if let Some(options) = options {
+        ensure_vwacp_state(record).config_options = Some(options);
+    }
+}
+
+pub fn resolve_model_config_value(
+    options: Option<&[SessionConfigOption]>,
+    value: &str,
+) -> Result<Option<String>, String> {
+    let Some(options) = options else {
+        return Ok(None);
+    };
+    let option = options
+        .iter()
+        .find(|option| option.category == Some(SessionConfigOptionCategory::Model))
+        .or_else(|| options.iter().find(|option| option.id.0.as_ref() == "model"));
+    option.map(|option| validate_select_value(option, value)).transpose()
+}
+
+pub fn resolve_config_value(
+    options: Option<&[SessionConfigOption]>,
+    requested_id: &str,
+    value: &str,
+) -> Result<String, String> {
+    let options = options.ok_or_else(|| {
+        format!("Agent did not advertise session config options; cannot set {requested_id}")
+    })?;
+    let requested_id = requested_id.trim();
+    let is_thought_level = matches!(requested_id, "reasoning_effort" | "thought_level" | "effort");
+    let option = if is_thought_level {
+        options
+            .iter()
+            .find(|option| option.category == Some(SessionConfigOptionCategory::ThoughtLevel))
+            .or_else(|| {
+                options.iter().find(|option| {
+                    matches!(option.id.0.as_ref(), "reasoning_effort" | "thought_level" | "effort")
+                })
+            })
+    } else {
+        options.iter().find(|option| option.id.0.as_ref() == requested_id)
+    }
+    .ok_or_else(|| {
+        let available =
+            options.iter().map(|option| option.id.to_string()).collect::<Vec<_>>().join(", ");
+        format!(
+            "Agent did not advertise config option {requested_id}; available options: {available}"
+        )
+    })?;
+    validate_select_value(option, value)
+}
+
+fn validate_select_value(option: &SessionConfigOption, value: &str) -> Result<String, String> {
+    let SessionConfigKind::Select(select) = &option.kind else {
+        return Err(format!("Config option {} does not accept named values", option.id));
+    };
+    let values = match &select.options {
+        SessionConfigSelectOptions::Ungrouped(options) => {
+            options.iter().map(|item| item.value.to_string()).collect::<Vec<_>>()
+        }
+        SessionConfigSelectOptions::Grouped(groups) => groups
+            .iter()
+            .flat_map(|group| group.options.iter().map(|item| item.value.to_string()))
+            .collect(),
+        _ => Vec::new(),
+    };
+    if values.iter().any(|candidate| candidate == value) {
+        return Ok(option.id.to_string());
+    }
+    Err(format!(
+        "Unsupported value {value} for config option {}; available values: {}",
+        option.id,
+        values.join(", ")
+    ))
 }

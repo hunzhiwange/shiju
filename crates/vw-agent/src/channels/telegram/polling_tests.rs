@@ -191,6 +191,34 @@ fn text_update(
     })
 }
 
+fn approval_callback_update(
+    update_id: i64,
+    chat_id: i64,
+    message_id: i64,
+    sender_id: i64,
+    username: &str,
+    data: &str,
+) -> Value {
+    json!({
+        "update_id": update_id,
+        "callback_query": {
+            "id": format!("callback-{update_id}"),
+            "data": data,
+            "from": {
+                "id": sender_id,
+                "username": username
+            },
+            "message": {
+                "message_id": message_id,
+                "chat": {
+                    "id": chat_id,
+                    "type": "private"
+                }
+            }
+        }
+    })
+}
+
 #[test]
 fn polling_channel_starts_with_empty_voice_cache() {
     let channel = TelegramChannel::new("token".to_string(), vec![], false);
@@ -243,6 +271,109 @@ async fn listen_impl_advances_offset_and_returns_when_sender_closed() {
     server.abort();
 }
 
+#[tokio::test]
+async fn listen_impl_continues_after_successful_send_with_next_offset() {
+    let state = MockTelegramState::default();
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": []
+        })))
+        .await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": [text_update(50, 200, 9, 1, "alice", "first", "private")]
+        })))
+        .await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": [text_update(51, 200, 10, 1, "alice", "second", "private")]
+        })))
+        .await;
+
+    let (base_url, server) = spawn_mock_server(state.clone()).await;
+    let channel = TelegramChannel::new("token".to_string(), vec!["*".to_string()], false)
+        .with_api_base(base_url);
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+    let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
+    let msg = rx.recv().await.expect("first poll message should be delivered");
+    assert_eq!(msg.content, "first");
+    assert_eq!(msg.reply_target, "200");
+    drop(rx);
+
+    listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
+
+    let get_updates_bodies = state.get_updates_bodies().await;
+    assert_eq!(get_updates_bodies.len(), 3);
+    assert_eq!(get_updates_bodies[1]["offset"], json!(0));
+    assert_eq!(get_updates_bodies[2]["offset"], json!(51));
+
+    let send_chat_action_bodies = state.send_chat_action_bodies().await;
+    assert_eq!(send_chat_action_bodies.len(), 2);
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn listen_impl_delivers_approval_callback_queries() {
+    let state = MockTelegramState::default();
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": []
+        })))
+        .await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": [
+                approval_callback_update(60, 300, 11, 1, "alice", "zcapr:yes:req-123")
+            ]
+        })))
+        .await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": [
+                text_update(61, 300, 12, 1, "alice", "after callback", "private")
+            ]
+        })))
+        .await;
+
+    let (base_url, server) = spawn_mock_server(state.clone()).await;
+    let channel = TelegramChannel::new("token".to_string(), vec!["alice".to_string()], false)
+        .with_api_base(base_url);
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+    let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
+    let msg = rx.recv().await.expect("callback query should be delivered");
+    assert_eq!(msg.id, "telegram_cb_300_11_callback-60");
+    assert_eq!(msg.sender, "alice");
+    assert_eq!(msg.reply_target, "300");
+    assert_eq!(msg.content, "/approve-allow req-123");
+    drop(rx);
+
+    listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
+
+    let get_updates_bodies = state.get_updates_bodies().await;
+    assert_eq!(get_updates_bodies.len(), 3);
+    assert_eq!(get_updates_bodies[2]["offset"], json!(61));
+
+    let send_chat_action_bodies = state.send_chat_action_bodies().await;
+    assert_eq!(send_chat_action_bodies.len(), 2);
+    assert_eq!(send_chat_action_bodies[0]["chat_id"], json!("300"));
+
+    let ack_reaction_bodies = state.ack_reaction_bodies().await;
+    assert_eq!(ack_reaction_bodies.len(), 1);
+    assert_eq!(ack_reaction_bodies[0]["chat_id"], json!("300"));
+    assert_eq!(ack_reaction_bodies[0]["message_id"], json!(12));
+
+    server.abort();
+}
+
 #[tokio::test(start_paused = true)]
 async fn listen_impl_retries_startup_probe_errors_before_entering_main_loop() {
     let state = MockTelegramState::default();
@@ -289,6 +420,42 @@ async fn listen_impl_retries_startup_probe_errors_before_entering_main_loop() {
     let get_updates_bodies = state.get_updates_bodies().await;
     assert_eq!(get_updates_bodies.len(), 5);
     assert_eq!(get_updates_bodies[4]["timeout"], json!(30));
+
+    server.abort();
+}
+
+#[tokio::test(start_paused = true)]
+async fn listen_impl_uses_defaults_for_sparse_api_responses() {
+    let state = MockTelegramState::default();
+    state.push_get_updates_reply(MockReply::ok_json(json!({}))).await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "ok": true,
+            "result": [{}, { "update_id": 70 }]
+        })))
+        .await;
+    state
+        .push_get_updates_reply(MockReply::ok_json(json!({
+            "result": [text_update(71, 400, 13, 1, "alice", "sparse response", "private")]
+        })))
+        .await;
+
+    let (base_url, server) = spawn_mock_server(state.clone()).await;
+    let channel = TelegramChannel::new("token".to_string(), vec!["*".to_string()], false)
+        .with_api_base(base_url);
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    drop(rx);
+
+    let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
+    tokio::task::yield_now().await;
+    tokio::time::advance(Duration::from_secs(6)).await;
+    tokio::task::yield_now().await;
+
+    listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
+
+    let get_updates_bodies = state.get_updates_bodies().await;
+    assert_eq!(get_updates_bodies.len(), 3);
+    assert_eq!(get_updates_bodies[2]["offset"], json!(71));
 
     server.abort();
 }
@@ -469,6 +636,24 @@ async fn health_check_impl_returns_false_when_request_fails() {
         .with_api_base("http://127.0.0.1:1".to_string());
 
     assert!(!channel.health_check_impl().await);
+}
+
+#[tokio::test]
+async fn health_check_impl_returns_false_for_unsuccessful_status() {
+    let state = MockTelegramState::default();
+    state
+        .push_get_me_reply(MockReply::Json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({ "ok": false }),
+        ))
+        .await;
+    let (base_url, server) = spawn_mock_server(state).await;
+    let channel = TelegramChannel::new("token".to_string(), vec!["*".to_string()], false)
+        .with_api_base(base_url);
+
+    assert!(!channel.health_check_impl().await);
+
+    server.abort();
 }
 
 #[tokio::test(start_paused = true)]

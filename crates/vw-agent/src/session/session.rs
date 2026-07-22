@@ -169,6 +169,8 @@ pub enum Error {
     Json(serde_json::Error),
     /// 无活动项目上下文
     NoProjectContext,
+    /// 异步运行时与同步存储之间的隔离执行失败
+    Runtime(anyhow::Error),
 }
 
 impl fmt::Display for Error {
@@ -178,6 +180,7 @@ impl fmt::Display for Error {
             Error::Storage(e) => write!(f, "{}", e),
             Error::Json(e) => write!(f, "{}", e),
             Error::NoProjectContext => write!(f, "no active project context"),
+            Error::Runtime(e) => write!(f, "{}", e),
         }
     }
 }
@@ -199,6 +202,12 @@ impl From<storage::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(value: serde_json::Error) -> Self {
         Error::Json(value)
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Error::Runtime(value)
     }
 }
 
@@ -386,13 +395,22 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
     );
 
     // 持久化到存储层
-    crate::session::ui_store::save_agent_session_scoped(&info, Some(&project_id)).ok_or_else(
-        || {
-            Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                message: format!("failed to persist session: {}", info.id),
-            }))
-        },
-    )?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let save_info = info.clone();
+    let save_project_id = project_id.clone();
+    crate::global_database::run_isolated(move || {
+        crate::session::ui_store::save_agent_session_scoped_for_tenant(
+            &tenant,
+            &save_info,
+            Some(&save_project_id),
+        )
+    })
+    .await?
+    .ok_or_else(|| {
+        Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+            message: format!("failed to persist session: {}", info.id),
+        }))
+    })?;
 
     // 发布创建事件
     let _ = bus::publish(event::CREATED, json!({ "info": info }), instance_directory_opt());
@@ -413,13 +431,24 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
 /// - `Err(Error)`: 会话不存在或读取失败
 pub async fn get(session_id: &str) -> Result<Info, Error> {
     let project_id = project_id()?;
-    crate::session::ui_store::load_agent_session_scoped(session_id, Some(&project_id)).ok_or_else(
-        || {
-            Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                message: format!("session not found: {}", session_id),
-            }))
-        },
-    )
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = session_id.to_string();
+    crate::global_database::run_isolated({
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::load_agent_session_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                Some(&project_id),
+            )
+        }
+    })
+    .await?
+    .ok_or_else(|| {
+        Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+            message: format!("session not found: {}", session_id),
+        }))
+    })
 }
 
 /// 更新会话的最后修改时间
@@ -457,22 +486,47 @@ pub async fn touch(session_id: &str) -> Result<Info, Error> {
 /// - `Err(Error)`: 更新失败
 pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info, Error> {
     let project_id = project_id()?;
-    let mut result =
-        crate::session::ui_store::load_agent_session_scoped(session_id, Some(&project_id))
-            .ok_or_else(|| {
-                Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                    message: format!("session not found: {}", session_id),
-                }))
-            })?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = session_id.to_string();
+    let mut result = crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let project_id = project_id.clone();
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::load_agent_session_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                Some(&project_id),
+            )
+        }
+    })
+    .await?
+    .ok_or_else(|| {
+        Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+            message: format!("session not found: {}", session_id),
+        }))
+    })?;
     f(&mut result);
     result.time.updated = now_ms();
-    crate::session::ui_store::save_agent_session_scoped(&result, Some(&project_id)).ok_or_else(
-        || {
-            Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                message: format!("failed to persist session: {}", session_id),
-            }))
-        },
-    )?;
+    let save_result = result.clone();
+    crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let project_id = project_id.clone();
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::save_agent_session_scoped_for_tenant(
+                &tenant,
+                &save_result,
+                Some(&project_id),
+            )
+            .ok_or_else(|| {
+                Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+                    message: format!("failed to persist session: {}", session_id),
+                }))
+            })
+        }
+    })
+    .await??;
     // 记录更新日志
     LOGGER.info(
         "updated",
@@ -497,7 +551,11 @@ pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info,
 /// - `Err(Error)`: 读取失败
 pub async fn list() -> Result<Vec<Info>, Error> {
     let project_id = project_id()?;
-    let mut out = crate::session::ui_store::load_agent_sessions_scoped(Some(&project_id));
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let mut out = crate::global_database::run_isolated(move || {
+        crate::session::ui_store::load_agent_sessions_scoped_for_tenant(&tenant, Some(&project_id))
+    })
+    .await?;
     out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
     Ok(out)
 }
@@ -530,7 +588,11 @@ pub async fn children(parent_id: &str) -> Result<Vec<Info>, Error> {
 /// - `Ok(Vec<Info>)`: 成功返回所有会话列表
 /// - `Err(Error)`: 读取失败
 pub async fn list_all() -> Result<Vec<Info>, Error> {
-    let mut out = crate::session::ui_store::load_agent_sessions_all();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let mut out = crate::global_database::run_isolated(move || {
+        crate::session::ui_store::load_agent_sessions_all_for_tenant(&tenant)
+    })
+    .await?;
     out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
     Ok(out)
 }
@@ -548,7 +610,14 @@ pub async fn list_all() -> Result<Vec<Info>, Error> {
 /// - `Ok(Info)`: 成功返回会话元数据
 /// - `Err(Error)`: 会话不存在或读取失败
 pub async fn get_any(session_id: &str) -> Result<Info, Error> {
-    let Some(info) = crate::session::ui_store::load_agent_session_any(session_id) else {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = session_id.to_string();
+    let Some(info) = crate::global_database::run_isolated({
+        let session_id = session_id.clone();
+        move || crate::session::ui_store::load_agent_session_any_for_tenant(&tenant, &session_id)
+    })
+    .await?
+    else {
         return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
             message: format!("session not found: {}", session_id),
         })));
@@ -570,7 +639,15 @@ pub async fn get_any(session_id: &str) -> Result<Info, Error> {
 /// - `Ok(Info)`: 成功返回更新后的会话信息
 /// - `Err(Error)`: 会话不存在或更新失败
 pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info, Error> {
-    let Some(mut result) = crate::session::ui_store::load_agent_session_any(session_id) else {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = session_id.to_string();
+    let Some(mut result) = crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let session_id = session_id.clone();
+        move || crate::session::ui_store::load_agent_session_any_for_tenant(&tenant, &session_id)
+    })
+    .await?
+    else {
         return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
             message: format!("session not found: {}", session_id),
         })));
@@ -578,13 +655,25 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
     let project_id = result.project_id.clone();
     f(&mut result);
     result.time.updated = now_ms();
-    crate::session::ui_store::save_agent_session_scoped(&result, Some(&project_id)).ok_or_else(
-        || {
-            Error::Storage(storage::Error::NotFound(storage::NotFoundError {
-                message: format!("failed to persist session: {}", session_id),
-            }))
-        },
-    )?;
+    let save_result = result.clone();
+    crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let project_id = project_id.clone();
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::save_agent_session_scoped_for_tenant(
+                &tenant,
+                &save_result,
+                Some(&project_id),
+            )
+            .ok_or_else(|| {
+                Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+                    message: format!("failed to persist session: {}", session_id),
+                }))
+            })
+        }
+    })
+    .await??;
     // 记录更新日志
     LOGGER.info(
         "updated",
@@ -614,25 +703,37 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
 /// - `Err(Error)`: 删除失败
 pub async fn remove(session_id: &str) -> Result<(), Error> {
     let project_id = project_id()?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
     // 先读取会话信息（用于事件发布）
-    let info = get(session_id).await.ok();
+    let info = get(session_id).await?;
     // 删除会话主数据
-    crate::session::ui_store::delete_agent_session_scoped(session_id, Some(&project_id));
+    let session_id = session_id.to_string();
+    crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let project_id = project_id.clone();
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::delete_agent_session_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                Some(&project_id),
+            )
+        }
+    })
+    .await?;
     // 删除关联的分享信息
-    storage::remove(&["share", session_id]).await.ok();
+    storage::remove(&["share", &session_id]).await.ok();
     // 删除关联的消息和部分
-    remove_messages_and_parts(session_id).await.ok();
+    remove_messages_and_parts(&session_id).await.ok();
     // 发布删除事件
-    if let Some(info) = info {
-        LOGGER.info(
-            "deleted",
-            Some(extra([
-                ("id", Value::String(info.id.clone())),
-                ("projectID", Value::String(info.project_id.clone())),
-            ])),
-        );
-        let _ = bus::publish(event::DELETED, json!({ "info": info }), instance_directory_opt());
-    }
+    LOGGER.info(
+        "deleted",
+        Some(extra([
+            ("id", Value::String(info.id.clone())),
+            ("projectID", Value::String(info.project_id.clone())),
+        ])),
+    );
+    let _ = bus::publish(event::DELETED, json!({ "info": info }), instance_directory_opt());
     Ok(())
 }
 
@@ -649,18 +750,38 @@ pub async fn remove(session_id: &str) -> Result<(), Error> {
 /// - `Ok(())`: 删除成功
 /// - `Err(Error)`: 会话不存在或删除失败
 pub async fn remove_any(session_id: &str) -> Result<(), Error> {
-    let Some(info) = crate::session::ui_store::load_agent_session_any(session_id) else {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = session_id.to_string();
+    let Some(info) = crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let session_id = session_id.clone();
+        move || crate::session::ui_store::load_agent_session_any_for_tenant(&tenant, &session_id)
+    })
+    .await?
+    else {
         return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
             message: format!("session not found: {}", session_id),
         })));
     };
     let project_id = info.project_id.clone();
     // 删除会话主数据
-    crate::session::ui_store::delete_agent_session_scoped(session_id, Some(&project_id));
+    crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        let project_id = project_id.clone();
+        let session_id = session_id.clone();
+        move || {
+            crate::session::ui_store::delete_agent_session_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                Some(&project_id),
+            )
+        }
+    })
+    .await?;
     // 删除关联的分享信息
-    storage::remove(&["share", session_id]).await.ok();
+    storage::remove(&["share", &session_id]).await.ok();
     // 删除关联的消息和部分
-    remove_messages_and_parts(session_id).await.ok();
+    remove_messages_and_parts(&session_id).await.ok();
     // 发布删除事件
     LOGGER.info(
         "deleted",

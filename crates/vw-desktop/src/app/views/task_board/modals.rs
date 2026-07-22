@@ -13,18 +13,21 @@
 //! 模态窗口的样式遵循应用程序的整体主题设计，包括按钮、输入框、容器等组件。
 
 use iced::widget::{
-    Space, button, column, container, row, scrollable, text, text_editor, text_input, toggler,
+    Space, button, column, container, pick_list, row, scrollable, text, text_editor, text_input,
+    toggler,
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::system_settings_common::{
     settings_close_button, settings_modal_card, settings_muted_text_style, settings_panel,
-    settings_section_card, settings_text_editor_style, settings_text_input_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_editor_style, settings_text_input_style,
 };
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::TaskBoardSettingsModalTab;
-use crate::app::task::Task;
+use crate::app::task::{Task, TaskSplitMode};
 use crate::app::{App, Message};
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 use super::common::{button_style_primary, button_style_secondary};
 use super::panel::{build_executor_selector, build_model_selector};
@@ -136,6 +139,17 @@ pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
     let priority_field = priority_input;
     let model_field = build_model_selector(app, false);
     let executor_field = build_executor_selector(app, false);
+    let task_split_field = pick_list(
+        TaskSplitMode::all().to_vec(),
+        Some(app.task_board_draft.task_split_mode),
+        |mode| Message::TaskBoard(TaskBoardMessage::UpdateDraftTaskSplitMode(mode)),
+    )
+    .placeholder("任务拆分")
+    .padding([6, 10])
+    .text_size(14)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill);
 
     // 构建模式切换按钮组：单个任务 / 批量导入
     let mode_toggle = row![
@@ -199,7 +213,7 @@ pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
             .height(Length::Fixed(300.0))
             .style(editor_style);
 
-        let help_text = text("支持 JSON 数组格式（包含 priority, prompt, model, acp_agent 字段）\n或 CSV/TSV 格式（首行需包含 priority, prompt 表头）")
+        let help_text = text("支持 JSON 数组格式（包含 priority, prompt, model, acp_agent, task_split_mode 字段）\n或 CSV/TSV 格式（首行需包含 priority, prompt 表头）")
             .size(12)
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().background.base.text.scale_alpha(0.8)),
@@ -229,6 +243,7 @@ pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
             row![
                 container(model_field).width(Length::FillPortion(1)),
                 container(executor_field).width(Length::FillPortion(1)),
+                container(task_split_field).width(Length::FillPortion(1)),
                 container(priority_field).width(Length::FillPortion(1)),
             ]
             .spacing(12),
@@ -282,7 +297,6 @@ pub fn build_create_task_modal(app: &App) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(Length::Fixed(480.0))
         .center_x(Length::Fill)
-        .center_y(Length::Fill)
         .into()
 }
 
@@ -481,6 +495,30 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     .spacing(8)
     .align_y(Alignment::Center);
 
+    let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
+    let dispatch_mode_button = |label: &'static str, mode: AgentSchedulerDispatchModeDto| {
+        let active = dispatch_mode == mode;
+        button(text(label).size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::SetAgentSchedulerDispatchMode(mode)))
+            .padding([4, 10])
+            .style(move |theme, status| {
+                if active {
+                    button_style_primary(theme, status)
+                } else {
+                    button_style_secondary(theme, status)
+                }
+            })
+    };
+    let dispatch_mode_row = row![
+        input_label("调度方式"),
+        Space::new().width(Length::Fill),
+        dispatch_mode_button("本地", AgentSchedulerDispatchModeDto::Local),
+        dispatch_mode_button("Matrix", AgentSchedulerDispatchModeDto::Matrix),
+        dispatch_mode_button("自动", AgentSchedulerDispatchModeDto::Auto),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
     let refresh_interval_row = row![
         input_label("刷新间隔(秒)"),
         Space::new().width(Length::Fill),
@@ -515,7 +553,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let scheduler_tick_interval_row = row![
-        input_label("任务调度间隔(秒)"),
+        input_label("执行唤醒间隔(秒)"),
         Space::new().width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::SetSchedulerTickIntervalSeconds(
@@ -548,7 +586,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let auto_promote_tick_interval_row = row![
-        input_label("任务池调度间隔(秒)"),
+        input_label("任务池回推间隔(秒)"),
         Space::new().width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::SetAutoPromoteTickIntervalSeconds(
@@ -611,6 +649,41 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
         button(text("+").size(12))
             .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMinutes(
                 current_retry_minutes.saturating_add(1).min(1440),
+            )))
+            .padding([4, 8])
+            .style(button_style_secondary),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let current_retry_max_attempts = app.task_board_settings.failed_retry_max_attempts;
+    let retry_max_attempts_text = current_retry_max_attempts.to_string();
+    let retry_max_attempts_row = row![
+        input_label("最大重试(次)"),
+        Space::new().width(Length::Fill),
+        button(text("-").size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
+                current_retry_max_attempts.saturating_sub(1),
+            )))
+            .padding([4, 8])
+            .style(button_style_secondary),
+        text_input("0-10", &retry_max_attempts_text)
+            .on_input(move |value| {
+                let attempts = value
+                    .trim()
+                    .parse::<u32>()
+                    .ok()
+                    .map(|v| v.clamp(0, 10))
+                    .unwrap_or(current_retry_max_attempts.clamp(0, 10));
+                Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(attempts))
+            })
+            .padding([4, 8])
+            .size(12)
+            .width(Length::Fixed(52.0))
+            .style(input_style),
+        button(text("+").size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::SetFailedRetryMaxAttempts(
+                current_retry_max_attempts.saturating_add(1).min(10),
             )))
             .padding([4, 8])
             .style(button_style_secondary),
@@ -751,13 +824,17 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let refresh_tab = column![
-        settings_section_card("刷新与自动化", "统一管理自动刷新、任务池调度与自动回推节奏。",),
+        settings_section_card(
+            "刷新与自动化",
+            "统一管理自动刷新、Agent Scheduler 唤醒与任务池回推节奏。",
+        ),
         settings_panel(
             column![
                 field_row("自动刷新", auto_refresh_toggle_row),
+                field_row("调度方式", dispatch_mode_row),
                 field_row("刷新间隔", refresh_interval_row),
-                field_row("任务调度间隔", scheduler_tick_interval_row),
-                field_row("任务池调度间隔", auto_promote_tick_interval_row),
+                field_row("执行唤醒间隔", scheduler_tick_interval_row),
+                field_row("任务池回推间隔", auto_promote_tick_interval_row),
                 field_row("自动回推延迟", delay_row),
             ]
             .spacing(12)
@@ -771,6 +848,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
             column![
                 field_row("并发数", max_concurrent_row),
                 field_row("失败回推", retry_row),
+                field_row("最大重试", retry_max_attempts_row),
                 field_row("执行超时", timeout_row),
                 field_row("完成后回收", recycle_on_finish_row),
                 field_row("合并锁超时", pr_stall_timeout_row),
@@ -786,7 +864,7 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
     };
 
     let active_tab_hint = match app.task_board_settings_modal_tab {
-        TaskBoardSettingsModalTab::Refresh => "自动刷新、任务调度与自动回推参数",
+        TaskBoardSettingsModalTab::Refresh => "自动刷新、执行唤醒与任务池回推参数",
         TaskBoardSettingsModalTab::Scheduling => "并发、失败重试、超时与 worktree 回收策略",
     };
 
@@ -809,10 +887,11 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
         header,
         tabs,
         text(active_tab_hint).size(11).style(settings_muted_text_style),
-        scrollable(active_tab_content)
+        scrollable(container(active_tab_content).width(Length::Fixed(492.0)))
             .direction(iced::widget::scrollable::Direction::Vertical(
                 iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
             ))
+            .width(Length::Fill)
             .height(Length::Fixed(340.0)),
     ]
     .spacing(14)
@@ -849,6 +928,17 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
 /// // 在右键点击事件中显示 context_menu
 /// ```
 pub fn build_context_menu(task: Task) -> Element<'static, Message> {
+    let retry_btn = (task.status == crate::app::task::TaskStatus::Failed).then(|| {
+        button(
+            row![text("↻").size(12), Space::new().width(8.0), text("手工重试").size(12),]
+                .align_y(Alignment::Center),
+        )
+        .on_press(Message::TaskBoard(TaskBoardMessage::ExecuteTask { task_id: task.id.clone() }))
+        .padding([6, 10])
+        .width(Length::Fill)
+        .style(button_style_secondary)
+    });
+
     // 复制任务按钮：点击触发复制任务的消息
     let copy_btn = button(
         row![text("📄").size(12), Space::new().width(8.0), text("复制任务").size(12),]
@@ -880,7 +970,11 @@ pub fn build_context_menu(task: Task) -> Element<'static, Message> {
     .style(button_style_secondary);
 
     // 组装菜单项
-    let menu = column![copy_btn, delete_btn, archive_btn,].spacing(2).width(Length::Fixed(132.0));
+    let mut menu = column![].spacing(2).width(Length::Fixed(132.0));
+    if let Some(retry_btn) = retry_btn {
+        menu = menu.push(retry_btn);
+    }
+    menu = menu.push(copy_btn).push(delete_btn).push(archive_btn);
 
     // 返回带有容器样式和阴影效果的完整菜单
     container(menu)

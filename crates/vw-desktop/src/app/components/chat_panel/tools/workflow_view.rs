@@ -342,3 +342,7 @@ pub fn tool_workflow_view<'a>(
 
     Some(card.into())
 }
+
+#[cfg(test)]
+#[path = "workflow_view_tests.rs"]
+mod tests;

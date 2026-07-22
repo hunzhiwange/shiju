@@ -19,6 +19,22 @@ fn sanitize_telegram_error_redacts_bot_token() {
 }
 
 #[test]
+fn sanitize_telegram_error_preserves_non_sensitive_text() {
+    let sanitized = TelegramChannel::sanitize_telegram_error("Telegram API returned 429");
+
+    assert_eq!(sanitized, "Telegram API returned 429");
+}
+
+#[test]
+fn http_client_builds_request() {
+    let channel = TelegramChannel::new("token".to_string(), vec![], false);
+    let request =
+        channel.http_client().get("https://api.telegram.org").build().expect("request builds");
+
+    assert_eq!(request.url().as_str(), "https://api.telegram.org/");
+}
+
+#[test]
 fn api_url_preserves_method_query_string() {
     let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
         .with_api_base("https://tapi.example.test/".to_string());

@@ -14,6 +14,70 @@ fn channels_list_adds_webhook_after_regular_channels() {
 }
 
 #[test]
+fn channels_except_webhook_reports_regular_channels_in_display_order() {
+    let config = ChannelsConfig::default();
+    let channels = config.channels_except_webhook();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let expected = vec![
+        ("Telegram", "connect your bot", false),
+        ("Discord", "connect your bot", false),
+        ("Slack", "connect your bot", false),
+        ("Mattermost", "connect to your bot", false),
+        ("iMessage", "macOS only", false),
+        ("Matrix", "self-hosted chat", false),
+        ("Signal", "An open-source, encrypted messaging service", false),
+        ("WhatsApp", "Business Cloud API", false),
+        ("Linq", "iMessage/RCS/SMS via Linq API", false),
+        ("WATI", "WhatsApp via WATI Business API", false),
+        ("NextCloud Talk", "NextCloud Talk platform", false),
+        ("Email", "Email over IMAP/SMTP", false),
+        ("IRC", "IRC over TLS", false),
+        ("Lark", "Lark Bot", false),
+        ("Feishu", "Feishu Bot", false),
+        ("DingTalk", "DingTalk Stream Mode", false),
+        ("QQ Official", "Tencent QQ Bot", false),
+        ("Nostr", "Nostr DMs", false),
+        ("ClawdTalk", "ClawdTalk Channel", false),
+    ];
+    #[cfg(target_arch = "wasm32")]
+    let expected = vec![
+        ("Telegram", "connect your bot", false),
+        ("Discord", "connect your bot", false),
+        ("Slack", "connect your bot", false),
+        ("Mattermost", "connect to your bot", false),
+        ("iMessage", "macOS only", false),
+        ("Matrix", "self-hosted chat", false),
+        ("Signal", "An open-source, encrypted messaging service", false),
+        ("WhatsApp", "Business Cloud API", false),
+        ("Linq", "iMessage/RCS/SMS via Linq API", false),
+        ("WATI", "WhatsApp via WATI Business API", false),
+        ("NextCloud Talk", "NextCloud Talk platform", false),
+        ("IRC", "IRC over TLS", false),
+        ("Lark", "Lark Bot", false),
+        ("Feishu", "Feishu Bot", false),
+        ("DingTalk", "DingTalk Stream Mode", false),
+        ("QQ Official", "Tencent QQ Bot", false),
+        ("Nostr", "Nostr DMs", false),
+        ("ClawdTalk", "ClawdTalk Channel", false),
+    ];
+
+    let actual: Vec<_> =
+        channels.iter().map(|(handle, enabled)| (handle.name(), handle.desc(), *enabled)).collect();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn channels_except_webhook_excludes_configured_webhook() {
+    let config = ChannelsConfig {
+        webhook: Some(WebhookConfig { port: 8787, secret: Some("secret".to_string()) }),
+        ..Default::default()
+    };
+
+    assert!(config.channels_except_webhook().iter().all(|(handle, _)| handle.name() != "Webhook"));
+}
+
+#[test]
 fn channels_list_reports_enabled_state_for_configured_channels() {
     let mut config = ChannelsConfig {
         telegram: Some(TelegramConfig {

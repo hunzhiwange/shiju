@@ -24,7 +24,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length};
 
-fn field_row<'a>(
+pub(super) fn field_row<'a>(
     label: &'a str,
     description: &'a str,
     control: impl Into<Element<'a, Message>>,
@@ -47,7 +47,7 @@ fn field_row<'a>(
     .into()
 }
 
-fn text_row<'a>(
+pub(super) fn text_row<'a>(
     label: &'a str,
     description: &'a str,
     placeholder: &'a str,
@@ -66,7 +66,7 @@ fn text_row<'a>(
     )
 }
 
-fn secure_text_row<'a>(
+pub(super) fn secure_text_row<'a>(
     label: &'a str,
     description: &'a str,
     placeholder: &'a str,
@@ -296,7 +296,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             );
         }
 
-        let mut body_col = column![
+        let body_col = column![
             settings_section_card(
                 "基础信息",
                 "命名 provider，并指定展示名称与 OpenAI 兼容接口地址。",
@@ -325,10 +325,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16)
         .width(Length::Fill);
 
-        if let Some(err) = &s.save_error {
-            body_col = body_col.push(settings_error_banner(err));
-        }
-
         let footer_row = row![
             button(text("取消"))
                 .on_press(close_message.clone())
@@ -348,8 +344,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill);
 
-        let modal_col =
-            column![header_row, scroll_body, footer_row].spacing(16).height(Length::Fill);
+        let mut modal_col = column![header_row].spacing(16).height(Length::Fill);
+        if let Some(err) = &s.save_error {
+            modal_col = modal_col.push(settings_error_banner(err));
+        }
+        modal_col = modal_col.push(scroll_body).push(footer_row);
 
         let card =
             settings_modal_card(modal_col).width(Length::Fixed(780.0)).height(Length::Fixed(620.0));

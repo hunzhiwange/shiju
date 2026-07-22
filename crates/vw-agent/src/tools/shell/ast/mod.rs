@@ -111,6 +111,10 @@ fn fallback_command(command: &str) -> ParsedCommand {
 mod parser_tests;
 
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+
+#[cfg(test)]
 #[path = "nodes_tests.rs"]
 mod nodes_tests;
 

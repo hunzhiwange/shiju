@@ -77,6 +77,13 @@ impl Testcov0093Tool {
         self
     }
 
+    fn with_failed_output(mut self, output: &'static str) -> Self {
+        self.success = false;
+        self.output = output;
+        self.error = None;
+        self
+    }
+
     fn with_execute_error(mut self, error: &'static str) -> Self {
         self.execute_error = Some(error);
         self
@@ -246,6 +253,33 @@ async fn tool_result_failure_is_returned_as_failed_outcome_with_error_prefix() {
 }
 
 #[tokio::test]
+async fn failed_tool_result_without_error_uses_model_output_as_reason() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let tools = registry(vec![
+        Testcov0093Tool::new("testcov_0093_failed_output", calls.clone())
+            .with_failed_output(r#"plain token="abcdef1234567890""#),
+    ]);
+
+    let outcomes = execute_tools_sequential(
+        &[pending("testcov_0093_failed_output", "bad", Some("call-failed-output"))],
+        &tools,
+        &NoopObserver,
+        context(),
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(!outcomes[0].success);
+    assert_eq!(outcomes[0].output, r#"Error: plain token="abcd*[REDACTED]""#);
+    assert_eq!(outcomes[0].error_reason.as_deref(), Some(r#"plain token="abcd*[REDACTED]""#));
+    let dto = outcomes[0].result_dto.as_ref().expect("failed output should produce dto");
+    assert_eq!(dto.tool_use_id.as_deref(), Some("call-failed-output"));
+    assert_eq!(dto.success, Some(false));
+}
+
+#[tokio::test]
 async fn execution_error_and_permission_denial_become_failed_outcomes() {
     let failed_calls = Arc::new(AtomicUsize::new(0));
     let denied_calls = Arc::new(AtomicUsize::new(0));
@@ -285,6 +319,31 @@ async fn execution_error_and_permission_denial_become_failed_outcomes() {
 }
 
 #[tokio::test]
+async fn unknown_tool_becomes_failed_outcome_with_dto() {
+    let tools = registry(Vec::new());
+
+    let outcomes = execute_tools_sequential(
+        &[pending("testcov_0093_missing", "bad", Some("call-missing"))],
+        &tools,
+        &NoopObserver,
+        context(),
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(outcomes.len(), 1);
+    assert!(!outcomes[0].success);
+    assert_eq!(outcomes[0].tool_name, "testcov_0093_missing");
+    assert_eq!(outcomes[0].output, "Unknown tool: testcov_0093_missing");
+    assert_eq!(outcomes[0].error_reason.as_deref(), Some("Unknown tool: testcov_0093_missing"));
+    let dto = outcomes[0].result_dto.as_ref().expect("unknown tool should produce dto");
+    assert_eq!(dto.tool_use_id.as_deref(), Some("call-missing"));
+    assert_eq!(dto.tool_id.as_ref().map(|id| id.as_ref()), Some("testcov_0093_missing"));
+    assert_eq!(dto.success, Some(false));
+}
+
+#[tokio::test]
 async fn parallel_execution_collects_all_outcomes_without_short_circuiting_failures() {
     let ok_calls = Arc::new(AtomicUsize::new(0));
     let failed_calls = Arc::new(AtomicUsize::new(0));
@@ -316,6 +375,19 @@ async fn parallel_execution_collects_all_outcomes_without_short_circuiting_failu
 }
 
 #[tokio::test]
+async fn empty_tool_calls_return_empty_outcomes() {
+    let tools = registry(Vec::new());
+
+    let sequential =
+        execute_tools_sequential(&[], &tools, &NoopObserver, context(), None).await.unwrap();
+    let parallel =
+        execute_tools_parallel(&[], &tools, &NoopObserver, context(), None).await.unwrap();
+
+    assert!(sequential.is_empty());
+    assert!(parallel.is_empty());
+}
+
+#[tokio::test]
 async fn cancellation_token_stops_execution_before_tool_runs() {
     let calls = Arc::new(AtomicUsize::new(0));
     let tools =
@@ -338,6 +410,32 @@ async fn cancellation_token_stops_execution_before_tool_runs() {
 
     assert!(error.is::<ToolLoopCancelled>());
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn legacy_result_dto_preserves_permission_request_and_saturates_duration_ms() {
+    let permission_request = PermissionRequestDto {
+        reason: "needs approval".to_string(),
+        warning: Some("requires review".to_string()),
+        updated_input: Some(serde_json::json!({ "value": "blocked" })),
+    };
+
+    let dto = legacy_result_dto(
+        "testcov_0093_legacy",
+        Some("call-legacy"),
+        false,
+        Some("blocked".to_string()),
+        Some(permission_request.clone()),
+        Duration::from_secs(u64::MAX),
+    );
+
+    let telemetry = dto.telemetry.as_ref().expect("telemetry should be present");
+    assert_eq!(dto.tool_use_id.as_deref(), Some("call-legacy"));
+    assert_eq!(dto.tool_id.as_ref().map(|id| id.as_ref()), Some("testcov_0093_legacy"));
+    assert_eq!(dto.success, Some(false));
+    assert_eq!(dto.permission_request.as_ref(), Some(&permission_request));
+    assert_eq!(telemetry["attributes"]["duration_ms"], serde_json::json!(u64::MAX));
+    assert_eq!(telemetry["attributes"]["duration_secs"], serde_json::json!(u64::MAX));
 }
 
 #[test]
@@ -369,4 +467,5 @@ fn schedule_batches_and_parallel_decision_follow_tool_metadata() {
 
     assert!(should_execute_tools_in_parallel(&[parsed("testcov_0093_parallel_a")], &tools));
     assert!(!should_execute_tools_in_parallel(&[parsed("testcov_0093_serial")], &tools));
+    assert!(!should_execute_tools_in_parallel(&[], &tools));
 }

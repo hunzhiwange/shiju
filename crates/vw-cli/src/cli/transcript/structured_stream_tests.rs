@@ -1,5 +1,5 @@
+use super::{TranscriptEntry, TranscriptRole};
 use super::{build_streaming_transcript_view, structured_stream::should_render_structured_stream};
-use crate::app::agent::agent::loop_::cli::transcript::{TranscriptEntry, TranscriptRole};
 
 #[test]
 fn detects_structured_stream_markers_after_trimming() {

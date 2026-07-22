@@ -62,3 +62,15 @@ fn compute_fullscreen_layout_skips_sidebars_when_width_or_height_is_too_small() 
     assert!(short.project_context.is_none());
     assert!(short.modified_files.is_none());
 }
+
+#[test]
+fn compute_fullscreen_layout_preserves_minimum_slots_in_two_row_area() {
+    let slots = compute_fullscreen_layout(Rect::new(10, 10, 1, 2), true, true, 0);
+
+    assert_eq!(slots.header, Rect::new(10, 10, 1, 1));
+    assert_eq!(slots.scrollable, Rect::new(10, 11, 1, 1));
+    assert_eq!(slots.bottom, Rect::new(10, 12, 1, 1));
+    assert_eq!(slots.bottom_float, None);
+    assert_eq!(slots.modal, Some(Rect::new(10, 10, 1, 1)));
+    assert_eq!(slots.message_viewport_capacity(), 0);
+}

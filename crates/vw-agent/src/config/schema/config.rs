@@ -24,9 +24,9 @@ pub trait ConfigExt {
     /// 都会返回错误。
     fn load_or_init() -> impl std::future::Future<Output = Result<Config>> + Send;
 
-    /// 将当前配置保存到配置文件。
+    /// 将当前配置保存到本地租户的共享数据库。
     ///
-    /// 保存前由底层实现处理密钥加密和 JSON payload 写入；文件系统或序列化失败会作为错误返回。
+    /// 保存前由底层实现处理校验、密钥加密和 JSON payload 写入；数据库或序列化失败会作为错误返回。
     fn save(&self) -> impl std::future::Future<Output = Result<()>> + Send;
 
     /// 校验当前配置是否满足运行时约束。

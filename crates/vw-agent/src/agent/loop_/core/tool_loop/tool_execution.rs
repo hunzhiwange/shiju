@@ -244,20 +244,7 @@ pub(super) async fn execute_tool_calls_and_update_history(
                 ))
                 .await;
 
-            if let Some(result_dto) = outcome.result_dto.as_ref() {
-                let structured = json!({
-                    "event": "tool_result",
-                    "name": outcome.tool_name,
-                    "success": outcome.success,
-                    "duration_secs": secs,
-                    "result": result_dto,
-                });
-                let _ = tx
-                    .send(format!(
-                        "{DRAFT_PROGRESS_SENTINEL}{DRAFT_WS_EVENT_SENTINEL}{structured}\n"
-                    ))
-                    .await;
-            }
+            send_structured_tool_result_progress(tx, &outcome, secs).await;
         }
 
         ordered_results[*idx] =
@@ -284,6 +271,25 @@ pub(super) async fn execute_tool_calls_and_update_history(
     ));
 
     Ok(())
+}
+
+async fn send_structured_tool_result_progress(
+    tx: &Sender<String>,
+    outcome: &ToolExecutionOutcome,
+    secs: u64,
+) {
+    let Some(result_dto) = outcome.result_dto.as_ref() else {
+        return;
+    };
+    let structured = json!({
+        "event": "tool_result",
+        "name": outcome.tool_name.as_str(),
+        "success": outcome.success,
+        "duration_secs": secs,
+        "result": result_dto,
+    });
+    let _ =
+        tx.send(format!("{DRAFT_PROGRESS_SENTINEL}{DRAFT_WS_EVENT_SENTINEL}{structured}\n")).await;
 }
 
 /// 构造无需执行工具的失败结果。

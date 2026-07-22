@@ -20,7 +20,7 @@
 //! // logo_lines 包含 4 行 Line<'static>，可直接用于 ratatui 渲染
 //! ```
 
-use crate::app::agent::agent::loop_::cli::theme::{ACCENT_CYAN, ACCENT_RED, TEXT_MUTED};
+use super::theme::{ACCENT_CYAN, ACCENT_RED, TEXT_MUTED};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 

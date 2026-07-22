@@ -294,3 +294,24 @@ async fn execute_rejects_priority_out_of_range() {
     assert!(!result.success);
     assert!(result.error.unwrap().contains("-2..=2"));
 }
+
+#[test]
+fn parse_env_value_strips_inline_comments_and_preserves_hashes_without_separator() {
+    assert_eq!(PushoverTool::parse_env_value(" token # comment"), "token");
+    assert_eq!(PushoverTool::parse_env_value("token#suffix"), "token#suffix");
+}
+
+#[tokio::test]
+async fn execute_rejects_blank_message_before_loading_credentials() {
+    let tool = PushoverTool::new(
+        test_security(AutonomyLevel::Full, 100),
+        PathBuf::from("/workspace-without-pushover-env"),
+    );
+
+    let error = tool
+        .execute(json!({"message": "   "}))
+        .await
+        .expect_err("blank messages must be rejected as invalid input");
+
+    assert!(error.to_string().contains("Missing 'message' parameter"));
+}

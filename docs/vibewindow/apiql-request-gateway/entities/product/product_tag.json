@@ -1,0 +1,412 @@
+{
+  "entity_class": "product:product_tag",
+  "connection_id": "data_database",
+  "table": "product_tag",
+  "connect": ":data_database",
+  "table_name": "商品标签",
+  "primary_key": "id",
+  "auto_increment": "id",
+  "soft_delete_column": "delete_at",
+  "unique_indexes": {
+    "PRIMARY": {
+      "field": [
+        "id"
+      ],
+      "comment": "ID"
+    }
+  },
+  "description": "商品标签.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "标签名字",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 50
+      },
+      "validator": {
+        "scenes": [
+          "max_length:50"
+        ],
+        "store": null,
+        "update": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "name",
+      "sortable": true
+    },
+    {
+      "name": "no",
+      "type": "string",
+      "label": "标签编号",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "no",
+      "sortable": true
+    },
+    {
+      "name": "images",
+      "type": "string",
+      "label": "图片",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 255,
+        "format": "format_images"
+      },
+      "validator": {
+        "scenes": [
+          "max_length:255"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "images",
+      "sortable": true
+    },
+    {
+      "name": "remark",
+      "type": "string",
+      "label": "备注",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 255
+      },
+      "validator": {
+        "scenes": [
+          "max_length:255"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "remark",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "updateAt",
+      "type": "string",
+      "label": "更新时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "update_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "updateAccount",
+      "type": "int",
+      "label": "更新账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "update_account",
+      "sortable": true
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "version",
+      "sortable": true
+    }
+  ],
+  "properties": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "标签名字",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 50
+      },
+      "validator": {
+        "scenes": [
+          "max_length:50"
+        ],
+        "store": null,
+        "update": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "name",
+      "sortable": true
+    },
+    {
+      "name": "no",
+      "type": "string",
+      "label": "标签编号",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "no",
+      "sortable": true
+    },
+    {
+      "name": "images",
+      "type": "string",
+      "label": "图片",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 255,
+        "format": "format_images"
+      },
+      "validator": {
+        "scenes": [
+          "max_length:255"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "images",
+      "sortable": true
+    },
+    {
+      "name": "remark",
+      "type": "string",
+      "label": "备注",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 255
+      },
+      "validator": {
+        "scenes": [
+          "max_length:255"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "remark",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "updateAt",
+      "type": "string",
+      "label": "更新时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "update_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "updateAccount",
+      "type": "int",
+      "label": "更新账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "update_account",
+      "sortable": true
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "version",
+      "sortable": true
+    }
+  ],
+  "search_fields": [
+    "name",
+    "no"
+  ],
+  "virtual_fields": [
+    {
+      "name": "search_key",
+      "column": "name,no",
+      "virtual_field": true
+    }
+  ]
+}

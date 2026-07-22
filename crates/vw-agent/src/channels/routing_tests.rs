@@ -115,6 +115,31 @@ fn route_selection_defaults_to_runtime_defaults_and_removes_default_override() {
 }
 
 #[test]
+fn route_selection_recovers_from_poisoned_override_lock() {
+    let temp = tempfile::tempdir().unwrap();
+    let ctx = context(temp.path());
+    let overrides = Arc::clone(&ctx.route_overrides);
+    let default_route = route("default-provider", "default-model", false);
+    let custom_route = route("other-provider", "other-model", true);
+
+    let _ = std::thread::spawn(move || {
+        let _guard = overrides.lock().unwrap();
+        panic!("poison route overrides");
+    })
+    .join();
+
+    assert!(ctx.route_overrides.is_poisoned());
+    assert_eq!(get_route_selection(&ctx, "sender"), default_route);
+
+    set_route_selection(&ctx, "sender", custom_route.clone());
+    assert_eq!(get_route_selection(&ctx, "sender"), custom_route);
+
+    set_route_selection(&ctx, "sender", default_route.clone());
+    assert_eq!(get_route_selection(&ctx, "sender"), default_route);
+    assert!(!ctx.route_overrides.lock().unwrap_or_else(|e| e.into_inner()).contains_key("sender"));
+}
+
+#[test]
 fn classify_message_route_returns_matching_model_route() {
     let temp = tempfile::tempdir().unwrap();
     let mut ctx = context(temp.path());
@@ -156,6 +181,22 @@ fn classify_message_route_returns_none_when_hint_has_no_model_route() {
     };
 
     assert_eq!(classify_message_route(&ctx, "route-me"), None);
+}
+
+#[test]
+fn classify_message_route_returns_none_when_classification_is_disabled() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut ctx = context(temp.path());
+    ctx.model_routes = vec![ModelRouteConfig {
+        hint: "code".to_string(),
+        provider: "code-provider".to_string(),
+        model: "code-model".to_string(),
+        max_tokens: None,
+        api_key: None,
+    }];
+
+    assert!(!ctx.query_classification.enabled);
+    assert_eq!(classify_message_route(&ctx, "Please write Rust code"), None);
 }
 
 #[test]
@@ -221,5 +262,9 @@ fn build_providers_help_response_lists_current_route_and_commands() {
 
     assert!(response.contains("Current provider: `openai`"));
     assert!(response.contains("Switch provider with `/models <provider>`"));
+    assert!(response.contains("Request supervised tool approval"));
     assert!(response.contains("Available providers:"));
+    for provider_id in available_provider_ids() {
+        assert!(response.contains(&format!("- {provider_id}")));
+    }
 }

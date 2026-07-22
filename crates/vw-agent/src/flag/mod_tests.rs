@@ -94,3 +94,61 @@ fn client_defaults_to_cli_when_unset() {
 
     assert_eq!(vibewindow_client(), "cli");
 }
+
+#[test]
+fn static_bool_flags_are_readable() {
+    let flags = [
+        *super::VIBEWINDOW_AUTO_SHARE,
+        *super::VIBEWINDOW_DISABLE_AUTOUPDATE,
+        *super::VIBEWINDOW_DISABLE_PRUNE,
+        *super::VIBEWINDOW_DISABLE_TERMINAL_TITLE,
+        *super::VIBEWINDOW_DISABLE_DEFAULT_PLUGINS,
+        *super::VIBEWINDOW_DISABLE_LSP_DOWNLOAD,
+        *super::VIBEWINDOW_ENABLE_EXPERIMENTAL_MODELS,
+        *super::VIBEWINDOW_DISABLE_AUTOCOMPACT,
+        *super::VIBEWINDOW_DISABLE_CLAUDE_CODE,
+        *super::VIBEWINDOW_DISABLE_CLAUDE_CODE_PROMPT,
+        *super::VIBEWINDOW_DISABLE_CLAUDE_CODE_SKILLS,
+        *super::VIBEWINDOW_DISABLE_EXTERNAL_SKILLS,
+        *super::VIBEWINDOW_EXPERIMENTAL,
+        *super::VIBEWINDOW_EXPERIMENTAL_FILEWATCHER,
+        *super::VIBEWINDOW_EXPERIMENTAL_DISABLE_FILEWATCHER,
+        *super::VIBEWINDOW_EXPERIMENTAL_ICON_DISCOVERY,
+        *super::VIBEWINDOW_EXPERIMENTAL_DISABLE_COPY_ON_SELECT,
+        *super::VIBEWINDOW_ENABLE_EXA,
+        *super::VIBEWINDOW_EXPERIMENTAL_OXFMT,
+        *super::VIBEWINDOW_EXPERIMENTAL_LSP_TY,
+        *super::VIBEWINDOW_EXPERIMENTAL_LSP_TOOL,
+        *super::VIBEWINDOW_DISABLE_FILETIME_CHECK,
+        *super::VIBEWINDOW_EXPERIMENTAL_PLAN_MODE,
+        *super::VIBEWINDOW_EXPERIMENTAL_MARKDOWN,
+    ];
+
+    assert_eq!(flags.len(), 24);
+}
+
+#[test]
+fn static_string_flags_are_readable() {
+    let flags = [
+        &*super::VIBEWINDOW_GIT_BASH_PATH,
+        &*super::VIBEWINDOW_CONFIG,
+        &*super::VIBEWINDOW_CONFIG_CONTENT,
+        &*super::VIBEWINDOW_PERMISSION,
+        &*super::VIBEWINDOW_FAKE_VCS,
+        &*super::VIBEWINDOW_SERVER_PASSWORD,
+        &*super::VIBEWINDOW_SERVER_USERNAME,
+        &*super::VIBEWINDOW_MODELS_PATH,
+    ];
+
+    assert_eq!(flags.len(), 8);
+}
+
+#[test]
+fn static_number_flags_are_readable() {
+    let flags = [
+        &*super::VIBEWINDOW_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS,
+        &*super::VIBEWINDOW_EXPERIMENTAL_OUTPUT_TOKEN_MAX,
+    ];
+
+    assert_eq!(flags.len(), 2);
+}

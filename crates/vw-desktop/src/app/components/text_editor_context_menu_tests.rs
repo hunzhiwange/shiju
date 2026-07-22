@@ -39,6 +39,14 @@ fn selected_editor(text: &str) -> text_editor::Content {
 }
 
 #[test]
+fn context_menu_state_defaults_to_closed_without_anchor() {
+    let state = TextEditorContextMenuState::default();
+
+    assert!(!state.open);
+    assert_eq!(state.position, None);
+}
+
+#[test]
 fn open_menu_records_anchor_position() {
     let mut state = TextEditorContextMenuState::default();
 
@@ -46,6 +54,16 @@ fn open_menu_records_anchor_position() {
 
     assert!(state.open);
     assert_eq!(state.position, Some((12.5, 34.0)));
+}
+
+#[test]
+fn open_menu_replaces_existing_anchor_position() {
+    let mut state = TextEditorContextMenuState { open: true, position: Some((1.0, 2.0)) };
+
+    open_menu(&mut state, Point::new(-8.5, 0.0));
+
+    assert!(state.open);
+    assert_eq!(state.position, Some((-8.5, 0.0)));
 }
 
 #[test]
@@ -176,9 +194,37 @@ fn paste_action_wraps_content_as_text_editor_paste() {
 }
 
 #[test]
+fn paste_action_preserves_empty_multiline_and_unicode_content() {
+    for content in ["", "first line\n第二行"] {
+        let action = paste_action(content.to_string());
+
+        match action {
+            text_editor::Action::Edit(text_editor::Edit::Paste(pasted)) => {
+                assert_eq!(&*pasted, content);
+            }
+            other => panic!("expected paste edit action, got {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn is_dark_theme_detects_builtin_light_and_dark_palettes() {
     assert!(!is_dark_theme(&Theme::Light));
     assert!(is_dark_theme(&Theme::Dark));
+}
+
+#[test]
+fn is_dark_theme_uses_strict_combined_brightness_threshold() {
+    let mut threshold_palette = iced::theme::Palette::LIGHT;
+    threshold_palette.background = Color::from_rgb(0.5, 0.5, 0.5);
+    let threshold = Theme::custom("threshold", threshold_palette);
+
+    let mut below_threshold_palette = iced::theme::Palette::LIGHT;
+    below_threshold_palette.background = Color::from_rgb(0.499, 0.5, 0.5);
+    let below_threshold = Theme::custom("below-threshold", below_threshold_palette);
+
+    assert!(!is_dark_theme(&threshold));
+    assert!(is_dark_theme(&below_threshold));
 }
 
 #[test]
@@ -220,6 +266,27 @@ fn menu_button_style_uses_hover_background_for_light_theme() {
 }
 
 #[test]
+fn menu_button_style_uses_hover_background_for_dark_theme() {
+    let palette = Theme::Dark.extended_palette();
+    let style = menu_button_style(&Theme::Dark, button::Status::Hovered);
+
+    assert_eq!(
+        style.background,
+        Some(Background::Color(palette.background.strong.color.scale_alpha(0.65)))
+    );
+}
+
+#[test]
+fn menu_button_style_uses_pressed_primary_background_for_light_theme() {
+    let style = menu_button_style(&Theme::Light, button::Status::Pressed);
+
+    assert_eq!(
+        style.background,
+        Some(Background::Color(Theme::Light.palette().primary.scale_alpha(0.14)))
+    );
+}
+
+#[test]
 fn menu_button_style_uses_pressed_primary_background_for_dark_theme() {
     let style = menu_button_style(&Theme::Dark, button::Status::Pressed);
 
@@ -227,4 +294,14 @@ fn menu_button_style_uses_pressed_primary_background_for_dark_theme() {
         style.background,
         Some(Background::Color(Theme::Dark.palette().primary.scale_alpha(0.28)))
     );
+}
+
+#[test]
+fn menu_button_style_treats_disabled_status_as_idle() {
+    let style = menu_button_style(&Theme::Dark, button::Status::Disabled);
+
+    assert_eq!(style.background, None);
+    assert_eq!(style.text_color, Theme::Dark.palette().text);
+    assert_eq!(style.border.width, 0.0);
+    assert_eq!(style.border.color, Color::TRANSPARENT);
 }

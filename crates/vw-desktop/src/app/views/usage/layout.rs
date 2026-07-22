@@ -20,6 +20,47 @@ use super::steps::build_steps_panel;
 use super::styles::card_style;
 use super::utils::{fmt_ms, fmt_usd, kv, kv_path, section_title};
 
+fn truncate_chars(value: &str, limit: usize) -> String {
+    let mut out = String::new();
+    for (index, ch) in value.chars().enumerate() {
+        if index >= limit {
+            out.push_str("\n...");
+            return out;
+        }
+        out.push(ch);
+    }
+    out
+}
+
+fn raw_record_preview(index: usize, value: &serde_json::Value) -> String {
+    let pretty = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+    format!("记录 {}\n{}", index, truncate_chars(&pretty, 3_000))
+}
+
+fn raw_records_preview(usage_data: &UsageData) -> String {
+    let Some(session) = usage_data.session.as_ref() else {
+        return "暂无原始记录".to_string();
+    };
+    if session.calls.is_empty() {
+        return "暂无原始记录".to_string();
+    }
+
+    let total = session.calls.len();
+    let mut records = session
+        .calls
+        .iter()
+        .enumerate()
+        .rev()
+        .take(3)
+        .map(|(index, value)| raw_record_preview(index + 1, value))
+        .collect::<Vec<_>>();
+    if total > records.len() {
+        let shown = records.len();
+        records.push(format!("共 {} 条，仅显示最近 {} 条", total, shown));
+    }
+    records.join("\n\n")
+}
+
 /// 构建用量视图的主界面
 ///
 /// 该函数创建一个完整的用量视图布局，包含多个信息卡片，
@@ -351,6 +392,33 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     .padding(16)
     .width(Length::Fill);
 
+    let raw_records = container(
+        column![
+            section_title("原始记录"),
+            Space::new().height(Length::Fixed(8.0)),
+            container(scrollable(text(raw_records_preview(usage_data)).size(11)))
+                .height(Length::Fixed(260.0))
+                .width(Length::Fill)
+                .padding(10)
+                .style(|theme: &iced::Theme| {
+                    let p = theme.extended_palette();
+                    iced::widget::container::Style {
+                        background: Some(iced::Background::Color(p.background.base.color)),
+                        border: iced::Border {
+                            width: 1.0,
+                            color: p.background.strong.color,
+                            radius: 8.0.into(),
+                        },
+                        ..Default::default()
+                    }
+                })
+        ]
+        .spacing(0),
+    )
+    .style(card_style)
+    .padding(16)
+    .width(Length::Fill);
+
     // ===== 组装完整视图 =====
     // 将所有卡片按垂直方向排列，并设置最大宽度
     let root = column![
@@ -363,6 +431,8 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
         breakdown,
         Space::new().height(Length::Fixed(12.0)),
         steps_card,
+        Space::new().height(Length::Fixed(12.0)),
+        raw_records,
         Space::new().height(Length::Fixed(12.0)),
         files
     ]

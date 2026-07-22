@@ -156,8 +156,8 @@ pub(super) fn edge_handle_label(edge: &WorkflowEdge) -> Option<String> {
     Some(trimmed.to_string())
 }
 
-pub(super) fn draw_node_handles(
-    frame: &mut Frame,
+pub(super) fn draw_node_handles<CanvasRenderer>(
+    frame: &mut Frame<CanvasRenderer>,
     node: &WorkflowNode,
     handle_slots: &HandleSlots,
     pan: Vector,
@@ -168,7 +168,9 @@ pub(super) fn draw_node_handles(
     hovered_handle: Option<&WorkflowConnectionEndpoint>,
     connected_sources: Option<&HashSet<String>>,
     connected_targets: Option<&HashSet<String>>,
-) {
+) where
+    CanvasRenderer: iced::advanced::graphics::geometry::Renderer,
+{
     for handle in &node.source_handles {
         draw_single_handle(
             frame,
@@ -202,8 +204,8 @@ pub(super) fn draw_node_handles(
     }
 }
 
-fn draw_single_handle(
-    frame: &mut Frame,
+fn draw_single_handle<CanvasRenderer>(
+    frame: &mut Frame<CanvasRenderer>,
     node: &WorkflowNode,
     handle: &WorkflowHandle,
     handle_slots: &HandleSlots,
@@ -214,7 +216,9 @@ fn draw_single_handle(
     emphasize: bool,
     hovered_handle: Option<&WorkflowConnectionEndpoint>,
     connected_handles: Option<&HashSet<String>>,
-) {
+) where
+    CanvasRenderer: iced::advanced::graphics::geometry::Renderer,
+{
     let anchor = anchor_for_handle(node, handle.kind, &handle.id, handle_slots, pan, zoom);
     let element_scale = canvas_element_scale(zoom);
     let connected = connected_handles.is_some_and(|set| set.contains(handle.id.as_str()));

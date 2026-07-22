@@ -20,6 +20,54 @@ use crate::app::components::overlays::point_below::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
+pub(super) fn available_terminal_width(
+    window_width: f32,
+    show_settings: bool,
+    settings_panel_width: f32,
+) -> f32 {
+    let window_width = window_width.max(1.0);
+    let left_rail_width = 56.0;
+    let settings_panel_width = if settings_panel_width.is_finite() {
+        settings_panel_width.clamp(200.0, 800.0)
+    } else {
+        370.0
+    };
+    let left_group_width = if show_settings {
+        left_rail_width + ((settings_panel_width - left_rail_width) * 0.6).max(0.0)
+    } else {
+        left_rail_width
+    };
+    let settings_handle_width = if show_settings { 8.0 } else { 0.0 };
+
+    (window_width - left_group_width - settings_handle_width).max(0.0)
+}
+
+pub(super) fn terminal_tab_width(title: &str) -> f32 {
+    (title.chars().count() as f32 * 8.4 + 62.0).clamp(92.0, 260.0)
+}
+
+pub(super) fn terminal_tab_is_active(active_id: Option<u64>, tab_id: u64, index: usize) -> bool {
+    active_id.map_or(index == 0, |active_id| active_id == tab_id)
+}
+
+pub(super) fn active_terminal_tab_index(
+    active_id: Option<u64>,
+    tab_ids: impl IntoIterator<Item = u64>,
+) -> Option<usize> {
+    let mut first_index = None;
+
+    for (index, tab_id) in tab_ids.into_iter().enumerate() {
+        if first_index.is_none() {
+            first_index = Some(index);
+        }
+        if active_id == Some(tab_id) {
+            return Some(index);
+        }
+    }
+
+    first_index
+}
+
 /// 渲染终端面板视图
 ///
 /// 根据应用状态生成完整的终端界面元素，包括标签页栏和终端内容区。
@@ -52,37 +100,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // ==================== 布局计算 ====================
 
-    // 窗口宽度，确保最小值为 1.0 避免除零错误
-    let window_w = app.window_size.0.max(1.0);
-
-    // 左侧导航栏固定宽度
-    let left_rail_width = 56.0;
-
-    // 会话面板宽度缩放比例（用于与设置面板共享空间时的计算）
-    let session_panel_width_scale = 0.6;
-
-    // 设置面板宽度：优先使用配置值，否则使用默认值 370.0
-    // 限制在 200.0-800.0 范围内
-    let settings_panel_width = if app.settings_panel_width.is_finite() {
-        app.settings_panel_width.clamp(200.0, 800.0)
-    } else {
-        370.0
-    };
-
-    // 计算左侧组件组的总宽度
-    // 当设置面板显示时，左侧组会占据部分设置面板宽度
-    let left_group_width = if app.show_settings {
-        left_rail_width
-            + ((settings_panel_width - left_rail_width) * session_panel_width_scale).max(0.0)
-    } else {
-        left_rail_width
-    };
-
-    // 设置面板拖拽手柄宽度
-    let settings_handle_width = if app.show_settings { 8.0 } else { 0.0 };
-
     // 计算终端面板可用宽度 = 窗口宽度 - 左侧组宽度 - 手柄宽度
-    let terminal_width = (window_w - left_group_width - settings_handle_width).max(0.0);
+    let terminal_width =
+        available_terminal_width(app.window_size.0, app.show_settings, app.settings_panel_width);
 
     // ==================== 尺寸常量 ====================
 
@@ -100,14 +120,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     for (index, t) in app.terminal.tabs.iter().enumerate() {
         // 判断当前标签页是否为激活状态
         // 如果没有指定激活 ID，则默认第一个标签页为激活
-        let active = app.terminal.active_id.map_or(index == 0, |active_id| active_id == t.id);
+        let active = terminal_tab_is_active(app.terminal.active_id, t.id, index);
         let tab_id = t.id;
 
         // 计算标签页宽度：基于标题字符数量
         // 公式：字符数 * 8.4（每字符平均宽度）+ 62.0（内边距和图标预留）
         // 限制在 92.0-260.0 范围内
-        let title_char_count = t.title.chars().count() as f32;
-        let tab_width = (title_char_count * 8.4 + 62.0).clamp(92.0, 260.0);
+        let tab_width = terminal_tab_width(&t.title);
 
         // 关闭按钮尺寸
         let close_btn_size = 18.0;
@@ -495,11 +514,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // ==================== 获取当前激活的标签页 ====================
 
     // 优先查找指定 ID 的标签页，否则使用第一个标签页
-    let active_tab = app
-        .terminal
-        .active_id
-        .and_then(|id| app.terminal.tabs.iter().find(|t| t.id == id))
-        .or_else(|| app.terminal.tabs.first());
+    let active_tab = active_terminal_tab_index(
+        app.terminal.active_id,
+        app.terminal.tabs.iter().map(|tab| tab.id),
+    )
+    .and_then(|index| app.terminal.tabs.get(index));
 
     // ==================== 构建终端内容区域 ====================
 

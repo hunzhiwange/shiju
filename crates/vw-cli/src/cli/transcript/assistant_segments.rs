@@ -1,14 +1,14 @@
 //! 解析助手消息中的分段内容。
 //! 该模块把文本、工具块和结构化片段拆分为终端可渲染的稳定单元。
 
+use super::super::theme::{
+    ACCENT_CYAN, PENDING_BADGE_BG, PENDING_BADGE_FG, TEXT_MUTED, TEXT_SUBTLE, WARNING,
+};
 use super::todocards::{
     TodoCardData, parse_todoread_card_data, parse_todowrite_card_data, todo_status_symbol,
 };
 use super::{
     ThinkBlockMeta, render_tool_card, think_block_expanded, tool_summary_cli, truncate_chars_cli,
-};
-use crate::app::agent::agent::loop_::cli::theme::{
-    ACCENT_CYAN, PENDING_BADGE_BG, PENDING_BADGE_FG, TEXT_MUTED, TEXT_SUBTLE, WARNING,
 };
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};

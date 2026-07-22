@@ -5,9 +5,8 @@
 //! - 落地内部模型层、状态层与 snapshot round-trip
 //! - 新建 tui_v2 根入口、controller/renderer 分层与 fullscreen layout slots
 //!
-//! 该模块暂不替换 legacy TUI 的交互主循环；
-//! 现阶段的职责是先把 gateway-first 迁移所需的基础设施、内部状态与全屏宿主
-//! 骨架立住，后续切换路径仍按 execution-runbook 的阶段顺序推进。
+//! 该模块是 CLI 交互模式的唯一 TUI 宿主，负责 gateway-first 路径所需的
+//! 内部状态、全屏布局、输入处理与运行时事件适配。
 
 pub(crate) mod app;
 #[cfg(test)]
@@ -23,7 +22,9 @@ pub(crate) mod render;
 pub(crate) mod runtime;
 pub(crate) mod state;
 
-pub(crate) use app::{TuiRunMode, run_tui_v2};
+pub(crate) use app::TuiRunMode;
+#[cfg(not(test))]
+pub(crate) use app::run_tui_v2;
 
 #[cfg(test)]
 #[path = "input_tests.rs"]

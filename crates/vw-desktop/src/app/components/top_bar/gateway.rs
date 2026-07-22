@@ -4,9 +4,9 @@ use super::widgets::{color_with_alpha, icon_svg, menu_item_btn};
 use crate::app::assets::Icon;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings::SystemTab;
-use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
+use crate::app::message::settings::{GatewayClientMessage, McpMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
-use crate::app::state::TopBarGatewayTab;
+use crate::app::state::{SkillsSettingsTab, TopBarGatewayTab};
 use crate::app::{App, Message, message};
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
@@ -172,6 +172,29 @@ fn gateway_row<'a>(
     mark: Option<&'static str>,
     msg: Option<Message>,
 ) -> Element<'a, Message> {
+    gateway_row_with_menu_behavior(icon, label, mark, msg, true)
+}
+
+fn gateway_row_keep_open<'a>(
+    icon: Element<'a, Message>,
+    label: String,
+    mark: Option<&'static str>,
+    msg: Option<Message>,
+) -> Element<'a, Message> {
+    gateway_row_with_menu_behavior(icon, label, mark, msg, false)
+}
+
+fn gateway_press_message(msg: Message, close_menu: bool) -> Message {
+    if close_menu { Message::View(message::ViewMessage::MenuAction(Box::new(msg))) } else { msg }
+}
+
+fn gateway_row_with_menu_behavior<'a>(
+    icon: Element<'a, Message>,
+    label: String,
+    mark: Option<&'static str>,
+    msg: Option<Message>,
+    close_menu: bool,
+) -> Element<'a, Message> {
     let interactive = msg.is_some();
     let mark_el: Element<'a, Message> =
         mark.map(|value| text(value).size(12).into()).unwrap_or_else(|| Space::new().into());
@@ -212,14 +235,217 @@ fn gateway_row<'a>(
         .padding([6, 12]);
 
     if let Some(msg) = msg {
-        base.on_press(Message::View(message::ViewMessage::MenuAction(Box::new(msg)))).into()
+        base.on_press(gateway_press_message(msg, close_menu)).into()
     } else {
         base.into()
     }
 }
 
-fn empty_tab_content<'a>() -> Vec<Element<'a, Message>> {
-    vec![container(Space::new().height(Length::Fixed(72.0))).width(Length::Fill).into()]
+fn gateway_menu_item_btn_keep_open<'a>(
+    label: &'a str,
+    msg: Option<Message>,
+) -> Element<'a, Message> {
+    let enabled = msg.is_some();
+    let content = row![text(label).size(13), Space::new().width(Length::Fill)]
+        .width(Length::Fill)
+        .align_y(iced::alignment::Vertical::Center);
+
+    let base = button(content)
+        .style(move |theme: &Theme, status| {
+            let palette = theme.extended_palette();
+            let bg = if enabled && status == iced::widget::button::Status::Hovered {
+                Some(palette.primary.base.color)
+            } else {
+                None
+            };
+            iced::widget::button::Style {
+                background: bg.map(iced::Background::Color),
+                text_color: if enabled && status == iced::widget::button::Status::Hovered {
+                    Color::WHITE
+                } else if enabled {
+                    theme.palette().text
+                } else {
+                    theme.palette().text.scale_alpha(0.35)
+                },
+                border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
+                ..Default::default()
+            }
+        })
+        .width(Length::Fill)
+        .padding([4, 12]);
+
+    if let Some(msg) = msg { base.on_press(msg).into() } else { base.into() }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct McpServerSummary {
+    name: String,
+    transport: String,
+    enabled: bool,
+    required: bool,
+}
+
+fn compact_gateway_label(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated = chars.by_ref().take(max_chars).collect::<String>();
+    if chars.next().is_some() { format!("{truncated}...") } else { truncated }
+}
+
+fn mcp_server_summaries(editor_text: &str) -> Result<Vec<McpServerSummary>, String> {
+    let trimmed = editor_text.trim();
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let value = serde_json::from_str::<serde_json::Value>(trimmed)
+        .map_err(|err| format!("MCP JSON 解析失败: {err}"))?;
+    let servers = value.as_array().ok_or_else(|| "MCP 配置必须是 server 数组".to_string())?;
+
+    let mut summaries = Vec::with_capacity(servers.len());
+    for (index, server) in servers.iter().enumerate() {
+        let Some(object) = server.as_object() else {
+            summaries.push(McpServerSummary {
+                name: format!("server {}", index + 1),
+                transport: "invalid".to_string(),
+                enabled: false,
+                required: false,
+            });
+            continue;
+        };
+        let name = object
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("未命名")
+            .to_string();
+        let transport = object
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("stdio")
+            .to_string();
+        let enabled = object.get("enabled").and_then(serde_json::Value::as_bool).unwrap_or(true);
+        let required = object.get("required").and_then(serde_json::Value::as_bool).unwrap_or(false);
+
+        summaries.push(McpServerSummary { name, transport, enabled, required });
+    }
+
+    Ok(summaries)
+}
+
+fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
+    let mut rows: Vec<Element<'_, Message>> = Vec::new();
+
+    if app.mcp_settings.loading {
+        rows.push(gateway_row(status_dot(false), "MCP 配置加载中".to_string(), Some("..."), None));
+    }
+    if app.mcp_settings.saving {
+        rows.push(gateway_row(status_dot(true), "MCP 配置保存中".to_string(), Some("..."), None));
+    }
+
+    if let Some(error) = &app.mcp_settings.save_error {
+        rows.push(gateway_row(
+            status_dot(false),
+            format!("MCP 配置错误: {}", compact_gateway_label(error, 34)),
+            Some("!"),
+            None,
+        ));
+    } else {
+        match mcp_server_summaries(&app.mcp_settings.editor.text()) {
+            Ok(summaries) => {
+                for server in &summaries {
+                    let mark = if !server.enabled {
+                        Some("禁用")
+                    } else if server.required {
+                        Some("必需")
+                    } else {
+                        None
+                    };
+                    rows.push(gateway_row(
+                        status_dot(server.enabled),
+                        format!(
+                            "MCP  {}  {}",
+                            compact_gateway_label(&server.name, 30),
+                            server.transport
+                        ),
+                        mark,
+                        None,
+                    ));
+                }
+
+                if summaries.is_empty() && !app.mcp_settings.loading && !app.mcp_settings.saving {
+                    rows.push(gateway_row(
+                        status_dot(false),
+                        "暂无 MCP 服务器".to_string(),
+                        None,
+                        None,
+                    ));
+                }
+            }
+            Err(error) => rows.push(gateway_row(
+                status_dot(false),
+                compact_gateway_label(&error, 42),
+                Some("!"),
+                None,
+            )),
+        }
+    }
+
+    if let Some(message) = &app.mcp_settings.status_message {
+        rows.push(gateway_row(status_dot(true), message.clone(), None, None));
+    }
+
+    let refresh_message = (!app.mcp_settings.loading && !app.mcp_settings.saving)
+        .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)));
+    let refresh_label = if app.mcp_settings.loading { "刷新中..." } else { "刷新 MCP 配置" };
+    rows.push(gateway_menu_item_btn_keep_open(refresh_label, refresh_message));
+    rows.push(menu_item_btn(
+        "管理 MCP 配置",
+        None,
+        Some(Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Mcp))),
+    ));
+
+    rows
+}
+
+fn plugin_tab_content(app: &App) -> Vec<Element<'_, Message>> {
+    let mut rows: Vec<Element<'_, Message>> = Vec::new();
+
+    if app.skills_settings.plugin_loading && app.skills_settings.plugin_catalog.is_empty() {
+        rows.push(gateway_row(status_dot(false), "插件列表加载中".to_string(), Some("…"), None));
+    }
+
+    for plugin in &app.skills_settings.plugin_catalog {
+        rows.push(gateway_row_keep_open(
+            status_dot(plugin.enabled),
+            format!("{}  v{}", plugin.display_name, plugin.version),
+            Some(if plugin.enabled { "禁用" } else { "启用" }),
+            Some(Message::Settings(SettingsMessage::PluginsSetEnabledRequested {
+                plugin_id: plugin.id.clone(),
+                enabled: !plugin.enabled,
+            })),
+        ));
+    }
+
+    if app.skills_settings.plugin_catalog.is_empty() && !app.skills_settings.plugin_loading {
+        rows.push(gateway_row(status_dot(false), "暂无已安装插件".to_string(), None, None));
+    }
+
+    rows.push(gateway_menu_item_btn_keep_open(
+        "刷新插件状态",
+        Some(Message::Settings(SettingsMessage::PluginsRefresh)),
+    ));
+    rows.push(menu_item_btn(
+        "管理插件",
+        None,
+        Some(Message::Batch(vec![
+            Message::Settings(SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins)),
+            Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Skills)),
+        ])),
+    ));
+    rows
 }
 
 fn gateway_tab_content(app: &App) -> Vec<Element<'_, Message>> {
@@ -334,8 +560,9 @@ pub(super) fn gateway_services_module(app: &App) -> Element<'_, Message> {
     let mut rows: Vec<Element<'_, Message>> = vec![tabs.into()];
     rows.extend(match app.top_bar_gateway_tab {
         TopBarGatewayTab::Gateway => gateway_tab_content(app),
-        TopBarGatewayTab::Mcp | TopBarGatewayTab::Plugins => empty_tab_content(),
+        TopBarGatewayTab::Mcp => mcp_tab_content(app),
         TopBarGatewayTab::Lsp => lsp_tab_content(app),
+        TopBarGatewayTab::Plugins => plugin_tab_content(app),
     });
 
     let content = container(column(rows).spacing(2)).width(Length::Fill);

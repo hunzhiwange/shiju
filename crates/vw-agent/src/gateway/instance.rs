@@ -49,12 +49,17 @@ pub(crate) fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> S
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        std::env::current_dir().unwrap_or(PathBuf::from(".")).to_string_lossy().to_string()
+        display_directory(std::env::current_dir())
     }
     #[cfg(target_arch = "wasm32")]
     {
         "/".to_string()
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn display_directory(current_dir: std::io::Result<PathBuf>) -> String {
+    current_dir.unwrap_or_else(|_| PathBuf::from(".")).to_string_lossy().to_string()
 }
 
 fn instance_init() -> Box<dyn FnOnce() -> project::BoxFuture<()> + Send + 'static> {
@@ -94,6 +99,15 @@ pub(crate) async fn with_instance<T>(
         Err(e) => return Err(ApiError::bad_request(e.to_string())),
     };
     res
+}
+
+pub(crate) async fn load_local_project(project_id: &str) -> Result<project::Info, ApiError> {
+    let scope = project::project_scope_for_default_tenant(project_id)
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    project::get(&scope)
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?
+        .ok_or_else(|| ApiError::not_found("project not found"))
 }
 
 /// 将用户输入路径规范化为相对 `root` 的路径。

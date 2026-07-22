@@ -7,6 +7,7 @@ use iced::{Background, Border, Color, Element, Length, Theme, highlighter};
 
 use crate::app::{App, Message, message};
 
+use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::utils::truncate_lines_middle;
 
 /// ToolTextTarget 描述该模块对外暴露的离散状态。
@@ -98,6 +99,12 @@ pub fn selected_chat_text_for_message(app: &App, msg_idx: usize) -> Option<Strin
     app.chat_message_editors
         .get(msg_idx)
         .and_then(selected_text)
+        .or_else(|| {
+            app.chat_markdown_block_editors
+                .iter()
+                .filter(|(key, _)| ((**key) >> 64) as usize == msg_idx)
+                .find_map(|(_, content)| selected_text(content))
+        })
         .or_else(|| {
             app.chat_special_text_editors
                 .iter()
@@ -220,7 +227,9 @@ pub fn tool_text_editor<'a>(
                 .get(&(((msg_idx as u64) << 32) | (text_idx as u64)))?;
             let content_text = editor_content.text();
 
-            if !is_safe_for_text_editor(&content_text) {
+            if selectable_text_policy(&content_text, false)
+                == SelectableTextPolicy::PreviewWithCopyFallback
+            {
                 let theme = app.theme();
                 let color = if danger {
                     theme.extended_palette().danger.base.color
@@ -259,7 +268,9 @@ pub fn tool_text_editor<'a>(
                 app.chat_tool_text_editors.get(&tool_text_key(msg_idx, tool_idx, text_idx))?;
             let content_text = editor_content.text();
 
-            if !is_safe_for_text_editor(&content_text) {
+            if selectable_text_policy(&content_text, false)
+                == SelectableTextPolicy::PreviewWithCopyFallback
+            {
                 let theme = app.theme();
                 let color = if danger {
                     theme.extended_palette().danger.base.color
@@ -316,7 +327,9 @@ where
                 .get(&(((msg_idx as u64) << 32) | (text_idx as u64)))?;
             let content_text = editor_content.text();
 
-            if !is_safe_for_text_editor(&content_text) {
+            if selectable_text_policy(&content_text, false)
+                == SelectableTextPolicy::PreviewWithCopyFallback
+            {
                 let theme = app.theme();
                 return Some(preview_text(&content_text, font_name, size, color_fn(&theme)));
             }
@@ -335,7 +348,9 @@ where
                 app.chat_tool_text_editors.get(&tool_text_key(msg_idx, tool_idx, text_idx))?;
             let content_text = editor_content.text();
 
-            if !is_safe_for_text_editor(&content_text) {
+            if selectable_text_policy(&content_text, false)
+                == SelectableTextPolicy::PreviewWithCopyFallback
+            {
                 let theme = app.theme();
                 return Some(preview_text(&content_text, font_name, size, color_fn(&theme)));
             }

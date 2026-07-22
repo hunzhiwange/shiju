@@ -1,7 +1,10 @@
+use std::path::PathBuf;
 use vw_gateway_client::vw_api_types::todo::{TodoPriority, TodoStatus};
+use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_shared::question;
 use vw_shared::todo::Todo;
 
+use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::question_poller::{
     filter_questions_for_session, todo_priority_from_str, todo_put_body, todo_status_from_str,
 };
@@ -52,6 +55,12 @@ fn todo_priority_from_str_accepts_known_values_and_rejects_blank_or_unknown_valu
 }
 
 #[test]
+fn todo_enum_parsers_trim_values_before_case_normalization() {
+    assert_eq!(todo_status_from_str("  In-Progress  "), Ok(TodoStatus::InProgress));
+    assert_eq!(todo_priority_from_str("  HIGH\t"), Ok(TodoPriority::High));
+}
+
+#[test]
 fn todo_put_body_converts_items_and_reports_first_invalid_field() {
     let body = todo_put_body(&[
         Todo {
@@ -95,6 +104,89 @@ fn todo_put_body_converts_items_and_reports_first_invalid_field() {
         .unwrap_err(),
         "unsupported todo status: blocked"
     );
+}
+
+#[test]
+fn todo_status_from_str_completed_and_cancelled_aliases() {
+    assert_eq!(todo_status_from_str("completed"), Ok(TodoStatus::Completed));
+    assert_eq!(todo_status_from_str("CANCELLED"), Ok(TodoStatus::Cancelled));
+}
+
+#[test]
+fn todo_put_body_empty_list_produces_empty_body() {
+    let body = todo_put_body(&[]).expect("empty list should succeed");
+    assert!(body.todos.is_empty());
+}
+
+#[test]
+fn todo_put_body_reports_unsupported_priority() {
+    assert_eq!(
+        todo_put_body(&[Todo {
+            id: "1".to_string(),
+            content: "bad priority".to_string(),
+            status: "pending".to_string(),
+            priority: "urgent".to_string(),
+        }])
+        .unwrap_err(),
+        "unsupported todo priority: urgent"
+    );
+}
+
+#[test]
+fn todo_put_body_preserves_content_and_normalizes_only_identifier_and_enums() {
+    let body = todo_put_body(&[Todo {
+        id: "  task-1  ".to_string(),
+        content: "  keep surrounding content whitespace  ".to_string(),
+        status: "  PENDING  ".to_string(),
+        priority: "  Medium  ".to_string(),
+    }])
+    .expect("normalized todo should convert");
+
+    assert_eq!(body.todos[0].id, "task-1");
+    assert_eq!(body.todos[0].content, "  keep surrounding content whitespace  ");
+    assert_eq!(body.todos[0].status, TodoStatus::Pending);
+    assert_eq!(body.todos[0].priority, TodoPriority::Medium);
+}
+
+#[test]
+fn filter_questions_for_session_no_match_returns_empty() {
+    let requests = vec![request("r1", "s1"), request("r2", "s2")];
+    let filtered = filter_questions_for_session(requests, Some("nonexistent"));
+    assert!(filtered.is_empty());
+}
+
+#[test]
+fn filter_questions_for_session_empty_requests_returns_empty() {
+    let filtered = filter_questions_for_session(vec![], Some("s1"));
+    assert!(filtered.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn question_reply_blocking_rejects_blank_request_id() {
+    let runtime = runtime_with_session_id("test");
+    assert_eq!(
+        runtime.question_reply_blocking("  ", vec![]).unwrap_err(),
+        "question request id is required"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn question_reject_blocking_rejects_blank_request_id() {
+    let runtime = runtime_with_session_id("test");
+    assert_eq!(
+        runtime.question_reject_blocking("  ").unwrap_err(),
+        "question request id is required"
+    );
+}
+
+fn runtime_with_session_id(session_id: &str) -> GatewayUiRuntime {
+    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 42617))
+        .expect("gateway client should construct in unit tests");
+    let session = GatewaySessionSeed::new(PathBuf::from("/tmp/runtime-tests"))
+        .with_id(Some(session_id.to_string()));
+    GatewayUiRuntime::new(client, session)
 }
 
 fn request(id: &str, session_id: &str) -> question::Request {

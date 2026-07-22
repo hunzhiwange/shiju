@@ -20,7 +20,6 @@ use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project;
 use crate::app::agent::shell::git_std_command;
-use crate::app::agent::storage;
 use crate::worktree;
 
 const DIFF_CONTEXT: usize = 3;
@@ -152,11 +151,7 @@ async fn resolve_git_directory(
 }
 
 async fn load_project(project_id: &str) -> Result<project::Info, ApiError> {
-    let mut info = storage::read::<project::Info>(&["project", project_id])
-        .await
-        .map_err(|_| ApiError::not_found("project not found"))?;
-    info.sandboxes.retain(|path| std::path::Path::new(path).is_dir());
-    Ok(info)
+    crate::app::agent::gateway::instance::load_local_project(project_id).await
 }
 
 fn project_context_directory(info: &project::Info) -> Result<String, ApiError> {
@@ -220,15 +215,23 @@ fn commit_selected_blocking(
     }
 
     if !git_has_staged_changes(directory)? {
-        return Err("nothing to commit".to_string());
+        return Ok(GitCommitResponse {
+            ok: true,
+            created: false,
+            commit: GitCommitDto {
+                sha: git_head_sha(directory)?,
+                message: request.message.clone(),
+            },
+        });
     }
 
     git_commit_with_message_file(directory, &request.message)?;
-    let sha = run_git(directory, &["rev-parse", "HEAD"])?;
+    let sha = git_head_sha(directory)?;
 
     Ok(GitCommitResponse {
         ok: true,
-        commit: GitCommitDto { sha: sha.trim().to_string(), message: request.message.clone() },
+        created: true,
+        commit: GitCommitDto { sha, message: request.message.clone() },
     })
 }
 
@@ -287,7 +290,7 @@ fn validate_merge_branch_pair(source_branch: &str, target_branch: &str) -> Resul
     Ok(())
 }
 
-fn merge_branch_blocking(
+pub(crate) fn merge_branch_blocking(
     directory: &str,
     source_branch: &str,
     target_branch: &str,
@@ -296,6 +299,11 @@ fn merge_branch_blocking(
     verify_local_branch(directory, target_branch)?;
     let workspace = git_worktree_path_for_branch(directory, target_branch)?
         .unwrap_or_else(|| directory.to_string());
+
+    abort_git_in_progress_states(&workspace);
+    run_git(&workspace, &["checkout", target_branch])?;
+    let committed_target_changes =
+        commit_target_branch_changes_if_needed(&workspace, source_branch, target_branch)?;
 
     if git_command_success(
         &workspace,
@@ -307,12 +315,16 @@ fn merge_branch_blocking(
             target_branch: target_branch.to_string(),
             workspace,
             already_merged: true,
-            message: format!("{source_branch} already merged into {target_branch}"),
+            message: if committed_target_changes {
+                format!(
+                    "saved target branch changes; {source_branch} already merged into {target_branch}"
+                )
+            } else {
+                format!("{source_branch} already merged into {target_branch}")
+            },
         });
     }
 
-    abort_git_in_progress_states(&workspace);
-    run_git(&workspace, &["checkout", target_branch])?;
     let merge_message = format!("chore(task): merge {source_branch} into {target_branch}");
     let output = run_git_owned(
         &workspace,
@@ -333,12 +345,46 @@ fn merge_branch_blocking(
             target_branch: target_branch.to_string(),
             workspace,
             already_merged: false,
-            message: format!("merged {source_branch} into {target_branch}"),
+            message: if committed_target_changes {
+                format!(
+                    "saved target branch changes and merged {source_branch} into {target_branch}"
+                )
+            } else {
+                format!("merged {source_branch} into {target_branch}")
+            },
         }),
         Err(error) => {
             abort_git_in_progress_states(&workspace);
             Err(error)
         }
+    }
+}
+
+fn commit_target_branch_changes_if_needed(
+    directory: &str,
+    source_branch: &str,
+    target_branch: &str,
+) -> Result<bool, String> {
+    if git_is_clean(directory)? {
+        return Ok(false);
+    }
+
+    git_stage_all(directory)?;
+    if !git_has_staged_changes(directory)? {
+        return Err(format!(
+            "target branch {target_branch} has uncommitted changes but no staged changes after git add"
+        ));
+    }
+
+    let message =
+        format!("chore(task): save {target_branch} changes before merging {source_branch}");
+    git_commit_no_verify_with_message_file(directory, &message)?;
+    if git_is_clean(directory)? {
+        Ok(true)
+    } else {
+        Err(format!(
+            "target branch {target_branch} still has uncommitted changes after auto commit"
+        ))
     }
 }
 
@@ -379,6 +425,18 @@ fn git_commit_with_message_file(directory: &str, message: &str) -> Result<(), St
     temp.flush().map_err(|err| err.to_string())?;
     let path = temp.path().to_string_lossy().to_string();
     run_git_owned(directory, vec!["commit".to_string(), "-F".to_string(), path]).map(|_| ())
+}
+
+fn git_commit_no_verify_with_message_file(directory: &str, message: &str) -> Result<(), String> {
+    let mut temp = NamedTempFile::new().map_err(|err| err.to_string())?;
+    temp.write_all(message.as_bytes()).map_err(|err| err.to_string())?;
+    temp.flush().map_err(|err| err.to_string())?;
+    let path = temp.path().to_string_lossy().to_string();
+    run_git_owned(
+        directory,
+        vec!["commit".to_string(), "--no-verify".to_string(), "-F".to_string(), path],
+    )
+    .map(|_| ())
 }
 
 fn git_stage_partial_file(
@@ -598,6 +656,10 @@ fn run_git(directory: &str, args: &[&str]) -> Result<String, String> {
     run_git_owned(directory, args.iter().map(|value| (*value).to_string()).collect())
 }
 
+fn git_head_sha(directory: &str) -> Result<String, String> {
+    Ok(run_git(directory, &["rev-parse", "HEAD"])?.trim().to_string())
+}
+
 fn verify_local_branch(directory: &str, branch: &str) -> Result<(), String> {
     let branch_ref = format!("refs/heads/{branch}");
     run_git(directory, &["show-ref", "--verify", "--quiet", &branch_ref]).map(|_| ())
@@ -605,6 +667,10 @@ fn verify_local_branch(directory: &str, branch: &str) -> Result<(), String> {
 
 fn git_has_staged_changes(directory: &str) -> Result<bool, String> {
     Ok(!git_command_success(directory, &["diff", "--cached", "--quiet"])?)
+}
+
+fn git_is_clean(directory: &str) -> Result<bool, String> {
+    Ok(run_git(directory, &["status", "--porcelain=v1"])?.trim().is_empty())
 }
 
 fn git_command_success(directory: &str, args: &[&str]) -> Result<bool, String> {

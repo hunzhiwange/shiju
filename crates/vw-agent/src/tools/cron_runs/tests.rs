@@ -130,3 +130,8 @@ async fn errors_when_job_id_missing() {
     assert!(!result.success);
     assert!(result.error.unwrap_or_default().contains("Missing 'job_id'"));
 }
+
+#[test]
+fn truncate_preserves_short_unicode_output() {
+    assert_eq!(super::truncate("你好世界", 4), "你好世界");
+}

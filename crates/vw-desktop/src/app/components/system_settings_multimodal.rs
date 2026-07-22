@@ -3,13 +3,12 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_value_badge,
 };
 use crate::app::message::settings::{MultimodalMessage, SettingsMessage};
-use crate::app::views::design::properties::number_input::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{checkbox, column, container, row, text};
 use iced::{Alignment, Element, Length};
@@ -93,7 +92,7 @@ fn bool_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.multimodal_settings;
 
-    let mut content = column![
+    let content = column![
         settings_page_intro(
             "多模态配置",
             "配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。",
@@ -131,10 +130,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }

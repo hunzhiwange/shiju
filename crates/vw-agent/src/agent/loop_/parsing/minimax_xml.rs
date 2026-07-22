@@ -180,9 +180,7 @@ pub(crate) fn parse_minimax_invoke_calls(response: &str) -> Option<(String, Vec<
     // 遍历所有匹配的 invoke 标签
     for cap in MINIMAX_INVOKE_RE.captures_iter(response) {
         // 获取完整匹配的范围，用于计算文本位置
-        let Some(full_match) = cap.get(0) else {
-            continue;
-        };
+        let full_match = cap.get(0).expect("regex captures include the full match");
 
         // 提取当前 invoke 标签之前的文本内容
         // 这部分文本是上次匹配结束到当前匹配开始之间的内容

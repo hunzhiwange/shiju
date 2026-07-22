@@ -1,34 +1,59 @@
-#[test]
-fn get_task_dir_keeps_storage_inside_project_metadata_dir() {
-    let dir = super::get_task_dir("/tmp/project");
-    assert!(dir.ends_with(".vibewindow/tasks"));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn index_db_and_lock_paths_use_task_dir() {
-    assert!(super::get_index_db_path("/tmp/project").ends_with(".vibewindow/tasks/_index.sqlite3"));
-    assert!(super::get_task_log_dir("/tmp/project").ends_with(".vibewindow/tasks/logs"));
-}
+use super::*;
 
 #[test]
-fn ensure_task_dir_creates_nested_metadata_directory() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().join("project").join("nested");
-    let project = project.to_string_lossy().to_string();
+fn task_paths_are_derived_from_the_project_config_directory() {
+    let project = std::path::Path::new("project-root");
+    let task_directory = project.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks");
 
-    super::ensure_task_dir(&project).expect("task dir should be created");
-
-    assert!(super::get_task_dir(&project).is_dir());
+    assert_eq!(get_task_dir("project-root"), task_directory);
+    assert_eq!(
+        get_task_file_path("project-root", "T20260717.0001"),
+        task_directory.join("T20260717.0001.json")
+    );
+    assert_eq!(get_legacy_index_file_path("project-root"), task_directory.join("_index.json"));
+    assert_eq!(get_task_log_dir("project-root"), task_directory.join("logs"));
 }
 
 #[test]
-fn with_index_lock_runs_closure_and_creates_lock_file() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().to_string_lossy().to_string();
+fn ensure_task_dir_creates_the_missing_directory_tree() {
+    let project = tempfile::tempdir().expect("temp project");
+    let project_path = project.path().to_string_lossy();
 
-    let value = super::with_index_lock(&project, || 42);
+    ensure_task_dir(&project_path).expect("create task directory");
 
-    assert_eq!(value, 42);
-    assert!(super::get_task_dir(&project).join("_index.lock").exists());
+    assert!(get_task_dir(&project_path).is_dir());
+}
+
+#[test]
+fn ensure_task_dir_accepts_an_existing_directory() {
+    let project = tempfile::tempdir().expect("temp project");
+    let project_path = project.path().to_string_lossy();
+    ensure_task_dir(&project_path).expect("create task directory");
+
+    ensure_task_dir(&project_path).expect("reuse task directory");
+
+    assert!(get_task_dir(&project_path).is_dir());
+}
+
+#[test]
+fn ensure_task_dir_returns_error_when_config_root_is_a_file() {
+    let project = tempfile::tempdir().expect("temp project");
+    let config_root = project.path().join(vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+    std::fs::write(config_root, b"not a directory").expect("create blocking file");
+    let project_path = project.path().to_string_lossy();
+
+    let result = ensure_task_dir(&project_path);
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn native_cutover_error_reports_unsupported_scheduler_migration() {
+    let error = native_cutover_error();
+
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "native desktop task persistence moved to the global Agent Scheduler"
+    );
 }

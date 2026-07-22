@@ -18,8 +18,21 @@ use crate::types::AcpAgentConfig;
 pub const DEFAULT_AGENT_NAME: &str = "codex";
 
 const PI_ADAPTER_PACKAGE_RANGE: &str = "^0.0.22";
-const CODEX_ADAPTER_PACKAGE_RANGE: &str = "latest";
 const CLAUDE_ADAPTER_PACKAGE_RANGE: &str = "^0.26.0";
+const CODEX_ADAPTER_PACKAGE: &str = "@agentclientprotocol/codex-acp@latest";
+const CODEX_ADAPTER_ARGS: &[&str] = &["-y", CODEX_ADAPTER_PACKAGE];
+const LEGACY_CODEX_ADAPTER_PACKAGES: &[&str] = &["@zed-industries/codex-acp", "@openai/codex-acp"];
+const OBSOLETE_CODEX_NODE_REPL_CONFIG: &str = "mcp_servers.node_repl.enabled=false";
+const GEMINI_ACP_ARGS: &[&str] =
+    &["@google/gemini-cli@latest", "--experimental-acp", "--approval-mode", "yolo", "--skip-trust"];
+const GEMINI_LOCAL_ARGS: &[&str] =
+    &["--experimental-acp", "--approval-mode", "yolo", "--skip-trust"];
+const QODER_ACP_ARGS: &[&str] =
+    &["@qoder-ai/qodercli@latest", "--acp", "--permission-mode", "bypass_permissions"];
+const QODER_LOCAL_ARGS: &[&str] = &["--acp", "--permission-mode", "bypass_permissions"];
+const QWEN_ACP_ARGS: &[&str] =
+    &["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills", "--approval-mode", "yolo"];
+const QWEN_LOCAL_ARGS: &[&str] = &["--acp", "--experimental-skills", "--approval-mode", "yolo"];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +125,63 @@ fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<S
     (definition.command.to_string(), definition.args.iter().map(|arg| (*arg).to_string()).collect())
 }
 
+fn is_codex_adapter_package_arg(arg: &str, package: &str) -> bool {
+    arg == package || arg.strip_prefix(package).is_some_and(|suffix| suffix.starts_with('@'))
+}
+
+fn normalize_codex_adapter_package_arg(arg: String) -> String {
+    if LEGACY_CODEX_ADAPTER_PACKAGES
+        .iter()
+        .any(|package| is_codex_adapter_package_arg(&arg, package))
+    {
+        return CODEX_ADAPTER_PACKAGE.to_string();
+    }
+    arg
+}
+
+fn is_obsolete_codex_node_repl_config(arg: &str) -> bool {
+    arg == OBSOLETE_CODEX_NODE_REPL_CONFIG
+        || arg
+            .strip_prefix("--config=")
+            .is_some_and(|value| value == OBSOLETE_CODEX_NODE_REPL_CONFIG)
+        || arg.strip_prefix("-c=").is_some_and(|value| value == OBSOLETE_CODEX_NODE_REPL_CONFIG)
+}
+
+fn normalize_codex_args(args: &[String]) -> Vec<String> {
+    let mut normalized = Vec::with_capacity(args.len());
+    let mut index = 0;
+    while index < args.len() {
+        let arg = &args[index];
+        if matches!(arg.as_str(), "-c" | "--config")
+            && args.get(index + 1).is_some_and(|next| next == OBSOLETE_CODEX_NODE_REPL_CONFIG)
+        {
+            index += 2;
+            continue;
+        }
+        if is_obsolete_codex_node_repl_config(arg) {
+            index += 1;
+            continue;
+        }
+        normalized.push(normalize_codex_adapter_package_arg(arg.clone()));
+        index += 1;
+    }
+    normalized
+}
+
+fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCommandSpec {
+    let normalized_name = normalize_agent_name(name);
+    AgentCommandSpec {
+        display_name: spec.display_name.trim().to_string(),
+        command: spec.command.trim().to_string(),
+        args: if normalized_name == DEFAULT_AGENT_NAME {
+            normalize_codex_args(&spec.args)
+        } else {
+            spec.args.clone()
+        },
+        env: spec.env.clone(),
+    }
+}
+
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
         name: "auggie",
@@ -135,7 +205,7 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         name: "codex",
         display_name: "Codex CLI",
         command: "npx",
-        args: &["@zed-industries/codex-acp@latest"],
+        args: CODEX_ADAPTER_ARGS,
         env: &[],
         local_command_candidates: &["codex-acp"],
         local_args: &[],
@@ -171,10 +241,10 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         name: "gemini",
         display_name: "Gemini CLI",
         command: "npx",
-        args: &["@google/gemini-cli@latest", "--experimental-acp"],
+        args: GEMINI_ACP_ARGS,
         env: &[],
         local_command_candidates: &["gemini", "gemini-cli"],
-        local_args: &["--experimental-acp"],
+        local_args: GEMINI_LOCAL_ARGS,
     },
     BuiltInAgentDefinition {
         name: "iflow",
@@ -243,19 +313,19 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         name: "qoder",
         display_name: "Qoder CLI",
         command: "npx",
-        args: &["@qoder-ai/qodercli@latest", "--acp"],
+        args: QODER_ACP_ARGS,
         env: &[],
         local_command_candidates: &["qodercli"],
-        local_args: &["--acp"],
+        local_args: QODER_LOCAL_ARGS,
     },
     BuiltInAgentDefinition {
         name: "qwen",
         display_name: "Qwen Code",
         command: "npx",
-        args: &["@qwen-code/qwen-code@latest", "--acp", "--experimental-skills"],
+        args: QWEN_ACP_ARGS,
         env: &[],
         local_command_candidates: &["qwen", "qwen-code"],
-        local_args: &["--acp", "--experimental-skills"],
+        local_args: QWEN_LOCAL_ARGS,
     },
     BuiltInAgentDefinition {
         name: "trae",
@@ -348,10 +418,7 @@ fn legacy_agent_registry() -> BTreeMap<String, String> {
     BTreeMap::from([
         ("pi".to_string(), format!("npx pi-acp@{PI_ADAPTER_PACKAGE_RANGE}")),
         ("openclaw".to_string(), "openclaw acp".to_string()),
-        (
-            "codex".to_string(),
-            format!("npx @zed-industries/codex-acp@{CODEX_ADAPTER_PACKAGE_RANGE}"),
-        ),
+        ("codex".to_string(), format!("npx {CODEX_ADAPTER_PACKAGE}")),
         (
             "claude-legacy".to_string(),
             format!("npx -y @agentclientprotocol/claude-agent-acp@{CLAUDE_ADAPTER_PACKAGE_RANGE}"),
@@ -384,15 +451,7 @@ pub fn merge_agent_specs(
             if normalized.is_empty() || spec.command.trim().is_empty() {
                 continue;
             }
-            merged.insert(
-                normalized,
-                AgentCommandSpec {
-                    display_name: spec.display_name.trim().to_string(),
-                    command: spec.command.trim().to_string(),
-                    args: spec.args.clone(),
-                    env: spec.env.clone(),
-                },
-            );
+            merged.insert(normalized.clone(), normalize_agent_spec_for_name(&normalized, spec));
         }
     }
     merged
@@ -412,6 +471,7 @@ pub fn merge_agent_registry(
             if normalized.is_empty() || spec.command.trim().is_empty() {
                 continue;
             }
+            let spec = normalize_agent_spec_for_name(&normalized, spec);
             merged.insert(normalized, spec.command_line());
         }
     }

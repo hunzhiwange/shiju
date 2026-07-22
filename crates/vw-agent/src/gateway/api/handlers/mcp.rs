@@ -1,0 +1,37 @@
+//! MCP inspection API handlers.
+
+use crate::app::agent::gateway::AppState;
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
+
+/// Inspect configured MCP servers and list tools exposed by connected servers.
+pub async fn handle_api_mcp_inspect(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if let Err(e) = super::super::auth::require_auth(&state, &headers) {
+        return e.into_response();
+    }
+
+    let workspace_dir = state.config.lock().workspace_dir.clone();
+    match crate::app::agent::tools::mcp_inspect::inspect_mcp_servers_from_workspace(&workspace_dir)
+        .await
+    {
+        Ok(response) => Json(response).into_response(),
+        Err(error) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Failed to inspect MCP servers: {error}")
+            })),
+        )
+            .into_response(),
+    }
+}
+
+#[cfg(test)]
+#[path = "mcp_tests.rs"]
+mod mcp_tests;

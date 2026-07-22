@@ -1,8 +1,6 @@
 const SOURCE: &str = include_str!("system_settings_acp.rs");
 
-use super::{
-    acp_description, acp_title, command_line, ordered_agents, setup_hint, view,
-};
+use super::{acp_description, acp_title, command_line, ordered_agents, setup_hint, view};
 use vw_config_types::config::AcpAgentConfig;
 
 #[test]
@@ -15,6 +13,8 @@ fn system_settings_acp_page_keeps_core_actions() {
     for needle in [
         "AcpMessage::Refresh",
         "AcpMessage::SetEnabled",
+        "AcpMessage::CopyCommand",
+        "\"✓\"",
         "settings_success_banner",
         "\"openclaw\"",
         "GitHub Copilot",
@@ -43,6 +43,26 @@ fn acp_title_description_and_setup_hint_cover_known_and_custom_agents() {
     assert!(setup_hint("gemini").contains("Gemini CLI"));
     assert!(setup_hint("copilot").contains("GitHub Copilot"));
     assert!(setup_hint("custom").contains("PATH"));
+}
+
+#[test]
+fn acp_metadata_covers_remaining_catalog_agents() {
+    let cases = [
+        ("auggie", "Auggie CLI", "Auggie"),
+        ("cursor", "Cursor Agent", "Cursor"),
+        ("droid", "Factory droid", "droid"),
+        ("iflow", "iFlow", "iFlow"),
+        ("kilocode", "Kilocode", "Kilocode"),
+        ("opencode", "OpenCode", "OpenCode"),
+        ("qwen", "Qwen Code", "Qwen"),
+    ];
+
+    for (agent, title, description_needle) in cases {
+        assert_eq!(acp_title(agent), title);
+        assert!(acp_description(agent).contains(description_needle));
+    }
+    assert!(setup_hint("openclaw").contains("openclaw"));
+    assert!(setup_hint("pi").contains("npx"));
 }
 
 #[test]
@@ -96,8 +116,25 @@ fn acp_view_builds_empty_and_populated_catalog_states() {
         },
     );
     app.acp_settings.enabled.insert("codex".to_string());
+    app.acp_settings.copied_agent = Some("codex".to_string());
     app.acp_settings.status_message = Some("saved".to_string());
     app.acp_settings.save_error = Some("failed".to_string());
+
+    let _: iced::Element<'_, crate::app::Message> = view(&app);
+}
+
+#[test]
+fn acp_view_builds_saving_agent_state() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.catalog.insert(
+        "codex".to_string(),
+        AcpAgentConfig {
+            command: "npx".to_string(),
+            args: vec!["@openai/codex".to_string(), "--acp".to_string()],
+            ..AcpAgentConfig::default()
+        },
+    );
+    app.acp_settings.saving_agent = Some("codex".to_string());
 
     let _: iced::Element<'_, crate::app::Message> = view(&app);
 }

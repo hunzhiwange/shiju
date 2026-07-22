@@ -1,7 +1,48 @@
 use super::*;
+use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::sync::MutexGuard;
+
+#[cfg(not(target_arch = "wasm32"))]
+struct EnvGuard {
+    key: &'static str,
+    previous: Option<OsString>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl EnvGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self { key, previous }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.previous {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct GitTestGuard {
+    _git_guard: EnvGuard,
+    _env_lock: MutexGuard<'static, ()>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn git_test_guard() -> GitTestGuard {
+    let env_lock = crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let git_guard = EnvGuard::set("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT", "1");
+    GitTestGuard { _git_guard: git_guard, _env_lock: env_lock }
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
@@ -16,7 +57,7 @@ fn ensure_gitdir_reports_whether_directory_was_created() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn git(repo: &Path, args: &[&str]) -> String {
-    let output = Command::new("git")
+    let output = crate::app::agent::shell::git_std_command()
         .current_dir(repo)
         .env("GIT_AUTHOR_NAME", "Snapshot Test")
         .env("GIT_AUTHOR_EMAIL", "snapshot@example.com")
@@ -41,9 +82,48 @@ fn temp_git_worktree() -> tempfile::TempDir {
     git(dir.path(), &["config", "user.name", "Snapshot Test"]);
     git(dir.path(), &["config", "user.email", "snapshot@example.com"]);
     fs::write(dir.path().join("file.txt"), "one\n").unwrap();
+    fs::write(dir.path().join("repo-id.txt"), dir.path().to_string_lossy().as_bytes()).unwrap();
     git(dir.path(), &["add", "."]);
     git(dir.path(), &["commit", "-m", "init"]);
     dir
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn file_relative_strips_worktree_prefix_and_preserves_external_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let nested = dir.path().join("nested").join("file.txt");
+    let external = Path::new("elsewhere").join("file.txt");
+
+    assert_eq!(
+        file_relative(dir.path(), &nested.to_string_lossy()),
+        Path::new("nested").join("file.txt").to_string_lossy().to_string()
+    );
+    assert_eq!(
+        file_relative(dir.path(), &external.to_string_lossy()),
+        external.to_string_lossy().to_string()
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn root_commit_id_returns_none_for_repository_without_references() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = Repository::init(dir.path()).unwrap();
+
+    assert_eq!(root_commit_id(&repo), None);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn show_file_returns_empty_when_revision_path_is_missing() {
+    let _git_guard = git_test_guard();
+    let dir = temp_git_worktree();
+    let git_dir = dir.path().join(".git");
+
+    let content = show_file(dir.path(), &git_dir, "missing-revision", "file.txt").unwrap();
+
+    assert!(content.is_empty());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -63,6 +143,7 @@ fn snapshot_operations_return_empty_outside_git_repo() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn track_diff_patch_restore_and_revert_roundtrip() {
+    let _git_guard = git_test_guard();
     let dir = temp_git_worktree();
     let worktree = dir.path();
     let baseline = track(worktree).unwrap().expect("baseline snapshot");
@@ -108,7 +189,63 @@ fn track_diff_patch_restore_and_revert_roundtrip() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn revert_uses_first_patch_for_duplicate_file() {
+    let _git_guard = git_test_guard();
+    let dir = temp_git_worktree();
+    let worktree = dir.path();
+    let file = worktree.join("file.txt");
+    let baseline = track(worktree).unwrap().expect("baseline snapshot");
+
+    fs::write(&file, "two\n").unwrap();
+    let modified = track(worktree).unwrap().expect("modified snapshot");
+    fs::write(&file, "three\n").unwrap();
+
+    revert(
+        worktree,
+        &[
+            Patch { hash: baseline, files: vec![file.to_string_lossy().to_string()] },
+            Patch { hash: modified, files: vec![file.to_string_lossy().to_string()] },
+        ],
+    )
+    .unwrap();
+
+    assert_eq!(fs::read_to_string(file).unwrap(), "one\n");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn diff_full_reports_deleted_and_binary_files() {
+    let _git_guard = git_test_guard();
+    let dir = temp_git_worktree();
+    let worktree = dir.path();
+    let binary = worktree.join("binary.bin");
+    fs::write(&binary, [0_u8, 1, 2]).unwrap();
+    let baseline = track(worktree).unwrap().expect("baseline snapshot");
+
+    fs::remove_file(worktree.join("file.txt")).unwrap();
+    fs::write(&binary, [0_u8, 3, 4]).unwrap();
+    let changed = track(worktree).unwrap().expect("changed snapshot");
+
+    let full = diff_full(worktree, &baseline, &changed).unwrap();
+    let deleted = full.iter().find(|file| file.file == "file.txt").unwrap();
+    assert_eq!(deleted.before, "one\n");
+    assert_eq!(deleted.after, "");
+    assert_eq!(deleted.additions, 0);
+    assert_eq!(deleted.deletions, 1);
+    assert_eq!(deleted.status, Some(DiffStatus::Deleted));
+
+    let binary = full.iter().find(|file| file.file == "binary.bin").unwrap();
+    assert_eq!(binary.before, "");
+    assert_eq!(binary.after, "");
+    assert_eq!(binary.additions, 0);
+    assert_eq!(binary.deletions, 0);
+    assert_eq!(binary.status, Some(DiffStatus::Modified));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn invalid_snapshot_hashes_return_empty_outputs_without_error() {
+    let _git_guard = git_test_guard();
     let dir = temp_git_worktree();
     let worktree = dir.path();
     assert!(track(worktree).unwrap().is_some());

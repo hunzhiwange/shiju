@@ -77,6 +77,20 @@ async fn close_sends_close_command_and_clears_actor_state() {
 }
 
 #[tokio::test]
+async fn close_with_closed_command_channel_clears_actor_state() {
+    let client = client();
+    let command_rx = install_actor_handle(&client);
+    client.store_reusable_session(Some("stale-session".to_string()));
+    drop(command_rx);
+
+    client.close().await.expect("close");
+
+    let state = client.actor_state.lock();
+    assert!(state.handle.is_none());
+    assert!(state.reusable_session_id.is_none());
+}
+
+#[tokio::test]
 async fn actor_command_tx_errors_without_running_actor() {
     let client = client();
 

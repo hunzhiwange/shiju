@@ -98,3 +98,44 @@ fn merge_deep_value_leaves_target_unchanged_for_empty_object_source() {
 
     assert_eq!(target, json!({ "keep": { "nested": 1 } }));
 }
+
+#[test]
+fn merge_deep_value_leaves_nested_target_unchanged_for_empty_nested_object_source() {
+    let mut target = json!({
+        "nested": {
+            "keep": 1
+        },
+        "top_level": true
+    });
+    let source = json!({
+        "nested": {}
+    });
+
+    merge_deep_value(&mut target, &source);
+
+    assert_eq!(
+        target,
+        json!({
+            "nested": {
+                "keep": 1
+            },
+            "top_level": true
+        })
+    );
+}
+
+#[test]
+fn merge_deep_value_clones_values_inserted_for_missing_keys() {
+    let mut target = json!({});
+    let source = json!({
+        "inserted": {
+            "items": [1, 2]
+        }
+    });
+
+    merge_deep_value(&mut target, &source);
+    target["inserted"]["items"][0] = json!(99);
+
+    assert_eq!(source, json!({ "inserted": { "items": [1, 2] } }));
+    assert_eq!(target, json!({ "inserted": { "items": [99, 2] } }));
+}

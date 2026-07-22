@@ -16,6 +16,12 @@ use reqwest::multipart::{Form, Part};
 use serde_json::json;
 use std::path::PathBuf;
 
+const DISCORD_API_BASE_URL: &str = "https://discord.com/api/v10";
+
+pub(super) fn discord_messages_url(api_base: &str, recipient: &str) -> String {
+    format!("{}/channels/{recipient}/messages", api_base.trim_end_matches('/'))
+}
+
 /// 通过 Discord API 发送纯文本消息到指定频道
 ///
 /// 该函数使用 Discord Bot Token 进行身份验证，向指定频道发送纯文本消息。
@@ -60,16 +66,23 @@ pub(super) async fn send_discord_message_json(
     recipient: &str,
     content: &str,
 ) -> anyhow::Result<()> {
-    // 构建 Discord API v10 消息发送端点 URL
-    let url = format!("https://discord.com/api/v10/channels/{recipient}/messages");
+    let url = discord_messages_url(DISCORD_API_BASE_URL, recipient);
+    send_discord_message_json_to_url(client, bot_token, &url, content).await
+}
 
+pub(super) async fn send_discord_message_json_to_url(
+    client: &reqwest::Client,
+    bot_token: &str,
+    url: &str,
+    content: &str,
+) -> anyhow::Result<()> {
     // 构造请求体，使用 JSON 格式包含消息内容
     let body = json!({ "content": content });
 
     // 发送 POST 请求到 Discord API
     // 使用 Bot Token 进行身份验证
     let resp = client
-        .post(&url)
+        .post(url)
         .header("Authorization", format!("Bot {bot_token}"))
         .json(&body)
         .send()
@@ -149,9 +162,17 @@ pub(super) async fn send_discord_message_with_files(
     content: &str,
     files: &[PathBuf],
 ) -> anyhow::Result<()> {
-    // 构建 Discord API v10 消息发送端点 URL
-    let url = format!("https://discord.com/api/v10/channels/{recipient}/messages");
+    let url = discord_messages_url(DISCORD_API_BASE_URL, recipient);
+    send_discord_message_with_files_to_url(client, bot_token, &url, content, files).await
+}
 
+pub(super) async fn send_discord_message_with_files_to_url(
+    client: &reqwest::Client,
+    bot_token: &str,
+    url: &str,
+    content: &str,
+    files: &[PathBuf],
+) -> anyhow::Result<()> {
     // 初始化 multipart 表单，添加 JSON 格式的消息内容作为 payload
     let mut form = Form::new().text("payload_json", json!({ "content": content }).to_string());
 
@@ -172,7 +193,7 @@ pub(super) async fn send_discord_message_with_files(
 
     // 发送 POST 请求到 Discord API，使用 multipart/form-data 格式
     let resp = client
-        .post(&url)
+        .post(url)
         .header("Authorization", format!("Bot {bot_token}"))
         .multipart(form)
         .send()

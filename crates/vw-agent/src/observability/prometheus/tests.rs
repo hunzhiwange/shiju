@@ -418,3 +418,10 @@ fn llm_response_without_tokens_increments_request_only() {
     assert!(!output.contains("vibewindow_tokens_input_total{"));
     assert!(!output.contains("vibewindow_tokens_output_total{"));
 }
+
+#[test]
+fn prometheus_observer_supports_runtime_downcast() {
+    let obs = PrometheusObserver::new();
+
+    assert!(obs.as_any().downcast_ref::<PrometheusObserver>().is_some());
+}

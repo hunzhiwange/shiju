@@ -294,3 +294,12 @@ fn normalize_uses_object_fallbacks_for_unrecognized_moral_compass_and_fears() {
     assert_eq!(normalized.motivations.unwrap().fears.unwrap(), vec!["Unknown future"]);
     assert_eq!(normalized.linguistics.unwrap().formality.as_deref(), Some("formal"));
 }
+
+#[test]
+fn normalize_accepts_scalar_fears() {
+    let payload = json!({"motivations": {"fears": "losing context"}});
+
+    let normalized = normalize_aieos_identity(&payload);
+
+    assert_eq!(normalized.motivations.unwrap().fears.unwrap(), vec!["losing context"]);
+}

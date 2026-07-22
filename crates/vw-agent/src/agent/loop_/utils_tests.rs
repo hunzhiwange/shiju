@@ -33,6 +33,22 @@ fn scrub_credentials_handles_supported_key_and_separator_variants() {
 }
 
 #[test]
+fn scrub_credentials_redacts_double_quoted_equals_value_by_chars() {
+    let input = r#"api_key="密钥凭证安全测试""#;
+    let scrubbed = scrub_credentials(input);
+
+    assert_eq!(scrubbed, r#"api_key="密钥凭证*[REDACTED]""#);
+}
+
+#[test]
+fn scrub_credentials_redacts_colon_pairs_without_double_quotes() {
+    let input = "secret: 'abcdefghijk' bearer: bearerToken999";
+    let scrubbed = scrub_credentials(input);
+
+    assert_eq!(scrubbed, "secret: abcd*[REDACTED] bearer: bear*[REDACTED]");
+}
+
+#[test]
 fn scrub_credentials_ignores_short_or_unsupported_values() {
     let input = r#"token=short api_key=abc123!@# note="password: not a pair""#;
 
@@ -69,4 +85,15 @@ fn tool_file_path_regex_extracts_file_path_and_path_attributes() {
         .collect::<Vec<_>>();
 
     assert_eq!(paths, vec!["/tmp/report.txt", "/var/log/app.log"]);
+}
+
+#[test]
+fn tool_file_path_regex_is_case_insensitive_and_skips_unquoted_paths() {
+    let output = r#"PATH="/tmp/upper.log" file_path=/tmp/unquoted.txt ignored="path=/tmp/nested""#;
+    let paths = TOOL_FILE_PATH_REGEX
+        .captures_iter(output)
+        .map(|caps| caps[1].to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(paths, vec!["/tmp/upper.log"]);
 }

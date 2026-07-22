@@ -185,3 +185,214 @@ fn empty_or_non_array_messages_produce_empty_aisdk_messages() {
     assert!(info.messages.is_empty());
     assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
 }
+
+#[test]
+fn agent_client_protocol_underscore_variant_is_openai_compatible() {
+    let model =
+        test_model("custom", "agent_client_protocol", "https://api.example.com", "gpt-5", "GPT 5");
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+    assert_eq!(info.path_override.as_deref(), Some("chat/completions"));
+    assert!(info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn gpt_in_name_only_detects_gpt_like() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v1/",
+        "custom-model",
+        "GPT-4o Custom",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert!(info.enforce_strict_tool_schema);
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.path_override.as_deref(), Some("chat/completions"));
+}
+
+#[test]
+fn bare_domain_openai_compatible_non_gpt_adds_v1() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com",
+        "claude-sonnet",
+        "Claude Sonnet",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+    assert_eq!(info.path_override, None);
+    assert!(!info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn responses_endpoint_clean_url_sets_responses_path_override() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v2/responses",
+        "gpt-5",
+        "GPT-5",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v2");
+    assert_eq!(info.request_url, "https://api.example.com/v2/responses");
+    assert_eq!(info.path_override.as_deref(), Some("responses"));
+    assert!(info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn openai_compatible_already_has_v1_respects_existing_version() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v1",
+        "claude-sonnet",
+        "Claude Sonnet",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+    assert_eq!(info.path_override, None);
+    assert!(!info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn empty_messages_array_produces_empty_aisdk_messages() {
+    let model = test_model("openai", "openai", "https://api.example.com", "gpt-5", "gpt");
+
+    let info = compute_request_info(&model, &json!([])).expect("request info");
+
+    assert!(info.messages.is_empty());
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+}
+
+#[test]
+fn chat_completions_endpoint_without_version_prefix() {
+    let model = test_model(
+        "openai",
+        "openai-compatible",
+        "https://api.example.com/chat/completions",
+        "gpt-5",
+        "GPT-5",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+    assert_eq!(info.path_override.as_deref(), Some("chat/completions"));
+    assert!(info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn adapter_whitespace_is_trimmed_before_compatibility_detection() {
+    let model = test_model(
+        "custom",
+        "  openai  ",
+        "https://api.example.com",
+        "claude-sonnet",
+        "Claude Sonnet",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+    assert_eq!(info.path_override, None);
+    assert!(!info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn gpt_in_model_id_only_enables_strict_schema_and_default_override() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v1",
+        "vendor-gpt-model",
+        "Custom Model",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert!(info.enforce_strict_tool_schema);
+    assert_eq!(info.path_override.as_deref(), Some("chat/completions"));
+    assert_eq!(info.request_url, "https://api.example.com/v1/chat/completions");
+}
+
+#[test]
+fn non_openai_gpt_model_does_not_enable_strict_schema_or_override() {
+    let model = test_model(
+        "custom",
+        "anthropic",
+        "https://api.example.com/v1/messages",
+        "gpt-proxy",
+        "GPT Proxy",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert!(!info.enforce_strict_tool_schema);
+    assert_eq!(info.path_override, None);
+    assert_eq!(info.request_url, "https://api.example.com/v1/messages/chat/completions");
+}
+
+#[test]
+fn non_numeric_version_suffix_gets_v1_appended() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v1beta",
+        "claude-sonnet",
+        "Claude Sonnet",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v1beta/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1beta/v1/chat/completions");
+    assert_eq!(info.path_override, None);
+}
+
+#[test]
+fn compatible_non_gpt_explicit_responses_endpoint_keeps_override_without_strict_schema() {
+    let model = test_model(
+        "custom",
+        "openai-compatible",
+        "https://api.example.com/v2/responses/",
+        "claude-sonnet",
+        "Claude Sonnet",
+    );
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "https://api.example.com/v2");
+    assert_eq!(info.request_url, "https://api.example.com/v2/responses");
+    assert_eq!(info.path_override.as_deref(), Some("responses"));
+    assert!(!info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn empty_non_openai_url_keeps_empty_base_and_builds_relative_default_request() {
+    let model = test_model("custom", "anthropic", "   ", "claude-sonnet", "Claude Sonnet");
+
+    let info = compute_request_info(&model, &chat_messages()).expect("request info");
+
+    assert_eq!(info.base_url, "");
+    assert_eq!(info.request_url, "/chat/completions");
+    assert_eq!(info.path_override, None);
+    assert!(!info.enforce_strict_tool_schema);
+}

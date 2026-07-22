@@ -11,7 +11,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use crate::types::{AcpAgentConfig, AcpMessageDirection};
 
-use super::{AcpClient, MessageTap, TappedReader, TappedWriter};
+use super::{AcpClient, MessageTap, ProcessHandles, TappedReader, TappedWriter};
 
 struct FailingReader;
 
@@ -22,6 +22,18 @@ impl AsyncRead for FailingReader {
         _buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         Poll::Ready(Err(io::Error::other("read failed")))
+    }
+}
+
+struct PendingReader;
+
+impl AsyncRead for PendingReader {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Poll::Pending
     }
 }
 
@@ -54,6 +66,26 @@ impl AsyncWrite for FailingWriter {
         _buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         Poll::Ready(Err(io::Error::other("write failed")))
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+struct PendingWriter;
+
+impl AsyncWrite for PendingWriter {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Poll::Pending
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -159,6 +191,48 @@ async fn tapped_reader_and_writer_forward_successful_bytes() {
 }
 
 #[tokio::test]
+async fn tapped_child_stdio_dispatches_real_process_streams() {
+    let raw_seen = callback_values();
+    let output_seen = callback_values();
+    let client = AcpClient::new(
+        "test-agent",
+        AcpAgentConfig {
+            command: "sh".to_string(),
+            args: vec!["-c".to_string(), "cat".to_string()],
+            env: Default::default(),
+        },
+    )
+    .with_acp_message_callback(Some(push_callback(&raw_seen)))
+    .with_acp_output_message_callback(Some(push_callback(&output_seen)));
+    let ProcessHandles { mut child, stderr_task } = client.spawn_child().expect("spawn should run");
+    let stdin = child.stdin.take().expect("child stdin");
+    let stdout = child.stdout.take().expect("child stdout");
+    let mut tapped_writer =
+        TappedWriter::new(stdin, client.make_message_tap(AcpMessageDirection::Outbound));
+    let mut tapped_reader =
+        TappedReader::new(stdout, client.make_message_tap(AcpMessageDirection::Inbound));
+
+    tapped_writer
+        .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":\"child\",\"result\":{}}\n")
+        .await
+        .expect("write child input");
+    tapped_writer.shutdown().await.expect("shutdown child input");
+    drop(tapped_writer);
+    let mut output = Vec::new();
+    tapped_reader.read_to_end(&mut output).await.expect("read child output");
+    let finalized = client.finalize_child(child, stderr_task).await;
+
+    assert_eq!(output, b"{\"jsonrpc\":\"2.0\",\"id\":\"child\",\"result\":{}}\n");
+    assert_eq!(finalized.summary.exit_code, Some(0));
+    let raw_seen = raw_seen.lock();
+    let output_seen = output_seen.lock();
+    assert_eq!(raw_seen.len(), 2);
+    assert_eq!(output_seen.len(), 2);
+    assert_eq!(raw_seen[0].0, AcpMessageDirection::Outbound);
+    assert_eq!(raw_seen[1].0, AcpMessageDirection::Inbound);
+}
+
+#[tokio::test]
 async fn client_message_tap_dispatches_raw_and_output_callbacks() {
     let raw_seen = callback_values();
     let output_seen = callback_values();
@@ -192,6 +266,28 @@ async fn client_message_tap_dispatches_raw_and_output_callbacks() {
     assert_eq!(output_seen[0].0, AcpMessageDirection::Inbound);
     assert_eq!(raw_seen[0].1["method"], "session/update");
     assert_eq!(output_seen[1].1["id"], "ok");
+}
+
+#[tokio::test]
+async fn tap_dispatches_output_callback_without_raw_callback() {
+    let output_seen = callback_values();
+    let tap =
+        MessageTap::new(AcpMessageDirection::Outbound, None, Some(push_callback(&output_seen)));
+    let (mut writer, reader) = tokio::io::duplex(128);
+    writer
+        .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":\"ok\",\"result\":{}}\n")
+        .await
+        .expect("write message");
+    drop(writer);
+
+    let mut tapped_reader = TappedReader::new(reader, tap);
+    let mut output = Vec::new();
+    tapped_reader.read_to_end(&mut output).await.expect("read tapped");
+
+    let output_seen = output_seen.lock();
+    assert_eq!(output_seen.len(), 1);
+    assert_eq!(output_seen[0].0, AcpMessageDirection::Outbound);
+    assert_eq!(output_seen[0].1["id"], "ok");
 }
 
 #[tokio::test]
@@ -229,6 +325,23 @@ async fn tapped_reader_does_not_consume_failed_reads() {
     assert!(seen.lock().is_empty());
 }
 
+#[test]
+fn tapped_reader_preserves_pending_reads() {
+    let seen = callback_values();
+    let tap = MessageTap::new(AcpMessageDirection::Inbound, Some(push_callback(&seen)), None);
+    let mut tapped_reader = TappedReader::new(PendingReader, tap);
+    let waker = std::task::Waker::noop();
+    let mut cx = Context::from_waker(waker);
+    let mut bytes = [0; 32];
+    let mut buffer = ReadBuf::new(&mut bytes);
+
+    let result = Pin::new(&mut tapped_reader).poll_read(&mut cx, &mut buffer);
+
+    assert!(matches!(result, Poll::Pending));
+    assert!(buffer.filled().is_empty());
+    assert!(seen.lock().is_empty());
+}
+
 #[tokio::test]
 async fn tapped_writer_ignores_zero_byte_and_failed_writes() {
     let seen = callback_values();
@@ -242,6 +355,8 @@ async fn tapped_writer_ignores_zero_byte_and_failed_writes() {
 
     assert_eq!(written, 0);
     assert!(seen.lock().is_empty());
+    zero_writer.flush().await.expect("flush should forward");
+    zero_writer.shutdown().await.expect("shutdown should forward");
 
     let tap = MessageTap::new(AcpMessageDirection::Outbound, Some(push_callback(&seen)), None);
     let mut failing_writer = TappedWriter::new(FailingWriter, tap);
@@ -251,5 +366,20 @@ async fn tapped_writer_ignores_zero_byte_and_failed_writes() {
         .expect_err("write should fail");
 
     assert_eq!(error.kind(), io::ErrorKind::Other);
+    assert!(seen.lock().is_empty());
+}
+
+#[test]
+fn tapped_writer_preserves_pending_writes() {
+    let seen = callback_values();
+    let tap = MessageTap::new(AcpMessageDirection::Outbound, Some(push_callback(&seen)), None);
+    let mut tapped_writer = TappedWriter::new(PendingWriter, tap);
+    let waker = std::task::Waker::noop();
+    let mut cx = Context::from_waker(waker);
+
+    let result =
+        Pin::new(&mut tapped_writer).poll_write(&mut cx, br#"{"jsonrpc":"2.0","method":"x"}"#);
+
+    assert!(matches!(result, Poll::Pending));
     assert!(seen.lock().is_empty());
 }

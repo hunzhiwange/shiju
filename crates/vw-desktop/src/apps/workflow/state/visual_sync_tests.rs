@@ -60,6 +60,15 @@ fn apply_visual_draft_rejects_non_mapping_root() {
 }
 
 #[test]
+fn apply_visual_draft_reports_raw_yaml_parse_error() {
+    let draft = WorkflowNodeVisualDraft::Answer { answer_editor: editor("answer") };
+
+    let error = apply_visual_draft_to_yaml("answer", "answer: [", Some(&draft)).unwrap_err();
+
+    assert!(error.starts_with("节点 data YAML 解析失败:"));
+}
+
+#[test]
 fn apply_visual_draft_ignores_mismatched_block_type_and_draft() {
     let draft = WorkflowNodeVisualDraft::Answer { answer_editor: editor("answer") };
 
@@ -200,6 +209,40 @@ fn llm_visual_draft_syncs_model_context_vision_and_prompts() {
 }
 
 #[test]
+fn llm_visual_draft_creates_prompt_template_when_missing() {
+    let draft = WorkflowNodeVisualDraft::Llm {
+        provider: String::new(),
+        model_name: String::new(),
+        model_mode: "chat".to_string(),
+        enable_thinking: false,
+        context_enabled: false,
+        context_selector_input: " . , sys. ".to_string(),
+        system_prompt_editor: editor(""),
+        user_prompt_editor: editor("ask"),
+        vision_enabled: true,
+    };
+
+    let synced = synced_value("llm", "", &draft);
+
+    assert_eq!(nested_map_value(&synced, &["vision", "enabled"]).as_bool(), Some(true));
+    assert_eq!(
+        nested_map_value(&synced, &["context", "variable_selector"]),
+        &yaml_value("- []\n- [sys]\n")
+    );
+    let prompts = map_value(&synced, "prompt_template").as_sequence().unwrap();
+    assert_eq!(prompts.len(), 2);
+    assert_eq!(
+        prompts
+            .iter()
+            .filter_map(Value::as_mapping)
+            .filter_map(|prompt| mapping_value(prompt, "text"))
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec!["", "ask"]
+    );
+}
+
+#[test]
 fn answer_visual_draft_syncs_answer_text() {
     let draft = WorkflowNodeVisualDraft::Answer { answer_editor: editor("新的答案") };
 
@@ -307,6 +350,30 @@ fn knowledge_retrieval_visual_draft_syncs_enabled_score_threshold() {
         nested_map_value(&synced, &["single_retrieval_config", "model", "provider"]).as_str(),
         Some("openai")
     );
+    assert_eq!(
+        map_value(&synced, "query_attachment_selector")
+            .as_sequence()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec!["sys", "files"]
+    );
+    assert_eq!(
+        map_value(&synced, "dataset_ids")
+            .as_sequence()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec!["dataset-a", "dataset-b"]
+    );
+    assert!(
+        nested_map_value(&synced, &["single_retrieval_config", "model", "completion_params"])
+            .as_mapping()
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -331,6 +398,68 @@ fn knowledge_retrieval_visual_draft_syncs_disabled_score_threshold() {
     assert_eq!(
         nested_map_value(&synced, &["multiple_retrieval_config", "reranking_enable"]).as_bool(),
         Some(false)
+    );
+}
+
+#[test]
+fn knowledge_retrieval_visual_draft_preserves_existing_completion_parameters() {
+    let draft = WorkflowNodeVisualDraft::KnowledgeRetrieval {
+        query_selector_input: "sys.query".to_string(),
+        query_attachment_selector_input: String::new(),
+        dataset_ids_input: String::new(),
+        retrieval_mode: "single".to_string(),
+        top_k_input: "3".to_string(),
+        score_threshold_enabled: false,
+        score_threshold_input: String::new(),
+        reranking_enable: false,
+        single_model_provider: "openai".to_string(),
+        single_model_name: "rerank".to_string(),
+        single_model_mode: "rerank".to_string(),
+    };
+
+    let synced = synced_value(
+        "knowledge-retrieval",
+        "single_retrieval_config:\n  model:\n    completion_params:\n      temperature: 0.25\n",
+        &draft,
+    );
+
+    assert_eq!(
+        nested_map_value(
+            &synced,
+            &["single_retrieval_config", "model", "completion_params", "temperature"],
+        )
+        .as_f64(),
+        Some(0.25)
+    );
+}
+
+#[test]
+fn knowledge_retrieval_visual_draft_replaces_scalar_completion_parameters() {
+    let draft = WorkflowNodeVisualDraft::KnowledgeRetrieval {
+        query_selector_input: "sys.query".to_string(),
+        query_attachment_selector_input: String::new(),
+        dataset_ids_input: String::new(),
+        retrieval_mode: "single".to_string(),
+        top_k_input: "3".to_string(),
+        score_threshold_enabled: false,
+        score_threshold_input: String::new(),
+        reranking_enable: false,
+        single_model_provider: "openai".to_string(),
+        single_model_name: "rerank".to_string(),
+        single_model_mode: "rerank".to_string(),
+    };
+
+    let synced = synced_value(
+        "knowledge-retrieval",
+        "single_retrieval_config:\n  model:\n    completion_params: old\n",
+        &draft,
+    );
+
+    assert!(
+        nested_map_value(&synced, &["single_retrieval_config", "model", "completion_params"])
+            .as_mapping()
+            .unwrap()
+            .is_empty()
     );
 }
 
@@ -452,6 +581,46 @@ fn tool_visual_draft_reports_invalid_parameter_yaml() {
 }
 
 #[test]
+fn tool_visual_draft_reports_parameter_yaml_parse_error() {
+    let draft = WorkflowNodeVisualDraft::Tool {
+        provider_id: String::new(),
+        provider_type: String::new(),
+        provider_name: String::new(),
+        tool_name: String::new(),
+        tool_label: String::new(),
+        tool_description: String::new(),
+        credential_id: String::new(),
+        plugin_unique_identifier: String::new(),
+        tool_parameters_editor: editor("query: ["),
+        tool_configurations_editor: editor(""),
+    };
+
+    let error = apply_visual_draft_to_yaml("tool", "", Some(&draft)).unwrap_err();
+
+    assert!(error.starts_with("工具参数 YAML 解析失败:"));
+}
+
+#[test]
+fn tool_visual_draft_reports_invalid_configuration_yaml() {
+    let draft = WorkflowNodeVisualDraft::Tool {
+        provider_id: String::new(),
+        provider_type: String::new(),
+        provider_name: String::new(),
+        tool_name: String::new(),
+        tool_label: String::new(),
+        tool_description: String::new(),
+        credential_id: String::new(),
+        plugin_unique_identifier: String::new(),
+        tool_parameters_editor: editor(""),
+        tool_configurations_editor: editor("- item\n"),
+    };
+
+    let error = apply_visual_draft_to_yaml("tool", "", Some(&draft)).unwrap_err();
+
+    assert_eq!(error, "工具配置 必须是对象映射（YAML map）");
+}
+
+#[test]
 fn agent_visual_draft_syncs_strategy_maps_and_memory() {
     let draft = WorkflowNodeVisualDraft::Agent {
         strategy_provider_name: "react".to_string(),
@@ -519,6 +688,44 @@ fn agent_visual_draft_reports_invalid_output_schema_yaml() {
     let error = apply_visual_draft_to_yaml("agent", "", Some(&draft)).unwrap_err();
 
     assert_eq!(error, "Agent 输出结构 必须是对象映射（YAML map）");
+}
+
+#[test]
+fn agent_visual_draft_reports_output_schema_yaml_parse_error() {
+    let draft = WorkflowNodeVisualDraft::Agent {
+        strategy_provider_name: String::new(),
+        strategy_name: String::new(),
+        strategy_label: String::new(),
+        plugin_unique_identifier: String::new(),
+        output_schema_editor: editor("answer: ["),
+        parameters_editor: editor(""),
+        memory_enabled: false,
+        memory_window_size_input: "1".to_string(),
+        memory_prompt_editor: editor(""),
+    };
+
+    let error = apply_visual_draft_to_yaml("agent", "", Some(&draft)).unwrap_err();
+
+    assert!(error.starts_with("Agent 输出结构 YAML 解析失败:"));
+}
+
+#[test]
+fn agent_visual_draft_reports_invalid_parameters_yaml() {
+    let draft = WorkflowNodeVisualDraft::Agent {
+        strategy_provider_name: String::new(),
+        strategy_name: String::new(),
+        strategy_label: String::new(),
+        plugin_unique_identifier: String::new(),
+        output_schema_editor: editor(""),
+        parameters_editor: editor("- item\n"),
+        memory_enabled: false,
+        memory_window_size_input: "1".to_string(),
+        memory_prompt_editor: editor(""),
+    };
+
+    let error = apply_visual_draft_to_yaml("agent", "", Some(&draft)).unwrap_err();
+
+    assert_eq!(error, "Agent 参数 必须是对象映射（YAML map）");
 }
 
 #[test]
@@ -625,6 +832,23 @@ fn code_visual_draft_reports_invalid_default_value_yaml() {
 }
 
 #[test]
+fn code_visual_draft_reports_default_value_yaml_parse_error() {
+    let draft = WorkflowNodeVisualDraft::Code {
+        language: String::new(),
+        inputs: Vec::new(),
+        code_editor: editor(""),
+        outputs: Vec::new(),
+        retry_config: WorkflowNodeRetryDraft { enabled: false, max_retries: 0, retry_interval: 0 },
+        error_strategy: "default-value".to_string(),
+        default_value_editor: editor("["),
+    };
+
+    let error = apply_visual_draft_to_yaml("code", "", Some(&draft)).unwrap_err();
+
+    assert!(error.starts_with("代码节点 default_value YAML 解析失败:"));
+}
+
+#[test]
 fn parse_node_data_yaml_value_accepts_blank_and_mapping() {
     assert!(parse_node_data_yaml_value("").unwrap().as_mapping().unwrap().is_empty());
     assert_eq!(
@@ -663,6 +887,7 @@ fn selector_input_conversions_skip_invalid_and_empty_parts() {
         selector_value_from_input(" sys.query, , answer.text "),
         yaml_value("- [sys, query]\n- [answer, text]\n")
     );
+    assert_eq!(selector_value_from_input(" , "), yaml_value("[]"));
 }
 
 #[test]
@@ -670,8 +895,10 @@ fn selector_path_conversions_skip_invalid_and_empty_parts() {
     let value = yaml_value("[sys, query, 7]");
 
     assert_eq!(selector_path_input_from_value(Some(&value)), "sys.query");
+    assert_eq!(selector_path_input_from_value(Some(&Value::String("bad".to_string()))), "");
     assert_eq!(selector_path_input_from_value(None), "");
     assert_eq!(selector_path_value_from_input(" sys . query . "), yaml_value("[sys, query]"));
+    assert_eq!(selector_path_value_from_input(" . "), yaml_value("[]"));
 }
 
 #[test]
@@ -704,4 +931,11 @@ fn code_outputs_value_builds_output_mapping() {
 
     assert_eq!(nested_map_value(&value, &["answer", "type"]).as_str(), Some("string"));
     assert!(nested_map_value(&value, &["answer", "children"]).is_null());
+}
+
+#[test]
+fn code_outputs_value_allows_empty_outputs() {
+    let value = code_outputs_value(&[]);
+
+    assert!(value.as_mapping().unwrap().is_empty());
 }

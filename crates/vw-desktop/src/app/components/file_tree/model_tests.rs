@@ -171,3 +171,42 @@ fn build_file_tree_model_normalizes_dots_and_backslashes() {
     assert!(tree.files.contains(&"README.md".to_string()));
     assert!(tree.children.contains_key("src"));
 }
+
+#[test]
+fn build_file_tree_model_with_empty_root_normalizes_relative_paths() {
+    let files = vec![" ./src/main.rs ".to_string(), "\\tests\\basic.rs".to_string()];
+
+    let tree = build_file_tree_model("  ", &files);
+
+    assert!(tree.children.contains_key("src"));
+    assert!(tree.children.contains_key("tests"));
+}
+
+#[test]
+fn build_file_tree_model_ignores_empty_and_dot_paths() {
+    let files = vec![String::new(), "  ".to_string(), ".".to_string(), "/".to_string()];
+
+    let tree = build_file_tree_model("/tmp/demo", &files);
+
+    assert!(!tree.has_entries());
+}
+
+#[test]
+fn build_file_tree_subtree_returns_root_for_empty_prefix() {
+    let files = vec!["/tmp/demo/src/main.rs".to_string(), "/tmp/demo/README.md".to_string()];
+
+    let tree = build_file_tree_subtree("/tmp/demo", &files, "");
+
+    assert!(tree.has_entries());
+    assert!(tree.files.contains(&"README.md".to_string()));
+    assert!(tree.children.contains_key("src"));
+}
+
+#[test]
+fn build_file_tree_subtree_returns_empty_for_missing_directory() {
+    let files = vec!["/tmp/demo/src/main.rs".to_string()];
+
+    let tree = build_file_tree_subtree("/tmp/demo", &files, "missing/nested");
+
+    assert!(!tree.has_entries());
+}

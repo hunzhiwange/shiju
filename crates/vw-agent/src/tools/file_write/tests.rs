@@ -138,6 +138,14 @@ mod tests {
         assert!(required.contains(&json!("content")));
     }
 
+    #[test]
+    fn file_write_description_is_available() {
+        let tool = FileWriteTool::new(test_security(std::env::temp_dir()));
+        let description = tool.description();
+        assert!(description.contains("完整内容"));
+        assert!(description.contains("创建新文件"));
+    }
+
     /// 测试文件创建功能
     ///
     /// 验证 `FileWriteTool` 能够：
@@ -310,6 +318,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn file_write_reports_unchanged_existing_content() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_unchanged");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        tokio::fs::write(dir.join("same.txt"), "same").await.unwrap();
+
+        let tool = FileWriteTool::new(test_security(dir.clone()));
+        let context = Arc::new(ToolUseContext::new(
+            "file-write-unchanged",
+            Some(dir.to_string_lossy().to_string()),
+        ));
+        seed_read_state(&context, dir.as_path(), "same.txt", "same");
+
+        let result = scope_tool_use_context(
+            context,
+            tool.call(json!({"filePath": "same.txt", "content": "same"})),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_success(), "error: {:?}", result.error_text());
+        assert_eq!(result.data["kind"], json!("update"));
+        assert_eq!(result.render_hint.as_ref().unwrap().metadata["changed"], json!(false));
+        assert!(matches!(
+            result.content_blocks.first(),
+            Some(ToolResultContentDto::StructuredPatch { hunks }) if hunks.is_empty()
+        ));
+        assert_eq!(tokio::fs::read_to_string(dir.join("same.txt")).await.unwrap(), "same");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
     async fn file_write_blocks_stale_overwrite() {
         let dir = std::env::temp_dir().join("vibewindow_test_file_write_stale_overwrite");
         let _ = tokio::fs::remove_dir_all(&dir).await;
@@ -388,6 +429,41 @@ mod tests {
         assert!(result.error.as_ref().unwrap().contains("not allowed"));
     }
 
+    #[tokio::test]
+    async fn file_write_accepts_workspace_absolute_path() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_workspace_absolute");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let target = dir.join("absolute.txt");
+
+        let tool = FileWriteTool::new(test_security(dir.clone()));
+        let result =
+            tool.execute(json!({"filePath": target, "content": "absolute"})).await.unwrap();
+
+        assert!(result.success, "error: {:?}", result.error);
+        assert_eq!(tokio::fs::read_to_string(dir.join("absolute.txt")).await.unwrap(), "absolute");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_write_rejects_directory_target() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_directory_target");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(dir.join("nested")).await.unwrap();
+
+        let tool = FileWriteTool::new(test_security(dir.clone()));
+        let result = tool
+            .execute(json!({"filePath": "nested", "content": "not a directory"}))
+            .await
+            .unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap_or_default().contains("Path is a directory"));
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
     /// 测试缺失路径参数检测
     ///
     /// 验证 `FileWriteTool` 在缺少 `filePath` 或 `path` 参数时，
@@ -397,6 +473,22 @@ mod tests {
         let tool = FileWriteTool::new(test_security(std::env::temp_dir()));
         let result = tool.execute(json!({"content": "data"})).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn file_write_rejects_blank_path_value() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_blank_path");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+
+        let tool = FileWriteTool::new(test_security(dir.clone()));
+        let result = tool.execute(json!({"filePath": "   ", "content": "data"})).await.unwrap();
+
+        assert!(!result.success);
+        assert_eq!(result.error.as_deref(), Some("Missing filePath"));
+        assert!(tokio::fs::read_dir(&dir).await.unwrap().next_entry().await.unwrap().is_none());
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 
     /// 测试缺失内容参数检测
@@ -694,6 +786,31 @@ mod tests {
         assert_eq!(content, "ok");
 
         let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_write_accepts_file_path_alias() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_file_path_alias");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+
+        let tool = FileWriteTool::new(test_security(dir.clone()));
+        let result = tool.call(json!({"file_path": "out.txt", "content": "ok"})).await.unwrap();
+
+        assert!(result.is_success(), "error: {:?}", result.error_text());
+        assert_eq!(result.data["kind"], json!("create"));
+        assert_eq!(tokio::fs::read_to_string(dir.join("out.txt")).await.unwrap(), "ok");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_write_call_rejects_invalid_parameters() {
+        let tool = FileWriteTool::new(test_security(std::env::temp_dir()));
+        let result = tool.call(json!({"filePath": "missing-content.txt"})).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Missing or invalid parameters"));
     }
 
     #[tokio::test]

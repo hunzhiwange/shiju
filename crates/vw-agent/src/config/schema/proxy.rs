@@ -372,3 +372,7 @@ pub fn parse_proxy_enabled(raw: &str) -> Option<bool> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+#[path = "proxy_tests.rs"]
+mod proxy_tests;

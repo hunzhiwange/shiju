@@ -629,3 +629,110 @@ fn opened_environment_editor_renders_number_value_as_yaml() {
 
     assert_eq!(editor_text(&state), "5\n");
 }
+
+#[test]
+fn create_editors_fill_first_gap_in_default_names() {
+    let mut state = WorkflowState {
+        environment_variables: vec![
+            env_variable("env-1", "env_1", "string", Value::String("one".to_string())),
+            env_variable("env-3", "env_3", "string", Value::String("three".to_string())),
+        ],
+        conversation_variables: vec![
+            conversation_variable(
+                "conversation-1",
+                "conversation_1",
+                "string",
+                Value::String("one".to_string()),
+            ),
+            conversation_variable(
+                "conversation-3",
+                "conversation_3",
+                "string",
+                Value::String("three".to_string()),
+            ),
+        ],
+        ..WorkflowState::default()
+    };
+
+    state.open_create_environment_variable_editor();
+    assert_eq!(state.variable_editor.as_ref().expect("editor is open").name, "env_2");
+
+    state.open_create_conversation_variable_editor();
+    assert_eq!(state.variable_editor.as_ref().expect("editor is open").name, "conversation_2");
+}
+
+#[test]
+fn delete_missing_variables_preserves_existing_state() {
+    let mut state = WorkflowState {
+        environment_variables: vec![env_variable(
+            "env-1",
+            "api_url",
+            "string",
+            Value::String("old".to_string()),
+        )],
+        conversation_variables: vec![conversation_variable(
+            "conversation-1",
+            "topic",
+            "string",
+            Value::String("old".to_string()),
+        )],
+        variable_panel: Some(WorkflowVariablePanelKind::System),
+        status_message: Some("unchanged".to_string()),
+        ..WorkflowState::default()
+    };
+    state.open_edit_environment_variable_editor("env-1").expect("editor opens");
+
+    assert!(!state.delete_environment_variable("missing"));
+    assert!(!state.delete_conversation_variable("missing"));
+
+    assert_eq!(state.environment_variables.len(), 1);
+    assert_eq!(state.conversation_variables.len(), 1);
+    assert_eq!(
+        state.variable_editor.as_ref().expect("editor remains").mode,
+        WorkflowVariableEditorMode::EditEnvironment("env-1".to_string())
+    );
+    assert_eq!(state.variable_panel, Some(WorkflowVariablePanelKind::Environment));
+    assert_eq!(state.status_message, Some("unchanged".to_string()));
+}
+
+#[test]
+fn delete_missing_variables_without_open_editor_keeps_panel_and_status_unchanged() {
+    let mut state = WorkflowState {
+        variable_panel: Some(WorkflowVariablePanelKind::System),
+        status_message: Some("unchanged".to_string()),
+        ..WorkflowState::default()
+    };
+
+    assert!(!state.delete_environment_variable("missing-env"));
+    assert!(!state.delete_conversation_variable("missing-conversation"));
+
+    assert!(state.variable_editor.is_none());
+    assert_eq!(state.variable_panel, Some(WorkflowVariablePanelKind::System));
+    assert_eq!(state.status_message, Some("unchanged".to_string()));
+}
+
+#[test]
+fn submit_environment_number_accepts_float_yaml_scalar() {
+    let mut state = WorkflowState::default();
+    state.open_create_environment_variable_editor();
+    state.set_variable_editor_name("threshold".to_string());
+    state.set_variable_editor_type("number".to_string());
+    set_editor_value(&mut state, "0.75");
+
+    assert_eq!(state.submit_variable_editor(), Ok(()));
+    assert_eq!(
+        state.environment_variables[0].value,
+        serde_yaml::from_str::<Value>("0.75").expect("float")
+    );
+}
+
+#[test]
+fn submit_conversation_empty_editor_value_uses_empty_string() {
+    let mut state = WorkflowState::default();
+    state.open_create_conversation_variable_editor();
+    state.set_variable_editor_name("note".to_string());
+    set_editor_value(&mut state, "");
+
+    assert_eq!(state.submit_variable_editor(), Ok(()));
+    assert_eq!(state.conversation_variables[0].value, Value::String(String::new()));
+}

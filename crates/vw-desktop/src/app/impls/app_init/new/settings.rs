@@ -299,6 +299,11 @@ pub(super) fn build_skills_settings(
         directory_scope: crate::app::state::SkillsDirectoryScope::Project,
         loading: false,
         catalog: Vec::new(),
+        plugin_catalog: Vec::new(),
+        plugin_loading: false,
+        selected_plugin_id: None,
+        plugin_status_message: None,
+        plugin_status_is_error: false,
         selected_skill_id: None,
         selected_skill_detail: None,
         detail_loading: false,
@@ -486,6 +491,8 @@ pub(super) fn build_gateway_client_settings(
             if value.is_empty() { "127.0.0.1".to_string() } else { value }
         },
         port: active.port.clamp(1, u16::MAX),
+        platform_id_input: active.platform_id.clone(),
+        company_id_input: active.company_id.clone(),
         skey_input: if active.skey.trim().is_empty() {
             active.bearer_token.clone()
         } else {
@@ -610,6 +617,14 @@ pub(super) fn build_agents_settings(
         available_tools: config::load_tools_list_via_gateway(),
         save_error: None,
     }
+}
+
+/// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
+/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn build_staff_settings(
+    full_agent_cfg: &vw_config_types::config::Config,
+) -> crate::app::state::StaffSettingsState {
+    crate::app::state::StaffSettingsState::from_config(full_agent_cfg.staff.clone())
 }
 
 /// 模块内可见函数，执行 build_coordination_settings 对应的应用流程。
@@ -1027,19 +1042,9 @@ pub(super) fn build_transcription_settings(
 /// 模块内可见函数，执行 build_task_board_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_task_board_settings(
-    cfg: &serde_json::Value,
+    _cfg: &serde_json::Value,
 ) -> crate::app::task::TaskBoardSettings {
-    let mut settings = crate::app::task::TaskBoardSettings::new();
-    settings.code_review_enabled = cfg
-        .get("task_board_code_review_enabled")
-        .and_then(|value: &serde_json::Value| value.as_bool())
-        .unwrap_or(settings.code_review_enabled);
-    settings.auto_promote_pool_tasks = cfg
-        .get("task_board_auto_promote_pool_tasks")
-        .and_then(|value: &serde_json::Value| value.as_bool())
-        .unwrap_or(settings.auto_promote_pool_tasks);
-    settings.auto_execute = settings.auto_promote_pool_tasks;
-    settings
+    crate::app::task::TaskBoardSettings::new()
 }
 #[cfg(test)]
 #[path = "settings_tests.rs"]

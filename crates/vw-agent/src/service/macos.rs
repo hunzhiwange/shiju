@@ -1,7 +1,7 @@
 use crate::app::agent::config::Config;
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::common::{build_launchd_env_vars, run_capture, run_checked, xml_escape};
@@ -27,16 +27,29 @@ pub(super) fn install_macos(config: &Config) -> Result<()> {
     let stdout = logs_dir.join("daemon.stdout.log");
     let stderr = logs_dir.join("daemon.stderr.log");
     let env_block = build_launchd_env_vars();
-    let config_dir_arg = config_dir_arg(config)
+    let plist =
+        build_launchd_plist(&exe, config_dir_arg(config).as_deref(), &stdout, &stderr, &env_block);
+
+    fs::write(&file, plist)?;
+    println!("✅ Installed launchd service: {}", file.display());
+    println!("   Start with: vibewindow service start");
+    Ok(())
+}
+
+pub(super) fn build_launchd_plist(
+    exe: &Path,
+    config_dir: Option<&str>,
+    stdout: &Path,
+    stderr: &Path,
+    env_block: &str,
+) -> String {
+    let config_dir_arg = config_dir
         .map(|dir| {
-            format!(
-                "\n    <string>--config-dir</string>\n    <string>{}</string>",
-                xml_escape(&dir)
-            )
+            format!("\n    <string>--config-dir</string>\n    <string>{}</string>", xml_escape(dir))
         })
         .unwrap_or_default();
 
-    let plist = format!(
+    format!(
         r#"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
 <plist version=\"1.0\">
@@ -65,12 +78,7 @@ pub(super) fn install_macos(config: &Config) -> Result<()> {
         env_block = env_block,
         stdout = xml_escape(&stdout.display().to_string()),
         stderr = xml_escape(&stderr.display().to_string())
-    );
-
-    fs::write(&file, plist)?;
-    println!("✅ Installed launchd service: {}", file.display());
-    println!("   Start with: vibewindow service start");
-    Ok(())
+    )
 }
 
 pub(super) fn start_macos() -> Result<()> {
@@ -78,6 +86,19 @@ pub(super) fn start_macos() -> Result<()> {
     run_checked(Command::new("launchctl").arg("load").arg("-w").arg(&plist))?;
     run_checked(Command::new("launchctl").arg("start").arg(SERVICE_LABEL))?;
     println!("✅ Service started");
+    Ok(())
+}
+
+pub(super) fn restart_macos() -> Result<()> {
+    if let Some(target) = current_launchd_gui_service_target()
+        && run_checked(Command::new("launchctl").arg("kickstart").arg("-k").arg(target)).is_ok()
+    {
+        println!("✅ Service restarted");
+        return Ok(());
+    }
+
+    start_macos()?;
+    println!("✅ Service restarted");
     Ok(())
 }
 
@@ -111,4 +132,20 @@ pub(super) fn macos_service_file() -> Result<PathBuf> {
         .map(|u| u.home_dir().to_path_buf())
         .context("Could not find home directory")?;
     Ok(home.join("Library").join("LaunchAgents").join(format!("{SERVICE_LABEL}.plist")))
+}
+
+pub(super) fn launchd_gui_service_target_for_uid(uid: &str) -> Option<String> {
+    let uid = uid.trim();
+    if uid.is_empty() || !uid.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!("gui/{uid}/{SERVICE_LABEL}"))
+}
+
+fn current_launchd_gui_service_target() -> Option<String> {
+    let output = Command::new("id").arg("-u").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    launchd_gui_service_target_for_uid(&String::from_utf8_lossy(&output.stdout))
 }

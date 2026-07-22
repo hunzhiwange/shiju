@@ -1,7 +1,7 @@
 //! Agents IPC 设置页面的视图组件
 //!
 //! 本模块提供跨进程 Agent IPC（Inter-Process Communication）配置的 UI 视图。
-//! 用户可以通过此界面配置 `~/.vibewindow/vibewindow.json` 文件中的 `agents_ipc` 字段，
+//! 用户可以通过此界面配置共享数据库中的 `agents_ipc` 字段，相关读写统一经过 Gateway，
 //! 实现同一主机上多个 VibeWindow 进程间的发现与消息交换。
 //!
 //! # 功能概述
@@ -18,9 +18,9 @@
 //! - `staleness_secs`: 离线判定阈值（秒）
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_text_input_style, settings_value_badge, with_settings_help_modal,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_section_card, settings_text_input_style,
+    settings_value_badge, with_settings_help_modal,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -47,6 +47,18 @@ fn field_row<'a>(
     .padding([14, 0])
     .width(Length::Fill)
     .into()
+}
+
+fn enabled_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::AgentsIpcEnabledToggled(value))
+}
+
+fn db_path_changed(value: String) -> Message {
+    Message::Settings(message::SettingsMessage::AgentsIpcDbPathChanged(value))
+}
+
+fn staleness_secs_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::AgentsIpcStalenessSecsChanged(value.round() as u64))
 }
 
 /// 构建 Agents IPC 设置页面的 UI 视图
@@ -88,7 +100,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "控制是否启用跨进程 Agent IPC。",
         checkbox(s.enabled)
             .label("开启跨进程 Agent IPC")
-            .on_toggle(|v| Message::Settings(message::SettingsMessage::AgentsIpcEnabledToggled(v)))
+            .on_toggle(enabled_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -96,17 +108,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "数据库路径",
         "多个进程需指向同一 SQLite 文件。",
         text_input(vw_config_types::paths::AGENTS_IPC_DB_PATH, &s.db_path_input)
-            .on_input(|v| Message::Settings(message::SettingsMessage::AgentsIpcDbPathChanged(v)))
+            .on_input(db_path_changed)
             .padding([10, 12])
             .size(13)
             .style(settings_text_input_style)
             .width(Length::Fill),
     );
 
-    let staleness_slider = slider(1.0..=86_400.0, s.staleness_secs as f32, |v| {
-        Message::Settings(message::SettingsMessage::AgentsIpcStalenessSecsChanged(v.round() as u64))
-    })
-    .width(Length::Fixed(280.0));
+    let staleness_slider = slider(1.0..=86_400.0, s.staleness_secs as f32, staleness_secs_changed)
+        .width(Length::Fixed(280.0));
 
     let staleness_row = field_row(
         "离线阈值",
@@ -116,7 +126,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro(
                 "代理通信配置",
@@ -131,10 +141,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

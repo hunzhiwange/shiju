@@ -200,6 +200,32 @@ fn public_urls_from_status_filters_out_other_backend_ports() {
 }
 
 #[test]
+fn public_urls_from_status_without_hostname_accepts_matching_backends() {
+    let status = json!({
+        "Web": {
+            "alpha.tailnet.ts.net:8443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            },
+            "beta.tailnet.ts.net:8443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            }
+        }
+    });
+
+    assert_eq!(
+        public_urls_from_status(&status, None, 42617, false),
+        vec![
+            "https://alpha.tailnet.ts.net:8443".to_string(),
+            "https://beta.tailnet.ts.net:8443".to_string(),
+        ]
+    );
+}
+
+#[test]
 fn fallback_public_url_uses_expected_frontend_port() {
     assert_eq!(
         fallback_public_url("xiangminmac-mini.tail47e3db.ts.net.", false),
@@ -209,4 +235,399 @@ fn fallback_public_url_uses_expected_frontend_port() {
         fallback_public_url("xiangminmac-mini.tail47e3db.ts.net.", true),
         "https://xiangminmac-mini.tail47e3db.ts.net"
     );
+}
+
+#[test]
+fn normalize_dns_name_removes_all_trailing_dots() {
+    assert_eq!(normalize_dns_name("node.tailnet.ts.net..."), "node.tailnet.ts.net");
+    assert_eq!(normalize_dns_name("node.tailnet.ts.net"), "node.tailnet.ts.net");
+    assert_eq!(normalize_dns_name("..."), "");
+}
+
+#[test]
+fn host_and_port_parses_only_valid_u16_suffixes() {
+    assert_eq!(host_and_port("node.tailnet.ts.net:8443"), ("node.tailnet.ts.net", Some(8443)));
+    assert_eq!(host_and_port("node.tailnet.ts.net:0"), ("node.tailnet.ts.net", Some(0)));
+    assert_eq!(host_and_port("node.tailnet.ts.net"), ("node.tailnet.ts.net", None));
+    assert_eq!(
+        host_and_port("node.tailnet.ts.net:not-a-port"),
+        ("node.tailnet.ts.net:not-a-port", None)
+    );
+    assert_eq!(host_and_port("node.tailnet.ts.net:65536"), ("node.tailnet.ts.net:65536", None));
+}
+
+#[test]
+fn proxy_targets_local_port_accepts_scheme_and_path_variants() {
+    assert!(proxy_targets_local_port("http://127.0.0.1:42617", 42617));
+    assert!(proxy_targets_local_port("https://localhost:42617/api", 42617));
+    assert!(proxy_targets_local_port("localhost:42617/health", 42617));
+    assert!(!proxy_targets_local_port("http://127.0.0.1:42618", 42617));
+    assert!(!proxy_targets_local_port("http://127.0.0.1:not-a-port", 42617));
+    assert!(!proxy_targets_local_port("http://127.0.0.1", 42617));
+}
+
+#[test]
+fn host_matching_ignores_frontend_port_and_trailing_dot() {
+    assert!(host_matches("node.tailnet.ts.net:8443.", "node.tailnet.ts.net."));
+    assert!(host_matches("node.tailnet.ts.net.", "node.tailnet.ts.net"));
+    assert!(!host_matches("other.tailnet.ts.net:8443", "node.tailnet.ts.net"));
+}
+
+#[test]
+fn host_port_to_https_url_omits_default_port_only() {
+    assert_eq!(host_port_to_https_url("node.tailnet.ts.net"), "https://node.tailnet.ts.net");
+    assert_eq!(host_port_to_https_url("node.tailnet.ts.net:443."), "https://node.tailnet.ts.net");
+    assert_eq!(
+        host_port_to_https_url("node.tailnet.ts.net:8443."),
+        "https://node.tailnet.ts.net:8443"
+    );
+}
+
+#[test]
+fn funnel_enabled_requires_matching_true_boolean() {
+    let status = json!({
+        "AllowFunnel": {
+            "node.tailnet.ts.net:443.": true,
+            "node.tailnet.ts.net:8443": false,
+            "node.tailnet.ts.net:9443": "true"
+        }
+    });
+
+    assert!(host_port_has_funnel_enabled(&status, "node.tailnet.ts.net:443"));
+    assert!(!host_port_has_funnel_enabled(&status, "node.tailnet.ts.net:8443"));
+    assert!(!host_port_has_funnel_enabled(&status, "node.tailnet.ts.net:9443"));
+    assert!(!host_port_has_funnel_enabled(&json!({}), "node.tailnet.ts.net:443"));
+}
+
+#[test]
+fn public_url_rank_prioritizes_hostname_then_mode_port() {
+    assert!(
+        public_url_rank("https://node.tailnet.ts.net:9443", Some("node.tailnet.ts.net"), true)
+            < public_url_rank("https://other.tailnet.ts.net", Some("node.tailnet.ts.net"), true)
+    );
+    assert!(
+        public_url_rank("https://node.tailnet.ts.net", None, true)
+            < public_url_rank("https://node.tailnet.ts.net:8443", None, true)
+    );
+    assert!(
+        public_url_rank("https://node.tailnet.ts.net:8443", None, false)
+            < public_url_rank("https://node.tailnet.ts.net", None, false)
+    );
+}
+
+#[test]
+fn public_urls_from_status_rejects_missing_or_malformed_web_entries() {
+    assert!(public_urls_from_status(&json!({}), None, 42617, false).is_empty());
+
+    let status = json!({
+        "Web": {
+            "wrong.tailnet.ts.net:8443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            },
+            "node.tailnet.ts.net:8443": {},
+            "node.tailnet.ts.net:9443": {
+                "Handlers": {
+                    "/": { "Proxy": 42617 }
+                }
+            }
+        }
+    });
+
+    assert!(public_urls_from_status(&status, Some("node.tailnet.ts.net"), 42617, false).is_empty());
+}
+
+#[test]
+fn public_urls_from_status_sorts_and_deduplicates_serve_urls() {
+    let status = json!({
+        "Web": {
+            "node.tailnet.ts.net:9443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            },
+            "node.tailnet.ts.net:443": {
+                "Handlers": {
+                    "/": { "Proxy": "127.0.0.1:42617/path" }
+                }
+            },
+            "node.tailnet.ts.net:8443.": {
+                "Handlers": {
+                    "/": { "Proxy": "http://localhost:42617" }
+                }
+            },
+            "node.tailnet.ts.net:8443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            }
+        }
+    });
+
+    assert_eq!(
+        public_urls_from_status(&status, Some("node.tailnet.ts.net"), 42617, false),
+        vec![
+            "https://node.tailnet.ts.net:8443".to_string(),
+            "https://node.tailnet.ts.net".to_string(),
+            "https://node.tailnet.ts.net:9443".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn public_urls_from_status_sorts_funnel_frontend_ports() {
+    let status = json!({
+        "Web": {
+            "node.tailnet.ts.net:9443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            },
+            "node.tailnet.ts.net:8443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            },
+            "node.tailnet.ts.net:443": {
+                "Handlers": {
+                    "/": { "Proxy": "http://127.0.0.1:42617" }
+                }
+            }
+        },
+        "AllowFunnel": {
+            "node.tailnet.ts.net:9443": true,
+            "node.tailnet.ts.net:8443": true,
+            "node.tailnet.ts.net:443": true
+        }
+    });
+
+    assert_eq!(
+        public_urls_from_status(&status, Some("node.tailnet.ts.net"), 42617, true),
+        vec![
+            "https://node.tailnet.ts.net".to_string(),
+            "https://node.tailnet.ts.net:8443".to_string(),
+            "https://node.tailnet.ts.net:9443".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn status_hostname_normalizes_valid_dns_name() {
+    let status = json!({ "Self": { "DNSName": "node.tailnet.ts.net." } });
+
+    assert_eq!(status_hostname(&status).unwrap(), "node.tailnet.ts.net");
+}
+
+#[test]
+fn status_hostname_rejects_missing_or_empty_dns_name() {
+    for status in [
+        json!({}),
+        json!({ "Self": {} }),
+        json!({ "Self": { "DNSName": 42 } }),
+        json!({ "Self": { "DNSName": "..." } }),
+    ] {
+        assert_eq!(
+            status_hostname(&status).unwrap_err().to_string(),
+            "tailscale status missing Self.DNSName"
+        );
+    }
+}
+
+#[tokio::test]
+async fn resolve_hostname_uses_configured_normalized_name_without_status_lookup() {
+    let tunnel = TailscaleTunnel::new(false, Some("node.tailnet.ts.net.".to_string()));
+
+    assert_eq!(tunnel.resolve_hostname().await.unwrap(), "node.tailnet.ts.net");
+}
+
+#[test]
+fn public_url_returns_stored_state_url() {
+    let tunnel = TailscaleTunnel::new(false, None);
+    let mut state = tunnel.state.try_lock().unwrap();
+    *state = Some(TailscaleState {
+        local_port: 42617,
+        public_url: "https://node.tailnet.ts.net:8443".to_string(),
+    });
+    drop(state);
+
+    assert_eq!(tunnel.public_url().as_deref(), Some("https://node.tailnet.ts.net:8443"));
+}
+
+#[test]
+fn public_url_returns_none_while_state_is_locked() {
+    let tunnel = TailscaleTunnel::new(false, None);
+    let _state = tunnel.state.try_lock().unwrap();
+
+    assert!(tunnel.public_url().is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn start_with_fake_tailscale_uses_status_url_and_health_check_matches_state() {
+    let _lock = tailscale_env_lock();
+    let bin = tempfile::tempdir().expect("fake tailscale bin dir");
+    write_fake_tailscale(bin.path());
+    let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
+    let _mode = EnvGuard::set("TAILSCALE_FAKE_MODE", "success");
+    let tunnel = TailscaleTunnel::new(false, None);
+
+    let url = tunnel.start("127.0.0.1", 42617).await.expect("fake serve starts");
+
+    assert_eq!(url, "https://node.tailnet.ts.net:8443");
+    assert_eq!(tunnel.public_url().as_deref(), Some("https://node.tailnet.ts.net:8443"));
+    assert!(tunnel.health_check().await);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn start_with_fake_tailscale_rejects_tailnet_only_funnel_status() {
+    let _lock = tailscale_env_lock();
+    let bin = tempfile::tempdir().expect("fake tailscale bin dir");
+    write_fake_tailscale(bin.path());
+    let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
+    let _mode = EnvGuard::set("TAILSCALE_FAKE_MODE", "tailnet_only");
+    let tunnel = TailscaleTunnel::new(true, Some("node.tailnet.ts.net.".to_string()));
+
+    let error = tunnel
+        .start("127.0.0.1", 42617)
+        .await
+        .expect_err("tailnet-only status is rejected for funnel");
+
+    assert!(error.to_string().contains("did not report an internet-facing URL"));
+    assert!(tunnel.public_url().is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn start_with_fake_tailscale_reports_command_failure_without_status_url() {
+    let _lock = tailscale_env_lock();
+    let bin = tempfile::tempdir().expect("fake tailscale bin dir");
+    write_fake_tailscale(bin.path());
+    let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
+    let _mode = EnvGuard::set("TAILSCALE_FAKE_MODE", "fail");
+    let tunnel = TailscaleTunnel::new(false, Some("node.tailnet.ts.net".to_string()));
+
+    let error =
+        tunnel.start("127.0.0.1", 42617).await.expect_err("failed serve command is reported");
+
+    assert!(error.to_string().contains("tailscale serve failed: fake serve failed"));
+    assert!(tunnel.public_url().is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn tailscale_status_json_reports_cli_failure_and_parse_errors() {
+    let _lock = tailscale_env_lock();
+    let bin = tempfile::tempdir().expect("fake tailscale bin dir");
+    write_fake_tailscale(bin.path());
+    let _path = EnvGuard::set_os("PATH", prepend_path(bin.path()).as_os_str());
+
+    let _mode = EnvGuard::set("TAILSCALE_FAKE_MODE", "status_fail");
+    let error =
+        tailscale_status_json(&["status", "--json"]).await.expect_err("nonzero status should fail");
+    assert!(error.to_string().contains("tailscale status --json failed: fake status failed"));
+    drop(_mode);
+
+    let _mode = EnvGuard::set("TAILSCALE_FAKE_MODE", "invalid_json");
+    let error =
+        tailscale_status_json(&["status", "--json"]).await.expect_err("invalid JSON should fail");
+    assert!(error.to_string().contains("failed to parse tailscale status JSON"));
+}
+
+#[cfg(unix)]
+fn tailscale_env_lock() -> std::sync::MutexGuard<'static, ()> {
+    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
+}
+
+#[cfg(unix)]
+struct EnvGuard {
+    key: &'static str,
+    original: Option<std::ffi::OsString>,
+}
+
+#[cfg(unix)]
+impl EnvGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        Self::set_os(key, std::ffi::OsStr::new(value))
+    }
+
+    fn set_os(key: &'static str, value: &std::ffi::OsStr) -> Self {
+        let original = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self { key, original }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.original {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
+
+#[cfg(unix)]
+fn prepend_path(dir: &std::path::Path) -> std::ffi::OsString {
+    let mut paths = vec![dir.to_path_buf()];
+    if let Some(existing) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&existing));
+    }
+    std::env::join_paths(paths).expect("join fake PATH")
+}
+
+#[cfg(unix)]
+fn write_fake_tailscale(dir: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = dir.join("tailscale");
+    std::fs::write(
+        &path,
+        r#"#!/bin/sh
+mode="${TAILSCALE_FAKE_MODE:-success}"
+
+if [ "$mode" = "status_fail" ] && [ "$1" = "status" ] && [ "$2" = "--json" ]; then
+  echo "fake status failed" >&2
+  exit 23
+fi
+
+if [ "$mode" = "invalid_json" ] && [ "$1" = "status" ] && [ "$2" = "--json" ]; then
+  printf 'not json'
+  exit 0
+fi
+
+if [ "$1" = "status" ] && [ "$2" = "--json" ]; then
+  printf '{"Self":{"DNSName":"node.tailnet.ts.net."}}'
+  exit 0
+fi
+
+if [ "$1" = "serve" ] && [ "$2" = "--bg" ] && [ "$mode" = "fail" ]; then
+  echo "fake serve failed" >&2
+  exit 42
+fi
+
+if [ "$2" = "status" ] && [ "$3" = "--json" ]; then
+  case "$mode" in
+    fail)
+      printf '{"Web":{}}'
+      ;;
+    tailnet_only)
+      printf '{"Web":{"node.tailnet.ts.net:8443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:42617"}}}}}'
+      ;;
+    *)
+      printf '{"Web":{"node.tailnet.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:42617"}}},"node.tailnet.ts.net:8443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:42617"}}}},"AllowFunnel":{"node.tailnet.ts.net:443":true}}'
+      ;;
+  esac
+  exit 0
+fi
+
+exit 0
+"#,
+    )
+    .expect("write fake tailscale");
+    let mut perms = std::fs::metadata(&path).expect("fake tailscale metadata").permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(&path, perms).expect("fake tailscale executable");
 }

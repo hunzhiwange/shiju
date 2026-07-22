@@ -31,40 +31,49 @@ use std::hash::{Hash, Hasher};
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn settings_close_button(on_press: Message) -> Element<'static, Message> {
     button(
-        container(icon_svg(Icon::X, 12.0).style(|theme: &iced::Theme, _status| svg::Style {
-            color: Some(if is_dark_theme(theme) {
-                theme.palette().text.scale_alpha(0.72)
-            } else {
-                theme.palette().text.scale_alpha(0.82)
-            }),
-        }))
-        .center_x(Length::Fill)
-        .center_y(Length::Fill),
+        container(icon_svg(Icon::X, 12.0).style(settings_close_icon_style))
+            .center_x(Length::Fill)
+            .center_y(Length::Fill),
     )
     .width(Length::Fixed(28.0))
     .height(Length::Fixed(28.0))
     .padding(0)
-    .style(|theme: &iced::Theme, status| {
-        let palette = theme.extended_palette();
-        let background = match status {
-            iced::widget::button::Status::Hovered => {
-                Some(palette.background.weak.color.scale_alpha(0.72).into())
-            }
-            iced::widget::button::Status::Pressed => {
-                Some(palette.background.strong.color.scale_alpha(0.82).into())
-            }
-            _ => None,
-        };
-
-        iced::widget::button::Style {
-            background,
-            text_color: theme.palette().text,
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-            ..Default::default()
-        }
-    })
+    .style(settings_close_button_style)
     .on_press(on_press)
     .into()
+}
+
+pub(super) fn settings_close_icon_style(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+    svg::Style {
+        color: Some(if is_dark_theme(theme) {
+            theme.palette().text.scale_alpha(0.72)
+        } else {
+            theme.palette().text.scale_alpha(0.82)
+        }),
+    }
+}
+
+pub(super) fn settings_close_button_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        iced::widget::button::Status::Hovered => {
+            Some(palette.background.weak.color.scale_alpha(0.72).into())
+        }
+        iced::widget::button::Status::Pressed => {
+            Some(palette.background.strong.color.scale_alpha(0.82).into())
+        }
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+        ..Default::default()
+    }
 }
 
 /// 构建或处理 `settings_help_button` 对应的界面片段与交互数据。
@@ -106,12 +115,7 @@ pub fn with_settings_help_modal<'a>(
 ) -> Element<'a, Message> {
     let help_text = help_text.into();
     let close_btn = settings_close_button(close_message.clone());
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    help_text.hash(&mut hasher);
-    let help_text_hash = hasher.finish();
-    let help_copied = app.last_copied_code_hash == Some(help_text_hash);
-    let copy_icon = if help_copied { Icon::Check } else { Icon::Copy };
-    let copy_tip = if help_copied { "已复制" } else { "复制帮助" };
+    let (copy_icon, copy_tip) = settings_help_copy_state(app.last_copied_code_hash, &help_text);
     let copy_btn = icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(help_text.clone())));
     let header = row![text(title).size(16), Space::new().width(Length::Fill), copy_btn, close_btn,]
         .spacing(10)
@@ -133,4 +137,19 @@ pub fn with_settings_help_modal<'a>(
     .height(Length::Fixed(560.0));
 
     settings_modal_overlay(Some(base), close_message, card)
+}
+
+pub(super) fn settings_help_copy_state(
+    last_copied_code_hash: Option<u64>,
+    help_text: &str,
+) -> (Icon, &'static str) {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    help_text.hash(&mut hasher);
+    let help_text_hash = hasher.finish();
+
+    if last_copied_code_hash == Some(help_text_hash) {
+        (Icon::Check, "已复制")
+    } else {
+        (Icon::Copy, "复制帮助")
+    }
 }

@@ -12,13 +12,15 @@ pub(crate) fn project_data_dir(workspace_dir: &Path) -> Result<PathBuf> {
 }
 
 pub(crate) fn project_data_dir_best_effort(workspace_dir: &Path) -> PathBuf {
-    project_data_dir(workspace_dir).unwrap_or_else(|_| {
-        std::env::temp_dir()
-            .join(vw_config_types::paths::APP_DIR_NAME)
-            .join("worktree")
-            .join("projects")
-            .join(project_state_id(workspace_dir))
-    })
+    project_data_dir(workspace_dir).unwrap_or_else(|_| fallback_project_data_dir(workspace_dir))
+}
+
+fn fallback_project_data_dir(workspace_dir: &Path) -> PathBuf {
+    std::env::temp_dir()
+        .join(vw_config_types::paths::APP_DIR_NAME)
+        .join("worktree")
+        .join("projects")
+        .join(project_state_id(workspace_dir))
 }
 
 /// Return the user-scoped data root for workspace-level runtime state.

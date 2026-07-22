@@ -2,14 +2,11 @@ use super::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::{
     AcpAgentConfig, AcpSessionOptions, PermissionMode, SessionEventLog, SessionTokenUsage,
 };
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 struct TempDir {
     path: PathBuf,
@@ -42,13 +39,13 @@ impl Drop for TempDir {
 }
 
 struct EnvGuard {
-    _lock: MutexGuard<'static, ()>,
+    _lock: tokio::sync::MutexGuard<'static, ()>,
     saved_home: Option<String>,
 }
 
 impl EnvGuard {
-    fn set_home(path: &Path) -> Self {
-        let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    async fn set_home(path: &Path) -> Self {
+        let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
         let saved_home = std::env::var("HOME").ok();
         unsafe { std::env::set_var("HOME", path) };
         Self { _lock: lock, saved_home }
@@ -83,6 +80,10 @@ impl MockAgent {
             args: vec!["-u".to_string(), self.script.display().to_string()],
             env: HashMap::new(),
         }
+    }
+
+    fn command_line(&self) -> String {
+        format!("python3 -u \"{}\"", self.script.display())
     }
 }
 
@@ -172,6 +173,29 @@ fn ensure_options_with_boundary(
     }
 }
 
+fn ensure_options_with_model(cwd: &Path, agent_command: String) -> SessionEnsureOptions {
+    SessionEnsureOptions {
+        agent_command,
+        agent_config: None,
+        cwd: cwd.display().to_string(),
+        name: Some("work".to_string()),
+        resume_session_id: None,
+        mcp_servers: None,
+        permission_mode: PermissionMode::DenyAll,
+        non_interactive_permissions: None,
+        auth_credentials: None,
+        auth_policy: None,
+        verbose: false,
+        walk_boundary: None,
+        session_options: Some(AcpSessionOptions {
+            model: Some("precise-model".to_string()),
+            allowed_tools: None,
+            max_turns: None,
+        }),
+        timeout_ms: Some(5_000),
+    }
+}
+
 fn stored_record(id: &str, cwd: &Path, name: Option<&str>, last_used_at: &str) -> SessionRecord {
     SessionRecord {
         schema: crate::SESSION_RECORD_SCHEMA.to_string(),
@@ -214,6 +238,19 @@ fn stored_record(id: &str, cwd: &Path, name: Option<&str>, last_used_at: &str) -
     }
 }
 
+fn stored_record_for_command(
+    id: &str,
+    agent_command: &str,
+    cwd: &Path,
+    name: Option<&str>,
+    last_used_at: &str,
+) -> SessionRecord {
+    SessionRecord {
+        agent_command: agent_command.to_string(),
+        ..stored_record(id, cwd, name, last_used_at)
+    }
+}
+
 #[test]
 fn walk_boundary_accepts_descendants_only() {
     let boundary = Path::new("/tmp/project");
@@ -226,7 +263,7 @@ fn walk_boundary_accepts_descendants_only() {
 #[tokio::test(flavor = "current_thread")]
 async fn create_session_writes_normalized_record_and_requested_options() {
     let home = TempDir::new("home");
-    let _env = EnvGuard::set_home(home.path());
+    let _env = EnvGuard::set_home(home.path()).await;
     let cwd = TempDir::new("cwd");
     let agent = MockAgent::new();
 
@@ -262,9 +299,43 @@ async fn create_session_writes_normalized_record_and_requested_options() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn create_session_with_client_returns_reusable_client() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd");
+    let agent = MockAgent::new();
+
+    let result = create_session_with_client(create_options(cwd.path(), &agent, None))
+        .await
+        .expect("session and client should be created");
+
+    assert_eq!(result.record.vwacp_record_id, "session-1");
+    assert!(result.client.has_reusable_session("session-1"));
+    let _ = result.client.close().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn create_session_reports_agent_start_failure() {
+    let home = TempDir::new("home-start-failure");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd-start-failure");
+    let agent = MockAgent::new();
+    let mut options = create_options(cwd.path(), &agent, None);
+    options.agent_config = Some(AcpAgentConfig {
+        command: cwd.join("missing-agent").display().to_string(),
+        args: Vec::new(),
+        env: HashMap::new(),
+    });
+
+    let error = create_session(options).await.expect_err("missing agent should fail");
+
+    assert!(!error.to_string().is_empty());
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn create_session_uses_load_when_resume_session_id_is_requested() {
     let home = TempDir::new("home");
-    let _env = EnvGuard::set_home(home.path());
+    let _env = EnvGuard::set_home(home.path()).await;
     let cwd = TempDir::new("cwd");
     let agent = MockAgent::new();
     let mut options = create_options(cwd.path(), &agent, None);
@@ -280,7 +351,7 @@ async fn create_session_uses_load_when_resume_session_id_is_requested() {
 #[tokio::test(flavor = "current_thread")]
 async fn ensure_session_reuses_directory_walk_record_without_creating() {
     let home = TempDir::new("home");
-    let _env = EnvGuard::set_home(home.path());
+    let _env = EnvGuard::set_home(home.path()).await;
     let workspace = TempDir::new("workspace");
     let parent = workspace.join("project");
     let child = parent.join("src");
@@ -300,9 +371,98 @@ async fn ensure_session_reuses_directory_walk_record_without_creating() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn ensure_session_creates_record_when_no_reusable_session_exists() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd");
+    let agent = MockAgent::new();
+
+    let result = ensure_session(ensure_options(cwd.path(), &agent))
+        .await
+        .expect("missing session should create a record");
+
+    assert!(result.created);
+    assert_eq!(result.record.vwacp_record_id, "session-1");
+    assert_eq!(result.record.name.as_deref(), Some("work"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn ensure_session_does_not_reuse_closed_or_name_mismatched_records() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd");
+    let agent = MockAgent::new();
+    let mut closed =
+        stored_record("closed-session", cwd.path(), Some("work"), "2026-01-03T00:00:00Z");
+    closed.closed = Some(true);
+    let mismatched = stored_record("other-name", cwd.path(), Some("other"), "2026-01-04T00:00:00Z");
+    crate::session_persistence::write_session_record(&closed).await.expect("write closed record");
+    crate::session_persistence::write_session_record(&mismatched)
+        .await
+        .expect("write mismatched record");
+
+    let result = ensure_session(ensure_options(cwd.path(), &agent))
+        .await
+        .expect("no matching open record should create");
+
+    assert!(result.created);
+    assert_eq!(result.record.vwacp_record_id, "session-1");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn ensure_session_reuses_most_recent_matching_directory_record() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd");
+    let agent = MockAgent::new();
+    let older = stored_record("older-session", cwd.path(), Some("work"), "2026-01-02T00:00:00Z");
+    let newer = stored_record("newer-session", cwd.path(), Some("work"), "2026-01-03T00:00:00Z");
+    crate::session_persistence::write_session_record(&older).await.expect("write older record");
+    crate::session_persistence::write_session_record(&newer).await.expect("write newer record");
+
+    let result = ensure_session(ensure_options(cwd.path(), &agent))
+        .await
+        .expect("most recent matching record should load");
+
+    assert!(!result.created);
+    assert_eq!(result.record.vwacp_record_id, "newer-session");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn ensure_session_applies_requested_model_to_reused_record() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("cwd");
+    let agent = MockAgent::new();
+    let agent_command = agent.command_line();
+    let existing = stored_record_for_command(
+        "existing-session",
+        &agent_command,
+        cwd.path(),
+        Some("work"),
+        "2026-01-02T00:00:00Z",
+    );
+    crate::session_persistence::write_session_record(&existing)
+        .await
+        .expect("write existing record");
+
+    let result = ensure_session(ensure_options_with_model(cwd.path(), agent_command))
+        .await
+        .expect("existing session should update requested model");
+
+    assert!(!result.created);
+    let state = result.record.vwacp.as_ref().expect("vwacp state should exist");
+    assert_eq!(state.current_model_id.as_deref(), Some("precise-model"));
+    assert_eq!(
+        state.session_options.as_ref().and_then(|options| options.model.as_deref()),
+        Some("precise-model")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn live_directory_walk_ignores_boundary_outside_start_subtree() {
     let home = TempDir::new("home");
-    let _env = EnvGuard::set_home(home.path());
+    let _env = EnvGuard::set_home(home.path()).await;
     let workspace = TempDir::new("workspace");
     let start = workspace.join("project/src");
     let outside = workspace.join("other");
@@ -316,6 +476,31 @@ async fn live_directory_walk_ignores_boundary_outside_start_subtree() {
     )
     .await
     .expect("empty live walk should succeed");
+
+    assert!(found.is_none());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn find_live_session_by_directory_walk_ignores_unhealthy_candidates() {
+    let home = TempDir::new("home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let workspace = TempDir::new("workspace");
+    let parent = workspace.join("project");
+    let child = parent.join("src");
+    fs::create_dir_all(&child).expect("create nested cwd");
+    let candidate =
+        stored_record("candidate-session", &parent, Some("work"), "2026-01-02T00:00:00Z");
+    crate::session_persistence::write_session_record(&candidate)
+        .await
+        .expect("write candidate record");
+
+    let found = find_live_session_by_directory_walk(
+        &child.display().to_string(),
+        Some("work"),
+        Some(&workspace.path().display().to_string()),
+    )
+    .await
+    .expect("live walk should succeed");
 
     assert!(found.is_none());
 }

@@ -175,6 +175,23 @@ max_length: 1
 }
 
 #[test]
+fn build_start_variable_draft_accepts_scalar_file_list_default_as_single_file() {
+    let value = yaml_value(
+        r#"
+label: Files
+variable: files
+type: file-list
+default: " https://example.test/one.png "
+"#,
+    );
+
+    let draft = build_start_variable_draft(&value);
+
+    assert_eq!(draft.default_file_values, vec!["https://example.test/one.png"]);
+    assert_eq!(draft.default_value, "- https://example.test/one.png\n");
+}
+
+#[test]
 fn merge_start_variable_value_writes_select_options_and_removes_file_fields() {
     let mut variable = base_start_variable("select");
     variable.options = vec![" alpha ".to_string(), String::new(), "beta".to_string()];
@@ -224,6 +241,18 @@ fn merge_start_variable_value_removes_empty_default_and_max_length() {
     assert_eq!(optional_mapping_field(&value, "default"), None);
     assert_eq!(optional_mapping_field(&value, "max_length"), None);
     assert_eq!(string_sequence(mapping_field(&value, "options")), Vec::<String>::new());
+}
+
+#[test]
+fn merge_start_variable_value_preserves_text_default_whitespace_and_zero_max_length() {
+    let mut variable = base_start_variable("text-input");
+    variable.default_value = "  padded text  ".to_string();
+    variable.max_length_input = " 0 ".to_string();
+
+    let value = merge_start_variable_value(&variable).expect("text variable should merge");
+
+    assert_eq!(mapping_field(&value, "default").as_str(), Some("  padded text  "));
+    assert_eq!(mapping_field(&value, "max_length").as_u64(), Some(0));
 }
 
 #[test]
@@ -306,6 +335,7 @@ fn merge_start_variable_value_serializes_file_list_defaults() {
     let mut variable = base_start_variable("file-list");
     variable.allowed_file_types = vec!["image".to_string()];
     variable.allowed_file_upload_methods = vec!["local_file".to_string()];
+    variable.default_value = "ignored scalar default".to_string();
     variable.default_file_values =
         vec!["https://example.test/a.png".to_string(), "https://example.test/b.png".to_string()];
 
@@ -365,6 +395,23 @@ conditions:
     assert_eq!(draft.conditions[0].comparison_operator, "is");
     assert_eq!(draft.conditions[0].compare_value, "ada");
     assert_eq!(draft.conditions[0].var_type, "string");
+}
+
+#[test]
+fn build_if_else_case_draft_prefers_case_id_and_keeps_empty_conditions() {
+    let value = yaml_value(
+        r#"
+case_id: primary-case
+id: fallback-case
+conditions: []
+"#,
+    );
+
+    let draft = build_if_else_case_draft(&value);
+
+    assert_eq!(draft.case_id, "primary-case");
+    assert_eq!(draft.logical_operator, "and");
+    assert!(draft.conditions.is_empty());
 }
 
 #[test]
@@ -460,6 +507,23 @@ varType: number
     assert_eq!(draft.comparison_operator, ">=");
     assert_eq!(draft.compare_value, "7");
     assert_eq!(draft.var_type, "number");
+}
+
+#[test]
+fn merge_if_else_condition_value_generates_missing_id() {
+    let condition = WorkflowIfElseConditionDraft {
+        raw_condition: yaml_map_for_state(vec![]),
+        variable_selector_input: "start.name".to_string(),
+        comparison_operator: "is".to_string(),
+        compare_value: "Ada".to_string(),
+        var_type: "string".to_string(),
+    };
+
+    let value = merge_if_else_condition_value(&condition).expect("condition should merge");
+
+    assert!(mapping_field(&value, "id").as_str().is_some_and(|id| id.starts_with("condition-")));
+    assert_eq!(mapping_field(&value, "comparison_operator").as_str(), Some("is"));
+    assert_eq!(mapping_field(&value, "variable_selector"), &yaml_value("[start, name]"));
 }
 
 #[test]

@@ -30,6 +30,98 @@ use super::super::styles::{
 use super::super::tabs::build_preview_tab_menu;
 use super::super::widgets::DraggableArea;
 
+pub(super) fn header_tabs_height(scrollbar_visible: bool) -> f32 {
+    if scrollbar_visible { 36.0 } else { 30.0 }
+}
+
+pub(super) fn tab_is_selected(active_path: Option<&str>, tab_path: &str) -> bool {
+    active_path == Some(tab_path)
+}
+
+pub(super) fn close_button_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.palette().primary;
+    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
+    let pressed_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
+    let bg = match status {
+        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
+        iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background: bg,
+        text_color: theme.palette().text,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn tab_button_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let base = palette.background.base.color;
+    let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
+    let is_dark = luma < 0.5;
+    let primary = palette.primary.base.color;
+    let hover_bg = if is_dark {
+        palette.background.strong.color.scale_alpha(0.8)
+    } else {
+        Color::from_rgba(primary.r, primary.g, primary.b, 0.10)
+    };
+    let selected_bg = if is_dark {
+        palette.background.strong.color.scale_alpha(0.95)
+    } else {
+        Color::from_rgba(primary.r, primary.g, primary.b, 0.18)
+    };
+    let base_bg = if selected { Some(Background::Color(selected_bg)) } else { None };
+    let bg = match status {
+        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
+        iced::widget::button::Status::Pressed => Some(Background::Color(selected_bg)),
+        _ => base_bg,
+    };
+
+    iced::widget::button::Style {
+        background: bg,
+        text_color: theme.palette().text,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn tab_drag_start_message(path: &str) -> Message {
+    Message::Project(message::ProjectMessage::FileTreeDragStart(path.to_string(), None))
+}
+
+pub(super) fn tab_drag_end_message() -> Message {
+    Message::Project(message::ProjectMessage::FileTreeDragEnd)
+}
+
+pub(super) fn tab_close_message(path: &str) -> Message {
+    Message::Preview(message::PreviewMessage::Close(path.to_string()))
+}
+
+pub(super) fn tab_select_message(path: &str) -> Message {
+    Message::Preview(message::PreviewMessage::Select(path.to_string()))
+}
+
+pub(super) fn tab_right_click_message(path: &str, pos: Point) -> Message {
+    Message::Preview(message::PreviewMessage::TabRightClicked(path.to_string(), pos.x, pos.y))
+}
+
+pub(super) fn tab_context_menu_matches(menu_path: Option<&str>, tab_path: &str) -> bool {
+    menu_path == Some(tab_path)
+}
+
+pub(super) fn tab_menu_anchor(menu_pos: Option<Point>) -> Point {
+    menu_pos.unwrap_or(Point::ORIGIN)
+}
+
 /// 构建预览面板的标签页头部组件
 ///
 /// 该函数根据当前应用状态构建预览面板顶部的标签页条，包含所有打开的预览标签页。
@@ -68,7 +160,7 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
     // 判断是否需要显示滚动条，影响标签页容器的高度
     let tabs_scrollbar_visible = should_show_preview_tabs_scrollbar(app);
     // 根据滚动条可见性调整标签页头部高度：有滚动条时更高（38px），无滚动条时较矮（30px）
-    let tabs_header_height = if tabs_scrollbar_visible { 36.0 } else { 30.0 };
+    let tabs_header_height = header_tabs_height(tabs_scrollbar_visible);
 
     // 初始化标签页行容器，设置间距和固定高度
     let mut tabs: iced::widget::Row<'_, Message, iced::Theme, iced::Renderer> =
@@ -77,13 +169,12 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
     // 遍历所有预览标签页，为每个标签页构建 UI 组件
     for t in &app.preview_tabs {
         // 判断当前标签页是否被选中（与激活的预览路径比较）
-        let selected = app.active_preview_path.as_deref() == Some(t.path.as_str());
+        let selected = tab_is_selected(app.active_preview_path.as_deref(), &t.path);
 
         // 拖拽开始消息：在用户开始拖拽标签页时发送
-        let drag_start =
-            Message::Project(message::ProjectMessage::FileTreeDragStart(t.path.clone(), None));
+        let drag_start = tab_drag_start_message(&t.path);
         // 拖拽结束消息：在用户释放拖拽时发送
-        let drag_end = Message::Project(message::ProjectMessage::FileTreeDragEnd);
+        let drag_end = tab_drag_end_message();
 
         // 克隆路径用于右键菜单回调（闭包捕获需要所有权）
         let path_for_menu = t.path.clone();
@@ -93,35 +184,9 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
         // 构建关闭按钮（X 图标）
         let close = {
             button(small_icon_svg(Icon::X))
-                .on_press(Message::Preview(message::PreviewMessage::Close(t.path.clone())))
+                .on_press(tab_close_message(&t.path))
                 .padding(2)
-                .style(move |theme: &iced::Theme, status| {
-                    // 获取主题的主色调
-                    let p = theme.palette().primary;
-                    // 悬停状态的背景色：主色调 10% 透明度
-                    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-                    // 按下状态的背景色：主色调 18% 透明度
-                    let pressed_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
-                    // 根据按钮状态选择背景色
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
-                        iced::widget::button::Status::Pressed => {
-                            Some(Background::Color(pressed_bg))
-                        }
-                        _ => None,
-                    };
-                    // 返回按钮样式
-                    iced::widget::button::Style {
-                        background: bg,
-                        text_color: theme.palette().text,
-                        border: iced::Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 4.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(close_button_style)
         };
 
         // 截断过长的标题，最多保留 28 个字符
@@ -147,55 +212,8 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
             container(tab_content).padding([4, 6]).height(Length::Fixed(28.0)).width(Length::Fill),
         )
         // 点击标签页时切换到对应的预览
-        .on_press(Message::Preview(message::PreviewMessage::Select(t.path.clone())))
-        .style(move |theme: &iced::Theme, status| {
-            // 获取扩展调色板以访问更丰富的颜色信息
-            let palette = theme.extended_palette();
-            let base = palette.background.base.color;
-
-            // 计算背景色的亮度，判断当前主题是明是暗
-            // 使用 ITU-R BT.709 标准的亮度计算公式
-            let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
-            let is_dark = luma < 0.5;
-
-            let primary = palette.primary.base.color;
-
-            // 根据主题明暗设置悬停背景色
-            let hover_bg = if is_dark {
-                // 暗色主题：使用背景色的 strong 变体，80% 不透明度
-                palette.background.strong.color.scale_alpha(0.8)
-            } else {
-                // 亮色主题：使用主色调 10% 透明度
-                Color::from_rgba(primary.r, primary.g, primary.b, 0.10)
-            };
-
-            // 根据主题明暗设置选中背景色
-            let selected_bg = if is_dark {
-                // 暗色主题：使用背景色的 strong 变体，95% 不透明度
-                palette.background.strong.color.scale_alpha(0.95)
-            } else {
-                // 亮色主题：使用主色调 18% 透明度
-                Color::from_rgba(primary.r, primary.g, primary.b, 0.18)
-            };
-
-            // 基础背景色：仅在选中时显示
-            let base_bg = if selected { Some(Background::Color(selected_bg)) } else { None };
-
-            // 根据按钮状态选择背景色
-            let bg = match status {
-                iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
-                iced::widget::button::Status::Pressed => Some(Background::Color(selected_bg)),
-                _ => base_bg,
-            };
-
-            // 返回标签页按钮样式
-            iced::widget::button::Style {
-                background: bg,
-                text_color: theme.palette().text,
-                border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
-                ..Default::default()
-            }
-        })
+        .on_press(tab_select_message(&t.path))
+        .style(move |theme: &iced::Theme, status| tab_button_style(theme, status, selected))
         .padding(0)
         .width(Length::Fill)
         .into();
@@ -208,28 +226,25 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
             draggable_tab,
             Box::new(move |pos| {
                 // 右键点击时发送消息，携带文件路径和点击位置
-                Message::Preview(message::PreviewMessage::TabRightClicked(
-                    path_for_menu.clone(),
-                    pos.x,
-                    pos.y,
-                ))
+                tab_right_click_message(&path_for_menu, pos)
             }),
         ));
 
         // 检查是否需要为当前标签页显示右键菜单
-        let tab_item = if app.preview_tab_menu_path.as_deref() == Some(path_for_menu_check.as_str())
-        {
-            // 如果当前标签页是菜单目标，则在标签页下方显示菜单叠加层
-            PointBelowOverlay::new(right_click, build_preview_tab_menu(&path_for_menu_check))
-                .show(true)
-                .anchor(app.preview_tab_menu_pos.unwrap_or(Point::ORIGIN))
-                .on_close(Message::Preview(message::PreviewMessage::TabMenuClose))
-                .capture_outside_click(false)
-                .into()
-        } else {
-            // 否则只显示标签页本身
-            right_click
-        };
+        let tab_item =
+            if tab_context_menu_matches(app.preview_tab_menu_path.as_deref(), &path_for_menu_check)
+            {
+                // 如果当前标签页是菜单目标，则在标签页下方显示菜单叠加层
+                PointBelowOverlay::new(right_click, build_preview_tab_menu(&path_for_menu_check))
+                    .show(true)
+                    .anchor(tab_menu_anchor(app.preview_tab_menu_pos))
+                    .on_close(Message::Preview(message::PreviewMessage::TabMenuClose))
+                    .capture_outside_click(false)
+                    .into()
+            } else {
+                // 否则只显示标签页本身
+                right_click
+            };
 
         // 将构建好的标签页项添加到标签页行容器中
         tabs = tabs.push(tab_item);

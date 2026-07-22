@@ -18,7 +18,8 @@
 //! 通过不同的安全策略配置验证工具在各种安全约束下的行为。
 
 use super::super::content_search::{
-    format_line_output, parse_count_line, relativize_path, truncate_utf8,
+    build_grep_command, build_rg_command, format_grep_output, format_line_output,
+    parse_content_line, parse_count_line, relativize_path, truncate_utf8,
 };
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
@@ -100,12 +101,27 @@ fn create_test_files(dir: &TempDir) {
 fn content_search_name_and_schema() {
     let tool = ContentSearchTool::new(test_security(std::env::temp_dir()));
     assert_eq!(tool.name(), "content_search");
+    assert!(tool.description().contains("ripgrep"));
+    assert!(tool.description().contains("files_with_matches"));
 
     let schema = tool.parameters_schema();
     assert!(schema["properties"]["pattern"].is_object());
     assert!(schema["properties"]["path"].is_object());
     assert!(schema["properties"]["output_mode"].is_object());
     assert!(schema["required"].as_array().unwrap().contains(&json!("pattern")));
+}
+
+#[tokio::test]
+async fn content_search_max_results_parameter_limits_formatted_results() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(dir.path().join("one.txt"), "needle one\n").unwrap();
+    std::fs::write(dir.path().join("two.txt"), "needle two\n").unwrap();
+
+    let tool = ContentSearchTool::new(test_security(dir.path().to_path_buf()));
+    let result = tool.execute(json!({"pattern": "needle", "max_results": 1})).await.unwrap();
+
+    assert!(result.success);
+    assert!(result.output.contains("[Results truncated: showing first 1 results]"));
 }
 
 /// 测试基础模式匹配功能
@@ -498,4 +514,128 @@ fn truncate_utf8_keeps_char_boundary() {
     // 字节索引 4 会切分第一个中文字符（"你" 占字节 3-5）
     let truncated = truncate_utf8(text, 4);
     assert_eq!(truncated, "abc");
+}
+
+#[test]
+fn search_command_builders_encode_requested_modes_without_execution() {
+    let rg = build_rg_command(
+        "needle",
+        std::path::Path::new("src"),
+        "count",
+        Some("*.rs"),
+        false,
+        2,
+        3,
+        true,
+    );
+    let rg_args: Vec<String> =
+        rg.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
+    assert!(rg_args.contains(&"--count".to_string()));
+    assert!(rg_args.contains(&"-i".to_string()));
+    assert!(rg_args.contains(&"-U".to_string()));
+    assert!(rg_args.contains(&"--multiline-dotall".to_string()));
+    assert!(rg_args.windows(2).any(|pair| pair[0] == "--glob" && pair[1] == "*.rs"));
+    assert!(rg_args.ends_with(&["--".to_string(), "needle".to_string(), "src".to_string()]));
+    assert!(!rg_args.contains(&"-B".to_string()));
+    assert!(!rg_args.contains(&"-A".to_string()));
+
+    let grep = build_grep_command(
+        "needle",
+        std::path::Path::new("src"),
+        "content",
+        Some("*.md"),
+        true,
+        2,
+        3,
+    );
+    let grep_args: Vec<String> =
+        grep.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
+    assert!(grep_args.windows(2).any(|pair| pair[0] == "-B" && pair[1] == "2"));
+    assert!(grep_args.windows(2).any(|pair| pair[0] == "-A" && pair[1] == "3"));
+    assert!(grep_args.windows(2).any(|pair| pair[0] == "--include" && pair[1] == "*.md"));
+    assert!(!grep_args.contains(&"-i".to_string()));
+
+    let grep_files = build_grep_command(
+        "needle",
+        std::path::Path::new("src"),
+        "files_with_matches",
+        None,
+        false,
+        0,
+        0,
+    );
+    let grep_files_args: Vec<String> =
+        grep_files.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
+    assert!(grep_files_args.contains(&"-l".to_string()));
+    assert!(grep_files_args.contains(&"-i".to_string()));
+    assert!(!grep_files_args.contains(&"--include".to_string()));
+
+    let grep_count =
+        build_grep_command("needle", std::path::Path::new("src"), "count", None, true, 0, 0);
+    let grep_count_args: Vec<String> =
+        grep_count.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
+    assert!(grep_count_args.contains(&"-c".to_string()));
+}
+
+#[test]
+fn format_line_output_filters_zero_counts_and_reports_truncation() {
+    let raw = "/workspace/a.rs:0\n/workspace/b.rs:3\n/workspace/c.rs:4";
+    let output = format_line_output(raw, std::path::Path::new("/workspace"), "count", 1);
+
+    assert!(!output.contains("a.rs:0"));
+    assert!(output.starts_with("b.rs:3"));
+    assert!(output.contains("[Results truncated: showing first 1 results]"));
+    assert!(output.contains("Total: 3 matches in 1 files"));
+}
+
+#[test]
+fn format_line_output_deduplicates_file_results() {
+    let raw = "/workspace/a.rs\n/workspace/a.rs\n/workspace/b.rs";
+    let output =
+        format_line_output(raw, std::path::Path::new("/workspace"), "files_with_matches", 10);
+
+    assert_eq!(output.matches("a.rs").count(), 1);
+    assert!(output.contains("Total: 2 files"));
+}
+
+#[test]
+fn format_line_output_covers_empty_lines_truncation_and_unparsed_content() {
+    let files = "/workspace/a.rs\n\n/workspace/b.rs";
+    let files_output =
+        format_line_output(files, std::path::Path::new("/workspace"), "files_with_matches", 1);
+    assert_eq!(files_output.matches(".rs").count(), 1);
+    assert!(files_output.contains("[Results truncated: showing first 1 results]"));
+
+    let content = "plain unmatched text\n/workspace/src.rs:3:needle";
+    let content_output =
+        format_line_output(content, std::path::Path::new("/workspace"), "content", 1);
+    assert!(content_output.starts_with("plain unmatched text"));
+    assert!(content_output.contains("Total: 1 matching lines in 0 files"));
+    assert!(content_output.contains("[Results truncated: showing first 1 results]"));
+}
+
+#[test]
+fn format_grep_output_delegates_to_common_line_formatter() {
+    let output = format_grep_output(
+        "/workspace/src/lib.rs:2",
+        std::path::Path::new("/workspace"),
+        "count",
+        10,
+    );
+
+    assert!(output.contains("src/lib.rs:2"));
+    assert!(output.contains("Total: 2 matches in 1 files"));
+}
+
+#[test]
+fn parse_content_line_and_count_line_report_unparseable_input() {
+    assert_eq!(parse_content_line("plain text without line number"), None);
+    assert_eq!(parse_count_line("plain text without count"), None);
+}
+
+#[test]
+fn truncate_utf8_returns_original_when_within_limit() {
+    let text = "short";
+
+    assert_eq!(truncate_utf8(text, text.len()), text);
 }

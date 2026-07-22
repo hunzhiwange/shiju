@@ -1,0 +1,285 @@
+{
+  "entity_class": "product:product_category_relation",
+  "connection_id": "data_database",
+  "table": "product_category_relation",
+  "connect": ":data_database",
+  "table_name": "商品分类关联",
+  "primary_key": "id",
+  "auto_increment": "id",
+  "soft_delete_column": "delete_at",
+  "unique_indexes": {
+    "PRIMARY": {
+      "field": [
+        "id"
+      ],
+      "comment": "ID"
+    },
+    "uniq_product_category": {
+      "field": [
+        "platform_id",
+        "company_id",
+        "product_id",
+        "product_category_id",
+        "delete_at"
+      ],
+      "comment": "商品分类关联"
+    }
+  },
+  "description": "商品分类关联.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "productId",
+      "type": "int",
+      "label": "商品ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_id",
+      "sortable": true
+    },
+    {
+      "name": "productCategoryId",
+      "type": "int",
+      "label": "商品分类ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_category_id",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "updateAt",
+      "type": "string",
+      "label": "更新时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "update_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "updateAccount",
+      "type": "int",
+      "label": "更新账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "update_account",
+      "sortable": true
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "version",
+      "sortable": true
+    }
+  ],
+  "properties": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "productId",
+      "type": "int",
+      "label": "商品ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_id",
+      "sortable": true
+    },
+    {
+      "name": "productCategoryId",
+      "type": "int",
+      "label": "商品分类ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "product_category_id",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "updateAt",
+      "type": "string",
+      "label": "更新时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "update_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "updateAccount",
+      "type": "int",
+      "label": "更新账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "update_account",
+      "sortable": true
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "version",
+      "sortable": true
+    }
+  ]
+}

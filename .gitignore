@@ -39,16 +39,11 @@ coverage/
 src/vite-plugin-rue/rue_transform/target/
 .swc
 .vat/
-.DS_Store
 temp/
 target/
 *.wasm
 /vendor
 .gitnexus
-.vibewindow/worktrees
-.vibewindow/tasks
-.vibewindow/tasks-bak
-.vibewindow/design/
 /config.json
 /state/
 /memory/
@@ -58,5 +53,5 @@ target/
 **/MEMORY_SNAPSHOT.md
 
 /local-temp/
-
-.codegraph
+.vibewindowdev/
+examples/

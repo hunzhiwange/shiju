@@ -1,33 +1,23 @@
 use super::*;
-// Tests for plan6 task 818.
-const SOURCE: &str = include_str!("system_settings_skills.rs");
+use crate::app::{App, Message};
+use iced::Element;
+use iced::advanced::widget::Tree;
+use iced::widget::text;
 
-use crate::app::state::SkillsSettingsTab;
+fn test_app() -> App {
+    App::new().0
+}
 
-fn source_declares_symbol(name: &str) -> bool {
-    let needles = [
-        format!("fn {name}"),
-        format!("pub fn {name}"),
-        format!("struct {name}"),
-        format!("pub struct {name}"),
-        format!("enum {name}"),
-        format!("pub enum {name}"),
-        format!("type {name}"),
-        format!("pub type {name}"),
-        format!("const {name}"),
-        format!("pub const {name}"),
-        format!("static {name}"),
-        format!("pub static {name}"),
-        format!("impl {name}"),
-    ];
-
-    needles.iter().any(|needle| SOURCE.contains(needle))
+fn keep_element(element: Element<'_, Message>) {
+    std::hint::black_box(element);
 }
 
 #[test]
-fn skills_tab_labels_keep_expected_order() {
+fn skills_tab_labels_keep_expected_order_and_unique_tabs() {
+    let labels = skills_tab_labels();
+
     assert_eq!(
-        skills_tab_labels(),
+        labels,
         &[
             ("技能", SkillsSettingsTab::Skills),
             ("顺序", SkillsSettingsTab::DiscoveryOrder),
@@ -35,18 +25,69 @@ fn skills_tab_labels_keep_expected_order() {
             ("系统配置", SkillsSettingsTab::SystemConfig),
         ]
     );
+    for (_, expected_tab) in labels {
+        assert_eq!(labels.iter().filter(|(_, tab)| tab == expected_tab).count(), 1);
+    }
 }
 
 #[test]
-fn system_settings_skills_tests_keeps_planned_coverage_targets() {
-    for name in [
-        "field_row",
-        "settings_tab_button",
-        "plugins_placeholder",
-        "system_config_view",
-        "view",
-        "view_overlays",
-    ] {
-        assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
+fn field_row_and_tab_buttons_build_active_and_inactive_states() {
+    keep_element(field_row("字段", "字段说明", text("字段值")));
+
+    for (label, tab) in skills_tab_labels() {
+        let inactive_tab = if *tab == SkillsSettingsTab::SystemConfig {
+            SkillsSettingsTab::Skills
+        } else {
+            SkillsSettingsTab::SystemConfig
+        };
+        keep_element(settings_tab_button(label, *tab, *tab));
+        keep_element(settings_tab_button(label, *tab, inactive_tab));
     }
+}
+
+#[test]
+fn system_config_view_builds_default_and_populated_settings() {
+    let app = test_app();
+    keep_element(system_config_view(&app));
+
+    let mut app = test_app();
+    app.skills_settings.open_skills_enabled = true;
+    app.skills_settings.open_skills_dir_input = "/tmp/open-skills-fixture".to_string();
+    app.skills_settings.prompt_injection_mode = SkillsPromptInjectionMode::Full;
+
+    for provider in SkillsDirectoryProvider::ALL {
+        app.skills_settings.directory_provider = provider;
+        keep_element(system_config_view(&app));
+    }
+}
+
+#[test]
+fn system_config_view_keeps_four_config_rows_in_one_panel() {
+    let app = test_app();
+    let element = system_config_view(&app);
+    let tree = Tree::new(element.as_widget());
+
+    assert_eq!(tree.children.len(), 2);
+    assert_eq!(tree.children[1].children.len(), 4);
+}
+
+#[test]
+fn view_builds_every_skills_settings_tab() {
+    let mut app = test_app();
+
+    for (_, tab) in skills_tab_labels() {
+        app.skills_settings.active_tab = *tab;
+        keep_element(view(&app));
+        assert_eq!(app.skills_settings.active_tab, *tab);
+    }
+}
+
+#[test]
+fn view_overlays_builds_with_help_closed_and_open() {
+    let app = test_app();
+    keep_element(view_overlays(&app, text("基础对话框").into()));
+
+    let mut app = test_app();
+    app.skills_settings.show_help_modal = true;
+    keep_element(view_overlays(&app, text("基础对话框").into()));
 }

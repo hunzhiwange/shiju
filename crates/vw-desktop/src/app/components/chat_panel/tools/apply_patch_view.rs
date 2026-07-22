@@ -323,7 +323,7 @@ pub fn tool_apply_patch_view<'a>(
                     .align_y(Alignment::Center)
                     .spacing(10);
                     let diff_btn = button(diff_row)
-                        .padding([8, 10])
+                        .padding([8, 0])
                         .width(Length::Fill)
                         .style(apply_patch_file_button_style)
                         .on_press(Message::Chat(message::ChatMessage::ToggleToolFile(
@@ -365,7 +365,7 @@ pub fn tool_apply_patch_view<'a>(
                             ))
                             .width(Length::Fill)
                             .clip(true)
-                            .padding([4, 6])
+                            .padding([4, 0])
                             .into()
                         } else if *kind == 'D' {
                             container(
@@ -377,7 +377,7 @@ pub fn tool_apply_patch_view<'a>(
                             )
                             .width(Length::Fill)
                             .clip(true)
-                            .padding([10, 12])
+                            .padding([10, 0])
                             .style(apply_patch_inner_card_style)
                             .into()
                         } else {
@@ -388,7 +388,7 @@ pub fn tool_apply_patch_view<'a>(
                             }))
                             .width(Length::Fill)
                             .clip(true)
-                            .padding([10, 12])
+                            .padding([10, 0])
                             .style(apply_patch_inner_card_style)
                             .into()
                         };
@@ -421,14 +421,14 @@ pub fn tool_apply_patch_view<'a>(
                     .spacing(10);
                     let open_btn: Element<'a, Message> = if let Some(abs) = abs_for_preview {
                         button(open_row)
-                            .padding([8, 10])
+                            .padding([8, 0])
                             .width(Length::Fill)
                             .style(apply_patch_file_button_style)
                             .on_press(Message::Preview(message::PreviewMessage::Open(abs)))
                             .into()
                     } else {
                         container(open_row)
-                            .padding([8, 10])
+                            .padding([8, 0])
                             .width(Length::Fill)
                             .style(apply_patch_inner_card_style)
                             .into()
@@ -592,7 +592,11 @@ pub(super) fn diff_utils_looks_like_unified_diff(s: &str) -> bool {
     !t.is_empty() && t.starts_with("--- ") && t.contains("\n+++ ") && t.contains("\n@@")
 }
 
-fn apply_patch_secondary_text(theme: &Theme, dark_alpha: f32, light_alpha: f32) -> Color {
+pub(super) fn apply_patch_secondary_text(
+    theme: &Theme,
+    dark_alpha: f32,
+    light_alpha: f32,
+) -> Color {
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
             < 1.5;
@@ -617,71 +621,29 @@ pub(super) fn apply_patch_change_totals<'a>(adds: usize, dels: usize) -> Element
     .into()
 }
 
-fn apply_patch_outer_card_style(theme: &Theme) -> iced::widget::container::Style {
-    let ext = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
+pub(super) fn apply_patch_outer_card_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            ext.background.weak.color.scale_alpha(0.18)
-        } else {
-            ext.background.base.color.scale_alpha(0.86)
-        })),
-        border: Border {
-            width: 1.0,
-            color: ext.background.strong.color.scale_alpha(if is_dark { 0.52 } else { 0.58 }),
-            radius: 12.0.into(),
-        },
+        background: None,
+        border: Border::default(),
         ..Default::default()
     }
 }
 
-fn apply_patch_inner_card_style(theme: &Theme) -> iced::widget::container::Style {
-    let ext = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
+pub(super) fn apply_patch_inner_card_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            ext.background.base.color.scale_alpha(0.14)
-        } else {
-            ext.background.base.color.scale_alpha(0.96)
-        })),
-        border: Border {
-            width: 1.0,
-            color: ext.background.strong.color.scale_alpha(if is_dark { 0.48 } else { 0.52 }),
-            radius: 12.0.into(),
-        },
+        background: None,
+        border: Border::default(),
         ..Default::default()
     }
 }
 
-fn apply_patch_file_button_style(
+pub(super) fn apply_patch_file_button_style(
     theme: &Theme,
-    status: iced::widget::button::Status,
+    _status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
-    let ext = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
-    let background = match status {
-        iced::widget::button::Status::Pressed => {
-            Some(ext.background.strong.color.scale_alpha(if is_dark { 0.36 } else { 0.24 }))
-        }
-        iced::widget::button::Status::Hovered => {
-            Some(ext.background.weak.color.scale_alpha(if is_dark { 0.30 } else { 0.58 }))
-        }
-        _ => Some(ext.background.base.color.scale_alpha(if is_dark { 0.14 } else { 0.92 })),
-    };
-
     iced::widget::button::Style {
-        background: background.map(Background::Color),
-        border: Border {
-            width: 1.0,
-            color: ext.background.strong.color.scale_alpha(if is_dark { 0.46 } else { 0.56 }),
-            radius: 12.0.into(),
-        },
+        background: None,
+        border: Border::default(),
         text_color: theme.palette().text,
         ..Default::default()
     }
@@ -721,7 +683,7 @@ fn header_file_type_icon(icon: Icon) -> iced::widget::svg::Svg<'static> {
         .height(Length::Fixed(14.0))
 }
 
-fn apply_patch_header_file_icon(path: &str) -> Icon {
+pub(super) fn apply_patch_header_file_icon(path: &str) -> Icon {
     let lower = path.to_lowercase();
 
     if lower.ends_with(".rs") {
@@ -775,12 +737,12 @@ fn preview_eye_button<'a>(abs: String) -> Element<'a, Message> {
         .into()
 }
 
-fn apply_patch_file_expand_key(msg_idx: usize, tool_idx: usize, path: &str) -> String {
+pub(super) fn apply_patch_file_expand_key(msg_idx: usize, tool_idx: usize, path: &str) -> String {
     format!("{msg_idx}:{tool_idx}:{path}")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn deleted_file_preview_from_history(app: &App, path: &str) -> Option<ChangeFile> {
+pub(super) fn deleted_file_preview_from_history(app: &App, path: &str) -> Option<ChangeFile> {
     let root = app.project_path.as_deref()?;
     let repo = git2::Repository::open(root).ok()?;
     let head = repo.head().ok()?;
@@ -800,7 +762,7 @@ fn deleted_file_preview_from_history(app: &App, path: &str) -> Option<ChangeFile
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn deleted_file_preview_from_repo_diff(app: &App, path: &str) -> Option<ChangeFile> {
+pub(super) fn deleted_file_preview_from_repo_diff(app: &App, path: &str) -> Option<ChangeFile> {
     let root = app.project_path.as_deref()?;
     let repo = git2::Repository::open(root).ok()?;
     let head = repo.head().ok()?;

@@ -153,6 +153,23 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// 测试通道创建为无效中继地址保留具体配置上下文。
+    #[tokio::test]
+    async fn new_rejects_invalid_relay_url_with_context() {
+        let keys = Keys::generate();
+
+        let error = NostrChannel::new(
+            &keys.secret_key().to_secret_hex(),
+            vec!["not-a-relay".to_string()],
+            &[],
+        )
+        .await
+        .err()
+        .expect("invalid relay URL should fail");
+
+        assert!(error.to_string().contains("添加中继服务器失败: not-a-relay"));
+    }
+
     /// 测试无中继时健康检查返回 false
     ///
     /// # 验证内容

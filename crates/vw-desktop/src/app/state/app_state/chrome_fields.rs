@@ -39,6 +39,11 @@
     pub(crate) cli_install_modal_use_app_update_action: bool,
     /// CLI 更新检测是否进行中
     pub(crate) cli_install_modal_is_checking_update: bool,
+    /// 应用自更新下载进度
+    pub(crate) app_update_progress: Option<vw_shared::update::UpdateProgress>,
+    /// 应用自更新下载进度接收器
+    pub(crate) app_update_progress_rx:
+        Option<std::sync::mpsc::Receiver<vw_shared::update::UpdateProgress>>,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据
@@ -152,6 +157,8 @@
     pub(crate) session_chat_cache: HashMap<String, crate::app::session::SharedChatMessages>,
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
+    /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）
+    pub(crate) session_history_reset_boundaries: HashMap<String, Vec<Option<String>>>,
     /// 会话运行时状态映射（会话 ID -> 运行时状态）
     pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
     /// 已归档的会话 ID 集合
@@ -234,3 +241,19 @@
     pub(crate) project_edit_task_board_scheduler_tick_interval_seconds_input: String,
     /// 项目任务池自动执行 tick 间隔秒数输入
     pub(crate) project_edit_task_board_auto_promote_tick_interval_seconds_input: String,
+    /// 任务看板员工配置所属 workflow
+    pub(crate) task_board_staff_config_workflow_id: Option<String>,
+    /// 任务看板员工能力目录
+    pub(crate) task_board_staff_capability_catalog:
+        Vec<crate::app::task::staff::TaskBoardStaffCapability>,
+    /// 任务看板员工能力目录所属 workflow
+    pub(crate) task_board_staff_capability_catalog_workflow_id: Option<String>,
+    /// 任务看板员工能力目录编辑草稿
+    pub(crate) task_board_staff_capability_draft:
+        Vec<crate::app::task::staff::TaskBoardStaffCapability>,
+    /// 任务看板员工能力目录是否正在加载
+    pub(crate) task_board_staff_capability_catalog_loading: bool,
+    /// 任务看板员工能力目录是否正在保存
+    pub(crate) task_board_staff_capability_saving: bool,
+    /// 任务看板员工能力目录加载或保存错误
+    pub(crate) task_board_staff_capability_catalog_error: Option<String>,

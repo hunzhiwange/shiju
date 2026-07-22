@@ -59,3 +59,16 @@ fn audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown() {
     assert_eq!(report.summary().matches("missing file").count(), 1);
     assert!(is_skill_entry_markdown(&std::path::PathBuf::from("skill.MD")));
 }
+
+#[test]
+fn audit_path_reports_missing_path_metadata_error() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let missing = dir.path().join("missing.md");
+    let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
+
+    let error = audit_path(dir.path(), &missing, &mut report).unwrap_err();
+
+    assert!(error.to_string().contains("failed to read metadata"));
+    assert!(error.to_string().contains("missing.md"));
+    assert!(report.findings.is_empty());
+}

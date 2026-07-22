@@ -11,9 +11,9 @@ use super::*;
 pub enum TaskLogStream {
     Stdout(String),
     Stderr(String),
-    SubTaskStarted { subtask_id: String, content: String },
-    SubTaskCompleted { subtask_id: String },
-    SubTaskFailed { subtask_id: String, error: String },
+    SubTaskStarted { subtask_id: String, content: String, timestamp_ms: u64 },
+    SubTaskCompleted { subtask_id: String, timestamp_ms: u64 },
+    SubTaskFailed { subtask_id: String, error: String, timestamp_ms: u64 },
     ExitStatus { success: bool, code: Option<i32>, signal: Option<i32> },
 }
 
@@ -34,29 +34,6 @@ pub enum WorktreeState {
     Tainted,
     Recycling,
     Dead,
-}
-
-/// 模块内部可见的 WorktreeSlot 结构体，承载该模块边界内传递的结构化状态。
-#[derive(Debug, Clone)]
-pub(super) struct WorktreeSlot {
-    pub(super) id: String,
-    pub(super) path: String,
-    pub(super) base_branch: String,
-    pub(super) branch: String,
-    pub(super) state: WorktreeState,
-    pub(super) leased_task_id: Option<String>,
-    pub(super) taint_reason: Option<String>,
-}
-
-/// 模块内部可见的 RepoWorktreePool 结构体，承载该模块边界内传递的结构化状态。
-#[derive(Debug, Clone)]
-pub(super) struct RepoWorktreePool {
-    pub(super) repo_root: String,
-    pub(super) base_branch: String,
-    pub(super) slots: Vec<WorktreeSlot>,
-    pub(super) task_slots: HashMap<String, String>,
-    pub(super) merge_target_locks: HashMap<String, String>,
-    pub(super) last_synced_at_ms: u64,
 }
 
 /// 公开的 WorktreePoolSnapshot 结构体，承载该模块边界内传递的结构化状态。
@@ -83,6 +60,56 @@ pub struct WorktreeSlotSnapshot {
     pub state: WorktreeState,
     pub leased_task_id: Option<String>,
     pub taint_reason: Option<String>,
+}
+
+impl WorktreeState {
+    pub fn from_gateway(
+        state: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto,
+    ) -> Self {
+        use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto;
+
+        match state {
+            TaskPoolWorktreeSlotStateDto::Idle => Self::Idle,
+            TaskPoolWorktreeSlotStateDto::Busy => Self::Busy,
+            TaskPoolWorktreeSlotStateDto::Tainted => Self::Tainted,
+            TaskPoolWorktreeSlotStateDto::Recycling => Self::Recycling,
+            TaskPoolWorktreeSlotStateDto::Dead => Self::Dead,
+        }
+    }
+}
+
+impl WorktreePoolSnapshot {
+    pub fn from_gateway_response(
+        snapshot: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse,
+    ) -> Self {
+        Self {
+            repo_root: snapshot.repo_root,
+            pool_root: snapshot.pool_root,
+            base_branch: snapshot.base_branch,
+            idle_count: snapshot.idle_count as usize,
+            busy_count: snapshot.busy_count as usize,
+            tainted_count: snapshot.tainted_count as usize,
+            recycling_count: snapshot.recycling_count as usize,
+            dead_count: snapshot.dead_count as usize,
+            merge_target_locks: snapshot
+                .merge_target_locks
+                .into_iter()
+                .map(|lock| (lock.target_branch, lock.task_id.0))
+                .collect(),
+            slots: snapshot
+                .slots
+                .into_iter()
+                .map(|slot| WorktreeSlotSnapshot {
+                    id: slot.id,
+                    path: slot.path,
+                    branch: slot.branch,
+                    state: WorktreeState::from_gateway(slot.state),
+                    leased_task_id: slot.leased_task_id.map(|task_id| task_id.0),
+                    taint_reason: slot.taint_reason,
+                })
+                .collect(),
+        }
+    }
 }
 
 /// 模块内部可见的 WorktreeEntry 结构体，承载该模块边界内传递的结构化状态。
@@ -127,7 +154,6 @@ impl Drop for WorktreeClaimGuard {
 }
 
 static CLAIMED_WORKTREES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-static WORKTREE_POOLS: OnceLock<Mutex<HashMap<String, RepoWorktreePool>>> = OnceLock::new();
 
 /// 模块内部可见的 GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS 常量，集中保存该模块复用的稳定取值。
 pub(super) const GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS: u64 = 30;
@@ -139,21 +165,11 @@ pub(super) const GIT_SOURCE_BRANCH_TAG: &str = "__VW_GIT_SOURCE_BRANCH__";
 pub(super) const GIT_TARGET_BRANCH_TAG: &str = "__VW_GIT_TARGET_BRANCH__";
 /// 模块内部可见的 GIT_WORKTREE_PATH_TAG 常量，集中保存该模块复用的稳定取值。
 pub(super) const GIT_WORKTREE_PATH_TAG: &str = "__VW_GIT_WORKTREE_PATH__";
-/// 模块内部可见的 WORKTREE_POOL_REFRESH_INTERVAL_MS 常量，集中保存该模块复用的稳定取值。
-pub(super) const WORKTREE_POOL_REFRESH_INTERVAL_MS: u64 = 3_000;
-
 /// 模块内部可见的 claimed_worktrees 函数。
 ///
 /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
 pub(super) fn claimed_worktrees() -> &'static Mutex<HashSet<String>> {
     CLAIMED_WORKTREES.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-/// 模块内部可见的 worktree_pools 函数。
-///
-/// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
-pub(super) fn worktree_pools() -> &'static Mutex<HashMap<String, RepoWorktreePool>> {
-    WORKTREE_POOLS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 impl Default for TaskExecutorState {

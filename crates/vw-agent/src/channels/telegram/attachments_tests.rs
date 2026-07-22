@@ -238,6 +238,22 @@ async fn resolve_workspace_attachment_output_path_creates_safe_destination() {
 }
 
 #[tokio::test]
+async fn resolve_workspace_attachment_output_path_accepts_existing_regular_file() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let save_dir = tempdir.path().join("telegram_files");
+    std::fs::create_dir_all(&save_dir).expect("create save dir");
+    let existing = save_dir.join("report.pdf");
+    std::fs::write(&existing, b"old report").expect("write existing file");
+
+    let path = resolve_workspace_attachment_output_path(tempdir.path(), "report.pdf")
+        .await
+        .expect("existing regular file should remain a valid destination");
+
+    assert_eq!(path, existing.canonicalize().expect("canonical existing file"));
+    assert_eq!(std::fs::read(path).expect("read existing file"), b"old report");
+}
+
+#[tokio::test]
 async fn resolve_workspace_attachment_output_path_rejects_invalid_or_unsafe_existing_path() {
     let tempdir = tempfile::tempdir().expect("tempdir");
 

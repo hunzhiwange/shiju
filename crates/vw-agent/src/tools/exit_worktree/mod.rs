@@ -117,7 +117,7 @@ impl Tool for ExitWorktreeTool {
             force: args.force,
         })
         .await
-        .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        .map_err(|error| anyhow::anyhow!("Failed to remove git worktree: {error}"))?;
         context.clear_worktree_binding();
 
         let data = json!({

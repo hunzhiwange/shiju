@@ -49,3 +49,43 @@ async fn question_api_lists_replies_and_rejects_requests() {
     assert_eq!(request.body, json!({}));
     server.join();
 }
+
+#[tokio::test]
+async fn question_list_propagates_error_responses() {
+    let server = test_support::server(vec![(404, json!({"error": "not found"}))]);
+
+    let error = server.client().question_list().await.expect_err("error");
+    assert!(!error.is_empty());
+
+    assert_eq!(server.take_request().path, "/v1/question");
+    server.join();
+}
+
+#[tokio::test]
+async fn question_reply_propagates_error_responses() {
+    let server = test_support::server(vec![(405, json!({"error": "method not allowed"}))]);
+
+    let error =
+        server.client().question_reply("q9", vec![vec!["X".to_string()]]).await.expect_err("error");
+    assert!(!error.is_empty());
+
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/question/q9/reply");
+    assert_eq!(request.body, json!({"answers": [["X"]]}));
+    server.join();
+}
+
+#[tokio::test]
+async fn question_reject_propagates_error_responses() {
+    let server = test_support::server(vec![(404, json!({"error": "missing"}))]);
+
+    let error = server.client().question_reject("q9").await.expect_err("error");
+    assert!(!error.is_empty());
+
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/question/q9/reject");
+    assert_eq!(request.body, json!({}));
+    server.join();
+}

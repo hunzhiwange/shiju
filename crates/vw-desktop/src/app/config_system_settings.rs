@@ -1,13 +1,11 @@
 //! 读写桌面系统设置并维护网关客户端启动缓存。
-//! 本模块负责配置归一化和兼容旧配置路径，保证启动阶段可以在网关不可用时安全回退。
+//! 本模块负责配置归一化；系统设置通过 Gateway 读写，启动阶段仅单独缓存 Gateway 连接信息。
 
 use crate::app::Message;
 use iced::Task;
 use vw_config_types::ui::{AppSystemSettingsConfig, GatewayClientSystemSettingsConfig};
 
-use super::gateway::{
-    gateway_client, load_config_value_at_path, run_gateway_call, spawn_gateway_task,
-};
+use super::gateway::{gateway_client, run_gateway_call, spawn_gateway_task};
 
 async fn fetch_desktop_system_settings_via_gateway()
 -> Result<Option<AppSystemSettingsConfig>, String> {
@@ -20,11 +18,6 @@ async fn patch_desktop_system_settings_via_gateway(
 ) -> Result<(), String> {
     let client = gateway_client()?;
     client.desktop_system_settings_patch(config).await
-}
-
-fn load_legacy_system_settings_config_local() -> AppSystemSettingsConfig {
-    load_config_value_at_path::<AppSystemSettingsConfig>(&["app_ui", "system_settings"])
-        .unwrap_or_default()
 }
 
 fn normalize_system_settings_config(mut cfg: AppSystemSettingsConfig) -> AppSystemSettingsConfig {
@@ -68,7 +61,6 @@ pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSetti
             .and_then(|content| {
                 serde_json::from_str::<GatewayClientSystemSettingsConfig>(&content).ok()
             })
-            .or_else(|| Some(load_legacy_system_settings_config_local().gateway_client))
             .unwrap_or_default();
     }
 
@@ -82,7 +74,6 @@ pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSetti
         .and_then(|content| {
             serde_json::from_str::<GatewayClientSystemSettingsConfig>(&content).ok()
         })
-        .or_else(|| Some(load_legacy_system_settings_config_local().gateway_client))
         .unwrap_or_default()
 }
 
@@ -143,23 +134,19 @@ pub async fn load_system_settings_config_async() -> Result<AppSystemSettingsConf
             Ok(config)
         }
         Ok(None) => {
-            let mut legacy =
-                normalize_system_settings_config(load_legacy_system_settings_config_local());
-            legacy.gateway_client = load_gateway_client_bootstrap_config();
-            if legacy != AppSystemSettingsConfig::default()
-                && let Err(err) = patch_desktop_system_settings_via_gateway(&legacy).await
-            {
-                tracing::warn!(target: "vw_desktop", error = %err, "failed to migrate desktop system settings to gateway");
-            }
-            save_gateway_client_bootstrap_config(&legacy.gateway_client);
-            Ok(legacy)
+            let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
+            config.gateway_client = load_gateway_client_bootstrap_config();
+            Ok(config)
         }
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-            let mut legacy =
-                normalize_system_settings_config(load_legacy_system_settings_config_local());
-            legacy.gateway_client = load_gateway_client_bootstrap_config();
-            Ok(legacy)
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
+            }
+            let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
+            config.gateway_client = load_gateway_client_bootstrap_config();
+            Ok(config)
         }
     }
 }
@@ -203,10 +190,14 @@ pub fn update_system_settings_config_async(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn load_system_settings_config() -> AppSystemSettingsConfig {
     run_gateway_call(load_system_settings_config_async()).unwrap_or_else(|err| {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
-        let legacy = normalize_system_settings_config(load_legacy_system_settings_config_local());
-        save_gateway_client_bootstrap_config(&legacy.gateway_client);
-        legacy
+        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
+        } else {
+            tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop system settings via gateway");
+        }
+        let mut config = normalize_system_settings_config(AppSystemSettingsConfig::default());
+        config.gateway_client = load_gateway_client_bootstrap_config();
+        config
     })
 }
 
@@ -216,7 +207,11 @@ pub fn update_system_settings_config(update: impl FnOnce(&mut AppSystemSettingsC
     let outcome = run_gateway_call(update_system_settings_config_result_async(update));
 
     if let Err(err) = outcome {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to patch desktop system settings via gateway");
+        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            tracing::debug!(target: "vw_desktop", error = %err, "desktop system settings patch skipped because gateway is unavailable");
+        } else {
+            tracing::warn!(target: "vw_desktop", error = %err, "failed to patch desktop system settings via gateway");
+        }
     }
 }
 

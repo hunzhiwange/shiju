@@ -385,7 +385,7 @@ async fn actor_set_config_option_wraps_agent_error_with_context() {
                 "high".to_string(),
             )
             .await
-            .expect_err("config error should be wrapped");
+            .expect_err("config option error should be wrapped");
         let message = err.to_string();
 
         assert!(matches!(err, AcpError::SetSessionConfigOption(_)));
@@ -414,6 +414,39 @@ async fn actor_set_session_model_wraps_agent_error_with_context() {
         assert!(matches!(err, AcpError::SetSessionModel(_)));
         assert!(message.contains("session/set_model"));
         assert!(message.contains(r#"for model "bad-model""#));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn actor_set_session_model_stores_session_for_reuse() {
+    let agent = TestAgent::default();
+    with_fixture(agent.clone(), async |fixture| {
+        let cwd = PathBuf::from("/tmp/vw-acp-session-control");
+
+        fixture
+            .client
+            .actor_set_session_model(
+                &mut fixture.runtime,
+                "model-session".to_string(),
+                cwd.clone(),
+                "test-model".to_string(),
+            )
+            .await
+            .expect("model should be set");
+
+        assert_eq!(expected_session_id(&fixture.runtime), Some("model-session".to_string()));
+        assert!(fixture.client.has_reusable_session("model-session"));
+        assert_eq!(
+            agent.calls(),
+            vec![
+                RecordedCall::ResumeSession { session_id: "model-session".to_string(), cwd },
+                RecordedCall::SetModel {
+                    session_id: "model-session".to_string(),
+                    model: "test-model".to_string(),
+                },
+            ]
+        );
     })
     .await;
 }

@@ -9,6 +9,12 @@ unmaintained = "all"
 yanked = "deny"
 # Ignore known unmaintained transitive deps we cannot easily replace
 ignore = [
+    { id = "RUSTSEC-2026-0173", reason = "Transitive compile-time proc macros via matrix-sdk and mysql; no maintained compatible replacement is available upstream." },
+    { id = "RUSTSEC-2026-0189", reason = "rmcp is used for HTTP clients and a stdio server; the vulnerable Streamable HTTP server transport is not enabled." },
+    { id = "RUSTSEC-2026-0192", reason = "Transitive font parsing via iced/resvg and pdf-extract; no maintained compatible replacement is available upstream." },
+    { id = "RUSTSEC-2026-0194", reason = "Transitive via the Linux-only wayland-scanner build-time proc macro; it does not parse runtime or untrusted XML." },
+    { id = "RUSTSEC-2026-0195", reason = "Transitive via the Linux-only wayland-scanner build-time proc macro; it does not parse runtime or untrusted XML." },
+    { id = "RUSTSEC-2026-0206", reason = "Transitive font shaping via iced/resvg; no maintained compatible replacement is available upstream." },
     { id = "RUSTSEC-2025-0141", reason = "Transitive via probe-rs in current release path; tracked for replacement when probe-rs updates." },
     { id = "RUSTSEC-2024-0384", reason = "Reported to `rust-nostr/nostr` and it's WIP" },
     { id = "RUSTSEC-2024-0320", reason = "Transitive via syntect in the desktop syntax highlighting path; no safe upstream upgrade is available." },

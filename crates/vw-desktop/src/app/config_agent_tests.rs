@@ -1,8 +1,11 @@
 // Tests for plan6 task 840.
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 use serde_json::json;
-use vw_config_types::{agent::DelegateAgentConfig, config::AcpAgentConfig};
+use vw_config_types::{
+    agent::DelegateAgentConfig, config::AcpAgentConfig, gateway::GatewaySkey, staff::StaffConfig,
+};
 
 use super::{
     build_acp_agent_enabled_patch, build_main_agent_overrides_patch, default_enabled_acp_config,
@@ -10,6 +13,33 @@ use super::{
 };
 
 const SOURCE: &str = include_str!("config_agent.rs");
+
+fn env_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+struct EnvVarGuard {
+    key: &'static str,
+    previous: Option<std::ffi::OsString>,
+}
+
+impl EnvVarGuard {
+    fn set(key: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self { key, previous }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
 
 fn source_declares_symbol(name: &str) -> bool {
     let needles = [
@@ -56,6 +86,27 @@ fn config_agent_tests_keeps_planned_coverage_targets() {
     }
 }
 
+#[test]
+fn staff_config_helpers_patch_staff_root() {
+    let _load: fn() -> StaffConfig = super::load_staff_config;
+    let _load_result: fn() -> Result<StaffConfig, String> = super::load_staff_config_result;
+
+    if std::hint::black_box(false) {
+        let _task = super::update_staff_config_async(|staff| {
+            staff.members.clear();
+        });
+    }
+
+    assert!(source_declares_symbol("load_staff_config"));
+    assert!(source_declares_symbol("load_staff_config_result"));
+    assert!(source_declares_symbol("update_staff_config_async"));
+    assert!(SOURCE.contains("load_agent_config_via_gateway().staff"));
+    assert!(SOURCE.contains("load_full_agent_config_result()?.staff"));
+    assert!(SOURCE.contains("patch_agent_config_result(&[\"staff\"], value)"));
+    assert!(SOURCE.contains("serde_json::json!({ \"staff\": value })"));
+    assert!(!SOURCE.contains("_staff_config.json"));
+}
+
 fn acp(command: &str) -> AcpAgentConfig {
     AcpAgentConfig { command: command.to_string(), ..AcpAgentConfig::default() }
 }
@@ -91,6 +142,11 @@ fn default_enabled_acp_config_skips_missing_catalog_entries() {
 
     assert_eq!(enabled.len(), 1);
     assert!(enabled.contains_key("codex"));
+}
+
+#[test]
+fn default_enabled_acp_config_returns_empty_for_empty_catalog() {
+    assert!(default_enabled_acp_config(&HashMap::new()).is_empty());
 }
 
 #[test]
@@ -131,6 +187,14 @@ fn build_acp_agent_enabled_patch_rejects_unknown_agent_without_spec() {
 }
 
 #[test]
+fn build_acp_agent_enabled_patch_rejects_unknown_agent_when_disabling_without_spec() {
+    let err = build_acp_agent_enabled_patch("missing", false, None, &catalog(), HashMap::new())
+        .expect_err("an unknown agent still requires an explicit spec when disabling");
+
+    assert_eq!(err, "unknown acp agent: missing");
+}
+
+#[test]
 fn build_acp_agent_enabled_patch_enables_catalog_agent_over_defaults() {
     let patch = build_acp_agent_enabled_patch(" custom ", true, None, &catalog(), HashMap::new())
         .expect("patch should build");
@@ -158,6 +222,40 @@ fn build_acp_agent_enabled_patch_enables_single_explicit_agent_when_configured_e
 }
 
 #[test]
+fn build_acp_agent_enabled_patch_uses_catalog_spec_over_existing_config() {
+    let configured = HashMap::from([("custom".to_string(), acp("stale-custom"))]);
+
+    let patch = build_acp_agent_enabled_patch("custom", true, None, &catalog(), configured)
+        .expect("catalog agent should replace the configured spec");
+
+    assert_eq!(
+        patch,
+        json!({ "acp": { "custom": {
+        "command": "custom",
+        "args": [],
+        "env": {}
+    } } })
+    );
+}
+
+#[test]
+fn build_acp_agent_enabled_patch_accepts_explicit_unknown_agent_spec() {
+    let patch = build_acp_agent_enabled_patch(
+        "local",
+        true,
+        Some(acp("local-agent")),
+        &catalog(),
+        HashMap::new(),
+    )
+    .expect("an explicit spec should not require a catalog entry");
+
+    let acp_patch = patch["acp"].as_object().expect("acp patch should be an object");
+    assert_eq!(acp_patch.len(), 7);
+    assert_eq!(acp_patch["local"]["command"], "local-agent");
+    assert_eq!(acp_patch["codex"]["command"], "codex");
+}
+
+#[test]
 fn build_acp_agent_enabled_patch_disables_from_defaults_with_null_marker() {
     let patch = build_acp_agent_enabled_patch("claude", false, None, &catalog(), HashMap::new())
         .expect("patch should build");
@@ -176,6 +274,23 @@ fn build_acp_agent_enabled_patch_disables_single_configured_agent() {
         .expect("patch should build");
 
     assert_eq!(patch, json!({ "acp": { "custom": null } }));
+}
+
+#[test]
+fn build_acp_agent_enabled_patch_disables_explicit_unknown_agent_with_null_marker() {
+    let patch = build_acp_agent_enabled_patch(
+        "local",
+        false,
+        Some(acp("unused-while-disabling")),
+        &catalog(),
+        HashMap::new(),
+    )
+    .expect("an explicit spec should permit disabling an uncatalogued agent");
+
+    let acp_patch = patch["acp"].as_object().expect("acp patch should be an object");
+    assert_eq!(acp_patch.len(), 7);
+    assert!(acp_patch["local"].is_null());
+    assert_eq!(acp_patch["claude"]["command"], "claude");
 }
 
 fn config_with_main_agent(provider: &str, model: &str, temperature: Option<f64>) -> super::Config {
@@ -243,45 +358,96 @@ fn build_main_agent_overrides_patch_skips_model_without_provider() {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn gateway_skey_db_path_for_config_dir_uses_vibewindow_gateway_sqlite() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db_path = super::gateway_skey_db_path_for_config_dir(dir.path());
+fn build_main_agent_overrides_patch_keeps_provider_when_model_is_blank() {
+    let config = config_with_main_agent(" openrouter ", "  ", None);
 
-    assert_eq!(db_path, dir.path().join("gateway").join("skeys.sqlite"));
+    let patch = build_main_agent_overrides_patch(&config)
+        .expect("patch construction should not fail")
+        .expect("main agent should produce a patch");
+
+    assert_eq!(patch["default_provider"], "openrouter");
+    assert!(patch.get("default_model").is_none());
+    assert!(patch.get("default_temperature").is_none());
+    assert_eq!(patch["identity"]["format"], "openclaw");
+}
+
+#[test]
+fn build_main_agent_overrides_patch_keeps_temperature_without_provider() {
+    let config = config_with_main_agent("  ", "ignored-model", Some(0.0));
+
+    let patch = build_main_agent_overrides_patch(&config)
+        .expect("patch construction should not fail")
+        .expect("main agent should produce a patch");
+
+    assert!(patch.get("default_provider").is_none());
+    assert!(patch.get("default_model").is_none());
+    assert_eq!(patch["default_temperature"], 0.0);
+    assert_eq!(patch["identity"]["format"], "openclaw");
+}
+
+#[test]
+fn build_main_agent_overrides_patch_omits_non_finite_temperature_only() {
+    for temperature in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+        let config = config_with_main_agent("openrouter", "glm-5", Some(temperature));
+
+        let patch = build_main_agent_overrides_patch(&config)
+            .expect("patch construction should not fail")
+            .expect("main agent should produce a patch");
+
+        assert_eq!(patch["default_provider"], "openrouter");
+        assert_eq!(patch["default_model"], "openrouter/glm-5");
+        assert!(patch.get("default_temperature").is_none());
+        assert_eq!(patch["identity"]["format"], "openclaw");
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn load_gateway_skeys_from_sqlite_reads_gateway_metadata() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let db_path = dir.path().join("skeys.sqlite");
-    let conn = rusqlite::Connection::open(&db_path).expect("sqlite open");
-    conn.execute_batch(
-        r#"
-        CREATE TABLE gateway_skeys (
-            skey_hash TEXT PRIMARY KEY NOT NULL,
-            masked_skey TEXT NOT NULL DEFAULT '',
-            name TEXT NOT NULL,
-            enabled INTEGER NOT NULL DEFAULT 1,
-            expires_at TEXT,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-        INSERT INTO gateway_skeys (enabled, skey_hash, masked_skey, name, expires_at)
-        VALUES (0, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-                'sk-aaaa***************bbbbbbbbb', 'desktop', '2026-12-31T23:59:59Z');
-        "#,
+fn load_local_agent_config_reads_workspace_file_clears_gateway_skeys_and_applies_main_override() {
+    let _lock = env_lock().lock().expect("env lock");
+    let workspace = tempfile::tempdir().expect("workspace");
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", workspace.path());
+    let mut config = super::Config::default();
+    config.gateway.skeys = vec![GatewaySkey {
+        enabled: true,
+        skey: Some("secret".to_string()),
+        skey_hash: "hash".to_string(),
+        masked_skey: "masked".to_string(),
+        name: "test".to_string(),
+        expires_at: None,
+    }];
+    config.agents.insert(
+        "main".to_string(),
+        DelegateAgentConfig {
+            provider: " openrouter ".to_string(),
+            model: " glm-5 ".to_string(),
+            temperature: Some(0.7),
+            identity_format: Some("ignored".to_string()),
+            ..DelegateAgentConfig::default()
+        },
+    );
+    std::fs::write(
+        workspace.path().join(".vibewindow.json"),
+        serde_json::to_string(&config).expect("config json"),
     )
-    .expect("seed sqlite");
+    .expect("write workspace config");
 
-    let loaded = super::load_gateway_skeys_from_sqlite(&db_path).expect("load skeys");
+    let loaded = super::load_local_agent_config().expect("local config");
 
-    assert_eq!(loaded.len(), 1);
-    assert!(!loaded[0].enabled);
-    assert_eq!(loaded[0].name, "desktop");
-    assert_eq!(loaded[0].masked_skey, "sk-aaaa***************bbbbbbbbb");
-    assert_eq!(loaded[0].expires_at.as_deref(), Some("2026-12-31T23:59:59Z"));
-    assert!(loaded[0].skey.is_none());
+    assert!(loaded.gateway.skeys.is_empty());
+    assert_eq!(loaded.default_provider.as_deref(), Some("openrouter"));
+    assert_eq!(loaded.default_model.as_deref(), Some("openrouter/glm-5"));
+    assert_eq!(loaded.default_temperature, 0.7);
+    assert_eq!(loaded.identity.format, "openclaw");
+}
+
+#[test]
+fn desktop_agent_config_uses_gateway_projection_without_direct_skey_sqlite_reads() {
+    assert!(SOURCE.contains("fetch_agent_config_via_gateway"));
+    assert!(SOURCE.contains("client.config_get(None).await"));
+    assert!(SOURCE.contains("config.gateway.skeys.clear()"));
+    assert!(!SOURCE.contains("skeys.sqlite"));
+    assert!(!SOURCE.contains("load_gateway_skeys_from_sqlite"));
+    assert!(!SOURCE.contains("rusqlite::Connection::open"));
 }

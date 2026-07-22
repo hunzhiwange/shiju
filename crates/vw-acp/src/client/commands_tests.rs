@@ -31,7 +31,11 @@ async fn session_commands_forward_payloads_and_return_actor_responses() {
             ActorCommand::CreateSession { cwd: actual_cwd, response_tx } => {
                 assert_cwd(&actual_cwd, &cwd);
                 response_tx
-                    .send(Ok(SessionInfo { session_id: "created".to_string() }))
+                    .send(Ok(SessionInfo {
+                        session_id: "created".to_string(),
+                        models: None,
+                        config_options: None,
+                    }))
                     .expect("create response should send");
             }
             _ => panic!("expected create session command"),
@@ -47,7 +51,11 @@ async fn session_commands_forward_payloads_and_return_actor_responses() {
                 assert_eq!(session_id, "load-id");
                 assert_cwd(&actual_cwd, &cwd);
                 response_tx
-                    .send(Ok(SessionInfo { session_id: "loaded".to_string() }))
+                    .send(Ok(SessionInfo {
+                        session_id: "loaded".to_string(),
+                        models: None,
+                        config_options: None,
+                    }))
                     .expect("load response should send");
             }
             _ => panic!("expected load session command"),
@@ -63,7 +71,11 @@ async fn session_commands_forward_payloads_and_return_actor_responses() {
                 assert_eq!(session_id, "resume-id");
                 assert_cwd(&actual_cwd, &cwd);
                 response_tx
-                    .send(Ok(SessionInfo { session_id: "resumed".to_string() }))
+                    .send(Ok(SessionInfo {
+                        session_id: "resumed".to_string(),
+                        models: None,
+                        config_options: None,
+                    }))
                     .expect("resume response should send");
             }
             _ => panic!("expected resume session command"),
@@ -200,6 +212,38 @@ async fn run_prompt_forwards_events_and_returns_prompt_result() {
         PromptEvent::SessionChanged { ref expected, ref actual }
             if expected == "old-session" && actual == "new-session"
     ));
+}
+
+#[tokio::test]
+async fn run_prompt_delivers_buffered_events_before_returning_response() {
+    let (client, mut command_rx) = client_with_actor();
+    let mut events = Vec::new();
+    let mut on_event = |event| events.push(event);
+
+    let call = client.run_prompt(PromptRequest::new(PathBuf::from("."), "hello"), &mut on_event);
+    let actor = async {
+        match command_rx.recv().await.expect("prompt command") {
+            ActorCommand::RunPrompt { event_tx, response_tx, .. } => {
+                response_tx
+                    .send(Ok(PromptResult {
+                        session_id: "completed-session".to_string(),
+                        deltas: Vec::new(),
+                        finish_reason: Some("stop".to_string()),
+                        usage: None,
+                    }))
+                    .expect("prompt response should send");
+                event_tx
+                    .send(PromptEvent::TextDelta("buffered".to_string()))
+                    .expect("buffered event should send");
+            }
+            _ => panic!("expected run prompt command"),
+        }
+    };
+
+    let (result, _) = tokio::join!(call, actor);
+
+    assert_eq!(result.expect("prompt result").session_id, "completed-session");
+    assert!(matches!(events.as_slice(), [PromptEvent::TextDelta(delta)] if delta == "buffered"));
 }
 
 #[tokio::test]

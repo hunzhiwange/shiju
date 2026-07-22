@@ -7,7 +7,10 @@
 //!
 //! 这些测试确保系统能够正确识别和过滤系统中可用的 CLI 工具。
 
-use super::{CliCategory, DiscoveredCli, discover_cli_tools};
+use super::{CliCategory, discover_cli_tools};
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 /// 测试工具发现功能返回非空结果
 ///
@@ -70,4 +73,96 @@ fn category_display() {
 
     // 验证云服务分类的显示字符串
     assert_eq!(CliCategory::Cloud.to_string(), "Cloud");
+}
+
+#[cfg(unix)]
+#[test]
+fn probe_cli_captures_the_first_stdout_version_line_from_an_isolated_stub() {
+    let directory = tempfile::tempdir().expect("temporary CLI directory should be created");
+    let executable = directory.path().join("version-tool");
+    std::fs::write(&executable, b"#!/bin/sh\nprintf 'version-tool 1.2.3\\nignored\\n'\n")
+        .expect("CLI stub should be written");
+    let mut permissions =
+        std::fs::metadata(&executable).expect("CLI stub metadata should be readable").permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&executable, permissions).expect("CLI stub should be executable");
+    let executable_name = executable.to_string_lossy().into_owned();
+
+    let discovered = super::probe_cli(&executable_name, &["--version"], CliCategory::Build)
+        .expect("absolute executable stub should be discovered");
+
+    assert_eq!(discovered.name, executable_name);
+    assert_eq!(discovered.path, executable);
+    assert_eq!(discovered.version.as_deref(), Some("version-tool 1.2.3"));
+    assert_eq!(discovered.category, CliCategory::Build);
+}
+
+#[cfg(unix)]
+#[test]
+fn get_version_uses_stderr_when_stdout_is_empty() {
+    let directory = tempfile::tempdir().expect("temporary CLI directory should be created");
+    let executable = executable_stub(
+        directory.path(),
+        "stderr-version-tool",
+        "#!/bin/sh\nprintf 'stderr-tool 2.0\\nignored\\n' >&2\n",
+    );
+    let executable_name = executable.to_string_lossy().into_owned();
+
+    let version = super::get_version(&executable_name, &["--version"]);
+
+    assert_eq!(version.as_deref(), Some("stderr-tool 2.0"));
+}
+
+#[cfg(unix)]
+#[test]
+fn get_version_returns_none_for_missing_or_blank_commands() {
+    let directory = tempfile::tempdir().expect("temporary CLI directory should be created");
+    let blank = executable_stub(directory.path(), "blank-version-tool", "#!/bin/sh\nexit 0\n");
+    let blank_name = blank.to_string_lossy().into_owned();
+
+    assert_eq!(
+        super::get_version("definitely-missing-vw-cli-discovery-tool", &["--version"]),
+        None
+    );
+    assert_eq!(super::get_version(&blank_name, &["--version"]), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn discover_additional_tools_respects_exclusion_and_deduplicates_existing_results() {
+    let directory = tempfile::tempdir().expect("temporary CLI directory should be created");
+    let included = executable_stub(
+        directory.path(),
+        "additional-tool",
+        "#!/bin/sh\nprintf 'additional-tool 3.0\\n'\n",
+    );
+    let excluded = executable_stub(
+        directory.path(),
+        "excluded-tool",
+        "#!/bin/sh\nprintf 'excluded-tool 4.0\\n'\n",
+    );
+    let included_name = included.to_string_lossy().into_owned();
+    let excluded_name = excluded.to_string_lossy().into_owned();
+    let additional = vec![included_name.clone(), included_name.clone(), excluded_name.clone()];
+    let excluded = vec![excluded_name.clone()];
+
+    let results = discover_cli_tools(&additional, &excluded);
+
+    let matches = results.iter().filter(|cli| cli.name == included_name).collect::<Vec<_>>();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].path, included);
+    assert_eq!(matches[0].version.as_deref(), Some("additional-tool 3.0"));
+    assert_eq!(matches[0].category, CliCategory::Build);
+    assert!(!results.iter().any(|cli| cli.name == excluded_name));
+}
+
+#[cfg(unix)]
+fn executable_stub(directory: &std::path::Path, name: &str, script: &str) -> std::path::PathBuf {
+    let executable = directory.join(name);
+    std::fs::write(&executable, script).expect("CLI stub should be written");
+    let mut permissions =
+        std::fs::metadata(&executable).expect("CLI stub metadata should be readable").permissions();
+    permissions.set_mode(0o700);
+    std::fs::set_permissions(&executable, permissions).expect("CLI stub should be executable");
+    executable
 }

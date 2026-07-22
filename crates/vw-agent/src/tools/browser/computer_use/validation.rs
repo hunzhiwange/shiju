@@ -75,7 +75,7 @@ impl ComputerUseClient {
         if self.allowed_domains.is_empty() {
             anyhow::bail!(
                 "Browser tool enabled but no allowed_domains configured. \
-                Add [browser].allowed_domains in vibewindow.json"
+                Add browser.allowed_domains in system settings"
             );
         }
 

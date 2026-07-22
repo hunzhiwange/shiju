@@ -371,3 +371,23 @@ async fn agent_job_requires_prompt() {
     assert!(!result.success);
     assert!(result.error.unwrap_or_default().contains("Missing 'prompt'"));
 }
+
+#[tokio::test]
+async fn rejects_unknown_job_type() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let tool = CronAddTool::new(cfg.clone(), test_security(&cfg));
+
+    let result = tool
+        .execute(json!({
+            "schedule": { "kind": "cron", "expr": "*/5 * * * *" },
+            "job_type": "workflow",
+            "command": "echo ok"
+        }))
+        .await
+        .unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Invalid job_type: workflow"));
+    assert!(list_jobs(&cfg).unwrap().is_empty());
+}

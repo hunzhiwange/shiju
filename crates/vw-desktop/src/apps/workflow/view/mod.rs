@@ -44,6 +44,7 @@ mod next_step;
 mod node_editor;
 mod node_visual;
 mod node_visual_integrations;
+mod run_preview;
 mod start_inputs;
 mod start_meta;
 mod start_panel;
@@ -61,6 +62,7 @@ use next_step::*;
 use node_editor::*;
 use node_visual::*;
 use node_visual_integrations::*;
+use run_preview::*;
 use start_inputs::*;
 use start_meta::*;
 use start_panel::*;
@@ -361,6 +363,15 @@ pub fn view(state: &WorkflowState) -> Element<'_, Message> {
         }
         if let Some(confirm_dialog) = build_saved_app_delete_confirm_dialog(state) {
             layers.push(confirm_dialog);
+        }
+        if let Some(run_prompt) = build_saved_app_run_prompt_dialog(state) {
+            layers.push(run_prompt);
+        }
+        if let Some(preview) = &state.saved_app_run_preview {
+            layers.push(build_saved_app_run_preview_layer(preview, state.run_error_copied));
+        }
+        if let Some(detail) = &state.saved_app_run_detail {
+            layers.push(build_saved_app_run_detail_layer(detail));
         }
 
         return stack(layers).width(Length::Fill).height(Length::Fill).into();

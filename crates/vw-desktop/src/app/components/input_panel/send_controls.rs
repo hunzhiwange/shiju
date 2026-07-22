@@ -23,7 +23,9 @@ use crate::app::components::input_panel::styles::{
 };
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::state::ChatSendBehavior;
+use crate::app::task::TaskSplitMode;
 use crate::app::{Message, message};
+use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 const MAIN_SEND_BUTTON_SIZE: f32 = BOTTOM_BAR_ICON_BUTTON_SIZE;
 const MAIN_SEND_ICON_SIZE: f32 = BOTTOM_BAR_ICON_SIZE;
@@ -286,6 +288,8 @@ pub fn pool_button(
     input_text: String,
     task_mode_priority: String,
     task_mode_model: String,
+    task_mode_reasoning_effort: Option<ReasoningEffortDto>,
+    task_mode_task_split_mode: TaskSplitMode,
     task_mode_subtasks: Vec<String>,
 ) -> Element<'static, Message> {
     let pool_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
@@ -318,6 +322,8 @@ pub fn pool_button(
                     content: input_text,
                     priority: task_mode_priority,
                     model: task_mode_model,
+                    reasoning_effort: task_mode_reasoning_effort,
+                    task_split_mode: task_mode_task_split_mode,
                     subtasks: task_mode_subtasks,
                 },
             ))
@@ -637,15 +643,17 @@ pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
 /// 1. 完全访问权限按钮（如果提供）
 /// 2. 主按钮（如果提供）
 /// 3. ACP 按钮（如果提供）
-/// 4. 模型按钮（左侧固定）
-/// 5. 弹性空白（占据中间空间）
-/// 6. 使用情况按钮
-/// 7. 附件按钮
-/// 8. 任务池按钮（如果提供）
-/// 9. 取消和发送按钮（仅在非任务模式下显示）
+/// 4. 推理强度按钮（如果提供）
+/// 5. 模型按钮（左侧固定）
+/// 6. 弹性空白（占据中间空间）
+/// 7. 使用情况按钮
+/// 8. 附件按钮
+/// 9. 任务池按钮（如果提供）
+/// 10. 取消和发送按钮（仅在非任务模式下显示）
 pub fn bottom_bar<'a>(
     primary_btn: Option<Element<'a, Message>>,
     acp_btn: Option<Element<'a, Message>>,
+    reasoning_btn: Option<Element<'a, Message>>,
     permission_btn: Option<Element<'a, Message>>,
     workflow_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
@@ -671,6 +679,10 @@ pub fn bottom_bar<'a>(
 
     if let Some(acp_btn) = acp_btn {
         bar = bar.push(acp_btn);
+    }
+
+    if let Some(reasoning_btn) = reasoning_btn {
+        bar = bar.push(reasoning_btn);
     }
 
     bar = bar.push(model_btn);

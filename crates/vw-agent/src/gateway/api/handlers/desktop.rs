@@ -1,24 +1,32 @@
 //! Desktop 专用网关接口。
 //!
-//! 本模块集中承载桌面端偏好、工具草稿内容、思维导图标签页、项目偏好以及
+//! 本模块集中承载桌面端偏好、工具草稿内容、项目偏好以及
 //! 外部应用打开/文件管理器定位等轻量 API。这里的处理器只负责参数校验、
 //! 存储读写和平台命令分发，不承载业务策略，避免桌面 UI 与底层 agent 逻辑耦合。
 
 use axum::Json;
 use axum::Router;
-use axum::extract::{Path, Query};
+use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path as FsPath, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use crate::app::agent::config::Config;
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::ApiError;
+use crate::gateway::settings_store::GatewaySettingsStore;
+use crate::global_database::GlobalDatabase;
 use crate::storage;
+use vw_api_types::id::TenantScope;
 
 const TOOL_CONTENT_TYPES: &[&str] = &["json", "sql", "html"];
+const DESKTOP_PREFERENCES_NAMESPACE: &str = "desktop.preferences";
+const DESKTOP_PROJECT_PREFERENCES_NAMESPACE: &str = "desktop.project_preferences";
+const DEFAULT_CONFIG_KEY: &str = "default";
+const SERVICE_COMMAND_DELAY_ENV: &str = "VIBEWINDOW_INTERNAL_SERVICE_COMMAND_DELAY_MS";
+const RESTART_COMMAND_DELAY_MS: &str = "900";
 
 /// 构建 desktop API 路由表。
 ///
@@ -37,7 +45,6 @@ where
     Router::new()
         .route("/desktop/preferences", get(preferences_get).patch(preferences_patch))
         .route("/desktop/tool-content/{tool_type}", get(tool_content_get).put(tool_content_put))
-        .route("/desktop/mindmap-tabs", get(mindmap_tabs_get).put(mindmap_tabs_put))
         .route("/desktop/skills", get(super::desktop_skills::catalog_get))
         .route("/desktop/skills/detail", get(super::desktop_skills::detail_get))
         .route("/desktop/skills/create", post(super::desktop_skills::create_post))
@@ -47,7 +54,6 @@ where
         )
         .route("/desktop/skills/set-enabled", post(super::desktop_skills::set_enabled_post))
         .route("/desktop/skills/delete", post(super::desktop_skills::delete_post))
-        .merge(super::desktop_cleaner::router())
         .route("/desktop/external-apps", get(external_apps_get))
         .route("/desktop/external-apps/open", post(external_apps_open_post))
         .route("/desktop/external-path/reveal", post(external_path_reveal_post))
@@ -81,10 +87,14 @@ async fn service_command_post(
         .map(FsPath::to_path_buf)
         .ok_or_else(|| ApiError::internal("config path has no parent"))?;
 
-    let output = tokio::task::spawn_blocking(move || run_cli_service_command(command, config_dir))
-        .await
-        .map_err(|err| ApiError::internal(err.to_string()))?
-        .map_err(ApiError::bad_request)?;
+    let output = if command == "restart" {
+        schedule_cli_service_command(command, config_dir).map_err(ApiError::bad_request)?
+    } else {
+        tokio::task::spawn_blocking(move || run_cli_service_command(command, config_dir))
+            .await
+            .map_err(|err| ApiError::internal(err.to_string()))?
+            .map_err(ApiError::bad_request)?
+    };
 
     Ok(Json(ServiceCommandResponse { command: command.to_string(), output }))
 }
@@ -125,18 +135,98 @@ fn run_cli_service_command(command: &'static str, config_dir: PathBuf) -> Result
     }
 }
 
-async fn preferences_get() -> Result<Json<Value>, ApiError> {
-    let value: Value = storage::read(&["desktop", "preferences"]).await.unwrap_or_default();
+fn schedule_cli_service_command(
+    command: &'static str,
+    config_dir: PathBuf,
+) -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|err| format!("定位当前 CLI 失败: {err}"))?;
+    let mut process = Command::new(&exe);
+    process
+        .arg("--config-dir")
+        .arg(&config_dir)
+        .arg("service")
+        .arg(command)
+        .env(SERVICE_COMMAND_DELAY_ENV, RESTART_COMMAND_DELAY_MS)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    detach_command(&mut process);
+    process
+        .spawn()
+        .map_err(|err| format!("提交 {} service {command} 后台任务失败: {err}", exe.display()))?;
+
+    Ok(format!("service {command} 已提交，后台将重启服务并自动恢复本机 gateway。"))
+}
+
+#[cfg(unix)]
+fn detach_command(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+
+    command.process_group(0);
+}
+
+#[cfg(not(unix))]
+fn detach_command(_command: &mut Command) {}
+
+async fn preferences_get(
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<Value>, ApiError> {
+    run_desktop_settings_task(move |store| preferences_get_from_store(store, &tenant)).await
+}
+
+async fn preferences_patch(
+    Extension(tenant): Extension<TenantScope>,
+    Json(patch): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    run_desktop_settings_task(move |store| preferences_patch_in_store(store, &tenant, Json(patch)))
+        .await
+}
+
+fn preferences_get_from_store(
+    store: &GatewaySettingsStore,
+    tenant: &TenantScope,
+) -> Result<Json<Value>, ApiError> {
+    let value = match store
+        .get(tenant, DESKTOP_PREFERENCES_NAMESPACE, DEFAULT_CONFIG_KEY)
+        .map_err(|error| ApiError::internal(error.to_string()))?
+    {
+        Some(payload) => serde_json::from_str(&payload)
+            .map_err(|error| ApiError::internal(format!("invalid desktop preferences: {error}")))?,
+        None => Value::Null,
+    };
     Ok(Json(value))
 }
 
-async fn preferences_patch(Json(patch): Json<Value>) -> Result<Json<Value>, ApiError> {
-    let mut current: Value = storage::read(&["desktop", "preferences"]).await.unwrap_or_default();
+fn preferences_patch_in_store(
+    store: &GatewaySettingsStore,
+    tenant: &TenantScope,
+    Json(patch): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    let Json(mut current) = preferences_get_from_store(store, tenant)?;
     merge_preferences_patch(&mut current, &patch);
-    storage::write(&["desktop", "preferences"], &current)
-        .await
-        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let payload =
+        serde_json::to_string(&current).map_err(|error| ApiError::internal(error.to_string()))?;
+    store
+        .upsert(tenant, DESKTOP_PREFERENCES_NAMESPACE, DEFAULT_CONFIG_KEY, &payload)
+        .map_err(|error| ApiError::internal(error.to_string()))?;
     Ok(Json(current))
+}
+
+fn desktop_settings_store() -> Result<GatewaySettingsStore, ApiError> {
+    let database = GlobalDatabase::for_home(&crate::global::paths().home)
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    GatewaySettingsStore::new(database).map_err(|error| ApiError::internal(error.to_string()))
+}
+
+async fn run_desktop_settings_task<T: Send + 'static>(
+    task: impl FnOnce(&GatewaySettingsStore) -> Result<T, ApiError> + Send + 'static,
+) -> Result<T, ApiError> {
+    tokio::task::spawn_blocking(move || {
+        let store = desktop_settings_store()?;
+        task(&store)
+    })
+    .await
+    .map_err(|error| ApiError::internal(format!("desktop settings task failed: {error}")))?
 }
 
 fn merge_preferences_patch(current: &mut Value, patch: &Value) {
@@ -197,18 +287,6 @@ async fn tool_content_put(
     Ok(Json(serde_json::json!({ "content": body.content })))
 }
 
-async fn mindmap_tabs_get() -> Result<Json<Value>, ApiError> {
-    let value: Value = storage::read(&["desktop", "mindmap_tabs"]).await.unwrap_or_default();
-    Ok(Json(value))
-}
-
-async fn mindmap_tabs_put(Json(body): Json<Value>) -> Result<Json<Value>, ApiError> {
-    storage::write(&["desktop", "mindmap_tabs"], &body)
-        .await
-        .map_err(|e| ApiError::internal(e.to_string()))?;
-    Ok(Json(body))
-}
-
 #[derive(Debug, Deserialize)]
 struct ProjectPreferencesQuery {
     project_path: String,
@@ -231,13 +309,28 @@ struct ProjectPreferencesResponse {
 }
 
 async fn project_preferences_get(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<ProjectPreferencesQuery>,
 ) -> Result<Json<ProjectPreferencesResponse>, ApiError> {
-    let key = project_prefs_key(&query.project_path);
-    let key_refs: Vec<&str> = key.iter().map(String::as_str).collect();
-    let prefs: ProjectPreferencesBody = storage::read(&key_refs)
-        .await
-        .map_err(|_| ApiError::not_found("project preferences not found"))?;
+    run_desktop_settings_task(move |store| {
+        project_preferences_get_from_store(store, &tenant, Query(query))
+    })
+    .await
+}
+
+fn project_preferences_get_from_store(
+    store: &GatewaySettingsStore,
+    tenant: &TenantScope,
+    Query(query): Query<ProjectPreferencesQuery>,
+) -> Result<Json<ProjectPreferencesResponse>, ApiError> {
+    validate_project_path(&query.project_path)?;
+    let payload = store
+        .get(tenant, DESKTOP_PROJECT_PREFERENCES_NAMESPACE, &query.project_path)
+        .map_err(|error| ApiError::internal(error.to_string()))?
+        .ok_or_else(|| ApiError::not_found("project preferences not found"))?;
+    let prefs: ProjectPreferencesBody = serde_json::from_str(&payload).map_err(|error| {
+        ApiError::internal(format!("invalid desktop project preferences: {error}"))
+    })?;
     Ok(Json(ProjectPreferencesResponse {
         model: prefs.model,
         auto_model: prefs.auto_model,
@@ -246,12 +339,28 @@ async fn project_preferences_get(
 }
 
 async fn project_preferences_put(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<ProjectPreferencesQuery>,
     Json(body): Json<ProjectPreferencesBody>,
 ) -> Result<Json<ProjectPreferencesResponse>, ApiError> {
-    let key = project_prefs_key(&query.project_path);
-    let key_refs: Vec<&str> = key.iter().map(String::as_str).collect();
-    storage::write(&key_refs, &body).await.map_err(|e| ApiError::internal(e.to_string()))?;
+    run_desktop_settings_task(move |store| {
+        project_preferences_put_in_store(store, &tenant, Query(query), Json(body))
+    })
+    .await
+}
+
+fn project_preferences_put_in_store(
+    store: &GatewaySettingsStore,
+    tenant: &TenantScope,
+    Query(query): Query<ProjectPreferencesQuery>,
+    Json(body): Json<ProjectPreferencesBody>,
+) -> Result<Json<ProjectPreferencesResponse>, ApiError> {
+    validate_project_path(&query.project_path)?;
+    let payload =
+        serde_json::to_string(&body).map_err(|error| ApiError::internal(error.to_string()))?;
+    store
+        .upsert(tenant, DESKTOP_PROJECT_PREFERENCES_NAMESPACE, &query.project_path, &payload)
+        .map_err(|error| ApiError::internal(error.to_string()))?;
     Ok(Json(ProjectPreferencesResponse {
         model: body.model,
         auto_model: body.auto_model,
@@ -259,12 +368,11 @@ async fn project_preferences_put(
     }))
 }
 
-fn project_prefs_key(project_path: &str) -> Vec<String> {
-    // 存储层 key 是路径段数组；将路径字符收敛为稳定 id，避免项目路径中的分隔符改变层级。
-    let normalized = project_path.replace(['/', '\\', ':', ' ', '.'], "_");
-    let trimmed = normalized.trim_matches('_');
-    let id = if trimmed.is_empty() { "_root".to_string() } else { trimmed.to_string() };
-    vec!["desktop".to_string(), "project_prefs".to_string(), id]
+fn validate_project_path(project_path: &str) -> Result<(), ApiError> {
+    if project_path.trim().is_empty() {
+        return Err(ApiError::bad_request("project path must not be empty"));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

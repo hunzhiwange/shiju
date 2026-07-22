@@ -179,6 +179,22 @@ fn right_column_styles_apply_inner_background_and_outer_border() {
 }
 
 #[test]
+fn tooltip_bubble_style_sets_dark_popover_surface() {
+    let style = tooltip_bubble_style(&Theme::Light);
+
+    assert_color_close(style.text_color.unwrap(), Color::WHITE);
+    assert_color_close(background_color(style), Color::from_rgb8(28, 28, 30));
+    assert_close(style.border.width, 0.0);
+    assert_color_close(style.border.color, Color::TRANSPARENT);
+    assert_close(style.border.radius.top_left, 12.0);
+    assert_color_close(style.shadow.color, Color::BLACK.scale_alpha(0.32));
+    assert_close(style.shadow.offset.x, 0.0);
+    assert_close(style.shadow.offset.y, 4.0);
+    assert_close(style.shadow.blur_radius, 16.0);
+    assert!(!style.snap);
+}
+
+#[test]
 fn tooltip_bubble_can_be_constructed() {
     let bubble = tooltip_bubble("hover details".to_owned());
 
@@ -228,4 +244,39 @@ fn project_item_button_style_covers_hovered_and_pressed_states() {
     assert_color_close(pressed.shadow.color, accent.scale_alpha(0.18));
     assert_close(pressed.shadow.offset.y, 4.0);
     assert_close(pressed.shadow.blur_radius, 10.0);
+}
+
+#[test]
+fn project_item_button_style_covers_remaining_theme_branches() {
+    let accent = Color::from_rgb8(64, 145, 255);
+    let light = Theme::Light;
+    let light_base = light.extended_palette().background.base.color;
+    let dark = Theme::Dark;
+    let dark_base = dark.extended_palette().background.base.color;
+
+    let light_hovered = project_item_button_style(&light, false, accent, button::Status::Hovered);
+    assert_color_close(
+        button_background_color(light_hovered),
+        blend_color(light_base, accent, 0.11),
+    );
+    assert_color_close(light_hovered.shadow.color, accent.scale_alpha(0.07));
+
+    let light_pressed = project_item_button_style(&light, false, accent, button::Status::Pressed);
+    assert_color_close(
+        button_background_color(light_pressed),
+        blend_color(light_base, accent, 0.18),
+    );
+    assert_color_close(light_pressed.shadow.color, accent.scale_alpha(0.10));
+
+    let dark_selected = project_item_button_style(&dark, true, accent, button::Status::Active);
+    assert_color_close(
+        button_background_color(dark_selected),
+        blend_color(dark_base, accent, 0.11),
+    );
+    assert_color_close(dark_selected.shadow.color, accent.scale_alpha(0.10));
+
+    let disabled = project_item_button_style(&dark, false, accent, button::Status::Disabled);
+    assert_color_close(button_background_color(disabled), Color::TRANSPARENT);
+    assert_close(disabled.border.width, 0.0);
+    assert_eq!(disabled.shadow, iced::Shadow::default());
 }

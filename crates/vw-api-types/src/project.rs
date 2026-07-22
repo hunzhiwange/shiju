@@ -13,6 +13,12 @@ use crate::id::{ProjectId, WorktreeId};
 use crate::session::SessionSummaryDto;
 use serde::{Deserialize, Serialize};
 
+/// 网关项目列表使用的平台/公司租户作用域。
+pub type TenantScopeDto = crate::id::TenantScope;
+
+/// 网关项目资源使用的平台/公司/项目作用域。
+pub type ProjectScopeDto = crate::id::ProjectScope;
+
 /// 项目状态。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

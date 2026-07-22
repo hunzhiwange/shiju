@@ -638,7 +638,7 @@ fn read_variable_expansion(input: &str, start: usize) -> Option<(String, usize)>
     let next = next_char(input, start + 1)?;
     if next == '{' {
         let end = input[start + 2..].find('}')?;
-        let end_index = start + 2 + end + 1;
+        let end_index = start + 2 + end;
         return Some((input[start..=end_index].to_string(), end_index + 1));
     }
 

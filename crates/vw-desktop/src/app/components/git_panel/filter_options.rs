@@ -66,6 +66,77 @@ pub(super) const FILTER_HELP_TEXT: &str = r#"筛选选项说明
 
 重置路径查询和所有状态开关，恢复完整变更列表。"#;
 
+pub(super) fn help_icon_style(theme: &Theme, _status: svg::Status) -> svg::Style {
+    svg::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
+}
+
+pub(super) fn help_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let is_hovered = matches!(
+        status,
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
+    );
+
+    iced::widget::button::Style {
+        background: is_hovered.then(|| palette.background.weak.color.scale_alpha(0.72).into()),
+        text_color: theme.palette().text,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn filter_toggle_row_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            palette.background.weak.color.scale_alpha(0.18)
+        } else {
+            Color::from_rgba8(246, 248, 252, 0.96)
+        })),
+        border: Border {
+            width: 1.0,
+            color: if is_dark {
+                palette.background.strong.color.scale_alpha(0.78)
+            } else {
+                Color::from_rgba8(15, 23, 42, 0.06)
+            },
+            radius: 14.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn filter_query_changed(value: String) -> Message {
+    Message::Git(message::GitMessage::FilterQueryChanged(value))
+}
+
+pub(super) fn filter_toggle_included(enabled: bool) -> Message {
+    Message::Git(message::GitMessage::FilterToggleIncluded(enabled))
+}
+
+pub(super) fn filter_toggle_excluded(enabled: bool) -> Message {
+    Message::Git(message::GitMessage::FilterToggleExcluded(enabled))
+}
+
+pub(super) fn filter_toggle_new(enabled: bool) -> Message {
+    Message::Git(message::GitMessage::FilterToggleNew(enabled))
+}
+
+pub(super) fn filter_toggle_modified(enabled: bool) -> Message {
+    Message::Git(message::GitMessage::FilterToggleModified(enabled))
+}
+
+pub(super) fn filter_toggle_deleted(enabled: bool) -> Message {
+    Message::Git(message::GitMessage::FilterToggleDeleted(enabled))
+}
+
 fn filter_toggle_row<'a>(
     title: &'static str,
     count: usize,
@@ -87,31 +158,7 @@ fn filter_toggle_row<'a>(
     )
     .padding([10, 12])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let palette = theme.extended_palette();
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
-            < 1.5;
-
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                palette.background.weak.color.scale_alpha(0.18)
-            } else {
-                Color::from_rgba8(246, 248, 252, 0.96)
-            })),
-            border: Border {
-                width: 1.0,
-                color: if is_dark {
-                    palette.background.strong.color.scale_alpha(0.78)
-                } else {
-                    Color::from_rgba8(15, 23, 42, 0.06)
-                },
-                radius: 14.0.into(),
-            },
-            ..Default::default()
-        }
-    })
+    .style(filter_toggle_row_style)
     .into()
 }
 
@@ -155,31 +202,16 @@ pub fn view(
     deleted_count: usize,
 ) -> Element<'_, Message> {
     let help_btn = button(
-        container(icon_svg(Icon::QuestionCircle, 14.0).style(|theme: &Theme, _status| {
-            svg::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
-        }))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center),
+        container(icon_svg(Icon::QuestionCircle, 14.0).style(help_icon_style))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center),
     )
     .padding(0)
     .width(Length::Fixed(24.0))
     .height(Length::Fixed(24.0))
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        let is_hovered = matches!(
-            status,
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
-        );
-
-        iced::widget::button::Style {
-            background: is_hovered.then(|| palette.background.weak.color.scale_alpha(0.72).into()),
-            text_color: theme.palette().text,
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-            ..Default::default()
-        }
-    })
+    .style(help_button_style)
     .on_press(Message::Git(message::GitMessage::FilterHelpOpen));
 
     // 标题栏：包含"筛选选项"文本、帮助入口和关闭按钮
@@ -219,7 +251,7 @@ pub fn view(
 
     // 筛选文本输入框：用于输入文件路径查询关键字
     let filter_input = text_input("筛选", &app.git_filter_query)
-        .on_input(|v| Message::Git(message::GitMessage::FilterQueryChanged(v)))
+        .on_input(filter_query_changed)
         .padding([10, 12])
         .size(13)
         .style(settings_text_input_style)
@@ -227,24 +259,19 @@ pub fn view(
 
     // 各状态筛选开关
     // 已包含到提交的文件筛选开关
-    let included = toggler(app.git_filter_included)
-        .on_toggle(|b| Message::Git(message::GitMessage::FilterToggleIncluded(b)));
+    let included = toggler(app.git_filter_included).on_toggle(filter_toggle_included);
 
     // 已排除出提交的文件筛选开关
-    let excluded = toggler(app.git_filter_excluded)
-        .on_toggle(|b| Message::Git(message::GitMessage::FilterToggleExcluded(b)));
+    let excluded = toggler(app.git_filter_excluded).on_toggle(filter_toggle_excluded);
 
     // 新增文件筛选开关
-    let newf = toggler(app.git_filter_new)
-        .on_toggle(|b| Message::Git(message::GitMessage::FilterToggleNew(b)));
+    let newf = toggler(app.git_filter_new).on_toggle(filter_toggle_new);
 
     // 修改文件筛选开关
-    let modifiedf = toggler(app.git_filter_modified)
-        .on_toggle(|b| Message::Git(message::GitMessage::FilterToggleModified(b)));
+    let modifiedf = toggler(app.git_filter_modified).on_toggle(filter_toggle_modified);
 
     // 删除文件筛选开关
-    let deletedf = toggler(app.git_filter_deleted)
-        .on_toggle(|b| Message::Git(message::GitMessage::FilterToggleDeleted(b)));
+    let deletedf = toggler(app.git_filter_deleted).on_toggle(filter_toggle_deleted);
 
     // 清除所有筛选条件的按钮
     let clear = button(text("清除筛选").size(12))

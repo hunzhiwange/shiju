@@ -2,7 +2,7 @@
 
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::StatusCode,
     response::{
         IntoResponse, Response, Sse,
@@ -16,12 +16,12 @@ use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashMap},
     convert::Infallible,
-    path::PathBuf,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use vw_api_types::TenantScope;
 use vw_api_types::workflow::{
     WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowRecord, WorkflowRecordDeleteResponse,
     WorkflowRecordSummary, WorkflowRecordUpsertBody, WorkflowResumeRequest, WorkflowRunRequest,
@@ -33,6 +33,7 @@ use crate::app::agent::gateway::state::AppState;
 use crate::app::agent::tools::{
     ToolCallError, ToolRuntimeContext, ToolUseContext, execute_tool_call,
 };
+use crate::global_database::GlobalDatabase;
 use crate::workflow::{
     WorkflowNodeDeltaEvent, WorkflowNodeStartedEvent, WorkflowRunEvent, WorkflowRuntime,
     WorkflowToolProvider, WorkflowToolRequest, WorkflowToolResult, resume_workflow, run_workflow,
@@ -243,13 +244,15 @@ enum VibeWindowSseEvent {
 
 async fn workflow_applications_chat_messages(
     State(state): State<AppState>,
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<VibeWindowChatRequest>,
 ) -> Result<Response, ApiError> {
-    chat_messages_inner(state, body).await
+    chat_messages_inner(state, tenant, body).await
 }
 
 async fn chat_messages_inner(
     state: AppState,
+    tenant: TenantScope,
     body: VibeWindowChatRequest,
 ) -> Result<Response, ApiError> {
     if body.user.trim().is_empty() {
@@ -265,68 +268,78 @@ async fn chat_messages_inner(
 
     match response_mode {
         VibeWindowResponseMode::Blocking => {
-            hydrate_workflow_yaml_from_uuid(&mut request).await?;
-            let runtime = workflow_runtime(&state, &request);
+            hydrate_workflow_yaml_from_uuid(workflow_database()?, tenant.clone(), &mut request)
+                .await?;
+            let runtime = workflow_runtime(&state, tenant, &request)?;
             strip_workflow_runtime_inputs(&mut request);
             let response = run_workflow(runtime, request).await.map_err(ApiError::bad_request)?;
             let chat_response = workflow_response_to_chat_response(&response, conversation_id);
             Ok(Json(chat_response).into_response())
         }
         VibeWindowResponseMode::Streaming => {
-            Ok(workflow_streaming_response(state, request, conversation_id))
+            Ok(workflow_streaming_response(state, tenant, request, conversation_id))
         }
     }
 }
 
 async fn workflow_application_chat_messages(
     State(state): State<AppState>,
+    Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
     Json(mut body): Json<VibeWindowChatRequest>,
 ) -> Result<Response, ApiError> {
     apply_path_chat_workflow_uuid(&mut body, &uuid)?;
-    chat_messages_inner(state, body).await
+    chat_messages_inner(state, tenant, body).await
 }
 
 async fn workflow_resume(
     State(state): State<AppState>,
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<WorkflowResumeRequest>,
 ) -> Result<Json<WorkflowRunResponse>, ApiError> {
-    let runtime = workflow_runtime(&state, &WorkflowRunRequest::default());
+    let runtime = workflow_runtime(&state, tenant, &WorkflowRunRequest::default())?;
     let response = resume_workflow(runtime, body).await.map_err(ApiError::bad_request)?;
     Ok(Json(response))
 }
 
-async fn workflow_applications_list() -> Result<Json<Vec<WorkflowRecordSummary>>, ApiError> {
-    let records = super::workflow_store::list_records(workflow_db_path()).await?;
+async fn workflow_applications_list(
+    Extension(tenant): Extension<TenantScope>,
+) -> Result<Json<Vec<WorkflowRecordSummary>>, ApiError> {
+    let records = super::workflow_store::list_records(workflow_database()?, tenant).await?;
     Ok(Json(records))
 }
 
 async fn workflow_application_get(
+    Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = super::workflow_store::get_record(workflow_db_path(), uuid).await?;
+    let record = super::workflow_store::get_record(workflow_database()?, tenant, uuid).await?;
     Ok(Json(record))
 }
 
 async fn workflow_application_create(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<WorkflowRecordUpsertBody>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = super::workflow_store::create_record(workflow_db_path(), body).await?;
+    let record = super::workflow_store::create_record(workflow_database()?, tenant, body).await?;
     Ok(Json(record))
 }
 
 async fn workflow_application_update(
+    Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
     Json(body): Json<WorkflowRecordUpsertBody>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = super::workflow_store::update_record(workflow_db_path(), uuid, body).await?;
+    let record =
+        super::workflow_store::update_record(workflow_database()?, tenant, uuid, body).await?;
     Ok(Json(record))
 }
 
 async fn workflow_application_delete(
+    Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
 ) -> Result<Json<WorkflowRecordDeleteResponse>, ApiError> {
-    let response = super::workflow_store::delete_record(workflow_db_path(), uuid).await?;
+    let response = super::workflow_store::delete_record(workflow_database()?, tenant, uuid).await?;
     Ok(Json(response))
 }
 
@@ -379,7 +392,11 @@ fn validate_path_workflow_uuid(uuid: &str) -> Result<&str, ApiError> {
     Ok(trimmed)
 }
 
-async fn hydrate_workflow_yaml_from_uuid(body: &mut WorkflowRunRequest) -> Result<(), ApiError> {
+async fn hydrate_workflow_yaml_from_uuid(
+    database: GlobalDatabase,
+    tenant: TenantScope,
+    body: &mut WorkflowRunRequest,
+) -> Result<(), ApiError> {
     let Some(uuid) = body.workflow_uuid.clone() else {
         return Ok(());
     };
@@ -387,19 +404,25 @@ async fn hydrate_workflow_yaml_from_uuid(body: &mut WorkflowRunRequest) -> Resul
         return Ok(());
     }
 
-    let record = super::workflow_store::get_record(workflow_db_path(), uuid).await?;
+    let record = super::workflow_store::get_record(database, tenant, uuid).await?;
     body.workflow_yaml = Some(record.workflow_yaml);
     Ok(())
 }
 
-fn workflow_db_path() -> PathBuf {
-    crate::global::paths().data.join("workflow").join("workflows.sqlite")
+fn workflow_database() -> Result<GlobalDatabase, ApiError> {
+    GlobalDatabase::for_home(&crate::global::paths().home).map_err(|error| {
+        ApiError::internal(format!("initialize workflow global database failed: {error:#}"))
+    })
 }
 
-fn workflow_runtime(state: &AppState, request: &WorkflowRunRequest) -> WorkflowRuntime {
-    WorkflowRuntime {
+fn workflow_runtime(
+    state: &AppState,
+    tenant: TenantScope,
+    request: &WorkflowRunRequest,
+) -> Result<WorkflowRuntime, ApiError> {
+    Ok(WorkflowRuntime {
         provider: state.provider.clone(),
-        knowledge_provider: Some(Arc::new(super::knowledge::knowledge_store(state))),
+        knowledge_provider: Some(Arc::new(super::knowledge::knowledge_store(state, tenant)?)),
         document_extractor: None,
         tool_provider: Some(Arc::new(GatewayWorkflowToolProvider {
             ctx: workflow_tool_runtime_context(request),
@@ -408,7 +431,7 @@ fn workflow_runtime(state: &AppState, request: &WorkflowRunRequest) -> WorkflowR
         pause_store: None,
         model: state.model.clone(),
         temperature: state.temperature,
-    }
+    })
 }
 
 struct GatewayWorkflowToolProvider {
@@ -520,13 +543,28 @@ fn normalized_optional_string(value: Option<String>) -> Option<String> {
 
 fn workflow_streaming_response(
     state: AppState,
+    tenant: TenantScope,
     mut request: WorkflowRunRequest,
     conversation_id: Option<String>,
 ) -> Response {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
     tokio::spawn(async move {
         let mut context = WorkflowSseContext::new(conversation_id);
-        if let Err(error) = hydrate_workflow_yaml_from_uuid(&mut request).await {
+        let database = match workflow_database() {
+            Ok(database) => database,
+            Err(error) => {
+                context.send_error(
+                    &tx,
+                    error.status.as_u16().into(),
+                    "workflow_request_error",
+                    error.to_string(),
+                );
+                return;
+            }
+        };
+        if let Err(error) =
+            hydrate_workflow_yaml_from_uuid(database, tenant.clone(), &mut request).await
+        {
             context.send_error(
                 &tx,
                 error.status.as_u16().into(),
@@ -536,7 +574,18 @@ fn workflow_streaming_response(
             return;
         }
 
-        let runtime = workflow_runtime(&state, &request);
+        let runtime = match workflow_runtime(&state, tenant, &request) {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                context.send_error(
+                    &tx,
+                    error.status.as_u16().into(),
+                    "workflow_runtime_error",
+                    error.to_string(),
+                );
+                return;
+            }
+        };
         strip_workflow_runtime_inputs(&mut request);
         let result =
             run_workflow_with_events(runtime, request, |event| context.send_event(&tx, event))
@@ -560,6 +609,8 @@ struct WorkflowSseContext {
     run_id: Option<String>,
     created_at: u64,
     streamed_text: bool,
+    streamed_final_response: bool,
+    last_streamed_text: Option<String>,
 }
 
 impl WorkflowSseContext {
@@ -569,6 +620,8 @@ impl WorkflowSseContext {
             run_id: None,
             created_at: now_unix_u64(),
             streamed_text: false,
+            streamed_final_response: false,
+            last_streamed_text: None,
         }
     }
 
@@ -619,6 +672,9 @@ impl WorkflowSseContext {
                     return;
                 }
                 self.streamed_text = true;
+                self.streamed_final_response |=
+                    event.node_type == "llm" && event.node_id == "final_response";
+                self.last_streamed_text = Some(event.text.clone());
                 send_sse_payload(
                     tx,
                     VibeWindowSseEvent::TextChunk {
@@ -637,7 +693,8 @@ impl WorkflowSseContext {
         self.run_id = Some(task_id.clone());
         let message_id = response.run_id.clone();
         let answer = truncate_sse_node_output(&workflow_answer(&response)).0;
-        if !self.streamed_text && !answer.is_empty() {
+        let already_streamed_answer = self.last_streamed_text.as_deref() == Some(answer.as_str());
+        if !answer.is_empty() && !self.streamed_final_response && !already_streamed_answer {
             send_sse_payload(
                 tx,
                 VibeWindowSseEvent::Message {

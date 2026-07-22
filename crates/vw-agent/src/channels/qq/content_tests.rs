@@ -10,6 +10,15 @@ fn parse_outgoing_content_extracts_only_remote_image_markers() {
 }
 
 #[test]
+fn parse_outgoing_content_extracts_http_markers_with_whitespace() {
+    let (text, images) =
+        parse_outgoing_content("before\n  [IMAGE: http://example.com/a.png ]  \nafter");
+
+    assert_eq!(text, "before\nafter");
+    assert_eq!(images, vec!["http://example.com/a.png".to_string()]);
+}
+
+#[test]
 fn compose_message_content_combines_text_and_image_attachments() {
     let payload = serde_json::json!({
         "content": "hello",
@@ -54,6 +63,23 @@ fn compose_message_content_uses_filename_when_content_type_is_missing() {
 }
 
 #[test]
+fn compose_message_content_ignores_attachments_without_string_url() {
+    let payload = serde_json::json!({
+        "content": "body",
+        "attachments": [
+            {"filename": "photo.png"},
+            {"filename": "photo.jpg", "url": 7},
+            {"filename": "photo.gif", "url": "https://example.com/photo.gif"}
+        ]
+    });
+
+    assert_eq!(
+        compose_message_content(&payload),
+        Some("body\n\n[IMAGE:https://example.com/photo.gif]".to_string())
+    );
+}
+
+#[test]
 fn compose_message_content_returns_none_for_empty_payload() {
     assert_eq!(compose_message_content(&serde_json::json!({})), None);
     assert_eq!(
@@ -91,6 +117,22 @@ fn build_media_message_body_omits_passive_fields_when_no_message_id() {
             "content": " ",
             "msg_type": 7,
             "media": {"file_info": "file-info"}
+        })
+    );
+}
+
+#[test]
+fn build_media_message_body_adds_passive_reply_fields() {
+    let body = build_media_message_body("file-info", Some("msg-1"), 42);
+
+    assert_eq!(
+        body,
+        serde_json::json!({
+            "content": " ",
+            "msg_type": 7,
+            "media": {"file_info": "file-info"},
+            "msg_id": "msg-1",
+            "msg_seq": 42
         })
     );
 }

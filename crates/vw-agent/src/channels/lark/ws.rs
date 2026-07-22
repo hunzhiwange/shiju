@@ -85,9 +85,16 @@ impl LarkChannel {
     /// - 路径: `/callback/ws/endpoint`
     /// - 请求体: JSON 格式，包含 `AppID` 和 `AppSecret`
     async fn get_ws_endpoint(&self) -> anyhow::Result<(String, WsClientConfig)> {
+        self.get_ws_endpoint_from_base(self.ws_base()).await
+    }
+
+    async fn get_ws_endpoint_from_base(
+        &self,
+        ws_base: &str,
+    ) -> anyhow::Result<(String, WsClientConfig)> {
         let resp = self
             .http_client()
-            .post(format!("{}/callback/ws/endpoint", self.ws_base()))
+            .post(format!("{ws_base}/callback/ws/endpoint"))
             .header("locale", self.platform.locale_header())
             .json(&serde_json::json!({
                 "AppID": self.app_id,
@@ -113,7 +120,6 @@ impl LarkChannel {
     }
 
     /// WebSocket 长连接事件循环
-    ///
     /// 建立并维护与 Lark 服务器的 WebSocket 长连接，持续监听和处理消息事件。
     /// 当连接关闭或发生不可恢复的错误时返回，由调用方负责重连。
     ///
@@ -144,17 +150,33 @@ impl LarkChannel {
     ///     → 事件解析 → 权限校验 → 去重 → 内容提取
     ///     → ACK 回复 → 表情回应 → 消息分发
     /// ```
-    #[allow(clippy::too_many_lines)]
     pub(crate) async fn listen_ws(
         &self,
         tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
     ) -> anyhow::Result<()> {
-        // 确保机器人 open_id 已解析，用于后续的 @ 提及检测
         self.ensure_bot_open_id().await;
+        let endpoint = self.get_ws_endpoint().await?;
+        self.listen_ws_with_endpoint(tx, endpoint).await
+    }
 
-        // 获取 WebSocket 连接端点和配置
-        let (wss_url, client_config) = self.get_ws_endpoint().await?;
+    #[cfg(test)]
+    async fn listen_ws_with_endpoint_base(
+        &self,
+        tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
+        ws_base: &str,
+    ) -> anyhow::Result<()> {
+        self.ensure_bot_open_id().await;
+        let endpoint = self.get_ws_endpoint_from_base(ws_base).await?;
+        self.listen_ws_with_endpoint(tx, endpoint).await
+    }
 
+    #[allow(clippy::too_many_lines)]
+    async fn listen_ws_with_endpoint(
+        &self,
+        tx: tokio::sync::mpsc::Sender<super::ChannelMessage>,
+        endpoint: (String, WsClientConfig),
+    ) -> anyhow::Result<()> {
+        let (wss_url, client_config) = endpoint;
         // 从 WebSocket URL 查询参数中提取 service_id
         // service_id 用于标识 Lark 后端服务实例
         let service_id = wss_url
@@ -279,6 +301,7 @@ impl LarkChannel {
                                         if secs != ping_secs {
                                             ping_secs = secs;
                                             hb_interval = tokio::time::interval(Duration::from_secs(ping_secs));
+                                            hb_interval.tick().await;
                                             tracing::info!("Lark: ping_interval → {ping_secs}s");
                                         }
                                     }

@@ -17,6 +17,16 @@ fn score_spec_covers_exact_name_alias_description_and_miss() {
 }
 
 #[test]
+fn score_spec_partial_name_returns_name_match() {
+    let spec = ToolSpec::new("file_read", "Read project files", json!({}));
+
+    let name_match = score_spec(&spec, "file_").unwrap();
+
+    assert_eq!(name_match.score, 80);
+    assert_eq!(name_match.reason, "name match");
+}
+
+#[test]
 fn spec_is_read_only_strict_and_has_query_schema() {
     let spec = ToolSearchTool::new().spec();
 

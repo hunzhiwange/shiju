@@ -4,13 +4,16 @@
 //! 主要测试以下场景：
 //! - 从文本头部按行数截断
 //! - 从文本头部按字节数截断
-//! - 从文本尾部按行数截断
+//! - 从文本尾部按行数或字节数截断
+//! - 精确限制、零限制、空文本、UTF-8 与尾换行边界
+//! - 未超限输出直接返回且不产生保存路径
 //!
 //! # 测试覆盖
 //!
 //! - `Direction::Head` 策略下的行截断和字节截断
-//! - `Direction::Tail` 策略下的行截断
+//! - `Direction::Tail` 策略下的行截断和字节截断
 //! - 截断结果的正确性验证（文本内容、行数、字节数、是否命中字节限制）
+//! - 边界输入的稳定行为与无截断输出元数据
 
 use super::super::truncation::{Direction, Options, compute_preview};
 
@@ -108,4 +111,109 @@ fn tail_truncates_from_end() {
     assert!(!p.hit_bytes);
     // 验证：行数计数正确
     assert_eq!(p.line_count, 2);
+}
+
+#[test]
+fn tail_truncates_by_bytes() {
+    let opts = Options { max_lines: 10, max_bytes: 6, direction: Direction::Tail };
+
+    let p = compute_preview("alpha\nbeta\ngamma", &opts);
+
+    assert_eq!(p.text, "gamma");
+    assert_eq!(p.bytes, 5);
+    assert_eq!(p.line_count, 1);
+    assert!(p.hit_bytes);
+}
+
+#[test]
+fn preview_accepts_content_at_exact_byte_limit() {
+    let opts = Options { max_lines: 2, max_bytes: 5, direction: Direction::Head };
+
+    let p = compute_preview("ab\ncd", &opts);
+
+    assert_eq!(p.text, "ab\ncd");
+    assert_eq!(p.bytes, 5);
+    assert_eq!(p.line_count, 2);
+    assert!(!p.hit_bytes);
+}
+
+#[test]
+fn zero_max_lines_returns_empty_without_hitting_byte_limit() {
+    for direction in [Direction::Head, Direction::Tail] {
+        let opts = Options { max_lines: 0, max_bytes: 100, direction };
+
+        let p = compute_preview("a\nb", &opts);
+
+        assert_eq!(p.text, "");
+        assert_eq!(p.bytes, 0);
+        assert_eq!(p.line_count, 0);
+        assert!(!p.hit_bytes);
+    }
+}
+
+#[test]
+fn zero_max_bytes_rejects_non_empty_line_in_both_directions() {
+    for direction in [Direction::Head, Direction::Tail] {
+        let opts = Options { max_lines: 10, max_bytes: 0, direction };
+
+        let p = compute_preview("a", &opts);
+
+        assert_eq!(p.text, "");
+        assert_eq!(p.bytes, 0);
+        assert_eq!(p.line_count, 0);
+        assert!(p.hit_bytes);
+    }
+}
+
+#[test]
+fn empty_text_is_a_single_zero_byte_line() {
+    for direction in [Direction::Head, Direction::Tail] {
+        let opts = Options { max_lines: 1, max_bytes: 0, direction };
+
+        let p = compute_preview("", &opts);
+
+        assert_eq!(p.text, "");
+        assert_eq!(p.bytes, 0);
+        assert_eq!(p.line_count, 1);
+        assert!(!p.hit_bytes);
+    }
+}
+
+#[test]
+fn preview_counts_utf8_content_in_bytes() {
+    let opts = Options { max_lines: 10, max_bytes: 4, direction: Direction::Head };
+
+    let p = compute_preview("你\n好", &opts);
+
+    assert_eq!(p.text, "你");
+    assert_eq!(p.bytes, 3);
+    assert_eq!(p.line_count, 1);
+    assert!(p.hit_bytes);
+}
+
+#[test]
+fn preview_preserves_trailing_empty_line() {
+    for direction in [Direction::Head, Direction::Tail] {
+        let opts = Options { max_lines: 2, max_bytes: 2, direction };
+
+        let p = compute_preview("a\n", &opts);
+
+        assert_eq!(p.text, "a\n");
+        assert_eq!(p.bytes, 2);
+        assert_eq!(p.line_count, 2);
+        assert!(!p.hit_bytes);
+    }
+}
+
+#[test]
+fn output_at_exact_limits_returns_original_without_saved_path() {
+    let result = super::super::truncation::output(
+        "ab\ncd",
+        Options { max_lines: 2, max_bytes: 5, direction: Direction::Head },
+        None,
+    );
+
+    assert_eq!(result.content, "ab\ncd");
+    assert!(!result.truncated);
+    assert_eq!(result.output_path, None);
 }

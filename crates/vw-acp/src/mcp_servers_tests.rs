@@ -4,6 +4,83 @@ use serde_json::{Value, json};
 use std::path::PathBuf;
 
 #[test]
+fn mcp_server_management_default_for_server_uses_safe_defaults() {
+    let management = McpServerManagement::default_for_server(" local ");
+
+    assert_eq!(management.name, " local ");
+    assert!(management.enabled);
+    assert!(!management.required);
+    assert_eq!(management.timeout_ms, None);
+    assert!(management.allowed_tools.is_empty());
+    assert!(management.denied_tools.is_empty());
+
+    let serialized = serde_json::to_value(&management).expect("management should serialize");
+    assert_eq!(serialized, json!({"name": " local ", "enabled": true, "required": false}));
+}
+
+#[test]
+fn mcp_server_management_fields_are_parsed() {
+    let configs = parse_mcp_server_configs(
+        &json!([
+            {
+                "name": "remote",
+                "type": "http",
+                "url": "https://example.test/mcp",
+                "enabled": false,
+                "required": true,
+                "timeout": 1.5,
+                "allowedTools": ["search", "read"],
+                "deniedTools": ["delete"]
+            }
+        ]),
+        "config.json",
+    )
+    .expect("valid server config");
+
+    assert_eq!(configs.len(), 1);
+    assert_eq!(configs[0].management.name, "remote");
+    assert!(!configs[0].management.enabled);
+    assert!(configs[0].management.required);
+    assert_eq!(configs[0].management.timeout_ms, Some(1_500));
+    assert_eq!(configs[0].management.allowed_tools, vec!["search", "read"]);
+    assert_eq!(configs[0].management.denied_tools, vec!["delete"]);
+    assert!(matches!(configs[0].server, McpServer::Http(_)));
+}
+
+#[test]
+fn parse_mcp_server_configs_rejects_invalid_management_fields() {
+    let cases = [
+        (
+            json!([{"name": "local", "command": "agent", "enabled": "yes"}]),
+            "Invalid mcpServers[0] in config.json.enabled: expected boolean",
+        ),
+        (
+            json!([{"name": "local", "command": "agent", "required": 1}]),
+            "Invalid mcpServers[0] in config.json.required: expected boolean",
+        ),
+        (
+            json!([{"name": "local", "command": "agent", "timeout": 0.0001}]),
+            "Invalid mcpServers[0] in config.json.timeout: expected positive seconds or null",
+        ),
+        (
+            json!([{"name": "local", "command": "agent", "allowedTools": "read"}]),
+            "Invalid mcpServers[0] in config.json.allowedTools: expected array",
+        ),
+        (
+            json!([{"name": "local", "command": "agent", "deniedTools": [""]}]),
+            "Invalid mcpServers[0] in config.json.deniedTools[0]: expected non-empty string",
+        ),
+    ];
+
+    for (raw_servers, expected_error) in cases {
+        let error = parse_mcp_server_configs(&raw_servers, "config.json")
+            .expect_err("invalid management config must fail");
+
+        assert_eq!(error.to_string(), expected_error);
+    }
+}
+
+#[test]
 fn parse_mcp_servers_accepts_supported_server_types() {
     let servers = parse_mcp_servers(
         &json!([
@@ -63,7 +140,7 @@ fn parse_mcp_servers_trims_required_strings_and_accepts_null_meta() {
     let servers = parse_mcp_servers(
         &json!([
             {"name": " local ", "type": "stdio", "command": " agent ", "args": [], "env": [], "_meta": null},
-            {"name": " remote ", "type": "http", "url": " https://example.test/mcp ", "headers": []}
+            {"name": " remote ", "type": "http", "url": " https://example.test/mcp ", "headers": [], "_meta": {"kind": "rpc"}}
         ]),
         "config.json",
     )
@@ -84,6 +161,59 @@ fn parse_mcp_servers_trims_required_strings_and_accepts_null_meta() {
     assert_eq!(http.name, "remote");
     assert_eq!(http.url, "https://example.test/mcp");
     assert!(http.headers.is_empty());
+    assert_eq!(
+        http.meta.as_ref().and_then(|meta| meta.get("kind")).and_then(Value::as_str),
+        Some("rpc")
+    );
+}
+
+#[test]
+fn parse_mcp_servers_defaults_missing_stdio_details_to_empty_lists() {
+    let servers = parse_mcp_servers(
+        &json!([
+            {"name": "local", "type": "stdio", "command": "agent", "_meta": {"scope": "project"}}
+        ]),
+        "config.json",
+    )
+    .expect("valid stdio server config");
+
+    let McpServer::Stdio(stdio) = &servers[0] else {
+        panic!("server must use stdio transport");
+    };
+    assert_eq!(stdio.name, "local");
+    assert_eq!(stdio.command, PathBuf::from("agent"));
+    assert!(stdio.args.is_empty());
+    assert!(stdio.env.is_empty());
+    assert_eq!(
+        stdio.meta.as_ref().and_then(|meta| meta.get("scope")).and_then(Value::as_str),
+        Some("project")
+    );
+}
+
+#[test]
+fn parse_mcp_servers_accepts_sse_headers_without_meta() {
+    let servers = parse_mcp_servers(
+        &json!([
+            {
+                "name": "events",
+                "type": "sse",
+                "url": "https://example.test/sse",
+                "headers": [{"name": "X-Event", "value": "stream"}]
+            }
+        ]),
+        "config.json",
+    )
+    .expect("valid sse server config");
+
+    let McpServer::Sse(sse) = &servers[0] else {
+        panic!("server must use sse transport");
+    };
+    assert_eq!(sse.name, "events");
+    assert_eq!(sse.url, "https://example.test/sse");
+    assert_eq!(sse.headers.len(), 1);
+    assert_eq!(sse.headers[0].name, "X-Event");
+    assert_eq!(sse.headers[0].value, "stream");
+    assert_eq!(sse.meta, None);
 }
 
 #[test]

@@ -33,13 +33,14 @@
 
 // 子模块声明
 pub(crate) mod attachment;
-mod drop_area;
+pub(crate) mod drop_area;
 mod file_references;
 mod file_search;
 pub mod icons;
 mod input_editor;
 mod model_popover;
 mod queue_panel;
+pub(crate) mod reasoning_selector;
 mod send_controls;
 pub(crate) mod styles;
 mod task_mode;
@@ -68,6 +69,9 @@ mod model_popover_tests;
 #[cfg(test)]
 #[path = "queue_panel_tests.rs"]
 mod queue_panel_tests;
+#[cfg(test)]
+#[path = "reasoning_selector_tests.rs"]
+mod reasoning_selector_tests;
 #[cfg(test)]
 #[path = "send_controls_tests.rs"]
 mod send_controls_tests;
@@ -102,6 +106,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
+use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
     bottom_bar, cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
 };
@@ -276,7 +281,10 @@ pub(super) fn dark_tooltip_content<'a>(label: &'a str) -> Element<'a, Message> {
     .into()
 }
 
-pub(super) fn with_dark_tooltip<'a>(content: Element<'a, Message>, label: &'a str) -> Element<'a, Message> {
+pub(super) fn with_dark_tooltip<'a>(
+    content: Element<'a, Message>,
+    label: &'a str,
+) -> Element<'a, Message> {
     Tooltip::new(content, dark_tooltip_content(label), TooltipPosition::Top).gap(6.0).into()
 }
 
@@ -472,6 +480,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.input_editor);
     let selected_acp_agent =
         runtime.and_then(|r| r.acp_agent.clone()).or_else(|| app.acp_agent.clone());
+    let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
     let effective_acp_agent = selected_acp_agent.clone();
     let acp_history_mode = runtime.map(|r| r.acp_history_mode).unwrap_or(app.acp_history_mode);
     let acp_recent_count = runtime.map(|r| r.acp_recent_count).unwrap_or(app.acp_recent_count);
@@ -482,7 +491,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let task_mode_enabled = runtime.map(|r| r.task_mode_enabled).unwrap_or(false);
     let task_mode_priority = runtime.map(|r| r.task_mode_priority.as_str()).unwrap_or("999");
     let task_mode_model = runtime.map(|r| r.task_mode_model.as_str()).unwrap_or("auto");
+    let task_mode_task_split_mode = runtime
+        .map(|r| r.task_mode_task_split_mode)
+        .unwrap_or(crate::app::task::TaskSplitMode::FollowSystem);
     let task_mode_executor = runtime.and_then(|r| r.task_mode_executor.clone());
+    let task_mode_reasoning_effort = runtime.and_then(|r| r.task_mode_reasoning_effort);
     let task_mode_subtasks = runtime.map(|r| r.task_mode_subtasks.clone()).unwrap_or_default();
     let has_permission_context = app
         .active_session_id
@@ -515,6 +528,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let attach_btn = attachment::attachment_button(app);
     let primary_btn = session_control_button(app);
     let acp_btn = acp_selector_button(app, selected_acp_agent.clone());
+    let reasoning_btn =
+        reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
     let workflow_btn = workflow_mode_button(workflow_mode_enabled);
 
@@ -536,6 +551,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             input_text.clone(),
             task_mode_priority.to_string(),
             task_mode_model.to_string(),
+            task_mode_reasoning_effort,
+            task_mode_task_split_mode,
             task_mode_subtasks,
         ))
     } else {
@@ -552,6 +569,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let bottom_bar = bottom_bar(
         primary_btn,
         acp_btn,
+        reasoning_btn,
         permission_btn,
         workflow_btn,
         model_btn,
@@ -574,7 +592,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             task_mode_enabled,
             task_mode_priority,
             task_mode_model,
+            task_mode_task_split_mode,
             task_mode_executor,
+            task_mode_reasoning_effort,
             runtime.task_mode_subtasks.as_slice(),
         )
     } else {

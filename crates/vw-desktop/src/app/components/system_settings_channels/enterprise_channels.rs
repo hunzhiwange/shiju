@@ -9,9 +9,10 @@ use iced::Element;
 use iced::widget::column;
 
 use super::common::{
-    GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, bool_row,
-    group_reply_mode_value, hint_row, lark_receive_mode_value, number_row, panel, pick_row,
-    qq_receive_mode_value, text_row,
+    GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
+    bool_row, group_reply_mode_value, hint_row, instance_title_row, lark_receive_mode_value,
+    number_row, number_row_with_key, panel, pick_row, pick_row_with_key, qq_receive_mode_value,
+    text_row, text_row_with_key,
 };
 
 /// 构建或处理 `lark_panel` 对应的界面片段与交互数据。
@@ -128,97 +129,207 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.feishu.as_ref() {
-        column![
-            settings_section_card(
+    let enabled = s.feishu.is_some() || !s.feishu_instances.is_empty();
+    let mut body = column![].spacing(12);
+
+    if let Some(cfg) = s.feishu.as_ref() {
+        body = body
+            .push(settings_section_card(
                 "Feishu 详细配置",
                 "覆盖 app_id、app_secret、加密字段、接收模式、端口和草稿编辑参数。",
-            ),
-            text_row(app, "app_id", "Feishu App ID", &cfg.app_id, "feishu.app_id", true),
-            text_row(
+            ))
+            .push(text_row(app, "app_id", "Feishu App ID", &cfg.app_id, "feishu.app_id", true))
+            .push(text_row(
                 app,
                 "app_secret",
                 "Feishu App Secret",
                 &cfg.app_secret,
                 "feishu.app_secret",
                 true,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "encrypt_key",
                 "可选 encrypt key",
                 cfg.encrypt_key.as_deref().unwrap_or(""),
                 "feishu.encrypt_key",
                 true,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "verification_token",
                 "可选 verification token",
                 cfg.verification_token.as_deref().unwrap_or(""),
                 "feishu.verification_token",
                 true,
-            ),
-            text_row(app, "allowed_users", "逗号或换行分隔", "", "feishu.allowed_users", false),
-            pick_row(
+            ))
+            .push(text_row(
+                app,
+                "allowed_users",
+                "逗号或换行分隔",
+                "",
+                "feishu.allowed_users",
+                false,
+            ))
+            .push(pick_row(
                 "group_reply.mode",
                 group_reply_mode_value(&cfg.group_reply),
                 &GROUP_REPLY_MODE_OPTIONS,
                 "feishu.group_reply.mode",
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "group_reply.allowed_sender_ids",
                 "逗号或换行分隔",
                 "",
                 "feishu.group_reply.allowed_sender_ids",
                 false,
-            ),
-            pick_row(
+            ))
+            .push(pick_row(
                 "receive_mode",
                 lark_receive_mode_value(cfg.receive_mode.clone()),
                 &LARK_RECEIVE_MODE_OPTIONS,
                 "feishu.receive_mode",
-            ),
-            number_row(
+            ))
+            .push(number_row(
                 "port",
                 cfg.port.unwrap_or(3000) as u32,
                 1,
                 u16::MAX as u32,
                 "",
                 "feishu.port",
-            ),
-            hint_row("Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。"),
-            number_row(
+            ))
+            .push(hint_row("Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。"))
+            .push(number_row(
                 "draft_update_interval_ms",
                 cfg.draft_update_interval_ms as u32,
                 100,
                 60_000,
                 "ms",
                 "feishu.draft_update_interval_ms",
-            ),
-            number_row(
+            ))
+            .push(number_row(
                 "max_draft_edits",
                 cfg.max_draft_edits,
                 1,
                 200,
                 "",
                 "feishu.max_draft_edits",
-            ),
-        ]
-        .spacing(12)
-        .into()
-    } else {
-        column![].into()
-    };
+            ));
+    }
+
+    for (index, instance) in s.feishu_instances.iter().enumerate() {
+        let key_prefix = format!("feishu_instances.{index}");
+        let title = if instance.id.trim().is_empty() {
+            format!("Feishu 实例 {}", index + 1)
+        } else {
+            format!("Feishu 实例 {}", instance.id)
+        };
+        body = body
+            .push(instance_title_row(title, "feishu", index))
+            .push(text_row_with_key(
+                app,
+                "instance_id",
+                "cn",
+                &instance.id,
+                format!("{key_prefix}.id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "app_id",
+                "Feishu App ID",
+                &instance.config.app_id,
+                format!("{key_prefix}.app_id"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "app_secret",
+                "Feishu App Secret",
+                &instance.config.app_secret,
+                format!("{key_prefix}.app_secret"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "encrypt_key",
+                "可选 encrypt key",
+                instance.config.encrypt_key.as_deref().unwrap_or(""),
+                format!("{key_prefix}.encrypt_key"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "verification_token",
+                "可选 verification token",
+                instance.config.verification_token.as_deref().unwrap_or(""),
+                format!("{key_prefix}.verification_token"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "allowed_users",
+                "逗号或换行分隔",
+                "",
+                format!("{key_prefix}.allowed_users"),
+                false,
+            ))
+            .push(pick_row_with_key(
+                "group_reply.mode",
+                group_reply_mode_value(&instance.config.group_reply),
+                &GROUP_REPLY_MODE_OPTIONS,
+                format!("{key_prefix}.group_reply.mode"),
+            ))
+            .push(text_row_with_key(
+                app,
+                "group_reply.allowed_sender_ids",
+                "逗号或换行分隔",
+                "",
+                format!("{key_prefix}.group_reply.allowed_sender_ids"),
+                false,
+            ))
+            .push(pick_row_with_key(
+                "receive_mode",
+                lark_receive_mode_value(instance.config.receive_mode.clone()),
+                &LARK_RECEIVE_MODE_OPTIONS,
+                format!("{key_prefix}.receive_mode"),
+            ))
+            .push(number_row_with_key(
+                "port",
+                instance.config.port.unwrap_or(3000) as u32,
+                1,
+                u16::MAX as u32,
+                "",
+                format!("{key_prefix}.port"),
+            ))
+            .push(number_row_with_key(
+                "draft_update_interval_ms",
+                instance.config.draft_update_interval_ms as u32,
+                100,
+                60_000,
+                "ms",
+                format!("{key_prefix}.draft_update_interval_ms"),
+            ))
+            .push(number_row_with_key(
+                "max_draft_edits",
+                instance.config.max_draft_edits,
+                1,
+                200,
+                "",
+                format!("{key_prefix}.max_draft_edits"),
+            ));
+    }
+
+    body = body.push(add_instance_row("feishu", "新增 Feishu 实例"));
 
     panel(
         "feishu",
         "Feishu",
         "国内版飞书详细配置。",
-        s.feishu.is_some(),
+        enabled,
         s.expanded_panels.contains("feishu"),
-        body,
+        body.into(),
     )
 }
 
@@ -237,39 +348,89 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.dingtalk.as_ref() {
-        column![
-            text_row(
+    let enabled = s.dingtalk.is_some() || !s.dingtalk_instances.is_empty();
+    let mut body = column![].spacing(12);
+
+    if let Some(cfg) = s.dingtalk.as_ref() {
+        body = body
+            .push(text_row(
                 app,
                 "client_id",
                 "DingTalk AppKey",
                 &cfg.client_id,
                 "dingtalk.client_id",
                 true,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "client_secret",
                 "DingTalk AppSecret",
                 &cfg.client_secret,
                 "dingtalk.client_secret",
                 true,
-            ),
-            text_row(app, "allowed_users", "逗号或换行分隔", "", "dingtalk.allowed_users", false,),
-        ]
-        .spacing(12)
-        .into()
-    } else {
-        column![].into()
-    };
+            ))
+            .push(text_row(
+                app,
+                "allowed_users",
+                "逗号或换行分隔",
+                "",
+                "dingtalk.allowed_users",
+                false,
+            ));
+    }
+
+    for (index, instance) in s.dingtalk_instances.iter().enumerate() {
+        let key_prefix = format!("dingtalk_instances.{index}");
+        let title = if instance.id.trim().is_empty() {
+            format!("DingTalk 实例 {}", index + 1)
+        } else {
+            format!("DingTalk 实例 {}", instance.id)
+        };
+        body = body
+            .push(instance_title_row(title, "dingtalk", index))
+            .push(text_row_with_key(
+                app,
+                "instance_id",
+                "ops",
+                &instance.id,
+                format!("{key_prefix}.id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "client_id",
+                "DingTalk AppKey",
+                &instance.config.client_id,
+                format!("{key_prefix}.client_id"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "client_secret",
+                "DingTalk AppSecret",
+                &instance.config.client_secret,
+                format!("{key_prefix}.client_secret"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "allowed_users",
+                "逗号或换行分隔",
+                "",
+                format!("{key_prefix}.allowed_users"),
+                false,
+            ));
+    }
+
+    body = body.push(add_instance_row("dingtalk", "新增 DingTalk 实例"));
 
     panel(
         "dingtalk",
         "DingTalk",
         "钉钉 Stream 模式鉴权与白名单。",
-        s.dingtalk.is_some(),
+        enabled,
         s.expanded_panels.contains("dingtalk"),
-        body,
+        body.into(),
     )
 }
 

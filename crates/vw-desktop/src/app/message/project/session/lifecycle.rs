@@ -192,15 +192,215 @@ fn tool_part_message_content(part: &agent_message::ToolPart) -> String {
     format!("tool {}\n{}\n", part.tool, tool_part_payload(part))
 }
 
+fn assistant_info(message: &agent_message::WithParts) -> Option<&agent_message::AssistantInfo> {
+    match &message.info {
+        agent_message::Info::Assistant(info) => Some(info.as_ref()),
+        agent_message::Info::User(_) => None,
+    }
+}
+
+fn token_usage_from_info(tokens: &agent_message::TokenInfo) -> models::TokenUsage {
+    models::TokenUsage {
+        input_tokens: tokens.input,
+        output_tokens: tokens.output,
+        cached_tokens: tokens.cache.read + tokens.cache.write,
+        reasoning_tokens: tokens.reasoning,
+    }
+}
+
+fn token_usage_has_value(usage: &models::TokenUsage) -> bool {
+    usage.input_tokens != 0
+        || usage.output_tokens != 0
+        || usage.cached_tokens != 0
+        || usage.reasoning_tokens != 0
+}
+
+fn assistant_model_label(info: &agent_message::AssistantInfo) -> Option<String> {
+    if info.model_id.trim().is_empty() {
+        None
+    } else if info.provider_id.trim().is_empty() {
+        Some(info.model_id.clone())
+    } else {
+        Some(format!("{}/{}", info.provider_id, info.model_id))
+    }
+}
+
+fn upsert_loaded_step_start(
+    steps: &mut Vec<models::ChatSessionStep>,
+    index: u32,
+    started_ms: u64,
+    model: Option<String>,
+    snapshot: Option<String>,
+) {
+    if let Some(step) = steps.iter_mut().find(|step| step.index == index) {
+        step.started_ms = started_ms;
+        if model.is_some() {
+            step.model = model;
+        }
+        if snapshot.is_some() {
+            step.start_snapshot_path = snapshot;
+        }
+    } else {
+        steps.push(models::ChatSessionStep {
+            index,
+            started_ms,
+            finished_ms: None,
+            start_snapshot_path: snapshot,
+            finish_snapshot_path: None,
+            usage: models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: None,
+            model,
+        });
+    }
+}
+
+fn upsert_loaded_step_finish(
+    steps: &mut Vec<models::ChatSessionStep>,
+    index: u32,
+    finished_ms: u64,
+    usage: models::TokenUsage,
+    finish_reason: Option<String>,
+    model: Option<String>,
+    cost_usd: Option<f64>,
+    snapshot: Option<String>,
+) {
+    if let Some(step) = steps.iter_mut().find(|step| step.index == index) {
+        step.finished_ms = Some(finished_ms);
+        step.usage = usage;
+        if finish_reason.is_some() {
+            step.finish_reason = finish_reason;
+        }
+        if model.is_some() {
+            step.model = model;
+        }
+        if cost_usd.is_some() {
+            step.cost_usd = cost_usd;
+        }
+        if snapshot.is_some() {
+            step.finish_snapshot_path = snapshot;
+        }
+    } else {
+        steps.push(models::ChatSessionStep {
+            index,
+            started_ms: finished_ms,
+            finished_ms: Some(finished_ms),
+            start_snapshot_path: None,
+            finish_snapshot_path: snapshot,
+            usage,
+            cost_usd,
+            finish_reason,
+            model,
+        });
+    }
+}
+
+pub(crate) fn steps_from_gateway_messages(
+    msgs: &[agent_message::WithParts],
+) -> Vec<models::ChatSessionStep> {
+    let mut steps = Vec::new();
+    let mut next_index = 1u32;
+    let mut active_step_index = None;
+
+    for message in msgs {
+        let assistant = assistant_info(message);
+        let started_ms = assistant.map(|info| info.time.created).unwrap_or_default();
+        let finished_ms = assistant
+            .and_then(|info| info.time.completed)
+            .or_else(|| assistant.map(|info| info.time.created))
+            .unwrap_or_default();
+        let model = assistant.and_then(assistant_model_label);
+        let assistant_usage =
+            assistant.map(|info| token_usage_from_info(&info.tokens)).unwrap_or_default();
+        let assistant_finish = assistant.and_then(|info| info.finish.clone());
+        let assistant_cost = assistant.and_then(|info| (info.cost > 0.0).then_some(info.cost));
+
+        for part in &message.parts {
+            match part {
+                agent_message::Part::StepStart(part) => {
+                    let index = next_index;
+                    next_index = next_index.saturating_add(1);
+                    active_step_index = Some(index);
+                    upsert_loaded_step_start(
+                        &mut steps,
+                        index,
+                        started_ms,
+                        model.clone(),
+                        part.snapshot.clone(),
+                    );
+                }
+                agent_message::Part::StepFinish(part) => {
+                    let index = active_step_index.unwrap_or_else(|| {
+                        let index = next_index;
+                        next_index = next_index.saturating_add(1);
+                        index
+                    });
+                    let part_usage = token_usage_from_info(&part.tokens);
+                    let usage = if token_usage_has_value(&part_usage) {
+                        part_usage
+                    } else {
+                        assistant_usage.clone()
+                    };
+                    let finish_reason = assistant_finish
+                        .clone()
+                        .or_else(|| (!part.reason.trim().is_empty()).then(|| part.reason.clone()));
+                    let cost_usd = (part.cost > 0.0).then_some(part.cost).or(assistant_cost);
+                    upsert_loaded_step_finish(
+                        &mut steps,
+                        index,
+                        finished_ms,
+                        usage,
+                        finish_reason,
+                        model.clone(),
+                        cost_usd,
+                        part.snapshot.clone(),
+                    );
+                    active_step_index = None;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if steps.is_empty() {
+        for message in msgs {
+            if let Some(info) = assistant_info(message) {
+                let usage = token_usage_from_info(&info.tokens);
+                if !token_usage_has_value(&usage) {
+                    continue;
+                }
+                let index = next_index;
+                next_index = next_index.saturating_add(1);
+                steps.push(models::ChatSessionStep {
+                    index,
+                    started_ms: info.time.created,
+                    finished_ms: info.time.completed,
+                    start_snapshot_path: None,
+                    finish_snapshot_path: None,
+                    usage,
+                    cost_usd: (info.cost > 0.0).then_some(info.cost),
+                    finish_reason: info.finish.clone(),
+                    model: assistant_model_label(info),
+                });
+            }
+        }
+    }
+
+    steps.sort_by_key(|step| step.index);
+    steps
+}
+
 /// loaded_chat_from_gateway_messages 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(crate) fn loaded_chat_from_gateway_messages(
-    msgs: Vec<agent_message::WithParts>,
+    mut msgs: Vec<agent_message::WithParts>,
 ) -> (Vec<models::ChatMessage>, Vec<Option<String>>) {
     let mut chat = Vec::new();
     let mut message_ids = Vec::new();
+
+    msgs.sort_by_key(|message| gateway_message_created_ms(&message.info));
 
     for message in msgs {
         let role = match &message.info {
@@ -262,6 +462,62 @@ pub(crate) fn loaded_chat_from_gateway_messages(
     }
 
     (chat, message_ids)
+}
+
+fn gateway_message_created_ms(info: &agent_message::Info) -> u64 {
+    match info {
+        agent_message::Info::User(info) => info.time.created,
+        agent_message::Info::Assistant(info) => info.time.created,
+    }
+}
+
+pub(super) fn reset_boundary_loaded_end(
+    loaded_ids: &[Option<String>],
+    reset_boundary: &[Option<String>],
+) -> usize {
+    if let Some(boundary_id) = reset_boundary.iter().rev().find_map(Option::as_ref)
+        && let Some(idx) = loaded_ids.iter().position(|id| id.as_ref() == Some(boundary_id))
+    {
+        return idx.saturating_add(1);
+    }
+
+    reset_boundary.len().min(loaded_ids.len())
+}
+
+fn filter_loaded_chat_after_reset_boundary(
+    loaded_chat: Vec<models::ChatMessage>,
+    loaded_ids: Vec<Option<String>>,
+    reset_boundary: &[Option<String>],
+    local_ids: &[Option<String>],
+) -> (Vec<models::ChatMessage>, Vec<Option<String>>) {
+    if reset_boundary.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+
+    let boundary_end = reset_boundary_loaded_end(&loaded_ids, reset_boundary);
+    let retain_end = boundary_end.min(loaded_chat.len()).min(loaded_ids.len());
+    let allowed_after_boundary: std::collections::HashSet<&str> =
+        local_ids.iter().skip(reset_boundary.len()).filter_map(Option::as_deref).collect();
+
+    let mut filtered_chat = Vec::with_capacity(loaded_chat.len().min(local_ids.len()));
+    let mut filtered_ids = Vec::with_capacity(loaded_ids.len().min(local_ids.len()));
+
+    for idx in 0..retain_end {
+        filtered_chat.push(loaded_chat[idx].clone());
+        filtered_ids.push(loaded_ids[idx].clone());
+    }
+
+    for idx in retain_end..loaded_chat.len().min(loaded_ids.len()) {
+        let Some(message_id) = loaded_ids[idx].as_deref() else {
+            continue;
+        };
+        if allowed_after_boundary.contains(message_id) {
+            filtered_chat.push(loaded_chat[idx].clone());
+            filtered_ids.push(loaded_ids[idx].clone());
+        }
+    }
+
+    (filtered_chat, filtered_ids)
 }
 
 /// handle 处理当前模块对应的消息或状态转换。
@@ -608,6 +864,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {
                 Ok((id, msgs, usage)) => {
+                    let loaded_steps = steps_from_gateway_messages(&msgs);
                     tracing::info!(
                         target: "vw_desktop",
                         session_id = %id,
@@ -620,6 +877,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             .cached_chat_messages(&id)
                             .map(|chat| chat.iter().cloned().collect::<Vec<_>>());
                         let local_message_ids = app.cached_chat_message_ids(&id);
+                        let reset_boundary =
+                            app.session_history_reset_boundary(&id).map(|ids| ids.to_vec());
                         let (next_chat, next_ids) = if msgs.is_empty()
                             && let Some(local) = local_messages.clone()
                             && !local.is_empty()
@@ -629,8 +888,26 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         } else {
                             let (converted, converted_ids) =
                                 loaded_chat_from_gateway_messages(msgs);
+                            let (converted, converted_ids) =
+                                if let Some(reset_boundary) = reset_boundary.as_deref() {
+                                    filter_loaded_chat_after_reset_boundary(
+                                        converted,
+                                        converted_ids,
+                                        reset_boundary,
+                                        local_message_ids.as_deref().unwrap_or(&[]),
+                                    )
+                                } else {
+                                    (converted, converted_ids)
+                                };
 
-                            if !converted.is_empty() {
+                            if reset_boundary.is_some()
+                                && let Some(local) = local_messages.clone()
+                                && converted.len() < local.len()
+                            {
+                                let ids =
+                                    local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
+                                (local, ids)
+                            } else if !converted.is_empty() {
                                 (converted, converted_ids)
                             } else if let Some(local) = local_messages
                                 && !local.is_empty()
@@ -656,8 +933,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             app.chat_message_ids.clone(),
                         );
                         app.usage = usage;
+                        let existing_calls = app.active_session_view_state.calls.clone();
+                        let existing_steps = app.active_session_view_state.steps.clone();
+                        let next_steps =
+                            if loaded_steps.is_empty() { existing_steps } else { loaded_steps };
                         app.active_session_view_state.updated_ms = 0;
                         app.clear_active_session_steps();
+                        app.replace_active_session_steps(next_steps);
+                        app.replace_active_session_calls(existing_calls);
                         app.invalidate_chat_ui_state();
                         if app.chat.is_empty() {
                             tracing::warn!(

@@ -28,6 +28,8 @@ mod openrc;
 mod windows;
 
 use crate::app::agent::config::Config;
+use std::time::Duration;
+
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use serde::{Deserialize, Serialize};
@@ -97,6 +99,8 @@ pub fn handle_command(
     config: &Config,
     init_system: InitSystem,
 ) -> Result<()> {
+    wait_for_internal_command_delay();
+
     match command {
         ServiceCommands::Install => install(config, init_system),
         ServiceCommands::Start => start(config, init_system),
@@ -107,7 +111,29 @@ pub fn handle_command(
     }
 }
 
+fn wait_for_internal_command_delay() {
+    const INTERNAL_DELAY_ENV: &str = "VIBEWINDOW_INTERNAL_SERVICE_COMMAND_DELAY_MS";
+
+    let raw = std::env::var(INTERNAL_DELAY_ENV).ok();
+    let Some(delay) = internal_command_delay(raw.as_deref()) else {
+        return;
+    };
+
+    std::thread::sleep(delay);
+}
+
+fn internal_command_delay(raw: Option<&str>) -> Option<Duration> {
+    let delay_ms = raw?.trim().parse::<u64>().ok()?;
+    if delay_ms == 0 || delay_ms > 10_000 {
+        return None;
+    }
+
+    Some(Duration::from_millis(delay_ms))
+}
+
 fn install(config: &Config, init_system: InitSystem) -> Result<()> {
+    uninstall(config, init_system)?;
+
     if cfg!(target_os = "macos") {
         macos::install_macos(config)
     } else if cfg!(target_os = "linux") {
@@ -151,24 +177,21 @@ fn stop(config: &Config, init_system: InitSystem) -> Result<()> {
 
 fn restart(config: &Config, init_system: InitSystem) -> Result<()> {
     if cfg!(target_os = "macos") {
-        stop(config, init_system)?;
-        start(config, init_system)?;
-        println!("✅ Service restarted");
-        return Ok(());
+        let _ = config;
+        let _ = init_system;
+        macos::restart_macos()
+    } else if cfg!(target_os = "linux") {
+        let _ = config;
+        linux::restart_linux(init_system.resolve()?)
+    } else if cfg!(target_os = "windows") {
+        let _ = config;
+        let _ = init_system;
+        windows::restart_windows()
+    } else {
+        let _ = config;
+        let _ = init_system;
+        bail!("Service management is supported on macOS and Linux only")
     }
-
-    if cfg!(target_os = "linux") {
-        return linux::restart_linux(init_system.resolve()?);
-    }
-
-    if cfg!(target_os = "windows") {
-        stop(config, init_system)?;
-        start(config, init_system)?;
-        println!("✅ Service restarted");
-        return Ok(());
-    }
-
-    bail!("Service management is supported on macOS and Linux only")
 }
 
 fn status(config: &Config, init_system: InitSystem) -> Result<()> {

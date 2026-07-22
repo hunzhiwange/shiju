@@ -5,6 +5,28 @@ use iced::Element;
 
 use super::{App, Message};
 
+fn file_tree_rename_old_name(path: Option<&str>) -> &str {
+    path.and_then(|path| std::path::Path::new(path).file_name())
+        .and_then(|segment| segment.to_str())
+        .unwrap_or("")
+}
+
+fn session_rename_old_title<'a>(app: &'a App, session_id: &str) -> &'a str {
+    app.sessions
+        .iter()
+        .find(|session| session.id.as_str() == session_id)
+        .map(|session| session.title.as_str())
+        .or_else(|| {
+            app.project_sessions
+                .values()
+                .find_map(|sessions| {
+                    sessions.iter().find(|session| session.id.as_str() == session_id)
+                })
+                .map(|session| session.title.as_str())
+        })
+        .unwrap_or("")
+}
+
 /// 模块内可见函数，执行 with_file_tree_rename 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_file_tree_rename<'a>(
@@ -19,12 +41,7 @@ pub(crate) fn with_file_tree_rename<'a>(
         use iced::Length;
         use iced::widget::{Space, button, column, row, text, text_input};
 
-        let old_name = app
-            .file_tree_rename_path
-            .as_deref()
-            .and_then(|path| std::path::Path::new(path).file_name())
-            .and_then(|segment| segment.to_str())
-            .unwrap_or("");
+        let old_name = file_tree_rename_old_name(app.file_tree_rename_path.as_deref());
 
         let input = text_input("输入新名称", &app.file_tree_rename_value)
             .on_input(|value| {
@@ -87,18 +104,7 @@ pub(crate) fn with_session_rename<'a>(
         use iced::Length;
         use iced::widget::{Space, button, column, row, text, text_input};
 
-        let old_title = app
-            .sessions
-            .iter()
-            .find(|session| &session.id == session_id)
-            .map(|session| session.title.as_str())
-            .or_else(|| {
-                app.project_sessions
-                    .values()
-                    .find_map(|sessions| sessions.iter().find(|session| &session.id == session_id))
-                    .map(|session| session.title.as_str())
-            })
-            .unwrap_or("");
+        let old_title = session_rename_old_title(app, session_id);
 
         let input = text_input("输入新名称", &app.session_rename_value)
             .on_input(|value| {

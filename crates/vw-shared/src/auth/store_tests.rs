@@ -84,6 +84,15 @@ fn all_from_returns_empty_for_unreadable_missing_or_invalid_content() {
 }
 
 #[test]
+fn all_from_returns_empty_when_path_is_directory() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let path = temp.path().join("auth.json");
+    fs::create_dir_all(&path).expect("auth directory should be created");
+
+    assert!(all_from(&path).is_empty());
+}
+
+#[test]
 fn all_from_reads_valid_entries_and_ignores_malformed_entries() {
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let path = temp.path().join("auth.json");
@@ -164,6 +173,46 @@ fn set_to_creates_parent_directory_and_preserves_existing_entries() {
 }
 
 #[test]
+fn set_to_replaces_malformed_file_with_requested_entry() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let path = temp.path().join("auth.json");
+    fs::write(&path, "{").expect("malformed auth file should be written");
+
+    set_to(&path, "openai", &api_info("replacement-key"))
+        .expect("replacement auth should be written");
+
+    let data = all_from(&path);
+    assert_eq!(data.len(), 1);
+    assert_api_key(data.get("openai").cloned(), "replacement-key");
+}
+
+#[test]
+fn set_to_round_trips_oauth_boundary_fields() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let path = temp.path().join("auth.json");
+    let info = Info::Oauth(OauthInfo {
+        refresh: "refresh-value".to_string(),
+        access: "access-value".to_string(),
+        expires: i64::MIN,
+        account_id: None,
+        enterprise_url: Some("https://enterprise.example".to_string()),
+    });
+
+    set_to(&path, "oauth-provider", &info).expect("oauth auth should be written");
+
+    match get_from(&path, "oauth-provider") {
+        Some(Info::Oauth(oauth)) => {
+            assert_eq!(oauth.refresh, "refresh-value");
+            assert_eq!(oauth.access, "access-value");
+            assert_eq!(oauth.expires, i64::MIN);
+            assert!(oauth.account_id.is_none());
+            assert_eq!(oauth.enterprise_url.as_deref(), Some("https://enterprise.example"));
+        }
+        other => panic!("expected oauth info, got {other:?}"),
+    }
+}
+
+#[test]
 fn remove_from_deletes_matching_entry_and_keeps_others() {
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let path = temp.path().join("auth.json");
@@ -191,6 +240,22 @@ fn remove_from_deletes_matching_entry_and_keeps_others() {
     }
 }
 
+#[test]
+fn remove_from_missing_file_creates_empty_store() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let path = temp.path().join("nested").join("auth.json");
+
+    remove_from(&path, "missing").expect("empty auth store should be written");
+
+    assert!(path.is_file());
+    assert!(all_from(&path).is_empty());
+    let value: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&path).expect("empty auth store should be readable"),
+    )
+    .expect("empty auth store should contain valid json");
+    assert_eq!(value, json!({}));
+}
+
 #[cfg(unix)]
 #[test]
 fn set_to_writes_auth_file_with_user_only_permissions() {
@@ -198,6 +263,24 @@ fn set_to_writes_auth_file_with_user_only_permissions() {
 
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let path = temp.path().join("auth.json");
+
+    set_to(&path, "openai", &api_info("openai-key")).expect("auth should be written");
+
+    let mode =
+        fs::metadata(&path).expect("auth metadata should be readable").permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600);
+}
+
+#[cfg(unix)]
+#[test]
+fn set_to_restricts_permissions_on_existing_auth_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let path = temp.path().join("auth.json");
+    fs::write(&path, "{}").expect("auth file should be written");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o644))
+        .expect("broad permissions should be set");
 
     set_to(&path, "openai", &api_info("openai-key")).expect("auth should be written");
 

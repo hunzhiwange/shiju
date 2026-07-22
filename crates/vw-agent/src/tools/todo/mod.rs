@@ -31,6 +31,22 @@ pub use vw_shared::todo::{LegacyTodo, Todo};
 
 use self::store::{read_for_tool, read_for_ui, write_todos};
 
+pub(crate) fn read_session_todos(session: &str) -> Vec<Todo> {
+    read_for_tool(session).unwrap_or_default()
+}
+
+pub(crate) fn write_session_todos(session: &str, todos: Vec<Todo>) -> anyhow::Result<String> {
+    write_todos(session, json!({ "todos": todos, "merge": false }))
+}
+
+#[cfg(test)]
+pub(crate) fn write_session_todos_for_test(
+    session: &str,
+    todos: Vec<Todo>,
+) -> anyhow::Result<String> {
+    write_session_todos(session, todos)
+}
+
 /// 读取当前会话的待办事项列表
 ///
 /// # 参数

@@ -1,0 +1,978 @@
+use std::collections::HashSet;
+use std::path::Path;
+
+use anyhow::{Context, Result, bail};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_shared::session::info::Info as AgentSessionInfo;
+use vw_shared::session::ui_types::{
+    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
+    ThinkTiming, TokenUsage,
+};
+
+use crate::global_database::GlobalDatabase;
+use crate::global_database::config::DatabaseProvider;
+
+mod postgres;
+
+use postgres::PostgresSessionStore;
+
+const SESSION_SCHEMA: &str = r#"
+BEGIN IMMEDIATE;
+
+CREATE TABLE IF NOT EXISTS session_index (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    title TEXT NOT NULL,
+    created_ms INTEGER NOT NULL,
+    updated_ms INTEGER NOT NULL,
+    message_count INTEGER NOT NULL,
+    call_count INTEGER NOT NULL,
+    last_content TEXT,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_index_project_updated
+ON session_index(platform_id, company_id, project_id, updated_ms DESC, session_id DESC);
+CREATE INDEX IF NOT EXISTS idx_session_index_tenant_updated
+ON session_index(platform_id, company_id, updated_ms DESC, session_id DESC, project_id);
+
+CREATE TABLE IF NOT EXISTS session_messages (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    seq_no INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    message_id TEXT,
+    content TEXT NOT NULL,
+    think_timing_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_messages_project_seq
+ON session_messages(platform_id, company_id, project_id, session_id, seq_no);
+
+CREATE TABLE IF NOT EXISTS session_calls (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    seq_no INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_calls_project_seq
+ON session_calls(platform_id, company_id, project_id, session_id, seq_no);
+
+CREATE TABLE IF NOT EXISTS session_steps (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    step_index INTEGER NOT NULL,
+    started_ms INTEGER NOT NULL,
+    finished_ms INTEGER,
+    start_snapshot_path TEXT,
+    finish_snapshot_path TEXT,
+    usage_json TEXT NOT NULL,
+    cost_usd REAL,
+    finish_reason TEXT,
+    model TEXT,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
+ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+
+CREATE TABLE IF NOT EXISTS session_todos (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    order_no INTEGER NOT NULL,
+    todo_id TEXT NOT NULL CHECK (trim(todo_id) <> ''),
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, order_no),
+    UNIQUE (platform_id, company_id, project_id, session_id, todo_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_todos_project_order
+ON session_todos(platform_id, company_id, project_id, session_id, order_no, todo_id);
+
+CREATE TABLE IF NOT EXISTS session_agent_sessions (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    parent_id TEXT,
+    updated_ms INTEGER NOT NULL,
+    info_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_project_updated
+ON session_agent_sessions(
+    platform_id, company_id, project_id, updated_ms DESC, session_id DESC
+);
+CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_tenant_updated
+ON session_agent_sessions(
+    platform_id, company_id, updated_ms DESC, session_id DESC, project_id
+);
+CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_parent
+ON session_agent_sessions(platform_id, company_id, project_id, parent_id, session_id);
+
+COMMIT;
+"#;
+
+#[derive(Debug, Clone)]
+pub struct SessionStore {
+    provider: SessionStoreProvider,
+}
+
+#[derive(Debug, Clone)]
+enum SessionStoreProvider {
+    Sqlite(GlobalDatabase),
+    Postgres(PostgresSessionStore),
+}
+
+impl SessionStore {
+    pub fn new(database: GlobalDatabase) -> Result<Self> {
+        let provider = match database.provider() {
+            DatabaseProvider::Sqlite => {
+                database.initialize_sqlite_schema(|connection| {
+                    connection
+                        .execute_batch(SESSION_SCHEMA)
+                        .context("initialize SQLite session schema")?;
+                    Ok(())
+                })?;
+                SessionStoreProvider::Sqlite(database)
+            }
+            DatabaseProvider::Postgres => {
+                SessionStoreProvider::Postgres(PostgresSessionStore::new(database)?)
+            }
+        };
+        Ok(Self { provider })
+    }
+
+    pub fn path(&self) -> &Path {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => database.path(),
+            SessionStoreProvider::Postgres(_) => {
+                panic!("PostgreSQL session store does not expose a SQLite path")
+            }
+        }
+    }
+
+    pub fn storage_path(&self) -> Option<&Path> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => Some(database.path()),
+            SessionStoreProvider::Postgres(_) => None,
+        }
+    }
+
+    pub fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
+        validate_id("session id", &session.id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    upsert_session_header(transaction, scope, session)?;
+                    replace_session_messages(transaction, scope, session)?;
+                    replace_session_calls(transaction, scope, session)?;
+                    replace_session_steps(transaction, scope, session)?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => store.save_session(scope, session),
+        }
+    }
+
+    pub fn load_session(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<ChatSession>> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                load_session_from_connection(&connection, scope, session_id)
+            }
+            SessionStoreProvider::Postgres(store) => store.load_session(scope, session_id),
+        }
+    }
+
+    pub fn load_session_any(
+        &self,
+        tenant: &TenantScope,
+        session_id: &str,
+    ) -> Result<Option<ChatSession>> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let project_id = connection
+                    .query_row(
+                        "SELECT project_id FROM session_index
+                         WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3
+                         ORDER BY updated_ms DESC, project_id, session_id DESC
+                         LIMIT 1",
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            session_id,
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()
+                    .context("find tenant SQLite session project")?;
+                let Some(project_id) = project_id else {
+                    return Ok(None);
+                };
+                let scope = ProjectScope::new(tenant.clone(), ProjectId::from(project_id))?;
+                load_session_from_connection(&connection, &scope, session_id)
+            }
+            SessionStoreProvider::Postgres(store) => store.load_session_any(tenant, session_id),
+        }
+    }
+
+    pub fn list_sessions(&self, scope: &ProjectScope) -> Result<Vec<ChatSessionMeta>> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT session_id, title, updated_ms, message_count, call_count, last_content
+                     FROM session_index
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                     ORDER BY updated_ms DESC, session_id DESC
+                     LIMIT 50",
+                )?;
+                let mut rows = statement.query(scope_params(scope))?;
+                let mut sessions = Vec::new();
+                while let Some(row) = rows.next()? {
+                    sessions.push(ChatSessionMeta {
+                        id: row.get(0)?,
+                        title: row.get(1)?,
+                        updated_ms: from_i64(row.get(2)?, "session updated_ms")?,
+                        message_count: from_i64_usize(row.get(3)?, "session message_count")?,
+                        call_count: from_i64_usize(row.get(4)?, "session call_count")?,
+                        last_content: row.get(5)?,
+                    });
+                }
+                Ok(sessions)
+            }
+            SessionStoreProvider::Postgres(store) => store.list_sessions(scope),
+        }
+    }
+
+    pub fn load_session_meta(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<ChatSessionMeta>> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let row = connection
+                    .query_row(
+                        "SELECT title, updated_ms, message_count, call_count, last_content
+                         FROM session_index
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        scoped_id_params(scope, session_id),
+                        |row| {
+                            Ok((
+                                row.get::<_, String>(0)?,
+                                row.get::<_, i64>(1)?,
+                                row.get::<_, i64>(2)?,
+                                row.get::<_, i64>(3)?,
+                                row.get::<_, Option<String>>(4)?,
+                            ))
+                        },
+                    )
+                    .optional()?;
+                row.map(|(title, updated_ms, message_count, call_count, last_content)| {
+                    Ok(ChatSessionMeta {
+                        id: session_id.to_owned(),
+                        title,
+                        updated_ms: from_i64(updated_ms, "session updated_ms")?,
+                        message_count: from_i64_usize(message_count, "session message_count")?,
+                        call_count: from_i64_usize(call_count, "session call_count")?,
+                        last_content,
+                    })
+                })
+                .transpose()
+            }
+            SessionStoreProvider::Postgres(store) => store.load_session_meta(scope, session_id),
+        }
+    }
+
+    pub fn replace_session_index(
+        &self,
+        scope: &ProjectScope,
+        sessions: &[ChatSessionMeta],
+    ) -> Result<()> {
+        let mut ids = HashSet::with_capacity(sessions.len());
+        for session in sessions {
+            validate_id("session id", &session.id)?;
+            if !ids.insert(session.id.as_str()) {
+                bail!("duplicate session id in index replacement: {}", session.id);
+            }
+        }
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    transaction.execute(
+                        "DELETE FROM session_index
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3",
+                        scope_params(scope),
+                    )?;
+                    for session in sessions {
+                        transaction.execute(
+                            "INSERT INTO session_index (
+                                 platform_id, company_id, project_id, session_id, title, created_ms,
+                                 updated_ms, message_count, call_count, last_content
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                            params![
+                                scope.platform_id().as_ref(),
+                                scope.company_id().as_ref(),
+                                scope.project_id().as_ref(),
+                                session.id,
+                                session.title,
+                                to_i64(session.updated_ms, "session updated_ms")?,
+                                to_i64(session.updated_ms, "session updated_ms")?,
+                                usize_to_i64(session.message_count, "session message_count")?,
+                                usize_to_i64(session.call_count, "session call_count")?,
+                                session.last_content,
+                            ],
+                        )?;
+                    }
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => store.replace_session_index(scope, sessions),
+        }
+    }
+
+    pub fn delete_session(&self, scope: &ProjectScope, session_id: &str) -> Result<bool> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let changed = database.connect_sqlite()?.execute(
+                    "DELETE FROM session_index
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND session_id = ?4",
+                    scoped_id_params(scope, session_id),
+                )?;
+                Ok(changed == 1)
+            }
+            SessionStoreProvider::Postgres(store) => store.delete_session(scope, session_id),
+        }
+    }
+
+    pub fn save_session_todos(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        todos: &[SessionTodoItem],
+    ) -> Result<()> {
+        validate_id("session id", session_id)?;
+        let mut ids = HashSet::with_capacity(todos.len());
+        for todo in todos {
+            validate_id("todo id", &todo.id)?;
+            if !ids.insert(todo.id.as_str()) {
+                bail!("duplicate todo id in session: {}", todo.id);
+            }
+        }
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    transaction.execute(
+                        "DELETE FROM session_todos
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        scoped_id_params(scope, session_id),
+                    )?;
+                    for (order_no, todo) in todos.iter().enumerate() {
+                        transaction.execute(
+                            "INSERT INTO session_todos (
+                                 platform_id, company_id, project_id, session_id, order_no,
+                                 todo_id, content, status, priority
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                            params![
+                                scope.platform_id().as_ref(),
+                                scope.company_id().as_ref(),
+                                scope.project_id().as_ref(),
+                                session_id,
+                                usize_to_i64(order_no, "todo order_no")?,
+                                todo.id,
+                                todo.content,
+                                todo.status,
+                                todo.priority,
+                            ],
+                        )?;
+                    }
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                store.save_session_todos(scope, session_id, todos)
+            }
+        }
+    }
+
+    pub fn load_session_todos(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Vec<SessionTodoItem>> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT todo_id, content, status, priority
+                     FROM session_todos
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND session_id = ?4
+                     ORDER BY order_no, todo_id",
+                )?;
+                let todos = statement
+                    .query_map(scoped_id_params(scope, session_id), |row| {
+                        Ok(SessionTodoItem {
+                            id: row.get(0)?,
+                            content: row.get(1)?,
+                            status: row.get(2)?,
+                            priority: row.get(3)?,
+                        })
+                    })?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(todos)
+            }
+            SessionStoreProvider::Postgres(store) => store.load_session_todos(scope, session_id),
+        }
+    }
+
+    pub fn save_agent_session(&self, scope: &ProjectScope, info: &AgentSessionInfo) -> Result<()> {
+        validate_id("agent session id", &info.id)?;
+        if info.project_id != scope.project_id().as_ref() {
+            bail!("agent session project id must match project scope");
+        }
+        let info_json = serde_json::to_string(info).context("serialize agent session info JSON")?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.connect_sqlite()?.execute(
+                    "INSERT INTO session_agent_sessions (
+                         platform_id, company_id, project_id, session_id, parent_id, updated_ms,
+                         info_json
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                     ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+                         parent_id = excluded.parent_id,
+                         updated_ms = excluded.updated_ms,
+                         info_json = excluded.info_json",
+                    params![
+                        scope.platform_id().as_ref(),
+                        scope.company_id().as_ref(),
+                        scope.project_id().as_ref(),
+                        info.id,
+                        info.parent_id,
+                        to_i64(info.time.updated, "agent session updated_ms")?,
+                        info_json,
+                    ],
+                )?;
+                Ok(())
+            }
+            SessionStoreProvider::Postgres(store) => {
+                store.save_agent_session(scope, info, &info_json)
+            }
+        }
+    }
+
+    pub fn load_agent_session(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Option<AgentSessionInfo>> {
+        validate_id("agent session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let info_json = database
+                    .connect_sqlite()?
+                    .query_row(
+                        "SELECT info_json FROM session_agent_sessions
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4",
+                        scoped_id_params(scope, session_id),
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()?;
+                info_json
+                    .map(|json| parse_agent_info(&json, scope.project_id().as_ref(), session_id))
+                    .transpose()
+            }
+            SessionStoreProvider::Postgres(store) => store.load_agent_session(scope, session_id),
+        }
+    }
+
+    pub fn load_agent_sessions(&self, scope: &ProjectScope) -> Result<Vec<AgentSessionInfo>> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT session_id, info_json FROM session_agent_sessions
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                     ORDER BY updated_ms DESC, session_id DESC",
+                )?;
+                let mut rows = statement.query(scope_params(scope))?;
+                let mut sessions = Vec::new();
+                while let Some(row) = rows.next()? {
+                    let session_id: String = row.get(0)?;
+                    let info_json: String = row.get(1)?;
+                    sessions.push(parse_agent_info(
+                        &info_json,
+                        scope.project_id().as_ref(),
+                        &session_id,
+                    )?);
+                }
+                Ok(sessions)
+            }
+            SessionStoreProvider::Postgres(store) => store.load_agent_sessions(scope),
+        }
+    }
+
+    pub fn load_agent_sessions_all(&self, tenant: &TenantScope) -> Result<Vec<AgentSessionInfo>> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT project_id, session_id, info_json FROM session_agent_sessions
+                     WHERE platform_id = ?1 AND company_id = ?2
+                     ORDER BY updated_ms DESC, session_id DESC, project_id",
+                )?;
+                let mut rows = statement
+                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(),])?;
+                let mut seen = HashSet::new();
+                let mut sessions = Vec::new();
+                while let Some(row) = rows.next()? {
+                    let project_id: String = row.get(0)?;
+                    let session_id: String = row.get(1)?;
+                    let info_json: String = row.get(2)?;
+                    if seen.insert(session_id.clone()) {
+                        sessions.push(parse_agent_info(&info_json, &project_id, &session_id)?);
+                    }
+                }
+                Ok(sessions)
+            }
+            SessionStoreProvider::Postgres(store) => store.load_agent_sessions_all(tenant),
+        }
+    }
+
+    pub fn load_agent_session_any(
+        &self,
+        tenant: &TenantScope,
+        session_id: &str,
+    ) -> Result<Option<AgentSessionInfo>> {
+        validate_id("agent session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let row = database
+                    .connect_sqlite()?
+                    .query_row(
+                        "SELECT project_id, info_json FROM session_agent_sessions
+                         WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3
+                         ORDER BY updated_ms DESC, project_id
+                         LIMIT 1",
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            session_id,
+                        ],
+                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                    )
+                    .optional()?;
+                row.map(|(project_id, info_json)| {
+                    parse_agent_info(&info_json, &project_id, session_id)
+                })
+                .transpose()
+            }
+            SessionStoreProvider::Postgres(store) => {
+                store.load_agent_session_any(tenant, session_id)
+            }
+        }
+    }
+
+    pub fn delete_agent_session(&self, scope: &ProjectScope, session_id: &str) -> Result<bool> {
+        validate_id("agent session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let changed = database.connect_sqlite()?.execute(
+                    "DELETE FROM session_agent_sessions
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND session_id = ?4",
+                    scoped_id_params(scope, session_id),
+                )?;
+                Ok(changed == 1)
+            }
+            SessionStoreProvider::Postgres(store) => store.delete_agent_session(scope, session_id),
+        }
+    }
+}
+
+fn upsert_session_header(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    transaction.execute(
+        "INSERT INTO session_index (
+             platform_id, company_id, project_id, session_id, title, created_ms, updated_ms,
+             message_count, call_count, last_content
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+         ON CONFLICT (platform_id, company_id, project_id, session_id) DO UPDATE SET
+             title = excluded.title,
+             created_ms = excluded.created_ms,
+             updated_ms = excluded.updated_ms,
+             message_count = excluded.message_count,
+             call_count = excluded.call_count,
+             last_content = excluded.last_content",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session.id,
+            session.title,
+            to_i64(session.created_ms, "session created_ms")?,
+            to_i64(session.updated_ms, "session updated_ms")?,
+            usize_to_i64(session.messages.len(), "session message_count")?,
+            usize_to_i64(session.calls.len(), "session call_count")?,
+            session_last_content(&session.messages),
+        ],
+    )?;
+    Ok(())
+}
+
+fn replace_session_messages(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    transaction.execute(
+        "DELETE FROM session_messages
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        scoped_id_params(scope, &session.id),
+    )?;
+    for (seq_no, message) in session.messages.iter().enumerate() {
+        let think_timing_json =
+            serde_json::to_string(&message.think_timing).context("serialize think timing JSON")?;
+        transaction.execute(
+            "INSERT INTO session_messages (
+                 platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+                 content, think_timing_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session.id,
+                usize_to_i64(seq_no, "message seq_no")?,
+                role_to_db(message.role),
+                session.message_ids.get(seq_no).cloned().flatten(),
+                message.content,
+                think_timing_json,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+fn replace_session_calls(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    transaction.execute(
+        "DELETE FROM session_calls
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        scoped_id_params(scope, &session.id),
+    )?;
+    for (seq_no, payload) in session.calls.iter().enumerate() {
+        let payload_json = serde_json::to_string(payload).context("serialize session call JSON")?;
+        transaction.execute(
+            "INSERT INTO session_calls (
+                 platform_id, company_id, project_id, session_id, seq_no, payload_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session.id,
+                usize_to_i64(seq_no, "call seq_no")?,
+                payload_json,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+fn replace_session_steps(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    transaction.execute(
+        "DELETE FROM session_steps
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        scoped_id_params(scope, &session.id),
+    )?;
+    for step in &session.steps {
+        let usage_json =
+            serde_json::to_string(&step.usage).context("serialize token usage JSON")?;
+        transaction.execute(
+            "INSERT INTO session_steps (
+                 platform_id, company_id, project_id, session_id, step_index, started_ms,
+                 finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
+                 finish_reason, model
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session.id,
+                i64::from(step.index),
+                to_i64(step.started_ms, "step started_ms")?,
+                step.finished_ms.map(|value| to_i64(value, "step finished_ms")).transpose()?,
+                step.start_snapshot_path,
+                step.finish_snapshot_path,
+                usage_json,
+                step.cost_usd,
+                step.finish_reason,
+                step.model,
+            ],
+        )?;
+    }
+    Ok(())
+}
+
+fn load_session_from_connection(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Option<ChatSession>> {
+    let header = connection
+        .query_row(
+            "SELECT title, created_ms, updated_ms FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, session_id),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)),
+        )
+        .optional()?;
+    let Some((title, created_ms, updated_ms)) = header else {
+        return Ok(None);
+    };
+
+    let (messages, message_ids) = load_messages(connection, scope, session_id)?;
+    let calls = load_calls(connection, scope, session_id)?;
+    let steps = load_steps(connection, scope, session_id)?;
+    Ok(Some(ChatSession {
+        id: session_id.to_owned(),
+        title,
+        messages,
+        message_ids,
+        calls,
+        steps,
+        created_ms: from_i64(created_ms, "session created_ms")?,
+        updated_ms: from_i64(updated_ms, "session updated_ms")?,
+    }))
+}
+
+fn load_messages(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<(Vec<ChatMessage>, Vec<Option<String>>)> {
+    let mut statement = connection.prepare(
+        "SELECT role, message_id, content, think_timing_json FROM session_messages
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         ORDER BY seq_no",
+    )?;
+    let mut rows = statement.query(scoped_id_params(scope, session_id))?;
+    let mut messages = Vec::new();
+    let mut message_ids = Vec::new();
+    while let Some(row) = rows.next()? {
+        let role: String = row.get(0)?;
+        let think_timing_json: String = row.get(3)?;
+        message_ids.push(row.get(1)?);
+        messages.push(ChatMessage {
+            role: role_from_db(&role)?,
+            content: row.get(2)?,
+            think_timing: serde_json::from_str::<Vec<ThinkTiming>>(&think_timing_json)
+                .with_context(|| {
+                    format!("parse session message think timing JSON: {session_id}")
+                })?,
+        });
+    }
+    Ok((messages, message_ids))
+}
+
+fn load_calls(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Vec<serde_json::Value>> {
+    let mut statement = connection.prepare(
+        "SELECT payload_json FROM session_calls
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         ORDER BY seq_no",
+    )?;
+    let mut rows = statement.query(scoped_id_params(scope, session_id))?;
+    let mut calls = Vec::new();
+    while let Some(row) = rows.next()? {
+        let payload_json: String = row.get(0)?;
+        calls.push(
+            serde_json::from_str(&payload_json)
+                .with_context(|| format!("parse session call payload JSON: {session_id}"))?,
+        );
+    }
+    Ok(calls)
+}
+
+fn load_steps(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+) -> Result<Vec<ChatSessionStep>> {
+    let mut statement = connection.prepare(
+        "SELECT step_index, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
+                usage_json, cost_usd, finish_reason, model
+         FROM session_steps
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         ORDER BY step_index",
+    )?;
+    let mut rows = statement.query(scoped_id_params(scope, session_id))?;
+    let mut steps = Vec::new();
+    while let Some(row) = rows.next()? {
+        let usage_json: String = row.get(5)?;
+        let finished_ms: Option<i64> = row.get(2)?;
+        steps.push(ChatSessionStep {
+            index: u32::try_from(row.get::<_, i64>(0)?).context("read session step_index")?,
+            started_ms: from_i64(row.get(1)?, "step started_ms")?,
+            finished_ms: finished_ms
+                .map(|value| from_i64(value, "step finished_ms"))
+                .transpose()?,
+            start_snapshot_path: row.get(3)?,
+            finish_snapshot_path: row.get(4)?,
+            usage: serde_json::from_str::<TokenUsage>(&usage_json)
+                .with_context(|| format!("parse session step usage JSON: {session_id}"))?,
+            cost_usd: row.get(6)?,
+            finish_reason: row.get(7)?,
+            model: row.get(8)?,
+        });
+    }
+    Ok(steps)
+}
+
+fn parse_agent_info(
+    info_json: &str,
+    expected_project_id: &str,
+    session_id: &str,
+) -> Result<AgentSessionInfo> {
+    let info = serde_json::from_str::<AgentSessionInfo>(info_json)
+        .with_context(|| format!("parse agent session info JSON: {session_id}"))?;
+    if info.id != session_id {
+        bail!("agent session JSON id does not match stored session id: {session_id}");
+    }
+    if info.project_id != expected_project_id {
+        bail!("agent session JSON project id does not match stored project scope: {session_id}");
+    }
+    Ok(info)
+}
+
+fn session_last_content(messages: &[ChatMessage]) -> Option<String> {
+    messages
+        .iter()
+        .rev()
+        .find_map(|message| (!message.content.trim().is_empty()).then(|| message.content.clone()))
+}
+
+fn role_to_db(role: ChatRole) -> &'static str {
+    match role {
+        ChatRole::User => "user",
+        ChatRole::Assistant => "assistant",
+        ChatRole::System => "system",
+        ChatRole::Tool => "tool",
+    }
+}
+
+fn role_from_db(role: &str) -> Result<ChatRole> {
+    match role {
+        "user" => Ok(ChatRole::User),
+        "assistant" => Ok(ChatRole::Assistant),
+        "system" => Ok(ChatRole::System),
+        "tool" => Ok(ChatRole::Tool),
+        _ => bail!("invalid stored session message role: {role}"),
+    }
+}
+
+fn validate_id(field: &str, value: &str) -> Result<()> {
+    if value.trim().is_empty() {
+        bail!("{field} must not be empty");
+    }
+    Ok(())
+}
+
+fn to_i64(value: u64, field: &str) -> Result<i64> {
+    i64::try_from(value).with_context(|| format!("{field} exceeds database BIGINT range"))
+}
+
+fn usize_to_i64(value: usize, field: &str) -> Result<i64> {
+    i64::try_from(value).with_context(|| format!("{field} exceeds database BIGINT range"))
+}
+
+fn from_i64(value: i64, field: &str) -> Result<u64> {
+    u64::try_from(value).with_context(|| format!("{field} is negative"))
+}
+
+fn from_i64_usize(value: i64, field: &str) -> Result<usize> {
+    usize::try_from(value).with_context(|| format!("{field} is negative or too large"))
+}
+
+fn scope_params(scope: &ProjectScope) -> (&str, &str, &str) {
+    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref())
+}
+
+fn scoped_id_params<'a>(
+    scope: &'a ProjectScope,
+    id: &'a str,
+) -> (&'a str, &'a str, &'a str, &'a str) {
+    (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), id)
+}

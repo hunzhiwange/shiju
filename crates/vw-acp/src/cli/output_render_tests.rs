@@ -9,7 +9,12 @@ use vw_api_types::tools::{RenderHintDto, ToolResultDto};
 
 use crate::cli::output_render::{
     SessionConnectionStatus, agent_session_id_payload, conversation_history_entries,
-    format_prompt_session_banner_line, write_cancel_result_by_format,
+    format_prompt_session_banner_line, print_cancel_result_by_format,
+    print_closed_session_by_format, print_created_session_banner, print_ensured_session_by_format,
+    print_new_session_by_format, print_prompt_session_banner, print_queued_prompt_by_format,
+    print_session_details_by_format, print_session_history_by_format, print_sessions_by_format,
+    print_set_config_option_result_by_format, print_set_mode_result_by_format,
+    print_set_model_result_by_format, write_cancel_result_by_format,
     write_closed_session_by_format, write_created_session_banner, write_ensured_session_by_format,
     write_new_session_by_format, write_queued_prompt_by_format, write_session_details_by_format,
     write_session_history_by_format, write_sessions_by_format,
@@ -109,6 +114,7 @@ fn sample_record() -> SessionRecord {
             available_models: Some(vec!["model-a".to_string(), "model-b".to_string()]),
             available_commands: None,
             config_options: None,
+            desired_config_options: None,
             session_options: None,
         }),
     }
@@ -123,6 +129,26 @@ struct FailingWriter;
 impl Write for FailingWriter {
     fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
         Err(io::Error::other("write failed"))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct NewlineRejectingWriter {
+    output: Vec<u8>,
+}
+
+impl Write for NewlineRejectingWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if buf == b"\n" {
+            return Err(io::Error::other("newline rejected"));
+        }
+
+        self.output.extend_from_slice(buf);
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -462,6 +488,36 @@ fn write_session_details_by_format_renders_text_and_quiet_payloads() {
 }
 
 #[test]
+fn write_session_details_by_format_renders_full_text_state() {
+    let record = sample_record();
+    let mut output = Vec::new();
+
+    write_session_details_by_format(&mut output, &record, OutputFormat::Text).unwrap();
+
+    let rendered = rendered_output(output);
+    assert!(rendered.contains("session: record-1\n"));
+    assert!(rendered.contains("acpSessionId: session-1\n"));
+    assert!(rendered.contains("agentSessionId: agent-1\n"));
+    assert!(rendered.contains("agent: agent\n"));
+    assert!(rendered.contains("cwd: /tmp/project\n"));
+    assert!(rendered.contains("name: workspace\n"));
+    assert!(rendered.contains("title: Demo\n"));
+    assert!(rendered.contains("status: open\n"));
+    assert!(rendered.contains("model: model-a\n"));
+    assert!(rendered.contains("mode: focus\n"));
+    assert!(rendered.contains("availableModels: model-a, model-b\n"));
+    assert!(rendered.contains("createdAt: 2026-01-01T00:00:00Z\n"));
+    assert!(rendered.contains("lastUsedAt: 2026-01-01T00:02:00Z\n"));
+    assert!(rendered.contains("updatedAt: 2026-01-01T00:03:00Z\n"));
+    assert!(rendered.contains("lastPromptAt: 2026-01-01T00:01:00Z\n"));
+    assert!(rendered.contains("pid: 42\n"));
+    assert!(rendered.contains("closedAt: -\n"));
+    assert!(rendered.contains("lastAgentExitCode: -\n"));
+    assert!(rendered.contains("lastAgentExitSignal: -\n"));
+    assert!(rendered.contains("lastAgentDisconnectReason: -\n"));
+}
+
+#[test]
 fn write_session_history_by_format_limits_text_output() {
     let record = sample_record();
     let mut output = Vec::new();
@@ -469,6 +525,19 @@ fn write_session_history_by_format_limits_text_output() {
     write_session_history_by_format(&mut output, &record, OutputFormat::Text, 1).unwrap();
 
     assert_eq!(String::from_utf8(output).unwrap(), "[assistant] hi\n[tool:shell]\ndone\n");
+}
+
+#[test]
+fn write_session_history_by_format_keeps_all_entries_when_limit_exceeds_history() {
+    let record = sample_record();
+    let mut output = Vec::new();
+
+    write_session_history_by_format(&mut output, &record, OutputFormat::Text, 10).unwrap();
+
+    assert_eq!(
+        rendered_output(output),
+        "[user] hello\nREADME\n[assistant] hi\n[tool:shell]\ndone\n"
+    );
 }
 
 #[test]
@@ -546,6 +615,30 @@ fn format_prompt_session_banner_line_renders_status_and_routing() {
 }
 
 #[test]
+fn format_prompt_session_banner_line_resolves_relative_cwd() {
+    let mut record = sample_record();
+    record.cwd = "workspace".to_string();
+
+    let rendered =
+        format_prompt_session_banner_line(&record, "workspace", SessionConnectionStatus::Connected);
+    let expected_cwd = std::env::current_dir().unwrap().join("workspace");
+
+    assert_eq!(
+        rendered,
+        format!(
+            "[vwacp] session workspace (record-1) · {} · agent connected",
+            expected_cwd.display()
+        )
+    );
+}
+
+#[test]
+fn session_connection_status_display_renders_stable_labels() {
+    assert_eq!(SessionConnectionStatus::Connected.to_string(), "connected");
+    assert_eq!(SessionConnectionStatus::NeedsReconnect.to_string(), "needs reconnect");
+}
+
+#[test]
 fn write_created_session_banner_renders_label_agent_and_cwd() {
     let record = sample_record();
     let mut output = Vec::new();
@@ -615,6 +708,113 @@ fn write_cancel_result_by_format_propagates_json_writer_errors() {
     let error = write_cancel_result_by_format(&mut writer, true, OutputFormat::Json).unwrap_err();
 
     assert_eq!(error.kind(), io::ErrorKind::Other);
+}
+
+#[test]
+fn write_output_helpers_propagate_text_writer_errors() {
+    let record = sample_record();
+    let result = SessionEnqueueResult {
+        queued: true,
+        session_id: "record-1".to_string(),
+        request_id: "request-1".to_string(),
+    };
+
+    let error = write_closed_session_by_format(&mut FailingWriter, &record, OutputFormat::Text)
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_new_session_by_format(&mut FailingWriter, &record, None, OutputFormat::Quiet)
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error =
+        write_ensured_session_by_format(&mut FailingWriter, &record, true, OutputFormat::Text)
+            .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error =
+        write_queued_prompt_by_format(&mut FailingWriter, &result, OutputFormat::Text).unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_session_details_by_format(&mut FailingWriter, &record, OutputFormat::Quiet)
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error =
+        write_session_history_by_format(&mut FailingWriter, &record, OutputFormat::Quiet, 1)
+            .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_created_session_banner(&mut FailingWriter, &record, "codex").unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error =
+        write_cancel_result_by_format(&mut FailingWriter, false, OutputFormat::Text).unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_set_mode_result_by_format(&mut FailingWriter, "focus", OutputFormat::Text)
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_set_model_result_by_format(&mut FailingWriter, "model-a", OutputFormat::Text)
+        .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+
+    let error = write_set_config_option_result_by_format(
+        &mut FailingWriter,
+        "approval",
+        "strict",
+        OutputFormat::Text,
+    )
+    .unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+}
+
+#[test]
+fn write_sessions_by_format_propagates_json_writer_errors() {
+    let error =
+        write_sessions_by_format(&mut FailingWriter, &[sample_record()], OutputFormat::Json)
+            .unwrap_err();
+
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+}
+
+#[test]
+fn write_sessions_by_format_propagates_trailing_newline_errors_after_json() {
+    let mut writer = NewlineRejectingWriter::default();
+
+    let error =
+        write_sessions_by_format(&mut writer, &[sample_record()], OutputFormat::Json).unwrap_err();
+
+    assert_eq!(error.to_string(), "newline rejected");
+    let value: Value = serde_json::from_slice(&writer.output).unwrap();
+    assert_eq!(value[0]["vwacpRecordId"], "record-1");
+}
+
+#[tokio::test]
+async fn print_output_wrappers_return_ok() {
+    let record = sample_record();
+    let result = SessionEnqueueResult {
+        queued: true,
+        session_id: "record-1".to_string(),
+        request_id: "request-1".to_string(),
+    };
+
+    print_sessions_by_format(std::slice::from_ref(&record), OutputFormat::Quiet).unwrap();
+    print_closed_session_by_format(&record, OutputFormat::Quiet).unwrap();
+    print_new_session_by_format(&record, None, OutputFormat::Quiet).unwrap();
+    print_ensured_session_by_format(&record, false, OutputFormat::Quiet).unwrap();
+    print_queued_prompt_by_format(&result, OutputFormat::Quiet).unwrap();
+    print_session_details_by_format(&record, OutputFormat::Quiet).unwrap();
+    print_session_history_by_format(&record, OutputFormat::Quiet, 1).unwrap();
+    print_created_session_banner(&record, "codex", OutputFormat::Quiet, false).unwrap();
+    print_cancel_result_by_format(true, OutputFormat::Quiet).unwrap();
+    print_set_mode_result_by_format("focus", OutputFormat::Quiet).unwrap();
+    print_set_model_result_by_format("model-a", OutputFormat::Quiet).unwrap();
+    print_set_config_option_result_by_format("approval", "strict", OutputFormat::Quiet).unwrap();
+    print_prompt_session_banner(&record, "/tmp/project", OutputFormat::Quiet, false).await.unwrap();
+    print_prompt_session_banner(&record, "/tmp/project", OutputFormat::Json, true).await.unwrap();
+    print_prompt_session_banner(&record, "/tmp/project", OutputFormat::Text, false).await.unwrap();
 }
 
 #[test]

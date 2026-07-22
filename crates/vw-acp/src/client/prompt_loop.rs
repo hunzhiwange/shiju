@@ -83,7 +83,9 @@ impl AcpClient {
                             cancel_sent = true;
                         }
                         Ok(_) => {}
-                        Err(_) => {}
+                        Err(_) => {
+                            cancel_sent = true;
+                        }
                     }
                 }
                 joined = &mut prompt_future, if !prompt_finished => {

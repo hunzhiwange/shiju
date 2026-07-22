@@ -29,6 +29,26 @@ fn markdown_to_telegram_html_formats_inline_markdown() {
 }
 
 #[test]
+fn markdown_to_telegram_html_formats_headers_and_escapes_title() {
+    assert_eq!(
+        TelegramChannel::markdown_to_telegram_html("## <Title> & 'quoted'"),
+        "<b>&lt;Title&gt; &amp; &#39;quoted&#39;</b>"
+    );
+}
+
+#[test]
+fn markdown_to_telegram_html_formats_unicode_inline_segments() {
+    let html = TelegramChannel::markdown_to_telegram_html(
+        "Hi **粗体<&>** __also__ *斜体* `let x = \"y\"` ~~删除~~",
+    );
+
+    assert_eq!(
+        html,
+        "Hi <b>粗体&lt;&amp;&gt;</b> <b>also</b> <i>斜体</i> <code>let x = &quot;y&quot;</code> <s>删除</s>"
+    );
+}
+
+#[test]
 fn markdown_to_telegram_html_only_links_http_schemes() {
     let html = TelegramChannel::markdown_to_telegram_html(
         "[safe](http://example.test) [also](https://example.test) [raw](mailto:x@y.test)",
@@ -41,10 +61,30 @@ fn markdown_to_telegram_html_only_links_http_schemes() {
 }
 
 #[test]
+fn markdown_to_telegram_html_keeps_malformed_links_as_text() {
+    let html = TelegramChannel::markdown_to_telegram_html(
+        "[missing bracket (https://example.test) [no paren] https://example.test [open](https://example.test",
+    );
+
+    assert_eq!(
+        html,
+        "[missing bracket (https://example.test) [no paren] https://example.test [open](https://example.test"
+    );
+}
+
+#[test]
 fn markdown_to_telegram_html_escapes_plain_text_and_unclosed_markup() {
     assert_eq!(
         TelegramChannel::markdown_to_telegram_html("<tag attr='x'>& **open"),
         "&lt;tag attr=&#39;x&#39;&gt;&amp; **open"
+    );
+}
+
+#[test]
+fn markdown_to_telegram_html_keeps_empty_italic_and_unclosed_code_as_text() {
+    assert_eq!(
+        TelegramChannel::markdown_to_telegram_html("prefix ** *x* `open ~~gone"),
+        "prefix ** <i>x</i> `open ~~gone"
     );
 }
 
@@ -60,6 +100,16 @@ fn markdown_to_telegram_html_closes_trailing_code_block() {
     let html = TelegramChannel::markdown_to_telegram_html("```\nno close <tag>");
 
     assert_eq!(html, "<pre><code>no close &lt;tag&gt;</code></pre>");
+}
+
+#[test]
+fn markdown_to_telegram_html_ignores_empty_trailing_code_block() {
+    assert_eq!(TelegramChannel::markdown_to_telegram_html("before\n```"), "before");
+}
+
+#[test]
+fn markdown_to_telegram_html_preserves_closed_empty_code_block() {
+    assert_eq!(TelegramChannel::markdown_to_telegram_html("```\n```"), "<pre><code></code></pre>");
 }
 
 #[test]

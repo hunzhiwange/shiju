@@ -1,5 +1,8 @@
 use super::TelegramChannel;
-use crate::app::agent::config::{StreamMode, TranscriptionConfig};
+use crate::app::agent::config::{
+    Config, StreamMode, SystemConfigStore, TelegramConfig, TranscriptionConfig,
+};
+use crate::global_database::GlobalDatabase;
 use axum::{
     Router,
     body::Body,
@@ -8,8 +11,70 @@ use axum::{
     response::Response,
     routing::get,
 };
+use std::path::Path;
+use std::sync::MutexGuard;
 use std::{collections::VecDeque, sync::Arc};
 use tokio::sync::{Mutex, oneshot};
+
+fn env_lock() -> MutexGuard<'static, ()> {
+    crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner())
+}
+
+struct HomeEnvGuard {
+    original: Option<std::ffi::OsString>,
+}
+
+impl HomeEnvGuard {
+    fn set(path: &Path) -> Self {
+        let original = std::env::var_os("HOME");
+        unsafe { std::env::set_var("HOME", path) };
+        Self { original }
+    }
+}
+
+impl Drop for HomeEnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(original) = &self.original {
+                std::env::set_var("HOME", original);
+            } else {
+                std::env::remove_var("HOME");
+            }
+        }
+    }
+}
+
+fn telegram_config(allowed_users: Vec<String>) -> TelegramConfig {
+    TelegramConfig {
+        bot_token: "telegram-token".to_string(),
+        allowed_users,
+        stream_mode: Default::default(),
+        draft_update_interval_ms: 1000,
+        interrupt_on_new_message: false,
+        mention_only: false,
+        group_reply: None,
+        base_url: None,
+    }
+}
+
+async fn seed_system_config(home: &Path, mut config: Config) -> std::path::PathBuf {
+    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_path = config_dir.join("vibewindow.json");
+    config.config_path = config_path.clone();
+    config.workspace_dir = config_dir.join("workspace");
+    crate::app::agent::config::schema::save_config(&config)
+        .await
+        .expect("seed system config database");
+    config_path
+}
+
+fn stored_system_config(home: &Path) -> String {
+    SystemConfigStore::new(GlobalDatabase::for_home(home).expect("global database"))
+        .expect("system config store")
+        .get(&vw_api_types::id::TenantScope::default())
+        .expect("read system config")
+        .expect("stored system config")
+}
 
 struct TestServerState {
     requests: Mutex<usize>,
@@ -182,6 +247,106 @@ fn pairing_code_active_is_true_for_empty_allowlist() {
     assert!(!configured.pairing_code_active());
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn load_config_without_env_reads_database_and_sets_runtime_paths() {
+    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().expect("temp home");
+    let _home_guard = HomeEnvGuard::set(home.path());
+    let mut config = Config::default();
+    config.channels_config.telegram = Some(telegram_config(vec!["alice".to_string()]));
+    let config_path = seed_system_config(home.path(), config).await;
+
+    let loaded = TelegramChannel::load_config_without_env().await.expect("load config");
+
+    assert_eq!(loaded.config_path, config_path);
+    assert_eq!(
+        loaded.workspace_dir,
+        vw_config_types::paths::home_config_dir(home.path()).join("workspace")
+    );
+    assert_eq!(
+        loaded.channels_config.telegram.expect("telegram config").allowed_users,
+        vec!["alice".to_string()]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn load_config_without_env_initializes_default_and_reports_invalid_database_payload() {
+    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().expect("temp home");
+    let _home_guard = HomeEnvGuard::set(home.path());
+
+    let initialized = TelegramChannel::load_config_without_env().await.expect("default config");
+    assert!(initialized.channels_config.telegram.is_none());
+
+    let store =
+        SystemConfigStore::new(GlobalDatabase::for_home(home.path()).expect("global database"))
+            .expect("system config store");
+    store.upsert(&vw_api_types::id::TenantScope::default(), "{").expect("write invalid payload");
+
+    let parse = TelegramChannel::load_config_without_env().await.unwrap_err().to_string();
+    assert!(parse.contains("Failed to parse tenant system config payload"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn persist_allowed_identity_rejects_missing_telegram_section_and_empty_identity() {
+    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().expect("temp home");
+    let _home_guard = HomeEnvGuard::set(home.path());
+    seed_system_config(home.path(), Config::default()).await;
+    let channel = TelegramChannel::new("token".to_string(), vec![], false);
+
+    let missing = channel.persist_allowed_identity("alice").await.unwrap_err().to_string();
+    assert!(missing.contains("Missing channels.telegram in the system config"), "{missing}");
+
+    let mut config = Config::default();
+    config.channels_config.telegram = Some(telegram_config(Vec::new()));
+    seed_system_config(home.path(), config).await;
+
+    let empty = channel.persist_allowed_identity(" @ ").await.unwrap_err().to_string();
+    assert!(empty.contains("Cannot persist empty Telegram identity"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn persist_allowed_identity_skips_save_when_identity_already_exists() {
+    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().expect("temp home");
+    let _home_guard = HomeEnvGuard::set(home.path());
+    let mut config = Config::default();
+    config.channels_config.telegram = Some(telegram_config(vec!["alice".to_string()]));
+    seed_system_config(home.path(), config).await;
+    let before = stored_system_config(home.path());
+    let channel = TelegramChannel::new("token".to_string(), vec![], false);
+
+    channel.persist_allowed_identity(" @alice ").await.expect("existing identity is ok");
+
+    let after = stored_system_config(home.path());
+    assert_eq!(after, before);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn persist_allowed_identity_appends_normalized_identity() {
+    let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().expect("temp home");
+    let _home_guard = HomeEnvGuard::set(home.path());
+    let mut config = Config::default();
+    config.channels_config.telegram = Some(telegram_config(vec!["alice".to_string()]));
+    seed_system_config(home.path(), config).await;
+    let channel = TelegramChannel::new("token".to_string(), vec![], false);
+
+    channel.persist_allowed_identity(" @bob ").await.expect("persist new identity");
+
+    let persisted = TelegramChannel::load_config_without_env().await.expect("reload config");
+    assert_eq!(
+        persisted.channels_config.telegram.expect("telegram config").allowed_users,
+        vec!["alice".to_string(), "bob".to_string()]
+    );
+}
+
 #[tokio::test]
 async fn fetch_bot_username_reads_get_me_response() {
     let server =
@@ -228,4 +393,15 @@ async fn fetch_bot_username_reports_status_and_missing_username() {
             .to_string()
             .contains("Bot username not found")
     );
+}
+
+#[tokio::test]
+async fn get_bot_username_returns_none_when_fetch_fails() {
+    let server = TestServer::spawn(vec![(StatusCode::BAD_GATEWAY, r#"{"ok":false}"#)]).await;
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec![], false)
+        .with_api_base(server.base_url.clone());
+
+    assert_eq!(channel.get_bot_username().await, None);
+    assert_eq!(server.request_count().await, 1);
+    assert!(channel.bot_username.lock().is_none());
 }

@@ -357,6 +357,16 @@ fn cache_handles_zero_max_entries() {
     assert_eq!(count, 0, "max_entries=0 的缓存应淘汰所有条目");
 }
 
+#[test]
+fn zero_ttl_does_not_retain_new_entries() {
+    let (_tmp, cache) = temp_cache(0);
+
+    cache.put("key", "gpt-4", "response", 10).unwrap();
+
+    assert!(cache.get("key").unwrap().is_none());
+    assert_eq!(cache.stats().unwrap(), (0, 0, 0));
+}
+
 /// 测试缓存在并发读取时的安全性
 ///
 /// 验证多个线程同时读取缓存时不会发生数据竞争或崩溃。
@@ -457,4 +467,53 @@ fn new_initializes_expected_schema_and_indexes() {
         )
         .unwrap();
     assert_eq!(index_count, 2);
+}
+
+#[test]
+fn new_errors_when_memory_path_is_file() {
+    let workspace = TempDir::new().unwrap();
+    let storage = paths::workspace_data_dir(workspace.path()).unwrap();
+    std::fs::create_dir_all(&storage).unwrap();
+    std::fs::write(storage.join("memory"), b"not a directory").unwrap();
+
+    assert!(ResponseCache::new(workspace.path(), 60, 1000).is_err());
+}
+
+#[test]
+fn new_errors_when_database_path_is_directory() {
+    let workspace = TempDir::new().unwrap();
+    let storage = paths::workspace_data_dir(workspace.path()).unwrap();
+    let db_path = storage.join("memory").join("response_cache.db");
+    std::fs::create_dir_all(&db_path).unwrap();
+
+    assert!(ResponseCache::new(workspace.path(), 60, 1000).is_err());
+}
+
+#[test]
+fn new_errors_when_existing_schema_cannot_be_indexed() {
+    let workspace = TempDir::new().unwrap();
+    let storage = paths::workspace_data_dir(workspace.path()).unwrap();
+    let db_dir = storage.join("memory");
+    std::fs::create_dir_all(&db_dir).unwrap();
+
+    let conn = Connection::open(db_dir.join("response_cache.db")).unwrap();
+    conn.execute("CREATE TABLE response_cache (prompt_hash TEXT PRIMARY KEY)", []).unwrap();
+    drop(conn);
+
+    assert!(ResponseCache::new(workspace.path(), 60, 1000).is_err());
+}
+
+#[test]
+fn operations_return_errors_when_table_is_missing() {
+    let (_tmp, cache) = temp_cache(60);
+
+    {
+        let conn = cache.conn.lock();
+        conn.execute("DROP TABLE response_cache", []).unwrap();
+    }
+
+    assert!(cache.get("missing").is_err());
+    assert!(cache.put("key", "gpt-4", "response", 10).is_err());
+    assert!(cache.stats().is_err());
+    assert!(cache.clear().is_err());
 }

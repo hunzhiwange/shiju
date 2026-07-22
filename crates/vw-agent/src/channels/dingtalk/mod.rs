@@ -60,6 +60,8 @@ use uuid::Uuid;
 /// 该主题用于订阅钉钉机器人接收到的所有消息，
 /// 包括单聊、群聊中的 @ 消息等。
 const DINGTALK_BOT_CALLBACK_TOPIC: &str = "/v1.0/im/bot/messages/get";
+const DINGTALK_GATEWAY_CONNECTIONS_OPEN_URL: &str =
+    "https://api.dingtalk.com/v1.0/gateway/connections/open";
 
 /// 钉钉通道实现
 ///
@@ -92,6 +94,8 @@ pub struct DingTalkChannel {
     /// 携带一个唯一的 sessionWebhook URL，后续回复必须使用该 URL。
     /// 此字段维护 chat_id 到 webhook URL 的映射，支持消息回复。
     session_webhooks: Arc<RwLock<HashMap<String, String>>>,
+    #[cfg(test)]
+    gateway_endpoint: String,
 }
 
 /// 钉钉网关注册响应
@@ -135,6 +139,25 @@ impl DingTalkChannel {
             client_secret,
             allowed_users,
             session_webhooks: Arc::new(RwLock::new(HashMap::new())),
+            #[cfg(test)]
+            gateway_endpoint: DINGTALK_GATEWAY_CONNECTIONS_OPEN_URL.to_string(),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_gateway_endpoint_for_test(mut self, endpoint: String) -> Self {
+        self.gateway_endpoint = endpoint;
+        self
+    }
+
+    fn gateway_endpoint(&self) -> &str {
+        #[cfg(test)]
+        {
+            &self.gateway_endpoint
+        }
+        #[cfg(not(test))]
+        {
+            DINGTALK_GATEWAY_CONNECTIONS_OPEN_URL
         }
     }
 
@@ -162,6 +185,99 @@ impl DingTalkChannel {
     /// 否则返回 `false`
     fn is_user_allowed(&self, user_id: &str) -> bool {
         self.allowed_users.iter().any(|u| u == "*" || u == user_id)
+    }
+
+    fn gateway_registration_body(&self) -> serde_json::Value {
+        serde_json::json!({
+            "clientId": self.client_id,
+            "clientSecret": self.client_secret,
+            "subscriptions": [
+                {
+                    "type": "CALLBACK",
+                    "topic": DINGTALK_BOT_CALLBACK_TOPIC,
+                }
+            ],
+        })
+    }
+
+    fn websocket_url(gw: &GatewayResponse) -> String {
+        format!("{}?ticket={}", gw.endpoint, gw.ticket)
+    }
+
+    fn webhook_reply_body(message: &SendMessage) -> serde_json::Value {
+        let title = message.subject.as_deref().unwrap_or("VibeWindow");
+        serde_json::json!({
+            "msgtype": "markdown",
+            "markdown": {
+                "title": title,
+                "text": message.content,
+            }
+        })
+    }
+
+    fn frame_message_id(frame: &serde_json::Value) -> &str {
+        frame.get("headers").and_then(|h| h.get("messageId")).and_then(|m| m.as_str()).unwrap_or("")
+    }
+
+    fn stream_response_frame(message_id: &str) -> serde_json::Value {
+        serde_json::json!({
+            "code": 200,
+            "headers": {
+                "contentType": "application/json",
+                "messageId": message_id,
+            },
+            "message": "OK",
+            "data": "",
+        })
+    }
+
+    fn channel_message_from_data(&self, data: &serde_json::Value) -> Option<ChannelMessage> {
+        let content = data
+            .get("text")
+            .and_then(|t| t.get("content"))
+            .and_then(|c| c.as_str())
+            .unwrap_or("")
+            .trim();
+
+        if content.is_empty() {
+            return None;
+        }
+
+        let sender_id = data.get("senderStaffId").and_then(|s| s.as_str()).unwrap_or("unknown");
+
+        if !self.is_user_allowed(sender_id) {
+            tracing::warn!("钉钉：忽略未授权用户的消息: {sender_id}");
+            return None;
+        }
+
+        let chat_id = Self::resolve_chat_id(data, sender_id);
+
+        Some(ChannelMessage {
+            id: Uuid::new_v4().to_string(),
+            sender: sender_id.to_string(),
+            reply_target: chat_id,
+            content: content.to_string(),
+            channel: "dingtalk".to_string(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            thread_ts: None,
+        })
+    }
+
+    async fn cache_session_webhook(
+        &self,
+        chat_id: &str,
+        sender_id: &str,
+        data: &serde_json::Value,
+    ) {
+        if let Some(webhook) = data.get("sessionWebhook").and_then(|w| w.as_str()) {
+            let webhook = webhook.to_string();
+            let mut webhooks = self.session_webhooks.write().await;
+            webhooks.insert(chat_id.to_string(), webhook.clone());
+            webhooks.insert(sender_id.to_string(), webhook);
+        }
     }
 
     /// 解析流数据帧中的业务数据
@@ -245,24 +361,10 @@ impl DingTalkChannel {
     /// 避免在日志中泄露敏感数据。
     async fn register_connection(&self) -> anyhow::Result<GatewayResponse> {
         // 构建注册请求体
-        let body = serde_json::json!({
-            "clientId": self.client_id,
-            "clientSecret": self.client_secret,
-            "subscriptions": [
-                {
-                    "type": "CALLBACK",
-                    "topic": DINGTALK_BOT_CALLBACK_TOPIC,
-                }
-            ],
-        });
+        let body = self.gateway_registration_body();
 
         // 发送注册请求到钉钉网关
-        let resp = self
-            .http_client()
-            .post("https://api.dingtalk.com/v1.0/gateway/connections/open")
-            .json(&body)
-            .send()
-            .await?;
+        let resp = self.http_client().post(self.gateway_endpoint()).json(&body).send().await?;
 
         // 处理非成功响应
         if !resp.status().is_success() {
@@ -326,14 +428,7 @@ impl Channel for DingTalkChannel {
         })?;
 
         // 构建消息体，使用 Markdown 格式
-        let title = message.subject.as_deref().unwrap_or("VibeWindow");
-        let body = serde_json::json!({
-            "msgtype": "markdown",
-            "markdown": {
-                "title": title,
-                "text": message.content,
-            }
-        });
+        let body = Self::webhook_reply_body(message);
 
         // 发送消息到 webhook
         let resp = self.http_client().post(webhook_url).json(&body).send().await?;
@@ -384,7 +479,7 @@ impl Channel for DingTalkChannel {
 
         // 第一步：注册连接获取 WebSocket 端点和票据
         let gw = self.register_connection().await?;
-        let ws_url = format!("{}?ticket={}", gw.endpoint, gw.ticket);
+        let ws_url = Self::websocket_url(&gw);
 
         // 第二步：建立 WebSocket 连接
         tracing::info!("钉钉：正在连接到 Stream WebSocket...");
@@ -421,22 +516,7 @@ impl Channel for DingTalkChannel {
             match frame_type {
                 "SYSTEM" => {
                     // 系统消息（心跳）：回复 pong 保持连接活跃
-                    let message_id = frame
-                        .get("headers")
-                        .and_then(|h| h.get("messageId"))
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("");
-
-                    // 构建 pong 响应
-                    let pong = serde_json::json!({
-                        "code": 200,
-                        "headers": {
-                            "contentType": "application/json",
-                            "messageId": message_id,
-                        },
-                        "message": "OK",
-                        "data": "",
-                    });
+                    let pong = Self::stream_response_frame(Self::frame_message_id(&frame));
 
                     // 发送 pong，失败则断开连接
                     if let Err(e) = write.send(Message::Text(pong.to_string().into())).await {
@@ -454,74 +534,20 @@ impl Channel for DingTalkChannel {
                         }
                     };
 
-                    // 提取消息文本内容
-                    let content = data
-                        .get("text")
-                        .and_then(|t| t.get("content"))
-                        .and_then(|c| c.as_str())
-                        .unwrap_or("")
-                        .trim();
-
-                    // 跳过空消息
-                    if content.is_empty() {
-                        continue;
-                    }
-
-                    // 获取发送者 ID
-                    let sender_id =
-                        data.get("senderStaffId").and_then(|s| s.as_str()).unwrap_or("unknown");
-
-                    // 权限检查：只处理允许列表中的用户消息
-                    if !self.is_user_allowed(sender_id) {
-                        tracing::warn!("钉钉：忽略未授权用户的消息: {sender_id}");
-                        continue;
-                    }
-
-                    // 解析聊天 ID（单聊用发送者 ID，群聊用会话 ID）
-                    let chat_id = Self::resolve_chat_id(&data, sender_id);
+                    let channel_msg = match self.channel_message_from_data(&data) {
+                        Some(message) => message,
+                        None => continue,
+                    };
+                    let sender_id = channel_msg.sender.clone();
+                    let chat_id = channel_msg.reply_target.clone();
 
                     // 缓存会话 webhook URL，用于后续回复
-                    if let Some(webhook) = data.get("sessionWebhook").and_then(|w| w.as_str()) {
-                        let webhook = webhook.to_string();
-                        let mut webhooks = self.session_webhooks.write().await;
-                        // 同时使用 chat_id 和 sender_id 作为键，
-                        // 确保群聊和单聊场景下的回复路由都能正常工作
-                        webhooks.insert(chat_id.clone(), webhook.clone());
-                        webhooks.insert(sender_id.to_string(), webhook);
-                    }
+                    self.cache_session_webhook(&chat_id, &sender_id, &data).await;
 
                     // 发送确认（ACK）响应
-                    let message_id = frame
-                        .get("headers")
-                        .and_then(|h| h.get("messageId"))
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("");
-
-                    let ack = serde_json::json!({
-                        "code": 200,
-                        "headers": {
-                            "contentType": "application/json",
-                            "messageId": message_id,
-                        },
-                        "message": "OK",
-                        "data": "",
-                    });
+                    let ack = Self::stream_response_frame(Self::frame_message_id(&frame));
                     // ACK 发送失败不中断流程
                     let _ = write.send(Message::Text(ack.to_string().into())).await;
-
-                    // 构建通道消息并发送给上层
-                    let channel_msg = ChannelMessage {
-                        id: Uuid::new_v4().to_string(),
-                        sender: sender_id.to_string(),
-                        reply_target: chat_id,
-                        content: content.to_string(),
-                        channel: "dingtalk".to_string(),
-                        timestamp: std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs(),
-                        thread_ts: None, // 钉钉暂不支持线程消息
-                    };
 
                     // 发送到处理通道，失败则断开连接
                     if tx.send(channel_msg).await.is_err() {

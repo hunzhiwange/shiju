@@ -195,36 +195,7 @@ pub fn handle_command(
             // 执行技能安装，支持多种来源（本地、Git、skills.sh）
             let install_result = install_skill_from_source(&source, &skills_path)?;
 
-            // 根据安装来源类型显示相应的成功信息
-            match install_result {
-                // 从 skills.sh 仓库安装
-                InstallResult::SkillsSh { installed_dir, files_scanned } => {
-                    println!(
-                        "  {} Skill installed from skills.sh: {} ({} files scanned)",
-                        console::style("✓").green().bold(),
-                        installed_dir.display(),
-                        files_scanned
-                    );
-                }
-                // 从 Git 仓库安装
-                InstallResult::Git { installed_dir, files_scanned } => {
-                    println!(
-                        "  {} Skill installed and audited: {} ({} files scanned)",
-                        console::style("✓").green().bold(),
-                        installed_dir.display(),
-                        files_scanned
-                    );
-                }
-                // 从本地目录安装
-                InstallResult::Local { installed_dir, files_scanned } => {
-                    println!(
-                        "  {} Skill installed and audited: {} ({} files scanned)",
-                        console::style("✓").green().bold(),
-                        installed_dir.display(),
-                        files_scanned
-                    );
-                }
-            }
+            print_install_success(install_result);
 
             println!("  Security audit completed successfully.");
             Ok(())
@@ -262,6 +233,40 @@ pub fn handle_command(
             std::fs::remove_dir_all(&skill_path)?;
             println!("  {} Skill '{}' removed.", console::style("✓").green().bold(), name);
             Ok(())
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn print_install_success(install_result: InstallResult) {
+    // 根据安装来源类型显示相应的成功信息
+    match install_result {
+        // 从 skills.sh 仓库安装
+        InstallResult::SkillsSh { installed_dir, files_scanned } => {
+            println!(
+                "  {} Skill installed from skills.sh: {} ({} files scanned)",
+                console::style("✓").green().bold(),
+                installed_dir.display(),
+                files_scanned
+            );
+        }
+        // 从 Git 仓库安装
+        InstallResult::Git { installed_dir, files_scanned } => {
+            println!(
+                "  {} Skill installed and audited: {} ({} files scanned)",
+                console::style("✓").green().bold(),
+                installed_dir.display(),
+                files_scanned
+            );
+        }
+        // 从本地目录安装
+        InstallResult::Local { installed_dir, files_scanned } => {
+            println!(
+                "  {} Skill installed and audited: {} ({} files scanned)",
+                console::style("✓").green().bold(),
+                installed_dir.display(),
+                files_scanned
+            );
         }
     }
 }

@@ -53,6 +53,8 @@ fn upgrade_rejects_unsupported_install_methods_without_running_commands() {
 
 #[test]
 fn run_helpers_cover_empty_and_failing_commands() {
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
     assert_eq!(run_quiet(Vec::new()), "");
 
     let err = run_cmd(&[], None).expect_err("missing command should be rejected");
@@ -89,4 +91,88 @@ fn error_display_delegates_to_inner_errors() {
     let utf8_err = String::from_utf8(vec![0xff]).unwrap_err();
     let err = Error::from(utf8_err);
     assert!(err.to_string().contains("invalid utf-8"));
+}
+
+#[test]
+fn error_from_io_preserves_kind_and_message() {
+    let err = Error::from(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "installation access denied",
+    ));
+
+    assert_eq!(err.to_string(), "installation access denied");
+    assert!(matches!(
+        err,
+        Error::Io(inner) if inner.kind() == std::io::ErrorKind::PermissionDenied
+    ));
+}
+
+#[test]
+fn error_display_covers_upgrade_and_unsupported_variants() {
+    let upgrade = Error::UpgradeFailed(UpgradeFailedError { stderr: "upgrade stderr".into() });
+    assert_eq!(upgrade.to_string(), "upgrade stderr");
+
+    let unsupported = Error::Unsupported("automatic upgrade unavailable".into());
+    assert_eq!(unsupported.to_string(), "automatic upgrade unavailable");
+}
+
+#[test]
+fn extra_accepts_empty_input() {
+    assert!(extra::<0>([]).is_empty());
+}
+
+#[test]
+fn extra_uses_the_last_value_for_duplicate_keys() {
+    let map = extra([
+        ("channel", Value::String("preview".into())),
+        ("channel", Value::String("latest".into())),
+        ("enabled", Value::Bool(true)),
+    ]);
+
+    assert_eq!(map.len(), 2);
+    assert_eq!(map.get("channel"), Some(&Value::String("latest".into())));
+    assert_eq!(map.get("enabled"), Some(&Value::Bool(true)));
+}
+
+#[test]
+fn extra_from_output_replaces_reserved_keys_and_decodes_lossily() {
+    #[cfg(unix)]
+    let status = std::process::ExitStatus::from_raw(0);
+    #[cfg(windows)]
+    let status = std::process::ExitStatus::from_raw(0);
+
+    let output = Output { status, stdout: vec![b'o', 0xff], stderr: vec![0xfe] };
+    let map = extra_from_output(
+        &output,
+        [
+            ("stdout", Value::String("stale stdout".into())),
+            ("stderr", Value::String("stale stderr".into())),
+            ("exit_code", Value::Number(99.into())),
+            ("method", Value::String("npm".into())),
+        ],
+    );
+
+    assert_eq!(map.get("stdout"), Some(&Value::String("o�".into())));
+    assert_eq!(map.get("stderr"), Some(&Value::String("�".into())));
+    assert_eq!(map.get("exit_code"), Some(&Value::Number(0.into())));
+    assert_eq!(map.get("method"), Some(&Value::String("npm".into())));
+}
+
+#[cfg(unix)]
+#[test]
+fn extra_from_output_uses_negative_one_when_exit_code_is_unavailable() {
+    let output = Output {
+        status: std::process::ExitStatus::from_raw(9),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    };
+
+    let map = extra_from_output(&output, []);
+
+    assert_eq!(map.get("exit_code"), Some(&Value::Number((-1).into())));
+}
+
+#[test]
+fn run_quiet_returns_empty_for_an_invalid_program_name() {
+    assert_eq!(run_quiet(vec!["invalid\0program"]), "");
 }

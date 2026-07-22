@@ -44,6 +44,8 @@ struct AgentState {
     new_session_error: bool,
     new_session_delay: Option<Duration>,
     new_session_ids: VecDeque<String>,
+    new_session_models: Option<acp::SessionModelState>,
+    new_session_config_options: Option<Vec<acp::SessionConfigOption>>,
     load_results: VecDeque<bool>,
     resume_results: VecDeque<bool>,
 }
@@ -85,6 +87,18 @@ impl TestAgent {
     fn with_new_session_ids(ids: impl IntoIterator<Item = &'static str>) -> Self {
         let agent = Self::new();
         agent.state.lock().new_session_ids = ids.into_iter().map(str::to_string).collect();
+        agent
+    }
+
+    fn with_new_session_capabilities(
+        models: acp::SessionModelState,
+        config_options: Vec<acp::SessionConfigOption>,
+    ) -> Self {
+        let agent = Self::with_new_session_ids(["capable-session"]);
+        let mut state = agent.state.lock();
+        state.new_session_models = Some(models);
+        state.new_session_config_options = Some(config_options);
+        drop(state);
         agent
     }
 
@@ -134,12 +148,18 @@ impl acp::Agent for TestAgent {
         &self,
         args: acp::NewSessionRequest,
     ) -> acp::Result<acp::NewSessionResponse> {
-        let (delay, should_fail, session_id) = {
+        let (delay, should_fail, session_id, models, config_options) = {
             let mut state = self.state.lock();
             state.new_session_requests.push(args);
             let session_id =
                 state.new_session_ids.pop_front().unwrap_or_else(|| "new-session".to_string());
-            (state.new_session_delay, state.new_session_error, session_id)
+            (
+                state.new_session_delay,
+                state.new_session_error,
+                session_id,
+                state.new_session_models.clone(),
+                state.new_session_config_options.clone(),
+            )
         };
         if let Some(delay) = delay {
             tokio::time::sleep(delay).await;
@@ -147,7 +167,7 @@ impl acp::Agent for TestAgent {
         if should_fail {
             return Err(acp::Error::invalid_params());
         }
-        Ok(acp::NewSessionResponse::new(session_id))
+        Ok(acp::NewSessionResponse::new(session_id).models(models).config_options(config_options))
     }
 
     async fn load_session(
@@ -368,6 +388,37 @@ async fn new_session_id_sends_mcp_servers_and_session_meta() {
                 }
             }))
         );
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn new_session_info_preserves_advertised_models_and_config_options() {
+    let models = acp::SessionModelState::new(
+        "model-a",
+        vec![acp::ModelInfo::new("model-a", "Model A"), acp::ModelInfo::new("model-b", "Model B")],
+    );
+    let effort = acp::SessionConfigOption::select(
+        "effort",
+        "Effort",
+        "medium",
+        vec![
+            acp::SessionConfigSelectOption::new("medium", "Medium"),
+            acp::SessionConfigSelectOption::new("high", "High"),
+        ],
+    )
+    .category(acp::SessionConfigOptionCategory::ThoughtLevel);
+    let agent = TestAgent::with_new_session_capabilities(models.clone(), vec![effort.clone()]);
+
+    with_connection(agent, async |conn, _agent| {
+        let info = client("agent", &[])
+            .new_session_info(&conn, Path::new("/tmp/vw-acp-protocol-capabilities"))
+            .await
+            .expect("new session should retain capabilities");
+
+        assert_eq!(info.session_id, "capable-session");
+        assert_eq!(info.models, Some(models));
+        assert_eq!(info.config_options, Some(vec![effort]));
     })
     .await;
 }

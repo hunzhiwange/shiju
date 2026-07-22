@@ -62,6 +62,26 @@ fn test_security(cfg: &Config) -> Arc<SecurityPolicy> {
     Arc::new(SecurityPolicy::from_config(&cfg.autonomy, &cfg.workspace_dir))
 }
 
+#[tokio::test]
+async fn tool_metadata_declares_cron_remove_contract() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let tool = CronRemoveTool::new(cfg.clone(), test_security(&cfg));
+
+    assert_eq!(tool.name(), "cron_remove");
+    assert_eq!(tool.description(), "根据 ID 移除定时任务");
+    assert_eq!(
+        tool.parameters_schema(),
+        json!({
+            "type": "object",
+            "properties": {
+                "job_id": { "type": "string" }
+            },
+            "required": ["job_id"]
+        })
+    );
+}
+
 /// 测试：成功删除已存在的定时任务
 ///
 /// # 测试流程
@@ -192,4 +212,23 @@ async fn blocks_remove_when_rate_limited() {
     assert!(result.error.unwrap_or_default().contains("Rate limit exceeded"));
     // 验证任务仍然存在，未被删除
     assert_eq!(list_jobs(&cfg).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn disabled_cron_rejects_remove_before_mutation() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = Config {
+        workspace_dir: tmp.path().join("workspace"),
+        config_path: tmp.path().join("vibewindow.json"),
+        ..Config::default()
+    };
+    config.cron.enabled = false;
+    tokio::fs::create_dir_all(&config.workspace_dir).await.unwrap();
+    let cfg = Arc::new(config);
+    let tool = CronRemoveTool::new(cfg.clone(), test_security(&cfg));
+
+    let result = tool.execute(json!({"job_id": "job-1"})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("cron is disabled by config (cron.enabled=false)"));
 }

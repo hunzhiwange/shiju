@@ -3,6 +3,7 @@
 use crate::app::config::update_channels_config_async;
 use crate::app::{App, Message, state::ChannelsSettingsState};
 use iced::Task;
+use vw_config_types::channels::ChannelsConfig;
 
 fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     let mut channels = Vec::new();
@@ -27,7 +28,7 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     if settings.imessage.is_some() {
         channels.push("iMessage");
     }
-    if settings.matrix.is_some() {
+    if settings.matrix.is_some() || !settings.matrix_instances.is_empty() {
         channels.push("Matrix");
     }
     if settings.signal.is_some() {
@@ -55,10 +56,10 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     if settings.lark.is_some() {
         channels.push("Lark");
     }
-    if settings.feishu.is_some() {
+    if settings.feishu.is_some() || !settings.feishu_instances.is_empty() {
         channels.push("Feishu");
     }
-    if settings.dingtalk.is_some() {
+    if settings.dingtalk.is_some() || !settings.dingtalk_instances.is_empty() {
         channels.push("DingTalk");
     }
     if settings.qq.is_some() {
@@ -77,6 +78,42 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
 #[path = "persist_tests.rs"]
 mod persist_tests;
 
+pub(super) fn build_channels_config_from_settings(
+    settings: &ChannelsSettingsState,
+) -> Result<ChannelsConfig, String> {
+    let channels = ChannelsConfig {
+        project_dir: settings.project_dir(),
+        cli: settings.cli,
+        telegram: settings.telegram.clone(),
+        discord: settings.discord.clone(),
+        slack: settings.slack.clone(),
+        mattermost: settings.mattermost.clone(),
+        webhook: settings.webhook.clone(),
+        imessage: settings.imessage.clone(),
+        matrix: settings.matrix.clone(),
+        matrix_instances: settings.matrix_instances.clone(),
+        signal: settings.signal.clone(),
+        whatsapp: settings.whatsapp.clone(),
+        linq: settings.linq.clone(),
+        wati: settings.wati.clone(),
+        nextcloud_talk: settings.nextcloud_talk.clone(),
+        #[cfg(not(target_arch = "wasm32"))]
+        email: settings.email.clone(),
+        irc: settings.irc.clone(),
+        lark: settings.lark.clone(),
+        feishu: settings.feishu.clone(),
+        feishu_instances: settings.feishu_instances.clone(),
+        dingtalk: settings.dingtalk.clone(),
+        dingtalk_instances: settings.dingtalk_instances.clone(),
+        qq: settings.qq.clone(),
+        nostr: settings.nostr.clone(),
+        clawdtalk: settings.clawdtalk.clone(),
+        message_timeout_secs: settings.message_timeout_secs.max(1) as u64,
+    };
+    channels.resolve_channel_instance_profiles().map_err(|err| err.to_string())?;
+    Ok(channels)
+}
+
 /// 处理 `persist_channels_settings` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
@@ -84,30 +121,6 @@ mod persist_tests;
 /// 返回 `None` 表示输入为空或当前状态不需要生成后续值。
 pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> {
     let settings = &app.channels_settings;
-    let project_dir = settings.project_dir();
-    let cli = settings.cli;
-    let telegram = settings.telegram.clone();
-    let discord = settings.discord.clone();
-    let slack = settings.slack.clone();
-    let mattermost = settings.mattermost.clone();
-    let webhook = settings.webhook.clone();
-    let imessage = settings.imessage.clone();
-    let matrix = settings.matrix.clone();
-    let signal = settings.signal.clone();
-    let whatsapp = settings.whatsapp.clone();
-    let linq = settings.linq.clone();
-    let wati = settings.wati.clone();
-    let nextcloud_talk = settings.nextcloud_talk.clone();
-    #[cfg(not(target_arch = "wasm32"))]
-    let email = settings.email.clone();
-    let irc = settings.irc.clone();
-    let lark = settings.lark.clone();
-    let feishu = settings.feishu.clone();
-    let dingtalk = settings.dingtalk.clone();
-    let qq = settings.qq.clone();
-    let nostr = settings.nostr.clone();
-    let clawdtalk = settings.clawdtalk.clone();
-    let message_timeout_secs = settings.message_timeout_secs.max(1) as u64;
 
     let enabled = enabled_channels(settings);
     if enabled.is_empty() {
@@ -116,33 +129,16 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
         return None;
     }
 
+    let channels_config = match build_channels_config_from_settings(settings) {
+        Ok(channels_config) => channels_config,
+        Err(err) => {
+            app.channels_settings.save_error = Some(err);
+            return None;
+        }
+    };
+
     app.channels_settings.save_error = None;
     Some(update_channels_config_async(move |channels| {
-        channels.project_dir = project_dir;
-        channels.cli = cli;
-        channels.telegram = telegram;
-        channels.discord = discord;
-        channels.slack = slack;
-        channels.mattermost = mattermost;
-        channels.webhook = webhook;
-        channels.imessage = imessage;
-        channels.matrix = matrix;
-        channels.signal = signal;
-        channels.whatsapp = whatsapp;
-        channels.linq = linq;
-        channels.wati = wati;
-        channels.nextcloud_talk = nextcloud_talk;
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            channels.email = email;
-        }
-        channels.irc = irc;
-        channels.lark = lark;
-        channels.feishu = feishu;
-        channels.dingtalk = dingtalk;
-        channels.qq = qq;
-        channels.nostr = nostr;
-        channels.clawdtalk = clawdtalk;
-        channels.message_timeout_secs = message_timeout_secs;
+        *channels = channels_config;
     }))
 }

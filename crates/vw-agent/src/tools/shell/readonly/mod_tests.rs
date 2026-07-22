@@ -62,3 +62,11 @@ fn variable_expansion_marks_command_not_readonly() {
         ReadonlyCheckResult::NotReadonly { reason: "unquoted glob or variable expansion".into() }
     );
 }
+
+#[test]
+fn find_unquoted_glob_remains_readonly_without_variable_expansion() {
+    assert_eq!(
+        check_readonly_constraints(&parse_command("find . -name *.rs")),
+        ReadonlyCheckResult::Readonly
+    );
+}

@@ -47,12 +47,20 @@ pub(super) fn check_cli_tools(items: &mut Vec<DiagItem>) {
     let cat = "cli-tools";
     let discovered = crate::app::agent::tools::cli_discovery::discover_cli_tools(&[], &[]);
 
+    append_cli_tool_items(&discovered, cat, items);
+}
+
+pub(super) fn append_cli_tool_items(
+    discovered: &[crate::app::agent::tools::cli_discovery::DiscoveredCli],
+    cat: &'static str,
+    items: &mut Vec<DiagItem>,
+) {
     if discovered.is_empty() {
         items.push(DiagItem::warn(cat, "No CLI tools found in PATH"));
         return;
     }
 
-    for cli in &discovered {
+    for cli in discovered {
         let version_info = cli
             .version
             .as_deref()

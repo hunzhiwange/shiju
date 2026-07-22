@@ -58,6 +58,15 @@ fn parses_read_style_at_file_reference_within_scan_window() {
 }
 
 #[test]
+fn read_style_scan_stops_at_next_tool_call() {
+    let tools = allowed(&["read", "write"]);
+    let lines = ["/read", "/write {}", "@ must-not-be-consumed.txt"];
+
+    assert_eq!(parse_tool_at(&lines, 0, &tools), Some(("read".to_string(), String::new(), 1)));
+    assert_eq!(parse_tool_at(&lines, 1, &tools), Some(("write".to_string(), "{}".to_string(), 1)));
+}
+
+#[test]
 fn returns_empty_args_when_no_inline_or_json_payload() {
     let tools = allowed(&["sleep"]);
     let lines = ["/sleep", "plain text that belongs to the user"];

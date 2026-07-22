@@ -66,6 +66,7 @@ mod tests {
 
         // 验证工具名称
         assert_eq!(tool.name(), "ls");
+        assert!(tool.description().contains("列出给定路径中的文件和目录"));
 
         // 获取参数 schema
         let schema = tool.parameters_schema();
@@ -154,5 +155,103 @@ mod tests {
 
         // 验证输出中不包含 a.txt 文件（被忽略模式过滤）
         assert!(!result.output.contains("a.txt"));
+    }
+
+    #[tokio::test]
+    async fn ls_rejects_non_array_ignore_parameter() {
+        let tool = LsTool::new(test_security(std::env::temp_dir()));
+
+        let result = tool.execute(json!({ "ignore": "*.txt" })).await;
+        let Err(error) = result else {
+            panic!("non-array ignore parameter should be rejected");
+        };
+
+        let message = error.to_string();
+        assert!(message.contains("Missing or invalid parameters"));
+        assert!(message.contains("invalid type"));
+    }
+
+    #[tokio::test]
+    async fn ls_reports_missing_search_directory_without_listing_files() {
+        let dir = TempDir::new().unwrap();
+        let missing = dir.path().join("missing");
+        let tool = LsTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "path": missing.to_string_lossy() })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert!(result.error.as_deref().is_some_and(|error| error.contains("does not exist")));
+    }
+
+    #[tokio::test]
+    async fn ls_lists_relative_subdirectory_after_resolving_workspace_path() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join("sub/nested")).unwrap();
+        std::fs::write(dir.path().join("sub/nested/inside.txt"), "").unwrap();
+        std::fs::write(dir.path().join("root.txt"), "").unwrap();
+        let tool = LsTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "path": "sub" })).await.unwrap();
+
+        assert!(result.success, "error: {:?}", result.error);
+        let resolved_sub = std::fs::canonicalize(dir.path().join("sub")).unwrap();
+        assert!(result.output.starts_with(&format!("{}/", resolved_sub.display())));
+        assert!(result.output.contains("nested/"));
+        assert!(result.output.contains("inside.txt"));
+        assert!(!result.output.contains("root.txt"));
+    }
+
+    #[tokio::test]
+    async fn ls_rejects_relative_path_blocked_by_security_policy() {
+        let dir = TempDir::new().unwrap();
+        let tool = LsTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "path": "../outside" })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert!(
+            result
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("Path not allowed by security policy"))
+        );
+    }
+
+    #[tokio::test]
+    async fn ls_rejects_existing_file_search_path() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("file.txt");
+        std::fs::write(&file, "").unwrap();
+        let tool = LsTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "path": file.to_string_lossy() })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert!(
+            result
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("Search path is not a directory"))
+        );
+    }
+
+    #[tokio::test]
+    async fn ls_reports_invalid_custom_ignore_pattern() {
+        let dir = TempDir::new().unwrap();
+        let tool = LsTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "ignore": ["["] })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert!(
+            result
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("Invalid ignore pattern '['"))
+        );
     }
 }

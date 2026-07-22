@@ -343,3 +343,19 @@ fn chunk_markdown_reindexes_after_filtering_empty_line_chunks() {
         assert!(!chunk.content.trim().is_empty());
     }
 }
+
+#[test]
+fn chunk_markdown_splits_oversized_heading_section_before_line_chunks() {
+    let chunks = chunk_markdown("## Oversized\nalpha\nbeta\ngamma\n", 2);
+
+    assert!(chunks.len() > 2);
+    assert_eq!(chunks[0].content, "## Oversized");
+    assert_eq!(chunks[1].content, "## Oversized");
+    assert!(chunks.iter().any(|chunk| chunk.content == "alpha"));
+    assert!(chunks.iter().any(|chunk| chunk.content == "beta"));
+    assert!(chunks.iter().any(|chunk| chunk.content == "gamma"));
+    for (index, chunk) in chunks.iter().enumerate() {
+        assert_eq!(chunk.index, index);
+        assert_eq!(chunk.heading.as_deref(), Some("## Oversized"));
+    }
+}

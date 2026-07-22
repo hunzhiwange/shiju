@@ -1,5 +1,46 @@
 use super::*;
+use std::env;
+use std::ffi::{OsStr, OsString};
+#[cfg(unix)]
+use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::sync::{Mutex as StdMutex, OnceLock};
 use tempfile::TempDir;
+
+static LUCID_ENV_LOCK: OnceLock<StdMutex<()>> = OnceLock::new();
+
+struct EnvGuard {
+    key: &'static str,
+    previous: Option<OsString>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
+        let previous = env::var_os(key);
+        unsafe { env::set_var(key, value.as_ref()) };
+        Self { key, previous }
+    }
+
+    fn unset(key: &'static str) -> Self {
+        let previous = env::var_os(key);
+        unsafe { env::remove_var(key) };
+        Self { key, previous }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => unsafe { env::set_var(self.key, value) },
+            None => unsafe { env::remove_var(self.key) },
+        }
+    }
+}
+
+fn lucid_env_lock() -> std::sync::MutexGuard<'static, ()> {
+    LUCID_ENV_LOCK.get_or_init(|| StdMutex::new(())).lock().unwrap()
+}
 
 fn entry(key: &str, content: &str) -> MemoryEntry {
     MemoryEntry {
@@ -25,6 +66,58 @@ fn memory_with_threshold(workspace: &std::path::Path, threshold: usize) -> Lucid
         Duration::from_millis(250),
         Duration::from_millis(5),
     )
+}
+
+#[cfg(unix)]
+fn write_lucid_script(dir: &std::path::Path, name: &str, script: &str) -> String {
+    let script_path = dir.join(name);
+    fs::write(&script_path, script).unwrap();
+    let mut perms = fs::metadata(&script_path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&script_path, perms).unwrap();
+    script_path.display().to_string()
+}
+
+#[test]
+fn new_reads_env_config_and_clamps_minimums() {
+    let _lock = lucid_env_lock();
+    let tmp = TempDir::new().unwrap();
+    let _cmd = EnvGuard::set("VIBEWINDOW_LUCID_CMD", "custom-lucid");
+    let _budget = EnvGuard::set("VIBEWINDOW_LUCID_BUDGET", "41");
+    let _recall = EnvGuard::set("VIBEWINDOW_LUCID_RECALL_TIMEOUT_MS", "1");
+    let _store = EnvGuard::set("VIBEWINDOW_LUCID_STORE_TIMEOUT_MS", "2");
+    let _threshold = EnvGuard::set("VIBEWINDOW_LUCID_LOCAL_HIT_THRESHOLD", "0");
+    let _cooldown = EnvGuard::set("VIBEWINDOW_LUCID_FAILURE_COOLDOWN_MS", "3");
+
+    let memory = LucidMemory::new(tmp.path(), SqliteMemory::new(tmp.path()).unwrap());
+
+    assert_eq!(memory.lucid_cmd, "custom-lucid");
+    assert_eq!(memory.token_budget, 41);
+    assert_eq!(memory.recall_timeout, Duration::from_millis(20));
+    assert_eq!(memory.store_timeout, Duration::from_millis(50));
+    assert_eq!(memory.local_hit_threshold, 1);
+    assert_eq!(memory.failure_cooldown, Duration::from_millis(100));
+}
+
+#[test]
+fn new_uses_defaults_for_missing_or_invalid_env_values() {
+    let _lock = lucid_env_lock();
+    let tmp = TempDir::new().unwrap();
+    let _cmd = EnvGuard::unset("VIBEWINDOW_LUCID_CMD");
+    let _budget = EnvGuard::set("VIBEWINDOW_LUCID_BUDGET", "0");
+    let _recall = EnvGuard::set("VIBEWINDOW_LUCID_RECALL_TIMEOUT_MS", "bad");
+    let _store = EnvGuard::set("VIBEWINDOW_LUCID_STORE_TIMEOUT_MS", "bad");
+    let _threshold = EnvGuard::set("VIBEWINDOW_LUCID_LOCAL_HIT_THRESHOLD", "bad");
+    let _cooldown = EnvGuard::set("VIBEWINDOW_LUCID_FAILURE_COOLDOWN_MS", "bad");
+
+    let memory = LucidMemory::new(tmp.path(), SqliteMemory::new(tmp.path()).unwrap());
+
+    assert_eq!(memory.lucid_cmd, "lucid");
+    assert_eq!(memory.token_budget, 200);
+    assert_eq!(memory.recall_timeout, Duration::from_millis(500));
+    assert_eq!(memory.store_timeout, Duration::from_millis(800));
+    assert_eq!(memory.local_hit_threshold, 3);
+    assert_eq!(memory.failure_cooldown, Duration::from_millis(15_000));
 }
 
 #[test]
@@ -64,6 +157,11 @@ fn category_mapping_covers_known_custom_and_visual_labels() {
     assert_eq!(LucidMemory::to_memory_category("bug"), MemoryCategory::Daily);
     assert_eq!(
         LucidMemory::to_memory_category("visual-note"),
+        MemoryCategory::Custom("visual".to_string())
+    );
+    assert_eq!(LucidMemory::to_memory_category("learning"), MemoryCategory::Core);
+    assert_eq!(
+        LucidMemory::to_memory_category("VISUAL-PLAN"),
         MemoryCategory::Custom("visual".to_string())
     );
     assert_eq!(
@@ -131,6 +229,20 @@ fn parse_lucid_context_score_has_floor() {
 }
 
 #[test]
+fn parse_lucid_context_returns_empty_for_missing_block_and_malformed_items() {
+    assert!(LucidMemory::parse_lucid_context("- [decision] outside").is_empty());
+
+    let raw = r#"
+<lucid-context>
+- [decision missing close
+- []    
+</lucid-context>
+"#;
+
+    assert!(LucidMemory::parse_lucid_context(raw).is_empty());
+}
+
+#[test]
 fn failure_cooldown_can_be_marked_cleared_and_expire() {
     let tmp = TempDir::new().unwrap();
     let memory = memory_with_threshold(tmp.path(), 3);
@@ -167,6 +279,80 @@ async fn trait_methods_delegate_to_local_sqlite() {
 
 #[tokio::test]
 #[cfg(unix)]
+async fn recall_returns_local_when_limit_is_already_satisfied() {
+    let tmp = TempDir::new().unwrap();
+    let marker = tmp.path().join("context_calls.log");
+    let marker_display = marker.display();
+    let script = format!(
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${{1:-}}" == "store" ]]; then
+  exit 0
+fi
+if [[ "${{1:-}}" == "context" ]]; then
+  printf 'context\n' >> "{marker_display}"
+  exit 0
+fi
+exit 1
+"#
+    );
+    let memory = LucidMemory::with_options(
+        tmp.path(),
+        SqliteMemory::new(tmp.path()).unwrap(),
+        write_lucid_script(tmp.path(), "probe-lucid.sh", &script),
+        11,
+        99,
+        Duration::from_secs(1),
+        Duration::from_secs(1),
+        Duration::from_secs(1),
+    );
+
+    memory.store("pref", "Rust local note", MemoryCategory::Core, None).await.unwrap();
+
+    let entries = memory.recall("rust", 1, None).await.unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(tokio::fs::read_to_string(&marker).await.unwrap_or_default(), "");
+}
+
+#[tokio::test]
+#[cfg(unix)]
+async fn recall_returns_local_and_clears_failure_when_lucid_is_empty() {
+    let tmp = TempDir::new().unwrap();
+    let script = r#"#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "store" ]]; then
+  exit 0
+fi
+if [[ "${1:-}" == "context" ]]; then
+  printf '<lucid-context>\n</lucid-context>\n'
+  exit 0
+fi
+exit 1
+"#;
+    let memory = LucidMemory::with_options(
+        tmp.path(),
+        SqliteMemory::new(tmp.path()).unwrap(),
+        write_lucid_script(tmp.path(), "empty-lucid.sh", script),
+        11,
+        99,
+        Duration::from_secs(1),
+        Duration::from_secs(1),
+        Duration::from_millis(1),
+    );
+
+    memory.store("pref", "Rust local note", MemoryCategory::Core, None).await.unwrap();
+    memory.mark_failure_now();
+    std::thread::sleep(Duration::from_millis(5));
+
+    let entries = memory.recall("rust", 5, None).await.unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert!(memory.last_failure_at.lock().is_none());
+}
+
+#[tokio::test]
+#[cfg(unix)]
 async fn run_lucid_command_raw_returns_stdout_and_reports_stderr_failures() {
     let ok_args = vec!["-c".to_string(), "printf ok".to_string()];
     let output =
@@ -178,4 +364,16 @@ async fn run_lucid_command_raw_returns_stdout_and_reports_stderr_failures() {
         .await
         .unwrap_err();
     assert!(error.to_string().contains("lucid command failed: nope"));
+}
+
+#[tokio::test]
+#[cfg(unix)]
+async fn run_lucid_command_raw_reports_timeout() {
+    let args = vec!["-c".to_string(), "sleep 0.2".to_string()];
+
+    let error = LucidMemory::run_lucid_command_raw("sh", &args, Duration::from_millis(10))
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("timed out after 10ms"));
 }

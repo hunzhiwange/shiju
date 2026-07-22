@@ -7,7 +7,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
-static TEST_LOCK: Mutex<()> = Mutex::new(());
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 struct TempDir {
@@ -64,7 +63,9 @@ impl Drop for EnvVarGuard {
 }
 
 fn lock_test_state() -> MutexGuard<'static, ()> {
-    TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    crate::perf_metrics::TEST_PERF_METRICS_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn reset_capture_state(installed: bool) {
@@ -112,6 +113,8 @@ fn perf_metrics_capture_file_from_env_trims_and_rejects_empty_values() {
 #[test]
 fn current_perf_metrics_capture_file_from_env_reads_trimmed_process_env() {
     let _guard = EnvVarGuard::new();
+    assert_eq!(current_perf_metrics_capture_file_from_env(), None);
+
     let temp = TempDir::new("env");
     let file_path = temp.join("metrics.ndjson");
     let value = format!("  {}  ", file_path.display());
@@ -121,6 +124,22 @@ fn current_perf_metrics_capture_file_from_env_reads_trimmed_process_env() {
 
     _guard.set("   ");
     assert_eq!(current_perf_metrics_capture_file_from_env(), None);
+}
+
+#[test]
+fn capture_reason_serializes_to_lowercase_labels() {
+    assert_eq!(
+        serde_json::to_string(&CaptureReason::Checkpoint).expect("checkpoint should serialize"),
+        "\"checkpoint\""
+    );
+    assert_eq!(
+        serde_json::to_string(&CaptureReason::Exit).expect("exit should serialize"),
+        "\"exit\""
+    );
+    assert_eq!(
+        serde_json::to_string(&CaptureReason::Signal).expect("signal should serialize"),
+        "\"signal\""
+    );
 }
 
 #[test]
@@ -137,6 +156,26 @@ fn capture_state_default_is_not_captureable() {
         ..PerfMetricsCaptureState::default()
     };
     assert!(!should_capture(&state));
+}
+
+#[test]
+fn snapshot_has_data_detects_each_metric_group() {
+    let mut snapshot = PerfMetricsSnapshot::default();
+    assert!(!snapshot_has_data(&snapshot));
+
+    snapshot.counters.insert("requests".to_string(), 1);
+    assert!(snapshot_has_data(&snapshot));
+    snapshot.counters.clear();
+
+    snapshot.gauges.insert("queue_depth".to_string(), 1.0);
+    assert!(snapshot_has_data(&snapshot));
+    snapshot.gauges.clear();
+
+    snapshot.timings.insert(
+        "prompt".to_string(),
+        crate::types::PerfMetricSummary { count: 1, total_ms: 1.0, max_ms: 1.0 },
+    );
+    assert!(snapshot_has_data(&snapshot));
 }
 
 #[test]
@@ -205,6 +244,11 @@ fn write_perf_metrics_capture_rejects_uncapturable_empty_and_unwritable_paths() 
 
     assert!(!write_perf_metrics_capture(CaptureReason::Checkpoint, true));
 
+    crate::increment_perf_counter("requests", 1);
+    install_state(PathBuf::new());
+    assert!(!write_perf_metrics_capture(CaptureReason::Checkpoint, true));
+
+    reset_perf_metrics();
     install_state(temp.join("empty.ndjson"));
     assert!(!write_perf_metrics_capture(CaptureReason::Checkpoint, true));
 
@@ -253,6 +297,28 @@ fn checkpoint_clears_flush_guard_and_records_next_sequence() {
     reset_capture_state(true);
 }
 
+#[cfg(unix)]
+#[test]
+fn flush_perf_metrics_capture_at_exit_records_exit_once() {
+    let _guard = lock_test_state();
+    let temp = TempDir::new("atexit");
+    let file_path = temp.join("metrics.ndjson");
+    reset_capture_state(true);
+    install_state(file_path.clone());
+
+    crate::increment_perf_counter("requests", 1);
+    flush_perf_metrics_capture_at_exit();
+    crate::increment_perf_counter("requests", 1);
+    flush_perf_metrics_capture_at_exit();
+
+    let lines = read_capture_lines(&file_path);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0]["reason"], "exit");
+    assert_eq!(lines[0]["metrics"]["counters"]["requests"], 1);
+
+    reset_capture_state(true);
+}
+
 #[test]
 fn flush_perf_metrics_capture_is_idempotent_and_skips_disabled_capture() {
     let _guard = lock_test_state();
@@ -274,6 +340,31 @@ fn flush_perf_metrics_capture_is_idempotent_and_skips_disabled_capture() {
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0]["reason"], "exit");
     assert_eq!(lines[0]["metrics"]["counters"]["requests"], 1);
+
+    reset_capture_state(true);
+}
+
+#[test]
+fn flush_without_metrics_consumes_guard_until_checkpoint() {
+    let _guard = lock_test_state();
+    let temp = TempDir::new("empty-flush");
+    let file_path = temp.join("metrics.ndjson");
+    reset_capture_state(true);
+    install_state(file_path.clone());
+
+    flush_perf_metrics_capture(CaptureReason::Signal);
+    assert!(lock_state().flushed);
+    assert!(!file_path.exists());
+
+    crate::increment_perf_counter("after-empty-flush", 1);
+    flush_perf_metrics_capture(CaptureReason::Exit);
+    assert!(!file_path.exists());
+
+    checkpoint_perf_metrics_capture();
+    let lines = read_capture_lines(&file_path);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0]["reason"], "checkpoint");
+    assert_eq!(lines[0]["metrics"]["counters"]["after-empty-flush"], 1);
 
     reset_capture_state(true);
 }
@@ -338,4 +429,43 @@ fn install_perf_metrics_capture_without_file_keeps_metrics_and_disables_capture(
     assert_eq!(get_perf_metrics_snapshot().counters["pending"], 4);
 
     reset_capture_state(false);
+}
+
+#[test]
+fn install_perf_metrics_capture_with_empty_path_keeps_metrics_and_disables_capture() {
+    let _guard = lock_test_state();
+    reset_capture_state(false);
+    crate::increment_perf_counter("pending", 2);
+
+    install_perf_metrics_capture(PerfMetricsCaptureOptions {
+        argv: Some(vec!["ignored".to_string()]),
+        role: Some("ignored-role".to_string()),
+        file_path: Some(PathBuf::new()),
+    });
+
+    let state = lock_state().clone();
+    assert!(!state.installed);
+    assert_eq!(state.capture_file_path, Some(PathBuf::new()));
+    assert_eq!(state.capture_role, "cli");
+    assert!(state.capture_argv.is_empty());
+    assert_eq!(get_perf_metrics_snapshot().counters["pending"], 2);
+
+    reset_capture_state(false);
+}
+
+#[test]
+fn lock_state_recovers_after_mutex_poison() {
+    let _guard = lock_test_state();
+    reset_capture_state(false);
+
+    let result = std::panic::catch_unwind(|| {
+        let _state =
+            PERF_METRICS_CAPTURE_STATE.lock().expect("capture mutex should start unlocked");
+        panic!("poison capture mutex");
+    });
+
+    assert!(result.is_err());
+    let state = lock_state();
+    assert!(!state.installed);
+    assert!(!state.flushed);
 }

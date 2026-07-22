@@ -445,7 +445,6 @@ pub fn tool_text_view<'a>(
 
     Some(
         container(column![head, body].spacing(8))
-            .padding([10, 12])
             .width(Length::Fill)
             .style(simplified_block_style)
             .into(),

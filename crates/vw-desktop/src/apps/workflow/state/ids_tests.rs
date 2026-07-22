@@ -9,6 +9,17 @@ use super::*;
 use crate::apps::workflow::model::{WorkflowHandleSide, WorkflowViewport};
 use iced::Size;
 
+fn assert_approx_eq(actual: f32, expected: f32) {
+    assert!((actual - expected).abs() < 0.001, "expected {expected}, got {actual}");
+}
+
+fn assert_numeric_suffix(value: &str, prefix: &str) {
+    let suffix = value.strip_prefix(prefix).expect("generated ID should use expected prefix");
+
+    assert!(!suffix.is_empty());
+    assert!(suffix.chars().all(|ch| ch.is_ascii_digit()));
+}
+
 fn node_at(id: &str, position: Point, size: Size) -> WorkflowNode {
     WorkflowNode {
         id: id.to_string(),
@@ -58,14 +69,54 @@ fn fitted_viewport_centers_document_and_clamps_zoom() {
 }
 
 #[test]
-fn generated_runtime_ids_use_expected_prefixes_and_sanitized_type_segments() {
-    assert!(generate_app_id().starts_with("workflow-app-"));
-    assert!(generate_node_id("if-else").starts_with("if_else-node-"));
-    assert!(generate_variable_id("env secret").starts_with("env_secret-var-"));
-    assert!(generate_start_variable_name().starts_with("input_"));
-    assert!(generate_case_id().starts_with("case-"));
-    assert!(generate_condition_id().starts_with("condition-"));
-    assert!(generate_prompt_item_id("system-prompt").starts_with("system_prompt-prompt-"));
+fn fitted_viewport_uses_limiting_axis_and_world_center() {
+    let width_limited = WorkflowDocument {
+        nodes: vec![node_at("wide", Point::new(100.0, 50.0), Size::new(200.0, 100.0))],
+        viewport: WorkflowViewport::default(),
+        ..WorkflowDocument::default()
+    };
+    let (width_pan, width_zoom) = fitted_viewport(&width_limited, (1000.0, 800.0));
+
+    assert_approx_eq(width_zoom, 2.852);
+    assert_approx_eq(width_pan.x, -236.4);
+    assert_approx_eq(width_pan.y, 28.8);
+
+    let height_limited = WorkflowDocument {
+        nodes: vec![node_at("tall", Point::new(-50.0, -100.0), Size::new(100.0, 400.0))],
+        viewport: WorkflowViewport::default(),
+        ..WorkflowDocument::default()
+    };
+    let (height_pan, height_zoom) = fitted_viewport(&height_limited, (800.0, 600.0));
+
+    assert_approx_eq(height_zoom, 0.874);
+    assert_approx_eq(height_pan.x, 234.0);
+    assert_approx_eq(height_pan.y, 126.6);
+}
+
+#[test]
+fn fitted_viewport_uses_minimum_canvas_size_for_small_windows() {
+    let document = WorkflowDocument {
+        nodes: vec![node_at("node", Point::new(0.0, 0.0), Size::new(100.0, 100.0))],
+        viewport: WorkflowViewport::default(),
+        ..WorkflowDocument::default()
+    };
+
+    let (pan, zoom) = fitted_viewport(&document, (0.0, 0.0));
+
+    assert_approx_eq(zoom, 2.392);
+    assert_approx_eq(pan.x, 64.4);
+    assert_approx_eq(pan.y, 34.4);
+}
+
+#[test]
+fn generated_runtime_ids_use_expected_segments_and_numeric_suffixes() {
+    assert_numeric_suffix(&generate_app_id(), "workflow-app-");
+    assert_numeric_suffix(&generate_node_id("if-else"), "if_else-node-");
+    assert_numeric_suffix(&generate_variable_id("env secret"), "env_secret-var-");
+    assert_numeric_suffix(&generate_start_variable_name(), "input_");
+    assert_numeric_suffix(&generate_case_id(), "case-");
+    assert_numeric_suffix(&generate_condition_id(), "condition-");
+    assert_numeric_suffix(&generate_prompt_item_id("system-prompt"), "system_prompt-prompt-");
 }
 
 #[test]
@@ -82,12 +133,10 @@ fn normalize_connection_endpoints_accepts_either_order_and_rejects_same_kind() {
     };
 
     let normalized = normalize_connection_endpoints(&source, &target).expect("source to target");
-    assert_eq!(normalized.0.node_id, "source");
-    assert_eq!(normalized.1.node_id, "target");
+    assert_eq!(normalized, (source.clone(), target.clone()));
 
     let reversed = normalize_connection_endpoints(&target, &source).expect("target to source");
-    assert_eq!(reversed.0.node_id, "source");
-    assert_eq!(reversed.1.node_id, "target");
+    assert_eq!(reversed, (source.clone(), target.clone()));
 
     assert!(normalize_connection_endpoints(&source, &source).is_none());
     assert!(normalize_connection_endpoints(&target, &target).is_none());
@@ -108,6 +157,14 @@ fn generate_edge_id_and_sanitize_handle_id_replace_non_ascii_alphanumeric_chars(
 
     let edge_id = generate_edge_id(&source, &target);
 
-    assert!(edge_id.starts_with("manual-source-node-out_1-target-node-in_2-"));
+    assert_numeric_suffix(&edge_id, "manual-source-node-out_1-target-node-in_2-");
     assert_eq!(sanitize_handle_id("A-b_中 1"), "A_b___1");
+}
+
+#[test]
+fn sanitize_handle_id_handles_empty_safe_punctuation_and_unicode_inputs() {
+    assert_eq!(sanitize_handle_id(""), "");
+    assert_eq!(sanitize_handle_id("abcXYZ012"), "abcXYZ012");
+    assert_eq!(sanitize_handle_id("-./"), "___");
+    assert_eq!(sanitize_handle_id("é中🙂"), "___");
 }

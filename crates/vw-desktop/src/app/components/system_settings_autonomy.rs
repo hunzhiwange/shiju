@@ -14,13 +14,12 @@
 //!
 //! # 配置持久化
 //!
-//! 所有配置项会保存到 `~/.vibewindow/vibewindow.json` 的 `autonomy` 字段中。
+//! 所有配置项会通过 Gateway 保存到共享数据库的 `autonomy` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
-    settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{button, checkbox, column, container, row, slider, text, text_input};
@@ -371,7 +370,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             },
         );
 
-    let mut col = column![
+    let col = column![
         row![
             settings_page_intro("自治配置", "配置代理的权限边界、预算限制与审批规则。"),
             container(text(" ")).width(Length::Fill),
@@ -428,10 +427,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

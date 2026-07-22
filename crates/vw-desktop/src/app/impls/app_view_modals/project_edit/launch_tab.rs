@@ -9,23 +9,27 @@ use iced::{Element, Length};
 
 use super::{App, Message};
 
+fn start_script_editor_action(action: text_editor::Action) -> Message {
+    Message::Project(
+        crate::app::message::project::ProjectMessage::ProjectEditStartScriptEditorAction(action),
+    )
+}
+
+fn worktree_toggled(value: bool) -> Message {
+    Message::Project(crate::app::message::project::ProjectMessage::ProjectEditWorktreeToggled(
+        value,
+    ))
+}
+
 /// 模块内可见函数，执行 launch_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let start_script_input = column![
         text("工作区启动脚本").size(13),
-        text("在创建工作区后执行，可填写多行命令。")
-            .size(11)
-            .style(settings_muted_text_style),
+        text("在创建工作区后执行，可填写多行命令。").size(11).style(settings_muted_text_style),
         text_editor(&app.project_edit_start_script_editor)
             .placeholder("例如：\nbun install\nbun dev")
-            .on_action(|action| {
-                Message::Project(
-                    crate::app::message::project::ProjectMessage::ProjectEditStartScriptEditorAction(
-                        action,
-                    ),
-                )
-            })
+            .on_action(start_script_editor_action)
             .height(Length::Fixed(96.0))
             .padding([8, 10])
             .size(13)
@@ -35,11 +39,7 @@ pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
 
     let worktree_toggle = row![
         text("启用 Worktree").size(13).width(Length::Fill),
-        toggler(app.project_edit_worktree_enabled).on_toggle(|value| {
-            Message::Project(
-                crate::app::message::project::ProjectMessage::ProjectEditWorktreeToggled(value),
-            )
-        })
+        toggler(app.project_edit_worktree_enabled).on_toggle(worktree_toggled)
     ]
     .align_y(iced::Alignment::Center);
 

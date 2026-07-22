@@ -1,6 +1,6 @@
 //! Prompt 内容块的解析、校验与归一化。
 
-use agent_client_protocol::ContentBlock;
+use agent_client_protocol::{ContentBlock, ImageContent};
 use serde_json::{Map, Value, json};
 
 pub type PromptInput = Vec<ContentBlock>;
@@ -15,6 +15,14 @@ impl PromptInputValidationError {
     fn new(message: impl Into<String>) -> Self {
         Self { message: message.into() }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PromptContentBlockKind {
+    Text,
+    Image,
+    ResourceLink,
+    Resource,
 }
 
 fn is_non_empty_string(value: Option<&Value>) -> bool {
@@ -63,121 +71,120 @@ fn is_resource_payload(value: Option<&Value>) -> bool {
     record.get("text").is_none_or(Value::is_string)
 }
 
-fn get_content_block_validation_error(value: &Value, index: usize) -> Option<String> {
+fn validate_content_block_value(
+    value: &Value,
+    index: usize,
+) -> Result<(&Map<String, Value>, PromptContentBlockKind), String> {
     let Some(record) = value.as_object() else {
-        return Some(format!("prompt[{index}] must be an ACP content block object"));
+        return Err(format!("prompt[{index}] must be an ACP content block object"));
     };
 
     let Some(block_type) = record.get("type").and_then(Value::as_str) else {
-        return Some(format!("prompt[{index}] must be an ACP content block object"));
+        return Err(format!("prompt[{index}] must be an ACP content block object"));
     };
 
-    match block_type {
-        "text" => (!record.get("text").is_some_and(Value::is_string))
-            .then(|| format!("prompt[{index}] text block must include a string text field")),
+    let kind = match block_type {
+        "text" => {
+            if !record.get("text").is_some_and(Value::is_string) {
+                return Err(format!("prompt[{index}] text block must include a string text field"));
+            }
+            PromptContentBlockKind::Text
+        }
         "image" => {
             if !is_non_empty_string(record.get("mimeType")) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] image block must include a non-empty mimeType"
                 ));
             }
 
             let mime_type = record.get("mimeType").and_then(Value::as_str).unwrap_or_default();
             if !is_image_mime_type(mime_type) {
-                return Some(format!(
-                    "prompt[{index}] image block mimeType must start with image/"
-                ));
+                return Err(format!("prompt[{index}] image block mimeType must start with image/"));
             }
 
             let Some(data) = record.get("data").and_then(Value::as_str) else {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] image block must include non-empty base64 data"
                 ));
             };
             if data.is_empty() {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] image block must include non-empty base64 data"
                 ));
             }
             if !is_base64_data(data) {
-                return Some(format!("prompt[{index}] image block data must be valid base64"));
+                return Err(format!("prompt[{index}] image block data must be valid base64"));
             }
 
-            None
+            PromptContentBlockKind::Image
         }
         "resource_link" => {
             if !is_non_empty_string(record.get("uri")) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] resource_link block must include a non-empty uri"
                 ));
             }
             if !record.get("title").is_none_or(Value::is_string) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] resource_link block title must be a string when present"
                 ));
             }
             if !record.get("name").is_none_or(Value::is_string) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] resource_link block name must be a string when present"
                 ));
             }
-            None
+            PromptContentBlockKind::ResourceLink
         }
         "resource" => {
             if !record.get("resource").is_some_and(Value::is_object) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] resource block must include a resource object"
                 ));
             }
             if !is_resource_payload(record.get("resource")) {
-                return Some(format!(
+                return Err(format!(
                     "prompt[{index}] resource block resource must include a non-empty uri and optional text"
                 ));
             }
-            None
+            PromptContentBlockKind::Resource
         }
-        _ => Some(format!(
-            "prompt[{index}] has unsupported content block type {}",
-            serde_json::to_string(block_type).unwrap_or_else(|_| format!("{block_type:?}"))
-        )),
-    }
+        _ => {
+            return Err(format!(
+                "prompt[{index}] has unsupported content block type {block_type:?}"
+            ));
+        }
+    };
+
+    Ok((record, kind))
+}
+
+fn get_content_block_validation_error(value: &Value, index: usize) -> Option<String> {
+    validate_content_block_value(value, index).err()
 }
 
 fn content_block_from_value(
     value: &Value,
     index: usize,
 ) -> Result<ContentBlock, PromptInputValidationError> {
-    if let Some(message) = get_content_block_validation_error(value, index) {
-        return Err(PromptInputValidationError::new(message));
-    }
-
-    let record =
-        value.as_object().expect("validation guarantees prompt content blocks are objects");
-    let block_type = record
-        .get("type")
-        .and_then(Value::as_str)
-        .expect("validation guarantees prompt content blocks include a string type");
+    let (record, block_type) =
+        validate_content_block_value(value, index).map_err(PromptInputValidationError::new)?;
 
     match block_type {
-        "text" => Ok(record
+        PromptContentBlockKind::Text => Ok(record
             .get("text")
             .and_then(Value::as_str)
             .expect("validation guarantees text block text is a string")
             .to_string()
             .into()),
-        "image" => {
-            let block = json!({
-                "type": "image",
-                "mimeType": record.get("mimeType").and_then(Value::as_str).expect("validation guarantees image mimeType"),
-                "data": record.get("data").and_then(Value::as_str).expect("validation guarantees image data"),
-            });
-            serde_json::from_value(block).map_err(|error| {
-                PromptInputValidationError::new(format!(
-                    "prompt[{index}] could not be converted to ACP content block: {error}"
-                ))
-            })
-        }
-        "resource_link" => {
+        PromptContentBlockKind::Image => Ok(ContentBlock::Image(ImageContent::new(
+            record.get("data").and_then(Value::as_str).expect("validation guarantees image data"),
+            record
+                .get("mimeType")
+                .and_then(Value::as_str)
+                .expect("validation guarantees image mimeType"),
+        ))),
+        PromptContentBlockKind::ResourceLink => {
             let mut block = Map::new();
             block.insert("type".to_string(), Value::String("resource_link".to_string()));
             block.insert(
@@ -204,7 +211,7 @@ fn content_block_from_value(
                 ))
             })
         }
-        "resource" => {
+        PromptContentBlockKind::Resource => {
             let resource_record = record
                 .get("resource")
                 .and_then(Value::as_object)
@@ -234,10 +241,6 @@ fn content_block_from_value(
                 ))
             })
         }
-        _ => Err(PromptInputValidationError::new(format!(
-            "prompt[{index}] has unsupported content block type {}",
-            serde_json::to_string(block_type).unwrap_or_else(|_| format!("{block_type:?}"))
-        ))),
     }
 }
 
@@ -263,53 +266,32 @@ fn parse_structured_prompt(
         Err(_) => return Ok(None),
     };
 
-    if !parsed.is_array() {
-        return Ok(None);
-    }
-
     parse_prompt_input_value(&parsed).map(Some)
 }
 
 fn display_text_from_content_block(block: &ContentBlock) -> String {
-    let Ok(value) = serde_json::to_value(block) else {
-        return String::new();
-    };
-
-    let Some(record) = value.as_object() else {
-        return String::new();
-    };
-
-    match record.get("type").and_then(Value::as_str) {
-        Some("text") => record.get("text").and_then(Value::as_str).unwrap_or_default().to_string(),
-        Some("resource_link") => record
-            .get("title")
-            .and_then(Value::as_str)
+    match block {
+        ContentBlock::Text(content) => content.text.clone(),
+        ContentBlock::ResourceLink(resource) => resource
+            .title
+            .as_deref()
             .filter(|value| !value.trim().is_empty())
-            .or_else(|| record.get("name").and_then(Value::as_str))
+            .or(Some(resource.name.as_str()))
             .filter(|value| !value.trim().is_empty())
-            .or_else(|| record.get("uri").and_then(Value::as_str))
+            .or(Some(resource.uri.as_str()))
             .unwrap_or_default()
             .to_string(),
-        Some("resource") => record
-            .get("resource")
-            .and_then(Value::as_object)
-            .and_then(|resource| {
-                resource
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .filter(|value| !value.trim().is_empty())
-                    .or_else(|| resource.get("uri").and_then(Value::as_str))
-            })
-            .unwrap_or_default()
-            .to_string(),
-        Some("image") => {
-            let mime_type = record
-                .get("mimeType")
-                .or_else(|| record.get("mime_type"))
+        ContentBlock::Resource(resource) => {
+            let value = serde_json::to_value(&resource.resource).unwrap_or_default();
+            value
+                .get("text")
                 .and_then(Value::as_str)
-                .unwrap_or_default();
-            format!("[image] {mime_type}")
+                .filter(|value| !value.trim().is_empty())
+                .or_else(|| value.get("uri").and_then(Value::as_str))
+                .unwrap_or_default()
+                .to_string()
         }
+        ContentBlock::Image(image) => format!("[image] {}", image.mime_type),
         _ => String::new(),
     }
 }

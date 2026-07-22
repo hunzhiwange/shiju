@@ -11,11 +11,39 @@ fn is_docs_request_requires_docs_list_and_read_intent() {
 }
 
 #[test]
+fn is_docs_request_accepts_each_supported_list_and_read_keyword_pair() {
+    for list_keyword in ["文件列表", "文件 列表", "列表"] {
+        for read_keyword in ["读取", "查看", "列出"] {
+            let query = format!("请{read_keyword} docs {list_keyword}");
+            assert!(super::is_docs_request(&query), "query should match: {query}");
+        }
+    }
+}
+
+#[test]
 fn list_docs_returns_error_when_docs_directory_is_missing() {
     let workspace = tempfile::tempdir().expect("temp workspace");
     let root = workspace.path().to_string_lossy().to_string();
 
     assert_eq!(super::list_docs(Some(&root)), Err("docs 目录不存在".to_string()));
+}
+
+#[test]
+fn list_docs_returns_empty_when_docs_directory_is_empty() {
+    let workspace = tempfile::tempdir().expect("temp workspace");
+    std::fs::create_dir(workspace.path().join("docs")).expect("docs dir");
+    let root = workspace.path().to_string_lossy().to_string();
+
+    assert_eq!(super::list_docs(Some(&root)), Ok(Vec::new()));
+}
+
+#[test]
+fn list_docs_returns_empty_when_docs_path_is_a_file() {
+    let workspace = tempfile::tempdir().expect("temp workspace");
+    std::fs::write(workspace.path().join("docs"), "not a directory").expect("docs file");
+    let root = workspace.path().to_string_lossy().to_string();
+
+    assert_eq!(super::list_docs(Some(&root)), Ok(Vec::new()));
 }
 
 #[test]
@@ -36,6 +64,19 @@ fn list_docs_walks_visible_files_skips_noise_and_sorts() {
     let docs = super::list_docs(Some(&root)).expect("docs should list");
 
     assert_eq!(docs, vec!["docs/guide/alpha.md", "docs/zeta.md"]);
+}
+
+#[test]
+fn list_docs_skips_reserved_names_when_they_are_files() {
+    let workspace = tempfile::tempdir().expect("temp workspace");
+    let docs = workspace.path().join("docs");
+    std::fs::create_dir(&docs).expect("docs dir");
+    std::fs::write(docs.join("target"), "reserved").expect("target file");
+    std::fs::write(docs.join("node_modules"), "reserved").expect("node_modules file");
+    std::fs::write(docs.join("visible.md"), "visible").expect("visible file");
+    let root = workspace.path().to_string_lossy().to_string();
+
+    assert_eq!(super::list_docs(Some(&root)), Ok(vec!["docs/visible.md".to_string()]));
 }
 
 #[test]
@@ -71,4 +112,20 @@ fn walk_docs_stops_after_depth_limit() {
 
     assert!(out.iter().any(|path| path.ends_with("visible-at-depth-12.md")));
     assert!(!out.iter().any(|path| path.ends_with("hidden-at-depth-13.md")));
+}
+
+#[test]
+fn walk_docs_uses_absolute_path_when_base_is_not_an_ancestor() {
+    let workspace = tempfile::tempdir().expect("temp workspace");
+    let unrelated_base = tempfile::tempdir().expect("unrelated base");
+    let docs = workspace.path().join("docs");
+    std::fs::create_dir(&docs).expect("docs dir");
+    let document = docs.join("guide.md");
+    std::fs::write(&document, "guide").expect("guide file");
+    let expected = document.to_string_lossy().replace('\\', "/");
+    let mut out = Vec::new();
+
+    super::walk_docs(unrelated_base.path(), &docs, &mut out, 0);
+
+    assert_eq!(out, vec![expected]);
 }

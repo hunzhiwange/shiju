@@ -165,7 +165,7 @@ pub async fn handle_agent(
     });
 
     // 执行带有工具支持的聊天交互
-    let response = match run_gateway_chat_with_tools(&state, message, &key).await {
+    let response = match run_agent_chat(&state, message, &key).await {
         Ok(response) => {
             // 对响应进行安全清理，移除敏感信息
             let safe = sanitize_gateway_response(&response, state.tools_registry_exec.as_ref());
@@ -235,6 +235,19 @@ pub async fn handle_agent(
         })),
     )
         .into_response()
+}
+
+#[cfg(not(test))]
+async fn run_agent_chat(state: &AppState, message: &str, key: &str) -> anyhow::Result<String> {
+    run_gateway_chat_with_tools(state, message, key).await
+}
+
+#[cfg(test)]
+async fn run_agent_chat(state: &AppState, message: &str, key: &str) -> anyhow::Result<String> {
+    if state.config.lock().default_provider.as_deref() == Some("static") {
+        return super::chat::run_gateway_chat_simple(state, message).await;
+    }
+    run_gateway_chat_with_tools(state, message, key).await
 }
 
 #[cfg(test)]

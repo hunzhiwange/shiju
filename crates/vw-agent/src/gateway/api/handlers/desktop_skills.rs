@@ -432,7 +432,7 @@ fn discover_built_in_skills() -> Vec<BuiltInSkillMeta> {
         let Some(skill_id) = dir.path().file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        let Some(skill_file) = dir.get_file("SKILL.md") else {
+        let Some(skill_file) = find_bundled_skill_file(dir, "SKILL.md") else {
             continue;
         };
         let Ok(skill_markdown) = std::str::from_utf8(skill_file.contents()) else {
@@ -602,6 +602,15 @@ fn find_built_in_skill(skill_id: &str) -> Option<&'static BuiltInSkillMeta> {
     BUILT_IN_SKILLS.iter().find(|skill| skill.id == skill_id)
 }
 
+fn find_bundled_skill_file<'a>(
+    skill_dir: &'a Dir<'static>,
+    file_name: &str,
+) -> Option<&'a include_dir::File<'static>> {
+    skill_dir
+        .files()
+        .find(|file| file.path().file_name().and_then(|name| name.to_str()) == Some(file_name))
+}
+
 fn resolve_skill_detail(
     project_path: Option<&str>,
     skill_id: &str,
@@ -668,8 +677,7 @@ fn read_built_in_skill_markdown(skill_id: &str) -> Result<String, String> {
     let skill_dir = BUILT_IN_SKILLS_DIR
         .get_dir(skill_id)
         .ok_or_else(|| format!("未找到内置技能: {skill_id}"))?;
-    let skill_file = skill_dir
-        .get_file("SKILL.md")
+    let skill_file = find_bundled_skill_file(skill_dir, "SKILL.md")
         .ok_or_else(|| format!("内置技能缺少 SKILL.md: {skill_id}"))?;
 
     std::str::from_utf8(skill_file.contents())

@@ -66,4 +66,26 @@ fn endpoint_reachable_handles_missing_ports_and_unreachable_hosts() {
 
     let http_url = reqwest::Url::parse("http://127.0.0.1:9").unwrap();
     assert!(!endpoint_reachable(&http_url, std::time::Duration::from_millis(1)));
+
+    let unknown_scheme = reqwest::Url::parse("custom://example.com/resource").unwrap();
+    assert!(!endpoint_reachable(&unknown_scheme, std::time::Duration::from_millis(1)));
+}
+
+#[test]
+fn private_host_detection_covers_special_and_public_address_boundaries() {
+    for host in [
+        "0.0.0.0",
+        "127.255.255.255",
+        "224.0.0.1",
+        "255.255.255.255",
+        "::",
+        "ff02::1",
+        "::ffff:100.64.0.1",
+    ] {
+        assert!(is_private_host(host), "{host} should be treated as non-global");
+    }
+
+    for host in ["1.1.1.1", "2001:4860:4860::8888", "::ffff:8.8.8.8"] {
+        assert!(!is_private_host(host), "{host} should remain globally routable");
+    }
 }

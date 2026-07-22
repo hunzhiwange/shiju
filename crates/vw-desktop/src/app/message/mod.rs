@@ -9,63 +9,31 @@
 //!
 //! ## 子模块
 //!
-//! - `base_tool`: 基础工具消息
 //! - `chat`: 聊天功能相关消息
-//! - `color_tool`: 颜色工具消息
-//! - `design`: 设计相关消息
 //! - `editor`: 编辑器操作消息
 //! - `git`: Git 版本控制消息
-//! - `html_tool`: HTML 工具消息
-//! - `json_diff_tool`: JSON 差异对比工具消息
-//! - `json_tool`: JSON 工具消息
-//! - `json_yaml_tool`: JSON/YAML 转换工具消息
-//! - `markdown_tool`: Markdown 工具消息
 //! - `notification`: 通知消息
-//! - `password_tool`: 密码工具消息
 //! - `preview`: 预览功能消息
 //! - `project`: 项目管理消息
-//! - `qr_tool`: 二维码工具消息
-//! - `redis_tool`: Redis 客户端工具消息
 //! - `search`: 搜索功能消息
 //! - `settings`: 设置相关消息
-//! - `sql_tool`: SQL 工具消息
 //! - `task_board`: 任务看板消息
 //! - `terminal`: 终端操作消息
-//! - `timestamp_tool`: 时间戳工具消息
 //! - `view`: 视图切换消息
 
-pub mod base_tool;
 pub mod chat;
-pub mod cleaner_tool;
-pub mod color_tool;
-pub mod design;
 pub mod editor;
 pub mod gateway_health;
 pub mod git;
-pub mod html_tool;
-pub mod json_diff_tool;
-pub mod json_tool;
-pub mod json_yaml_tool;
 pub mod knowledge_tool;
-pub mod large_file_tool;
-pub mod markdown_tool;
 pub mod notification;
-pub mod password_tool;
 pub mod preview;
 pub mod project;
-pub mod qr_tool;
-pub mod redis_tool;
 pub mod search;
 pub mod settings;
-pub mod sql_tool;
 pub mod task_board;
 pub mod terminal;
-pub mod timestamp_tool;
 pub mod view;
-
-#[cfg(test)]
-#[path = "html_tool_tests.rs"]
-mod html_tool_tests;
 
 /// 创建一个延迟发送消息的 Iced 任务。
 ///
@@ -241,33 +209,23 @@ async fn sleep(duration: std::time::Duration) {
 // 例如：使用 `use crate::app::message::ChatMessage;`
 // 而不是 `use crate::app::message::chat::ChatMessage;`
 
-pub use base_tool::BaseToolMessage;
+pub use crate::app::views::workflow_manager::WorkflowManagerMessage;
 pub use chat::ChatMessage;
-pub use cleaner_tool::CleanerToolMessage;
-pub use color_tool::ColorToolMessage;
-pub use design::DesignMessage;
 pub use editor::EditorMessage;
 pub use git::GitMessage;
-pub use html_tool::HtmlToolMessage;
-pub use json_diff_tool::JsonDiffToolMessage;
-pub use json_tool::JsonToolMessage;
-pub use json_yaml_tool::JsonYamlToolMessage;
 pub use knowledge_tool::KnowledgeToolMessage;
-pub use large_file_tool::LargeFileToolMessage;
-pub use markdown_tool::MarkdownToolMessage;
 pub use notification::NotificationMessage;
-pub use password_tool::PasswordToolMessage;
 pub use preview::PreviewMessage;
 pub use project::ProjectMessage;
-pub use qr_tool::QrToolMessage;
-pub use redis_tool::RedisToolMessage;
 pub use search::SearchMessage;
 pub(crate) use settings::SettingsMessage;
-pub use sql_tool::SqlToolMessage;
 pub use task_board::TaskBoardMessage;
 pub use terminal::TerminalMessage;
-pub use timestamp_tool::TimestampToolMessage;
 pub use view::ViewMessage;
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
 
 #[cfg(test)]
 #[path = "editor_tests.rs"]
@@ -276,11 +234,3 @@ mod editor_tests;
 #[cfg(test)]
 #[path = "gateway_health_tests.rs"]
 mod gateway_health_tests;
-
-#[cfg(test)]
-#[path = "json_tool_tests.rs"]
-mod json_tool_tests;
-
-#[cfg(test)]
-#[path = "json_yaml_tool_tests.rs"]
-mod json_yaml_tool_tests;

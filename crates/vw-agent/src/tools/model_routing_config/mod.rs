@@ -27,7 +27,7 @@ mod scenarios;
 mod snapshot;
 
 use super::traits::{Tool, ToolResult};
-use crate::app::agent::config::{Config, load_from_path_without_env_blocking};
+use crate::app::agent::config::{Config, get_project_without_env_blocking};
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::Value;
@@ -56,13 +56,10 @@ impl ModelRoutingConfigTool {
         Self { config, security }
     }
 
-    /// 从磁盘加载配置文件（不包含环境变量覆盖）
+    /// 从数据库基础配置与项目覆盖加载配置（不包含环境变量覆盖）
     fn load_config_without_env(&self) -> anyhow::Result<Config> {
-        load_from_path_without_env_blocking(
-            &self.config.config_path,
-            self.config.workspace_dir.clone(),
-        )
-        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        get_project_without_env_blocking(&self.config.workspace_dir)
+            .map_err(|error| anyhow::anyhow!(error.to_string()))
     }
 
     /// 检查写入权限和速率限制
@@ -256,3 +253,7 @@ impl Tool for ModelRoutingConfigTool {
 #[cfg(test)]
 #[path = "../tests/model_routing_config.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;

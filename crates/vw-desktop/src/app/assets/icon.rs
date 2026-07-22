@@ -117,8 +117,6 @@ pub enum Icon {
     Journals,
     /// 云上传图标
     CloudUpload,
-    /// Figma 图标
-    Figma,
     /// 应用程序 Logo
     Logo,
     /// 侧边栏布局图标

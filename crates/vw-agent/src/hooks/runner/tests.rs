@@ -357,6 +357,24 @@ mod tests {
         assert_eq!(names, vec!["high", "mid", "low"]);
     }
 
+    #[test]
+    fn register_orders_priority_extremes_and_preserves_equal_priority_order() {
+        let mut runner = HookRunner::new();
+
+        let (first_equal, _) = CountingHook::new("first_equal", 0);
+        let (lowest, _) = CountingHook::new("lowest", i32::MIN);
+        let (highest, _) = CountingHook::new("highest", i32::MAX);
+        let (second_equal, _) = CountingHook::new("second_equal", 0);
+
+        runner.register(Box::new(first_equal));
+        runner.register(Box::new(lowest));
+        runner.register(Box::new(highest));
+        runner.register(Box::new(second_equal));
+
+        let names: Vec<&str> = runner.handlers.iter().map(|handler| handler.name()).collect();
+        assert_eq!(names, vec!["highest", "first_equal", "second_equal", "lowest"]);
+    }
+
     /// 测试无返回值钩子的全部触发机制
     ///
     /// 验证所有已注册钩子在心跳事件时都会被调用，
@@ -378,6 +396,30 @@ mod tests {
         // 验证两个钩子的计数器都递增了
         assert_eq!(c1.load(Ordering::SeqCst), 1);
         assert_eq!(c2.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn empty_runner_accepts_all_void_dispatches() {
+        let runner = HookRunner::new();
+        let response = ChatResponse {
+            text: None,
+            tool_calls: Vec::new(),
+            usage: None,
+            reasoning_content: None,
+        };
+        let result = ToolResult { success: false, output: String::new(), error: None };
+
+        runner.fire_gateway_start("127.0.0.1", 0).await;
+        runner.fire_gateway_stop().await;
+        runner.fire_session_start("", "").await;
+        runner.fire_session_end("", "").await;
+        runner.fire_llm_input(&[], "").await;
+        runner.fire_llm_output(&response).await;
+        runner.fire_after_tool_call("", &result, Duration::ZERO).await;
+        runner.fire_message_sent("", "", "").await;
+        runner.fire_heartbeat_tick().await;
+
+        assert!(runner.handlers.is_empty());
     }
 
     /// 测试修改型钩子的取消传播
@@ -465,16 +507,30 @@ mod tests {
         runner.fire_message_sent("slack", "user-1", "hi").await;
         runner.fire_heartbeat_tick().await;
 
-        let events = events_snapshot(&events);
-        assert!(events.contains(&"first:gateway_start:127.0.0.1:8787".to_string()));
-        assert!(events.contains(&"second:gateway_stop".to_string()));
-        assert!(events.contains(&"first:session_start:session-1:telegram".to_string()));
-        assert!(events.contains(&"second:session_end:session-1:telegram".to_string()));
-        assert!(events.contains(&"first:llm_input:1:model-a".to_string()));
-        assert!(events.contains(&"second:llm_output:done".to_string()));
-        assert!(events.contains(&"first:after_tool:shell:true:ok:42".to_string()));
-        assert!(events.contains(&"second:message_sent:slack:user-1:hi".to_string()));
-        assert_eq!(events.iter().filter(|event| event.ends_with(":heartbeat")).count(), 2);
+        let mut events = events_snapshot(&events);
+        events.sort();
+        let mut expected = vec![
+            "first:after_tool:shell:true:ok:42".to_string(),
+            "first:gateway_start:127.0.0.1:8787".to_string(),
+            "first:gateway_stop".to_string(),
+            "first:heartbeat".to_string(),
+            "first:llm_input:1:model-a".to_string(),
+            "first:llm_output:done".to_string(),
+            "first:message_sent:slack:user-1:hi".to_string(),
+            "first:session_end:session-1:telegram".to_string(),
+            "first:session_start:session-1:telegram".to_string(),
+            "second:after_tool:shell:true:ok:42".to_string(),
+            "second:gateway_start:127.0.0.1:8787".to_string(),
+            "second:gateway_stop".to_string(),
+            "second:heartbeat".to_string(),
+            "second:llm_input:1:model-a".to_string(),
+            "second:llm_output:done".to_string(),
+            "second:message_sent:slack:user-1:hi".to_string(),
+            "second:session_end:session-1:telegram".to_string(),
+            "second:session_start:session-1:telegram".to_string(),
+        ];
+        expected.sort();
+        assert_eq!(events, expected);
     }
 
     #[tokio::test]

@@ -54,3 +54,48 @@ async fn exit_plan_mode_succeeds_after_plan_is_ready() {
     assert!(result.is_success());
     assert!(!context.plan_mode_state().active);
 }
+
+#[tokio::test]
+async fn exit_plan_mode_force_bypasses_missing_todos() {
+    let tool = ExitPlanModeTool::new();
+    let context = Arc::new(ToolUseContext::new("exit-plan-forced", None));
+    context.enter_plan_mode(Some("forced goal".to_string()), Some("forced note".to_string()));
+
+    let result = scope_tool_use_context(context.clone(), tool.call(json!({ "force": true })))
+        .await
+        .expect("force should bypass readiness blockers");
+
+    assert!(result.is_success());
+    assert_eq!(result.data["active"], false);
+    assert_eq!(result.data["exited"], true);
+    assert_eq!(result.data["force"], true);
+    assert_eq!(result.data["goal"], "forced goal");
+    assert_eq!(result.data["note"], "forced note");
+    assert!(!context.plan_mode_state().active);
+}
+
+#[tokio::test]
+async fn exit_plan_mode_reports_inactive_and_missing_todo_blockers() {
+    let tool = ExitPlanModeTool::new();
+    let context = Arc::new(ToolUseContext::new("exit-plan-inactive", None));
+
+    let result = scope_tool_use_context(context, tool.call(json!({})))
+        .await
+        .expect("readiness failures should be structured results");
+
+    assert_eq!(
+        result.data["blockers"],
+        json!(["plan mode is not active", "at least one todo is required before execution"])
+    );
+    assert_eq!(result.data["exited"], false);
+}
+
+#[tokio::test]
+async fn exit_plan_mode_rejects_non_boolean_force() {
+    let error = ExitPlanModeTool::new()
+        .call(json!({ "force": "yes" }))
+        .await
+        .expect_err("non-boolean force should be rejected before context lookup");
+
+    assert!(error.to_string().contains("invalid exit plan mode arguments"));
+}

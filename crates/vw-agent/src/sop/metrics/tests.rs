@@ -99,6 +99,47 @@ mod tests {
         assert_eq!(c.get_metric_value("sop.completion_rate"), Some(json!(0.0)));
     }
 
+    #[test]
+    fn default_collector_has_zero_state() {
+        let collector = SopMetricsCollector::default();
+
+        assert_eq!(collector.get_metric_value("sop.runs_completed"), Some(json!(0)));
+        assert_eq!(collector.snapshot()["pending_approvals"], json!(0));
+    }
+
+    #[test]
+    fn poisoned_lock_fails_closed_for_writes_reads_and_snapshot() {
+        let collector = std::sync::Arc::new(SopMetricsCollector::new());
+        let poison_target = std::sync::Arc::clone(&collector);
+        let poison_result = std::thread::spawn(move || {
+            let _guard = poison_target.inner.write().unwrap();
+            panic!("poison metrics lock for fail-closed test");
+        })
+        .join();
+        assert!(poison_result.is_err());
+
+        let run = make_run(
+            "poisoned-run",
+            "poisoned-sop",
+            SopRunStatus::Completed,
+            1,
+            vec![make_step(1, SopStepStatus::Completed)],
+        );
+        collector.record_approval("poisoned-sop", "poisoned-run");
+        collector.record_timeout_auto_approve("poisoned-sop", "poisoned-run");
+        collector.record_run_complete(&run);
+
+        assert_eq!(collector.get_metric_value("sop.runs_completed"), None);
+        assert_eq!(
+            collector.get_metric_value_windowed(
+                "sop.runs_completed",
+                &std::time::Duration::from_secs(60),
+            ),
+            None
+        );
+        assert_eq!(collector.snapshot(), json!({"error": "lock poisoned"}));
+    }
+
     /// 测试计数器算术运算
     ///
     /// 验证记录一个完成的运行后：
@@ -160,6 +201,23 @@ mod tests {
         let run = make_run("r1", "test-sop", SopRunStatus::Completed, 0, vec![]);
         c.record_run_complete(&run);
         assert_eq!(c.get_metric_value("sop.deviation_rate"), Some(json!(0.0)));
+    }
+
+    #[test]
+    fn protocol_adherence_rate_zero_defined_steps_is_zero() {
+        let c = SopMetricsCollector::new();
+        let run = make_run("r1", "test-sop", SopRunStatus::Completed, 0, vec![]);
+        c.record_run_complete(&run);
+
+        assert_eq!(c.get_metric_value("sop.protocol_adherence_rate"), Some(json!(0.0)));
+    }
+
+    #[test]
+    fn parse_completed_at_accepts_naive_timestamp_and_rejects_invalid_timestamp() {
+        let parsed = parse_completed_at("2026-07-20T06:00:00").expect("naive timestamp");
+        assert_eq!(parsed.to_rfc3339(), "2026-07-20T06:00:00+00:00");
+
+        assert_eq!(parse_completed_at("not-a-timestamp"), None);
     }
 
     /// 测试部分运行时的协议遵循率

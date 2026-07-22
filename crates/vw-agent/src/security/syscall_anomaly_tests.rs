@@ -131,6 +131,39 @@ fn inspect_command_output_can_suppress_unknown_syscalls() {
 }
 
 #[test]
+fn inspect_command_output_ignores_known_allowed_syscall() {
+    let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
+        strict_mode: false,
+        baseline_syscalls: vec!["openat".into()],
+        ..SyscallAnomalyConfig::default()
+    });
+
+    let alerts = detector.inspect_command_output("reader", "audit: syscall=OPENAT", "", Some(0));
+
+    assert!(alerts.is_empty());
+    assert_eq!(detector.state.lock().events.len(), 1);
+}
+
+#[test]
+fn inspect_command_output_reports_denied_signal_without_syscall_name() {
+    let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
+        strict_mode: true,
+        alert_on_unknown_syscall: false,
+        max_alerts_per_minute: 10,
+        ..SyscallAnomalyConfig::default()
+    });
+
+    let alerts = detector.inspect_command_output("worker", "", "SIGSYS killed process", None);
+
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].kind, SyscallAnomalyKind::DeniedSyscall);
+    assert_eq!(alerts[0].syscall, None);
+    assert_eq!(alerts[0].denied_events_last_minute, 1);
+    assert_eq!(alerts[0].total_events_last_minute, 1);
+    assert_eq!(alerts[0].sample, "SIGSYS killed process");
+}
+
+#[test]
 fn inspect_command_output_reports_denied_and_total_rate_spikes() {
     let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
         strict_mode: false,
@@ -153,6 +186,52 @@ fn inspect_command_output_reports_denied_and_total_rate_spikes() {
     assert!(alerts.iter().any(|alert| alert.kind == SyscallAnomalyKind::EventRateExceeded));
     assert!(alerts.iter().all(|alert| alert.denied_events_last_minute == 2));
     assert!(alerts.iter().all(|alert| alert.total_events_last_minute == 2));
+}
+
+#[test]
+fn inspect_command_output_reports_total_rate_for_allowed_events() {
+    let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
+        strict_mode: false,
+        baseline_syscalls: vec!["read".into(), "write".into()],
+        max_denied_events_per_minute: u32::MAX,
+        max_total_events_per_minute: 1,
+        max_alerts_per_minute: 10,
+        ..SyscallAnomalyConfig::default()
+    });
+
+    let alerts = detector.inspect_command_output(
+        "worker",
+        "audit: syscall=write",
+        "audit: syscall=read",
+        Some(0),
+    );
+
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].kind, SyscallAnomalyKind::EventRateExceeded);
+    assert_eq!(alerts[0].denied_events_last_minute, 0);
+    assert_eq!(alerts[0].total_events_last_minute, 2);
+    assert_eq!(alerts[0].sample, "audit: syscall=read");
+}
+
+#[test]
+fn inspect_command_output_uses_empty_sample_for_prior_denied_rate_event() {
+    let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
+        strict_mode: false,
+        baseline_syscalls: vec!["read".into()],
+        max_denied_events_per_minute: 0,
+        max_total_events_per_minute: u32::MAX,
+        max_alerts_per_minute: 10,
+        ..SyscallAnomalyConfig::default()
+    });
+    detector.state.lock().events.push_back(ObservedEvent { at: Instant::now(), denied: true });
+
+    let alerts = detector.inspect_command_output("worker", "", "audit: syscall=read", Some(0));
+
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].kind, SyscallAnomalyKind::DeniedRateExceeded);
+    assert_eq!(alerts[0].denied_events_last_minute, 1);
+    assert_eq!(alerts[0].total_events_last_minute, 2);
+    assert!(alerts[0].sample.is_empty());
 }
 
 #[test]
@@ -187,6 +266,33 @@ fn parse_syscall_signal_handles_supported_formats_and_ignores_noise() {
     assert!(parse_syscall_signal("").is_none());
     assert!(parse_syscall_signal("audit(1.2:3): cwd=\"/tmp\"").is_none());
     assert!(parse_syscall_signal("ordinary stderr").is_none());
+}
+
+#[test]
+fn parse_syscall_signal_recognizes_denial_markers_without_names() {
+    for line in [
+        "seccomp forbidden by profile",
+        "SIGSYS received",
+        "seccomp operation not permitted",
+        "seccomp EPERM",
+        "seccomp killed child",
+    ] {
+        let signal = parse_syscall_signal(line).expect("denial marker should parse");
+        assert!(signal.denied, "line should be denied: {line}");
+        assert_eq!(signal.syscall, None);
+        assert_eq!(signal.raw_line, line);
+    }
+}
+
+#[test]
+fn parse_syscall_signal_supports_number_keyword_and_system_call_name() {
+    let numbered = parse_syscall_signal("audit: syscall number=257").unwrap();
+    assert_eq!(numbered.syscall.as_deref(), Some("openat"));
+    assert!(!numbered.denied);
+
+    let named = parse_syscall_signal("seccomp denied system call: SYS_clone3").unwrap();
+    assert_eq!(named.syscall.as_deref(), Some("clone3"));
+    assert!(named.denied);
 }
 
 #[test]
@@ -229,6 +335,56 @@ fn normalization_parsing_and_mapping_helpers_cover_boundaries() {
 }
 
 #[test]
+fn linux_x86_64_syscall_mapping_covers_supported_table() {
+    let supported = [
+        (0, "read"),
+        (1, "write"),
+        (2, "open"),
+        (3, "close"),
+        (9, "mmap"),
+        (10, "mprotect"),
+        (11, "munmap"),
+        (12, "brk"),
+        (16, "ioctl"),
+        (32, "dup"),
+        (33, "dup2"),
+        (39, "getpid"),
+        (41, "socket"),
+        (42, "connect"),
+        (43, "accept"),
+        (44, "sendto"),
+        (45, "recvfrom"),
+        (47, "recvmsg"),
+        (50, "listen"),
+        (51, "getsockname"),
+        (52, "getpeername"),
+        (54, "setsockopt"),
+        (55, "getsockopt"),
+        (56, "clone"),
+        (57, "fork"),
+        (59, "execve"),
+        (60, "exit"),
+        (61, "wait4"),
+        (72, "fcntl"),
+        (202, "futex"),
+        (218, "set_tid_address"),
+        (231, "exit_group"),
+        (257, "openat"),
+        (262, "newfstatat"),
+        (273, "set_robust_list"),
+        (291, "epoll_create1"),
+        (318, "getrandom"),
+        (332, "statx"),
+        (435, "clone3"),
+    ];
+
+    for (number, name) in supported {
+        assert_eq!(map_linux_x86_64_syscall(number), Some(name), "syscall number {number}");
+    }
+    assert_eq!(map_linux_x86_64_syscall(436), None);
+}
+
+#[test]
 fn path_sample_and_command_identity_helpers_handle_edges() {
     let base = Path::new("/tmp/vibewindow");
     assert_eq!(resolve_log_path(base, " logs/anomalies.log "), base.join("logs/anomalies.log"));
@@ -241,10 +397,57 @@ fn path_sample_and_command_identity_helpers_handle_edges() {
     assert!(truncated.ends_with("..."));
     assert!(truncated.len() <= MAX_ALERT_SAMPLE_CHARS + 3);
     assert!(truncated.is_char_boundary(truncated.len()));
+    assert_eq!(truncate_sample("short sample"), "short sample");
 
     assert_eq!(command_identity("  "), "-");
     assert_eq!(command_identity("Echo hello"), "echo");
     assert_eq!(command_identity(&format!("{} rest", "A".repeat(80))).len(), 64);
+    assert_eq!(command_identity(&format!("{} rest", "界".repeat(30))), "界".repeat(21));
+}
+
+#[test]
+fn append_log_line_creates_parent_and_appends_json_lines() {
+    let tmp = tempdir().expect("tempdir");
+    let detector = SyscallAnomalyDetector::new(
+        SyscallAnomalyConfig {
+            log_path: "nested/security/anomalies.jsonl".into(),
+            ..SyscallAnomalyConfig::default()
+        },
+        tmp.path(),
+        AuditConfig { enabled: false, ..AuditConfig::default() },
+    );
+    let first = alert(SyscallAnomalyKind::UnknownSyscall, Some("clone3"), "worker one");
+    let second = alert(SyscallAnomalyKind::DeniedSyscall, None, "worker two");
+
+    detector.append_log_line(&first).expect("first alert should append");
+    detector.append_log_line(&second).expect("second alert should append");
+
+    let contents = std::fs::read_to_string(&detector.anomaly_log_path).expect("alert log");
+    let parsed = contents
+        .lines()
+        .map(|line| serde_json::from_str::<SyscallAnomalyAlert>(line).expect("valid alert JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(parsed, vec![first, second]);
+}
+
+#[test]
+fn inspect_command_output_returns_alert_when_log_path_is_directory() {
+    let tmp = tempdir().expect("tempdir");
+    let detector = SyscallAnomalyDetector::new(
+        SyscallAnomalyConfig {
+            baseline_syscalls: vec!["read".into()],
+            log_path: tmp.path().to_string_lossy().to_string(),
+            ..SyscallAnomalyConfig::default()
+        },
+        tmp.path(),
+        AuditConfig { enabled: false, ..AuditConfig::default() },
+    );
+
+    let alerts = detector.inspect_command_output("worker", "", "audit: syscall=clone3", Some(0));
+
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].kind, SyscallAnomalyKind::UnknownSyscall);
+    assert_eq!(alerts[0].syscall.as_deref(), Some("clone3"));
 }
 
 #[test]
@@ -309,4 +512,20 @@ fn should_emit_alert_enforces_budget_cooldown_and_expiry() {
         &repeated,
         now + RATE_WINDOW + Duration::from_secs(1)
     ));
+
+    let mut state = DetectorState::default();
+    assert!(should_emit_alert(&mut state, &cooldown, &repeated, now));
+    assert!(should_emit_alert(
+        &mut state,
+        &cooldown,
+        &repeated,
+        now + Duration::from_secs(cooldown.alert_cooldown_secs)
+    ));
+
+    let mut state = DetectorState::default();
+    let zero_budget =
+        SyscallAnomalyConfig { max_alerts_per_minute: 0, ..SyscallAnomalyConfig::default() };
+    assert!(!should_emit_alert(&mut state, &zero_budget, &repeated, now));
+    assert!(state.alert_timestamps.is_empty());
+    assert!(state.last_alert_by_key.is_empty());
 }

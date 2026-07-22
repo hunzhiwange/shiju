@@ -7,9 +7,13 @@ use std::env;
 #[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::process::Command;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
 
 const DEFAULT_RELEASE_API: &str =
     "https://api.github.com/repos/hunzhiwange/vibewindow/releases/latest";
@@ -29,6 +33,16 @@ struct ReleaseAsset {
     download_url: String,
     binary_name: Option<String>,
     target: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct UpdateProgress {
+    pub asset_name: String,
+    pub download_url: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
+    pub bytes_per_second: f64,
+    pub average_bytes_per_second: f64,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -72,18 +86,29 @@ pub async fn fetch_latest_version() -> Result<String> {
 
 /// 执行桌面端应用内自更新。
 pub async fn desktop_self_update() -> Result<String> {
+    desktop_self_update_with_progress(|_| {}).await
+}
+
+/// 执行桌面端应用内自更新，并在下载阶段报告进度。
+pub async fn desktop_self_update_with_progress<F>(on_progress: F) -> Result<String>
+where
+    F: FnMut(UpdateProgress) + Send,
+{
     #[cfg(windows)]
     {
+        let _ = on_progress;
         bail!("Windows 暂未支持应用内自更新，请下载新版本后手动覆盖安装。");
     }
 
     #[cfg(target_arch = "wasm32")]
     {
+        let _ = on_progress;
         bail!("WebAssembly 暂未支持应用内自更新。");
     }
 
     #[cfg(all(not(windows), not(target_arch = "wasm32")))]
     {
+        let mut on_progress = on_progress;
         let release = fetch_release_manifest().await?;
         if normalize_version(&release.version) == normalize_version(current_version()) {
             return Ok(format!("当前已是最新版本 {}", release.version));
@@ -94,7 +119,11 @@ pub async fn desktop_self_update() -> Result<String> {
         let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
         let preferred_binary_names =
             candidate_binary_names(&current_exe, asset.binary_name.as_deref());
-        let new_binary = download_binary(asset, temp_dir.path(), &preferred_binary_names).await?;
+        let new_binary =
+            download_binary_with_progress(asset, temp_dir.path(), &preferred_binary_names, |p| {
+                on_progress(p);
+            })
+            .await?;
         replace_binary(&new_binary, &current_exe)?;
         Ok(format!("已更新到 {}，重启后即可使用新版本。", release.version))
     }
@@ -236,6 +265,19 @@ async fn download_binary(
     temp_dir: &Path,
     preferred_binary_names: &[String],
 ) -> Result<PathBuf> {
+    download_binary_with_progress(asset, temp_dir, preferred_binary_names, |_| {}).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn download_binary_with_progress<F>(
+    asset: &ReleaseAsset,
+    temp_dir: &Path,
+    preferred_binary_names: &[String],
+    mut on_progress: F,
+) -> Result<PathBuf>
+where
+    F: FnMut(UpdateProgress),
+{
     let client = reqwest::Client::builder()
         .user_agent(format!("vibewindow/{}", current_version()))
         .build()
@@ -252,8 +294,43 @@ async fn download_binary(
     }
 
     let archive_path = temp_dir.join(&asset.name);
-    let archive_bytes = response.bytes().await.context("Failed to read download content")?;
-    fs::write(&archive_path, &archive_bytes).context("Failed to write archive to temp file")?;
+    let total_bytes = response.content_length();
+    let mut archive_file =
+        fs::File::create(&archive_path).context("Failed to create archive temp file")?;
+    let mut response = response;
+    let start = Instant::now();
+    let mut last_tick = start;
+    let mut downloaded_bytes = 0_u64;
+    on_progress(UpdateProgress {
+        asset_name: asset.name.clone(),
+        download_url: asset.download_url.clone(),
+        downloaded_bytes,
+        total_bytes,
+        bytes_per_second: 0.0,
+        average_bytes_per_second: 0.0,
+    });
+
+    while let Some(chunk) = response.chunk().await.context("Failed to read download content")? {
+        archive_file.write_all(&chunk).context("Failed to write archive to temp file")?;
+        downloaded_bytes = downloaded_bytes.saturating_add(chunk.len() as u64);
+        let now = Instant::now();
+        let elapsed = now.duration_since(start).as_secs_f64();
+        let tick_elapsed = now.duration_since(last_tick).as_secs_f64();
+        let bytes_per_second =
+            if tick_elapsed > 0.0 { chunk.len() as f64 / tick_elapsed } else { 0.0 };
+        let average_bytes_per_second =
+            if elapsed > 0.0 { downloaded_bytes as f64 / elapsed } else { 0.0 };
+        on_progress(UpdateProgress {
+            asset_name: asset.name.clone(),
+            download_url: asset.download_url.clone(),
+            downloaded_bytes,
+            total_bytes,
+            bytes_per_second,
+            average_bytes_per_second,
+        });
+        last_tick = now;
+    }
+    archive_file.flush().context("Failed to flush archive temp file")?;
 
     let binary_path = if asset.name.ends_with(".tar.gz") {
         extract_tar_gz(&archive_path, temp_dir)?;

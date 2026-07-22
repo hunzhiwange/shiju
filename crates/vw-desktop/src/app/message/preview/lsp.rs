@@ -425,7 +425,7 @@ pub(crate) fn filter_completions(app: &mut App) {
 /// let start = find_word_start(line, 7); // 光标在 'o' 上
 /// assert_eq!(start, 0); // 返回 'h' 的位置
 /// ```
-fn find_word_start(line: &str, cursor_col: usize) -> usize {
+pub(super) fn find_word_start(line: &str, cursor_col: usize) -> usize {
     // 将行内容转换为字符数组，便于索引访问
     let chars: Vec<char> = line.chars().collect();
 
@@ -619,7 +619,7 @@ pub(crate) fn handle_lsp_hover_from_mouse(app: &mut App, point: iced::Point) {
 /// let path = file_uri_to_path(uri);
 /// assert_eq!(path, Some("/path/to/my file.rs".to_string()));
 /// ```
-fn file_uri_to_path(uri: &str) -> Option<String> {
+pub(super) fn file_uri_to_path(uri: &str) -> Option<String> {
     // 移除 "file://" 前缀，并将 URI 转义字符替换为实际字符
     uri.strip_prefix("file://").map(|path| path.replace("%20", " "))
 }

@@ -21,24 +21,22 @@
 
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_section_card, settings_value_badge,
+    settings_modal_overlay, settings_muted_text_style,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, text, text::Wrapping};
 use iced::{Alignment, Element, Length};
 use std::hash::{Hash, Hasher};
 
-const ABOUT_SUBTITLE: &str = "设计、代码、预览与智能体协作整合在同一桌面工作台。";
-const PRODUCT_POSITION_TITLE: &str = "产品定位";
-const PRODUCT_POSITION_DESCRIPTION: &str =
-    "围绕项目管理、代码编辑、UI 设计、预览和自动化任务组织一个统一工作界面。";
-const AUTHOR_INFO_TITLE: &str = "作者信息";
-const AUTHOR_INFO_DESCRIPTION: &str = "开发者：刘祥敏。";
+const APP_NAME: &str = "VibeWindow";
+const ABOUT_TITLE: &str = "关于 VibeWindow";
+const ABOUT_SUBTITLE: &str =
+    "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
+const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";
+const AUTHOR_INFO: &str = "开发者：刘祥敏。";
 
 fn about_copy_text() -> String {
-    format!(
-        "Vibe Window\n{ABOUT_SUBTITLE}\n\n{PRODUCT_POSITION_TITLE}\n{PRODUCT_POSITION_DESCRIPTION}\n\n{AUTHOR_INFO_TITLE}\n{AUTHOR_INFO_DESCRIPTION}"
-    )
+    format!("{APP_NAME}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
 }
 
 fn hash_copy_text(content: &str) -> u64 {
@@ -91,22 +89,27 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         column![
             row![
                 column![
-                    text("关于 Vibe Window").size(24),
-                    text(ABOUT_SUBTITLE).size(12).style(settings_muted_text_style),
+                    text(ABOUT_TITLE).size(24),
+                    text(ABOUT_SUBTITLE)
+                        .size(12)
+                        .width(Length::Fill)
+                        .wrapping(Wrapping::Word)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
                 settings_close_button(close_message.clone()),
             ]
             .align_y(Alignment::Start),
-            row![
-                settings_value_badge("设计与开发一体"),
-                settings_value_badge("本地桌面端"),
-                settings_value_badge("AI 辅助工作流"),
+            column![
+                text(ABOUT_DESCRIPTION).size(13).width(Length::Fill).wrapping(Wrapping::Word),
+                text(AUTHOR_INFO)
+                    .size(12)
+                    .width(Length::Fill)
+                    .wrapping(Wrapping::Word)
+                    .style(settings_muted_text_style),
             ]
             .spacing(8),
-            settings_section_card(PRODUCT_POSITION_TITLE, PRODUCT_POSITION_DESCRIPTION),
-            settings_section_card(AUTHOR_INFO_TITLE, AUTHOR_INFO_DESCRIPTION),
             container(
                 row![
                     copy_button,

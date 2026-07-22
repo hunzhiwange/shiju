@@ -1,4 +1,28 @@
 use super::sort_acp_agent_names;
+use super::update;
+use crate::app::config::AcpSettingsSnapshot;
+use crate::app::message::settings::{AcpMessage, SettingsMessage};
+use std::collections::BTreeMap;
+use vw_config_types::config::AcpAgentConfig;
+
+fn acp_config(command: &str) -> AcpAgentConfig {
+    AcpAgentConfig { command: command.to_string(), ..AcpAgentConfig::default() }
+}
+
+fn snapshot(entries: &[(&str, bool)]) -> AcpSettingsSnapshot {
+    let mut catalog = BTreeMap::new();
+    let mut enabled = BTreeMap::new();
+
+    for (agent, is_enabled) in entries {
+        let config = acp_config(&format!("{agent}-command"));
+        catalog.insert((*agent).to_string(), config.clone());
+        if *is_enabled {
+            enabled.insert((*agent).to_string(), config);
+        }
+    }
+
+    AcpSettingsSnapshot { catalog, enabled }
+}
 
 #[test]
 fn acp_settings_message_tests_are_wired() {
@@ -21,22 +45,197 @@ fn sort_acp_agent_names_keeps_codex_first_then_lexicographic_order() {
 fn sort_acp_agent_names_handles_empty_and_missing_codex_lists() {
     assert!(sort_acp_agent_names(Vec::new()).is_empty());
 
-    let sorted = sort_acp_agent_names(vec![
-        "zeta".to_string(),
-        "alpha".to_string(),
-        "openclaw".to_string(),
-    ]);
+    let sorted =
+        sort_acp_agent_names(vec!["zeta".to_string(), "alpha".to_string(), "openclaw".to_string()]);
 
     assert_eq!(sorted, vec!["alpha", "openclaw", "zeta"]);
 }
 
 #[test]
 fn sort_acp_agent_names_is_stable_for_duplicate_names() {
-    let sorted = sort_acp_agent_names(vec![
-        "codex".to_string(),
-        "codex".to_string(),
-        "agent".to_string(),
-    ]);
+    let sorted =
+        sort_acp_agent_names(vec!["codex".to_string(), "codex".to_string(), "agent".to_string()]);
 
     assert_eq!(sorted, vec!["codex", "codex", "agent"]);
+}
+
+#[test]
+fn copied_command_state_only_clears_matching_agent() {
+    let (mut app, _) = crate::app::App::new();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::CopyCommand {
+            agent: "codex".to_string(),
+            command: "npx -y @agentclientprotocol/codex-acp@latest".to_string(),
+        }),
+    );
+    assert_eq!(app.acp_settings.copied_agent.as_deref(), Some("codex"));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::ClearCopiedCommand("claude".to_string())),
+    );
+    assert_eq!(app.acp_settings.copied_agent.as_deref(), Some("codex"));
+
+    let _ =
+        update(&mut app, SettingsMessage::Acp(AcpMessage::ClearCopiedCommand("codex".to_string())));
+    assert_eq!(app.acp_settings.copied_agent, None);
+}
+
+#[test]
+fn refresh_marks_loading_and_clears_previous_feedback() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.loading = false;
+    app.acp_settings.save_error = Some("old error".to_string());
+    app.acp_settings.status_message = Some("old status".to_string());
+
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::Refresh));
+
+    assert!(app.acp_settings.loading);
+    assert!(app.acp_settings.save_error.is_none());
+    assert!(app.acp_settings.status_message.is_none());
+}
+
+#[test]
+fn loaded_snapshot_replaces_state_sorts_enabled_agents_and_clears_disabled_selection() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.loading = true;
+    app.acp_settings.save_error = Some("old error".to_string());
+    app.acp_settings.catalog.insert("stale".to_string(), acp_config("stale"));
+    app.acp_settings.enabled.insert("stale".to_string());
+    app.acp_agents = vec!["stale".to_string()];
+    app.acp_agent = Some("stale".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::Loaded(Ok(snapshot(&[
+            ("opencode", true),
+            ("disabled", false),
+            ("codex", true),
+            ("claude", true),
+        ])))),
+    );
+
+    assert!(!app.acp_settings.loading);
+    assert_eq!(
+        app.acp_settings.catalog.keys().map(String::as_str).collect::<Vec<_>>(),
+        vec!["claude", "codex", "disabled", "opencode"]
+    );
+    assert_eq!(
+        app.acp_settings.enabled.iter().map(String::as_str).collect::<Vec<_>>(),
+        vec!["claude", "codex", "opencode"]
+    );
+    assert_eq!(app.acp_agents, vec!["codex", "claude", "opencode"]);
+    assert!(app.acp_agent.is_none());
+    assert!(app.acp_settings.save_error.is_none());
+}
+
+#[test]
+fn loaded_snapshot_preserves_selection_when_agent_remains_enabled() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_agent = Some("claude".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::Loaded(Ok(snapshot(&[("claude", true)])))),
+    );
+
+    assert_eq!(app.acp_agent.as_deref(), Some("claude"));
+}
+
+#[test]
+fn loaded_error_stops_loading_and_preserves_existing_snapshot() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.loading = true;
+    app.acp_settings.catalog.insert("codex".to_string(), acp_config("codex"));
+    app.acp_settings.enabled.insert("codex".to_string());
+    app.acp_agents = vec!["codex".to_string()];
+
+    let _ =
+        update(&mut app, SettingsMessage::Acp(AcpMessage::Loaded(Err("load failed".to_string()))));
+
+    assert!(!app.acp_settings.loading);
+    assert_eq!(app.acp_settings.save_error.as_deref(), Some("load failed"));
+    assert!(app.acp_settings.catalog.contains_key("codex"));
+    assert!(app.acp_settings.enabled.contains("codex"));
+    assert_eq!(app.acp_agents, vec!["codex"]);
+}
+
+#[test]
+fn set_enabled_marks_agent_saving_and_clears_previous_feedback() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.catalog.insert("codex".to_string(), acp_config("codex"));
+    app.acp_settings.save_error = Some("old error".to_string());
+    app.acp_settings.status_message = Some("old status".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::SetEnabled { agent: "codex".to_string(), enabled: true }),
+    );
+
+    assert_eq!(app.acp_settings.saving_agent.as_deref(), Some("codex"));
+    assert!(app.acp_settings.save_error.is_none());
+    assert!(app.acp_settings.status_message.is_none());
+}
+
+#[test]
+fn set_enabled_completed_success_applies_snapshot_and_reports_requested_action() {
+    for (enabled, expected_status) in [(true, "codex 已启用"), (false, "codex 已禁用")] {
+        let (mut app, _) = crate::app::App::new();
+        app.acp_settings.saving_agent = Some("codex".to_string());
+        app.acp_settings.save_error = Some("old error".to_string());
+
+        let _ = update(
+            &mut app,
+            SettingsMessage::Acp(AcpMessage::SetEnabledCompleted {
+                agent: "codex".to_string(),
+                enabled,
+                result: Ok(snapshot(&[("codex", enabled)])),
+            }),
+        );
+
+        assert!(app.acp_settings.saving_agent.is_none());
+        assert_eq!(app.acp_settings.enabled.contains("codex"), enabled);
+        assert!(app.acp_settings.save_error.is_none());
+        assert_eq!(app.acp_settings.status_message.as_deref(), Some(expected_status));
+    }
+}
+
+#[test]
+fn set_enabled_completed_error_clears_saving_and_preserves_existing_state() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.saving_agent = Some("codex".to_string());
+    app.acp_settings.catalog.insert("codex".to_string(), acp_config("codex"));
+    app.acp_settings.enabled.insert("codex".to_string());
+    app.acp_settings.status_message = Some("keep status".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::SetEnabledCompleted {
+            agent: "codex".to_string(),
+            enabled: false,
+            result: Err("save failed".to_string()),
+        }),
+    );
+
+    assert!(app.acp_settings.saving_agent.is_none());
+    assert_eq!(app.acp_settings.save_error.as_deref(), Some("save failed"));
+    assert!(app.acp_settings.catalog.contains_key("codex"));
+    assert!(app.acp_settings.enabled.contains("codex"));
+    assert_eq!(app.acp_settings.status_message.as_deref(), Some("keep status"));
+}
+
+#[test]
+fn update_ignores_non_acp_settings_messages() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.loading = true;
+    app.acp_settings.saving_agent = Some("codex".to_string());
+    app.acp_settings.save_error = Some("unchanged".to_string());
+
+    let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
+
+    assert!(app.acp_settings.loading);
+    assert_eq!(app.acp_settings.saving_agent.as_deref(), Some("codex"));
+    assert_eq!(app.acp_settings.save_error.as_deref(), Some("unchanged"));
 }

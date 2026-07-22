@@ -155,6 +155,41 @@ mod tests {
         assert_eq!(result.output, "未找到文件");
     }
 
+    #[tokio::test]
+    async fn glob_rejects_blank_pattern() {
+        let dir = TempDir::new().unwrap();
+        let tool = GlobTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "pattern": "  " })).await.unwrap();
+
+        assert!(!result.success);
+        assert_eq!(result.error.as_deref(), Some("Missing pattern"));
+    }
+
+    #[tokio::test]
+    async fn glob_rejects_missing_search_path() {
+        let dir = TempDir::new().unwrap();
+        let tool = GlobTool::new(test_security(dir.path().to_path_buf()));
+
+        let result = tool.execute(json!({ "pattern": "*", "path": "missing" })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap_or_default().contains("does not exist"));
+    }
+
+    #[tokio::test]
+    async fn glob_rejects_file_as_search_path() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("not-a-directory.txt"), "content").unwrap();
+        let tool = GlobTool::new(test_security(dir.path().to_path_buf()));
+
+        let result =
+            tool.execute(json!({ "pattern": "*", "path": "not-a-directory.txt" })).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap_or_default().contains("not a directory"));
+    }
+
     /// 测试对非法路径的拒绝（安全边界验证）
     ///
     /// 场景：

@@ -1,4 +1,4 @@
-//! 网关客户端测试模块，覆盖端点拼接、SSE 分帧和流式事件归一化行为。
+//! Shell 管理测试模块，覆盖环境解析、命令构建和安全进程终止行为。
 
 use super::*;
 
@@ -64,6 +64,33 @@ mod tests {
         assert_eq!(user_home_dir(), Some(userprofile.path().to_path_buf()));
     }
 
+    #[test]
+    fn user_home_dir_returns_none_when_home_variables_are_missing() {
+        let _env_lock = shell_env_test_lock();
+        let _home_guard = EnvGuard::remove("HOME");
+        let _userprofile_guard = EnvGuard::remove("USERPROFILE");
+
+        assert_eq!(user_home_dir(), None);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn shell_profile_paths_follow_shell_startup_precedence() {
+        let home = Path::new("/home/demo");
+
+        assert_eq!(
+            shell_profile_paths(home),
+            vec![
+                PathBuf::from("/home/demo/.zshenv"),
+                PathBuf::from("/home/demo/.zprofile"),
+                PathBuf::from("/home/demo/.zshrc"),
+                PathBuf::from("/home/demo/.bash_profile"),
+                PathBuf::from("/home/demo/.bashrc"),
+                PathBuf::from("/home/demo/.profile"),
+            ]
+        );
+    }
+
     #[cfg(not(windows))]
     #[test]
     fn strip_matching_quotes_only_removes_balanced_outer_quotes() {
@@ -84,6 +111,14 @@ mod tests {
         assert_eq!(
             replace_shell_home_and_path_vars("~/tools", "/home/demo", "/usr/bin"),
             "/home/demo/tools"
+        );
+        assert_eq!(
+            replace_shell_home_and_path_vars(" '${HOME}/bin:${PATH}' ", "/home/demo", "/usr/bin"),
+            "/home/demo/bin:/usr/bin"
+        );
+        assert_eq!(
+            replace_shell_home_and_path_vars("~other/tools", "/home/demo", "/usr/bin"),
+            "~other/tools"
         );
     }
 
@@ -147,6 +182,23 @@ mod tests {
     }
 
     #[test]
+    fn which_returns_none_when_process_path_is_missing() {
+        let _env_lock = shell_env_test_lock();
+        let _path_guard = EnvGuard::remove("PATH");
+
+        assert_eq!(which("definitely-missing-vw-shared-shell-test"), None);
+    }
+
+    #[test]
+    fn which_returns_none_when_program_is_absent_from_present_path() {
+        let _env_lock = shell_env_test_lock();
+        let dir = tempfile::TempDir::new().expect("temp PATH dir should be created");
+        let _path_guard = EnvGuard::set_os("PATH", dir.path().as_os_str());
+
+        assert_eq!(which("definitely-missing-vw-shared-shell-test"), None);
+    }
+
+    #[test]
     fn push_unique_path_keeps_existing_dirs_once() {
         let dir = tempfile::TempDir::new().expect("temp dir should be created");
         let missing = dir.path().join("missing");
@@ -157,6 +209,20 @@ mod tests {
         push_unique_path(&mut paths, dir.path().to_path_buf());
 
         assert_eq!(paths, vec![dir.path().to_path_buf()]);
+    }
+
+    #[test]
+    fn push_known_path_keeps_missing_dir_and_dedupes() {
+        let dir = tempfile::TempDir::new().expect("temp dir should be created");
+        let missing = dir.path().join("missing");
+        let mut paths = Vec::new();
+
+        // 兜底目录即使不存在也必须保留，避免漏掉 homebrew 这类关键目录；重复项仍去重。
+        push_known_path(&mut paths, missing.clone());
+        push_known_path(&mut paths, missing.clone());
+        push_known_path(&mut paths, dir.path().to_path_buf());
+
+        assert_eq!(paths, vec![missing, dir.path().to_path_buf()]);
     }
 
     #[cfg(not(windows))]
@@ -206,6 +272,27 @@ mod tests {
 
     #[cfg(not(windows))]
     #[test]
+    fn infer_path_from_shell_profiles_applies_profiles_in_startup_order() {
+        let _env_lock = shell_env_test_lock();
+        let home = tempfile::TempDir::new().expect("temp home should be created");
+        std::fs::write(home.path().join(".zshenv"), "PATH=$HOME/first:$PATH\n")
+            .expect("zshenv should be written");
+        std::fs::write(home.path().join(".profile"), "export PATH=${HOME}/last:${PATH}\n")
+            .expect("profile should be written");
+        let _path_guard = EnvGuard::set_os("PATH", std::ffi::OsStr::new("/system/bin"));
+
+        assert_eq!(
+            infer_path_from_shell_profiles(home.path()),
+            Some(format!(
+                "{}/last:{}/first:/system/bin",
+                home.path().display(),
+                home.path().display()
+            ))
+        );
+    }
+
+    #[cfg(not(windows))]
+    #[test]
     fn infer_env_var_from_shell_profiles_trims_name_and_uses_last_assignment() {
         let _env_lock = shell_env_test_lock();
         let home = tempfile::TempDir::new().expect("temp home should be created");
@@ -237,6 +324,21 @@ mod tests {
 
     #[cfg(not(windows))]
     #[test]
+    fn infer_env_var_from_shell_profiles_expands_home_and_path_tokens() {
+        let _env_lock = shell_env_test_lock();
+        let home = tempfile::TempDir::new().expect("temp home should be created");
+        std::fs::write(home.path().join(".bashrc"), "export TOOL_PATH=\"$HOME/bin:${PATH}\"\n")
+            .expect("profile should be written");
+        let _path_guard = EnvGuard::set_os("PATH", std::ffi::OsStr::new("/system/bin"));
+
+        assert_eq!(
+            infer_env_var_from_shell_profiles(home.path(), "TOOL_PATH"),
+            Some(format!("{}/bin:/system/bin", home.path().display()))
+        );
+    }
+
+    #[cfg(not(windows))]
+    #[test]
     fn effective_path_env_uses_profile_path_entries() {
         let _env_lock = shell_env_test_lock();
         let home = tempfile::TempDir::new().expect("temp home should be created");
@@ -262,6 +364,47 @@ mod tests {
         assert!(path.contains(&local_bin.to_string_lossy().to_string()));
         assert!(path.contains(&cargo_bin.to_string_lossy().to_string()));
         assert!(path.contains(&bun_bin.to_string_lossy().to_string()));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn effective_path_env_keeps_common_dirs_under_minimal_daemon_path() {
+        let _env_lock = shell_env_test_lock();
+        let home = tempfile::TempDir::new().expect("temp home should be created");
+
+        // 守护进程常以最小 PATH 启动（无 homebrew）。子进程必须仍能拿到常见命令目录，
+        // 否则 `npx` 这类 shebang 脚本会因找不到 `node` 而以 ENOENT 失败。
+        let _home_guard = EnvGuard::set_os("HOME", home.path().as_os_str());
+        let _path_guard = EnvGuard::set_os("PATH", std::ffi::OsStr::new("/usr/bin:/bin"));
+
+        let path = effective_path_env().expect("effective PATH should be available");
+        for dir in COMMON_COMMAND_DIRS {
+            assert!(
+                path.split(':').any(|entry| entry == *dir),
+                "missing common dir {dir} in {path}"
+            );
+        }
+    }
+
+    #[test]
+    fn build_effective_path_uses_process_path_entries() {
+        let process_path = std::env::var_os("PATH").expect("test process PATH should be present");
+        let expected = std::env::split_paths(&process_path)
+            .find(|entry| entry.is_dir())
+            .expect("test process PATH should contain an existing directory");
+
+        let path = build_effective_path().expect("process PATH should produce effective PATH");
+
+        assert!(std::env::split_paths(&path).any(|entry| entry == expected));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_effective_path_returns_none_without_process_path() {
+        let _env_lock = shell_env_test_lock();
+        let _path_guard = EnvGuard::remove("PATH");
+
+        assert_eq!(build_effective_path(), None);
     }
 
     #[cfg(not(windows))]
@@ -315,11 +458,40 @@ mod tests {
     }
 
     #[test]
+    fn shell_profile_env_var_returns_none_without_env_or_home() {
+        let _env_lock = shell_env_test_lock();
+        let _value_guard = EnvGuard::remove("VIBEWINDOW_MISSING_SHELL_TEST_VALUE");
+        let _home_guard = EnvGuard::remove("HOME");
+        let _userprofile_guard = EnvGuard::remove("USERPROFILE");
+
+        assert_eq!(shell_profile_env_var("VIBEWINDOW_MISSING_SHELL_TEST_VALUE"), None);
+    }
+
+    #[test]
     fn resolve_executable_accepts_existing_absolute_path() {
         let file = tempfile::NamedTempFile::new().expect("temp file should be created");
         let resolved = resolve_executable(file.path().to_string_lossy().as_ref())
             .expect("absolute file path should resolve");
         assert_eq!(resolved, file.path());
+    }
+
+    #[test]
+    fn resolve_executable_accepts_existing_relative_path() {
+        let current_dir = std::env::current_dir().expect("current dir should be available");
+        let dir = tempfile::Builder::new()
+            .prefix("vw-shared-shell-relative-")
+            .tempdir_in(&current_dir)
+            .expect("temp dir should be created in current dir");
+        let program = dir.path().join("demo-relative-cli");
+        std::fs::write(&program, b"not executed").expect("program should be written");
+        let relative_program = PathBuf::from(".").join(
+            program.strip_prefix(&current_dir).expect("temp program should be below current dir"),
+        );
+
+        assert_eq!(
+            resolve_executable(relative_program.to_string_lossy().as_ref()),
+            Some(relative_program)
+        );
     }
 
     #[test]
@@ -338,6 +510,24 @@ mod tests {
         let _path_guard = EnvGuard::set_os("PATH", dir.path().as_os_str());
 
         assert_eq!(resolve_executable("demo-effective-cli"), Some(program_path));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn resolve_executable_finds_program_from_profile_augmented_path() {
+        let _env_lock = shell_env_test_lock();
+        let home = tempfile::TempDir::new().expect("temp home should be created");
+        let local_bin = home.path().join(".local/bin");
+        std::fs::create_dir_all(&local_bin).expect("local bin should be created");
+        let program_path = local_bin.join("demo-profile-cli");
+        std::fs::write(&program_path, b"#!/bin/sh\nexit 0\n").expect("program should be written");
+        std::fs::write(home.path().join(".zshrc"), "PATH=$PATH\n")
+            .expect("profile should be written");
+
+        let _home_guard = EnvGuard::set_os("HOME", home.path().as_os_str());
+        let _path_guard = EnvGuard::set_os("PATH", std::ffi::OsStr::new("/usr/bin:/bin"));
+
+        assert_eq!(resolve_executable("demo-profile-cli"), Some(program_path));
     }
 
     #[test]
@@ -435,10 +625,14 @@ mod tests {
     #[test]
     fn git_std_command_applies_git_default_environment() {
         let command = git_std_command();
-        let debug = format!("{command:?}");
-        assert!(debug.contains("GIT_PAGER"));
-        assert!(debug.contains("GIT_MERGE_AUTOEDIT"));
-        assert!(debug.contains("GIT_EDITOR"));
+
+        for &(expected_key, expected_value) in GIT_DEFAULT_ENV {
+            let actual = command
+                .get_envs()
+                .find(|(key, _)| *key == std::ffi::OsStr::new(expected_key))
+                .and_then(|(_, value)| value);
+            assert_eq!(actual, Some(std::ffi::OsStr::new(expected_value)));
+        }
     }
 
     #[cfg(feature = "shell-tokio")]
@@ -456,6 +650,67 @@ mod tests {
     #[test]
     fn fallback_uses_macos_default_shell() {
         assert_eq!(fallback(), "/bin/zsh");
+    }
+
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    #[test]
+    fn fallback_uses_bin_sh_when_bash_is_not_on_path() {
+        let _env_lock = shell_env_test_lock();
+        let _path_guard = EnvGuard::remove("PATH");
+
+        assert_eq!(fallback(), "/bin/sh");
+    }
+
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    #[test]
+    fn fallback_uses_bash_found_on_path() {
+        let _env_lock = shell_env_test_lock();
+        let bin = tempfile::TempDir::new().expect("temp bin dir should be created");
+        let bash = bin.path().join("bash");
+        std::fs::write(&bash, b"not executed").expect("bash file should be written");
+        let _path_guard = EnvGuard::set_os("PATH", bin.path().as_os_str());
+
+        assert_eq!(fallback(), bash.to_string_lossy().to_string());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn fallback_prefers_configured_git_bash_file() {
+        let _env_lock = shell_env_test_lock();
+        let bash = tempfile::NamedTempFile::new().expect("temp bash file should be created");
+        let _bash_guard = EnvGuard::set_os("VIBEWINDOW_GIT_BASH_PATH", bash.path().as_os_str());
+
+        assert_eq!(fallback(), bash.path().to_string_lossy().to_string());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn fallback_finds_git_bash_relative_to_git_on_path() {
+        let _env_lock = shell_env_test_lock();
+        let git_root = tempfile::TempDir::new().expect("temp git root should be created");
+        let cmd_dir = git_root.path().join("cmd");
+        let bin_dir = git_root.path().join("bin");
+        std::fs::create_dir_all(&cmd_dir).expect("git cmd dir should be created");
+        std::fs::create_dir_all(&bin_dir).expect("git bin dir should be created");
+        std::fs::write(cmd_dir.join("git.exe"), b"not executed")
+            .expect("git file should be written");
+        let bash = bin_dir.join("bash.exe");
+        std::fs::write(&bash, b"not executed").expect("bash file should be written");
+        let _configured_bash_guard = EnvGuard::remove("VIBEWINDOW_GIT_BASH_PATH");
+        let _path_guard = EnvGuard::set_os("PATH", cmd_dir.as_os_str());
+
+        assert_eq!(fallback(), bash.to_string_lossy().to_string());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn fallback_uses_comspec_when_git_bash_is_unavailable() {
+        let _env_lock = shell_env_test_lock();
+        let _configured_bash_guard = EnvGuard::remove("VIBEWINDOW_GIT_BASH_PATH");
+        let _path_guard = EnvGuard::remove("PATH");
+        let _comspec_guard = EnvGuard::set_os("COMSPEC", std::ffi::OsStr::new("custom-cmd.exe"));
+
+        assert_eq!(fallback(), "custom-cmd.exe");
     }
 
     #[cfg(target_os = "macos")]

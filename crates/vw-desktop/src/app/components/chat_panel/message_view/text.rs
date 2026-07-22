@@ -8,6 +8,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::{App, Message, message};
 
+use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::{
     chat_text_font, chat_text_line_height, read_only_text_style,
 };
@@ -15,8 +16,6 @@ use super::super::utils::normalize_display_text;
 use super::styles::{
     MESSAGE_TEXT_SIZE, message_body_text_color, message_text_line_height, think_block_text_color,
 };
-
-pub(super) const MAX_EDITOR_CHARS: usize = 20_000;
 
 const SEGMENT_MAX_LINES: usize = 96;
 const SEGMENT_MAX_CHARS: usize = 4_000;
@@ -38,7 +37,7 @@ pub(super) fn estimate_text_height(text: &str) -> f32 {
     explicit_lines.max(wrapped_lines) as f32 * LINE_HEIGHT
 }
 
-fn split_text_segments(text: &str) -> Vec<String> {
+pub(super) fn split_text_segments(text: &str) -> Vec<String> {
     let mut segments = Vec::new();
     let mut current = String::new();
     let mut current_lines = 0usize;
@@ -280,7 +279,11 @@ pub(super) fn think_text_body<'a>(
     prefer_plain_text: bool,
 ) -> Element<'a, Message> {
     let scroll_key = ((msg_idx as u64) << 32) | (think_idx as u64);
-    if !prefer_plain_text && let Some(editor_content) = app.chat_think_editors.get(&scroll_key) {
+    let policy = selectable_text_policy(&content, should_segment_text_block(&content));
+    if !prefer_plain_text
+        && policy != SelectableTextPolicy::PreviewWithCopyFallback
+        && let Some(editor_content) = app.chat_think_editors.get(&scroll_key)
+    {
         let on_action = move |action| {
             Message::Chat(message::ChatMessage::ThinkEditorAction(msg_idx, think_idx, action))
         };

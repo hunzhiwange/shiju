@@ -22,6 +22,9 @@ use crate::{
 };
 
 #[cfg(test)]
+#[path = "repository_edge_tests.rs"]
+mod repository_edge_tests;
+#[cfg(test)]
 #[path = "repository_tests.rs"]
 mod repository_tests;
 

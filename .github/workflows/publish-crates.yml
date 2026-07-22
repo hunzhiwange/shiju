@@ -18,36 +18,76 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: cargo publish -p vw-api-types --token ${CRATES_TOKEN}
+      - name: Publish crates
+        run: |
+          set -euo pipefail
+
+          version_of() {
+            cargo pkgid -p "$1" | sed -E 's/.*[#@]//'
+          }
+
+          crate_exists() {
+            local crate="$1"
+            local version="$2"
+            local status
+
+            status="$(curl \
+              --silent \
+              --show-error \
+              --output /dev/null \
+              --write-out "%{http_code}" \
+              --user-agent "vibe-window-release-ci" \
+              "https://crates.io/api/v1/crates/${crate}/${version}")"
+
+            case "${status}" in
+              200) return 0 ;;
+              404) return 1 ;;
+              *)
+                echo "Unexpected crates.io response for ${crate} ${version}: HTTP ${status}" >&2
+                return 2
+                ;;
+            esac
+          }
+
+          wait_for_crate() {
+            local crate="$1"
+            local version="$2"
+
+            for _ in {1..30}; do
+              if crate_exists "${crate}" "${version}"; then
+                return 0
+              fi
+              sleep 10
+            done
+
+            echo "Timed out waiting for ${crate} ${version} to appear on crates.io" >&2
+            return 1
+          }
+
+          publish_crate() {
+            local crate="$1"
+            local version
+
+            version="$(version_of "${crate}")"
+
+            if crate_exists "${crate}" "${version}"; then
+              echo "${crate} ${version} is already published; skipping"
+              return 0
+            fi
+
+            cargo publish -p "${crate}"
+            wait_for_crate "${crate}" "${version}"
+          }
+
+          publish_crate vw-api-types
+          publish_crate vw-config-types
+          publish_crate vw-shared
+          publish_crate vw-gateway-client
+          publish_crate vw-acp
+          publish_crate vw-provider-resolver
+          publish_crate vw-agent
+          publish_crate vw-cli
+          publish_crate vw-webview
+          publish_crate vw-desktop
         env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-fig2json --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-shared --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-config-types --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-gateway-client --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-acp --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-provider-resolver --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-agent --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-cli --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-webview --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
-      - run: cargo publish -p vw-desktop --token ${CRATES_TOKEN}
-        env:
-          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}

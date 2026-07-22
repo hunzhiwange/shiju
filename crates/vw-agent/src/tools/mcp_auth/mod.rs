@@ -3,7 +3,7 @@
 //! 工具只读取当前解析后的 ACP 配置，返回认证策略、已配置认证方法名称和目标
 //! server 摘要；不会输出密钥、令牌或任何原始敏感载荷。
 
-use super::mcp_common::{load_resolved_acp_config, server_summary};
+use super::mcp_common::{auth_method_names, load_resolved_acp_config, server_summary};
 use super::traits::{Tool, ToolResult, ToolSpec};
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -66,6 +66,9 @@ impl Tool for McpAuthTool {
     }
 
     async fn execute(&self, args: Value) -> anyhow::Result<ToolResult> {
+        if !args.is_object() {
+            anyhow::bail!("invalid type: expected an object");
+        }
         let args: Args = serde_json::from_value(args)?;
         let config = load_resolved_acp_config().await?;
         let server_filter = args.server.as_deref().map(str::trim).filter(|value| !value.is_empty());
@@ -86,7 +89,7 @@ impl Tool for McpAuthTool {
         // 这里只暴露认证方法名称，不序列化认证体，避免日志或工具输出泄露凭据。
         let data = json!({
             "auth_policy": config.auth_policy,
-            "auth_methods": config.auth.keys().cloned().collect::<Vec<_>>(),
+            "auth_methods": auth_method_names(&config.auth),
             "servers": servers,
         });
         Ok(ToolResult { success: true, output: serde_json::to_string_pretty(&data)?, error: None })

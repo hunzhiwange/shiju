@@ -102,7 +102,13 @@ pub(crate) async fn finalize_tool_input(
     context: &ToolUseContext,
 ) -> Result<Value, ToolCallError> {
     let decision = PermissionHook::adapt(resolve_permission_decision(tool, input, context).await);
+    finalize_permission_decision(tool, decision).await
+}
 
+async fn finalize_permission_decision(
+    tool: &dyn Tool,
+    decision: PermissionDecision,
+) -> Result<Value, ToolCallError> {
     match decision {
         PermissionDecision::Allow { updated_input, .. } => {
             tool.check_permissions(&updated_input).await.map_err(classify_message)?;

@@ -23,6 +23,8 @@
 //! ```
 
 use crate::app::agent::provider::provider;
+use serde_json::Value;
+use std::collections::HashMap;
 
 /// 标题最大字符数
 const MAX_TITLE_CHARS: usize = 50;
@@ -32,6 +34,41 @@ const CONTENT_TRUNCATE_CHARS: usize = 200;
 
 /// 标题截断后省略号前的字符数
 const TITLE_TRUNCATE_KEEP: usize = 47;
+
+fn truncate_title_source(content: String) -> String {
+    if content.chars().count() > CONTENT_TRUNCATE_CHARS {
+        content.chars().take(CONTENT_TRUNCATE_CHARS).collect::<String>()
+    } else {
+        content
+    }
+}
+
+fn build_title_prompt(content: &str) -> String {
+    format!(
+        "Generate a concise title (max 50 characters) for this conversation. Only output the title, nothing else.\n\nUser message:\n{}",
+        content
+    )
+}
+
+fn apply_acp_agent_options(options: &mut HashMap<String, Value>, acp_agent: Option<&str>) {
+    if let Some(agent) = acp_agent {
+        options.insert("acp_test".to_string(), Value::Bool(true));
+        options.insert("acp_agent".to_string(), Value::String(agent.to_string()));
+    }
+}
+
+fn finalize_generated_title(output: &str) -> Result<String, String> {
+    let title = output.trim().to_string();
+    if title.is_empty() {
+        return Err("Empty title generated".to_string());
+    }
+
+    if title.chars().count() > MAX_TITLE_CHARS {
+        Ok(title.chars().take(TITLE_TRUNCATE_KEEP).collect::<String>() + "...")
+    } else {
+        Ok(title)
+    }
+}
 
 /// 根据会话内容生成标题
 ///
@@ -90,11 +127,7 @@ pub async fn generate_from_content(
     acp_agent: Option<String>,
 ) -> Result<String, String> {
     // 内容预处理：截断过长内容以节省 token 消耗
-    let truncated = if content.chars().count() > CONTENT_TRUNCATE_CHARS {
-        content.chars().take(CONTENT_TRUNCATE_CHARS).collect::<String>()
-    } else {
-        content
-    };
+    let truncated = truncate_title_source(content);
 
     // 空内容检查：避免无意义的 LLM 调用
     if truncated.trim().is_empty() {
@@ -152,10 +185,7 @@ pub async fn generate_from_content(
     };
 
     // 构造标题生成提示词
-    let prompt = format!(
-        "Generate a concise title (max 50 characters) for this conversation. Only output the title, nothing else.\n\nUser message:\n{}",
-        truncated
-    );
+    let prompt = build_title_prompt(&truncated);
 
     // 准备流式输出收集器
     use std::sync::{Arc, Mutex};
@@ -164,10 +194,7 @@ pub async fn generate_from_content(
 
     // 构造 LLM 代理信息
     let mut options = agent_info.options.clone();
-    if let Some(agent) = acp_agent.clone() {
-        options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
-        options.insert("acp_agent".to_string(), serde_json::Value::String(agent));
-    }
+    apply_acp_agent_options(&mut options, acp_agent.as_deref());
     let llm_agent = crate::app::agent::session::llm::AgentInfo {
         name: "title".to_string(),
         mode: agent_info.mode.clone(),
@@ -230,19 +257,8 @@ pub async fn generate_from_content(
     .map_err(|e| format!("LLM stream error: {}", e))?;
 
     // 提取并清理生成的标题
-    let title = output.lock().unwrap_or_else(|e| e.into_inner()).trim().to_string();
-    if title.is_empty() {
-        return Err("Empty title generated".to_string());
-    }
-
-    // 标题长度限制：超过最大长度时截断并添加省略号
-    let title = if title.chars().count() > MAX_TITLE_CHARS {
-        title.chars().take(TITLE_TRUNCATE_KEEP).collect::<String>() + "..."
-    } else {
-        title
-    };
-
-    Ok(title)
+    let output = output.lock().unwrap_or_else(|e| e.into_inner());
+    finalize_generated_title(&output)
 }
 #[cfg(test)]
 #[path = "title_tests.rs"]

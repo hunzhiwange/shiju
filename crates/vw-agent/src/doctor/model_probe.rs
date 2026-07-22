@@ -67,15 +67,39 @@ pub(super) fn classify_model_probe_error(err_message: &str) -> ModelProbeOutcome
 ///
 /// 返回值：
 /// 返回排序后的 provider key 列表，保证 doctor 输出顺序稳定。
-async fn doctor_model_targets(provider_override: Option<&str>) -> Vec<String> {
-    if let Some(provider) = provider_override.map(str::trim).filter(|value| !value.is_empty()) {
-        return vec![provider.to_string()];
+pub(super) fn resolve_model_probe_targets(
+    provider_override: Option<&str>,
+    provider_keys: impl IntoIterator<Item = String>,
+) -> Vec<String> {
+    if let Some(provider) =
+        provider_override.map(str::trim).filter(|value| !value.is_empty()).map(ToString::to_string)
+    {
+        return vec![provider];
     }
 
-    let mut providers =
-        crate::app::agent::provider::provider::list().await.into_keys().collect::<Vec<_>>();
+    let mut providers = provider_keys.into_iter().collect::<Vec<_>>();
     providers.sort();
     providers
+}
+
+pub(super) async fn doctor_model_targets(provider_override: Option<&str>) -> Vec<String> {
+    if provider_override.map(str::trim).is_some_and(|value| !value.is_empty()) {
+        return resolve_model_probe_targets(provider_override, Vec::<String>::new());
+    }
+
+    let providers = crate::app::agent::provider::provider::list().await.into_keys();
+    resolve_model_probe_targets(provider_override, providers)
+}
+
+pub(super) fn report_model_probe_targets(targets: Vec<String>) -> Result<()> {
+    if targets.is_empty() {
+        anyhow::bail!("No providers available for model probing");
+    }
+
+    println!("🩺 VibeWindow Doctor — Model Catalog Probe");
+    println!("  Note: Model probing feature is currently disabled");
+    println!("  Providers: {}", targets.join(", "));
+    Ok(())
 }
 
 /// 运行模型目录探测命令。
@@ -97,12 +121,5 @@ pub async fn run_models(
     _use_cache: bool,
 ) -> Result<()> {
     let targets = doctor_model_targets(provider_override).await;
-    if targets.is_empty() {
-        anyhow::bail!("No providers available for model probing");
-    }
-
-    println!("🩺 VibeWindow Doctor — Model Catalog Probe");
-    println!("  Note: Model probing feature is currently disabled");
-    println!("  Providers: {}", targets.join(", "));
-    Ok(())
+    report_model_probe_targets(targets)
 }

@@ -395,6 +395,63 @@ impl App {
         }
     }
 
+    pub(crate) fn reset_task_board_project_state(&mut self) {
+        self.task_board_loading = false;
+        self.task_board_tasks.clear();
+        self.task_board_staff_projection = Default::default();
+        self.task_board_staff_config_load_error = None;
+        self.task_board_staff_events.clear();
+        self.task_board_staff_command_input.clear();
+        self.task_board_staff_command_queue = Default::default();
+        self.task_board_selected_tasks.clear();
+        self.task_board_bulk_active_status = None;
+        self.task_board_manual_merge_queue.clear();
+        self.task_board_selected_task = None;
+        self.task_board_viewing_logs = None;
+        self.task_board_detail_tab = Default::default();
+        self.task_board_log_cache.clear();
+        self.task_board_editing_task_id = None;
+        self.task_board_dragging = None;
+        self.task_board_drag_pending = None;
+        self.task_board_executor = crate::app::task::TaskExecutorState::new();
+        self.task_board_executor_running = false;
+        self.task_board_next_scheduler_tick_at_ms = 0;
+        self.task_board_next_auto_review_tick_at_ms = 0;
+        self.task_board_next_auto_promote_tick_at_ms = 0;
+        self.task_board_next_auto_merge_tick_at_ms = 0;
+        self.task_board_worktree_desired_capacity = None;
+        self.task_board_last_log_flush_at_ms = 0;
+        self.task_board_log_scan_cursor = 0;
+        self.task_board_timeout_scan_cursor = 0;
+        self.task_board_schedule_scan_cursor = 0;
+        self.task_board_executor_popover = false;
+        self.task_board_bulk_executor_popover = false;
+        self.task_board_bulk_model_popover = false;
+        self.task_board_model_popover = false;
+        self.task_board_worktree_maintenance_in_flight = false;
+        self.task_board_worktree_snapshot_loading = false;
+        self.task_board_worktree_manual_action_kind = None;
+        self.task_board_worktree_manual_confirm_kind = None;
+        self.task_board_worktree_action_logs.clear();
+        self.task_board_worktree_action_logs_visible_until_ms = None;
+        self.task_board_worktree_action_log_rx = None;
+        self.task_board_worktree_snapshot = None;
+        self.task_board_last_worktree_snapshot_at_ms = 0;
+        self.task_board_context_menu = None;
+        self.task_board_new_subtask_content.clear();
+        self.task_board_logs_editor = iced::widget::text_editor::Content::new();
+        self.task_board_logs_auto_scroll = true;
+        self.task_board_logs_context_menu_open = false;
+        self.task_board_logs_context_menu_pos = None;
+        self.task_board_logs_scroll_top_line = 0.0;
+        self.task_board_logs_scroll_remainder = 0.0;
+        self.task_board_logs_viewport_height = 0.0;
+        self.task_board_create_submit_success = false;
+        self.task_board_edit_submit_success = false;
+        self.task_board_is_import_mode = false;
+        self.task_board_column_has_vertical_scrollbar.clear();
+    }
+
     /// 打开项目并在需要时启动后台文件索引
     ///
     /// 组合了项目打开与文件索引的异步任务：
@@ -496,6 +553,7 @@ impl App {
 
         // 保存前一个项目的预览标签页与激活路径
         let previous_project_path = self.project_path.clone();
+        let project_changed = previous_project_path.as_deref() != Some(path.as_str());
         if let Some(prev_path) = &previous_project_path {
             self.project_preview_tabs
                 .insert(prev_path.clone(), std::mem::take(&mut self.preview_tabs));
@@ -503,6 +561,9 @@ impl App {
                 .insert(prev_path.clone(), self.active_preview_path.take());
         }
         self.project_path = Some(path.clone());
+        if project_changed {
+            self.reset_task_board_project_state();
+        }
 
         // 加载项目特定的任务看板设置
         let settings = self

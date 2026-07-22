@@ -44,3 +44,14 @@ fn skill_view_builds_for_skill_tool_only() {
     assert!(tool_skill_view(&app, 0, 2, "tool bash\n{}").is_none());
     assert!(tool_skill_view(&app, 0, 3, "tool skill\nnot-json").is_none());
 }
+
+#[test]
+fn skill_name_extractors_reject_missing_empty_and_unclosed_values() {
+    assert_eq!(skill_name_from_json_value(&serde_json::json!([])), None);
+    assert_eq!(skill_name_from_json_value(&serde_json::json!({"name":"   "})), None);
+    assert_eq!(quoted_attr_value("title=builder", "name"), None);
+    assert_eq!(quoted_attr_value("name=", "name"), None);
+    assert_eq!(quoted_attr_value("name=\"unterminated", "name"), None);
+    assert_eq!(quoted_attr_value("name='   '", "name"), None);
+    assert_eq!(yaml_name_value("name: '   '\ntitle: builder"), None);
+}

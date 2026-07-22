@@ -37,24 +37,46 @@ use super::super::{
 use super::diff_line_select_spacer;
 use super::start_end::GapRange;
 
-fn gap_summary_chip(hidden_count: usize) -> Element<'static, Message> {
-    container(text(format!("{} 行未修改", hidden_count)).size(12).style(|theme: &iced::Theme| {
-        let ext = theme.extended_palette();
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
+pub(super) fn gap_summary_text_style(theme: &iced::Theme) -> iced::widget::text::Style {
+    let ext = theme.extended_palette();
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
             < 1.5;
 
-        iced::widget::text::Style {
-            color: Some(if is_dark {
-                theme.palette().text.scale_alpha(0.98)
-            } else {
-                ext.background.strong.text.scale_alpha(0.92)
-            }),
-        }
-    }))
-    .padding([1, 4])
-    .into()
+    iced::widget::text::Style {
+        color: Some(if is_dark {
+            theme.palette().text.scale_alpha(0.98)
+        } else {
+            ext.background.strong.text.scale_alpha(0.92)
+        }),
+    }
+}
+
+pub(super) fn gap_expand_container_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            ext.background.weak.color.scale_alpha(0.28)
+        } else {
+            ext.background.weak.color.scale_alpha(0.82)
+        })),
+        border: Border {
+            width: 1.0,
+            color: ext.background.strong.color.scale_alpha(if is_dark { 0.24 } else { 0.10 }),
+            radius: 7.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn gap_summary_chip(hidden_count: usize) -> Element<'static, Message> {
+    container(text(format!("{} 行未修改", hidden_count)).size(12).style(gap_summary_text_style))
+        .padding([1, 4])
+        .into()
 }
 
 /// 渲染 Git diff 中的间隙区域
@@ -425,30 +447,7 @@ pub fn render_gap(
         )
         .width(Length::Fill)
         .padding([3, 6])
-        .style(move |theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            iced::widget::container::Style {
-                background: Some(Background::Color(if is_dark {
-                    ext.background.weak.color.scale_alpha(0.28)
-                } else {
-                    ext.background.weak.color.scale_alpha(0.82)
-                })),
-                border: Border {
-                    width: 1.0,
-                    color: ext.background.strong.color.scale_alpha(if is_dark {
-                        0.24
-                    } else {
-                        0.10
-                    }),
-                    radius: 7.0.into(),
-                },
-                ..Default::default()
-            }
-        });
+        .style(gap_expand_container_style);
         let expand_btn: Element<'static, Message> = if app.merge_view {
             container(
                 row![

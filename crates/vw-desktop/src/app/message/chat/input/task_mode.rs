@@ -38,6 +38,17 @@ pub(super) fn handle_task_mode_model_changed(app: &mut App, model: String) -> Ta
     Task::none()
 }
 
+/// 模块内可见函数，执行 handle_task_mode_task_split_mode_changed 对应的应用流程。
+/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn handle_task_mode_task_split_mode_changed(
+    app: &mut App,
+    mode: crate::app::task::TaskSplitMode,
+) -> Task<Message> {
+    let runtime = app.current_session_runtime_mut();
+    runtime.task_mode_task_split_mode = mode;
+    Task::none()
+}
+
 /// 模块内可见函数，执行 handle_task_mode_executor_changed 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_task_mode_executor_changed(
@@ -46,6 +57,14 @@ pub(super) fn handle_task_mode_executor_changed(
 ) -> Task<Message> {
     let runtime = app.current_session_runtime_mut();
     runtime.task_mode_executor = executor;
+    Task::none()
+}
+
+pub(super) fn handle_task_mode_reasoning_effort_changed(
+    app: &mut App,
+    reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+) -> Task<Message> {
+    app.current_session_runtime_mut().task_mode_reasoning_effort = reasoning_effort;
     Task::none()
 }
 

@@ -16,9 +16,13 @@
 //!     └── cli/interactive.rs    → 交互式会话
 //! ```
 
-use super::AgentTuiMode;
+#[cfg(not(test))]
 use super::interactive::run_interactive;
+#[cfg(test)]
+use super::run_tests::{run_interactive, run_single_message, setup_cli};
+#[cfg(not(test))]
 use super::setup::setup_cli;
+#[cfg(not(test))]
 use super::single_message::run_single_message;
 use crate::app::agent::config::Config;
 use crate::app::agent::observability::ObserverEvent;
@@ -88,7 +92,6 @@ pub async fn run(
     temperature: f64,
     _peripheral_overrides: Vec<String>,
     interactive: bool,
-    tui_mode: AgentTuiMode,
 ) -> Result<String> {
     // 初始化 CLI 运行时环境
     // 包括：Provider 实例化、模型选择、Observer 配置等
@@ -110,7 +113,7 @@ pub async fn run(
     } else {
         // 交互式模式：启动持续的用户交互会话
         // 输出将通过回调或引用参数累积到 final_output
-        run_interactive(&config, &setup, &mut final_output, tui_mode).await?;
+        run_interactive(&config, &setup, &mut final_output).await?;
     }
 
     // 计算总执行耗时

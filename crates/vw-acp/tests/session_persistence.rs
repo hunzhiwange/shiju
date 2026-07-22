@@ -85,6 +85,7 @@ fn sample_record() -> SessionRecord {
             available_models: Some(vec!["claude".to_string(), "gemini".to_string()]),
             available_commands: Some(vec!["/help".to_string()]),
             config_options: None,
+            desired_config_options: None,
             session_options: Some(SessionStateOptions {
                 model: Some("claude".to_string()),
                 allowed_tools: Some(vec!["read".to_string()]),

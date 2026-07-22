@@ -45,5 +45,11 @@ vw-config-types = { path = "../vw-config-types", version = "0.3.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.3.0" }
 vw-shared = { path = "../vw-shared", version = "0.3.0" }
 
+[dev-dependencies]
+async-trait = "0.1.89"
+
 [features]
-default = []
+default = ["memory-postgres", "memory-mariadb", "channel-matrix"]
+memory-postgres = ["vw-agent/memory-postgres"]
+memory-mariadb = ["vw-agent/memory-mariadb"]
+channel-matrix = ["vw-agent/channel-matrix"]

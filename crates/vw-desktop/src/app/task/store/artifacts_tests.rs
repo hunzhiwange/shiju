@@ -1,140 +1,171 @@
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn checksum_hex_is_stable_sha256_hex() {
-    assert_eq!(
-        super::checksum_hex("abc"),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
-}
+use super::*;
 
-fn sample_task() -> crate::app::task::models::Task {
-    let mut task = crate::app::task::models::Task::new(5);
-    task.id = "T20260612.0001".into();
-    task.model = "gpt-test".into();
-    task.acp_agent = Some("codex".into());
-    task.prompt = "implement feature".into();
-    task.merge_source_branch = Some("feature/task".into());
-    task.merge_target_branch = Some("main".into());
+fn task_fixture(acp_agent: Option<&str>) -> Task {
+    let mut task = Task::new(1);
+    task.id = "TASK-artifact".to_string();
+    task.acp_agent = acp_agent.map(str::to_string);
+    task.model = "test-model".to_string();
+    task.prompt = "build the artifact".to_string();
     task
 }
 
-#[test]
-fn execution_result_log_writes_success_and_error_content() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().to_string_lossy().to_string();
-    let task = sample_task();
-
-    let success_path = super::write_task_execution_result_log(&project, &task, &Ok("done".into()))
-        .expect("success log");
-    let success = std::fs::read_to_string(&success_path).expect("success content");
-    assert!(success_path.ends_with("[T20260612.0001].log"));
-    assert!(success.contains("task_id=T20260612.0001"));
-    assert!(success.contains("acp_agent=codex"));
-    assert!(success.contains("result=success"));
-    assert!(success.contains("output:\ndone"));
-
-    let error_path = super::write_task_execution_result_log(&project, &task, &Err("boom".into()))
-        .expect("error log");
-    let error = std::fs::read_to_string(error_path).expect("error content");
-    assert!(error.contains("result=error"));
-    assert!(error.contains("error:\nboom"));
+fn assert_native_cutover(error: io::Error) {
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "native desktop task persistence moved to the global Agent Scheduler"
+    );
 }
 
 #[test]
-fn code_review_log_includes_branches_and_optional_system_prompt() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().to_string_lossy().to_string();
-    let task = sample_task();
-
-    let path = super::write_task_code_review_result_log(
-        &project,
-        &task,
-        &Ok("looks good".into()),
-        Some("full system prompt"),
-    )
-    .expect("review log");
-
-    let content = std::fs::read_to_string(path).expect("review content");
-    assert!(content.contains("source_branch=feature/task"));
-    assert!(content.contains("target_branch=main"));
-    assert!(content.contains("review_system_prompt_full:\nfull system prompt"));
-    assert!(content.contains("review_result=success"));
+fn stored_task_executor_name_defaults_to_acp_and_preserves_selected_agent() {
+    assert_eq!(stored_task_executor_name(&task_fixture(None)), "acp");
+    assert_eq!(stored_task_executor_name(&task_fixture(Some("codex"))), "codex");
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn raw_artifact_saves_execution_result_metadata_to_sqlite() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().to_string_lossy().to_string();
-    let task = sample_task();
-    let file_path = temp.path().join("result.txt");
+fn execution_result_content_formats_success_context() {
+    let content =
+        execution_result_content(&task_fixture(Some("codex")), &Ok("artifact created".to_string()));
 
-    super::save_task_execution_result_artifact(
-        &project,
-        &task,
-        &Err("failed output".into()),
-        Some(&file_path),
-    )
-    .expect("artifact save");
-
-    let conn = super::open_index_connection(&project).expect("sqlite connection");
-    let row = conn
-        .query_row(
-            "SELECT artifact_type, acp_agent, model, file_path, content_text, content_sha256, status
-             FROM task_raw_artifacts
-             WHERE task_id = ?1",
-            rusqlite::params![task.id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?,
-                    row.get::<_, String>(5)?,
-                    row.get::<_, String>(6)?,
-                ))
-            },
+    assert_eq!(
+        content,
+        concat!(
+            "task_id=TASK-artifact\n",
+            "acp_agent=codex\n",
+            "model=test-model\n",
+            "prompt:\n",
+            "build the artifact\n",
+            "result=success\n",
+            "output:\n",
+            "artifact created\n",
         )
-        .expect("artifact row");
-
-    assert_eq!(row.0, "execution_result");
-    assert_eq!(row.1, "codex");
-    assert_eq!(row.2, "gpt-test");
-    assert_eq!(row.3, file_path.to_string_lossy().to_string());
-    assert!(row.4.contains("result=error"));
-    assert_eq!(row.5, super::checksum_hex(&row.4));
-    assert_eq!(row.6, "error");
+    );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn raw_artifact_saves_review_result_with_default_agent() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = temp.path().to_string_lossy().to_string();
-    let mut task = sample_task();
-    task.id = "T20260612.0002".into();
-    task.acp_agent = None;
+fn execution_result_content_formats_error_with_default_executor() {
+    let content = execution_result_content(&task_fixture(None), &Err("disk full".to_string()));
 
-    super::save_task_code_review_result_artifact(
-        &project,
-        &task,
-        &Ok("approved".into()),
-        Some("system"),
-        None,
-    )
-    .expect("review artifact save");
-
-    let conn = super::open_index_connection(&project).expect("sqlite connection");
-    let (artifact_type, acp_agent, status): (String, String, String) = conn
-        .query_row(
-            "SELECT artifact_type, acp_agent, status FROM task_raw_artifacts WHERE task_id = ?1",
-            rusqlite::params![task.id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    assert_eq!(
+        content,
+        concat!(
+            "task_id=TASK-artifact\n",
+            "acp_agent=acp\n",
+            "model=test-model\n",
+            "prompt:\n",
+            "build the artifact\n",
+            "result=error\n",
+            "error:\n",
+            "disk full\n",
         )
-        .expect("artifact row");
+    );
+}
 
-    assert_eq!(artifact_type, "code_review_result");
-    assert_eq!(acp_agent, "acp");
-    assert_eq!(status, "success");
+#[test]
+fn review_result_content_includes_full_prompt_for_success() {
+    let content = review_result_content(
+        &task_fixture(Some("reviewer")),
+        &Ok("approved".to_string()),
+        Some("review every changed line"),
+    );
+
+    assert_eq!(
+        content,
+        concat!(
+            "task_id=TASK-artifact\n",
+            "acp_agent=reviewer\n",
+            "model=test-model\n",
+            "review_system_prompt_full:\n",
+            "review every changed line\n",
+            "review_result=success\n",
+            "review_output:\n",
+            "approved\n",
+        )
+    );
+}
+
+#[test]
+fn review_result_content_omits_prompt_and_formats_error() {
+    let content =
+        review_result_content(&task_fixture(None), &Err("changes requested".to_string()), None);
+
+    assert_eq!(
+        content,
+        concat!(
+            "task_id=TASK-artifact\n",
+            "acp_agent=acp\n",
+            "model=test-model\n",
+            "review_result=error\n",
+            "review_error:\n",
+            "changes requested\n",
+        )
+    );
+    assert!(!content.contains("review_system_prompt_full"));
+}
+
+#[test]
+fn native_execution_log_write_fails_closed_without_creating_files() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let task = Task::new(1);
+    let error = write_task_execution_result_log(&path, &task, &Ok("done".to_string()))
+        .expect_err("native artifact file disabled");
+
+    assert_native_cutover(error);
+    assert_eq!(project.path().read_dir().expect("read project").count(), 0);
+}
+
+#[test]
+fn native_review_log_write_fails_closed_without_creating_files() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let task = Task::new(1);
+    let error = write_task_code_review_result_log(
+        &path,
+        &task,
+        &Err("changes requested".to_string()),
+        Some("review prompt"),
+    )
+    .expect_err("native review artifact file disabled");
+
+    assert_native_cutover(error);
+    assert_eq!(project.path().read_dir().expect("read project").count(), 0);
+}
+
+#[test]
+fn native_execution_artifact_save_fails_closed_without_creating_files() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let artifact_path = project.path().join("artifact.txt");
+    let task = Task::new(1);
+    let error = save_task_execution_result_artifact(
+        &path,
+        &task,
+        &Ok("done".to_string()),
+        Some(&artifact_path),
+    )
+    .expect_err("native execution artifact save disabled");
+
+    assert_native_cutover(error);
+    assert!(!artifact_path.exists());
+}
+
+#[test]
+fn native_review_artifact_save_fails_closed_without_creating_files() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let artifact_path = project.path().join("review.txt");
+    let task = Task::new(1);
+    let error = save_task_code_review_result_artifact(
+        &path,
+        &task,
+        &Err("changes requested".to_string()),
+        Some("review prompt"),
+        Some(&artifact_path),
+    )
+    .expect_err("native review artifact save disabled");
+
+    assert_native_cutover(error);
+    assert!(!artifact_path.exists());
 }

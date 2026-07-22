@@ -1,6 +1,6 @@
 use super::chat::{
     ChatContextDto, ChatOptionsDto, ChatRole, GatewayChatStreamEvent, GatewayChatStreamRequest,
-    MessagePartDto, MessageStatus,
+    MessagePartDto, MessageStatus, ReasoningEffortDto,
 };
 use serde_json::json;
 
@@ -24,4 +24,48 @@ fn chat_defaults_keep_optional_fields_empty() {
         GatewayChatStreamEvent::Error("bad".into()),
         GatewayChatStreamEvent::Error("bad".into())
     );
+}
+
+#[test]
+fn reasoning_effort_dto_roundtrips_known_values_and_default() {
+    let cases = [
+        (None, None),
+        (Some(ReasoningEffortDto::None), Some("none")),
+        (Some(ReasoningEffortDto::Low), Some("low")),
+        (Some(ReasoningEffortDto::Medium), Some("medium")),
+        (Some(ReasoningEffortDto::High), Some("high")),
+        (Some(ReasoningEffortDto::Xhigh), Some("xhigh")),
+        (Some(ReasoningEffortDto::Max), Some("max")),
+    ];
+
+    for (reasoning_effort, serialized) in cases {
+        let options = ChatOptionsDto { reasoning_effort, ..ChatOptionsDto::default() };
+        let options_json = serde_json::to_value(&options).expect("serialize chat options");
+        assert_eq!(
+            options_json.get("reasoning_effort").cloned(),
+            serialized.map(|value| json!(value))
+        );
+        assert_eq!(
+            serde_json::from_value::<ChatOptionsDto>(options_json)
+                .expect("deserialize chat options")
+                .reasoning_effort,
+            reasoning_effort
+        );
+
+        let request =
+            GatewayChatStreamRequest { reasoning_effort, ..GatewayChatStreamRequest::default() };
+        let request_json = serde_json::to_value(&request).expect("serialize gateway request");
+        assert_eq!(
+            request_json.get("reasoning_effort").cloned(),
+            serialized.map(|value| json!(value))
+        );
+        assert_eq!(
+            serde_json::from_value::<GatewayChatStreamRequest>(request_json)
+                .expect("deserialize gateway request")
+                .reasoning_effort,
+            reasoning_effort
+        );
+    }
+
+    assert!(serde_json::from_value::<ReasoningEffortDto>(json!("invalid")).is_err());
 }

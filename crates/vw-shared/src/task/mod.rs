@@ -9,7 +9,7 @@ pub mod store;
 pub use models::{
     CLAUDE_DEFAULT_MODEL_ALIAS, CLAUDE_SUPPORTED_MODEL_ALIASES, SubTask, SubTaskStatus,
     TASK_MODEL_AUTO, Task, TaskBoardSettings, TaskDraft, TaskExecutorBackend,
-    TaskImportPromptFormat, TaskIndex, TaskLogEntry, TaskStatus, claude_model_alias,
+    TaskImportPromptFormat, TaskIndex, TaskLogEntry, TaskSplitMode, TaskStatus, claude_model_alias,
     normalize_task_model_input,
 };
 /// 任务持久化读写接口。

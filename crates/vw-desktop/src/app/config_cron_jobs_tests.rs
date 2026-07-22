@@ -130,9 +130,7 @@ fn response_for(method: &str, path: &str) -> String {
             r#"{"runs":[{"id":7,"job_id":"job-1","started_at":"start","finished_at":"finish","status":"ok","output":"done","duration_ms":5}]}"#,
         ),
         ("GET", "/v1/cron/runs/__probe__") => ("200 OK", r#"{"runs":[]}"#),
-        ("POST", "/v1/cron")
-        | ("PATCH", "/v1/cron/job-1")
-        | ("PATCH", "/v1/cron/job-2") => {
+        ("POST", "/v1/cron") | ("PATCH", "/v1/cron/job-1") | ("PATCH", "/v1/cron/job-2") => {
             ("200 OK", r#"{"status":"ok","job":null}"#)
         }
         ("DELETE", "/v1/cron/job-1") | ("DELETE", "/v1/cron/job-2") => ("204 No Content", ""),
@@ -205,6 +203,10 @@ fn normalize_schedule_kind_accepts_aliases_and_infers_legacy_cron() {
         Ok("cron".to_string())
     );
     assert_eq!(
+        super::normalize_schedule_kind("cron", None, None, Some(2_000)),
+        Ok("every".to_string())
+    );
+    assert_eq!(
         super::normalize_schedule_kind("cron", None, Some("2026-01-01T00:00:00Z"), None),
         Ok("at".to_string())
     );
@@ -260,7 +262,7 @@ fn requires_extended_cron_api_only_for_non_legacy_fields() {
     assert!(super::requires_extended_cron_api("shell", "cron", None, None, None, None, None, true));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
     assert_error_contains(
         super::add_cron_job_async(
@@ -348,7 +350,7 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() {
     assert_error_contains(
         super::update_cron_job_async(
@@ -411,6 +413,97 @@ async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() 
 }
 
 #[tokio::test]
+async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_gateway() {
+    assert_error_contains(
+        super::update_cron_job_async(
+            "job-1".to_string(),
+            String::new(),
+            "shell".to_string(),
+            "at".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "echo ok".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            false,
+            String::new(),
+            String::new(),
+            false,
+            false,
+            false,
+            String::new(),
+            String::new(),
+            true,
+            false,
+        )
+        .await,
+        "指定时间不能为空",
+    );
+    assert_error_contains(
+        super::update_cron_job_async(
+            "job-1".to_string(),
+            String::new(),
+            "shell".to_string(),
+            "every".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "echo ok".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            false,
+            String::new(),
+            String::new(),
+            false,
+            false,
+            false,
+            String::new(),
+            String::new(),
+            true,
+            false,
+        )
+        .await,
+        "固定间隔毫秒数不能为空",
+    );
+    assert_error_contains(
+        super::update_cron_job_async(
+            "job-1".to_string(),
+            String::new(),
+            "shell".to_string(),
+            "cron".to_string(),
+            "0 0 * * * *".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            false,
+            String::new(),
+            String::new(),
+            false,
+            false,
+            false,
+            String::new(),
+            String::new(),
+            true,
+            false,
+        )
+        .await,
+        "执行命令不能为空",
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn load_cron_jobs_and_runs_use_gateway_responses() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(2).await;
@@ -429,7 +522,7 @@ async fn load_cron_jobs_and_runs_use_gateway_responses() {
     assert_eq!(requests[1].path, "/v1/cron/job-1/runs");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn add_cron_job_async_sends_trimmed_agent_request() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(2).await;
@@ -480,7 +573,7 @@ async fn add_cron_job_async_sends_trimmed_agent_request() {
     assert_eq!(body["delivery_mode"], "announce");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(1).await;
@@ -524,7 +617,7 @@ async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
     assert!(requests[0].body.get("agent").is_none());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn enabled_and_delete_helpers_send_one_request_per_job() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(4).await;
@@ -546,7 +639,7 @@ async fn enabled_and_delete_helpers_send_one_request_per_job() {
     assert_eq!(requests[3].method, "DELETE");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn delete_cron_jobs_async_deletes_each_job() {
     let _guard = CRON_JOBS_ENV_LOCK.lock().await;
     let gateway = TestGateway::start(2).await;

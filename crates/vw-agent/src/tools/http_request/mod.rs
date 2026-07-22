@@ -93,7 +93,7 @@ impl HttpRequestTool {
                 blocked_domains: &[],
                 allowed_field_name: "http_request.allowed_domains",
                 blocked_field_name: None,
-                empty_allowed_message: "HTTP request tool is enabled but no allowed_domains are configured. Add [http_request].allowed_domains in vibewindow.json",
+                empty_allowed_message: "HTTP request tool is enabled but no allowed_domains are configured. Add http_request.allowed_domains in system settings",
                 scheme_policy: UrlSchemePolicy::HttpOrHttps,
                 ipv6_error_context: "http_request",
             },
@@ -256,6 +256,48 @@ impl HttpRequestTool {
         Ok(request.send().await?)
     }
 
+    async fn format_response(&self, response: reqwest::Response) -> ToolResult {
+        let status = response.status();
+        let status_code = status.as_u16();
+
+        let headers_text = response
+            .headers()
+            .iter()
+            .map(|(k, _)| {
+                let is_sensitive = k.as_str().to_lowercase().contains("set-cookie");
+                if is_sensitive {
+                    format!("{}: ***REDACTED***", k.as_str())
+                } else {
+                    format!("{}: {:?}", k.as_str(), k.as_str())
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let response_text = match response.text().await {
+            Ok(text) => self.truncate_response(&text),
+            Err(e) => format!("[Failed to read response body: {e}]"),
+        };
+
+        let output = format!(
+            "Status: {} {}\nResponse Headers: {}\n\nResponse Body:\n{}",
+            status_code,
+            status.canonical_reason().unwrap_or("Unknown"),
+            headers_text,
+            response_text
+        );
+
+        ToolResult {
+            success: status.is_success(),
+            output,
+            error: if status.is_client_error() || status.is_server_error() {
+                Some(format!("HTTP {}", status_code))
+            } else {
+                None
+            },
+        }
+    }
+
     /// 截断过长的响应体
     ///
     /// 当响应体超过配置的最大大小时，截断并添加提示信息。
@@ -415,50 +457,7 @@ impl Tool for HttpRequestTool {
 
         // 执行请求并处理响应
         match self.execute_request(&url, method, request_headers, body).await {
-            Ok(response) => {
-                let status = response.status();
-                let status_code = status.as_u16();
-
-                // 获取响应头并对敏感信息进行脱敏
-                let response_headers = response.headers().iter();
-                let headers_text = response_headers
-                    .map(|(k, _)| {
-                        // 检查是否为敏感头部（如 Set-Cookie）
-                        let is_sensitive = k.as_str().to_lowercase().contains("set-cookie");
-                        if is_sensitive {
-                            format!("{}: ***REDACTED***", k.as_str())
-                        } else {
-                            format!("{}: {:?}", k.as_str(), k.as_str())
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-
-                // 读取响应体并应用大小限制
-                let response_text = match response.text().await {
-                    Ok(text) => self.truncate_response(&text),
-                    Err(e) => format!("[Failed to read response body: {e}]"),
-                };
-
-                // 格式化输出结果
-                let output = format!(
-                    "Status: {} {}\nResponse Headers: {}\n\nResponse Body:\n{}",
-                    status_code,
-                    status.canonical_reason().unwrap_or("Unknown"),
-                    headers_text,
-                    response_text
-                );
-
-                Ok(ToolResult {
-                    success: status.is_success(),
-                    output,
-                    error: if status.is_client_error() || status.is_server_error() {
-                        Some(format!("HTTP {}", status_code))
-                    } else {
-                        None
-                    },
-                })
-            }
+            Ok(response) => Ok(self.format_response(response).await),
             Err(e) => Ok(ToolResult {
                 success: false,
                 output: String::new(),

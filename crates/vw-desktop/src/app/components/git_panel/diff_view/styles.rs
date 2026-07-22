@@ -25,7 +25,7 @@ use super::{DIFF_SPLIT_DIVIDER_WIDTH, DiffSplitPaneTone, markers};
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn is_dark_theme(theme: &iced::Theme) -> bool {
+pub(super) fn is_dark_theme(theme: &iced::Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
 }
 
@@ -42,7 +42,7 @@ fn is_dark_theme(theme: &iced::Theme) -> bool {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn blend_color(a: Color, b: Color, t: f32) -> Color {
+pub(super) fn blend_color(a: Color, b: Color, t: f32) -> Color {
     let t = t.clamp(0.0, 1.0);
     Color::from_rgba(
         a.r * (1.0 - t) + b.r * t,
@@ -65,7 +65,7 @@ fn blend_color(a: Color, b: Color, t: f32) -> Color {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn diff_pane_base_background(theme: &iced::Theme, tone: DiffSplitPaneTone) -> Color {
+pub(super) fn diff_pane_base_background(theme: &iced::Theme, tone: DiffSplitPaneTone) -> Color {
     let ext = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
 
@@ -115,7 +115,11 @@ fn diff_pane_base_background(theme: &iced::Theme, tone: DiffSplitPaneTone) -> Co
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn diff_pane_background(theme: &iced::Theme, tone: DiffSplitPaneTone, emphasized: bool) -> Color {
+pub(super) fn diff_pane_background(
+    theme: &iced::Theme,
+    tone: DiffSplitPaneTone,
+    emphasized: bool,
+) -> Color {
     let ext = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
     let base_bg = diff_pane_base_background(theme, tone);
@@ -125,6 +129,94 @@ fn diff_pane_background(theme: &iced::Theme, tone: DiffSplitPaneTone, emphasized
         blend_color(base_bg, hover_tint, 0.22)
     } else {
         base_bg
+    }
+}
+
+pub(super) fn merge_diff_row_style(
+    theme: &iced::Theme,
+    tone: DiffSplitPaneTone,
+    emphasized: bool,
+) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(diff_pane_background(theme, tone, emphasized))),
+        border: Border::default(),
+        ..Default::default()
+    }
+}
+
+pub(super) fn merge_diff_row_background_style(
+    theme: &iced::Theme,
+    background: Color,
+    emphasized: bool,
+) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let row_background = if emphasized {
+        let hover_tint = ext.background.strong.color.scale_alpha(if is_dark { 0.12 } else { 0.04 });
+        blend_color(background, hover_tint, 0.22)
+    } else {
+        background
+    };
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(row_background)),
+        border: Border::default(),
+        ..Default::default()
+    }
+}
+
+pub(super) fn diff_split_pane_style(
+    theme: &iced::Theme,
+    tone: DiffSplitPaneTone,
+    emphasized: bool,
+) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let background = diff_pane_background(theme, tone, emphasized);
+    let accent = match tone {
+        DiffSplitPaneTone::Add => Some(ext.success.base.color),
+        DiffSplitPaneTone::Delete => Some(ext.danger.base.color),
+        DiffSplitPaneTone::Neutral | DiffSplitPaneTone::Empty => None,
+    };
+    let border_color = accent.unwrap_or(Color::TRANSPARENT).scale_alpha(0.0);
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(background)),
+        border: Border { width: 0.0, color: border_color, radius: 0.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn diff_split_pane_background_style(
+    theme: &iced::Theme,
+    background: Color,
+    emphasized: bool,
+) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let pane_background = if emphasized {
+        let hover_tint = ext.background.strong.color.scale_alpha(if is_dark { 0.12 } else { 0.04 });
+        blend_color(background, hover_tint, 0.22)
+    } else {
+        background
+    };
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(pane_background)),
+        border: Border::default(),
+        ..Default::default()
+    }
+}
+
+pub(super) fn diff_split_divider_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    let ext = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            ext.background.strong.color.scale_alpha(0.20)
+        } else {
+            ext.background.strong.color.scale_alpha(0.12)
+        })),
+        ..Default::default()
     }
 }
 
@@ -150,13 +242,7 @@ pub(in crate::app::components::git_panel) fn merge_diff_row<'a>(
 ) -> Element<'a, Message> {
     container(content)
         .width(Length::Fill)
-        .style(move |theme: &iced::Theme| iced::widget::container::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(diff_pane_background(theme, tone, emphasized))),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border::default(),
-            ..Default::default()
-        })
+        .style(move |theme: &iced::Theme| merge_diff_row_style(theme, tone, emphasized))
         .into()
 }
 
@@ -183,23 +269,7 @@ pub(in crate::app::components::git_panel) fn merge_diff_row_with_background<'a>(
     container(content)
         .width(Length::Fill)
         .style(move |theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let is_dark = is_dark_theme(theme);
-            let row_background = if emphasized {
-                let hover_tint =
-                    ext.background.strong.color.scale_alpha(if is_dark { 0.12 } else { 0.04 });
-                blend_color(background, hover_tint, 0.22)
-            } else {
-                background
-            };
-
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(row_background)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border::default(),
-                ..Default::default()
-            }
+            merge_diff_row_background_style(theme, background, emphasized)
         })
         .into()
 }
@@ -244,27 +314,7 @@ pub(in crate::app::components::git_panel) fn diff_split_pane<'a>(
     container(content)
         .width(Length::FillPortion(1))
         .padding([0, 3])
-        .style(move |theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let background = diff_pane_background(theme, tone, emphasized);
-            let accent = match tone {
-                // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                DiffSplitPaneTone::Add => Some(ext.success.base.color),
-                // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                DiffSplitPaneTone::Delete => Some(ext.danger.base.color),
-                // DiffSplitPaneTone 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                DiffSplitPaneTone::Neutral | DiffSplitPaneTone::Empty => None,
-            };
-            let border_color = accent.unwrap_or(Color::TRANSPARENT).scale_alpha(0.0);
-
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(background)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border { width: 0.0, color: border_color, radius: 0.0.into() },
-                ..Default::default()
-            }
-        })
+        .style(move |theme: &iced::Theme| diff_split_pane_style(theme, tone, emphasized))
         .into()
 }
 
@@ -291,23 +341,7 @@ pub(in crate::app::components::git_panel) fn diff_split_pane_with_background<'a>
     container(content)
         .width(Length::FillPortion(1))
         .style(move |theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let is_dark = is_dark_theme(theme);
-            let pane_background = if emphasized {
-                let hover_tint =
-                    ext.background.strong.color.scale_alpha(if is_dark { 0.12 } else { 0.04 });
-                blend_color(background, hover_tint, 0.22)
-            } else {
-                background
-            };
-
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(pane_background)),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border::default(),
-                ..Default::default()
-            }
+            diff_split_pane_background_style(theme, background, emphasized)
         })
         .into()
 }
@@ -350,19 +384,7 @@ pub(in crate::app::components::git_panel) fn diff_split_divider<'a>() -> Element
     container(Space::new().width(Length::Fill).height(Length::Fill))
         .width(Length::Fixed(DIFF_SPLIT_DIVIDER_WIDTH))
         .height(Length::Fill)
-        .style(|theme: &iced::Theme| {
-            let ext = theme.extended_palette();
-            let is_dark = is_dark_theme(theme);
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(if is_dark {
-                    ext.background.strong.color.scale_alpha(0.20)
-                } else {
-                    ext.background.strong.color.scale_alpha(0.12)
-                })),
-                ..Default::default()
-            }
-        })
+        .style(diff_split_divider_style)
         .into()
 }
 

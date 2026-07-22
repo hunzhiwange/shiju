@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::agent::config::Config;
+use crate::app::agent::config::SystemConfigStore;
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
@@ -9,7 +10,45 @@ use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::IntoResponse;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::Path;
 use std::time::Duration;
+
+fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    crate::test_support::global_env_lock().lock().unwrap_or_else(|err| err.into_inner())
+}
+
+struct HomeEnvGuard(Option<std::ffi::OsString>);
+
+impl HomeEnvGuard {
+    fn set(home: &Path) -> Self {
+        let original = std::env::var_os("HOME");
+        unsafe { std::env::set_var("HOME", home) };
+        Self(original)
+    }
+}
+
+impl Drop for HomeEnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(original) = &self.0 {
+                std::env::set_var("HOME", original);
+            } else {
+                std::env::remove_var("HOME");
+            }
+        }
+    }
+}
+
+fn stored_config(home: &Path) -> Config {
+    let payload = SystemConfigStore::new(
+        crate::global_database::GlobalDatabase::for_home(home).expect("database"),
+    )
+    .expect("config store")
+    .get(&vw_api_types::id::TenantScope::default())
+    .expect("read config")
+    .expect("stored config");
+    serde_json::from_str(&payload).expect("parse config")
+}
 
 struct StaticProvider;
 
@@ -95,13 +134,15 @@ async fn call_pair_code(state: AppState, ip: IpAddr) -> (StatusCode, serde_json:
     (status, serde_json::from_slice(&body).unwrap())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn handle_pair_returns_token_and_persists_when_code_is_valid() {
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().unwrap();
+    let _home_guard = HomeEnvGuard::set(home.path());
     let guard = PairingGuard::new(true, &[]);
     let code = guard.pairing_code().unwrap();
     let config = test_config();
     config.save().await.unwrap();
-    let config_path = config.config_path.clone();
     let state = state_with(guard, 100, config);
 
     let (status, body) = call_pair(state.clone(), Some(&code)).await;
@@ -112,14 +153,17 @@ async fn handle_pair_returns_token_and_persists_when_code_is_valid() {
     let token = body["token"].as_str().expect("token");
     assert!(state.pairing.is_authenticated(token));
 
-    let saved = tokio::fs::read_to_string(config_path).await.unwrap();
-    let parsed: Config = serde_json::from_str(&saved).unwrap();
+    let parsed = stored_config(home.path());
     assert_eq!(parsed.gateway.paired_tokens.len(), 1);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn handle_pair_reports_unpersisted_success_when_config_save_fails() {
+    let _env_guard = env_lock();
     let temp = tempfile::tempdir().unwrap();
+    let invalid_home = temp.path().join("not-a-directory");
+    std::fs::write(&invalid_home, "fixture").unwrap();
+    let _home_guard = HomeEnvGuard::set(&invalid_home);
     let mut config = Config::default();
     config.config_path = temp.path().to_path_buf();
     config.workspace_dir = temp.path().join("workspace");
@@ -196,8 +240,11 @@ async fn handle_pair_code_omits_code_when_pairing_not_required() {
     assert!(body["pairing_code"].is_null());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn persist_pairing_tokens_updates_in_memory_config_and_returns_errors() {
+    let _env_guard = env_lock();
+    let home = tempfile::tempdir().unwrap();
+    let home_guard = HomeEnvGuard::set(home.path());
     let config = test_config();
     config.save().await.unwrap();
     let shared = Arc::new(Mutex::new(config));
@@ -215,6 +262,10 @@ async fn persist_pairing_tokens_updates_in_memory_config_and_returns_errors() {
     assert!(guard.is_authenticated(&token));
 
     let temp = tempfile::tempdir().unwrap();
+    drop(home_guard);
+    let invalid_home = temp.path().join("not-a-directory");
+    std::fs::write(&invalid_home, "fixture").unwrap();
+    let _home_guard = HomeEnvGuard::set(&invalid_home);
     let mut bad_config = Config::default();
     bad_config.config_path = temp.path().to_path_buf();
     bad_config.workspace_dir = temp.path().join("workspace");

@@ -12,8 +12,8 @@ use std::{
 
 use vw_acp::{
     AgentCommandSpec, DEFAULT_AGENT_NAME, built_in_agent_registry, built_in_agent_specs,
-    list_built_in_agents, merge_agent_registry, normalize_agent_name, resolve_agent_command,
-    resolve_agent_spec,
+    list_built_in_agents, merge_agent_registry, merge_agent_specs, normalize_agent_name,
+    resolve_agent_command, resolve_agent_spec,
 };
 
 /// 验证内置注册表覆盖 dhb 与 TypeScript 兼容代理。
@@ -88,6 +88,35 @@ fn merge_and_list_are_stable() {
     assert_eq!(
         specs.get("pi").map(|spec| spec.command_line()),
         Some("npx -y pi-acp@^0.0.22".to_string())
+    );
+}
+
+/// 验证 Codex ACP 旧包名和旧 node_repl 配置参数会被归一化掉。
+#[test]
+fn codex_overrides_drop_obsolete_node_repl_config() {
+    let mut overrides = HashMap::new();
+    overrides.insert(
+        "Codex".to_string(),
+        AgentCommandSpec {
+            display_name: "Codex CLI".to_string(),
+            command: "npx".to_string(),
+            args: vec![
+                "-y".to_string(),
+                "@zed-industries/codex-acp@latest".to_string(),
+                "-c".to_string(),
+                "mcp_servers.node_repl.enabled=false".to_string(),
+            ],
+            env: HashMap::new(),
+        },
+    );
+
+    let specs = merge_agent_specs(Some(&overrides));
+    let spec = specs.get(DEFAULT_AGENT_NAME).expect("codex override should resolve");
+
+    assert_eq!(spec.args, ["-y", "@agentclientprotocol/codex-acp@latest"]);
+    assert_eq!(
+        merge_agent_registry(Some(&overrides)).get(DEFAULT_AGENT_NAME).map(String::as_str),
+        Some("npx -y @agentclientprotocol/codex-acp@latest")
     );
 }
 

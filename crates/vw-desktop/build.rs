@@ -15,7 +15,6 @@ fn generate_app_state_struct(manifest_dir: &Path, out_dir: &Path) {
         "git_fields.rs",
         "settings_preview_fields.rs",
         "tool_fields.rs",
-        "workspace_task_fields.rs",
     ];
     let fragments_dir = manifest_dir.join("src/app/state/app_state");
     let mut generated = String::from("#[allow(dead_code)]\npub struct App {\n");

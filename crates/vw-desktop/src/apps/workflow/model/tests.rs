@@ -61,6 +61,70 @@ fn start_node_min_height_uses_empty_baseline_without_variables() {
 }
 
 #[test]
+fn start_node_min_height_keeps_baseline_for_single_variable() {
+    let raw_node = serde_yaml::from_str::<Value>(
+        r#"
+data:
+  variables:
+    - variable: query
+      type: text-input
+"#,
+    )
+    .expect("single start variable yaml should parse");
+
+    assert_eq!(workflow_start_node_min_height(&raw_node), 120.0);
+}
+
+#[test]
+fn start_node_variables_reject_malformed_container_shapes() {
+    let malformed_values = [
+        Value::Null,
+        serde_yaml::from_str::<Value>("data: []").expect("sequence data yaml should parse"),
+        serde_yaml::from_str::<Value>("data:\n  variables: invalid")
+            .expect("scalar variables yaml should parse"),
+    ];
+
+    for raw_node in malformed_values {
+        assert!(workflow_start_node_variables_from_raw(&raw_node).is_empty());
+    }
+}
+
+#[test]
+fn start_node_variables_trim_names_and_fall_back_for_non_mapping_entries() {
+    let raw_node = serde_yaml::from_str::<Value>(
+        r#"
+data:
+  variables:
+    - variable: "  "
+      label: "  用户输入  "
+    - variable: 42
+      label: " "
+      type: unknown
+    - null
+"#,
+    )
+    .expect("fallback start variable yaml should parse");
+
+    assert_eq!(
+        workflow_start_node_variables_from_raw(&raw_node),
+        vec![
+            WorkflowStartVariableSummary {
+                name: "用户输入".to_string(),
+                value_type: "string".to_string(),
+            },
+            WorkflowStartVariableSummary {
+                name: "变量 2".to_string(),
+                value_type: "string".to_string(),
+            },
+            WorkflowStartVariableSummary {
+                name: "变量 3".to_string(),
+                value_type: "string".to_string(),
+            },
+        ]
+    );
+}
+
+#[test]
 fn default_start_node_data_initializes_query_and_files_variables() {
     let raw_data = default_node_data_value("start");
     let variables = workflow_start_node_variables_from_raw(&yaml_map(vec![("data", raw_data)]));
@@ -122,6 +186,9 @@ fn workflow_node_helpers_return_rect_group_and_handles() {
         ..workflow_node_with_raw("iteration", Value::Null)
     };
     assert!(iteration.is_group());
+
+    let regular = workflow_node_with_raw("answer", Value::Null);
+    assert!(!regular.is_group());
 }
 
 #[test]
@@ -227,4 +294,36 @@ fn workflow_document_bounds_and_lookup_helpers_cover_nested_nodes_and_edges() {
 #[test]
 fn empty_workflow_document_has_no_bounds() {
     assert!(WorkflowDocument::default().bounds().is_none());
+}
+
+#[test]
+fn workflow_document_missing_lookups_and_orphan_relationships_are_safe() {
+    let orphan = WorkflowNode {
+        id: "orphan".to_string(),
+        parent_id: Some("missing-parent".to_string()),
+        ..workflow_node_with_raw("code", Value::Null)
+    };
+    let mut document = WorkflowDocument { nodes: vec![orphan], ..WorkflowDocument::default() };
+
+    assert!(document.node("missing").is_none());
+    assert!(document.node_mut("missing").is_none());
+    assert!(document.edge("missing").is_none());
+    assert_eq!(document.group_child_count("missing-parent"), 1);
+    assert_eq!(document.group_child_count("other"), 0);
+    assert_eq!(document.ancestor_ids("missing"), Vec::<String>::new());
+    assert_eq!(document.ancestor_ids("orphan"), vec!["missing-parent".to_string()]);
+    assert_eq!(document.descendant_ids("missing-parent"), vec!["orphan".to_string()]);
+    assert_eq!(document.descendant_ids("other"), Vec::<String>::new());
+}
+
+#[test]
+fn workflow_document_bounds_clamp_zero_sized_extent() {
+    let point_node = WorkflowNode {
+        position: Point::new(-5.0, 7.0),
+        size: Size::new(0.0, 0.0),
+        ..workflow_node_with_raw("answer", Value::Null)
+    };
+    let document = WorkflowDocument { nodes: vec![point_node], ..WorkflowDocument::default() };
+
+    assert_eq!(document.bounds(), Some(Rectangle { x: -5.0, y: 7.0, width: 1.0, height: 1.0 }));
 }

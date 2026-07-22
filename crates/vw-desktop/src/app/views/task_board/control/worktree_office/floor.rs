@@ -6,6 +6,153 @@ use crate::app::{App, Message};
 
 use super::room_scene::build_worktree_pixel_card;
 
+fn is_dark_floor_theme(theme: &Theme) -> bool {
+    let base = theme.palette().background;
+    base.r + base.g + base.b < 1.5
+}
+
+fn floor_text_alpha_style(theme: &Theme, alpha: f32) -> iced::widget::text::Style {
+    iced::widget::text::Style {
+        color: Some(theme.extended_palette().background.base.text.scale_alpha(alpha)),
+    }
+}
+
+fn build_worktree_floor_strip_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            Color::from_rgba(0.27, 0.23, 0.16, 0.24)
+        } else {
+            Color::from_rgba(0.90, 0.82, 0.58, 0.34)
+        })),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(if is_dark { 0.4 } else { 0.3 }),
+            radius: 2.0.into(),
+        },
+        text_color: Some(p.background.base.text.scale_alpha(if is_dark { 0.82 } else { 0.75 })),
+        ..Default::default()
+    }
+}
+
+fn build_worktree_floor_texture_fill_style(theme: &Theme) -> iced::widget::container::Style {
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            Color::from_rgba(0.24, 0.20, 0.14, 0.20)
+        } else {
+            Color::from_rgba(0.93, 0.85, 0.61, 0.28)
+        })),
+        ..Default::default()
+    }
+}
+
+fn build_worktree_corridor_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            Color::from_rgba(0.22, 0.19, 0.14, 0.16)
+        } else {
+            Color::from_rgba(0.79, 0.73, 0.58, 0.22)
+        })),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(if is_dark { 0.36 } else { 0.3 }),
+            radius: 2.0.into(),
+        },
+        text_color: Some(p.background.base.text),
+        ..Default::default()
+    }
+}
+
+fn build_empty_worktree_section_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            p.background.weak.color.scale_alpha(0.24)
+        } else {
+            p.background.base.color.scale_alpha(0.22)
+        })),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(if is_dark { 0.34 } else { 0.25 }),
+            radius: 2.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn build_worktree_pixel_section_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            p.background.weak.color.scale_alpha(0.22)
+        } else {
+            p.background.base.color.scale_alpha(0.18)
+        })),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(if is_dark { 0.4 } else { 0.3 }),
+            radius: 2.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn build_worktree_pixel_floor_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    let is_dark = is_dark_floor_theme(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            Color::from_rgba(0.20, 0.17, 0.12, 0.14)
+        } else {
+            Color::from_rgba(0.94, 0.86, 0.60, 0.24)
+        })),
+        border: Border {
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(if is_dark { 0.36 } else { 0.28 }),
+            radius: 2.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) struct WorktreeCorridorSummary {
+    status: &'static str,
+    maintenance_hint: String,
+    width: u32,
+    busy_flow: bool,
+}
+
+pub(super) fn worktree_corridor_summary(
+    snapshot: &WorktreePoolSnapshot,
+    maintenance_hidden: bool,
+) -> WorktreeCorridorSummary {
+    let status = if snapshot.busy_count > 0 {
+        "任务流动中"
+    } else if snapshot.tainted_count > 0 || snapshot.recycling_count > 0 {
+        "维护队列处理中"
+    } else {
+        "走廊空闲"
+    };
+    let maintenance_total = snapshot.tainted_count + snapshot.recycling_count + snapshot.dead_count;
+    let maintenance_hint = if maintenance_hidden {
+        format!(
+            "运维修复间已收起\n污染:{} 回收:{} 停机:{}",
+            snapshot.tainted_count, snapshot.recycling_count, snapshot.dead_count
+        )
+    } else {
+        format!("运维修复间记录: {maintenance_total}")
+    };
+    let width = if maintenance_hidden { 190 } else { 120 };
+
+    WorktreeCorridorSummary { status, maintenance_hint, width, busy_flow: snapshot.busy_count > 0 }
+}
+
 /// 构建地板装饰条带，用于分隔办公室楼层区域。
 fn build_worktree_floor_strip<'a>(label: &'static str) -> Element<'a, Message> {
     container(
@@ -18,35 +165,15 @@ fn build_worktree_floor_strip<'a>(label: &'static str) -> Element<'a, Message> {
                 text("▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥").size(10),
             ]
             .align_y(Alignment::Center),
-            text("▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩").size(9).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.38)),
-                }
-            }),
+            text("▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩")
+                .size(9)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.38)),
         ]
         .spacing(2),
     )
     .padding([6, 8])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let p = theme.extended_palette();
-        let base = theme.palette().background;
-        let is_dark = base.r + base.g + base.b < 1.5;
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                Color::from_rgba(0.27, 0.23, 0.16, 0.24)
-            } else {
-                Color::from_rgba(0.90, 0.82, 0.58, 0.34)
-            })),
-            border: Border {
-                width: 1.0,
-                color: p.background.strong.color.scale_alpha(if is_dark { 0.4 } else { 0.3 }),
-                radius: 2.0.into(),
-            },
-            text_color: Some(p.background.base.text.scale_alpha(if is_dark { 0.82 } else { 0.75 })),
-            ..Default::default()
-        }
-    })
+    .style(build_worktree_floor_strip_style)
     .into()
 }
 
@@ -54,33 +181,18 @@ fn build_worktree_floor_strip<'a>(label: &'static str) -> Element<'a, Message> {
 fn build_worktree_floor_texture_fill<'a>() -> Element<'a, Message> {
     container(
         column![
-            text("▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦").size(10).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.3)),
-                }
-            }),
-            text("▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨").size(10).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.24)),
-                }
-            }),
+            text("▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦▥▦")
+                .size(10)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.3)),
+            text("▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨▩▨")
+                .size(10)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.24)),
         ]
         .spacing(1),
     )
     .padding([4, 8])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let base = theme.palette().background;
-        let is_dark = base.r + base.g + base.b < 1.5;
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                Color::from_rgba(0.24, 0.20, 0.14, 0.20)
-            } else {
-                Color::from_rgba(0.93, 0.85, 0.61, 0.28)
-            })),
-            ..Default::default()
-        }
-    })
+    .style(build_worktree_floor_texture_fill_style)
     .into()
 }
 
@@ -89,15 +201,8 @@ fn build_worktree_corridor<'a>(
     snapshot: &'a WorktreePoolSnapshot,
     maintenance_hidden: bool,
 ) -> Element<'a, Message> {
-    let corridor_status = if snapshot.busy_count > 0 {
-        "任务流动中"
-    } else if snapshot.tainted_count > 0 || snapshot.recycling_count > 0 {
-        "维护队列处理中"
-    } else {
-        "走廊空闲"
-    };
-    let maintenance_total = snapshot.tainted_count + snapshot.recycling_count + snapshot.dead_count;
-    let corridor_steps = if snapshot.busy_count > 0 {
+    let summary = worktree_corridor_summary(snapshot, maintenance_hidden);
+    let corridor_steps = if summary.busy_flow {
         row![
             text("入口").size(10),
             text("=>").size(10),
@@ -116,24 +221,13 @@ fn build_worktree_corridor<'a>(
     }
     .spacing(6)
     .align_y(Alignment::Center);
-    let maintenance_hint = if maintenance_hidden {
-        format!(
-            "运维修复间已收起\n污染:{} 回收:{} 停机:{}",
-            snapshot.tainted_count, snapshot.recycling_count, snapshot.dead_count
-        )
-    } else {
-        format!("运维修复间记录: {}", maintenance_total)
-    };
-    let corridor_width = if maintenance_hidden { 190 } else { 120 };
 
     container(
         column![
-            text("主走廊").size(11).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.82)),
-            }),
-            text(corridor_status).size(10).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.62)),
-            }),
+            text("主走廊").size(11).style(|theme: &Theme| floor_text_alpha_style(theme, 0.82)),
+            text(summary.status)
+                .size(10)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.62)),
             corridor_steps,
             text(format!(
                 "活跃:{} 维护:{}",
@@ -141,43 +235,21 @@ fn build_worktree_corridor<'a>(
                 snapshot.tainted_count + snapshot.recycling_count
             ))
             .size(10)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.56)),
-            }),
-            text(maintenance_hint).size(10).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.64)),
-            }),
-            text("│\n│\n│\n│\n│\n│\n│\n↓").size(11).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.5)),
-                }
-            })
+            .style(|theme: &Theme| floor_text_alpha_style(theme, 0.56)),
+            text(summary.maintenance_hint)
+                .size(10)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.64)),
+            text("│\n│\n│\n│\n│\n│\n│\n↓")
+                .size(11)
+                .style(|theme: &Theme| { floor_text_alpha_style(theme, 0.5) })
         ]
         .spacing(6)
         .align_x(Alignment::Center),
     )
     .padding([10, 8])
-    .width(corridor_width)
+    .width(summary.width)
     .height(Length::Fill)
-    .style(|theme: &Theme| {
-        let p = theme.extended_palette();
-        let base = theme.palette().background;
-        let is_dark = base.r + base.g + base.b < 1.5;
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                Color::from_rgba(0.22, 0.19, 0.14, 0.16)
-            } else {
-                Color::from_rgba(0.79, 0.73, 0.58, 0.22)
-            })),
-            border: Border {
-                width: 1.0,
-                color: p.background.strong.color.scale_alpha(if is_dark { 0.36 } else { 0.3 }),
-                radius: 2.0.into(),
-            },
-            text_color: Some(p.background.base.text),
-            ..Default::default()
-        }
-    })
+    .style(build_worktree_corridor_style)
     .into()
 }
 
@@ -191,12 +263,8 @@ fn build_worktree_pixel_section<'a>(
 ) -> Element<'a, Message> {
     let cards_per_row = cards_per_row.max(1);
     let header = column![
-        text(title).size(12).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.base.text),
-        }),
-        text(subtitle).size(11).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.base.text.scale_alpha(0.72)),
-        }),
+        text(title).size(12).style(|theme: &Theme| floor_text_alpha_style(theme, 1.0)),
+        text(subtitle).size(11).style(|theme: &Theme| floor_text_alpha_style(theme, 0.72)),
     ]
     .spacing(4)
     .width(Length::Fill);
@@ -205,35 +273,14 @@ fn build_worktree_pixel_section<'a>(
 
     if slots.is_empty() {
         room_rows = room_rows.push(
-            container(text("当前区域暂无工位").size(11).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.62)),
-                }
-            }))
+            container(
+                text("当前区域暂无工位")
+                    .size(11)
+                    .style(|theme: &Theme| floor_text_alpha_style(theme, 0.62)),
+            )
             .padding([8, 10])
             .width(Length::Fill)
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                let base = theme.palette().background;
-                let is_dark = base.r + base.g + base.b < 1.5;
-                iced::widget::container::Style {
-                    background: Some(Background::Color(if is_dark {
-                        p.background.weak.color.scale_alpha(0.24)
-                    } else {
-                        p.background.base.color.scale_alpha(0.22)
-                    })),
-                    border: Border {
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(if is_dark {
-                            0.34
-                        } else {
-                            0.25
-                        }),
-                        radius: 2.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }),
+            .style(build_empty_worktree_section_style),
         );
     } else {
         for chunk in slots.chunks(cards_per_row) {
@@ -250,24 +297,7 @@ fn build_worktree_pixel_section<'a>(
     container(column![header, room_rows].spacing(12).width(Length::Fill))
         .padding([8, 8])
         .width(Length::Fill)
-        .style(|theme: &Theme| {
-            let p = theme.extended_palette();
-            let base = theme.palette().background;
-            let is_dark = base.r + base.g + base.b < 1.5;
-            iced::widget::container::Style {
-                background: Some(Background::Color(if is_dark {
-                    p.background.weak.color.scale_alpha(0.22)
-                } else {
-                    p.background.base.color.scale_alpha(0.18)
-                })),
-                border: Border {
-                    width: 1.0,
-                    color: p.background.strong.color.scale_alpha(if is_dark { 0.4 } else { 0.3 }),
-                    radius: 2.0.into(),
-                },
-                ..Default::default()
-            }
-        })
+        .style(build_worktree_pixel_section_style)
         .into()
 }
 
@@ -335,24 +365,7 @@ pub(super) fn build_worktree_pixel_floor<'a>(
     )
     .padding([8, 8])
     .width(Length::Fill)
-    .style(|theme: &Theme| {
-        let p = theme.extended_palette();
-        let base = theme.palette().background;
-        let is_dark = base.r + base.g + base.b < 1.5;
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                Color::from_rgba(0.20, 0.17, 0.12, 0.14)
-            } else {
-                Color::from_rgba(0.94, 0.86, 0.60, 0.24)
-            })),
-            border: Border {
-                width: 1.0,
-                color: p.background.strong.color.scale_alpha(if is_dark { 0.36 } else { 0.28 }),
-                radius: 2.0.into(),
-            },
-            ..Default::default()
-        }
-    })
+    .style(build_worktree_pixel_floor_style)
     .into()
 }
 

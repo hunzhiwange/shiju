@@ -26,14 +26,14 @@ impl ProviderTestEnv {
         std::fs::create_dir_all(&config_dir).expect("config dir should be created");
 
         let saved_env = save_env(&[
-            "VIBEWINDOW_CONFIG_DIR",
+            "VIBEWINDOW_WORKSPACE",
             "TEST_PROVIDER_KEY",
             "SECOND_PROVIDER_KEY",
             "VIBEWINDOW_PROVIDER_KEY",
         ]);
 
         unsafe {
-            std::env::set_var("VIBEWINDOW_CONFIG_DIR", &config_dir);
+            std::env::set_var("VIBEWINDOW_WORKSPACE", &config_dir);
             std::env::remove_var("TEST_PROVIDER_KEY");
             std::env::remove_var("SECOND_PROVIDER_KEY");
             std::env::remove_var("VIBEWINDOW_PROVIDER_KEY");
@@ -46,7 +46,7 @@ impl ProviderTestEnv {
     }
 
     fn config_path(&self) -> PathBuf {
-        self.config_dir.join("vibewindow.json")
+        self.config_dir.join(".vibewindow.json")
     }
 
     fn set_env(&self, key: &str, value: &str) {
@@ -490,6 +490,22 @@ async fn get_small_model_returns_none_without_priority_match() {
 }
 
 #[tokio::test]
+async fn get_small_model_returns_none_for_missing_provider() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(Value::Null, active_test_provider_config())).await;
+
+    assert!(get_small_model("missing-provider").await.is_none());
+}
+
+#[tokio::test]
+async fn get_provider_returns_none_for_unknown_provider() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(Value::Null, active_test_provider_config())).await;
+
+    assert!(get_provider("unknown-provider").await.is_none());
+}
+
+#[tokio::test]
 async fn config_fingerprint_change_invalidates_cached_state() {
     let env = ProviderTestEnv::new().await;
     env.write_config(config_with_default(
@@ -523,6 +539,33 @@ async fn config_fingerprint_change_invalidates_cached_state() {
 
     assert!(get_model("zz-test-provider", "alpha").await.is_err());
     assert!(get_model("zz-test-provider", "beta").await.is_ok());
+}
+
+#[tokio::test]
+async fn config_fingerprint_deletion_invalidates_cached_state() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "zz-test-provider": {
+                "models": {
+                    "alpha": {"status": "active"}
+                }
+            }
+        }),
+    ))
+    .await;
+
+    assert!(get_model("zz-test-provider", "alpha").await.is_ok());
+
+    std::fs::remove_file(env.config_path()).expect("config file should be removed");
+
+    assert!(get_model("zz-test-provider", "alpha").await.is_err());
+    let fingerprint = read_config_fingerprint();
+    assert_eq!(fingerprint.path, env.config_path().to_string_lossy());
+    assert!(!fingerprint.exists);
+    assert_eq!(fingerprint.len, 0);
+    assert_eq!(fingerprint.modified_nanos, 0);
 }
 
 #[tokio::test]

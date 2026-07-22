@@ -2,13 +2,57 @@
 
 use super::{
     bundled_workspace_identity_content, bundled_workspace_identity_path, normalize_agent_key,
-    summarize_models, summarize_providers, tool_in_preset, tools_for_preset,
+    summarize_models, summarize_providers, tool_in_preset, tools_for_preset, update,
 };
+use crate::app::{
+    App,
+    message::settings::{AgentsMessage, SettingsMessage},
+    state::{
+        AGENT_PROMPT_SYSTEM_TAB, DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsCatalogKind,
+        SkillsDirectoryScope,
+    },
+};
+use iced::widget::text_editor;
 use std::collections::HashMap;
+use std::sync::Arc;
 use vw_shared::provider::types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
 };
+
+fn test_app() -> App {
+    App::new().0
+}
+
+fn entry<'a>(app: &'a App, key: &str) -> &'a DelegateAgentSettingsEntry {
+    app.agents_settings
+        .entries
+        .iter()
+        .find(|entry| entry.key == key)
+        .expect("missing agent settings entry")
+}
+
+fn entry_mut<'a>(app: &'a mut App, key: &str) -> &'a mut DelegateAgentSettingsEntry {
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == key)
+        .expect("missing agent settings entry")
+}
+
+fn skill_item(id: &str, source: &str, enabled: bool) -> SkillsCatalogItem {
+    SkillsCatalogItem {
+        id: id.to_string(),
+        title: id.to_string(),
+        description: String::new(),
+        kind: SkillsCatalogKind::Personal,
+        resource_count: 0,
+        installed: true,
+        enabled,
+        source: source.to_string(),
+        source_path: None,
+    }
+}
 
 #[test]
 fn bundled_workspace_identity_path_points_to_assets_agent() {
@@ -183,6 +227,738 @@ fn tool_presets_include_expected_tools_and_sort_results() {
 
     assert_eq!(
         tools_for_preset(&available_tools, "coding"),
-        vec!["apply_patch".to_string(), "bash".to_string(), "question".to_string(), "read".to_string()]
+        vec![
+            "apply_patch".to_string(),
+            "bash".to_string(),
+            "question".to_string(),
+            "read".to_string()
+        ]
     );
+}
+
+#[test]
+fn tool_presets_cover_aliases_and_deduplicate_available_tools() {
+    let available_tools = vec![
+        "web_search_tool".to_string(),
+        "read".to_string(),
+        "schedule".to_string(),
+        "read".to_string(),
+        "file_write".to_string(),
+        "unrelated".to_string(),
+    ];
+
+    assert!(tool_in_preset("web_search_tool", "research"));
+    assert!(tool_in_preset("schedule", "collab"));
+    assert!(tool_in_preset("file_write", "coding"));
+    assert_eq!(
+        tools_for_preset(&available_tools, "full"),
+        vec![
+            "file_write".to_string(),
+            "read".to_string(),
+            "schedule".to_string(),
+            "unrelated".to_string(),
+            "web_search_tool".to_string(),
+        ]
+    );
+    assert!(tools_for_preset(&available_tools, "unsupported").is_empty());
+}
+
+#[test]
+fn summarize_providers_labels_config_source_and_sorts_equal_names_by_id() {
+    let providers = HashMap::from([
+        (
+            "z-config".to_string(),
+            Info {
+                id: "z-config".to_string(),
+                name: "Same".to_string(),
+                source: ProviderSource::Config,
+                env: vec![],
+                key: None,
+                options: HashMap::new(),
+                models: HashMap::new(),
+            },
+        ),
+        (
+            "a-config".to_string(),
+            Info {
+                id: "a-config".to_string(),
+                name: "Same".to_string(),
+                source: ProviderSource::Config,
+                env: vec![],
+                key: Some("configured-secret".to_string()),
+                options: HashMap::new(),
+                models: HashMap::new(),
+            },
+        ),
+    ]);
+
+    let summary = summarize_providers(providers);
+
+    assert_eq!(
+        summary.iter().map(|provider| provider.id.as_str()).collect::<Vec<_>>(),
+        vec!["a-config", "z-config"]
+    );
+    assert!(summary.iter().all(|provider| provider.source_label == "配置"));
+    assert!(summary.iter().all(|provider| provider.connected));
+}
+
+#[test]
+fn summarize_models_projects_active_capabilities_limits_and_detail() {
+    let model = Model {
+        id: "vision-model".to_string(),
+        provider_id: "provider".to_string(),
+        api: ApiInfo {
+            id: "vision-model".to_string(),
+            url: "https://api.example.com/v1".to_string(),
+            adapter: "openai-compatible".to_string(),
+        },
+        name: "Vision Model".to_string(),
+        family: None,
+        capabilities: Capabilities {
+            temperature: true,
+            reasoning: true,
+            attachment: true,
+            toolcall: false,
+            input: CapabilityIO { text: true, audio: false, image: true, video: false, pdf: true },
+            output: CapabilityIO {
+                text: true,
+                audio: false,
+                image: false,
+                video: false,
+                pdf: false,
+            },
+            interleaved: InterleavedCapability::Bool(true),
+        },
+        cost: ModelCost {
+            input: 1.0,
+            output: 2.0,
+            cache: ModelCostCache { read: 0.1, write: 0.2 },
+            experimental_over_200k: None,
+        },
+        limit: ModelLimit { context: 64_000, input: Some(48_000), output: 8_000 },
+        status: "active".to_string(),
+        options: HashMap::new(),
+        headers: HashMap::new(),
+        release_date: "2026-01-01".to_string(),
+        variants: HashMap::new(),
+    };
+    let providers = HashMap::from([(
+        "provider".to_string(),
+        Info {
+            id: "provider".to_string(),
+            name: "Provider".to_string(),
+            source: ProviderSource::Api,
+            env: vec![],
+            key: None,
+            options: HashMap::new(),
+            models: HashMap::from([("vision-model".to_string(), model)]),
+        },
+    )]);
+
+    let summary = summarize_models(providers);
+    let model = &summary[0].models[0];
+
+    assert_eq!(model.name, "Vision Model");
+    assert!(model.enabled);
+    assert!(!model.toolcall);
+    assert!(model.attachment);
+    assert_eq!(model.context_limit, 64_000);
+    assert_eq!(model.detail["release_date"], "2026-01-01");
+}
+
+#[test]
+fn refresh_marks_loading_and_clears_stale_error_before_task_runs() {
+    let mut app = test_app();
+    app.agents_settings.loading = false;
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _task = update(&mut app, SettingsMessage::Agents(AgentsMessage::Refresh));
+
+    assert!(app.agents_settings.loading);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn select_agent_on_system_prompt_updates_selection_without_loading_file() {
+    let mut app = test_app();
+    app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _task = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::SelectAgent("researcher".to_string())),
+    );
+
+    assert_eq!(app.agents_settings.selected_agent, "researcher");
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn loaded_success_preserves_nonempty_tool_inventory_when_refresh_returns_empty() {
+    let mut app = test_app();
+    app.agents_settings.loading = true;
+    app.agents_settings.available_tools = vec!["read".to_string()];
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::Loaded(Ok((vec![], vec![], vec![])))),
+    );
+
+    assert!(!app.agents_settings.loading);
+    assert_eq!(app.agents_settings.available_tools, vec!["read".to_string()]);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn loaded_error_stops_loading_and_preserves_existing_data() {
+    let mut app = test_app();
+    app.agents_settings.loading = true;
+    app.agents_settings.available_tools = vec!["read".to_string()];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::Loaded(Err("provider unavailable".to_string()))),
+    );
+
+    assert!(!app.agents_settings.loading);
+    assert_eq!(app.agents_settings.available_tools, vec!["read".to_string()]);
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("provider unavailable"));
+}
+
+#[test]
+fn add_agent_key_changed_replaces_input_and_clears_error() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged("worker_2".to_string())),
+    );
+
+    assert_eq!(app.agents_settings.new_agent_key_input, "worker_2");
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn add_agent_requested_rejects_empty_normalized_key() {
+    let mut app = test_app();
+    let original_entries = app.agents_settings.entries.len();
+    app.agents_settings.new_agent_key_input = " ! 中文 ".to_string();
+
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::AddAgentRequested));
+
+    assert_eq!(app.agents_settings.entries.len(), original_entries);
+    assert_eq!(
+        app.agents_settings.save_error.as_deref(),
+        Some("智能体 key 不能为空，只允许字母、数字、-、_。")
+    );
+}
+
+#[test]
+fn add_agent_requested_rejects_duplicate_normalized_key() {
+    let mut app = test_app();
+    let original_entries = app.agents_settings.entries.len();
+    app.agents_settings.new_agent_key_input = " main! ".to_string();
+
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::AddAgentRequested));
+
+    assert_eq!(app.agents_settings.entries.len(), original_entries);
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("智能体 main 已存在。"));
+}
+
+#[test]
+fn tab_selection_updates_state_without_loading_system_prompt() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::DetailTabSelected("tools".to_string())),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::PromptTabSelected(
+            AGENT_PROMPT_SYSTEM_TAB.to_string(),
+        )),
+    );
+
+    assert_eq!(app.agents_settings.active_detail_tab, "tools");
+    assert_eq!(app.agents_settings.active_prompt_tab, AGENT_PROMPT_SYSTEM_TAB);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn workspace_identity_loaded_ignores_result_for_unselected_agent() {
+    let mut app = test_app();
+    app.agents_settings.selected_agent = "main".to_string();
+    app.agents_settings.workspace_identity_root_path = Some("original-root".to_string());
+    app.agents_settings.save_error = Some("original error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityLoaded {
+            agent_key: "other".to_string(),
+            file_name: "SOUL.md".to_string(),
+            workspace_root_path: Some("other-root".to_string()),
+            result: Ok(("other content".to_string(), Some(5), Some(6))),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.workspace_identity_root_path.as_deref(), Some("original-root"));
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("original error"));
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "SOUL.md")
+        .expect("missing SOUL.md state");
+    assert!(file.editor.text().is_empty());
+}
+
+#[test]
+fn workspace_identity_loaded_updates_matching_file_and_metadata() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityLoaded {
+            agent_key: "main".to_string(),
+            file_name: "SOUL.md".to_string(),
+            workspace_root_path: Some("workspace-main".to_string()),
+            result: Ok(("new soul".to_string(), Some(8), Some(13))),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.workspace_identity_root_path.as_deref(), Some("workspace-main"));
+    assert!(app.agents_settings.save_error.is_none());
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "SOUL.md")
+        .expect("missing SOUL.md state");
+    assert_eq!(file.editor.text(), "new soul");
+    assert_eq!(file.size_bytes, Some(8));
+    assert_eq!(file.modified_at_ms, Some(13));
+}
+
+#[test]
+fn workspace_identity_loaded_records_error_without_replacing_file() {
+    let mut app = test_app();
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter_mut()
+        .find(|file| file.file_name == "SOUL.md")
+        .expect("missing SOUL.md state");
+    file.editor = iced::widget::text_editor::Content::with_text("original soul");
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityLoaded {
+            agent_key: "main".to_string(),
+            file_name: "SOUL.md".to_string(),
+            workspace_root_path: Some("workspace-main".to_string()),
+            result: Err("read failed".to_string()),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("read failed"));
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "SOUL.md")
+        .expect("missing SOUL.md state");
+    assert_eq!(file.editor.text(), "original soul");
+}
+
+#[test]
+fn workspace_identity_default_restored_updates_matching_file() {
+    let mut app = test_app();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityDefaultRestored {
+            agent_key: "main".to_string(),
+            file_name: "AGENTS.md".to_string(),
+            workspace_root_path: Some("workspace-main".to_string()),
+            result: Ok(("default agents".to_string(), Some(14), Some(21))),
+        }),
+    );
+
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "AGENTS.md")
+        .expect("missing AGENTS.md state");
+    assert_eq!(file.editor.text(), "default agents");
+    assert_eq!(file.size_bytes, Some(14));
+    assert_eq!(file.modified_at_ms, Some(21));
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn workspace_identity_default_restored_ignores_stale_agent_response() {
+    let mut app = test_app();
+    app.agents_settings.selected_agent = "main".to_string();
+    app.agents_settings.workspace_identity_root_path = Some("original-root".to_string());
+    app.agents_settings.save_error = Some("original error".to_string());
+
+    let _task = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityDefaultRestored {
+            agent_key: "other".to_string(),
+            file_name: "AGENTS.md".to_string(),
+            workspace_root_path: Some("other-root".to_string()),
+            result: Ok(("other default".to_string(), Some(13), Some(21))),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.workspace_identity_root_path.as_deref(), Some("original-root"));
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("original error"));
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "AGENTS.md")
+        .expect("missing AGENTS.md state");
+    assert!(file.editor.text().is_empty());
+}
+
+#[test]
+fn workspace_identity_default_restored_records_selected_agent_error() {
+    let mut app = test_app();
+    app.agents_settings.workspace_identity_root_path = Some("original-root".to_string());
+
+    let _task = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityDefaultRestored {
+            agent_key: "main".to_string(),
+            file_name: "AGENTS.md".to_string(),
+            workspace_root_path: Some("workspace-main".to_string()),
+            result: Err("restore failed".to_string()),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.workspace_identity_root_path.as_deref(), Some("workspace-main"));
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("restore failed"));
+}
+
+#[test]
+fn workspace_identity_saved_updates_metadata_and_clears_error() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentitySaved {
+            file_name: "MEMORY.md".to_string(),
+            size_bytes: Some(34),
+            modified_at_ms: Some(55),
+            result: Ok(()),
+        }),
+    );
+
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "MEMORY.md")
+        .expect("missing MEMORY.md state");
+    assert_eq!(file.size_bytes, Some(34));
+    assert_eq!(file.modified_at_ms, Some(55));
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn workspace_identity_saved_records_error_and_preserves_metadata() {
+    let mut app = test_app();
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter_mut()
+        .find(|file| file.file_name == "MEMORY.md")
+        .expect("missing MEMORY.md state");
+    file.size_bytes = Some(89);
+    file.modified_at_ms = Some(144);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentitySaved {
+            file_name: "MEMORY.md".to_string(),
+            size_bytes: None,
+            modified_at_ms: None,
+            result: Err("write failed".to_string()),
+        }),
+    );
+
+    let file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "MEMORY.md")
+        .expect("missing MEMORY.md state");
+    assert_eq!(file.size_bytes, Some(89));
+    assert_eq!(file.modified_at_ms, Some(144));
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("write failed"));
+}
+
+#[test]
+fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
+    let mut app = test_app();
+    entry_mut(&mut app, "main").provider = "old-provider".to_string();
+    entry_mut(&mut app, "main").model = "old-model".to_string();
+    entry_mut(&mut app, "main").enabled = true;
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProviderChanged(
+            "main".to_string(),
+            "new-provider".to_string(),
+        )),
+    );
+    assert_eq!(entry(&app, "main").provider, "new-provider");
+    assert!(entry(&app, "main").model.is_empty());
+    assert!(app.agents_settings.save_error.is_none());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ModelChanged(
+            "main".to_string(),
+            "model-a".to_string(),
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::EnabledToggled("main".to_string(), false)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::TemperatureChanged("main".to_string(), 9.0)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged("main".to_string(), 0)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::MaxHistoryMessagesChanged(
+            "main".to_string(),
+            2_000,
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::MaxDepthChanged("main".to_string(), 99)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged("main".to_string(), 0)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::CompactContextToggled("main".to_string(), true)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ParallelToolsToggled("main".to_string(), true)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ToolDispatcherChanged(
+            "main".to_string(),
+            "manual".to_string(),
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AgenticToggled("main".to_string(), true)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ApiKeyChanged(
+            "main".to_string(),
+            "sk-test".to_string(),
+        )),
+    );
+
+    let main = entry(&app, "main");
+    assert_eq!(main.model, "model-a");
+    assert!(main.enabled);
+    assert_eq!(main.temperature, 2.0);
+    assert_eq!(main.max_tool_iterations, 1);
+    assert_eq!(main.max_history_messages, 1_000);
+    assert_eq!(main.max_depth, 32);
+    assert_eq!(main.max_iterations, 1);
+    assert!(main.compact_context);
+    assert!(main.parallel_tools);
+    assert_eq!(main.tool_dispatcher, "manual");
+    assert!(main.agentic);
+    assert_eq!(main.api_key_input, "sk-test");
+}
+
+#[test]
+fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
+    let mut app = test_app();
+    app.agents_settings.available_tools = vec![
+        "write".to_string(),
+        "read".to_string(),
+        "bash".to_string(),
+        "web_search_tool".to_string(),
+    ];
+    entry_mut(&mut app, "main").allowed_tools = vec!["read".to_string()];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "bash".to_string(),
+            true,
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "bash".to_string(),
+            true,
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash", "read"]);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "read".to_string(),
+            false,
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash"]);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolsSelectAll("main".to_string())),
+    );
+    assert_eq!(entry(&app, "main").allowed_tools, app.agents_settings.available_tools);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolsInvertSelection("main".to_string())),
+    );
+    assert!(entry(&app, "main").allowed_tools.is_empty());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolsApplyPreset(
+            "main".to_string(),
+            "research".to_string(),
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_tools, vec!["read", "web_search_tool"]);
+}
+
+#[test]
+fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
+    let mut app = test_app();
+    app.skills_settings.catalog = vec![
+        skill_item("project-a", "workspace", true),
+        skill_item("project-disabled", "workspace", false),
+        skill_item("global-a", "global", true),
+        skill_item("bundled-a", "bundled", true),
+    ];
+    entry_mut(&mut app, "main").allowed_skills = vec!["global-a".to_string()];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillsSelectAll(
+            "main".to_string(),
+            SkillsDirectoryScope::Project,
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["global-a", "project-a"]);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillsInvertSelection(
+            "main".to_string(),
+            SkillsDirectoryScope::All,
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["bundled-a"]);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillToggled(
+            "main".to_string(),
+            "project-a".to_string(),
+            true,
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedSkillToggled(
+            "main".to_string(),
+            "bundled-a".to_string(),
+            false,
+        )),
+    );
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["project-a"]);
+}
+
+#[test]
+fn editor_actions_persist_only_for_text_edits_and_leave_unknown_files_unchanged() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("keep".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::SystemPromptAction(
+            "main".to_string(),
+            text_editor::Action::Move(text_editor::Motion::DocumentEnd),
+        )),
+    );
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("keep"));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::SystemPromptAction(
+            "main".to_string(),
+            text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(
+                "system prompt".to_string(),
+            ))),
+        )),
+    );
+    assert_eq!(entry(&app, "main").system_prompt_editor.text(), "system prompt");
+    assert!(app.agents_settings.save_error.is_none());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEditorAction(
+            "USER.md".to_string(),
+            text_editor::Action::Edit(text_editor::Edit::Insert('u')),
+        )),
+    );
+    let user_file = app
+        .agents_settings
+        .workspace_identity_files
+        .iter()
+        .find(|file| file.file_name == "USER.md")
+        .expect("missing USER.md state");
+    assert_eq!(user_file.editor.text(), "u");
+
+    app.agents_settings.save_error = Some("unknown remains".to_string());
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEditorAction(
+            "UNKNOWN.md".to_string(),
+            text_editor::Action::Edit(text_editor::Edit::Insert('x')),
+        )),
+    );
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("unknown remains"));
 }

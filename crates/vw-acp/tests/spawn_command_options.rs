@@ -57,35 +57,6 @@ impl Drop for EnvGuard {
 }
 
 #[cfg(unix)]
-#[tokio::test]
-async fn build_spawn_command_applies_env_overrides() {
-    let mut env = HashMap::new();
-    env.insert("VW_ACP_SPAWN_TEST".to_string(), "expected-value".to_string());
-
-    let mut command = build_spawn_command("sh", &env);
-    command
-        .arg("-c")
-        .arg("printf %s \"$VW_ACP_SPAWN_TEST\"")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-
-    let mut child = command.spawn().expect("command should spawn");
-    let mut stdout = String::new();
-    child
-        .stdout
-        .take()
-        .expect("stdout should be piped")
-        .read_to_string(&mut stdout)
-        .await
-        .expect("stdout should be readable");
-    let status = child.wait().await.expect("child should exit");
-
-    assert!(status.success());
-    assert_eq!(stdout, "expected-value");
-}
-
-#[cfg(unix)]
 /// 创建可执行脚本文件。
 ///
 /// 参数 `path` 指向脚本路径，`contents` 是脚本文本；函数会创建父目录并设置

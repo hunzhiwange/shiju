@@ -3,7 +3,7 @@
 //! 本模块提供 Telegram 机器人通道的配置和初始化功能，包括：
 //! - 通道实例的创建和配置
 //! - 用户身份规范化处理
-//! - 配置文件的加载和持久化
+//! - 数据库配置的加载和持久化
 //! - 配对码机制的实现
 //! - 机器人用户名的获取和缓存
 //!
@@ -11,17 +11,15 @@
 //!
 //! - **身份规范化**：统一处理 Telegram 用户名格式，去除 `@` 前缀和空白字符
 //! - **配对机制**：当未配置允许用户列表时，自动启用配对码进行安全的用户绑定
-//! - **配置持久化**：支持将新绑定的用户身份持久化到配置文件
+//! - **配置持久化**：支持将新绑定的用户身份持久化到共享数据库
 //! - **流式响应**：支持流式模式下的草稿消息更新
 
 use super::TelegramChannel;
 use crate::app::agent::config::{Config, StreamMode};
 use crate::app::agent::security::pairing::PairingGuard;
 use anyhow::Context;
-use directories::UserDirs;
 use parking_lot::Mutex;
 use std::sync::{Arc, RwLock};
-use tokio::fs;
 
 /// Telegram 绑定命令常量
 ///
@@ -308,44 +306,25 @@ impl TelegramChannel {
         self.group_reply_allowed_sender_ids.iter().any(|entry| entry == "*" || entry == sender_id)
     }
 
-    /// 从文件加载配置（不读取环境变量）
+    /// 从本地租户数据库加载配置（不读取环境变量）
     ///
-    /// 从用户主目录下的 `.vibewindow/vibewindow.json` 加载配置。
-    /// 此方法不处理环境变量覆盖，仅读取文件内容。
+    /// 此方法不处理环境变量覆盖，也不读取旧用户配置文件。
     ///
     /// # 返回值
     ///
     /// - `Ok(Config)`: 成功加载的配置对象
-    /// - `Err`: 配置文件不存在、无法读取或解析失败
+    /// - `Err`: 数据库读取、解密或解析失败
     ///
     /// # 错误
     ///
-    /// - 无法找到用户主目录
-    /// - 配置文件读取失败
-    /// - TOML 解析失败（通常是因为语法错误）
+    /// - 无法找到用户主目录或打开共享数据库
+    /// - 配置 payload 解密、反序列化或校验失败
     pub(super) async fn load_config_without_env() -> anyhow::Result<Config> {
-        // 获取用户主目录
-        let home = UserDirs::new()
-            .map(|u| u.home_dir().to_path_buf())
-            .context("Could not find home directory")?;
-
-        // 构建配置文件路径
-        let vibewindow_dir = vw_config_types::paths::home_config_dir(home);
-        let config_path = vibewindow_dir.join("vibewindow.json");
-
-        // 读取并解析配置文件
-        let contents = fs::read_to_string(&config_path)
-            .await
-            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-
-        let mut config: Config = toml::from_str(&contents).context(
-            "Failed to parse vibewindow.json — check [channels.telegram] section for syntax errors",
-        )?;
-
-        // 设置配置文件路径和工作空间目录
-        config.config_path = config_path;
-        config.workspace_dir = vibewindow_dir.join("workspace");
-        Ok(config)
+        crate::app::agent::config::get_global_for_tenant_without_env(
+            &vw_api_types::id::TenantScope::default(),
+        )
+        .await
+        .map_err(anyhow::Error::from)
     }
 
     /// 持久化允许的用户身份到配置文件
@@ -374,8 +353,8 @@ impl TelegramChannel {
         // 检查 telegram 配置节是否存在
         let Some(telegram) = config.channels_config.telegram.as_mut() else {
             anyhow::bail!(
-                "Missing [channels.telegram] section in vibewindow.json. \
-                Add bot_token and allowed_users under [channels.telegram]"
+                "Missing channels.telegram in the system config. \
+                Configure bot_token and allowed_users before binding"
             );
         };
 
@@ -390,7 +369,7 @@ impl TelegramChannel {
             telegram.allowed_users.push(normalized);
             crate::app::agent::config::schema::save_config(&config)
                 .await
-                .context("Failed to persist Telegram allowlist to vibewindow.json")?;
+                .context("Failed to persist Telegram allowlist to the system config database")?;
         }
 
         Ok(())

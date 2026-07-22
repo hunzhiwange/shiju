@@ -117,6 +117,115 @@ pub(crate) struct CliSetup {
     pub(crate) channel_name: &'static str,
 }
 
+pub(super) fn resolve_setup_name(
+    override_value: Option<&str>,
+    configured_value: Option<&str>,
+    fallback: &str,
+) -> String {
+    override_value.or(configured_value).unwrap_or(fallback).to_string()
+}
+
+pub(super) fn composio_credentials<'a, 'b>(
+    enabled: bool,
+    api_key: Option<&'a str>,
+    entity_id: &'b str,
+) -> (Option<&'a str>, Option<&'b str>) {
+    if enabled { (api_key, Some(entity_id)) } else { (None, None) }
+}
+
+pub(super) fn build_tool_descriptions(
+    browser_enabled: bool,
+    composio_enabled: bool,
+    has_agent_tool: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let mut tool_descs = vec![
+        (
+            "shell",
+            "Execute terminal commands. Use when: running local checks, build/test commands, diagnostics. Don't use when: a safer dedicated tool exists, or command is destructive without approval.",
+        ),
+        (
+            "file_read",
+            "Read file contents. Use when: inspecting project files, configs, logs. Don't use when: a targeted search is enough.",
+        ),
+        (
+            "file_write",
+            "Write file contents. Use when: applying focused edits, scaffolding files, updating docs/code. Don't use when: side effects are unclear or file ownership is uncertain.",
+        ),
+        (
+            "memory_store",
+            "Save to memory. Use when: preserving durable preferences, decisions, key context. Don't use when: information is transient/noisy/sensitive without need.",
+        ),
+        (
+            "memory_recall",
+            "Search memory. Use when: retrieving prior decisions, user preferences, historical context. Don't use when: answer is already in current context.",
+        ),
+        (
+            "memory_forget",
+            "Delete a memory entry. Use when: memory is incorrect/stale or explicitly requested for removal. Don't use when: impact is uncertain.",
+        ),
+        (
+            "cron_add",
+            "Create a cron job. Supports schedule kinds: cron, at, every; and job types: shell or agent.",
+        ),
+        ("cron_list", "List all cron jobs with schedule, status, and metadata."),
+        ("cron_remove", "Remove a cron job by job_id."),
+        (
+            "cron_update",
+            "Patch a cron job (schedule, enabled, command/prompt, model, delivery, session_target).",
+        ),
+        ("cron_run", "Force-run a cron job immediately and record a run history entry."),
+        ("cron_runs", "Show recent run history for a cron job."),
+        (
+            "screenshot",
+            "Capture a screenshot of the current screen. Returns file path and base64-encoded PNG. Use when: visual verification, UI inspection, debugging displays.",
+        ),
+        (
+            "image_info",
+            "Read image file metadata (format, dimensions, size) and optionally base64-encode it. Use when: inspecting images, preparing visual data for analysis.",
+        ),
+    ];
+
+    if browser_enabled {
+        tool_descs.push((
+            "browser_open",
+            "Open approved HTTPS URLs in system browser (allowlist-only, no scraping)",
+        ));
+    }
+
+    if composio_enabled {
+        tool_descs.push((
+            "composio",
+            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover, 'execute' to run (optionally with connected_account_id), 'connect' to OAuth.",
+        ));
+    }
+
+    tool_descs.push((
+        "schedule",
+        "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
+    ));
+    tool_descs.push((
+        "model_routing_config",
+        "Configure default model, scenario routing, and delegate agents. Use for natural-language requests like: 'set conversation to kimi and coding to gpt-5.3-codex'.",
+    ));
+
+    if has_agent_tool {
+        tool_descs.push((
+            "AgentTool",
+            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
+        ));
+    }
+
+    tool_descs
+}
+
+pub(super) fn compact_context_max_chars(compact_context: bool) -> Option<usize> {
+    if compact_context { Some(6000) } else { None }
+}
+
+pub(super) fn setup_channel_name(interactive: bool) -> &'static str {
+    if interactive { "cli" } else { "daemon" }
+}
+
 /// 初始化 CLI 代理运行环境
 ///
 /// 此函数是 CLI 代理启动流程的核心，负责组装代理所需的所有组件。
@@ -223,11 +332,11 @@ pub(crate) fn setup_cli(
     // ========================================
 
     // 解析 Composio 集成配置（用于第三方应用集成）
-    let (composio_key, composio_entity_id) = if config.composio.enabled {
-        (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
-    } else {
-        (None, None)
-    };
+    let (composio_key, composio_entity_id) = composio_credentials(
+        config.composio.enabled,
+        config.composio.api_key.as_deref(),
+        config.composio.entity_id.as_str(),
+    );
 
     // 注册所有可用工具，传入必要的依赖项
     let tools_registry = crate::app::agent::tools::all_tools_with_runtime(
@@ -252,16 +361,18 @@ pub(crate) fn setup_cli(
     // ========================================
 
     // 确定提供者名称，优先级：命令行覆盖 > 配置文件默认值 > 硬编码默认值
-    let provider_name = provider_override
-        .or(config.default_provider.as_deref())
-        .unwrap_or("zhipuai-coding-plan")
-        .to_string();
+    let provider_name = resolve_setup_name(
+        provider_override,
+        config.default_provider.as_deref(),
+        "zhipuai-coding-plan",
+    );
 
     // 确定模型名称，优先级：命令行覆盖 > 配置文件默认值 > 硬编码默认值
-    let model_name = model_override
-        .or(config.default_model.as_deref())
-        .unwrap_or("zhipuai-coding-plan/glm-4.7")
-        .to_string();
+    let model_name = resolve_setup_name(
+        model_override,
+        config.default_model.as_deref(),
+        "zhipuai-coding-plan/glm-4.7",
+    );
 
     // ========================================
     // 第五步：创建 Provider 实例
@@ -307,97 +418,13 @@ pub(crate) fn setup_cli(
 
     // 构建工具描述列表，用于系统提示词
     // 每个工具包含名称和使用指南
-    let mut tool_descs: Vec<(&str, &str)> = vec![
-        (
-            "shell",
-            "Execute terminal commands. Use when: running local checks, build/test commands, diagnostics. Don't use when: a safer dedicated tool exists, or command is destructive without approval.",
-        ),
-        (
-            "file_read",
-            "Read file contents. Use when: inspecting project files, configs, logs. Don't use when: a targeted search is enough.",
-        ),
-        (
-            "file_write",
-            "Write file contents. Use when: applying focused edits, scaffolding files, updating docs/code. Don't use when: side effects are unclear or file ownership is uncertain.",
-        ),
-        (
-            "memory_store",
-            "Save to memory. Use when: preserving durable preferences, decisions, key context. Don't use when: information is transient/noisy/sensitive without need.",
-        ),
-        (
-            "memory_recall",
-            "Search memory. Use when: retrieving prior decisions, user preferences, historical context. Don't use when: answer is already in current context.",
-        ),
-        (
-            "memory_forget",
-            "Delete a memory entry. Use when: memory is incorrect/stale or explicitly requested for removal. Don't use when: impact is uncertain.",
-        ),
-    ];
-
-    // 添加定时任务相关工具描述
-    tool_descs.push((
-        "cron_add",
-        "Create a cron job. Supports schedule kinds: cron, at, every; and job types: shell or agent.",
-    ));
-    tool_descs.push(("cron_list", "List all cron jobs with schedule, status, and metadata."));
-    tool_descs.push(("cron_remove", "Remove a cron job by job_id."));
-    tool_descs.push((
-        "cron_update",
-        "Patch a cron job (schedule, enabled, command/prompt, model, delivery, session_target).",
-    ));
-    tool_descs
-        .push(("cron_run", "Force-run a cron job immediately and record a run history entry."));
-    tool_descs.push(("cron_runs", "Show recent run history for a cron job."));
-
-    // 添加视觉相关工具描述
-    tool_descs.push((
-        "screenshot",
-        "Capture a screenshot of the current screen. Returns file path and base64-encoded PNG. Use when: visual verification, UI inspection, debugging displays.",
-    ));
-    tool_descs.push((
-        "image_info",
-        "Read image file metadata (format, dimensions, size) and optionally base64-encode it. Use when: inspecting images, preparing visual data for analysis.",
-    ));
-
-    // 条件性添加浏览器工具（仅在配置启用时）
-    if config.browser.enabled {
-        tool_descs.push((
-            "browser_open",
-            "Open approved HTTPS URLs in system browser (allowlist-only, no scraping)",
-        ));
-    }
-
-    // 条件性添加 Composio 工具（仅在配置启用时）
-    if config.composio.enabled {
-        tool_descs.push((
-            "composio",
-            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover, 'execute' to run (optionally with connected_account_id), 'connect' to OAuth.",
-        ));
-    }
-
-    // 添加任务调度工具
-    tool_descs.push((
-        "schedule",
-        "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
-    ));
-
-    // 添加模型路由配置工具
-    tool_descs.push((
-        "model_routing_config",
-        "Configure default model, scenario routing, and delegate agents. Use for natural-language requests like: 'set conversation to kimi and coding to gpt-5.3-codex'.",
-    ));
-
-    // 条件性添加代理委托工具（仅在实际注册 AgentTool 时）
-    if tools_registry.iter().any(|tool| tool.name() == "AgentTool") {
-        tool_descs.push((
-            "AgentTool",
-            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
-        ));
-    }
+    let has_agent_tool = tools_registry.iter().any(|tool| tool.name() == "AgentTool");
+    let tool_descs =
+        build_tool_descriptions(config.browser.enabled, config.composio.enabled, has_agent_tool);
 
     // 确定上下文压缩设置
     // 启用时会限制初始上下文大小以优化性能
-    let bootstrap_max_chars = if config.agent.compact_context { Some(6000) } else { None };
+    let bootstrap_max_chars = compact_context_max_chars(config.agent.compact_context);
 
     // 检查 Provider 是否支持原生工具调用
     let native_tools = provider.supports_native_tools();
@@ -431,7 +458,7 @@ pub(crate) fn setup_cli(
         if interactive { Some(ApprovalManager::from_config(&config.autonomy)) } else { None };
 
     // 确定通道名称（用于日志和事件分类）
-    let channel_name = if interactive { "cli" } else { "daemon" };
+    let channel_name = setup_channel_name(interactive);
 
     // ========================================
     // 返回初始化结果

@@ -96,6 +96,19 @@ fn wrap_session_control_invalid_params_reports_unsupported_value() {
 }
 
 #[test]
+fn wrap_session_control_single_quoted_details_reports_unsupported_value() {
+    let err = wrap_set_model(
+        "JSON-RPC error -32602: invalid params, details: 'model alias is unavailable'",
+        Some("for model alias"),
+    );
+
+    assert_eq!(
+        err.to_string(),
+        "Agent rejected session/set_model for model alias: model alias is unavailable (ACP -32602, adapter reported \"invalid params\"). The adapter may not implement session/set_model, or the requested value is not supported."
+    );
+}
+
+#[test]
 fn wrap_session_control_internal_error_with_invalid_params_details_reports_unsupported_value() {
     let err = wrap_set_model(
         "JSON-RPC error -32603: internal error, details: invalid params: mode unavailable",

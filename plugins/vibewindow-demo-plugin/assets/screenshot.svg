@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="VibeWindow demo plugin screenshot">
+  <rect width="960" height="540" fill="#0b1120"/>
+  <rect x="40" y="40" width="880" height="460" rx="18" fill="#111827" stroke="#334155" stroke-width="2"/>
+  <text x="72" y="92" fill="#f8fafc" font-family="Arial, sans-serif" font-size="30" font-weight="700">VibeWindow Demo Plugin</text>
+  <text x="72" y="130" fill="#93c5fd" font-family="Arial, sans-serif" font-size="18">skills + MCP + hooks + interface</text>
+  <rect x="72" y="174" width="220" height="160" rx="12" fill="#1e293b"/>
+  <rect x="322" y="174" width="220" height="160" rx="12" fill="#1e293b"/>
+  <rect x="572" y="174" width="220" height="160" rx="12" fill="#1e293b"/>
+  <text x="100" y="224" fill="#dbeafe" font-family="Arial, sans-serif" font-size="22" font-weight="700">Skill</text>
+  <text x="350" y="224" fill="#dbeafe" font-family="Arial, sans-serif" font-size="22" font-weight="700">MCP</text>
+  <text x="600" y="224" fill="#dbeafe" font-family="Arial, sans-serif" font-size="22" font-weight="700">Hooks</text>
+  <text x="100" y="264" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">Local SKILL.md package</text>
+  <text x="350" y="264" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">stdio tool server</text>
+  <text x="600" y="264" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="16">trusted lifecycle scripts</text>
+  <rect x="72" y="378" width="816" height="56" rx="10" fill="#2563eb"/>
+  <text x="100" y="414" fill="#eff6ff" font-family="Arial, sans-serif" font-size="18">Visible in System Settings -> Skills -> Plugins</text>
+</svg>

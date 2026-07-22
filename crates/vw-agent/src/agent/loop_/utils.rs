@@ -103,7 +103,7 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
             let val = caps.get(2).or(caps.get(3)).or(caps.get(4)).map(|m| m.as_str()).unwrap_or("");
 
             // 保留前 4 个字符作为上下文，避免完全丢失信息
-            let prefix = if val.len() > 4 { &val[..4] } else { "" };
+            let prefix = val.chars().take(4).collect::<String>();
 
             // 根据原始格式重建脱敏后的字符串，保持格式一致性
             if full_match.contains(':') {
@@ -113,16 +113,13 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
                 } else {
                     format!("{}: {}*[REDACTED]", key, prefix)
                 }
-            } else if full_match.contains('=') {
+            } else {
                 // 等号分隔符格式
                 if full_match.contains('"') {
                     format!("{}=\"{}*[REDACTED]\"", key, prefix)
                 } else {
                     format!("{}={}*[REDACTED]", key, prefix)
                 }
-            } else {
-                // 默认使用冒号格式
-                format!("{}: {}*[REDACTED]", key, prefix)
             }
         })
         .to_string()

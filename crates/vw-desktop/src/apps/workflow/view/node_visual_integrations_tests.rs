@@ -99,6 +99,14 @@ fn workflow_state_with_active_app(
         saved_app_actions_menu_uuid: None,
         saved_app_search_query: String::new(),
         copied_saved_app_uuid: None,
+        saved_app_run_prompt: None,
+        running_saved_app_uuid: None,
+        running_saved_app_query: String::new(),
+        running_saved_app_inputs: Default::default(),
+        saved_app_run_preview: None,
+        last_run_drafts: Default::default(),
+        saved_app_run_detail: None,
+        run_error_copied: false,
         active_is_dirty: false,
         app_editor: None,
         node_editor: None,
@@ -740,6 +748,52 @@ fn integration_visual_sections_build_with_validation_errors() {
 }
 
 #[test]
+fn integration_visual_sections_build_without_validation_errors_and_disabled_toggles() {
+    let validation = WorkflowNodeEditorValidation::default();
+    let yaml_editor = text_editor::Content::with_text("{}");
+
+    let _knowledge = build_knowledge_visual_section(
+        &validation,
+        "",
+        "",
+        "",
+        "single",
+        "",
+        false,
+        "",
+        false,
+        "",
+        "",
+        "",
+    );
+    let _tool = build_tool_visual_section(
+        &validation,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        &yaml_editor,
+        &yaml_editor,
+    );
+    let _agent = build_agent_visual_section(
+        &validation,
+        "",
+        "",
+        "",
+        "",
+        &yaml_editor,
+        &yaml_editor,
+        false,
+        "",
+        &yaml_editor,
+    );
+}
+
+#[test]
 fn code_visual_section_builds_empty_disabled_retry_and_default_value_branches() {
     let validation = validation_with_errors(&[
         "code.language",
@@ -825,6 +879,260 @@ data:
         &outputs,
         WorkflowNodeRetryDraft { enabled: true, max_retries: 3, retry_interval: 1200 },
         "fail-branch",
+        &default_value_editor,
+    );
+}
+
+#[test]
+fn workflow_code_picker_option_display_returns_label() {
+    let option = WorkflowCodePickerOption { value: "python3", label: "PYTHON3" };
+
+    assert_eq!(option.to_string(), "PYTHON3");
+}
+
+#[test]
+fn start_input_value_type_covers_all_supported_mappings() {
+    assert_eq!(start_input_value_type("number"), "number");
+    assert_eq!(start_input_value_type("checkbox"), "boolean");
+    assert_eq!(start_input_value_type("file"), "file");
+    assert_eq!(start_input_value_type("file-list"), "array[file]");
+    assert_eq!(start_input_value_type("paragraph"), "string");
+}
+
+#[test]
+fn upstream_node_ids_collect_transitive_sources_without_duplicates() {
+    let document = WorkflowDocument {
+        name: "测试工作流".to_string(),
+        nodes: Vec::new(),
+        edges: vec![
+            WorkflowEdge {
+                id: "edge_start_llm".to_string(),
+                source: "start".to_string(),
+                target: "llm".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "start".to_string(),
+                target_type: "llm".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+            WorkflowEdge {
+                id: "edge_llm_tool".to_string(),
+                source: "llm".to_string(),
+                target: "tool".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "llm".to_string(),
+                target_type: "tool".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+            WorkflowEdge {
+                id: "edge_start_tool".to_string(),
+                source: "start".to_string(),
+                target: "tool".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "start".to_string(),
+                target_type: "tool".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+            WorkflowEdge {
+                id: "edge_tool_code".to_string(),
+                source: "tool".to_string(),
+                target: "code".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "tool".to_string(),
+                target_type: "code".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+        ],
+        viewport: WorkflowViewport::default(),
+    };
+    let state = workflow_state_with_active_app(document, Vec::new(), Vec::new());
+
+    let upstream = upstream_node_ids(&state, "code");
+
+    assert_eq!(upstream.len(), 3);
+    assert!(upstream.contains("tool"));
+    assert!(upstream.contains("llm"));
+    assert!(upstream.contains("start"));
+}
+
+#[test]
+fn upstream_node_ids_terminates_and_deduplicates_cycles() {
+    let document = WorkflowDocument {
+        name: "循环工作流".to_string(),
+        nodes: Vec::new(),
+        edges: vec![
+            WorkflowEdge {
+                id: "edge_a_code".to_string(),
+                source: "a".to_string(),
+                target: "code".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "answer".to_string(),
+                target_type: "code".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+            WorkflowEdge {
+                id: "edge_code_a".to_string(),
+                source: "code".to_string(),
+                target: "a".to_string(),
+                source_handle: None,
+                target_handle: None,
+                source_type: "code".to_string(),
+                target_type: "answer".to_string(),
+                selected: false,
+                z_index: 0.0,
+                raw_edge: Value::Null,
+            },
+        ],
+        viewport: WorkflowViewport::default(),
+    };
+    let state = workflow_state_with_active_app(document, Vec::new(), Vec::new());
+
+    let upstream = upstream_node_ids(&state, "code");
+
+    assert_eq!(upstream.len(), 2);
+    assert!(upstream.contains("a"));
+    assert!(upstream.contains("code"));
+}
+
+#[test]
+fn node_data_map_returns_mapping_when_present() {
+    let node = workflow_node(
+        "start",
+        "start",
+        "开始",
+        r#"
+data:
+  variables:
+    - variable: query
+      type: text-input
+"#,
+    );
+
+    let data = node_data_map(&node).expect("data mapping should exist");
+
+    assert!(data.contains_key(Value::String("variables".to_string())));
+}
+
+#[test]
+fn code_variable_reference_options_without_active_meta_skip_system_variables() {
+    let start_node = workflow_node(
+        "start",
+        "start",
+        "开始",
+        r#"
+data:
+  variables:
+    - variable: query
+      type: text-input
+"#,
+    );
+    let code_node = workflow_node("code_1", "code", "代码", "data: {}");
+    let document = WorkflowDocument {
+        name: "测试工作流".to_string(),
+        nodes: vec![start_node, code_node],
+        edges: vec![WorkflowEdge {
+            id: "edge_start_code".to_string(),
+            source: "start".to_string(),
+            target: "code_1".to_string(),
+            source_handle: None,
+            target_handle: None,
+            source_type: "start".to_string(),
+            target_type: "code".to_string(),
+            selected: false,
+            z_index: 0.0,
+            raw_edge: Value::Null,
+        }],
+        viewport: WorkflowViewport::default(),
+    };
+    let mut state = workflow_state_with_active_app(
+        document,
+        vec![WorkflowEnvironmentVariable {
+            id: "env_api_key".to_string(),
+            name: "api_key".to_string(),
+            value_type: "string".to_string(),
+            value: Value::Null,
+            description: String::new(),
+            raw_variable: Value::Null,
+        }],
+        vec![WorkflowConversationVariable {
+            id: "conv_thread_id".to_string(),
+            name: "thread_id".to_string(),
+            value_type: "string".to_string(),
+            value: Value::Null,
+            description: String::new(),
+            raw_variable: Value::Null,
+        }],
+    );
+    state.active_app_id = None;
+    let editor = minimal_code_editor("code_1");
+
+    let options = build_code_variable_reference_options(&state, &editor);
+    let selector_keys =
+        options.iter().map(|option| option.selector_key.as_str()).collect::<Vec<_>>();
+
+    assert!(selector_keys.contains(&"start.query"));
+    assert!(selector_keys.contains(&"env.api_key"));
+    assert!(selector_keys.contains(&"conversation.thread_id"));
+    assert!(!selector_keys.iter().any(|key| key.starts_with("sys.")));
+}
+
+#[test]
+fn code_row_builders_support_selected_option_backfill_and_known_output_type() {
+    let input = WorkflowCodeVariableDraft {
+        variable: "payload".to_string(),
+        value_type: "object".to_string(),
+        selector: vec!["tool".to_string(), "payload".to_string()],
+    };
+    let options = vec![WorkflowCodeVariableReferenceOption {
+        selector_key: "start.query".to_string(),
+        label: "query".to_string(),
+        value_type: "string".to_string(),
+    }];
+    let output =
+        WorkflowCodeOutputDraft { key: "result".to_string(), value_type: "number".to_string() };
+
+    let validation = WorkflowNodeEditorValidation::default();
+    let output_type_options = code_output_type_options();
+    let _input_row = build_code_input_variable_row(0, &input, &options, &validation);
+    let _output_row = build_code_output_variable_row(0, &output, &output_type_options, &validation);
+}
+
+#[test]
+fn code_visual_section_builds_none_error_strategy_without_default_value() {
+    let state = workflow_state_with_active_app(empty_document(), Vec::new(), Vec::new());
+    let editor = minimal_code_editor("code_1");
+    let validation = WorkflowNodeEditorValidation::default();
+    let code_editor = text_editor::Content::with_text("def main():\n    return {\"result\": 1}");
+    let default_value_editor = text_editor::Content::with_text("result: 1");
+    let outputs = vec![WorkflowCodeOutputDraft {
+        key: "result".to_string(),
+        value_type: "number".to_string(),
+    }];
+
+    let _element = build_code_visual_section(
+        &state,
+        &editor,
+        &validation,
+        "javascript",
+        &[],
+        &code_editor,
+        &outputs,
+        WorkflowNodeRetryDraft { enabled: false, max_retries: 1, retry_interval: 100 },
+        "none",
         &default_value_editor,
     );
 }

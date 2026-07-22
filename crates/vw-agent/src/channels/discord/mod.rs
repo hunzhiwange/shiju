@@ -75,18 +75,23 @@ mod attachments_tests;
 #[cfg(test)]
 #[path = "client_tests.rs"]
 mod client_tests;
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
 
 use attachments::process_attachments;
 use attachments_outgoing::{
     classify_outgoing_attachments, parse_attachment_markers, resolve_local_attachment_path,
     with_inline_attachment_urls,
 };
-use client::{send_discord_message_json, send_discord_message_with_files};
+use client::{
+    discord_messages_url, send_discord_message_json_to_url, send_discord_message_with_files_to_url,
+};
 use content::{normalize_group_reply_allowed_sender_ids, normalize_incoming_content};
 use gateway::{connect_gateway, fetch_gateway_url, read_gateway_hello, send_identify};
 use message_split::split_message_for_discord;
 use permissions::{is_group_sender_trigger_enabled, is_user_allowed};
-use reactions::{discord_reaction_url, random_discord_ack_reaction};
+use reactions::{discord_reaction_url_with_base, random_discord_ack_reaction};
 use typing::{TypingHandles, new_typing_handles, start_typing, stop_typing};
 
 /// Discord 通道实现
@@ -124,6 +129,7 @@ pub struct DiscordChannel {
     workspace_dir: Option<PathBuf>,
     /// "正在输入"状态管理所需的异步任务句柄集合
     typing_handles: TypingHandles,
+    api_base_url: String,
 }
 
 impl DiscordChannel {
@@ -170,6 +176,7 @@ impl DiscordChannel {
             transcription: None,
             workspace_dir: None,
             typing_handles: new_typing_handles(),
+            api_base_url: "https://discord.com/api/v10".to_string(),
         }
     }
 
@@ -239,6 +246,15 @@ impl DiscordChannel {
     pub fn with_workspace_dir(mut self, dir: PathBuf) -> Self {
         self.workspace_dir = Some(dir);
         self
+    }
+
+    fn with_api_base(mut self, api_base_url: String) -> Self {
+        self.api_base_url = api_base_url.trim_end_matches('/').to_string();
+        self
+    }
+
+    fn discord_api_base_url(&self) -> &str {
+        &self.api_base_url
     }
 
     /// 创建配置了代理设置的 HTTP 客户端
@@ -350,23 +366,23 @@ impl Channel for DiscordChannel {
         // 根据 Discord 消息长度限制分片
         let chunks = split_message_for_discord(&content);
         let client = self.http_client();
+        let url = discord_messages_url(self.discord_api_base_url(), &message.recipient);
 
         // 逐片发送消息，第一条附带文件
         for (i, chunk) in chunks.iter().enumerate() {
             if i == 0 && !local_files.is_empty() {
                 // 第一条消息：附带文件上传
-                send_discord_message_with_files(
+                send_discord_message_with_files_to_url(
                     &client,
                     &self.bot_token,
-                    &message.recipient,
+                    &url,
                     chunk,
                     &local_files,
                 )
                 .await?;
             } else {
                 // 后续消息：仅发送文本
-                send_discord_message_json(&client, &self.bot_token, &message.recipient, chunk)
-                    .await?;
+                send_discord_message_json_to_url(&client, &self.bot_token, &url, chunk).await?;
             }
 
             // 消息分片之间添加短暂延迟，避免触发 Discord 速率限制
@@ -426,7 +442,9 @@ impl Channel for DiscordChannel {
         let bot_user_id = ids::bot_user_id_from_token(&self.bot_token).unwrap_or_default();
 
         // 步骤 1：获取 Gateway WebSocket URL
-        let gw_url = fetch_gateway_url(&self.http_client(), &self.bot_token).await?;
+        let gw_url =
+            fetch_gateway_url(&self.http_client(), &self.bot_token, self.discord_api_base_url())
+                .await?;
         let ws_url = format!("{gw_url}/?v=10&encoding=json");
         tracing::info!("Discord: connecting to gateway...");
 
@@ -611,7 +629,8 @@ impl Channel for DiscordChannel {
                             self.allowed_users.clone(),
                             self.listen_to_bots,
                             self.mention_only,
-                        );
+                        )
+                        .with_api_base(self.api_base_url.clone());
                         let reaction_channel_id = channel_id.clone();
                         let reaction_message_id = message_id.to_string();
                         let reaction_emoji = random_discord_ack_reaction().to_string();
@@ -685,7 +704,7 @@ impl Channel for DiscordChannel {
     /// ```
     async fn health_check(&self) -> bool {
         self.http_client()
-            .get("https://discord.com/api/v10/users/@me")
+            .get(format!("{}/users/@me", self.discord_api_base_url()))
             .header("Authorization", format!("Bot {}", self.bot_token))
             .send()
             .await
@@ -717,6 +736,7 @@ impl Channel for DiscordChannel {
             &self.typing_handles,
             self.http_client(),
             self.bot_token.clone(),
+            self.discord_api_base_url().to_string(),
             recipient.to_string(),
         )
         .await
@@ -777,7 +797,12 @@ impl Channel for DiscordChannel {
         message_id: &str,
         emoji: &str,
     ) -> anyhow::Result<()> {
-        let url = discord_reaction_url(channel_id, message_id, emoji);
+        let url = discord_reaction_url_with_base(
+            self.discord_api_base_url(),
+            channel_id,
+            message_id,
+            emoji,
+        );
 
         let resp = self
             .http_client()
@@ -834,7 +859,12 @@ impl Channel for DiscordChannel {
         message_id: &str,
         emoji: &str,
     ) -> anyhow::Result<()> {
-        let url = discord_reaction_url(channel_id, message_id, emoji);
+        let url = discord_reaction_url_with_base(
+            self.discord_api_base_url(),
+            channel_id,
+            message_id,
+            emoji,
+        );
 
         let resp = self
             .http_client()

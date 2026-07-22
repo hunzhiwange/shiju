@@ -31,11 +31,83 @@ use crate::app::components::input_panel::styles::{
     selector_pill_button_style, selector_text_color, square_icon_button_style, tooltip_dark_style,
 };
 use crate::app::components::system_settings_common::settings_text_input_style;
+use crate::app::state::ProviderModelsSummary;
 use crate::app::{App, Message, message};
 
 pub(super) fn normalize_model_input(model: &str) -> String {
     let trimmed = model.trim();
     if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() }
+}
+
+pub(super) fn model_matches_query(
+    query: &str,
+    provider_id: &str,
+    provider_name: &str,
+    model_id: &str,
+    model_name: &str,
+) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    provider_id.to_ascii_lowercase().contains(query)
+        || provider_name.to_ascii_lowercase().contains(query)
+        || model_id.to_ascii_lowercase().contains(query)
+        || model_name.to_ascii_lowercase().contains(query)
+}
+
+pub(super) fn model_is_selected(current: &str, provider_id: &str, model_id: &str) -> bool {
+    if current.contains('/') {
+        current == format!("{}/{}", provider_id, model_id)
+    } else {
+        current == model_id
+    }
+}
+
+pub(super) fn truncated_model_name(name: &str) -> String {
+    let max_chars = 26usize;
+    if name.chars().count() > max_chars {
+        name.chars().take(max_chars.saturating_sub(1)).collect::<String>() + "…"
+    } else {
+        name.to_string()
+    }
+}
+
+pub(super) fn model_toggle_label(
+    providers: &[ProviderModelsSummary],
+    auto_model: bool,
+    model: &str,
+) -> String {
+    if auto_model {
+        return "自动模型".to_string();
+    }
+
+    let parsed = model.split_once('/');
+    let display = match parsed {
+        Some((provider_id, model_id)) => providers
+            .iter()
+            .find(|p| p.id.as_str() == provider_id)
+            .and_then(|p| p.models.iter().find(|m| m.id.as_str() == model_id))
+            .map(|m| m.name.clone()),
+        None => providers
+            .iter()
+            .find_map(|p| p.models.iter().find(|m| m.id.as_str() == model).map(|m| m.name.clone())),
+    };
+
+    display.unwrap_or_else(|| match parsed {
+        Some((_, model_id)) => model_id.to_string(),
+        None => model.to_string(),
+    })
+}
+
+pub(super) fn model_provider_icon_id(providers: &[ProviderModelsSummary], model: &str) -> String {
+    if model.contains('/') {
+        model.split('/').next().unwrap_or("agent").to_string()
+    } else {
+        providers
+            .iter()
+            .find_map(|p| p.models.iter().any(|m| m.id.as_str() == model).then_some(p.id.clone()))
+            .unwrap_or_else(|| "agent".to_string())
+    }
 }
 
 /// 创建模型切换按钮
@@ -76,45 +148,7 @@ pub fn model_toggle_button(
     .style(chevron_style);
 
     // 根据是否启用自动模型确定显示的标签文本
-    let toggle_label = if auto_model {
-        // 自动模型模式下显示固定文本
-        "自动模型".to_string()
-    } else {
-        // 手动模式下解析模型标识并查找对应的友好名称
-        let parsed = if model.contains('/') {
-            // 如果模型标识包含 '/'，则按 provider/model 格式解析
-            let parts = model.splitn(2, '/').collect::<Vec<_>>();
-            if parts.len() == 2 { Some((parts[0].to_string(), parts[1].to_string())) } else { None }
-        } else {
-            None
-        };
-
-        // 查找模型的友好显示名称
-        let display = match parsed.as_ref() {
-            // 如果是 provider/model 格式，先查找 provider 再查找 model
-            Some((provider_id, model_id)) => app
-                .model_settings
-                .providers
-                .iter()
-                .find(|p| &p.id == provider_id)
-                .and_then(|p| p.models.iter().find(|m| &m.id == model_id))
-                .map(|m| m.name.clone()),
-            // 如果是纯 model_id 格式，在所有 provider 中查找
-            None => app
-                .model_settings
-                .providers
-                .iter()
-                .find_map(|p| p.models.iter().find(|m| m.id == model).map(|m| m.name.clone())),
-        };
-
-        // 如果找不到友好名称，则使用原始模型标识
-        display.unwrap_or_else(|| {
-            parsed
-                .as_ref()
-                .map(|(_, model_id)| model_id.clone())
-                .unwrap_or_else(|| model.to_string())
-        })
-    };
+    let toggle_label = model_toggle_label(&app.model_settings.providers, auto_model, model);
 
     // 根据当前状态确定按钮图标
     let model_icon_svg = if auto_model {
@@ -122,17 +156,7 @@ pub fn model_toggle_button(
         themed_svg_handle(auto_icon(), BOTTOM_BAR_ICON_SIZE)
     } else {
         // 手动模式根据 provider 确定图标
-        let provider_id = if model.contains('/') {
-            // 从模型标识中提取 provider_id
-            model.split('/').next().unwrap_or("agent").to_string()
-        } else {
-            // 在所有 provider 中查找包含该模型的 provider
-            app.model_settings
-                .providers
-                .iter()
-                .find_map(|p| p.models.iter().any(|m| m.id == model).then_some(p.id.clone()))
-                .unwrap_or_else(|| "agent".to_string())
-        };
+        let provider_id = model_provider_icon_id(&app.model_settings.providers, model);
         themed_svg_handle(provider_logo_handle(&provider_id), BOTTOM_BAR_ICON_SIZE)
     };
 
@@ -204,29 +228,6 @@ pub fn model_popover_content<'a>(
     // 获取搜索关键词（转为小写用于不区分大小写的匹配）
     let query = app.model_settings.query.trim().to_ascii_lowercase();
 
-    // 检查模型是否匹配搜索关键词
-    // 同时搜索 provider_id、provider_name、model_id 和 model_name
-    let matches_query =
-        |provider_id: &str, provider_name: &str, model_id: &str, model_name: &str| -> bool {
-            if query.is_empty() {
-                return true;
-            }
-            provider_id.to_ascii_lowercase().contains(&query)
-                || provider_name.to_ascii_lowercase().contains(&query)
-                || model_id.to_ascii_lowercase().contains(&query)
-                || model_name.to_ascii_lowercase().contains(&query)
-        };
-
-    // 检查模型是否被选中
-    // 支持两种格式：provider/model 和纯 model_id
-    let is_selected = |current: &str, provider_id: &str, model_id: &str| -> bool {
-        if current.contains('/') {
-            current == format!("{}/{}", provider_id, model_id)
-        } else {
-            current == model_id
-        }
-    };
-
     // 搜索输入框
     let search = text_input("搜索模型…", &app.model_settings.query)
         .on_input(|v| Message::Settings(message::SettingsMessage::ModelQueryChanged(v)))
@@ -252,7 +253,7 @@ pub fn model_popover_content<'a>(
                 .models
                 .iter()
                 .filter(|m| m.enabled)
-                .filter(|m| matches_query(&p.id, &p.name, &m.id, &m.name))
+                .filter(|m| model_matches_query(&query, &p.id, &p.name, &m.id, &m.name))
                 .collect::<Vec<_>>();
             if models.is_empty() {
                 continue;
@@ -279,17 +280,10 @@ pub fn model_popover_content<'a>(
                 let model_key = format!("{}/{}", provider_id, model_id);
 
                 // 截断过长的模型名称（最多 26 个字符）
-                let display_name = {
-                    let max_chars = 26usize;
-                    let mut s = m.name.clone();
-                    if s.chars().count() > max_chars {
-                        s = s.chars().take(max_chars.saturating_sub(1)).collect::<String>() + "…";
-                    }
-                    s
-                };
+                let display_name = truncated_model_name(&m.name);
 
                 // 判断当前模型是否被选中
-                let selected = !auto_model && is_selected(model, &provider_id, &model_id);
+                let selected = !auto_model && model_is_selected(model, &provider_id, &model_id);
 
                 // 选中状态显示勾选图标，否则显示占位空间
                 let selected_badge: Element<'_, Message> = if selected {

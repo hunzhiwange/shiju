@@ -443,3 +443,7 @@ pub async fn terminate_default_queue_owner_for_session(session_id: &str) -> io::
 pub async fn wait_ms(ms: u64) {
     sleep(Duration::from_millis(ms)).await;
 }
+
+#[cfg(test)]
+#[path = "queue_lease_store_tests.rs"]
+mod queue_lease_store_tests;

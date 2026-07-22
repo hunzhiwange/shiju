@@ -14,12 +14,12 @@
 //!
 //! # 配置持久化
 //!
-//! 用户的配置会保存到 `~/.vibewindow/vibewindow.json` 文件的 `heartbeat` 字段中。
+//! 用户的配置会通过 Gateway 保存到共享数据库的 `heartbeat` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -152,7 +152,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::HeartbeatToChanged(v)),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro("心跳配置", "配置心跳任务的间隔、兜底消息与投递目标。"))
                 .width(Length::Fill),
@@ -170,10 +170,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
-
     col.into()
 }
 
@@ -183,7 +179,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         return dialog;
     }
 
-    let config_path = vw_config_types::paths::tilde_config_path("vibewindow.json");
     let help_text = r#"心跳配置说明
 
 一、作用
@@ -259,10 +254,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 1) 先确认 enabled=true。
 2) interval_minutes 不要太大，先设 1-5 分钟验证。
 3) 若配置 target，请同时填写 to。
-4) 确认文件路径是 {CONFIG_PATH}。
- 5) 修改后重启应用，观察运行日志是否出现 heartbeat tick。
+4) 确认 Gateway 可用且系统设置保存成功。
+5) 修改后重启应用，观察运行日志是否出现 heartbeat tick。
 "#;
-    let help_text = help_text.replace("{CONFIG_PATH}", &config_path);
 
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,

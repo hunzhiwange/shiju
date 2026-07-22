@@ -1,21 +1,35 @@
 use serde_json::json;
+use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
 use crate::client::test_support;
 
+fn assert_tenant_headers(
+    request: &test_support::RecordedRequest,
+    platform_id: &str,
+    company_id: &str,
+) {
+    assert_eq!(request.header(PLATFORM_ID_HEADER), Some(platform_id));
+    assert_eq!(request.header(COMPANY_ID_HEADER), Some(company_id));
+}
+
 #[tokio::test]
 async fn request_helpers_cover_http_verbs_success_404_decode_and_error_paths() {
-    let server = test_support::server(vec![
-        (200, json!({"ok": "get"})),
-        (200, json!({"ok": "post"})),
-        (200, json!({"ok": "patch"})),
-        (200, json!({"ok": "put"})),
-        (204, json!(null)),
-        (200, json!({"ok": "delete_json"})),
-        (200, json!({"ok": "optional"})),
-        (404, json!({"message": "missing"})),
-        (500, json!({"message": "boom"})),
-        (200, json!("not a number")),
-    ]);
+    let tenant_scope = TenantScope::new("platform-helpers", "company-helpers").expect("tenant");
+    let server = test_support::server_with_tenant_scope(
+        vec![
+            (200, json!({"ok": "get"})),
+            (200, json!({"ok": "post"})),
+            (200, json!({"ok": "patch"})),
+            (200, json!({"ok": "put"})),
+            (204, json!(null)),
+            (200, json!({"ok": "delete_json"})),
+            (200, json!({"ok": "optional"})),
+            (404, json!({"message": "missing"})),
+            (500, json!({"message": "boom"})),
+            (200, json!("not a number")),
+        ],
+        tenant_scope,
+    );
 
     let get: serde_json::Value = server
         .client()
@@ -58,36 +72,192 @@ async fn request_helpers_cover_http_verbs_success_404_decode_and_error_paths() {
         .expect_err("decode error");
     assert!(!decode_error.is_empty());
 
-    assert_eq!(server.take_request().path, "/helper/get?q=one");
+    let requests = (0..10).map(|_| server.take_request()).collect::<Vec<_>>();
+    for request in &requests {
+        assert_tenant_headers(request, "platform-helpers", "company-helpers");
+    }
+    assert_eq!(requests[0].path, "/helper/get?q=one");
+    assert_eq!(requests[1].method, "POST");
+    assert_eq!(requests[1].path, "/helper/post");
+    assert_eq!(requests[1].body, json!({"a": 1}));
+    assert_eq!(requests[2].method, "PATCH");
+    assert_eq!(requests[2].body, json!({"b": 2}));
+    assert_eq!(requests[3].method, "PUT");
+    assert_eq!(requests[3].body, json!({"c": 3}));
+    assert_eq!(requests[4].method, "DELETE");
+    assert_eq!(requests[5].method, "DELETE");
+    assert_eq!(requests[5].body, json!({"d": 4}));
+    assert_eq!(requests[6].path, "/helper/optional");
+    assert_eq!(requests[7].path, "/helper/missing");
+    assert_eq!(requests[8].path, "/helper/error");
+    assert_eq!(requests[9].path, "/helper/decode-error");
+    server.join();
+}
+
+#[tokio::test]
+async fn post_json_with_retry_retries_retryable_statuses_until_success() {
+    let server = test_support::server(vec![
+        (503, json!({"message": "warming up"})),
+        (429, json!({"message": "rate limited"})),
+        (200, json!({"accepted": true})),
+    ]);
+    let body = json!({"event_id": "event-1"});
+
+    let response: serde_json::Value = server
+        .client()
+        .post_json_with_retry(
+            "/helper/retry",
+            &[("source".to_string(), "test".to_string())],
+            &body,
+            super::GatewayRetryPolicy {
+                max_attempts: 3,
+                initial_backoff: std::time::Duration::ZERO,
+            },
+        )
+        .await
+        .expect("retry succeeds");
+
+    assert_eq!(response["accepted"], true);
+    let requests = (0..3).map(|_| server.take_request()).collect::<Vec<_>>();
+    assert!(requests.iter().all(|request| request.method == "POST"));
+    assert!(requests.iter().all(|request| request.path == "/helper/retry?source=test"));
+    assert!(requests.iter().all(|request| request.body == body));
+    server.join();
+}
+
+#[tokio::test]
+async fn post_json_with_retry_waits_for_non_zero_backoff_before_retrying() {
+    let server = test_support::server(vec![
+        (503, json!({"message": "warming up"})),
+        (200, json!({"accepted": true})),
+    ]);
+
+    let response: serde_json::Value = server
+        .client()
+        .post_json_with_retry(
+            "/helper/retry-with-backoff",
+            &[],
+            &json!({"event_id": "event-backoff"}),
+            super::GatewayRetryPolicy {
+                max_attempts: 2,
+                initial_backoff: std::time::Duration::from_millis(1),
+            },
+        )
+        .await
+        .expect("retry with non-zero backoff succeeds");
+
+    assert_eq!(response["accepted"], true);
+    assert_eq!(server.take_request().path, "/helper/retry-with-backoff");
+    assert_eq!(server.take_request().path, "/helper/retry-with-backoff");
+    server.join();
+}
+
+#[tokio::test]
+async fn post_json_with_retry_stops_on_non_retryable_status() {
+    let server = test_support::server(vec![(400, json!({"message": "invalid request"}))]);
+
+    let error = server
+        .client()
+        .post_json_with_retry::<_, serde_json::Value>(
+            "/helper/non-retryable",
+            &[],
+            &json!({"invalid": true}),
+            super::GatewayRetryPolicy {
+                max_attempts: 3,
+                initial_backoff: std::time::Duration::ZERO,
+            },
+        )
+        .await
+        .expect_err("400 is not retryable");
+
+    assert!(error.contains("gateway request failed: 400"));
     let request = server.take_request();
-    assert_eq!(request.method, "POST");
-    assert_eq!(request.path, "/helper/post");
-    assert_eq!(request.body, json!({"a": 1}));
+    assert_eq!(request.path, "/helper/non-retryable");
+    server.join();
+}
+
+#[tokio::test]
+async fn post_json_with_retry_zero_attempts_still_sends_once() {
+    let server = test_support::server(vec![(503, json!({"message": "unavailable"}))]);
+
+    let error = server
+        .client()
+        .post_json_with_retry::<_, serde_json::Value>(
+            "/helper/zero-attempts",
+            &[],
+            &json!({"event_id": "event-2"}),
+            super::GatewayRetryPolicy {
+                max_attempts: 0,
+                initial_backoff: std::time::Duration::ZERO,
+            },
+        )
+        .await
+        .expect_err("zero attempts is clamped to one");
+
+    assert!(error.contains("gateway request failed: 503"));
     let request = server.take_request();
-    assert_eq!(request.method, "PATCH");
-    assert_eq!(request.body, json!({"b": 2}));
-    let request = server.take_request();
-    assert_eq!(request.method, "PUT");
-    assert_eq!(request.body, json!({"c": 3}));
-    assert_eq!(server.take_request().method, "DELETE");
+    assert_eq!(request.path, "/helper/zero-attempts");
+    server.join();
+}
+
+#[tokio::test]
+async fn delete_empty_returns_status_and_response_body_on_failure() {
+    let server = test_support::server(vec![(405, json!({"message": "delete denied"}))]);
+
+    let error = server
+        .client()
+        .delete_empty("/helper/delete-denied", &[("force".to_string(), "false".to_string())])
+        .await
+        .expect_err("delete status error");
+
+    assert!(error.contains("gateway request failed: 405"));
+    assert!(error.contains("delete denied"));
     let request = server.take_request();
     assert_eq!(request.method, "DELETE");
-    assert_eq!(request.body, json!({"d": 4}));
-    assert_eq!(server.take_request().path, "/helper/optional");
-    assert_eq!(server.take_request().path, "/helper/missing");
-    assert_eq!(server.take_request().path, "/helper/error");
-    assert_eq!(server.take_request().path, "/helper/decode-error");
+    assert_eq!(request.path, "/helper/delete-denied?force=false");
+    server.join();
+}
+
+#[tokio::test]
+async fn get_json_with_404_maps_decode_and_non_not_found_errors() {
+    let server = test_support::server_raw(vec![
+        (200, "not-json".to_string()),
+        (500, json!({"message": "gateway failed"}).to_string()),
+    ]);
+
+    let decode_error = server
+        .client()
+        .get_json_with_404::<serde_json::Value>("/helper/optional-decode", &[])
+        .await
+        .expect_err("optional response decode error");
+    assert!(!decode_error.is_empty());
+
+    let status_error = server
+        .client()
+        .get_json_with_404::<serde_json::Value>("/helper/optional-error", &[])
+        .await
+        .expect_err("non-404 status error");
+    assert!(status_error.contains("gateway request failed: 500"));
+    assert!(status_error.contains("gateway failed"));
+
+    let requests = (0..2).map(|_| server.take_request()).collect::<Vec<_>>();
+    assert_eq!(requests[0].path, "/helper/optional-decode");
+    assert_eq!(requests[1].path, "/helper/optional-error");
     server.join();
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn get_json_blocking_maps_success_status_error_and_decode_error() {
-    let server = test_support::server(vec![
-        (200, json!({"ok": true})),
-        (500, json!({"message": "boom"})),
-        (200, json!("not a bool")),
-    ]);
+    let tenant_scope = TenantScope::new("platform-blocking", "company-blocking").expect("tenant");
+    let server = test_support::server_with_tenant_scope(
+        vec![
+            (200, json!({"ok": true})),
+            (500, json!({"message": "boom"})),
+            (200, json!("not a bool")),
+        ],
+        tenant_scope,
+    );
 
     let ok: serde_json::Value = super::get_json_blocking(
         server.client().endpoint(),
@@ -108,8 +278,12 @@ fn get_json_blocking_maps_success_status_error_and_decode_error() {
             .expect_err("blocking decode error");
     assert!(!decode_error.is_empty());
 
-    assert_eq!(server.take_request().path, "/blocking/ok?mode=sync");
-    assert_eq!(server.take_request().path, "/blocking/error");
-    assert_eq!(server.take_request().path, "/blocking/decode");
+    let requests = (0..3).map(|_| server.take_request()).collect::<Vec<_>>();
+    for request in &requests {
+        assert_tenant_headers(request, "platform-blocking", "company-blocking");
+    }
+    assert_eq!(requests[0].path, "/blocking/ok?mode=sync");
+    assert_eq!(requests[1].path, "/blocking/error");
+    assert_eq!(requests[2].path, "/blocking/decode");
     server.join();
 }

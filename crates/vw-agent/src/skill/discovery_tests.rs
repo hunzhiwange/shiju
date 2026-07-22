@@ -56,6 +56,20 @@ fn index_deserializes_skill_file_lists() {
     assert_eq!(index.skills[0].files, vec!["SKILL.md"]);
 }
 
+#[test]
+fn index_allows_missing_description_and_rejects_missing_files() {
+    let index: Index =
+        serde_json::from_str(r#"{"skills":[{"name":"rust","files":["SKILL.md"]}]}"#).unwrap();
+
+    assert_eq!(index.skills[0].description, None);
+    assert!(serde_json::from_str::<Index>(r#"{"skills":[{"name":"rust"}]}"#).is_err());
+}
+
+#[test]
+fn dir_returns_skills_subdirectory_of_global_cache() {
+    assert_eq!(dir(), global::paths().cache.join("skills"));
+}
+
 #[tokio::test]
 async fn pull_empty_url_returns_no_paths() {
     assert!(pull("  ").await.is_empty());
@@ -95,6 +109,53 @@ async fn download_if_missing_writes_success_and_reports_http_errors() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+async fn download_if_missing_reports_write_failure_for_directory_destination() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let dest = dir.path().join("existing-directory");
+    std::fs::create_dir_all(&dest).unwrap();
+    let (base_url, handle) =
+        spawn_http_server(vec![("/file.md".to_string(), 200, "downloaded".to_string())]);
+
+    assert!(!download_if_missing(&format!("{base_url}/file.md"), &dest).await);
+    assert!(dest.is_dir());
+
+    handle.join().expect("server thread");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn download_if_missing_rejects_invalid_url_without_creating_file() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let dest = dir.path().join("skill/SKILL.md");
+
+    assert!(!download_if_missing("not a url", &dest).await);
+    assert!(!dest.exists());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn pull_rejects_invalid_repository_url() {
+    assert!(pull("not a url").await.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn pull_rejects_unsuccessful_and_malformed_indexes() {
+    let (error_base_url, error_handle) =
+        spawn_http_server(vec![("/index.json".to_string(), 503, "unavailable".to_string())]);
+
+    assert!(pull(&error_base_url).await.is_empty());
+    error_handle.join().expect("error server thread");
+
+    let (invalid_base_url, invalid_handle) =
+        spawn_http_server(vec![("/index.json".to_string(), 200, "{".to_string())]);
+
+    assert!(pull(&invalid_base_url).await.is_empty());
+    invalid_handle.join().expect("invalid server thread");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
 async fn pull_downloads_valid_index_entries_and_skips_invalid_skills() {
     let skill_name = format!("served-skill-{}", std::process::id());
     let skill_root = dir().join(&skill_name);
@@ -128,6 +189,60 @@ async fn pull_downloads_valid_index_entries_and_skips_invalid_skills() {
     );
     assert_eq!(std::fs::read_to_string(skill_root.join("nested/info.md")).unwrap(), "nested");
     assert!(!skill_root.join("missing.md").exists());
+
+    let _ = std::fs::remove_dir_all(&skill_root);
+    handle.join().expect("server thread");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn pull_trims_base_and_file_paths_but_excludes_skill_without_manifest() {
+    let skill_name = format!("manifestless-skill-{}", std::process::id());
+    let skill_root = dir().join(&skill_name);
+    let _ = std::fs::remove_dir_all(&skill_root);
+    let index = serde_json::json!({
+        "skills": [{
+            "name": skill_name,
+            "files": [" docs/info.md "]
+        }]
+    })
+    .to_string();
+    let (base_url, handle) = spawn_http_server(vec![
+        ("/index.json".to_string(), 200, index),
+        (format!("/{skill_name}/docs/info.md"), 200, "details".to_string()),
+    ]);
+
+    let paths = pull(&format!("  {base_url}/  ")).await;
+
+    assert!(paths.is_empty());
+    assert_eq!(std::fs::read_to_string(skill_root.join("docs/info.md")).unwrap(), "details");
+
+    let _ = std::fs::remove_dir_all(&skill_root);
+    handle.join().expect("server thread");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn pull_preserves_cached_manifest() {
+    let skill_name = format!("cached-skill-{}", std::process::id());
+    let skill_root = dir().join(&skill_name);
+    let manifest = skill_root.join("SKILL.md");
+    let _ = std::fs::remove_dir_all(&skill_root);
+    std::fs::create_dir_all(&skill_root).unwrap();
+    std::fs::write(&manifest, "cached").unwrap();
+    let index = serde_json::json!({
+        "skills": [{
+            "name": skill_name,
+            "files": ["SKILL.md"]
+        }]
+    })
+    .to_string();
+    let (base_url, handle) = spawn_http_server(vec![("/index.json".to_string(), 200, index)]);
+
+    let paths = pull(&base_url).await;
+
+    assert_eq!(paths, vec![skill_root.clone()]);
+    assert_eq!(std::fs::read_to_string(&manifest).unwrap(), "cached");
 
     let _ = std::fs::remove_dir_all(&skill_root);
     handle.join().expect("server thread");

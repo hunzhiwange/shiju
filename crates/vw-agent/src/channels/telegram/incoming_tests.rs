@@ -47,6 +47,18 @@ fn extract_update_message_target_requires_message_chat_and_id() {
     );
     assert_eq!(
         TelegramChannel::extract_update_message_target(&serde_json::json!({
+            "message": {"message_id": 9}
+        })),
+        None
+    );
+    assert_eq!(
+        TelegramChannel::extract_update_message_target(&serde_json::json!({
+            "message": {"message_id": "9", "chat": {"id": 123}}
+        })),
+        None
+    );
+    assert_eq!(
+        TelegramChannel::extract_update_message_target(&serde_json::json!({
             "message": {"message_id": 9, "chat": {"id": "123"}}
         })),
         None
@@ -65,6 +77,12 @@ fn group_message_only_accepts_group_types() {
 
 #[test]
 fn extract_sender_info_falls_back_to_id_then_unknown() {
+    let with_username = serde_json::json!({"from": {"id": 7, "username": "alice"}});
+    assert_eq!(
+        TelegramChannel::extract_sender_info(&with_username),
+        ("alice".to_string(), Some("7".to_string()), "alice".to_string())
+    );
+
     let with_id = serde_json::json!({"from": {"id": 42}});
     assert_eq!(
         TelegramChannel::extract_sender_info(&with_id),
@@ -124,6 +142,47 @@ fn extract_reply_context_uses_cached_voice_transcription_when_available() {
 }
 
 #[test]
+fn extract_reply_context_formats_uncached_voice_audio_unknown_and_generic_messages() {
+    let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
+
+    let voice_without_lookup_key = serde_json::json!({
+        "reply_to_message": {
+            "from": {"username": "alice"},
+            "voice": {"file_id": "voice"}
+        }
+    });
+    assert_eq!(
+        ch.extract_reply_context(&voice_without_lookup_key).unwrap(),
+        "> @alice:\n> [Voice message]"
+    );
+
+    let audio_without_cache_hit = serde_json::json!({
+        "chat": {"id": 100},
+        "reply_to_message": {
+            "message_id": 56,
+            "from": {"username": "alice"},
+            "audio": {"file_id": "audio"}
+        }
+    });
+    assert_eq!(
+        ch.extract_reply_context(&audio_without_cache_hit).unwrap(),
+        "> @alice:\n> [Voice message]"
+    );
+
+    let generic_without_sender = serde_json::json!({
+        "reply_to_message": {
+            "message_id": 57
+        }
+    });
+    assert_eq!(
+        ch.extract_reply_context(&generic_without_sender).unwrap(),
+        "> @unknown:\n> [Message]"
+    );
+
+    assert!(ch.extract_reply_context(&serde_json::json!({"text": "plain"})).is_none());
+}
+
+#[test]
 fn parse_update_message_filters_missing_text_and_unauthorized_senders() {
     let ch = TelegramChannel::new("token".into(), vec!["alice".into()], false);
 
@@ -138,6 +197,50 @@ fn parse_update_message_filters_missing_text_and_unauthorized_senders() {
         }
     });
     assert!(ch.parse_update_message(&update).is_none());
+}
+
+#[test]
+fn parse_update_message_accepts_numeric_allowlist_and_defaults_missing_message_id() {
+    let ch = TelegramChannel::new("token".into(), vec!["42".into()], false);
+    let update = serde_json::json!({
+        "message": {
+            "text": "ping",
+            "from": {"id": 42},
+            "chat": {"id": 123, "type": "private"}
+        }
+    });
+
+    let parsed = ch.parse_update_message(&update).unwrap();
+
+    assert_eq!(parsed.id, "telegram_123_0");
+    assert_eq!(parsed.sender, "42");
+    assert_eq!(parsed.reply_target, "123");
+    assert_eq!(parsed.thread_ts, None);
+    assert_eq!(parsed.content, "ping");
+}
+
+#[test]
+fn parse_update_message_rejects_missing_chat_and_missing_bot_username() {
+    let ch = TelegramChannel::new("token".into(), vec!["alice".into()], false);
+    let missing_chat = serde_json::json!({
+        "message": {
+            "message_id": 1,
+            "text": "hello",
+            "from": {"id": 2, "username": "alice"}
+        }
+    });
+    assert!(ch.parse_update_message(&missing_chat).is_none());
+
+    let mention_only = TelegramChannel::new("token".into(), vec!["alice".into()], true);
+    let group = serde_json::json!({
+        "message": {
+            "message_id": 2,
+            "text": "@vibebot hello",
+            "from": {"id": 2, "username": "alice"},
+            "chat": {"id": -100, "type": "group"}
+        }
+    });
+    assert!(mention_only.parse_update_message(&group).is_none());
 }
 
 #[test]
@@ -161,6 +264,27 @@ fn parse_update_message_builds_private_and_threaded_channel_messages() {
     assert_eq!(parsed.thread_ts.as_deref(), Some("9"));
     assert_eq!(parsed.channel, "telegram");
     assert_eq!(parsed.content, "hello");
+}
+
+#[test]
+fn parse_update_message_prepends_reply_context() {
+    let ch = TelegramChannel::new("token".into(), vec!["alice".into()], false);
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 44,
+            "text": "answer this",
+            "from": {"id": 2, "username": "alice"},
+            "chat": {"id": 123, "type": "private"},
+            "reply_to_message": {
+                "from": {"username": "bob"},
+                "text": "line one"
+            }
+        }
+    });
+
+    let parsed = ch.parse_update_message(&update).unwrap();
+
+    assert_eq!(parsed.content, "> @bob:\n> line one\n\nanswer this");
 }
 
 #[test]
@@ -192,4 +316,21 @@ fn parse_update_message_honors_mention_only_and_allowed_group_sender_bypass() {
         .with_group_reply_allowed_senders(vec!["2".into()]);
     let parsed = bypass.parse_update_message(&unmentioned).unwrap();
     assert_eq!(parsed.content, "hello room");
+}
+
+#[test]
+fn parse_update_message_drops_group_mention_that_normalizes_to_empty() {
+    let ch = TelegramChannel::new("token".into(), vec!["alice".into()], true);
+    *ch.bot_username.lock() = Some("vibebot".to_string());
+
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 1,
+            "text": " @vibebot  ",
+            "from": {"id": 2, "username": "alice"},
+            "chat": {"id": -100, "type": "group"}
+        }
+    });
+
+    assert!(ch.parse_update_message(&update).is_none());
 }

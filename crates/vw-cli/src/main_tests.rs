@@ -9,5 +9,33 @@ fn binary_main_is_tokio_entry_source() {
     let source = include_str!("main.rs");
 
     assert!(source.contains("#[tokio::main]"));
-    assert!(source.contains("vw_cli::run().await"));
+    assert!(source.contains("run_cli(vw_cli::run).await"));
+}
+
+#[tokio::test]
+async fn run_cli_returns_delegate_success() {
+    let result = super::run_cli(|| async { Ok::<(), anyhow::Error>(()) }).await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn run_cli_propagates_delegate_error() {
+    let result =
+        super::run_cli(|| async { Err::<(), _>(anyhow::anyhow!("delegate failed")) }).await;
+
+    assert_eq!(result.unwrap_err().to_string(), "delegate failed");
+}
+
+#[tokio::test]
+async fn run_cli_invokes_fn_once_delegate_exactly_once() {
+    let mut calls = 0;
+    let result = super::run_cli(|| {
+        calls += 1;
+        async { Ok::<(), anyhow::Error>(()) }
+    })
+    .await;
+
+    assert!(result.is_ok());
+    assert_eq!(calls, 1);
 }

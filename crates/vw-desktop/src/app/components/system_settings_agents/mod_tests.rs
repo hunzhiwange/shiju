@@ -32,3 +32,33 @@ fn agents_view_routes_each_detail_tab() {
         let _: iced::Element<'_, crate::app::Message> = super::view(&app);
     }
 }
+
+#[test]
+fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
+    let (mut app, _) = crate::app::App::new();
+    let mut main = app.agents_settings.entries[0].clone();
+    main.key = "main".to_string();
+    main.label = "Main".to_string();
+    main.enabled = true;
+    main.model.clear();
+
+    let mut enabled = main.clone();
+    enabled.key = "enabled-worker".to_string();
+    enabled.label = "Enabled worker".to_string();
+    enabled.kind = crate::app::state::AgentSettingsEntryKind::BuiltinWorker;
+    enabled.model = "provider/model".to_string();
+
+    let mut disabled = main.clone();
+    disabled.key = "disabled-custom".to_string();
+    disabled.label = "Disabled custom".to_string();
+    disabled.kind = crate::app::state::AgentSettingsEntryKind::Custom;
+    disabled.enabled = false;
+    disabled.model = "   ".to_string();
+
+    app.agents_settings.entries = vec![main, enabled, disabled];
+    app.agents_settings.selected_agent = "enabled-worker".to_string();
+
+    let element = super::view(&app);
+
+    assert_eq!(element.as_widget().children().len(), 3);
+}

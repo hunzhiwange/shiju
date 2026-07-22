@@ -95,6 +95,17 @@ fn config_deserialization_fills_defaults() {
     assert_eq!(cfg.github_token.as_deref(), Some("token"));
 }
 
+#[test]
+fn config_deserialization_rejects_invalid_field_types() {
+    let error = serde_json::from_str::<SkillForgeConfig>(
+        r#"{"enabled":"yes","scan_interval_hours":"often","min_score":"high"}"#,
+    )
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.contains("invalid type"), "{error}");
+}
+
 #[tokio::test]
 async fn enabled_unimplemented_sources_return_empty_report_without_network() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -112,4 +123,231 @@ async fn enabled_unimplemented_sources_return_empty_report_without_network() {
     assert_eq!(report.auto_integrated, 0);
     assert_eq!(report.manual_review, 0);
     assert_eq!(report.skipped, 0);
+}
+
+#[test]
+fn empty_config_deserialization_matches_default() {
+    let cfg: SkillForgeConfig = serde_json::from_str("{}").unwrap();
+
+    assert!(!cfg.enabled);
+    assert!(cfg.auto_integrate);
+    assert_eq!(cfg.sources, vec!["github", "clawhub"]);
+    assert_eq!(cfg.scan_interval_hours, 24);
+    assert!((cfg.min_score - 0.7).abs() < f64::EPSILON);
+    assert_eq!(cfg.github_token, None);
+    assert_eq!(cfg.output_dir, "./skills");
+}
+
+#[test]
+fn explicit_config_json_round_trip_preserves_all_fields() {
+    let cfg = SkillForgeConfig {
+        enabled: true,
+        auto_integrate: false,
+        sources: vec!["huggingface".to_string()],
+        scan_interval_hours: 6,
+        min_score: 0.85,
+        github_token: Some("placeholder-token".to_string()),
+        output_dir: "custom-skills".to_string(),
+    };
+
+    let encoded = serde_json::to_string(&cfg).unwrap();
+    let decoded: SkillForgeConfig = serde_json::from_str(&encoded).unwrap();
+
+    assert!(decoded.enabled);
+    assert!(!decoded.auto_integrate);
+    assert_eq!(decoded.sources, vec!["huggingface"]);
+    assert_eq!(decoded.scan_interval_hours, 6);
+    assert!((decoded.min_score - 0.85).abs() < f64::EPSILON);
+    assert_eq!(decoded.github_token.as_deref(), Some("placeholder-token"));
+    assert_eq!(decoded.output_dir, "custom-skills");
+}
+
+#[test]
+fn debug_without_github_token_reports_none() {
+    let rendered = format!("{:?}", SkillForgeConfig::default());
+
+    assert!(rendered.contains("github_token: None"));
+    assert!(rendered.contains("output_dir: \"./skills\""));
+}
+
+#[tokio::test]
+async fn disabled_forge_ignores_external_configuration_and_returns_fully_empty_report() {
+    let cfg = SkillForgeConfig {
+        enabled: false,
+        sources: vec!["unknown-network-source".to_string()],
+        output_dir: "unused-output-path".to_string(),
+        ..Default::default()
+    };
+
+    let report = SkillForge::new(cfg).forge().await.unwrap();
+
+    assert_eq!(report.discovered, 0);
+    assert_eq!(report.evaluated, 0);
+    assert_eq!(report.auto_integrated, 0);
+    assert_eq!(report.manual_review, 0);
+    assert_eq!(report.skipped, 0);
+    assert!(report.results.is_empty());
+}
+
+#[tokio::test]
+async fn enabled_forge_with_no_sources_returns_fully_empty_report() {
+    let cfg = SkillForgeConfig { enabled: true, sources: Vec::new(), ..Default::default() };
+
+    let report = SkillForge::new(cfg).forge().await.unwrap();
+
+    assert_eq!(report.discovered, 0);
+    assert_eq!(report.evaluated, 0);
+    assert_eq!(report.auto_integrated, 0);
+    assert_eq!(report.manual_review, 0);
+    assert_eq!(report.skipped, 0);
+    assert!(report.results.is_empty());
+}
+
+#[test]
+fn forge_report_json_round_trip_preserves_summary_and_detailed_result() {
+    use super::evaluate::Scores;
+
+    let report = ForgeReport {
+        discovered: 1,
+        evaluated: 1,
+        auto_integrated: 0,
+        manual_review: 1,
+        skipped: 0,
+        results: vec![EvalResult {
+            candidate: ScoutResult {
+                name: "review-me".to_string(),
+                url: "https://example.invalid/review-me".to_string(),
+                description: "fixture candidate".to_string(),
+                stars: 12,
+                language: Some("Rust".to_string()),
+                updated_at: None,
+                source: ScoutSource::ClawHub,
+                owner: "fixture-owner".to_string(),
+                has_license: true,
+            },
+            scores: Scores { compatibility: 0.8, quality: 0.6, security: 0.9 },
+            total_score: 0.765,
+            recommendation: Recommendation::Manual,
+        }],
+    };
+
+    let encoded = serde_json::to_string(&report).unwrap();
+    let decoded: ForgeReport = serde_json::from_str(&encoded).unwrap();
+
+    assert_eq!(decoded.discovered, 1);
+    assert_eq!(decoded.evaluated, 1);
+    assert_eq!(decoded.auto_integrated, 0);
+    assert_eq!(decoded.manual_review, 1);
+    assert_eq!(decoded.skipped, 0);
+    assert_eq!(decoded.results.len(), 1);
+    let result = &decoded.results[0];
+    assert_eq!(result.candidate.name, "review-me");
+    assert_eq!(result.candidate.source, ScoutSource::ClawHub);
+    assert!((result.total_score - 0.765).abs() < f64::EPSILON);
+    assert_eq!(result.recommendation, Recommendation::Manual);
+}
+
+#[test]
+fn report_from_candidates_dedups_and_counts_auto_manual_and_skip_results() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let forge = SkillForge::new(SkillForgeConfig {
+        enabled: true,
+        output_dir: dir.path().to_string_lossy().to_string(),
+        ..Default::default()
+    });
+
+    let auto = candidate("auto-skill", "https://example.invalid/auto", "Rust", 2_000, true);
+    let mut duplicate_auto = auto.clone();
+    duplicate_auto.name = "duplicate-auto-skill".to_string();
+    let manual = candidate("manual-skill", "https://example.invalid/manual", "Python", 10, false);
+    let skip = ScoutResult {
+        name: "skip-skill".to_string(),
+        url: "https://example.invalid/skip".to_string(),
+        description: "contains malware marker".to_string(),
+        stars: 0,
+        language: None,
+        updated_at: None,
+        source: ScoutSource::ClawHub,
+        owner: "fixture-owner".to_string(),
+        has_license: false,
+    };
+
+    let report =
+        forge.report_from_candidates(vec![auto, duplicate_auto, manual, skip]).expect("report");
+
+    assert_eq!(report.discovered, 3);
+    assert_eq!(report.evaluated, 3);
+    assert_eq!(report.auto_integrated, 1);
+    assert_eq!(report.manual_review, 1);
+    assert_eq!(report.skipped, 1);
+    assert!(dir.path().join("auto-skill").join("SKILL.toml").exists());
+    assert!(report.results.iter().any(|result| result.recommendation == Recommendation::Manual));
+    assert!(report.results.iter().any(|result| result.recommendation == Recommendation::Skip));
+}
+
+#[test]
+fn report_from_candidates_marks_auto_candidates_for_review_when_auto_integrate_is_disabled() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let forge = SkillForge::new(SkillForgeConfig {
+        enabled: true,
+        auto_integrate: false,
+        output_dir: dir.path().to_string_lossy().to_string(),
+        ..Default::default()
+    });
+
+    let report = forge
+        .report_from_candidates(vec![candidate(
+            "manual-auto-skill",
+            "https://example.invalid/manual-auto",
+            "Rust",
+            2_000,
+            true,
+        )])
+        .expect("report");
+
+    assert_eq!(report.discovered, 1);
+    assert_eq!(report.auto_integrated, 0);
+    assert_eq!(report.manual_review, 1);
+    assert!(!dir.path().join("manual-auto-skill").exists());
+}
+
+#[test]
+fn report_from_candidates_continues_when_auto_integration_fails() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let forge = SkillForge::new(SkillForgeConfig {
+        enabled: true,
+        output_dir: dir.path().to_string_lossy().to_string(),
+        ..Default::default()
+    });
+
+    let report = forge
+        .report_from_candidates(vec![candidate(
+            "..",
+            "https://example.invalid/bad-name",
+            "Rust",
+            2_000,
+            true,
+        )])
+        .expect("report");
+
+    assert_eq!(report.discovered, 1);
+    assert_eq!(report.evaluated, 1);
+    assert_eq!(report.auto_integrated, 0);
+    assert_eq!(report.manual_review, 0);
+    assert_eq!(report.skipped, 0);
+    assert_eq!(report.results[0].recommendation, Recommendation::Auto);
+}
+
+fn candidate(name: &str, url: &str, language: &str, stars: u64, has_license: bool) -> ScoutResult {
+    ScoutResult {
+        name: name.to_string(),
+        url: url.to_string(),
+        description: "fixture candidate".to_string(),
+        stars,
+        language: Some(language.to_string()),
+        updated_at: Some(chrono::Utc::now()),
+        source: ScoutSource::GitHub,
+        owner: "fixture-owner".to_string(),
+        has_license,
+    }
 }

@@ -17,12 +17,30 @@ fn display_drag_path_uses_project_relative_path() {
 }
 
 #[test]
+fn display_drag_path_handles_project_root_itself() {
+    let path = "/workspace/app";
+
+    let display = super::display_drag_path(path, Some("/workspace/app"));
+
+    assert_eq!(display, "");
+}
+
+#[test]
 fn display_drag_path_keeps_absolute_path_when_outside_project() {
     let path = "/tmp/notes.md";
 
     let display = super::display_drag_path(path, Some("/workspace/app"));
 
     assert_eq!(display, "/tmp/notes.md");
+}
+
+#[test]
+fn display_drag_path_does_not_strip_partial_component_prefix() {
+    let path = "/workspace/application/src/main.rs";
+
+    let display = super::display_drag_path(path, Some("/workspace/app"));
+
+    assert_eq!(display, "/workspace/application/src/main.rs");
 }
 
 #[test]
@@ -50,7 +68,12 @@ fn clamp_badge_position_offsets_top_chrome() {
     let (x, y) = super::clamp_badge_position(cursor, (1200.0, 800.0));
 
     assert_eq!(x, 320.0);
-    assert!(y < cursor.y);
+    assert_eq!(
+        y,
+        cursor.y
+            - crate::app::components::top_bar::TOP_BAR_HEIGHT
+            - crate::app::components::tab_bar::TAB_BAR_HEIGHT
+    );
 }
 
 #[test]
@@ -76,6 +99,15 @@ fn clamp_badge_position_handles_tiny_window() {
     let cursor = Point::new(20.0, 80.0);
 
     let (x, y) = super::clamp_badge_position(cursor, (120.0, 30.0));
+
+    assert_eq!((x, y), (0.0, 0.0));
+}
+
+#[test]
+fn clamp_badge_position_allows_origin_when_window_matches_badge_size() {
+    let cursor = Point::new(30.0, 160.0);
+
+    let (x, y) = super::clamp_badge_position(cursor, (260.0, 42.0));
 
     assert_eq!((x, y), (0.0, 0.0));
 }

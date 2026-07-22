@@ -74,27 +74,12 @@ impl App {
         let content: Element<'_, Message> = match self.screen {
             Screen::Home => views::home::view(self),
             Screen::Project => views::project::view(self),
-            Screen::Design => views::design::view(self),
             Screen::Preview => components::preview_panel::view(self),
             Screen::Apps => views::apps::view(self),
             Screen::Usage => views::usage::view(self),
-            Screen::JsonTool => views::json_tool::view(self),
-            Screen::JsonYamlTool => views::json_yaml_tool::view(self),
             Screen::Knowledge => views::knowledge::view(self),
-            Screen::SqlTool => views::sql_tool::view(self),
-            Screen::RedisTool => views::redis_tool::view(self),
-            Screen::HtmlTool => views::html_tool::view(self),
-            Screen::JsonDiffTool => views::json_diff_tool::view(self),
-            Screen::MarkdownTool => views::markdown_tool::view(self),
             Screen::WorkflowTool => crate::apps::workflow::view(self),
-            Screen::MindMapTool => crate::apps::mindmap::view(self),
-            Screen::PasswordTool => views::password_tool::view(self),
-            Screen::BaseTool => views::base_tool::view(self),
-            Screen::TimestampTool => views::timestamp_tool::view(self),
-            Screen::QrTool => views::qr_tool::view(self),
-            Screen::ColorTool => views::color_tool::view(self),
-            Screen::CleanerTool => views::cleaner_tool::view(self),
-            Screen::LargeFileTool => views::large_file_tool::view(self),
+            Screen::WorkflowManager => views::workflow_manager::view(self),
             Screen::TaskBoard => views::task_board::view(self),
         };
 
@@ -205,7 +190,7 @@ impl App {
         // 如果显示了 CLI 安装提示模态框，则在根内容之上叠加
         let root_content: Element<'_, Message> = if self.show_cli_install_modal {
             let modal = if self.cli_install_modal_show_update_action {
-                components::install_cli_modal::view_update_check(
+                components::install_cli_modal::view_update_check_with_progress(
                     &self.cli_install_modal_title,
                     &self.cli_install_modal_message,
                     &self.cli_install_modal_current_version,
@@ -213,6 +198,8 @@ impl App {
                     self.cli_install_modal_is_checking_update,
                     self.cli_install_modal_show_install_action,
                     self.cli_install_modal_use_app_update_action,
+                    self.app_update_progress.as_ref(),
+                    self.last_copied_code_hash,
                 )
             } else {
                 components::install_cli_modal::view(

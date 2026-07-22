@@ -465,3 +465,150 @@ fn with_parts_round_trips_info_and_parts_together() {
     assert_eq!(parsed.info.id(), "assistant-1");
     assert_eq!(parsed.parts.len(), 12);
 }
+
+#[test]
+fn file_diff_summary_defaults_missing_diffs_to_empty() {
+    let summary: FileDiffSummary = serde_json::from_value(json!({
+        "title": "No changes",
+        "body": null
+    }))
+    .unwrap();
+
+    assert_eq!(summary.title.as_deref(), Some("No changes"));
+    assert!(summary.body.is_none());
+    assert!(summary.diffs.is_empty());
+}
+
+#[test]
+fn nested_wire_names_are_preserved_for_subtask_and_tool_parts() {
+    let subtask = Part::Subtask(SubtaskPart {
+        base: base("subtask-wire"),
+        prompt: "Inspect".to_string(),
+        description: "Inspect the workspace".to_string(),
+        agent: "reviewer".to_string(),
+        model: Some(SubtaskModel {
+            provider_id: "provider".to_string(),
+            model_id: "model".to_string(),
+        }),
+        command: None,
+    });
+    let tool = Part::Tool(ToolPart {
+        base: base("tool-wire"),
+        call_id: "call-9".to_string(),
+        tool: "read".to_string(),
+        state: ToolState::Pending(ToolStatePending { input: Map::new(), raw: "{}".to_string() }),
+        metadata: None,
+    });
+
+    let subtask_value = serde_json::to_value(subtask).unwrap();
+    let tool_value = serde_json::to_value(tool).unwrap();
+
+    assert_eq!(subtask_value["model"]["providerID"], "provider");
+    assert_eq!(subtask_value["model"]["modelID"], "model");
+    assert!(subtask_value.get("command").is_none());
+    assert_eq!(tool_value["callID"], "call-9");
+    assert!(tool_value.get("metadata").is_none());
+}
+
+#[test]
+fn optional_state_and_event_fields_are_omitted_when_absent() {
+    let running = ToolState::Running(ToolStateRunning {
+        input: Map::new(),
+        title: None,
+        metadata: None,
+        time: PartTime { start: 1, end: None },
+    });
+    let completed = ToolState::Completed(ToolStateCompleted {
+        input: Map::new(),
+        output: "done".to_string(),
+        title: "Done".to_string(),
+        metadata: Map::new(),
+        time: ToolStateCompletedTime { start: 1, end: 2, compacted: None },
+        attachments: None,
+    });
+    let error = ToolState::Error(ToolStateError {
+        input: Map::new(),
+        error: "failed".to_string(),
+        metadata: None,
+        time: PartTime { start: 1, end: None },
+    });
+    let agent = Part::Agent(AgentPart {
+        base: base("agent-min"),
+        name: "reviewer".to_string(),
+        source: None,
+    });
+    let step_start =
+        Part::StepStart(StepStartPart { base: base("step-start-min"), snapshot: None });
+
+    let running_value = serde_json::to_value(running).unwrap();
+    let completed_value = serde_json::to_value(completed).unwrap();
+    let error_value = serde_json::to_value(error).unwrap();
+    let agent_value = serde_json::to_value(agent).unwrap();
+    let step_start_value = serde_json::to_value(step_start).unwrap();
+
+    assert!(running_value.get("title").is_none());
+    assert!(running_value.get("metadata").is_none());
+    assert!(running_value["time"].get("end").is_none());
+    assert!(completed_value["time"].get("compacted").is_none());
+    assert!(completed_value.get("attachments").is_none());
+    assert!(error_value.get("metadata").is_none());
+    assert!(error_value["time"].get("end").is_none());
+    assert!(agent_value.get("source").is_none());
+    assert!(step_start_value.get("snapshot").is_none());
+}
+
+#[test]
+fn assistant_error_optional_payloads_are_omitted_when_absent() {
+    let context = AssistantError::ContextOverflowError {
+        message: "too large".to_string(),
+        response_body: None,
+    };
+    let api = AssistantError::APIError {
+        message: "unavailable".to_string(),
+        status_code: None,
+        is_retryable: false,
+        response_headers: None,
+        response_body: None,
+        metadata: None,
+    };
+
+    let context_value = serde_json::to_value(context).unwrap();
+    let api_value = serde_json::to_value(api).unwrap();
+
+    assert!(context_value.get("response_body").is_none());
+    assert!(api_value.get("status_code").is_none());
+    assert!(api_value.get("response_headers").is_none());
+    assert!(api_value.get("response_body").is_none());
+    assert!(api_value.get("metadata").is_none());
+    assert_eq!(api_value["is_retryable"], false);
+}
+
+#[test]
+fn unknown_discriminator_values_are_rejected() {
+    let unknown_info = json!({ "role": "system" });
+    let unknown_part = json!({ "type": "audio" });
+    let unknown_source = json!({ "type": "database" });
+    let unknown_state = json!({ "status": "cancelled" });
+
+    assert!(serde_json::from_value::<Info>(unknown_info).is_err());
+    assert!(serde_json::from_value::<Part>(unknown_part).is_err());
+    assert!(serde_json::from_value::<FilePartSource>(unknown_source).is_err());
+    assert!(serde_json::from_value::<ToolState>(unknown_state).is_err());
+}
+
+#[test]
+fn required_wire_fields_are_rejected_when_missing() {
+    let missing_message_id = json!({
+        "type": "text",
+        "id": "text-1",
+        "sessionID": "session-1",
+        "text": "hello"
+    });
+    let missing_tool_input = json!({
+        "status": "pending",
+        "raw": "{}"
+    });
+
+    assert!(serde_json::from_value::<Part>(missing_message_id).is_err());
+    assert!(serde_json::from_value::<ToolState>(missing_tool_input).is_err());
+}

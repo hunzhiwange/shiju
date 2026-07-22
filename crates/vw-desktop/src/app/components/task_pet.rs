@@ -480,9 +480,12 @@ fn avatar_cycle_button() -> Element<'static, Message> {
     .into()
 }
 
+/// 收起态计数圆形徽标尺寸：较常规按钮缩小约 1/3，避免在小窗里喧宾夺主。
+const BADGE_BUTTON_SIZE: f32 = 16.0;
+
 fn badge_button(count: usize) -> Element<'static, Message> {
     let label = container(
-        text(count.to_string()).size(12).line_height(1.0).color(Color::from_rgb8(2, 36, 24)),
+        text(count.to_string()).size(8).line_height(1.0).color(Color::from_rgb8(2, 36, 24)),
     )
     .width(Length::Fill)
     .height(Length::Fill)
@@ -490,8 +493,8 @@ fn badge_button(count: usize) -> Element<'static, Message> {
     .center_y(Length::Fill);
 
     button(label)
-        .width(Length::Fixed(24.0))
-        .height(Length::Fixed(24.0))
+        .width(Length::Fixed(BADGE_BUTTON_SIZE))
+        .height(Length::Fixed(BADGE_BUTTON_SIZE))
         .padding(0)
         .style(green_badge_button_style)
         .on_press(Message::View(message::ViewMessage::TaskPetToggleCollapsed))
@@ -795,7 +798,11 @@ fn green_badge_button_style(_theme: &Theme, status: button::Status) -> button::S
     button::Style {
         background: Some(Background::Color(background)),
         text_color: Color::from_rgb8(2, 36, 24),
-        border: Border { radius: 12.0.into(), width: 0.0, color: Color::TRANSPARENT },
+        border: Border {
+            radius: (BADGE_BUTTON_SIZE / 2.0).into(),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
         ..Default::default()
     }
 }

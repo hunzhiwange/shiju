@@ -6,8 +6,8 @@
 //! - 频道退避策略：控制通信频道（如 Telegram、Discord）重连时的退避时间
 //! - 调度器配置：控制定时任务的轮询间隔和重试行为
 //!
-//! # 配置文件位置
-//! 配置将保存到 `~/.vibewindow/vibewindow.json` 的 `reliability` 字段中
+//! # 配置存储位置
+//! 配置将通过 Gateway 保存到共享数据库的 `reliability` 字段中
 //!
 //! # 主要功能
 //! - 提供直观的滑块控件调整各项参数
@@ -15,8 +15,8 @@
 //! - 提供详细的帮助文档模态框说明各参数含义
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_error_banner, settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_help_button, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{column, container, row, slider, text};
@@ -45,6 +45,40 @@ fn field_row<'a>(
     .into()
 }
 
+fn provider_retries_changed(v: f32) -> Message {
+    Message::Settings(message::SettingsMessage::ReliabilityProviderRetriesChanged(v.round() as u32))
+}
+
+fn provider_backoff_ms_changed(v: f32) -> Message {
+    Message::Settings(message::SettingsMessage::ReliabilityProviderBackoffMsChanged(
+        v.round() as u64
+    ))
+}
+
+fn channel_initial_backoff_secs_changed(v: f32) -> Message {
+    Message::Settings(message::SettingsMessage::ReliabilityChannelInitialBackoffSecsChanged(
+        v.round() as u64,
+    ))
+}
+
+fn channel_max_backoff_secs_changed(v: f32) -> Message {
+    Message::Settings(message::SettingsMessage::ReliabilityChannelMaxBackoffSecsChanged(
+        v.round() as u64
+    ))
+}
+
+fn scheduler_poll_secs_changed(v: f32) -> Message {
+    Message::Settings(message::SettingsMessage::ReliabilitySchedulerPollSecsChanged(
+        v.round() as u64
+    ))
+}
+
+fn scheduler_retries_changed(v: f32) -> Message {
+    Message::Settings(
+        message::SettingsMessage::ReliabilitySchedulerRetriesChanged(v.round() as u32),
+    )
+}
+
 /// 渲染可靠性配置设置视图
 ///
 /// 创建包含多个配置项的表单界面，用户可以通过滑块调整各项可靠性参数。
@@ -71,12 +105,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let help_btn =
         settings_help_button(Message::Settings(message::SettingsMessage::ReliabilityHelpOpen));
 
-    let provider_retries_slider = slider(0.0..=20.0, s.provider_retries as f32, |v| {
-        Message::Settings(message::SettingsMessage::ReliabilityProviderRetriesChanged(
-            v.round() as u32
-        ))
-    })
-    .width(Length::Fixed(280.0));
+    let provider_retries_slider =
+        slider(0.0..=20.0, s.provider_retries as f32, provider_retries_changed)
+            .width(Length::Fixed(280.0));
 
     let provider_retries_row = field_row(
         "Provider 重试",
@@ -86,12 +117,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let provider_backoff_slider = slider(0.0..=60_000.0, s.provider_backoff_ms as f32, |v| {
-        Message::Settings(message::SettingsMessage::ReliabilityProviderBackoffMsChanged(
-            v.round() as u64
-        ))
-    })
-    .width(Length::Fixed(280.0));
+    let provider_backoff_slider =
+        slider(0.0..=60_000.0, s.provider_backoff_ms as f32, provider_backoff_ms_changed)
+            .width(Length::Fixed(280.0));
 
     let provider_backoff_row = field_row(
         "Provider 退避",
@@ -104,11 +132,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Center),
     );
 
-    let channel_initial_slider = slider(1.0..=3600.0, s.channel_initial_backoff_secs as f32, |v| {
-        Message::Settings(message::SettingsMessage::ReliabilityChannelInitialBackoffSecsChanged(
-            v.round() as u64,
-        ))
-    })
+    let channel_initial_slider = slider(
+        1.0..=3600.0,
+        s.channel_initial_backoff_secs as f32,
+        channel_initial_backoff_secs_changed,
+    )
     .width(Length::Fixed(280.0));
 
     let channel_initial_row = field_row(
@@ -125,11 +153,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let channel_max_slider = slider(
         s.channel_initial_backoff_secs as f32..=3600.0,
         s.channel_max_backoff_secs as f32,
-        |v| {
-            Message::Settings(message::SettingsMessage::ReliabilityChannelMaxBackoffSecsChanged(
-                v.round() as u64,
-            ))
-        },
+        channel_max_backoff_secs_changed,
     )
     .width(Length::Fixed(280.0));
 
@@ -145,12 +169,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
         );
 
-    let scheduler_poll_slider = slider(1.0..=3600.0, s.scheduler_poll_secs as f32, |v| {
-        Message::Settings(message::SettingsMessage::ReliabilitySchedulerPollSecsChanged(
-            v.round() as u64
-        ))
-    })
-    .width(Length::Fixed(280.0));
+    let scheduler_poll_slider =
+        slider(1.0..=3600.0, s.scheduler_poll_secs as f32, scheduler_poll_secs_changed)
+            .width(Length::Fixed(280.0));
 
     let scheduler_poll_row = field_row(
         "调度轮询间隔",
@@ -160,12 +181,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let scheduler_retries_slider = slider(0.0..=20.0, s.scheduler_retries as f32, |v| {
-        Message::Settings(message::SettingsMessage::ReliabilitySchedulerRetriesChanged(
-            v.round() as u32
-        ))
-    })
-    .width(Length::Fixed(280.0));
+    let scheduler_retries_slider =
+        slider(0.0..=20.0, s.scheduler_retries as f32, scheduler_retries_changed)
+            .width(Length::Fixed(280.0));
 
     let scheduler_retries_row = field_row(
         "调度重试次数",
@@ -175,7 +193,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro(
                 "可靠性配置",
@@ -200,10 +218,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

@@ -57,6 +57,25 @@ async fn await_non_cli_approval_decision_returns_recorded_decision() {
     assert_eq!(manager.take_non_cli_pending_resolution(&request_id), None);
 }
 
+#[tokio::test(start_paused = true)]
+async fn await_non_cli_approval_decision_returns_decision_recorded_after_poll() {
+    let (manager, request_id) = approval_manager_with_request();
+    let decision =
+        await_non_cli_approval_decision(&manager, &request_id, "alice", "telegram", "chat-1", None);
+    tokio::pin!(decision);
+
+    tokio::select! {
+        resolved = &mut decision => panic!("approval resolved before decision: {resolved:?}"),
+        _ = tokio::time::sleep(Duration::from_millis(1)) => {}
+    }
+
+    manager.record_non_cli_pending_resolution(&request_id, ApprovalResponse::No);
+    tokio::time::advance(Duration::from_millis(NON_CLI_APPROVAL_POLL_INTERVAL_MS)).await;
+
+    assert_eq!(decision.await, ApprovalResponse::No);
+    assert_eq!(manager.take_non_cli_pending_resolution(&request_id), None);
+}
+
 #[tokio::test]
 async fn await_non_cli_approval_decision_denies_missing_request() {
     let manager = ApprovalManager::from_config(&AutonomyConfig::default());

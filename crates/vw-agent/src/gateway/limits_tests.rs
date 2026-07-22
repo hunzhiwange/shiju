@@ -78,6 +78,17 @@ fn sliding_window_rate_limiter_reallows_after_window_expires() {
 }
 
 #[test]
+fn sliding_window_rate_limiter_zero_window_expires_previous_request_immediately() {
+    let limiter = SlidingWindowRateLimiter::new(1, Duration::ZERO, 10);
+
+    assert!(limiter.allow("client"));
+    assert!(limiter.allow("client"));
+
+    let guard = limiter.requests.lock();
+    assert_eq!(guard.0.get("client").expect("client").len(), 1);
+}
+
+#[test]
 fn sliding_window_rate_limiter_sweeps_stale_keys_on_interval() {
     let limiter = SlidingWindowRateLimiter::new(2, Duration::from_secs(1), 10);
 
@@ -230,4 +241,17 @@ fn idempotency_store_clamps_zero_max_keys_to_one() {
     let keys = store.keys.lock();
     assert_eq!(keys.len(), 1);
     assert!(keys.contains_key("second"));
+}
+
+#[test]
+fn idempotency_store_allows_evicted_key_as_new_request() {
+    let store = IdempotencyStore::new(Duration::from_secs(60), 1);
+
+    assert!(store.record_if_new("first"));
+    assert!(store.record_if_new("second"));
+    assert!(store.record_if_new("first"));
+
+    let keys = store.keys.lock();
+    assert_eq!(keys.len(), 1);
+    assert!(keys.contains_key("first"));
 }

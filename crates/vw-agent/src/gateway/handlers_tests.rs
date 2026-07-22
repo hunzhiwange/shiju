@@ -1,8 +1,11 @@
 use super::*;
+use crate::app::agent::channels::traits::{ChannelMessage, SendMessage};
 use crate::app::agent::channels::{
     LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel,
 };
-use crate::app::agent::config::Config;
+use crate::app::agent::config::{
+    Config, ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
+};
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::providers::Provider;
@@ -15,6 +18,52 @@ use parking_lot::Mutex;
 use sha2::Sha256;
 use std::sync::Arc;
 use std::time::Duration;
+
+#[derive(Default)]
+struct RecordingChannel {
+    sent: Mutex<Vec<SendMessage>>,
+    fail_send: bool,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Channel for RecordingChannel {
+    fn name(&self) -> &str {
+        "recording"
+    }
+
+    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+        self.sent.lock().push(message.clone());
+        if self.fail_send {
+            anyhow::bail!("send failed");
+        }
+        Ok(())
+    }
+
+    async fn listen(&self, _tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+fn channel_message() -> ChannelMessage {
+    ChannelMessage {
+        id: "message-1".to_string(),
+        sender: "sender-1".to_string(),
+        reply_target: "target-1".to_string(),
+        content: "hello".to_string(),
+        channel: "recording".to_string(),
+        timestamp: 123,
+        thread_ts: Some("thread-1".to_string()),
+    }
+}
+
+fn successful_gateway_chat<'a>(
+    _state: &'a AppState,
+    _message: &'a str,
+    _key: &'a str,
+) -> GatewayChatFuture<'a> {
+    Box::pin(async { Ok("\nreply from injected runner\n".to_string()) })
+}
 
 struct StaticProvider;
 
@@ -29,6 +78,22 @@ impl Provider for StaticProvider {
         _temperature: f64,
     ) -> anyhow::Result<String> {
         Ok(format!("echo: {message}"))
+    }
+}
+
+struct FailingProvider;
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for FailingProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        anyhow::bail!("provider failed")
     }
 }
 
@@ -82,6 +147,127 @@ fn valid_whatsapp_signature(secret: &str, body: &[u8]) -> String {
     format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
 }
 
+async fn spawn_whatsapp_graph_error_server() -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let Ok((mut stream, _)) = listener.accept().await else {
+            return;
+        };
+        let mut buffer = [0; 1024];
+        let _ = stream.read(&mut buffer).await;
+        let body = r#"{"error":{"message":"bad token"}}"#;
+        let response = format!(
+            "HTTP/1.1 400 Bad Request\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        let _ = stream.write_all(response.as_bytes()).await;
+    });
+    format!("http://{addr}/v18.0")
+}
+
+fn valid_linq_signature(secret: &str, body: &str, timestamp: &str) -> String {
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+    mac.update(format!("{timestamp}.{body}").as_bytes());
+    format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
+}
+
+fn valid_nextcloud_talk_signature(secret: &str, random: &str, body: &str) -> String {
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+    mac.update(format!("{random}{body}").as_bytes());
+    format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
+}
+
+#[tokio::test]
+async fn process_channel_messages_sends_fallback_with_thread_when_gateway_chat_fails() {
+    let mut state = state();
+    state.provider = Arc::new(FailingProvider);
+    state.auto_save = true;
+    let channel = RecordingChannel::default();
+    let messages = vec![channel_message()];
+
+    process_channel_messages(
+        &state,
+        "Recording",
+        &channel,
+        &messages,
+        |msg| format!("recording:{}", msg.sender),
+        "recording message",
+        true,
+    )
+    .await;
+
+    let sent = channel.sent.lock();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].recipient, "target-1");
+    assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
+    assert_eq!(sent[0].content, "Sorry, I couldn't process your message right now.");
+}
+
+#[tokio::test]
+async fn process_channel_messages_with_chat_sends_successful_reply() {
+    let state = state();
+    let channel = RecordingChannel::default();
+    let messages = vec![channel_message()];
+
+    process_channel_messages_with_chat(
+        &state,
+        "Recording",
+        &channel,
+        &messages,
+        |msg| format!("recording:{}", msg.sender),
+        "recording message",
+        true,
+        successful_gateway_chat,
+    )
+    .await;
+
+    let sent = channel.sent.lock();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].recipient, "target-1");
+    assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
+    assert_eq!(sent[0].content, "reply from injected runner");
+}
+
+#[tokio::test]
+async fn send_successful_channel_reply_sanitizes_and_omits_thread_when_disabled() {
+    let channel = RecordingChannel::default();
+    let msg = channel_message();
+    let tools = Vec::new();
+
+    send_successful_channel_reply(
+        "Recording",
+        &channel,
+        &msg,
+        "\n\nsuccessful reply\n\n",
+        &tools,
+        false,
+    )
+    .await;
+
+    let sent = channel.sent.lock();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].recipient, "target-1");
+    assert!(sent[0].thread_ts.is_none());
+    assert_eq!(sent[0].content, "successful reply");
+}
+
+#[tokio::test]
+async fn send_successful_channel_reply_logs_send_errors_without_panicking() {
+    let channel = RecordingChannel { sent: Mutex::new(Vec::new()), fail_send: true };
+    let msg = channel_message();
+    let tools = Vec::new();
+
+    send_successful_channel_reply("Recording", &channel, &msg, "reply", &tools, true).await;
+
+    let sent = channel.sent.lock();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].thread_ts.as_deref(), Some("thread-1"));
+}
+
 #[test]
 fn whatsapp_signature_accepts_valid_hmac() {
     let signature = valid_whatsapp_signature("secret", b"body");
@@ -99,6 +285,11 @@ fn whatsapp_signature_rejects_missing_prefix() {
 }
 
 #[test]
+fn whatsapp_signature_rejects_valid_hex_with_wrong_length() {
+    assert!(!verify_whatsapp_signature("secret", b"body", "sha256=00"));
+}
+
+#[test]
 fn whatsapp_verify_query_deserializes_fields() {
     let query: WhatsAppVerifyQuery = serde_json::from_value(serde_json::json!({
         "hub.mode": "subscribe",
@@ -108,6 +299,7 @@ fn whatsapp_verify_query_deserializes_fields() {
     .expect("valid query");
 
     assert_eq!(query.mode.as_deref(), Some("subscribe"));
+    assert_eq!(query.verify_token.as_deref(), Some("token"));
     assert_eq!(query.challenge.as_deref(), Some("challenge"));
 }
 
@@ -185,6 +377,39 @@ async fn whatsapp_verify_rejects_bad_or_incomplete_verification() {
 }
 
 #[tokio::test]
+async fn whatsapp_verify_requires_subscribe_mode_and_token() {
+    let mut configured = state();
+    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+        "access".into(),
+        "phone-id".into(),
+        "verify-token".into(),
+        vec!["*".into()],
+    )));
+
+    let wrong_mode = handle_whatsapp_verify(
+        State(configured.clone()),
+        Query(WhatsAppVerifyQuery {
+            mode: Some("unsubscribe".into()),
+            verify_token: Some("verify-token".into()),
+            challenge: Some("challenge".into()),
+        }),
+    )
+    .await;
+    assert_eq!(response_text(wrong_mode).await.0, StatusCode::FORBIDDEN);
+
+    let missing_token = handle_whatsapp_verify(
+        State(configured),
+        Query(WhatsAppVerifyQuery {
+            mode: Some("subscribe".into()),
+            verify_token: None,
+            challenge: Some("challenge".into()),
+        }),
+    )
+    .await;
+    assert_eq!(response_text(missing_token).await.0, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
 async fn whatsapp_message_validates_configuration_signature_json_and_empty_payloads() {
     let (status, body) = response_json(
         handle_whatsapp_message(State(state()), HeaderMap::new(), Bytes::new()).await,
@@ -234,6 +459,85 @@ async fn whatsapp_message_validates_configuration_signature_json_and_empty_paylo
 }
 
 #[tokio::test]
+async fn whatsapp_message_valid_signature_does_not_hide_invalid_json() {
+    let mut configured = state();
+    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+        "access".into(),
+        "phone-id".into(),
+        "verify-token".into(),
+        vec!["*".into()],
+    )));
+    configured.whatsapp_app_secret = Some(Arc::from("secret"));
+
+    let payload = b"{";
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "X-Hub-Signature-256",
+        HeaderValue::from_str(&valid_whatsapp_signature("secret", payload)).unwrap(),
+    );
+
+    let (status, body) = response_json(
+        handle_whatsapp_message(State(configured), headers, Bytes::from_static(payload)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "Invalid JSON payload");
+}
+
+#[tokio::test]
+async fn whatsapp_message_rejects_present_invalid_signature() {
+    let mut configured = state();
+    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+        "access".into(),
+        "phone-id".into(),
+        "verify-token".into(),
+        vec!["*".into()],
+    )));
+    configured.whatsapp_app_secret = Some(Arc::from("secret"));
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Hub-Signature-256", HeaderValue::from_static("sha256=00"));
+
+    let (status, body) =
+        response_json(handle_whatsapp_message(State(configured), headers, Bytes::from("{}")).await)
+            .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"], "Invalid signature");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn whatsapp_message_acknowledges_nonempty_payload_after_local_send_failure() {
+    let _proxy_lock =
+        crate::test_support::global_runtime_proxy_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let original_proxy = runtime_proxy_config();
+    set_runtime_proxy_config(ProxyConfig::default());
+
+    let mut configured = state();
+    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new_with_api_base_url(
+        "access".into(),
+        "phone-id".into(),
+        "verify-token".into(),
+        vec!["*".into()],
+        spawn_whatsapp_graph_error_server().await,
+    )));
+
+    let payload = Bytes::from_static(
+        br#"{"entry":[{"changes":[{"value":{"messages":[{"from":"15551230000","timestamp":"123","text":{"body":"hello"}}]}}]}]}"#,
+    );
+    let response = tokio::time::timeout(
+        Duration::from_secs(2),
+        handle_whatsapp_message(State(configured), HeaderMap::new(), payload),
+    )
+    .await;
+
+    set_runtime_proxy_config(original_proxy);
+
+    let (status, body) = response_json(response.expect("whatsapp handler should return")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
 async fn linq_webhook_handles_configuration_signature_json_and_empty_messages() {
     let (status, _) =
         response_json(handle_linq_webhook(State(state()), HeaderMap::new(), Bytes::new()).await)
@@ -271,6 +575,79 @@ async fn linq_webhook_handles_configuration_signature_json_and_empty_messages() 
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn linq_webhook_accepts_valid_signature_before_empty_message_ack() {
+    let mut configured = state();
+    configured.linq =
+        Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
+    configured.linq_signing_secret = Some(Arc::from("secret"));
+
+    let body = r#"{"event_type":"delivery.updated"}"#;
+    let timestamp = chrono::Utc::now().timestamp().to_string();
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Webhook-Timestamp", HeaderValue::from_str(&timestamp).unwrap());
+    headers.insert(
+        "X-Webhook-Signature",
+        HeaderValue::from_str(&valid_linq_signature("secret", body, &timestamp)).unwrap(),
+    );
+
+    let (status, body) =
+        response_json(handle_linq_webhook(State(configured), headers, Bytes::from(body)).await)
+            .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn linq_webhook_rejects_present_invalid_signature() {
+    let mut configured = state();
+    configured.linq =
+        Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
+    configured.linq_signing_secret = Some(Arc::from("secret"));
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Webhook-Timestamp", HeaderValue::from_static("123"));
+    headers.insert("X-Webhook-Signature", HeaderValue::from_static("sha256=00"));
+
+    let (status, body) =
+        response_json(handle_linq_webhook(State(configured), headers, Bytes::from("{}")).await)
+            .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body["error"], "Invalid signature");
+}
+
+#[tokio::test]
+async fn linq_webhook_acknowledges_unactionable_message_received_event() {
+    let mut configured = state();
+    configured.linq =
+        Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
+
+    let (status, body) = response_json(
+        handle_linq_webhook(
+            State(configured),
+            HeaderMap::new(),
+            Bytes::from(r#"{"event_type":"message.received"}"#),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[test]
+fn wati_verify_query_deserializes_challenge_and_defaults_missing_value() {
+    let query: WatiVerifyQuery = serde_json::from_value(serde_json::json!({
+        "hub.challenge": "challenge"
+    }))
+    .expect("valid query");
+    assert_eq!(query.challenge.as_deref(), Some("challenge"));
+
+    let query: WatiVerifyQuery =
+        serde_json::from_value(serde_json::json!({})).expect("empty query");
+    assert!(query.challenge.is_none());
 }
 
 #[tokio::test]
@@ -314,6 +691,49 @@ async fn wati_verify_and_webhook_cover_error_and_empty_paths() {
 
     let (status, body) =
         response_json(handle_wati_webhook(State(configured), Bytes::from("{}")).await).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn wati_verify_echoes_empty_challenge() {
+    let mut configured = state();
+    configured.wati = Some(Arc::new(WatiChannel::new(
+        "token".into(),
+        "https://wati.example".into(),
+        None,
+        vec!["*".into()],
+    )));
+
+    let response = handle_wati_verify(
+        State(configured),
+        Query(WatiVerifyQuery { challenge: Some(String::new()) }),
+    )
+    .await;
+    assert_eq!(response_text(response).await, (StatusCode::OK, String::new()));
+}
+
+#[tokio::test]
+async fn wati_webhook_processes_messages_and_handles_provider_errors() {
+    let payload = Bytes::from_static(
+        br#"{"text":"hello","waId":"15551230000","fromMe":false,"timestamp":123}"#,
+    );
+
+    let mut configured = state();
+    configured.wati = Some(Arc::new(WatiChannel::new(
+        "token".into(),
+        "http://127.0.0.1:9".into(),
+        Some("tenant".into()),
+        vec!["*".into()],
+    )));
+
+    let (status, body) =
+        response_json(handle_wati_webhook(State(configured.clone()), payload.clone()).await).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+
+    configured.provider = Arc::new(FailingProvider);
+    let (status, body) = response_json(handle_wati_webhook(State(configured), payload).await).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
 }
@@ -373,6 +793,95 @@ async fn nextcloud_talk_webhook_handles_security_and_empty_payloads() {
 }
 
 #[tokio::test]
+async fn nextcloud_talk_webhook_accepts_valid_signature_and_processes_messages() {
+    let body = r#"{"type":"message","message":{"token":"room-token","actorType":"users","actorId":"alice","messageType":"comment","message":"hello","id":"msg-1","timestamp":123}}"#;
+    let random = "nonce";
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Nextcloud-Talk-Random", HeaderValue::from_static(random));
+    headers.insert(
+        "X-Nextcloud-Talk-Signature",
+        HeaderValue::from_str(&valid_nextcloud_talk_signature("secret", random, body)).unwrap(),
+    );
+
+    let mut configured = state();
+    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+        "http://127.0.0.1:9".into(),
+        "app-token".into(),
+        vec!["*".into()],
+    )));
+    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+
+    let (status, body_json) = response_json(
+        handle_nextcloud_talk_webhook(
+            State(configured.clone()),
+            headers.clone(),
+            Bytes::from(body),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body_json["status"], "ok");
+
+    configured.provider = Arc::new(FailingProvider);
+    let (status, body_json) = response_json(
+        handle_nextcloud_talk_webhook(State(configured), headers, Bytes::from(body)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body_json["status"], "ok");
+}
+
+#[tokio::test]
+async fn nextcloud_talk_valid_signature_does_not_hide_invalid_json() {
+    let body = "{";
+    let random = "nonce";
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Nextcloud-Talk-Random", HeaderValue::from_static(random));
+    headers.insert(
+        "X-Nextcloud-Talk-Signature",
+        HeaderValue::from_str(&valid_nextcloud_talk_signature("secret", random, body)).unwrap(),
+    );
+
+    let mut configured = state();
+    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+        "https://cloud.example".into(),
+        "app-token".into(),
+        vec!["*".into()],
+    )));
+    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+
+    let (status, body_json) = response_json(
+        handle_nextcloud_talk_webhook(State(configured), headers, Bytes::from(body)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body_json["error"], "Invalid JSON payload");
+}
+
+#[tokio::test]
+async fn nextcloud_talk_webhook_rejects_present_invalid_signature() {
+    let mut configured = state();
+    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+        "https://cloud.example".into(),
+        "app-token".into(),
+        vec!["*".into()],
+    )));
+    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Nextcloud-Talk-Random", HeaderValue::from_static("nonce"));
+    headers.insert("X-Nextcloud-Talk-Signature", HeaderValue::from_static("sha256=00"));
+
+    let (status, body_json) = response_json(
+        handle_nextcloud_talk_webhook(State(configured), headers, Bytes::from("{}")).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(body_json["error"], "Invalid signature");
+}
+
+#[tokio::test]
 async fn qq_webhook_handles_configuration_validation_and_empty_events() {
     let (status, _) =
         response_json(handle_qq_webhook(State(state()), HeaderMap::new(), Bytes::new()).await)
@@ -423,4 +932,38 @@ async fn qq_webhook_handles_configuration_validation_and_empty_events() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn qq_webhook_accepts_matching_app_id_with_whitespace() {
+    let mut configured = state();
+    configured.qq =
+        Some(Arc::new(QQChannel::new("app-id".into(), "secret".into(), vec!["*".into()])));
+    configured.qq_webhook_enabled = true;
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Bot-Appid", HeaderValue::from_static(" app-id "));
+
+    let (status, body) = response_json(
+        handle_qq_webhook(State(configured), headers, Bytes::from(r#"{"op":1}"#)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn qq_webhook_matching_app_id_does_not_hide_invalid_json() {
+    let mut configured = state();
+    configured.qq =
+        Some(Arc::new(QQChannel::new("app-id".into(), "secret".into(), vec!["*".into()])));
+    configured.qq_webhook_enabled = true;
+
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Bot-Appid", HeaderValue::from_static("app-id"));
+
+    let (status, body) =
+        response_json(handle_qq_webhook(State(configured), headers, Bytes::from("{")).await).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "Invalid JSON payload");
 }

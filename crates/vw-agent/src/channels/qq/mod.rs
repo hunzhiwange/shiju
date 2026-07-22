@@ -85,6 +85,10 @@ pub struct QQChannel {
     token_cache: Arc<RwLock<Option<(String, u64)>>>,
     /// 消息去重集合，防止重复处理同一消息
     dedup: Arc<RwLock<HashSet<String>>>,
+    #[cfg(test)]
+    auth_url_override: Option<String>,
+    #[cfg(test)]
+    api_base_override: Option<String>,
 }
 
 impl QQChannel {
@@ -116,6 +120,10 @@ impl QQChannel {
             allowed_users,
             token_cache: Arc::new(RwLock::new(None)),
             dedup: Arc::new(RwLock::new(HashSet::new())),
+            #[cfg(test)]
+            auth_url_override: None,
+            #[cfg(test)]
+            api_base_override: None,
         }
     }
 
@@ -124,6 +132,36 @@ impl QQChannel {
     /// 使用全局运行时代理配置创建 HTTP 客户端实例。
     fn http_client(&self) -> reqwest::Client {
         crate::app::agent::config::build_runtime_proxy_client("channel.qq")
+    }
+
+    fn auth_url(&self) -> &str {
+        #[cfg(test)]
+        if let Some(auth_url) = self.auth_url_override.as_deref() {
+            return auth_url;
+        }
+
+        QQ_AUTH_URL
+    }
+
+    fn api_base(&self) -> &str {
+        #[cfg(test)]
+        if let Some(api_base) = self.api_base_override.as_deref() {
+            return api_base;
+        }
+
+        QQ_API_BASE
+    }
+
+    #[cfg(test)]
+    fn with_auth_url(mut self, auth_url: String) -> Self {
+        self.auth_url_override = Some(auth_url.trim_end_matches('/').to_string());
+        self
+    }
+
+    #[cfg(test)]
+    fn with_api_base(mut self, api_base: String) -> Self {
+        self.api_base_override = Some(api_base.trim_end_matches('/').to_string());
+        self
     }
 
     /// 获取应用 ID

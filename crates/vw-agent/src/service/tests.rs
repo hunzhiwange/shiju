@@ -17,8 +17,15 @@ use super::*;
 #[allow(dead_code)]
 mod tests {
     use super::*;
+    use clap::Parser;
     use std::path::Path;
     use std::process::Command;
+
+    #[derive(Debug, Parser)]
+    struct ServiceTestCli {
+        #[command(subcommand)]
+        command: ServiceCommands,
+    }
 
     /// 测试 XML 转义功能
     ///
@@ -370,5 +377,62 @@ mod tests {
                 "vibewindow".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn internal_command_delay_rejects_absent_invalid_and_out_of_range_values() {
+        let rejected = [
+            None,
+            Some(""),
+            Some("   "),
+            Some("invalid"),
+            Some("-1"),
+            Some("0"),
+            Some("10001"),
+            Some("18446744073709551616"),
+        ];
+
+        for raw in rejected {
+            assert_eq!(internal_command_delay(raw), None, "unexpected delay for {raw:?}");
+        }
+    }
+
+    #[test]
+    fn internal_command_delay_accepts_trimmed_values_at_inclusive_bounds() {
+        assert_eq!(internal_command_delay(Some(" 1 ")), Some(Duration::from_millis(1)));
+        assert_eq!(internal_command_delay(Some("10000")), Some(Duration::from_millis(10_000)));
+    }
+
+    #[test]
+    fn init_system_from_str_rejects_whitespace_padded_values() {
+        let error = " systemd "
+            .parse::<InitSystem>()
+            .expect_err("whitespace-padded init system should be rejected");
+
+        assert!(error.to_string().contains("Unknown init system: ' systemd '"));
+    }
+
+    #[test]
+    fn service_commands_clap_parses_every_variant() {
+        let cases = [
+            ("install", ServiceCommands::Install),
+            ("start", ServiceCommands::Start),
+            ("stop", ServiceCommands::Stop),
+            ("restart", ServiceCommands::Restart),
+            ("status", ServiceCommands::Status),
+            ("uninstall", ServiceCommands::Uninstall),
+        ];
+
+        for (name, expected) in cases {
+            let parsed = ServiceTestCli::try_parse_from(["service-test", name])
+                .expect("known service subcommand should parse");
+            assert_eq!(parsed.command, expected);
+        }
+    }
+
+    #[test]
+    fn service_commands_clap_rejects_missing_and_unknown_variants() {
+        assert!(ServiceTestCli::try_parse_from(["service-test"]).is_err());
+        assert!(ServiceTestCli::try_parse_from(["service-test", "reload"]).is_err());
     }
 }

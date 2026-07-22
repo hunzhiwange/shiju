@@ -6,8 +6,6 @@
 use crate::app::Message;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
 use vw_config_types::{
     agent::{AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig},
     automation::{
@@ -26,14 +24,17 @@ use vw_config_types::{
     runtime::RuntimeConfig,
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
     skills::SkillsConfig,
+    staff::StaffConfig,
     tools::{BrowserConfig, ComposioConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
     transcription::TranscriptionConfig,
 };
 
 use super::gateway::{
-    apply_main_agent_overrides, gateway_client, load_config_value_at_path, run_gateway_call,
-    set_config_value_at_path, spawn_gateway_task,
+    apply_main_agent_overrides, gateway_client, run_gateway_call, set_config_value_at_path,
+    spawn_gateway_task,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use super::gateway::load_config_value_at_path;
 
 #[derive(Debug, Clone)]
 pub struct AcpSettingsSnapshot {
@@ -159,129 +160,21 @@ async fn fetch_global_agent_config_via_gateway() -> Result<Config, String> {
     Ok(config)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn env_path(key: &str) -> Option<std::path::PathBuf> {
-    std::env::var_os(key).map(std::path::PathBuf::from).filter(|path| !path.as_os_str().is_empty())
+async fn fetch_global_config_value_via_gateway() -> Result<serde_json::Value, String> {
+    let client = gateway_client()?;
+    client.global_config_get().await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn config_file_dir_from_env() -> Option<std::path::PathBuf> {
-    env_path("VIBEWINDOW_CONFIG")
-        .and_then(|path| path.parent().map(Path::to_path_buf))
-        .filter(|path| !path.as_os_str().is_empty())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn default_vibewindow_dir() -> Option<std::path::PathBuf> {
-    std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)
-        .filter(|path| !path.as_os_str().is_empty())
-        .map(vw_config_types::paths::home_config_dir)
-        .or_else(|| {
-            directories::UserDirs::new()
-                .map(|user_dirs| vw_config_types::paths::home_config_dir(user_dirs.home_dir()))
-        })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn gateway_skey_config_dir() -> Option<std::path::PathBuf> {
-    config_file_dir_from_env()
-        .or_else(|| env_path("VIBEWINDOW_CONFIG_DIR"))
-        .or_else(default_vibewindow_dir)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn gateway_skey_db_path_for_config_dir(config_dir: &Path) -> std::path::PathBuf {
-    config_dir.join("gateway").join("skeys.sqlite")
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn gateway_skey_db_path() -> Option<std::path::PathBuf> {
-    gateway_skey_config_dir().map(|config_dir| gateway_skey_db_path_for_config_dir(&config_dir))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn legacy_gateway_skey_db_path() -> Option<std::path::PathBuf> {
-    directories::BaseDirs::new().map(|base| {
-        base.data_dir()
-            .join(vw_config_types::paths::APP_DIR_NAME)
-            .join("gateway")
-            .join("skeys.sqlite")
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn gateway_skey_db_paths() -> Vec<std::path::PathBuf> {
-    let mut paths = Vec::new();
-    if let Some(path) = gateway_skey_db_path() {
-        paths.push(path);
-    }
-    if let Some(path) = legacy_gateway_skey_db_path() {
-        if !paths.contains(&path) {
-            paths.push(path);
-        }
-    }
-    paths
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn load_gateway_skeys_from_sqlite(
-    db_path: &Path,
-) -> Result<Vec<vw_config_types::gateway::GatewaySkey>, String> {
-    let conn = rusqlite::Connection::open(db_path)
-        .map_err(|error| format!("gateway skey sqlite error: {error}"))?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT enabled, skey_hash, masked_skey, name, expires_at \
-             FROM gateway_skeys \
-             ORDER BY created_at ASC, rowid ASC",
-        )
-        .map_err(|error| format!("gateway skey sqlite error: {error}"))?;
-    let rows = stmt
-        .query_map([], |row| {
-            Ok(vw_config_types::gateway::GatewaySkey {
-                enabled: row.get::<_, i64>(0)? != 0,
-                skey: None,
-                skey_hash: row.get(1)?,
-                masked_skey: row.get(2)?,
-                name: row.get(3)?,
-                expires_at: row.get(4)?,
-            })
-        })
-        .map_err(|error| format!("gateway skey sqlite error: {error}"))?;
-
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("gateway skey sqlite error: {error}"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn hydrate_gateway_skeys_from_sqlite(config: &mut Config) {
-    for db_path in gateway_skey_db_paths() {
-        if !db_path.exists() {
-            continue;
-        }
-        match load_gateway_skeys_from_sqlite(&db_path) {
-            Ok(skeys) => {
-                config.gateway.skeys = skeys;
-                return;
-            }
-            Err(err) => {
-                tracing::warn!(target: "vw_desktop", path = %db_path.display(), error = %err, "failed to hydrate gateway skeys from sqlite");
-            }
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn load_local_agent_config_with_gateway_skeys() -> Option<Config> {
+fn load_local_agent_config() -> Option<Config> {
     let mut config = load_config_value_at_path::<Config>(&[])?;
-    hydrate_gateway_skeys_from_sqlite(&mut config);
+    config.gateway.skeys.clear();
     apply_main_agent_overrides(&mut config);
     Some(config)
 }
 
 #[cfg(target_arch = "wasm32")]
-fn load_local_agent_config_with_gateway_skeys() -> Option<Config> {
+fn load_local_agent_config() -> Option<Config> {
     None
 }
 
@@ -301,8 +194,12 @@ fn load_agent_config_via_gateway() -> Config {
     match result {
         Ok(config) => config,
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
-            if let Some(config) = load_local_agent_config_with_gateway_skeys() {
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, "failed to load agent config via gateway");
+            }
+            if let Some(config) = load_local_agent_config() {
                 return config;
             }
             Config::default()
@@ -339,6 +236,18 @@ pub async fn load_full_agent_config_async() -> Result<Config, String> {
     fetch_agent_config_via_gateway().await
 }
 
+/// 读取全局配置原始 JSON，用于尚未进入 `Config` 强类型结构的字段。
+pub async fn load_global_config_value_async() -> Result<serde_json::Value, String> {
+    fetch_global_config_value_via_gateway().await
+}
+
+/// 读取 MCP server 连接状态与工具预览。
+pub async fn load_mcp_inspect_async()
+-> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> {
+    let client = gateway_client()?;
+    client.mcp_inspect().await
+}
+
 /// 读取、保存或转换 `load_browser_config_async` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -372,9 +281,7 @@ pub async fn load_browser_config_async() -> Result<BrowserConfig, String> {
 pub fn load_gateway_config_result() -> Result<GatewayConfig, String> {
     match run_gateway_call(async { fetch_global_agent_config_via_gateway().await }) {
         Ok(config) => Ok(config.gateway),
-        Err(err) => {
-            load_local_agent_config_with_gateway_skeys().map(|config| config.gateway).ok_or(err)
-        }
+        Err(err) => load_local_agent_config().map(|config| config.gateway).ok_or(err),
     }
 }
 
@@ -606,7 +513,11 @@ macro_rules! define_agent_config_update_async_fns {
 /// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn load_gateway_config() -> GatewayConfig {
     load_gateway_config_result().unwrap_or_else(|err| {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
+        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            tracing::debug!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
+        } else {
+            tracing::warn!(target: "vw_desktop", error = %err, "failed to load gateway config via gateway");
+        }
         GatewayConfig::default()
     })
 }
@@ -976,6 +887,18 @@ pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 读取网关托管的员工配置。
+pub fn load_staff_config() -> StaffConfig {
+    load_agent_config_via_gateway().staff
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 读取网关托管的员工配置，并保留加载错误。
+pub fn load_staff_config_result() -> Result<StaffConfig, String> {
+    Ok(load_full_agent_config_result()?.staff)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_embedding_routes_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1136,7 +1059,7 @@ pub fn load_full_agent_config() -> Config {
 pub fn load_full_agent_config_result() -> Result<Config, String> {
     match run_gateway_call(async { fetch_agent_config_via_gateway().await }) {
         Ok(config) => Ok(config),
-        Err(err) => load_local_agent_config_with_gateway_skeys().ok_or(err),
+        Err(err) => load_local_agent_config().ok_or(err),
     }
 }
 
@@ -1353,6 +1276,19 @@ pub fn load_agent_runtime_config() -> AgentConfig {
 pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
     HashMap::new()
 }
+
+#[cfg(target_arch = "wasm32")]
+/// 读取网关托管的员工配置。
+pub fn load_staff_config() -> StaffConfig {
+    StaffConfig::default()
+}
+
+#[cfg(target_arch = "wasm32")]
+/// 读取网关托管的员工配置，并保留加载错误。
+pub fn load_staff_config_result() -> Result<StaffConfig, String> {
+    Ok(StaffConfig::default())
+}
+
 #[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_embedding_routes_config` 对应的配置数据与运行时状态。
 ///
@@ -1833,6 +1769,17 @@ pub async fn update_delegate_agents_config_result_async(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// 通过网关写回员工配置根字段。
+pub fn update_staff_config_async(update: impl FnOnce(&mut StaffConfig) + 'static) -> Task<Message> {
+    spawn_gateway_task("staff", async move {
+        let mut cfg = load_full_agent_config_async().await?.staff;
+        update(&mut cfg);
+        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
+        patch_full_agent_config_async(serde_json::json!({ "staff": value })).await
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `update_delegate_agents_config_async` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1879,6 +1826,19 @@ pub fn update_delegate_agents_config_async(
         update(&mut cfg);
         let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
         patch_agent_config_result(&["agents"], value)
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 通过网关写回员工配置根字段。
+pub fn update_staff_config_async(
+    update: impl FnOnce(&mut StaffConfig) + Send + 'static,
+) -> Task<Message> {
+    spawn_gateway_task("staff", async move {
+        let mut cfg = load_full_agent_config_result()?.staff;
+        update(&mut cfg);
+        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
+        patch_agent_config_result(&["staff"], value)
     })
 }
 

@@ -114,6 +114,22 @@ mod tests {
         assert!(!ch.is_duplicate("").await);
     }
 
+    /// 测试去重集合达到容量时会收缩后再记录新消息。
+    #[tokio::test]
+    async fn dedup_at_capacity_prunes_half_before_recording_new_message() {
+        let ch = QQChannel::new("id".into(), "secret".into(), vec![]);
+        {
+            let mut dedup = ch.dedup.write().await;
+            dedup.extend((0..DEDUP_CAPACITY).map(|index| format!("msg-{index}")));
+        }
+
+        assert!(!ch.is_duplicate("overflow-message").await);
+
+        let dedup = ch.dedup.read().await;
+        assert_eq!(dedup.len(), DEDUP_CAPACITY / 2 + 1);
+        assert!(dedup.contains("overflow-message"));
+    }
+
     /// 测试 `QQConfig` 的 TOML 反序列化。
     ///
     /// 验证配置结构能正确解析 TOML 格式的配置字符串，

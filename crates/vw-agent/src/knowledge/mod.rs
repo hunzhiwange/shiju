@@ -5,6 +5,8 @@
 //! full-text retrieval for gateway and workflow callers.
 
 mod chunker;
+mod fusion;
+pub(crate) mod import;
 mod store;
 
 pub use store::SqliteKnowledgeStore;
@@ -12,3 +14,7 @@ pub use store::SqliteKnowledgeStore;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "import_tests.rs"]
+mod import_tests;

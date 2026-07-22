@@ -16,6 +16,95 @@ fn group(prefix: &str) -> vw_config_types::channels::GroupReplyConfig {
 }
 
 #[test]
+fn named_instance_field_accepts_complete_instance_keys_and_rejects_malformed_keys() {
+    assert_eq!(
+        named_instance_field("matrix_instances.2.allowed_users", "matrix_instances"),
+        Some("allowed_users")
+    );
+    assert_eq!(
+        named_instance_field(
+            "feishu_instances.primary.group_reply.allowed_sender_ids",
+            "feishu_instances"
+        ),
+        Some("group_reply.allowed_sender_ids")
+    );
+    assert_eq!(named_instance_field("matrix_instances", "matrix_instances"), None);
+    assert_eq!(named_instance_field("matrix_instances.0", "matrix_instances"), None);
+    assert_eq!(named_instance_field("matrix_instances0.allowed_users", "matrix_instances"), None);
+    assert_eq!(named_instance_field("feishu_instances.0.allowed_users", "matrix_instances"), None);
+}
+
+#[test]
+fn multiline_channel_key_classifies_static_and_supported_instance_fields() {
+    assert!(is_multiline_channel_key("telegram.allowed_users"));
+    assert!(is_multiline_channel_key("irc.channels"));
+    assert!(is_multiline_channel_key("matrix_instances.0.allowed_users"));
+    assert!(is_multiline_channel_key("feishu_instances.cn.group_reply.allowed_sender_ids"));
+    assert!(is_multiline_channel_key("dingtalk_instances.ops.allowed_users"));
+
+    assert!(!is_multiline_channel_key("telegram.bot_token"));
+    assert!(!is_multiline_channel_key("matrix_instances.0.room_id"));
+    assert!(!is_multiline_channel_key("dingtalk_instances.ops.group_reply.allowed_sender_ids"));
+    assert!(!is_multiline_channel_key("unknown.allowed_users"));
+}
+
+#[test]
+fn static_and_named_multiline_key_helpers_cover_known_catalogs() {
+    for key in [
+        "telegram.allowed_users",
+        "telegram.group_reply.allowed_sender_ids",
+        "discord.allowed_users",
+        "discord.group_reply.allowed_sender_ids",
+        "slack.allowed_users",
+        "slack.group_reply.allowed_sender_ids",
+        "mattermost.allowed_users",
+        "mattermost.group_reply.allowed_sender_ids",
+        "imessage.allowed_contacts",
+        "matrix.allowed_users",
+        "signal.allowed_from",
+        "whatsapp.allowed_numbers",
+        "linq.allowed_senders",
+        "wati.allowed_numbers",
+        "nextcloud_talk.allowed_users",
+        "email.allowed_senders",
+        "irc.channels",
+        "irc.allowed_users",
+        "lark.allowed_users",
+        "lark.group_reply.allowed_sender_ids",
+        "feishu.allowed_users",
+        "feishu.group_reply.allowed_sender_ids",
+        "dingtalk.allowed_users",
+        "qq.allowed_users",
+        "nostr.relays",
+        "nostr.allowed_pubkeys",
+        "clawdtalk.allowed_destinations",
+    ] {
+        assert!(is_static_multiline_channel_key(key), "expected static multiline key: {key}");
+        assert!(is_multiline_channel_key(key), "expected multiline key: {key}");
+    }
+
+    for key in [
+        "matrix_instances.ops.allowed_users",
+        "feishu_instances.cn.allowed_users",
+        "feishu_instances.cn.group_reply.allowed_sender_ids",
+        "dingtalk_instances.ops.allowed_users",
+    ] {
+        assert!(is_named_instance_multiline_channel_key(key), "expected named key: {key}");
+        assert!(is_multiline_channel_key(key), "expected multiline key: {key}");
+    }
+
+    for key in [
+        "matrix.allowed_user",
+        "matrix_instances.ops.room_id",
+        "feishu_instances.cn.group_reply.mode",
+        "dingtalk_instances.ops.client_id",
+    ] {
+        assert!(!is_static_multiline_channel_key(key), "unexpected static key: {key}");
+        assert!(!is_named_instance_multiline_channel_key(key), "unexpected named key: {key}");
+    }
+}
+
+#[test]
 fn default_channels_state_matches_ui_defaults() {
     let state = ChannelsSettingsState::default();
 
@@ -283,4 +372,163 @@ fn refresh_text_inputs_inserts_empty_group_reply_when_config_omits_group_reply()
     assert_eq!(state.text_inputs["telegram.allowed_users"], "");
     assert_eq!(state.text_inputs["telegram.group_reply.allowed_sender_ids"], "");
     assert_eq!(state.text_editors["telegram.group_reply.allowed_sender_ids"].text(), "");
+}
+
+#[test]
+fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_configs() {
+    let mut state = ChannelsSettingsState {
+        discord: Some(vw_config_types::channels::DiscordConfig {
+            bot_token: "token".to_string(),
+            guild_id: None,
+            allowed_users: Vec::new(),
+            listen_to_bots: false,
+            mention_only: false,
+            group_reply: None,
+        }),
+        slack: Some(vw_config_types::channels::SlackConfig {
+            bot_token: "token".to_string(),
+            app_token: None,
+            channel_id: None,
+            allowed_users: Vec::new(),
+            group_reply: None,
+        }),
+        mattermost: Some(vw_config_types::channels::MattermostConfig {
+            url: "https://mattermost.example".to_string(),
+            bot_token: "token".to_string(),
+            channel_id: None,
+            allowed_users: Vec::new(),
+            thread_replies: None,
+            mention_only: None,
+            group_reply: None,
+        }),
+        lark: Some(vw_config_types::channels::LarkConfig {
+            app_id: "app".to_string(),
+            app_secret: "secret".to_string(),
+            encrypt_key: None,
+            verification_token: None,
+            allowed_users: Vec::new(),
+            mention_only: false,
+            group_reply: None,
+            use_feishu: false,
+            receive_mode: vw_config_types::channels::LarkReceiveMode::Websocket,
+            port: None,
+            draft_update_interval_ms: 3000,
+            max_draft_edits: 20,
+        }),
+        feishu: Some(vw_config_types::channels::FeishuConfig {
+            app_id: "app".to_string(),
+            app_secret: "secret".to_string(),
+            encrypt_key: None,
+            verification_token: None,
+            allowed_users: Vec::new(),
+            group_reply: None,
+            receive_mode: vw_config_types::channels::LarkReceiveMode::Websocket,
+            port: None,
+            draft_update_interval_ms: 3000,
+            max_draft_edits: 20,
+        }),
+        ..ChannelsSettingsState::default()
+    };
+    state.feishu_instances.push(vw_config_types::channels::FeishuInstanceConfig {
+        id: "cn".to_string(),
+        config: state.feishu.clone().expect("feishu fixture"),
+    });
+
+    state.refresh_text_inputs();
+
+    for key in [
+        "discord.group_reply.allowed_sender_ids",
+        "slack.group_reply.allowed_sender_ids",
+        "mattermost.group_reply.allowed_sender_ids",
+        "lark.group_reply.allowed_sender_ids",
+        "feishu.group_reply.allowed_sender_ids",
+        "feishu_instances.0.group_reply.allowed_sender_ids",
+    ] {
+        assert_eq!(state.text_inputs[key], "", "unexpected input for {key}");
+        assert_eq!(state.text_editors[key].text(), "", "unexpected editor for {key}");
+    }
+}
+
+#[test]
+fn refresh_text_inputs_preserves_static_editors_and_discards_stale_instance_editors() {
+    let mut state = ChannelsSettingsState::default();
+    state.text_inputs.insert("telegram.allowed_users".to_string(), "stale input".to_string());
+    state.text_editors.insert(
+        "telegram.allowed_users".to_string(),
+        text_editor::Content::with_text("draft static editor"),
+    );
+    state.text_editors.insert(
+        "matrix_instances.4.allowed_users".to_string(),
+        text_editor::Content::with_text("stale instance editor"),
+    );
+    state
+        .text_editors
+        .insert("unrelated".to_string(), text_editor::Content::with_text("unrelated editor"));
+
+    state.refresh_text_inputs();
+
+    assert!(!state.text_inputs.contains_key("telegram.allowed_users"));
+    assert_eq!(state.text_editors["telegram.allowed_users"].text(), "draft static editor");
+    assert!(!state.text_editors.contains_key("matrix_instances.4.allowed_users"));
+    assert!(!state.text_editors.contains_key("unrelated"));
+}
+
+#[test]
+fn channel_instance_settings_refreshes_named_instance_list_inputs() {
+    let mut state = ChannelsSettingsState::default();
+    state.text_inputs.insert("matrix_instances.1.allowed_users".to_string(), "stale".to_string());
+    state
+        .text_editors
+        .insert("matrix_instances.1.allowed_users".to_string(), text_editor::Content::new());
+    state.matrix_instances.push(vw_config_types::channels::MatrixInstanceConfig {
+        id: "planner".to_string(),
+        config: vw_config_types::channels::MatrixConfig {
+            homeserver: "https://matrix.example".to_string(),
+            access_token: "token".to_string(),
+            user_id: None,
+            device_id: None,
+            room_id: "!room:example".to_string(),
+            allowed_users: values("matrix-instance-user"),
+            mention_only: false,
+        },
+    });
+    state.feishu_instances.push(vw_config_types::channels::FeishuInstanceConfig {
+        id: "cn".to_string(),
+        config: vw_config_types::channels::FeishuConfig {
+            app_id: "app".to_string(),
+            app_secret: "secret".to_string(),
+            encrypt_key: None,
+            verification_token: None,
+            allowed_users: values("feishu-instance-user"),
+            group_reply: Some(group("feishu-instance-sender")),
+            receive_mode: vw_config_types::channels::LarkReceiveMode::Websocket,
+            port: None,
+            draft_update_interval_ms: 3000,
+            max_draft_edits: 20,
+        },
+    });
+    state.dingtalk_instances.push(vw_config_types::channels::DingTalkInstanceConfig {
+        id: "ops".to_string(),
+        config: vw_config_types::channels::DingTalkConfig {
+            client_id: "client".to_string(),
+            client_secret: "secret".to_string(),
+            allowed_users: values("dingtalk-instance-user"),
+        },
+    });
+
+    state.refresh_text_inputs();
+
+    assert_eq!(
+        state.text_inputs["matrix_instances.0.allowed_users"],
+        "matrix-instance-user-1, matrix-instance-user-2"
+    );
+    assert!(!state.text_inputs.contains_key("matrix_instances.1.allowed_users"));
+    assert_eq!(
+        state.text_inputs["feishu_instances.0.group_reply.allowed_sender_ids"],
+        "feishu-instance-sender-1, feishu-instance-sender-2"
+    );
+    assert_eq!(
+        state.text_editors["dingtalk_instances.0.allowed_users"].text(),
+        "dingtalk-instance-user-1\ndingtalk-instance-user-2"
+    );
 }

@@ -81,10 +81,39 @@ fn contrast_text_color_uses_white_at_threshold() {
 }
 
 #[test]
+fn contrast_text_color_weights_green_more_than_red() {
+    assert_eq!(contrast_text_color(Color::from_rgb(0.0, 1.0, 0.0)), Color::from_rgb8(18, 18, 18));
+    assert_eq!(contrast_text_color(Color::from_rgb(1.0, 0.0, 0.0)), Color::WHITE);
+}
+
+#[test]
 fn lighten_color_blends_toward_white() {
     let color = lighten_color(Color::from_rgb(0.2, 0.4, 0.6));
 
     assert_color_close(color, Color::from_rgb(0.8, 0.85, 0.9));
+}
+
+#[test]
+fn lighten_color_turns_black_into_dark_gray() {
+    assert_color_close(lighten_color(Color::BLACK), Color::from_rgb(0.75, 0.75, 0.75));
+}
+
+#[test]
+fn lighten_color_leaves_white_unchanged() {
+    assert_color_close(lighten_color(Color::WHITE), Color::WHITE);
+}
+
+#[test]
+fn lighten_color_returns_an_opaque_color() {
+    assert_color_close(
+        lighten_color(Color::from_rgba(0.2, 0.4, 0.6, 0.25)),
+        Color::from_rgb(0.8, 0.85, 0.9),
+    );
+}
+
+#[test]
+fn contrast_text_color_uses_dark_text_for_bright_background() {
+    assert_eq!(contrast_text_color(Color::from_rgb(0.8, 0.8, 0.8)), Color::from_rgb8(18, 18, 18));
 }
 
 #[test]
@@ -98,8 +127,24 @@ fn session_title_max_chars_uses_panel_width_after_reserved_space() {
 }
 
 #[test]
+fn session_title_max_chars_keeps_minimum_available_width_at_boundary() {
+    assert_eq!(session_title_max_chars(220.0), 18);
+    assert_eq!(session_title_max_chars(225.0), 19);
+}
+
+#[test]
+fn session_title_max_chars_scales_with_very_wide_panel() {
+    assert_eq!(session_title_max_chars(2000.0), 367);
+}
+
+#[test]
 fn truncate_display_width_returns_original_when_width_fits() {
     assert_eq!(truncate_display_width("Hello", 5), "Hello");
+}
+
+#[test]
+fn truncate_display_width_returns_empty_for_empty_input() {
+    assert_eq!(truncate_display_width("", 10), "");
 }
 
 #[test]
@@ -123,6 +168,16 @@ fn truncate_display_width_respects_wide_unicode_characters() {
 }
 
 #[test]
+fn truncate_display_width_returns_wide_unicode_when_it_exactly_fits() {
+    assert_eq!(truncate_display_width("你好", 4), "你好");
+}
+
+#[test]
+fn truncate_display_width_keeps_zero_width_combining_mark() {
+    assert_eq!(truncate_display_width("a\u{0301}bc", 2), "a\u{0301}…");
+}
+
+#[test]
 fn truncate_display_width_skips_character_that_would_exceed_keep_width() {
     assert_eq!(truncate_display_width("你a", 2), "…");
 }
@@ -140,6 +195,14 @@ fn workspace_path_for_tooltip_returns_relative_path_for_child_workspace() {
 #[test]
 fn workspace_path_for_tooltip_returns_original_path_for_external_workspace() {
     assert_eq!(workspace_path_for_tooltip("/tmp/other", "/tmp/project"), "/tmp/other");
+}
+
+#[test]
+fn workspace_path_for_tooltip_rejects_similar_prefix_sibling() {
+    assert_eq!(
+        workspace_path_for_tooltip("/tmp/project-copy/src", "/tmp/project"),
+        "/tmp/project-copy/src"
+    );
 }
 
 #[test]

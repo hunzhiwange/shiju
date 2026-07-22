@@ -43,6 +43,16 @@ async fn progress_helpers_skip_when_delta_is_absent_or_empty() {
 }
 
 #[tokio::test]
+async fn progress_helpers_ignore_closed_receivers() {
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    drop(rx);
+
+    update_thinking_progress(Some(&tx), 0).await;
+    update_tool_call_progress(Some(&tx), 1, 0).await;
+    send_retry_progress(Some(&tx)).await;
+}
+
+#[tokio::test]
 async fn final_response_starts_by_clearing_draft() {
     let (tx, mut rx) = tokio::sync::mpsc::channel(4);
 
@@ -74,6 +84,16 @@ async fn final_response_skips_when_delta_is_absent() {
 }
 
 #[tokio::test]
+async fn final_response_sends_only_clear_for_empty_text() {
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+    stream_final_response("", Some(&tx), None).await.unwrap();
+
+    assert_eq!(rx.recv().await.unwrap(), DRAFT_CLEAR_SENTINEL);
+    assert!(rx.try_recv().is_err());
+}
+
+#[tokio::test]
 async fn final_response_returns_cancelled_when_token_is_cancelled() {
     let (tx, mut rx) = tokio::sync::mpsc::channel(4);
     let token = CancellationToken::new();
@@ -92,4 +112,18 @@ async fn final_response_stops_cleanly_when_receiver_is_closed() {
     drop(rx);
 
     stream_final_response("testcov-0089 closed channel", Some(&tx), None).await.unwrap();
+}
+
+#[tokio::test]
+async fn final_response_stops_when_receiver_closes_after_clear() {
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+    let task = tokio::spawn(async move {
+        stream_final_response("testcov-0089 after clear", Some(&tx), None).await.unwrap();
+    });
+
+    assert_eq!(rx.recv().await.unwrap(), DRAFT_CLEAR_SENTINEL);
+    drop(rx);
+
+    task.await.unwrap();
 }

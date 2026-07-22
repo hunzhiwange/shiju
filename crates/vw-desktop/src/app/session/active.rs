@@ -5,6 +5,7 @@
 
 use super::loading::{SharedChatMessages, shared_chat_messages};
 use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
+use serde_json::Value;
 
 fn build_message_meta_labels(
     chat: &[ChatMessage],
@@ -43,6 +44,36 @@ fn build_message_meta_labels(
     labels
 }
 
+fn build_message_meta_label(
+    message: &ChatMessage,
+    assistant_count: &mut u32,
+    step_index_map: &HashMap<u32, StepUiMeta>,
+) -> Option<String> {
+    match message.role {
+        ChatRole::Assistant => {
+            *assistant_count += 1;
+            step_index_map.get(assistant_count).and_then(|step| {
+                let model_label = step.model.as_deref()?;
+                let time_ms = step.display_time_ms;
+                let time_label =
+                    crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
+                Some(format!("{model_label} · {time_label}"))
+            })
+        }
+        ChatRole::User => {
+            let step_index = *assistant_count + 1;
+            step_index_map.get(&step_index).and_then(|step| {
+                let model_label = step.model.as_deref()?;
+                let time_ms = step.started_ms;
+                let time_label =
+                    crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
+                Some(format!("{model_label} · {time_label}"))
+            })
+        }
+        ChatRole::System | ChatRole::Tool => None,
+    }
+}
+
 impl App {
     /// 执行 rebuild_active_session_message_meta 对应的领域操作。
     ///
@@ -53,12 +84,49 @@ impl App {
             build_message_meta_labels(&self.chat, &self.active_session_view_state.step_index_map);
     }
 
+    /// 只刷新流式增量影响的尾部消息元信息。
+    pub(crate) fn refresh_active_session_tail_message_meta(&mut self, changed_idx: usize) {
+        if changed_idx >= self.chat.len() {
+            self.active_session_view_state.message_meta_texts.truncate(self.chat.len());
+            return;
+        }
+
+        let meta_len = self.active_session_view_state.message_meta_texts.len();
+        if meta_len > self.chat.len() {
+            self.active_session_view_state.message_meta_texts.truncate(self.chat.len());
+        }
+
+        if meta_len < changed_idx
+            || self.active_session_view_state.message_meta_texts.len() + 1 < self.chat.len()
+        {
+            self.rebuild_active_session_message_meta();
+            return;
+        }
+
+        let mut assistant_count = self.chat[..changed_idx]
+            .iter()
+            .filter(|message| matches!(message.role, ChatRole::Assistant))
+            .count() as u32;
+        let label = build_message_meta_label(
+            &self.chat[changed_idx],
+            &mut assistant_count,
+            &self.active_session_view_state.step_index_map,
+        );
+
+        if changed_idx < self.active_session_view_state.message_meta_texts.len() {
+            self.active_session_view_state.message_meta_texts[changed_idx] = label;
+        } else {
+            self.active_session_view_state.message_meta_texts.push(label);
+        }
+    }
+
     /// 执行 clear_active_session_steps 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn clear_active_session_steps(&mut self) {
         self.active_session_view_state.steps.clear();
+        self.active_session_view_state.calls.clear();
         self.active_session_view_state.step_index_map.clear();
     }
 
@@ -71,6 +139,13 @@ impl App {
         self.active_session_view_state.step_index_map =
             steps.iter().map(|step| (step.index, StepUiMeta::from(step))).collect();
         self.active_session_view_state.steps = steps;
+    }
+
+    /// 执行 replace_active_session_calls 对应的领域操作。
+    ///
+    /// 原始调用记录来自会话 UI 快照，单独维护以避免历史加载时覆盖步骤索引。
+    pub(crate) fn replace_active_session_calls(&mut self, calls: Vec<Value>) {
+        self.active_session_view_state.calls = calls;
     }
 
     /// 执行 upsert_active_session_step 对应的领域操作。
@@ -194,6 +269,28 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn cached_chat_message_ids(&self, session_id: &str) -> Option<Vec<Option<String>>> {
         self.session_chat_message_id_cache.get(session_id).cloned()
+    }
+
+    /// 执行 mark_session_history_reset_boundary 对应的领域操作。
+    ///
+    /// 记录重置时保留的消息 ID 序列，后续网关旧加载结果必须按该边界裁剪。
+    pub(crate) fn mark_session_history_reset_boundary(
+        &mut self,
+        session_id: String,
+        retained_message_ids: Vec<Option<String>>,
+    ) {
+        self.session_history_reset_boundaries.insert(session_id, retained_message_ids);
+    }
+
+    /// 执行 session_history_reset_boundary 对应的领域操作。
+    ///
+    /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
+    /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+    pub(crate) fn session_history_reset_boundary(
+        &self,
+        session_id: &str,
+    ) -> Option<&[Option<String>]> {
+        self.session_history_reset_boundaries.get(session_id).map(Vec::as_slice)
     }
 
     /// 执行 active_shared_chat_messages 对应的领域操作。

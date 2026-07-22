@@ -117,6 +117,7 @@ pub enum NonCliNaturalLanguageApprovalMode {
 /// 该结构集中定义代理在执行命令与工具调用时的权限边界、审批阈值以及资源预算。
 /// 它是代理风险控制的第一层配置。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
 pub struct AutonomyConfig {
     /// 代理自治等级。
     pub level: AutonomyLevel,
@@ -611,7 +612,7 @@ impl Default for SandboxConfig {
 }
 
 /// 沙箱后端类型。
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum SandboxBackend {
     /// 自动选择最合适的后端。

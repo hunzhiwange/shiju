@@ -9,6 +9,25 @@ pub(crate) fn maybe_restart_managed_daemon_service() -> anyhow::Result<bool> {
     Ok(false)
 }
 
+pub(crate) fn report_managed_daemon_restart_result(result: anyhow::Result<bool>) {
+    match result {
+        Ok(true) => {
+            println!("🔄 Detected running managed daemon service; reloaded automatically.");
+        }
+        Ok(false) => {
+            println!(
+                "ℹ️ No managed daemon service detected. If `vibewindow daemon`/`channel start` is already running, restart it to load the updated allowlist."
+            );
+        }
+        Err(e) => {
+            eprintln!(
+                "⚠️ Allowlist saved, but failed to reload daemon service automatically: {e}\n\
+                 Restart service manually with `vibewindow service stop && vibewindow service start`."
+            );
+        }
+    }
+}
+
 pub(crate) async fn bind_telegram_identity(config: &Config, identity: &str) -> Result<()> {
     let normalized = normalize_telegram_identity(identity);
     if normalized.is_empty() {
@@ -39,23 +58,8 @@ pub(crate) async fn bind_telegram_identity(config: &Config, identity: &str) -> R
     telegram.allowed_users.push(normalized.clone());
     save_config(&updated).await?;
     println!("✅ Bound Telegram identity: {normalized}");
-    println!("   Saved to {}", updated.config_path.display());
-    match maybe_restart_managed_daemon_service() {
-        Ok(true) => {
-            println!("🔄 Detected running managed daemon service; reloaded automatically.");
-        }
-        Ok(false) => {
-            println!(
-                "ℹ️ No managed daemon service detected. If `vibewindow daemon`/`channel start` is already running, restart it to load the updated allowlist."
-            );
-        }
-        Err(e) => {
-            eprintln!(
-                "⚠️ Allowlist saved, but failed to reload daemon service automatically: {e}\n\
-                 Restart service manually with `vibewindow service stop && vibewindow service start`."
-            );
-        }
-    }
+    println!("   Saved to the local tenant system config database");
+    report_managed_daemon_restart_result(maybe_restart_managed_daemon_service());
     Ok(())
 }
 

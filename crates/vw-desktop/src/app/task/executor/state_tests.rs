@@ -5,6 +5,14 @@ fn test_module_is_wired() {
     assert!(module.ends_with("state_tests"));
 }
 
+fn legacy_worktree_root(repo_root: &str) -> String {
+    format!(
+        "{repo_root}/{}/{}",
+        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME,
+        vw_config_types::paths::TASK_WORKTREES_DIR_NAME
+    )
+}
+
 #[test]
 fn default_state_uses_expected_limits_and_empty_collections() {
     let state = super::TaskExecutorState::new();
@@ -32,6 +40,15 @@ fn start_task_is_idempotent_and_can_start_more_respects_limit() {
 }
 
 #[test]
+fn zero_concurrency_reports_no_capacity_even_without_running_tasks() {
+    let mut state = super::TaskExecutorState::new();
+    state.max_concurrent = 0;
+
+    assert!(state.running_tasks.is_empty());
+    assert!(!state.can_start_more());
+}
+
+#[test]
 fn finish_task_removes_running_entry_and_log_channels() {
     let mut state = super::TaskExecutorState::new();
     state.start_task("a");
@@ -43,6 +60,36 @@ fn finish_task_removes_running_entry_and_log_channels() {
     assert!(!state.is_running("a"));
     assert!(state.get_log_sender("a").is_none());
     assert!(!state.log_receivers.contains_key("a"));
+}
+
+#[test]
+fn finish_unknown_task_preserves_other_task_and_channel() {
+    let mut state = super::TaskExecutorState::new();
+    state.start_task("active");
+    state.register_log_channel("active".to_string());
+
+    state.finish_task("missing");
+
+    assert!(state.is_running("active"));
+    assert!(state.get_log_sender("active").is_some());
+    assert!(state.log_receivers.contains_key("active"));
+}
+
+#[test]
+fn registering_channel_again_replaces_both_channel_ends() {
+    let mut state = super::TaskExecutorState::new();
+    state.register_log_channel("a".to_string());
+    let stale_sender = state.get_log_sender("a").expect("first sender should exist");
+
+    state.register_log_channel("a".to_string());
+    let current_sender = state.get_log_sender("a").expect("replacement sender should exist");
+
+    assert!(stale_sender.send(super::TaskLogStream::Stdout("stale".to_string())).is_err());
+    current_sender
+        .send(super::TaskLogStream::Stdout("current".to_string()))
+        .expect("replacement channel should receive");
+    let logs = state.poll_task_logs_all("a");
+    assert!(matches!(&logs[..], [super::TaskLogStream::Stdout(value)] if value == "current"));
 }
 
 #[test]
@@ -92,32 +139,52 @@ fn get_all_running_logs_returns_only_tasks_with_logs() {
 }
 
 #[test]
+fn get_all_running_logs_leaves_non_running_task_logs_queued() {
+    let mut state = super::TaskExecutorState::new();
+    state.register_log_channel("queued".to_string());
+    state
+        .get_log_sender("queued")
+        .expect("sender should exist")
+        .send(super::TaskLogStream::Stdout("later".to_string()))
+        .expect("log should send");
+
+    assert!(state.get_all_running_logs().is_empty());
+    assert!(matches!(
+        &state.poll_task_logs("queued")[..],
+        [super::TaskLogStream::Stdout(value)] if value == "later"
+    ));
+}
+
+#[test]
 fn task_log_stream_variants_keep_payloads() {
     let variants = vec![
         super::TaskLogStream::SubTaskStarted {
             subtask_id: "s1".to_string(),
             content: "do work".to_string(),
+            timestamp_ms: 10,
         },
-        super::TaskLogStream::SubTaskCompleted { subtask_id: "s2".to_string() },
+        super::TaskLogStream::SubTaskCompleted { subtask_id: "s2".to_string(), timestamp_ms: 20 },
         super::TaskLogStream::SubTaskFailed {
             subtask_id: "s3".to_string(),
             error: "bad".to_string(),
+            timestamp_ms: 30,
         },
     ];
 
     assert!(matches!(
         &variants[0],
-        super::TaskLogStream::SubTaskStarted { subtask_id, content }
-            if subtask_id == "s1" && content == "do work"
+        super::TaskLogStream::SubTaskStarted { subtask_id, content, timestamp_ms }
+            if subtask_id == "s1" && content == "do work" && *timestamp_ms == 10
     ));
     assert!(matches!(
         &variants[1],
-        super::TaskLogStream::SubTaskCompleted { subtask_id } if subtask_id == "s2"
+        super::TaskLogStream::SubTaskCompleted { subtask_id, timestamp_ms }
+            if subtask_id == "s2" && *timestamp_ms == 20
     ));
     assert!(matches!(
         &variants[2],
-        super::TaskLogStream::SubTaskFailed { subtask_id, error }
-            if subtask_id == "s3" && error == "bad"
+        super::TaskLogStream::SubTaskFailed { subtask_id, error, timestamp_ms }
+            if subtask_id == "s3" && error == "bad" && *timestamp_ms == 30
     ));
 }
 
@@ -131,37 +198,57 @@ fn worktree_state_is_copy_and_comparable() {
 }
 
 #[test]
-fn worktree_pool_structs_are_constructible_and_cloneable() {
-    let slot = super::WorktreeSlot {
-        id: "slot-1".to_string(),
-        path: "/repo/.vibewindow/task-worktrees/slot-1".to_string(),
-        base_branch: "main".to_string(),
-        branch: "vw/task/1".to_string(),
-        state: super::WorktreeState::Busy,
-        leased_task_id: Some("task-1".to_string()),
-        taint_reason: Some("dirty".to_string()),
-    };
-    let cloned_slot = slot.clone();
-    assert_eq!(cloned_slot.id, "slot-1");
-    assert_eq!(cloned_slot.base_branch, "main");
+fn worktree_state_maps_every_gateway_variant() {
+    use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto as GatewayState;
 
-    let mut task_slots = std::collections::HashMap::new();
-    task_slots.insert("task-1".to_string(), "slot-1".to_string());
-    let mut merge_target_locks = std::collections::HashMap::new();
-    merge_target_locks.insert("main".to_string(), "task-1".to_string());
-    let pool = super::RepoWorktreePool {
-        repo_root: "/repo".to_string(),
-        base_branch: "main".to_string(),
-        slots: vec![slot],
-        task_slots,
-        merge_target_locks,
-        last_synced_at_ms: 42,
-    };
+    let cases = [
+        (GatewayState::Idle, super::WorktreeState::Idle),
+        (GatewayState::Busy, super::WorktreeState::Busy),
+        (GatewayState::Tainted, super::WorktreeState::Tainted),
+        (GatewayState::Recycling, super::WorktreeState::Recycling),
+        (GatewayState::Dead, super::WorktreeState::Dead),
+    ];
 
-    assert_eq!(pool.clone().slots.len(), 1);
-    assert_eq!(pool.repo_root, "/repo");
-    assert_eq!(pool.base_branch, "main");
-    assert_eq!(pool.last_synced_at_ms, 42);
+    for (gateway, expected) in cases {
+        assert_eq!(super::WorktreeState::from_gateway(gateway), expected);
+    }
+}
+
+#[test]
+fn gateway_snapshot_conversion_preserves_empty_boundary() {
+    use vw_gateway_client::vw_api_types::id::ProjectId;
+    use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse;
+
+    let snapshot =
+        super::WorktreePoolSnapshot::from_gateway_response(TaskPoolWorktreeSnapshotResponse {
+            project_id: ProjectId("project-empty".to_string()),
+            repo_root: "/repo".to_string(),
+            pool_root: "/pool".to_string(),
+            base_branch: "main".to_string(),
+            idle_count: 0,
+            busy_count: 0,
+            tainted_count: 0,
+            recycling_count: 0,
+            dead_count: 0,
+            merge_target_locks: Vec::new(),
+            slots: Vec::new(),
+        });
+
+    assert_eq!(snapshot.repo_root, "/repo");
+    assert_eq!(snapshot.pool_root, "/pool");
+    assert_eq!(snapshot.base_branch, "main");
+    assert_eq!(
+        (
+            snapshot.idle_count,
+            snapshot.busy_count,
+            snapshot.tainted_count,
+            snapshot.recycling_count,
+            snapshot.dead_count,
+        ),
+        (0, 0, 0, 0, 0)
+    );
+    assert!(snapshot.merge_target_locks.is_empty());
+    assert!(snapshot.slots.is_empty());
 }
 
 #[test]
@@ -174,9 +261,10 @@ fn public_worktree_snapshots_keep_counts_and_slots() {
         leased_task_id: None,
         taint_reason: Some("conflict".to_string()),
     };
+    let pool_root = legacy_worktree_root("/repo");
     let snapshot = super::WorktreePoolSnapshot {
         repo_root: "/repo".to_string(),
-        pool_root: "/repo/.vibewindow/task-worktrees".to_string(),
+        pool_root: pool_root.clone(),
         base_branch: "main".to_string(),
         idle_count: 1,
         busy_count: 2,
@@ -188,7 +276,7 @@ fn public_worktree_snapshots_keep_counts_and_slots() {
     };
 
     assert_eq!(snapshot.repo_root, "/repo");
-    assert_eq!(snapshot.pool_root, "/repo/.vibewindow/task-worktrees");
+    assert_eq!(snapshot.pool_root, pool_root);
     assert_eq!(snapshot.base_branch, "main");
     assert_eq!(snapshot.idle_count + snapshot.busy_count + snapshot.tainted_count, 6);
     assert_eq!(snapshot.recycling_count, 4);
@@ -230,10 +318,36 @@ fn selected_workspace_and_worktree_entry_keep_values() {
 #[test]
 fn global_state_maps_are_initializable() {
     let claimed = super::claimed_worktrees();
-    let pools = super::worktree_pools();
 
     drop(claimed.lock().expect("claimed lock should open"));
-    drop(pools.lock().expect("pools lock should open"));
+}
+
+#[test]
+fn claim_guard_without_path_does_not_release_other_claims() {
+    let path = "state-tests-unrelated-claim".to_string();
+    {
+        let mut claimed = super::claimed_worktrees().lock().expect("claimed lock should open");
+        claimed.insert(path.clone());
+    }
+
+    drop(super::WorktreeClaimGuard::new(None));
+
+    let mut claimed = super::claimed_worktrees().lock().expect("claimed lock should open");
+    assert!(claimed.remove(&path));
+}
+
+#[test]
+fn claim_guard_with_path_releases_matching_claim_on_drop() {
+    let path = "state-tests-claimed-path".to_string();
+    {
+        let mut claimed = super::claimed_worktrees().lock().expect("claimed lock should open");
+        claimed.insert(path.clone());
+    }
+
+    drop(super::WorktreeClaimGuard::new(Some(path.clone())));
+
+    let claimed = super::claimed_worktrees().lock().expect("claimed lock should open");
+    assert!(!claimed.contains(&path));
 }
 
 #[test]
@@ -243,5 +357,4 @@ fn git_state_constants_are_stable() {
     assert_eq!(super::GIT_SOURCE_BRANCH_TAG, "__VW_GIT_SOURCE_BRANCH__");
     assert_eq!(super::GIT_TARGET_BRANCH_TAG, "__VW_GIT_TARGET_BRANCH__");
     assert_eq!(super::GIT_WORKTREE_PATH_TAG, "__VW_GIT_WORKTREE_PATH__");
-    assert_eq!(super::WORKTREE_POOL_REFRESH_INTERVAL_MS, 3_000);
 }

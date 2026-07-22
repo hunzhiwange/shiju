@@ -263,65 +263,12 @@ pub fn icon_button_style(
 pub fn eye_icon_button_style(
     theme: &Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    status: iced::widget::button::Status,
+    _status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
-    let is_dark = is_dark_theme(theme);
-    let (background, border_color) = match status {
-        // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        iced::widget::button::Status::Pressed => (
-            Some(Background::Color(if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(36, 38, 44, 0.96)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(232, 236, 241, 1.0)
-            })),
-            if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(63, 67, 75, 0.94)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(210, 216, 224, 1.0)
-            },
-        ),
-        // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        iced::widget::button::Status::Hovered => (
-            Some(Background::Color(if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(31, 33, 38, 0.92)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(240, 243, 246, 1.0)
-            })),
-            if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(52, 56, 63, 0.92)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(218, 223, 230, 1.0)
-            },
-        ),
-        _ => (
-            Some(Background::Color(if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(24, 25, 29, 0.88)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(247, 248, 250, 1.0)
-            })),
-            if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(45, 48, 54, 0.9)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(226, 231, 237, 1.0)
-            },
-        ),
-    };
     iced::widget::button::Style {
-        background,
+        background: None,
         // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border { width: 1.0, color: border_color, radius: 999.0.into() },
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
         // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         text_color: chat_secondary_text_color(theme),
         ..Default::default()
@@ -367,40 +314,11 @@ pub fn eye_icon_svg_style(theme: &Theme, _status: svg::Status) -> svg::Style {
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn simplified_block_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
+    let _ = theme;
     iced::widget::container::Style {
-        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        background: Some(Background::Color(if is_dark {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(20, 21, 24, 0.94)
-        } else {
-            // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            Color::from_rgba8(252, 252, 253, 1.0)
-        })),
-        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border {
-            // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            width: 1.0,
-            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            color: if is_dark {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(44, 47, 53, 0.92)
-            } else {
-                // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                Color::from_rgba8(226, 231, 237, 1.0)
-            },
-            // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            radius: 16.0.into(),
-        },
-        // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        shadow: iced::Shadow {
-            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            color: Color::BLACK.scale_alpha(if is_dark { 0.14 } else { 0.04 }),
-            // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            offset: iced::Vector::new(0.0, 8.0),
-            // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            blur_radius: 22.0,
-        },
+        background: None,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+        shadow: iced::Shadow::default(),
         ..Default::default()
     }
 }

@@ -1,9 +1,8 @@
 //! 系统设置中 ACP 配置页面的界面拼装与交互消息转换。
 
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_success_banner,
-    settings_value_badge,
+    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_section_card, settings_success_banner, settings_value_badge,
 };
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -89,6 +88,7 @@ pub(super) fn ordered_agents(app: &App) -> Vec<String> {
 fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Element<'a, Message> {
     let enabled = app.acp_settings.enabled.contains(&agent);
     let saving = app.acp_settings.saving_agent.as_deref() == Some(agent.as_str());
+    let copied = app.acp_settings.copied_agent.as_deref() == Some(agent.as_str());
     let command = command_line(config);
     let toggle_label = if saving {
         "保存中..."
@@ -133,23 +133,36 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
         column![
             header,
             text(setup_hint(&agent)).size(12).style(settings_muted_text_style),
-            container(text(command).size(12)).padding([9, 12]).width(Length::Fill).style(
-                |theme: &iced::Theme| {
-                    let palette = theme.extended_palette();
-                    iced::widget::container::Style {
-                        text_color: Some(theme.palette().text.scale_alpha(0.92)),
-                        background: Some(iced::Background::Color(
-                            palette.background.weak.color.scale_alpha(0.58),
-                        )),
-                        border: iced::Border {
-                            radius: 8.0.into(),
-                            width: 1.0,
-                            color: palette.background.strong.color.scale_alpha(0.55),
-                        },
-                        ..Default::default()
-                    }
+            container(
+                row![
+                    text(command.clone()).size(12).width(Length::Fill),
+                    button(text(if copied { "✓" } else { "复制" }).size(12))
+                        .padding([5, 10])
+                        .on_press(Message::Settings(SettingsMessage::Acp(
+                            AcpMessage::CopyCommand { agent: agent.clone(), command }
+                        )))
+                        .style(rounded_action_btn_style),
+                ]
+                .align_y(Alignment::Center)
+                .spacing(8)
+            )
+            .padding([9, 12])
+            .width(Length::Fill)
+            .style(|theme: &iced::Theme| {
+                let palette = theme.extended_palette();
+                iced::widget::container::Style {
+                    text_color: Some(theme.palette().text.scale_alpha(0.92)),
+                    background: Some(iced::Background::Color(
+                        palette.background.weak.color.scale_alpha(0.58),
+                    )),
+                    border: iced::Border {
+                        radius: 8.0.into(),
+                        width: 1.0,
+                        color: palette.background.strong.color.scale_alpha(0.55),
+                    },
+                    ..Default::default()
                 }
-            ),
+            }),
         ]
         .spacing(12),
     )
@@ -181,10 +194,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if let Some(message) = &app.acp_settings.status_message {
         content = content.push(settings_success_banner(message));
-    }
-
-    if let Some(err) = &app.acp_settings.save_error {
-        content = content.push(settings_error_banner(err));
     }
 
     let agents = ordered_agents(app);

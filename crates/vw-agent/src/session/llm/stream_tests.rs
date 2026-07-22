@@ -111,6 +111,15 @@ fn should_abort_reflects_watch_receiver_state() {
 }
 
 #[test]
+fn should_abort_reads_the_latest_watch_value() {
+    let (tx, rx) = tokio::sync::watch::channel(true);
+    assert!(should_abort(Some(&rx)));
+
+    tx.send(false).expect("resume signal should send");
+    assert!(!should_abort(Some(&rx)));
+}
+
+#[test]
 fn is_retryable_assistant_error_uses_api_retry_flag_and_acp_session_change() {
     assert!(is_retryable_assistant_error(&message::AssistantError::APIError {
         message: "temporary".to_string(),
@@ -137,6 +146,13 @@ fn is_retryable_assistant_error_uses_api_retry_flag_and_acp_session_change() {
 }
 
 #[test]
+fn is_retryable_assistant_error_rejects_non_matching_unknown_errors() {
+    assert!(!is_retryable_assistant_error(&message::AssistantError::Unknown {
+        message: "session changed without the ACP marker".to_string(),
+    }));
+}
+
+#[test]
 fn is_acp_retryable_assistant_error_accepts_transient_acp_failures() {
     for message in [
         "timed out waiting for agent",
@@ -144,6 +160,7 @@ fn is_acp_retryable_assistant_error_accepts_transient_acp_failures() {
         "ACP agent disconnected during request",
         "queue owner disconnected before prompt completion",
         "acp session changed: expected=a actual=b",
+        "API error: None - error decoding response body",
     ] {
         assert!(is_acp_retryable_assistant_error(&message::AssistantError::Unknown {
             message: message.to_string(),
@@ -151,7 +168,7 @@ fn is_acp_retryable_assistant_error_accepts_transient_acp_failures() {
     }
 
     assert!(is_acp_retryable_assistant_error(&message::AssistantError::APIError {
-        message: "request timeout".to_string(),
+        message: "EOF while parsing a value".to_string(),
         status_code: Some(504),
         is_retryable: false,
         response_headers: None,
@@ -165,10 +182,91 @@ fn is_acp_retryable_assistant_error_accepts_transient_acp_failures() {
 }
 
 #[test]
+fn is_acp_retryable_assistant_error_rejects_persistent_api_failures() {
+    assert!(!is_acp_retryable_assistant_error(&message::AssistantError::APIError {
+        message: "invalid request".to_string(),
+        status_code: Some(400),
+        is_retryable: true,
+        response_headers: None,
+        response_body: None,
+        metadata: None,
+    }));
+    assert!(!is_acp_retryable_assistant_error(&message::AssistantError::Unknown {
+        message: "agent returned a validation error".to_string(),
+    }));
+}
+
+#[test]
+fn is_acp_retryable_assistant_error_accepts_transient_api_error_messages() {
+    for error_message in [
+        "ACP SESSION CHANGED: expected=a actual=b",
+        "request timed out while waiting for the agent",
+        "timeout while prompting",
+        "ACP agent disconnected during request",
+        "API error: None - error decoding response body",
+    ] {
+        let error = message::AssistantError::APIError {
+            message: error_message.to_string(),
+            status_code: None,
+            is_retryable: false,
+            response_headers: None,
+            response_body: None,
+            metadata: None,
+        };
+
+        assert!(is_acp_retryable_assistant_error(&error), "message: {error_message}");
+    }
+}
+
+#[test]
 fn is_acp_session_changed_message_is_case_insensitive() {
     assert!(is_acp_session_changed_message("ACP SESSION CHANGED: expected=a actual=b"));
     assert!(is_acp_session_changed_message("prefix acp session changed: expected=a actual=b"));
     assert!(!is_acp_session_changed_message("session changed without acp prefix"));
+}
+
+#[test]
+fn resolve_stream_provider_info_allows_acp_route_provider_for_acp_requests() {
+    let info = resolve_stream_provider_info("acp", None, true)
+        .expect("acp route provider should be synthesized for acp requests");
+
+    assert_eq!(info.id, "acp");
+    assert!(matches!(info.source, provider::ProviderSource::Config));
+}
+
+#[test]
+fn resolve_stream_provider_info_preserves_an_existing_provider() {
+    let mut existing = acp_route_provider_info();
+    existing.id = "configured-provider".to_string();
+    existing.name = "Configured Provider".to_string();
+
+    let info = resolve_stream_provider_info("configured-provider", Some(existing), false)
+        .expect("an existing provider should be returned");
+
+    assert_eq!(info.id, "configured-provider");
+    assert_eq!(info.name, "Configured Provider");
+}
+
+#[test]
+fn resolve_stream_provider_info_requires_an_explicit_acp_request_for_fallback() {
+    let error = resolve_stream_provider_info("acp", None, false)
+        .expect_err("the ACP fallback should not be enabled implicitly");
+
+    match error {
+        Error::ProviderNotFound(provider_id) => assert_eq!(provider_id, "acp"),
+        other => panic!("expected provider not found, got {other:?}"),
+    }
+}
+
+#[test]
+fn resolve_stream_provider_info_rejects_non_acp_missing_provider_for_acp_requests() {
+    let error = resolve_stream_provider_info("__missing_provider__", None, true)
+        .expect_err("explicit missing providers should still fail");
+
+    match error {
+        Error::ProviderNotFound(provider_id) => assert_eq!(provider_id, "__missing_provider__"),
+        other => panic!("expected provider not found, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -189,4 +287,141 @@ async fn stream_returns_provider_not_found_before_requesting() {
         other => panic!("expected provider not found, got {other:?}"),
     }
     assert!(events.lock().unwrap().is_empty());
+}
+
+// =============================================================================
+// request_options_map_enable_acp
+// =============================================================================
+
+#[test]
+fn request_options_map_enable_acp_false_when_key_is_missing() {
+    assert!(!request_options_map_enable_acp(&HashMap::new()));
+}
+
+#[test]
+fn request_options_map_enable_acp_true_when_acp_test_is_true() {
+    let mut options = HashMap::new();
+    options.insert("acp_test".to_string(), Value::Bool(true));
+    assert!(request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_false_when_acp_test_is_false() {
+    let mut options = HashMap::new();
+    options.insert("acp_test".to_string(), Value::Bool(false));
+    assert!(!request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_true_when_acp_agent_is_non_empty() {
+    let mut options = HashMap::new();
+    options.insert("acp_agent".to_string(), Value::String("codex".to_string()));
+    assert!(request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_false_when_acp_agent_is_empty() {
+    let mut options = HashMap::new();
+    options.insert("acp_agent".to_string(), Value::String(String::new()));
+    assert!(!request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_false_when_acp_agent_is_whitespace() {
+    let mut options = HashMap::new();
+    options.insert("acp_agent".to_string(), Value::String("   ".to_string()));
+    assert!(!request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_accepts_agent_when_test_flag_is_false() {
+    let mut options = HashMap::new();
+    options.insert("acp_test".to_string(), Value::Bool(false));
+    options.insert("acp_agent".to_string(), Value::String("codex".to_string()));
+
+    assert!(request_options_map_enable_acp(&options));
+}
+
+#[test]
+fn request_options_map_enable_acp_rejects_wrong_value_types() {
+    let mut options = HashMap::new();
+    options.insert("acp_test".to_string(), Value::String("true".to_string()));
+    options.insert("acp_agent".to_string(), Value::Bool(true));
+
+    assert!(!request_options_map_enable_acp(&options));
+}
+
+// =============================================================================
+// request_options_value_enable_acp
+// =============================================================================
+
+#[test]
+fn request_options_value_enable_acp_false_when_no_relevant_keys() {
+    assert!(!request_options_value_enable_acp(&json!({})));
+    assert!(!request_options_value_enable_acp(&json!({ "unrelated": "value" })));
+}
+
+#[test]
+fn request_options_value_enable_acp_true_when_acp_test_is_true() {
+    assert!(request_options_value_enable_acp(&json!({ "acp_test": true })));
+}
+
+#[test]
+fn request_options_value_enable_acp_false_when_acp_test_is_false() {
+    assert!(!request_options_value_enable_acp(&json!({ "acp_test": false })));
+}
+
+#[test]
+fn request_options_value_enable_acp_true_when_acp_agent_is_non_empty() {
+    assert!(request_options_value_enable_acp(&json!({ "acp_agent": "opencode" })));
+}
+
+#[test]
+fn request_options_value_enable_acp_false_when_acp_agent_is_empty_string() {
+    assert!(!request_options_value_enable_acp(&json!({ "acp_agent": "" })));
+}
+
+#[test]
+fn request_options_value_enable_acp_false_when_acp_agent_is_whitespace() {
+    assert!(!request_options_value_enable_acp(&json!({ "acp_agent": "   " })));
+}
+
+#[test]
+fn request_options_value_enable_acp_accepts_agent_when_test_flag_is_false() {
+    assert!(request_options_value_enable_acp(&json!({
+        "acp_test": false,
+        "acp_agent": "opencode"
+    })));
+}
+
+#[test]
+fn request_options_value_enable_acp_rejects_non_object_and_wrong_value_types() {
+    for options in [
+        json!(null),
+        json!([]),
+        json!("acp"),
+        json!({
+            "acp_test": "true",
+            "acp_agent": true
+        }),
+    ] {
+        assert!(!request_options_value_enable_acp(&options));
+    }
+}
+
+// =============================================================================
+// acp_route_provider_info
+// =============================================================================
+
+#[test]
+fn acp_route_provider_info_has_expected_structure() {
+    let info = acp_route_provider_info();
+
+    assert_eq!(info.id, "acp");
+    assert_eq!(info.name, "ACP");
+    assert!(matches!(info.source, provider::ProviderSource::Config));
+    assert!(info.env.is_empty());
+    assert!(info.key.is_none());
+    assert!(info.options.is_empty());
+    assert!(info.models.is_empty());
 }

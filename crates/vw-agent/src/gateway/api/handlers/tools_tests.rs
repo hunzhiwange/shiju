@@ -73,6 +73,16 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
     serde_json::from_slice(&bytes).expect("body should be json")
 }
 
+async fn assert_unauthorized(response: axum::response::Response) {
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response_json(response).await,
+        serde_json::json!({
+            "error": "Unauthorized — send a valid skey as Authorization: Bearer <skey>"
+        })
+    );
+}
+
 #[test]
 fn tool_handlers_are_available() {
     let _ = handle_api_tools;
@@ -94,6 +104,46 @@ async fn handle_api_tools_returns_registered_specs_when_authorized() {
 }
 
 #[tokio::test]
+async fn handle_api_tools_returns_empty_items_for_empty_registry() {
+    let mut app_state = state(false, &[]);
+    app_state.tools_registry = Arc::new(Vec::new());
+
+    let response = handle_api_tools(State(app_state), HeaderMap::new()).await.into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await, serde_json::json!({ "items": [] }));
+}
+
+#[tokio::test]
+async fn handle_api_tools_preserves_registry_order_and_capabilities() {
+    let mut app_state = state(false, &[]);
+    app_state.tools_registry = Arc::new(vec![
+        ToolSpec::new("reader", "Reads data", serde_json::json!({ "type": "object" }))
+            .with_read_only(true)
+            .with_concurrency_safe(true),
+        ToolSpec::new("writer", "Writes data", serde_json::json!({ "type": "object" }))
+            .with_destructive(true)
+            .with_requires_user_interaction(true)
+            .with_strict(false),
+    ]);
+
+    let response = handle_api_tools(State(app_state), HeaderMap::new()).await.into_response();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response_json(response).await;
+    let items = body["items"].as_array().expect("items should be an array");
+
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0]["id"], "reader");
+    assert_eq!(items[0]["read_only"], true);
+    assert_eq!(items[0]["concurrency_safe"], true);
+    assert_eq!(items[1]["id"], "writer");
+    assert_eq!(items[1]["destructive"], true);
+    assert_eq!(items[1]["requires_user_interaction"], true);
+    assert_eq!(items[1]["strict"], false);
+}
+
+#[tokio::test]
 async fn handle_api_cli_tools_returns_discovery_array_when_authorized() {
     let response =
         handle_api_cli_tools(State(state(false, &[])), HeaderMap::new()).await.into_response();
@@ -101,6 +151,7 @@ async fn handle_api_cli_tools_returns_discovery_array_when_authorized() {
 
     let body = response_json(response).await;
     assert!(body["cli_tools"].is_array());
+    assert_eq!(body.as_object().expect("body should be an object").len(), 1);
 }
 
 #[tokio::test]
@@ -112,10 +163,13 @@ async fn handle_api_doctor_returns_results_and_summary_when_authorized() {
     let body = response_json(response).await;
     let results = body["results"].as_array().expect("results should be an array");
     let summary = &body["summary"];
-    let total = summary["ok"].as_u64().unwrap()
-        + summary["warnings"].as_u64().unwrap()
-        + summary["errors"].as_u64().unwrap();
-    assert_eq!(total as usize, results.len());
+    let ok_count = results.iter().filter(|result| result["severity"] == "ok").count() as u64;
+    let warning_count = results.iter().filter(|result| result["severity"] == "warn").count() as u64;
+    let error_count = results.iter().filter(|result| result["severity"] == "error").count() as u64;
+
+    assert_eq!(summary["ok"].as_u64(), Some(ok_count));
+    assert_eq!(summary["warnings"].as_u64(), Some(warning_count));
+    assert_eq!(summary["errors"].as_u64(), Some(error_count));
 }
 
 #[tokio::test]
@@ -123,18 +177,18 @@ async fn tool_handlers_reject_missing_or_wrong_bearer_when_pairing_required() {
     let tools = handle_api_tools(State(state(true, &["paired-token"])), HeaderMap::new())
         .await
         .into_response();
-    assert_eq!(tools.status(), StatusCode::UNAUTHORIZED);
+    assert_unauthorized(tools).await;
 
     let cli_tools = handle_api_cli_tools(State(state(true, &["paired-token"])), HeaderMap::new())
         .await
         .into_response();
-    assert_eq!(cli_tools.status(), StatusCode::UNAUTHORIZED);
+    assert_unauthorized(cli_tools).await;
 
     let mut headers = HeaderMap::new();
     headers.insert(header::AUTHORIZATION, "Bearer wrong-token".parse().unwrap());
     let doctor =
         handle_api_doctor(State(state(true, &["paired-token"])), headers).await.into_response();
-    assert_eq!(doctor.status(), StatusCode::UNAUTHORIZED);
+    assert_unauthorized(doctor).await;
 }
 
 #[tokio::test]

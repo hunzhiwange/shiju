@@ -98,3 +98,11 @@ async fn execute_rejects_invalid_arguments_and_readonly_before_network() {
             .contains("read-only")
     );
 }
+
+#[tokio::test]
+async fn call_propagates_non_object_parameter_errors_before_network() {
+    let error =
+        tool(5, 1).call(json!([])).await.expect_err("array parameters must fail before dispatch");
+
+    assert!(error.to_string().contains("Missing or invalid parameters"));
+}

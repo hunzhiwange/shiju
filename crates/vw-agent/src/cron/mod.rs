@@ -8,6 +8,9 @@ mod store;
 mod types;
 
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+#[cfg(test)]
 #[path = "store_tests.rs"]
 mod store_tests;
 

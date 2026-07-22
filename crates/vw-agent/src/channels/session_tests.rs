@@ -70,6 +70,23 @@ fn test_context() -> ChannelRuntimeContext {
     }
 }
 
+fn processor_request(root: &std::path::Path) -> crate::app::agent::session::processor::Request {
+    crate::app::agent::session::processor::Request {
+        stream: 1,
+        session: "channel-session-test".to_string(),
+        query: "请读取 docs 文件列表".to_string(),
+        root: Some(root.to_string_lossy().to_string()),
+        model: None,
+        options: serde_json::json!({}),
+        approval: None,
+        channel_name: Some("test".to_string()),
+        non_cli_approval_context: None,
+        assistant_message_id: None,
+        history: Vec::new(),
+        persist_app_session_artifacts: false,
+    }
+}
+
 /// 测试 `clear_sender_session_id_for_scope` 只移除目标范围键
 ///
 /// 验证：
@@ -111,6 +128,23 @@ fn channel_project_directory_uses_workspace_dir_without_override() {
 }
 
 #[test]
+fn channel_project_directory_prefers_override_over_workspace_dir() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let override_dir = tempfile::tempdir().expect("override temp dir");
+    let mut ctx = test_context();
+    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
+
+    channel_project_dir_override_store()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .replace(override_dir.path().to_path_buf());
+
+    assert_eq!(channel_project_directory(&ctx), override_dir.path().to_path_buf());
+
+    channel_project_dir_override_store().lock().unwrap_or_else(|e| e.into_inner()).take();
+}
+
+#[test]
 fn initial_session_title_normalizes_truncates_and_falls_back_to_channel_sender() {
     let mut msg = channel_message(None);
 
@@ -122,6 +156,17 @@ fn initial_session_title_normalizes_truncates_and_falls_back_to_channel_sender()
 
     msg.content = " \n\t ".to_string();
     assert_eq!(initial_session_title_for_message(&msg), "telegram sender-1");
+}
+
+#[test]
+fn initial_session_title_truncates_on_char_boundary_after_trimming() {
+    let mut msg = channel_message(None);
+    msg.content = format!("{}   tail", "好".repeat(51));
+
+    let title = initial_session_title_for_message(&msg);
+
+    assert_eq!(title, format!("{}...", "好".repeat(50)));
+    assert!(title.ends_with("..."));
 }
 
 #[tokio::test]
@@ -170,6 +215,94 @@ async fn resolve_or_create_sender_session_id_replaces_invalid_mapping_then_reuse
     );
 
     sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
+}
+
+#[tokio::test]
+async fn resolve_or_create_sender_session_id_reuses_preexisting_valid_mapping() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let mut ctx = test_context();
+    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
+    let msg = channel_message(None);
+
+    let created = resolve_or_create_sender_session_id(&ctx, &msg).await;
+    let sender_key = sender_session_key(&msg);
+    let scope = resolve_channel_project_scope_id(&ctx).await;
+    let key = format!("{scope}::{sender_key}");
+
+    let reused = resolve_or_create_sender_session_id(&ctx, &msg).await;
+
+    assert_eq!(reused, created);
+    assert_eq!(
+        sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).get(&key),
+        Some(&created)
+    );
+
+    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
+}
+
+#[tokio::test]
+async fn resolve_or_create_sender_session_id_separates_thread_scoped_senders() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let mut ctx = test_context();
+    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
+    let msg_without_thread = channel_message(None);
+    let msg_with_thread = channel_message(Some("thread-1"));
+
+    let session_without_thread =
+        resolve_or_create_sender_session_id(&ctx, &msg_without_thread).await;
+    let session_with_thread = resolve_or_create_sender_session_id(&ctx, &msg_with_thread).await;
+
+    assert_ne!(session_without_thread, session_with_thread);
+
+    let scope = resolve_channel_project_scope_id(&ctx).await;
+    let key_without_thread = format!("{scope}::{}", sender_session_key(&msg_without_thread));
+    let key_with_thread = format!("{scope}::{}", sender_session_key(&msg_with_thread));
+    let mut store = sender_session_store().lock().unwrap_or_else(|e| e.into_inner());
+    assert_eq!(store.get(&key_without_thread), Some(&session_without_thread));
+    assert_eq!(store.get(&key_with_thread), Some(&session_with_thread));
+    store.remove(&key_without_thread);
+    store.remove(&key_with_thread);
+}
+
+#[tokio::test]
+async fn spawn_channel_session_title_refresh_ignores_empty_title_source() {
+    spawn_channel_session_title_refresh(
+        "missing-channel-session".to_string(),
+        " \n\t ".to_string(),
+        Some("provider/model".to_string()),
+    );
+
+    tokio::task::yield_now().await;
+}
+
+#[tokio::test]
+async fn run_session_processor_for_channel_accumulates_and_forwards_docs_output() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let docs_dir = workspace.path().join("docs");
+    std::fs::create_dir(&docs_dir).expect("create docs dir");
+    std::fs::write(docs_dir.join("guide.md"), "# Guide\n").expect("write docs fixture");
+    let (delta_tx, mut delta_rx) = tokio::sync::mpsc::channel(1);
+
+    let output =
+        run_session_processor_for_channel(processor_request(workspace.path()), Some(delta_tx))
+            .await
+            .expect("docs request should complete");
+
+    assert!(output.contains("docs/guide.md"));
+    assert_eq!(delta_rx.recv().await.as_deref(), Some(output.as_str()));
+    assert_eq!(delta_rx.recv().await, None);
+}
+
+#[tokio::test]
+async fn run_session_processor_for_channel_propagates_docs_error() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+
+    let error = run_session_processor_for_channel(processor_request(workspace.path()), None)
+        .await
+        .expect_err("missing docs directory should fail")
+        .to_string();
+
+    assert_eq!(error, "docs 目录不存在");
 }
 
 #[test]

@@ -10,11 +10,92 @@ fn canonical_tool_name_normalizes_common_aliases() {
 }
 
 #[test]
+fn canonical_tool_name_covers_every_declared_alias_group() {
+    let cases = [
+        ("agent_tool", "AgentTool"),
+        ("file_read", "read"),
+        ("read_file", "read"),
+        ("brief", "brief"),
+        ("file_edit", "file_edit"),
+        ("edit_file", "file_edit"),
+        ("editfile", "file_edit"),
+        ("edit_notebook", "notebook_edit"),
+        ("notebookedit", "notebook_edit"),
+        ("askUserQuestion", "question"),
+        ("todoWrite", "todowrite"),
+        ("todoRead", "todoread"),
+        ("webFetch", "web_fetch"),
+        ("webSearch", "web_search"),
+        ("browserOpen", "browser_open"),
+        ("lsp", "lsp"),
+        ("exitPlanMode", "exit_plan_mode"),
+        ("verifyPlanExecution", "verify_plan_execution"),
+        ("exitWorktree", "exit_worktree"),
+        ("toolSearch", "tool_search"),
+    ];
+
+    for (raw, expected) in cases {
+        assert_eq!(canonical_tool_name(raw), expected, "raw={raw}");
+    }
+}
+
+#[test]
 fn known_tool_name_uses_canonical_name() {
     assert!(is_known_tool_name("shell"));
     assert!(is_known_tool_name("execute"));
     assert!(is_known_tool_name("todo_write"));
     assert!(!is_known_tool_name("unknown_tool"));
+}
+
+#[test]
+fn known_tool_name_accepts_representative_file_runtime_search_and_integration_tools() {
+    for name in [
+        "pdf_read",
+        "write",
+        "file_write",
+        "apply_patch",
+        "glob",
+        "grep",
+        "ls",
+        "list_dir",
+        "batch",
+        "task",
+        "fetch_webpage",
+        "open_browser_page",
+        "delegate_coordination_status",
+        "codesearch",
+        "glob_search",
+        "content_search",
+        "searchcodebase",
+        "grep_search",
+        "file_search",
+        "semantic_search",
+        "github_repo",
+        "copilot_getnotebooksummary",
+        "vscode_listcodeusages",
+        "skill",
+        "screenshot",
+        "schedule",
+        "cron_add",
+        "cron_list",
+        "cron_run",
+        "cron_update",
+        "cron_remove",
+        "memory_store",
+        "memory_recall",
+        "memory_forget",
+        "git_operations",
+        "git_diff",
+        "get_errors",
+        "get_changed_files",
+        "view_image",
+        "wasm_module",
+        "composio",
+        "pushover",
+        "process",
+    ] {
+        assert!(is_known_tool_name(name), "expected known tool {name}");
+    }
 }
 
 #[test]
@@ -36,6 +117,8 @@ fn compact_tool_call_trace_rejects_uppercase_and_missing_prefix() {
     assert!(!is_compact_tool_call_trace("tool Bash(command=\"ls\")"));
     assert!(!is_compact_tool_call_trace("bash(command=\"ls\")"));
     assert!(!is_compact_tool_call_trace("tool bash command=\"ls\")"));
+    assert!(!is_compact_tool_call_trace("tool bash-extra(command=\"ls\")"));
+    assert!(!is_compact_tool_call_trace("tool (command=\"ls\")"));
 }
 
 #[test]

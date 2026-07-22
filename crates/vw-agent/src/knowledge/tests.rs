@@ -1,10 +1,12 @@
 use super::SqliteKnowledgeStore;
 use super::chunker::chunk_text_with_limits;
+use crate::global_database::GlobalDatabase;
 use crate::memory::embeddings::EmbeddingProvider;
 use crate::workflow::{WorkflowKnowledgeProvider, WorkflowKnowledgeRequest};
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
+use vw_api_types::TenantScope;
 use vw_api_types::knowledge::{
     KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDocumentCreateRequest,
     KnowledgeIndexingMode, KnowledgeRetrievalMode, KnowledgeRetrieveRequest,
@@ -12,19 +14,23 @@ use vw_api_types::knowledge::{
 
 fn store() -> SqliteKnowledgeStore {
     let dir = tempfile::tempdir().expect("tempdir");
-    SqliteKnowledgeStore::new(dir.keep().join("knowledge.sqlite"))
+    let database =
+        GlobalDatabase::new(dir.keep().join("knowledge.sqlite")).expect("global database");
+    SqliteKnowledgeStore::new(database, TenantScope::default()).expect("knowledge store")
 }
 
 fn vector_store() -> SqliteKnowledgeStore {
     let dir = tempfile::tempdir().expect("tempdir");
     SqliteKnowledgeStore::with_embedder(
-        dir.keep().join("knowledge.sqlite"),
+        GlobalDatabase::new(dir.keep().join("knowledge.sqlite")).expect("global database"),
+        TenantScope::default(),
         Arc::new(FakeEmbedding),
         Some("fake-embedding".to_string()),
         0.8,
         0.2,
         128,
     )
+    .expect("knowledge store")
 }
 
 fn dataset_request(
@@ -117,6 +123,7 @@ async fn sqlite_store_retrieves_uploaded_document() {
             top_k: 3,
             score_threshold: None,
             metadata_filter: Some(json!({ "tag": "support" })),
+            include_context: true,
         })
         .await
         .expect("retrieve");
@@ -161,13 +168,20 @@ async fn parent_child_dataset_returns_parent_context() {
             top_k: 1,
             score_threshold: None,
             metadata_filter: None,
+            include_context: true,
         })
         .await
         .expect("retrieve");
 
     assert_eq!(response.chunks.len(), 1);
     assert_eq!(response.chunks[0].metadata["chunking_mode"], json!("parent_child"));
-    assert!(response.chunks[0].content.contains("Parent context should be returned"));
+    assert!(
+        response.chunks[0]
+            .context
+            .as_deref()
+            .unwrap_or("")
+            .contains("Parent context should be returned")
+    );
     assert!(
         response.chunks[0].metadata["child_content"].as_str().unwrap_or("").contains("needlechild")
     );
@@ -204,6 +218,7 @@ async fn qa_dataset_retrieves_by_question_and_returns_answer() {
             top_k: 1,
             score_threshold: None,
             metadata_filter: None,
+            include_context: false,
         })
         .await
         .expect("retrieve");
@@ -300,6 +315,7 @@ async fn sqlite_store_uses_vector_retrieval_for_high_quality_dataset() {
             top_k: 1,
             score_threshold: None,
             metadata_filter: None,
+            include_context: false,
         })
         .await
         .expect("retrieve");

@@ -42,6 +42,15 @@ fn contains_path_falls_back_when_root_and_parent_do_not_exist() {
 }
 
 #[test]
+fn contains_path_treats_empty_candidate_as_root() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path().join("root");
+    std::fs::create_dir(&root).expect("create root");
+
+    assert!(contains_path(&root, Path::new("")));
+}
+
+#[test]
 fn image_extension_helper_covers_known_formats() {
     let image_extensions = [
         "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico", "tif", "tiff", "svg", "svgz", "avif",

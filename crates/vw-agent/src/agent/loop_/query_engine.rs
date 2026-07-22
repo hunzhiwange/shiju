@@ -80,7 +80,7 @@ pub(crate) struct QueryEngine {
     history: Vec<ChatMessage>,
     tools_registry: Vec<Box<dyn Tool>>,
     observer: Arc<RecordingObserver>,
-    provider: Box<dyn Provider>,
+    provider: Arc<dyn Provider>,
     memory: Arc<dyn Memory>,
     provider_name: String,
     model_name: String,
@@ -172,6 +172,15 @@ impl Observer for RecordingObserver {
 impl QueryEngine {
     /// 从配置构建一个可复用的会话级引擎。
     pub(crate) async fn new(config: Config, session_id: &str) -> Result<Self> {
+        Self::new_with_provider(config, session_id, None).await
+    }
+
+    /// 从配置构建引擎，并可复用调用方已经解析好的 provider。
+    pub(crate) async fn new_with_provider(
+        config: Config,
+        session_id: &str,
+        provider_override: Option<Arc<dyn Provider>>,
+    ) -> Result<Self> {
         let base_observer: Arc<dyn Observer> =
             Arc::from(observability::create_observer(&config.observability));
         let observer = Arc::new(RecordingObserver::new(base_observer));
@@ -230,8 +239,10 @@ impl QueryEngine {
             model_support_vision: config.model_support_vision,
         };
 
-        let provider: Box<dyn Provider> =
-            crate::app::agent::providers::create_routed_provider_with_options(
+        let provider: Arc<dyn Provider> = if let Some(provider) = provider_override {
+            provider
+        } else {
+            Arc::from(crate::app::agent::providers::create_routed_provider_with_options(
                 &provider_name,
                 config.api_key.as_deref(),
                 config.api_url.as_deref(),
@@ -239,7 +250,8 @@ impl QueryEngine {
                 &config.model_routes,
                 &model_name,
                 &provider_runtime_options,
-            )?;
+            )?)
+        };
 
         let skills =
             crate::app::agent::skills::load_skills_with_config(&config.workspace_dir, &config);

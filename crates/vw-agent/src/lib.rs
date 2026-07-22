@@ -216,6 +216,10 @@ pub mod goals;
 // 全局状态
 pub mod global;
 
+// 全局 SQLite 连接基础（非 WASM 平台）
+#[cfg(not(target_arch = "wasm32"))]
+pub mod global_database;
+
 // 健康检查
 pub(crate) mod health;
 
@@ -263,6 +267,9 @@ pub mod patch;
 // 权限系统
 pub mod permission;
 
+// 插件包清单解析与静态审计
+pub mod plugins;
+
 // 项目上下文
 pub mod project;
 
@@ -287,6 +294,10 @@ pub mod runtime;
 
 // 调度器
 pub mod scheduler;
+
+// Agent Scheduler（非 WASM 平台）
+#[cfg(not(target_arch = "wasm32"))]
+pub mod agent_scheduler;
 
 // 安全策略
 pub mod security;
@@ -318,8 +329,34 @@ pub mod sop;
 // 存储层
 pub mod storage;
 
+// 任务池 worktree pool
+pub mod task_worktree_pool;
+
+// 任务生命周期 workflow 领域服务
+pub mod task_lifecycle;
+
 // 测试能力
 pub mod test_capabilities;
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::{Mutex, OnceLock};
+
+    pub(crate) fn global_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    pub(crate) fn global_runtime_proxy_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    pub(crate) fn global_async_env_lock() -> &'static tokio::sync::Mutex<()> {
+        static LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+        &LOCK
+    }
+}
 
 // 工具执行
 pub mod tools;
@@ -347,7 +384,7 @@ pub mod workflow;
 
 pub use cli_commands::{
     ChannelCommands, CronCommands, IntegrationCommands, MemoryCommands, MigrateCommands,
-    ServiceCommands, SkillCommands,
+    PluginCommands, ServiceCommands, SkillCommands,
 };
 /// 重导出配置类型，作为公共 API 的一部分
 pub use config::Config;
@@ -355,3 +392,6 @@ pub use config::Config;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+include!("agent_scheduler_policy_legacy_review_exact_tests.rs");

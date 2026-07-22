@@ -1,7 +1,8 @@
 //! 定义系统设置页面的消息枚举，作为 UI 事件与状态更新之间的显式契约。
 
 use crate::app::state::{
-    CronAddJobType, CronAddScheduleKind, CronSettingsTab, GatewaySettingsTab, ModelCatalogEntry,
+    CronAddJobType, CronAddScheduleKind, CronSettingsTab, GatewaySettingsTab,
+    McpNewServerTransport, McpSettingsTab, ModelCatalogEntry,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -10,13 +11,15 @@ use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 
 use super::types::{
     AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, ModelsLoaded,
-    ProvidersLoaded, SkillsLoaded,
+    PluginsLoaded, ProvidersLoaded, SkillsLoaded, StaffLoaded,
 };
 
 /// Embedding 路由设置页消息。
 #[derive(Debug, Clone)]
 pub enum EmbeddingRoutesMessage {
     AddRoute,
+    InsertAlibabaTemplate,
+    InsertDoubaoTemplate,
     RemoveRoute(usize),
     PatternChanged(usize, String),
     ProviderChanged(usize, String),
@@ -212,6 +215,8 @@ pub enum ChannelsMessage {
     ProjectDirChanged(String),
     MessageTimeoutSecsChanged(u32),
     EnabledToggled(String, bool),
+    InstanceAdded(String),
+    InstanceRemoved(String, usize),
     TextChanged(String, String),
     TextEditorAction(String, text_editor::Action),
     BoolToggled(String, bool),
@@ -256,6 +261,11 @@ pub enum GatewayMessage {
     NodeControlAllowedNodeIdsChanged(String),
     ServiceCommandRequested(String),
     ServiceCommandCompleted(String, Result<String, String>),
+    ServiceRecoveryCompleted(String, Result<(), String>),
+    CopyServiceCommand(String),
+    ClearCopiedServiceCommand(String),
+    ConfirmDangerServiceCommand(String),
+    CancelDangerServiceCommand,
     HelpOpen,
     HelpClose,
 }
@@ -271,6 +281,8 @@ pub enum GatewayClientMessage {
     NameChanged(String),
     HostChanged(String),
     PortChanged(u16),
+    PlatformIdChanged(String),
+    CompanyIdChanged(String),
     SkeyChanged(String),
     HelpOpen,
     HelpClose,
@@ -281,6 +293,11 @@ pub enum GatewayClientMessage {
 pub enum AcpMessage {
     Refresh,
     Loaded(Result<crate::app::config::AcpSettingsSnapshot, String>),
+    CopyCommand {
+        agent: String,
+        command: String,
+    },
+    ClearCopiedCommand(String),
     SetEnabled {
         agent: String,
         enabled: bool,
@@ -290,6 +307,34 @@ pub enum AcpMessage {
         enabled: bool,
         result: Result<crate::app::config::AcpSettingsSnapshot, String>,
     },
+}
+
+/// MCP 设置页消息。
+#[derive(Debug, Clone)]
+pub enum McpMessage {
+    TabSelected(McpSettingsTab),
+    Refresh,
+    Loaded(Result<serde_json::Value, String>),
+    InspectRefresh,
+    Inspected(Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String>),
+    EditorAction(text_editor::Action),
+    Format,
+    InsertTemplate,
+    NewServerPanelToggled,
+    NewServerNameChanged(String),
+    NewServerTransportChanged(McpNewServerTransport),
+    NewServerCommandChanged(String),
+    NewServerArgsChanged(String),
+    NewServerUrlChanged(String),
+    NewServerTimeoutChanged(String),
+    NewServerEnabledToggled(bool),
+    NewServerRequiredToggled(bool),
+    AddServer,
+    ServerEnabledToggled(usize, bool),
+    RuntimeServerEnabledToggled(String, bool),
+    PreviewExpandedToggled(String),
+    Save,
+    Saved(Result<(), String>),
 }
 
 /// 隧道设置页消息。
@@ -360,6 +405,101 @@ pub enum AgentsMessage {
     MaxIterationsChanged(String, u32),
 }
 
+/// 员工配置设置页消息。
+#[derive(Debug, Clone)]
+pub enum StaffMessage {
+    Refresh,
+    Loaded(StaffLoaded),
+    Resources(StaffResourceMessage),
+    TabChanged(String),
+    SelectMember(String),
+    AddMemberRequested,
+    DeleteMemberRequested(String),
+    ResetDraftRequested,
+    MemberIdChanged(String, String),
+    MemberNameChanged(String, String),
+    MemberRoleChanged(String, String),
+    MemberLevelChanged(String, String),
+    MemberStatusChanged(String, String),
+    MemberEnabledToggled(String, bool),
+    MemberCapacityChanged(String, String),
+    MemberDelegateAgentChanged(String, Option<String>),
+    MemberAcpAgentChanged(String, Option<String>),
+    ChannelBindingAdded(String),
+    ChannelBindingRemoved(String, usize),
+    ChannelBindingChannelTypeChanged(String, usize, String),
+    ChannelBindingInstanceIdChanged(String, usize, String),
+    CapabilityAgenticToggled(String, bool),
+    CapabilityAllowedToolToggled(String, String, bool),
+    CapabilityAllowedSkillToggled(String, String, bool),
+    CapabilityMaxIterationsChanged(String, String),
+    CapabilityMaxParallelTasksChanged(String, String),
+    CapabilityMaxActiveMinutesChanged(String, String),
+    SaveRequested,
+    Saved(Result<(), String>),
+}
+
+/// 员工设置中的项目级 Worker 与 Team 资源消息。
+#[derive(Debug, Clone)]
+pub enum StaffResourceMessage {
+    Refresh,
+    WorkersLoaded(
+        Result<Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentWorkerDto>, String>,
+    ),
+    WorkerSelected(String),
+    WorkerNewRequested,
+    WorkerFieldChanged(StaffWorkerDraftField, String),
+    WorkerCapabilitiesChanged(
+        Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentCapabilityDto>,
+    ),
+    WorkerSaveRequested,
+    WorkerSaved(Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentWorkerDto, String>),
+    TeamsLoaded(
+        Result<Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamDto>, String>,
+    ),
+    TeamSelected(String),
+    TeamNewRequested,
+    TeamFieldChanged(StaffTeamDraftField, String),
+    TeamStatusChanged(vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamStatusDto),
+    TeamMemberAdded(String),
+    TeamMemberRemoved(usize),
+    TeamMemberFieldChanged(usize, StaffTeamMemberDraftField, String),
+    TeamMemberReadyToggled(usize, bool),
+    TeamSaveRequested,
+    TeamSaved(Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamDto, String>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StaffWorkerDraftField {
+    WorkerId,
+    Runtime,
+    Deployment,
+    Model,
+    ModelProvider,
+    TeamId,
+    WorkerRole,
+    MatrixUserId,
+    RoomId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StaffTeamDraftField {
+    TeamId,
+    Name,
+    LeaderId,
+    TeamRoomId,
+    LeaderDmRoomId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StaffTeamMemberDraftField {
+    WorkerId,
+    RuntimeName,
+    Role,
+    RoomId,
+    MatrixUserId,
+}
+
 /// SOP 设置页消息。
 #[derive(Debug, Clone)]
 pub enum SopMessage {
@@ -395,10 +535,12 @@ pub enum SettingsMessage {
     Channels(ChannelsMessage),
     Multimodal(MultimodalMessage),
     Acp(AcpMessage),
+    Mcp(McpMessage),
     Gateway(GatewayMessage),
     GatewayClient(GatewayClientMessage),
     Tunnel(TunnelMessage),
     Agents(AgentsMessage),
+    Staff(StaffMessage),
     AgentConfigSaved {
         tag: &'static str,
         result: Result<(), String>,
@@ -413,6 +555,23 @@ pub enum SettingsMessage {
     ModelsRefreshed(ModelsLoaded),
     SkillsRefresh,
     SkillsLoaded(SkillsLoaded),
+    PluginsRefresh,
+    PluginsLoaded(PluginsLoaded),
+    PluginsSelected(String),
+    PluginsSetEnabledRequested {
+        plugin_id: String,
+        enabled: bool,
+    },
+    PluginsSetEnabledCompleted {
+        plugin_id: String,
+        enabled: bool,
+        result: Result<String, String>,
+    },
+    PluginsDeleteRequested(String),
+    PluginsDeleteCompleted {
+        plugin_id: String,
+        result: Result<String, String>,
+    },
     ModelQueryChanged(String),
     ModelToggle(String, String, bool),
     ModelDetailOpen(String, String),

@@ -152,6 +152,7 @@ pub(crate) struct AgentRequest {
     pub(crate) root: Option<String>,
     /// 要使用的模型标识符（可选，使用默认模型）
     pub(crate) model: Option<String>,
+    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
     pub(crate) acp_test: bool,
     pub(crate) acp_agent: Option<String>,
     pub(crate) acp_allowed_tools: Option<Vec<String>>,
@@ -183,6 +184,7 @@ pub(crate) struct QueueItem {
     pub(crate) root: Option<String>,
     /// 要使用的模型标识符（可选）
     pub(crate) model: Option<String>,
+    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
     pub(crate) acp_test: bool,
     pub(crate) acp_agent: Option<String>,
     pub(crate) acp_allowed_tools: Option<Vec<String>>,
@@ -206,6 +208,8 @@ pub(crate) struct QueueItem {
 pub(crate) struct SessionRuntimeState {
     /// 是否正在处理请求
     pub(crate) is_requesting: bool,
+    /// 本轮请求开始的毫秒时间戳，用于状态栏展示运行时长；0 表示未在请求中
+    pub(crate) request_started_ms: u64,
     /// 提交动画计数器
     pub(crate) submit_anim: u8,
     /// 是否有未查看的成功响应
@@ -220,6 +224,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) model: String,
     /// 是否自动选择模型
     pub(crate) auto_model: bool,
+    pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
     pub(crate) tool_selector: SessionToolSelectorState,
     /// 是否启用任务模式
     pub(crate) task_mode_enabled: bool,
@@ -231,6 +236,11 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) task_mode_model: String,
     /// 任务模式使用的 ACP 智能体
     pub(crate) task_mode_executor: Option<String>,
+    /// 任务模式使用的推理强度；`None` 表示沿用 ACP 智能体默认值
+    pub(crate) task_mode_reasoning_effort:
+        Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    /// 任务模式的任务拆分策略
+    pub(crate) task_mode_task_split_mode: crate::app::task::TaskSplitMode,
     /// 任务模式的子任务列表
     pub(crate) task_mode_subtasks: Vec<String>,
     /// 子任务的编辑器内容列表
@@ -275,12 +285,14 @@ pub(crate) struct ExploreSummaryAnimationState {
 pub(crate) struct ActiveSessionViewState {
     pub(crate) updated_ms: u64,
     pub(crate) steps: Vec<ChatSessionStep>,
+    pub(crate) calls: Vec<Value>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
     pub(crate) message_meta_texts: Vec<Option<String>>,
     pub(crate) ui_preparing: bool,
     pub(crate) base_ready: bool,
     pub(crate) prepared_chat_ui_chunks: HashSet<usize>,
     pub(crate) preparing_chat_ui_chunks: HashSet<usize>,
+    pub(crate) dirty_preparing_chat_ui_chunks: HashSet<usize>,
     pub(crate) last_visited_chat_ui_chunk_start: Option<usize>,
     pub(crate) pinned_chat_ui_chunk_start: Option<usize>,
 }
@@ -325,6 +337,7 @@ impl SessionRuntimeState {
         let task_mode_model = model.clone();
         Self {
             is_requesting: false,
+            request_started_ms: 0,
             submit_anim: 0,
             has_unseen_success: false,
             active_agent_request: None,
@@ -332,12 +345,15 @@ impl SessionRuntimeState {
             input_editor: text_editor::Content::new(),
             model,
             auto_model,
+            reasoning_effort: None,
             tool_selector: SessionToolSelectorState::default(),
             task_mode_enabled: false,
             workflow_mode_enabled: false,
             task_mode_priority: "999".to_string(),
             task_mode_model,
             task_mode_executor: None,
+            task_mode_reasoning_effort: None,
+            task_mode_task_split_mode: crate::app::task::TaskSplitMode::FollowSystem,
             task_mode_subtasks,
             task_mode_subtask_editors,
             agent: None,

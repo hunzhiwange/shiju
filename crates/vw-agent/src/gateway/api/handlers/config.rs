@@ -23,13 +23,15 @@
 use crate::app::agent::gateway::AppState;
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Extension, Query, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::get,
 };
 use serde::Serialize;
 use serde_json::Value;
+use std::path::PathBuf;
+use vw_api_types::id::TenantScope;
 
 use crate::app::agent::config;
 use crate::app::agent::config::schema::{save_config, validate_config};
@@ -68,11 +70,21 @@ async fn config_patch(
     headers: HeaderMap,
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
+    let writes_project_override = has_explicit_directory(&query, &headers);
     let dir = resolve_directory(&query, &headers);
+    let project_root = PathBuf::from(&dir);
     let next = with_instance(dir, move || {
         Box::pin(async move {
-            config::update(patch).await.map_err(|e| ApiError::bad_request(e.to_string()))?;
-            Ok(config::get().await)
+            if writes_project_override {
+                config::update_project(&project_root, patch)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))
+            } else {
+                config::update_global(patch)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+                Ok(config::get().await)
+            }
         })
     })
     .await?;
@@ -94,10 +106,19 @@ async fn config_patch_stateful(
 ) -> Result<Json<Value>, ApiError> {
     let updates_active_config = !has_explicit_directory(&query, &headers);
     let dir = resolve_directory(&query, &headers);
+    let project_root = PathBuf::from(&dir);
     let next = with_instance(dir, move || {
         Box::pin(async move {
-            config::update(patch).await.map_err(|e| ApiError::bad_request(e.to_string()))?;
-            Ok(config::get().await)
+            if updates_active_config {
+                config::update_global(patch)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+                Ok(config::get().await)
+            } else {
+                config::update_project(&project_root, patch)
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))
+            }
         })
     })
     .await?;
@@ -181,6 +202,7 @@ async fn config_providers(
 /// ```
 pub async fn handle_api_config_get(
     State(state): State<AppState>,
+    Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     // 验证请求身份，失败则直接返回认证错误响应
@@ -190,11 +212,18 @@ pub async fn handle_api_config_get(
 
     // 获取当前配置的克隆副本，避免长时间持有锁
     let mut config = state.config.lock().clone();
-    if let Ok(Some(skeys)) =
-        crate::app::agent::security::gateway_skey_store::load_existing_gateway_skeys()
-    {
-        config.gateway.skeys = skeys;
-    }
+    config.gateway.skeys = match config::load_gateway_skeys_for_tenant(&tenant).await {
+        Ok(skeys) => skeys,
+        Err(error) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(
+                    serde_json::json!({"error": format!("Failed to load gateway skeys: {error}")}),
+                ),
+            )
+                .into_response();
+        }
+    };
 
     // 对敏感字段进行掩码处理，防止密钥泄露
     let masked_config = super::super::secrets::mask_sensitive_fields(&config);
@@ -260,6 +289,7 @@ pub async fn handle_api_config_get(
 ///   将自动从当前配置中继承，避免因配置更新导致密钥丢失
 pub async fn handle_api_config_put(
     State(state): State<AppState>,
+    Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
     body: String,
 ) -> impl IntoResponse {
@@ -303,17 +333,6 @@ pub async fn handle_api_config_put(
     // 水合敏感字段：从当前配置中继承新配置中缺失或占位的敏感值
     let mut new_config = super::super::secrets::hydrate_config_for_save(incoming, &current_config);
     let runtime_auth_enabled = new_config.gateway.auth_enabled;
-    let runtime_skeys = new_config.gateway.skeys.clone();
-    if let Err(e) = crate::app::agent::security::gateway_skey_store::save_gateway_skeys(
-        &new_config.gateway.skeys,
-    ) {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": format!("Failed to save gateway skeys: {e}")})),
-        )
-            .into_response();
-    }
-    new_config.gateway.skeys.clear();
 
     // 验证新配置的完整性和正确性
     if let Err(e) = validate_config(&new_config) {
@@ -323,6 +342,27 @@ pub async fn handle_api_config_put(
         )
             .into_response();
     }
+
+    if let Err(e) =
+        config::replace_gateway_skeys_for_tenant(&tenant, &new_config.gateway.skeys).await
+    {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": format!("Failed to save gateway skeys: {e}")})),
+        )
+            .into_response();
+    }
+    new_config.gateway.skeys = match config::load_gateway_skeys_for_tenant(&tenant).await {
+        Ok(skeys) => skeys,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("Failed to load gateway skeys: {e}")})),
+            )
+                .into_response();
+        }
+    };
+    let runtime_skeys = new_config.gateway.skeys.clone();
 
     // 持久化保存配置到文件系统
     if let Err(e) = save_config(&new_config).await {

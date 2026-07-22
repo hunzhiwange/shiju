@@ -1,6 +1,6 @@
 use super::*;
 use crate::OutputErrorCode;
-use crate::errors::AcpxErrorOptions;
+use crate::errors::{AcpxErrorOptions, AcpxOperationalError};
 use crate::types::OutputErrorAcpPayload;
 
 #[derive(Debug, thiserror::Error)]
@@ -14,6 +14,23 @@ struct PlainError;
 #[derive(Debug, thiserror::Error)]
 #[error("outer queue wrapper: {0}")]
 struct OuterQueueError(#[source] QueueConnectionError);
+
+#[derive(Debug)]
+struct TestOperationalError(AcpxOperationalError);
+
+impl std::ops::Deref for TestOperationalError {
+    type Target = AcpxOperationalError;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for TestOperationalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
 
 #[test]
 fn from_source_marks_interrupted_errors_in_source_chain() {
@@ -52,6 +69,38 @@ fn output_params_uses_runtime_fallback_for_plain_errors() {
     assert_eq!(output.code, OutputErrorCode::Runtime);
     assert_eq!(output.origin, Some(OutputErrorOrigin::Runtime));
     assert_eq!(output.message, "plain failure");
+}
+
+#[test]
+fn output_params_falls_back_when_normalized_output_is_absent() {
+    let error = SessionRuntimeError {
+        message: "stored failure".to_string(),
+        source: None,
+        output: None,
+        output_already_emitted: false,
+        interrupted: false,
+    };
+
+    let output = error.output_params();
+
+    assert_eq!(output.code, OutputErrorCode::Runtime);
+    assert_eq!(output.origin, Some(OutputErrorOrigin::Runtime));
+    assert_eq!(output.message, "stored failure");
+}
+
+#[test]
+fn source_returns_none_for_runtime_error_without_source() {
+    let error = SessionRuntimeError {
+        message: "stored failure".to_string(),
+        source: None,
+        output: None,
+        output_already_emitted: false,
+        interrupted: false,
+    };
+
+    assert!(error.source().is_none());
+    assert!(!error.is_interrupted());
+    assert!(!error.output_already_emitted());
 }
 
 #[test]
@@ -117,6 +166,18 @@ fn normalize_runtime_error_finds_queue_connection_error_in_source_chain() {
 }
 
 #[test]
+fn normalize_runtime_error_keeps_queue_connection_without_origin_when_no_fallback_exists() {
+    let error = QueueConnectionError::new("queue failed", AcpxErrorOptions::default());
+
+    let output = normalize_runtime_error(&error, None, None);
+
+    assert_eq!(output.code, OutputErrorCode::Runtime);
+    assert_eq!(output.detail_code, None);
+    assert_eq!(output.origin, None);
+    assert_eq!(output.message, "queue failed");
+}
+
+#[test]
 fn normalize_runtime_error_maps_operational_session_errors() {
     let resume = SessionResumeRequiredError::new("resume first", AcpxErrorOptions::default());
     let mode = SessionModeReplayError::new("mode replay", AcpxErrorOptions::default());
@@ -138,6 +199,40 @@ fn normalize_runtime_error_maps_operational_session_errors() {
     assert_eq!(model_output.detail_code.as_deref(), Some("SESSION_MODEL_REPLAY_FAILED"));
     assert_eq!(model_output.origin, Some(OutputErrorOrigin::Acp));
     assert_eq!(model_output.message, "model replay");
+}
+
+#[test]
+fn operational_output_applies_fallback_metadata_when_fields_are_missing() {
+    let error = TestOperationalError(AcpxOperationalError::new(
+        "partial operational",
+        AcpxErrorOptions {
+            output_code: Some(OutputErrorCode::Runtime),
+            ..AcpxErrorOptions::default()
+        },
+    ));
+
+    let output =
+        operational_output(&error, Some("FALLBACK_DETAIL"), Some(OutputErrorOrigin::Runtime));
+
+    assert_eq!(output.code, OutputErrorCode::Runtime);
+    assert_eq!(output.detail_code.as_deref(), Some("FALLBACK_DETAIL"));
+    assert_eq!(output.origin, Some(OutputErrorOrigin::Runtime));
+    assert_eq!(output.message, "partial operational");
+}
+
+#[test]
+fn operational_output_uses_runtime_fallback_when_output_params_are_absent() {
+    let error = TestOperationalError(AcpxOperationalError::new(
+        "opaque operational",
+        AcpxErrorOptions::default(),
+    ));
+
+    let output = operational_output(&error, Some("OPAQUE"), Some(OutputErrorOrigin::Runtime));
+
+    assert_eq!(output.code, OutputErrorCode::Runtime);
+    assert_eq!(output.detail_code.as_deref(), Some("OPAQUE"));
+    assert_eq!(output.origin, Some(OutputErrorOrigin::Runtime));
+    assert_eq!(output.message, "opaque operational");
 }
 
 #[test]

@@ -121,4 +121,18 @@ mod tests {
             "[REDACTED_CANARY]"
         );
     }
+
+    #[test]
+    fn strip_canary_block_preserves_unterminated_marker_text() {
+        let prompt = format!("base\n{CANARY_START_MARKER}\nunterminated");
+
+        assert_eq!(strip_canary_block(&prompt), prompt);
+    }
+
+    #[test]
+    fn strip_canary_block_collapses_newlines_around_removed_block() {
+        let prompt = format!("before\n{CANARY_START_MARKER}\nsecret\n{CANARY_END_MARKER}\nafter");
+
+        assert_eq!(strip_canary_block(&prompt), "before\nafter");
+    }
 }

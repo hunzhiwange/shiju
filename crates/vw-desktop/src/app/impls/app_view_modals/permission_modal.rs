@@ -8,6 +8,32 @@ use super::{App, Message, message};
 use crate::app::components::chat_panel::tools::{tool_inline_summary, tool_verb};
 use crate::app::components::chat_panel::utils::truncate_chars;
 
+pub(super) struct PermissionModalQueue {
+    requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,
+    current_index: usize,
+    previous_request_id: Option<String>,
+    next_request_id: Option<String>,
+}
+
+pub(super) fn permission_modal_queue(
+    current: &vw_gateway_client::PendingPermissionRequestDto,
+    queued: &[vw_gateway_client::PendingPermissionRequestDto],
+) -> PermissionModalQueue {
+    let mut requests = queued.to_vec();
+    if requests.is_empty() {
+        requests.push(current.clone());
+    }
+
+    let current_index = requests.iter().position(|request| request.id == current.id).unwrap_or(0);
+    let previous_request_id = current_index
+        .checked_sub(1)
+        .and_then(|idx| requests.get(idx))
+        .map(|request| request.id.clone());
+    let next_request_id = requests.get(current_index + 1).map(|request| request.id.clone());
+
+    PermissionModalQueue { requests, current_index, previous_request_id, next_request_id }
+}
+
 /// 模块内可见函数，执行 with_permission_modal 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_permission_modal<'a>(
@@ -26,23 +52,16 @@ pub(crate) fn with_permission_modal<'a>(
     };
     use iced::widget::{Space, button, column, container, row, text};
 
-    let mut pending_requests = app.permission_modal_requests.clone();
-    if pending_requests.is_empty() {
-        pending_requests.push(req.clone());
-    }
-    let current_index =
-        pending_requests.iter().position(|request| request.id == req.id).unwrap_or(0);
+    let PermissionModalQueue {
+        requests: pending_requests,
+        current_index,
+        previous_request_id,
+        next_request_id,
+    } = permission_modal_queue(&req, &app.permission_modal_requests);
 
     let mut content = column![text(permission_modal_title(&req)).size(16)].spacing(12);
 
     if pending_requests.len() > 1 {
-        let previous_request_id = current_index
-            .checked_sub(1)
-            .and_then(|idx| pending_requests.get(idx))
-            .map(|request| request.id.clone());
-        let next_request_id =
-            pending_requests.get(current_index + 1).map(|request| request.id.clone());
-
         let mut nav_row = row![
             text(format!("待审批 {}/{}", current_index + 1, pending_requests.len())).size(13),
             Space::new().width(Length::Fill)

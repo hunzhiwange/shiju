@@ -15,8 +15,9 @@ impl AcpClient {
         let mut active_runtime = runtime
             .take()
             .ok_or_else(|| AcpError::Initialize("ACP actor runtime is missing".to_string()))?;
-        match self.new_session_id(&active_runtime.conn, &cwd).await {
-            Ok(session_id) => {
+        match self.new_session_info(&active_runtime.conn, &cwd).await {
+            Ok(session_info) => {
+                let session_id = session_info.session_id.clone();
                 *active_runtime.expected_session_id.lock() = Some(session_id.clone());
                 tokio::task::yield_now().await;
                 if let Some(reason) = self.actor_runtime_restart_reason(&mut active_runtime, &cwd) {
@@ -25,7 +26,7 @@ impl AcpClient {
                     self.store_reusable_session(Some(session_id.clone()));
                     *runtime = Some(active_runtime);
                 }
-                Ok(SessionInfo { session_id })
+                Ok(session_info)
             }
             Err(err) => {
                 let finalized = self
@@ -46,10 +47,10 @@ impl AcpClient {
         let runtime = runtime
             .as_mut()
             .ok_or_else(|| AcpError::Initialize("ACP actor runtime is missing".to_string()))?;
-        self.load_session_id(&runtime.conn, &cwd, session_id.clone()).await?;
+        let session_info = self.load_session_info(&runtime.conn, &cwd, session_id.clone()).await?;
         *runtime.expected_session_id.lock() = Some(session_id.clone());
         self.store_reusable_session(Some(session_id.clone()));
-        Ok(SessionInfo { session_id })
+        Ok(session_info)
     }
 
     pub(super) async fn actor_resume_session(
@@ -62,10 +63,11 @@ impl AcpClient {
         let runtime = runtime
             .as_mut()
             .ok_or_else(|| AcpError::Initialize("ACP actor runtime is missing".to_string()))?;
-        self.resume_session_id(&runtime.conn, &cwd, session_id.clone()).await?;
+        let session_info =
+            self.resume_session_info(&runtime.conn, &cwd, session_id.clone()).await?;
         *runtime.expected_session_id.lock() = Some(session_id.clone());
         self.store_reusable_session(Some(session_id.clone()));
-        Ok(SessionInfo { session_id })
+        Ok(session_info)
     }
 
     pub(super) async fn actor_set_session_mode(

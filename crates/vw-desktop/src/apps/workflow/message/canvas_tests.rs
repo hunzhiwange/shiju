@@ -159,3 +159,60 @@ fn context_delete_undo_redo_and_error_messages_are_dispatched() {
     assert!(canvas::handle(&mut app, WorkflowMessage::Redo).is_some());
     assert!(canvas::handle(&mut app, WorkflowMessage::LoadSavedApps).is_none());
 }
+
+#[test]
+fn zoom_fit_and_cancel_interaction_messages_are_dispatched() {
+    let mut app = new_app();
+    app.workflow_state.pan = Vector::new(9.0, 9.0);
+    app.workflow_state.zoom = 2.0;
+    app.workflow_state.zoom_menu_open = true;
+
+    assert!(canvas::handle(&mut app, WorkflowMessage::ZoomFit).is_some());
+    assert_eq!(app.workflow_state.pan, Vector::new(120.0, 120.0));
+    assert_eq!(app.workflow_state.zoom, 1.0);
+
+    app.workflow_state.zoom_menu_open = true;
+    canvas::handle(&mut app, WorkflowMessage::CancelInteraction);
+    assert!(!app.workflow_state.zoom_menu_open);
+    assert_eq!(app.workflow_state.status_message.as_deref(), Some("已关闭浮层菜单"));
+}
+
+#[test]
+fn duplicate_and_selected_delete_messages_update_state_and_record_errors() {
+    let mut app = new_app();
+    app.workflow_state.document.nodes =
+        vec![node("a", Point::new(10.0, 20.0)), node("b", Point::new(260.0, 20.0))];
+    app.workflow_state.document.edges = vec![edge()];
+
+    canvas::handle(&mut app, WorkflowMessage::DuplicateSelectedNode);
+    assert_eq!(app.workflow_state.error_message.as_deref(), Some("请先选择一个节点"));
+
+    canvas::handle(&mut app, WorkflowMessage::SelectNode("a".to_string()));
+    canvas::handle(&mut app, WorkflowMessage::DuplicateSelectedNode);
+    assert_eq!(app.workflow_state.document.nodes.len(), 3);
+    assert_ne!(app.workflow_state.selected_node_id.as_deref(), Some("a"));
+    assert_eq!(app.workflow_state.status_message.as_deref(), Some("已复制节点 a"));
+
+    canvas::handle(&mut app, WorkflowMessage::SelectEdge("a-source--b-target".to_string()));
+    canvas::handle(&mut app, WorkflowMessage::DeleteSelectedEdge);
+    assert!(app.workflow_state.document.edges.is_empty());
+    assert!(app.workflow_state.selected_edge_id.is_none());
+
+    canvas::handle(&mut app, WorkflowMessage::SelectNode("b".to_string()));
+    canvas::handle(&mut app, WorkflowMessage::DeleteSelectedNode);
+    assert!(app.workflow_state.document.node("b").is_none());
+    assert!(app.workflow_state.selected_node_id.is_none());
+}
+
+#[test]
+fn jump_to_node_message_focuses_existing_node_and_reports_missing_node() {
+    let mut app = new_app();
+    app.workflow_state.document.nodes = vec![node("a", Point::new(40.0, 60.0))];
+
+    assert!(canvas::handle(&mut app, WorkflowMessage::JumpToNode("a".to_string())).is_some());
+    assert_eq!(app.workflow_state.selected_node_id.as_deref(), Some("a"));
+    assert_eq!(app.workflow_state.status_message.as_deref(), Some("已定位到节点 a"));
+
+    canvas::handle(&mut app, WorkflowMessage::JumpToNode("missing".to_string()));
+    assert_eq!(app.workflow_state.error_message.as_deref(), Some("目标节点不存在"));
+}

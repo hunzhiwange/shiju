@@ -14,10 +14,6 @@ pub mod point_below;
 /// side 子模块承载当前组件的一部分独立职责。
 pub mod side;
 
-#[cfg(test)]
-#[path = "side_tests.rs"]
-mod side_tests;
-
 /// 重新导出 above::{AboveOverlay, PointAboveOverlay}，让上层模块通过稳定路径访问。
 pub use above::{AboveOverlay, PointAboveOverlay};
 /// 重新导出 below::BelowOverlay，让上层模块通过稳定路径访问。

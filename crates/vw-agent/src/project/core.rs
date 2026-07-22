@@ -8,10 +8,10 @@ use super::{Error, Info, LOGGER, TimeInfo, UpdateInput, Vcs, discover, event, ex
 use crate::app::agent::bus;
 use crate::app::agent::flag;
 use crate::app::agent::shell::git_std_command;
-use crate::app::agent::storage;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -20,6 +20,15 @@ fn now_ms() -> u64 {
         .as_millis()
         .try_into()
         .unwrap_or(u64::MAX)
+}
+
+async fn run_storage_operation<T>(
+    operation: impl FnOnce() -> Result<T, Error> + Send + 'static,
+) -> Result<T, Error>
+where
+    T: Send + 'static,
+{
+    crate::global_database::run_isolated(operation).await.map_err(Error::from)?
 }
 
 fn local_project_id_from_path(path: &Path) -> String {
@@ -137,7 +146,10 @@ fn project_discovery_changed(previous: &Info, next: &Info) -> bool {
 /// # 错误
 ///
 /// 当前实现不产生错误，保留 `Result` 是为了与非 wasm 入口保持一致。
-pub async fn from_directory(directory: impl AsRef<Path>) -> Result<(Info, String), Error> {
+pub async fn from_directory(
+    _tenant: &TenantScope,
+    directory: impl AsRef<Path>,
+) -> Result<(Info, String), Error> {
     let directory = directory.as_ref().to_path_buf();
     let id = "wasm-project".to_string();
     let info = Info {
@@ -166,7 +178,10 @@ pub async fn from_directory(directory: impl AsRef<Path>) -> Result<(Info, String
 /// # 错误
 ///
 /// 存储读写失败、后台任务 join 失败，或图标发现/更新中传播的错误会返回。
-pub async fn from_directory(directory: impl AsRef<Path>) -> Result<(Info, String), Error> {
+pub async fn from_directory(
+    tenant: &TenantScope,
+    directory: impl AsRef<Path>,
+) -> Result<(Info, String), Error> {
     let directory = directory.as_ref().to_path_buf();
     let local_project_id = local_project_id_from_path(&directory);
     LOGGER.info(
@@ -224,67 +239,59 @@ pub async fn from_directory(directory: impl AsRef<Path>) -> Result<(Info, String
     .await
     .map_err(Error::Join)?;
 
-    let worktree_s = worktree.to_string_lossy().to_string();
-    let sandbox_s = sandbox.to_string_lossy().to_string();
-
-    let mut existing: Option<Info> = match storage::read::<Info>(&["project", &id]).await {
-        Ok(v) => Some(v),
-        Err(storage::Error::NotFound(_)) => None,
-        Err(e) => return Err(e.into()),
-    };
-
-    if existing.is_none() {
-        let now = now_ms();
-        existing = Some(Info {
-            id: id.clone(),
-            worktree: worktree_s.clone(),
-            vcs: vcs.clone(),
-            name: None,
-            icon: None,
-            commands: None,
-            time: TimeInfo { created: now, updated: now, initialized: None },
-            sandboxes: Vec::new(),
+    let tenant = tenant.clone();
+    let (mut result, scope, sandbox_s, changed) = run_storage_operation(move || {
+        let worktree_s = worktree.to_string_lossy().to_string();
+        let sandbox_s = sandbox.to_string_lossy().to_string();
+        let store = super::runtime_store()?;
+        let scope = ProjectScope::new(tenant.clone(), ProjectId::from(id.as_str()))?;
+        let existing = store.get(&scope)?;
+        let is_new_project = existing.is_none();
+        let mut result = existing.unwrap_or_else(|| {
+            let now = now_ms();
+            Info {
+                id: id.clone(),
+                worktree: worktree_s.clone(),
+                vcs: vcs.clone(),
+                name: None,
+                icon: None,
+                commands: None,
+                time: TimeInfo { created: now, updated: now, initialized: None },
+                sandboxes: Vec::new(),
+            }
         });
-    }
+        let previous = result.clone();
 
-    let is_new_project = existing.is_none();
-    let mut result = existing.unwrap_or_else(|| {
-        let now = now_ms();
-        Info {
-            id: id.clone(),
-            worktree: worktree_s.clone(),
-            vcs: vcs.clone(),
-            name: None,
-            icon: None,
-            commands: None,
-            time: TimeInfo { created: now, updated: now, initialized: None },
-            sandboxes: Vec::new(),
+        if result.sandboxes.iter().all(|s| s != &sandbox_s) && sandbox_s != result.worktree {
+            result.sandboxes.push(sandbox_s.clone());
         }
-    });
-    let previous = result.clone();
+        // 清理已不存在的 sandbox，避免 UI 展示陈旧目录或后续操作落到无效路径。
+        result.sandboxes = result.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect();
+        result.worktree = worktree_s;
+        result.vcs = vcs;
+        let changed = is_new_project || project_discovery_changed(&previous, &result);
+        if changed {
+            result.time.updated = now_ms();
+            if is_new_project {
+                store.create(&tenant, &result)?;
+            } else if !store.update(&scope, &result)? {
+                return Err(anyhow::anyhow!("project disappeared while updating: {id}").into());
+            }
+        }
 
-    if result.sandboxes.iter().all(|s| s != &sandbox_s) && sandbox_s != result.worktree {
-        result.sandboxes.push(sandbox_s.clone());
-    }
-    // 清理已不存在的 sandbox，避免 UI 展示陈旧目录或后续操作落到无效路径。
-    result.sandboxes = result.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect();
-    result.worktree = worktree_s.clone();
-    result.vcs = vcs.clone();
-    let changed = is_new_project || project_discovery_changed(&previous, &result);
+        Ok::<_, Error>((result, scope, sandbox_s, changed))
+    })
+    .await?;
+
     if changed {
-        result.time.updated = now_ms();
+        let _ = bus::publish(event::UPDATED, &result, None);
     }
 
     if *flag::VIBEWINDOW_EXPERIMENTAL_ICON_DISCOVERY {
-        let _ = discover(&result).await;
-        if let Ok(updated) = storage::read::<Info>(&["project", &id]).await {
+        let _ = discover(&scope, &result).await;
+        if let Some(updated) = get(&scope).await? {
             result = updated;
         }
-    }
-
-    if changed || *flag::VIBEWINDOW_EXPERIMENTAL_ICON_DISCOVERY {
-        storage::write::<Info>(&["project", &id], &result).await?;
-        let _ = bus::publish(event::UPDATED, &result, None);
     }
 
     Ok((result, sandbox_s))
@@ -295,13 +302,20 @@ pub async fn from_directory(directory: impl AsRef<Path>) -> Result<(Info, String
 /// # 错误
 ///
 /// 当项目记录不存在或存储更新失败时返回错误。
-pub async fn set_initialized(project_id: &str) -> Result<(), Error> {
-    let _ = storage::update::<Info>(&["project", project_id], |draft| {
-        draft.time.initialized = Some(now_ms());
-        draft.time.updated = now_ms();
+pub async fn set_initialized(scope: &ProjectScope) -> Result<(), Error> {
+    let scope = scope.clone();
+    run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        store
+            .mutate(&scope, |draft| {
+                draft.time.initialized = Some(now_ms());
+                draft.time.updated = now_ms();
+            })
+            .map_err(Error::from)?
+            .ok_or_else(|| anyhow::anyhow!("project not found: {}", scope.project_id().as_ref()))?;
+        Ok(())
     })
-    .await?;
-    Ok(())
+    .await
 }
 
 /// 列出所有已保存的项目。
@@ -311,21 +325,30 @@ pub async fn set_initialized(project_id: &str) -> Result<(), Error> {
 /// # 错误
 ///
 /// 当项目 key 列表读取失败时返回错误；单个项目读取失败会被跳过。
-pub async fn list() -> Result<Vec<Info>, Error> {
-    let keys = storage::list(&["project"]).await?;
-    let mut out = Vec::new();
-    for key in keys {
-        if key.len() < 2 {
-            continue;
+pub async fn list(tenant: &TenantScope) -> Result<Vec<Info>, Error> {
+    let tenant = tenant.clone();
+    run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        let mut projects = store.list(&tenant)?;
+        for project in &mut projects {
+            project.sandboxes.retain(|path| Path::new(path).is_dir());
         }
-        let id = key[1].clone();
-        if let Ok(mut project) = storage::read::<Info>(&["project", &id]).await {
-            project.sandboxes =
-                project.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect();
-            out.push(project);
+        Ok(projects)
+    })
+    .await
+}
+
+pub async fn get(scope: &ProjectScope) -> Result<Option<Info>, Error> {
+    let scope = scope.clone();
+    run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        let mut project = store.get(&scope)?;
+        if let Some(project) = project.as_mut() {
+            project.sandboxes.retain(|path| Path::new(path).is_dir());
         }
-    }
-    Ok(out)
+        Ok(project)
+    })
+    .await
 }
 
 /// 更新项目的用户可编辑字段。
@@ -336,39 +359,51 @@ pub async fn list() -> Result<Vec<Info>, Error> {
 /// # 错误
 ///
 /// 当目标项目不存在或存储更新失败时返回错误。
-pub async fn update(input: UpdateInput) -> Result<Info, Error> {
-    let updated = storage::update::<Info>(&["project", &input.project_id], |draft| {
-        if let Some(name) = input.name {
-            draft.name = name;
-        }
+pub async fn update(scope: &ProjectScope, input: UpdateInput) -> Result<Info, Error> {
+    if input.project_id != scope.project_id().as_ref() {
+        return Err(anyhow::anyhow!("project update id must match project scope").into());
+    }
+    let scope = scope.clone();
+    let updated = run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        store
+            .mutate(&scope, |draft| {
+                if let Some(name) = input.name {
+                    draft.name = name;
+                }
 
-        if let Some(icon) = input.icon.clone() {
-            let mut cur = draft.icon.clone().unwrap_or_default();
-            if let Some(url) = icon.url {
-                cur.url = url;
-            }
-            if let Some(ov) = icon.override_icon {
-                cur.override_icon = ov.and_then(|s| if s.is_empty() { None } else { Some(s) });
-            }
-            if let Some(color) = icon.color {
-                cur.color = color;
-            }
-            draft.icon = Some(cur);
-        }
+                if let Some(icon) = input.icon.clone() {
+                    let mut cur = draft.icon.clone().unwrap_or_default();
+                    if let Some(url) = icon.url {
+                        cur.url = url;
+                    }
+                    if let Some(ov) = icon.override_icon {
+                        cur.override_icon =
+                            ov.and_then(|s| if s.is_empty() { None } else { Some(s) });
+                    }
+                    if let Some(color) = icon.color {
+                        cur.color = color;
+                    }
+                    draft.icon = Some(cur);
+                }
 
-        if let Some(cmds) = input.commands.clone() {
-            let mut cur = draft.commands.clone().unwrap_or_default();
-            if let Some(start) = cmds.start {
-                cur.start = start.and_then(|s| if s.is_empty() { None } else { Some(s) });
-            }
-            if cur.start.is_none() {
-                draft.commands = None;
-            } else {
-                draft.commands = Some(cur);
-            }
-        }
+                if let Some(cmds) = input.commands.clone() {
+                    let mut cur = draft.commands.clone().unwrap_or_default();
+                    if let Some(start) = cmds.start {
+                        cur.start = start.and_then(|s| if s.is_empty() { None } else { Some(s) });
+                    }
+                    if cur.start.is_none() {
+                        draft.commands = None;
+                    } else {
+                        draft.commands = Some(cur);
+                    }
+                }
 
-        draft.time.updated = now_ms();
+                draft.time.updated = now_ms();
+            })
+            .map_err(Error::from)?
+            .ok_or_else(|| anyhow::anyhow!("project not found: {}", scope.project_id().as_ref()))
+            .map_err(Error::from)
     })
     .await?;
 
@@ -381,13 +416,8 @@ pub async fn update(input: UpdateInput) -> Result<Info, Error> {
 /// # 错误
 ///
 /// 存储层出现非 NotFound 错误时返回错误；项目不存在时返回空列表。
-pub async fn sandboxes(project_id: &str) -> Result<Vec<String>, Error> {
-    let project = match storage::read::<Info>(&["project", project_id]).await {
-        Ok(v) => v,
-        Err(storage::Error::NotFound(_)) => return Ok(Vec::new()),
-        Err(e) => return Err(e.into()),
-    };
-    Ok(project.sandboxes.into_iter().filter(|p| Path::new(p).is_dir()).collect())
+pub async fn sandboxes(scope: &ProjectScope) -> Result<Vec<String>, Error> {
+    Ok(get(scope).await?.map(|project| project.sandboxes).unwrap_or_default())
 }
 
 /// 为项目追加一个 sandbox 目录。
@@ -397,12 +427,21 @@ pub async fn sandboxes(project_id: &str) -> Result<Vec<String>, Error> {
 /// # 错误
 ///
 /// 当项目不存在或存储更新失败时返回错误。
-pub async fn add_sandbox(project_id: &str, directory: &str) -> Result<Info, Error> {
-    let updated = storage::update::<Info>(&["project", project_id], |draft| {
-        if !draft.sandboxes.iter().any(|p| p == directory) {
-            draft.sandboxes.push(directory.to_string());
-        }
-        draft.time.updated = now_ms();
+pub async fn add_sandbox(scope: &ProjectScope, directory: &str) -> Result<Info, Error> {
+    let scope = scope.clone();
+    let directory = directory.to_string();
+    let updated = run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        store
+            .mutate(&scope, |draft| {
+                if !draft.sandboxes.iter().any(|p| p == &directory) {
+                    draft.sandboxes.push(directory);
+                }
+                draft.time.updated = now_ms();
+            })
+            .map_err(Error::from)?
+            .ok_or_else(|| anyhow::anyhow!("project not found: {}", scope.project_id().as_ref()))
+            .map_err(Error::from)
     })
     .await?;
     let _ = bus::publish(event::UPDATED, &updated, None);
@@ -414,10 +453,19 @@ pub async fn add_sandbox(project_id: &str, directory: &str) -> Result<Info, Erro
 /// # 错误
 ///
 /// 当项目不存在或存储更新失败时返回错误。
-pub async fn remove_sandbox(project_id: &str, directory: &str) -> Result<Info, Error> {
-    let updated = storage::update::<Info>(&["project", project_id], |draft| {
-        draft.sandboxes.retain(|p| p != directory);
-        draft.time.updated = now_ms();
+pub async fn remove_sandbox(scope: &ProjectScope, directory: &str) -> Result<Info, Error> {
+    let scope = scope.clone();
+    let directory = directory.to_string();
+    let updated = run_storage_operation(move || {
+        let store = super::runtime_store()?;
+        store
+            .mutate(&scope, |draft| {
+                draft.sandboxes.retain(|p| p != &directory);
+                draft.time.updated = now_ms();
+            })
+            .map_err(Error::from)?
+            .ok_or_else(|| anyhow::anyhow!("project not found: {}", scope.project_id().as_ref()))
+            .map_err(Error::from)
     })
     .await?;
     let _ = bus::publish(event::UPDATED, &updated, None);

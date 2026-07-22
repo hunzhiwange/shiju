@@ -251,4 +251,14 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].id, "only");
     }
+
+    #[test]
+    fn hybrid_merge_nan_score_keeps_results_without_panicking() {
+        let merged =
+            hybrid_merge(&[("nan".into(), f32::NAN), ("finite".into(), 0.5)], &[], 1.0, 0.0, 10);
+
+        let mut ids = merged.iter().map(|result| result.id.as_str()).collect::<Vec<_>>();
+        ids.sort_unstable();
+        assert_eq!(ids, vec!["finite", "nan"]);
+    }
 }

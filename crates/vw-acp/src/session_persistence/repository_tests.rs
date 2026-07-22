@@ -1,8 +1,7 @@
 use super::*;
 
+use crate::queue_paths::TEST_HOME_ENV_LOCK;
 use std::collections::HashMap;
-
-static HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn temp_dir(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("vw-acp-repository-{name}-{}", std::process::id()))
@@ -242,7 +241,7 @@ fn find_git_repository_root_walks_to_parent_git_directory() {
 
 #[tokio::test]
 async fn write_session_record_persists_file_and_updates_index() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("write").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let cwd = absolute_path("/tmp/project");
@@ -266,7 +265,7 @@ async fn write_session_record_persists_file_and_updates_index() {
 
 #[tokio::test]
 async fn resolve_session_record_prefers_direct_record_file() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("resolve-direct").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let cwd = absolute_path("/tmp/project");
@@ -281,7 +280,7 @@ async fn resolve_session_record_prefers_direct_record_file() {
 
 #[tokio::test]
 async fn resolve_session_record_uses_index_for_acp_id_and_suffix_matches() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("resolve-index").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let session_dir = session_dir_for(&home_dir);
@@ -301,7 +300,7 @@ async fn resolve_session_record_uses_index_for_acp_id_and_suffix_matches() {
 
 #[tokio::test]
 async fn resolve_session_record_reports_ambiguous_suffix_and_missing_id() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("resolve-errors").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let session_dir = session_dir_for(&home_dir);
@@ -323,7 +322,7 @@ async fn resolve_session_record_reports_ambiguous_suffix_and_missing_id() {
 
 #[tokio::test]
 async fn list_sessions_filters_agent_and_sorts_by_last_used_descending() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("list").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let session_dir = session_dir_for(&home_dir);
@@ -352,8 +351,48 @@ async fn list_sessions_filters_agent_and_sorts_by_last_used_descending() {
 }
 
 #[tokio::test]
+async fn list_sessions_for_agent_skips_unparseable_matching_records() {
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
+    let home_dir = clean_home("list-agent-skip-bad").await;
+    let _home = HomeEnvGuard::set(&home_dir);
+    let session_dir = session_dir_for(&home_dir);
+    tokio::fs::create_dir_all(&session_dir).await.expect("create session dir");
+    let cwd = absolute_path("/tmp/project");
+    let good = record("good", "agent", &cwd, None);
+    write_record_file(&session_dir, &good).await;
+    tokio::fs::write(session_dir.join("bad.json"), "{").await.expect("write invalid record");
+    crate::write_session_index(
+        &session_dir,
+        &crate::SessionIndex {
+            files: vec!["good.json".to_string(), "bad.json".to_string()],
+            entries: vec![
+                crate::to_session_index_entry(&good, "good.json"),
+                crate::SessionIndexEntry {
+                    file: "bad.json".to_string(),
+                    vwacp_record_id: "bad".to_string(),
+                    acp_session_id: "acp-bad".to_string(),
+                    agent_command: "agent".to_string(),
+                    cwd: cwd.to_string_lossy().into_owned(),
+                    name: None,
+                    closed: false,
+                    last_used_at: "2026-01-02T00:00:00Z".to_string(),
+                },
+            ],
+        },
+    )
+    .await
+    .expect("write index");
+
+    let sessions = list_sessions_for_agent("agent").await.expect("list agent sessions");
+
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].vwacp_record_id, "good");
+    let _ = tokio::fs::remove_dir_all(&home_dir).await;
+}
+
+#[tokio::test]
 async fn find_session_matches_normalized_cwd_name_and_closed_policy() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("find").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let session_dir = session_dir_for(&home_dir);
@@ -397,7 +436,7 @@ async fn find_session_matches_normalized_cwd_name_and_closed_policy() {
 
 #[tokio::test]
 async fn find_session_by_directory_walk_stops_at_boundary() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("walk").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let session_dir = session_dir_for(&home_dir);
@@ -435,7 +474,7 @@ async fn find_session_by_directory_walk_stops_at_boundary() {
 
 #[tokio::test]
 async fn close_session_marks_record_closed_and_rebuilds_index() {
-    let _lock = HOME_ENV_LOCK.lock().await;
+    let _lock = TEST_HOME_ENV_LOCK.lock().await;
     let home_dir = clean_home("close").await;
     let _home = HomeEnvGuard::set(&home_dir);
     let cwd = absolute_path("/tmp/project");

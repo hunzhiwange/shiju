@@ -9,21 +9,16 @@
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use vw_api_types::common::OperationAck;
 use vw_api_types::file::{
-    CopyFileRequest, DeleteFileRequest, FileNodeDto, FileNodeKind, LargeFileDeleteRequest,
-    LargeFileDeleteResponse, LargeFileScanCancelRequest, LargeFileScanRequest,
-    LargeFileScanResponse, LargeFileScanStartRequest, LargeFileScanStartResponse,
-    LargeFileScanStatusResponse, ListFilesRequest, ListFilesResponse, MoveFileRequest,
-    ReadFileRequest, ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest,
-    StatFileResponse, WriteFileRequest, WriteFileResponse,
+    CopyFileRequest, DeleteFileRequest, FileNodeDto, FileNodeKind, ListFilesRequest,
+    ListFilesResponse, MoveFileRequest, ReadFileRequest, ReadFileResponse, SearchFilesRequest,
+    SearchFilesResponse, StatFileRequest, StatFileResponse, WriteFileRequest, WriteFileResponse,
 };
 
 use super::GatewayClient;
-use crate::http::{apply_auth, log_request, parse_json_response, transport_error};
 
 #[cfg(target_arch = "wasm32")]
 /// 文件树递归构建过程使用的异步返回类型（WASM 版本）。
@@ -134,49 +129,6 @@ impl GatewayClient {
         self.post_json("/v1/files/stat", &[], request).await
     }
 
-    /// 扫描指定目录下的 50MB 以上大文件。
-    pub async fn large_file_scan(
-        &self,
-        request: &LargeFileScanRequest,
-    ) -> Result<LargeFileScanResponse, String> {
-        self.post_json_with_timeout("/v1/files/large/scan", request, Duration::from_secs(10 * 60))
-            .await
-    }
-
-    /// 启动大文件扫描后台任务。
-    pub async fn large_file_scan_start(
-        &self,
-        request: &LargeFileScanStartRequest,
-    ) -> Result<LargeFileScanStartResponse, String> {
-        self.post_json("/v1/files/large/scan/start", &[], request).await
-    }
-
-    /// 查询大文件扫描后台任务进度。
-    pub async fn large_file_scan_status(
-        &self,
-        job_id: &str,
-    ) -> Result<LargeFileScanStatusResponse, String> {
-        self.get_json("/v1/files/large/scan/status", &[("job_id".to_string(), job_id.to_string())])
-            .await
-    }
-
-    /// 请求取消大文件扫描后台任务。
-    pub async fn large_file_scan_cancel(
-        &self,
-        request: &LargeFileScanCancelRequest,
-    ) -> Result<OperationAck, String> {
-        self.post_json("/v1/files/large/scan/cancel", &[], request).await
-    }
-
-    /// 删除大文件扫描结果中的已选文件。
-    pub async fn large_file_delete(
-        &self,
-        request: &LargeFileDeleteRequest,
-    ) -> Result<LargeFileDeleteResponse, String> {
-        self.post_json_with_timeout("/v1/files/large/delete", request, Duration::from_secs(10 * 60))
-            .await
-    }
-
     /// 在指定目录上下文中读取相对路径文件。
     ///
     /// `agent_key` 允许调用方把请求绑定到特定 agent 上下文；不需要时可以传 `None`。
@@ -225,41 +177,24 @@ impl GatewayClient {
 }
 
 impl GatewayClient {
-    async fn post_json_with_timeout<B: Serialize, T: for<'de> Deserialize<'de>>(
-        &self,
-        path: &str,
-        body: &B,
-        timeout: Duration,
-    ) -> Result<T, String> {
-        log_request("POST", &self.endpoint, path, &[], Some(body));
-        let request = self
-            .client
-            .post(format!("{}{}", self.endpoint.base_url(), path))
-            .timeout(timeout)
-            .json(body);
-        let response = apply_auth(request, &self.endpoint)
-            .send()
-            .await
-            .map_err(|err| transport_error("POST", &self.endpoint, path, err))?;
-        parse_json_response("POST", &self.endpoint, path, response).await
-    }
-}
-
-impl GatewayClient {
     /// 根据项目 ID 或 worktree ID 解析实际文件根目录。
     async fn resolve_file_directory<T: AsRef<str>, U: AsRef<str>>(
         &self,
         project_id: &T,
         worktree_id: Option<&U>,
     ) -> Result<String, String> {
+        let scope = vw_api_types::id::ProjectScope::for_default_tenant(
+            vw_api_types::id::ProjectId::from(project_id.as_ref()),
+        )
+        .map_err(|error| error.to_string())?;
         if let Some(worktree_id) = worktree_id {
             return self
-                .worktree_get(worktree_id.as_ref())
+                .worktree_get(&scope, worktree_id.as_ref())
                 .await
                 .map(|response| response.worktree.directory);
         }
 
-        self.project_get(project_id.as_ref()).await.map(|response| response.project.directory)
+        self.project_get(&scope).await.map(|response| response.project.directory)
     }
 
     /// 递归列出目录，并构造统一的 `FileNodeDto` 树节点。

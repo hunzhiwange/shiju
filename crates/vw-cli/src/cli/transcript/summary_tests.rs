@@ -1,5 +1,5 @@
 use super::transcript_to_lines;
-use crate::app::agent::agent::loop_::cli::transcript::{TranscriptEntry, TranscriptRole};
+use super::{TranscriptEntry, TranscriptRole};
 use std::collections::BTreeSet;
 
 fn line_text(line: &ratatui::text::Line<'_>) -> String {
@@ -43,4 +43,15 @@ fn inserts_blank_line_between_visible_entries() {
     assert_eq!(line_text(&lines[0]), "boot");
     assert_eq!(line_text(&lines[1]), "");
     assert_eq!(line_text(&lines[2]), "> hello");
+}
+
+#[test]
+fn renders_prefixed_placeholder_for_empty_assistant_entry() {
+    let transcript = vec![TranscriptEntry::new(TranscriptRole::Assistant, "")];
+
+    let (lines, think_map) = transcript_to_lines(&transcript, false, false, &BTreeSet::new(), "");
+
+    assert_eq!(lines.len(), 1);
+    assert_eq!(line_text(&lines[0]), "● ");
+    assert_eq!(think_map, vec![None]);
 }

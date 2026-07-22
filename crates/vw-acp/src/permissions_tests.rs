@@ -1,7 +1,7 @@
 use super::*;
 use agent_client_protocol::{
     PermissionOption, PermissionOptionKind, RequestPermissionOutcome, RequestPermissionRequest,
-    RequestPermissionResponse, SelectedPermissionOutcome,
+    RequestPermissionResponse, SelectedPermissionOutcome, ToolKind,
 };
 use serde_json::{Value, json};
 
@@ -93,6 +93,10 @@ fn selected_option_id(response: &RequestPermissionResponse) -> Option<String> {
     }
 }
 
+fn panic_prompt(_: &RequestPermissionRequest) -> bool {
+    panic!("prompt callback should not be invoked for this branch")
+}
+
 #[test]
 fn permission_mode_satisfies_uses_rank_order() {
     assert!(permission_mode_satisfies(PermissionMode::ApproveAll, PermissionMode::DenyAll));
@@ -139,6 +143,26 @@ fn infer_tool_kind_from_title_only_uses_text_before_colon() {
 }
 
 #[test]
+fn tool_kind_name_maps_acp_tool_kinds() {
+    let cases = [
+        (ToolKind::Read, "read"),
+        (ToolKind::Edit, "edit"),
+        (ToolKind::Delete, "delete"),
+        (ToolKind::Move, "move"),
+        (ToolKind::Search, "search"),
+        (ToolKind::Execute, "execute"),
+        (ToolKind::Think, "think"),
+        (ToolKind::Fetch, "fetch"),
+        (ToolKind::SwitchMode, "switch_mode"),
+        (ToolKind::Other, "other"),
+    ];
+
+    for (kind, expected) in cases {
+        assert_eq!(tool_kind_name(kind), expected);
+    }
+}
+
+#[test]
 fn read_and_search_kinds_are_auto_approved() {
     assert!(is_auto_approved_read_kind(Some("read")));
     assert!(is_auto_approved_read_kind(Some("search")));
@@ -163,11 +187,11 @@ fn pick_option_uses_kind_priority_and_reports_missing_matches() {
 #[test]
 fn infer_tool_kind_prefers_explicit_kind_and_falls_back_to_title() {
     let explicit = request(Some("read: file"), Some("execute"));
-    assert_eq!(tool_call_string_field(&explicit, "kind").as_deref(), Some("execute"));
+    assert_eq!(tool_call_kind_field(&explicit).as_deref(), Some("execute"));
     assert_eq!(infer_tool_kind(&explicit).as_deref(), Some("execute"));
 
     let from_title = request(Some("find: file"), None);
-    assert_eq!(tool_call_string_field(&from_title, "missing"), None);
+    assert_eq!(tool_call_title_field(&from_title).as_deref(), Some("find: file"));
     assert_eq!(infer_tool_kind(&from_title).as_deref(), Some("search"));
 
     let missing = request(None, None);
@@ -177,8 +201,8 @@ fn infer_tool_kind_prefers_explicit_kind_and_falls_back_to_title() {
 #[test]
 fn infer_tool_kind_handles_missing_tool_fields_and_empty_title_heads() {
     let missing = request(None, None);
-    assert_eq!(tool_call_string_field(&missing, "title"), None);
-    assert_eq!(tool_call_string_field(&missing, "kind"), None);
+    assert_eq!(tool_call_title_field(&missing), None);
+    assert_eq!(tool_call_kind_field(&missing), None);
     assert_eq!(infer_tool_kind(&missing), None);
 
     let empty_head = request(Some("  : read file"), None);
@@ -193,6 +217,15 @@ fn prompt_for_tool_permission_returns_false_when_prompt_is_unavailable() {
 
     assert!(!prompt_for_tool_permission(&request(Some("edit: file"), Some("edit"))).unwrap());
     assert!(!prompt_for_tool_permission(&request(None, None)).unwrap());
+}
+
+#[test]
+fn prompt_for_tool_permission_or_false_returns_false_when_prompt_is_unavailable() {
+    if can_prompt_for_permission() {
+        return;
+    }
+
+    assert!(!prompt_for_tool_permission_or_false(&request(Some("edit: file"), Some("edit"),)));
 }
 
 #[test]
@@ -215,6 +248,146 @@ fn response_for_prompt_decision_selects_matching_prompt_options() {
 }
 
 #[test]
+fn selected_and_cancelled_helpers_build_expected_outcomes() {
+    assert_eq!(
+        selected_option_id(&selected("allow-always".to_string())).as_deref(),
+        Some("allow-always")
+    );
+    assert!(selected_option_id(&cancelled()).is_none());
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_uses_prompt_decision() {
+    let approved = resolve_permission_request_with_prompt(
+        &request(Some("edit: file"), Some("edit")),
+        PermissionMode::ApproveReads,
+        None,
+        true,
+        |_| true,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&approved).as_deref(), Some("allow-once"));
+
+    let denied = resolve_permission_request_with_prompt(
+        &request(Some("edit: file"), Some("edit")),
+        PermissionMode::ApproveReads,
+        None,
+        true,
+        |_| false,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&denied).as_deref(), Some("reject-once"));
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_uses_alternate_prompt_options() {
+    let approved = resolve_permission_request_with_prompt(
+        &request_with_options(
+            Some("edit: file"),
+            Some("edit"),
+            vec![allow_always(), reject_always()],
+        ),
+        PermissionMode::ApproveReads,
+        None,
+        true,
+        |_| true,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&approved).as_deref(), Some("allow-always"));
+
+    let denied = resolve_permission_request_with_prompt(
+        &request_with_options(
+            Some("edit: file"),
+            Some("edit"),
+            vec![allow_always(), reject_always()],
+        ),
+        PermissionMode::ApproveReads,
+        None,
+        true,
+        |_| false,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&denied).as_deref(), Some("reject-always"));
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_skips_prompt_when_reads_are_auto_approved() {
+    let response = resolve_permission_request_with_prompt(
+        &request_with_options(
+            Some("grep: files"),
+            None,
+            vec![allow_once(), allow_always(), reject_once()],
+        ),
+        PermissionMode::ApproveReads,
+        None,
+        true,
+        panic_prompt,
+    )
+    .unwrap();
+
+    assert_eq!(selected_option_id(&response).as_deref(), Some("allow-always"));
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_deny_all_prefers_reject_once_over_reject_always() {
+    let response = resolve_permission_request_with_prompt(
+        &request_with_options(
+            Some("edit: file"),
+            Some("edit"),
+            vec![allow_once(), reject_always(), reject_once()],
+        ),
+        PermissionMode::DenyAll,
+        None,
+        true,
+        panic_prompt,
+    )
+    .unwrap();
+
+    assert_eq!(selected_option_id(&response).as_deref(), Some("reject-once"));
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_non_interactive_deny_prefers_reject_once() {
+    let response = resolve_permission_request_with_prompt(
+        &request_with_options(
+            Some("edit: file"),
+            Some("edit"),
+            vec![allow_once(), reject_always(), reject_once()],
+        ),
+        PermissionMode::ApproveReads,
+        Some(NonInteractivePermissionPolicy::Deny),
+        true,
+        panic_prompt,
+    )
+    .unwrap();
+
+    assert_eq!(selected_option_id(&response).as_deref(), Some("reject-once"));
+}
+
+#[test]
+fn resolve_permission_request_with_prompt_without_prompt_capability_skips_prompt() {
+    let rejected = resolve_permission_request_with_prompt(
+        &request(Some("edit: file"), Some("edit")),
+        PermissionMode::ApproveReads,
+        None,
+        false,
+        panic_prompt,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&rejected).as_deref(), Some("reject-once"));
+
+    let cancelled = resolve_permission_request_with_prompt(
+        &request_with_options(Some("edit: file"), Some("edit"), vec![allow_once()]),
+        PermissionMode::ApproveReads,
+        None,
+        false,
+        panic_prompt,
+    )
+    .unwrap();
+    assert!(selected_option_id(&cancelled).is_none());
+}
+
+#[test]
 fn resolve_permission_request_cancels_when_no_options_are_available() {
     let response = resolve_permission_request(
         &request_with_options(Some("read: file"), Some("read"), Vec::new()),
@@ -228,6 +401,18 @@ fn resolve_permission_request_cancels_when_no_options_are_available() {
 
 #[test]
 fn resolve_permission_request_approve_all_prefers_allow_or_first_option() {
+    let strongest = resolve_permission_request(
+        &request_with_options(
+            Some("edit: file"),
+            Some("edit"),
+            vec![allow_once(), allow_always(), reject_once()],
+        ),
+        PermissionMode::ApproveAll,
+        None,
+    )
+    .unwrap();
+    assert_eq!(selected_option_id(&strongest).as_deref(), Some("allow-always"));
+
     let preferred = resolve_permission_request(
         &request_with_options(
             Some("edit: file"),

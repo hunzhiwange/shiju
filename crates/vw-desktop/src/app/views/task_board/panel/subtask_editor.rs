@@ -615,7 +615,7 @@ fn build_draft_delete_button<'a>(idx: usize) -> Element<'a, Message> {
 ///
 /// # 返回值
 ///
-/// 返回包含日志查看区域的UI元素，高度固定为260像素
+/// 返回包含日志查看区域的UI元素，填满调用方提供的可用高度
 ///
 /// # 特殊处理
 ///
@@ -629,12 +629,9 @@ fn build_draft_delete_button<'a>(idx: usize) -> Element<'a, Message> {
 /// let logs_view = build_task_logs(&app);
 /// ```
 pub fn build_task_logs<'a>(app: &'a App) -> Element<'a, Message> {
-    const LOGS_HEIGHT: f32 = 340.0;
+    let panel = responsive(move |size| build_task_logs_panel(app, size)).height(Length::Fill);
 
-    let panel =
-        responsive(move |size| build_task_logs_panel(app, size)).height(Length::Fixed(LOGS_HEIGHT));
-
-    container(panel).width(Length::Fill).height(Length::Fixed(LOGS_HEIGHT)).into()
+    container(panel).width(Length::Fill).height(Length::Fill).into()
 }
 
 fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {

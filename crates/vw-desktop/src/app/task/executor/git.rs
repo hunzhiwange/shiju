@@ -150,15 +150,6 @@ pub(super) fn run_git_maintenance_logged(
     Ok(output)
 }
 
-/// 执行 run_git_maintenance 对应的领域操作。
-///
-/// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
-/// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-pub(super) fn run_git_maintenance(cwd: &str, args: &[&str]) -> Result<GitCommandOutput, String> {
-    let (output, _) = run_git_with_timeout(cwd, args, git_maintenance_timeout())?;
-    Ok(output)
-}
-
 /// 执行 run_git 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -329,6 +320,7 @@ pub(super) fn git_repo_root(cwd: &str) -> Option<String> {
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+#[cfg(test)]
 pub(super) fn git_is_clean(cwd: &str) -> Result<bool, String> {
     let output = run_git(cwd, &["status", "--porcelain=v1"])?;
     if !output.status.success() {

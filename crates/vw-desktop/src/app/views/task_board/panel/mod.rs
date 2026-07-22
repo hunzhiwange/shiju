@@ -15,8 +15,8 @@ use crate::app::components::system_settings_common::{
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
 };
 use crate::app::message::TaskBoardMessage;
-use crate::app::state::MAIN_AGENT_KEY;
-use crate::app::task::Task;
+use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
+use crate::app::task::{Task, TaskSplitMode};
 use crate::app::{App, Message};
 
 use super::common::{button_style_primary, button_style_secondary, button_style_success};
@@ -24,6 +24,7 @@ use super::common::{button_style_primary, button_style_secondary, button_style_s
 mod executor_selector;
 mod logs_modal;
 mod model_selector;
+mod reasoning_selector;
 mod styles;
 mod subtask_editor;
 
@@ -33,6 +34,9 @@ pub(crate) use executor_selector::{build_bulk_executor_selector, build_executor_
 pub(crate) use model_selector::build_bulk_model_selector;
 /// 重新导出 model_selector::build_model_selector，作为上层模块访问该视图能力的稳定入口。
 pub(crate) use model_selector::build_model_selector;
+pub(crate) use reasoning_selector::{
+    build_bulk_reasoning_effort_selector, build_reasoning_effort_selector,
+};
 use styles::{editor_style, input_label, input_style, panel_container_style};
 use subtask_editor::{build_draft_mode_subtasks, build_edit_mode_subtasks, build_task_logs};
 
@@ -85,6 +89,10 @@ fn task_status_tag_colors(status: crate::app::task::TaskStatus) -> (Color, Color
         }
         crate::app::task::TaskStatus::Archived => {
             (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249))
+        }
+        // 自定义状态暂用中性灰，待工作流迁移任务接管自定义列样式。
+        crate::app::task::TaskStatus::Custom(_) => {
+            (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246))
         }
     }
 }
@@ -219,11 +227,6 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
 
     let close_btn = build_close_button(close_msg);
     let header_row = build_header_row(panel_title, task_id_text, current_task, close_btn);
-    let failed_reason_row = if is_edit_mode {
-        app.task_board_viewing_logs.as_ref().and_then(build_failed_reason_row)
-    } else {
-        None
-    };
 
     let mut main_col = column![
         header_row,
@@ -233,51 +236,60 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
     ]
     .spacing(0)
     .width(Length::Fill);
-    if let Some(reason_row) = failed_reason_row {
-        main_col = main_col.push(reason_row).push(Space::new().height(12.0));
-    }
-    if is_edit_mode
-        && let Some(task) = current_task
-        && let Some(worktree_row) = build_selected_worktree_row(task)
-    {
-        main_col = main_col.push(worktree_row).push(Space::new().height(12.0));
-    }
-    if is_edit_mode
-        && let Some(task) = current_task
-        && let Some(merge_lock_row) = build_merge_lock_row(app, task)
-    {
-        main_col = main_col.push(merge_lock_row).push(Space::new().height(12.0));
-    }
 
     if is_edit_mode {
-        let priority_field = build_priority_field(app, true);
-        let model_field = build_model_selector(app, true);
-        let agent_field = build_agent_field(app, true);
-        let executor_field = build_executor_selector(app, true);
-        let prompt_field = build_prompt_field(app);
+        main_col = main_col.push(build_detail_tabs(app)).push(Space::new().height(14.0));
 
-        main_col = main_col.push(section_block(
-            "任务配置",
-            "编辑提示词、模型、代理、执行器与优先级。",
-            column![
-                prompt_field,
-                settings_divider(),
-                row![
-                    container(agent_field).width(Length::FillPortion(1)),
-                    container(executor_field).width(Length::FillPortion(1)),
-                ]
-                .spacing(12),
-                row![
-                    container(model_field).width(Length::FillPortion(1)),
-                    container(priority_field).width(Length::FillPortion(1)),
-                ]
-                .spacing(12),
-            ]
-            .spacing(14),
-        ));
+        if app.task_board_detail_tab == TaskBoardDetailTab::Logs {
+            main_col = main_col.push(build_task_logs(app));
+        } else {
+            if let Some(reason_row) = current_task.and_then(build_failed_reason_row) {
+                main_col = main_col.push(reason_row).push(Space::new().height(12.0));
+            }
+            if let Some(task) = current_task
+                && let Some(worktree_row) = build_selected_worktree_row(task)
+            {
+                main_col = main_col.push(worktree_row).push(Space::new().height(12.0));
+            }
+            if let Some(task) = current_task
+                && let Some(merge_lock_row) = build_merge_lock_row(app, task)
+            {
+                main_col = main_col.push(merge_lock_row).push(Space::new().height(12.0));
+            }
 
-        if let Some(task) = &app.task_board_viewing_logs {
-            main_col = build_edit_mode_content(app, task, main_col);
+            let priority_field = build_priority_field(app, true);
+            let model_field = build_model_selector(app, true);
+            let agent_field = build_agent_field(app, true);
+            let executor_field = build_executor_selector(app, true);
+            let reasoning_effort_field = build_reasoning_effort_selector(app, true);
+            let task_split_field = build_task_split_mode_selector(app, true);
+            let prompt_field = build_prompt_field(app);
+
+            main_col = main_col.push(section_block(
+                "任务配置",
+                "编辑提示词、模型、代理、执行器、任务拆分与优先级。",
+                column![
+                    prompt_field,
+                    settings_divider(),
+                    row![
+                        container(agent_field).width(Length::FillPortion(1)),
+                        container(executor_field).width(Length::FillPortion(1)),
+                        container(reasoning_effort_field).width(Length::FillPortion(1)),
+                    ]
+                    .spacing(12),
+                    row![
+                        container(model_field).width(Length::FillPortion(1)),
+                        container(task_split_field).width(Length::FillPortion(1)),
+                        container(priority_field).width(Length::FillPortion(1)),
+                    ]
+                    .spacing(12),
+                ]
+                .spacing(14),
+            ));
+
+            if let Some(task) = current_task {
+                main_col = build_edit_mode_content(app, task, main_col);
+            }
         }
     } else {
         main_col = main_col.push(build_mode_toggle(app)).push(Space::new().height(12.0));
@@ -292,20 +304,24 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
             let model_field = build_model_selector(app, false);
             let agent_field = build_agent_field(app, false);
             let executor_field = build_executor_selector(app, false);
+            let reasoning_effort_field = build_reasoning_effort_selector(app, false);
+            let task_split_field = build_task_split_mode_selector(app, false);
             let prompt_field = build_prompt_field(app);
             main_col = main_col.push(section_block(
                 "任务配置",
-                "填写提示词并选择模型、代理、执行器与优先级。",
+                "填写提示词并选择模型、代理、执行器、任务拆分与优先级。",
                 column![
                     prompt_field,
                     settings_divider(),
                     row![
                         container(agent_field).width(Length::FillPortion(1)),
                         container(executor_field).width(Length::FillPortion(1)),
+                        container(reasoning_effort_field).width(Length::FillPortion(1)),
                     ]
                     .spacing(12),
                     row![
                         container(model_field).width(Length::FillPortion(1)),
+                        container(task_split_field).width(Length::FillPortion(1)),
                         container(priority_field).width(Length::FillPortion(1)),
                     ]
                     .spacing(12),
@@ -316,30 +332,62 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
         main_col = build_draft_mode_content(app, main_col);
     }
 
-    let content = scrollable(container(main_col).width(Length::Fill).padding(iced::Padding {
-        top: 0.0,
-        right: TASK_PANEL_SCROLLBAR_GUTTER,
-        bottom: 0.0,
-        left: 0.0,
-    }))
-    .direction(iced::widget::scrollable::Direction::Vertical(
-        iced::widget::scrollable::Scrollbar::new()
-            .width(TASK_PANEL_SCROLLBAR_WIDTH)
-            .scroller_width(TASK_PANEL_SCROLLBAR_WIDTH),
-    ))
-    .width(Length::Fill)
-    .height(Length::Fill);
+    let panel_padding =
+        iced::Padding { top: 0.0, right: TASK_PANEL_SCROLLBAR_GUTTER, bottom: 0.0, left: 0.0 };
+    let content: Element<'_, Message> =
+        if is_edit_mode && app.task_board_detail_tab == TaskBoardDetailTab::Logs {
+            container(main_col.height(Length::Fill))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(panel_padding)
+                .into()
+        } else {
+            scrollable(container(main_col).width(Length::Fill).padding(panel_padding))
+                .direction(iced::widget::scrollable::Direction::Vertical(
+                    iced::widget::scrollable::Scrollbar::new()
+                        .width(TASK_PANEL_SCROLLBAR_WIDTH)
+                        .scroller_width(TASK_PANEL_SCROLLBAR_WIDTH),
+                ))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        };
+    let panel_width = if is_edit_mode { Length::Fixed(560.0) } else { Length::FillPortion(1) };
 
     container(content)
         .padding(20)
         .style(panel_container_style)
-        .width(Length::FillPortion(1))
+        .width(panel_width)
         .height(Length::Fill)
         .into()
 }
 
 fn build_close_button(close_msg: TaskBoardMessage) -> iced::Element<'static, Message> {
     settings_close_button(Message::TaskBoard(close_msg))
+}
+
+fn build_detail_tabs(app: &App) -> Element<'_, Message> {
+    row![
+        build_detail_tab_button("基本", TaskBoardDetailTab::Basic, app.task_board_detail_tab),
+        build_detail_tab_button("日志", TaskBoardDetailTab::Logs, app.task_board_detail_tab),
+        Space::new().width(Length::Fill),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn build_detail_tab_button(
+    label: &str,
+    tab: TaskBoardDetailTab,
+    active_tab: TaskBoardDetailTab,
+) -> iced::widget::Button<'_, Message> {
+    button(text(label).size(13))
+        .on_press(Message::TaskBoard(TaskBoardMessage::SelectDetailTab(tab)))
+        .padding([6, 14])
+        .style(move |theme: &Theme, status| {
+            segmented_button_style(theme, active_tab == tab, status)
+        })
 }
 
 fn build_header_row<'a>(
@@ -414,8 +462,14 @@ fn build_failed_reason_row<'a>(task: &'a crate::app::task::Task) -> Option<Eleme
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().danger.base.color),
             });
+        let retry_button = button(text("手工重试").size(12))
+            .padding([6, 10])
+            .style(button_style_secondary)
+            .on_press(Message::TaskBoard(TaskBoardMessage::ExecuteTask {
+                task_id: task.id.clone(),
+            }));
         return Some(
-            container(reason_text)
+            container(column![reason_text, retry_button].spacing(10).align_x(Alignment::Start))
                 .padding([8, 10])
                 .width(Length::Fill)
                 .style(|theme: &Theme| {
@@ -505,12 +559,18 @@ fn build_merge_lock_row<'a>(
     app: &'a App,
     task: &'a crate::app::task::Task,
 ) -> Option<Element<'a, Message>> {
-    let project_path = app.project_path.as_deref()?;
+    let _project_path = app.project_path.as_deref()?;
     let target_branch = task.merge_target_branch.as_deref()?.trim();
     if target_branch.is_empty() {
         return None;
     }
-    let lock_holder = crate::app::task::task_merge_lock_holder(project_path, task);
+    let lock_holder = app.task_board_worktree_snapshot.as_ref().and_then(|snapshot| {
+        snapshot
+            .merge_target_locks
+            .iter()
+            .find(|(target, _)| target == target_branch)
+            .map(|(_, task_id)| task_id.clone())
+    });
     let holder_text = match lock_holder.as_deref() {
         Some(task_id) if task_id == task.id => "当前任务持有".to_string(),
         Some(task_id) => format!("占用者: {}", task_id),
@@ -558,6 +618,40 @@ fn build_priority_field<'a>(app: &'a App, is_edit_mode: bool) -> iced::Element<'
         .width(Length::Fill)
         .style(input_style)
         .into()
+}
+
+fn build_task_split_mode_selector(app: &App, is_edit_mode: bool) -> iced::Element<'_, Message> {
+    let selected = app.task_board_draft.task_split_mode;
+    let options = TaskSplitMode::all().to_vec();
+    pick_list(options, Some(selected), move |mode| {
+        Message::TaskBoard(if is_edit_mode {
+            TaskBoardMessage::UpdateEditingTaskSplitMode(mode)
+        } else {
+            TaskBoardMessage::UpdateDraftTaskSplitMode(mode)
+        })
+    })
+    .placeholder("任务拆分")
+    .padding([6, 10])
+    .text_size(14)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(crate) fn build_bulk_task_split_selector(app: &App) -> iced::Element<'_, Message> {
+    let selected = app.task_board_bulk_task_split_mode;
+    let options = TaskSplitMode::all().to_vec();
+    pick_list(options, Some(selected), |mode| {
+        Message::TaskBoard(TaskBoardMessage::UpdateBulkTaskSplitMode(mode))
+    })
+    .placeholder("任务拆分")
+    .padding([6, 10])
+    .text_size(14)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill)
+    .into()
 }
 
 fn build_agent_field(app: &App, is_edit_mode: bool) -> iced::Element<'_, Message> {
@@ -728,7 +822,7 @@ fn build_import_field<'a>(app: &'a App) -> iced::Element<'a, Message> {
         .style(editor_style);
 
     let help_text = text(
-        "支持 JSON 数组（priority, prompt, model, executor）\n或 CSV/TSV（首行需包含 priority, prompt，建议同时包含 model, executor）",
+        "支持 JSON 数组（priority, prompt, model, executor, reasoning_effort, task_split_mode）\n或 CSV/TSV（首行需包含 priority, prompt，建议同时包含 model, executor, reasoning_effort, task_split_mode）",
     )
     .size(12)
     .style(|theme: &Theme| iced::widget::text::Style {
@@ -945,19 +1039,11 @@ fn build_edit_mode_content<'a>(
         main_col = main_col.push(Space::new().height(12.0)).push(add_section);
     }
 
-    let logs_title = text("任务日志")
-        .size(13)
-        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
-
     main_col = main_col
         .push(Space::new().height(16.0))
         .push(build_edit_options_row(app))
         .push(Space::new().height(8.0))
-        .push(build_action_buttons(app, true))
-        .push(Space::new().height(12.0))
-        .push(logs_title)
-        .push(Space::new().height(8.0))
-        .push(build_task_logs(app));
+        .push(build_action_buttons(app, true));
 
     main_col
 }

@@ -38,6 +38,72 @@ fn parse_usage_returns_none_for_invalid_payload() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn parse_usage_defaults_missing_reasoning_tokens_to_zero() {
+    let payload = serde_json::json!({
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "cached_tokens": 3,
+    });
+
+    let usage = SessionLlmProvider::parse_usage(Some(&payload)).expect("usage should parse");
+
+    assert_eq!(usage.input_tokens, Some(8));
+    assert_eq!(usage.output_tokens, Some(5));
+    assert_eq!(usage.cached_tokens, Some(3));
+    assert_eq!(usage.reasoning_tokens, Some(0));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn parse_usage_rejects_negative_fields_independently() {
+    let payload = serde_json::json!({
+        "input_tokens": -1,
+        "output_tokens": 5,
+        "cached_tokens": -3,
+        "reasoning_tokens": -2,
+    });
+
+    let usage = SessionLlmProvider::parse_usage(Some(&payload)).expect("usage should parse");
+
+    assert_eq!(usage.input_tokens, None);
+    assert_eq!(usage.output_tokens, Some(5));
+    assert_eq!(usage.cached_tokens, None);
+    assert_eq!(usage.reasoning_tokens, None);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn parse_usage_preserves_zero_token_counts() {
+    let payload = serde_json::json!({
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+    });
+
+    let usage = SessionLlmProvider::parse_usage(Some(&payload)).expect("usage should parse");
+
+    assert_eq!(usage.input_tokens, Some(0));
+    assert_eq!(usage.output_tokens, Some(0));
+    assert_eq!(usage.cached_tokens, Some(0));
+    assert_eq!(usage.reasoning_tokens, Some(0));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn parse_usage_rejects_fractional_token_counts() {
+    let payload = serde_json::json!({
+        "input_tokens": 1.5,
+        "output_tokens": 2,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+    });
+
+    assert!(SessionLlmProvider::parse_usage(Some(&payload)).is_none());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn build_messages_skips_blank_system_prompt() {
     let without_system = SessionLlmProvider::build_messages(Some("   "), "hello");
     assert_eq!(without_system.len(), 1);
@@ -47,6 +113,23 @@ fn build_messages_skips_blank_system_prompt() {
     assert_eq!(with_system.len(), 2);
     assert_eq!(with_system[0]["role"], "system");
     assert_eq!(with_system[1]["content"], "hello");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn build_messages_without_system_still_emits_empty_user_message() {
+    let messages = SessionLlmProvider::build_messages(None, "");
+
+    assert_eq!(messages, vec![serde_json::json!({"role": "user", "content": ""})]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn build_messages_preserves_nonblank_system_prompt_verbatim() {
+    let messages = SessionLlmProvider::build_messages(Some("  keep spacing  "), "hello");
+
+    assert_eq!(messages[0]["content"], "  keep spacing  ");
+    assert_eq!(messages[1]["content"], "hello");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -99,6 +182,42 @@ fn build_history_messages_skips_unknown_roles() {
     assert!(SessionLlmProvider::build_history_messages(&messages).is_empty());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn build_history_messages_skips_unknown_roles_without_dropping_neighbors() {
+    let messages = vec![
+        ChatMessage::user("before"),
+        ChatMessage { role: "alien".to_string(), content: "ignored".to_string() },
+        ChatMessage::assistant("after"),
+    ];
+
+    let projected = SessionLlmProvider::build_history_messages(&messages);
+
+    assert_eq!(
+        projected,
+        vec![
+            serde_json::json!({"role": "user", "content": "before"}),
+            serde_json::json!({"role": "assistant", "content": "after"}),
+        ]
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn build_history_messages_preserves_empty_supported_content() {
+    let messages = vec![ChatMessage::system(""), ChatMessage::user("")];
+
+    let projected = SessionLlmProvider::build_history_messages(&messages);
+
+    assert_eq!(
+        projected,
+        vec![
+            serde_json::json!({"role": "system", "content": ""}),
+            serde_json::json!({"role": "user", "content": ""}),
+        ]
+    );
+}
+
 #[test]
 fn extract_system_and_last_user_uses_first_system_and_last_user() {
     let messages = vec![
@@ -116,10 +235,40 @@ fn extract_system_and_last_user_uses_first_system_and_last_user() {
 }
 
 #[test]
+fn extract_system_and_last_user_returns_empty_fallbacks_without_matching_roles() {
+    let messages = vec![ChatMessage::assistant("answer"), ChatMessage::tool("result")];
+
+    let (system, last_user) = SessionLlmProvider::extract_system_and_last_user(&messages);
+
+    assert_eq!(system, None);
+    assert_eq!(last_user, "");
+}
+
+#[test]
+fn extract_system_and_last_user_handles_empty_history() {
+    let (system, last_user) = SessionLlmProvider::extract_system_and_last_user(&[]);
+
+    assert_eq!(system, None);
+    assert_eq!(last_user, "");
+}
+
+#[test]
+fn extract_system_and_last_user_preserves_blank_matching_messages() {
+    let messages = vec![ChatMessage::system("   "), ChatMessage::user("")];
+
+    let (system, last_user) = SessionLlmProvider::extract_system_and_last_user(&messages);
+
+    assert_eq!(system, Some("   "));
+    assert_eq!(last_user, "");
+}
+
+#[test]
 fn session_provider_declares_fallback_capabilities_and_streaming() {
     let provider = SessionLlmProvider::new();
     let caps = provider.capabilities();
     assert!(!caps.native_tool_calling);
     assert!(!caps.vision);
+    assert!(!provider.supports_native_tools());
+    assert!(!provider.supports_vision());
     assert!(provider.supports_streaming());
 }

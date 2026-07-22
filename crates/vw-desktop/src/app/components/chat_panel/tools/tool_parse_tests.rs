@@ -1,8 +1,9 @@
 use super::tool_parse::{
-    explore_item_dedupe_key, explore_tool_kind, is_explore_tool, should_hide_tool_block,
-    tool_call_id_from_raw, tool_change_file_summaries, tool_error_text, tool_identity_from_raw,
-    tool_input, tool_input_path, tool_name_from_raw, tool_output_path, tool_output_text,
-    tool_status, tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
+    ExploreToolKind, explore_item_dedupe_key, explore_tool_kind, is_explore_tool,
+    should_hide_tool_block, tool_call_id_from_raw, tool_change_file_summaries, tool_change_files,
+    tool_error_text, tool_identity_from_raw, tool_input, tool_input_path, tool_name_from_raw,
+    tool_output_path, tool_output_text, tool_render_hint_metadata, tool_result_data, tool_status,
+    tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };
 use crate::app::App;
 use crate::app::components::chat_panel::tools::types::ChangeFileSummary;
@@ -51,8 +52,11 @@ fn tool_input_path_accepts_claude_file_path_alias() {
 fn tool_name_prefers_canonical_id_from_render_hint() {
     let raw = r#"tool Read
 {"renderHint":{"metadata":{"canonical_tool_id":"file_read"}}}"#;
+    let nested_raw = r#"tool search
+{"result":{"renderHint":{"metadata":{"canonical_tool_id":"grep_search"}}}}"#;
 
     assert_eq!(tool_name_from_raw(raw), Some("read".to_string()));
+    assert_eq!(tool_name_from_raw(nested_raw), Some("grep_search".to_string()));
 }
 
 #[test]
@@ -112,10 +116,13 @@ fn tool_identity_and_hide_rules_cover_special_cases() {
 {"input":"{\"pattern\":\"main\",\"include\":\"*.rs\",\"path\":\"src\"}"}"#;
     let todo_raw = r#"tool todowrite
 {"status":"completed"}"#;
+    let todo_read_raw = r#"tool todoread
+{"status":"completed"}"#;
 
     assert_eq!(tool_identity_from_raw(bash_raw).as_deref(), Some("bash:cargo test"));
     assert_eq!(tool_identity_from_raw(grep_raw).as_deref(), Some("grep:main|*.rs|src"));
     assert!(should_hide_tool_block(todo_raw));
+    assert!(should_hide_tool_block(todo_read_raw));
 }
 
 #[test]
@@ -140,4 +147,302 @@ fn resolve_output_path_joins_project_root_for_relative_values() {
         super::tool_parse::resolve_output_path(&app, "logs/out.txt"),
         "/tmp/demo/logs/out.txt"
     );
+}
+
+#[test]
+fn raw_tool_helpers_reject_malformed_blocks() {
+    assert_eq!(tool_name_from_raw("tool bash"), None);
+    assert_eq!(tool_name_from_raw("tool \n{}"), None);
+    assert_eq!(tool_call_id_from_raw("tool read\nnot json"), None);
+    assert_eq!(tool_status_from_raw("tool read\nnot json"), None);
+    assert_eq!(tool_identity_from_raw("read\n{}"), None);
+    assert_eq!(tool_identity_from_raw("tool read\nnot json"), None);
+    assert!(!should_hide_tool_block("tool todowrite"));
+    assert!(!should_hide_tool_block("bad todowrite\n{\"status\":\"completed\"}"));
+    assert!(!should_hide_tool_block("tool read\n{\"status\":\"completed\"}"));
+    assert!(!should_hide_tool_block("tool todowrite\nnot json"));
+    assert!(!should_hide_tool_block("tool todowrite\n{\"status\":\"running\"}"));
+}
+
+#[test]
+fn call_id_is_found_across_supported_metadata_shapes() {
+    let cases = [
+        (
+            r#"tool read
+{"metadata":{"toolCallId":"meta-call"}}"#,
+            "meta-call",
+        ),
+        (
+            r#"tool read
+{"renderHint":{"callId":"hint-call"}}"#,
+            "hint-call",
+        ),
+        (
+            r#"tool read
+{"renderHint":{"metadata":{"tool_use_id":"hint-meta-call"}}}"#,
+            "hint-meta-call",
+        ),
+        (
+            r#"tool read
+{"result":{"call_id":"result-call"}}"#,
+            "result-call",
+        ),
+        (
+            r#"tool read
+{"result":{"metadata":{"toolUseId":"result-meta-call"}}}"#,
+            "result-meta-call",
+        ),
+    ];
+
+    for (raw, expected) in cases {
+        assert_eq!(tool_call_id_from_raw(raw).as_deref(), Some(expected));
+        assert_eq!(explore_item_dedupe_key(raw), Some(format!("call:{expected}")));
+    }
+}
+
+#[test]
+fn explore_tool_kind_covers_search_list_and_unknown_tools() {
+    assert_eq!(explore_tool_kind("file_read"), Some(ExploreToolKind::Read));
+    assert_eq!(explore_tool_kind("grep_search"), Some(ExploreToolKind::Search));
+    assert_eq!(explore_tool_kind("list_dir"), Some(ExploreToolKind::List));
+    assert_eq!(explore_tool_kind("bash"), None);
+}
+
+#[test]
+fn result_data_and_render_metadata_prefer_supported_locations() {
+    let value = serde_json::json!({
+        "data": {"top": true},
+        "result": {
+            "data": {"nested": true},
+            "renderHint": {
+                "metadata": {"label": "nested hint"}
+            }
+        }
+    });
+    let fallback = serde_json::json!({
+        "data": {"top": true},
+        "render_hint": {
+            "metadata": {"label": "top hint"}
+        }
+    });
+
+    assert_eq!(
+        tool_result_data(&value).and_then(|v| v.get("nested")).and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        tool_render_hint_metadata(&value)
+            .and_then(|metadata| metadata.get("label"))
+            .and_then(|label| label.as_str()),
+        Some("nested hint")
+    );
+    assert_eq!(
+        tool_result_data(&fallback).and_then(|v| v.get("top")).and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        tool_render_hint_metadata(&fallback)
+            .and_then(|metadata| metadata.get("label"))
+            .and_then(|label| label.as_str()),
+        Some("top hint")
+    );
+}
+
+#[test]
+fn output_text_extracts_nested_content_values() {
+    let content_value = serde_json::json!({
+        "result": {
+            "content": [
+                {"type": "image", "text": "ignored"},
+                {"type": "text", "text": "   "},
+                {"type": "json", "value": [null, {"stderr": "from stderr"}]}
+            ]
+        }
+    });
+    let model_value = serde_json::json!({
+        "result": {"model_result": {"value": 42}}
+    });
+    let data_value = serde_json::json!({
+        "result": {"data": {"message": false}}
+    });
+
+    assert_eq!(tool_output_text(&content_value).as_deref(), Some("from stderr"));
+    assert_eq!(tool_output_text(&model_value).as_deref(), Some("42"));
+    assert_eq!(tool_output_text(&data_value).as_deref(), Some("false"));
+}
+
+#[test]
+fn output_summary_and_error_helpers_skip_blank_values() {
+    let summary = serde_json::json!({
+        "summary": "  direct summary  ",
+        "renderHint": {"summary": "fallback"}
+    });
+    let no_error = serde_json::json!({
+        "status": "completed",
+        "output": "done"
+    });
+    let blank_output = serde_json::json!({
+        "output": "   ",
+        "result": {"success": false}
+    });
+
+    assert_eq!(tool_summary_text(&summary).as_deref(), Some("direct summary"));
+    assert_eq!(tool_error_text(&no_error), None);
+    assert_eq!(tool_output_text(&blank_output), None);
+    assert_eq!(tool_error_text(&blank_output), None);
+}
+
+#[test]
+fn output_path_accepts_top_level_metadata() {
+    let value = serde_json::json!({
+        "metadata": {
+            "outputPath": "`file:///tmp/out.rs#L12`"
+        }
+    });
+
+    assert_eq!(tool_output_path(&value).as_deref(), Some("tmp/out.rs"));
+}
+
+#[test]
+fn output_path_accepts_result_render_hint_metadata() {
+    let value = serde_json::json!({
+        "result": {
+            "renderHint": {
+                "metadata": {
+                    "outputPath": "[main](src/generated.rs#L3)"
+                }
+            }
+        }
+    });
+
+    assert_eq!(tool_output_path(&value).as_deref(), Some("src/generated.rs"));
+}
+
+#[test]
+fn structured_patch_files_cover_add_delete_and_merged_hunks() {
+    let value = serde_json::json!({
+        "result": {
+            "content": [
+                {
+                    "type": "structured_patch",
+                    "hunks": [
+                        {"path": "src/add.rs", "lines": ["+new"]},
+                        {"path": "src/delete.rs", "lines": ["-old"]},
+                        {"path": "src/edit.rs", "header": "@@ -1 +1 @@", "lines": [" context", "-old"]},
+                        {"path": "src/edit.rs", "header": "@@ -4 +4 @@", "lines": ["+new", "same"]}
+                    ]
+                }
+            ]
+        }
+    });
+
+    let summaries = tool_change_file_summaries(&value);
+    assert_eq!(summaries[0].kind, 'A');
+    assert_eq!(summaries[1].kind, 'D');
+    assert_eq!(summaries[2].kind, 'M');
+    assert_eq!(summaries[2].additions, 1);
+    assert_eq!(summaries[2].deletions, 1);
+
+    let files = tool_change_files(&value);
+    let edited = files.iter().find(|file| file.path == "src/edit.rs").expect("edit file");
+    assert_eq!(edited.before, "context\nold\nsame\n");
+    assert_eq!(edited.after, "context\nnew\nsame\n");
+
+    let diff = tool_structured_diff_text(&value).expect("diff");
+    assert_eq!(diff.matches("--- a/src/edit.rs").count(), 1);
+    assert!(diff.contains("@@ -4 +4 @@\n+new\nsame\n"));
+}
+
+#[test]
+fn malformed_structured_patch_blocks_are_ignored() {
+    let value = serde_json::json!({
+        "result": {
+            "content": [
+                {"type": "text", "text": "ignored"},
+                {"type": "structured_patch"},
+                {"type": "structured_patch", "hunks": [
+                    {"path": "   ", "lines": ["+missing"]},
+                    {"lines": ["+missing path"]},
+                    {"path": "src/ok.rs", "lines": ["+kept", 3, null]}
+                ]}
+            ]
+        }
+    });
+
+    let files = tool_change_files(&value);
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].path, "src/ok.rs");
+    assert_eq!(files[0].after, "kept\n");
+}
+
+#[test]
+fn tool_identity_covers_edit_paths_and_default_inputs() {
+    let write_raw = r#"tool write
+{"input":"{\"path\":\"docs/new.md\"}"}"#;
+    let edit_raw = r#"tool edit
+{"input":"","metadata":{"path":"[main](src/main.rs#L5)"}}"#;
+    let notebook_raw = r#"tool notebook_edit
+{"input":"plain.ipynb"}"#;
+    let custom_raw = r#"tool custom
+{"input":" payload "}"#;
+    let bash_bad_json_raw = r#"tool bash
+{"input":"{\"cmd\":\"missing command\"}"}"#;
+    let grep_plain_raw = r#"tool grep
+{"input":"needle"}"#;
+
+    assert_eq!(tool_identity_from_raw(write_raw).as_deref(), Some("file_write:docs/new.md"));
+    assert_eq!(tool_identity_from_raw(edit_raw).as_deref(), Some("file_edit:src/main.rs"));
+    assert_eq!(tool_identity_from_raw(notebook_raw).as_deref(), Some("notebook_edit:plain.ipynb"));
+    assert_eq!(tool_identity_from_raw(custom_raw).as_deref(), Some("custom:payload"));
+    assert_eq!(tool_identity_from_raw(bash_bad_json_raw).as_deref(), Some("bash:"));
+    assert_eq!(tool_identity_from_raw(grep_plain_raw).as_deref(), Some("grep:needle"));
+}
+
+#[test]
+fn tool_input_path_handles_invalid_and_plain_inputs() {
+    assert_eq!(tool_input_path(r#"{"path":""}"#), None);
+    assert_eq!(tool_input_path(r#"{"other":"src/main.rs"}"#), None);
+    assert_eq!(tool_input_path("{not json"), None);
+    assert_eq!(tool_input_path("  'file:///tmp/demo.rs#line-8'  ").as_deref(), Some("tmp/demo.rs"));
+    assert_eq!(tool_input_path("   "), None);
+}
+
+#[test]
+fn resolve_output_path_handles_absolute_and_missing_project_root() {
+    let mut app = App::new().0;
+    app.project_path = None;
+
+    assert_eq!(super::tool_parse::resolve_output_path(&app, "/tmp/out.rs"), "/tmp/out.rs");
+    assert_eq!(super::tool_parse::resolve_output_path(&app, "logs/out.txt"), "logs/out.txt");
+}
+
+#[test]
+fn raw_name_and_identity_handle_edge_inputs_without_losing_valid_blocks() {
+    assert_eq!(tool_name_from_raw("tool shell\nnot-json"), Some("bash".to_string()));
+    assert_eq!(tool_identity_from_raw("tool \n{}"), None);
+    assert_eq!(
+        tool_identity_from_raw("tool bash\n{\"input\":\"  printf ok  \"}").as_deref(),
+        Some("bash:printf ok")
+    );
+    assert_eq!(
+        explore_item_dedupe_key("tool custom\n{\"input\":\" payload \"}").as_deref(),
+        Some("identity:custom:payload")
+    );
+}
+
+#[test]
+fn output_text_uses_non_blank_text_content_and_failed_result_status() {
+    let value = serde_json::json!({
+        "result": {
+            "success": false,
+            "content": [
+                {"type": "text", "text": "rendered failure"},
+                {"type": "json", "value": {"text": "later value"}}
+            ]
+        }
+    });
+
+    assert_eq!(tool_status(&value), "error");
+    assert_eq!(tool_output_text(&value).as_deref(), Some("rendered failure"));
+    assert_eq!(tool_error_text(&value).as_deref(), Some("rendered failure"));
 }

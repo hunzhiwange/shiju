@@ -116,7 +116,10 @@ impl Tunnel for NgrokTunnel {
     async fn start(&self, _local_host: &str, local_port: u16) -> Result<String> {
         // 第一步：配置 Ngrok 认证令牌
         // 通过运行 `ngrok config add-authtoken` 命令将令牌写入配置文件
-        tokio_command("ngrok").args(["config", "add-authtoken", &self.auth_token]).output().await?;
+        tokio_command(ngrok_command_name())
+            .args(["config", "add-authtoken", &self.auth_token])
+            .output()
+            .await?;
 
         // 第二步：构建 Ngrok 启动参数
         // 基础参数：http 模式 + 本地端口
@@ -137,7 +140,7 @@ impl Tunnel for NgrokTunnel {
         // 第三步：启动 Ngrok 子进程
         // - 捕获标准输出和标准错误
         // - 设置 kill_on_drop 确保进程在句柄丢弃时被终止
-        let mut child = tokio_command("ngrok")
+        let mut child = tokio_command(ngrok_command_name())
             .args(&args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -167,14 +170,8 @@ impl Tunnel for NgrokTunnel {
 
                     // 在日志行中查找 URL 标识
                     // Ngrok logfmt 格式中包含类似 "url=https://xxx.ngrok.io" 的字段
-                    if let Some(idx) = l.find("url=https://") {
-                        let url_start = idx + 4; // 跳过 "url=" 前缀
-                        let url_part = &l[url_start..];
-
-                        // 提取 URL 直到遇到空白字符或行尾
-                        let end =
-                            url_part.find(|c: char| c.is_whitespace()).unwrap_or(url_part.len());
-                        public_url = url_part[..end].to_string();
+                    if let Some(url) = extract_ngrok_public_url(&l) {
+                        public_url = url;
                         break; // 成功获取 URL，退出循环
                     }
                 }
@@ -238,6 +235,24 @@ impl Tunnel for NgrokTunnel {
     /// 该方法使用 `try_lock`，不会阻塞。如果锁被占用则返回 `None`。
     fn public_url(&self) -> Option<String> {
         self.proc.try_lock().ok().and_then(|g| g.as_ref().map(|tp| tp.public_url.clone()))
+    }
+}
+
+fn extract_ngrok_public_url(line: &str) -> Option<String> {
+    let idx = line.find("url=https://")?;
+    let url_part = &line[idx + 4..];
+    let end = url_part.find(|c: char| c.is_whitespace()).unwrap_or(url_part.len());
+    Some(url_part[..end].to_string())
+}
+
+fn ngrok_command_name() -> &'static str {
+    #[cfg(test)]
+    {
+        "vibewindow-ngrok-missing-for-unit-tests"
+    }
+    #[cfg(not(test))]
+    {
+        "ngrok"
     }
 }
 

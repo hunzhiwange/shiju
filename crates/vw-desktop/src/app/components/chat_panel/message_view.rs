@@ -19,6 +19,7 @@
 
 mod assistant_body;
 mod assistant_error;
+mod markdown;
 mod parse;
 mod render_cache;
 mod styles;
@@ -30,6 +31,10 @@ mod tool_summaries;
 mod assistant_body_tests;
 #[cfg(test)]
 mod assistant_error_tests;
+#[cfg(test)]
+mod markdown_tests;
+#[cfg(test)]
+mod message_view_tests;
 #[cfg(test)]
 mod parse_tests;
 #[cfg(test)]
@@ -61,17 +66,15 @@ use crate::app::{App, Message, message};
 use self::assistant_body::render_assistant_body;
 use self::render_cache::resolve_visible_text_and_copy_hash;
 use self::styles::{
-    COMPACT_ACTION_BUTTON_RADIUS, COMPACT_ACTION_BUTTON_SIZE, MESSAGE_META_TEXT_SIZE,
-    is_dark_theme, message_meta_text_color, subtle_card_shadow, user_bubble_surface,
+    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, is_dark_theme, message_meta_text_color,
 };
 use self::text::{
-    MAX_EDITOR_CHARS, message_editor_body, message_text_body, session_control_selection_card,
+    message_editor_body, message_text_body, session_control_selection_card,
     split_session_control_selection,
 };
 
-use super::tool_text_support::{
-    chat_text_font, is_safe_for_text_editor, selected_chat_text_for_message,
-};
+use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
+use super::tool_text_support::{chat_text_font, selected_chat_text_for_message};
 use super::tools::{
     pending_permission_badge_label, pending_permission_request_badge_label,
     pending_permission_request_for_message, pending_permission_targets_message,
@@ -85,6 +88,7 @@ use super::utils::{
 pub(crate) use self::assistant_body::deduped_tool_last_indices;
 #[cfg(test)]
 pub(crate) use self::assistant_body::should_highlight_pending_permission_tool;
+pub(crate) use self::markdown::{MarkdownBlock, markdown_block_key, parse_markdown_blocks};
 pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,
@@ -104,6 +108,10 @@ pub(crate) use self::tool_summaries::summarize_explore_items;
 pub(crate) use self::tool_summaries::tool_card_text_blocks;
 #[cfg(test)]
 pub(crate) use self::tool_summaries::trailing_tool_tail_text_source_block_idx;
+
+pub(crate) fn message_footer_padding(is_user: bool) -> iced::Padding {
+    if is_user { [0, 6].into() } else { iced::Padding::ZERO }
+}
 
 /// 渲染消息视图（主入口函数）
 ///
@@ -187,7 +195,9 @@ pub fn message_view<'a>(
                            highlighted: bool,
                            compact_square: bool|
      -> Element<'a, Message> {
-        let icon_size = if compact_square { 9.0 } else { 12.0 };
+        // 紧凑动作图标（复制、分叉、重置）与相邻元信息文字同高，避免图标显得突兀偏大。
+        let icon_size = if compact_square { MESSAGE_META_TEXT_SIZE } else { 12.0 };
+        let compact_button_size = MESSAGE_META_TEXT_SIZE;
         let btn = button(
             icon_svg(icon).width(Length::Fixed(icon_size)).height(Length::Fixed(icon_size)).style(
                 move |theme: &Theme, _status| svg::Style {
@@ -202,12 +212,12 @@ pub fn message_view<'a>(
             ),
         )
         .width(if compact_square {
-            Length::Fixed(COMPACT_ACTION_BUTTON_SIZE)
+            Length::Fixed(compact_button_size)
         } else {
             Length::Fixed(24.0)
         })
         .height(if compact_square {
-            Length::Fixed(COMPACT_ACTION_BUTTON_SIZE)
+            Length::Fixed(compact_button_size)
         } else {
             Length::Fixed(22.0)
         })
@@ -323,8 +333,8 @@ pub fn message_view<'a>(
     } else {
         let mut body = column![].spacing(8);
         let use_editor = attachment_items.is_empty()
-            && content.len() <= MAX_EDITOR_CHARS
-            && is_safe_for_text_editor(content)
+            && selectable_text_policy(content, false)
+                != SelectableTextPolicy::PreviewWithCopyFallback
             && app.chat_message_editors.get(idx).is_some();
         if use_editor {
             if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
@@ -379,7 +389,7 @@ pub fn message_view<'a>(
 
     let bubble_inner = container(body)
         .padding(if is_user {
-            iced::Padding { top: 10.0, right: 14.0, bottom: 10.0, left: 14.0 }
+            iced::Padding { top: 4.0, right: 14.0, bottom: 4.0, left: 14.0 }
         } else {
             iced::Padding { top: 2.0, right: 2.0, bottom: 2.0, left: 0.0 }
         })
@@ -414,11 +424,10 @@ pub fn message_view<'a>(
                 };
             }
 
-            let (bubble_bg, bubble_border) = user_bubble_surface(theme);
             iced::widget::container::Style {
-                background: Some(Background::Color(bubble_bg)),
-                border: Border { width: 1.0, color: bubble_border, radius: 15.0.into() },
-                shadow: subtle_card_shadow(theme),
+                background: None,
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+                shadow: iced::Shadow::default(),
                 ..Default::default()
             }
         });
@@ -451,6 +460,7 @@ pub fn message_view<'a>(
                 .show(true)
                 .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
                 .gap(0.0)
+                .close_on_target_click(true)
                 .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
                 .into()
         } else {
@@ -599,7 +609,7 @@ pub fn message_view<'a>(
     };
 
     let footer_container = container(footer_element)
-        .padding([0, 6])
+        .padding(message_footer_padding(is_user))
         .width(if is_user { Length::FillPortion(7) } else { Length::Fill })
         .align_x(if is_user {
             iced::alignment::Horizontal::Right

@@ -220,7 +220,7 @@ pub(super) fn workflow_node_from_dify(node: &DifyNode, raw_node: Value) -> Workf
     }
 }
 
-fn workflow_edge_from_dify(
+pub(super) fn workflow_edge_from_dify(
     edge: &DifyEdge,
     index: usize,
     node_types: &HashMap<&str, &str>,
@@ -266,7 +266,10 @@ fn generated_edge_id(edge: &DifyEdge, index: usize) -> String {
     format!("{}-{}-{}-{}-{}", edge.source, source_handle, edge.target, target_handle, index + 1)
 }
 
-fn parse_handle_side(value: Option<&str>, default: WorkflowHandleSide) -> WorkflowHandleSide {
+pub(super) fn parse_handle_side(
+    value: Option<&str>,
+    default: WorkflowHandleSide,
+) -> WorkflowHandleSide {
     match value.unwrap_or_default().trim().to_ascii_lowercase().as_str() {
         "left" => WorkflowHandleSide::Left,
         "right" => WorkflowHandleSide::Right,
@@ -276,7 +279,7 @@ fn parse_handle_side(value: Option<&str>, default: WorkflowHandleSide) -> Workfl
     }
 }
 
-fn build_source_handles(
+pub(super) fn build_source_handles(
     data: &DifyNodeData,
     renderer_type: &Option<String>,
     block_type: &str,
@@ -340,7 +343,10 @@ fn build_source_handles(
     handles
 }
 
-fn build_target_handles(renderer_type: &Option<String>, block_type: &str) -> Vec<WorkflowHandle> {
+pub(super) fn build_target_handles(
+    renderer_type: &Option<String>,
+    block_type: &str,
+) -> Vec<WorkflowHandle> {
     let effective_type = normalized_block_type(renderer_type, block_type);
 
     if matches!(
@@ -362,7 +368,7 @@ fn build_target_handles(renderer_type: &Option<String>, block_type: &str) -> Vec
     }
 }
 
-fn normalized_block_type(renderer_type: &Option<String>, block_type: &str) -> String {
+pub(super) fn normalized_block_type(renderer_type: &Option<String>, block_type: &str) -> String {
     if block_type.trim().is_empty() {
         renderer_type.clone().unwrap_or_else(|| "custom".to_string())
     } else {
@@ -370,7 +376,7 @@ fn normalized_block_type(renderer_type: &Option<String>, block_type: &str) -> St
     }
 }
 
-fn pretty_handle_label(handle_id: &str, index: usize) -> String {
+pub(super) fn pretty_handle_label(handle_id: &str, index: usize) -> String {
     match handle_id {
         "true" => "是".to_string(),
         "false" => "否".to_string(),
@@ -381,7 +387,7 @@ fn pretty_handle_label(handle_id: &str, index: usize) -> String {
     }
 }
 
-fn workflow_app_meta_from_dify(app: Option<&DifyApp>) -> WorkflowAppMeta {
+pub(super) fn workflow_app_meta_from_dify(app: Option<&DifyApp>) -> WorkflowAppMeta {
     let Some(app) = app else {
         return WorkflowAppMeta::default();
     };
@@ -397,7 +403,7 @@ fn workflow_app_meta_from_dify(app: Option<&DifyApp>) -> WorkflowAppMeta {
     }
 }
 
-fn workflow_environment_variable_from_dify(
+pub(super) fn workflow_environment_variable_from_dify(
     variable: &DifyEnvironmentVariable,
     raw_variable: Value,
 ) -> WorkflowEnvironmentVariable {
@@ -424,7 +430,7 @@ fn workflow_environment_variable_from_dify(
     }
 }
 
-fn workflow_conversation_variable_from_dify(
+pub(super) fn workflow_conversation_variable_from_dify(
     variable: &DifyConversationVariable,
     raw_variable: Value,
 ) -> WorkflowConversationVariable {

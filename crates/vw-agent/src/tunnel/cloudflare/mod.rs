@@ -120,7 +120,7 @@ impl Tunnel for CloudflareTunnel {
         // - run: 运行隧道
         // - --token: 使用 token 认证
         // - --url: 指定本地服务的转发地址
-        let mut child = tokio_command("cloudflared")
+        let mut child = tokio_command(cloudflared_command_name())
             .args([
                 "tunnel",
                 "--no-autoupdate",
@@ -160,12 +160,8 @@ impl Tunnel for CloudflareTunnel {
                     tracing::debug!("cloudflared: {l}");
 
                     // 在输出行中查找 "https://" 标记，定位公网 URL
-                    if let Some(idx) = l.find("https://") {
-                        let url_part = &l[idx..];
-                        // 查找 URL 结束位置（遇到空白字符为止）
-                        let end =
-                            url_part.find(|c: char| c.is_whitespace()).unwrap_or(url_part.len());
-                        public_url = url_part[..end].to_string();
+                    if let Some(url) = extract_cloudflare_public_url(&l) {
+                        public_url = url;
                         break; // 成功获取 URL，退出循环
                     }
                 }
@@ -231,6 +227,24 @@ impl Tunnel for CloudflareTunnel {
     /// 适用于需要快速查询而不希望阻塞的场景。
     fn public_url(&self) -> Option<String> {
         self.proc.try_lock().ok().and_then(|g| g.as_ref().map(|tp| tp.public_url.clone()))
+    }
+}
+
+fn extract_cloudflare_public_url(line: &str) -> Option<String> {
+    let idx = line.find("https://")?;
+    let url_part = &line[idx..];
+    let end = url_part.find(|c: char| c.is_whitespace()).unwrap_or(url_part.len());
+    Some(url_part[..end].to_string())
+}
+
+fn cloudflared_command_name() -> &'static str {
+    #[cfg(test)]
+    {
+        "vibewindow-cloudflared-missing-for-unit-tests"
+    }
+    #[cfg(not(test))]
+    {
+        "cloudflared"
     }
 }
 

@@ -34,7 +34,7 @@ const WORKTREE_MENU_LABEL_CHARS: usize = 34;
 const WORKTREE_BRANCH_LABEL_CHARS: usize = 10;
 const HEADER_BRANCH_LABEL_CHARS: usize = 8;
 
-fn truncate_label(value: &str, max_chars: usize) -> String {
+pub(super) fn truncate_label(value: &str, max_chars: usize) -> String {
     let count = value.chars().count();
     if count <= max_chars {
         return value.to_string();
@@ -46,18 +46,56 @@ fn truncate_label(value: &str, max_chars: usize) -> String {
     out
 }
 
-fn trigger_label(value: &str) -> String {
+pub(super) fn trigger_label(value: &str) -> String {
     let primary = value.split('·').next().unwrap_or(value).trim();
     truncate_label(primary, WORKTREE_TRIGGER_LABEL_CHARS)
 }
 
-fn worktree_option_display_label(option: &crate::app::state::GitWorktreeOption) -> String {
+pub(super) fn worktree_option_display_label(
+    option: &crate::app::state::GitWorktreeOption,
+) -> String {
     let primary = option.label.split('·').next().unwrap_or(&option.label).trim();
     if let Some(branch) = option.branch.as_deref().filter(|value| !value.trim().is_empty()) {
         format!("{primary} · {}", truncate_label(branch.trim(), WORKTREE_BRANCH_LABEL_CHARS))
     } else {
         primary.to_string()
     }
+}
+
+pub(super) fn selected_worktree_trigger_label(app: &App) -> String {
+    app.selected_git_worktree_directory
+        .as_ref()
+        .and_then(|directory| {
+            app.git_worktree_options
+                .iter()
+                .find(|option| option.directory.as_str() == directory.as_str())
+        })
+        .map(|option| trigger_label(&option.label))
+        .unwrap_or_else(|| "工作区".to_string())
+}
+
+pub(super) fn summary_toggle_icon_and_tip(show_summary: bool) -> (Icon, String) {
+    if show_summary {
+        (Icon::EyeSlash, "隐藏摘要输入框".to_string())
+    } else {
+        (Icon::Eye, "显示摘要输入框".to_string())
+    }
+}
+
+pub(super) fn fullscreen_icon_and_tip(is_fullscreen: bool) -> (Icon, String) {
+    if is_fullscreen {
+        (Icon::FullscreenExit, "退出全屏".to_string())
+    } else {
+        (Icon::Fullscreen, "全屏".to_string())
+    }
+}
+
+pub(super) fn worktree_menu_toggle_message(is_open: bool) -> Message {
+    Message::Git(message::GitMessage::ToggleGitWorktreeMenu(!is_open))
+}
+
+pub(super) fn filter_options_toggle_message(is_open: bool) -> Message {
+    Message::Git(message::GitMessage::ToggleFilterOptions(!is_open))
 }
 
 fn tooltip_content(label: String) -> Element<'static, Message> {
@@ -79,7 +117,7 @@ fn tooltip_content(label: String) -> Element<'static, Message> {
         .into()
 }
 
-fn worktree_button_style(
+pub(super) fn worktree_button_style(
     theme: &iced::Theme,
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
@@ -242,16 +280,7 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
 
     let worktree_picker: Option<Element<'_, Message>> =
         (app.git_worktree_options.len() > 1).then(|| {
-            let selected_label = app
-                .selected_git_worktree_directory
-                .as_ref()
-                .and_then(|directory| {
-                    app.git_worktree_options
-                        .iter()
-                        .find(|option| option.directory.as_str() == directory.as_str())
-                })
-                .map(|option| trigger_label(&option.label))
-                .unwrap_or_else(|| "工作区".to_string());
+            let selected_label = selected_worktree_trigger_label(app);
             let trigger = button(
                 container(
                     row![
@@ -268,9 +297,7 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .center_y(Length::Fill),
             )
-            .on_press(Message::Git(message::GitMessage::ToggleGitWorktreeMenu(
-                !app.git_worktree_menu_open,
-            )))
+            .on_press(worktree_menu_toggle_message(app.git_worktree_menu_open))
             .height(Length::Fixed(26.0))
             .width(Length::Fixed(WORKTREE_TRIGGER_WIDTH))
             .padding([0, 7])
@@ -300,11 +327,7 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
     // 用于控制 Git diff 摘要输入框的可见性
     let summary_toggle = {
         // 根据当前显示状态选择图标和提示文本
-        let (icon, tip) = if app.show_git_diff_summary {
-            (Icon::EyeSlash, "隐藏摘要输入框".to_string())
-        } else {
-            (Icon::Eye, "显示摘要输入框".to_string())
-        };
+        let (icon, tip) = summary_toggle_icon_and_tip(app.show_git_diff_summary);
         small_plain_icon_button(
             Some(icon),
             tip,
@@ -317,7 +340,7 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
     let filter_btn = small_plain_icon_button(
         Some(Icon::Sliders),
         "过滤选项".to_string(),
-        Message::Git(message::GitMessage::ToggleFilterOptions(!app.show_git_filter_options)),
+        filter_options_toggle_message(app.show_git_filter_options),
     );
 
     let half_fullscreen_btn = small_plain_icon_button(
@@ -326,11 +349,10 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
         Message::Git(message::GitMessage::ToggleHalfFullscreen),
     );
 
-    let fullscreen_icon =
-        if app.git_diff_fullscreen { Icon::FullscreenExit } else { Icon::Fullscreen };
+    let (fullscreen_icon, fullscreen_tip) = fullscreen_icon_and_tip(app.git_diff_fullscreen);
     let fullscreen_btn = small_plain_icon_button(
         Some(fullscreen_icon),
-        if app.git_diff_fullscreen { "退出全屏" } else { "全屏" }.to_string(),
+        fullscreen_tip,
         Message::Git(message::GitMessage::ToggleFullscreen),
     );
 

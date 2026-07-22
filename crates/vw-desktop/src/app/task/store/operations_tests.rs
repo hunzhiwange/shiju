@@ -1,167 +1,67 @@
+use super::*;
+
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn operations_test_module_is_linked() {
-    let name = "operations";
-    assert_eq!(name.len(), 10);
+fn load_tasks_by_status_returns_every_builtin_bucket_empty_on_native() {
+    let project = tempfile::tempdir().expect("temp project");
+
+    let tasks_by_status = load_tasks_by_status(&project.path().to_string_lossy());
+
+    assert_eq!(tasks_by_status.len(), TaskStatus::all().len());
+    for status in TaskStatus::all() {
+        let tasks = tasks_by_status.get(&status).expect("built-in status bucket");
+        assert!(tasks.is_empty());
+    }
 }
 
-fn project_path(temp: &tempfile::TempDir) -> String {
-    temp.path().to_string_lossy().to_string()
-}
-
-fn draft_task(
-    priority: u32,
-    status: crate::app::task::models::TaskStatus,
-) -> crate::app::task::models::Task {
-    let mut task = crate::app::task::models::Task::new(priority);
-    task.status = status;
-    task.prompt = format!("prompt {priority}");
-    task.description = format!("description {priority}");
-    task
-}
-
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn create_task_assigns_dated_id_order_and_index_entry() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
+fn native_create_task_fails_closed_after_scheduler_cutover() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let error = create_task(&path, Task::new(1)).expect_err("native create disabled");
 
-    let first =
-        super::create_task(&project, draft_task(2, crate::app::task::models::TaskStatus::Pending))
-            .expect("create first");
-    let second =
-        super::create_task(&project, draft_task(1, crate::app::task::models::TaskStatus::Pending))
-            .expect("create second");
-
-    assert!(first.id.starts_with('T'));
-    assert!(first.id.contains('.'));
-    assert_eq!(first.order, 0);
-    assert_eq!(second.order, 1);
-
-    let index = super::load_index(&project);
-    assert_eq!(index.tasks.get(&first.id).map(String::as_str), Some("pending"));
-    assert_eq!(
-        index.order_by_status.get("pending").expect("pending order"),
-        &vec![first.id.clone(), second.id.clone()]
-    );
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("global Agent Scheduler"));
+    assert!(!super::super::paths::get_task_log_dir(&path).exists());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn load_tasks_by_status_sorts_and_filters_deleted_tasks() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let low_priority =
-        super::create_task(&project, draft_task(10, crate::app::task::models::TaskStatus::Pending))
-            .expect("create low");
-    let high_priority =
-        super::create_task(&project, draft_task(1, crate::app::task::models::TaskStatus::Pending))
-            .expect("create high");
-    let mut deleted =
-        super::create_task(&project, draft_task(0, crate::app::task::models::TaskStatus::Pending))
-            .expect("create deleted");
-    deleted.deleted = true;
-    super::update_task(&project, &deleted).expect("mark deleted");
+fn native_rebuild_failed_task_fails_closed_without_removing_logs() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let old_task = Task::new(1);
+    let error = rebuild_failed_task_from_current_branch(&path, old_task)
+        .expect_err("native rebuild disabled");
 
-    let grouped = super::load_tasks_by_status(&project);
-    let pending =
-        grouped.get(&crate::app::task::models::TaskStatus::Pending).expect("pending group");
-
-    assert_eq!(
-        pending.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
-        vec![high_priority.id.as_str(), low_priority.id.as_str()]
-    );
-    assert!(grouped.contains_key(&crate::app::task::models::TaskStatus::Completed));
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("global Agent Scheduler"));
+    assert!(!super::super::paths::get_task_log_dir(&path).exists());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn update_task_status_moves_task_between_status_orders() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let task =
-        super::create_task(&project, draft_task(5, crate::app::task::models::TaskStatus::Pending))
-            .expect("create");
+fn native_update_task_fails_closed_without_creating_task_storage() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let error = update_task(&path, &Task::new(1)).expect_err("native update disabled");
 
-    let unchanged = super::update_task_status(
-        &project,
-        &task.id,
-        crate::app::task::models::TaskStatus::Pending,
-    )
-    .expect("unchanged")
-    .expect("task");
-    assert_eq!(unchanged.status, crate::app::task::models::TaskStatus::Pending);
-
-    let moved = super::update_task_status(
-        &project,
-        &task.id,
-        crate::app::task::models::TaskStatus::Running,
-    )
-    .expect("move")
-    .expect("task");
-    assert_eq!(moved.status, crate::app::task::models::TaskStatus::Running);
-    assert_eq!(moved.order, 0);
-    assert!(
-        super::load_index(&project).order_by_status.get("pending").expect("pending").is_empty()
-    );
-
-    let missing = super::update_task_status(
-        &project,
-        "missing",
-        crate::app::task::models::TaskStatus::Completed,
-    )
-    .expect("missing");
-    assert!(missing.is_none());
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("global Agent Scheduler"));
+    assert!(!super::super::paths::get_task_log_dir(&path).exists());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn soft_delete_archive_and_archive_completed_update_flags_and_logs() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let task = super::create_task(
-        &project,
-        draft_task(5, crate::app::task::models::TaskStatus::Completed),
-    )
-    .expect("create completed");
-    let deleted =
-        super::create_task(&project, draft_task(6, crate::app::task::models::TaskStatus::Pending))
-            .expect("create deleted");
+fn native_reorder_tasks_fails_closed_without_creating_task_storage() {
+    let project = tempfile::tempdir().expect("temp project");
+    let path = project.path().to_string_lossy();
+    let error =
+        reorder_tasks_in_status(&path, TaskStatus::Pending, vec!["T20260717.0001".to_string()])
+            .expect_err("native reorder disabled");
 
-    let deleted =
-        super::soft_delete_task(&project, &deleted.id).expect("soft delete").expect("deleted task");
-    assert!(deleted.deleted);
-    assert!(deleted.logs.iter().any(|log| log.message == "任务已删除"));
-
-    let archived = super::archive_completed_tasks(&project).expect("archive completed");
-    assert_eq!(archived.len(), 1);
-    assert_eq!(archived[0].id, task.id);
-    assert!(archived[0].archived);
-    assert_eq!(archived[0].status, crate::app::task::models::TaskStatus::Archived);
-
-    assert!(super::archive_task(&project, "missing").expect("missing archive").is_none());
-    assert!(super::soft_delete_task(&project, "missing").expect("missing delete").is_none());
-}
-
-#[test]
-fn reorder_tasks_in_status_rewrites_order_for_existing_tasks() {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    let project = project_path(&temp);
-    let first =
-        super::create_task(&project, draft_task(5, crate::app::task::models::TaskStatus::Pending))
-            .expect("create first");
-    let second =
-        super::create_task(&project, draft_task(5, crate::app::task::models::TaskStatus::Pending))
-            .expect("create second");
-
-    super::reorder_tasks_in_status(
-        &project,
-        crate::app::task::models::TaskStatus::Pending,
-        vec![second.id.clone(), first.id.clone(), "missing".into()],
-    )
-    .expect("reorder");
-
-    let first_loaded = super::load_task(&project, &first.id).expect("first");
-    let second_loaded = super::load_task(&project, &second.id).expect("second");
-    assert_eq!(second_loaded.order, 0);
-    assert_eq!(first_loaded.order, 1);
-    assert_eq!(
-        super::load_index(&project).order_by_status.get("pending").expect("pending order"),
-        &vec![second.id, first.id, "missing".into()]
-    );
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("global Agent Scheduler"));
+    assert!(!super::super::paths::get_task_log_dir(&path).exists());
 }

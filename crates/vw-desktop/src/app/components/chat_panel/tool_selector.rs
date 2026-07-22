@@ -23,7 +23,7 @@ pub(super) const SESSION_SELECTOR_LIST_MAX_HEIGHT: f32 = 300.0;
 const SESSION_SELECTOR_LIST_RIGHT_PADDING: f32 = 5.0;
 pub(super) const SESSION_SELECTOR_SKILL_DESCRIPTION_CHARS: usize = 28;
 
-fn count_badge<'a>(label: String, active: bool) -> Element<'a, Message> {
+pub(super) fn count_badge<'a>(label: String, active: bool) -> Element<'a, Message> {
     container(text(label).size(10))
         .padding([3, 8])
         .style(move |theme: &Theme| {
@@ -57,7 +57,7 @@ fn count_badge<'a>(label: String, active: bool) -> Element<'a, Message> {
         .into()
 }
 
-fn tab_button(tab: SessionToolSelectorTab, selected: bool) -> Element<'static, Message> {
+pub(super) fn tab_button(tab: SessionToolSelectorTab, selected: bool) -> Element<'static, Message> {
     button(text(tab.label()).size(12))
         .padding([6, 10])
         .style(move |theme: &Theme, status| selectable_list_button_style(theme, status, selected))
@@ -65,11 +65,11 @@ fn tab_button(tab: SessionToolSelectorTab, selected: bool) -> Element<'static, M
         .into()
 }
 
-fn is_dark_theme(theme: &Theme) -> bool {
+pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
 }
 
-fn context_row_text_color(theme: &Theme, selected: bool, alpha: f32) -> Color {
+pub(super) fn context_row_text_color(theme: &Theme, selected: bool, alpha: f32) -> Color {
     if selected && !is_dark_theme(theme) {
         Color::from_rgba8(28, 32, 40, alpha)
     } else {
@@ -77,7 +77,7 @@ fn context_row_text_color(theme: &Theme, selected: bool, alpha: f32) -> Color {
     }
 }
 
-fn context_list_button_style(
+pub(super) fn context_list_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
     selected: bool,
@@ -89,7 +89,7 @@ fn context_list_button_style(
     style
 }
 
-fn search_text_input_style(
+pub(super) fn search_text_input_style(
     theme: &Theme,
     status: iced::widget::text_input::Status,
 ) -> iced::widget::text_input::Style {
@@ -106,7 +106,7 @@ fn search_text_input_style(
     }
 }
 
-fn selector_search_bar(query: String) -> Element<'static, Message> {
+pub(super) fn selector_search_bar(query: String) -> Element<'static, Message> {
     container(
         row![
             icon_svg(Icon::Search).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
@@ -144,7 +144,7 @@ fn selector_search_bar(query: String) -> Element<'static, Message> {
     .into()
 }
 
-fn matches_query(query: &str, parts: &[&str]) -> bool {
+pub(super) fn matches_query(query: &str, parts: &[&str]) -> bool {
     let query = query.trim().to_ascii_lowercase();
     if query.is_empty() {
         return true;
@@ -165,7 +165,7 @@ pub(super) fn ellipsize_text(value: &str, max_chars: usize) -> String {
     clipped
 }
 
-fn skill_tooltip_content(
+pub(super) fn skill_tooltip_content(
     title: String,
     skill_id: String,
     source: String,
@@ -193,7 +193,7 @@ fn skill_tooltip_content(
     .into()
 }
 
-fn skill_scope_source_matches(scope: SkillsDirectoryScope, source: &str) -> bool {
+pub(super) fn skill_scope_source_matches(scope: SkillsDirectoryScope, source: &str) -> bool {
     match scope {
         SkillsDirectoryScope::Project => source == "workspace",
         SkillsDirectoryScope::Ancestor => source == "ancestor",
@@ -203,7 +203,7 @@ fn skill_scope_source_matches(scope: SkillsDirectoryScope, source: &str) -> bool
     }
 }
 
-fn skill_scope_label(scope: SkillsDirectoryScope) -> &'static str {
+pub(super) fn skill_scope_label(scope: SkillsDirectoryScope) -> &'static str {
     match scope {
         SkillsDirectoryScope::Project => "项目",
         SkillsDirectoryScope::Ancestor => "父级",
@@ -213,7 +213,7 @@ fn skill_scope_label(scope: SkillsDirectoryScope) -> &'static str {
     }
 }
 
-fn skill_scope_button(
+pub(super) fn skill_scope_button(
     scope: SkillsDirectoryScope,
     active_scope: SkillsDirectoryScope,
 ) -> Element<'static, Message> {

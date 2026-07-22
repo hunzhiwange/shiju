@@ -4,6 +4,8 @@
 //! 基于缓存版本号执行一次性清理，避免旧缓存结构影响新版本行为。
 
 use once_cell::sync::Lazy;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 use std::path::PathBuf;
 
 /// 应用目录名。
@@ -44,6 +46,13 @@ static PATHS: Lazy<GlobalPaths> = Lazy::new(|| {
     let _ = std::fs::create_dir_all(&data);
     let _ = std::fs::create_dir_all(&cache);
 
+    ensure_cache_version(&cache);
+
+    GlobalPaths { home, data, cache }
+});
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ensure_cache_version(cache: &Path) {
     let version_path = cache.join("version");
     let version = std::fs::read_to_string(&version_path)
         .ok()
@@ -53,7 +62,7 @@ static PATHS: Lazy<GlobalPaths> = Lazy::new(|| {
 
     // 缓存版本变更后清空旧目录，避免旧结构与新格式混用。
     if version != CACHE_VERSION {
-        if let Ok(entries) = std::fs::read_dir(&cache) {
+        if let Ok(entries) = std::fs::read_dir(cache) {
             for entry in entries.flatten() {
                 let p = entry.path();
                 let _ =
@@ -62,9 +71,7 @@ static PATHS: Lazy<GlobalPaths> = Lazy::new(|| {
         }
         let _ = std::fs::write(&version_path, CACHE_VERSION);
     }
-
-    GlobalPaths { home, data, cache }
-});
+}
 
 #[cfg(target_arch = "wasm32")]
 static PATHS: Lazy<GlobalPaths> = Lazy::new(|| {

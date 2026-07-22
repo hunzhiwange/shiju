@@ -116,6 +116,20 @@ fn open_create_node_editor_prepares_visual_draft_and_closes_panels() {
 }
 
 #[test]
+fn open_create_node_editor_uses_description_tab_for_unknown_node_type() {
+    let mut state = WorkflowState::default();
+
+    state
+        .open_create_node_editor("custom-unknown", Point::new(10.0, 20.0))
+        .expect("unknown node editor should still open");
+
+    let editor = state.node_editor.as_ref().expect("node editor should exist");
+    assert_eq!(editor.active_tab, WorkflowNodeEditorTab::Description);
+    assert!(editor.visual_draft.is_none());
+    assert_eq!(editor.block_type, "custom-unknown");
+}
+
+#[test]
 fn open_create_node_editor_rejects_second_start_node() {
     let start = workflow_node("start_1", "start", Point::ORIGIN, 0.0);
     let mut state = workflow_state_with_nodes(vec![start]);
@@ -140,6 +154,46 @@ fn open_edit_node_editor_uses_selected_node_when_id_is_absent() {
     assert_eq!(editor.title, "回复");
     assert_eq!(editor.position, Point::new(5.0, 6.0));
     assert!(matches!(editor.visual_draft, Some(WorkflowNodeVisualDraft::Answer { .. })));
+}
+
+#[test]
+fn open_edit_node_editor_with_explicit_id_closes_floating_editors() {
+    let mut answer = workflow_node("answer_1", "answer", Point::new(5.0, 6.0), 2.0);
+    answer.description = "现有说明".to_string();
+    let mut state = WorkflowState {
+        document: WorkflowDocument { nodes: vec![answer], ..WorkflowDocument::default() },
+        context_menu: Some(WorkflowCanvasContextMenu {
+            target: WorkflowCanvasContextMenuTarget::Node("answer_1".to_string()),
+            anchor: Point::new(1.0, 2.0),
+            world: Point::new(3.0, 4.0),
+        }),
+        quick_insert_panel_open: true,
+        action_menu_open: true,
+        zoom_menu_open: true,
+        variable_panel: Some(WorkflowVariablePanelKind::Environment),
+        app_editor: Some(WorkflowAppEditorDraft {
+            mode: WorkflowAppEditorMode::Create,
+            name: "应用草稿".to_string(),
+            description: String::new(),
+            icon: "A".to_string(),
+            use_icon_as_answer_icon: false,
+            max_active_requests_input: "0".to_string(),
+        }),
+        ..WorkflowState::default()
+    };
+
+    state.open_edit_node_editor(Some("answer_1")).expect("explicit node should open");
+
+    let editor = state.node_editor.as_ref().expect("node editor should exist");
+    assert_eq!(editor.mode, WorkflowNodeEditorMode::Edit("answer_1".to_string()));
+    assert_eq!(editor.description, "现有说明");
+    assert_eq!(editor.description_editor.text(), "现有说明");
+    assert!(state.context_menu.is_none());
+    assert!(!state.quick_insert_panel_open);
+    assert!(!state.action_menu_open);
+    assert!(!state.zoom_menu_open);
+    assert!(state.variable_panel.is_none());
+    assert!(state.app_editor.is_none());
 }
 
 #[test]
@@ -213,6 +267,18 @@ fn insert_node_immediately_adds_selected_node_and_status() {
 }
 
 #[test]
+fn insert_node_immediately_rejects_second_start_node() {
+    let start = workflow_node("start_1", "start", Point::ORIGIN, 0.0);
+    let mut state = workflow_state_with_nodes(vec![start]);
+
+    assert_eq!(
+        state.insert_node_immediately("start", Point::new(30.0, 40.0)),
+        Err("开始节点只能有一个".to_string())
+    );
+    assert_eq!(state.document.nodes.len(), 1);
+}
+
+#[test]
 fn create_context_node_auto_connects_from_node_insert_menu() {
     let start = workflow_node("start_1", "start", Point::new(10.0, 20.0), 0.0);
     let mut state = workflow_state_with_nodes(vec![start]);
@@ -243,6 +309,51 @@ fn create_context_node_auto_connects_from_node_insert_menu() {
     assert_eq!(edge.target_handle.as_deref(), Some("target"));
     assert_eq!(state.selected_node_id.as_deref(), Some(inserted.id.as_str()));
     assert_eq!(state.status_message.as_deref(), Some("已新增下游 回复 节点并自动关联"));
+}
+
+#[test]
+fn create_context_node_from_canvas_inserts_without_auto_connect() {
+    let mut state = WorkflowState::default();
+    state.context_menu = Some(WorkflowCanvasContextMenu {
+        target: WorkflowCanvasContextMenuTarget::Canvas,
+        anchor: Point::new(2.0, 3.0),
+        world: Point::new(90.0, 100.0),
+    });
+
+    state.create_context_node("answer").expect("context node should insert");
+
+    assert_eq!(state.document.nodes.len(), 1);
+    assert!(state.document.edges.is_empty());
+    assert_eq!(state.document.nodes[0].position, Point::new(90.0, 100.0));
+    assert_eq!(state.status_message.as_deref(), Some("已插入 回复 节点"));
+}
+
+#[test]
+fn create_context_node_keeps_inserted_node_selected_when_auto_connect_fails() {
+    let mut source = workflow_node("answer_1", "answer", Point::new(10.0, 20.0), 0.0);
+    source.source_handles.clear();
+    let mut state = workflow_state_with_nodes(vec![source]);
+    state.context_menu = Some(WorkflowCanvasContextMenu {
+        target: WorkflowCanvasContextMenuTarget::NodeInsert("answer_1".to_string()),
+        anchor: Point::new(2.0, 3.0),
+        world: Point::new(90.0, 100.0),
+    });
+
+    state.create_context_node("answer").expect("context node should insert");
+
+    assert_eq!(state.document.nodes.len(), 2);
+    assert!(state.document.edges.is_empty());
+    let inserted = state
+        .document
+        .nodes
+        .iter()
+        .find(|node| node.id != "answer_1")
+        .expect("inserted node should exist");
+    assert_eq!(state.selected_node_id.as_deref(), Some(inserted.id.as_str()));
+    assert_eq!(
+        state.status_message.as_deref(),
+        Some("已新增 回复 节点，但自动关联失败：源节点没有可用输出句柄")
+    );
 }
 
 #[test]
@@ -350,6 +461,41 @@ fn insert_downstream_node_creates_node_and_default_edge() {
 }
 
 #[test]
+fn insert_downstream_node_clears_connection_draft_and_all_floating_menus() {
+    let start = workflow_node("start_1", "start", Point::new(10.0, 20.0), 3.0);
+    let mut state = workflow_state_with_nodes(vec![start]);
+    state.selected_edge_id = Some("edge_1".to_string());
+    state.connection_draft = Some(WorkflowConnectionDraft {
+        from: WorkflowConnectionEndpoint {
+            node_id: "start_1".to_string(),
+            handle_id: "source".to_string(),
+            kind: WorkflowHandleKind::Source,
+        },
+        cursor_world: Point::new(20.0, 30.0),
+    });
+    state.context_menu = Some(WorkflowCanvasContextMenu {
+        target: WorkflowCanvasContextMenuTarget::NodeInsert("start_1".to_string()),
+        anchor: Point::ORIGIN,
+        world: Point::ORIGIN,
+    });
+    state.quick_insert_panel_open = true;
+    state.action_menu_open = true;
+    state.zoom_menu_open = true;
+
+    state.insert_downstream_node("start_1", "answer").expect("downstream node should insert");
+
+    assert_eq!(state.document.nodes.len(), 2);
+    assert_eq!(state.document.edges.len(), 1);
+    assert_eq!(state.selected_node_id.as_deref(), Some("start_1"));
+    assert!(state.selected_edge_id.is_none());
+    assert!(state.connection_draft.is_none());
+    assert!(state.context_menu.is_none());
+    assert!(!state.quick_insert_panel_open);
+    assert!(!state.action_menu_open);
+    assert!(!state.zoom_menu_open);
+}
+
+#[test]
 fn insert_downstream_node_from_handle_uses_synthetic_fail_branch_from_editor() {
     let mut code = workflow_node("code_1", "code", Point::new(0.0, 0.0), 0.0);
     code.source_handles.clear();
@@ -362,6 +508,44 @@ fn insert_downstream_node_from_handle_uses_synthetic_fail_branch_from_editor() {
 
     assert_eq!(state.document.edges.len(), 1);
     assert_eq!(state.document.edges[0].source_handle.as_deref(), Some("fail-branch"));
+}
+
+#[test]
+fn insert_downstream_node_from_handle_rejects_synthetic_fail_branch_when_editor_mismatch() {
+    let mut code = workflow_node("code_1", "code", Point::new(0.0, 0.0), 0.0);
+    code.source_handles.clear();
+    let mut state = workflow_state_with_nodes(vec![code]);
+    state.node_editor = Some(code_editor_with_error_strategy("other_code", "fail-branch"));
+
+    state
+        .insert_downstream_node_from_handle("code_1", "fail-branch", "answer")
+        .expect("node insert should survive connection failure");
+
+    assert_eq!(state.document.nodes.len(), 2);
+    assert!(state.document.edges.is_empty());
+    assert_eq!(
+        state.status_message.as_deref(),
+        Some("已新增 回复 节点，但自动关联失败：源节点不存在输出句柄 fail-branch")
+    );
+}
+
+#[test]
+fn insert_downstream_node_from_handle_uses_existing_explicit_source_handle() {
+    let mut start = workflow_node("start_1", "start", Point::new(0.0, 0.0), 0.0);
+    start.source_handles.push(WorkflowHandle {
+        id: "custom".to_string(),
+        label: "自定义".to_string(),
+        kind: WorkflowHandleKind::Source,
+    });
+    let mut state = workflow_state_with_nodes(vec![start]);
+
+    state
+        .insert_downstream_node_from_handle("start_1", "custom", "answer")
+        .expect("explicit source handle should connect");
+
+    assert_eq!(state.document.edges.len(), 1);
+    assert_eq!(state.document.edges[0].source_handle.as_deref(), Some("custom"));
+    assert_eq!(state.selected_node_id.as_deref(), Some("start_1"));
 }
 
 #[test]
@@ -455,6 +639,32 @@ fn connect_nodes_with_source_handle_rejects_missing_handles() {
 }
 
 #[test]
+fn connect_nodes_with_source_handle_adds_edge_with_next_z_index() {
+    let start = workflow_node("start_1", "start", Point::ORIGIN, 0.0);
+    let answer = workflow_node("answer_1", "answer", Point::new(300.0, 0.0), 0.0);
+    let mut state = workflow_state_with_nodes(vec![start, answer]);
+    state.document.edges =
+        vec![workflow_edge("existing", "old_source", "old_target", Some("source"), Some("target"))];
+    state.document.edges[0].z_index = 4.0;
+
+    state
+        .connect_nodes_by_default_handles("start_1", "answer_1")
+        .expect("default handles should connect");
+
+    let edge = state
+        .document
+        .edges
+        .iter()
+        .find(|edge| edge.id != "existing")
+        .expect("new edge should exist");
+    assert_eq!(edge.source, "start_1");
+    assert_eq!(edge.target, "answer_1");
+    assert_eq!(edge.source_type, "start");
+    assert_eq!(edge.target_type, "answer");
+    assert_eq!(edge.z_index, 5.0);
+}
+
+#[test]
 fn prune_invalid_edges_for_node_handles_removes_bad_edges_and_clears_ui_refs() {
     let start = workflow_node("start_1", "start", Point::ORIGIN, 0.0);
     let answer = workflow_node("answer_1", "answer", Point::new(300.0, 0.0), 0.0);
@@ -486,6 +696,23 @@ fn prune_invalid_edges_for_node_handles_removes_bad_edges_and_clears_ui_refs() {
     assert_eq!(state.document.edges.len(), 1);
     assert_eq!(state.document.edges[0].id, "valid");
     assert!(state.context_menu.is_none());
+}
+
+#[test]
+fn prune_invalid_edges_for_node_handles_removes_missing_source_handle() {
+    let start = workflow_node("start_1", "start", Point::ORIGIN, 0.0);
+    let answer = workflow_node("answer_1", "answer", Point::new(300.0, 0.0), 0.0);
+    let mut state = workflow_state_with_nodes(vec![start, answer]);
+    state.document.edges = vec![
+        workflow_edge("missing_source_handle", "start_1", "answer_1", None, Some("target")),
+        workflow_edge("unrelated", "other", "answer_1", None, Some("target")),
+    ];
+
+    let removed = state.prune_invalid_edges_for_node_handles("start_1");
+
+    assert_eq!(removed, 1);
+    assert_eq!(state.document.edges.len(), 1);
+    assert_eq!(state.document.edges[0].id, "unrelated");
 }
 
 #[test]

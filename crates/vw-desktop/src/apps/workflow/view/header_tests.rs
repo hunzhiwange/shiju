@@ -1,4 +1,5 @@
 use super::*;
+use iced::widget::button;
 use iced::{Point, Vector};
 use serde_yaml::Value;
 
@@ -112,6 +113,15 @@ fn build_header_renders_source_path_and_dirty_badges() {
 }
 
 #[test]
+fn build_header_renders_clean_source_path_without_dirty_suffix() {
+    let state = active_state();
+
+    assert!(state.source_path.is_some());
+    assert!(!state.active_is_dirty);
+    std::hint::black_box(build_header(&state));
+}
+
+#[test]
 fn build_header_renders_unsaved_draft_without_source_path() {
     let mut state = active_state();
     state.source_path = None;
@@ -127,6 +137,19 @@ fn build_header_renders_database_backed_clean_app() {
     let mut state = active_state();
     state.source_path = None;
     state.active_is_dirty = false;
+
+    let element = build_header(&state);
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn build_header_renders_high_zoom_and_no_active_app_actions() {
+    let mut state = active_state();
+    state.active_app_id = None;
+    state.selected_node_id = None;
+    state.selected_edge_id = None;
+    state.zoom = 2.75;
 
     let element = build_header(&state);
 
@@ -178,4 +201,77 @@ fn build_action_menu_overlay_covers_enabled_and_disabled_items() {
     let active_element = build_action_menu_overlay(&active_state());
 
     std::hint::black_box((empty_element, active_element));
+}
+
+#[test]
+fn action_bar_icon_style_distinguishes_disabled_active_and_default() {
+    let theme = Theme::Dark;
+
+    let disabled = action_bar_icon_style(&theme, false, false);
+    let active = action_bar_icon_style(&theme, true, true);
+    let default = action_bar_icon_style(&theme, true, false);
+
+    assert_eq!(disabled.color, Some(Color::from_rgba8(160, 160, 160, 1.0)));
+    assert_eq!(active.color, Some(theme.palette().primary));
+    assert_eq!(default.color, Some(theme.palette().text));
+}
+
+#[test]
+fn action_bar_button_style_covers_disabled_active_hover_pressed_and_idle() {
+    let theme = Theme::Light;
+    let palette = theme.extended_palette();
+
+    let disabled = action_bar_button_style(&theme, button::Status::Hovered, false, false);
+    assert_eq!(disabled.background, None);
+    assert_eq!(disabled.text_color, Color::from_rgba8(160, 160, 160, 1.0));
+
+    let active = action_bar_button_style(&theme, button::Status::Active, true, true);
+    assert_eq!(
+        active.background,
+        Some(Background::Color(theme.palette().primary.scale_alpha(0.14)))
+    );
+    assert_eq!(active.text_color, theme.palette().text);
+
+    let hovered = action_bar_button_style(&theme, button::Status::Hovered, true, false);
+    assert_eq!(hovered.background, Some(Background::Color(palette.background.weak.color)));
+
+    let pressed = action_bar_button_style(&theme, button::Status::Pressed, true, false);
+    assert_eq!(pressed.background, Some(Background::Color(palette.background.strong.color)));
+
+    let idle = action_bar_button_style(&theme, button::Status::Active, true, false);
+    assert_eq!(idle.background, None);
+}
+
+#[test]
+fn action_menu_icon_style_distinguishes_enabled_and_disabled() {
+    let theme = Theme::Dark;
+
+    let enabled = action_menu_icon_style(&theme, true);
+    let disabled = action_menu_icon_style(&theme, false);
+
+    assert_eq!(enabled.color, Some(theme.palette().text));
+    assert_eq!(disabled.color, Some(theme.palette().text.scale_alpha(0.35)));
+}
+
+#[test]
+fn action_menu_button_style_covers_disabled_hover_pressed_and_idle() {
+    let theme = Theme::Light;
+    let palette = theme.extended_palette();
+
+    let disabled = action_menu_button_style(&theme, button::Status::Hovered, false);
+    assert_eq!(disabled.background, None);
+    assert_eq!(disabled.text_color, theme.palette().text.scale_alpha(0.35));
+
+    let hovered = action_menu_button_style(&theme, button::Status::Hovered, true);
+    assert_eq!(
+        hovered.background,
+        Some(Background::Color(palette.background.weak.color.scale_alpha(0.55)))
+    );
+    assert_eq!(hovered.text_color, theme.palette().text);
+
+    let pressed = action_menu_button_style(&theme, button::Status::Pressed, true);
+    assert_eq!(pressed.background, Some(Background::Color(palette.background.strong.color)));
+
+    let idle = action_menu_button_style(&theme, button::Status::Active, true);
+    assert_eq!(idle.background, None);
 }

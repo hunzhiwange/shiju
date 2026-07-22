@@ -11,24 +11,82 @@ use crate::app::{App, Message};
 use super::components::RightClickArea;
 use super::utils::icon_svg;
 
+fn session_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    let bg = match status {
+        iced::widget::button::Status::Hovered => p.background.weak.color,
+        iced::widget::button::Status::Pressed => p.background.strong.color,
+        _ => Color::TRANSPARENT,
+    };
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 4.0.into(), ..iced::Border::default() },
+        ..Default::default()
+    }
+}
+
+fn session_menu_separator_style(theme: &Theme) -> container::Style {
+    let p = theme.extended_palette();
+    container::Style {
+        background: Some(Background::Color(p.background.strong.color)),
+        ..Default::default()
+    }
+}
+
+fn session_menu_container_style(theme: &Theme) -> container::Style {
+    let p = theme.extended_palette();
+    container::Style {
+        background: Some(Background::Color(p.background.base.color)),
+        border: Border { width: 1.0, color: p.background.strong.color, radius: 8.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.15),
+            offset: iced::Vector::new(0.0, 4.0),
+            blur_radius: 12.0,
+        },
+        ..Default::default()
+    }
+}
+
+fn session_menu_icon_style() -> svg::Style {
+    svg::Style { color: Some(iced::Color::from_rgb8(0x80, 0x80, 0x80)) }
+}
+
+fn session_menu_icon_button_style(theme: &Theme) -> iced::widget::button::Style {
+    iced::widget::button::Style {
+        background: None,
+        border: Border { radius: 4.0.into(), ..Border::default() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+fn session_label_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style {
+        color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
+    }
+}
+
+fn session_value_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.palette().text) }
+}
+
+fn session_right_click_message(id: &str, pos: Point) -> Message {
+    Message::Project(crate::app::message::ProjectMessage::SessionRightClicked(
+        id.to_string(),
+        pos.x,
+        pos.y,
+    ))
+}
+
 fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
     let label = label.to_string();
     button(container(text(label).size(13)).width(Length::Fill).padding([6, 10]))
         .on_press(msg)
-        .style(|theme: &Theme, status| {
-            let p = theme.extended_palette();
-            let bg = match status {
-                iced::widget::button::Status::Hovered => p.background.weak.color,
-                iced::widget::button::Status::Pressed => p.background.strong.color,
-                _ => Color::TRANSPARENT,
-            };
-            iced::widget::button::Style {
-                background: Some(Background::Color(bg)),
-                text_color: theme.palette().text,
-                border: iced::Border { radius: 4.0.into(), ..iced::Border::default() },
-                ..Default::default()
-            }
-        })
+        .style(session_menu_button_style)
         .width(Length::Fill)
         .into()
 }
@@ -38,13 +96,7 @@ fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
         container(iced::widget::Space::new())
             .width(Length::Fill)
             .height(Length::Fixed(1.0))
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                container::Style {
-                    background: Some(Background::Color(p.background.strong.color)),
-                    ..Default::default()
-                }
-            })
+            .style(session_menu_separator_style)
             .into()
     };
 
@@ -74,19 +126,7 @@ fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
     container(content)
         .padding(6)
         .width(Length::Fixed(140.0))
-        .style(|theme: &Theme| {
-            let p = theme.extended_palette();
-            container::Style {
-                background: Some(Background::Color(p.background.base.color)),
-                border: Border { width: 1.0, color: p.background.strong.color, radius: 8.0.into() },
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(0.15),
-                    offset: iced::Vector::new(0.0, 4.0),
-                    blur_radius: 12.0,
-                },
-                ..Default::default()
-            }
-        })
+        .style(session_menu_container_style)
         .into()
 }
 
@@ -106,9 +146,7 @@ pub fn kv_with_menu<'a>(
                 icon_svg(Icon::ChevronDown)
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
-                    .style(|_theme: &Theme, _| svg::Style {
-                        color: Some(iced::Color::from_rgb8(0x80, 0x80, 0x80)),
-                    }),
+                    .style(|_theme: &Theme, _| session_menu_icon_style()),
             )
             .width(Length::Fixed(24.0))
             .height(Length::Fixed(24.0))
@@ -116,22 +154,11 @@ pub fn kv_with_menu<'a>(
             .align_y(iced::alignment::Vertical::Center),
         )
         .padding(0)
-        .style(|theme: &Theme, _status| iced::widget::button::Style {
-            background: None,
-            border: Border { radius: 4.0.into(), ..Border::default() },
-            text_color: theme.palette().text,
-            ..Default::default()
-        });
+        .style(|theme: &Theme, _status| session_menu_icon_button_style(theme));
 
         let right_click = Element::new(RightClickArea::new(
             btn.into(),
-            Box::new(move |pos: iced::Point| {
-                Message::Project(crate::app::message::ProjectMessage::SessionRightClicked(
-                    id_for_click.clone(),
-                    pos.x,
-                    pos.y,
-                ))
-            }),
+            Box::new(move |pos: iced::Point| session_right_click_message(&id_for_click, pos)),
         ));
 
         if app.session_menu_id.as_ref() == Some(&id) {
@@ -151,13 +178,9 @@ pub fn kv_with_menu<'a>(
     };
 
     row![
-        text(label).size(12).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
-        }),
+        text(label).size(12).style(session_label_style),
         Space::new().width(Length::Fill),
-        text(value)
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style { color: Some(theme.palette().text) }),
+        text(value).size(12).style(session_value_style),
         menu_btn
     ]
     .spacing(8)

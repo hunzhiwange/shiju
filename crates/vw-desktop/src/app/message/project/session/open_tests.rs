@@ -9,6 +9,58 @@ fn app() -> crate::app::App {
     crate::app::App::new().0
 }
 
+async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
+        return Vec::new();
+    };
+    while let Some(action) = stream.next().await {
+        if let iced_runtime::Action::Output(messages) = action {
+            return messages;
+        }
+    }
+    Vec::new()
+}
+
+fn recent_project_meta(
+    path: &str,
+    session_auto_refresh: bool,
+    session_refresh_interval_seconds: u64,
+) -> crate::app::state::RecentProjectMeta {
+    crate::app::state::RecentProjectMeta {
+        path: path.to_string(),
+        name: "Project".to_string(),
+        task_board_settings: None,
+        session_auto_refresh,
+        session_refresh_interval_seconds,
+        icon: None,
+        icon_color: None,
+        worktree_start_command: None,
+    }
+}
+
+fn loaded_project_info(
+    project_path: &str,
+    updated: u64,
+    current_branch: Option<&str>,
+) -> crate::app::message::project::LoadedProjectInfo {
+    crate::app::message::project::LoadedProjectInfo {
+        project_path: project_path.to_string(),
+        info: vw_shared::project::Info {
+            id: "project-id".to_string(),
+            worktree: project_path.to_string(),
+            vcs: Some(vw_shared::project::Vcs::Git),
+            name: Some("Project".to_string()),
+            icon: None,
+            commands: None,
+            time: vw_shared::project::TimeInfo { created: 1, updated, initialized: None },
+            sandboxes: Vec::new(),
+        },
+        current_branch: current_branch.map(str::to_string),
+    }
+}
+
 fn session_info(id: &str, additions: i64, deletions: i64) -> vw_shared::session::info::Info {
     vw_shared::session::info::Info {
         id: id.to_string(),
@@ -33,6 +85,14 @@ fn session_info(id: &str, additions: i64, deletions: i64) -> vw_shared::session:
         },
         permission: None,
         revert: None,
+    }
+}
+
+fn chat_message(content: &str) -> crate::app::models::ChatMessage {
+    crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::User,
+        content: content.to_string(),
+        think_timing: Vec::new(),
     }
 }
 
@@ -105,6 +165,162 @@ fn session_bootstrap_loaded_sets_previews_archived_and_sessions() {
 }
 
 #[test]
+fn session_bootstrap_loaded_keeps_metadata_and_reports_session_error() {
+    let mut app = app();
+    let previews = std::collections::HashMap::from([(
+        "failed-session".to_string(),
+        "cached preview".to_string(),
+    )]);
+    let archived = std::collections::HashSet::from(["archived-session".to_string()]);
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+            result: Err("gateway unavailable".to_string()),
+            previews: previews.clone(),
+            archived_session_ids: archived.clone(),
+        },
+    );
+
+    assert_eq!(app.session_previews, previews);
+    assert_eq!(app.archived_session_ids, archived);
+    assert!(app.sessions.is_empty());
+    assert!(app.notifications.iter().any(|item| item.message.contains("gateway unavailable")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn recent_hover_uses_cached_sessions_without_scheduling_gateway_load() {
+    let mut app = app();
+    let path = "/tmp/cached-project".to_string();
+    app.project_sessions.insert(path.clone(), Vec::new());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentHovered(Some(path.clone())),
+    )
+    .expect("recent hover should return a task");
+    let messages = collect_task_messages(task).await;
+
+    assert_eq!(app.hovered_recent_project, Some(path.clone()));
+    assert!(!app.project_sessions_loading.contains(&path));
+    assert!(matches!(
+        messages.as_slice(),
+        [crate::app::Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn recent_hover_none_clears_hover_and_schedules_todo_refresh() {
+    let mut app = app();
+    app.hovered_recent_project = Some("/tmp/project".to_string());
+
+    let task =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentHovered(None))
+            .expect("recent hover should return a task");
+    let messages = collect_task_messages(task).await;
+
+    assert!(app.hovered_recent_project.is_none());
+    assert!(matches!(
+        messages.as_slice(),
+        [crate::app::Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)]
+    ));
+}
+
+#[test]
+fn open_project_session_uses_known_directory_and_restores_cached_state() {
+    let mut app = app();
+    let mut target = session_info("target", 1, 1);
+    target.directory = "/tmp/known-project".to_string();
+    app.sessions = vec![target];
+    app.project_path = Some("/tmp/known-project".to_string());
+    app.active_session_id = Some("previous".to_string());
+    app.chat = vec![chat_message("previous chat")];
+    app.chat_message_ids = vec![Some("previous-message".to_string())];
+    app.usage.input_tokens = 99;
+    app.active_session_view_state.updated_ms = 42;
+    app.active_session_view_state.base_ready = true;
+    app.get_session_runtime_mut("target").is_requesting = true;
+    app.store_session_chat_snapshot(
+        "target".to_string(),
+        crate::app::session::shared_chat_messages(vec![chat_message("cached target chat")]),
+        vec![Some("target-message".to_string())],
+    );
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/stale-project".to_string(),
+            "target".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.project_path.as_deref(), Some("/tmp/known-project"));
+    assert_eq!(app.active_session_id.as_deref(), Some("target"));
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "cached target chat");
+    assert_eq!(app.chat_message_ids, vec![Some("target-message".to_string())]);
+    assert_eq!(app.usage, crate::app::models::TokenUsage::default());
+    assert_eq!(app.active_session_view_state.updated_ms, 0);
+    assert!(app.active_session_view_state.ui_preparing);
+    assert!(!app.active_session_view_state.base_ready);
+}
+
+#[test]
+fn open_recent_pressed_clears_hover_menus_and_new_session_picker_state() {
+    let mut app = app();
+    app.hovered_recent_project = Some("/tmp/project".to_string());
+    app.session_menu_id = Some("session-1".to_string());
+    app.session_menu_anchor = Some(iced::Point::new(8.0, 12.0));
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_picker_options = vec![("/tmp/worktree".to_string(), "Worktree".to_string())];
+    app.new_session_worktree_name = "feature".to_string();
+    app.new_session_delete_error = Some("stale delete".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenRecentPressed("/tmp/project".to_string()),
+    );
+
+    assert!(task.is_some());
+    assert!(app.hovered_recent_project.is_none());
+    assert!(app.session_menu_id.is_none());
+    assert!(app.session_menu_anchor.is_none());
+    assert!(app.new_session_picker_project.is_none());
+    assert!(app.new_session_picker_options.is_empty());
+    assert!(app.new_session_worktree_name.is_empty());
+    assert!(app.new_session_delete_error.is_none());
+}
+
+#[test]
+fn recent_hover_marks_uncached_project_loading_once() {
+    let mut app = app();
+    let path = "/tmp/uncached-project".to_string();
+
+    let first_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentHovered(Some(path.clone())),
+    );
+
+    assert!(first_task.is_some());
+    assert!(app.project_sessions_loading.contains(&path));
+    let first_refresh = app
+        .project_sessions_last_refresh_at
+        .get(&path)
+        .copied()
+        .expect("first hover should record refresh time");
+
+    let second_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentHovered(Some(path.clone())),
+    );
+
+    assert!(second_task.is_some());
+    assert_eq!(app.project_sessions_loading.len(), 1);
+    assert_eq!(app.project_sessions_last_refresh_at.get(&path), Some(&first_refresh));
+}
+
+#[test]
 fn project_sessions_loaded_merges_and_clears_loading_state() {
     let mut app = app();
     let path = "/tmp/project".to_string();
@@ -141,6 +357,32 @@ fn project_sessions_loaded_records_error_message() {
 
     assert!(!app.project_sessions_loading.contains(&path));
     assert_eq!(app.error_message.as_deref(), Some("Failed to load project sessions: offline"));
+}
+
+#[test]
+fn project_sessions_loaded_prefers_incoming_duplicate_and_keeps_unique_existing_sessions() {
+    let mut app = app();
+    let path = "/tmp/project".to_string();
+    app.project_sessions.insert(
+        path.clone(),
+        vec![session_info("duplicate", 1, 1), session_info("existing", 2, 2)],
+    );
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsLoaded(
+            path.clone(),
+            Ok(vec![session_info("duplicate", 9, 8), session_info("incoming", 3, 4)]),
+        ),
+    );
+
+    let sessions = app.project_sessions.get(&path).expect("sessions should be stored");
+    assert_eq!(
+        sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
+        vec!["duplicate", "incoming", "existing"]
+    );
+    let summary = sessions[0].summary.as_ref().expect("duplicate should retain incoming data");
+    assert_eq!((summary.additions, summary.deletions), (9, 8));
 }
 
 #[test]
@@ -194,6 +436,31 @@ fn recent_overlay_closed_preserves_open_picker_but_otherwise_resets_overlay_stat
 }
 
 #[test]
+fn recent_overlay_closed_clears_anchor_and_all_picker_state() {
+    let mut app = app();
+    app.hovered_recent_project = Some("/tmp/project".to_string());
+    app.session_menu_id = Some("session-1".to_string());
+    app.session_menu_anchor = Some(iced::Point::new(12.0, 24.0));
+    app.project_tools_menu_path = Some("/tmp/project".to_string());
+    app.new_session_picker_options = vec![("/tmp/worktree".to_string(), "Worktree".to_string())];
+    app.new_session_worktree_name = "feature".to_string();
+    app.new_session_confirm_delete_directory = Some("/tmp/worktree".to_string());
+    app.new_session_delete_error = Some("old error".to_string());
+
+    let _ =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
+
+    assert!(app.hovered_recent_project.is_none());
+    assert!(app.session_menu_id.is_none());
+    assert!(app.session_menu_anchor.is_none());
+    assert!(app.project_tools_menu_path.is_none());
+    assert!(app.new_session_picker_options.is_empty());
+    assert!(app.new_session_worktree_name.is_empty());
+    assert!(app.new_session_confirm_delete_directory.is_none());
+    assert!(app.new_session_delete_error.is_none());
+}
+
+#[test]
 fn project_create_session_opens_picker_when_worktree_enabled() {
     let mut app = app();
     let path = "/tmp/project".to_string();
@@ -212,6 +479,118 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
     assert!(app.new_session_delete_error.is_none());
+}
+
+#[test]
+fn project_create_session_without_worktree_resets_picker_before_scheduling_creation() {
+    let mut app = app();
+    let path = "/tmp/project".to_string();
+    app.project_worktree_enabled.insert(path.clone(), false);
+    app.new_session_picker_project = Some(path.clone());
+    app.new_session_picker_options = vec![(path.clone(), "Main".to_string())];
+    app.new_session_worktree_name = "stale-name".to_string();
+    app.new_session_reset_error = Some("stale error".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSession(path),
+    );
+
+    assert!(task.is_some());
+    assert!(app.new_session_picker_project.is_none());
+    assert!(app.new_session_picker_options.is_empty());
+    assert!(app.new_session_worktree_name.is_empty());
+    assert!(app.new_session_reset_error.is_none());
+}
+
+#[test]
+fn project_info_loaded_ignores_error_and_stale_project_result() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+    app.project_id = Some("original-id".to_string());
+    app.selected_branch = Some("original-branch".to_string());
+    app.project_updated_at_ms = Some(7);
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Err(
+            "not available".to_string()
+        )),
+    );
+    let _ =
+        super::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Ok(
+                loaded_project_info("/tmp/stale", 99, Some("stale-branch")),
+            )),
+        );
+
+    assert_eq!(app.project_id.as_deref(), Some("original-id"));
+    assert_eq!(app.selected_branch.as_deref(), Some("original-branch"));
+    assert_eq!(app.project_updated_at_ms, Some(7));
+}
+
+#[test]
+fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+
+    let _ =
+        super::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Ok(
+                loaded_project_info("/tmp/current", 42, Some("main")),
+            )),
+        );
+
+    assert_eq!(app.project_id.as_deref(), Some("project-id"));
+    assert_eq!(app.project_updated_at_ms, Some(42));
+    assert_eq!(app.selected_branch.as_deref(), Some("main"));
+}
+
+#[test]
+fn project_info_loaded_maps_zero_timestamp_to_none_and_keeps_branch_when_missing() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+    app.selected_branch = Some("existing".to_string());
+    app.project_updated_at_ms = Some(42);
+
+    let _ =
+        super::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Ok(
+                loaded_project_info("/tmp/current", 0, None),
+            )),
+        );
+
+    assert_eq!(app.project_updated_at_ms, None);
+    assert_eq!(app.selected_branch.as_deref(), Some("existing"));
+}
+
+#[test]
+fn project_info_loaded_updates_recent_project_icon_color_and_start_command() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+    app.recent_projects_meta = vec![recent_project_meta("/tmp/current", true, 60)];
+    let mut loaded = loaded_project_info("/tmp/current", 11, Some("main"));
+    loaded.info.icon = Some(vw_shared::project::Icon {
+        url: None,
+        override_icon: Some("rocket".to_string()),
+        color: Some("#112233".to_string()),
+    });
+    loaded.info.commands =
+        Some(vw_shared::project::Commands { start: Some("cargo run".to_string()) });
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Ok(loaded)),
+    );
+
+    let meta = &app.recent_projects_meta[0];
+    assert_eq!(meta.icon.as_deref(), Some("rocket"));
+    assert_eq!(meta.icon_color.as_deref(), Some("#112233"));
+    assert_eq!(meta.worktree_start_command.as_deref(), Some("cargo run"));
+    assert_eq!(app.project_id.as_deref(), Some("project-id"));
 }
 
 #[test]
@@ -264,4 +643,96 @@ fn project_load_sessions_skips_duplicate_loads_and_marks_new_load() {
     assert!(task.is_some());
     assert!(app.project_sessions_loading.contains(&path));
     assert!(app.project_sessions_last_refresh_at.contains_key(&path));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn project_sessions_refresh_tick_skips_missing_disabled_and_not_due_projects() {
+    let mut app = app();
+
+    let no_project_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
+    )
+    .expect("refresh tick should be handled");
+    assert!(collect_task_messages(no_project_task).await.is_empty());
+
+    let path = "/tmp/project".to_string();
+    app.hovered_recent_project = Some(path.clone());
+    app.recent_projects_meta = vec![recent_project_meta(&path, false, 60)];
+    let disabled_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
+    )
+    .expect("disabled refresh tick should be handled");
+    assert!(collect_task_messages(disabled_task).await.is_empty());
+
+    app.recent_projects_meta = vec![recent_project_meta(&path, true, 3600)];
+    app.project_sessions_last_refresh_at.insert(path, web_time::Instant::now());
+    let not_due_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
+    )
+    .expect("not-due refresh tick should be handled");
+    assert!(collect_task_messages(not_due_task).await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn project_sessions_refresh_tick_schedules_selected_project_when_due() {
+    let mut app = app();
+    let hovered_path = "/tmp/hovered".to_string();
+    let settings_path = "/tmp/settings".to_string();
+    app.hovered_recent_project = Some(hovered_path);
+    app.project_path = Some(settings_path.clone());
+    app.show_settings = true;
+    app.recent_projects_meta = vec![recent_project_meta(&settings_path, true, 1)];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
+    )
+    .expect("due refresh tick should be handled");
+    let messages = collect_task_messages(task).await;
+
+    assert!(matches!(
+        messages.as_slice(),
+        [crate::app::Message::Project(
+            crate::app::message::project::ProjectMessage::ProjectLoadSessions(path)
+        )] if path == &settings_path
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn project_sessions_refresh_tick_uses_hovered_project_outside_settings() {
+    let mut app = app();
+    let hovered_path = "/tmp/hovered".to_string();
+    app.hovered_recent_project = Some(hovered_path.clone());
+    app.project_path = Some("/tmp/open-project".to_string());
+    app.show_settings = false;
+    app.recent_projects_meta = vec![recent_project_meta(&hovered_path, true, 60)];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
+    )
+    .expect("due refresh tick should be handled");
+    let messages = collect_task_messages(task).await;
+
+    assert!(matches!(
+        messages.as_slice(),
+        [crate::app::Message::Project(
+            crate::app::message::project::ProjectMessage::ProjectLoadSessions(path)
+        )] if path == &hovered_path
+    ));
+}
+
+#[test]
+fn handle_returns_none_for_message_owned_by_another_project_submodule() {
+    let mut app = app();
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectToolsMenuClosed,
+    );
+
+    assert!(task.is_none());
 }

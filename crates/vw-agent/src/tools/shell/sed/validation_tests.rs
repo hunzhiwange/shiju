@@ -94,3 +94,41 @@ fn sed_invocation_rejects_non_sed_or_missing_script() {
     );
     assert!(validation::SedInvocation::from_command(&parse_command("sed -n")).is_none());
 }
+
+#[test]
+fn sed_invocation_parses_full_path_expression_and_backup_suffix() {
+    let cmd = ParsedCommand::Fallback {
+        raw: "/usr/bin/sed -x -i.bak -e s/a/b/ file.txt".into(),
+        tokens: vec![
+            "/usr/bin/sed".into(),
+            "-x".into(),
+            "-i.bak".into(),
+            "-e".into(),
+            "s/a/b/".into(),
+            "file.txt".into(),
+        ],
+    };
+
+    let invocation = validation::SedInvocation::from_command(&cmd).expect("sed invocation");
+    assert_eq!(invocation.script, "s/a/b/");
+    assert_eq!(invocation.files, vec!["file.txt"]);
+    assert!(invocation.in_place);
+}
+
+#[test]
+fn blocks_substitute_write_and_execute_flags() {
+    for flag in ["W", "e", "E"] {
+        assert_eq!(
+            validate_sed_command(&parse_command(&format!("sed 's/a/b/{flag}' file.txt"))),
+            SedValidationResult::Blocked {
+                reason: "sed substitute uses blocked write/exec flags".into()
+            }
+        );
+    }
+}
+
+#[test]
+fn malformed_substitute_parts_are_rejected() {
+    assert!(validation::parse_substitute_parts("s/a/b").is_none());
+    assert!(validation::parse_substitute_parts("print").is_none());
+}

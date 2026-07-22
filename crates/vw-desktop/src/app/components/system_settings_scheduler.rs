@@ -11,13 +11,12 @@
 //!
 //! ## 配置影响范围
 //!
-//! 这些设置会被写入 `~/.vibewindow/vibewindow.json` 的 `scheduler` 字段，
+//! 这些设置会通过 Gateway 写入共享数据库的 `scheduler` 字段，
 //! 影响定时任务的拉取数量与并发执行能力。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_section_card, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text};
@@ -44,6 +43,18 @@ fn field_row<'a>(
     .padding([14, 0])
     .width(Length::Fill)
     .into()
+}
+
+fn enabled_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::SchedulerEnabledToggled(value))
+}
+
+fn max_tasks_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::SchedulerMaxTasksChanged(value.round() as u32))
+}
+
+fn max_concurrent_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::SchedulerMaxConcurrentChanged(value.round() as u32))
 }
 
 /// 构建调度器设置视图
@@ -77,14 +88,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "控制是否启用内置调度器主循环。",
         checkbox(s.enabled)
             .label("开启内置调度器")
-            .on_toggle(|v| Message::Settings(message::SettingsMessage::SchedulerEnabledToggled(v)))
+            .on_toggle(enabled_toggled)
             .style(settings_checkbox_style),
     );
 
-    let max_tasks_slider = slider(1.0..=10_000.0, s.max_tasks as f32, |v| {
-        Message::Settings(message::SettingsMessage::SchedulerMaxTasksChanged(v.round() as u32))
-    })
-    .width(Length::Fixed(280.0));
+    let max_tasks_slider =
+        slider(1.0..=10_000.0, s.max_tasks as f32, max_tasks_changed).width(Length::Fixed(280.0));
 
     let max_tasks_row = field_row(
         "最大任务",
@@ -94,10 +103,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let max_concurrent_slider = slider(1.0..=100.0, s.max_concurrent as f32, |v| {
-        Message::Settings(message::SettingsMessage::SchedulerMaxConcurrentChanged(v.round() as u32))
-    })
-    .width(Length::Fixed(280.0));
+    let max_concurrent_slider =
+        slider(1.0..=100.0, s.max_concurrent as f32, max_concurrent_changed)
+            .width(Length::Fixed(280.0));
 
     let max_concurrent_row = field_row(
         "并发上限",
@@ -116,7 +124,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro("调度配置", "配置内置调度器的开关、吞吐和并发能力。"))
                 .width(Length::Fill),
@@ -129,10 +137,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

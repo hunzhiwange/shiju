@@ -59,6 +59,7 @@ pub struct BelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     gap: f32,
     snap_within_viewport: bool,
     on_close: Option<Message>,
+    capture_outside_click: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -73,6 +74,7 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
             gap: 0.0,
             snap_within_viewport: true,
             on_close: None,
+            capture_outside_click: true,
         }
     }
 
@@ -93,6 +95,11 @@ impl<'a, Message, ThemeT, RendererT> BelowOverlay<'a, Message, ThemeT, RendererT
 
     pub fn snap_within_viewport(mut self, snap: bool) -> Self {
         self.snap_within_viewport = snap;
+        self
+    }
+
+    pub fn capture_outside_click(mut self, capture: bool) -> Self {
+        self.capture_outside_click = capture;
         self
     }
 }
@@ -172,6 +179,7 @@ where
         );
 
         if self.show
+            && self.capture_outside_click
             && matches!(event, Event::Mouse(_))
             && cursor.position().is_some_and(|position| !layout.bounds().contains(position))
         {
@@ -227,6 +235,7 @@ where
                 overlay: &mut self.overlay,
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
+                capture_outside_click: self.capture_outside_click,
             })))
         } else {
             None
@@ -263,6 +272,7 @@ struct BelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     overlay: &'b mut Element<'a, Message, ThemeT, RendererT>,
     tree: &'b mut widget::Tree,
     on_close: Option<Message>,
+    capture_outside_click: bool,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -345,7 +355,9 @@ where
             && !overlay_bounds.contains(cursor_position)
         {
             shell.publish(on_close.clone());
-            shell.capture_event();
+            if self.capture_outside_click {
+                shell.capture_event();
+            }
             return;
         }
 
@@ -365,7 +377,9 @@ where
             );
         }
 
-        if matches!(event, Event::Mouse(_)) && (is_over_overlay || !is_over_target) {
+        if matches!(event, Event::Mouse(_))
+            && (is_over_overlay || (self.capture_outside_click && !is_over_target))
+        {
             shell.capture_event();
         }
     }

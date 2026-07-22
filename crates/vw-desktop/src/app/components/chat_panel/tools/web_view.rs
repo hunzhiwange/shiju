@@ -70,6 +70,7 @@ pub fn tool_web_view<'a>(
     let body_text = if is_error {
         tool_permission_error_text(tool_name, &value)
             .or_else(|| tool_error_text(&value))
+            .or_else(|| (!output.is_empty()).then(|| output.to_string()))
             .unwrap_or_default()
     } else {
         output.to_string()
@@ -314,7 +315,7 @@ pub fn tool_web_view<'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn web_tool_title(
+pub(super) fn web_tool_title(
     base_title: &str,
     // permission_state 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     permission_state: Option<ToolPermissionState>,

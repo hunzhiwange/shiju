@@ -1,4 +1,5 @@
 use super::*;
+use serde_json::Map;
 
 fn test_app() -> App {
     App::new().0
@@ -23,26 +24,29 @@ fn view_builds_for_primary_screens_without_modal_state() {
         Screen::Project,
         Screen::Apps,
         Screen::Usage,
-        Screen::JsonTool,
-        Screen::JsonYamlTool,
         Screen::Knowledge,
-        Screen::SqlTool,
-        Screen::RedisTool,
-        Screen::HtmlTool,
-        Screen::JsonDiffTool,
-        Screen::MarkdownTool,
-        Screen::PasswordTool,
-        Screen::BaseTool,
-        Screen::TimestampTool,
-        Screen::QrTool,
-        Screen::ColorTool,
-        Screen::CleanerTool,
-        Screen::LargeFileTool,
+        Screen::WorkflowManager,
         Screen::TaskBoard,
     ] {
         app.screen = screen;
         let _element: iced::Element<'_, Message> = app.view();
     }
+}
+
+#[test]
+fn view_builds_preview_screen() {
+    let mut app = test_app();
+    app.screen = Screen::Preview;
+
+    std::hint::black_box(app.view());
+}
+
+#[test]
+fn view_builds_workflow_tool_screen() {
+    let mut app = test_app();
+    app.screen = Screen::WorkflowTool;
+
+    std::hint::black_box(app.view());
 }
 
 #[test]
@@ -74,4 +78,35 @@ fn view_builds_with_about_cli_search_and_rename_overlays() {
     app.session_rename_value = "Session".to_string();
 
     let _element: iced::Element<'_, Message> = app.view();
+}
+
+#[test]
+fn view_builds_with_plain_cli_install_modal() {
+    let mut app = test_app();
+    app.show_cli_install_modal = true;
+    app.cli_install_modal_show_update_action = false;
+    app.cli_install_modal_title = "Install CLI".to_string();
+    app.cli_install_modal_message = "Install the CLI to continue".to_string();
+
+    std::hint::black_box(app.view());
+}
+
+#[test]
+fn view_builds_with_project_edit_and_permission_modals_together() {
+    let mut app = test_app();
+    app.project_edit_path = Some("/workspace/project".to_string());
+    app.project_edit_name = "Project".to_string();
+    app.permission_modal_request = Some(vw_gateway_client::PendingPermissionRequestDto {
+        id: "permission-1".to_string(),
+        session_id: "session-1".to_string(),
+        permission: "shell".to_string(),
+        patterns: Vec::new(),
+        metadata: Map::new(),
+        always: Vec::new(),
+        tool: None,
+    });
+
+    let element: iced::Element<'_, Message> = app.view();
+
+    std::hint::black_box(element);
 }

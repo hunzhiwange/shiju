@@ -16,6 +16,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.active_menu = None;
             app.active_tab_id = Some("home".to_string());
             app.project_path = None;
+            if previous_project_path.is_some() {
+                app.reset_task_board_project_state();
+            }
             app.preview_tab_menu_path = None;
             app.preview_tab_menu_pos = None;
             app.switch_project_terminal(previous_project_path, None);
@@ -72,6 +75,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.active_preview_path = active;
             }
             if previous_project_path != app.project_path {
+                app.reset_task_board_project_state();
                 app.preview_tab_menu_path = None;
                 app.preview_tab_menu_pos = None;
             }
@@ -109,17 +113,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
                 return app.reload_sessions_for_project(app.project_path.clone());
             }
-            if let Some(rest) = id.strip_prefix("mindmap:") {
-                if app.mindmap_tabs.iter().any(|t| t.id == rest) {
-                    app.mindmap_active_tab_id = Some(rest.to_string());
-                } else {
-                    let init_task = crate::apps::mindmap::ensure_initialized(app);
-                    if app.mindmap_tabs.iter().any(|t| t.id == rest) {
-                        app.mindmap_active_tab_id = Some(rest.to_string());
-                    }
-                    return init_task;
-                }
-            }
             if id == crate::apps::workflow::WORKFLOW_TOOL_TAB_ID {
                 return crate::apps::workflow::ensure_initialized(app);
             }
@@ -133,12 +126,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             let mut tasks = Vec::new();
             if let Some(index) = app.open_tabs.iter().position(|t| t.id == id) {
                 app.open_tabs.remove(index);
-
-                // Clean up design state if needed
-                app.design_states.remove(&id);
-                if let Some(rest) = id.strip_prefix("mindmap:") {
-                    tasks.push(crate::apps::mindmap::message::close_tab(app, rest));
-                }
 
                 // If we closed the active tab, switch to another one
                 if app.active_tab_id.as_ref() == Some(&id) {
@@ -189,6 +176,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             app.switch_project_terminal(previous_project_path.clone(), app.project_path.clone());
             if previous_project_path != app.project_path {
+                app.reset_task_board_project_state();
                 tasks.push(app.reload_sessions_for_project(app.project_path.clone()));
             }
             if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }

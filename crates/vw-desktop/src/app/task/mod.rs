@@ -56,10 +56,20 @@ pub mod executor;
 /// 定义任务相关的核心数据结构，包括任务实体、状态枚举和配置。
 pub mod models;
 
+/// 任务状态工作流元数据与注册
+///
+/// 承载状态顺序、key、标签、终态与自动执行候选分类，并以注册式提供工作流定义。
+pub mod workflow;
+
 /// 任务存储层
 ///
 /// 提供任务的持久化存储、检索和查询功能。
 pub mod store;
+
+/// 任务看板员工模式模型与存储。
+///
+/// 提供员工名册、角色工作流和项目级配置的基础能力。
+pub mod staff;
 
 // =============================================================================
 // 重新导出：执行器相关类型和函数
@@ -76,43 +86,30 @@ pub mod store;
 // 导出的函数：
 // - build_executor_command：构建执行器命令
 // - build_review_diff_context：构建代码审查的差异上下文
-// - can_dispatch_merge_task：检查是否可以调度合并任务
 // - count_running_tasks：统计当前正在运行的任务数量
-// - current_task_worktree_path：获取当前任务的工作树路径
 // - execute_task_async：异步执行任务
 // - execute_task_command：执行任务的命令行版本
 // - execute_task_merge_async：异步执行任务合并操作
 // - execute_task_review_async：异步执行任务代码审查
-// - force_unlock_task_merge_target：强制解锁任务的合并目标
 // - get_next_tasks_for_execution：获取下一批待执行的任务
 // - get_pool_and_pending_count：获取工作树池和待处理任务计数
 // - get_total_task_count：获取任务总数
-// - maintain_worktree_pool：维护工作树池（清理、回收等）
-// - recycle_task_worktree：回收任务使用的工作树
 // - simulate_task_execution_step：模拟任务执行的单个步骤（用于测试）
-// - task_has_live_worktree：检查任务是否拥有活跃的工作树
-// - task_merge_lock_holder：获取任务合并锁的持有者
-// - worktree_pool_needs_maintenance：检查工作树池是否需要维护
-// - worktree_pool_snapshot：获取工作树池的当前快照
 
 pub use executor::{
     ExecutorCommand, ExecutorEvent, TaskExecutorState, TaskLogStream, TaskPlanGenerationOutcome,
     TaskPlanSubTask, WorktreePoolSnapshot, WorktreeSlotSnapshot, WorktreeState,
     assign_task_execution_worktree, build_executor_command, build_review_diff_context,
-    can_dispatch_merge_task, commit_merge_all_worktrees, commit_merge_all_worktrees_async,
+    commit_merge_all_worktrees, commit_merge_all_worktrees_async,
     commit_merge_all_worktrees_async_with_logs, commit_merge_all_worktrees_with_logs,
-    count_running_tasks, current_task_worktree_path, delete_all_managed_worktrees,
-    delete_all_managed_worktrees_async, delete_all_managed_worktrees_async_with_logs,
-    delete_all_managed_worktrees_with_logs, execute_gateway_prompt_with_streaming,
-    execute_task_async, execute_task_command, execute_task_command_with_streaming,
-    execute_task_merge_async, execute_task_plan_async, execute_task_review_async,
-    force_unlock_task_merge_target, get_next_tasks_for_execution, get_pool_and_pending_count,
-    get_total_task_count, maintain_worktree_pool, recycle_task_worktree,
-    recycle_task_worktree_async, release_task_worktree, release_task_worktree_async,
-    reset_all_managed_worktrees, reset_all_managed_worktrees_async,
-    reset_all_managed_worktrees_async_with_logs, reset_all_managed_worktrees_with_logs,
-    simulate_task_execution_step, task_has_live_worktree, task_merge_lock_holder,
-    worktree_pool_needs_maintenance, worktree_pool_snapshot, write_task_plan_files,
+    count_running_tasks, delete_all_managed_worktrees, delete_all_managed_worktrees_async,
+    delete_all_managed_worktrees_async_with_logs, delete_all_managed_worktrees_with_logs,
+    execute_gateway_prompt_with_streaming, execute_task_async, execute_task_command,
+    execute_task_command_with_streaming, execute_task_merge_async, execute_task_plan_async,
+    execute_task_retry_async, execute_task_review_async, get_next_tasks_for_execution,
+    get_pool_and_pending_count, get_total_task_count, reset_all_managed_worktrees,
+    reset_all_managed_worktrees_async, reset_all_managed_worktrees_async_with_logs,
+    reset_all_managed_worktrees_with_logs, simulate_task_execution_step, write_task_plan_files,
 };
 
 // =============================================================================
@@ -133,8 +130,38 @@ pub use executor::{
 pub use models::{
     CLAUDE_DEFAULT_MODEL_ALIAS, CLAUDE_SUPPORTED_MODEL_ALIASES, SubTask, SubTaskStatus,
     TASK_AGENT_MAIN, TASK_MODEL_AUTO, Task, TaskBoardSettings, TaskDraft, TaskExecutorBackend,
-    TaskImportPromptFormat, TaskIndex, TaskLogEntry, TaskStatus, claude_model_alias,
+    TaskImportPromptFormat, TaskIndex, TaskLogEntry, TaskSplitMode, TaskStatus, claude_model_alias,
     legacy_executor_to_task_acp_agent, normalize_task_acp_agent_input, normalize_task_model_input,
+};
+
+#[cfg(test)]
+pub(crate) use staff::models::TaskBoardStageAction;
+pub use workflow::{
+    DEFAULT_TASK_WORKFLOW_ID, OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow,
+    StatusOutcome, StatusRole, TaskStateMachine, TaskStatusDefinition, TaskStatusTransition,
+    TaskTransitionError, TaskTransitionIntent, TaskWorkflow, TaskWorkflowDefinition,
+    all_task_workflows, default_task_workflow, default_task_workflow_statuses,
+    is_builtin_task_workflow_id, task_workflow_by_id, update_runtime_task_lifecycle_cache,
+};
+#[cfg(test)]
+pub(crate) use workflow::{
+    register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
+    reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
+};
+
+pub use staff::{
+    TaskBoardStaffAutoSchedulePlan, TaskBoardStaffAutoScheduleSkip, TaskBoardStaffCapability,
+    TaskBoardStaffCapabilityDraftField, TaskBoardStaffCapabilityKind,
+    TaskBoardStaffCapabilitySummary, TaskBoardStaffCapabilitySummaryKind, TaskBoardStaffCommand,
+    TaskBoardStaffCommandAction, TaskBoardStaffCommandError, TaskBoardStaffCommandQueue,
+    TaskBoardStaffCommandStatus, TaskBoardStaffConfig, TaskBoardStaffEvent, TaskBoardStaffMember,
+    TaskBoardStaffRole, TaskBoardStaffStatus, TaskBoardStageAssignment,
+    TaskBoardStageWorkflowBinding, TaskBoardWorkflowStage,
+    apply_task_board_staff_config_to_staff_config,
+    apply_task_board_staff_config_to_staff_config_for_workflow_id, build_staff_auto_schedule_plan,
+    task_board_staff_capabilities_from_gateway_response,
+    task_board_staff_capability_catalog_request, task_board_staff_config_from_staff_config,
+    task_board_staff_config_from_staff_config_for_workflow_id,
 };
 
 // =============================================================================

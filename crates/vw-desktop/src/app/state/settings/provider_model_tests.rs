@@ -116,6 +116,15 @@ fn provider_and_model_summary_structs_preserve_public_fields() {
 
 #[test]
 fn model_detail_and_model_settings_defaults_are_stable() {
+    let custom_modal = CustomProviderModelModalState {
+        edit_index: Some(2),
+        model_id: "claude-sonnet".to_string(),
+        display_name: "Claude Sonnet".to_string(),
+    };
+    assert_eq!(custom_modal.edit_index, Some(2));
+    assert_eq!(custom_modal.model_id, "claude-sonnet");
+    assert_eq!(custom_modal.display_name, "Claude Sonnet");
+
     let row = ModelDetailRow { label: "Context".to_string(), value: "128k".to_string() };
     let modal = ModelDetailModalState {
         provider_id: "openai".to_string(),
@@ -127,8 +136,12 @@ fn model_detail_and_model_settings_defaults_are_stable() {
         show_raw: true,
     };
     assert_eq!(modal.provider_id, "openai");
+    assert_eq!(modal.provider_name, "OpenAI");
+    assert_eq!(modal.model_id, "gpt");
+    assert_eq!(modal.model_name, "GPT");
     assert_eq!(modal.rows[0].label, "Context");
     assert_eq!(modal.rows[0].value, "128k");
+    assert_eq!(modal.raw_json, "{}");
     assert!(modal.show_raw);
 
     let state = ModelSettingsState::default();
@@ -147,20 +160,28 @@ fn route_classification_heartbeat_and_goal_loop_defaults_are_ready_to_edit() {
     assert!(embedding.model.is_empty());
     assert!(embedding.dimensions.is_empty());
     assert!(embedding.api_key_input.is_empty());
-    assert!(EmbeddingRoutesSettingsState::default().routes.is_empty());
+    let embedding_routes = EmbeddingRoutesSettingsState::default();
+    assert!(embedding_routes.routes.is_empty());
+    assert!(embedding_routes.save_error.is_none());
+    assert!(!embedding_routes.save_success);
 
     let route = ModelRoute::default();
     assert!(route.pattern.is_empty());
     assert!(route.provider.is_empty());
     assert!(route.model.is_empty());
     assert!(route.priority_input.is_empty());
-    assert!(ModelRoutesSettingsState::default().routes.is_empty());
+    let model_routes = ModelRoutesSettingsState::default();
+    assert!(model_routes.routes.is_empty());
+    assert!(model_routes.save_error.is_none());
 
     let rule = QueryClassificationRuleInput::default();
     assert!(rule.pattern.is_empty());
     assert!(rule.category.is_empty());
     assert_eq!(rule.priority_input, "0");
-    assert!(!QueryClassificationSettingsState::default().enabled);
+    let classification = QueryClassificationSettingsState::default();
+    assert!(!classification.enabled);
+    assert!(classification.rules.is_empty());
+    assert!(classification.save_error.is_none());
 
     let heartbeat = HeartbeatSettingsState::default();
     assert!(!heartbeat.enabled);
@@ -169,6 +190,7 @@ fn route_classification_heartbeat_and_goal_loop_defaults_are_ready_to_edit() {
     assert!(heartbeat.target_input.is_empty());
     assert!(heartbeat.to_input.is_empty());
     assert!(!heartbeat.show_help_modal);
+    assert!(heartbeat.save_error.is_none());
 
     let goal_loop = GoalLoopSettingsState::default();
     assert!(!goal_loop.enabled);
@@ -177,6 +199,7 @@ fn route_classification_heartbeat_and_goal_loop_defaults_are_ready_to_edit() {
     assert_eq!(goal_loop.max_steps_per_cycle_input, "3");
     assert!(goal_loop.channel_input.is_empty());
     assert!(goal_loop.target_input.is_empty());
+    assert!(goal_loop.save_error.is_none());
 }
 
 #[test]
@@ -196,12 +219,24 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert_eq!(draft.schedule_kind, CronAddScheduleKind::Cron);
     assert_eq!(draft.session_target, "isolated");
     assert_eq!(draft.agent, "main");
+    assert!(draft.schedule.is_empty());
+    assert!(draft.at.is_empty());
+    assert!(draft.every_ms.is_empty());
+    assert!(draft.command.is_empty());
     assert!(draft.command_editor.text().is_empty());
+    assert!(draft.prompt.is_empty());
     assert!(draft.prompt_editor.text().is_empty());
+    assert!(draft.acp_agent.is_empty());
+    assert!(draft.project_path.is_empty());
+    assert!(draft.model_provider.is_empty());
+    assert!(draft.model.is_empty());
     assert!(!draft.wake);
+    assert!(draft.fallbacks.is_empty());
     assert!(!draft.full_access);
     assert!(!draft.task_pool);
     assert!(!draft.delivery_enabled);
+    assert!(draft.delivery_channel.is_empty());
+    assert!(draft.delivery_to.is_empty());
     assert!(draft.delivery_best_effort);
     assert!(!draft.delete_after_run);
 
@@ -221,4 +256,22 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert!(!state.show_help_modal);
     assert!(state.save_error.is_none());
     assert!(state.action_status.is_none());
+}
+
+#[test]
+fn sop_and_scheduler_defaults_match_safe_runtime_limits() {
+    let sop = SopSettingsState::default();
+    assert!(sop.sops_dir_input.is_empty());
+    assert_eq!(sop.default_execution_mode, "supervised");
+    assert_eq!(sop.max_finished_runs, 50);
+    assert_eq!(sop.max_concurrent_total, 5);
+    assert_eq!(sop.approval_timeout_secs, 300);
+    assert!(sop.save_error.is_none());
+
+    let scheduler = SchedulerSettingsState::default();
+    assert!(scheduler.enabled);
+    assert_eq!(scheduler.max_tasks, 64);
+    assert_eq!(scheduler.max_concurrent, 4);
+    assert!(!scheduler.show_help_modal);
+    assert!(scheduler.save_error.is_none());
 }

@@ -130,6 +130,18 @@ fn view_file_covers_collapsed_loading_missing_and_file_status_branches() {
 }
 
 #[test]
+fn view_file_missing_contents_builds_header_with_existing_line_selection() {
+    let mut app = App::new().0;
+    app.staged_old_lines_selected = vec![("src/lib.rs".to_string(), 4)];
+
+    render_file(&app, FileStatus::Modified, None, false);
+
+    app.staged_old_lines_selected.clear();
+    app.staged_lines_selected = vec![("src/lib.rs".to_string(), 7)];
+    render_file(&app, FileStatus::Modified, None, false);
+}
+
+#[test]
 fn view_file_covers_modified_renamed_hunk_menu_and_manual_expansion_branches() {
     let mut app = App::new().0;
     app.expanded_files_set.insert("src/lib.rs".to_string());
@@ -140,4 +152,14 @@ fn view_file_covers_modified_renamed_hunk_menu_and_manual_expansion_branches() {
     app.expanded_hunks = vec![("src/lib.rs".to_string(), 0)];
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
     render_file(&app, FileStatus::Renamed, Some(("a\nb\nc\n", "a\nB\nc\n")), false);
+}
+
+#[test]
+fn view_file_collapses_large_modified_hunk_when_auto_expand_budget_is_exceeded() {
+    let mut app = App::new().0;
+    app.expanded_files_set.insert("src/lib.rs".to_string());
+    let old_content = (0..520).map(|idx| format!("old-{idx}\n")).collect::<String>();
+    let new_content = (0..520).map(|idx| format!("new-{idx}\n")).collect::<String>();
+
+    render_file(&app, FileStatus::Modified, Some((&old_content, &new_content)), false);
 }

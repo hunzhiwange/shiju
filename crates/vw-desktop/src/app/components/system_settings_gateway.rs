@@ -3,21 +3,22 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::assets::Icon;
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    rounded_action_btn_style, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
-    settings_value_badge,
+    danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_checkbox_style,
+    settings_divider, settings_help_button, settings_modal_card, settings_modal_overlay,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
 use crate::app::state::{GatewaySettingsState, GatewaySettingsTab};
-use crate::app::views::design::properties::number_input::NumberInput;
 use crate::app::{App, Message};
 use chrono::{Datelike, NaiveDate, Utc};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length};
 
 pub(super) const GATEWAY_PAIRED_TOKEN_VISIBLE_ROWS: usize = 10;
@@ -177,10 +178,23 @@ fn service_action_button(
 ) -> Element<'static, Message> {
     let is_running = running_command == Some(command);
     let text_label = if is_running { format!("{label}...") } else { label.to_string() };
-    let btn = button(text(text_label).size(12))
-        .padding([6, 12])
-        .width(Length::Fill)
-        .style(rounded_action_btn_style);
+    let label_content =
+        text(text_label).size(14).height(Length::Fill).align_y(iced::alignment::Vertical::Center);
+    let btn = button(
+        container(label_content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill),
+    )
+    .padding([11, 16])
+    .width(Length::Fill)
+    .height(Length::Fixed(44.0));
+    let btn = if is_danger_service_command(command) {
+        btn.style(danger_action_btn_style)
+    } else {
+        btn.style(rounded_action_btn_style)
+    };
 
     if running_command.is_none() {
         btn.on_press(Message::Settings(SettingsMessage::Gateway(
@@ -192,24 +206,89 @@ fn service_action_button(
     }
 }
 
+fn service_cli_command(command: &str) -> String {
+    format!("vibewindow server {command}")
+}
+
+fn is_danger_service_command(command: &str) -> bool {
+    matches!(command, "stop" | "uninstall")
+}
+
+fn service_command_label(command: &str) -> &'static str {
+    match command {
+        "stop" => "停止服务",
+        "uninstall" => "卸载服务",
+        "install" => "安装服务",
+        "start" => "启动服务",
+        "restart" => "重启服务",
+        "status" => "查询状态",
+        _ => "服务命令",
+    }
+}
+
+fn service_command_copy_button(
+    command: &'static str,
+    copied_command: Option<&str>,
+) -> Element<'static, Message> {
+    let cli_command = service_cli_command(command);
+    let copied = copied_command == Some(cli_command.as_str());
+    let label = if copied { "✓".to_string() } else { cli_command.clone() };
+    let icon = if copied { Icon::Check } else { Icon::Copy };
+    let content = row![
+        text(label).size(11).height(Length::Fill).align_y(iced::alignment::Vertical::Center),
+        Space::new().width(Length::Fill),
+        icon_svg(icon, 13.0).style(|theme: &iced::Theme, _status| iced::widget::svg::Style {
+            color: Some(theme.palette().text),
+        }),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    button(container(content).width(Length::Fill).height(Length::Fill).center_y(Length::Fill))
+        .padding([4, 8])
+        .width(Length::Fill)
+        .height(Length::Fixed(30.0))
+        .on_press(Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyServiceCommand(
+            cli_command,
+        ))))
+        .style(rounded_action_btn_style)
+        .into()
+}
+
+fn service_action_cell(
+    label: &'static str,
+    command: &'static str,
+    running_command: Option<&str>,
+    copied_command: Option<&str>,
+) -> Element<'static, Message> {
+    column![
+        service_action_button(label, command, running_command),
+        service_command_copy_button(command, copied_command),
+    ]
+    .spacing(6)
+    .width(Length::Fill)
+    .into()
+}
+
 fn service_controls_panel(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_settings;
     let running = s.service_action_running.as_deref();
+    let copied_command = s.copied_service_command.as_deref();
     let actions = column![
         row![
-            service_action_button("安装服务", "install", running),
-            service_action_button("启动服务", "start", running),
-            service_action_button("停止服务", "stop", running),
+            service_action_cell("安装服务", "install", running, copied_command),
+            service_action_cell("启动服务", "start", running, copied_command),
+            service_action_cell("停止服务", "stop", running, copied_command),
         ]
-        .spacing(10),
+        .spacing(12),
         row![
-            service_action_button("重启服务", "restart", running),
-            service_action_button("查询状态", "status", running),
-            service_action_button("卸载服务", "uninstall", running),
+            service_action_cell("重启服务", "restart", running, copied_command),
+            service_action_cell("查询状态", "status", running, copied_command),
+            service_action_cell("卸载服务", "uninstall", running, copied_command),
         ]
-        .spacing(10),
+        .spacing(12),
     ]
-    .spacing(10)
+    .spacing(14)
     .width(Length::Fill);
 
     let mut content = column![actions].spacing(12).width(Length::Fill);
@@ -766,7 +845,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         GatewaySettingsTab::Skeys => skeys_content,
     };
 
-    let mut content = column![
+    let content = column![
         row![
             container(settings_page_intro(
                 "服务端网关配置",
@@ -783,10 +862,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }
@@ -806,6 +881,42 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.gateway_settings;
+    if let Some(command) = s.pending_service_command_confirmation.as_deref() {
+        let label = service_command_label(command);
+        let command_text = service_cli_command(command);
+        let body = format!(
+            "{label} 是危险操作，可能会中断当前本机 gateway 连接、停止后台任务，卸载服务还会移除开机自启动配置。\n\n将执行命令：{command_text}\n\n确认继续？"
+        );
+        let cancel_message =
+            Message::Settings(SettingsMessage::Gateway(GatewayMessage::CancelDangerServiceCommand));
+        let confirm_message = Message::Settings(SettingsMessage::Gateway(
+            GatewayMessage::ConfirmDangerServiceCommand(command.to_string()),
+        ));
+        let card = settings_modal_card(
+            column![
+                text(format!("确认{label}")).size(18),
+                text(body).size(13).style(settings_muted_text_style),
+                row![
+                    container(text(" ")).width(Length::Fill),
+                    button(text("取消").size(13))
+                        .padding([9, 14])
+                        .style(rounded_action_btn_style)
+                        .on_press(cancel_message.clone()),
+                    button(text(format!("确认{label}")).size(13))
+                        .padding([9, 14])
+                        .style(danger_action_btn_style)
+                        .on_press(confirm_message),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            ]
+            .spacing(16),
+        )
+        .width(Length::Fixed(480.0));
+
+        return settings_modal_overlay(Some(dialog), cancel_message, card);
+    }
+
     if !s.show_help_modal {
         return dialog;
     }

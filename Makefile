@@ -1,9 +1,10 @@
 # VibeWindow 本地构建 Makefile
 # 用法: make <target>
-# 示例: make release-all      # 构建所有平台
-#       make release-macos    # 仅构建 macOS
+# 示例: make macos           # 本地构建 macOS 桌面 .app（含 CLI）
+#       make release-all      # 构建所有平台
+#       make release-macos    # 构建 macOS 发布包
 #       make cli-local        # 本地 CLI 快速构建
-#       make tui-v2           # 启动 TUI v2
+#       make tui              # 启动 CLI TUI
 
 SHELL := /bin/bash
 .DELETE_ON_ERROR:
@@ -37,7 +38,6 @@ CLOC_EXCLUDE_DIRS := target,node_modules,dist,coverage,.turbo,.vite,.next
 CLOC_INCLUDE_EXT := rs,html,js,ts,tsx,jsx,mjs,cjs,css,scss,less
 RELEASE_PUBLISH_PACKAGES := \
         vw-api-types \
-        vw-fig2json \
         vw-shared \
         vw-config-types \
         vw-gateway-client \
@@ -82,7 +82,7 @@ WINDOWS_ARM := aarch64-pc-windows-msvc
         release-windows-zip release-windows-zip-arm \
         release-goreleaser-check release-goreleaser-snapshot \
         cli-all cli-macos cli-linux cli-windows cli-local \
-	tui-v2 \
+	tui \
         desktop-check desktop-run desktop-release desktop-wasm \
         ensure-wasm-target \
         cross-install cross-check \
@@ -118,7 +118,7 @@ help: ## 显示帮助信息
 	@echo "$(GREEN)Desktop 开发:$(RESET)"
 	@grep -E '^desktop-.*##' $(MAKEFILE_LIST) | sed 's/desktop-/  /' | column -t -s '##'
 	@echo ""
-	@echo "$(GREEN)应用包构建:$(RESET)"
+	@echo "$(GREEN)本地应用构建:$(RESET)"
 	@grep -E '^(macos|windows|app-).*##' $(MAKEFILE_LIST) | column -t -s '##'
 	@echo ""
 	@echo "$(GREEN)工具与检查:$(RESET)"
@@ -176,16 +176,16 @@ release-package-macos-arm: ## 构建 macOS ARM64 完整便携包
 	./scripts/package-release.sh --kind all --target $(MACOS_ARM) --profile $(PROFILE) --out-dir $(RELEASE_DIR)/$(MACOS_ARM)
 
 release-macos-app: ## 构建 macOS .app，包含 helper/CLI/ACP
-	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 sh ./scripts/bundle_macos.sh
+	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 ./scripts/bundle_macos.sh
 
 release-macos-zip: ## 构建 macOS .app zip 包，包含 helper/CLI/ACP
-	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 PACKAGE_APP=1 OUT_DIR=$(RELEASE_DIR)/macos sh ./scripts/bundle_macos.sh
+	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 PACKAGE_APP=1 OUT_DIR=$(RELEASE_DIR)/macos ./scripts/bundle_macos.sh
 
 release-macos-dmg: ## 构建 macOS DMG，包含 helper/CLI/ACP
-	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 CREATE_DMG=1 OUT_DIR=$(RELEASE_DIR)/macos sh ./scripts/bundle_macos.sh
+	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 CREATE_DMG=1 OUT_DIR=$(RELEASE_DIR)/macos ./scripts/bundle_macos.sh
 
 release-macos-packages: ## 一次构建 macOS .app zip + DMG
-	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 PACKAGE_APP=1 CREATE_DMG=1 OUT_DIR=$(RELEASE_DIR)/macos sh ./scripts/bundle_macos.sh
+	INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 PACKAGE_APP=1 CREATE_DMG=1 OUT_DIR=$(RELEASE_DIR)/macos ./scripts/bundle_macos.sh
 
 release-linux: release-package-linux-x64 release-package-linux-arm64 ## 构建 Linux GNU 完整便携包 (需要 cross + Docker)
 
@@ -357,8 +357,8 @@ cli-all: cli-macos-x64 cli-macos-arm cli-linux-x64 cli-linux-arm64 cli-windows-x
 ## TUI 启动
 ## ============================================================================
 
-tui-v2: ## 启动 CLI TUI v2
-	cargo run --bin vibe-agent -- agent --tui-mode=v2
+tui: ## 启动 CLI TUI
+	cargo run --bin vibe-agent -- agent
 
 ## ============================================================================
 ## Desktop 开发
@@ -383,19 +383,18 @@ desktop-wasm: ensure-wasm-target ## 启动 vw-desktop wasm 开发服务 (trunk)
 	cd crates/vw-desktop && env -u NO_COLOR trunk serve --color never --port 8199 index.html
 
 ## ============================================================================
-## 应用包构建 (原有目标)
+## 本地应用构建 (原有目标)
 ## ============================================================================
 
-macos: ## 构建 macOS 平台安装包
-	sh ./scripts/bundle_macos.sh
+macos: ## 本地构建 macOS 桌面 .app（含 CLI，不含 ACP/zip/DMG）
+	INCLUDE_CLI_IN_APP=1 INCLUDE_CLI_COMPAT_IN_APP=0 INCLUDE_ACP_IN_APP=0 PACKAGE_APP=0 CREATE_DMG=0 ./scripts/bundle_macos.sh
 
-windows: ## 构建 Windows 平台安装包
+windows: ## 本地构建 Windows 应用包
 	sh ./scripts/bundle_windows.sh
 
-app-macos-with-cli: ## 构建 macOS 平台安装包，并将 CLI 一并置入 .app 包
-	INCLUDE_CLI_IN_APP=1 sh ./scripts/bundle_macos.sh
+app-macos-with-cli: macos ## 兼容别名：同 make macos
 
-app-windows-with-cli: ## 构建 Windows 平台安装包，并将 CLI 一并放入发行压缩包
+app-windows-with-cli: ## 本地构建 Windows 应用包，并将 CLI 一并放入压缩包
 	INCLUDE_CLI_IN_APP=1 sh ./scripts/bundle_windows.sh
 
 ## ============================================================================

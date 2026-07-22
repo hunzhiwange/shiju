@@ -1,5 +1,10 @@
 use super::*;
 use crate::tools::shell::ast::ParsedCommand;
+use regex::Regex;
+use std::sync::LazyLock;
+
+static WORD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bdanger\b").expect("valid test regex"));
 
 fn fallback(raw: &str, tokens: &[&str]) -> ParsedCommand {
     ParsedCommand::Fallback {
@@ -60,4 +65,25 @@ fn lower_tokens_supports_ast_command_info() {
     let cmd = ParsedCommand::Ast(ast, info);
 
     assert_eq!(lower_tokens(&cmd), vec!["git", "status"]);
+}
+
+#[test]
+fn shell_boundary_helpers_cover_closing_paren_backtick_and_quoted_hash_edges() {
+    assert!(looks_unbalanced_shell("echo ok)"));
+    assert!(looks_unbalanced_shell("echo `date"));
+    assert!(!looks_unbalanced_shell("echo (ok)"));
+    assert!(!has_unquoted_hash(r"echo test\#literal"));
+    assert!(!has_unquoted_hash("echo \"test#literal\""));
+    assert!(has_quoted_newline("echo \"a\nb\""));
+}
+
+#[test]
+fn fallback_and_text_helpers_return_conservative_results() {
+    let cmd = fallback("echo safe > out", &["echo", "safe", ">", "out"]);
+
+    assert!(redirect_targets(&cmd).is_empty());
+    assert!(contains_regex(&WORD_RE, "a danger appears"));
+    assert!(!contains_regex(&WORD_RE, "dangerous is a different word"));
+    assert!(contains_unicode_whitespace("echo\u{00a0}hidden"));
+    assert!(!contains_unicode_whitespace("echo hidden"));
 }

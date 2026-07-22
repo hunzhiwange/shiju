@@ -19,7 +19,7 @@
 
 use super::super::*;
 use crate::app::agent::coordination::{
-    CoordinationEnvelope, CoordinationPayload, InMemoryMessageBus,
+    CoordinationEnvelope, CoordinationPayload, InMemoryMessageBus, SequencedEnvelope,
 };
 use serde_json::json;
 
@@ -677,4 +677,295 @@ async fn status_tool_applies_message_paging_with_correlation_filter() {
 
     // 第二页返回第三个corr-a消息（msg-corr-3）
     assert_eq!(second_parsed["inboxes"][0]["messages"][0]["message_id"], json!("msg-corr-3"));
+}
+
+#[test]
+fn status_tool_metadata_and_schema_describe_supported_arguments() {
+    let tool = DelegateCoordinationStatusTool::new(test_bus(), Arc::new(SecurityPolicy::default()));
+
+    assert_eq!(tool.name(), "delegate_coordination_status");
+    assert!(tool.description().contains("委托协调运行时状态"));
+
+    let schema = tool.parameters_schema();
+    assert_eq!(schema["type"], json!("object"));
+    assert_eq!(schema["additionalProperties"], json!(false));
+    assert_eq!(schema["required"], json!([]));
+    assert_eq!(schema["properties"]["include_messages"]["default"], json!(false));
+    assert_eq!(schema["properties"]["include_dead_letters"]["default"], json!(true));
+    assert_eq!(schema["properties"]["message_limit"]["default"], json!(5));
+    assert_eq!(schema["properties"]["message_limit"]["maximum"], json!(50));
+    assert_eq!(schema["properties"]["dead_letter_limit"]["default"], json!(10));
+    assert_eq!(schema["properties"]["dead_letter_limit"]["maximum"], json!(100));
+    assert_eq!(schema["properties"]["context_limit"]["default"], json!(25));
+    assert_eq!(schema["properties"]["context_limit"]["maximum"], json!(200));
+    assert_eq!(schema["properties"]["message_offset"]["maximum"], json!(10_000));
+    assert_eq!(schema["properties"]["dead_letter_offset"]["maximum"], json!(10_000));
+    assert_eq!(schema["properties"]["context_offset"]["maximum"], json!(10_000));
+}
+
+#[test]
+fn clamp_helpers_apply_defaults_and_bounds() {
+    assert_eq!(super::clamp_usize(None, 5, 50), 5);
+    assert_eq!(super::clamp_usize(Some(0), 5, 50), 5);
+    assert_eq!(super::clamp_usize(Some(7), 5, 50), 7);
+    assert_eq!(super::clamp_usize(Some(70), 5, 50), 50);
+
+    assert_eq!(super::clamp_offset(None, 10_000), 0);
+    assert_eq!(super::clamp_offset(Some(0), 10_000), 0);
+    assert_eq!(super::clamp_offset(Some(37), 10_000), 37);
+    assert_eq!(super::clamp_offset(Some(20_000), 10_000), 10_000);
+}
+
+#[test]
+fn payload_kind_identifies_every_payload_variant() {
+    let cases = [
+        (
+            CoordinationPayload::DelegateTask {
+                task_id: "task".to_string(),
+                summary: "summary".to_string(),
+                metadata: json!({}),
+            },
+            "delegate_task",
+        ),
+        (
+            CoordinationPayload::ContextPatch {
+                key: "delegate/corr/state".to_string(),
+                expected_version: 0,
+                value: json!({"phase": "queued"}),
+            },
+            "context_patch",
+        ),
+        (
+            CoordinationPayload::TaskResult {
+                task_id: "task".to_string(),
+                success: true,
+                output: "done".to_string(),
+            },
+            "task_result",
+        ),
+        (CoordinationPayload::Ack { acked_message_id: "message".to_string() }, "ack"),
+        (
+            CoordinationPayload::Control {
+                action: "pause".to_string(),
+                note: Some("maintenance".to_string()),
+            },
+            "control",
+        ),
+    ];
+
+    for (payload, expected) in cases {
+        assert_eq!(super::payload_kind(&payload), expected);
+    }
+}
+
+#[test]
+fn summarize_envelope_reports_transport_fields_and_payload_kind() {
+    let mut envelope = CoordinationEnvelope::new_direct(
+        "delegate-lead",
+        "researcher",
+        "delegate:corr-summary",
+        "delegate.ack",
+        CoordinationPayload::Ack { acked_message_id: "request-1".to_string() },
+    );
+    envelope.id = "ack-1".to_string();
+    envelope.correlation_id = Some("corr-summary".to_string());
+    envelope.causation_id = Some("request-1".to_string());
+
+    let summary = super::summarize_envelope(SequencedEnvelope { sequence: 42, envelope });
+
+    assert_eq!(
+        summary,
+        json!({
+            "sequence": 42,
+            "message_id": "ack-1",
+            "topic": "delegate.ack",
+            "from": "delegate-lead",
+            "to": "researcher",
+            "correlation_id": "corr-summary",
+            "causation_id": "request-1",
+            "payload_kind": "ack"
+        })
+    );
+}
+
+#[tokio::test]
+async fn status_tool_ignores_blank_filters_and_uses_default_message_limit() {
+    let bus = test_bus();
+    for index in 0..6 {
+        let mut request = CoordinationEnvelope::new_direct(
+            "delegate-lead",
+            "researcher",
+            "delegate:corr-defaults",
+            "delegate.request",
+            CoordinationPayload::DelegateTask {
+                task_id: format!("task-{index}"),
+                summary: "Investigate".to_string(),
+                metadata: json!({}),
+            },
+        );
+        request.id = format!("default-message-{index}");
+        request.correlation_id = Some("corr-defaults".to_string());
+        bus.publish(request).expect("request should publish");
+    }
+
+    let tool = DelegateCoordinationStatusTool::new(bus, Arc::new(SecurityPolicy::default()));
+    let result = tool
+        .execute(json!({
+            "agent": "   ",
+            "correlation_id": "\t ",
+            "include_messages": true,
+            "message_limit": 0
+        }))
+        .await
+        .expect("tool execution should succeed");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&result.output).expect("output must be valid JSON");
+
+    assert!(result.success);
+    assert_eq!(parsed["filter"]["agent"], serde_json::Value::Null);
+    assert_eq!(parsed["filter"]["correlation_id"], serde_json::Value::Null);
+    assert_eq!(parsed["inboxes"].as_array().map(Vec::len), Some(2));
+    let researcher = parsed["inboxes"]
+        .as_array()
+        .and_then(|inboxes| {
+            inboxes.iter().find(|inbox| inbox["agent"].as_str() == Some("researcher"))
+        })
+        .expect("researcher inbox should be present");
+    assert_eq!(researcher["pending"], json!(6));
+    assert_eq!(researcher["message_total"], json!(6));
+    assert_eq!(researcher["messages_returned"], json!(5));
+    assert_eq!(researcher["messages_truncated"], json!(true));
+    assert_eq!(researcher["message_next_offset"], json!(5));
+}
+
+#[tokio::test]
+async fn status_tool_skips_an_unknown_agent() {
+    let tool = DelegateCoordinationStatusTool::new(test_bus(), Arc::new(SecurityPolicy::default()));
+    let result = tool
+        .execute(json!({"agent": "missing-agent", "include_messages": true}))
+        .await
+        .expect("tool execution should succeed");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&result.output).expect("output must be valid JSON");
+
+    assert!(result.success);
+    assert_eq!(parsed["filter"]["agent"], json!("missing-agent"));
+    assert_eq!(parsed["inboxes"], json!([]));
+}
+
+#[tokio::test]
+async fn status_tool_hides_dead_letters_when_preview_is_disabled() {
+    let bus = test_bus();
+    let mut invalid = CoordinationEnvelope::new_direct(
+        "delegate-lead",
+        "missing-agent",
+        "delegate:corr-hidden",
+        "delegate.request",
+        CoordinationPayload::DelegateTask {
+            task_id: "corr-hidden".to_string(),
+            summary: "invalid target".to_string(),
+            metadata: json!({}),
+        },
+    );
+    invalid.id = "hidden-dead-letter".to_string();
+    invalid.correlation_id = Some("corr-hidden".to_string());
+    let _ = bus.publish(invalid);
+
+    let tool = DelegateCoordinationStatusTool::new(bus, Arc::new(SecurityPolicy::default()));
+    let result = tool
+        .execute(json!({"include_dead_letters": false}))
+        .await
+        .expect("tool execution should succeed");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&result.output).expect("output must be valid JSON");
+
+    assert!(result.success);
+    assert_eq!(parsed["dead_letter_count"], json!(1));
+    assert_eq!(parsed["dead_letters_total"], json!(0));
+    assert_eq!(parsed["dead_letters_returned"], json!(0));
+    assert_eq!(parsed["dead_letters_truncated"], json!(false));
+    assert_eq!(parsed["dead_letter_next_offset"], serde_json::Value::Null);
+    assert_eq!(parsed["dead_letters"], json!([]));
+}
+
+#[tokio::test]
+async fn status_tool_returns_empty_pages_when_offsets_exceed_totals() {
+    let bus = test_bus();
+
+    let mut request = CoordinationEnvelope::new_direct(
+        "delegate-lead",
+        "researcher",
+        "delegate:corr-edge",
+        "delegate.request",
+        CoordinationPayload::DelegateTask {
+            task_id: "corr-edge".to_string(),
+            summary: "Investigate".to_string(),
+            metadata: json!({}),
+        },
+    );
+    request.id = "edge-message".to_string();
+    request.correlation_id = Some("corr-edge".to_string());
+    bus.publish(request).expect("request should publish");
+
+    let mut patch = CoordinationEnvelope::new_direct(
+        "delegate-lead",
+        "delegate-lead",
+        "delegate:corr-edge",
+        "delegate.state",
+        CoordinationPayload::ContextPatch {
+            key: "delegate/corr-edge/state".to_string(),
+            expected_version: 0,
+            value: json!({"phase": "queued"}),
+        },
+    );
+    patch.id = "edge-context".to_string();
+    patch.correlation_id = Some("corr-edge".to_string());
+    bus.publish(patch).expect("context patch should publish");
+
+    let mut invalid = CoordinationEnvelope::new_direct(
+        "delegate-lead",
+        "missing-agent",
+        "delegate:corr-edge",
+        "delegate.request",
+        CoordinationPayload::DelegateTask {
+            task_id: "corr-edge-invalid".to_string(),
+            summary: "invalid target".to_string(),
+            metadata: json!({}),
+        },
+    );
+    invalid.id = "edge-dead-letter".to_string();
+    invalid.correlation_id = Some("corr-edge".to_string());
+    let _ = bus.publish(invalid);
+
+    let tool = DelegateCoordinationStatusTool::new(bus, Arc::new(SecurityPolicy::default()));
+    let result = tool
+        .execute(json!({
+            "agent": "researcher",
+            "correlation_id": "corr-edge",
+            "include_messages": true,
+            "message_limit": 1,
+            "message_offset": 10,
+            "dead_letter_limit": 1,
+            "dead_letter_offset": 10,
+            "context_limit": 1,
+            "context_offset": 10
+        }))
+        .await
+        .expect("tool execution should succeed");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&result.output).expect("output must be valid JSON");
+
+    assert!(result.success);
+    assert_eq!(parsed["inboxes"][0]["message_total"], json!(1));
+    assert_eq!(parsed["inboxes"][0]["messages_returned"], json!(0));
+    assert_eq!(parsed["inboxes"][0]["messages_truncated"], json!(false));
+    assert_eq!(parsed["inboxes"][0]["message_next_offset"], serde_json::Value::Null);
+    assert_eq!(parsed["contexts_total"], json!(1));
+    assert_eq!(parsed["contexts_returned"], json!(0));
+    assert_eq!(parsed["contexts_truncated"], json!(false));
+    assert_eq!(parsed["context_next_offset"], serde_json::Value::Null);
+    assert_eq!(parsed["dead_letters_total"], json!(1));
+    assert_eq!(parsed["dead_letters_returned"], json!(0));
+    assert_eq!(parsed["dead_letters_truncated"], json!(false));
+    assert_eq!(parsed["dead_letter_next_offset"], serde_json::Value::Null);
 }

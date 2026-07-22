@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::agent::config::Config;
+use crate::app::agent::config::schema::WebhookConfig;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::providers::Provider;
@@ -94,6 +95,25 @@ async fn handle_api_status_returns_runtime_status_when_authorized() {
     assert!(body["channels"].is_object());
     assert!(body["health"].is_object());
     assert!(body["uptime_seconds"].as_u64().is_some());
+    assert_eq!(body["uptime_seconds"], body["health"]["uptime_seconds"]);
+}
+
+#[tokio::test]
+async fn handle_api_status_reports_channel_presence_and_absent_provider() {
+    let state = state(false, &[]);
+    {
+        let mut config = state.config.lock();
+        config.default_provider = None;
+        config.channels_config.webhook = Some(WebhookConfig { port: 8787, secret: None });
+    }
+
+    let response = handle_api_status(State(state), HeaderMap::new()).await.into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response_json(response).await;
+    assert!(body["provider"].is_null());
+    assert_eq!(body["channels"]["Webhook"], true);
+    assert_eq!(body["channels"]["Telegram"], false);
 }
 
 #[tokio::test]
@@ -104,6 +124,11 @@ async fn handle_api_health_returns_health_snapshot_when_authorized() {
 
     let body = response_json(response).await;
     assert!(body["health"].is_object());
+    assert_eq!(body.as_object().unwrap().len(), 1);
+    assert!(body["health"]["pid"].as_u64().is_some());
+    assert!(body["health"]["updated_at"].as_str().is_some());
+    assert!(body["health"]["uptime_seconds"].as_u64().is_some());
+    assert!(body["health"]["components"].is_object());
 }
 
 #[tokio::test]
@@ -133,4 +158,16 @@ async fn status_accepts_valid_bearer_skey() {
     let body = response_json(response).await;
     assert_eq!(body["auth_enabled"], true);
     assert_eq!(body["active_skeys"], 1);
+}
+
+#[tokio::test]
+async fn health_accepts_valid_bearer_skey() {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::AUTHORIZATION, "Bearer paired-token".parse().unwrap());
+
+    let response =
+        handle_api_health(State(state(true, &["paired-token"])), headers).await.into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response_json(response).await["health"].is_object());
 }

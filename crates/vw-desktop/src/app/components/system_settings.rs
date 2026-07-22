@@ -27,6 +27,7 @@
 //! - **标准流程配置 (Sop)**：标准操作流程目录、执行模式与队列限制
 //! - **调度配置 (Scheduler)**：任务调度设置
 //! - **委托代理配置 (Agents)**：委托代理 researcher/coder/reviewer 配置
+//! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
 //! - **代理通信配置 (AgentsIpc)**：代理间通信配置
 //! - **协调配置 (Coordination)**：多代理协调设置
 //! - **可靠性配置 (Reliability)**：系统可靠性配置
@@ -34,6 +35,7 @@
 //! - **记忆配置 (Memory)**：记忆后端、缓存和嵌入检索配置
 //! - **运行时配置 (Runtime)**：native/docker/wasm 运行时配置
 //! - **ACP 配置 (Acp)**：ACP 智能体目录、初始化说明与启用状态
+//! - **MCP 配置 (Mcp)**：全局 MCP 服务器配置
 //! - **自治配置 (Autonomy)**：代理自治能力设置
 //! - **安全配置 (Security)**：安全策略配置
 //! - **网关配置 (Gateway)**：HTTP 网关、Auth 鉴权与 node-control 配置
@@ -53,7 +55,7 @@
 //! - **转录配置 (Transcription)**：语音转录配置
 
 use crate::app::components::system_settings_common::{
-    settings_close_button, settings_muted_text_style, settings_panel_style,
+    settings_close_button, settings_error_banner, settings_muted_text_style, settings_panel_style,
     settings_text_input_style,
 };
 use crate::app::{App, Message, message};
@@ -83,12 +85,15 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `Sop` - SOP 设置，配置 SOP 目录和执行策略
 /// - `Scheduler` - 调度器设置，配置任务调度策略
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
+/// - `Staff` - 员工配置，配置任务看板员工名册、绑定和能力
 /// - `AgentsIpc` - Agents IPC 设置，配置代理间通信
 /// - `Coordination` - 协调设置，配置多代理协调策略
 /// - `Reliability` - 可靠性设置，配置容错与恢复机制
 /// - `Channels` - 通道设置，配置 CLI 与外部消息通道
 /// - `Memory` - 记忆设置，配置记忆后端和向量检索参数
 /// - `Runtime` - 运行时设置，配置执行环境与隔离选项
+/// - `Acp` - ACP 设置，配置外部智能体后端
+/// - `Mcp` - MCP 设置，配置全局 MCP 服务器
 /// - `Autonomy` - 自治设置，配置代理自治能力
 /// - `Security` - 安全设置，配置安全策略
 /// - `Observability` - 可观测性设置，配置日志与监控
@@ -137,6 +142,8 @@ pub enum SystemTab {
     Scheduler,
     /// 委托代理配置标签页
     Agents,
+    /// 员工配置标签页
+    Staff,
     /// 代理通信配置标签页
     AgentsIpc,
     /// 协调配置标签页
@@ -151,6 +158,8 @@ pub enum SystemTab {
     Runtime,
     /// ACP 配置标签页
     Acp,
+    /// MCP 配置标签页
+    Mcp,
     /// 自治配置标签页
     Autonomy,
     /// 安全配置标签页
@@ -202,7 +211,7 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 39] {
+    pub(super) fn all() -> [SystemTab; 41] {
         [
             SystemTab::General,
             SystemTab::DialogueFlow,
@@ -220,12 +229,14 @@ impl SystemTab {
             SystemTab::Sop,
             SystemTab::Scheduler,
             SystemTab::Agents,
+            SystemTab::Staff,
             SystemTab::AgentsIpc,
             SystemTab::Coordination,
             SystemTab::Reliability,
             SystemTab::Channels,
             SystemTab::Runtime,
             SystemTab::Acp,
+            SystemTab::Mcp,
             SystemTab::Autonomy,
             SystemTab::Security,
             SystemTab::GatewayClient,
@@ -277,6 +288,7 @@ impl std::fmt::Display for SystemTab {
             SystemTab::Sop => write!(f, "标准流程配置"),
             SystemTab::Scheduler => write!(f, "调度配置"),
             SystemTab::Agents => write!(f, "委托代理配置"),
+            SystemTab::Staff => write!(f, "员工配置"),
             SystemTab::AgentsIpc => write!(f, "代理通信配置"),
             SystemTab::Coordination => write!(f, "协调配置"),
             SystemTab::Reliability => write!(f, "可靠性配置"),
@@ -284,6 +296,7 @@ impl std::fmt::Display for SystemTab {
             SystemTab::Memory => write!(f, "记忆配置"),
             SystemTab::Runtime => write!(f, "运行时配置"),
             SystemTab::Acp => write!(f, "ACP 配置"),
+            SystemTab::Mcp => write!(f, "MCP 配置"),
             SystemTab::Autonomy => write!(f, "自治配置"),
             SystemTab::Security => write!(f, "安全配置"),
             SystemTab::GatewayClient => write!(f, "客户端网关"),
@@ -352,6 +365,9 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         SystemTab::Agents => {
             "委托代理配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 工具迭代上限 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式"
         }
+        SystemTab::Staff => {
+            "员工配置 staff roster task board agent binding capability 员工 名册 任务看板 绑定 能力 工具 技能"
+        }
         SystemTab::AgentsIpc => {
             "代理通信配置 agents ipc communication 基础行为 IPC 开关 共享数据库路径 离线阈值 db_path"
         }
@@ -373,8 +389,11 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         SystemTab::Acp => {
             "acp agent client protocol 智能体 后端 启用 禁用 初始化 环境 配置 codex claude gemini copilot pi npx"
         }
+        SystemTab::Mcp => {
+            "mcp model context protocol mcpServers server tool 工具 服务器 stdio http sse headers env allowedTools deniedTools timeout 插件 plugin"
+        }
         SystemTab::Autonomy => {
-            "自治配置 autonomy agent run 运行 权限与审批 执行级别 审批阈值 重定向 预算 工具与路径 shell 命令 自动审批 非 CLI 暴露 审批人"
+            "自治配置 autonomy agent run approval 运行 权限与审批 执行级别 审批阈值 重定向 预算 工具与路径 shell 命令 自动审批 非 CLI 暴露 审批人"
         }
         SystemTab::Security => {
             "安全配置 security policy permission 沙箱 后端说明 资源限制 内存 CPU 子进程 审计日志 OTP 紧急停止 E-Stop 系统调用异常检测 Canary Token 语义注入防护"
@@ -460,6 +479,51 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
         SystemTab::WebSearch => app.web_search_settings.show_help_modal,
         SystemTab::Transcription => app.transcription_settings.show_help_modal,
         _ => false,
+    }
+}
+
+pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<&str> {
+    match active_tab {
+        SystemTab::Providers => app.provider_settings.save_error.as_deref(),
+        SystemTab::Models => app.model_settings.save_error.as_deref(),
+        SystemTab::EmbeddingRoutes => app.embedding_routes_settings.save_error.as_deref(),
+        SystemTab::ModelRoutes => app.model_routes_settings.save_error.as_deref(),
+        SystemTab::QueryClassification => app.query_classification_settings.save_error.as_deref(),
+        SystemTab::GoalLoop => app.goal_loop_settings.save_error.as_deref(),
+        SystemTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
+        SystemTab::Cron => app.cron_settings.save_error.as_deref(),
+        SystemTab::Sop => app.sop_settings.save_error.as_deref(),
+        SystemTab::Scheduler => app.scheduler_settings.save_error.as_deref(),
+        SystemTab::Agents => app.agents_settings.save_error.as_deref(),
+        SystemTab::Staff => app.staff_settings.save_error.as_deref(),
+        SystemTab::AgentsIpc => app.agents_ipc_settings.save_error.as_deref(),
+        SystemTab::Coordination => app.coordination_settings.save_error.as_deref(),
+        SystemTab::Reliability => app.reliability_settings.save_error.as_deref(),
+        SystemTab::Channels => app.channels_settings.save_error.as_deref(),
+        SystemTab::Memory => app.memory_settings.save_error.as_deref(),
+        SystemTab::Runtime => app.runtime_settings.save_error.as_deref(),
+        SystemTab::Acp => app.acp_settings.save_error.as_deref(),
+        SystemTab::Mcp => app.mcp_settings.save_error.as_deref(),
+        SystemTab::Autonomy => app.autonomy_settings.save_error.as_deref(),
+        SystemTab::Security => app.security_settings.save_error.as_deref(),
+        SystemTab::GatewayClient => app.gateway_client_settings.save_error.as_deref(),
+        SystemTab::Gateway => app.gateway_settings.save_error.as_deref(),
+        SystemTab::Observability => app.observability_settings.save_error.as_deref(),
+        SystemTab::Storage => app.storage_settings.save_error.as_deref(),
+        SystemTab::Proxy => app.proxy_settings.save_error.as_deref(),
+        SystemTab::Tunnel => app.tunnel_settings.save_error.as_deref(),
+        SystemTab::Composio => app.composio_settings.save_error.as_deref(),
+        SystemTab::Skills => app.skills_settings.save_error.as_deref(),
+        SystemTab::Hooks => app.hooks_settings.save_error.as_deref(),
+        SystemTab::Research => app.research_settings.save_error.as_deref(),
+        SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
+        SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
+        SystemTab::Browser => app.browser_settings.save_error.as_deref(),
+        SystemTab::Multimodal => app.multimodal_settings.save_error.as_deref(),
+        SystemTab::Transcription => app.transcription_settings.save_error.as_deref(),
+        SystemTab::General | SystemTab::DialogueFlow | SystemTab::Editor | SystemTab::Projects => {
+            None
+        }
     }
 }
 
@@ -653,6 +717,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Sop => crate::app::components::system_settings_sop::view(app),
         SystemTab::Scheduler => crate::app::components::system_settings_scheduler::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
+        SystemTab::Staff => crate::app::components::system_settings_staff::view(app),
         SystemTab::AgentsIpc => crate::app::components::system_settings_agents_ipc::view(app),
         SystemTab::Coordination => crate::app::components::system_settings_coordination::view(app),
         SystemTab::Reliability => crate::app::components::system_settings_reliability::view(app),
@@ -660,6 +725,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Memory => crate::app::components::system_settings_memory::view(app),
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
         SystemTab::Acp => crate::app::components::system_settings_acp::view(app),
+        SystemTab::Mcp => crate::app::components::system_settings_mcp::view(app),
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
         SystemTab::GatewayClient => {
@@ -762,9 +828,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     {
                         content_with_help = content_with_help.push(help_bar);
                     }
+                    if let Some(err) = active_tab_save_error(app, active_tab) {
+                        content_with_help = content_with_help.push(settings_error_banner(err));
+                    }
                     content_with_help = content_with_help.push(content);
 
                     let content_panel: Element<'_, Message> = if active_tab == SystemTab::Agents
+                        || active_tab == SystemTab::Staff
                         || active_tab_help_modal_open(app, active_tab)
                     {
                         container(content_with_help)

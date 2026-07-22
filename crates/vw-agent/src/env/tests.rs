@@ -52,3 +52,37 @@ fn default_context_can_be_updated_and_cleared() {
     remove(key);
     assert_eq!(get(key), None);
 }
+
+#[test]
+fn injected_environment_allows_empty_snapshot() {
+    provide_with(HashMap::new(), || {
+        assert_eq!(get("VIBEWINDOW_EMPTY_ENV_TEST"), None);
+        assert!(all().is_empty());
+
+        set("VIBEWINDOW_EMPTY_ENV_TEST", "created");
+        assert_eq!(all().get("VIBEWINDOW_EMPTY_ENV_TEST").map(String::as_str), Some("created"));
+    });
+}
+
+#[test]
+fn poisoned_environment_lock_returns_safe_fallbacks() {
+    let mut vars = HashMap::new();
+    vars.insert("VIBEWINDOW_POISONED_ENV_TEST".to_string(), "before".to_string());
+
+    provide_with(vars, || {
+        let env = super::ENV_CONTEXT.use_value().expect("env context exists");
+        let poisoned = std::thread::spawn(move || {
+            let _guard = env.lock().expect("env lock");
+            panic!("poison env lock");
+        })
+        .join();
+
+        assert!(poisoned.is_err());
+        assert_eq!(get("VIBEWINDOW_POISONED_ENV_TEST"), None);
+        assert!(all().is_empty());
+
+        set("VIBEWINDOW_POISONED_ENV_TEST", "after");
+        remove("VIBEWINDOW_POISONED_ENV_TEST");
+        assert_eq!(get("VIBEWINDOW_POISONED_ENV_TEST"), None);
+    });
+}

@@ -9,8 +9,29 @@
 //! 支持提交保存或取消操作回滚到原标题。
 
 use super::TerminalMessage;
-use crate::app::{App, Message};
+use crate::app::{App, Message, TerminalState};
 use iced::Task;
+
+fn start_edit(title: &str, edit_title: &mut Option<String>) {
+    *edit_title = Some(title.to_string());
+}
+
+fn change_edit(edit_title: &mut Option<String>, value: String) {
+    *edit_title = Some(value);
+}
+
+fn save_edit(title: &mut String, edit_title: &mut Option<String>) {
+    if let Some(new) = edit_title.take() {
+        let name = new.trim().to_string();
+        if !name.is_empty() {
+            *title = name;
+        }
+    }
+}
+
+fn cancel_edit(edit_title: &mut Option<String>) {
+    *edit_title = None;
+}
 
 /// 处理终端标签页重命名相关的消息更新
 ///
@@ -45,19 +66,23 @@ use iced::Task;
 /// let task = update(&mut app, TerminalMessage::RenameSave(tab_id));
 /// ```
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
+    update_terminal(&mut app.terminal, message)
+}
+
+fn update_terminal(terminal: &mut TerminalState, message: TerminalMessage) -> Task<Message> {
     match message {
         // 启动重命名编辑模式
         TerminalMessage::RenameStart(id) => {
             // 关闭上下文菜单，避免与编辑界面冲突
-            app.terminal.tab_context_menu_id = None;
-            app.terminal.tab_context_menu_pos = None;
+            terminal.tab_context_menu_id = None;
+            terminal.tab_context_menu_pos = None;
 
             // 选中目标标签页，确保其处于活动状态
-            app.terminal.select_terminal(id);
+            terminal.select_terminal(id);
 
             // 初始化编辑状态，将当前标题作为编辑初始值
-            if let Some(tab) = app.terminal.tabs.iter_mut().find(|t| t.id == id) {
-                tab.edit_title = Some(tab.title.clone());
+            if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
+                start_edit(&tab.title, &mut tab.edit_title);
             }
             Task::none()
         }
@@ -65,8 +90,8 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         // 处理编辑过程中的文本变化
         TerminalMessage::RenameChanged(id, v) => {
             // 更新临时编辑缓冲区的内容
-            if let Some(tab) = app.terminal.tabs.iter_mut().find(|t| t.id == id) {
-                tab.edit_title = Some(v);
+            if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
+                change_edit(&mut tab.edit_title, v);
             }
             Task::none()
         }
@@ -74,19 +99,12 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         // 保存编辑后的标题
         TerminalMessage::RenameSave(id) => {
             // 关闭上下文菜单
-            app.terminal.tab_context_menu_id = None;
-            app.terminal.tab_context_menu_pos = None;
+            terminal.tab_context_menu_id = None;
+            terminal.tab_context_menu_pos = None;
 
             // 提取编辑缓冲区内容并应用
-            if let Some(tab) = app.terminal.tabs.iter_mut().find(|t| t.id == id)
-                && let Some(new) = tab.edit_title.take()
-            {
-                // 去除首尾空白字符
-                let name = new.as_str().trim().to_owned();
-                // 仅当标题非空时才更新，防止设置空白标题
-                if !name.is_empty() {
-                    tab.title = name;
-                }
+            if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
+                save_edit(&mut tab.title, &mut tab.edit_title);
             }
             Task::none()
         }
@@ -94,12 +112,12 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         // 取消编辑操作
         TerminalMessage::RenameCancel(id) => {
             // 关闭上下文菜单
-            app.terminal.tab_context_menu_id = None;
-            app.terminal.tab_context_menu_pos = None;
+            terminal.tab_context_menu_id = None;
+            terminal.tab_context_menu_pos = None;
 
             // 清除编辑状态，丢弃所有修改，保留原标题
-            if let Some(tab) = app.terminal.tabs.iter_mut().find(|t| t.id == id) {
-                tab.edit_title = None;
+            if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
+                cancel_edit(&mut tab.edit_title);
             }
             Task::none()
         }

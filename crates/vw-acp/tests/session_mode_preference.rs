@@ -85,6 +85,7 @@ fn desired_model_helpers_preserve_other_session_options() {
         available_models: None,
         available_commands: None,
         config_options: None,
+        desired_config_options: None,
         session_options: Some(SessionStateOptions {
             model: Some("model-a".to_string()),
             allowed_tools: Some(vec!["apply_patch".to_string()]),

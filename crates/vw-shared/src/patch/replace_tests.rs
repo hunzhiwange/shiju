@@ -83,6 +83,48 @@ fn seek_sequence_returns_none_when_eof_match_is_before_start() {
 }
 
 #[test]
+fn seek_sequence_matches_multiline_pattern_in_middle_of_lines() {
+    let lines =
+        vec!["intro".to_string(), "alpha".to_string(), "beta".to_string(), "outro".to_string()];
+    let pattern = vec!["alpha".to_string(), "beta".to_string()];
+
+    assert_eq!(seek_sequence(&lines, &pattern, 0, false), Some(1));
+}
+
+#[test]
+fn seek_sequence_falls_back_to_loop_when_eof_tail_does_not_match() {
+    // eof 为真但末尾行与模式不同，应跳过尾部分支走主循环匹配中间行。
+    let lines = vec!["target".to_string(), "trailing".to_string()];
+    let pattern = vec!["target".to_string()];
+
+    assert_eq!(seek_sequence(&lines, &pattern, 0, true), Some(0));
+}
+
+#[test]
+fn seek_sequence_skips_eof_branch_when_lines_shorter_than_pattern() {
+    let lines = vec!["only".to_string()];
+    let pattern = vec!["only".to_string(), "extra".to_string()];
+
+    assert_eq!(seek_sequence(&lines, &pattern, 0, true), None);
+}
+
+#[test]
+fn seek_sequence_honors_start_index_skipping_earlier_match() {
+    let lines = vec!["dup".to_string(), "mid".to_string(), "dup".to_string()];
+    let pattern = vec!["dup".to_string()];
+
+    assert_eq!(seek_sequence(&lines, &pattern, 1, false), Some(2));
+}
+
+#[test]
+fn seek_sequence_returns_none_when_no_strategy_matches() {
+    let lines = vec!["alpha".to_string(), "beta".to_string()];
+    let pattern = vec!["zeta".to_string()];
+
+    assert_eq!(seek_sequence(&lines, &pattern, 0, false), None);
+}
+
+#[test]
 fn compute_replacements_inserts_at_current_context_when_old_lines_are_empty() {
     let lines = vec!["top".to_string(), "anchor".to_string(), "bottom".to_string()];
     let chunks = vec![chunk(&[], &["inserted"], Some("anchor"), None)];
@@ -151,6 +193,49 @@ fn compute_replacements_returns_contextual_error_when_old_lines_are_missing() {
             assert!(message.contains("期望匹配的旧内容"));
             assert!(message.contains("missing"));
         }
+        Error::Io(_) | Error::Parse(_) => panic!("unexpected error variant"),
+    }
+}
+
+#[test]
+fn compute_replacements_advances_line_index_past_matched_context() {
+    // change_context 命中后 line_index 前移，旧内容应在上下文之后定位。
+    let lines =
+        vec!["dup".to_string(), "marker".to_string(), "dup".to_string(), "tail".to_string()];
+    let chunks = vec![chunk(&["dup"], &["DUP"], Some("marker"), None)];
+
+    let replacements = compute_replacements(&lines, Path::new("sample.txt"), &chunks)
+        .expect("replacement should anchor after the matched context");
+
+    assert_eq!(replacements, vec![(2, 1, vec!["DUP".to_string()])]);
+}
+
+#[test]
+fn compute_replacements_sorts_multiple_chunks_by_start_index() {
+    let lines = vec!["one".to_string(), "two".to_string(), "three".to_string(), "four".to_string()];
+    let chunks =
+        vec![chunk(&["one"], &["ONE"], None, None), chunk(&["three"], &["THREE"], None, None)];
+
+    let replacements = compute_replacements(&lines, Path::new("sample.txt"), &chunks)
+        .expect("both chunks should be located");
+
+    assert_eq!(
+        replacements,
+        vec![(0, 1, vec!["ONE".to_string()]), (2, 1, vec!["THREE".to_string()])]
+    );
+}
+
+#[test]
+fn compute_replacements_keeps_error_when_trailing_empty_pop_still_misses() {
+    // 模式尾部为空被裁掉后仍找不到匹配，应返回上下文错误。
+    let lines = vec!["alpha".to_string()];
+    let chunks = vec![chunk(&["missing", ""], &["new", ""], None, None)];
+
+    let error = compute_replacements(&lines, Path::new("sample.txt"), &chunks)
+        .expect_err("popping the trailing empty line should not create a match");
+
+    match error {
+        Error::ComputeReplacements(message) => assert!(message.contains("missing")),
         Error::Io(_) | Error::Parse(_) => panic!("unexpected error variant"),
     }
 }

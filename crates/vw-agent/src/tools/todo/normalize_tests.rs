@@ -23,3 +23,19 @@ fn normalize_trims_deduplicates_and_allocates_ids() {
     assert_eq!(todos[0].priority, "high");
     assert_eq!(todos[1].id, "2");
 }
+
+#[test]
+fn normalize_reassigns_zero_and_non_numeric_ids_without_downgrading_duplicates() {
+    let todos = normalize::normalize_todos(vec![
+        todo("1", "stable", "completed", "high"),
+        todo("9", "stable", "pending", "low"),
+        todo("0", "zero", "pending", "medium"),
+        todo("external", "text", "in_progress", "low"),
+    ]);
+
+    assert_eq!(todos.len(), 3);
+    assert_eq!(todos[0].status, "completed");
+    assert_eq!(todos[0].priority, "high");
+    assert_eq!(todos[1].id, "2");
+    assert_eq!(todos[2].id, "3");
+}

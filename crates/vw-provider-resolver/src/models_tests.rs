@@ -86,16 +86,6 @@ fn refresh_test_path(name: &str) -> PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
-async fn aaa_refresh_returns_when_fetch_is_disabled() {
-    unsafe { std::env::set_var("VIBEWINDOW_DISABLE_MODELS_FETCH", "true") };
-
-    refresh().await;
-
-    assert!(*flag::VIBEWINDOW_DISABLE_MODELS_FETCH);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[tokio::test]
 async fn refresh_from_url_writes_successful_body_and_invalidates_cache() {
     let path = refresh_test_path("models-refresh-success");
     let body = provider_map_json("remote");
@@ -160,7 +150,8 @@ fn active_models_path() -> PathBuf {
 
 #[test]
 fn url_returns_default_models_dev_url() {
-    assert_eq!(url(), "https://models.dev");
+    assert_eq!(models_url(None), "https://models.dev");
+    assert_eq!(models_url(Some("https://models.example.test")), "https://models.example.test");
 }
 
 #[test]
@@ -201,10 +192,52 @@ fn parse_models_text_accepts_provider_array_and_filters_empty_ids() {
 }
 
 #[test]
+fn parse_models_text_accepts_empty_provider_map_and_array() {
+    assert!(parse_models_text("empty_map", "{}").unwrap().is_empty());
+    assert!(parse_models_text("empty_array", "[]").unwrap().is_empty());
+}
+
+#[test]
 fn parse_models_text_rejects_invalid_or_unsupported_shapes() {
     assert!(parse_models_text("invalid", "{").is_none());
     assert!(parse_models_text("other", "42").is_none());
     assert!(parse_models_text("bad_wrapper", r#"{"providers": 42}"#).is_none());
+}
+
+#[test]
+fn parse_models_text_falls_back_from_bad_providers_wrapper_to_data_wrapper() {
+    let text = format!(
+        r#"{{
+            "providers": 42,
+            "data": {}
+        }}"#,
+        provider_map_json("fallback")
+    );
+
+    let parsed = parse_models_text("fallback", &text).unwrap();
+
+    assert_provider(&parsed, "fallback");
+}
+
+#[test]
+fn parse_models_text_prefers_providers_wrapper_over_data_wrapper() {
+    let text = format!(
+        r#"{{"providers": {}, "data": {}}}"#,
+        provider_map_json("preferred"),
+        provider_map_json("fallback")
+    );
+
+    let parsed = parse_models_text("wrapper_precedence", &text).unwrap();
+
+    assert_provider(&parsed, "preferred");
+    assert!(!parsed.contains_key("fallback"));
+}
+
+#[test]
+fn parse_models_text_rejects_array_items_with_invalid_provider_shape() {
+    let text = r#"[{"id": "bad", "models": []}]"#;
+
+    assert!(parse_models_text("bad_array", text).is_none());
 }
 
 #[test]
@@ -304,6 +337,13 @@ async fn load_falls_back_to_bundled_models_for_empty_or_invalid_cache() {
 
     let data = load().await;
     assert!(!data.is_empty());
+    assert_eq!(fs::read_to_string(&path).unwrap(), BUNDLED_MODELS_TEXT);
+
+    fs::write(&path, "{").expect("cache file should be written");
+
+    let data = load().await;
+    assert!(!data.is_empty());
+    assert_eq!(fs::read_to_string(&path).unwrap(), BUNDLED_MODELS_TEXT);
 
     match original {
         Some(bytes) => fs::write(&path, bytes).expect("cache file should be restored"),

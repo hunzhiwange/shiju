@@ -1,4 +1,4 @@
-use super::{LoadedProjectInfo, ProjectMessage, update};
+use super::{FileTreeAction, LoadedProjectInfo, ProjectMessage, update};
 use crate::app::App;
 
 #[test]
@@ -53,4 +53,42 @@ fn project_message_variants_are_cloneable_and_debuggable() {
     let cloned = message.clone();
 
     assert!(format!("{cloned:?}").contains("ProjectLoadMoreSessions"));
+}
+
+#[test]
+fn file_tree_action_variants_are_cloneable_and_debuggable() {
+    let actions = [
+        FileTreeAction::Open,
+        FileTreeAction::RevealInFinder,
+        FileTreeAction::OpenInTerminal,
+        FileTreeAction::AddToChat,
+        FileTreeAction::FindInFolder,
+        FileTreeAction::Cut,
+        FileTreeAction::Copy,
+        FileTreeAction::Paste,
+        FileTreeAction::CopyPath,
+        FileTreeAction::CopyRelativePath,
+        FileTreeAction::Rename,
+        FileTreeAction::Delete,
+    ];
+
+    let cloned_names = actions.map(|action| format!("{:?}", action.clone()));
+
+    assert_eq!(
+        cloned_names,
+        [
+            "Open",
+            "RevealInFinder",
+            "OpenInTerminal",
+            "AddToChat",
+            "FindInFolder",
+            "Cut",
+            "Copy",
+            "Paste",
+            "CopyPath",
+            "CopyRelativePath",
+            "Rename",
+            "Delete",
+        ]
+    );
 }

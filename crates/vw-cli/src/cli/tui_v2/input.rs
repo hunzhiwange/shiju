@@ -73,7 +73,7 @@ const SLASH_COMMANDS: [TuiSlashCommandSpec; 5] = [
         kind: TuiSlashCommandKind::Clear,
         name: "clear",
         aliases: &["new"],
-        summary: "清空当前 tui_v2 会话内容",
+        summary: "清空当前会话内容",
         takes_argument: false,
     },
     TuiSlashCommandSpec {
@@ -94,13 +94,13 @@ const SLASH_COMMANDS: [TuiSlashCommandSpec; 5] = [
         kind: TuiSlashCommandKind::Exit,
         name: "exit",
         aliases: &["quit"],
-        summary: "退出 tui_v2",
+        summary: "退出 TUI",
         takes_argument: false,
     },
 ];
 
 pub(crate) fn slash_command_help_text() -> &'static str {
-    "斜杠命令:\n  /help            查看帮助\n  /clear | /new   清空当前会话前先二次确认\n  /model [name]   从模型列表选择，或手工输入 provider/model、自定义模型 ID\n  /resume [id]    恢复最近一次或指定会话\n  /exit | /quit   退出 tui_v2 前先二次确认\n快捷键:\n  F2              打开待处理问题 / 授权面板\n  F3              打开待办面板\n  F4              打开任务面板"
+    "斜杠命令:\n  /help            查看帮助\n  /clear | /new   清空当前会话前先二次确认\n  /model [name]   从模型列表选择，或手工输入 provider/model、自定义模型 ID\n  /resume [id]    恢复最近一次或指定会话\n  /exit | /quit   退出 TUI 前先二次确认\n快捷键:\n  F2              打开待处理问题 / 授权面板\n  F3              打开待办面板\n  F4              打开任务面板"
 }
 
 pub(crate) fn parse_slash_command(input: &str) -> Option<TuiSlashCommandInvocation> {
@@ -216,7 +216,7 @@ pub(crate) fn execute_slash_command(
                 state,
                 TuiAction::OverlayPushed(UiOverlay::Confirm(UiConfirmOverlay {
                     title: "退出 TUI".to_string(),
-                    body: "确认离开 tui_v2 并返回 shell 吗？".to_string(),
+                    body: "确认离开 TUI 并返回 shell 吗？".to_string(),
                     confirm_label: "退出".to_string(),
                     cancel_label: "继续留在这里".to_string(),
                     destructive: false,
@@ -229,7 +229,7 @@ pub(crate) fn execute_slash_command(
                 state,
                 TuiAction::OverlayPushed(UiOverlay::Confirm(UiConfirmOverlay {
                     title: "清空会话".to_string(),
-                    body: "确认清空当前 tui_v2 会话内容，但保留当前会话上下文吗？".to_string(),
+                    body: "确认清空当前会话内容，但保留当前会话上下文吗？".to_string(),
                     confirm_label: "清空".to_string(),
                     cancel_label: "保留当前内容".to_string(),
                     destructive: true,
@@ -244,7 +244,7 @@ pub(crate) fn execute_slash_command(
                 reduce_tui_state(state, TuiAction::StatusModelSet(Some(model.clone())));
                 push_local_system_message(
                     state,
-                    format!("当前模型已切换为 {model}"),
+                    "模型已切换，当前值见输入框底部。",
                     UiSystemMessageLevel::Success,
                 );
             } else {
@@ -255,11 +255,7 @@ pub(crate) fn execute_slash_command(
                 };
                 push_local_system_message(
                     state,
-                    format!(
-                        "当前模型: {}\n{}",
-                        state.status.model_name.as_deref().unwrap_or("-"),
-                        hint
-                    ),
+                    format!("{hint}\n当前值见输入框底部。"),
                     UiSystemMessageLevel::Info,
                 );
             }

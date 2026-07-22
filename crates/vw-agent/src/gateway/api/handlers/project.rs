@@ -2,10 +2,11 @@
 
 use axum::Json;
 use axum::Router;
-use axum::extract::{Path, Query};
+use axum::extract::{Extension, Path, Query};
 use axum::routing::{get, post};
 use base64::Engine;
 use vw_api_types::common::{OperationAck, PaginatedResponse, TimestampMs};
+use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_api_types::project::{
     GetProjectResponse, ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse,
     ListProjectsRequest, ProjectChangeRecordDto, ProjectDto, ProjectGitStateDto, ProjectStatus,
@@ -16,11 +17,10 @@ use vw_api_types::worktree::{
     ListWorktreesResponse, ResetMode, ResetWorktreeRequest, WorktreeDto, WorktreeStatus,
 };
 
+use crate::app::agent::file;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project;
-use crate::app::agent::project::instance;
-use crate::app::agent::{file, storage};
 use crate::worktree;
 
 pub(crate) fn router<S>() -> Router<S>
@@ -29,15 +29,18 @@ where
 {
     Router::new()
         .route("/projects", get(project_list_v1))
-        .route("/projects/change-records", get(project_change_records_v1))
         .route("/projects/resolve", post(project_resolve_v1))
         .route("/projects/{project_id}", get(project_get_v1).patch(project_update_v1))
+        .route("/projects/{project_id}/change-records", get(project_change_records_v1))
         .route(
             "/projects/{project_id}/worktrees",
             get(project_worktrees_v1).post(project_worktree_create_v1),
         )
-        .route("/worktrees/{worktree_id}", get(worktree_get_v1).delete(worktree_delete_v1))
-        .route("/worktrees/{worktree_id}/reset", post(worktree_reset_v1))
+        .route(
+            "/projects/{project_id}/worktrees/{worktree_id}",
+            get(worktree_get_v1).delete(worktree_delete_v1),
+        )
+        .route("/projects/{project_id}/worktrees/{worktree_id}/reset", post(worktree_reset_v1))
 }
 
 fn normalize_path(value: &str) -> String {
@@ -90,13 +93,29 @@ fn collect_project_change_records(directory: &str) -> Vec<ProjectChangeRecordDto
     };
 
     let mut opts = git2::DiffOptions::new();
-    opts.include_untracked(true);
+    opts.include_untracked(true).recurse_untracked_dirs(true).show_untracked_content(true);
     let Ok(diff) = repo.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut opts)) else {
         return Vec::new();
     };
 
     let mut items = Vec::<ProjectChangeRecordDto>::new();
-    let mut current_path: Option<String> = None;
+    let mut item_indices = std::collections::HashMap::<String, usize>::new();
+
+    for delta in diff.deltas() {
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .and_then(|value| value.to_str())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| "unknown".to_string());
+
+        item_indices.entry(path.clone()).or_insert_with(|| {
+            let index = items.len();
+            items.push(ProjectChangeRecordDto { path, patch: String::new() });
+            index
+        });
+    }
 
     let _ = diff.print(git2::DiffFormat::Patch, |delta, _hunk, line| {
         let path = delta
@@ -107,13 +126,9 @@ fn collect_project_change_records(directory: &str) -> Vec<ProjectChangeRecordDto
             .map(ToOwned::to_owned)
             .unwrap_or_else(|| "unknown".to_string());
 
-        if current_path.as_ref() != Some(&path) {
-            current_path = Some(path.clone());
-            items.push(ProjectChangeRecordDto { path, patch: String::new() });
-        }
-
         if let Ok(content) = std::str::from_utf8(line.content())
-            && let Some(item) = items.last_mut()
+            && let Some(index) = item_indices.get(&path).copied()
+            && let Some(item) = items.get_mut(index)
         {
             item.patch.push_str(content);
         }
@@ -198,29 +213,22 @@ fn map_worktree(project_id: &str, info: &project::Info, directory: String) -> Wo
     }
 }
 
-async fn load_project(project_id: &str) -> Result<project::Info, ApiError> {
-    let mut info = storage::read::<project::Info>(&["project", project_id])
-        .await
-        .map_err(|_| ApiError::not_found("project not found"))?;
-    info.sandboxes.retain(|path| std::path::Path::new(path).is_dir());
-    Ok(info)
+fn project_scope(tenant: TenantScope, project_id: String) -> Result<ProjectScope, ApiError> {
+    ProjectScope::new(tenant, ProjectId::from(project_id))
+        .map_err(|error| ApiError::bad_request(error.to_string()))
 }
 
-async fn project_by_directory(directory: &str) -> Result<project::Info, ApiError> {
+async fn load_project(scope: &ProjectScope) -> Result<project::Info, ApiError> {
+    project::get(scope)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?
+        .ok_or_else(|| ApiError::not_found("project not found"))
+}
+
+fn project_owns_directory(info: &project::Info, directory: &str) -> bool {
     let target = normalize_path(directory);
-    let projects = project::list().await.map_err(|e| ApiError::bad_request(e.to_string()))?;
-    if let Some(info) = projects.into_iter().find(|info| {
-        normalize_path(&info.worktree) == target
-            || info.sandboxes.iter().any(|sandbox| normalize_path(sandbox) == target)
-    }) {
-        return Ok(info);
-    }
-    with_instance(directory.to_string(), move || {
-        Box::pin(async move {
-            instance::project().ok_or_else(|| ApiError::not_found("project not found"))
-        })
-    })
-    .await
+    normalize_path(&info.worktree) == target
+        || info.sandboxes.iter().any(|sandbox| normalize_path(sandbox) == target)
 }
 
 async fn worktree_list_for_project(info: &project::Info) -> Result<Vec<String>, ApiError> {
@@ -245,14 +253,16 @@ async fn worktree_list_for_project(info: &project::Info) -> Result<Vec<String>, 
 }
 
 async fn project_list_v1(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<ListProjectsRequest>,
 ) -> Result<Json<PaginatedResponse<ProjectDto>>, ApiError> {
-    let mut items = project::list()
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?
-        .into_iter()
-        .map(|info| map_project(&info))
-        .collect::<Vec<_>>();
+    let projects =
+        project::list(&tenant).await.map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let mut items = crate::global_database::run_isolated(move || {
+        projects.into_iter().map(|info| map_project(&info)).collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|error| ApiError::internal(error.to_string()))?;
     items.sort_by(|left, right| {
         right
             .updated_at_ms
@@ -293,19 +303,21 @@ async fn project_list_v1(
 }
 
 async fn project_resolve_v1(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<ResolveProjectRequest>,
 ) -> Result<Json<ResolveProjectResponse>, ApiError> {
-    let directory = body.directory.clone();
-    let info = with_instance(directory, move || {
-        Box::pin(async move {
-            instance::project().ok_or_else(|| ApiError::not_found("project not found"))
-        })
-    })
-    .await?;
-    Ok(Json(ResolveProjectResponse { project: map_project(&info) }))
+    let (info, _) = project::from_directory(&tenant, body.directory)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let project = crate::global_database::run_isolated(move || map_project(&info))
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    Ok(Json(ResolveProjectResponse { project }))
 }
 
 async fn project_change_records_v1(
+    Extension(tenant): Extension<TenantScope>,
+    Path(project_id): Path<String>,
     Query(query): Query<ListProjectChangeRecordsRequest>,
 ) -> Result<Json<ListProjectChangeRecordsResponse>, ApiError> {
     let directory = query
@@ -316,7 +328,11 @@ async fn project_change_records_v1(
         .ok_or_else(|| ApiError::bad_request("directory is required"))?
         .to_string();
 
-    let _ = project_by_directory(&directory).await?;
+    let scope = project_scope(tenant, project_id)?;
+    let info = load_project(&scope).await?;
+    if !project_owns_directory(&info, &directory) {
+        return Err(ApiError::not_found("project directory not found"));
+    }
     let items = tokio::task::spawn_blocking(move || collect_project_change_records(&directory))
         .await
         .map_err(|err| ApiError::internal(format!("project change records task failed: {err}")))?;
@@ -325,35 +341,50 @@ async fn project_change_records_v1(
 }
 
 async fn project_get_v1(
+    Extension(tenant): Extension<TenantScope>,
     Path(project_id): Path<String>,
 ) -> Result<Json<GetProjectResponse>, ApiError> {
-    let info = load_project(&project_id).await?;
-    Ok(Json(GetProjectResponse { project: map_project(&info) }))
+    let scope = project_scope(tenant, project_id)?;
+    let info = load_project(&scope).await?;
+    let project = crate::global_database::run_isolated(move || map_project(&info))
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    Ok(Json(GetProjectResponse { project }))
 }
 
 async fn project_update_v1(
+    Extension(tenant): Extension<TenantScope>,
     Path(project_id): Path<String>,
     Json(body): Json<UpdateProjectRequest>,
 ) -> Result<Json<GetProjectResponse>, ApiError> {
-    let updated = project::update(project::UpdateInput {
-        project_id,
-        name: body.name.map(Some),
-        icon: body.icon.map(|dto| project::IconUpdate {
-            url: None,
-            override_icon: Some(dto.override_icon),
-            color: Some(dto.color),
-        }),
-        commands: body.commands.map(|dto| project::CommandsUpdate { start: Some(dto.start) }),
-    })
+    let scope = project_scope(tenant, project_id.clone())?;
+    let updated = project::update(
+        &scope,
+        project::UpdateInput {
+            project_id,
+            name: body.name.map(Some),
+            icon: body.icon.map(|dto| project::IconUpdate {
+                url: None,
+                override_icon: Some(dto.override_icon),
+                color: Some(dto.color),
+            }),
+            commands: body.commands.map(|dto| project::CommandsUpdate { start: Some(dto.start) }),
+        },
+    )
     .await
     .map_err(|e| ApiError::bad_request(e.to_string()))?;
-    Ok(Json(GetProjectResponse { project: map_project(&updated) }))
+    let project = crate::global_database::run_isolated(move || map_project(&updated))
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    Ok(Json(GetProjectResponse { project }))
 }
 
 async fn project_worktrees_v1(
+    Extension(tenant): Extension<TenantScope>,
     Path(project_id): Path<String>,
 ) -> Result<Json<ListWorktreesResponse>, ApiError> {
-    let info = load_project(&project_id).await?;
+    let scope = project_scope(tenant, project_id.clone())?;
+    let info = load_project(&scope).await?;
     let items = worktree_list_for_project(&info)
         .await?
         .into_iter()
@@ -363,10 +394,12 @@ async fn project_worktrees_v1(
 }
 
 async fn project_worktree_create_v1(
+    Extension(tenant): Extension<TenantScope>,
     Path(project_id): Path<String>,
     Json(body): Json<CreateWorktreeRequest>,
 ) -> Result<Json<CreateWorktreeResponse>, ApiError> {
-    let info = load_project(&project_id).await?;
+    let scope = project_scope(tenant, project_id.clone())?;
+    let info = load_project(&scope).await?;
     let context_directory = project_context_directory(&info)?;
     let created: worktree::Info = with_instance(context_directory, move || {
         Box::pin(async move {
@@ -386,19 +419,29 @@ async fn project_worktree_create_v1(
 }
 
 async fn worktree_get_v1(
-    Path(worktree_id): Path<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Path((project_id, worktree_id)): Path<(String, String)>,
 ) -> Result<Json<GetWorktreeResponse>, ApiError> {
+    let scope = project_scope(tenant, project_id)?;
     let directory = directory_from_worktree_id(&worktree_id)?;
-    let project = project_by_directory(&directory).await?;
+    let project = load_project(&scope).await?;
+    if !project_owns_directory(&project, &directory) {
+        return Err(ApiError::not_found("worktree not found"));
+    }
     Ok(Json(GetWorktreeResponse { worktree: map_worktree(&project.id, &project, directory) }))
 }
 
 async fn worktree_delete_v1(
-    Path(worktree_id): Path<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Path((project_id, worktree_id)): Path<(String, String)>,
     Json(body): Json<DeleteWorktreeRequest>,
 ) -> Result<Json<OperationAck>, ApiError> {
+    let scope = project_scope(tenant, project_id)?;
     let directory = directory_from_worktree_id(&worktree_id)?;
-    let project = project_by_directory(&directory).await?;
+    let project = load_project(&scope).await?;
+    if !project_owns_directory(&project, &directory) {
+        return Err(ApiError::not_found("worktree not found"));
+    }
     let context_directory = project_context_directory(&project)?;
     with_instance::<()>(context_directory, move || {
         Box::pin(async move {
@@ -416,11 +459,16 @@ async fn worktree_delete_v1(
 }
 
 async fn worktree_reset_v1(
-    Path(worktree_id): Path<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Path((project_id, worktree_id)): Path<(String, String)>,
     Json(body): Json<ResetWorktreeRequest>,
 ) -> Result<Json<OperationAck>, ApiError> {
+    let scope = project_scope(tenant, project_id)?;
     let directory = directory_from_worktree_id(&worktree_id)?;
-    let project = project_by_directory(&directory).await?;
+    let project = load_project(&scope).await?;
+    if !project_owns_directory(&project, &directory) {
+        return Err(ApiError::not_found("worktree not found"));
+    }
     let context_directory = project_context_directory(&project)?;
     let base_ref = match body.mode {
         ResetMode::Soft | ResetMode::Mixed | ResetMode::Hard => body.target_ref,

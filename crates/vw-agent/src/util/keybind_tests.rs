@@ -21,3 +21,58 @@ fn parses_formats_and_matches_keybindings() {
     );
     assert!(parse("none").is_empty());
 }
+
+#[test]
+fn formats_empty_leader_and_all_modifier_states() {
+    let empty = Info {
+        name: String::new(),
+        ctrl: false,
+        meta: false,
+        shift: false,
+        super_key: false,
+        leader: false,
+    };
+    let leader = Info { leader: true, ..empty.clone() };
+    let modified = Info {
+        name: "x".into(),
+        ctrl: true,
+        meta: true,
+        shift: true,
+        super_key: true,
+        leader: true,
+    };
+
+    assert_eq!(to_string(None), "");
+    assert_eq!(to_string(Some(&empty)), "");
+    assert_eq!(to_string(Some(&leader)), "<leader>");
+    assert_eq!(to_string(Some(&modified)), "<leader> ctrl+alt+super+shift+x");
+    assert!(!matches(None, &empty));
+    assert!(!matches(Some(&leader), &empty));
+}
+
+#[test]
+fn parse_normalizes_modifier_aliases_escape_and_multiple_combinations() {
+    let parsed = parse("CTRL+OPTION+SUPER+SHIFT+ESC,meta+x");
+
+    assert_eq!(
+        parsed,
+        vec![
+            Info {
+                name: "escape".into(),
+                ctrl: true,
+                meta: true,
+                shift: true,
+                super_key: true,
+                leader: false,
+            },
+            Info {
+                name: "x".into(),
+                ctrl: false,
+                meta: true,
+                shift: false,
+                super_key: false,
+                leader: false,
+            },
+        ]
+    );
+}

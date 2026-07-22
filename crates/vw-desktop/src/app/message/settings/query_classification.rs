@@ -10,9 +10,8 @@ use vw_config_types::routing::ClassificationRule;
 
 use super::messages::{QueryClassificationMessage, SettingsMessage};
 
-fn sync_to_config(app: &mut App) {
-    let rules = app
-        .query_classification_settings
+fn rules_for_config(app: &App) -> Vec<ClassificationRule> {
+    app.query_classification_settings
         .rules
         .iter()
         .filter(|rule| {
@@ -32,13 +31,30 @@ fn sync_to_config(app: &mut App) {
             max_length: None,
             priority: rule.priority_input.trim().parse::<i32>().unwrap_or(0),
         })
-        .collect::<Vec<_>>();
+        .collect()
+}
+
+fn sync_to_config(app: &mut App) {
+    let rules = rules_for_config(app);
 
     if let Err(err) = update_query_classification_config_result(|cfg| {
         cfg.enabled = app.query_classification_settings.enabled && !rules.is_empty();
         cfg.rules = rules;
     }) {
         app.query_classification_settings.save_error = Some(server_config_unreachable_error(err));
+    }
+}
+
+fn rule_input_from_config(rule: ClassificationRule) -> QueryClassificationRuleInput {
+    QueryClassificationRuleInput {
+        pattern: rule
+            .keywords
+            .into_iter()
+            .next()
+            .or_else(|| rule.patterns.into_iter().next())
+            .unwrap_or_default(),
+        category: rule.hint,
+        priority_input: rule.priority.to_string(),
     }
 }
 
@@ -77,20 +93,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         QueryClassificationMessage::Refresh => {
             let cfg = load_query_classification_config();
             app.query_classification_settings.enabled = cfg.enabled;
-            app.query_classification_settings.rules = cfg
-                .rules
-                .into_iter()
-                .map(|rule| QueryClassificationRuleInput {
-                    pattern: rule
-                        .keywords
-                        .into_iter()
-                        .next()
-                        .or_else(|| rule.patterns.into_iter().next())
-                        .unwrap_or_default(),
-                    category: rule.hint,
-                    priority_input: rule.priority.to_string(),
-                })
-                .collect();
+            app.query_classification_settings.rules =
+                cfg.rules.into_iter().map(rule_input_from_config).collect();
             app.query_classification_settings.save_error = None;
             Task::none()
         }

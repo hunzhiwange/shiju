@@ -1,10 +1,11 @@
 use iced::Color;
+use iced::advanced::Widget;
 
 use crate::app::DiffTheme;
 
 use super::utils::{
     FileStatus, Lang, get_diff_colors, get_word_diff_ranges, highlight_segments, lang_for_file,
-    render_line_content,
+    line_content_parts, render_line_content,
 };
 
 #[test]
@@ -69,6 +70,15 @@ fn lang_for_file_recognizes_supported_extensions() {
 }
 
 #[test]
+fn lang_for_file_requires_a_lowercase_terminal_extension() {
+    for name in ["MAIN.RS", "component.TSX", "archive.rs.bak", "README.rs.txt", ""] {
+        assert!(matches!(lang_for_file(name), Lang::Other));
+    }
+
+    assert!(matches!(lang_for_file("nested/src/lib.rs"), Lang::Rust));
+}
+
+#[test]
 fn highlight_segments_splits_words_symbols_and_keywords() {
     assert!(highlight_segments("", Lang::Rust, DiffTheme::GitHub).is_empty());
 
@@ -84,6 +94,28 @@ fn highlight_segments_splits_words_symbols_and_keywords() {
 }
 
 #[test]
+fn highlight_segments_preserves_utf8_boundaries_and_exact_keyword_matches() {
+    let line = "fn café_2()";
+    let chunks: Vec<_> = highlight_segments(line, Lang::Rust, DiffTheme::GitHub)
+        .into_iter()
+        .map(|(start, end, is_keyword)| (&line[start..end], is_keyword))
+        .collect();
+
+    assert_eq!(
+        chunks,
+        vec![
+            ("fn", true),
+            (" ", false),
+            ("caf", false),
+            ("é", false),
+            ("_2", false),
+            ("()", false),
+        ]
+    );
+    assert_eq!(highlight_segments("+-=", Lang::Other, DiffTheme::Monokai), vec![(0, 3, false)]);
+}
+
+#[test]
 fn word_diff_ranges_trim_changed_words_but_keep_whitespace_only_changes() {
     let (old_ranges, new_ranges) = get_word_diff_ranges("hello world", "hello rust");
     assert_eq!(old_ranges, vec![6..11]);
@@ -96,6 +128,17 @@ fn word_diff_ranges_trim_changed_words_but_keep_whitespace_only_changes() {
     let (old_ranges, new_ranges) = get_word_diff_ranges("a \n b", "a \n  b");
     assert!(old_ranges.is_empty() || old_ranges.iter().all(|range| range.start < range.end));
     assert!(new_ranges.is_empty() || new_ranges.iter().all(|range| range.start < range.end));
+}
+
+#[test]
+fn word_diff_ranges_cover_whole_text_insertions_and_deletions() {
+    let (old_ranges, new_ranges) = get_word_diff_ranges("", "rust");
+    assert!(old_ranges.is_empty());
+    assert_eq!(new_ranges, vec![0..4]);
+
+    let (old_ranges, new_ranges) = get_word_diff_ranges("rust", "");
+    assert_eq!(old_ranges, vec![0..4]);
+    assert!(new_ranges.is_empty());
 }
 
 #[test]
@@ -117,13 +160,95 @@ fn render_line_content_builds_rows_for_plain_syntax_and_highlighted_ranges() {
 }
 
 #[test]
-fn diff_colors_are_distinct_for_builtin_themes() {
-    let github = get_diff_colors(DiffTheme::GitHub);
-    let monokai = get_diff_colors(DiffTheme::Monokai);
+fn render_line_content_accepts_empty_content_and_ranges_beyond_content() {
+    let base = Color::from_rgb8(1, 2, 3);
+    let highlight = Color::from_rgb8(4, 5, 6);
 
-    assert_eq!(github.0, Color::TRANSPARENT);
-    assert_eq!(monokai.0, Color::TRANSPARENT);
-    assert_ne!(github.1, monokai.1);
-    assert_ne!(github.3, github.5);
-    assert_ne!(monokai.3, monokai.5);
+    let _ = render_line_content("", Lang::Rust, DiffTheme::GitHub, true, &[0..0], base, highlight);
+    let _ = render_line_content(
+        "plain",
+        Lang::Other,
+        DiffTheme::Monokai,
+        false,
+        &[10..20],
+        base,
+        highlight,
+    );
+}
+
+#[test]
+fn render_line_content_splits_disjoint_highlight_ranges_at_exact_boundaries() {
+    let row = render_line_content(
+        "abcdef",
+        Lang::Other,
+        DiffTheme::GitHub,
+        false,
+        &[1..3, 4..6],
+        Color::TRANSPARENT,
+        Color::BLACK,
+    );
+
+    assert_eq!(Widget::children(&row).len(), 4);
+}
+
+#[test]
+fn line_content_parts_marks_highlighted_ranges_across_syntax_segments() {
+    let parts = line_content_parts("let value = 1", Lang::Rust, DiffTheme::GitHub, true, &[1..9]);
+    let spans = parts
+        .iter()
+        .map(|part| (part.start, part.end, part.color.is_some(), part.is_highlighted))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        spans,
+        vec![
+            (0, 1, true, false),
+            (1, 3, true, true),
+            (3, 4, false, true),
+            (4, 9, false, true),
+            (9, 12, false, false),
+            (12, 13, false, false),
+        ]
+    );
+}
+
+#[test]
+fn line_content_parts_handles_empty_ranges_and_ranges_outside_content() {
+    let plain = line_content_parts("abc", Lang::Other, DiffTheme::Monokai, false, &[]);
+    assert_eq!(plain.len(), 1);
+    assert_eq!((plain[0].start, plain[0].end, plain[0].is_highlighted), (0, 3, false));
+
+    let outside = line_content_parts("abc", Lang::Other, DiffTheme::Monokai, false, &[10..12]);
+    assert_eq!(outside.len(), 1);
+    assert_eq!((outside[0].start, outside[0].end, outside[0].is_highlighted), (0, 3, false));
+}
+
+#[test]
+fn diff_colors_match_builtin_theme_palettes() {
+    assert_eq!(
+        get_diff_colors(DiffTheme::GitHub),
+        (
+            Color::TRANSPARENT,
+            Color::from_rgb8(0x24, 0x29, 0x2E),
+            Color::from_rgb8(0xEA, 0xF7, 0xEE),
+            Color::from_rgb8(0xC7, 0xE9, 0xD1),
+            Color::from_rgb8(0xFE, 0xEF, 0xEE),
+            Color::from_rgb8(0xF7, 0xC9, 0xC5),
+            Color::from_rgb8(0xEE, 0xF3, 0xF8),
+            Color::from_rgb8(0x57, 0x60, 0x6A),
+        )
+    );
+    assert_eq!(
+        get_diff_colors(DiffTheme::Monokai),
+        (
+            Color::TRANSPARENT,
+            Color::from_rgb8(0xE6, 0xED, 0xF3),
+            Color::from_rgb8(0x13, 0x2A, 0x1B),
+            Color::from_rgb8(0x1E, 0x4B, 0x2C),
+            Color::from_rgb8(0x31, 0x1A, 0x18),
+            Color::from_rgb8(0x60, 0x30, 0x2B),
+            Color::from_rgb8(0x1B, 0x20, 0x27),
+            Color::from_rgb8(0xC9, 0xD1, 0xD9),
+        )
+    );
 }

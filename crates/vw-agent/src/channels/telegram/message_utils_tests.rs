@@ -48,6 +48,32 @@ fn split_message_falls_back_to_space_when_newline_is_too_early() {
 }
 
 #[test]
+fn split_message_prefers_space_when_no_newline_exists() {
+    let chunk_limit = TELEGRAM_MAX_MESSAGE_LENGTH - TELEGRAM_CONTINUATION_OVERHEAD;
+    let first_word = "a".repeat(chunk_limit - 10);
+    let tail = "b".repeat(100);
+    let message = format!("{first_word} {tail}");
+
+    let chunks = split_message_for_telegram(&message);
+
+    assert_eq!(chunks, vec![format!("{first_word} "), tail]);
+    assert_eq!(chunks.concat(), message);
+}
+
+#[test]
+fn split_message_hard_splits_when_early_newline_has_no_later_space() {
+    let early_line = "a".repeat(1000);
+    let tail = "测".repeat(TELEGRAM_MAX_MESSAGE_LENGTH);
+    let message = format!("{early_line}\n{tail}");
+
+    let chunks = split_message_for_telegram(&message);
+
+    assert_eq!(chunks.len(), 2);
+    assert!(chunks.iter().all(|chunk| chunk.chars().count() <= TELEGRAM_MAX_MESSAGE_LENGTH));
+    assert_eq!(chunks.concat(), message);
+}
+
+#[test]
 fn split_message_hard_splits_when_no_natural_boundary_exists() {
     let message = "测".repeat(TELEGRAM_MAX_MESSAGE_LENGTH + 10);
 

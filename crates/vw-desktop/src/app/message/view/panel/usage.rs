@@ -29,8 +29,38 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::UsageStepToggled(step_index) => {
             if app.usage_step_expanded.contains(&step_index) {
                 app.usage_step_expanded.remove(&step_index);
-            } else {
-                app.usage_step_expanded.insert(step_index);
+                return Task::none();
+            }
+            app.usage_step_expanded.insert(step_index);
+            let Some(session_id) = app.active_session_id.clone() else {
+                return Task::none();
+            };
+            let key = (session_id.clone(), step_index);
+            if app.usage_step_raw_payloads.contains_key(&key)
+                || app.usage_step_raw_loading.contains(&key)
+            {
+                return Task::none();
+            }
+            app.usage_step_raw_loading.insert(key);
+            Task::perform(
+                async move {
+                    let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(
+                        &session_id,
+                        step_index,
+                    )
+                    .await;
+                    (session_id, step_index, result)
+                },
+                |(session_id, step_index, result)| {
+                    Message::View(ViewMessage::UsageStepRawLoaded(session_id, step_index, result))
+                },
+            )
+        }
+        ViewMessage::UsageStepRawLoaded(session_id, step_index, result) => {
+            let key = (session_id.clone(), step_index);
+            app.usage_step_raw_loading.remove(&key);
+            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+                app.usage_step_raw_payloads.insert(key, result);
             }
             Task::none()
         }

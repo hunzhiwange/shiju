@@ -8,14 +8,12 @@
 //!
 //! 交互式模式由以下几个核心子模块组成：
 //!
-//! - **`event_handlers`**: 处理终端事件（键盘输入、鼠标操作、窗口大小变化）
-//! - **`input_submit`**: 处理用户输入提交、命令解析和执行流程
-//! - **`loop_core`**: 实现主交互循环的状态管理和协调逻辑
+//! - **`tui_v2`**: gateway-first 终端宿主，处理输入、渲染和运行时事件
 //!
 //! ## 主要功能
 //!
 //! - 实时对话：支持与 AI 代理的流式对话交互
-//! - 命令系统：内置命令（如 `/help`、`/exit`）用于控制会话
+//! - 命令系统：内置命令（如 `/help`）用于控制会话
 //! - 会话管理：维护会话历史、上下文和状态
 //! - TUI 渲染：基于 crossterm 的终端用户界面渲染
 //! - 事件响应：键盘快捷键、鼠标滚动、窗口自适应
@@ -40,22 +38,16 @@
 //! 本模块的交互循环在单个异步任务中运行，不涉及跨线程共享状态。
 //! 所有状态变更都在事件循环的主控制流中顺序执行。
 
-mod event_handlers;
-#[cfg(test)]
-#[path = "event_handlers_tests.rs"]
-mod event_handlers_tests;
-mod input_submit;
-mod loop_core;
-#[cfg(test)]
-#[path = "loop_core_tests.rs"]
-mod loop_core_tests;
-
 use crate::app::agent::config::Config;
 use anyhow::Result;
 
-use super::AgentTuiMode;
 use super::setup::CliSetup;
-use super::tui_v2::{TuiRunMode, run_tui_v2};
+use super::tui_v2::TuiRunMode;
+
+#[cfg(test)]
+use self::tests::run_tui_v2;
+#[cfg(not(test))]
+use super::tui_v2::run_tui_v2;
 
 /// 启动交互式命令行会话
 ///
@@ -107,14 +99,9 @@ use super::tui_v2::{TuiRunMode, run_tui_v2};
 pub(crate) async fn run_interactive(
     config: &Config,
     setup: &CliSetup,
-    final_output: &mut String,
-    tui_mode: AgentTuiMode,
+    _final_output: &mut String,
 ) -> Result<()> {
-    match tui_mode {
-        AgentTuiMode::Legacy => loop_core::run_interactive_loop(config, setup, final_output).await,
-        AgentTuiMode::V2 => run_tui_v2(config, setup, TuiRunMode::Standard),
-        AgentTuiMode::V2Shadow => run_tui_v2(config, setup, TuiRunMode::Shadow),
-    }
+    run_tui_v2(config, setup, TuiRunMode::Standard)
 }
 
 #[cfg(test)]

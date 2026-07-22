@@ -22,6 +22,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_mode_popover = false;
                 app.show_send_mode_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_file_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
@@ -41,6 +42,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_model_popover = false;
                 app.show_send_mode_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_file_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
@@ -59,6 +61,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_model_popover = false;
                 app.show_mode_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_file_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
@@ -74,6 +77,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_mode_popover = false;
                 app.show_send_mode_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_executor_popover = false;
@@ -89,6 +93,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 app.show_file_popover = false;
                 app.show_usage_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_session_actions_popover = false;
                 app.show_executor_popover = false;
@@ -111,6 +116,22 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
+        ViewMessage::ToggleReasoningEffortPopover => {
+            let new = !app.show_reasoning_effort_popover;
+            app.show_reasoning_effort_popover = new;
+            if new {
+                app.show_model_popover = false;
+                app.show_mode_popover = false;
+                app.show_send_mode_popover = false;
+                app.show_file_popover = false;
+                app.show_acp_popover = false;
+                app.show_usage_popover = false;
+                app.show_session_tool_selector_popover = false;
+                app.show_session_actions_popover = false;
+                app.show_executor_popover = false;
+            }
+            Task::none()
+        }
         ViewMessage::ToggleUsagePopover => {
             let new = !app.show_usage_popover;
             app.show_usage_popover = new;
@@ -120,6 +141,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 app.show_file_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_session_actions_popover = false;
                 app.show_executor_popover = false;
@@ -135,6 +157,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 app.show_file_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_actions_popover = false;
                 app.show_executor_popover = false;
@@ -150,6 +173,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 app.show_file_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_executor_popover = false;
@@ -162,6 +186,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_send_mode_popover = false;
             app.show_file_popover = false;
             app.show_acp_popover = false;
+            app.show_reasoning_effort_popover = false;
             app.show_usage_popover = false;
             app.show_session_tool_selector_popover = false;
             app.show_session_actions_popover = false;
@@ -190,6 +215,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_acp_popover = false;
             Task::none()
         }
+        ViewMessage::CloseReasoningEffortPopover => {
+            app.show_reasoning_effort_popover = false;
+            Task::none()
+        }
         ViewMessage::CloseUsagePopover => {
             app.show_usage_popover = false;
             Task::none()
@@ -207,6 +236,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_send_mode_popover = false;
                 app.show_file_popover = false;
                 app.show_acp_popover = false;
+                app.show_reasoning_effort_popover = false;
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_session_actions_popover = false;

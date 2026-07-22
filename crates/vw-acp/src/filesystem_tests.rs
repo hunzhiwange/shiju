@@ -174,6 +174,58 @@ async fn read_text_file_zero_line_starts_from_first_line() {
 }
 
 #[tokio::test]
+async fn read_text_file_limit_without_line_defaults_details_to_first_line() {
+    let root = temp_root("read-limit-only");
+    let file_path = root.join("sample.txt");
+    std::fs::write(&file_path, "one\ntwo\nthree").expect("write sample");
+    let operations = Arc::new(Mutex::new(Vec::<ClientOperation>::new()));
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: root,
+        on_operation: Some({
+            let operations = Arc::clone(&operations);
+            Arc::new(move |operation| operations.lock().push(operation))
+        }),
+        ..FileSystemHandlersOptions::default()
+    });
+
+    let response = handlers
+        .read_text_file(&ReadTextFileRequest::new("session-1", &file_path).limit(2_u32))
+        .await
+        .expect("read limited window");
+
+    assert_eq!(response.content, "one\ntwo");
+    let operations = operations.lock();
+    assert_eq!(operations[0].details.as_deref(), Some("line=1, limit=2"));
+    assert_eq!(operations[1].details.as_deref(), Some("line=1, limit=2"));
+}
+
+#[tokio::test]
+async fn read_text_file_line_without_limit_reads_remaining_content() {
+    let root = temp_root("read-line-only");
+    let file_path = root.join("sample.txt");
+    std::fs::write(&file_path, "one\ntwo\nthree").expect("write sample");
+    let operations = Arc::new(Mutex::new(Vec::<ClientOperation>::new()));
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: root,
+        on_operation: Some({
+            let operations = Arc::clone(&operations);
+            Arc::new(move |operation| operations.lock().push(operation))
+        }),
+        ..FileSystemHandlersOptions::default()
+    });
+
+    let response = handlers
+        .read_text_file(&ReadTextFileRequest::new("session-1", &file_path).line(2_u32))
+        .await
+        .expect("read remaining lines");
+
+    assert_eq!(response.content, "two\nthree");
+    let operations = operations.lock();
+    assert_eq!(operations[0].details.as_deref(), Some("line=2, limit=all"));
+    assert_eq!(operations[1].details.as_deref(), Some("line=2, limit=all"));
+}
+
+#[tokio::test]
 async fn read_text_file_denied_mode_emits_failed_completion() {
     let root = temp_root("read-denied");
     let file_path = root.join("sample.txt");
@@ -437,6 +489,28 @@ async fn write_text_file_creates_parent_directories() {
         .expect("write nested file");
 
     assert_eq!(std::fs::read_to_string(target).expect("read nested file"), "content");
+}
+
+#[tokio::test]
+async fn write_text_file_normalizes_curdir_components_inside_root() {
+    let root = temp_root("write-curdir-inside");
+    let target = root.join(".").join("nested").join(".").join("curdir.txt");
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: root.clone(),
+        permission_mode: PermissionMode::ApproveAll,
+        ..FileSystemHandlersOptions::default()
+    });
+
+    handlers
+        .write_text_file(&WriteTextFileRequest::new("session-1", target, "content"))
+        .await
+        .expect("curdir path inside root should be writable");
+
+    assert_eq!(
+        std::fs::read_to_string(root.join("nested").join("curdir.txt"))
+            .expect("read normalized file"),
+        "content"
+    );
 }
 
 #[tokio::test]

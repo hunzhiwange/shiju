@@ -159,6 +159,51 @@ fn has_argument_condition_detects_argument() {
 }
 
 #[test]
+fn not_has_argument_condition_rejects_matching_argument() {
+    let rule = PermissionRule {
+        action: RuleAction::Allow,
+        pattern: RulePattern::Prefix { command: "git status".into() },
+        condition: Some(RuleCondition::NotHasArgument { arg: "--porcelain".into() }),
+        reason: "ok".into(),
+    };
+
+    assert!(rule.matches(&parse_command("git status --short"), &context()));
+    assert!(!rule.matches(&parse_command("git status --porcelain"), &context()));
+}
+
+#[test]
+fn workdir_condition_requires_exact_workspace_path() {
+    let rule = PermissionRule {
+        action: RuleAction::Allow,
+        pattern: RulePattern::Exact { command: "pwd".into() },
+        condition: Some(RuleCondition::WorkdirMatches { path: PathBuf::from("/workspace") }),
+        reason: "ok".into(),
+    };
+    let mut elsewhere = context();
+    elsewhere.workspace_dir = PathBuf::from("/other");
+
+    assert!(rule.matches(&parse_command("pwd"), &context()));
+    assert!(!rule.matches(&parse_command("pwd"), &elsewhere));
+}
+
+#[test]
+fn approved_ask_rule_allows_without_returning_prompt() {
+    let mut engine = RuleEngine::new(false);
+    engine.push_rule(PermissionRule {
+        action: RuleAction::Ask,
+        pattern: RulePattern::Exact { command: "git reset --hard".into() },
+        condition: None,
+        reason: "needs approval".into(),
+    });
+    let mut approved = context();
+    approved.approved = true;
+
+    let result = engine.check(&parse_command("git reset --hard"), &approved);
+
+    assert_eq!(result.permission, Some(Permission::Allow));
+}
+
+#[test]
 fn first_matching_deny_rule_wins() {
     let mut engine = RuleEngine::new(false);
     engine.push_rule(PermissionRule {

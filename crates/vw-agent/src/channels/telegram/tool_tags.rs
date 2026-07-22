@@ -101,12 +101,6 @@ pub fn strip_tool_call_tags(message: &str) -> String {
 
             // 获取 JSON 消耗的字节数
             let consumed = stream.byte_offset();
-            if consumed == 0 {
-                // 未消耗任何字节，保留 "erte" 文本并继续
-                cursor = start + "erte".len();
-                output.push_str("erte");
-                continue;
-            }
 
             // 定位到 JSON 之后的第一个非空白字符
             let mut after_json = json_start + consumed;

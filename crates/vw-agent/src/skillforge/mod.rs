@@ -471,6 +471,10 @@ impl SkillForge {
             }
         }
 
+        self.report_from_candidates(candidates)
+    }
+
+    fn report_from_candidates(&self, mut candidates: Vec<ScoutResult>) -> Result<ForgeReport> {
         // 对候选项进行去重(基于 URL)
         // 避免不同源返回相同技能时重复处理
         scout::dedup(&mut candidates);

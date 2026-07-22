@@ -3,6 +3,7 @@ use super::external::{
     file_manager_label, open_external_module, supported_external_apps,
 };
 use crate::app::assets::Icon;
+use crate::app::message::view::MenuType;
 use crate::app::state::{ExternalOpenApp, RuntimePlatform};
 use crate::app::{App, Screen};
 
@@ -63,6 +64,16 @@ fn external_app_logo_covers_every_supported_target() {
 }
 
 #[test]
+fn finder_logo_uses_file_explorer_svg_on_non_macos_platforms() {
+    for platform in [RuntimePlatform::Windows, RuntimePlatform::Linux] {
+        assert_eq!(
+            external_app_logo(ExternalOpenApp::Finder, Some(platform)),
+            ExternalAppLogo::Svg(Icon::AppFileExplorer)
+        );
+    }
+}
+
+#[test]
 fn supported_external_apps_keeps_menu_order_and_includes_cached_false_entries() {
     let mut app = test_app();
     app.open_external_exists.clear();
@@ -77,9 +88,44 @@ fn supported_external_apps_keeps_menu_order_and_includes_cached_false_entries() 
 }
 
 #[test]
+fn supported_external_apps_is_empty_without_cached_targets() {
+    let mut app = test_app();
+    app.open_external_exists.clear();
+
+    assert!(supported_external_apps(&app).is_empty());
+}
+
+#[test]
 fn open_external_module_builds_empty_element_outside_project_screen() {
     let mut app = test_app();
     app.screen = Screen::Home;
+
+    let element = open_external_module(&app);
+
+    let _ = std::hint::black_box(element);
+}
+
+#[test]
+fn open_external_module_builds_open_menu_without_project_path_or_targets() {
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.project_path = None;
+    app.active_menu = Some(MenuType::OpenExternal);
+    app.open_external_exists.clear();
+
+    let element = open_external_module(&app);
+
+    let _ = std::hint::black_box(element);
+}
+
+#[test]
+fn open_external_module_builds_disabled_preferred_target_with_copy_available() {
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.project_path = Some("/workspace".to_string());
+    app.open_external_app = ExternalOpenApp::VSCode;
+    app.open_external_exists.clear();
+    app.open_external_exists.insert(ExternalOpenApp::VSCode, false);
 
     let element = open_external_module(&app);
 

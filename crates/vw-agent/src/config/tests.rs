@@ -1,61 +1,150 @@
-use super::{Error, State, deduplicate_plugins, merge_json_value, plugin_name};
+#[cfg(not(target_arch = "wasm32"))]
+use super::load_from_path_without_env;
+use super::{
+    Error, State, deduplicate_plugins, merge_json_value, plugin_name,
+    take_gateway_skeys_from_patch, update_global_for_tenant,
+};
 use serde_json::json;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::{Path, PathBuf};
+use vw_api_types::id::TenantScope;
 
 #[test]
-fn plugin_name_normalizes_versions_and_file_urls() {
-    assert_eq!(plugin_name("tool@1.2.3"), "tool");
-    assert_eq!(plugin_name("@scope/tool@1.2.3"), "@scope/tool");
-    assert_eq!(plugin_name("@scope/tool"), "@scope/tool");
-    assert_eq!(plugin_name("file:///tmp/my-plugin.wasm"), "my-plugin");
-    assert_eq!(plugin_name("file:///tmp/plugin"), "plugin");
-    assert_eq!(plugin_name("plain"), "plain");
+fn plugin_name_strips_trailing_empty_version() {
+    assert_eq!(plugin_name("registry@"), "registry");
 }
 
 #[test]
-fn deduplicate_plugins_keeps_last_spec_for_each_name() {
-    let plugins = vec!["a@1".to_string(), "b@1".to_string(), "a@2".to_string()];
+fn deduplicate_plugins_matches_file_and_version_specs_by_name() {
+    let plugins =
+        vec!["file:///tmp/tool.wasm".to_string(), "helper@1".to_string(), "tool@2".to_string()];
 
-    assert_eq!(deduplicate_plugins(plugins), vec!["b@1".to_string(), "a@2".to_string()]);
+    assert_eq!(deduplicate_plugins(plugins), vec!["helper@1".to_string(), "tool@2".to_string()]);
 }
 
 #[test]
-fn deduplicate_plugins_normalizes_file_specs_by_stem() {
-    let plugins = vec![
-        "file:///tmp/one.wasm".to_string(),
-        "file:///tmp/two.wasm".to_string(),
-        "file:///opt/one.wasm".to_string(),
-    ];
+fn merge_json_value_ignores_null_for_missing_object_field() {
+    let mut target = json!({"keep": 1});
 
-    assert_eq!(
-        deduplicate_plugins(plugins),
-        vec!["file:///tmp/two.wasm".to_string(), "file:///opt/one.wasm".to_string()]
+    merge_json_value(&mut target, json!({"missing": null}));
+
+    assert_eq!(target, json!({"keep": 1}));
+}
+
+#[test]
+fn merge_json_value_replaces_root_with_null() {
+    let mut target = json!({"keep": 1});
+
+    merge_json_value(&mut target, json!(null));
+
+    assert!(target.is_null());
+}
+
+#[test]
+fn take_gateway_skeys_from_patch_leaves_non_object_gateway_untouched() {
+    let mut patch = json!({"gateway": false});
+
+    let skeys = take_gateway_skeys_from_patch(&mut patch).expect("non-object gateway is ignored");
+
+    assert!(skeys.is_none());
+    assert_eq!(patch, json!({"gateway": false}));
+}
+
+#[test]
+fn take_gateway_skeys_from_patch_returns_none_when_skeys_are_absent() {
+    let mut patch = json!({"gateway": {"auth_enabled": true}});
+
+    let skeys = take_gateway_skeys_from_patch(&mut patch).expect("missing skeys are allowed");
+
+    assert!(skeys.is_none());
+    assert_eq!(patch, json!({"gateway": {"auth_enabled": true}}));
+}
+
+#[test]
+fn take_gateway_skeys_from_patch_accepts_and_removes_empty_list() {
+    let mut patch = json!({"gateway": {"auth_enabled": true, "skeys": []}});
+
+    let skeys = take_gateway_skeys_from_patch(&mut patch)
+        .expect("empty skey list is valid")
+        .expect("present skey list is returned");
+
+    assert!(skeys.is_empty());
+    assert_eq!(patch, json!({"gateway": {"auth_enabled": true}}));
+}
+
+#[test]
+fn state_default_uses_null_config() {
+    let state = State::default();
+
+    assert!(state.config.is_null());
+}
+
+#[tokio::test]
+async fn update_global_for_tenant_rejects_non_object_before_storage_access() {
+    let tenant = TenantScope::new("platform", "company").expect("tenant scope");
+
+    let error = update_global_for_tenant(&tenant, json!(null)).await.unwrap_err();
+
+    assert!(
+        matches!(error, Error::Invalid(message) if message == "config patch must be a JSON object")
     );
 }
 
-#[test]
-fn merge_json_value_recurses_and_removes_nulls() {
-    let mut target = json!({"a": 1, "nested": {"keep": true, "drop": 1}});
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn load_from_path_without_env_loads_json_and_sets_runtime_paths() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let config_path = temp.path().join("config.json");
+    let workspace_dir = temp.path().join("workspace");
+    tokio::fs::write(&config_path, r#"{"default_model":"json-model"}"#)
+        .await
+        .expect("write config");
 
-    merge_json_value(&mut target, json!({"nested": {"drop": null, "add": 2}, "a": 3}));
+    let config = load_from_path_without_env(&config_path, workspace_dir.clone())
+        .await
+        .expect("load json config");
 
-    assert_eq!(target, json!({"a": 3, "nested": {"keep": true, "add": 2}}));
+    assert_eq!(config.config_path, config_path);
+    assert_eq!(config.workspace_dir, workspace_dir);
 }
 
-#[test]
-fn merge_json_value_replaces_non_objects_and_inserts_new_values() {
-    let mut target = json!({"nested": 1});
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn load_from_path_without_env_reports_missing_fallback_file() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let config_path = temp.path().join("missing.toml");
 
-    merge_json_value(&mut target, json!({"nested": {"now": true}, "new": [1, 2]}));
+    let error =
+        load_from_path_without_env(&config_path, temp.path().join("workspace")).await.unwrap_err();
 
-    assert_eq!(target, json!({"nested": {"now": true}, "new": [1, 2]}));
-
-    merge_json_value(&mut target, json!(false));
-
-    assert_eq!(target, json!(false));
+    assert!(
+        matches!(error, Error::Invalid(message) if message.contains("Failed to read config file"))
+    );
 }
 
-#[test]
-fn error_display_and_state_default_are_plain() {
-    assert_eq!(Error::Invalid("bad config".to_string()).to_string(), "bad config");
-    assert!(State::default().directories.is_empty());
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn load_from_path_without_env_reports_invalid_json() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let config_path = temp.path().join("invalid.json");
+    tokio::fs::write(&config_path, "{").await.expect("write invalid config");
+
+    let error =
+        load_from_path_without_env(&config_path, temp.path().join("workspace")).await.unwrap_err();
+
+    assert!(
+        matches!(error, Error::Invalid(message) if message.contains("Failed to parse config file"))
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn load_from_path_without_env_blocking_rejects_invalid_path_inside_runtime() {
+    let error =
+        super::load_from_path_without_env_blocking(Path::new("/"), PathBuf::from("/workspace"))
+            .unwrap_err();
+
+    assert!(
+        matches!(error, Error::Invalid(message) if message == "config path must have a parent directory")
+    );
 }

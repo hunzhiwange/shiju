@@ -80,6 +80,38 @@ fn merge_ignores_patch_without_content_when_target_missing() {
 }
 
 #[test]
+fn merge_by_id_trims_updated_content_and_priority() {
+    let session = session("merge-id-fields");
+    write_todos(
+        &session,
+        json!({"todos": [{
+            "id": "1",
+            "content": "Original",
+            "status": "pending",
+            "priority": "low"
+        }]}),
+    )
+    .unwrap();
+
+    let output = write_todos(
+        &session,
+        json!({"merge": true, "todos": [{
+            "id": " 1 ",
+            "content": " Updated ",
+            "priority": " high "
+        }]}),
+    )
+    .unwrap();
+    let todos = parse(&output);
+
+    assert_eq!(todos.len(), 1);
+    assert_eq!(todos[0]["id"], "1");
+    assert_eq!(todos[0]["content"], "Updated");
+    assert_eq!(todos[0]["status"], "pending");
+    assert_eq!(todos[0]["priority"], "high");
+}
+
+#[test]
 fn malformed_arguments_return_errors() {
     let session = session("errors");
     assert!(write_todos(&session, json!({})).is_err());

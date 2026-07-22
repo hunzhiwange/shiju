@@ -70,16 +70,22 @@
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use tracing::info;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
+use vw_agent::agent_scheduler::domain::TaskId;
+use vw_agent::agent_scheduler::store::AgentSchedulerStore;
+use vw_agent::agent_scheduler::task_board::{
+    create_native_task, list_native_tasks, load_native_task,
+};
 use vw_agent::channels::ChannelCommands;
 use vw_agent::cron;
 use vw_agent::integrations;
 use vw_agent::provider::provider;
 use vw_agent::{
-    channels, config, daemon, doctor, gateway, memory, observability, security, service, skills,
+    channels, config, daemon, doctor, gateway, memory, observability, plugins, security, service,
+    skills,
 };
-use vw_shared::task::{self, SubTask, Task, TaskExecutorBackend, TaskStatus};
+use vw_shared::task::{SubTask, Task, TaskExecutorBackend, TaskSplitMode, TaskStatus};
 
 use config::Config;
 use config::schema::ChannelsConfigExt;
@@ -110,20 +116,13 @@ pub(crate) mod app {
         #[allow(clippy::module_inception)]
         pub(crate) mod agent {
             pub(crate) mod loop_ {
-                pub(crate) use vw_agent::agent::loop_::{context, core, instructions, progress};
-
-                pub(crate) mod cli {
-                    pub(crate) use crate::cli::legacy_runtime::{
-                        logo_text_lines, render_execution_indicator,
-                    };
-                    pub(crate) use crate::cli::legacy_runtime::{theme, transcript, tui_utils};
-                }
+                pub(crate) use vw_agent::agent::loop_::{context, core, instructions};
             }
         }
     }
 }
 
-use cli::{Cli, Commands, ConfigCommands, DoctorCommands, TaskCommands};
+use cli::{AgentSchedulerCommands, Cli, Commands, ConfigCommands, DoctorCommands, TaskCommands};
 
 /// 重新导出命令枚举，确保二进制模块可以使用 `crate::<CommandEnum>`
 /// 同时保持命令定义的单一真实来源。
@@ -350,28 +349,7 @@ pub async fn run() -> Result<()> {
     // 检测是否为交互式代理模式（全屏 TUI 模式）
     let interactive_agent_mode = matches!(&cli.command, Commands::Agent { message: None, .. });
 
-    // 初始化日志系统
-    // 遵循 RUST_LOG 环境变量，默认为 INFO 级别
-    // 在全屏交互 TUI 模式下，日志会被重定向到 sink 以避免终端输出穿透备用屏幕
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    if interactive_agent_mode {
-        // 交互模式：日志输出到 sink（丢弃），避免干扰 TUI
-        let subscriber = fmt::Subscriber::builder()
-            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
-            .with_env_filter(env_filter)
-            .with_writer(std::io::sink)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
-    } else {
-        // 非交互模式：日志输出到标准错误
-        let subscriber = fmt::Subscriber::builder()
-            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
-            .with_env_filter(env_filter)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
-    }
+    init_tracing(interactive_agent_mode);
 
     // 加载配置（所有其他命令都需要先加载配置）
     let mut config = Box::pin(Config::load_or_init()).await?;
@@ -401,7 +379,6 @@ pub async fn run() -> Result<()> {
         // 处理 Agent 命令：启动 AI 代理
         Commands::Agent {
             message,
-            tui_mode,
             provider,
             model,
             temperature,
@@ -446,7 +423,6 @@ pub async fn run() -> Result<()> {
                 temperature,
                 peripheral,
                 interactive_agent_mode,
-                tui_mode,
             ))
             .await
             .map(|_| ())
@@ -578,6 +554,32 @@ pub async fn run() -> Result<()> {
         // 处理 Cron 命令：定时任务管理
         Commands::Cron { cron_command } => cron::handle_command(cron_command, &config),
 
+        // 处理 Agent Scheduler 运行时命令
+        Commands::AgentScheduler { agent_scheduler_command } => match agent_scheduler_command {
+            AgentSchedulerCommands::MatrixWorker {
+                platform_id,
+                company_id,
+                project_dir,
+                worker_id,
+            } => {
+                let project_path = std::path::PathBuf::from(resolve_project_dir(&project_dir)?);
+                let tenant_scope =
+                    vw_gateway_client::vw_api_types::id::TenantScope::new(platform_id, company_id)
+                        .with_context(|| "Invalid agent-scheduler tenant scope")?;
+                let worker_id = vw_agent::agent_scheduler::domain::WorkerName::new(worker_id)
+                    .with_context(
+                        || "Invalid --worker-id value for agent-scheduler matrix-worker",
+                    )?;
+                vw_agent::agent_scheduler::runner::matrix::run_configured_matrix_worker_until_shutdown_for_tenant(
+                    config,
+                    tenant_scope,
+                    project_path,
+                    worker_id,
+                )
+                .await
+            }
+        },
+
         // 处理 Providers 命令：列出支持的 AI 提供者
         Commands::Providers => {
             // 获取所有可用的提供者列表
@@ -656,6 +658,9 @@ pub async fn run() -> Result<()> {
         // 处理 Skills 命令：技能管理
         Commands::Skills { skill_command } => skills::handle_command(skill_command, &config),
 
+        // 处理 Plugins 命令：插件管理
+        Commands::Plugins { plugin_command } => plugins::handle_command(plugin_command, &config),
+
         // 处理 Task 命令：任务管理
         Commands::Task { project_dir, task_command } => {
             // 解析项目目录路径
@@ -669,6 +674,7 @@ pub async fn run() -> Result<()> {
                     assignee,
                     model,
                     executor,
+                    task_split,
                     subtasks,
                 } => {
                     // 清理和准备任务内容
@@ -725,6 +731,13 @@ pub async fn run() -> Result<()> {
                             })?;
                         task.executor = parsed;
                     }
+                    if let Some(task_split) = task_split {
+                        task.task_split_mode = match task_split {
+                            cli::TaskSplitCliMode::FollowSystem => TaskSplitMode::FollowSystem,
+                            cli::TaskSplitCliMode::On => TaskSplitMode::Enabled,
+                            cli::TaskSplitCliMode::Off => TaskSplitMode::Disabled,
+                        };
+                    }
                     // 设置子任务列表
                     task.subtasks = cleaned_subtasks.into_iter().map(SubTask::new).collect();
 
@@ -745,23 +758,32 @@ pub async fn run() -> Result<()> {
                     }
 
                     // 创建任务并打印结果
-                    let created = task::create_task(&project_path, task).with_context(|| {
-                        format!("Failed to create task in {}", project_path.as_str())
-                    })?;
+                    let scheduler = AgentSchedulerStore::new();
+                    let created =
+                        create_native_task(&scheduler, std::path::Path::new(&project_path), task)
+                            .with_context(|| {
+                            format!("Failed to create task in {}", project_path.as_str())
+                        })?;
                     print_task_json(&created)
                 }
                 // 读取任务
                 TaskCommands::Read { id, status, include_archived, include_deleted, limit } => {
                     // 如果指定了任务 ID，直接加载该任务
                     if let Some(task_id) = id {
-                        let task =
-                            task::load_task(&project_path, task_id.trim()).with_context(|| {
-                                format!(
-                                    "Task not found in {} with id {}",
-                                    project_path.as_str(),
-                                    task_id
-                                )
-                            })?;
+                        let scheduler = AgentSchedulerStore::new();
+                        let task_id_value = TaskId::new(task_id.trim())?;
+                        let task = load_native_task(
+                            &scheduler,
+                            std::path::Path::new(&project_path),
+                            &task_id_value,
+                        )?
+                        .with_context(|| {
+                            format!(
+                                "Task not found in {} with id {}",
+                                project_path.as_str(),
+                                task_id
+                            )
+                        })?;
                         return print_task_json(&task);
                     }
 
@@ -777,7 +799,9 @@ pub async fn run() -> Result<()> {
                         .transpose()?;
 
                     // 加载所有任务并应用过滤器
-                    let mut tasks = task::load_all_tasks(&project_path);
+                    let scheduler = AgentSchedulerStore::new();
+                    let mut tasks =
+                        list_native_tasks(&scheduler, std::path::Path::new(&project_path))?;
                     tasks.retain(|task| {
                         let status_ok = status_filter.is_none_or(|s| task.status == s);
                         let archived_ok = include_archived || !task.archived;
@@ -826,6 +850,49 @@ pub async fn run() -> Result<()> {
         },
     }
 }
+
+fn init_tracing(interactive_agent_mode: bool) {
+    let terminal_filter = default_tracing_filter();
+    let file_filter = default_tracing_filter();
+    let runtime_log_dir = vw_shared::runtime_log::default_runtime_log_dir();
+    if let Err(err) = vw_shared::runtime_log::ensure_runtime_log_dir(&runtime_log_dir) {
+        eprintln!("failed to create runtime log directory {}: {err}", runtime_log_dir.display());
+    }
+
+    if interactive_agent_mode {
+        let terminal_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_writer(std::io::sink)
+            .with_filter(terminal_filter);
+        let file_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_ansi(false)
+            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_filter(file_filter);
+        let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    } else {
+        let terminal_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_filter(terminal_filter);
+        let file_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_ansi(false)
+            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_filter(file_filter);
+        let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    }
+}
+
+fn default_tracing_filter() -> EnvFilter {
+    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+}
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod lib_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

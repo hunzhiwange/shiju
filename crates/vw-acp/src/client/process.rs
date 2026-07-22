@@ -63,17 +63,29 @@ impl AcpClient {
     /// 函数先短暂等待自然退出，再依次发送终止和强制结束信号，最后读取 stderr
     /// 片段用于错误诊断。返回值不会包含敏感环境变量，只保留退出码、信号和
     /// stderr 文本供上层决定是否拼接到错误信息。
+    #[cfg(test)]
     pub(crate) async fn finalize_child(
+        &self,
+        child: Child,
+        stderr_task: Option<tokio::task::JoinHandle<String>>,
+    ) -> FinalizedChild {
+        let cleanup_targets = process_cleanup_targets(child.id());
+        self.finalize_child_with_cleanup_targets(child, stderr_task, cleanup_targets).await
+    }
+
+    pub(super) async fn finalize_child_with_cleanup_targets(
         &self,
         mut child: Child,
         stderr_task: Option<tokio::task::JoinHandle<String>>,
+        mut cleanup_targets: ProcessCleanupTargets,
     ) -> FinalizedChild {
-        let process_group_id = child.id();
+        let process_id = child.id();
         let graceful_timeout = Duration::from_millis(500);
         let status = match timeout(graceful_timeout, child.wait()).await {
             Ok(Ok(status)) => Some(status),
             _ => {
-                send_terminate_signal_to_process_group(process_group_id);
+                cleanup_targets.extend(process_cleanup_targets(process_id));
+                send_terminate_signal_to_process_targets(&cleanup_targets);
                 match timeout(Duration::from_secs(1), child.wait()).await {
                     Ok(Ok(status)) => Some(status),
                     Ok(Err(err)) => {
@@ -86,7 +98,8 @@ impl AcpClient {
                         None
                     }
                     Err(_) => {
-                        send_kill_signal_to_process_group(process_group_id);
+                        cleanup_targets.extend(process_cleanup_targets(process_id));
+                        send_kill_signal_to_process_targets(&cleanup_targets);
                         let _ = timeout(Duration::from_millis(500), child.wait()).await;
                         tracing::warn!(
                             target: "vw_acp",
@@ -98,7 +111,8 @@ impl AcpClient {
                 }
             }
         };
-        cleanup_process_group(process_group_id).await;
+        cleanup_targets.extend(process_cleanup_targets(process_id));
+        cleanup_process_targets(cleanup_targets).await;
 
         let stderr_output = match stderr_task {
             Some(task) => match timeout(Duration::from_millis(300), task).await {

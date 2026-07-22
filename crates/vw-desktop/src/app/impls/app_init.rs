@@ -22,7 +22,6 @@ pub(super) use super::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) use crate::app::lsp::LspServiceManager;
-pub(super) use crate::app::views::design::state::DesignSettingsTab;
 
 mod external_apps;
 mod new;
@@ -112,7 +111,7 @@ pub(super) fn load_web_bookmarks(cfg: &serde_json::Value) -> Vec<super::WebBookm
         })
         .unwrap_or_else(|| {
             vec![super::WebBookmark {
-                title: "订货宝管理端".to_string(),
+                title: "测试网站".to_string(),
                 url: "https://example.com/".to_string(),
                 width: None,
                 height: None,

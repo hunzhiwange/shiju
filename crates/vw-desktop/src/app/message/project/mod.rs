@@ -2,7 +2,7 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use crate::app::views::design::models::ColorFormat;
+use crate::app::components::color_picker::ColorFormat;
 use crate::app::{
     App, Message,
     state::{FindInFolderMatch, ProjectEditTab},
@@ -85,16 +85,15 @@ pub enum ProjectMessage {
     ProjectEditStartScriptChanged(String),
     ProjectEditStartScriptEditorAction(text_editor::Action),
     ProjectEditWorktreeToggled(bool),
-    ProjectEditAutoPromotePoolTasksToggled(bool),
     ProjectEditTaskBoardAutoRefreshToggled(bool),
     ProjectEditSessionAutoRefreshToggled(bool),
-    ProjectEditCodeReviewToggled(bool),
     ProjectEditMaxConcurrentInputChanged(String),
     ProjectEditSessionRefreshIntervalSecondsInputChanged(String),
     ProjectEditTaskBoardRefreshIntervalSecondsInputChanged(String),
     ProjectEditTaskBoardSchedulerTickIntervalSecondsInputChanged(String),
     ProjectEditTaskBoardAutoPromoteTickIntervalSecondsInputChanged(String),
     ProjectEditFailedRetryMinutesInputChanged(String),
+    ProjectEditFailedRetryMaxAttemptsInputChanged(String),
     ProjectEditRunningTimeoutMinutesInputChanged(String),
     ProjectEditPrSubmittedStallTimeoutSecondsInputChanged(String),
     ProjectEditMaxConcurrentChanged(u32),
@@ -103,9 +102,11 @@ pub enum ProjectMessage {
     ProjectEditTaskBoardSchedulerTickIntervalSecondsChanged(u64),
     ProjectEditTaskBoardAutoPromoteTickIntervalSecondsChanged(u64),
     ProjectEditFailedRetryMinutesChanged(u32),
+    ProjectEditFailedRetryMaxAttemptsChanged(u32),
     ProjectEditRunningTimeoutMinutesChanged(u32),
     ProjectEditPrSubmittedStallTimeoutSecondsChanged(u32),
     ProjectEditRecycleWorktreeOnTaskFinishToggled(bool),
+    ProjectEditWorkflowIdChanged(String),
     ProjectEditSaved,
     ProjectEditRuntimeSaved(Result<(), String>),
     ProjectEditCanceled,
@@ -120,8 +121,6 @@ pub enum ProjectMessage {
     FileIndexLoaded(crate::app::FileIndexLoadResult),
     FileIndexReady(Vec<String>),
     ToggleTreeDir(String),
-    OpenDesignPressed,
-    OpenDesignBlankPressed,
     OpenFilePressed,
     FileManagerShowChanges(bool),
     FileManagerRefreshChanges,

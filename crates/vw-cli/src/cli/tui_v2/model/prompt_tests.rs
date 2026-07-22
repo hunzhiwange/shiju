@@ -127,3 +127,20 @@ fn queued_prompt_commands_are_fifo() {
     assert_eq!(prompt.pop_queued_command().map(|command| command.raw), Some("/help".to_string()));
     assert_eq!(prompt.pop_queued_command(), None);
 }
+
+#[test]
+fn prompt_state_boundary_edits_and_vertical_moves_are_noops() {
+    let mut prompt = PromptState::new("one\ntwo");
+    prompt.cursor.char_index = 0;
+
+    prompt.backspace();
+    assert_eq!(prompt.value, "one\ntwo");
+    assert!(!prompt.move_cursor(PromptMotion::Up));
+    assert_eq!(prompt.cursor.char_index, 0);
+
+    prompt.cursor = PromptCursor::at_end(&prompt.value);
+    prompt.delete();
+    assert_eq!(prompt.value, "one\ntwo");
+    assert!(!prompt.move_cursor(PromptMotion::Down));
+    assert_eq!(prompt.cursor.char_index, prompt.value.chars().count());
+}

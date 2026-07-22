@@ -10,6 +10,21 @@ use crate::app::{App, Message};
 use super::super::components::project_sessions_panel;
 use super::super::styles::session_panel_style;
 
+fn project_sessions_panel_width(
+    settings_panel_width: f32,
+    left_rail_width: f32,
+    session_panel_width_scale: f32,
+) -> f32 {
+    ((settings_panel_width - left_rail_width) * session_panel_width_scale).max(0.0)
+}
+
+fn project_sessions_panel_container_style(
+    theme: &Theme,
+    corner_radius: f32,
+) -> iced::widget::container::Style {
+    session_panel_style(theme, corner_radius)
+}
+
 /// 构建面板界面。
 ///
 /// # 参数
@@ -33,8 +48,11 @@ pub fn project_sessions_panel_container(
     corner_radius: f32,
     target_path: Option<String>,
 ) -> Element<'_, Message> {
-    let panel_width =
-        ((settings_panel_width - left_rail_width) * session_panel_width_scale).max(0.0);
+    let panel_width = project_sessions_panel_width(
+        settings_panel_width,
+        left_rail_width,
+        session_panel_width_scale,
+    );
     container(project_sessions_panel(
         app,
         settings_panel_width,
@@ -45,7 +63,7 @@ pub fn project_sessions_panel_container(
     .width(Length::Fixed(panel_width))
     .height(Length::Fill)
     .clip(true)
-    .style(move |theme: &Theme| session_panel_style(theme, corner_radius))
+    .style(move |theme: &Theme| project_sessions_panel_container_style(theme, corner_radius))
     .into()
 }
 #[cfg(test)]

@@ -1,12 +1,14 @@
 use super::{
-    active_gateway_healthy, empty_tab_content, gateway_menu_container, gateway_row,
+    active_gateway_healthy, compact_gateway_label, gateway_menu_container,
+    gateway_menu_item_btn_keep_open, gateway_press_message, gateway_row, gateway_row_keep_open,
     gateway_server_healthy, gateway_services_button, gateway_services_module, gateway_tab_content,
-    lsp_tab_content, status_dot, tab_label,
+    lsp_tab_content, mcp_server_summaries, mcp_tab_content, plugin_tab_content, status_dot,
+    tab_label,
 };
 use crate::app::components::editor::Editor;
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
-use crate::app::state::{GatewayClientServerDraft, TopBarGatewayTab};
+use crate::app::state::{GatewayClientServerDraft, PluginCatalogItem, TopBarGatewayTab};
 use crate::app::{App, LspProgress, Message, PreviewTab, message};
 use iced::widget::Space;
 use iced::{Element, Length};
@@ -22,6 +24,8 @@ fn server(id: &str, name: &str, host: &str, port: u16) -> GatewayClientServerDra
         name: name.to_string(),
         host: host.to_string(),
         port,
+        platform_id: "10000".to_string(),
+        company_id: "100000000".to_string(),
         skey: String::new(),
     }
 }
@@ -99,10 +103,130 @@ fn gateway_tab_content_includes_servers_and_management_actions() {
 }
 
 #[test]
-fn empty_tab_content_keeps_menu_height_stable() {
-    let rows = empty_tab_content();
+fn plugin_tab_content_includes_toggle_and_management_actions() {
+    let mut app = test_app();
+    app.skills_settings.plugin_catalog.push(PluginCatalogItem {
+        id: "demo-plugin".to_string(),
+        display_name: "Demo Plugin".to_string(),
+        version: "0.1.0".to_string(),
+        description: "Demo plugin".to_string(),
+        enabled: true,
+        component_count: 4,
+        source_path: Some("/tmp/demo-plugin".to_string()),
+    });
 
-    assert_eq!(rows.len(), 1);
+    let rows = plugin_tab_content(&app);
+
+    assert_eq!(rows.len(), 3);
+}
+
+#[test]
+fn mcp_server_summaries_read_editor_config() {
+    let summaries = mcp_server_summaries(
+        r#"[
+          {"name":"docs", "type":"http", "url":"https://example.test/mcp", "enabled":false},
+          {"name":"local", "command":"node", "required":true}
+        ]"#,
+    )
+    .expect("valid MCP config should parse");
+
+    assert_eq!(summaries.len(), 2);
+    assert_eq!(summaries[0].name, "docs");
+    assert_eq!(summaries[0].transport, "http");
+    assert!(!summaries[0].enabled);
+    assert_eq!(summaries[1].transport, "stdio");
+    assert!(summaries[1].required);
+}
+
+#[test]
+fn mcp_server_summaries_handle_empty_invalid_and_defaulted_servers() {
+    assert_eq!(mcp_server_summaries("  ").expect("empty config"), Vec::new());
+    assert!(mcp_server_summaries("{not-json").expect_err("invalid json").contains("解析失败"));
+    assert_eq!(mcp_server_summaries("{}").expect_err("non-array"), "MCP 配置必须是 server 数组");
+
+    let summaries = mcp_server_summaries(
+        r#"[
+          42,
+          {"name":"  ", "type":"  "},
+          {"name":"local", "enabled":true}
+        ]"#,
+    )
+    .expect("mixed config should parse with placeholders");
+
+    assert_eq!(summaries[0].name, "server 1");
+    assert_eq!(summaries[0].transport, "invalid");
+    assert_eq!(summaries[1].name, "未命名");
+    assert_eq!(summaries[1].transport, "stdio");
+    assert!(summaries[2].enabled);
+    assert!(!summaries[2].required);
+}
+
+#[test]
+fn mcp_tab_content_includes_servers_and_management_actions() {
+    let mut app = test_app();
+    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text(
+        r#"[
+          {"name":"docs", "type":"http", "url":"https://example.test/mcp"},
+          {"name":"local", "command":"node", "enabled":false}
+        ]"#,
+    );
+    app.mcp_settings.server_count = 2;
+
+    let rows = mcp_tab_content(&app);
+
+    assert_eq!(rows.len(), 4);
+}
+
+#[test]
+fn mcp_tab_content_handles_loading_saving_errors_status_and_parse_empty_states() {
+    let mut app = test_app();
+    app.mcp_settings.loading = true;
+    app.mcp_settings.saving = true;
+    app.mcp_settings.save_error = Some("very long gateway mcp error message".to_string());
+    app.mcp_settings.status_message = Some("MCP 已同步".to_string());
+    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text("{not-json");
+
+    assert_eq!(mcp_tab_content(&app).len(), 6);
+
+    app.mcp_settings.loading = false;
+    app.mcp_settings.saving = false;
+    app.mcp_settings.save_error = None;
+    app.mcp_settings.status_message = None;
+    assert_eq!(mcp_tab_content(&app).len(), 3);
+
+    app.mcp_settings.editor = iced::widget::text_editor::Content::with_text(" ");
+    assert_eq!(mcp_tab_content(&app).len(), 3);
+}
+
+#[test]
+fn gateway_press_message_can_keep_menu_open() {
+    let direct = gateway_press_message(Message::Settings(SettingsMessage::PluginsRefresh), false);
+    let wrapped = gateway_press_message(Message::Settings(SettingsMessage::PluginsRefresh), true);
+
+    assert!(matches!(direct, Message::Settings(SettingsMessage::PluginsRefresh)));
+    assert!(matches!(
+        wrapped,
+        Message::View(crate::app::message::view::ViewMessage::MenuAction(_))
+    ));
+}
+
+#[test]
+fn compact_gateway_label_truncates_by_characters() {
+    assert_eq!(compact_gateway_label("网关服务状态", 2), "网关...");
+    assert_eq!(compact_gateway_label("ok", 8), "ok");
+}
+
+#[test]
+fn gateway_and_plugin_tabs_cover_empty_and_loading_states() {
+    let mut app = test_app();
+    app.gateway_client_settings.servers.clear();
+    assert_eq!(gateway_tab_content(&app).len(), 2);
+
+    app.skills_settings.plugin_loading = true;
+    assert_eq!(plugin_tab_content(&app).len(), 3);
+
+    app.skills_settings.plugin_loading = false;
+    assert_eq!(plugin_tab_content(&app).len(), 3);
 }
 
 #[test]
@@ -118,6 +242,16 @@ fn basic_gateway_widgets_can_be_built_for_all_states() {
         "可点击行".to_string(),
         Some("✓"),
         Some(Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer))),
+    );
+    let _: Element<'static, Message> = gateway_row_keep_open(
+        status_dot(true),
+        "保持打开".to_string(),
+        Some("刷新"),
+        Some(Message::Settings(SettingsMessage::PluginsRefresh)),
+    );
+    let _: Element<'static, Message> = gateway_menu_item_btn_keep_open(
+        "保持打开按钮",
+        Some(Message::Settings(SettingsMessage::PluginsRefresh)),
     );
     let _: Element<'static, Message> =
         gateway_row(status_dot(false), "只读行".to_string(), None, None);

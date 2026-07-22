@@ -2,18 +2,32 @@
 
 use crate::app::{App, Message};
 use iced::Task;
+use vw_config_types::tools::ComposioConfig;
 
 use super::messages::SettingsMessage;
+
+fn apply_composio_inputs(
+    composio: &mut ComposioConfig,
+    enabled: bool,
+    api_key: String,
+    entity_id: String,
+) {
+    let api_key = api_key.trim().to_string();
+    let entity_id = entity_id.trim().to_string();
+
+    composio.enabled = enabled;
+    composio.api_key = if api_key.is_empty() { None } else { Some(api_key) };
+    composio.entity_id = if entity_id.is_empty() { "default".to_string() } else { entity_id };
+}
+
 fn persist_composio_settings(app: &mut App) -> Task<Message> {
     let s = &app.composio_settings;
     let enabled = s.enabled;
-    let api_key = s.api_key_input.trim().to_string();
-    let entity_id = s.entity_id_input.trim().to_string();
+    let api_key = s.api_key_input.clone();
+    let entity_id = s.entity_id_input.clone();
 
     crate::app::update_composio_config_async(move |composio| {
-        composio.enabled = enabled;
-        composio.api_key = if api_key.is_empty() { None } else { Some(api_key) };
-        composio.entity_id = if entity_id.is_empty() { "default".to_string() } else { entity_id };
+        apply_composio_inputs(composio, enabled, api_key, entity_id);
     })
 }
 

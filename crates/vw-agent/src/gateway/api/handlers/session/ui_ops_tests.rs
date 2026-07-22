@@ -6,19 +6,27 @@ use axum::http::{HeaderMap, HeaderValue};
 use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
-use vw_api_types::session::GatewaySessionScopeBody;
+use vw_api_types::session::{
+    GatewaySessionScopeBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
+};
+use vw_api_types::todo::{TodoPriority, TodoStatus};
+use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
 
 static TEST_HOME: Once = Once::new();
 static UI_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn ensure_test_home() {
     TEST_HOME.call_once(|| {
-        let dir = std::env::temp_dir().join(format!("vw-ui-ops-tests-{}", std::process::id()));
+        let dir = ui_ops_test_home();
         std::fs::create_dir_all(&dir).expect("test home should be created");
         unsafe {
             std::env::set_var("VIBEWINDOW_TEST_HOME", dir);
         }
     });
+}
+
+fn ui_ops_test_home() -> std::path::PathBuf {
+    std::env::temp_dir().join(format!("vw-ui-ops-tests-{}", std::process::id()))
 }
 
 fn query_for(directory: &FsPath) -> InstanceQuery {
@@ -35,12 +43,16 @@ fn headers_for(directory: &FsPath) -> HeaderMap {
 }
 
 fn session(id: &str, title: &str) -> ui_models::ChatSession {
+    scoped_session(id, title, "hello", 20)
+}
+
+fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_models::ChatSession {
     ui_models::ChatSession {
         id: id.to_string(),
         title: title.to_string(),
         messages: vec![ui_models::ChatMessage {
             role: ui_models::ChatRole::User,
-            content: "hello".to_string(),
+            content: content.to_string(),
             think_timing: Vec::new(),
         }],
         message_ids: vec![Some("message-1".to_string())],
@@ -62,8 +74,37 @@ fn session(id: &str, title: &str) -> ui_models::ChatSession {
             model: Some("test-model".to_string()),
         }],
         created_ms: 10,
-        updated_ms: 20,
+        updated_ms,
     }
+}
+
+fn agent_session(id: &str, project_id: &str, title: &str, updated: u64) -> AgentSessionInfo {
+    AgentSessionInfo {
+        id: id.to_string(),
+        slug: format!("slug-{project_id}"),
+        project_id: project_id.to_string(),
+        directory: format!("/work/{project_id}"),
+        parent_id: None,
+        summary: None,
+        share: None,
+        title: title.to_string(),
+        version: "test".to_string(),
+        time: AgentSessionTimeInfo {
+            created: updated.saturating_sub(1),
+            updated,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
+    }
+}
+
+fn old_project_database_path(scope: &str) -> std::path::PathBuf {
+    vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+        .join("storage/session/scoped")
+        .join(vw_shared::session::path::session_scope_key(scope))
+        .join("index.sqlite3")
 }
 
 #[test]
@@ -75,6 +116,7 @@ fn ui_handlers_are_available() {
     let _ = session_archived_get;
     let _ = session_archived_put;
     let _ = session_path_get;
+    let _ = session_step_llm_raw_get;
     let _ = session_scope_get;
     let _ = session_scope_put;
     let _ = session_ui_get_any;
@@ -86,56 +128,170 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
     ensure_test_home();
     ui_store::set_session_scope(None);
 
-    let project = TempDir::new().expect("project dir");
-    let project_path = project.path();
-    let body = session("ui-round-trip", "UI Round Trip");
+    let project_a = TempDir::new().expect("project A dir");
+    let project_b = TempDir::new().expect("project B dir");
+    let project_a_path = project_a.path();
+    let project_b_path = project_b.path();
+    let body_a = scoped_session("ui-round-trip", "Project A", "project-a", 20);
+    let body_b = scoped_session("ui-round-trip", "Project B", "project-b", 30);
 
-    let Json(saved) = session_ui_save(
-        Path(body.id.clone()),
-        Query(query_for(project_path)),
+    let Json(saved_a) = session_ui_save(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
         HeaderMap::new(),
-        Json(body.clone()),
+        Json(body_a.clone()),
     )
     .await
-    .expect("session ui save should succeed");
-    assert!(saved);
+    .expect("project A session save should succeed");
+    let Json(saved_b) = session_ui_save(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+        Json(body_b.clone()),
+    )
+    .await
+    .expect("project B session save should succeed");
+    assert!(saved_a && saved_b);
 
-    let Json(loaded) =
-        session_ui_get(Path(body.id.clone()), Query(query_for(project_path)), HeaderMap::new())
+    let Json(loaded_a) =
+        session_ui_get(Path(body_a.id.clone()), Query(query_for(project_a_path)), HeaderMap::new())
             .await
-            .expect("session ui get should succeed");
-    let loaded = loaded.expect("saved session should be loaded");
-    assert_eq!(loaded.id, body.id);
-    assert_eq!(loaded.messages[0].content, "hello");
-
-    let Json(previews) =
-        session_ui_previews(Query(InstanceQuery { directory: None }), headers_for(project_path))
+            .expect("project A session get should succeed");
+    let Json(loaded_b) =
+        session_ui_get(Path(body_b.id.clone()), Query(query_for(project_b_path)), HeaderMap::new())
             .await
-            .expect("scoped previews should load");
-    assert!(previews.iter().any(|preview| {
-        preview.id == body.id
-            && preview.title == body.title
-            && preview.message_count == 1
-            && preview.call_count == 1
-            && preview.last_content.as_deref() == Some("hello")
-    }));
+            .expect("project B session get should succeed");
+    assert_eq!(loaded_a.expect("project A session").messages[0].content, "project-a");
+    assert_eq!(loaded_b.expect("project B session").messages[0].content, "project-b");
 
-    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
-        .expect("directory should resolve to a scope");
-    ui_store::set_session_scope(Some(&scope));
+    let Json(previews_a) =
+        session_ui_previews(Query(InstanceQuery { directory: None }), headers_for(project_a_path))
+            .await
+            .expect("project A previews should load");
+    let Json(previews_b) =
+        session_ui_previews(Query(InstanceQuery { directory: None }), headers_for(project_b_path))
+            .await
+            .expect("project B previews should load");
+    assert_eq!(previews_a[0].title, body_a.title);
+    assert_eq!(previews_a[0].last_content.as_deref(), Some("project-a"));
+    assert_eq!(previews_b[0].title, body_b.title);
+    assert_eq!(previews_b[0].last_content.as_deref(), Some("project-b"));
+
+    let scope_a = ui_store::resolve_session_scope_id(Some(&project_a_path.to_string_lossy()), None)
+        .expect("project A directory should resolve to a scope");
+    let scope_b = ui_store::resolve_session_scope_id(Some(&project_b_path.to_string_lossy()), None)
+        .expect("project B directory should resolve to a scope");
+    assert_ne!(scope_a, scope_b);
+
+    let todo_a = GatewaySessionTodoItem {
+        id: "todo-shared".to_string(),
+        content: "project-a-todo".to_string(),
+        status: TodoStatus::Pending,
+        priority: TodoPriority::Medium,
+    };
+    let todo_b = GatewaySessionTodoItem { content: "project-b-todo".to_string(), ..todo_a.clone() };
+    let Json(saved_todos_a) = super::super::session_todo_put(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+        Json(GatewaySessionTodoPutBody { todos: vec![todo_a.clone()] }),
+    )
+    .await
+    .expect("project A todos should save");
+    let Json(saved_todos_b) = super::super::session_todo_put(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+        Json(GatewaySessionTodoPutBody { todos: vec![todo_b.clone()] }),
+    )
+    .await
+    .expect("project B todos should save");
+    assert!(saved_todos_a && saved_todos_b);
+    let Json(todos_a) = super::super::session_todo_get(
+        Path(body_a.id.clone()),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project A todos should load");
+    let Json(todos_b) = super::super::session_todo_get(
+        Path(body_b.id.clone()),
+        Query(query_for(project_b_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project B todos should load");
+    let mut expected_todo_a = todo_a;
+    expected_todo_a.id = "1".to_string();
+    let mut expected_todo_b = todo_b;
+    expected_todo_b.id = "1".to_string();
+    assert_eq!(todos_a, vec![expected_todo_a]);
+    assert_eq!(todos_b, vec![expected_todo_b]);
+
+    let agent_a = agent_session("agent-shared", &scope_a, "Agent A", 20);
+    let agent_b = agent_session("agent-shared", &scope_b, "Agent B", 30);
+    ui_store::save_agent_session_scoped(&agent_a, Some(&scope_a))
+        .expect("project A agent metadata path");
+    ui_store::save_agent_session_scoped(&agent_b, Some(&scope_b))
+        .expect("project B agent metadata path");
+    assert_eq!(
+        ui_store::load_agent_session_scoped("agent-shared", Some(&scope_a))
+            .expect("project A agent metadata")
+            .title,
+        "Agent A"
+    );
+    assert_eq!(
+        ui_store::load_agent_session_scoped("agent-shared", Some(&scope_b))
+            .expect("project B agent metadata")
+            .title,
+        "Agent B"
+    );
+
+    ui_store::persist_llm_raw_step(
+        &body_a.id,
+        0,
+        &serde_json::json!({"messages": [{"role": "user", "content": "hello"}]}),
+        Some(&scope_a),
+    )
+    .expect("raw payload should persist");
+    let Json(raw_payload) = session_step_llm_raw_get(
+        Path((body_a.id.clone(), 0)),
+        Query(query_for(project_a_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("raw payload should load");
+    assert_eq!(raw_payload.expect("raw payload")["messages"][0]["content"], "hello");
+    ui_store::set_session_scope(Some(&scope_b));
 
     let Json(meta) =
-        session_ui_preview_meta(Path(body.id.clone())).await.expect("preview meta should load");
-    assert_eq!(meta.expect("preview meta").id, body.id);
+        session_ui_preview_meta(Path(body_b.id.clone())).await.expect("preview meta should load");
+    assert_eq!(meta.expect("preview meta").title, body_b.title);
 
     let Json(path) =
-        session_path_get(Path(body.id.clone())).await.expect("session path should load");
-    let path = path.expect("session path");
-    assert!(std::path::Path::new(&path).exists());
+        session_path_get(Path(body_b.id.clone())).await.expect("session path should load");
+    let path = std::path::PathBuf::from(path.expect("session path"));
+    assert!(path.exists());
+    let connection = rusqlite::Connection::open(&path).expect("open shared database");
+    let scoped_rows: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND session_id = ?3",
+            rusqlite::params![
+                vw_api_types::id::DEFAULT_PLATFORM_ID,
+                vw_api_types::id::DEFAULT_COMPANY_ID,
+                &body_a.id,
+            ],
+            |row| row.get(0),
+        )
+        .expect("count scoped session rows");
+    assert_eq!(scoped_rows, 2);
+    assert!(!old_project_database_path(&scope_a).exists());
+    assert!(!old_project_database_path(&scope_b).exists());
 
     let Json(any_session) =
-        session_ui_get_any(Path(body.id.clone())).await.expect("any session should load");
-    assert_eq!(any_session.expect("any session").title, body.title);
+        session_ui_get_any(Path(body_b.id.clone())).await.expect("any session should load");
+    assert_eq!(any_session.expect("any session").title, body_b.title);
 
     ui_store::set_session_scope(None);
 }
@@ -193,4 +349,184 @@ async fn ui_snapshot_handlers_cover_archived_scope_and_errors() {
         .expect("scope should clear");
     assert!(cleared);
     assert_eq!(session_scope_get().await.expect("scope get").0, None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_snapshot_handlers_return_empty_results_for_unknown_session() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let session_id = format!("missing-ui-session-{}", std::process::id());
+
+    let Json(loaded) =
+        session_ui_get(Path(session_id.clone()), Query(query_for(project_path)), HeaderMap::new())
+            .await
+            .expect("unknown scoped session should be handled");
+    assert!(loaded.is_none());
+
+    let Json(previews) = session_ui_previews(Query(query_for(project_path)), HeaderMap::new())
+        .await
+        .expect("empty scoped previews should be handled");
+    assert!(previews.is_empty());
+
+    let Json(archived) = session_archived_get(Query(query_for(project_path)), HeaderMap::new())
+        .await
+        .expect("empty archived ids should be handled");
+    assert!(archived.is_empty());
+
+    let Json(raw_payload) = session_step_llm_raw_get(
+        Path((session_id.clone(), u32::MAX)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("missing raw payload should be handled");
+    assert!(raw_payload.is_none());
+
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    ui_store::set_session_scope(Some(&scope));
+
+    let Json(meta) = session_ui_preview_meta(Path(session_id.clone()))
+        .await
+        .expect("unknown preview metadata should be handled");
+    assert!(meta.is_none());
+
+    let Json(any_session) = session_ui_get_any(Path(session_id))
+        .await
+        .expect("unknown cross-project session should be handled");
+    assert!(any_session.is_none());
+
+    ui_store::set_session_scope(None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_archived_put_empty_list_clears_scope() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+
+    let _ = session_archived_put(
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(vec!["archived-a".to_string(), "archived-b".to_string()]),
+    )
+    .await
+    .expect("archived ids should save");
+
+    let Json(cleared) =
+        session_archived_put(Query(query_for(project_path)), HeaderMap::new(), Json(Vec::new()))
+            .await
+            .expect("empty archived ids should clear the scope");
+    assert!(cleared);
+
+    let Json(archived) = session_archived_get(Query(query_for(project_path)), HeaderMap::new())
+        .await
+        .expect("cleared archived ids should load");
+    assert!(archived.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_step_llm_raw_get_maps_invalid_json_to_internal_error() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    let session_id = format!("invalid-raw-session-{}", std::process::id());
+    let raw_path = ui_store::persist_llm_raw_step(
+        &session_id,
+        7,
+        &serde_json::json!({"valid": true}),
+        Some(&scope),
+    )
+    .expect("raw payload path should be available");
+    std::fs::write(&raw_path, "{ definitely not json")
+        .expect("raw payload should be corrupted for the error case");
+
+    let error = session_step_llm_raw_get(
+        Path((session_id, 7)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect_err("invalid raw payload should fail");
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+
+    std::fs::remove_file(raw_path).expect("corrupted raw payload should be removed");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ui_snapshot_handlers_isolate_same_session_id_across_tenants() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+    let project = ui_ops_test_home().join("tenant-shared-project");
+    std::fs::create_dir_all(&project).expect("create shared project");
+    let tenant_a = vw_api_types::id::TenantScope::new("platform-a", "company-a").expect("tenant A");
+    let tenant_b = vw_api_types::id::TenantScope::new("platform-b", "company-b").expect("tenant B");
+    let session_a = scoped_session("tenant-shared-session", "tenant A", "alpha", 10);
+    let session_b = scoped_session("tenant-shared-session", "tenant B", "beta", 20);
+
+    let save_a = ui_store::with_tenant_scope(
+        tenant_a.clone(),
+        session_ui_save(
+            Path(session_a.id.clone()),
+            Query(query_for(&project)),
+            HeaderMap::new(),
+            Json(session_a),
+        ),
+    )
+    .await
+    .expect("save tenant A");
+    let save_b = ui_store::with_tenant_scope(
+        tenant_b.clone(),
+        session_ui_save(
+            Path(session_b.id.clone()),
+            Query(query_for(&project)),
+            HeaderMap::new(),
+            Json(session_b),
+        ),
+    )
+    .await
+    .expect("save tenant B");
+    assert!(save_a.0 && save_b.0);
+
+    let loaded_a = ui_store::with_tenant_scope(
+        tenant_a,
+        session_ui_get(
+            Path("tenant-shared-session".to_owned()),
+            Query(query_for(&project)),
+            HeaderMap::new(),
+        ),
+    )
+    .await
+    .expect("load tenant A")
+    .0
+    .expect("tenant A session");
+    let loaded_b = ui_store::with_tenant_scope(
+        tenant_b,
+        session_ui_get(
+            Path("tenant-shared-session".to_owned()),
+            Query(query_for(&project)),
+            HeaderMap::new(),
+        ),
+    )
+    .await
+    .expect("load tenant B")
+    .0
+    .expect("tenant B session");
+    assert_eq!(loaded_a.title, "tenant A");
+    assert_eq!(loaded_b.title, "tenant B");
+    assert_eq!(loaded_a.messages[0].content, "alpha");
+    assert_eq!(loaded_b.messages[0].content, "beta");
 }

@@ -279,7 +279,7 @@ pub(super) fn parse_git_diff_previews(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn tool_card_style(
+pub(super) fn tool_card_style(
     theme: &Theme,
     // is_error 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     is_error: bool,
@@ -327,7 +327,7 @@ fn tool_card_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn tool_content_style(theme: &Theme, is_error: bool) -> iced::widget::container::Style {
+pub(super) fn tool_content_style(theme: &Theme, is_error: bool) -> iced::widget::container::Style {
     let ext = theme.extended_palette();
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
@@ -365,7 +365,7 @@ fn tool_content_style(theme: &Theme, is_error: bool) -> iced::widget::container:
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn tool_item_button_style(
+pub(super) fn tool_item_button_style(
     theme: &Theme,
     // status 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     status: iced::widget::button::Status,
@@ -416,7 +416,7 @@ fn tool_item_button_style(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn secondary_text(theme: &Theme, dark_alpha: f32, light_alpha: f32) -> Color {
+pub(super) fn secondary_text(theme: &Theme, dark_alpha: f32, light_alpha: f32) -> Color {
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
             < 1.5;
@@ -489,7 +489,7 @@ fn diff_pill<'a>() -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn git_diff_title(preview: &GitDiffPreview) -> String {
+pub(super) fn git_diff_title(preview: &GitDiffPreview) -> String {
     let mut title = preview.path.clone();
     if preview.additions > 0 || preview.deletions > 0 {
         title.push_str(&format!("  +{}-{}", preview.additions, preview.deletions));
@@ -544,7 +544,7 @@ pub(super) fn render_git_diff_content<'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn git_diff_body<'a>(
+pub(super) fn git_diff_body<'a>(
     app: &'a App,
     // previews 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     previews: &[GitDiffPreview],

@@ -7,12 +7,12 @@ mod launch_tab;
 mod refresh_tab;
 mod scheduling_tab;
 
+use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
     settings_panel_style,
 };
 use crate::app::state::ProjectEditTab;
-use crate::app::views::design::properties::color_picker::{parse_color, render_color_picker};
 use iced::widget::{
     Space, button, column, container, mouse_area, opaque, row, scrollable, stack, text,
 };

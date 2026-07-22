@@ -174,7 +174,13 @@ pub struct GitCommitDto {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GitCommitResponse {
     pub ok: bool,
+    #[serde(default = "default_commit_created")]
+    pub created: bool,
     pub commit: GitCommitDto,
+}
+
+fn default_commit_created() -> bool {
+    true
 }
 
 /// 受限 Git 命令请求。

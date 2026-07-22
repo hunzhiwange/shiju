@@ -44,8 +44,9 @@ mod prompt;
 mod source;
 mod types;
 
-pub(crate) use loader::read_markdown_skill_metadata;
+pub(crate) use loader::{load_skills_from_directory, read_markdown_skill_metadata};
 pub use prompt::{skills_to_prompt, skills_to_prompt_with_mode};
+pub(crate) use types::SkillLoadMode;
 pub use types::{Skill, SkillTool};
 
 const SKILL_DISABLED_MARKER_FILE: &str = "SKILL.disabled";
@@ -298,6 +299,7 @@ pub fn load_skills_with_config(
         config.skills.open_skills_dir.as_deref(),
         types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
         config.skills.directory_provider,
+        Some(config),
     )
 }
 
@@ -314,6 +316,7 @@ pub(crate) fn load_skills_full_with_config(
         config.skills.open_skills_dir.as_deref(),
         types::SkillLoadMode::Full,
         config.skills.directory_provider,
+        Some(config),
     )
 }
 
@@ -351,6 +354,7 @@ pub(crate) fn load_skills_with_open_skills_config(
         config_open_skills_dir,
         load_mode,
         SkillsDirectoryProvider::Vibewindow,
+        None,
     )
 }
 
@@ -360,6 +364,7 @@ fn load_skills_with_open_skills_config_and_provider(
     config_open_skills_dir: Option<&str>,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
+    config: Option<&crate::app::agent::config::Config>,
 ) -> Vec<Skill> {
     let mut skills = Vec::new();
     let mut seen = HashSet::new();
@@ -369,6 +374,14 @@ fn load_skills_with_open_skills_config_and_provider(
         &mut seen,
         load_workspace_skills(workspace_dir, load_mode, directory_provider),
     );
+
+    if let Some(config) = config {
+        extend_unique_skills(
+            &mut skills,
+            &mut seen,
+            crate::plugins::load_plugin_skills(workspace_dir, config, load_mode),
+        );
+    }
 
     if let Some(open_skills_dir) =
         open_skills::ensure_open_skills_repo(config_open_skills_enabled, config_open_skills_dir)
@@ -514,3 +527,7 @@ mod symlink_tests;
 /// 技能模块集成测试
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;

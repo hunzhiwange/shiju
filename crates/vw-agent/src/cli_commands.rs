@@ -274,6 +274,46 @@ pub enum SkillCommands {
     },
 }
 
+/// 插件管理子命令
+///
+/// 提供本地插件包的安装、审计、启用、禁用、列出和移除能力。
+/// 第一阶段仅支持本地目录源；远程 Git、npm、marketplace 等来源会返回明确错误。
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PluginCommands {
+    /// 列出所有已安装插件
+    List,
+
+    /// 审计本地插件目录或已安装插件
+    Audit {
+        /// 插件路径或已安装插件名称
+        source: String,
+    },
+
+    /// 从本地目录安装插件
+    Install {
+        /// 本地插件目录
+        source: String,
+    },
+
+    /// 启用已安装插件
+    Enable {
+        /// 插件名称
+        name: String,
+    },
+
+    /// 禁用已安装插件
+    Disable {
+        /// 插件名称
+        name: String,
+    },
+
+    /// 删除已安装插件
+    Remove {
+        /// 插件名称
+        name: String,
+    },
+}
+
 /// 迁移子命令
 ///
 /// 提供从其他系统导入数据的功能。

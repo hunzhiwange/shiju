@@ -19,6 +19,125 @@ use super::*;
 #[allow(dead_code)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, OnceLock};
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        sync::{Mutex, MutexGuard},
+    };
+
+    static GROQ_API_KEY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    struct GroqApiKeyGuard {
+        previous: Option<String>,
+        _lock: MutexGuard<'static, ()>,
+    }
+
+    impl Drop for GroqApiKeyGuard {
+        fn drop(&mut self) {
+            match self.previous.as_deref() {
+                Some(value) => unsafe { std::env::set_var("GROQ_API_KEY", value) },
+                None => unsafe { std::env::remove_var("GROQ_API_KEY") },
+            }
+        }
+    }
+
+    async fn set_groq_api_key(value: Option<&str>) -> GroqApiKeyGuard {
+        let lock = GROQ_API_KEY_LOCK.get_or_init(|| Mutex::new(())).lock().await;
+        let previous = std::env::var("GROQ_API_KEY").ok();
+        match value {
+            Some(value) => unsafe { std::env::set_var("GROQ_API_KEY", value) },
+            None => unsafe { std::env::remove_var("GROQ_API_KEY") },
+        }
+        GroqApiKeyGuard { previous, _lock: lock }
+    }
+
+    struct TestServer {
+        api_url: String,
+        request: Arc<Mutex<Option<Vec<u8>>>>,
+    }
+
+    impl TestServer {
+        async fn request_text(&self) -> String {
+            let request = self.request.lock().await.clone().expect("request should be recorded");
+            String::from_utf8_lossy(&request).into_owned()
+        }
+    }
+
+    fn http_response(status: &str, content_type: &str, body: &[u8]) -> Vec<u8> {
+        let mut response = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(body);
+        response
+    }
+
+    fn header_end(request: &[u8]) -> Option<usize> {
+        request.windows(4).position(|window| window == b"\r\n\r\n")
+    }
+
+    fn content_length(request: &[u8]) -> Option<usize> {
+        let end = header_end(request)?;
+        let headers = std::str::from_utf8(&request[..end]).ok()?;
+        headers.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            if name.eq_ignore_ascii_case("content-length") {
+                value.trim().parse().ok()
+            } else {
+                None
+            }
+        })
+    }
+
+    async fn read_http_request(socket: &mut tokio::net::TcpStream) -> Vec<u8> {
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+
+        loop {
+            let read = socket.read(&mut buffer).await.expect("read request");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+
+            if let (Some(end), Some(length)) = (header_end(&request), content_length(&request))
+                && request.len() >= end + 4 + length
+            {
+                break;
+            }
+        }
+
+        request
+    }
+
+    async fn serve_transcription_response(
+        status: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> TestServer {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let request = Arc::new(Mutex::new(None));
+        let recorded_request = request.clone();
+        let response = http_response(status, content_type, body);
+
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let request = read_http_request(&mut socket).await;
+            *recorded_request.lock().await = Some(request);
+            socket.write_all(&response).await.unwrap();
+        });
+
+        TestServer { api_url: format!("http://{addr}/openai/v1/audio/transcriptions"), request }
+    }
+
+    async fn unused_local_url(path: &str) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+        format!("http://{addr}/{path}")
+    }
 
     /// 测试超大音频文件被正确拒绝
     ///
@@ -57,7 +176,7 @@ mod tests {
     #[tokio::test]
     async fn rejects_missing_api_key() {
         // 确保测试环境中不存在 GROQ_API_KEY 环境变量
-        unsafe { std::env::remove_var("GROQ_API_KEY") };
+        let _guard = set_groq_api_key(None).await;
 
         // 创建一个小型测试音频数据
         let data = vec![0u8; 100];
@@ -201,7 +320,7 @@ mod tests {
 
     #[tokio::test]
     async fn unsupported_format_is_checked_before_api_key_lookup() {
-        unsafe { std::env::set_var("GROQ_API_KEY", "test-key-that-should-not-be-used") };
+        let _guard = set_groq_api_key(Some("test-key-that-should-not-be-used")).await;
         let config = TranscriptionConfig::default();
 
         let err = transcribe_audio(vec![0u8; 8], "clip.txt", &config).await.unwrap_err();
@@ -235,5 +354,152 @@ mod tests {
         );
         // 验证错误消息包含被拒绝的扩展名
         assert!(msg.contains(".aac"), "error should mention the rejected extension, got: {msg}");
+    }
+
+    #[tokio::test]
+    async fn rejects_filename_without_extension() {
+        let config = TranscriptionConfig::default();
+
+        let err = transcribe_audio(vec![0u8; 8], "recording", &config).await.unwrap_err();
+
+        assert!(err.to_string().contains("Unsupported audio format '.'"));
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_returns_text_and_sends_expected_multipart_fields() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server =
+            serve_transcription_response("200 OK", "application/json", br#"{"text":"hello"}"#)
+                .await;
+        let config = TranscriptionConfig {
+            api_url: server.api_url.clone(),
+            model: "whisper-test".to_string(),
+            language: Some("en".to_string()),
+            ..TranscriptionConfig::default()
+        };
+
+        let text = transcribe_audio(vec![1, 2, 3], "voice.oga", &config).await.unwrap();
+
+        assert_eq!(text, "hello");
+        let request = server.request_text().await;
+        let request_lower = request.to_ascii_lowercase();
+        assert!(request.starts_with("POST /openai/v1/audio/transcriptions HTTP/1.1"));
+        assert!(request_lower.contains("authorization: bearer test-key"));
+        assert!(request.contains("filename=\"voice.ogg\""));
+        assert!(request.contains("Content-Type: audio/ogg"));
+        assert!(request.contains("name=\"model\""));
+        assert!(request.contains("\r\n\r\nwhisper-test\r\n"));
+        assert!(request.contains("name=\"language\""));
+        assert!(request.contains("\r\n\r\nen\r\n"));
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_omits_language_field_when_unset() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server =
+            serve_transcription_response("200 OK", "application/json", br#"{"text":"hi"}"#).await;
+        let config = TranscriptionConfig {
+            api_url: server.api_url.clone(),
+            language: None,
+            ..TranscriptionConfig::default()
+        };
+
+        let text = transcribe_audio(vec![9, 9], "clip.wav", &config).await.unwrap();
+
+        assert_eq!(text, "hi");
+        let request = server.request_text().await;
+        assert!(request.contains("name=\"model\""));
+        assert!(
+            !request.contains("name=\"language\""),
+            "language field should be omitted: {request}"
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_audio_exactly_at_size_limit_passes_to_format_check() {
+        // Exactly MAX_AUDIO_BYTES is allowed past the size gate; an unsupported
+        // extension then surfaces the format error rather than a size error.
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let data = vec![0u8; MAX_AUDIO_BYTES];
+        let config = TranscriptionConfig::default();
+
+        let err = transcribe_audio(data, "clip.aac", &config).await.unwrap_err();
+
+        let msg = err.to_string();
+        assert!(!msg.contains("too large"), "boundary size should not be rejected: {msg}");
+        assert!(msg.contains("Unsupported audio format"), "got: {msg}");
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_reports_api_error_message() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server = serve_transcription_response(
+            "400 Bad Request",
+            "application/json",
+            br#"{"error":{"message":"bad audio"}}"#,
+        )
+        .await;
+        let config =
+            TranscriptionConfig { api_url: server.api_url, ..TranscriptionConfig::default() };
+
+        let err = transcribe_audio(vec![1], "clip.wav", &config).await.unwrap_err();
+
+        assert!(err.to_string().contains("Transcription API error (400 Bad Request): bad audio"));
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_reports_unknown_api_error_without_message() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server =
+            serve_transcription_response("503 Service Unavailable", "application/json", b"{}")
+                .await;
+        let config =
+            TranscriptionConfig { api_url: server.api_url, ..TranscriptionConfig::default() };
+
+        let err = transcribe_audio(vec![1], "clip.wav", &config).await.unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("Transcription API error (503 Service Unavailable): unknown error")
+        );
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_reports_invalid_json_response() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server = serve_transcription_response("200 OK", "application/json", b"not json").await;
+        let config =
+            TranscriptionConfig { api_url: server.api_url, ..TranscriptionConfig::default() };
+
+        let err = transcribe_audio(vec![1], "clip.wav", &config).await.unwrap_err();
+
+        assert!(err.to_string().contains("Failed to parse transcription response"));
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_requires_text_field_on_success() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let server =
+            serve_transcription_response("200 OK", "application/json", br#"{"result":"hello"}"#)
+                .await;
+        let config =
+            TranscriptionConfig { api_url: server.api_url, ..TranscriptionConfig::default() };
+
+        let err = transcribe_audio(vec![1], "clip.wav", &config).await.unwrap_err();
+
+        assert!(err.to_string().contains("Transcription response missing 'text' field"));
+    }
+
+    #[tokio::test]
+    async fn transcribe_audio_reports_send_failures() {
+        let _guard = set_groq_api_key(Some("test-key")).await;
+        let config = TranscriptionConfig {
+            api_url: unused_local_url("openai/v1/audio/transcriptions").await,
+            ..TranscriptionConfig::default()
+        };
+
+        let err = transcribe_audio(vec![1], "clip.wav", &config).await.unwrap_err();
+
+        assert!(err.to_string().contains("Failed to send transcription request"));
     }
 }

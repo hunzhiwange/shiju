@@ -1,5 +1,3 @@
-use super::*;
-
 /// 通知消息
 ///
 /// 表示应用程序中的一个通知消息，
@@ -100,46 +98,6 @@ pub struct CookieConfig {
     pub days: Option<i64>,
     /// URL 过滤规则（可选）
     pub url_filter: Option<String>,
-}
-
-impl App {
-    /// 获取当前活跃的思维导图标签页
-    ///
-    /// 优先返回由 `mindmap_active_tab_id` 指定的标签页；
-    /// 如果未找到，则返回第一个标签页。
-    ///
-    /// # 返回值
-    ///
-    /// 如果存在思维导图标签页，返回其不可变引用；
-    /// 否则返回 `None`。
-    pub fn active_mindmap_tab(&self) -> Option<&crate::apps::mindmap::state::MindMapTab> {
-        self.mindmap_active_tab_id
-            .as_ref()
-            .and_then(|id| self.mindmap_tabs.iter().find(|t| &t.id == id))
-            .or_else(|| self.mindmap_tabs.first())
-    }
-
-    /// 获取当前活跃的思维导图标签页的可变引用
-    ///
-    /// 优先返回由 `mindmap_active_tab_id` 指定的标签页；
-    /// 如果未找到，则返回第一个标签页的可变引用。
-    ///
-    /// # 返回值
-    ///
-    /// 如果存在思维导图标签页，返回其可变引用；
-    /// 否则返回 `None`。
-    pub fn active_mindmap_tab_mut(
-        &mut self,
-    ) -> Option<&mut crate::apps::mindmap::state::MindMapTab> {
-        let pos_opt = self
-            .mindmap_active_tab_id
-            .as_deref()
-            .and_then(|id| self.mindmap_tabs.iter().position(|t| t.id == id));
-        if let Some(pos) = pos_opt {
-            return self.mindmap_tabs.get_mut(pos);
-        }
-        self.mindmap_tabs.first_mut()
-    }
 }
 
 #[cfg(test)]

@@ -4,16 +4,24 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use super::shared::{label_col, models_for_provider, section_card, with_selected_option};
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_pick_list_menu_style, settings_pick_list_style,
     settings_text_input_style,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
-use crate::app::views::design::properties::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{checkbox, column, pick_list, row, slider, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
+
+pub(super) fn is_main_agent(entry: &DelegateAgentSettingsEntry) -> bool {
+    entry.key == "main"
+}
+
+pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
+    !is_main_agent(entry)
+}
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
@@ -126,7 +134,7 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let is_main = entry.key == "main";
+    let is_main = is_main_agent(entry);
 
     let enabled_row = row![
         label_col("启用", "关闭后保留配置，但该智能体不会作为可用项参与注册。"),
@@ -148,7 +156,7 @@ pub(super) fn view<'a>(
 
     let registration_rows = {
         let mut rows = Vec::<Element<'_, Message>>::new();
-        if !is_main {
+        if shows_registration_controls(entry) {
             rows.push(enabled_row.into());
         }
         rows

@@ -17,6 +17,7 @@ mod goal_loop;
 mod heartbeat;
 mod hooks;
 mod http_request;
+mod mcp;
 mod memory;
 mod messages;
 mod model_routes;
@@ -35,6 +36,7 @@ mod security;
 mod sessions;
 mod skills;
 mod sop;
+mod staff;
 mod storage;
 mod tabs;
 mod transcription;
@@ -50,8 +52,10 @@ use iced::Task;
 pub(crate) use messages::{
     AcpMessage, AgentsMessage, BrowserMessage, ChannelsMessage, EmbeddingRoutesMessage,
     GatewayClientMessage, GatewayMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage,
-    MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    RuntimeMessage, SettingsMessage, SopMessage, StorageMessage, TunnelMessage, WebSearchMessage,
+    McpMessage, MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
+    RuntimeMessage, SettingsMessage, SopMessage, StaffMessage, StaffResourceMessage,
+    StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField, StorageMessage,
+    TunnelMessage, WebSearchMessage,
 };
 
 fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(), String>) {
@@ -80,6 +84,13 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "skills" => app.skills_settings.save_error = save_error,
         "research" => app.research_settings.save_error = save_error,
         "agent" => app.agents_settings.save_error = save_error,
+        "staff" => {
+            let result = match save_error {
+                Some(error) => Err(error),
+                None => Ok(()),
+            };
+            staff::apply_saved_result(app, result);
+        }
         "runtime" => app.runtime_settings.save_error = save_error,
         "model_routes" => app.model_routes_settings.save_error = save_error,
         "embedding_routes" => app.embedding_routes_settings.save_error = save_error,
@@ -121,10 +132,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::Channels(_) => channels::update(app, message),
         SettingsMessage::Multimodal(_) => multimodal::update(app, message),
         SettingsMessage::Acp(_) => acp::update(app, message),
+        SettingsMessage::Mcp(_) => mcp::update(app, message),
         SettingsMessage::GatewayClient(_) => gateway_client::update(app, message),
         SettingsMessage::Gateway(_) => gateway::update(app, message),
         SettingsMessage::Tunnel(_) => tunnel::update(app, message),
         SettingsMessage::Agents(_) => agents::update(app, message),
+        SettingsMessage::Staff(_) => staff::update(app, message),
         SettingsMessage::AgentConfigSaved { tag, result } => {
             apply_agent_config_saved(app, tag, result);
             Task::none()
@@ -181,6 +194,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ModelDetailToggleRaw => models::update(app, message),
         SettingsMessage::SkillsRefresh
         | SettingsMessage::SkillsLoaded(_)
+        | SettingsMessage::PluginsRefresh
+        | SettingsMessage::PluginsLoaded(_)
+        | SettingsMessage::PluginsSelected(_)
+        | SettingsMessage::PluginsSetEnabledRequested { .. }
+        | SettingsMessage::PluginsSetEnabledCompleted { .. }
+        | SettingsMessage::PluginsDeleteRequested(_)
+        | SettingsMessage::PluginsDeleteCompleted { .. }
         | SettingsMessage::SkillsTabChanged(_)
         | SettingsMessage::SkillsDetailClosed
         | SettingsMessage::SkillsDetailRequested(_)

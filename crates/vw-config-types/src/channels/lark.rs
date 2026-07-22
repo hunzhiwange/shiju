@@ -120,6 +120,16 @@ pub struct FeishuConfig {
     pub max_draft_edits: u32,
 }
 
+/// 命名 Feishu 通道实例配置。
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FeishuInstanceConfig {
+    /// 稳定实例 ID，用于员工绑定和 profile ref。
+    pub id: String,
+    /// Feishu 通道原有配置字段。
+    #[serde(flatten)]
+    pub config: FeishuConfig,
+}
+
 impl FeishuConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {

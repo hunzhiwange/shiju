@@ -77,3 +77,38 @@ fn load_skills_from_directory_skips_disabled_and_missing_directories() {
 
     assert!(load_skills_from_directory(dir.path(), SkillLoadMode::Full).is_empty());
 }
+
+#[test]
+fn markdown_description_helpers_return_defaults_and_read_errors() {
+    assert_eq!(extract_description("# Only heading\n\n## Another heading"), "No description");
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let heading_only = dir.path().join("SKILL.md");
+    std::fs::write(&heading_only, "# Only heading\n").unwrap();
+    assert_eq!(extract_description_from_markdown(&heading_only).unwrap(), "No description");
+
+    let missing = dir.path().join("missing.md");
+    assert!(extract_description_from_markdown(&missing).is_err());
+}
+
+#[test]
+fn directory_loader_rejects_file_path_as_skills_directory() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let file = dir.path().join("skills");
+    std::fs::write(&file, "not a directory").unwrap();
+
+    assert!(load_skills_from_directory(&file, SkillLoadMode::Full).is_empty());
+}
+
+#[test]
+fn markdown_loader_uses_unknown_name_without_directory_component() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let path = dir.path().join("SKILL.md");
+    std::fs::write(&path, "# Skill\nUseful description.\n").unwrap();
+
+    let skill = load_skill_md(&path, Path::new(""), SkillLoadMode::MetadataOnly).unwrap();
+
+    assert_eq!(skill.name, "unknown");
+    assert_eq!(skill.description, "Useful description.");
+    assert!(skill.prompts.is_empty());
+}

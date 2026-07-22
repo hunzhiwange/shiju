@@ -368,3 +368,31 @@ fn session_info_serialization() {
     assert!(json.contains("test-id"));
     assert!(json.contains("researcher"));
 }
+
+#[test]
+fn registry_update_metadata_trims_and_clears_blank_title() {
+    let registry = SubAgentRegistry::new();
+    registry.insert(make_session("s1", "researcher", "task"));
+
+    assert!(registry.update_metadata("s1", Some(Some("  report  ".to_string())), None));
+    assert_eq!(registry.get_status("s1").unwrap().title.as_deref(), Some("report"));
+
+    assert!(registry.update_metadata("s1", Some(Some("   ".to_string())), None));
+    assert_eq!(registry.get_status("s1").unwrap().title, None);
+    assert!(!registry.update_metadata("missing", None, None));
+}
+
+#[test]
+fn registry_list_retains_terminal_session_without_completion_timestamp() {
+    let registry = SubAgentRegistry::new();
+    let mut session = make_session("failed-without-time", "researcher", "task");
+    session.status = SubAgentStatus::Failed;
+    registry.insert(session);
+
+    let failed = registry.list(Some("failed"));
+
+    assert_eq!(failed.len(), 1);
+    assert_eq!(failed[0].session_id, "failed-without-time");
+    assert_eq!(failed[0].completed_at, None);
+    assert_eq!(failed[0].duration_ms, None);
+}

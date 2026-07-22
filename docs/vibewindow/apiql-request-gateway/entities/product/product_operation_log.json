@@ -1,0 +1,323 @@
+{
+  "entity_class": "product:product_operation_log",
+  "connection_id": "data_database",
+  "table": "product_operation_log",
+  "table_name": "商品操作日志",
+  "primary_key": "id",
+  "auto_increment": "id",
+  "soft_delete_column": "delete_at",
+  "unique_indexes": {
+    "PRIMARY": {
+      "field": [
+        "id"
+      ],
+      "comment": "ID"
+    }
+  },
+  "description": "商品操作日志.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "recordId",
+      "type": "int",
+      "label": "记录主键",
+      "comment": "更新数据的主键",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "record_id",
+      "sortable": true
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "label": "变更后数据",
+      "comment": "例如 {\"sku_title\":\"新名字\"}",
+      "column_struct": {
+        "type": "json",
+        "default": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "content",
+      "sortable": true
+    },
+    {
+      "name": "remark",
+      "type": "string",
+      "label": "备注",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "remark",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "createAccountName",
+      "type": "string",
+      "label": "创建人名字",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "create_account_name",
+      "sortable": true
+    }
+  ],
+  "properties": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "recordId",
+      "type": "int",
+      "label": "记录主键",
+      "comment": "更新数据的主键",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "record_id",
+      "sortable": true
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "label": "变更后数据",
+      "comment": "例如 {\"sku_title\":\"新名字\"}",
+      "column_struct": {
+        "type": "json",
+        "default": null
+      },
+      "meta": {
+        "search_key_column": true
+      },
+      "searchable": true,
+      "column": "content",
+      "sortable": true
+    },
+    {
+      "name": "remark",
+      "type": "string",
+      "label": "备注",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "remark",
+      "sortable": true
+    },
+    {
+      "name": "createAt",
+      "type": "string",
+      "label": "创建时间",
+      "column_struct": {
+        "type": "datetime",
+        "default": "CURRENT_TIMESTAMP"
+      },
+      "column": "create_at",
+      "sortable": true
+    },
+    {
+      "name": "deleteAt",
+      "type": "int",
+      "label": "删除时间",
+      "comment": "0=未删除;大于0=删除时间;",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "delete_at",
+      "sortable": true
+    },
+    {
+      "name": "createAccount",
+      "type": "int",
+      "label": "创建账号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "show_prop_black": true,
+      "column": "create_account",
+      "sortable": true
+    },
+    {
+      "name": "createAccountName",
+      "type": "string",
+      "label": "创建人名字",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "create_account_name",
+      "sortable": true
+    },
+    {
+      "name": "contentHuman",
+      "type": "string",
+      "label": "变更后数据友好展示",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 255
+      },
+      "virtual_column": [
+        "content"
+      ],
+      "virtual_field": true
+    }
+  ],
+  "search_fields": [
+    "content"
+  ],
+  "virtual_fields": [
+    {
+      "name": "search_key",
+      "column": "content",
+      "virtual_field": true
+    },
+    {
+      "name": "contentHuman",
+      "column": "content",
+      "virtual_field": true
+    }
+  ]
+}

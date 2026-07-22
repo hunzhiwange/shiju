@@ -24,6 +24,32 @@
 
 use super::*;
 use crate::app::agent::channels::clawdtalk::ClawdTalkChannel;
+#[cfg(feature = "channel-matrix")]
+use vw_config_types::channels::chat::DEFAULT_CHANNEL_INSTANCE_ID;
+
+fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
+    format!("{channel_name}({instance_id})")
+}
+
+#[cfg(feature = "channel-matrix")]
+fn build_matrix_channel(
+    config: &Config,
+    matrix: &crate::app::agent::config::schema::MatrixConfig,
+    instance_id: &str,
+) -> MatrixChannel {
+    MatrixChannel::new_with_session_hint_instance_id_and_vibewindow_dir(
+        matrix.homeserver.clone(),
+        matrix.access_token.clone(),
+        matrix.room_id.clone(),
+        matrix.allowed_users.clone(),
+        matrix.user_id.clone(),
+        matrix.device_id.clone(),
+        Some(instance_id.to_string()),
+        config.config_path.parent().map(|path| path.to_path_buf()),
+    )
+    .with_mention_only(matrix.mention_only)
+    .with_transcription(config.transcription.clone())
+}
 
 /// 从配置对象中收集所有已配置的通道实例
 ///
@@ -75,6 +101,18 @@ pub(crate) fn collect_configured_channels(
     // 也要保持此符号被使用，避免编译器产生未使用参数警告
     let _ = matrix_skip_context;
     let mut channels = Vec::new();
+    let channel_instance_profiles_valid = match config
+        .channels_config
+        .resolve_channel_instance_profiles()
+    {
+        Ok(_) => true,
+        Err(err) => {
+            tracing::warn!(
+                "Channel instance profile config is invalid: {err}; skipping Matrix, Feishu, and DingTalk channel instances."
+            );
+            false
+        }
+    };
 
     // ==================== Telegram 通道配置 ====================
     // Telegram 是一个流行的即时通讯平台，支持机器人 API
@@ -97,16 +135,16 @@ pub(crate) fn collect_configured_channels(
         }
 
         // 将配置好的 Telegram 通道添加到通道列表
-        channels.push(ConfiguredChannel { display_name: "Telegram", channel: Arc::new(telegram) });
+        channels.push(ConfiguredChannel::new("Telegram", Arc::new(telegram)));
     }
 
     // ==================== Discord 通道配置 ====================
     // Discord 是游戏社区和企业团队常用的通讯平台
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref dc) = config.channels_config.discord {
-        channels.push(ConfiguredChannel {
-            display_name: "Discord",
-            channel: Arc::new(
+        channels.push(ConfiguredChannel::new(
+            "Discord",
+            Arc::new(
                 DiscordChannel::new(
                     dc.bot_token.clone(),                               // Discord 机器人令牌
                     dc.guild_id.clone(),                                // Discord 服务器（公会）ID
@@ -118,16 +156,16 @@ pub(crate) fn collect_configured_channels(
                 .with_transcription(config.transcription.clone())
                 .with_workspace_dir(config.workspace_dir.clone()),
             ),
-        });
+        ));
     }
 
     // ==================== Slack 通道配置 ====================
     // Slack 是企业团队协作的常用平台
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref sl) = config.channels_config.slack {
-        channels.push(ConfiguredChannel {
-            display_name: "Slack",
-            channel: Arc::new(
+        channels.push(ConfiguredChannel::new(
+            "Slack",
+            Arc::new(
                 SlackChannel::new(
                     sl.bot_token.clone(),     // Slack 机器人令牌
                     sl.channel_id.clone(),    // Slack 频道 ID
@@ -138,16 +176,16 @@ pub(crate) fn collect_configured_channels(
                     sl.group_reply_allowed_sender_ids(),
                 ),
             ),
-        });
+        ));
     }
 
     // ==================== Mattermost 通道配置 ====================
     // Mattermost 是开源的团队协作平台，类似 Slack
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref mm) = config.channels_config.mattermost {
-        channels.push(ConfiguredChannel {
-            display_name: "Mattermost",
-            channel: Arc::new(
+        channels.push(ConfiguredChannel::new(
+            "Mattermost",
+            Arc::new(
                 MattermostChannel::new(
                     mm.url.clone(),                    // Mattermost 服务器 URL
                     mm.bot_token.clone(),              // 机器人访问令牌
@@ -158,47 +196,51 @@ pub(crate) fn collect_configured_channels(
                 )
                 .with_group_reply_allowed_senders(mm.group_reply_allowed_sender_ids()),
             ),
-        });
+        ));
     }
 
     // ==================== iMessage 通道配置 ====================
     // iMessage 是苹果设备的原生消息应用
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref im) = config.channels_config.imessage {
-        channels.push(ConfiguredChannel {
-            display_name: "iMessage",
-            channel: Arc::new(IMessageChannel::new(im.allowed_contacts.clone())),
-        });
+        channels.push(ConfiguredChannel::new(
+            "iMessage",
+            Arc::new(IMessageChannel::new(im.allowed_contacts.clone())),
+        ));
     }
 
     // ==================== Matrix 通道配置 ====================
     // Matrix 是去中心化的开放通信协议
     #[cfg(feature = "channel-matrix")]
-    if let Some(ref mx) = config.channels_config.matrix {
-        channels.push(ConfiguredChannel {
-            display_name: "Matrix",
-            channel: Arc::new(
-                MatrixChannel::new_with_session_hint_and_vibewindow_dir(
-                    mx.homeserver.clone(),    // Matrix 主服务器地址
-                    mx.access_token.clone(),  // 访问令牌
-                    mx.room_id.clone(),       // 房间 ID
-                    mx.allowed_users.clone(), // 允许的用户列表
-                    mx.user_id.clone(),       // 机器人用户 ID
-                    mx.device_id.clone(),     // 设备 ID
-                    config.config_path.parent().map(|path| path.to_path_buf()), // 配置文件父目录
-                )
-                .with_mention_only(mx.mention_only) // 是否仅在提及 时响应
-                .with_transcription(config.transcription.clone()),
-            ),
-        });
+    if channel_instance_profiles_valid {
+        if let Some(ref mx) = config.channels_config.matrix {
+            channels.push(ConfiguredChannel::new(
+                "Matrix",
+                Arc::new(build_matrix_channel(config, mx, DEFAULT_CHANNEL_INSTANCE_ID)),
+            ));
+        }
+
+        for matrix_instance in &config.channels_config.matrix_instances {
+            channels.push(ConfiguredChannel::new(
+                instance_display_name("Matrix", &matrix_instance.id),
+                Arc::new(build_matrix_channel(
+                    config,
+                    &matrix_instance.config,
+                    &matrix_instance.id,
+                )),
+            ));
+        }
     }
 
     // 当未启用 channel-matrix 特性但配置了 Matrix 时，记录警告
     #[cfg(not(feature = "channel-matrix"))]
-    if config.channels_config.matrix.is_some() {
+    if config.channels_config.matrix.is_some()
+        || !config.channels_config.matrix_instances.is_empty()
+    {
+        let matrix_instance_count = usize::from(config.channels_config.matrix.is_some())
+            + config.channels_config.matrix_instances.len();
         tracing::warn!(
-            "Matrix channel is configured but this build was compiled without `channel-matrix`; skipping Matrix {}.",
-            matrix_skip_context
+            "Matrix channel has {matrix_instance_count} configured instance(s) but this build was compiled without `channel-matrix`; skipping Matrix {matrix_skip_context}."
         );
     }
 
@@ -206,9 +248,9 @@ pub(crate) fn collect_configured_channels(
     // Signal 是注重隐私的加密消息应用
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref sig) = config.channels_config.signal {
-        channels.push(ConfiguredChannel {
-            display_name: "Signal",
-            channel: Arc::new(SignalChannel::new(
+        channels.push(ConfiguredChannel::new(
+            "Signal",
+            Arc::new(SignalChannel::new(
                 sig.http_url.clone(),     // Signal HTTP 网关 URL
                 sig.account.clone(),      // 关联的电话号码
                 sig.group_id.clone(),     // 群组 ID（可选）
@@ -216,7 +258,7 @@ pub(crate) fn collect_configured_channels(
                 sig.ignore_attachments,   // 是否忽略附件
                 sig.ignore_stories,       // 是否忽略 Stories
             )),
-        });
+        ));
     }
 
     // ==================== WhatsApp 通道配置 ====================
@@ -231,53 +273,47 @@ pub(crate) fn collect_configured_channels(
         }
 
         // 运行时协商：根据配置检测后端类型
-        match wa.backend_type() {
-            "cloud" => {
-                // Cloud API 模式：需要 phone_number_id、access_token 和 verify_token
-                if wa.is_cloud_config() {
-                    channels.push(ConfiguredChannel {
-                        display_name: "WhatsApp",
-                        channel: Arc::new(WhatsAppChannel::new(
-                            wa.access_token.clone().unwrap_or_default(),
-                            wa.phone_number_id.clone().unwrap_or_default(),
-                            wa.verify_token.clone().unwrap_or_default(),
-                            wa.allowed_numbers.clone(),
-                        )),
-                    });
-                } else {
-                    tracing::warn!(
-                        "WhatsApp Cloud API configured but missing required fields (phone_number_id, access_token, verify_token)"
-                    );
-                }
-            }
-            "web" => {
-                // Web 模式：需要 session_path
-                #[cfg(feature = "whatsapp-web")]
-                if wa.is_web_config() {
-                    channels.push(ConfiguredChannel {
-                        display_name: "WhatsApp",
-                        channel: Arc::new(WhatsAppWebChannel::new(
-                            wa.session_path.clone().unwrap_or_default(),
-                            wa.pair_phone.clone(),
-                            wa.pair_code.clone(),
-                            wa.allowed_numbers.clone(),
-                        )),
-                    });
-                } else {
-                    tracing::warn!("WhatsApp Web configured but session_path not set");
-                }
-                #[cfg(not(feature = "whatsapp-web"))]
-                {
-                    tracing::warn!(
-                        "WhatsApp Web backend requires 'whatsapp-web' feature. Enable with: cargo build --features whatsapp-web"
-                    );
-                }
-            }
-            _ => {
+        if wa.phone_number_id.is_some() {
+            // Cloud API 模式：需要 phone_number_id、access_token 和 verify_token
+            if wa.is_cloud_config() {
+                channels.push(ConfiguredChannel::new(
+                    "WhatsApp",
+                    Arc::new(WhatsAppChannel::new(
+                        wa.access_token.clone().unwrap_or_default(),
+                        wa.phone_number_id.clone().unwrap_or_default(),
+                        wa.verify_token.clone().unwrap_or_default(),
+                        wa.allowed_numbers.clone(),
+                    )),
+                ));
+            } else {
                 tracing::warn!(
-                    "WhatsApp config invalid: neither phone_number_id (Cloud API) nor session_path (Web) is set"
+                    "WhatsApp Cloud API configured but missing required fields (phone_number_id, access_token, verify_token)"
                 );
             }
+        } else if wa.session_path.is_some() {
+            // Web 模式：需要 session_path
+            #[cfg(feature = "whatsapp-web")]
+            if wa.is_web_config() {
+                channels.push(ConfiguredChannel::new(
+                    "WhatsApp",
+                    Arc::new(WhatsAppWebChannel::new(
+                        wa.session_path.clone().unwrap_or_default(),
+                        wa.pair_phone.clone(),
+                        wa.pair_code.clone(),
+                        wa.allowed_numbers.clone(),
+                    )),
+                ));
+            }
+            #[cfg(not(feature = "whatsapp-web"))]
+            {
+                tracing::warn!(
+                    "WhatsApp Web backend requires 'whatsapp-web' feature. Enable with: cargo build --features whatsapp-web"
+                );
+            }
+        } else {
+            tracing::warn!(
+                "WhatsApp config invalid: neither phone_number_id (Cloud API) nor session_path (Web) is set"
+            );
         }
     }
 
@@ -285,62 +321,60 @@ pub(crate) fn collect_configured_channels(
     // Linq 是短信服务提供商
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref lq) = config.channels_config.linq {
-        channels.push(ConfiguredChannel {
-            display_name: "Linq",
-            channel: Arc::new(LinqChannel::new(
+        channels.push(ConfiguredChannel::new(
+            "Linq",
+            Arc::new(LinqChannel::new(
                 lq.api_token.clone(),       // Linq API 令牌
                 lq.from_phone.clone(),      // 发送方电话号码
                 lq.allowed_senders.clone(), // 允许的发送者列表
             )),
-        });
+        ));
     }
 
     // ==================== WATI 通道配置 ====================
     // WATI 是 WhatsApp API 的第三方集成服务
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref wati_cfg) = config.channels_config.wati {
-        channels.push(ConfiguredChannel {
-            display_name: "WATI",
-            channel: Arc::new(WatiChannel::new(
+        channels.push(ConfiguredChannel::new(
+            "WATI",
+            Arc::new(WatiChannel::new(
                 wati_cfg.api_token.clone(),       // WATI API 令牌
                 wati_cfg.api_url.clone(),         // WATI API 端点 URL
                 wati_cfg.tenant_id.clone(),       // 租户 ID
                 wati_cfg.allowed_numbers.clone(), // 允许的号码列表
             )),
-        });
+        ));
     }
 
     // ==================== Nextcloud Talk 通道配置 ====================
     // Nextcloud Talk 是 Nextcloud 的视频会议和聊天功能
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref nc) = config.channels_config.nextcloud_talk {
-        channels.push(ConfiguredChannel {
-            display_name: "Nextcloud Talk",
-            channel: Arc::new(NextcloudTalkChannel::new(
+        channels.push(ConfiguredChannel::new(
+            "Nextcloud Talk",
+            Arc::new(NextcloudTalkChannel::new(
                 nc.base_url.clone(),      // Nextcloud 服务器基础 URL
                 nc.app_token.clone(),     // 应用访问令牌
                 nc.allowed_users.clone(), // 允许的用户列表
             )),
-        });
+        ));
     }
 
     // ==================== Email 通道配置 ====================
     // Email 通道支持通过 SMTP 接收和发送邮件
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref email_cfg) = config.channels_config.email {
-        channels.push(ConfiguredChannel {
-            display_name: "Email",
-            channel: Arc::new(EmailChannel::new(email_cfg.clone())),
-        });
+        channels
+            .push(ConfiguredChannel::new("Email", Arc::new(EmailChannel::new(email_cfg.clone()))));
     }
 
     // ==================== IRC 通道配置 ====================
     // IRC 是经典的互联网中继聊天协议
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref irc) = config.channels_config.irc {
-        channels.push(ConfiguredChannel {
-            display_name: "IRC",
-            channel: Arc::new(IrcChannel::new(irc::IrcChannelConfig {
+        channels.push(ConfiguredChannel::new(
+            "IRC",
+            Arc::new(IrcChannel::new(irc::IrcChannelConfig {
                 server: irc.server.clone(),                       // IRC 服务器地址
                 port: irc.port,                                   // 服务器端口
                 nickname: irc.nickname.clone(),                   // 昵称
@@ -352,7 +386,7 @@ pub(crate) fn collect_configured_channels(
                 sasl_password: irc.sasl_password.clone(),         // SASL 认证密码（可选）
                 verify_tls: irc.verify_tls.unwrap_or(true),       // 是否验证 TLS 证书，默认为 true
             })),
-        });
+        ));
     }
 
     // ==================== Lark/Feishu 通道配置 ====================
@@ -371,49 +405,74 @@ pub(crate) fn collect_configured_channels(
                 tracing::warn!(
                     "Using legacy [channels_config.lark].use_feishu=true compatibility path; prefer [channels_config.feishu]."
                 );
-                channels.push(ConfiguredChannel {
-                    display_name: "Feishu",
-                    channel: Arc::new(LarkChannel::from_config(lk)),
-                });
+                channels
+                    .push(ConfiguredChannel::new("Feishu", Arc::new(LarkChannel::from_config(lk))));
             }
         } else {
             // 创建 Lark 国际版通道
-            channels.push(ConfiguredChannel {
-                display_name: "Lark",
-                channel: Arc::new(LarkChannel::from_lark_config(lk)),
-            });
+            channels
+                .push(ConfiguredChannel::new("Lark", Arc::new(LarkChannel::from_lark_config(lk))));
         }
     }
 
     // 独立的 Feishu 配置段
     #[cfg(feature = "channel-lark")]
-    if let Some(ref fs) = config.channels_config.feishu {
-        channels.push(ConfiguredChannel {
-            display_name: "Feishu",
-            channel: Arc::new(LarkChannel::from_feishu_config(fs)),
-        });
+    if channel_instance_profiles_valid {
+        if let Some(ref fs) = config.channels_config.feishu {
+            channels.push(ConfiguredChannel::new(
+                "Feishu",
+                Arc::new(LarkChannel::from_feishu_config(fs)),
+            ));
+        }
+
+        for feishu_instance in &config.channels_config.feishu_instances {
+            channels.push(ConfiguredChannel::new(
+                instance_display_name("Feishu", &feishu_instance.id),
+                Arc::new(LarkChannel::from_feishu_config(&feishu_instance.config)),
+            ));
+        }
     }
 
     // 当未启用 channel-lark 特性但配置了 Lark/Feishu 时，记录警告
     #[cfg(not(feature = "channel-lark"))]
-    if config.channels_config.lark.is_some() || config.channels_config.feishu.is_some() {
+    if config.channels_config.lark.is_some()
+        || config.channels_config.feishu.is_some()
+        || !config.channels_config.feishu_instances.is_empty()
+    {
+        let lark_feishu_instance_count = usize::from(config.channels_config.lark.is_some())
+            + usize::from(config.channels_config.feishu.is_some())
+            + config.channels_config.feishu_instances.len();
         tracing::warn!(
-            "Lark/Feishu channel is configured but this build was compiled without `channel-lark`; skipping Lark/Feishu health check."
+            "Lark/Feishu channel has {lark_feishu_instance_count} configured instance(s) but this build was compiled without `channel-lark`; skipping Lark/Feishu health check."
         );
     }
 
     // ==================== DingTalk 通道配置 ====================
     // DingTalk 是阿里巴巴的企业协作平台
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ref dt) = config.channels_config.dingtalk {
-        channels.push(ConfiguredChannel {
-            display_name: "DingTalk",
-            channel: Arc::new(DingTalkChannel::new(
-                dt.client_id.clone(),     // 钉钉应用 Client ID
-                dt.client_secret.clone(), // 钉钉应用 Client Secret
-                dt.allowed_users.clone(), // 允许的用户列表
-            )),
-        });
+    if channel_instance_profiles_valid {
+        if let Some(ref dt) = config.channels_config.dingtalk {
+            channels.push(ConfiguredChannel::new(
+                "DingTalk",
+                Arc::new(DingTalkChannel::new(
+                    dt.client_id.clone(),     // 钉钉应用 Client ID
+                    dt.client_secret.clone(), // 钉钉应用 Client Secret
+                    dt.allowed_users.clone(), // 允许的用户列表
+                )),
+            ));
+        }
+
+        for dingtalk_instance in &config.channels_config.dingtalk_instances {
+            let dt = &dingtalk_instance.config;
+            channels.push(ConfiguredChannel::new(
+                instance_display_name("DingTalk", &dingtalk_instance.id),
+                Arc::new(DingTalkChannel::new(
+                    dt.client_id.clone(),
+                    dt.client_secret.clone(),
+                    dt.allowed_users.clone(),
+                )),
+            ));
+        }
     }
 
     // ==================== QQ 通道配置 ====================
@@ -428,24 +487,22 @@ pub(crate) fn collect_configured_channels(
             );
         } else {
             // WebSocket 模式下，启动 QQ 通道实例
-            channels.push(ConfiguredChannel {
-                display_name: "QQ",
-                channel: Arc::new(QQChannel::new(
+            channels.push(ConfiguredChannel::new(
+                "QQ",
+                Arc::new(QQChannel::new(
                     qq.app_id.clone(),        // QQ 应用 ID
                     qq.app_secret.clone(),    // QQ 应用密钥
                     qq.allowed_users.clone(), // 允许的用户列表
                 )),
-            });
+            ));
         }
     }
 
     // ==================== ClawdTalk 通道配置 ====================
     // ClawdTalk 是自定义的通信通道（具体用途需要查看实现）
     if let Some(ref ct) = config.channels_config.clawdtalk {
-        channels.push(ConfiguredChannel {
-            display_name: "ClawdTalk",
-            channel: Arc::new(ClawdTalkChannel::new(ct.clone())),
-        });
+        channels
+            .push(ConfiguredChannel::new("ClawdTalk", Arc::new(ClawdTalkChannel::new(ct.clone()))));
     }
 
     // 返回所有已配置的通道列表
@@ -526,8 +583,7 @@ pub(crate) async fn append_nostr_channel_if_available(
         match NostrChannel::new(&ns.private_key, ns.relays.clone(), &ns.allowed_pubkeys).await {
             Ok(channel) => {
                 // 成功创建，添加到通道列表
-                channels
-                    .push(ConfiguredChannel { display_name: "Nostr", channel: Arc::new(channel) });
+                channels.push(ConfiguredChannel::new("Nostr", Arc::new(channel)));
                 None
             }
             Err(err) => {

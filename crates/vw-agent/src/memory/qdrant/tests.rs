@@ -72,6 +72,24 @@ impl EmbeddingProvider for EmptyEmbedding {
     }
 }
 
+#[derive(Clone)]
+struct FailingEmbedding;
+
+#[async_trait]
+impl EmbeddingProvider for FailingEmbedding {
+    fn name(&self) -> &str {
+        "failing"
+    }
+
+    fn dimensions(&self) -> usize {
+        1
+    }
+
+    async fn embed(&self, _texts: &[&str]) -> anyhow::Result<Vec<Vec<f32>>> {
+        anyhow::bail!("embedding unavailable")
+    }
+}
+
 #[derive(Clone, Debug)]
 struct RecordedRequest {
     method: String,
@@ -318,6 +336,21 @@ fn new_lazy_trims_base_url_and_request_sets_headers() {
     assert_eq!(request.headers().get("content-type").unwrap(), "application/json");
 }
 
+#[test]
+fn request_without_api_key_omits_authentication_header() {
+    let memory = QdrantMemory::new_lazy(
+        "http://127.0.0.1:6333",
+        "memories",
+        None,
+        Arc::new(StaticEmbedding::new(vec![1.0])),
+    );
+
+    let request = memory.request(reqwest::Method::GET, "/collections").build().unwrap();
+
+    assert!(request.headers().get("api-key").is_none());
+    assert_eq!(request.headers().get("content-type").unwrap(), "application/json");
+}
+
 #[tokio::test]
 async fn ensure_collection_skips_network_for_zero_dimensional_embedder() {
     let memory = qdrant("http://127.0.0.1:1", Arc::new(EmptyEmbedding));
@@ -403,6 +436,19 @@ async fn ensure_collection_reports_connection_errors() {
 }
 
 #[tokio::test]
+async fn ensure_initialized_checks_collection_only_once() {
+    let server = MockQdrant::spawn(vec![json_response(serde_json::json!({"result": {}}))]).await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![0.1])));
+
+    memory.ensure_initialized().await.unwrap();
+    memory.ensure_initialized().await.unwrap();
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/collections/memories");
+}
+
+#[tokio::test]
 async fn store_deletes_existing_key_then_upserts_payload() {
     let server = MockQdrant::spawn(vec![
         json_response(serde_json::json!({"result": {}})),
@@ -456,6 +502,38 @@ async fn store_surfaces_upsert_errors() {
         memory.store("key", "content", MemoryCategory::Core, None).await.unwrap_err().to_string();
 
     assert!(err.contains("Qdrant upsert failed"));
+}
+
+#[tokio::test]
+async fn store_propagates_embedding_errors_before_mutating_points() {
+    let server = MockQdrant::spawn(vec![json_response(serde_json::json!({"result": {}}))]).await;
+    let memory = qdrant(&server.base_url, Arc::new(FailingEmbedding));
+
+    let err =
+        memory.store("key", "content", MemoryCategory::Core, None).await.unwrap_err().to_string();
+
+    assert!(err.contains("embedding unavailable"));
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/collections/memories");
+}
+
+#[tokio::test]
+async fn store_continues_upsert_when_removing_existing_key_fails() {
+    let server = MockQdrant::spawn(vec![
+        json_response(serde_json::json!({"result": {}})),
+        status_response(StatusCode::INTERNAL_SERVER_ERROR, "delete down"),
+        json_response(serde_json::json!({"result": {"status": "upserted"}})),
+    ])
+    .await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![0.5])));
+
+    memory.store("key", "content", MemoryCategory::Core, None).await.unwrap();
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[1].path, "/collections/memories/points/delete");
+    assert_eq!(requests[2].path, "/collections/memories/points");
 }
 
 #[tokio::test]
@@ -521,6 +599,112 @@ async fn empty_recall_query_falls_back_to_list() {
     assert_eq!(entries[0].id, "42");
     assert_eq!(entries[0].category, MemoryCategory::Daily);
     assert_eq!(server.requests().await[1].path, "/collections/memories/points/scroll");
+}
+
+#[tokio::test]
+async fn empty_recall_embedding_falls_back_to_filtered_list() {
+    let server = MockQdrant::spawn(vec![json_response(serde_json::json!({
+        "result": {"points": []}
+    }))])
+    .await;
+    let memory =
+        QdrantMemory::new_lazy(&server.base_url, "memories", None, Arc::new(EmptyEmbedding));
+
+    let entries = memory.recall("query", 5, Some("session-1")).await.unwrap();
+
+    assert!(entries.is_empty());
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/collections/memories/points/scroll");
+    assert_eq!(requests[0].body["filter"]["must"][0]["match"]["value"], "session-1");
+}
+
+#[tokio::test]
+async fn recall_skips_missing_payload_and_maps_numeric_point_ids() {
+    let server = MockQdrant::spawn(vec![
+        json_response(serde_json::json!({"result": {}})),
+        json_response(serde_json::json!({
+            "result": [
+                {"id": "missing-payload", "score": 0.1},
+                {
+                    "id": 23,
+                    "score": 0.8,
+                    "payload": {
+                        "key": "numeric",
+                        "content": "content",
+                        "category": "core",
+                        "timestamp": "2026-01-01T00:00:00Z"
+                    }
+                }
+            ]
+        })),
+    ])
+    .await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![1.0])));
+
+    let entries = memory.recall("query", 10, None).await.unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].id, "23");
+    assert_eq!(entries[0].score, Some(0.8));
+}
+
+#[tokio::test]
+async fn get_returns_none_for_empty_or_payloadless_results() {
+    let server = MockQdrant::spawn(vec![
+        json_response(serde_json::json!({"result": {}})),
+        json_response(serde_json::json!({"result": {"points": []}})),
+        json_response(serde_json::json!({
+            "result": {"points": [{"id": "payloadless"}]}
+        })),
+    ])
+    .await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![1.0])));
+
+    assert!(memory.get("missing").await.unwrap().is_none());
+    assert!(memory.get("payloadless").await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn get_maps_numeric_ids_and_rejects_non_scalar_ids() {
+    let server = MockQdrant::spawn(vec![
+        json_response(serde_json::json!({"result": {}})),
+        json_response(serde_json::json!({
+            "result": {
+                "points": [{
+                    "id": 41,
+                    "payload": {
+                        "key": "numeric",
+                        "content": "content",
+                        "category": "daily",
+                        "timestamp": "2026-01-01T00:00:00Z"
+                    }
+                }]
+            }
+        })),
+        json_response(serde_json::json!({
+            "result": {
+                "points": [{
+                    "id": {"unexpected": true},
+                    "payload": {
+                        "key": "invalid",
+                        "content": "content",
+                        "category": "core",
+                        "timestamp": "2026-01-01T00:00:00Z"
+                    }
+                }]
+            }
+        })),
+    ])
+    .await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![1.0])));
+
+    let numeric = memory.get("numeric").await.unwrap().unwrap();
+    let invalid = memory.get("invalid").await.unwrap();
+
+    assert_eq!(numeric.id, "41");
+    assert_eq!(numeric.category, MemoryCategory::Daily);
+    assert!(invalid.is_none());
 }
 
 #[tokio::test]
@@ -647,4 +831,15 @@ async fn qdrant_operations_surface_http_errors() {
     let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![1.0])));
     let err = memory.forget("key").await.unwrap_err().to_string();
     assert!(err.contains("Qdrant delete failed"));
+}
+
+#[tokio::test]
+async fn health_check_returns_false_for_http_and_connection_failures() {
+    let server =
+        MockQdrant::spawn(vec![status_response(StatusCode::SERVICE_UNAVAILABLE, "down")]).await;
+    let memory = qdrant(&server.base_url, Arc::new(StaticEmbedding::new(vec![1.0])));
+    assert!(!memory.health_check().await);
+
+    let memory = qdrant(&unused_local_url(), Arc::new(StaticEmbedding::new(vec![1.0])));
+    assert!(!memory.health_check().await);
 }

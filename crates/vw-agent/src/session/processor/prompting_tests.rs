@@ -1,10 +1,14 @@
-#[test]
-fn prompting_tests_module_is_wired() {
-    let marker = String::from("prompting_tests");
-    assert_eq!(marker.as_str(), "prompting_tests");
-}
-
 use crate::app::agent::session::session::{Role, Session};
+
+#[test]
+fn build_prompt_with_empty_session_contains_only_system_prompt_separator() {
+    let session = Session::new("prompting-tests-empty".to_string());
+    let system_prompt = crate::session::prompt::system(None, None);
+
+    let prompt = super::build_prompt(&session, None, None, None);
+
+    assert_eq!(prompt, format!("{system_prompt}\n\n"));
+}
 
 fn session_with(messages: &[(Role, &str)]) -> Session {
     let mut session = Session::new("prompting-tests".to_string());
@@ -68,6 +72,27 @@ fn build_prompt_truncates_tool_messages_on_utf8_boundary() {
 }
 
 #[test]
+fn build_prompt_backs_up_when_tool_limit_splits_utf8_character() {
+    let content = format!("a{}", "界".repeat(2_000));
+    let session = session_with(&[(Role::Tool, content.as_str())]);
+
+    let prompt = super::build_prompt(&session, None, None, None);
+
+    assert!(prompt.contains(&format!("tool: a{}\n", "界".repeat(1_023))));
+    assert!(!prompt.contains(&format!("tool: a{}", "界".repeat(1_024))));
+}
+
+#[test]
+fn build_prompt_keeps_tool_message_at_exact_byte_limit() {
+    let content = "x".repeat(3 * 1_024);
+    let session = session_with(&[(Role::Tool, content.as_str())]);
+
+    let prompt = super::build_prompt(&session, None, None, None);
+
+    assert!(prompt.ends_with(&format!("tool: {content}\n")));
+}
+
+#[test]
 fn build_prompt_stops_before_oversized_older_history() {
     let mut session = Session::new("prompting-tests-budget".to_string());
     session.push(Role::User, format!("old {}", "x".repeat(130 * 1024)));
@@ -77,6 +102,42 @@ fn build_prompt_stops_before_oversized_older_history() {
 
     assert!(prompt.contains("assistant: new answer\n"));
     assert!(!prompt.contains("old "));
+}
+
+#[test]
+fn build_prompt_stops_at_oversized_newest_message() {
+    let mut session = Session::new("prompting-tests-newest-budget".to_string());
+    session.push(Role::User, "older question".to_string());
+    session.push(Role::Assistant, "x".repeat(130 * 1_024));
+    let empty_session = Session::new("prompting-tests-newest-budget-empty".to_string());
+    let baseline = super::build_prompt(&empty_session, None, None, None);
+
+    let prompt = super::build_prompt(&session, None, None, None);
+
+    assert_eq!(prompt, baseline);
+}
+
+#[test]
+fn build_prompt_accepts_exact_total_budget_and_rejects_one_byte_more() {
+    const MAX_PROMPT_BYTES: usize = 120 * 1_024;
+    const USER_CHUNK_OVERHEAD: usize = "user: \n".len();
+
+    let empty_session = Session::new("prompting-tests-empty-budget".to_string());
+    let baseline = super::build_prompt(&empty_session, None, None, None);
+    let exact_content_len = MAX_PROMPT_BYTES
+        .checked_sub(baseline.len() + USER_CHUNK_OVERHEAD)
+        .expect("system prompt should leave room for one user message");
+
+    let exact_content = "x".repeat(exact_content_len);
+    let exact_session = session_with(&[(Role::User, exact_content.as_str())]);
+    let exact_prompt = super::build_prompt(&exact_session, None, None, None);
+    assert_eq!(exact_prompt.len(), MAX_PROMPT_BYTES);
+    assert!(exact_prompt.ends_with(&format!("user: {exact_content}\n")));
+
+    let over_content = "x".repeat(exact_content_len + 1);
+    let over_session = session_with(&[(Role::User, over_content.as_str())]);
+    let over_prompt = super::build_prompt(&over_session, None, None, None);
+    assert_eq!(over_prompt, baseline);
 }
 
 #[test]

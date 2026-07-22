@@ -22,7 +22,7 @@ static APPROVAL_MANAGERS: LazyLock<Mutex<HashMap<String, Arc<ApprovalManager>>>>
 ///
 /// 返回可共享的审批管理器引用。
 pub(crate) async fn approval_manager_for_current_instance() -> Arc<ApprovalManager> {
-    let directory = instance::directory();
+    let directory = normalize_directory_key(&instance::directory());
 
     // 快速路径只读取缓存；锁中毒时继续走重建路径，避免一次 panic 永久阻断审批。
     if let Ok(lock) = APPROVAL_MANAGERS.lock()
@@ -50,8 +50,15 @@ pub(crate) async fn approval_manager_for_current_instance() -> Arc<ApprovalManag
 /// 该函数用于测试和配置刷新路径；如果缓存锁不可用，会直接跳过清理。
 pub(crate) fn clear_approval_manager_for_directory(directory: &str) {
     if let Ok(mut lock) = APPROVAL_MANAGERS.lock() {
-        lock.remove(directory);
+        lock.remove(&normalize_directory_key(directory));
     }
+}
+
+fn normalize_directory_key(directory: &str) -> String {
+    std::fs::canonicalize(directory)
+        .unwrap_or_else(|_| std::path::PathBuf::from(directory))
+        .to_string_lossy()
+        .into_owned()
 }
 
 #[cfg(test)]

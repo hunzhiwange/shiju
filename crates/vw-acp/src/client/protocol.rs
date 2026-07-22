@@ -104,6 +104,14 @@ impl AcpClient {
         conn: &acp::ClientSideConnection,
         cwd: &Path,
     ) -> Result<String, AcpError> {
+        Ok(self.new_session_info(conn, cwd).await?.session_id)
+    }
+
+    pub(super) async fn new_session_info(
+        &self,
+        conn: &acp::ClientSideConnection,
+        cwd: &Path,
+    ) -> Result<SessionInfo, AcpError> {
         let mut request = acp::NewSessionRequest::new(cwd).mcp_servers(self.mcp_servers.clone());
         if let Some(meta) = build_session_options_meta(self.session_options.as_ref()) {
             request = request.meta(meta);
@@ -120,7 +128,11 @@ impl AcpClient {
         } else {
             conn.new_session(request).await.map_err(|err| AcpError::NewSession(err.to_string()))?
         };
-        Ok(session.session_id.0.to_string())
+        Ok(SessionInfo {
+            session_id: session.session_id.0.to_string(),
+            models: session.models,
+            config_options: session.config_options,
+        })
     }
 
     pub(super) async fn load_session_id(
@@ -129,13 +141,27 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<String, AcpError> {
-        conn.load_session(
-            acp::LoadSessionRequest::new(session_id.clone(), cwd)
-                .mcp_servers(self.mcp_servers.clone()),
-        )
-        .await
-        .map_err(|err| AcpError::LoadSession(err.to_string()))?;
-        Ok(session_id)
+        Ok(self.load_session_info(conn, cwd, session_id).await?.session_id)
+    }
+
+    pub(super) async fn load_session_info(
+        &self,
+        conn: &acp::ClientSideConnection,
+        cwd: &Path,
+        session_id: String,
+    ) -> Result<SessionInfo, AcpError> {
+        let response = conn
+            .load_session(
+                acp::LoadSessionRequest::new(session_id.clone(), cwd)
+                    .mcp_servers(self.mcp_servers.clone()),
+            )
+            .await
+            .map_err(|err| AcpError::LoadSession(err.to_string()))?;
+        Ok(SessionInfo {
+            session_id,
+            models: response.models,
+            config_options: response.config_options,
+        })
     }
 
     pub(super) async fn resume_session_id(
@@ -144,13 +170,27 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<String, AcpError> {
-        conn.resume_session(
-            acp::ResumeSessionRequest::new(session_id.clone(), cwd)
-                .mcp_servers(self.mcp_servers.clone()),
-        )
-        .await
-        .map_err(|err| AcpError::ResumeSession(err.to_string()))?;
-        Ok(session_id)
+        Ok(self.resume_session_info(conn, cwd, session_id).await?.session_id)
+    }
+
+    pub(super) async fn resume_session_info(
+        &self,
+        conn: &acp::ClientSideConnection,
+        cwd: &Path,
+        session_id: String,
+    ) -> Result<SessionInfo, AcpError> {
+        let response = conn
+            .resume_session(
+                acp::ResumeSessionRequest::new(session_id.clone(), cwd)
+                    .mcp_servers(self.mcp_servers.clone()),
+            )
+            .await
+            .map_err(|err| AcpError::ResumeSession(err.to_string()))?;
+        Ok(SessionInfo {
+            session_id,
+            models: response.models,
+            config_options: response.config_options,
+        })
     }
 
     pub(crate) fn is_gemini_acp_command(&self) -> bool {

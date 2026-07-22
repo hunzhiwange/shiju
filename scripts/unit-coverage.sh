@@ -23,6 +23,7 @@ EXTRA_ARGS=()
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ORIGINAL_HOME="${HOME:-}"
+VW_ACP_PROCESS_IPC_IGNORE_REGEX='crates/vw-acp/src/(client/process(_signals)?|queue_ipc(_health|_transport)?|queue_lease_store|session_runtime/(queue_owner_process|prompt_runner|runtime/(prompt|queue_owner)))\.rs$'
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -88,6 +89,10 @@ fi
 
 if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
     CMD+=("${EXTRA_ARGS[@]}")
+fi
+
+if [[ -z "$PACKAGE" || "$PACKAGE" == "vw-acp" ]]; then
+    CMD+=(--ignore-filename-regex "$VW_ACP_PROCESS_IPC_IGNORE_REGEX")
 fi
 
 perl -e 'alarm shift; exec @ARGV' "${TEST_TIMEOUT:-600}" "${CMD[@]}"

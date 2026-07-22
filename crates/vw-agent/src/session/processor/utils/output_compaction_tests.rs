@@ -122,6 +122,13 @@ fn compact_tool_output_compacts_file_links_and_uses_tail_for_bash() {
 }
 
 #[test]
+fn compact_tool_output_keeps_short_bash_output_unchanged() {
+    let output = "command completed\nshort output";
+
+    assert_eq!(super::compact_tool_output("bash", output), output);
+}
+
+#[test]
 fn compact_tool_output_for_ui_has_read_specific_rules() {
     let file = format!("<file>{}</file>", "a".repeat(17 * 1024));
     let compact_file = super::compact_tool_output_for_ui("read", &file);

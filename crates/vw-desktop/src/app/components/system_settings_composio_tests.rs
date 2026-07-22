@@ -1,7 +1,7 @@
 use super::*;
-use iced::Element;
 use crate::app::message::settings::SettingsMessage;
 use crate::app::{App, Message};
+use iced::Element;
 
 fn test_app() -> App {
     App::new().0

@@ -3,7 +3,6 @@ use super::{Error, Info};
 use crate::app::agent::project;
 use crate::app::agent::project::instance;
 use crate::app::agent::shell::{git_std_command, std_system_command};
-use crate::app::agent::storage;
 use crate::app::agent::util::log;
 use directories::UserDirs;
 use serde_json::{Map, Value};
@@ -21,16 +20,17 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-/// 获取 worktree 根目录路径
+/// 获取 worktree 根目录路径。
 ///
-/// 所有 worktree 都存储在 `{project_worktree}/.vibewindow/worktrees/` 下
+/// 普通 worktree 与任务池共用 home 配置目录下的 `task-worktrees` 根目录；
+/// 任务池只接管 `slot-*` 槽位，避免误重置手动或 fork worktree。
 pub(super) fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
     if project.worktree.trim().is_empty() {
         return Err(Error::MissingProject("missing project worktree root".to_string()));
     }
     let base = UserDirs::new()
         .map_or_else(|| PathBuf::from(&project.worktree), |dirs| dirs.home_dir().to_path_buf());
-    Ok(vw_config_types::paths::home_config_dir(base).join("project-worktrees"))
+    Ok(vw_config_types::paths::task_worktrees_dir(base))
 }
 
 /// 验证并获取当前 Git 项目信息
@@ -188,7 +188,10 @@ pub(super) async fn run_start_scripts(
     project_id: &str,
     extra: &str,
 ) -> Result<(), Error> {
-    let project_info = storage::read::<project::Info>(&["project", project_id]).await.ok();
+    let project_info = match project::project_scope_for_default_tenant(project_id) {
+        Ok(scope) => project::get(&scope).await.ok().flatten(),
+        Err(_) => None,
+    };
     let project_start = project_info
         .and_then(|project| project.commands.and_then(|commands| commands.start))
         .map(|command| command.trim().to_string())

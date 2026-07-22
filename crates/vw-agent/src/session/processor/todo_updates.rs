@@ -91,6 +91,7 @@ pub(crate) fn maybe_update_todos_after_work(
 
     // 空的事件处理器（LLM 调用阶段不需要处理事件）
     let mut noop = |_ev: StreamEvent| true;
+    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(ctx);
 
     // 构造系统提示词：基础提示 + todo 更新指令
     let system = [
@@ -105,6 +106,7 @@ pub(crate) fn maybe_update_todos_after_work(
         &system,
         model,
         &serde_json::Value::Object(serde_json::Map::new()),
+        &available_tool_specs,
         &only_todowrite,
         &mut noop,
         2,
@@ -113,6 +115,26 @@ pub(crate) fn maybe_update_todos_after_work(
         Err(_) => return false, // LLM 调用失败，返回 false
     };
 
+    apply_todo_update_step(llm_messages, total_usage, step_out, |call| {
+        super::tools_exec::run_tool_and_record(
+            session,
+            &call.name,
+            &call.arguments,
+            ctx,
+            true,
+            on_event,
+            tool_state,
+        )
+        .unwrap_or_default()
+    })
+}
+
+fn apply_todo_update_step(
+    llm_messages: &mut Vec<serde_json::Value>,
+    total_usage: &mut models::TokenUsage,
+    step_out: super::llm_runner::LlmStep,
+    mut run_todowrite: impl FnMut(&crate::app::agent::session::llm::ToolCall) -> String,
+) -> bool {
     // 累加本次 LLM 调用的 token 使用量到总计中
     total_usage.input_tokens += step_out.usage.input_tokens;
     total_usage.output_tokens += step_out.usage.output_tokens;
@@ -141,17 +163,8 @@ pub(crate) fn maybe_update_todos_after_work(
         }
         ran = true; // 标记已执行
 
-        // 执行工具并记录结果，失败则使用默认空字符串
-        let content = super::tools_exec::run_tool_and_record(
-            session,
-            &call.name,
-            &call.arguments,
-            ctx,
-            true, // 记录到历史
-            on_event,
-            tool_state,
-        )
-        .unwrap_or_default();
+        // 执行工具并记录结果；调用方负责将执行失败转换为空字符串
+        let content = run_todowrite(&call);
 
         // 将工具执行结果追加到消息历史
         llm_messages.push(super::utils::tool_result_to_message(&call.id, &content));

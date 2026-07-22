@@ -31,6 +31,35 @@ fn store_values_copy_user_input_and_serialize_category() {
 }
 
 #[test]
+fn store_values_preserve_boundary_text_without_normalizing_it() {
+    let values = PostgresMemory::store_values(
+        "  偏好  ",
+        "\nkeep surrounding whitespace\t",
+        MemoryCategory::Core,
+        Some(""),
+    );
+
+    assert_eq!(values.key, "  偏好  ");
+    assert_eq!(values.content, "\nkeep surrounding whitespace\t");
+    assert_eq!(values.category, "core");
+    assert_eq!(values.session_id.as_deref(), Some(""));
+}
+
+#[test]
+fn store_values_serialize_all_builtin_categories() {
+    let cases = [
+        (MemoryCategory::Core, "core"),
+        (MemoryCategory::Daily, "daily"),
+        (MemoryCategory::Conversation, "conversation"),
+    ];
+
+    for (category, expected) in cases {
+        let values = PostgresMemory::store_values("key", "content", category, None);
+        assert_eq!(values.category, expected);
+    }
+}
+
+#[test]
 fn store_statement_uses_upsert_with_bound_parameters() {
     let sql = PostgresMemory::store_statement("\"agent\".\"memories\"");
 
@@ -47,6 +76,14 @@ fn store_statement_uses_upsert_with_bound_parameters() {
 fn recall_query_is_trimmed_before_database_lookup() {
     assert_eq!(PostgresMemory::normalized_recall_query("  key words \n"), "key words");
     assert_eq!(PostgresMemory::normalized_recall_query("   "), "");
+}
+
+#[test]
+fn recall_query_preserves_unicode_and_internal_whitespace() {
+    assert_eq!(
+        PostgresMemory::normalized_recall_query("\u{2003}偏好  compact layout\u{2003}"),
+        "偏好  compact layout"
+    );
 }
 
 #[test]
@@ -72,6 +109,15 @@ fn limit_to_i64_preserves_supported_limits() {
 }
 
 #[test]
+fn limit_to_i64_preserves_largest_supported_value() {
+    let largest_supported = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
+    assert_eq!(
+        PostgresMemory::limit_to_i64(largest_supported),
+        i64::try_from(largest_supported).expect("selected limit must fit in i64")
+    );
+}
+
+#[test]
 fn get_statement_fetches_one_row_by_key() {
     let sql = PostgresMemory::get_statement("\"agent\".\"memories\"");
 
@@ -94,6 +140,20 @@ fn list_filters_serialize_optional_category_and_session() {
     assert_eq!(
         PostgresMemory::list_filters(None, None),
         ListFilters { category: None, session_id: None }
+    );
+}
+
+#[test]
+fn list_filters_keep_category_and_session_independently_optional() {
+    let category = MemoryCategory::Core;
+
+    assert_eq!(
+        PostgresMemory::list_filters(Some(&category), None),
+        ListFilters { category: Some("core".into()), session_id: None }
+    );
+    assert_eq!(
+        PostgresMemory::list_filters(None, Some("")),
+        ListFilters { category: None, session_id: Some(String::new()) }
     );
 }
 

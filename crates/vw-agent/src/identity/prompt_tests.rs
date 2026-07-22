@@ -207,3 +207,34 @@ fn prompt_keeps_empty_optional_collections_quiet_but_emits_section_headings() {
     assert!(!prompt.contains("**Skills:**"));
     assert!(!prompt.contains("**Favorites:**"));
 }
+
+#[test]
+fn prompt_keeps_absent_optional_collections_quiet_but_emits_section_headings() {
+    let identity = AieosIdentity {
+        identity: Some(IdentitySection::default()),
+        psychology: Some(PsychologySection::default()),
+        linguistics: Some(LinguisticsSection::default()),
+        motivations: Some(MotivationsSection::default()),
+        capabilities: Some(CapabilitiesSection::default()),
+        history: Some(HistorySection::default()),
+        interests: Some(InterestsSection::default()),
+        ..Default::default()
+    };
+
+    let prompt = aieos_to_system_prompt(&identity);
+
+    assert!(prompt.contains("## Identity"));
+    assert!(prompt.contains("## Personality"));
+    assert!(prompt.contains("## Communication Style"));
+    assert!(prompt.contains("## Motivations"));
+    assert!(prompt.contains("## Capabilities"));
+    assert!(prompt.contains("## Background"));
+    assert!(prompt.contains("## Interests"));
+    assert!(!prompt.contains("**Name:**"));
+    assert!(!prompt.contains("**神经矩阵"));
+    assert!(!prompt.contains("**口头禅:**"));
+    assert!(!prompt.contains("**Short-term Goals:**"));
+    assert!(!prompt.contains("**Skills:**"));
+    assert!(!prompt.contains("**Education:**"));
+    assert!(!prompt.contains("**Favorites:**"));
+}

@@ -98,6 +98,39 @@ fn build_todowrite_from_text_returns_none_for_empty_or_command_only_text() {
 }
 
 #[test]
+fn build_todowrite_from_text_handles_uppercase_checkbox_and_skips_empty_markers() {
+    let input = super::build_todowrite_from_text(
+        "- [X] Finished review\n- [ ]\n- [x]\n-\n*\n1.\n2)\n- /todowrite {}",
+    )
+    .expect("uppercase checkbox should produce a todowrite input");
+
+    assert_eq!(todo_contents(&input), vec!["Finished review"]);
+}
+
+#[test]
+fn build_todowrite_from_text_only_strips_numeric_list_prefixes() {
+    let input = super::build_todowrite_from_text(
+        "release.v1 stays intact\nphase) stays intact\n0. zero-based task\n007) padded task",
+    )
+    .expect("plain and numbered lines should produce a todowrite input");
+
+    assert_eq!(
+        todo_contents(&input),
+        vec!["release.v1 stays intact", "phase) stays intact", "zero-based task", "padded task",]
+    );
+}
+
+#[test]
+fn build_todowrite_from_text_ignores_remainder_after_unclosed_code_fence() {
+    let input = super::build_todowrite_from_text(
+        "Visible task\n```rust\n- hidden task\n1. another hidden task",
+    )
+    .expect("text before an unclosed fence should remain available");
+
+    assert_eq!(todo_contents(&input), vec!["Visible task"]);
+}
+
+#[test]
 fn ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed() {
     let session_id = unique_session_id("not-allowed");
     let mut session = Session::new(session_id.clone());
@@ -120,6 +153,58 @@ fn ingest_planning_answer_does_not_autogenerate_when_todowrite_is_not_allowed() 
     assert!(!ran);
     assert!(session.messages.is_empty());
     assert_eq!(event_count, 0);
+}
+
+#[test]
+fn ingest_planning_answer_does_not_run_allowed_todowrite_without_extractable_items() {
+    let session_id = unique_session_id("allowed-no-items");
+    let mut session = Session::new(session_id.clone());
+    let ctx = ToolRuntimeContext::new(session_id, None);
+    let mut tool_state = super::super::ToolSessionState::default();
+    let mut event_count = 0usize;
+
+    let ran = super::ingest_planning_answer_todowrite_only(
+        &mut session,
+        "/todowrite {}\n```\n- hidden task\n```",
+        &ctx,
+        &allowed(&[TODO_WRITE_TOOL_ID]),
+        &mut |_event| {
+            event_count += 1;
+            true
+        },
+        &mut tool_state,
+    );
+
+    assert!(!ran);
+    assert!(session.messages.is_empty());
+    assert_eq!(event_count, 0);
+}
+
+#[test]
+fn ingest_planning_answer_records_explicit_todowrite_without_input() {
+    let session_id = unique_session_id("explicit-empty");
+    let mut session = Session::new(session_id.clone());
+    let ctx = ToolRuntimeContext::new(session_id, None);
+    let mut tool_state = super::super::ToolSessionState::default();
+    let mut event_count = 0usize;
+
+    let ran = super::ingest_planning_answer_todowrite_only(
+        &mut session,
+        &format!("/{TODO_WRITE_TOOL_ID}"),
+        &ctx,
+        &allowed(&[TODO_WRITE_TOOL_ID]),
+        &mut |_event| {
+            event_count += 1;
+            true
+        },
+        &mut tool_state,
+    );
+
+    assert!(ran);
+    assert_eq!(session.messages[0].role, Role::Assistant);
+    assert_eq!(session.messages[0].content, format!("/{TODO_WRITE_TOOL_ID}"));
+    assert!(session.messages.iter().any(|message| matches!(message.role, Role::Tool)));
+    assert_eq!(event_count, 1);
 }
 
 #[test]
@@ -189,6 +274,39 @@ fn ingest_planning_answer_runs_explicit_todowrite_and_skips_implicit_fallback() 
     let stored = todo::read(&ctx).expect("explicit todowrite should write todos");
     assert!(stored.contains("explicit task"));
     assert!(!stored.contains("fallback task"));
+}
+
+#[test]
+fn ingest_planning_answer_consumes_multiline_todowrite_input_once() {
+    let session_id = unique_session_id("explicit-multiline");
+    let mut session = Session::new(session_id.clone());
+    let ctx = ToolRuntimeContext::new(session_id, None);
+    let mut tool_state = super::super::ToolSessionState::default();
+    let mut event_count = 0usize;
+    let answer = format!(
+        "/{TODO_WRITE_TOOL_ID}\n{{\n  \"todos\": [\n    {{\"id\": \"1\", \"content\": \"multiline task\", \"status\": \"pending\", \"priority\": \"medium\"}}\n  ]\n}}"
+    );
+
+    let ran = super::ingest_planning_answer_todowrite_only(
+        &mut session,
+        &answer,
+        &ctx,
+        &allowed(&[TODO_WRITE_TOOL_ID]),
+        &mut |_event| {
+            event_count += 1;
+            true
+        },
+        &mut tool_state,
+    );
+
+    assert!(ran);
+    assert_eq!(
+        session.messages.iter().filter(|message| message.role == Role::Assistant).count(),
+        1
+    );
+    assert_eq!(event_count, 1);
+    let stored = todo::read(&ctx).expect("multiline todowrite should write todos");
+    assert!(stored.contains("multiline task"));
 }
 
 #[test]

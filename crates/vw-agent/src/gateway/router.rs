@@ -44,6 +44,7 @@ use tower_http::cors::CorsLayer;
 use crate::app::agent::gateway::api::handlers;
 use crate::app::agent::gateway::middleware::basic_auth_middleware;
 use crate::app::agent::gateway::middleware::cors_origin_allowed;
+use crate::app::agent::gateway::middleware::tenant_scope_middleware;
 
 /// 构建 HTTP 路由器实例
 ///
@@ -116,9 +117,10 @@ pub(crate) fn build_router(cors_whitelist: Vec<String>) -> Router {
     // 同时保留无版本前缀路由，并挂载客户端实际使用的 /v1 前缀路由。
     // 中间件按从下到上的顺序应用（洋葱模型）。
     Router::new()
-        .merge(handler_router())
-        .nest("/v1", handler_router())
-        // 认证中间件：所有请求必须通过基础认证
+        // CORS（最外层）-> Basic 认证 -> 租户解析 -> 客户端业务路由。
+        .merge(handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
+        .nest("/v1", handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
+        // Basic 认证在租户解析前执行；OPTIONS 由各中间件放行。
         .layer(middleware::from_fn(basic_auth_middleware))
         // CORS 中间件：处理跨域请求（最外层）
         .layer(cors)
@@ -152,10 +154,20 @@ fn handler_router() -> Router {
         .merge(handlers::question::router())
         // PTY 路由：伪终端会话
         .merge(handlers::pty::router())
-        // 任务池路由：调度决策
+        // 任务池 worktree 池路由
         .merge(handlers::task_pool::router())
+        // Agent Scheduler 路由：任务、wake、事件与 outbox 测试入口
+        .merge(handlers::agent_scheduler::router())
+        // 任务生命周期 workflow 路由
+        .merge(handlers::task_lifecycle::router())
+        // ApiQL PHP 兼容只读列表路由
+        .merge(handlers::apiql::router())
         // Workflow 应用路由：Dify Workflow 保存与列表
         .merge(handlers::workflow::applications_router())
+        // Skills 与桌面端轻量 API：偏好、工具内容、服务生命周期等
+        .merge(handlers::desktop_skills::router())
+        .merge(handlers::plugins::router())
+        .merge(handlers::desktop::router())
 }
 
 #[cfg(test)]

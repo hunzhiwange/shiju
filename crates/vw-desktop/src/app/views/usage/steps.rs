@@ -246,6 +246,72 @@ pub fn legend_item<'a>(
     .into()
 }
 
+fn truncate_raw_text(value: &str, limit: usize) -> String {
+    let mut out = String::new();
+    for (index, ch) in value.chars().enumerate() {
+        if index >= limit {
+            out.push_str("\n... 已截断");
+            return out;
+        }
+        out.push(ch);
+    }
+    out
+}
+
+fn raw_payload_summary(value: &serde_json::Value) -> String {
+    let message_count =
+        value.get("messages").and_then(serde_json::Value::as_array).map_or(0, Vec::len);
+    let tool_call_count = value
+        .get("output")
+        .and_then(|output| output.get("tool_calls"))
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len);
+    format!("历史消息 {message_count} 条 · 工具调用 {tool_call_count} 条")
+}
+
+fn raw_payload_preview(value: &serde_json::Value) -> String {
+    let pretty = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+    format!("{}\n{}", raw_payload_summary(value), truncate_raw_text(&pretty, 16_000))
+}
+
+fn vertical_scrollbar() -> iced::widget::scrollable::Direction {
+    iced::widget::scrollable::Direction::Vertical(
+        iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+    )
+}
+
+fn raw_payload_text(app: &App, session_id: &str, step_index: u32) -> String {
+    let key = (session_id.to_string(), step_index);
+    if app.usage_step_raw_loading.contains(&key) {
+        return "原始 LLM：加载中...".to_string();
+    }
+    match app.usage_step_raw_payloads.get(&key) {
+        Some(Ok(Some(value))) => raw_payload_preview(value),
+        Some(Ok(None)) => "原始 LLM：暂无记录".to_string(),
+        Some(Err(err)) => format!("原始 LLM：加载失败\n{err}"),
+        None => "原始 LLM：等待加载".to_string(),
+    }
+}
+
+fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'static, Message> {
+    container(
+        scrollable(text(raw_payload_text(app, session_id, step_index)).size(11))
+            .direction(vertical_scrollbar()),
+    )
+    .height(Length::Fixed(220.0))
+    .width(Length::Fill)
+    .padding(10)
+    .style(|theme: &Theme| {
+        let p = theme.extended_palette();
+        iced::widget::container::Style {
+            background: Some(Background::Color(p.background.weak.color)),
+            border: Border { width: 1.0, color: p.background.strong.color, radius: 8.0.into() },
+            ..Default::default()
+        }
+    })
+    .into()
+}
+
 /// 构建步骤面板
 ///
 /// 创建完整的步骤列表面板，显示会话中所有步骤的详细信息。
@@ -337,6 +403,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
 
             // 构建详细信息区域（仅在展开时显示）
             let info: Element<'_, Message> = if expanded {
+                let session_id = usage_data.session_id.clone();
                 column![
                     kv("模型", s.model.clone().unwrap_or_else(|| "暂无".to_string())),
                     kv("输入 token", s.usage.input_tokens.to_string()),
@@ -346,6 +413,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
                     kv("总 token", total.to_string()),
                     kv("成本(估算)", cost),
                     kv("完成原因", s.finish_reason.clone().unwrap_or_else(|| "暂无".to_string())),
+                    raw_payload_panel(app, &session_id, s.index),
                 ]
                 .spacing(8)
                 .into()
@@ -426,6 +494,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
 
         // 包装为可滚动容器，固定高度 320px
         scrollable(container(col).width(Length::Fill).padding([0u16, SCROLL_SIDE_PAD]))
+            .direction(vertical_scrollbar())
             .height(Length::Fixed(320.0))
             .into()
     };

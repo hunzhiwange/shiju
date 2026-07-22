@@ -3,6 +3,7 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_divider,
     settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
@@ -10,7 +11,6 @@ use crate::app::components::system_settings_common::{
     settings_value_badge,
 };
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
-use crate::app::views::design::properties::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, text, text_editor, text_input,
@@ -65,6 +65,12 @@ pub(super) const QQ_RECEIVE_MODE_OPTIONS: [LabeledOption; 2] = [
 
 fn input_value<'a>(app: &'a App, key: &str, fallback: &'a str) -> &'a str {
     app.channels_settings.text_inputs.get(key).map(String::as_str).unwrap_or(fallback)
+}
+
+fn named_instance_field<'a>(key: &'a str, prefix: &str) -> Option<&'a str> {
+    let rest = key.strip_prefix(prefix)?.strip_prefix('.')?;
+    let (_, field) = rest.split_once('.')?;
+    Some(field)
 }
 
 /// 构建或处理 `group_reply_mode_value` 对应的界面片段与交互数据。
@@ -161,12 +167,18 @@ pub(super) fn is_multiline_list_key(key: &str) -> bool {
             | "nostr.relays"
             | "nostr.allowed_pubkeys"
             | "clawdtalk.allowed_destinations"
-    )
+    ) || matches!(named_instance_field(key, "matrix_instances"), Some("allowed_users"))
+        || matches!(
+            named_instance_field(key, "feishu_instances"),
+            Some("allowed_users" | "group_reply.allowed_sender_ids")
+        )
+        || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
 }
 
 pub(super) fn localized_label(label: &'static str) -> &'static str {
     match label {
         "bot_token" => "机器人令牌",
+        "instance_id" => "实例 ID",
         "allowed_users" => "允许用户",
         "group_reply.mode" => "群聊回复模式",
         "group_reply.allowed_sender_ids" => "允许发送者 ID",
@@ -265,13 +277,25 @@ pub(super) fn text_row<'a>(
     key: &'static str,
     secure: bool,
 ) -> Element<'a, Message> {
+    text_row_with_key(app, label, placeholder, value, key.to_string(), secure)
+}
+
+pub(super) fn text_row_with_key<'a>(
+    app: &'a App,
+    label: &'static str,
+    placeholder: &'static str,
+    value: &'a str,
+    key: String,
+    secure: bool,
+) -> Element<'a, Message> {
     let display_label = localized_label(label);
-    if is_multiline_list_key(key) {
+    if is_multiline_list_key(&key) {
         let editor = app
             .channels_settings
             .text_editors
-            .get(key)
+            .get(&key)
             .expect("multiline channel editor should be initialized");
+        let key_for_action = key.clone();
         return row![
             text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)),
             container(
@@ -279,7 +303,7 @@ pub(super) fn text_row<'a>(
                     .placeholder(multiline_placeholder(placeholder))
                     .on_action(move |action| {
                         Message::Settings(SettingsMessage::Channels(
-                            ChannelsMessage::TextEditorAction(key.to_string(), action),
+                            ChannelsMessage::TextEditorAction(key_for_action.clone(), action),
                         ))
                     })
                     .padding([9, 12])
@@ -293,10 +317,11 @@ pub(super) fn text_row<'a>(
         .into();
     }
 
-    let mut input = text_input(placeholder, input_value(app, key, value))
+    let key_for_input = key.clone();
+    let mut input = text_input(placeholder, input_value(app, &key, value))
         .on_input(move |next| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextChanged(
-                key.to_string(),
+                key_for_input.clone(),
                 next,
             )))
         })
@@ -333,13 +358,23 @@ pub(super) fn bool_row<'a>(
     description: &'static str,
     key: &'static str,
 ) -> Element<'a, Message> {
+    bool_row_with_key(label, checked, description, key.to_string())
+}
+
+pub(super) fn bool_row_with_key<'a>(
+    label: &'static str,
+    checked: bool,
+    description: &'static str,
+    key: String,
+) -> Element<'a, Message> {
+    let key_for_toggle = key.clone();
     row![
         text(localized_label(label)).size(13).width(Length::Fixed(LABEL_WIDTH)),
         checkbox(checked)
             .label(description)
             .on_toggle(move |next| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::BoolToggled(
-                    key.to_string(),
+                    key_for_toggle.clone(),
                     next,
                 )))
             })
@@ -371,13 +406,25 @@ pub(super) fn number_row<'a>(
     suffix: &'static str,
     key: &'static str,
 ) -> Element<'a, Message> {
+    number_row_with_key(label, value, min, max, suffix, key.to_string())
+}
+
+pub(super) fn number_row_with_key<'a>(
+    label: &'static str,
+    value: u32,
+    min: u32,
+    max: u32,
+    suffix: &'static str,
+    key: String,
+) -> Element<'a, Message> {
     let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
+    let key_for_change = key.clone();
 
     row![
         text(localized_label(label)).size(13).width(Length::Fixed(LABEL_WIDTH)),
         NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(
-                key.to_string(),
+                key_for_change.clone(),
                 raw.round() as u32,
             )))
         })
@@ -408,12 +455,22 @@ pub(super) fn pick_row<'a>(
     options: &'static [LabeledOption],
     key: &'static str,
 ) -> Element<'a, Message> {
+    pick_row_with_key(label, selected, options, key.to_string())
+}
+
+pub(super) fn pick_row_with_key<'a>(
+    label: &'static str,
+    selected: &'static str,
+    options: &'static [LabeledOption],
+    key: String,
+) -> Element<'a, Message> {
     let selected = options.iter().find(|option| option.value == selected).copied();
+    let key_for_pick = key.clone();
     row![
         text(localized_label(label)).size(13).width(Length::Fixed(LABEL_WIDTH)),
         pick_list(options, selected, move |next| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::ReceiveModeChanged(
-                key.to_string(),
+                key_for_pick.clone(),
                 next.value.to_string(),
             )))
         })
@@ -422,6 +479,43 @@ pub(super) fn pick_row<'a>(
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(260.0)),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+pub(super) fn instance_title_row<'a>(
+    title: String,
+    channel: &'static str,
+    index: usize,
+) -> Element<'a, Message> {
+    row![
+        text(title).size(13).width(Length::Fill),
+        button(text("删除").size(12))
+            .padding([6, 10])
+            .on_press(Message::Settings(SettingsMessage::Channels(
+                ChannelsMessage::InstanceRemoved(channel.to_string(), index),
+            )))
+            .style(rounded_action_btn_style),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+pub(super) fn add_instance_row<'a>(
+    channel: &'static str,
+    label: &'static str,
+) -> Element<'a, Message> {
+    row![
+        container(text("")).width(Length::Fixed(LABEL_WIDTH)),
+        button(text(label).size(12))
+            .padding([7, 12])
+            .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::InstanceAdded(
+                channel.to_string()
+            ),)))
+            .style(rounded_action_btn_style),
     ]
     .spacing(16)
     .align_y(Alignment::Center)
@@ -546,7 +640,7 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     if s.imessage.is_some() {
         items.push("iMessage");
     }
-    if s.matrix.is_some() {
+    if s.matrix.is_some() || !s.matrix_instances.is_empty() {
         items.push("Matrix");
     }
     if s.signal.is_some() {
@@ -574,10 +668,10 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     if s.lark.is_some() {
         items.push("Lark");
     }
-    if s.feishu.is_some() {
+    if s.feishu.is_some() || !s.feishu_instances.is_empty() {
         items.push("Feishu");
     }
-    if s.dingtalk.is_some() {
+    if s.dingtalk.is_some() || !s.dingtalk_instances.is_empty() {
         items.push("DingTalk");
     }
     if s.qq.is_some() {

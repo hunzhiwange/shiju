@@ -72,6 +72,39 @@ fn tool_instructions_can_be_built_from_registry_and_empty_specs() {
 }
 
 #[test]
+fn tool_instructions_emit_protocol_before_tool_specs() {
+    let instructions = build_tool_instructions_from_specs(&[ToolSpec {
+        id: "search".to_string(),
+        display_name: "Search".to_string(),
+        description: "find matching content".to_string(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "required": ["query"],
+            "properties": {
+                "query": { "type": "string" }
+            }
+        }),
+        name: "legacy_search".to_string(),
+        parameters: serde_json::json!({"type": "null"}),
+        aliases: vec!["s".to_string()],
+        read_only: true,
+        destructive: false,
+        concurrency_safe: true,
+        requires_user_interaction: false,
+        strict: true,
+    }]);
+
+    let protocol_index = instructions.find("## Tool Use Protocol").unwrap();
+    let tools_index = instructions.find("### Available Tools").unwrap();
+
+    assert!(protocol_index < tools_index);
+    assert!(instructions.contains("<tool_call>"));
+    assert!(instructions.contains("**search**: find matching content"));
+    assert!(instructions.contains(r#""required":["query"]"#));
+    assert!(!instructions.contains("legacy_search"));
+}
+
+#[test]
 fn shell_policy_deduplicates_and_sorts_allowed_commands() {
     let autonomy = crate::app::agent::config::AutonomyConfig {
         allowed_commands: vec!["git".to_string(), "  ls  ".to_string(), "git".to_string()],
@@ -143,4 +176,25 @@ fn shell_policy_limits_displayed_allowed_commands() {
     assert!(instructions.contains("(+2 more)"));
     assert!(!instructions.contains("`cmd-64`"));
     assert!(instructions.contains("Medium-risk bash commands require explicit approval"));
+}
+
+#[test]
+fn shell_policy_full_mode_lists_commands_without_supervised_approval_note() {
+    let autonomy = crate::app::agent::config::AutonomyConfig {
+        level: crate::app::agent::security::AutonomyLevel::Full,
+        allowed_commands: vec!["  zsh  ".to_string(), "cargo".to_string()],
+        require_approval_for_medium_risk: true,
+        block_high_risk_commands: false,
+        ..Default::default()
+    };
+
+    let instructions = build_shell_policy_instructions(&autonomy);
+    let cargo_index = instructions.find("`cargo`").unwrap();
+    let zsh_index = instructions.find("`zsh`").unwrap();
+
+    assert!(instructions.contains("- Autonomy level: `full`"));
+    assert!(cargo_index < zsh_index);
+    assert!(instructions.contains("choose allowed alternatives"));
+    assert!(!instructions.contains("Medium-risk bash commands require"));
+    assert!(!instructions.contains("High-risk bash commands are blocked"));
 }

@@ -212,6 +212,6 @@ fn normalize_optional_str_ref(value: Option<&str>) -> Option<&str> {
 }
 
 /// 检查标准化文本中是否包含任一终态关键字。
-fn contains_terminal_keyword(value: &str, keywords: &[&str]) -> bool {
+pub(crate) fn contains_terminal_keyword(value: &str, keywords: &[&str]) -> bool {
     keywords.iter().any(|keyword| value.contains(keyword))
 }

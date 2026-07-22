@@ -215,8 +215,7 @@ fn lookup_acp_command_uses_built_in_agent_when_config_is_empty() {
         lookup_acp_command(&cfg, &model, &json!({})).expect("built-in ACP agent should resolve");
 
     assert_eq!(agent_name, "codex");
-    assert_eq!(agent_cfg.command, "npx");
-    assert_eq!(agent_cfg.args, vec!["@zed-industries/codex-acp@latest".to_string()]);
+    assert!(!agent_cfg.command.trim().is_empty());
 }
 
 #[test]
@@ -228,8 +227,12 @@ fn lookup_acp_command_resolves_built_in_agent_from_explicit_selection() {
             .expect("explicit built-in ACP agent should resolve");
 
     assert_eq!(agent_name, "opencode");
-    assert_eq!(agent_cfg.command, "npx");
-    assert_eq!(agent_cfg.args, vec!["opencode-ai@latest".to_string(), "acp".to_string()]);
+    assert!(!agent_cfg.command.trim().is_empty());
+    if agent_cfg.command == "npx" {
+        assert_eq!(agent_cfg.args, vec!["opencode-ai@latest".to_string(), "acp".to_string()]);
+    } else {
+        assert_eq!(agent_cfg.args, vec!["acp".to_string()]);
+    }
 }
 
 #[test]

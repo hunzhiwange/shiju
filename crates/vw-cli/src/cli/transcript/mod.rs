@@ -58,14 +58,14 @@ mod truncate_tests;
 pub(crate) use assistant_segments::{
     assistant_segments_to_lines_with_meta, parse_assistant_segments,
 };
+#[cfg(test)]
 pub(crate) use structured_stream::build_streaming_transcript_view;
+#[cfg(test)]
 pub(crate) use summary::transcript_to_lines;
 pub(crate) use toolcards::{render_tool_card, tool_summary_cli};
 pub(crate) use truncate::truncate_chars_cli;
 
-use crate::app::agent::agent::loop_::cli::theme::{
-    ACCENT_CYAN, ACCENT_RED, SUCCESS, TEXT_SUBTLE, WARNING,
-};
+use super::theme::{ACCENT_CYAN, ACCENT_RED, SUCCESS, TEXT_SUBTLE, WARNING};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use std::collections::BTreeSet;

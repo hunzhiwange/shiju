@@ -1,6 +1,5 @@
 use super::ModelRoutingConfigTool;
-use crate::app::agent::config::Config;
-use crate::app::agent::config::schema::save_config;
+use crate::app::agent::config::{self, Config};
 use crate::app::agent::util::MaybeSet;
 use serde_json::{Value, json};
 
@@ -74,7 +73,8 @@ impl ModelRoutingConfigTool {
             anyhow::bail!("set_default requires at least one of: provider, model, temperature");
         }
 
-        let mut cfg = self.load_config_without_env()?;
+        let mut cfg = config::get_project_blocking(&self.config.workspace_dir)?;
+        let before = cfg.clone();
 
         match provider_update {
             MaybeSet::Set(provider) => cfg.default_provider = Some(provider),
@@ -101,7 +101,8 @@ impl ModelRoutingConfigTool {
             MaybeSet::Unset => {}
         }
 
-        save_config(&cfg).await?;
+        cfg =
+            config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         Ok(ToolResult {
             success: true,

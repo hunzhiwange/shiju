@@ -189,11 +189,135 @@ fn projects_list_falls_back_to_current_sessions_for_attention() {
 }
 
 #[test]
+fn project_badge_button_builds_with_custom_color_only() {
+    // custom_color provided without custom_icon → use_custom_bg = true
+    let element: Element<'_, Message> = project_badge_button(
+        "/tmp/project-d".to_string(),
+        "Delta".to_string(),
+        true,
+        false,
+        true,
+        None,
+        Some(Color::from_rgb8(100, 200, 50)),
+    );
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn projects_list_builds_with_queue_attention() {
+    let (mut app, _task) = App::new();
+    let path = "/tmp/vibe-window-queue".to_string();
+    let session_id = "session-queue".to_string();
+
+    app.recent_projects = vec![path.clone()];
+    app.recent_projects_edits = vec!["Queue Project".to_string()];
+    app.project_path = Some(path.clone());
+    app.project_sessions.insert(path.clone(), vec![session_info(&session_id, &path)]);
+
+    let mut runtime = SessionRuntimeState::new();
+    runtime.queue = vec![crate::app::state::QueueItem {
+        created_ms: 1000,
+        query: "test query".to_string(),
+        attachments: vec![],
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 3,
+        full_access_enabled: true,
+        send_behavior: crate::app::state::ChatSendBehavior::Queue,
+        request_history_override: None,
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+    }];
+    app.session_runtime_states.insert(session_id, runtime);
+
+    let element: Element<'_, Message> = projects_list(&app, false);
+
+    std::hint::black_box(element);
+}
+
+#[test]
 fn projects_list_uses_empty_path_when_edit_has_no_matching_recent_project() {
     let (mut app, _task) = App::new();
     app.recent_projects.clear();
     app.recent_projects_edits = vec!["Loose edit".to_string()];
     app.recent_projects_meta.clear();
+
+    let element: Element<'_, Message> = projects_list(&app, false);
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn icon_image_handle_trims_surrounding_whitespace_from_existing_path() {
+    let dir = tempdir().unwrap();
+    let icon_path = dir.path().join("trimmed-icon.png");
+    fs::write(&icon_path, b"deferred image bytes").unwrap();
+
+    assert!(icon_image_handle(&format!("  {}  ", icon_path.display())).is_some());
+}
+
+#[test]
+fn project_badge_button_ignores_blank_custom_icon() {
+    let element: Element<'_, Message> = project_badge_button(
+        "/tmp/blank-icon".to_string(),
+        "Blank Icon".to_string(),
+        false,
+        false,
+        false,
+        Some("   ".to_string()),
+        Some(Color::from_rgb8(40, 80, 120)),
+    );
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn projects_list_builds_without_attention_when_runtime_state_is_missing() {
+    let (mut app, _task) = App::new();
+    let path = "/tmp/no-runtime".to_string();
+    app.recent_projects = vec![path.clone()];
+    app.recent_projects_edits = vec!["No Runtime".to_string()];
+    app.project_sessions.insert(path.clone(), vec![session_info("missing-runtime", &path)]);
+
+    let element: Element<'_, Message> = projects_list(&app, false);
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn projects_list_does_not_use_current_sessions_for_unselected_project() {
+    let (mut app, _task) = App::new();
+    let listed_path = "/tmp/listed".to_string();
+    app.recent_projects = vec![listed_path.clone()];
+    app.recent_projects_edits = vec![String::new()];
+    app.project_path = Some("/tmp/current".to_string());
+    app.sessions = vec![session_info("current-session", "/tmp/current")];
+
+    let mut runtime = SessionRuntimeState::new();
+    runtime.is_requesting = true;
+    app.session_runtime_states.insert("current-session".to_string(), runtime);
+
+    let element: Element<'_, Message> = projects_list(&app, true);
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn projects_list_ignores_recent_project_meta_for_other_paths() {
+    let (mut app, _task) = App::new();
+    let listed_path = "/tmp/listed-without-meta".to_string();
+    app.recent_projects = vec![listed_path.clone()];
+    app.recent_projects_edits = vec!["Listed".to_string()];
+    app.recent_projects_meta = vec![recent_meta("/tmp/other-project", Some("O"), Some("#112233"))];
 
     let element: Element<'_, Message> = projects_list(&app, false);
 

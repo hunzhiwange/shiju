@@ -13,10 +13,12 @@
 use crate::app::agent::config::Config;
 use crate::app::agent::cron;
 use crate::app::agent::cron::scheduler::{
-    cron_agent_prompt, cron_full_access_config, deliver_announcement, deliver_if_configured,
-    effective_job_config, effective_job_type, execute_and_persist_job, execute_job_with_retry,
-    invalid_job_payload, notify_schedule_changed, persist_job_result, process_due_jobs,
-    run_agent_job, run_job_command, run_job_command_with_timeout, wait_for_schedule_scan,
+    agent_model_candidates, cron_agent_prompt, cron_full_access_config, cron_gateway_agent_request,
+    deliver_announcement, deliver_if_configured, effective_job_config, effective_job_type,
+    execute_and_persist_job, execute_job_with_retry, format_gateway_agent_output,
+    invalid_job_payload, is_one_shot_auto_delete, normalize_agent_job_success_output,
+    notify_schedule_changed, persist_job_result, process_due_jobs, run_agent_job, run_job_command,
+    run_job_command_with_timeout, wait_for_schedule_scan, warn_if_high_frequency_agent_job,
 };
 use crate::app::agent::cron::{CronJob, DeliveryConfig, JobType, Schedule, SessionTarget};
 use crate::app::agent::security::{SecurityPolicy, ShellRedirectPolicy};
@@ -25,6 +27,14 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tempfile::TempDir;
 use tokio::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+};
+use vw_config_types::agent::DelegateAgentConfig;
+#[cfg(not(target_arch = "wasm32"))]
+use vw_config_types::channels::MattermostConfig;
 
 /// 获取测试环境全局锁
 ///
@@ -202,6 +212,22 @@ async fn run_job_command_success() {
     assert!(output.contains("status=exit status: 0"));
 }
 
+#[tokio::test]
+async fn run_job_command_uses_job_project_path_as_working_directory() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.autonomy.allowed_commands = vec!["pwd".into()];
+    let project_dir = tmp.path().join("project-dir");
+    tokio::fs::create_dir_all(&project_dir).await.unwrap();
+    let mut job = test_job("pwd");
+    job.project_path = Some(project_dir.to_string_lossy().to_string());
+    let security = SecurityPolicy::from_config(&config.autonomy, &project_dir);
+
+    let (success, output) = execute_job_with_retry(&config, &security, &job).await;
+    assert!(success);
+    assert!(output.contains(&project_dir.to_string_lossy().to_string()));
+}
+
 /// 测试 Shell 命令执行失败
 ///
 /// 验证命令执行失败时的处理：
@@ -219,6 +245,24 @@ async fn run_job_command_failure() {
     assert!(!success);
     assert!(output.contains("definitely_missing_file_for_scheduler_test"));
     assert!(output.contains("status=exit status:"));
+}
+
+#[tokio::test]
+async fn run_job_command_reports_spawn_error_for_missing_working_directory() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = Config {
+        workspace_dir: tmp.path().join("missing-workspace"),
+        config_path: tmp.path().join("vibewindow.json"),
+        ..Config::default()
+    };
+    config.autonomy.allowed_commands = vec!["echo".into()];
+    let job = test_job("echo should-not-start");
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_job_command(&config, &security, &job).await;
+
+    assert!(!success);
+    assert!(output.starts_with("spawn error:"));
 }
 
 /// 测试命令执行超时
@@ -534,6 +578,27 @@ async fn run_agent_job_blocks_rate_limited() {
 }
 
 #[tokio::test]
+async fn full_access_agent_job_bypasses_readonly_security_gate() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.autonomy.level = crate::app::agent::security::AutonomyLevel::ReadOnly;
+    let _env = env_lock().await;
+    let _generic = EnvGuard::unset("VIBEWINDOW_API_KEY");
+    let _fallback = EnvGuard::unset("API_KEY");
+    let _openrouter = EnvGuard::unset("OPENROUTER_API_KEY");
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.prompt = Some("Say hello".into());
+    job.full_access = true;
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_agent_job(&config, &security, &job).await;
+    assert!(!success);
+    assert!(output.contains("agent job failed:"));
+    assert!(!output.contains("read-only"));
+}
+
+#[tokio::test]
 async fn full_access_agent_job_uses_trusted_runtime_config() {
     let tmp = TempDir::new().unwrap();
     let mut config = test_config(&tmp).await;
@@ -545,6 +610,11 @@ async fn full_access_agent_job_uses_trusted_runtime_config() {
     assert!(!run_config.autonomy.workspace_only);
     assert_eq!(run_config.autonomy.allowed_commands, vec!["*"]);
     assert_eq!(run_config.autonomy.allowed_roots, vec!["/"]);
+    assert!(run_config.autonomy.forbidden_paths.is_empty());
+    assert_eq!(run_config.autonomy.max_actions_per_hour, u32::MAX);
+    assert!(!run_config.autonomy.require_approval_for_medium_risk);
+    assert!(!run_config.autonomy.block_high_risk_commands);
+    assert_eq!(run_config.autonomy.auto_approve, vec!["*"]);
     assert!(run_config.autonomy.always_ask.is_empty());
     assert!(run_config.autonomy.non_cli_excluded_tools.is_empty());
     assert!(run_config.autonomy.allow_unsafe_shell_patterns);
@@ -559,6 +629,247 @@ fn full_access_agent_prompt_includes_automation_instruction() {
     let prompt = cron_agent_prompt(&job, "daily", "写入报告");
     assert!(prompt.contains("我是自动化脚本，无法回答你的问题"));
     assert!(prompt.contains("写入报告"));
+}
+
+#[test]
+fn standard_agent_prompt_uses_compact_cron_prefix() {
+    let job = test_job("");
+
+    let prompt = cron_agent_prompt(&job, "daily", "write report");
+
+    assert_eq!(prompt, "[cron:test-job daily] write report");
+}
+
+#[test]
+fn agent_model_candidates_keep_primary_and_unique_non_blank_fallbacks() {
+    let candidates = agent_model_candidates(
+        Some("primary".into()),
+        &[" fallback-a ".into(), "primary".into(), " ".into(), "fallback-a".into()],
+    );
+
+    assert_eq!(candidates, vec![Some("primary".into()), Some("fallback-a".into())]);
+}
+
+#[test]
+fn agent_model_candidates_use_default_route_when_primary_is_blank() {
+    let candidates =
+        agent_model_candidates(Some("   ".into()), &["fallback-a".into(), "fallback-b".into()]);
+
+    assert_eq!(candidates, vec![None, Some("fallback-a".into()), Some("fallback-b".into())]);
+}
+
+#[test]
+fn normalize_agent_job_success_output_trims_or_uses_default_message() {
+    assert_eq!(normalize_agent_job_success_output("  completed  "), "completed");
+    assert_eq!(normalize_agent_job_success_output("   "), "agent job executed");
+}
+
+#[test]
+fn high_frequency_agent_warning_handles_shell_every_cron_and_at_schedules() {
+    let shell = test_job("echo ok");
+    warn_if_high_frequency_agent_job(&shell);
+
+    let mut every = test_job("");
+    every.job_type = JobType::Agent;
+    every.prompt = Some("run often".into());
+    every.schedule = Schedule::Every { every_ms: 60_000 };
+    warn_if_high_frequency_agent_job(&every);
+
+    let mut cron = every.clone();
+    cron.schedule = Schedule::Cron { expr: "* * * * *".into(), tz: None };
+    warn_if_high_frequency_agent_job(&cron);
+
+    let mut at = every;
+    at.schedule = Schedule::At { at: Utc::now() + ChronoDuration::minutes(10) };
+    warn_if_high_frequency_agent_job(&at);
+}
+
+#[tokio::test]
+async fn cron_gateway_options_close_acp_client_after_request() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.full_access = true;
+
+    let options = super::cron_gateway_options(&config, &job, Some("codex"));
+
+    assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(
+        options.get("acp_close_client_after_request").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
+        Some("approve-all")
+    );
+}
+
+#[tokio::test]
+async fn cron_gateway_options_approve_all_for_acp_without_job_full_access() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.full_access = false;
+
+    let options = super::cron_gateway_options(&config, &job, Some("codex"));
+
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(
+        options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
+        Some("approve-all")
+    );
+}
+
+#[tokio::test]
+async fn cron_gateway_options_omits_acp_lifecycle_options_without_acp_agent() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+
+    let options = super::cron_gateway_options(&config, &job, None);
+
+    assert!(!options.contains_key("acp_close_client_after_request"));
+    assert!(!options.contains_key("acp_agent"));
+}
+
+#[tokio::test]
+async fn cron_gateway_options_for_full_access_without_acp_only_enables_full_access() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.full_access = true;
+
+    let options = super::cron_gateway_options(&config, &job, None);
+
+    assert_eq!(options.len(), 1);
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_gateway_agent_request_includes_session_prompt_agent_model_and_acp_options() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("");
+    job.id = "nightly".into();
+    job.job_type = JobType::Agent;
+    job.agent = Some("  reviewer  ".into());
+    job.acp_agent = Some(" codex ".into());
+
+    let (session_id, request) =
+        cron_gateway_agent_request(&config, &job, "do the thing", Some("model-a".into()));
+
+    assert_eq!(session_id, "cron-nightly");
+    assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some("cron-nightly"));
+    assert_eq!(request.agent.as_deref(), Some("reviewer"));
+    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(request.model.as_deref(), Some("model-a"));
+    assert_eq!(request.messages[0]["role"], "user");
+    assert_eq!(request.messages[0]["content"], "do the thing");
+    let options = request.options.as_ref().and_then(serde_json::Value::as_object).unwrap();
+    assert_eq!(options.get("acp_agent").and_then(serde_json::Value::as_str), Some("codex"));
+    assert_eq!(
+        options.get("acp_force_new_session").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        options.get("cwd").and_then(serde_json::Value::as_str),
+        Some(config.workspace_dir.to_string_lossy().as_ref())
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn format_gateway_agent_output_trims_output_and_appends_available_message_ids() {
+    let with_message =
+        crate::app::agent::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+            output: "  done  ".into(),
+            message_id: Some("assistant-1".into()),
+            parent_message_id: Some("parent-ignored".into()),
+        };
+    assert_eq!(
+        format_gateway_agent_output("cron-job-1", &with_message),
+        "done\n[session:cron-job-1 message:assistant-1]"
+    );
+
+    let with_parent =
+        crate::app::agent::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+            output: "parent done".into(),
+            message_id: None,
+            parent_message_id: Some("parent-1".into()),
+        };
+    assert_eq!(
+        format_gateway_agent_output("cron-job-1", &with_parent),
+        "parent done\n[session:cron-job-1 parent:parent-1]"
+    );
+
+    let without_ids =
+        crate::app::agent::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+            output: "   ".into(),
+            message_id: None,
+            parent_message_id: None,
+        };
+    assert_eq!(
+        format_gateway_agent_output("cron-job-1", &without_ids),
+        "agent job executed\n[session:cron-job-1]"
+    );
+}
+
+#[tokio::test]
+async fn run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_model() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.agents.insert(
+        "planner".into(),
+        DelegateAgentConfig { enabled: true, ..DelegateAgentConfig::default() },
+    );
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.prompt = Some("Create the report".into());
+    job.name = Some("Daily".into());
+    job.agent = Some(" planner ".into());
+    job.acp_agent = Some(" codex ".into());
+    job.model = Some("   ".into());
+    job.task_pool = true;
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_agent_job(&config, &security, &job).await;
+
+    assert!(success);
+    assert!(output.contains("agent job delivered to task pool:"));
+    assert!(
+        config
+            .workspace_dir
+            .join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+            .join("tasks/_index.sqlite3")
+            .is_file()
+    );
+}
+
+#[tokio::test]
+async fn run_agent_job_reports_task_pool_delivery_failure_without_mutating_security_result() {
+    let tmp = TempDir::new().unwrap();
+    let config = Config {
+        workspace_dir: tmp.path().join("workspace-file"),
+        config_path: tmp.path().join("vibewindow.json"),
+        ..Config::default()
+    };
+    tokio::fs::write(&config.workspace_dir, "not a directory").await.unwrap();
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.prompt = Some("Create the report".into());
+    job.task_pool = true;
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_agent_job(&config, &security, &job).await;
+
+    assert!(!success);
+    assert!(output.contains("agent task pool delivery failed"));
 }
 
 /// 测试 process_due_jobs 在空闲时仍标记组件健康
@@ -864,6 +1175,19 @@ async fn persist_job_result_at_schedule_without_delete_after_run_is_not_deleted(
     assert_eq!(updated.last_status.as_deref(), Some("ok"));
 }
 
+#[test]
+fn one_shot_auto_delete_requires_delete_flag_and_at_schedule() {
+    let mut job = test_job("echo ok");
+    job.delete_after_run = true;
+    assert!(!is_one_shot_auto_delete(&job));
+
+    job.schedule = Schedule::At { at: Utc::now() + ChronoDuration::minutes(10) };
+    assert!(is_one_shot_auto_delete(&job));
+
+    job.delete_after_run = false;
+    assert!(!is_one_shot_auto_delete(&job));
+}
+
 /// 测试 deliver_if_configured 处理无配置和无效通道
 ///
 /// 验证投递函数的健壮性：
@@ -888,6 +1212,107 @@ async fn deliver_if_configured_handles_none_and_invalid_channel() {
     };
     let err = deliver_if_configured(&config, &job, "x").await.unwrap_err();
     assert!(err.to_string().contains("unsupported delivery channel"));
+}
+
+#[tokio::test]
+async fn deliver_announcement_rejects_each_unconfigured_known_channel() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let cases = [
+        ("TELEGRAM", "telegram channel not configured"),
+        ("discord", "discord channel not configured"),
+        ("slack", "slack channel not configured"),
+        ("mattermost", "mattermost channel not configured"),
+        ("qq", "qq channel not configured"),
+        ("email", "email channel not configured"),
+    ];
+
+    for (channel, expected) in cases {
+        let err = deliver_announcement(&config, channel, "target", "output").await.unwrap_err();
+        assert!(err.to_string().contains(expected), "unexpected error for {channel}: {err}");
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn deliver_announcement_sends_configured_mattermost_thread_message() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    let (base_url, request) = spawn_http_server("201 Created", r#"{"id":"post-1"}"#).await;
+    config.channels_config.mattermost = Some(MattermostConfig {
+        url: base_url,
+        bot_token: "mattermost-token".into(),
+        channel_id: Some("configured-channel".into()),
+        allowed_users: vec!["*".into()],
+        thread_replies: Some(false),
+        mention_only: Some(true),
+        group_reply: None,
+    });
+
+    deliver_announcement(&config, "MatterMost", "channel-a:root-b", "hello mattermost")
+        .await
+        .unwrap();
+    let request = request.await.unwrap();
+
+    assert!(request.starts_with("POST /api/v4/posts HTTP/1.1"));
+    assert!(request.contains("authorization: Bearer mattermost-token"));
+    assert!(request.contains(r#""channel_id":"channel-a""#));
+    assert!(request.contains(r#""root_id":"root-b""#));
+    assert!(request.contains(r#""message":"hello mattermost""#));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn spawn_http_server(status: &str, body: &str) -> (String, tokio::task::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let status = status.to_string();
+    let body = body.to_string();
+
+    let handle = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 1024];
+
+        loop {
+            let read = socket.read(&mut buffer).await.unwrap();
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+            if http_request_is_complete(&request) {
+                break;
+            }
+        }
+
+        let response = format!(
+            "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        socket.write_all(response.as_bytes()).await.unwrap();
+        String::from_utf8_lossy(&request).to_string()
+    });
+
+    (format!("http://{address}"), handle)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn http_request_is_complete(request: &[u8]) -> bool {
+    let Some(header_end) = request.windows(4).position(|window| window == b"\r\n\r\n") else {
+        return false;
+    };
+    let body_start = header_end + 4;
+    let headers = String::from_utf8_lossy(&request[..header_end]);
+    let content_length = headers
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+                .flatten()
+        })
+        .unwrap_or(0);
+
+    request.len() >= body_start + content_length
 }
 
 #[test]
@@ -934,6 +1359,22 @@ fn invalid_job_payload_reports_empty_shell_and_agent_jobs() {
     shell.prompt = Some("  ".into());
     let agent_error = invalid_job_payload(&shell).unwrap();
     assert!(agent_error.contains("agent prompt is empty"));
+}
+
+#[test]
+fn invalid_job_payload_accepts_valid_shell_agent_and_legacy_prompt_jobs() {
+    let shell = test_job("echo ok");
+    assert!(invalid_job_payload(&shell).is_none());
+
+    let mut agent = test_job("");
+    agent.job_type = JobType::Agent;
+    agent.prompt = Some("summarize".into());
+    assert!(invalid_job_payload(&agent).is_none());
+
+    let mut legacy_prompt = test_job("   ");
+    legacy_prompt.prompt = Some("summarize".into());
+    assert_eq!(effective_job_type(&legacy_prompt), JobType::Agent);
+    assert!(invalid_job_payload(&legacy_prompt).is_none());
 }
 
 #[tokio::test]
@@ -991,6 +1432,22 @@ async fn deliver_if_configured_requires_channel_and_target_for_announce() {
 }
 
 #[tokio::test]
+async fn deliver_if_configured_treats_announce_mode_case_insensitively() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("echo ok");
+    job.delivery = DeliveryConfig {
+        mode: "AnNoUnCe".into(),
+        channel: Some("invalid".into()),
+        to: Some("target".into()),
+        best_effort: true,
+    };
+
+    let err = deliver_if_configured(&config, &job, "output").await.unwrap_err();
+    assert!(err.to_string().contains("unsupported delivery channel"));
+}
+
+#[tokio::test]
 async fn run_agent_job_rejects_missing_delegate_agent_before_provider_call() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
@@ -1003,4 +1460,23 @@ async fn run_agent_job_rejects_missing_delegate_agent_before_provider_call() {
     let (success, output) = run_agent_job(&config, &security, &job).await;
     assert!(!success);
     assert!(output.contains("delegate agent 'unknown-agent' not found"));
+}
+
+#[tokio::test]
+async fn run_agent_job_rejects_disabled_delegate_agent_before_provider_call() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.agents.insert(
+        "disabled-agent".into(),
+        DelegateAgentConfig { enabled: false, ..DelegateAgentConfig::default() },
+    );
+    let mut job = test_job("");
+    job.job_type = JobType::Agent;
+    job.prompt = Some("Say hello".into());
+    job.agent = Some("disabled-agent".into());
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_agent_job(&config, &security, &job).await;
+    assert!(!success);
+    assert!(output.contains("delegate agent 'disabled-agent' is disabled"));
 }

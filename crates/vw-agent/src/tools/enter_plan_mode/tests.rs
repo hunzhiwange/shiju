@@ -54,6 +54,44 @@ async fn enter_plan_mode_sets_active_state() {
     ));
 }
 
+#[tokio::test]
+async fn enter_plan_mode_refreshes_existing_plan_details() {
+    let tool = EnterPlanModeTool::new();
+    let context = Arc::new(ToolUseContext::new("enter-plan-mode-refresh", None));
+    context.enter_plan_mode(Some("old goal".to_string()), Some("old note".to_string()));
+
+    let result = scope_tool_use_context(
+        context.clone(),
+        tool.call(json!({
+            "goal": "revised goal",
+            "note": "revised note"
+        })),
+    )
+    .await
+    .expect("re-entering plan mode should succeed");
+
+    assert_eq!(result.data["already_active"], true);
+    assert_eq!(result.data["goal"], "revised goal");
+    assert_eq!(result.data["note"], "revised note");
+    assert_eq!(
+        result.render_hint.and_then(|hint| hint.summary),
+        Some("Plan mode remains active".to_string())
+    );
+    let state = context.plan_mode_state();
+    assert_eq!(state.goal.as_deref(), Some("revised goal"));
+    assert_eq!(state.note.as_deref(), Some("revised note"));
+}
+
+#[tokio::test]
+async fn enter_plan_mode_rejects_non_object_arguments() {
+    let error = EnterPlanModeTool::new()
+        .call(json!([]))
+        .await
+        .expect_err("array arguments should be rejected before context lookup");
+
+    assert!(error.to_string().contains("invalid enter plan mode arguments"));
+}
+
 #[test]
 fn enter_plan_mode_description_includes_usage_guidance() {
     let tool = EnterPlanModeTool::new();

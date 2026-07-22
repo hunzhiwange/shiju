@@ -26,6 +26,10 @@ const WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE: &str = r#"[
   }
 ]"#;
 
+fn can_add_web_bookmark(title: &str, url: &str) -> bool {
+    !title.trim().is_empty() && !url.trim().is_empty()
+}
+
 /// 创建模态框的外壳容器
 ///
 /// 为模态框内容提供统一的视觉样式，包括：
@@ -319,8 +323,10 @@ fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Mes
             Tooltip::new(
                 {
                     // 检查是否可以添加：标题和URL都非空
-                    let can_add = !app.web_bookmark_title_input.trim().is_empty()
-                        && !app.web_bookmark_url_input.trim().is_empty();
+                    let can_add = can_add_web_bookmark(
+                        &app.web_bookmark_title_input,
+                        &app.web_bookmark_url_input,
+                    );
                     // 根据是否可添加决定图标颜色
                     let icon_color =
                         if can_add { Color::WHITE } else { Color::WHITE.scale_alpha(0.65) };

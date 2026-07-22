@@ -66,6 +66,35 @@ async fn concurrent_get_or_init_shares_initialization() {
 }
 
 #[tokio::test]
+async fn invalidate_missing_key_is_noop() {
+    // 对从未插入的 key 调用 invalidate 应安全返回，命中 remove 返回 None 的分支。
+    super::invalidate("cache-tests-never-inserted").await;
+
+    let value =
+        super::get_or_init("cache-tests-never-inserted", || async { Arc::new(7_u64) }).await;
+    assert_eq!(*value, 7);
+}
+
+#[tokio::test]
+async fn get_or_init_recovers_from_poisoned_mutex() {
+    // 制造一次 Mutex 中毒，验证 unwrap_or_else(into_inner) 恢复路径仍可正常工作。
+    super::invalidate("cache-tests-poison").await;
+
+    let poisoned = std::panic::catch_unwind(|| {
+        let _guard = super::STATE.lock().unwrap();
+        panic!("poison the cache mutex");
+    });
+    assert!(poisoned.is_err());
+    assert!(super::STATE.is_poisoned());
+
+    let value = super::get_or_init("cache-tests-poison", || async { Arc::new(99_u8) }).await;
+    assert_eq!(*value, 99);
+
+    // invalidate 同样走中毒恢复分支。
+    super::invalidate("cache-tests-poison").await;
+}
+
+#[tokio::test]
 #[should_panic]
 async fn get_or_init_panics_when_key_is_reused_for_different_type() {
     super::invalidate("cache-tests-type-mismatch").await;

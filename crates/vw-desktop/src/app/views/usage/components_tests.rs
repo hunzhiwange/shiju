@@ -1,6 +1,355 @@
+use super::RightClickArea;
+use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, renderer, widget};
+use iced::{Background, Element, Event, Length, Point, Rectangle, Size, Theme, Transformation};
+
+#[derive(Debug, Clone, PartialEq)]
+enum TestMessage {
+    ChildUpdated,
+    RightClicked(Point),
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TestContent {
+    width: f32,
+    height: f32,
+    interaction: mouse::Interaction,
+}
+
+impl Default for TestContent {
+    fn default() -> Self {
+        Self { width: 120.0, height: 40.0, interaction: mouse::Interaction::Pointer }
+    }
+}
+
+impl Widget<TestMessage, Theme, RecordingRenderer> for TestContent {
+    fn size(&self) -> Size<Length> {
+        Size::new(Length::Fixed(self.width), Length::Fixed(self.height))
+    }
+
+    fn layout(
+        &mut self,
+        _tree: &mut widget::Tree,
+        _renderer: &RecordingRenderer,
+        _limits: &layout::Limits,
+    ) -> layout::Node {
+        layout::Node::new(Size::new(self.width, self.height))
+    }
+
+    fn draw(
+        &self,
+        _tree: &widget::Tree,
+        renderer: &mut RecordingRenderer,
+        _theme: &Theme,
+        _style: &renderer::Style,
+        layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+        _viewport: &Rectangle,
+    ) {
+        renderer.fill_quad(
+            renderer::Quad { bounds: layout.bounds(), ..renderer::Quad::default() },
+            Background::Color(iced::Color::BLACK),
+        );
+    }
+
+    fn update(
+        &mut self,
+        _tree: &mut widget::Tree,
+        _event: &Event,
+        _layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+        _renderer: &RecordingRenderer,
+        _clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, TestMessage>,
+        _viewport: &Rectangle,
+    ) {
+        shell.publish(TestMessage::ChildUpdated);
+    }
+
+    fn mouse_interaction(
+        &self,
+        _tree: &widget::Tree,
+        _layout: Layout<'_>,
+        _cursor: mouse::Cursor,
+        _viewport: &Rectangle,
+        _renderer: &RecordingRenderer,
+    ) -> mouse::Interaction {
+        self.interaction
+    }
+}
+
+impl<'a> From<TestContent> for Element<'a, TestMessage, Theme, RecordingRenderer> {
+    fn from(content: TestContent) -> Self {
+        Element::new(content)
+    }
+}
+
+#[derive(Debug, Default)]
+struct RecordingRenderer {
+    fills: Vec<Rectangle>,
+    layers: usize,
+    transformations: usize,
+    reset_bounds: Option<Rectangle>,
+}
+
+impl iced::advanced::Renderer for RecordingRenderer {
+    fn start_layer(&mut self, _bounds: Rectangle) {
+        self.layers += 1;
+    }
+
+    fn end_layer(&mut self) {
+        self.layers = self.layers.saturating_sub(1);
+    }
+
+    fn start_transformation(&mut self, _transformation: Transformation) {
+        self.transformations += 1;
+    }
+
+    fn end_transformation(&mut self) {
+        self.transformations = self.transformations.saturating_sub(1);
+    }
+
+    fn fill_quad(&mut self, quad: renderer::Quad, _background: impl Into<Background>) {
+        self.fills.push(quad.bounds);
+    }
+
+    fn reset(&mut self, new_bounds: Rectangle) {
+        self.reset_bounds = Some(new_bounds);
+        self.fills.clear();
+    }
+
+    fn allocate_image(
+        &mut self,
+        _handle: &iced::advanced::image::Handle,
+        callback: impl FnOnce(Result<iced::advanced::image::Allocation, iced::advanced::image::Error>)
+        + Send
+        + 'static,
+    ) {
+        callback(Err(iced::advanced::image::Error::Unsupported));
+    }
+}
+
+fn area() -> RightClickArea<'static, TestMessage, Theme, RecordingRenderer> {
+    RightClickArea::new(TestContent::default().into(), Box::new(TestMessage::RightClicked))
+}
+
+fn tree_for(
+    _widget: &RightClickArea<'static, TestMessage, Theme, RecordingRenderer>,
+) -> widget::Tree {
+    let mut tree = widget::Tree::empty();
+    tree.children.push(widget::Tree::empty());
+    tree
+}
+
+fn layout_for(bounds: Rectangle) -> layout::Node {
+    layout::Node::new(bounds.size()).move_to(Point::new(bounds.x, bounds.y))
+}
+
+fn update_with(
+    area: &mut RightClickArea<'static, TestMessage, Theme, RecordingRenderer>,
+    tree: &mut widget::Tree,
+    event: Event,
+    cursor: mouse::Cursor,
+) -> Vec<TestMessage> {
+    let renderer = RecordingRenderer::default();
+    let mut clipboard = iced::advanced::clipboard::Null;
+    let node = layout_for(Rectangle { x: 10.0, y: 20.0, width: 120.0, height: 40.0 });
+    let mut messages = Vec::new();
+    let mut shell = Shell::new(&mut messages);
+
+    <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::update(
+        area,
+        tree,
+        &event,
+        Layout::new(&node),
+        cursor,
+        &renderer,
+        &mut clipboard,
+        &mut shell,
+        &Rectangle::INFINITE,
+    );
+
+    messages
+}
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
 
     assert!(module.ends_with("components_tests"));
+}
+
+#[test]
+fn new_wraps_single_child() {
+    let area = area();
+    let children = <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::children(&area);
+
+    assert_eq!(children.len(), 1);
+}
+
+#[test]
+fn diff_keeps_single_wrapped_child() {
+    let area = area();
+    let mut tree = tree_for(&area);
+
+    <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::diff(&area, &mut tree);
+
+    assert_eq!(tree.children.len(), 1);
+}
+
+#[test]
+fn size_delegates_to_content() {
+    let area = area();
+
+    let size = <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::size(&area);
+
+    assert_eq!(size, Size::new(Length::Fixed(120.0), Length::Fixed(40.0)));
+}
+
+#[test]
+fn layout_delegates_to_content() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+    let renderer = RecordingRenderer::default();
+    let node = <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::layout(
+        &mut area,
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(400.0, 200.0)),
+    );
+
+    assert_eq!(node.size(), Size::new(120.0, 40.0));
+}
+
+#[test]
+fn draw_delegates_to_content() {
+    let area = area();
+    let tree = tree_for(&area);
+    let mut renderer = RecordingRenderer::default();
+    let node = layout_for(Rectangle { x: 4.0, y: 8.0, width: 120.0, height: 40.0 });
+
+    <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::draw(
+        &area,
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle::INFINITE,
+    );
+
+    assert_eq!(renderer.fills, vec![Rectangle { x: 4.0, y: 8.0, width: 120.0, height: 40.0 }]);
+}
+
+#[test]
+fn right_click_inside_publishes_local_position_before_child_update() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(
+        messages,
+        vec![TestMessage::RightClicked(Point::new(24.0, 27.0)), TestMessage::ChildUpdated,]
+    );
+}
+
+#[test]
+fn non_right_click_only_reaches_child() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn right_click_outside_only_reaches_child() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(500.0, 47.0)),
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn right_click_without_cursor_only_reaches_child() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Unavailable,
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn mouse_interaction_delegates_to_content() {
+    let area = RightClickArea::new(
+        TestContent { interaction: mouse::Interaction::Text, ..TestContent::default() }.into(),
+        Box::new(TestMessage::RightClicked),
+    );
+    let tree = tree_for(&area);
+    let renderer = RecordingRenderer::default();
+    let node = layout_for(Rectangle { x: 0.0, y: 0.0, width: 120.0, height: 40.0 });
+
+    let interaction = <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::mouse_interaction(
+        &area,
+        &tree,
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle::INFINITE,
+        &renderer,
+    );
+
+    assert_eq!(interaction, mouse::Interaction::Text);
 }

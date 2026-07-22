@@ -1,4 +1,6 @@
 use crate::app::{App, Message};
+#[cfg(not(target_arch = "wasm32"))]
+use vw_config_types::channels::EmailConfig;
 use vw_config_types::channels::{
     IrcConfig, LinqConfig, NextcloudTalkConfig, WatiConfig, WhatsAppConfig,
 };
@@ -9,6 +11,16 @@ fn test_app() -> App {
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
+}
+
+fn render_extended_channels(app: &App) {
+    keep_element(super::extended_channels::whatsapp_panel(app));
+    keep_element(super::extended_channels::linq_panel(app));
+    keep_element(super::extended_channels::wati_panel(app));
+    keep_element(super::extended_channels::nextcloud_talk_panel(app));
+    #[cfg(not(target_arch = "wasm32"))]
+    keep_element(super::extended_channels::email_panel(app));
+    keep_element(super::extended_channels::irc_panel(app));
 }
 
 fn configure_extended_channels(app: &mut App) {
@@ -75,20 +87,96 @@ fn extended_channels_tests_are_wired() {
 #[test]
 fn extended_panels_build_disabled_and_expanded_enabled_states() {
     let mut app = test_app();
-    keep_element(super::extended_channels::whatsapp_panel(&app));
-    keep_element(super::extended_channels::linq_panel(&app));
-    keep_element(super::extended_channels::wati_panel(&app));
-    keep_element(super::extended_channels::nextcloud_talk_panel(&app));
-    #[cfg(not(target_arch = "wasm32"))]
-    keep_element(super::extended_channels::email_panel(&app));
-    keep_element(super::extended_channels::irc_panel(&app));
+    render_extended_channels(&app);
 
     configure_extended_channels(&mut app);
+    render_extended_channels(&app);
+}
+
+#[test]
+fn extended_panels_build_enabled_but_collapsed_states() {
+    let mut app = test_app();
+    configure_extended_channels(&mut app);
+    app.channels_settings.expanded_panels.clear();
+
+    render_extended_channels(&app);
+}
+
+#[test]
+fn extended_panels_build_with_optional_credentials_absent() {
+    let mut app = test_app();
+    app.channels_settings.whatsapp = Some(WhatsAppConfig {
+        access_token: None,
+        phone_number_id: None,
+        verify_token: None,
+        app_secret: None,
+        session_path: None,
+        pair_phone: None,
+        pair_code: None,
+        allowed_numbers: Vec::new(),
+    });
+    app.channels_settings.linq = Some(LinqConfig {
+        api_token: "test-api-token".to_string(),
+        from_phone: "+1000".to_string(),
+        signing_secret: None,
+        allowed_senders: Vec::new(),
+    });
+    app.channels_settings.wati = Some(WatiConfig {
+        api_token: "test-api-token".to_string(),
+        api_url: "https://wati.invalid".to_string(),
+        tenant_id: None,
+        allowed_numbers: Vec::new(),
+    });
+    app.channels_settings.nextcloud_talk = Some(NextcloudTalkConfig {
+        base_url: "https://nextcloud.invalid".to_string(),
+        app_token: "test-app-token".to_string(),
+        webhook_secret: None,
+        allowed_users: Vec::new(),
+    });
+    app.channels_settings.irc = Some(IrcConfig {
+        server: "irc.invalid".to_string(),
+        port: 6697,
+        nickname: "bot".to_string(),
+        username: None,
+        channels: Vec::new(),
+        allowed_users: Vec::new(),
+        server_password: None,
+        nickserv_password: None,
+        sasl_password: None,
+        verify_tls: None,
+    });
+    app.channels_settings.expanded_panels.extend(
+        ["whatsapp", "linq", "wati", "nextcloud_talk", "irc"].into_iter().map(str::to_string),
+    );
+    app.channels_settings.refresh_text_inputs();
+
     keep_element(super::extended_channels::whatsapp_panel(&app));
     keep_element(super::extended_channels::linq_panel(&app));
     keep_element(super::extended_channels::wati_panel(&app));
     keep_element(super::extended_channels::nextcloud_talk_panel(&app));
-    #[cfg(not(target_arch = "wasm32"))]
-    keep_element(super::extended_channels::email_panel(&app));
     keep_element(super::extended_channels::irc_panel(&app));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn email_panel_builds_numeric_boundaries_and_tls_states() {
+    let mut app = test_app();
+    app.channels_settings.email = Some(EmailConfig {
+        imap_port: 1,
+        smtp_port: u16::MAX,
+        smtp_tls: false,
+        idle_timeout_secs: 60,
+        ..EmailConfig::default()
+    });
+    app.channels_settings.expanded_panels.insert("email".to_string());
+    app.channels_settings.refresh_text_inputs();
+    keep_element(super::extended_channels::email_panel(&app));
+
+    let config = app.channels_settings.email.as_mut().expect("email config");
+    config.imap_port = u16::MAX;
+    config.smtp_port = 1;
+    config.smtp_tls = true;
+    config.idle_timeout_secs = 86_400;
+    app.channels_settings.refresh_text_inputs();
+    keep_element(super::extended_channels::email_panel(&app));
 }

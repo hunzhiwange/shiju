@@ -41,6 +41,10 @@ use crate::app::agent::config::schema::channels::helpers::{
 use crate::app::agent::security::SecretStore;
 use anyhow::Result;
 
+fn channel_instance_secret_path(channel_type: &str, instance_id: &str, field_name: &str) -> String {
+    format!("config.channels_config.{channel_type}_instances.{instance_id}.{field_name}")
+}
+
 /// 解密所有渠道配置中的敏感信息
 ///
 /// 此函数遍历 `ChannelsConfig` 中的各个渠道配置，对每个渠道的敏感字段
@@ -81,6 +85,8 @@ use anyhow::Result;
 /// - 解密后的明文值仅在内存中存在，不应被持久化
 /// - 解密后的配置应谨慎处理，避免泄露
 pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfig) -> Result<()> {
+    channels.resolve_channel_instance_profiles()?;
+
     // 解密 Telegram 渠道配置
     // bot_token 是必填项，使用 decrypt_secret 处理
     if let Some(ref mut telegram) = channels.telegram {
@@ -136,6 +142,10 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             &mut matrix.access_token,
             "config.channels_config.matrix.access_token",
         )?;
+    }
+    for matrix in &mut channels.matrix_instances {
+        let path = channel_instance_secret_path("matrix", &matrix.id, "access_token");
+        decrypt_secret(store, &mut matrix.config.access_token, &path)?;
     }
 
     // 解密 WhatsApp 渠道配置
@@ -219,6 +229,21 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             "config.channels_config.lark.verification_token",
         )?;
     }
+    for feishu in &mut channels.feishu_instances {
+        let app_secret_path = channel_instance_secret_path("feishu", &feishu.id, "app_secret");
+        decrypt_secret(store, &mut feishu.config.app_secret, &app_secret_path)?;
+
+        let encrypt_key_path = channel_instance_secret_path("feishu", &feishu.id, "encrypt_key");
+        decrypt_optional_secret(store, &mut feishu.config.encrypt_key, &encrypt_key_path)?;
+
+        let verification_token_path =
+            channel_instance_secret_path("feishu", &feishu.id, "verification_token");
+        decrypt_optional_secret(
+            store,
+            &mut feishu.config.verification_token,
+            &verification_token_path,
+        )?;
+    }
 
     // 解密 DingTalk（钉钉）渠道配置
     // client_secret 是必填项
@@ -228,6 +253,10 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             &mut dingtalk.client_secret,
             "config.channels_config.dingtalk.client_secret",
         )?;
+    }
+    for dingtalk in &mut channels.dingtalk_instances {
+        let path = channel_instance_secret_path("dingtalk", &dingtalk.id, "client_secret");
+        decrypt_secret(store, &mut dingtalk.config.client_secret, &path)?;
     }
 
     // 解密 QQ 渠道配置
@@ -303,6 +332,8 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
 /// - 加密后应确保原始明文不被泄露
 /// - 加密操作应在受限环境中进行
 pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfig) -> Result<()> {
+    channels.resolve_channel_instance_profiles()?;
+
     // 加密 Telegram 渠道配置
     // bot_token 是必填项，使用 encrypt_secret 处理
     if let Some(ref mut telegram) = channels.telegram {
@@ -358,6 +389,10 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             &mut matrix.access_token,
             "config.channels_config.matrix.access_token",
         )?;
+    }
+    for matrix in &mut channels.matrix_instances {
+        let path = channel_instance_secret_path("matrix", &matrix.id, "access_token");
+        encrypt_secret(store, &mut matrix.config.access_token, &path)?;
     }
 
     // 加密 WhatsApp 渠道配置
@@ -441,6 +476,21 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             "config.channels_config.lark.verification_token",
         )?;
     }
+    for feishu in &mut channels.feishu_instances {
+        let app_secret_path = channel_instance_secret_path("feishu", &feishu.id, "app_secret");
+        encrypt_secret(store, &mut feishu.config.app_secret, &app_secret_path)?;
+
+        let encrypt_key_path = channel_instance_secret_path("feishu", &feishu.id, "encrypt_key");
+        encrypt_optional_secret(store, &mut feishu.config.encrypt_key, &encrypt_key_path)?;
+
+        let verification_token_path =
+            channel_instance_secret_path("feishu", &feishu.id, "verification_token");
+        encrypt_optional_secret(
+            store,
+            &mut feishu.config.verification_token,
+            &verification_token_path,
+        )?;
+    }
 
     // 加密 DingTalk（钉钉）渠道配置
     // client_secret 是必填项
@@ -450,6 +500,10 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             &mut dingtalk.client_secret,
             "config.channels_config.dingtalk.client_secret",
         )?;
+    }
+    for dingtalk in &mut channels.dingtalk_instances {
+        let path = channel_instance_secret_path("dingtalk", &dingtalk.id, "client_secret");
+        encrypt_secret(store, &mut dingtalk.config.client_secret, &path)?;
     }
 
     // 加密 QQ 渠道配置

@@ -305,6 +305,42 @@ error_strategy: default-value
 }
 
 #[test]
+fn build_code_visual_draft_preserves_existing_default_value_by_strategy() {
+    let default_value_yaml = r#"
+outputs:
+  answer:
+    type: string
+error_strategy: default-value
+default_value:
+  - key: answer
+    type: string
+    value: custom answer
+"#;
+
+    match build_node_visual_draft("code", default_value_yaml).expect("code draft") {
+        Some(WorkflowNodeVisualDraft::Code { default_value_editor, error_strategy, .. }) => {
+            assert_eq!(error_strategy, "default-value");
+            assert!(default_value_editor.text().contains("custom answer"));
+        }
+        _ => panic!("expected code visual draft"),
+    }
+
+    let fail_branch_yaml = r#"
+error_strategy: fail-branch
+default_value:
+  status: ignored by strategy
+"#;
+
+    match build_node_visual_draft("code", fail_branch_yaml).expect("code draft") {
+        Some(WorkflowNodeVisualDraft::Code { default_value_editor, error_strategy, .. }) => {
+            assert_eq!(error_strategy, "fail-branch");
+            assert!(default_value_editor.text().contains("status: ignored by strategy"));
+        }
+        _ => panic!("expected code visual draft"),
+    }
+}
+
+#[test]
 fn code_draft_helpers_handle_defaults_fallbacks_clamps_and_errors() {
     let variables = build_code_variable_drafts(Some(&yaml_value_from(
         r#"
@@ -418,4 +454,307 @@ fn sync_node_editor_raw_from_visual_merges_visual_fields_into_raw_yaml() {
         .expect("synced yaml should parse");
     assert_eq!(map_value(&synced, "answer").as_str(), Some("new answer"));
     assert_eq!(map_value(&synced, "kept").as_bool(), Some(true));
+}
+
+#[test]
+fn build_node_visual_draft_rejects_malformed_yaml_and_defaults_empty_node_shapes() {
+    assert!(build_node_visual_draft("answer", "[").unwrap_err().contains("YAML"));
+
+    match build_node_visual_draft("start", "{}\n").expect("empty start draft") {
+        Some(WorkflowNodeVisualDraft::Start { variables }) => assert!(variables.is_empty()),
+        _ => panic!("expected start visual draft"),
+    }
+
+    match build_node_visual_draft("llm", "{}\n").expect("empty llm draft") {
+        Some(WorkflowNodeVisualDraft::Llm {
+            provider,
+            model_name,
+            model_mode,
+            enable_thinking,
+            context_enabled,
+            context_selector_input,
+            system_prompt_editor,
+            user_prompt_editor,
+            vision_enabled,
+        }) => {
+            assert!(provider.is_empty());
+            assert!(model_name.is_empty());
+            assert_eq!(model_mode, "chat");
+            assert!(!enable_thinking);
+            assert!(!context_enabled);
+            assert!(context_selector_input.is_empty());
+            assert!(system_prompt_editor.text().is_empty());
+            assert!(user_prompt_editor.text().is_empty());
+            assert!(!vision_enabled);
+        }
+        _ => panic!("expected llm visual draft"),
+    }
+
+    match build_node_visual_draft("answer", "{}\n").expect("empty answer draft") {
+        Some(WorkflowNodeVisualDraft::Answer { answer_editor }) => {
+            assert!(answer_editor.text().is_empty());
+        }
+        _ => panic!("expected answer visual draft"),
+    }
+
+    match build_node_visual_draft("if-else", "{}\n").expect("empty if-else draft") {
+        Some(WorkflowNodeVisualDraft::IfElse { cases }) => assert!(cases.is_empty()),
+        _ => panic!("expected if-else visual draft"),
+    }
+}
+
+#[test]
+fn build_node_visual_draft_defaults_knowledge_null_threshold_and_missing_models() {
+    match build_node_visual_draft("knowledge-retrieval", "{}\n")
+        .expect("knowledge draft without retrieval config")
+    {
+        Some(WorkflowNodeVisualDraft::KnowledgeRetrieval {
+            top_k_input,
+            score_threshold_enabled,
+            score_threshold_input,
+            ..
+        }) => {
+            assert_eq!(top_k_input, "5");
+            assert!(!score_threshold_enabled);
+            assert!(score_threshold_input.is_empty());
+        }
+        _ => panic!("expected knowledge visual draft"),
+    }
+
+    let yaml = r#"
+multiple_retrieval_config:
+  score_threshold: null
+"#;
+
+    match build_node_visual_draft("knowledge-retrieval", yaml).expect("knowledge draft") {
+        Some(WorkflowNodeVisualDraft::KnowledgeRetrieval {
+            query_selector_input,
+            query_attachment_selector_input,
+            dataset_ids_input,
+            retrieval_mode,
+            top_k_input,
+            score_threshold_enabled,
+            score_threshold_input,
+            reranking_enable,
+            single_model_provider,
+            single_model_name,
+            single_model_mode,
+        }) => {
+            assert!(query_selector_input.is_empty());
+            assert!(query_attachment_selector_input.is_empty());
+            assert!(dataset_ids_input.is_empty());
+            assert_eq!(retrieval_mode, "multiple");
+            assert_eq!(top_k_input, "5");
+            assert!(!score_threshold_enabled);
+            assert!(score_threshold_input.is_empty());
+            assert!(!reranking_enable);
+            assert!(single_model_provider.is_empty());
+            assert!(single_model_name.is_empty());
+            assert_eq!(single_model_mode, "chat");
+        }
+        _ => panic!("expected knowledge visual draft"),
+    }
+}
+
+#[test]
+fn build_node_visual_draft_defaults_empty_tool_agent_and_code_fields() {
+    match build_node_visual_draft("tool", "{}\n").expect("empty tool draft") {
+        Some(WorkflowNodeVisualDraft::Tool {
+            provider_id,
+            provider_type,
+            provider_name,
+            tool_name,
+            tool_label,
+            tool_description,
+            credential_id,
+            plugin_unique_identifier,
+            tool_parameters_editor,
+            tool_configurations_editor,
+        }) => {
+            assert!(provider_id.is_empty());
+            assert!(provider_type.is_empty());
+            assert!(provider_name.is_empty());
+            assert!(tool_name.is_empty());
+            assert!(tool_label.is_empty());
+            assert!(tool_description.is_empty());
+            assert!(credential_id.is_empty());
+            assert!(plugin_unique_identifier.is_empty());
+            assert!(
+                yaml_value_from(&tool_parameters_editor.text()).as_mapping().unwrap().is_empty()
+            );
+            assert!(
+                yaml_value_from(&tool_configurations_editor.text())
+                    .as_mapping()
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        _ => panic!("expected tool visual draft"),
+    }
+
+    match build_node_visual_draft("agent", "{}\n").expect("empty agent draft") {
+        Some(WorkflowNodeVisualDraft::Agent {
+            strategy_provider_name,
+            strategy_name,
+            strategy_label,
+            plugin_unique_identifier,
+            output_schema_editor,
+            parameters_editor,
+            memory_enabled,
+            memory_window_size_input,
+            memory_prompt_editor,
+        }) => {
+            assert!(strategy_provider_name.is_empty());
+            assert!(strategy_name.is_empty());
+            assert!(strategy_label.is_empty());
+            assert!(plugin_unique_identifier.is_empty());
+            assert!(yaml_value_from(&output_schema_editor.text()).as_mapping().unwrap().is_empty());
+            assert!(yaml_value_from(&parameters_editor.text()).as_mapping().unwrap().is_empty());
+            assert!(!memory_enabled);
+            assert_eq!(memory_window_size_input, "3");
+            assert!(memory_prompt_editor.text().is_empty());
+        }
+        _ => panic!("expected agent visual draft"),
+    }
+
+    match build_node_visual_draft("code", "{}\n").expect("empty code draft") {
+        Some(WorkflowNodeVisualDraft::Code {
+            language,
+            inputs,
+            code_editor,
+            outputs,
+            retry_config,
+            error_strategy,
+            default_value_editor,
+        }) => {
+            assert_eq!(language, "python3");
+            assert!(inputs.is_empty());
+            assert!(code_editor.text().is_empty());
+            assert!(outputs.is_empty());
+            assert_eq!(
+                retry_config,
+                WorkflowNodeRetryDraft { enabled: false, max_retries: 3, retry_interval: 1000 }
+            );
+            assert_eq!(error_strategy, "none");
+            assert_eq!(default_value_editor.text(), "[]\n");
+        }
+        _ => panic!("expected code visual draft"),
+    }
+}
+
+#[test]
+fn code_draft_helpers_filter_invalid_parts_and_default_missing_types() {
+    let variables = build_code_variable_drafts(Some(&yaml_value_from(
+        r#"
+- variable: "   "
+  value_selector: [node, 7, output]
+- variable: ""
+  value_selector: [3]
+"#,
+    )));
+    assert_eq!(variables.len(), 2);
+    assert_eq!(variables[0].variable, "output");
+    assert_eq!(variables[0].selector, vec!["node".to_string(), "output".to_string()]);
+    assert_eq!(variables[0].value_type, "string");
+    assert!(variables[1].variable.is_empty());
+    assert!(variables[1].selector.is_empty());
+
+    let outputs = build_code_output_drafts(Some(&yaml_value_from(
+        r#"
+"   ":
+  type: number
+1:
+  type: boolean
+answer: scalar
+count:
+  type: 17
+enabled:
+  type: boolean
+"#,
+    )));
+    assert_eq!(outputs.len(), 3);
+    assert_eq!(outputs.iter().find(|output| output.key == "answer").unwrap().value_type, "string");
+    assert_eq!(outputs.iter().find(|output| output.key == "count").unwrap().value_type, "string");
+    assert_eq!(
+        outputs.iter().find(|output| output.key == "enabled").unwrap().value_type,
+        "boolean"
+    );
+}
+
+#[test]
+fn code_default_values_cover_supported_shapes_and_parse_valid_sequences() {
+    let outputs = [
+        ("count", "number"),
+        ("enabled", "boolean"),
+        ("metadata", "object"),
+        ("items", "array[object]"),
+        ("fallback", "unsupported"),
+    ]
+    .into_iter()
+    .map(|(key, value_type)| WorkflowCodeOutputDraft {
+        key: key.to_string(),
+        value_type: value_type.to_string(),
+    })
+    .collect::<Vec<_>>();
+
+    let defaults = default_code_default_value_value(&outputs);
+    let items = defaults.as_sequence().expect("defaults should be a sequence");
+    let default_for = |key: &str| {
+        items
+            .iter()
+            .find(|item| map_value(item, "key").as_str() == Some(key))
+            .map(|item| map_value(item, "value"))
+            .expect("default should exist")
+    };
+    assert_eq!(default_for("count").as_u64(), Some(0));
+    assert_eq!(default_for("enabled").as_bool(), Some(false));
+    assert!(default_for("metadata").as_mapping().unwrap().is_empty());
+    assert!(default_for("items").as_sequence().unwrap().is_empty());
+    assert_eq!(default_for("fallback").as_str(), Some(""));
+
+    let parsed = parse_code_default_value_yaml("- key: answer\n  type: string\n  value: ok\n")
+        .expect("default value sequence should parse");
+    assert_eq!(parsed.as_sequence().unwrap().len(), 1);
+
+    let empty_existing = Value::Sequence(Vec::new());
+    let generated =
+        code_default_value_editor_text(&outputs, Some(&empty_existing), "default-value");
+    assert!(generated.contains("key: count"));
+    let mapping_existing = yaml_value_from("key: stale\n");
+    let generated =
+        code_default_value_editor_text(&outputs, Some(&mapping_existing), "default-value");
+    assert!(generated.contains("key: enabled"));
+    assert!(!generated.contains("key: stale"));
+    assert_eq!(
+        code_default_value_editor_text(&outputs, Some(&mapping_existing), "fail-branch"),
+        value_yaml_for_editor(&mapping_existing)
+    );
+}
+
+#[test]
+fn sync_node_editor_raw_from_visual_preserves_raw_yaml_when_parsing_fails() {
+    let raw_yaml = "[";
+    let mut editor = WorkflowNodeEditorDraft {
+        mode: WorkflowNodeEditorMode::Create,
+        active_tab: WorkflowNodeEditorTab::Visual,
+        block_type: "answer".to_string(),
+        title: "Answer".to_string(),
+        description: String::new(),
+        description_editor: text_editor::Content::with_text(""),
+        position: Point::new(0.0, 0.0),
+        visual_draft: Some(WorkflowNodeVisualDraft::Answer {
+            answer_editor: text_editor::Content::with_text("new answer"),
+        }),
+        validation: WorkflowNodeEditorValidation::default(),
+        show_raw_data_editor: false,
+        raw_data_editor: text_editor::Content::with_text(raw_yaml),
+        hovered_start_variable_index: None,
+        start_variable_focus_index: None,
+        start_variable_editor: None,
+    };
+
+    let error = sync_node_editor_raw_from_visual(&mut editor).unwrap_err();
+
+    assert!(error.contains("YAML"));
+    assert_eq!(editor.raw_data_editor.text(), raw_yaml);
 }

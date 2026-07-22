@@ -78,7 +78,11 @@ pub fn load_app_config() -> serde_json::Value {
         Ok(value) if value.is_object() => value,
         Ok(_) => serde_json::json!({}),
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop preferences via gateway");
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, "failed to load desktop preferences via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, "failed to load desktop preferences via gateway");
+            }
             serde_json::json!({})
         }
     }
@@ -88,7 +92,11 @@ pub fn load_app_config() -> serde_json::Value {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn save_app_config(v: &serde_json::Value) {
     if let Err(err) = run_gateway_call(save_app_config_async(v.clone())) {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to save desktop preferences via gateway");
+        if vw_gateway_client::is_gateway_unavailable_error(&err) {
+            tracing::debug!(target: "vw_desktop", error = %err, "failed to save desktop preferences via gateway");
+        } else {
+            tracing::warn!(target: "vw_desktop", error = %err, "failed to save desktop preferences via gateway");
+        }
     }
 }
 
@@ -135,7 +143,11 @@ pub fn load_project_chat_preferences(project_path: &str) -> Option<(String, bool
     match result {
         Ok(value) => value,
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, project_path, "failed to load project chat preferences via gateway");
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, project_path, "failed to load project chat preferences via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, project_path, "failed to load project chat preferences via gateway");
+            }
             None
         }
     }
@@ -284,7 +296,11 @@ fn load_tool_content(tool_type: &str) -> String {
     match result {
         Ok(content) => content,
         Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, tool_type, "failed to load tool content via gateway");
+            if vw_gateway_client::is_gateway_unavailable_error(&err) {
+                tracing::debug!(target: "vw_desktop", error = %err, tool_type, "failed to load tool content via gateway");
+            } else {
+                tracing::warn!(target: "vw_desktop", error = %err, tool_type, "failed to load tool content via gateway");
+            }
             String::new()
         }
     }
@@ -303,67 +319,6 @@ fn save_tool_content(tool_type: &str, content: &str) {
 async fn save_tool_content_async(tool_type: &str, content: &str) -> Result<(), String> {
     let client = gateway_client()?;
     client.desktop_tool_content_put(tool_type, content).await
-}
-
-/// 公开函数，执行 load_mindmap_tabs 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-#[cfg(target_arch = "wasm32")]
-pub fn load_mindmap_tabs() -> Option<serde_json::Value> {
-    None
-}
-
-/// 公开函数，执行 save_mindmap_tabs 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-#[cfg(target_arch = "wasm32")]
-pub fn save_mindmap_tabs(_v: &serde_json::Value) {}
-
-/// 公开函数，执行 load_mindmap_tabs 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-#[cfg(not(target_arch = "wasm32"))]
-pub fn load_mindmap_tabs() -> Option<serde_json::Value> {
-    let result = run_gateway_call(async {
-        let client = gateway_client()?;
-        client.desktop_mindmap_tabs_get().await
-    });
-    match result {
-        Ok(value) => value,
-        Err(err) => {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to load mindmap tabs via gateway");
-            None
-        }
-    }
-}
-
-/// 公开函数，执行 save_mindmap_tabs 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-#[cfg(not(target_arch = "wasm32"))]
-pub fn save_mindmap_tabs(v: &serde_json::Value) {
-    if let Err(err) = run_gateway_call(async {
-        let client = gateway_client()?;
-        client.desktop_mindmap_tabs_put(v).await
-    }) {
-        tracing::warn!(target: "vw_desktop", error = %err, "failed to save mindmap tabs via gateway");
-    }
-}
-
-/// 公开函数，执行 load_mindmap_tabs_async 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub async fn load_mindmap_tabs_async() -> Result<Option<serde_json::Value>, String> {
-    let client = gateway_client()?;
-    client.desktop_mindmap_tabs_get().await
-}
-
-/// 公开函数，执行 save_mindmap_tabs_async 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub async fn save_mindmap_tabs_async(v: &serde_json::Value) -> Result<(), String> {
-    let client = gateway_client()?;
-    client.desktop_mindmap_tabs_put(v).await
-}
-
-/// 公开函数，执行 save_mindmap_tabs_owned 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub async fn save_mindmap_tabs_owned(v: serde_json::Value) -> Result<(), String> {
-    save_mindmap_tabs_async(&v).await
 }
 
 #[cfg(test)]

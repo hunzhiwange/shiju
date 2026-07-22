@@ -26,6 +26,17 @@ use iced::{Background, Color, Element, Length, Theme};
 
 use crate::app::{App, Message, message};
 
+const SEARCH_PANEL_SCROLLBAR_WIDTH: f32 = 4.0;
+const SEARCH_PANEL_SCROLLBAR_GUTTER: f32 = 12.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct SessionSearchMatch {
+    pub id: String,
+    pub title: String,
+    pub preview: Option<String>,
+    pub directory: String,
+}
+
 pub(super) fn result_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
@@ -69,6 +80,32 @@ pub(super) fn search_input_style(
         value: palette.background.base.text,
         selection: palette.primary.base.color.scale_alpha(0.30),
     }
+}
+
+pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatch> {
+    let needle = query.trim().to_ascii_lowercase();
+    if needle.is_empty() {
+        return Vec::new();
+    }
+
+    app.sessions
+        .iter()
+        .filter(|session| {
+            let preview =
+                app.session_previews.get(&session.id).map(String::as_str).unwrap_or_default();
+            session.title.to_ascii_lowercase().contains(&needle)
+                || preview.to_ascii_lowercase().contains(&needle)
+                || session.directory.to_ascii_lowercase().contains(&needle)
+                || session.id.to_ascii_lowercase().contains(&needle)
+        })
+        .take(8)
+        .map(|session| SessionSearchMatch {
+            id: session.id.clone(),
+            title: session.title.clone(),
+            preview: app.session_previews.get(&session.id).cloned(),
+            directory: session.directory.clone(),
+        })
+        .collect()
 }
 
 pub fn overlay(app: &App) -> Element<'_, Message> {
@@ -182,11 +219,15 @@ pub fn overlay(app: &App) -> Element<'_, Message> {
 pub fn view(app: &App) -> Element<'_, Message> {
     // 获取并清理搜索文本
     let q = app.search_text.trim();
+    let q_lower = q.to_ascii_lowercase();
 
     // 如果搜索文本为空，返回一个尺寸收缩的空容器
     // 这样可以避免在用户尚未输入任何内容时显示空白面板
     if q.is_empty() {
-        return container(column![]).width(Length::Shrink).height(Length::Shrink).into();
+        return container(Space::new().height(Length::Fill))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
     }
 
     // 创建主要内容列，设置子元素间距为 8 像素
@@ -214,7 +255,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let projects = app
         .recent_projects
         .iter()
-        .filter(|p| p.to_lowercase().contains(&q.to_lowercase()))
+        .filter(|p| p.to_ascii_lowercase().contains(&q_lower))
         .take(8)
         .cloned()
         .collect::<Vec<_>>();
@@ -235,13 +276,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // ========== 会话搜索部分 ==========
     // 在历史会话中搜索
-    let sessions = app
-        .sessions
-        .iter()
-        .filter(|s| s.title.to_lowercase().contains(&q.to_lowercase()))
-        .take(8)
-        .map(|s| (s.id.clone(), s.title.clone())) // 提取会话 ID 和标题
-        .collect::<Vec<_>>();
+    let sessions = matching_sessions(app, q);
 
     // 如果有匹配的会话，添加到结果列表
     if !sessions.is_empty() {
@@ -249,15 +284,41 @@ pub fn view(app: &App) -> Element<'_, Message> {
         content = content.push(text("历史会话"));
 
         // 为每个匹配的会话创建按钮
-        for (id, title) in sessions {
-            let btn = button(text(title))
-                .on_press(Message::Search(message::SearchMessage::SelectSession(id)))
+        for session in sessions {
+            let mut label = column![text(session.title.clone())].spacing(2);
+            if let Some(preview) = session.preview.filter(|value| !value.trim().is_empty()) {
+                label = label.push(text(preview).size(12).style(|theme: &Theme| {
+                    iced::widget::text::Style {
+                        color: Some(theme.extended_palette().secondary.base.text),
+                    }
+                }));
+            }
+            if !session.directory.trim().is_empty() {
+                label =
+                    label.push(text(session.directory.clone()).size(11).style(|theme: &Theme| {
+                        iced::widget::text::Style {
+                            color: Some(theme.palette().text.scale_alpha(0.55)),
+                        }
+                    }));
+            }
+
+            let btn = button(label)
+                .width(Length::Fill)
+                .on_press(Message::Search(message::SearchMessage::SelectSession(session.id)))
                 .style(result_button_style);
             content = content.push(btn);
         }
     }
 
     // 将内容包装在可滚动容器中返回
-    // 使用 Length::Shrink 让容器尺寸根据内容自动调整
-    scrollable(container(content).width(Length::Shrink).padding(0)).height(Length::Shrink).into()
+    scrollable(container(content).width(Length::Fill).padding(iced::Padding::default().right(4.0)))
+        .direction(iced::widget::scrollable::Direction::Vertical(
+            iced::widget::scrollable::Scrollbar::new()
+                .width(SEARCH_PANEL_SCROLLBAR_WIDTH)
+                .scroller_width(SEARCH_PANEL_SCROLLBAR_WIDTH)
+                .spacing(SEARCH_PANEL_SCROLLBAR_GUTTER - SEARCH_PANEL_SCROLLBAR_WIDTH),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }

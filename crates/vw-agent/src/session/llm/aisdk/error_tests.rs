@@ -6,6 +6,7 @@ use crate::app::agent::session::message::AssistantError;
 
 use super::{
     aisdk_assistant_error_log_fields, aisdk_error_source_chain, assistant_error_from_aisdk,
+    is_retryable_body_decode_error,
 };
 
 #[test]
@@ -86,6 +87,67 @@ fn api_error_marks_server_errors_retryable_and_client_errors_not_retryable() {
 }
 
 #[test]
+fn api_error_marks_body_decode_failures_retryable_without_status() {
+    let error = assistant_error_from_aisdk(
+        "openai",
+        AiError::ApiError {
+            details: "error decoding response body".to_string(),
+            status_code: None,
+        },
+    );
+
+    assert!(matches!(error, AssistantError::APIError { is_retryable: true, .. }));
+}
+
+#[test]
+fn body_decode_retryability_checks_details_raw_error_and_source_chain() {
+    assert!(
+        is_retryable_body_decode_error("ERROR DECODING RESPONSE BODY", "request failed", None,)
+    );
+    assert!(is_retryable_body_decode_error("request failed", "EOF while parsing a value", None,));
+    assert!(is_retryable_body_decode_error(
+        "request failed",
+        "transport closed",
+        Some("error decoding response body"),
+    ));
+    assert!(!is_retryable_body_decode_error(
+        "bad request",
+        "invalid input",
+        Some("provider rejected request"),
+    ));
+}
+
+#[test]
+fn api_error_without_status_preserves_raw_display_fallback() {
+    let error = assistant_error_from_aisdk(
+        "custom",
+        AiError::ApiError { details: String::new(), status_code: None },
+    );
+
+    match error {
+        AssistantError::APIError {
+            message,
+            status_code,
+            is_retryable,
+            response_body,
+            metadata,
+            ..
+        } => {
+            assert!(message.is_empty());
+            assert_eq!(status_code, None);
+            assert!(!is_retryable);
+            assert_eq!(response_body.as_deref(), Some("API error: None - "));
+
+            let metadata = metadata.expect("metadata should be present");
+            assert_eq!(metadata.get("source").map(String::as_str), Some("aisdk"));
+            assert_eq!(metadata.get("raw_error").map(String::as_str), Some("API error: None - "),);
+            assert!(!metadata.contains_key("error_chain"));
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
 fn unknown_aisdk_error_keeps_display_message() {
     let error =
         assistant_error_from_aisdk("openai", AiError::InvalidInput("bad option".to_string()));
@@ -95,6 +157,24 @@ fn unknown_aisdk_error_keeps_display_message() {
             assert_eq!(message, "Invalid input: bad option");
         }
         other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn other_unclassified_aisdk_errors_keep_their_display_messages() {
+    let cases = [
+        (AiError::ToolCallError("tool failed".to_string()), "Tool error: tool failed"),
+        (AiError::PromptError("template failed".to_string()), "Prompt error: template failed"),
+        (AiError::Other("miscellaneous".to_string()), "AI SDK error: miscellaneous"),
+    ];
+
+    for (source, expected) in cases {
+        let error = assistant_error_from_aisdk("custom", source);
+
+        match error {
+            AssistantError::Unknown { message } => assert_eq!(message, expected),
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }
 
@@ -119,6 +199,26 @@ fn api_log_fields_include_optional_details() {
     assert_eq!(fields.get("responseBody"), Some(&Value::String("body text".to_string())));
     assert_eq!(fields["metadata"]["provider"], Value::String("openai".to_string()));
     assert_eq!(fields["metadata"]["request"], Value::String("abc".to_string()));
+}
+
+#[test]
+fn api_log_fields_omit_absent_optional_details() {
+    let error = AssistantError::APIError {
+        message: "plain failure".to_string(),
+        status_code: None,
+        is_retryable: false,
+        response_headers: None,
+        response_body: None,
+        metadata: None,
+    };
+
+    let fields = aisdk_assistant_error_log_fields(&error);
+
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields.get("error"), Some(&Value::String("plain failure".to_string())));
+    assert!(!fields.contains_key("statusCode"));
+    assert!(!fields.contains_key("responseBody"));
+    assert!(!fields.contains_key("metadata"));
 }
 
 #[test]

@@ -2,7 +2,6 @@
 //!
 //! 本模块负责处理与项目管理相关的各种消息，包括：
 //! - 打开文件、文件夹、项目
-//! - 打开和创建设计文档
 //! - 文件树导航和展开/折叠
 //! - 文件索引管理
 //! - Git 变更文件显示
@@ -12,10 +11,8 @@
 
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{append_local_attachments, load_project_info_task};
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::message::{DesignMessage, NotificationMessage};
 
-use crate::app::{App, AppTab, Message, Screen, set_config_field};
+use crate::app::{App, Message, set_config_field};
 use std::time::Duration;
 
 fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
@@ -120,129 +117,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     );
                 }
             }
-            Some(iced::Task::none())
-        }
-        // 处理"打开设计文件"按钮点击事件
-        // 在非 wasm32 平台上弹出文件选择对话框（过滤 json 和 pen 文件），
-        // 读取并解析设计文档，创建设计标签页并切换到设计视图
-        ProjectMessage::OpenDesignPressed => {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                if let Some(path_buf) =
-                    rfd::FileDialog::new().add_filter("Design Files", &["json", "pen"]).pick_file()
-                {
-                    // 如果存在 Apps 中间页面标签，则关闭它
-                    if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                        app.open_tabs.remove(pos);
-                    }
-
-                    if let Ok(content) = std::fs::read_to_string(&path_buf) {
-                        match serde_json::from_str::<crate::app::views::design::models::DesignDoc>(
-                            &content,
-                        ) {
-                            Ok(mut doc) => {
-                                // 标准化填充标志
-                                doc.normalize_fill_flags();
-
-                                let tab_id = "design".to_string();
-                                let state = crate::app::views::design::state::DesignState::new(doc);
-                                app.design_states.insert(tab_id.clone(), state);
-
-                                // 添加设计标签页
-                                if !app.open_tabs.iter().any(|t| t.id == tab_id) {
-                                    app.open_tabs.push(AppTab {
-                                        id: tab_id.clone(),
-                                        title: "设计".to_string(),
-                                        screen: Screen::Design,
-                                        project_path: None,
-                                    });
-                                }
-                                app.active_tab_id = Some(tab_id);
-                                app.screen = Screen::Design;
-
-                                // 触发缩放适应视图
-                                return Some(iced::Task::perform(async {}, |_| {
-                                    Message::Design(DesignMessage::ZoomFit)
-                                }));
-                            }
-                            Err(e) => {
-                                let error_msg = format!("Failed to parse design file: {}", e);
-                                eprintln!("{}", error_msg);
-                                app.error_message = Some(error_msg.clone());
-                                return Some(iced::Task::done(Message::Notification(
-                                    NotificationMessage::Add(error_msg),
-                                )));
-                            }
-                        }
-                    } else {
-                        let error_msg = format!("Failed to read file: {:?}", path_buf);
-                        eprintln!("{}", error_msg);
-                        app.error_message = Some(error_msg.clone());
-                        return Some(iced::Task::done(Message::Notification(
-                            NotificationMessage::Add(error_msg),
-                        )));
-                    }
-                }
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                // 如果存在 Apps 中间页面标签，则关闭它
-                if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                    app.open_tabs.remove(pos);
-                }
-                // 在 wasm32 平台上创建空白设计文档
-                let doc = crate::app::views::design::models::DesignDoc {
-                    version: "1.0".to_string(),
-                    children: vec![],
-                    ..Default::default()
-                };
-                let tab_id = "design".to_string();
-                let state = crate::app::views::design::state::DesignState::new(doc);
-                app.design_states.insert(tab_id.clone(), state);
-
-                // 添加设计标签页
-                if !app.open_tabs.iter().any(|t| t.id == tab_id) {
-                    app.open_tabs.push(AppTab {
-                        id: tab_id.clone(),
-                        title: "设计".to_string(),
-                        screen: Screen::Design,
-                        project_path: None,
-                    });
-                }
-                app.active_tab_id = Some(tab_id);
-                app.screen = Screen::Design;
-            }
-            Some(iced::Task::none())
-        }
-        // 处理"创建空白设计文档"按钮点击事件
-        // 创建一个空白的设计文档并打开设计视图
-        ProjectMessage::OpenDesignBlankPressed => {
-            // 如果存在 Apps 中间页面标签，则关闭它
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
-                app.open_tabs.remove(pos);
-            }
-
-            // 创建空白设计文档
-            let doc = crate::app::views::design::models::DesignDoc {
-                version: "1.0".to_string(),
-                children: vec![],
-                ..Default::default()
-            };
-            let tab_id = "design".to_string();
-            let state = crate::app::views::design::state::DesignState::new(doc);
-            app.design_states.insert(tab_id.clone(), state);
-
-            // 添加设计标签页
-            if !app.open_tabs.iter().any(|t| t.id == tab_id) {
-                app.open_tabs.push(AppTab {
-                    id: tab_id.clone(),
-                    title: "设计".to_string(),
-                    screen: Screen::Design,
-                    project_path: None,
-                });
-            }
-            app.active_tab_id = Some(tab_id);
-            app.screen = Screen::Design;
             Some(iced::Task::none())
         }
         // 处理项目路径输入框内容变化事件

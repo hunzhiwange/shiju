@@ -53,7 +53,7 @@ pub async fn load_custom_provider_draft(
     let raw = cfg
         .providers
         .get(&provider_id)
-        .ok_or_else(|| format!("提供商 {} 不在 vibewindow.json 的 providers 中", provider_id))?;
+        .ok_or_else(|| format!("提供商 {} 不在系统配置的 providers 中", provider_id))?;
     custom_provider_draft_from_value(&provider_id, raw)
 }
 
@@ -235,10 +235,37 @@ pub async fn save_custom_provider(
     String,
 > {
     let provider_id = draft.provider_id.trim().to_string();
-    let base_url = draft.base_url.trim().to_string();
     let cfg =
         config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
     let existing_provider = cfg.providers.get(&provider_id);
+    let (_, patch) = custom_provider_patch_from_draft(&draft, existing_provider);
+
+    config::patch_full_agent_config_async(patch).await.map_err(server_config_unreachable_error)?;
+    if !draft.api_key.trim().is_empty() {
+        let path = auth_filepath();
+        shared_auth::store::set_to(
+            &path,
+            &provider_id,
+            &shared_auth::Info::Api(shared_auth::ApiInfo { key: draft.api_key.trim().to_string() }),
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    model_provider::invalidate_cache().await;
+    let providers = model_provider::list_for_settings().await;
+    let cfg =
+        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+    let (patterns, configured) = load_popular_providers_from_config(&cfg);
+    let raw_providers = provider_models::get().await;
+    let catalog = build_catalog_from_sources(&raw_providers, &providers);
+    Ok((providers, patterns, configured, catalog))
+}
+
+fn custom_provider_patch_from_draft(
+    draft: &CustomProviderDraft,
+    existing_provider: Option<&Value>,
+) -> (String, Value) {
+    let provider_id = draft.provider_id.trim().to_string();
+    let base_url = draft.base_url.trim().to_string();
     let mut shared_headers = serde_json::Map::new();
     for h in &draft.headers {
         let k = h.key.trim();
@@ -299,24 +326,5 @@ pub async fn save_custom_provider(
 
     let mut root = serde_json::Map::new();
     root.insert("providers".to_string(), serde_json::Value::Object(provider_obj));
-    let patch = serde_json::Value::Object(root);
-
-    config::patch_full_agent_config_async(patch).await.map_err(server_config_unreachable_error)?;
-    if !draft.api_key.trim().is_empty() {
-        let path = auth_filepath();
-        shared_auth::store::set_to(
-            &path,
-            &provider_id,
-            &shared_auth::Info::Api(shared_auth::ApiInfo { key: draft.api_key.trim().to_string() }),
-        )
-        .map_err(|e| e.to_string())?;
-    }
-    model_provider::invalidate_cache().await;
-    let providers = model_provider::list_for_settings().await;
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
-    let (patterns, configured) = load_popular_providers_from_config(&cfg);
-    let raw_providers = provider_models::get().await;
-    let catalog = build_catalog_from_sources(&raw_providers, &providers);
-    Ok((providers, patterns, configured, catalog))
+    (provider_id, serde_json::Value::Object(root))
 }

@@ -86,30 +86,26 @@ pub(super) fn split_message_for_telegram(message: &str) -> Vec<String> {
         let hard_split =
             remaining.char_indices().nth(chunk_limit).map_or(remaining.len(), |(idx, _)| idx);
 
-        // 智能寻找最佳分割点
-        let chunk_end = if hard_split == remaining.len() {
-            // 剩余内容不足以达到分割阈值
-            hard_split
-        } else {
-            let search_area = &remaining[..hard_split];
+        let search_area = &remaining[..hard_split];
 
-            // 优先尝试在换行符处分割（保持段落完整）
-            if let Some(pos) = search_area.rfind('\n') {
-                // 只有当换行符前仍有足够内容时才在此分割
-                // 避免产生过短的片段
-                if search_area[..pos].chars().count() >= chunk_limit / 2 {
-                    pos + 1 // 包含换行符在当前片段中
-                } else {
-                    // 换行符太靠前，改为在空格处分割
-                    search_area.rfind(' ').unwrap_or(hard_split) + 1
-                }
+        // 智能寻找最佳分割点
+        let chunk_end = if let Some(pos) = search_area.rfind('\n') {
+            // 只有当换行符前仍有足够内容时才在此分割
+            // 避免产生过短的片段
+            if search_area[..pos].chars().count() >= chunk_limit / 2 {
+                pos + 1 // 包含换行符在当前片段中
             } else if let Some(pos) = search_area.rfind(' ') {
-                // 其次在空格处分割（保持单词完整）
-                pos + 1 // 空格归属当前片段，下一段从新词开始
+                // 换行符太靠前，改为在空格处分割
+                pos + 1
             } else {
-                // 没有找到自然边界，执行硬分割
                 hard_split
             }
+        } else if let Some(pos) = search_area.rfind(' ') {
+            // 其次在空格处分割（保持单词完整）
+            pos + 1 // 空格归属当前片段，下一段从新词开始
+        } else {
+            // 没有找到自然边界，执行硬分割
+            hard_split
         };
 
         // 提取当前片段并添加到结果中

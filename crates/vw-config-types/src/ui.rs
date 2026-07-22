@@ -125,6 +125,10 @@ pub struct GatewayClientServerConfig {
     pub host: String,
     #[serde(default = "default_gateway_client_port")]
     pub port: u16,
+    #[serde(default = "default_platform_id", deserialize_with = "deserialize_tenant_id")]
+    pub platform_id: String,
+    #[serde(default = "default_company_id", deserialize_with = "deserialize_tenant_id")]
+    pub company_id: String,
     /// 旧版 `bearer_token` 字段，仅用于读取旧配置并迁移到 skey。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub bearer_token: String,
@@ -144,6 +148,10 @@ pub struct GatewayClientSystemSettingsConfig {
     pub host: String,
     #[serde(default = "default_gateway_client_port")]
     pub port: u16,
+    #[serde(default = "default_platform_id", deserialize_with = "deserialize_tenant_id")]
+    pub platform_id: String,
+    #[serde(default = "default_company_id", deserialize_with = "deserialize_tenant_id")]
+    pub company_id: String,
     /// 旧版 `bearer_token` 字段，仅用于读取旧配置并迁移到 skey。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub bearer_token: String,
@@ -171,6 +179,25 @@ fn default_gateway_client_host() -> String {
 
 fn default_gateway_client_port() -> u16 {
     42617
+}
+
+fn default_platform_id() -> String {
+    "10000".to_string()
+}
+
+fn default_company_id() -> String {
+    "100000000".to_string()
+}
+
+fn deserialize_tenant_id<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    if value.trim().is_empty() {
+        return Err(serde::de::Error::custom("tenant id must not be empty"));
+    }
+    Ok(value)
 }
 
 fn default_gateway_client_server_id() -> String {
@@ -242,6 +269,8 @@ impl Default for GatewayClientSystemSettingsConfig {
         Self {
             host: default_gateway_client_host(),
             port: default_gateway_client_port(),
+            platform_id: default_platform_id(),
+            company_id: default_company_id(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -259,6 +288,8 @@ impl Default for GatewayClientServerConfig {
             name: default_gateway_client_server_name(),
             host: default_gateway_client_host(),
             port: default_gateway_client_port(),
+            platform_id: default_platform_id(),
+            company_id: default_company_id(),
             bearer_token: String::new(),
             username: String::new(),
             password: String::new(),
@@ -275,6 +306,8 @@ impl GatewayClientSystemSettingsConfig {
                 name: default_gateway_client_server_name(),
                 host: self.host.clone(),
                 port: self.port,
+                platform_id: self.platform_id.clone(),
+                company_id: self.company_id.clone(),
                 bearer_token: self.bearer_token.clone(),
                 username: self.username.clone(),
                 password: self.password.clone(),
@@ -333,6 +366,8 @@ impl GatewayClientSystemSettingsConfig {
         self.active_server_id = active.id.clone();
         self.host = active.host.clone();
         self.port = active.port;
+        self.platform_id = active.platform_id.clone();
+        self.company_id = active.company_id.clone();
         self.bearer_token = active.bearer_token.clone();
         self.username = active.username.clone();
         self.password = active.password.clone();

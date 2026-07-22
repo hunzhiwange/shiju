@@ -161,6 +161,12 @@ fn message(content: &str) -> traits::ChannelMessage {
     }
 }
 
+fn message_in_channel(channel_name: &str, content: &str) -> traits::ChannelMessage {
+    let mut msg = message(content);
+    msg.channel = channel_name.to_string();
+    msg
+}
+
 fn create_pending(ctx: &ChannelRuntimeContext, tool_name: &str) -> String {
     ctx.approval_manager
         .create_non_cli_pending_request(
@@ -178,6 +184,14 @@ fn create_pending(ctx: &ChannelRuntimeContext, tool_name: &str) -> String {
 
 async fn dispatch(ctx: &ChannelRuntimeContext, channel: &Arc<dyn Channel>, content: &str) -> bool {
     handle_runtime_command_if_needed(ctx, &message(content), Some(channel)).await
+}
+
+async fn dispatch_message(
+    ctx: &ChannelRuntimeContext,
+    channel: &Arc<dyn Channel>,
+    msg: &traits::ChannelMessage,
+) -> bool {
+    handle_runtime_command_if_needed(ctx, msg, Some(channel)).await
 }
 
 #[test]
@@ -237,6 +251,35 @@ async fn approval_management_command_denies_sender_not_in_approvers() {
 }
 
 #[tokio::test]
+async fn natural_language_approval_denies_unauthorized_sender_before_direct_promotion() {
+    let tmp = tempfile::tempdir().unwrap();
+    let ctx = context(
+        tmp.path(),
+        &["shell"],
+        autonomy_config(
+            &[],
+            &["telegram:zeta", "telegram:admin"],
+            NonCliNaturalLanguageApprovalMode::Direct,
+        ),
+    );
+    let channel = Arc::new(RecordingChannel::new());
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    assert!(dispatch(&ctx, &channel_dyn, "approve tool shell").await);
+
+    let sent = channel.sent_contents().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].contains("Approval-management command denied"));
+    assert!(sent[0].contains("Allowed approvers: telegram:admin, telegram:zeta"));
+    assert!(!ctx.approval_manager.is_non_cli_session_granted("shell"));
+    assert!(
+        ctx.approval_manager
+            .list_non_cli_pending_requests(Some("sender"), Some("telegram"), Some("chat-1"))
+            .is_empty()
+    );
+}
+
+#[tokio::test]
 async fn natural_language_approval_commands_follow_runtime_policy_modes() {
     let tmp = tempfile::tempdir().unwrap();
 
@@ -283,6 +326,42 @@ async fn natural_language_approval_commands_follow_runtime_policy_modes() {
             .contains("Approved supervised execution for `shell`")
     );
     assert!(direct.approval_manager.is_non_cli_session_granted("shell"));
+}
+
+#[tokio::test]
+async fn channel_specific_natural_language_policy_override_is_used() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut autonomy = autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::Disabled);
+    autonomy
+        .non_cli_natural_language_approval_mode_by_channel
+        .insert("telegram".to_string(), NonCliNaturalLanguageApprovalMode::Direct);
+    let ctx = context(tmp.path(), &["shell"], autonomy);
+    let channel = Arc::new(RecordingChannel::new());
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+    let msg = message_in_channel("telegram", "approve tool shell");
+
+    assert!(dispatch_message(&ctx, &channel_dyn, &msg).await);
+    assert!(channel.sent_contents().await[0].contains("Approved supervised execution for `shell`"));
+    assert!(ctx.approval_manager.is_non_cli_session_granted("shell"));
+}
+
+#[tokio::test]
+async fn direct_mode_keeps_natural_language_unapprove_as_revoke() {
+    let tmp = tempfile::tempdir().unwrap();
+    let ctx = context(
+        tmp.path(),
+        &["shell"],
+        autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::Direct),
+    );
+    ctx.approval_manager.grant_non_cli_session("shell");
+    let channel = Arc::new(RecordingChannel::new());
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+
+    assert!(dispatch(&ctx, &channel_dyn, "unapprove shell").await);
+    let sent = channel.sent_contents().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].contains("Runtime session grant removed for `shell`: yes."));
+    assert!(!ctx.approval_manager.is_non_cli_session_granted("shell"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

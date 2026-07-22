@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+#[cfg(unix)]
+use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio::time::{Duration, sleep};
@@ -25,6 +27,15 @@ fn shell_args(script: &str, extra_args: Vec<String>) -> Vec<String> {
     let mut args = vec!["-c".to_string(), script.to_string(), "vw-acp-process-test".to_string()];
     args.extend(extra_args);
     args
+}
+
+#[cfg(unix)]
+fn process_exists(process_id: u32) -> bool {
+    let result = unsafe { libc::kill(process_id as i32, 0) };
+    if result == 0 {
+        return true;
+    }
+    !matches!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH))
 }
 
 #[test]
@@ -168,6 +179,70 @@ async fn finalize_child_times_out_then_terminates_process_group() {
 
     assert_eq!(finalized.summary.exit_code, Some(13));
     assert_eq!(finalized.stderr_output, "");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn finalize_child_cleans_previously_captured_reparented_process_group() {
+    let child_pid_path = unique_test_path("reparented-child.pid");
+    let script = r#"
+my $path = $ARGV[0];
+my $pid = fork();
+die "fork failed" unless defined $pid;
+if ($pid == 0) {
+    setpgrp(0, 0) or die "setpgrp failed: $!";
+    open my $fh, '>', $path or die $!;
+    print $fh $$;
+    close $fh;
+    $SIG{TERM} = 'IGNORE';
+    select undef, undef, undef, 10 while 1;
+    exit 0;
+}
+while (! -s $path) {
+    select undef, undef, undef, 0.01;
+}
+select undef, undef, undef, 0.4;
+exit 0;
+"#;
+    let client = client_with_config(AcpAgentConfig {
+        command: "perl".to_string(),
+        args: vec!["-e".to_string(), script.to_string(), child_pid_path.to_string_lossy().into()],
+        env: HashMap::new(),
+    });
+    let ProcessHandles { child, stderr_task } = client.spawn_child().expect("spawn should succeed");
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !child_pid_path.exists() {
+        if Instant::now() >= deadline {
+            let _ = client.finalize_child(child, stderr_task).await;
+            panic!("child pid file was not written");
+        }
+        sleep(Duration::from_millis(10)).await;
+    }
+    let cleanup_targets = super::process_cleanup_targets(child.id());
+    let child_process_id = tokio::fs::read_to_string(&child_pid_path)
+        .await
+        .expect("child pid")
+        .trim()
+        .parse::<u32>()
+        .expect("child pid should parse");
+
+    sleep(Duration::from_millis(700)).await;
+    let finalized =
+        client.finalize_child_with_cleanup_targets(child, stderr_task, cleanup_targets).await;
+    assert_eq!(finalized.summary.exit_code, Some(0));
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while process_exists(child_process_id) {
+        if Instant::now() >= deadline {
+            unsafe {
+                libc::kill(child_process_id as i32, libc::SIGKILL);
+            }
+            panic!("pre-captured process group was not cleaned up");
+        }
+        sleep(Duration::from_millis(10)).await;
+    }
+    let _ = tokio::fs::remove_file(&child_pid_path).await;
 }
 
 #[tokio::test]

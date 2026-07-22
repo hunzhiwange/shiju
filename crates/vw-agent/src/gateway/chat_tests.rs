@@ -28,6 +28,22 @@ impl Provider for StaticProvider {
     }
 }
 
+struct FailingProvider;
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for FailingProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        anyhow::bail!("provider unavailable")
+    }
+}
+
 struct MockScheduleTool;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -96,6 +112,16 @@ async fn run_gateway_chat_simple_uses_state_model_temperature_and_system_prompt(
 }
 
 #[tokio::test]
+async fn run_gateway_chat_simple_propagates_provider_error() {
+    let mut state = state();
+    state.provider = Arc::new(FailingProvider);
+
+    let error = run_gateway_chat_simple(&state, "hello gateway").await.unwrap_err();
+
+    assert_eq!(error.to_string(), "provider unavailable");
+}
+
+#[tokio::test]
 async fn invalidate_session_query_engine_allows_missing_session() {
     let state = state();
 
@@ -137,14 +163,62 @@ async fn session_query_engine_caches_forks_and_invalidates_engines() {
 }
 
 #[tokio::test]
-async fn run_gateway_chat_with_tools_returns_query_engine_creation_error() {
+async fn fork_session_query_engine_copies_source_history_and_replaces_target_engine() {
+    let state = state();
+    let source = session_query_engine(&state, "source-session").await.unwrap();
+    let original_target = session_query_engine(&state, "target-session").await.unwrap();
+    let source_history = vec![
+        ChatMessage::system("source system"),
+        ChatMessage::user("source question"),
+        ChatMessage::assistant("source answer"),
+    ];
+    source.lock().await.replace_history(source_history.clone());
+    original_target.lock().await.replace_history(vec![ChatMessage::system("stale target history")]);
+
+    fork_session_query_engine(&state, "source-session", "target-session").await.unwrap();
+
+    let forked = state.session_query_engines.lock().await.get("target-session").cloned().unwrap();
+    assert!(!Arc::ptr_eq(&original_target, &forked));
+    let forked_history = forked.lock().await.history_snapshot();
+    let actual = forked_history
+        .iter()
+        .map(|message| (message.role.as_str(), message.content.as_str()))
+        .collect::<Vec<_>>();
+    let expected = source_history
+        .iter()
+        .map(|message| (message.role.as_str(), message.content.as_str()))
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+
+    let source_after_fork = source.lock().await.history_snapshot();
+    let source_actual = source_after_fork
+        .iter()
+        .map(|message| (message.role.as_str(), message.content.as_str()))
+        .collect::<Vec<_>>();
+    assert_eq!(source_actual, expected);
+}
+
+#[tokio::test]
+async fn fork_session_query_engine_reuses_injected_provider_after_config_changes() {
+    let state = state();
+    session_query_engine(&state, "source-session").await.unwrap();
+    state.config.lock().default_provider = Some("unsupported-provider".to_string());
+
+    fork_session_query_engine(&state, "source-session", "target-session").await.unwrap();
+    let engines = state.session_query_engines.lock().await;
+    assert!(engines.contains_key("source-session"));
+    assert!(engines.contains_key("target-session"));
+}
+
+#[tokio::test]
+async fn run_gateway_chat_with_tools_reuses_injected_provider() {
     let state = state();
     state.config.lock().default_provider = Some("unsupported-provider".to_string());
 
-    let error = run_gateway_chat_with_tools(&state, "hello", "session-1").await.unwrap_err();
+    let response = run_gateway_chat_with_tools(&state, "hello", "session-1").await.unwrap();
 
-    assert!(error.to_string().contains("Unknown provider: unsupported-provider"));
-    assert!(state.session_query_engines.lock().await.is_empty());
+    assert!(response.contains("hello"));
+    assert!(state.session_query_engines.lock().await.contains_key("session-1"));
 }
 
 #[test]
@@ -188,6 +262,21 @@ fn sanitize_gateway_response_truncates_long_text() {
     assert_eq!(sanitized.chars().count(), 16_001);
     assert!(sanitized.ends_with('…'));
     assert!(!sanitized.ends_with("..."));
+}
+
+#[test]
+fn sanitize_gateway_response_keeps_text_at_limit_without_ellipsis() {
+    let input = "界".repeat(16_000);
+
+    let sanitized = sanitize_gateway_response(&input, &[]);
+
+    assert_eq!(sanitized, input);
+    assert_eq!(sanitized.chars().count(), 16_000);
+}
+
+#[test]
+fn sanitize_gateway_response_normalizes_short_trailing_ellipsis() {
+    assert_eq!(sanitize_gateway_response("Please wait...", &[]), "Please wait…");
 }
 
 #[test]

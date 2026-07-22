@@ -4,9 +4,21 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
-use crate::app::{App, Message, TerminalTheme, update_system_settings_config};
+#[cfg(not(test))]
+use crate::app::update_system_settings_config;
+use crate::app::{App, Message, TerminalTheme};
 use iced::Task;
 use iced_code_editor::theme;
+
+#[cfg(not(test))]
+fn persist_app_theme(app_theme: String) {
+    update_system_settings_config(|system| {
+        system.app_theme = app_theme;
+    });
+}
+
+#[cfg(test)]
+fn persist_app_theme(_app_theme: String) {}
 
 /// 执行 update 对应的领域操作。
 ///
@@ -32,9 +44,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
 
             let app_theme = app.app_theme.to_string();
-            update_system_settings_config(|system| {
-                system.app_theme = app_theme;
-            });
+            persist_app_theme(app_theme);
             Task::none()
         }
         _ => Task::none(),

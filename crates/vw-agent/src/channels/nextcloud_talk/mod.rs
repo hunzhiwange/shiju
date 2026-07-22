@@ -411,7 +411,7 @@ impl NextcloudTalkChannel {
         if !self.is_user_allowed(actor_id) {
             tracing::warn!(
                 "Nextcloud Talk: ignoring message from unauthorized actor: {actor_id}. \
-                Add to channels.nextcloud_talk.allowed_users in vibewindow.json."
+                Add it to channels.nextcloud_talk.allowed_users in system settings."
             );
             return messages;
         }

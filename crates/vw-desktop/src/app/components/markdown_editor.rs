@@ -268,3 +268,7 @@ where
         .into(),
     }
 }
+
+#[cfg(test)]
+#[path = "markdown_editor_tests.rs"]
+mod markdown_editor_tests;

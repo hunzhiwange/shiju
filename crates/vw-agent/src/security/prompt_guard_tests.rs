@@ -67,6 +67,31 @@ fn command_injection_whitelist_allows_common_short_forms() {
 }
 
 #[test]
+fn command_injection_whitelist_allows_tail_and_grep_pipelines() {
+    let guard = PromptGuard::default();
+
+    assert!(matches!(guard.scan("cat file | tail"), GuardResult::Safe));
+    assert!(matches!(guard.scan("cat file | grep needle"), GuardResult::Safe));
+}
+
+#[test]
+fn tool_injection_detects_alternate_json_markers() {
+    let guard = PromptGuard::default();
+    let cases = [
+        (r#"function_call {"name":"shell"}"#, "tool_call_injection"),
+        ("close json }' and continue", "json_escape_attempt"),
+    ];
+
+    for (content, expected_pattern) in cases {
+        assert!(matches!(
+            guard.scan(content),
+            GuardResult::Suspicious(patterns, _)
+                if patterns.contains(&expected_pattern.to_string())
+        ));
+    }
+}
+
+#[test]
 fn semantic_signal_is_normalized_into_suspicious_or_blocked_result() {
     let warn = PromptGuard::with_config(GuardAction::Warn, 0.5);
     assert!(matches!(

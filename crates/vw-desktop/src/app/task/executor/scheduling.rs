@@ -24,6 +24,14 @@ pub fn get_next_tasks_for_execution(
     exclude_ids: &[String],
 ) -> Vec<(String, u32, u32)> {
     let tasks_by_status = store::load_tasks_by_status(project_path);
+    select_next_tasks(&tasks_by_status, max_count, exclude_ids)
+}
+
+fn select_next_tasks(
+    tasks_by_status: &HashMap<TaskStatus, Vec<models::Task>>,
+    max_count: u32,
+    exclude_ids: &[String],
+) -> Vec<(String, u32, u32)> {
     let mut candidates: Vec<(String, u32, u32)> = Vec::new();
 
     if let Some(pending_tasks) = tasks_by_status.get(&TaskStatus::Pending) {
@@ -47,26 +55,20 @@ pub fn simulate_task_execution_step(
     _task_id: &str,
     current_status: TaskStatus,
 ) -> Option<TaskStatus> {
-    match current_status {
-        TaskStatus::Pending => Some(TaskStatus::Planning),
-        TaskStatus::Planning => Some(TaskStatus::Running),
-        TaskStatus::Running => Some(TaskStatus::CodeComplete),
-        TaskStatus::Failed => Some(TaskStatus::Pending),
-        TaskStatus::Paused => None,
-        TaskStatus::CodeComplete => Some(TaskStatus::CodeReview),
-        TaskStatus::CodeReview => Some(TaskStatus::PrSubmitted),
-        TaskStatus::PrSubmitted => Some(TaskStatus::Completed),
-        TaskStatus::Pool => Some(TaskStatus::Pending),
-        TaskStatus::Completed | TaskStatus::Archived => None,
-    }
+    crate::app::task::TaskStateMachine::default_lifecycle()
+        .next_for_intent(current_status, crate::app::task::TaskTransitionIntent::Simulation)
 }
 
 /// 公开的 count_running_tasks 函数。
 ///
 /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
 pub fn count_running_tasks(tasks_by_status: &HashMap<TaskStatus, Vec<models::Task>>) -> usize {
-    tasks_by_status.get(&TaskStatus::Running).map(std::vec::Vec::len).unwrap_or(0)
-        + tasks_by_status.get(&TaskStatus::Planning).map(std::vec::Vec::len).unwrap_or(0)
+    let workflow = crate::app::task::default_task_workflow();
+    tasks_by_status
+        .iter()
+        .filter(|(status, _)| workflow.role_occupies_execution_slot(**status))
+        .map(|(_, tasks)| tasks.len())
+        .sum()
 }
 
 /// 公开的 get_pool_and_pending_count 函数。
@@ -75,10 +77,12 @@ pub fn count_running_tasks(tasks_by_status: &HashMap<TaskStatus, Vec<models::Tas
 pub fn get_pool_and_pending_count(
     tasks_by_status: &HashMap<TaskStatus, Vec<models::Task>>,
 ) -> usize {
-    let pool = tasks_by_status.get(&TaskStatus::Pool).map(std::vec::Vec::len).unwrap_or(0);
-    let pending = tasks_by_status.get(&TaskStatus::Pending).map(std::vec::Vec::len).unwrap_or(0);
-    let planning = tasks_by_status.get(&TaskStatus::Planning).map(std::vec::Vec::len).unwrap_or(0);
-    pool + pending + planning
+    let workflow = crate::app::task::default_task_workflow();
+    tasks_by_status
+        .iter()
+        .filter(|(status, _)| workflow.role_is_scheduling_backlog(**status))
+        .map(|(_, tasks)| tasks.len())
+        .sum()
 }
 
 /// 公开的 get_total_task_count 函数。

@@ -8,6 +8,7 @@ use vw_api_types::session::{
 use vw_api_types::todo::{TodoPriority, TodoStatus};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 
+use super::{session_diff_query, session_message_list_query};
 use crate::client::test_support;
 
 fn chat_session() -> ChatSession {
@@ -25,6 +26,141 @@ fn chat_session() -> ChatSession {
         created_ms: 1,
         updated_ms: 2,
     }
+}
+
+#[test]
+fn session_message_list_query_omits_blank_directory_and_keeps_zero_limit() {
+    let pairs = session_message_list_query(&GatewaySessionMessageListQuery {
+        directory: Some("  \t".to_string()),
+        limit: Some(0),
+    });
+
+    assert_eq!(pairs, vec![("limit".to_string(), "0".to_string())]);
+    assert!(
+        session_message_list_query(&GatewaySessionMessageListQuery {
+            directory: None,
+            limit: None,
+        })
+        .is_empty()
+    );
+}
+
+#[test]
+fn session_diff_query_omits_blank_ids_and_keeps_non_blank_id() {
+    let blank = session_diff_query(&GatewaySessionDiffQuery {
+        directory: Some("  ".to_string()),
+        message_id: Some("\n\t".to_string()),
+    });
+    let populated = session_diff_query(&GatewaySessionDiffQuery {
+        directory: None,
+        message_id: Some("  m1  ".to_string()),
+    });
+
+    assert!(blank.is_empty());
+    assert_eq!(populated, vec![("messageID".to_string(), "  m1  ".to_string())]);
+}
+
+#[tokio::test]
+async fn session_create_and_fork_send_null_for_absent_optional_bodies() {
+    let server =
+        test_support::server(vec![(200, json!({"id": "created"})), (200, json!({"id": "forked"}))]);
+
+    let created: serde_json::Value =
+        server.client().session_create("/repo", &None).await.expect("create");
+    let forked: serde_json::Value =
+        server.client().session_fork("s1", None, &None).await.expect("fork");
+
+    assert_eq!(created["id"], "created");
+    assert_eq!(forked["id"], "forked");
+    let create_request = server.take_request();
+    assert_eq!(create_request.method, "POST");
+    assert_eq!(create_request.path, "/v1/session?directory=%2Frepo");
+    assert_eq!(create_request.body, serde_json::Value::Null);
+    let fork_request = server.take_request();
+    assert_eq!(fork_request.method, "POST");
+    assert_eq!(fork_request.path, "/v1/session/s1/fork");
+    assert_eq!(fork_request.body, serde_json::Value::Null);
+    server.join();
+}
+
+#[tokio::test]
+async fn session_optional_reads_distinguish_not_found_from_server_errors() {
+    let server = test_support::server(vec![
+        (404, json!({"message": "missing ui"})),
+        (404, json!({"message": "missing raw payload"})),
+        (500, json!({"message": "gateway unavailable"})),
+    ]);
+
+    assert!(
+        server
+            .client()
+            .session_ui_get("missing", Some("/repo"))
+            .await
+            .expect("missing UI is not an error")
+            .is_none()
+    );
+    assert!(
+        server
+            .client()
+            .session_step_llm_raw_get("missing", 0, None)
+            .await
+            .expect("missing raw payload is not an error")
+            .is_none()
+    );
+    let error = server
+        .client()
+        .session_ui_get("failed", None)
+        .await
+        .expect_err("server error must be surfaced");
+
+    assert!(error.contains("gateway request failed: 500"));
+    assert_eq!(server.take_request().path, "/v1/session/missing/ui?directory=%2Frepo");
+    assert_eq!(server.take_request().path, "/v1/session/missing/step/0/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/failed/ui");
+    server.join();
+}
+
+#[tokio::test]
+async fn session_archived_and_scope_updates_serialize_empty_values() {
+    let server = test_support::server(vec![(200, json!(true)), (200, json!(true))]);
+
+    assert!(server.client().session_archived_put(None, &[]).await.expect("clear archived"));
+    assert!(server.client().session_scope_put(None).await.expect("clear scope"));
+
+    let archived_request = server.take_request();
+    assert_eq!(archived_request.method, "PUT");
+    assert_eq!(archived_request.path, "/v1/session/archived");
+    assert_eq!(archived_request.body, json!([]));
+    let scope_request = server.take_request();
+    assert_eq!(scope_request.method, "PUT");
+    assert_eq!(scope_request.path, "/v1/session/scope");
+    assert_eq!(scope_request.body, json!({}));
+    server.join();
+}
+
+#[tokio::test]
+async fn session_list_surfaces_non_success_status() {
+    let server = test_support::server(vec![(500, json!({"message": "gateway unavailable"}))]);
+
+    let error =
+        server.client().session_list::<serde_json::Value>(None).await.expect_err("list error");
+
+    assert!(error.contains("gateway request failed: 500"));
+    assert_eq!(server.take_request().path, "/v1/session");
+    server.join();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn session_todo_get_blocking_surfaces_non_success_status() {
+    let server = test_support::server(vec![(500, json!({"message": "gateway unavailable"}))]);
+
+    let error =
+        server.client().session_todo_get_blocking("s1", None).expect_err("blocking todo error");
+
+    assert!(error.contains("gateway request failed: 500"));
+    assert_eq!(server.take_request().path, "/v1/session/s1/todo");
+    server.join();
 }
 
 #[tokio::test]
@@ -60,6 +196,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
         ),
         (404, json!({"missing": true})),
         (404, json!({"missing": true})),
+        (200, json!({"messages": [{"role": "user", "content": "hello"}]})),
         (200, json!(["s-old"])),
         (200, json!(true)),
         (200, json!("global-scope")),
@@ -212,6 +349,13 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert!(
         server.client().session_path_get("missing", Some("/repo")).await.expect("path").is_none()
     );
+    let raw_payload = server
+        .client()
+        .session_step_llm_raw_get("s1", 2, Some("/repo"))
+        .await
+        .expect("raw payload")
+        .expect("raw payload");
+    assert_eq!(raw_payload["messages"][0]["content"], "hello");
     assert_eq!(
         server.client().session_archived_get(Some("/repo")).await.expect("archived"),
         vec!["s-old".to_string()]
@@ -283,6 +427,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(server.take_request().path, "/v1/session/ui-previews?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/preview?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/path?directory=%2Frepo");
+    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/archived?directory=%2Frepo");
     let request = server.take_request();
     assert_eq!(request.method, "PUT");
@@ -304,15 +449,23 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn session_todo_get_blocking_uses_same_route_and_directory_query() {
-    let server = test_support::server(vec![(
-        200,
-        json!([{"content": "Blocking", "status": "done", "priority": "low", "id": "todo"}]),
-    )]);
+    let tenant = vw_api_types::id::TenantScope::new("platform-session", "company-session")
+        .expect("tenant scope");
+    let server = test_support::server_with_tenant_scope(
+        vec![(
+            200,
+            json!([{"content": "Blocking", "status": "done", "priority": "low", "id": "todo"}]),
+        )],
+        tenant,
+    );
 
     let todos =
         server.client().session_todo_get_blocking("s1", Some("/repo")).expect("blocking todos");
 
     assert_eq!(todos[0].content, "Blocking");
-    assert_eq!(server.take_request().path, "/v1/session/s1/todo?directory=%2Frepo");
+    let request = server.take_request();
+    assert_eq!(request.path, "/v1/session/s1/todo?directory=%2Frepo");
+    assert_eq!(request.header(vw_api_types::id::PLATFORM_ID_HEADER), Some("platform-session"));
+    assert_eq!(request.header(vw_api_types::id::COMPANY_ID_HEADER), Some("company-session"));
     server.join();
 }

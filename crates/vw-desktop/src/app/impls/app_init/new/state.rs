@@ -3,14 +3,11 @@
 
 use std::collections::HashMap;
 
-use crate::app::state::RedisToolPersistedState;
-
 /// 模块内可见结构体，承载 NewAppInit 对应的状态数据。
 /// 字段保持与相邻业务流程和序列化格式一致。
 pub(super) struct NewAppInit {
     pub(super) cfg: serde_json::Value,
     pub(super) system_settings_cfg: vw_config_types::ui::AppSystemSettingsConfig,
-    pub(super) redis_tool_persisted: RedisToolPersistedState,
     pub(super) gateway_client_cfg: vw_config_types::ui::GatewayClientSystemSettingsConfig,
     pub(super) full_agent_cfg: vw_config_types::config::Config,
     pub(super) global_acp_cfg: HashMap<String, vw_config_types::config::AcpAgentConfig>,

@@ -8,10 +8,123 @@ use super::helpers::{
     trim_to_option,
 };
 
+fn parse_instance_field<'a>(key: &'a str, prefix: &str) -> Option<(usize, &'a str)> {
+    let rest = key.strip_prefix(prefix)?.strip_prefix('.')?;
+    let (index, field) = rest.split_once('.')?;
+    Some((index.parse().ok()?, field))
+}
+
+fn apply_instance_text_change(app: &mut App, key: &str, value: &str) -> bool {
+    if let Some((index, field)) = parse_instance_field(key, "matrix_instances") {
+        if let Some(instance) = app.channels_settings.matrix_instances.get_mut(index) {
+            match field {
+                "id" => instance.id = value.trim().to_string(),
+                "homeserver" => instance.config.homeserver = value.to_string(),
+                "access_token" => instance.config.access_token = value.to_string(),
+                "user_id" => instance.config.user_id = trim_to_option(value),
+                "device_id" => instance.config.device_id = trim_to_option(value),
+                "room_id" => instance.config.room_id = value.to_string(),
+                "allowed_users" => {
+                    instance.config.allowed_users = parse_comma_or_newline_list(value);
+                }
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    if let Some((index, field)) = parse_instance_field(key, "feishu_instances") {
+        if let Some(instance) = app.channels_settings.feishu_instances.get_mut(index) {
+            match field {
+                "id" => instance.id = value.trim().to_string(),
+                "app_id" => instance.config.app_id = value.to_string(),
+                "app_secret" => instance.config.app_secret = value.to_string(),
+                "encrypt_key" => instance.config.encrypt_key = trim_to_option(value),
+                "verification_token" => {
+                    instance.config.verification_token = trim_to_option(value);
+                }
+                "allowed_users" => {
+                    instance.config.allowed_users = parse_comma_or_newline_list(value);
+                }
+                "group_reply.allowed_sender_ids" => {
+                    set_group_reply_allowed(&mut instance.config.group_reply, value);
+                }
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    if let Some((index, field)) = parse_instance_field(key, "dingtalk_instances") {
+        if let Some(instance) = app.channels_settings.dingtalk_instances.get_mut(index) {
+            match field {
+                "id" => instance.id = value.trim().to_string(),
+                "client_id" => instance.config.client_id = value.to_string(),
+                "client_secret" => instance.config.client_secret = value.to_string(),
+                "allowed_users" => {
+                    instance.config.allowed_users = parse_comma_or_newline_list(value);
+                }
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    false
+}
+
+fn apply_instance_bool_change(app: &mut App, key: &str, value: bool) -> bool {
+    if let Some((index, "mention_only")) = parse_instance_field(key, "matrix_instances") {
+        if let Some(instance) = app.channels_settings.matrix_instances.get_mut(index) {
+            instance.config.mention_only = value;
+        }
+        return true;
+    }
+
+    false
+}
+
+fn apply_instance_number_change(app: &mut App, key: &str, value: u32) -> bool {
+    if let Some((index, field)) = parse_instance_field(key, "feishu_instances") {
+        if let Some(instance) = app.channels_settings.feishu_instances.get_mut(index) {
+            match field {
+                "port" => instance.config.port = Some(value.clamp(1, u16::MAX as u32) as u16),
+                "draft_update_interval_ms" => {
+                    instance.config.draft_update_interval_ms = value.max(100) as u64;
+                }
+                "max_draft_edits" => instance.config.max_draft_edits = value.max(1),
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    false
+}
+
+fn apply_instance_receive_mode_change(app: &mut App, key: &str, value: &str) -> bool {
+    if let Some((index, field)) = parse_instance_field(key, "feishu_instances") {
+        if let Some(instance) = app.channels_settings.feishu_instances.get_mut(index) {
+            match field {
+                "group_reply.mode" => set_group_reply_mode(&mut instance.config.group_reply, value),
+                "receive_mode" => instance.config.receive_mode = parse_receive_mode(value),
+                _ => {}
+            }
+        }
+        return true;
+    }
+
+    false
+}
+
 /// 处理 `apply_text_change` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_text_change(app: &mut App, key: &str, value: String) {
+    if apply_instance_text_change(app, key, &value) {
+        return;
+    }
+
     match key {
         "telegram.bot_token" => {
             if let Some(cfg) = app.channels_settings.telegram.as_mut() {
@@ -487,6 +600,10 @@ mod changes_tests;
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_bool_change(app: &mut App, key: &str, value: bool) {
+    if apply_instance_bool_change(app, key, value) {
+        return;
+    }
+
     match key {
         "telegram.interrupt_on_new_message" => {
             if let Some(cfg) = app.channels_settings.telegram.as_mut() {
@@ -562,6 +679,10 @@ pub(super) fn apply_bool_change(app: &mut App, key: &str, value: bool) {
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_number_change(app: &mut App, key: &str, value: u32) {
+    if apply_instance_number_change(app, key, value) {
+        return;
+    }
+
     match key {
         "telegram.draft_update_interval_ms" => {
             if let Some(cfg) = app.channels_settings.telegram.as_mut() {
@@ -634,6 +755,10 @@ pub(super) fn apply_number_change(app: &mut App, key: &str, value: u32) {
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_receive_mode_change(app: &mut App, key: &str, value: String) {
+    if apply_instance_receive_mode_change(app, key, &value) {
+        return;
+    }
+
     match key {
         "telegram.group_reply.mode" => {
             if let Some(cfg) = app.channels_settings.telegram.as_mut() {

@@ -1,4 +1,5 @@
 use crate::app::models::{ChatSession, ChatSessionStep, TokenUsage};
+use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 
 fn empty_session() -> ChatSession {
     ChatSession {
@@ -16,6 +17,31 @@ fn empty_session() -> ChatSession {
 fn usage(input_tokens: i64, output_tokens: i64) -> TokenUsage {
     TokenUsage { input_tokens, output_tokens, cached_tokens: 3, reasoning_tokens: 4 }
 }
+
+fn agent_request(id: u64, session_id: &str) -> AgentRequest {
+    AgentRequest {
+        id,
+        session: session_id.to_string(),
+        query: String::new(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        acp_force_new_session: false,
+        acp_history_mode: AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: false,
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        history: Vec::new(),
+    }
+}
+
+// ============ upsert_step_start ============
 
 #[test]
 fn upsert_step_start_inserts_steps_sorted_and_updates_session_time() {
@@ -61,6 +87,50 @@ fn upsert_step_start_preserves_existing_optional_fields_when_none() {
 }
 
 #[test]
+fn upsert_step_start_replaces_model_when_some() {
+    let mut session = empty_session();
+
+    super::upsert_step_start(&mut session, 1, 10, Some("original".to_string()), None);
+    super::upsert_step_start(&mut session, 1, 20, Some("replaced".to_string()), None);
+
+    assert_eq!(session.steps.len(), 1);
+    assert_eq!(session.steps[0].model.as_deref(), Some("replaced"));
+    assert_eq!(session.updated_ms, 20);
+}
+
+#[test]
+fn upsert_step_start_replaces_snapshot_path_when_some() {
+    let mut session = empty_session();
+
+    super::upsert_step_start(&mut session, 1, 10, None, Some("old.snap".to_string()));
+    super::upsert_step_start(&mut session, 1, 20, None, Some("new.snap".to_string()));
+
+    assert_eq!(session.steps.len(), 1);
+    assert_eq!(session.steps[0].start_snapshot_path.as_deref(), Some("new.snap"));
+}
+
+#[test]
+fn upsert_step_start_replaces_model_only_keeps_snapshot_path() {
+    let mut session = empty_session();
+
+    super::upsert_step_start(
+        &mut session,
+        1,
+        10,
+        Some("original".to_string()),
+        Some("snap".to_string()),
+    );
+    // Update only model, keep snapshot path unchanged
+    super::upsert_step_start(&mut session, 1, 20, Some("updated".to_string()), None);
+
+    assert_eq!(session.steps[0].model.as_deref(), Some("updated"));
+    assert_eq!(session.steps[0].start_snapshot_path.as_deref(), Some("snap"));
+    assert_eq!(session.steps[0].started_ms, 20);
+}
+
+// ============ upsert_step_finish ============
+
+#[test]
 fn upsert_step_finish_updates_existing_step_with_usage_and_reason() {
     let mut session = empty_session();
     super::upsert_step_start(&mut session, 1, 10, Some("draft-model".to_string()), None);
@@ -93,4 +163,338 @@ fn upsert_step_finish_creates_missing_step_from_finish_time() {
     assert_eq!(session.steps[0].index, 5);
     assert_eq!(session.steps[0].started_ms, 50);
     assert_eq!(session.steps[0].finished_ms, Some(50));
+}
+
+#[test]
+fn upsert_step_finish_preserves_model_when_none() {
+    let mut session = empty_session();
+    super::upsert_step_start(&mut session, 1, 10, Some("original-model".to_string()), None);
+
+    super::upsert_step_finish(&mut session, 1, 40, usage(1, 2), Some("stop".to_string()), None);
+
+    assert_eq!(session.steps[0].model.as_deref(), Some("original-model"));
+    assert_eq!(session.steps[0].finish_reason.as_deref(), Some("stop"));
+}
+
+#[test]
+fn upsert_step_finish_preserves_existing_reason_and_monotonic_session_time_when_none() {
+    let mut session = empty_session();
+    session.updated_ms = 100;
+    super::upsert_step_finish(
+        &mut session,
+        1,
+        80,
+        usage(1, 2),
+        Some("length".to_string()),
+        Some("model-a".to_string()),
+    );
+
+    super::upsert_step_finish(&mut session, 1, 90, usage(3, 4), None, None);
+
+    assert_eq!(session.steps[0].finish_reason.as_deref(), Some("length"));
+    assert_eq!(session.steps[0].model.as_deref(), Some("model-a"));
+    assert_eq!(session.updated_ms, 100);
+}
+
+#[test]
+fn upsert_step_finish_updates_model_only_on_existing_step() {
+    let mut session = empty_session();
+    super::upsert_step_start(&mut session, 1, 10, None, None);
+
+    super::upsert_step_finish(
+        &mut session,
+        1,
+        40,
+        usage(1, 2),
+        None,
+        Some("new-model".to_string()),
+    );
+
+    assert_eq!(session.steps[0].model.as_deref(), Some("new-model"));
+    assert_eq!(session.steps[0].finish_reason, None);
+}
+
+#[test]
+fn upsert_step_finish_maintains_sort_order_across_multiple_steps() {
+    let mut session = empty_session();
+    super::upsert_step_start(&mut session, 3, 30, None, None);
+    super::upsert_step_start(&mut session, 1, 10, None, None);
+    super::upsert_step_start(&mut session, 2, 20, None, None);
+
+    super::upsert_step_finish(&mut session, 2, 200, usage(1, 2), None, None);
+    super::upsert_step_finish(&mut session, 1, 100, usage(3, 4), Some("stop".to_string()), None);
+    super::upsert_step_finish(&mut session, 3, 300, usage(5, 6), None, None);
+
+    let indices: Vec<u32> = session.steps.iter().map(|s| s.index).collect();
+    assert_eq!(indices, vec![1, 2, 3]);
+    assert_eq!(session.steps[0].finished_ms, Some(100));
+    assert_eq!(session.steps[1].finished_ms, Some(200));
+    assert_eq!(session.steps[2].finished_ms, Some(300));
+}
+
+// ============ handle_agent_step_start ============
+
+#[test]
+fn handle_agent_step_start_returns_none_for_unknown_request_id() {
+    let (mut app, _) = crate::app::App::new();
+    let _task = super::handle_agent_step_start(&mut app, 999, "s1".to_string(), 1, 100, None);
+    // Early return: no panic, no side effects on app
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_start_returns_none_for_empty_session_id() {
+    let (mut app, _) = crate::app::App::new();
+    app.get_session_runtime_mut("s1").active_agent_request = Some(agent_request(42, "s1"));
+    let _task = super::handle_agent_step_start(&mut app, 42, "".to_string(), 1, 100, None);
+    // Early return after request found but session_id empty
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_start_creates_step_in_active_session_view() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _task = super::handle_agent_step_start(
+        &mut app,
+        42,
+        session_id,
+        1,
+        100,
+        Some("model-x".to_string()),
+    );
+
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.active_session_view_state.steps[0].started_ms, 100);
+    assert_eq!(app.active_session_view_state.steps[0].model.as_deref(), Some("model-x"));
+}
+
+#[test]
+fn handle_agent_step_start_keeps_inactive_session_out_of_active_view() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active-session".to_string());
+    app.get_session_runtime_mut("background-session").active_agent_request =
+        Some(agent_request(42, "background-session"));
+
+    let _task = super::handle_agent_step_start(
+        &mut app,
+        42,
+        "background-session".to_string(),
+        3,
+        100,
+        Some("model-x".to_string()),
+    );
+
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+// ============ handle_agent_step_finish ============
+
+#[test]
+fn handle_agent_step_finish_returns_none_for_unknown_request_id() {
+    let (mut app, _) = crate::app::App::new();
+    let _task = super::handle_agent_step_finish(
+        &mut app,
+        999,
+        "s1".to_string(),
+        1,
+        200,
+        usage(10, 20),
+        None,
+        None,
+    );
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_finish_returns_none_for_empty_session_id() {
+    let (mut app, _) = crate::app::App::new();
+    app.get_session_runtime_mut("s1").active_agent_request = Some(agent_request(42, "s1"));
+    let _task = super::handle_agent_step_finish(
+        &mut app,
+        42,
+        "".to_string(),
+        1,
+        200,
+        usage(10, 20),
+        Some("stop".to_string()),
+        Some("final".to_string()),
+    );
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_finish_updates_token_usage_for_active_session() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _task = super::handle_agent_step_finish(
+        &mut app,
+        42,
+        session_id,
+        1,
+        200,
+        usage(10, 20),
+        Some("stop".to_string()),
+        Some("final-model".to_string()),
+    );
+
+    assert_eq!(app.usage.input_tokens, 10);
+    assert_eq!(app.usage.output_tokens, 20);
+    assert_eq!(app.usage.cached_tokens, 3);
+    assert_eq!(app.usage.reasoning_tokens, 4);
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 10);
+}
+
+#[test]
+fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active-session".to_string());
+    app.get_session_runtime_mut("background-session").active_agent_request =
+        Some(agent_request(42, "background-session"));
+
+    let _task = super::handle_agent_step_finish(
+        &mut app,
+        42,
+        "background-session".to_string(),
+        1,
+        200,
+        usage(10, 20),
+        Some("stop".to_string()),
+        None,
+    );
+
+    assert_eq!(app.usage, TokenUsage::default());
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+// ============ handle_agent_step_cost_loaded ============
+
+#[test]
+fn handle_agent_step_cost_loaded_returns_none_for_empty_session_id() {
+    let (mut app, _) = crate::app::App::new();
+    let _task = super::handle_agent_step_cost_loaded(&mut app, "".to_string(), 1, None, None);
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_noop_when_step_missing_and_both_fields_none() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    let _task = super::handle_agent_step_cost_loaded(&mut app, session_id, 1, None, None);
+    // No step to update, both fields None — nothing changes
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_creates_step_when_model_provided() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+
+    let _task = super::handle_agent_step_cost_loaded(
+        &mut app,
+        session_id,
+        1,
+        Some("openai/gpt-4".to_string()),
+        None,
+    );
+
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.active_session_view_state.steps[0].model.as_deref(), Some("openai/gpt-4"));
+    assert_eq!(app.active_session_view_state.steps[0].cost_usd, None);
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_creates_step_when_cost_provided() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+
+    let _task = super::handle_agent_step_cost_loaded(&mut app, session_id, 1, None, Some(0.05));
+
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.active_session_view_state.steps[0].cost_usd, Some(0.05));
+    assert_eq!(app.active_session_view_state.steps[0].model, None);
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_updates_existing_step_model_and_cost() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+
+    // First call creates the step
+    let _task1 = super::handle_agent_step_cost_loaded(
+        &mut app,
+        session_id.clone(),
+        1,
+        Some("openai/gpt-4".to_string()),
+        Some(0.03),
+    );
+
+    // Second call updates model and cost
+    let _task2 = super::handle_agent_step_cost_loaded(
+        &mut app,
+        session_id,
+        1,
+        Some("openai/gpt-4-turbo".to_string()),
+        Some(0.05),
+    );
+
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].index, 1);
+    assert_eq!(app.active_session_view_state.steps[0].model.as_deref(), Some("openai/gpt-4-turbo"));
+    assert_eq!(app.active_session_view_state.steps[0].cost_usd, Some(0.05));
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_does_not_overwrite_with_none_on_existing_step() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+
+    // Create step with model and cost
+    let _task1 = super::handle_agent_step_cost_loaded(
+        &mut app,
+        session_id.clone(),
+        1,
+        Some("openai/gpt-4".to_string()),
+        Some(0.03),
+    );
+
+    // Call with both None — existing values should be preserved
+    let _task2 = super::handle_agent_step_cost_loaded(&mut app, session_id, 1, None, None);
+
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].model.as_deref(), Some("openai/gpt-4"));
+    assert_eq!(app.active_session_view_state.steps[0].cost_usd, Some(0.03));
+}
+
+#[test]
+fn handle_agent_step_cost_loaded_keeps_inactive_step_out_of_active_view() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active-session".to_string());
+
+    let _task = super::handle_agent_step_cost_loaded(
+        &mut app,
+        "background-session".to_string(),
+        1,
+        Some("openai/gpt-4".to_string()),
+        Some(0.05),
+    );
+
+    assert!(app.active_session_view_state.steps.is_empty());
 }

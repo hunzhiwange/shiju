@@ -395,17 +395,97 @@ fn tool_content_wrappers_use_expected_tool_types() {
 }
 
 #[test]
-fn mindmap_tabs_async_handles_null_and_owned_save() {
+fn update_agents_compat_registry_result_async_preserves_existing_preferences() {
+    let server =
+        TestServer::start(2, |request| match (request.method.as_str(), request.path.as_str()) {
+            ("GET", "/v1/desktop/preferences") => {
+                (200, r#"{"theme":"dark","agent":{"mode":"existing"}}"#)
+            }
+            ("PATCH", "/v1/desktop/preferences") => {
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({
+                        "theme": "dark",
+                        "agent": {
+                            "mode": "existing",
+                            "compat_registry": "enabled"
+                        }
+                    })
+                );
+                (200, r#"{}"#)
+            }
+            _ => (404, r#"{"error":"unexpected"}"#),
+        });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+
+    super::super::gateway::run_gateway_call(super::update_agents_compat_registry_result_async(
+        |agent| {
+            agent.insert("compat_registry".to_string(), serde_json::json!("enabled"));
+        },
+    ))
+    .expect("agent registry should update");
+
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn update_agents_compat_registry_result_async_skips_update_after_load_error() {
+    let server = TestServer::start(1, |request| {
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        (500, r#"{"error":"unavailable"}"#)
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut update_called = false;
+
+    let result = super::super::gateway::run_gateway_call(
+        super::update_agents_compat_registry_result_async(|_| update_called = true),
+    );
+
+    assert!(result.is_err());
+    assert!(!update_called);
+    assert_eq!(server.take_requests().len(), 1);
+}
+
+#[test]
+fn set_config_field_preserves_other_preferences() {
+    let server =
+        TestServer::start(2, |request| match (request.method.as_str(), request.path.as_str()) {
+            ("GET", "/v1/desktop/preferences") => {
+                (200, r#"{"theme":"light","show_terminal":false}"#)
+            }
+            ("PATCH", "/v1/desktop/preferences") => {
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({"theme":"light","show_terminal":true})
+                );
+                (200, r#"{}"#)
+            }
+            _ => (404, r#"{"error":"unexpected"}"#),
+        });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+
+    super::set_config_field("show_terminal", serde_json::json!(true));
+
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn project_chat_preferences_handles_empty_model_and_sync_save() {
     let server = TestServer::start(2, |request| match request.method.as_str() {
         "GET" => {
-            assert_eq!(request.path, "/v1/desktop/mindmap-tabs");
-            (200, "null")
+            assert_eq!(request.path, "/v1/desktop/project-preferences?project_path=%2Ftmp%2Fempty");
+            (200, r#"{"model":"  ","auto_model":true,"acp_agent":"coder"}"#)
         }
         "PUT" => {
-            assert_eq!(request.path, "/v1/desktop/mindmap-tabs");
+            assert_eq!(request.path, "/v1/desktop/project-preferences?project_path=%2Ftmp%2Fempty");
             assert_eq!(
                 serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
-                serde_json::json!({"tabs":[]})
+                serde_json::json!({
+                    "model": "local/model",
+                    "auto_model": true,
+                    "acp_agent": "reviewer"
+                })
             );
             (200, r#"{}"#)
         }
@@ -413,13 +493,103 @@ fn mindmap_tabs_async_handles_null_and_owned_save() {
     });
     let (_lock, _home, _guard) = configure_gateway(server.port);
 
-    let loaded = super::super::gateway::run_gateway_call(super::load_mindmap_tabs_async())
-        .expect("mindmap tabs should load");
-    super::super::gateway::run_gateway_call(super::save_mindmap_tabs_owned(serde_json::json!({
-        "tabs": []
-    })))
-    .expect("mindmap tabs should save");
+    let loaded = super::load_project_chat_preferences("/tmp/empty");
+    super::save_project_chat_preferences("/tmp/empty", "local/model", true, Some("reviewer"));
 
     assert_eq!(loaded, None);
     assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn tool_content_sync_wrappers_use_expected_routes_and_values() {
+    let server =
+        TestServer::start(6, |request| match (request.method.as_str(), request.path.as_str()) {
+            ("GET", "/v1/desktop/tool-content/json") => (200, r#"{"content":"{\"ready\":true}"}"#),
+            ("GET", "/v1/desktop/tool-content/sql") => (200, r#"{"content":"select 1"}"#),
+            ("GET", "/v1/desktop/tool-content/html") => {
+                (200, r#"{"content":"<main>ready</main>"}"#)
+            }
+            ("PUT", "/v1/desktop/tool-content/json") => {
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({"content":"{}"})
+                );
+                (200, r#"{}"#)
+            }
+            ("PUT", "/v1/desktop/tool-content/sql") => {
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({"content":"select 2"})
+                );
+                (200, r#"{}"#)
+            }
+            ("PUT", "/v1/desktop/tool-content/html") => {
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({"content":"<main>saved</main>"})
+                );
+                (200, r#"{}"#)
+            }
+            _ => (404, r#"{"error":"unexpected"}"#),
+        });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+
+    assert_eq!(super::load_json_tool_content(), r#"{"ready":true}"#);
+    assert_eq!(super::load_sql_tool_content(), "select 1");
+    assert_eq!(super::load_html_tool_content(), "<main>ready</main>");
+    super::save_json_tool_content("{}");
+    super::save_sql_tool_content("select 2");
+    super::save_html_tool_content("<main>saved</main>");
+
+    assert_eq!(server.take_requests().len(), 6);
+}
+
+#[test]
+fn synchronous_wrappers_fall_back_or_absorb_gateway_errors() {
+    let server = TestServer::start(5, |request| {
+        match (request.method.as_str(), request.path.as_str()) {
+            ("GET", "/v1/desktop/project-preferences?project_path=%2Ftmp%2Fmissing")
+            | ("GET", "/v1/desktop/tool-content/json")
+            | ("PATCH", "/v1/desktop/preferences")
+            | ("PUT", "/v1/desktop/project-preferences?project_path=%2Ftmp%2Fmissing")
+            | ("PUT", "/v1/desktop/tool-content/sql") => {}
+            _ => panic!("unexpected request: {request:?}"),
+        }
+        (500, r#"{"error":"unavailable"}"#)
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+
+    assert_eq!(super::load_project_chat_preferences("/tmp/missing"), None);
+    assert_eq!(super::load_json_tool_content(), "");
+    super::save_app_config(&serde_json::json!({"theme":"dark"}));
+    super::save_project_chat_preferences("/tmp/missing", "model", false, None);
+    super::save_sql_tool_content("select 1");
+
+    assert_eq!(server.take_requests().len(), 5);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[test]
+fn wasm_project_preferences_are_safe_noops() {
+    assert_eq!(super::load_project_chat_preferences("/project"), None);
+    super::save_project_chat_preferences("/project", "model", true, Some("agent"));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[test]
+fn wasm_sync_app_config_uses_safe_empty_fallback() {
+    assert_eq!(super::load_app_config(), serde_json::json!({}));
+    super::save_app_config(&serde_json::json!({"theme":"dark"}));
+    super::set_config_field("theme", serde_json::json!("light"));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[test]
+fn wasm_tool_content_wrappers_are_safe_empty_noops() {
+    assert_eq!(super::load_json_tool_content(), "");
+    assert_eq!(super::load_sql_tool_content(), "");
+    assert_eq!(super::load_html_tool_content(), "");
+    super::save_json_tool_content("{}");
+    super::save_sql_tool_content("select 1");
+    super::save_html_tool_content("<main></main>");
 }

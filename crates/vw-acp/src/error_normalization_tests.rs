@@ -332,6 +332,63 @@ fn normalize_output_error_prefers_option_acp_payload_over_embedded_payload() {
 }
 
 #[test]
+fn normalize_output_error_falls_back_to_nested_acp_payload_and_no_session_mapping() {
+    let params = normalize_output_error(
+        &json!({
+            "message": "outer wrapper",
+            "error": {
+                "code": -32001,
+                "message": "session missing",
+                "data": { "details": "unknown session" }
+            }
+        }),
+        NormalizeOutputErrorOptions::default(),
+    );
+
+    assert_eq!(params.code, OutputErrorCode::NoSession);
+    assert_eq!(params.acp.as_ref().map(|payload| payload.code), Some(-32001));
+    assert!(params.acp.as_ref().and_then(|payload| payload.data.as_ref()).is_some());
+}
+
+#[test]
+fn normalize_output_error_prefers_explicit_detail_code_over_auth_inference() {
+    let params = normalize_output_error(
+        &json!({
+            "name": "AuthPolicyError",
+            "message": "authentication required",
+            "acp": {
+                "code": -32000,
+                "message": "auth required",
+                "data": { "authRequired": true }
+            }
+        }),
+        NormalizeOutputErrorOptions {
+            detail_code: Some("FROM_OPTIONS".to_string()),
+            ..NormalizeOutputErrorOptions::default()
+        },
+    );
+
+    assert_eq!(params.detail_code.as_deref(), Some("FROM_OPTIONS"));
+}
+
+#[test]
+fn normalize_output_error_does_not_infer_auth_required_for_other_acp_codes() {
+    let params = normalize_output_error(
+        &json!({
+            "message": "authentication required",
+            "acp": {
+                "code": -32099,
+                "message": "authentication required",
+                "data": { "authRequired": true, "methodId": "token" }
+            }
+        }),
+        NormalizeOutputErrorOptions::default(),
+    );
+
+    assert_eq!(params.detail_code, None);
+}
+
+#[test]
 fn query_closed_detection_rejects_missing_or_non_matching_details() {
     let cases = [
         json!({ "message": "no acp" }),
@@ -355,6 +412,17 @@ fn query_closed_detection_rejects_missing_or_non_matching_details() {
     for error in cases {
         assert!(!is_acp_query_closed_before_response_error(&error));
     }
+}
+
+#[test]
+fn query_closed_detection_reads_nested_acp_errors() {
+    assert!(is_acp_query_closed_before_response_error(&json!({
+        "error": {
+            "code": -32603,
+            "message": "internal error",
+            "data": { "details": "query closed before response received" }
+        }
+    })));
 }
 
 #[test]
@@ -402,6 +470,17 @@ fn retryable_prompt_error_rejects_metadata_and_named_non_retryable_errors() {
 }
 
 #[test]
+fn retryable_prompt_error_rejects_nested_auth_required_payload() {
+    assert!(!is_retryable_prompt_error(&json!({
+        "error": {
+            "code": -32000,
+            "message": "auth required",
+            "data": { "methods": ["oauth"] }
+        }
+    })));
+}
+
+#[test]
 fn retryable_prompt_error_only_accepts_transient_acp_codes() {
     assert!(!is_retryable_prompt_error(&json!({ "message": "plain" })));
 
@@ -422,6 +501,52 @@ fn retryable_prompt_error_only_accepts_transient_acp_codes() {
             }
         })));
     }
+}
+
+#[test]
+fn normalize_output_error_handles_scalar_errors() {
+    let params = normalize_output_error(
+        &json!("plain failure"),
+        NormalizeOutputErrorOptions {
+            default_code: Some(OutputErrorCode::Usage),
+            ..NormalizeOutputErrorOptions::default()
+        },
+    );
+
+    assert_eq!(params.code, OutputErrorCode::Usage);
+    assert_eq!(params.message, "plain failure");
+    assert_eq!(params.detail_code, None);
+    assert_eq!(params.acp, None);
+}
+
+#[test]
+fn normalize_output_error_requires_auth_acp_signals() {
+    for acp in [
+        json!({ "code": -32000, "message": "ordinary policy failure" }),
+        json!({
+            "code": -32000,
+            "message": "ordinary policy failure",
+            "data": ["oauth"]
+        }),
+    ] {
+        let params = normalize_output_error(
+            &json!({ "message": "ordinary policy failure", "acp": acp }),
+            NormalizeOutputErrorOptions::default(),
+        );
+
+        assert_eq!(params.detail_code, None);
+    }
+}
+
+#[test]
+fn retryable_prompt_error_allows_runtime_metadata_for_transient_acp() {
+    assert!(is_retryable_prompt_error(&json!({
+        "outputCode": "RUNTIME",
+        "acp": {
+            "code": -32603,
+            "message": "internal error"
+        }
+    })));
 }
 
 #[test]

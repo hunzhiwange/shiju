@@ -49,6 +49,7 @@ fn strip_tool_call_tags_preserves_unparseable_unclosed_blocks() {
     let original = "before <tool>not-json";
 
     assert_eq!(strip_tool_call_tags(original), original);
+    assert_eq!(strip_tool_call_tags("before <tool>{not-json"), "before <tool>{not-json");
 }
 
 #[test]
@@ -77,6 +78,17 @@ fn channel_delivery_instructions_are_known_for_chat_channels() {
     assert!(channel_delivery_instructions("telegram").is_some());
     assert!(channel_delivery_instructions("whatsapp").is_some());
     assert!(channel_delivery_instructions("unknown").is_none());
+}
+
+#[test]
+fn channel_delivery_instructions_include_channel_specific_requirements() {
+    let telegram = channel_delivery_instructions("telegram").expect("telegram instructions");
+    let whatsapp = channel_delivery_instructions("whatsapp").expect("whatsapp instructions");
+
+    assert!(telegram.contains("[VOICE:<path-or-url>]"));
+    assert!(telegram.contains("bold headers"));
+    assert!(whatsapp.contains("[IMAGE:<absolute-path>]"));
+    assert!(whatsapp.contains("absolute filesystem path"));
 }
 
 #[test]
@@ -206,4 +218,254 @@ fn line_isolated_json_segment_detects_whitespace_boundaries() {
     let start = inline.find('{').expect("json start");
     let end = start + "{\"a\":1}".len();
     assert!(!is_line_isolated_json_segment(inline, start, end));
+}
+
+#[test]
+fn strip_tool_call_tags_removes_all_closed_tag_variants() {
+    let cases = [
+        ("<function_calls>{\"name\":\"x\"}</function_calls>", "before  after"),
+        ("<function_call>{\"name\":\"x\"}</function_call>", "before  after"),
+        ("<tool_call>{\"name\":\"x\"}</tool_call>", "before  after"),
+        ("<tool-call>{\"name\":\"x\"}</tool-call>", "before  after"),
+    ];
+
+    for (tagged, expected) in cases {
+        assert_eq!(strip_tool_call_tags(&format!("before {tagged} after")), expected);
+    }
+}
+
+#[test]
+fn strip_tool_call_tags_handles_block_boundaries_and_extra_blank_lines() {
+    let message = "intro\n   <tool>{\"name\":\"x\"}</tool>\n   next\n\n\n\nend";
+
+    assert_eq!(strip_tool_call_tags(message), "intro\nnext\n\nend");
+}
+
+#[test]
+fn strip_tool_call_tags_keeps_empty_line_after_removed_block() {
+    let message = "intro\n<tool>{\"name\":\"x\"}</tool>\n   ";
+
+    assert_eq!(strip_tool_call_tags(message), "intro");
+}
+
+#[test]
+fn strip_tool_call_tags_handles_unclosed_json_arrays_and_leading_close_tags() {
+    assert_eq!(strip_tool_call_tags("a <invoke>[{\"name\":\"x\"}] </tool> b"), "a b");
+    assert_eq!(strip_tool_call_tags("a <tool>noise {\"name\":\"x\"}</broken"), "a");
+}
+
+#[test]
+fn strip_tool_call_tags_uses_earliest_tool_marker() {
+    assert_eq!(
+        strip_tool_call_tags("a ฦ{\"name\":\"first\"}ฦ <tool>{\"name\":\"second\"}</tool> b"),
+        "a   b"
+    );
+    assert_eq!(
+        strip_tool_call_tags("a <tool>{\"name\":\"first\"}</tool> ฦ{\"name\":\"second\"}ฦ b"),
+        "a   b"
+    );
+}
+
+#[test]
+fn strip_tool_call_tags_preserves_messages_without_tags() {
+    assert_eq!(strip_tool_call_tags("  plain message  "), "plain message");
+}
+
+#[test]
+fn should_expose_internal_tool_details_covers_verb_and_no_match_paths() {
+    assert!(should_expose_internal_tool_details("please display the internal step details"));
+    assert!(should_expose_internal_tool_details("把命令贴出"));
+    assert!(!should_expose_internal_tool_details("show me the summary"));
+    assert!(!should_expose_internal_tool_details("command"));
+}
+
+#[test]
+fn should_expose_internal_tool_details_handles_english_verb_and_negation_hints() {
+    assert!(should_expose_internal_tool_details("please share the command output"));
+    assert!(!should_expose_internal_tool_details("do not show function call details"));
+    assert!(!should_expose_internal_tool_details("skip commands in the reply"));
+}
+
+#[test]
+fn extract_tool_context_summary_handles_tag_variants_and_malformed_results() {
+    let history = vec![
+        ChatMessage::assistant(r#"<tool_call>{"name":"alpha"}</tool_call>"#),
+        ChatMessage::assistant(r#"<tool-call>{"name":"beta"}</tool-call>"#),
+        ChatMessage::assistant(r#"<invoke>{"name":"gamma"}</invoke>"#),
+        ChatMessage::assistant(r#"<tool_call>{"name":" "}</tool_call>"#),
+        ChatMessage::assistant(r#"<tool_call>not-json</tool_call>"#),
+        ChatMessage::user(r#"<tool_result name="" />"#),
+        ChatMessage::user(r#"<tool_result name="unterminated"#),
+        ChatMessage::system("ignored"),
+    ];
+
+    assert_eq!(extract_tool_context_summary(&history, 0), "[Used tools: alpha, beta, gamma]");
+}
+
+#[test]
+fn extract_tool_context_summary_ignores_native_json_without_calls() {
+    let history = vec![
+        ChatMessage::assistant(r#"{"tool_calls":[]}"#),
+        ChatMessage::assistant(r#"{"tool_calls":{}}"#),
+        ChatMessage::assistant("not-json"),
+    ];
+
+    assert_eq!(extract_tool_context_summary(&history, 0), "");
+}
+
+#[test]
+fn extract_tool_context_summary_deduplicates_native_and_result_names() {
+    let history = vec![
+        ChatMessage::assistant(
+            r#"{"tool_calls":[{"name":"shell","arguments":{}},{"function":{"name":"shell","arguments":{}}},{"function":{"name":"grep","arguments":{}}}]}"#,
+        ),
+        ChatMessage::user(
+            r#"<tool_result name="shell">ok</tool_result><tool_result name="grep">done</tool_result>"#,
+        ),
+    ];
+
+    assert_eq!(extract_tool_context_summary(&history, 0), "[Used tools: shell, grep]");
+}
+
+#[test]
+fn is_tool_call_payload_accepts_fallback_names_and_rejects_bad_shapes() {
+    let known = HashSet::from(["shell".to_string()]);
+
+    assert!(is_tool_call_payload(
+        &serde_json::json!({"name": " SHELL ", "function": {}, "arguments": {}}),
+        &known
+    ));
+    assert!(!is_tool_call_payload(&serde_json::json!("shell"), &known));
+    assert!(!is_tool_call_payload(&serde_json::json!({"name": " ", "arguments": {}}), &known));
+    assert!(!is_tool_call_payload(&serde_json::json!({"function": {"name": "shell"}}), &known));
+}
+
+#[test]
+fn is_tool_result_payload_rejects_objects_without_result() {
+    let object = serde_json::json!({"tool_call_id": "1"}).as_object().cloned().expect("object");
+
+    assert!(!is_tool_result_payload(&object, true));
+}
+
+#[test]
+fn sanitize_tool_json_value_handles_arrays_and_non_objects() {
+    let known = HashSet::from(["shell".to_string()]);
+
+    assert_eq!(
+        sanitize_tool_json_value(
+            &serde_json::json!([{"name": "shell", "arguments": {}}]),
+            &known,
+            false
+        ),
+        Some((String::new(), true))
+    );
+    assert_eq!(sanitize_tool_json_value(&serde_json::json!([]), &known, false), None);
+    assert_eq!(
+        sanitize_tool_json_value(
+            &serde_json::json!([{"name": "unknown", "arguments": {}}]),
+            &known,
+            false
+        ),
+        None
+    );
+    assert_eq!(sanitize_tool_json_value(&serde_json::json!("text"), &known, false), None);
+}
+
+#[test]
+fn sanitize_tool_json_value_handles_tool_call_messages_without_content() {
+    let known = HashSet::from(["shell".to_string()]);
+
+    assert_eq!(
+        sanitize_tool_json_value(
+            &serde_json::json!({"tool_calls": [{"name": "shell", "arguments": {}}]}),
+            &known,
+            false
+        ),
+        Some((String::new(), true))
+    );
+    assert_eq!(
+        sanitize_tool_json_value(
+            &serde_json::json!({"tool_calls": [{"name": "unknown", "arguments": {}}]}),
+            &known,
+            false
+        ),
+        None
+    );
+}
+
+#[test]
+fn strip_isolated_tool_json_artifacts_replaces_message_objects_and_normalizes_crlf() {
+    let known = HashSet::from(["shell".to_string()]);
+    let message = concat!(
+        "before\r\n",
+        "{\"content\":\" visible \",\"tool_calls\":[{\"name\":\"shell\",\"arguments\":{}}]}\r\n",
+        "after"
+    );
+
+    assert_eq!(strip_isolated_tool_json_artifacts(message, &known), "before\nvisible\nafter");
+}
+
+#[test]
+fn strip_isolated_tool_json_artifacts_preserves_invalid_and_unrelated_json() {
+    let known = HashSet::from(["shell".to_string()]);
+    let message = "before\n{not json}\n{\"result\":\"early\"}\n{\"a\":1}\nafter";
+
+    assert_eq!(strip_isolated_tool_json_artifacts(message, &known), message);
+}
+
+#[test]
+fn strip_isolated_tool_json_artifacts_removes_tool_arrays_and_following_results() {
+    let known = HashSet::from(["shell".to_string()]);
+    let message = concat!(
+        "before\n",
+        "[{\"name\":\"shell\",\"arguments\":{}}]\n",
+        "{\"result\":\"ok\",\"tool\":\"shell\"}\n",
+        "after"
+    );
+
+    assert_eq!(strip_isolated_tool_json_artifacts(message, &known), "before\n\nafter");
+}
+
+#[test]
+fn strip_isolated_tool_json_artifacts_keeps_early_results_until_a_tool_call_is_seen() {
+    let known = HashSet::from(["shell".to_string()]);
+    let message = concat!(
+        "before\n",
+        "{\"result\":\"early\"}\n",
+        "{\"name\":\"shell\",\"arguments\":{}}\n",
+        "{\"result\":\"late\"}\n",
+        "after"
+    );
+
+    assert_eq!(
+        strip_isolated_tool_json_artifacts(message, &known),
+        "before\n{\"result\":\"early\"}\n\nafter"
+    );
+}
+
+#[test]
+fn strip_isolated_tool_json_artifacts_preserves_plain_text_without_json() {
+    let known = HashSet::new();
+
+    assert_eq!(strip_isolated_tool_json_artifacts("  no json  ", &known), "no json");
+}
+
+#[test]
+fn sanitize_channel_response_preserves_clean_response_without_tools() {
+    let tools = Vec::<Box<dyn Tool>>::new();
+
+    assert_eq!(sanitize_channel_response("  hello  ", &tools), "hello");
+}
+
+#[test]
+fn sanitize_channel_response_matches_tool_names_case_insensitively() {
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(NamedTool { id: "Shell" })];
+    let response = concat!(
+        "hello\n",
+        "{\"name\":\"shell\",\"arguments\":{\"cmd\":\"pwd\"}}\n",
+        "{\"result\":\"done\"}\n",
+        "done"
+    );
+
+    assert_eq!(sanitize_channel_response(response, &tools), "hello\n\ndone");
 }

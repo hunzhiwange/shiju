@@ -124,3 +124,27 @@ async fn resolved_bot_open_id_and_token_cache_can_be_set_and_invalidated() {
 
     assert!(ch.tenant_token.read().await.is_none());
 }
+
+#[test]
+fn resolved_bot_open_id_ignores_poisoned_cache_lock() {
+    let ch = channel();
+    let lock = std::sync::Arc::clone(&ch.resolved_bot_open_id);
+
+    let panic_result = std::thread::spawn(move || {
+        let _guard = lock.write().expect("cache lock should initially be available");
+        panic!("poison bot open id cache for test");
+    })
+    .join();
+
+    assert!(panic_result.is_err());
+    assert_eq!(ch.resolved_bot_open_id(), None);
+    ch.set_resolved_bot_open_id(Some("ou_ignored".to_string()));
+    assert_eq!(ch.resolved_bot_open_id(), None);
+}
+
+#[path = "token_bot_tests.rs"]
+mod token_bot_tests;
+#[path = "token_http_tests.rs"]
+mod token_http_tests;
+#[path = "token_test_support.rs"]
+mod token_test_support;

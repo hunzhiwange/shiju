@@ -6,8 +6,8 @@ use serde_json::json;
 
 /// 重新导出 use super::{parse_config_input, parse_config_result_from_output, summary_from_input, summary_from_result}，让上层模块通过稳定路径访问。
 use super::{
-    parse_config_input, parse_config_result_from_output, summary_from_input, summary_from_result,
-    tool_config_view,
+    parse_config_input, parse_config_result, parse_config_result_from_output, success_body,
+    summary_from_input, summary_from_result, tool_config_view, value_label,
 };
 use crate::app::App;
 
@@ -172,4 +172,170 @@ fn config_view_renders_running_success_and_error_states() {
         )
         .is_some()
     );
+}
+
+/// value_label converts each JSON Value variant to the expected display string.
+#[test]
+fn value_label_converts_all_value_types() {
+    assert_eq!(value_label(&serde_json::Value::Null), "default");
+    assert_eq!(value_label(&serde_json::json!("hello")), "hello");
+    assert_eq!(value_label(&serde_json::json!(true)), "true");
+    assert_eq!(value_label(&serde_json::json!(false)), "false");
+    assert_eq!(value_label(&serde_json::json!(42)), "42");
+    assert_eq!(value_label(&serde_json::json!(3.14)), "3.14");
+
+    let arr = serde_json::json!([1, 2, 3]);
+    let label = value_label(&arr);
+    assert_eq!(label, "[1,2,3]");
+
+    let obj = serde_json::json!({"key": "val"});
+    let label = value_label(&obj);
+    assert_eq!(label, r#"{"key":"val"}"#);
+}
+
+/// parse_config_result reads from tool_result_data path then falls back to output text.
+#[test]
+fn parse_config_result_reads_from_result_data_path() {
+    let value = serde_json::json!({
+        "result": {
+            "data": {
+                "success": true,
+                "operation": "get",
+                "setting": "theme",
+                "value": "dark"
+            }
+        }
+    });
+    let result = parse_config_result(&value).expect("should parse from result.data");
+    assert_eq!(result.setting.as_deref(), Some("theme"));
+    assert_eq!(result.value, Some(serde_json::json!("dark")));
+}
+
+#[test]
+fn parse_config_result_falls_back_to_output_text() {
+    let value = serde_json::json!({
+        "output": r#"{"success":false,"operation":"set","error":"timeout"}"#
+    });
+    let result = parse_config_result(&value).expect("should fall back to output");
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("timeout"));
+}
+
+#[test]
+fn parse_config_result_returns_none_when_no_parseable_data() {
+    let value = serde_json::json!({"status": "completed", "output": "plain text"});
+    assert!(parse_config_result(&value).is_none());
+
+    let empty = serde_json::json!({});
+    assert!(parse_config_result(&empty).is_none());
+}
+
+#[test]
+fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
+    let get_missing_value =
+        parse_config_result_from_output(r#"{"success":true,"operation":"get","setting":"theme"}"#)
+            .expect("get without value");
+    assert!(success_body(&get_missing_value).is_none());
+
+    let set_without_values =
+        parse_config_result_from_output(r#"{"success":true,"operation":"set","setting":"theme"}"#)
+            .expect("set without values");
+    assert!(success_body(&set_without_values).is_some());
+
+    let unknown_operation =
+        parse_config_result_from_output(r#"{"success":true,"operation":"delete"}"#)
+            .expect("unknown operation");
+    assert!(success_body(&unknown_operation).is_none());
+}
+
+/// summary_from_result edge cases: fallback operation labels.
+#[test]
+fn summary_from_result_fallback_labels() {
+    let set_no_details = parse_config_result_from_output(r#"{"success":true,"operation":"set"}"#)
+        .expect("set without details");
+    assert_eq!(summary_from_result(&set_no_details), "配置已更新");
+
+    let unknown_op = parse_config_result_from_output(r#"{"success":true,"operation":"delete"}"#)
+        .expect("delete operation");
+    assert_eq!(summary_from_result(&unknown_op), "配置");
+
+    let no_op = parse_config_result_from_output(r#"{"success":true}"#).expect("no operation");
+    assert_eq!(summary_from_result(&no_op), "配置");
+}
+
+/// summary_from_input edge cases: empty setting, model_routing section.
+#[test]
+fn summary_from_input_edge_cases() {
+    let empty_setting = parse_config_input(r#"{"setting":"  "}"#).expect("whitespace-only setting");
+    assert_eq!(summary_from_input(&empty_setting), "读取配置概览");
+
+    let model_routing =
+        parse_config_input(r#"{"section":"model_routing"}"#).expect("model_routing section");
+    assert_eq!(summary_from_input(&model_routing), "读取 model_routing 高级配置");
+}
+
+/// tool_config_view renders denied status correctly.
+#[test]
+fn config_view_renders_denied_state() {
+    let app = App::new().0;
+    let visible = r#"tool config
+{"status":"denied","error":"not allowed","result":{"data":{"success":false,"error":"not allowed"}}}"#;
+    assert!(tool_config_view(&app, 0, 0, visible).is_some());
+}
+
+/// tool_config_view shows different titles for running with/without value.
+#[test]
+fn config_view_title_changes_with_running_input() {
+    let app = App::new().0;
+
+    let with_value = r#"tool config
+{"status":"running","input":"{\"setting\":\"theme\",\"value\":\"dark\"}"}"#;
+    assert!(tool_config_view(&app, 0, 0, with_value).is_some());
+
+    let without_value = r#"tool config
+{"status":"running","input":"{\"setting\":\"theme\"}"}"#;
+    assert!(tool_config_view(&app, 0, 0, without_value).is_some());
+}
+
+/// tool_config_view renders a fallback summary for a successful get.
+#[test]
+fn config_view_renders_fallback_summary_for_get() {
+    let app = App::new().0;
+    let value = serde_json::json!({
+        "result": {
+            "data": {
+                "success": true,
+                "operation": "get"
+            }
+        }
+    });
+    let visible = format!("tool config\n{}", value);
+    assert!(tool_config_view(&app, 0, 0, &visible).is_some());
+}
+
+/// tool_config_view renders set success with previous_value and new_value.
+#[test]
+fn config_view_renders_set_with_old_and_new_values() {
+    let app = App::new().0;
+    let visible = r#"tool config
+{"result":{"data":{"success":true,"operation":"set","setting":"theme","previousValue":"light","newValue":"dark"}}}"#;
+    assert!(tool_config_view(&app, 0, 0, visible).is_some());
+}
+
+/// tool_config_view renders get with object value (config overview).
+#[test]
+fn config_view_renders_get_object_overview() {
+    let app = App::new().0;
+    let visible = r#"tool config
+{"result":{"data":{"success":true,"operation":"get","value":{"proxy":{},"model_routing":{},"runtime":{}}}}}"#;
+    assert!(tool_config_view(&app, 0, 0, visible).is_some());
+}
+
+/// tool_config_view renders error without explicit error field, falling back to tool_error_text.
+#[test]
+fn config_view_falls_back_to_tool_error_text() {
+    let app = App::new().0;
+    let visible = r#"tool config
+{"status":"error","output":"permission denied","result":{"data":{"success":false}}}"#;
+    assert!(tool_config_view(&app, 0, 0, visible).is_some());
 }

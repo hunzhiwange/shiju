@@ -5,10 +5,37 @@ use crate::app::config;
 use crate::app::config::server_config_unreachable_error;
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
+use crate::app::state::ModelCatalogEntry;
 use iced::Task;
 
 use super::super::messages::SettingsMessage;
+use super::super::types::ProvidersLoaded;
 use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
+
+fn providers_refreshed_message(result: ProvidersLoaded) -> Message {
+    Message::Settings(SettingsMessage::ProvidersRefreshed(result))
+}
+
+fn provider_models_sync_done_message(result: ProvidersLoaded) -> Message {
+    Message::Settings(SettingsMessage::ProviderModelsSyncDone(result))
+}
+
+fn provider_catalog_loaded_message(result: Result<Vec<ModelCatalogEntry>, String>) -> Message {
+    Message::Settings(SettingsMessage::ProviderCatalogLoaded(result))
+}
+
+fn popular_providers_saved_message(result: Result<(), String>) -> Message {
+    Message::Settings(SettingsMessage::PopularProvidersSaved(result))
+}
+
+fn popular_providers_patch(list: Vec<String>) -> serde_json::Value {
+    let mut root = serde_json::Map::new();
+    root.insert(
+        "popular_providers".to_string(),
+        serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect()),
+    );
+    serde_json::Value::Object(root)
+}
 
 /// 处理 `refresh_task` 对应的用户输入、异步结果或状态转换。
 ///
@@ -27,7 +54,7 @@ pub fn refresh_task() -> Task<Message> {
             let catalog = build_catalog_from_sources(&raw_providers, &providers);
             Ok((providers, patterns, configured, catalog))
         },
-        |res| Message::Settings(SettingsMessage::ProvidersRefreshed(res)),
+        providers_refreshed_message,
     )
 }
 
@@ -53,7 +80,7 @@ pub fn sync_remote_task() -> Task<Message> {
             let catalog = build_catalog_from_sources(&raw_providers, &providers);
             Ok((providers, patterns, configured, catalog))
         },
-        |res| Message::Settings(SettingsMessage::ProviderModelsSyncDone(res)),
+        provider_models_sync_done_message,
     )
 }
 
@@ -69,7 +96,7 @@ pub fn load_catalog_task() -> Task<Message> {
             let raw_providers = provider_models::get().await;
             Ok(build_catalog_from_sources(&raw_providers, &providers))
         },
-        |res| Message::Settings(SettingsMessage::ProviderCatalogLoaded(res)),
+        provider_catalog_loaded_message,
     )
 }
 
@@ -80,15 +107,10 @@ pub fn load_catalog_task() -> Task<Message> {
 pub fn save_popular_providers_task(list: Vec<String>) -> Task<Message> {
     Task::perform(
         async move {
-            let mut root = serde_json::Map::new();
-            root.insert(
-                "popular_providers".to_string(),
-                serde_json::Value::Array(list.into_iter().map(serde_json::Value::String).collect()),
-            );
-            config::patch_full_agent_config_async(serde_json::Value::Object(root))
+            config::patch_full_agent_config_async(popular_providers_patch(list))
                 .await
                 .map_err(server_config_unreachable_error)
         },
-        |res| Message::Settings(SettingsMessage::PopularProvidersSaved(res)),
+        popular_providers_saved_message,
     )
 }

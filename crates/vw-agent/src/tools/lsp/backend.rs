@@ -47,8 +47,12 @@ pub(crate) struct LspBackendSession {
 }
 
 struct SharedLspService {
+    #[cfg(not(test))]
     #[allow(dead_code)]
     child: Mutex<Child>,
+    #[cfg(test)]
+    #[allow(dead_code)]
+    child: Mutex<Option<Child>>,
     writer: mpsc::Sender<Vec<u8>>,
     request_id: AtomicU64,
     pending: Mutex<HashMap<u64, oneshot::Sender<anyhow::Result<Value>>>>,
@@ -145,6 +149,9 @@ async fn spawn_service(
         .take()
         .ok_or_else(|| anyhow::anyhow!("stderr unavailable for {}", config.server_key))?;
     let (writer, rx) = mpsc::channel::<Vec<u8>>();
+
+    #[cfg(test)]
+    let child = Some(child);
 
     let service = Arc::new(SharedLspService {
         child: Mutex::new(child),

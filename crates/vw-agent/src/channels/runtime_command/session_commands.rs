@@ -7,6 +7,31 @@
 use super::super::*;
 use super::task_mode::set_sender_task_mode;
 
+#[cfg(test)]
+tokio::task_local! {
+    static TEST_PROVIDER_INIT_ERROR: Option<String>;
+}
+
+#[cfg(test)]
+pub(super) async fn with_test_provider_init_error<T>(
+    err: impl Into<String>,
+    future: impl std::future::Future<Output = T>,
+) -> T {
+    TEST_PROVIDER_INIT_ERROR.scope(Some(err.into()), future).await
+}
+
+async fn get_or_create_session_provider(
+    ctx: &ChannelRuntimeContext,
+    provider_name: &str,
+) -> anyhow::Result<std::sync::Arc<dyn crate::app::agent::providers::Provider>> {
+    #[cfg(test)]
+    if let Ok(Some(err)) = TEST_PROVIDER_INIT_ERROR.try_with(Clone::clone) {
+        anyhow::bail!(err);
+    }
+
+    get_or_create_provider(ctx, provider_name).await
+}
+
 /// 构建当前 provider 列表与选中状态的帮助文本。
 ///
 /// # 参数
@@ -38,7 +63,7 @@ pub(super) async fn handle_set_provider(
     raw_provider: String,
 ) -> String {
     match resolve_provider_alias(&raw_provider) {
-        Some(provider_name) => match get_or_create_provider(ctx, &provider_name).await {
+        Some(provider_name) => match get_or_create_session_provider(ctx, &provider_name).await {
             Ok(_) => {
                 if provider_name != current.provider {
                     current.provider = provider_name.clone();

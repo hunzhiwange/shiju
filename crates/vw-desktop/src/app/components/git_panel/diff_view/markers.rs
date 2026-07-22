@@ -27,7 +27,7 @@ pub enum LineMarkerKind {
 /// LineNumberTone 描述 markers 模块支持的离散状态。
 ///
 /// 新增变体时需要同步检查显式分支，避免未知状态被静默吞掉。
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum LineNumberTone {
     Neutral,
     Add,
@@ -47,7 +47,7 @@ pub enum LineNumberTone {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn is_dark_theme(theme: &iced::Theme) -> bool {
+pub(super) fn is_dark_theme(theme: &iced::Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
 }
 
@@ -321,7 +321,7 @@ pub(super) fn line_number_right_padding(tone: LineNumberTone) -> f32 {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn line_number_text_color(theme: &iced::Theme, tone: LineNumberTone) -> Color {
+pub(super) fn line_number_text_color(theme: &iced::Theme, tone: LineNumberTone) -> Color {
     let ext = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
 

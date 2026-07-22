@@ -100,6 +100,19 @@ fn callback_update(username: &str, user_id: i64, data: &str) -> serde_json::Valu
     })
 }
 
+fn callback_update_without_thread_or_message_id(user_id: i64, data: &str) -> serde_json::Value {
+    serde_json::json!({
+        "callback_query": {
+            "id": "cb-plain",
+            "data": data,
+            "from": {"id": user_id},
+            "message": {
+                "chat": {"id": 42}
+            }
+        }
+    })
+}
+
 #[test]
 fn approval_callback_parser_maps_approve_and_deny() {
     assert_eq!(
@@ -160,6 +173,36 @@ async fn approval_callback_query_builds_channel_message_and_schedules_cleanup() 
     assert_eq!(requests.len(), 2);
 }
 
+#[tokio::test]
+async fn approval_callback_query_uses_sender_id_and_plain_reply_target() {
+    let server = TestServer::spawn().await;
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec!["555".to_string()], false)
+        .with_api_base(server.base_url.clone());
+
+    let message = channel
+        .try_parse_approval_callback_query(&callback_update_without_thread_or_message_id(
+            555,
+            "zcapr:yes:req-plain",
+        ))
+        .expect("callback should parse");
+
+    assert_eq!(message.id, "telegram_cb_42_0_cb-plain");
+    assert_eq!(message.sender, "555");
+    assert_eq!(message.reply_target, "42");
+    assert_eq!(message.content, "/approve-allow req-plain");
+    assert_eq!(message.channel, "telegram");
+    assert_eq!(message.thread_ts, None);
+
+    let requests = server.wait_for_requests(2).await;
+    let cleanup = requests
+        .iter()
+        .find(|request| request.path == "/bot123:ABC/editMessageReplyMarkup")
+        .expect("cleanup request should be sent");
+    assert_eq!(cleanup.body["chat_id"], "42");
+    assert_eq!(cleanup.body["message_id"], 0);
+    assert!(cleanup.body.get("message_thread_id").is_none());
+}
+
 #[test]
 fn approval_callback_query_rejects_unknown_or_unauthorized_callbacks() {
     let channel = TelegramChannel::new("123:ABC".to_string(), vec!["tester".to_string()], false);
@@ -175,4 +218,44 @@ fn approval_callback_query_rejects_unknown_or_unauthorized_callbacks() {
             .is_none()
     );
     assert!(channel.try_parse_approval_callback_query(&serde_json::json!({})).is_none());
+}
+
+#[test]
+fn approval_callback_query_rejects_missing_required_fields() {
+    let channel = TelegramChannel::new("123:ABC".to_string(), vec!["*".to_string()], false);
+    let updates = [
+        serde_json::json!({
+            "callback_query": {
+                "data": "zcapr:yes:req",
+                "from": {"id": 1},
+                "message": {"message_id": 1, "chat": {"id": 1}}
+            }
+        }),
+        serde_json::json!({
+            "callback_query": {
+                "id": "cb",
+                "from": {"id": 1},
+                "message": {"message_id": 1, "chat": {"id": 1}}
+            }
+        }),
+        serde_json::json!({
+            "callback_query": {
+                "id": "cb",
+                "data": "zcapr:yes:req",
+                "from": {"id": 1}
+            }
+        }),
+        serde_json::json!({
+            "callback_query": {
+                "id": "cb",
+                "data": "zcapr:yes:req",
+                "from": {"id": 1},
+                "message": {"message_id": 1, "chat": {}}
+            }
+        }),
+    ];
+
+    for update in updates {
+        assert!(channel.try_parse_approval_callback_query(&update).is_none());
+    }
 }

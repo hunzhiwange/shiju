@@ -103,6 +103,11 @@ pub fn max_steps_text() -> &'static str {
     MAX_STEPS.trim()
 }
 
+/// 过滤空白片段并按系统提示词的段落格式拼接。
+fn join_non_empty_parts(parts: Vec<String>) -> String {
+    parts.into_iter().filter(|s| !s.trim().is_empty()).collect::<Vec<_>>().join("\n\n")
+}
+
 /// 构建完整的系统提示词
 ///
 /// 将环境信息、系统指令等多个部分组合成完整的系统提示词字符串。
@@ -133,7 +138,7 @@ pub fn system(model: Option<&str>, root: Option<&str>) -> String {
     parts.extend(instruction_system());
 
     // 过滤空白内容并用双换行符连接各部分
-    parts.into_iter().filter(|s| !s.trim().is_empty()).collect::<Vec<_>>().join("\n\n")
+    join_non_empty_parts(parts)
 }
 #[cfg(test)]
 #[path = "prompt_tests.rs"]

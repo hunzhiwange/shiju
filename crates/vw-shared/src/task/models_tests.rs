@@ -109,6 +109,7 @@ fn task_board_settings_sanitized_clamps_ranges() {
         scheduler_tick_interval_seconds: 99,
         auto_promote_tick_interval_seconds: 0,
         failed_retry_minutes: 0,
+        failed_retry_max_attempts: 99,
         running_timeout_minutes: 99_999,
         pr_submitted_stall_timeout_seconds: 1,
         ..super::TaskBoardSettings::default()
@@ -120,6 +121,7 @@ fn task_board_settings_sanitized_clamps_ranges() {
     assert_eq!(settings.scheduler_tick_interval_seconds, 60);
     assert_eq!(settings.auto_promote_tick_interval_seconds, 1);
     assert_eq!(settings.failed_retry_minutes, 1);
+    assert_eq!(settings.failed_retry_max_attempts, 10);
     assert_eq!(settings.running_timeout_minutes, 1440);
     assert_eq!(settings.pr_submitted_stall_timeout_seconds, 5);
 }
@@ -132,6 +134,7 @@ fn task_board_settings_sanitized_clamps_upper_ranges() {
         scheduler_tick_interval_seconds: 99,
         auto_promote_tick_interval_seconds: 99_999,
         failed_retry_minutes: 99_999,
+        failed_retry_max_attempts: 99,
         running_timeout_minutes: 99_999,
         pr_submitted_stall_timeout_seconds: 99_999,
         ..super::TaskBoardSettings::default()
@@ -143,6 +146,7 @@ fn task_board_settings_sanitized_clamps_upper_ranges() {
     assert_eq!(settings.scheduler_tick_interval_seconds, 60);
     assert_eq!(settings.auto_promote_tick_interval_seconds, 3600);
     assert_eq!(settings.failed_retry_minutes, 1440);
+    assert_eq!(settings.failed_retry_max_attempts, 10);
     assert_eq!(settings.running_timeout_minutes, 1440);
     assert_eq!(settings.pr_submitted_stall_timeout_seconds, 3600);
 }
@@ -162,6 +166,7 @@ fn task_board_settings_deserialize_applies_new_field_defaults() {
 
     assert!(!settings.auto_execute);
     assert!(!settings.code_review_enabled);
+    assert!(!settings.task_split_enabled);
     assert_eq!(settings.max_concurrent, 2);
     assert_eq!(settings.default_priority, 5);
     assert!(!settings.auto_promote_pool_tasks);
@@ -171,6 +176,7 @@ fn task_board_settings_deserialize_applies_new_field_defaults() {
     assert_eq!(settings.scheduler_tick_interval_seconds, 1);
     assert_eq!(settings.auto_promote_tick_interval_seconds, 30);
     assert_eq!(settings.failed_retry_minutes, 20);
+    assert_eq!(settings.failed_retry_max_attempts, 10);
     assert_eq!(settings.running_timeout_minutes, 20);
     assert!(!settings.recycle_worktree_on_task_finish);
     assert_eq!(settings.pr_submitted_stall_timeout_seconds, 30);
@@ -195,6 +201,7 @@ fn task_default_initializes_persistent_fields() {
     assert_eq!(task.merge_source_branch, None);
     assert_eq!(task.merge_target_branch, None);
     assert_eq!(task.selected_worktree_path, None);
+    assert_eq!(task.task_split_mode, super::TaskSplitMode::FollowSystem);
 }
 
 #[test]
@@ -514,6 +521,7 @@ fn task_draft_default_initializes_editable_strings() {
     assert_eq!(draft.description, "");
     assert_eq!(draft.prompt, "");
     assert_eq!(draft.subtasks, vec![String::new(), String::new(), String::new()]);
+    assert_eq!(draft.task_split_mode, super::TaskSplitMode::FollowSystem);
     assert_eq!(draft.auto_promote_delay_seconds, "0");
 }
 
@@ -521,4 +529,97 @@ fn task_draft_default_initializes_editable_strings() {
 fn task_import_prompt_format_default_is_json() {
     assert_eq!(super::TaskImportPromptFormat::default(), super::TaskImportPromptFormat::Json);
     assert_ne!(super::TaskImportPromptFormat::Csv, super::TaskImportPromptFormat::Tsv);
+}
+
+#[test]
+fn task_split_mode_all_labels_and_keys_are_stable() {
+    use super::TaskSplitMode;
+    let all = TaskSplitMode::all();
+    assert_eq!(all, [TaskSplitMode::FollowSystem, TaskSplitMode::Enabled, TaskSplitMode::Disabled]);
+
+    assert_eq!(TaskSplitMode::FollowSystem.label(), "遵循系统");
+    assert_eq!(TaskSplitMode::Enabled.label(), "开启");
+    assert_eq!(TaskSplitMode::Disabled.label(), "关闭");
+
+    assert_eq!(TaskSplitMode::FollowSystem.to_string_key(), "follow_system");
+    assert_eq!(TaskSplitMode::Enabled.to_string_key(), "enabled");
+    assert_eq!(TaskSplitMode::Disabled.to_string_key(), "disabled");
+
+    // Display 复用 label。
+    assert_eq!(TaskSplitMode::Enabled.to_string(), "开启");
+}
+
+#[test]
+fn task_split_mode_parse_key_accepts_aliases_and_rejects_unknown() {
+    use super::TaskSplitMode;
+    for value in ["follow_system", "follow-system", "system", "default", " INHERIT "] {
+        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::FollowSystem));
+    }
+    for value in ["enabled", "enable", "on", "true", "yes", "1"] {
+        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::Enabled));
+    }
+    for value in ["disabled", "disable", "off", "false", "no", "0"] {
+        assert_eq!(TaskSplitMode::parse_key(value), Some(TaskSplitMode::Disabled));
+    }
+    assert_eq!(TaskSplitMode::parse_key("unknown"), None);
+}
+
+#[test]
+fn task_split_mode_enabled_with_system_resolves_override() {
+    use super::TaskSplitMode;
+    assert!(TaskSplitMode::FollowSystem.enabled_with_system(true));
+    assert!(!TaskSplitMode::FollowSystem.enabled_with_system(false));
+    assert!(TaskSplitMode::Enabled.enabled_with_system(false));
+    assert!(!TaskSplitMode::Disabled.enabled_with_system(true));
+}
+
+#[test]
+fn task_status_next_advances_through_pipeline() {
+    use super::TaskStatus;
+    assert_eq!(TaskStatus::Pool.next(), Some(TaskStatus::Pending));
+    assert_eq!(TaskStatus::Pending.next(), Some(TaskStatus::Running));
+    assert_eq!(TaskStatus::Running.next(), Some(TaskStatus::CodeComplete));
+    assert_eq!(TaskStatus::Failed.next(), Some(TaskStatus::Pending));
+    assert_eq!(TaskStatus::Paused.next(), None);
+    assert_eq!(TaskStatus::CodeComplete.next(), Some(TaskStatus::CodeReview));
+    assert_eq!(TaskStatus::CodeReview.next(), Some(TaskStatus::PrSubmitted));
+    assert_eq!(TaskStatus::PrSubmitted.next(), Some(TaskStatus::Completed));
+    assert_eq!(TaskStatus::Completed.next(), Some(TaskStatus::Archived));
+    assert_eq!(TaskStatus::Archived.next(), None);
+}
+
+#[test]
+fn generated_task_id_uses_date_prefixed_format() {
+    // generate_task_id 经 Task::new/default 间接触发，验证稳定格式 `T{8位日期}.{4位序号}`。
+    let task = super::Task::default();
+    let id = task.id;
+    assert!(id.starts_with('T'), "id should start with T: {id}");
+    let rest = &id[1..];
+    let (date, seq) = rest.split_once('.').expect("id must contain a dot");
+    assert_eq!(date.len(), 8, "date segment should be 8 chars: {date}");
+    assert!(date.chars().all(|c| c.is_ascii_digit()), "date must be digits: {date}");
+    assert_eq!(seq.len(), 4, "seq segment should be 4 chars: {seq}");
+    assert!(seq.chars().all(|c| c.is_ascii_digit()), "seq must be digits: {seq}");
+}
+
+#[test]
+fn subtask_display_duration_reports_none_when_idle() {
+    // 非 Running 且无历史时长时返回 None。
+    let subtask = super::SubTask::new("内容".to_string());
+    assert_eq!(subtask.status, super::SubTaskStatus::Pending);
+    assert_eq!(subtask.display_execution_duration_ms(1000), None);
+}
+
+#[test]
+fn subtask_mark_failed_without_start_keeps_duration_none() {
+    let mut subtask = super::SubTask::new("内容".to_string());
+    subtask.mark_failed();
+    assert_eq!(subtask.status, super::SubTaskStatus::Failed);
+    assert!(!subtask.completed);
+    assert_eq!(subtask.last_execution_duration_ms, None);
+}
+
+#[test]
+fn subtask_default_status_is_pending() {
+    assert_eq!(super::SubTaskStatus::default(), super::SubTaskStatus::Pending);
 }

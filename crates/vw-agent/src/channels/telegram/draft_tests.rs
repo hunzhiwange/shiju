@@ -1,4 +1,5 @@
 use super::TelegramChannel;
+use super::message_utils::TELEGRAM_MAX_MESSAGE_LENGTH;
 use crate::app::agent::channels::traits::SendMessage;
 use crate::app::agent::config::StreamMode;
 use axum::{
@@ -144,6 +145,27 @@ async fn send_draft_posts_initial_text_and_records_edit_time() {
 }
 
 #[tokio::test]
+async fn send_draft_uses_content_without_thread_and_allows_missing_message_id() {
+    let server = TestServer::spawn(vec![ResponseSpec::ok_json(r#"{"ok":true,"result":{}}"#)]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    let message_id = channel
+        .send_draft_impl(&SendMessage::new("draft text", "chat-1"))
+        .await
+        .expect("draft send");
+
+    assert_eq!(message_id, None);
+    assert!(channel.last_draft_edit.lock().contains_key("chat-1"));
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/bot123:SECRET/sendMessage");
+    assert_eq!(requests[0].body["chat_id"], "chat-1");
+    assert!(requests[0].body.get("message_thread_id").is_none());
+    assert_eq!(requests[0].body["text"], "draft text");
+}
+
+#[tokio::test]
 async fn send_draft_reports_sanitized_non_success_response() {
     let server = TestServer::spawn(vec![ResponseSpec::bad()]).await;
     let channel = streaming_channel(&server.base_url);
@@ -192,6 +214,38 @@ async fn update_draft_posts_edit_request_and_truncates_utf8_text() {
 }
 
 #[tokio::test]
+async fn update_draft_ignores_failed_edit_without_recording_edit_time() {
+    let server = TestServer::spawn(vec![ResponseSpec::bad()]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    channel.update_draft_impl("chat-1", "321", "hello").await.expect("update draft");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/bot123:SECRET/editMessageText");
+    assert_eq!(requests[0].body["chat_id"], "chat-1");
+    assert_eq!(requests[0].body["message_id"], 321);
+    assert_eq!(requests[0].body["text"], "hello");
+    assert!(!channel.last_draft_edit.lock().contains_key("chat-1"));
+}
+
+#[tokio::test]
+async fn finalize_draft_edits_html_successfully() {
+    let server = TestServer::spawn(vec![ResponseSpec::ok()]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    channel.finalize_draft_impl("chat-1", "55", "**done**").await.expect("finalize html");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/bot123:SECRET/editMessageText");
+    assert_eq!(requests[0].body["chat_id"], "chat-1");
+    assert_eq!(requests[0].body["message_id"], 55);
+    assert_eq!(requests[0].body["parse_mode"], "HTML");
+    assert_eq!(requests[0].body["text"], "<b>done</b>");
+}
+
+#[tokio::test]
 async fn finalize_draft_edits_html_then_plain_text_fallback() {
     let server = TestServer::spawn(vec![ResponseSpec::bad(), ResponseSpec::ok()]).await;
     let channel = streaming_channel(&server.base_url);
@@ -209,6 +263,28 @@ async fn finalize_draft_edits_html_then_plain_text_fallback() {
 }
 
 #[tokio::test]
+async fn finalize_draft_falls_back_to_send_message_when_edits_fail() {
+    let server =
+        TestServer::spawn(vec![ResponseSpec::bad(), ResponseSpec::bad(), ResponseSpec::ok()]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    channel
+        .finalize_draft_impl("chat-1:8", "55", "<tool_call>hidden</tool_call>visible")
+        .await
+        .expect("finalize send fallback");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[0].path, "/bot123:SECRET/editMessageText");
+    assert_eq!(requests[0].body["parse_mode"], "HTML");
+    assert_eq!(requests[1].path, "/bot123:SECRET/editMessageText");
+    assert!(requests[1].body.get("parse_mode").is_none());
+    assert_eq!(requests[2].path, "/bot123:SECRET/sendMessage");
+    assert_eq!(requests[2].body["message_thread_id"], "8");
+    assert_eq!(requests[2].body["text"], "visible");
+}
+
+#[tokio::test]
 async fn finalize_draft_with_invalid_id_sends_new_text_message() {
     let server = TestServer::spawn(vec![ResponseSpec::ok()]).await;
     let channel = streaming_channel(&server.base_url);
@@ -220,6 +296,26 @@ async fn finalize_draft_with_invalid_id_sends_new_text_message() {
     assert_eq!(requests[0].path, "/bot123:SECRET/sendMessage");
     assert_eq!(requests[0].body["chat_id"], "chat-1");
     assert_eq!(requests[0].body["message_thread_id"], "8");
+}
+
+#[tokio::test]
+async fn finalize_draft_with_long_text_deletes_draft_and_sends_chunks() {
+    let server =
+        TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = streaming_channel(&server.base_url);
+    let text = "a".repeat(TELEGRAM_MAX_MESSAGE_LENGTH + 1);
+
+    channel.finalize_draft_impl("chat-1:8", "55", &text).await.expect("finalize long text");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[0].path, "/bot123:SECRET/deleteMessage");
+    assert_eq!(requests[0].body["message_id"], 55);
+    assert_eq!(requests[1].path, "/bot123:SECRET/sendMessage");
+    assert_eq!(requests[1].body["message_thread_id"], "8");
+    assert!(requests[1].body["text"].as_str().expect("first chunk").contains("(continues...)"));
+    assert_eq!(requests[2].path, "/bot123:SECRET/sendMessage");
+    assert!(requests[2].body["text"].as_str().expect("second chunk").contains("(continued)"));
 }
 
 #[tokio::test]
@@ -238,6 +334,37 @@ async fn finalize_draft_with_attachments_deletes_draft_and_resends_parts() {
     assert_eq!(requests[0].path, "/bot123:SECRET/deleteMessage");
     assert_eq!(requests[1].path, "/bot123:SECRET/sendMessage");
     assert_eq!(requests[2].path, "/bot123:SECRET/sendPhoto");
+}
+
+#[tokio::test]
+async fn finalize_draft_with_only_attachment_skips_empty_text_message() {
+    let server = TestServer::spawn(vec![ResponseSpec::ok(), ResponseSpec::ok()]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    channel
+        .finalize_draft_impl("chat-1", "55", "[IMAGE:https://example.test/a.jpg]")
+        .await
+        .expect("finalize attachment");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].path, "/bot123:SECRET/deleteMessage");
+    assert_eq!(requests[1].path, "/bot123:SECRET/sendPhoto");
+}
+
+#[tokio::test]
+async fn finalize_draft_with_attachment_and_invalid_id_skips_delete() {
+    let server = TestServer::spawn(vec![ResponseSpec::ok()]).await;
+    let channel = streaming_channel(&server.base_url);
+
+    channel
+        .finalize_draft_impl("chat-1", "invalid", "[IMAGE:https://example.test/a.jpg]")
+        .await
+        .expect("finalize attachment with invalid draft id");
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path, "/bot123:SECRET/sendPhoto");
 }
 
 #[tokio::test]

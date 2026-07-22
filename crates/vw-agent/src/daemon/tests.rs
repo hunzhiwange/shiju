@@ -15,7 +15,14 @@ use super::*;
 mod tests {
     use super::*;
 
+    use crate::agent_scheduler::domain::{AgentWorkerStatus, WorkerName};
+    use crate::agent_scheduler::store::AgentSchedulerStore;
+    use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
+    use crate::app::agent::config::schema::{
+        DiscordConfig, MattermostConfig, SlackConfig, WebhookConfig,
+    };
     use tempfile::TempDir;
+    use vw_api_types::common::TimestampMs;
 
     /// 创建用于测试的配置对象
     ///
@@ -107,6 +114,29 @@ mod tests {
         assert_eq!(aborted, 0);
     }
 
+    #[tokio::test]
+    async fn graceful_shutdown_accepts_empty_handle_list() {
+        let aborted = shutdown_handles_with_grace(Vec::new(), Duration::from_millis(0)).await;
+
+        assert_eq!(aborted, 0);
+    }
+
+    #[tokio::test]
+    async fn graceful_shutdown_aborts_only_unfinished_handles() {
+        let finished = tokio::spawn(async {});
+        while !finished.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        let unfinished = tokio::spawn(async {
+            std::future::pending::<()>().await;
+        });
+
+        let aborted =
+            shutdown_handles_with_grace(vec![finished, unfinished], Duration::from_millis(0)).await;
+
+        assert_eq!(aborted, 1);
+    }
+
     /// 测试优雅关闭应在超时后中止卡住的句柄
     ///
     /// 验证 `shutdown_handles_with_grace` 函数在任务超时未完成时
@@ -195,6 +225,14 @@ mod tests {
     #[test]
     fn detects_no_supervised_channels() {
         let config = Config::default();
+        assert!(!has_supervised_channels(&config));
+    }
+
+    #[test]
+    fn configured_webhook_is_not_a_supervised_channel() {
+        let mut config = Config::default();
+        config.channels_config.webhook = Some(WebhookConfig { port: 8787, secret: None });
+
         assert!(!has_supervised_channels(&config));
     }
 
@@ -320,6 +358,13 @@ mod tests {
         assert!(tasks.is_empty());
     }
 
+    #[test]
+    fn heartbeat_tasks_are_empty_without_file_tasks_or_fallback() {
+        let tasks = heartbeat_tasks_for_tick(Vec::new(), None);
+
+        assert!(tasks.is_empty());
+    }
+
     /// 测试心跳投递目标在未配置时应返回 None
     ///
     /// 验证默认配置下 `heartbeat_delivery_target` 返回 `Ok(None)`
@@ -328,6 +373,24 @@ mod tests {
         let config = Config::default();
         let target = heartbeat_delivery_target(&config).unwrap();
         assert!(target.is_none());
+    }
+
+    #[test]
+    fn heartbeat_delivery_target_treats_whitespace_fields_as_unset() {
+        let mut config = Config::default();
+        config.heartbeat.target = Some("   ".into());
+        config.heartbeat.to = Some("\t".into());
+
+        assert!(heartbeat_delivery_target(&config).unwrap().is_none());
+
+        config.heartbeat.to = Some("recipient".into());
+        let err = heartbeat_delivery_target(&config).unwrap_err();
+        assert!(err.to_string().contains("heartbeat.target is required"));
+
+        config.heartbeat.target = Some("telegram".into());
+        config.heartbeat.to = Some("\n".into());
+        let err = heartbeat_delivery_target(&config).unwrap_err();
+        assert!(err.to_string().contains("heartbeat.to is required"));
     }
 
     /// 测试心跳投递目标在缺少 to 字段时应报错
@@ -384,6 +447,25 @@ mod tests {
         assert!(err.to_string().contains("channels_config.telegram is not configured"));
     }
 
+    #[test]
+    fn heartbeat_delivery_target_requires_each_supported_channel_configuration() {
+        for (channel, expected_field) in [
+            ("discord", "channels_config.discord"),
+            ("slack", "channels_config.slack"),
+            ("mattermost", "channels_config.mattermost"),
+        ] {
+            let mut config = Config::default();
+            config.heartbeat.target = Some(channel.into());
+            config.heartbeat.to = Some("recipient".into());
+
+            let err = heartbeat_delivery_target(&config).unwrap_err();
+            assert!(
+                err.to_string().contains(expected_field),
+                "{channel} should require {expected_field}"
+            );
+        }
+    }
+
     /// 测试心跳投递目标应接受有效的 Telegram 配置
     ///
     /// 验证正确配置 target、to 和对应通道配置时，
@@ -411,6 +493,44 @@ mod tests {
     }
 
     #[test]
+    fn heartbeat_delivery_target_accepts_other_supported_channels() {
+        let mut config = Config::default();
+        config.heartbeat.to = Some("recipient".into());
+        config.channels_config.discord = Some(DiscordConfig {
+            bot_token: "bot-token".into(),
+            guild_id: None,
+            allowed_users: Vec::new(),
+            listen_to_bots: false,
+            mention_only: false,
+            group_reply: None,
+        });
+        config.channels_config.slack = Some(SlackConfig {
+            bot_token: "bot-token".into(),
+            app_token: None,
+            channel_id: None,
+            allowed_users: Vec::new(),
+            group_reply: None,
+        });
+        config.channels_config.mattermost = Some(MattermostConfig {
+            url: "https://mattermost.example.test".into(),
+            bot_token: "bot-token".into(),
+            channel_id: None,
+            allowed_users: Vec::new(),
+            thread_replies: None,
+            mention_only: None,
+            group_reply: None,
+        });
+
+        for channel in ["discord", "slack", "mattermost"] {
+            config.heartbeat.target = Some(channel.into());
+            assert_eq!(
+                heartbeat_delivery_target(&config).unwrap(),
+                Some((channel.to_string(), "recipient".to_string()))
+            );
+        }
+    }
+
+    #[test]
     fn state_file_path_uses_current_directory_when_config_has_no_parent() {
         let mut config = Config::default();
         config.config_path = PathBuf::new();
@@ -425,6 +545,12 @@ mod tests {
         assert_eq!(gateway_base_url("::", 8080), "http://[::1]:8080");
         assert_eq!(gateway_base_url("localhost", 8080), "http://localhost:8080");
         assert_eq!(gateway_base_url("2001:db8::1", 8080), "http://[2001:db8::1]:8080");
+    }
+
+    #[test]
+    fn gateway_base_url_trims_hosts_and_preserves_bracketed_ipv6() {
+        assert_eq!(gateway_base_url("  localhost  ", 8080), "http://localhost:8080");
+        assert_eq!(gateway_base_url("[::1]", 8080), "http://[::1]:8080");
     }
 
     #[test]
@@ -443,6 +569,20 @@ mod tests {
 
         assert!(is_non_retryable_component_error("gateway", &err));
         assert!(!is_non_retryable_component_error("channels", &err));
+    }
+
+    #[test]
+    fn gateway_error_retryability_checks_error_kind_and_entire_chain() {
+        let retryable = anyhow::Error::new(std::io::Error::new(
+            ErrorKind::ConnectionRefused,
+            "connection refused",
+        ));
+        assert!(!is_non_retryable_component_error("gateway", &retryable));
+
+        let wrapped =
+            anyhow::Error::new(std::io::Error::new(ErrorKind::AddrInUse, "already listening"))
+                .context("gateway startup failed");
+        assert!(is_non_retryable_component_error("gateway", &wrapped));
     }
 
     #[tokio::test]
@@ -509,5 +649,76 @@ mod tests {
 
         let target = heartbeat_delivery_target(&config).unwrap();
         assert_eq!(target, Some(("telegram".to_string(), "123456".to_string())));
+    }
+
+    #[test]
+    fn daemon_starts_configured_matrix_worker_component() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let store = AgentSchedulerStore::new();
+        store
+            .upsert_worker_snapshot(
+                &config.workspace_dir,
+                matrix_worker_snapshot("matrix-dev", Some("Running")),
+            )
+            .unwrap();
+
+        let components = configured_matrix_worker_components(&config).unwrap();
+
+        assert_eq!(components.len(), 1);
+        assert_eq!(components[0].worker_id.as_str(), "matrix-dev");
+        assert_eq!(components[0].matrix_user_id, "@matrix-dev:example.test");
+        assert_eq!(components[0].room_id, "!matrix-room:example.test");
+    }
+
+    #[test]
+    fn matrix_worker_component_name_includes_worker_identifier() {
+        let component = ConfiguredMatrixWorkerComponent {
+            project_path: PathBuf::from("project"),
+            worker_id: WorkerName::new("matrix-dev").unwrap(),
+            matrix_user_id: "@matrix-dev:example.test".to_string(),
+            room_id: "!matrix-room:example.test".to_string(),
+        };
+
+        assert_eq!(matrix_worker_component_name(&component), "matrix-worker:matrix-dev");
+    }
+
+    #[test]
+    fn daemon_does_not_start_disabled_matrix_worker_component() {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp);
+        let store = AgentSchedulerStore::new();
+        store
+            .upsert_worker_snapshot(
+                &config.workspace_dir,
+                matrix_worker_snapshot("matrix-dev", Some("Stopped")),
+            )
+            .unwrap();
+
+        let components = configured_matrix_worker_components(&config).unwrap();
+
+        assert!(components.is_empty());
+    }
+
+    fn matrix_worker_snapshot(id: &str, desired_state: Option<&str>) -> NewAgentWorkerSnapshot {
+        NewAgentWorkerSnapshot {
+            id: WorkerName::new(id).unwrap(),
+            runtime: Some("matrix".to_string()),
+            deployment: None,
+            model: "auto".to_string(),
+            model_provider: None,
+            status: AgentWorkerStatus::Unavailable,
+            desired_state: desired_state.map(str::to_string),
+            team_id: None,
+            worker_role: Some("executor".to_string()),
+            matrix_user_id: Some(format!("@{id}:example.test")),
+            room_id: Some("!matrix-room:example.test".to_string()),
+            container_state: Some("stopped".to_string()),
+            idle_since_ms: None,
+            last_seen_at_ms: None,
+            last_heartbeat_at: None,
+            capabilities: vec![AgentCapabilityRecord::skill("scheduler")],
+            updated_at_ms: TimestampMs(1),
+        }
     }
 }

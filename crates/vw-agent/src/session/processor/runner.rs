@@ -5,7 +5,7 @@
 
 use super::artifacts;
 use super::helpers::{
-    allowed_tool_ids_for_request, is_acp_request, response_preview, tool_call_preview,
+    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -79,7 +79,9 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     let ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context);
     let mut tool_state = ToolSessionState::default();
-    let allowed_tools = allowed_tool_ids_for_request(req.model.as_deref(), &req.options);
+    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
+    let allowed_tools =
+        allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
 
     if utils::is_docs_request(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
@@ -161,6 +163,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             &system,
             req.model.clone(),
             &req.options,
+            &available_tool_specs,
             tools_for_step,
             &mut on_event,
             retry_budget,

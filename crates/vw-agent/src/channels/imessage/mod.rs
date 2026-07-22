@@ -42,7 +42,7 @@ use async_trait::async_trait;
 use directories::UserDirs;
 #[cfg(not(target_arch = "wasm32"))]
 use rusqlite::{Connection, OpenFlags};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
 /// iMessage 通道实现
@@ -255,6 +255,68 @@ fn is_valid_imessage_target(target: &str) -> bool {
     false
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn build_send_script(message: &SendMessage) -> anyhow::Result<String> {
+    if !is_valid_imessage_target(&message.recipient) {
+        anyhow::bail!(
+            "Invalid iMessage target: must be a phone number (+1234567890) or email (user@example.com)"
+        );
+    }
+
+    let escaped_msg = escape_applescript(&message.content);
+    let escaped_target = escape_applescript(&message.recipient);
+
+    Ok(format!(
+        r#"tell application "Messages"
+    set targetService to 1st account whose service type = iMessage
+    set targetBuddy to participant "{escaped_target}" of targetService
+    send "{escaped_msg}" to targetBuddy
+end tell"#
+    ))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn forward_imessage_messages(
+    channel: &IMessageChannel,
+    tx: &mpsc::Sender<ChannelMessage>,
+    last_rowid: &mut i64,
+    messages: Vec<(i64, String, String)>,
+) -> bool {
+    for (rowid, sender, text) in messages {
+        if rowid > *last_rowid {
+            *last_rowid = rowid;
+        }
+
+        if !channel.is_contact_allowed(&sender) {
+            continue;
+        }
+
+        if text.trim().is_empty() {
+            continue;
+        }
+
+        let reply_target = sender.clone();
+        let msg = ChannelMessage {
+            id: rowid.to_string(),
+            sender,
+            reply_target,
+            content: text,
+            channel: "imessage".to_string(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            thread_ts: None,
+        };
+
+        if tx.send(msg).await.is_err() {
+            return false;
+        }
+    }
+
+    true
+}
+
 /// 实现 Channel trait
 ///
 /// 为 IMessageChannel 提供标准的通道接口实现，包括消息发送、监听和健康检查功能。
@@ -323,26 +385,7 @@ impl Channel for IMessageChannel {
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        // 深度防御：在任何插值操作前验证目标地址格式
-        if !is_valid_imessage_target(&message.recipient) {
-            anyhow::bail!(
-                "Invalid iMessage target: must be a phone number (+1234567890) or email (user@example.com)"
-            );
-        }
-
-        // 安全措施：对消息内容和目标地址进行转义，防止 AppleScript 注入攻击
-        // 参考：CWE-78 (OS Command Injection)
-        let escaped_msg = escape_applescript(&message.content);
-        let escaped_target = escape_applescript(&message.recipient);
-
-        // 构造 AppleScript 脚本
-        let script = format!(
-            r#"tell application "Messages"
-    set targetService to 1st account whose service type = iMessage
-    set targetBuddy to participant "{escaped_target}" of targetService
-    send "{escaped_msg}" to targetBuddy
-end tell"#
-        );
+        let script = build_send_script(message)?;
 
         // 通过 osascript 执行 AppleScript
         let output =
@@ -410,44 +453,10 @@ end tell"#
     async fn listen(&self, tx: mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
         tracing::info!("iMessage channel listening (AppleScript bridge)...");
 
-        // 定位 Messages SQLite 数据库路径
-        // macOS 上 iMessage 数据库位于 ~/Library/Messages/chat.db
-        let db_path = UserDirs::new()
-            .map(|u| u.home_dir().join("Library/Messages/chat.db"))
-            .ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
-
-        // 验证数据库文件是否存在
-        if !db_path.exists() {
-            anyhow::bail!(
-                "Messages database not found at {}. Ensure Messages.app is set up and Full Disk Access is granted.",
-                db_path.display()
-            );
-        }
-
-        // 建立持久化只读数据库连接
-        // 使用 SQLITE_OPEN_NO_MUTEX 标志，因为连接仅在单个线程中使用
-        let path = db_path.to_path_buf();
-        let conn = tokio::task::spawn_blocking(move || -> anyhow::Result<Connection> {
-            Ok(Connection::open_with_flags(
-                &path,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-            )?)
-        })
-        .await??;
-
-        // 获取初始 ROWID，用于跟踪已处理的消息
-        // 只查询 is_from_me = 0 的消息（收到的消息，非发送的消息）
-        let (mut conn, initial_rowid) =
-            tokio::task::spawn_blocking(move || -> anyhow::Result<(Connection, i64)> {
-                let rowid = {
-                    let mut stmt =
-                        conn.prepare("SELECT MAX(ROWID) FROM message WHERE is_from_me = 0")?;
-                    let rowid: Option<i64> = stmt.query_row([], |row| row.get(0))?;
-                    rowid.unwrap_or(0)
-                };
-                Ok((conn, rowid))
-            })
-            .await??;
+        let db_path = imessage_database_path()?;
+        ensure_imessage_database_exists(&db_path)?;
+        let conn = open_imessage_connection(&db_path).await?;
+        let (mut conn, initial_rowid) = load_initial_rowid(conn).await?;
         let mut last_rowid = initial_rowid;
 
         // 主轮询循环
@@ -456,80 +465,14 @@ end tell"#
             tokio::time::sleep(tokio::time::Duration::from_secs(self.poll_interval_secs)).await;
 
             let since = last_rowid;
-            // 在阻塞线程中执行数据库查询
-            let (returned_conn, poll_result) = tokio::task::spawn_blocking(
-                move || -> (Connection, anyhow::Result<Vec<(i64, String, String)>>) {
-                    let result = (|| -> anyhow::Result<Vec<(i64, String, String)>> {
-                        // 查询新消息：ROWID 大于上次记录的消息
-                        // JOIN handle 表获取发送者信息
-                        // 使用参数化查询防止 SQL 注入
-                        let mut stmt = conn.prepare(
-                            "SELECT m.ROWID, h.id, m.text \
-                     FROM message m \
-                     JOIN handle h ON m.handle_id = h.ROWID \
-                     WHERE m.ROWID > ?1 \
-                     AND m.is_from_me = 0 \
-                     AND m.text IS NOT NULL \
-                     ORDER BY m.ROWID ASC \
-                     LIMIT 20",
-                        )?;
-                        let rows = stmt.query_map([since], |row| {
-                            Ok((
-                                row.get::<_, i64>(0)?,
-                                row.get::<_, String>(1)?,
-                                row.get::<_, String>(2)?,
-                            ))
-                        })?;
-                        let results = rows.collect::<Result<Vec<_>, _>>()?;
-                        Ok(results)
-                    })();
-
-                    // 返回连接和查询结果
-                    (conn, result)
-                },
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("iMessage poll worker join error: {e}"))?;
+            let (returned_conn, poll_result) = poll_imessage_connection(conn, since).await?;
             conn = returned_conn;
 
             // 处理查询结果
             match poll_result {
                 Ok(messages) => {
-                    for (rowid, sender, text) in messages {
-                        // 更新最后处理的 ROWID
-                        if rowid > last_rowid {
-                            last_rowid = rowid;
-                        }
-
-                        // 联系人过滤：跳过不在白名单中的发送者
-                        if !self.is_contact_allowed(&sender) {
-                            continue;
-                        }
-
-                        // 跳过空消息
-                        if text.trim().is_empty() {
-                            continue;
-                        }
-
-                        // 构造通道消息对象
-                        let msg = ChannelMessage {
-                            id: rowid.to_string(),
-                            sender: sender.clone(),
-                            reply_target: sender.clone(),
-                            content: text,
-                            channel: "imessage".to_string(),
-                            timestamp: std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs(),
-                            thread_ts: None,
-                        };
-
-                        // 发送消息到处理流程
-                        // 如果接收器已关闭，则退出监听循环
-                        if tx.send(msg).await.is_err() {
-                            return Ok(());
-                        }
+                    if !forward_imessage_messages(self, &tx, &mut last_rowid, messages).await {
+                        return Ok(());
                     }
                 }
                 Err(e) => {
@@ -582,6 +525,89 @@ end tell"#
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn imessage_database_path() -> anyhow::Result<PathBuf> {
+    UserDirs::new()
+        .map(|u| u.home_dir().join("Library/Messages/chat.db"))
+        .ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ensure_imessage_database_exists(db_path: &Path) -> anyhow::Result<()> {
+    if db_path.exists() {
+        return Ok(());
+    }
+
+    anyhow::bail!(
+        "Messages database not found at {}. Ensure Messages.app is set up and Full Disk Access is granted.",
+        db_path.display()
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn open_imessage_connection(db_path: &Path) -> anyhow::Result<Connection> {
+    let path = db_path.to_path_buf();
+    tokio::task::spawn_blocking(move || -> anyhow::Result<Connection> {
+        Ok(Connection::open_with_flags(
+            &path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?)
+    })
+    .await?
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn max_received_rowid(conn: &Connection) -> anyhow::Result<i64> {
+    let mut stmt = conn.prepare("SELECT MAX(ROWID) FROM message WHERE is_from_me = 0")?;
+    let rowid: Option<i64> = stmt.query_row([], |row| row.get(0))?;
+    Ok(rowid.unwrap_or(0))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn load_initial_rowid(conn: Connection) -> anyhow::Result<(Connection, i64)> {
+    tokio::task::spawn_blocking(move || -> anyhow::Result<(Connection, i64)> {
+        let rowid = max_received_rowid(&conn)?;
+        Ok((conn, rowid))
+    })
+    .await?
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn query_new_messages(
+    conn: &Connection,
+    since_rowid: i64,
+) -> anyhow::Result<Vec<(i64, String, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT m.ROWID, h.id, m.text \
+             FROM message m \
+             JOIN handle h ON m.handle_id = h.ROWID \
+             WHERE m.ROWID > ?1 \
+             AND m.is_from_me = 0 \
+             AND m.text IS NOT NULL \
+             ORDER BY m.ROWID ASC \
+             LIMIT 20",
+    )?;
+    let rows = stmt.query_map([since_rowid], |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn poll_imessage_connection(
+    conn: Connection,
+    since_rowid: i64,
+) -> anyhow::Result<(Connection, anyhow::Result<Vec<(i64, String, String)>>)> {
+    tokio::task::spawn_blocking(
+        move || -> (Connection, anyhow::Result<Vec<(i64, String, String)>>) {
+            let result = query_new_messages(&conn, since_rowid);
+            (conn, result)
+        },
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("iMessage poll worker join error: {e}"))
+}
+
 /// 获取消息表中的最大 ROWID
 ///
 /// 查询 Messages 数据库中收到的消息的最大 ROWID。
@@ -605,20 +631,9 @@ end tell"#
 /// 忽略自己发送的消息。
 #[cfg(not(target_arch = "wasm32"))]
 async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
-    let path = db_path.to_path_buf();
-    let result = tokio::task::spawn_blocking(move || -> anyhow::Result<i64> {
-        // 建立只读数据库连接
-        let conn = Connection::open_with_flags(
-            &path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
-        // 查询最大 ROWID
-        let mut stmt = conn.prepare("SELECT MAX(ROWID) FROM message WHERE is_from_me = 0")?;
-        let rowid: Option<i64> = stmt.query_row([], |row| row.get(0))?;
-        Ok(rowid.unwrap_or(0))
-    })
-    .await??;
-    Ok(result)
+    let conn = open_imessage_connection(db_path).await?;
+    let (_, rowid) = load_initial_rowid(conn).await?;
+    Ok(rowid)
 }
 
 /// 获取指定 ROWID 之后的新消息
@@ -658,35 +673,14 @@ async fn fetch_new_messages(
     db_path: &Path,
     since_rowid: i64,
 ) -> anyhow::Result<Vec<(i64, String, String)>> {
-    let path = db_path.to_path_buf();
-    let results =
-        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<(i64, String, String)>> {
-            // 建立只读数据库连接
-            let conn = Connection::open_with_flags(
-                &path,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-            )?;
-            // 准备查询语句：获取 ROWID 大于指定值的新消息
-            let mut stmt = conn.prepare(
-                "SELECT m.ROWID, h.id, m.text \
-             FROM message m \
-             JOIN handle h ON m.handle_id = h.ROWID \
-             WHERE m.ROWID > ?1 \
-             AND m.is_from_me = 0 \
-             AND m.text IS NOT NULL \
-             ORDER BY m.ROWID ASC \
-             LIMIT 20",
-            )?;
-            // 执行查询并映射结果
-            let rows = stmt.query_map([since_rowid], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
-            })?;
-            rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
-        })
-        .await??;
-    Ok(results)
+    let conn = open_imessage_connection(db_path).await?;
+    let (_, result) = poll_imessage_connection(conn, since_rowid).await?;
+    result
 }
 
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

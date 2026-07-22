@@ -8,12 +8,12 @@
 //! - 限制最大转录音频时长
 //!
 //! 该界面会生成对应的消息来更新应用程序状态，
-//! 最终配置将保存到 `~/.vibewindow/vibewindow.json` 的 `transcription` 字段中。
+//! 最终配置将通过 Gateway 保存到共享数据库的 `transcription` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -61,6 +61,28 @@ fn text_row<'a>(
     )
 }
 
+fn enabled_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::TranscriptionEnabledToggled(value))
+}
+
+fn api_url_changed(value: String) -> Message {
+    Message::Settings(message::SettingsMessage::TranscriptionApiUrlChanged(value))
+}
+
+fn model_changed(value: String) -> Message {
+    Message::Settings(message::SettingsMessage::TranscriptionModelChanged(value))
+}
+
+fn language_changed(value: String) -> Message {
+    Message::Settings(message::SettingsMessage::TranscriptionLanguageChanged(value))
+}
+
+fn max_duration_secs_changed(value: f32) -> Message {
+    Message::Settings(message::SettingsMessage::TranscriptionMaxDurationSecsChanged(
+        value.round() as u64
+    ))
+}
+
 /// 渲染转录配置设置界面
 ///
 /// 该函数创建一个包含多个配置选项的表单界面，用于管理语音/音频转录功能的设置。
@@ -93,9 +115,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "控制是否启用语音/音频转录。",
         checkbox(s.enabled)
             .label("启用语音转录（支持语音/音频消息的频道）")
-            .on_toggle(|v| {
-                Message::Settings(message::SettingsMessage::TranscriptionEnabledToggled(v))
-            })
+            .on_toggle(enabled_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -104,28 +124,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "转录服务的请求地址。",
         "https://api.groq.com/openai/v1/audio/transcriptions",
         &s.api_url,
-        |v| Message::Settings(message::SettingsMessage::TranscriptionApiUrlChanged(v)),
+        api_url_changed,
     );
 
     let model_row =
-        text_row("模型", "转录模型名称。", "whisper-large-v3-turbo", &s.model, |v| {
-            Message::Settings(message::SettingsMessage::TranscriptionModelChanged(v))
-        });
+        text_row("模型", "转录模型名称。", "whisper-large-v3-turbo", &s.model, model_changed);
 
     let language_row = text_row(
         "语言",
         "可选语言代码，留空时自动检测。",
         "可选，例如 en / zh（留空为自动）",
         &s.language,
-        |v| Message::Settings(message::SettingsMessage::TranscriptionLanguageChanged(v)),
+        language_changed,
     );
 
-    let max_duration_slider = slider(1.0..=3600.0, s.max_duration_secs as f32, |v: f32| {
-        Message::Settings(message::SettingsMessage::TranscriptionMaxDurationSecsChanged(
-            v.round() as u64
-        ))
-    })
-    .width(Length::Fixed(280.0));
+    let max_duration_slider =
+        slider(1.0..=3600.0, s.max_duration_secs as f32, max_duration_secs_changed)
+            .width(Length::Fixed(280.0));
 
     let max_duration_row = field_row(
         "最长音频",
@@ -135,7 +150,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro(
                 "转录配置",
@@ -163,10 +178,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

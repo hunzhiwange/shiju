@@ -447,3 +447,100 @@ async fn medium_risk_create_requires_approval() {
         .unwrap();
     assert!(approved.success, "{:?}", approved.error);
 }
+
+#[tokio::test]
+async fn execute_rejects_missing_action_and_required_ids() {
+    let (_tmp, config, security) = test_setup().await;
+    let tool = ScheduleTool::new(security, config);
+
+    let missing_action = tool.execute(json!({})).await.expect_err("action is required");
+    assert!(missing_action.to_string().contains("Missing 'action' parameter"));
+
+    for action in ["get", "cancel", "pause", "resume"] {
+        let error = tool
+            .execute(json!({ "action": action }))
+            .await
+            .expect_err("mutating and lookup actions require an id");
+        assert!(error.to_string().contains("Missing 'id' parameter"));
+    }
+}
+
+#[tokio::test]
+async fn create_like_actions_reject_invalid_parameter_combinations() {
+    let (_tmp, config, security) = test_setup().await;
+    let tool = ScheduleTool::new(security, config);
+
+    let cases = [
+        (json!({ "action": "create", "command": "echo missing schedule" }), "Exactly one of"),
+        (
+            json!({
+                "action": "create",
+                "expression": "* * * * *",
+                "delay": "1m",
+                "command": "echo conflicting"
+            }),
+            "Exactly one of",
+        ),
+        (
+            json!({ "action": "add", "delay": "1m", "command": "echo invalid add" }),
+            "requires 'expression'",
+        ),
+        (json!({ "action": "once", "command": "echo missing time" }), "requires exactly one"),
+        (
+            json!({
+                "action": "once",
+                "delay": "1m",
+                "run_at": "2030-01-01T00:00:00Z",
+                "command": "echo conflicting once"
+            }),
+            "either delay or run_at",
+        ),
+    ];
+
+    for (input, expected_error) in cases {
+        let result = tool.execute(input).await.expect("shape errors are tool results");
+        assert!(!result.success);
+        assert!(result.error.as_deref().is_some_and(|error| error.contains(expected_error)));
+    }
+}
+
+#[tokio::test]
+async fn create_rejects_blank_command_and_invalid_run_at() {
+    let (_tmp, config, security) = test_setup().await;
+    let tool = ScheduleTool::new(security, config);
+
+    let blank_command = tool
+        .execute(json!({
+            "action": "create",
+            "expression": "* * * * *",
+            "command": "   "
+        }))
+        .await
+        .expect_err("blank commands are invalid arguments");
+    assert!(blank_command.to_string().contains("Missing or empty 'command' parameter"));
+
+    let invalid_run_at = tool
+        .execute(json!({
+            "action": "create",
+            "run_at": "not-a-timestamp",
+            "command": "echo invalid timestamp"
+        }))
+        .await
+        .expect_err("invalid RFC3339 timestamps are rejected");
+    assert!(invalid_run_at.to_string().contains("Invalid run_at timestamp"));
+}
+
+#[tokio::test]
+async fn missing_jobs_return_failures_for_lookup_and_mutations() {
+    let (_tmp, config, security) = test_setup().await;
+    let tool = ScheduleTool::new(security, config);
+
+    for action in ["get", "cancel", "pause", "resume"] {
+        let result = tool
+            .execute(json!({ "action": action, "id": "missing-job" }))
+            .await
+            .expect("missing jobs are represented as tool failures");
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+}

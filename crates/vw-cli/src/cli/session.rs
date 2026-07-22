@@ -351,7 +351,7 @@ pub(crate) fn collect_git_workspace_status(worktree: &Path) -> GitWorkspaceStatu
     }
 }
 
-fn parse_git_status_porcelain_path(line: &str) -> Option<String> {
+pub(super) fn parse_git_status_porcelain_path(line: &str) -> Option<String> {
     let path = line.get(3..)?.trim();
     if path.is_empty() {
         return None;

@@ -10,10 +10,23 @@ fn binary_names_match_current_platform() {
     if cfg!(windows) {
         assert_eq!(super::opencode_binary_name(), "opencode.exe");
         assert_eq!(super::claude_binary_name(), "claude.exe");
+        assert_eq!(super::codex_binary_name(), "codex.exe");
     } else {
         assert_eq!(super::opencode_binary_name(), "opencode");
         assert_eq!(super::claude_binary_name(), "claude");
+        assert_eq!(super::codex_binary_name(), "codex");
     }
+}
+
+#[test]
+fn normalize_program_name_extracts_lowercase_file_name_and_rejects_empty_input() {
+    let mixed_case = std::path::Path::new("tools").join("CuStOm-BiN");
+
+    assert_eq!(
+        super::normalize_program_name(mixed_case.to_string_lossy().as_ref()).as_deref(),
+        Some("custom-bin")
+    );
+    assert_eq!(super::normalize_program_name(""), None);
 }
 
 #[test]
@@ -25,6 +38,14 @@ fn program_matchers_compare_file_name_case_insensitively() {
     assert!(super::is_claude_program(claude));
     assert!(!super::is_opencode_program("/tools/claude"));
     assert!(!super::is_claude_program("/tools/opencode"));
+}
+
+#[test]
+fn program_matchers_reject_empty_and_similarly_named_programs() {
+    assert!(!super::is_opencode_program(""));
+    assert!(!super::is_claude_program(""));
+    assert!(!super::is_opencode_program("opencode-backup"));
+    assert!(!super::is_claude_program("claude.old"));
 }
 
 #[test]
@@ -62,6 +83,28 @@ fn select_opencode_uses_home_install_before_path_lookup() {
     );
 
     assert_eq!(program, home_opencode.to_string_lossy().as_ref());
+    assert!(args.is_empty());
+}
+
+#[test]
+fn select_opencode_rejects_directory_candidates_before_resolved_path() {
+    let temp = tempfile::TempDir::new().expect("temp dir should be created");
+    let explicit_directory = temp.path().join("explicit-opencode");
+    std::fs::create_dir_all(&explicit_directory).expect("explicit directory should be created");
+    let home_candidate =
+        temp.path().join(".opencode").join("bin").join(super::opencode_binary_name());
+    std::fs::create_dir_all(&home_candidate).expect("home candidate directory should be created");
+    let resolved = std::path::PathBuf::from("resolved").join(super::opencode_binary_name());
+
+    let (program, args) = super::select_opencode_program_and_prefix_args(
+        Some(explicit_directory.to_string_lossy().to_string()),
+        Some(temp.path()),
+        Some(resolved.clone()),
+        Some("bunx".to_string()),
+        Some("npx".to_string()),
+    );
+
+    assert_eq!(program, resolved.to_string_lossy().as_ref());
     assert!(args.is_empty());
 }
 
@@ -135,6 +178,25 @@ fn select_claude_prefers_explicit_then_home_then_resolved_then_name() {
 }
 
 #[test]
+fn select_claude_rejects_directory_candidates_before_resolved_path() {
+    let temp = tempfile::TempDir::new().expect("temp dir should be created");
+    let explicit_directory = temp.path().join("explicit-claude");
+    std::fs::create_dir_all(&explicit_directory).expect("explicit directory should be created");
+    let home_candidate =
+        temp.path().join(".claude").join("local").join(super::claude_binary_name());
+    std::fs::create_dir_all(&home_candidate).expect("home candidate directory should be created");
+    let resolved = std::path::PathBuf::from("resolved").join(super::claude_binary_name());
+
+    let program = super::select_claude_program(
+        Some(explicit_directory.to_string_lossy().to_string()),
+        Some(temp.path()),
+        Some(resolved.clone()),
+    );
+
+    assert_eq!(program, resolved.to_string_lossy().as_ref());
+}
+
+#[test]
 fn executor_command_for_opencode_resolved_adds_model_and_prompt_conditionally() {
     let auto = super::ExecutorCommand::for_opencode_resolved(
         "/repo",
@@ -163,6 +225,31 @@ fn executor_command_for_opencode_resolved_adds_model_and_prompt_conditionally() 
 }
 
 #[test]
+fn executor_command_for_opencode_resolved_preserves_runner_prefix_order() {
+    let cmd = super::ExecutorCommand::for_opencode_resolved(
+        "/repo with spaces",
+        "gpt-x",
+        "do it",
+        "npx".to_string(),
+        vec!["-y".to_string(), "opencode-ai@latest".to_string()],
+    );
+
+    assert_eq!(
+        cmd.args,
+        vec![
+            "-y".to_string(),
+            "opencode-ai@latest".to_string(),
+            "run".to_string(),
+            "--dir=/repo with spaces".to_string(),
+            "--format=json".to_string(),
+            "--thinking".to_string(),
+            "--model=gpt-x".to_string(),
+            "do it".to_string(),
+        ]
+    );
+}
+
+#[test]
 fn executor_command_for_claude_uses_stdin_and_supported_aliases() {
     let cmd = super::ExecutorCommand::for_claude("/repo", "sonnet", "hello");
 
@@ -178,6 +265,15 @@ fn executor_command_for_claude_defaults_unknown_model_alias() {
     let cmd = super::ExecutorCommand::for_claude("/repo", "unknown-model", "hello");
 
     assert!(cmd.args.contains(&"--model=default".to_string()));
+}
+
+#[test]
+fn executor_command_for_claude_maps_auto_to_default_and_keeps_empty_stdin() {
+    let cmd = super::ExecutorCommand::for_claude("/repo", " AUTO ", "");
+
+    assert!(cmd.args.contains(&"--model".to_string()));
+    assert!(cmd.args.windows(2).any(|pair| pair[0] == "--model" && pair[1] == "default"));
+    assert_eq!(cmd.stdin_content.as_deref(), Some(""));
 }
 
 #[test]
@@ -252,4 +348,13 @@ fn spawn_executor_child_reports_missing_program() {
     };
 
     assert!(error.contains("Failed to spawn"));
+}
+
+#[test]
+fn user_home_dir_uses_home_then_userprofile_from_process_environment() {
+    let expected = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("USERPROFILE").map(std::path::PathBuf::from));
+
+    assert_eq!(super::user_home_dir(), expected);
 }

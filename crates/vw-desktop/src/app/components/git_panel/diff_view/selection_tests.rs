@@ -53,6 +53,27 @@ fn range_selection_checks_file_side_and_reversed_bounds() {
 }
 
 #[test]
+fn range_selection_supports_forward_and_single_line_bounds() {
+    let mut app = app();
+    app.git_diff_selected_range = Some(range("src/lib.rs", 4, 8, false));
+
+    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 4, false));
+    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 8, false));
+
+    app.git_diff_selected_range = Some(range("src/lib.rs", 6, 6, true));
+    assert!(super::selection::is_range_selected(&app, "src/lib.rs", 6, true));
+    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 5, true));
+    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 7, true));
+}
+
+#[test]
+fn range_selection_is_inactive_without_a_range() {
+    let app = app();
+
+    assert!(!super::selection::is_range_selected(&app, "src/lib.rs", 1, false));
+}
+
+#[test]
 fn drag_range_has_priority_over_selected_range_and_comment_draft() {
     let mut app = app();
     app.git_diff_selected_range = Some(range("selected.rs", 1, 3, false));
@@ -100,4 +121,11 @@ fn hover_matches_file_line_and_side_only() {
     assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 12, false));
     assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 11, true));
     assert!(!super::selection::is_diff_hovered(&app, "src/main.rs", 12, true));
+}
+
+#[test]
+fn hover_is_inactive_without_a_hovered_line() {
+    let app = app();
+
+    assert!(!super::selection::is_diff_hovered(&app, "src/lib.rs", 12, true));
 }

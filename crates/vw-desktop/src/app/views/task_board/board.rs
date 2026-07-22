@@ -21,9 +21,18 @@ use super::common::{
 use super::modals::build_context_menu;
 use super::panel::{
     build_bulk_agent_selector, build_bulk_executor_selector, build_bulk_model_selector,
+    build_bulk_reasoning_effort_selector, build_bulk_task_split_selector,
 };
 
 const CARD_CONTENT_PREVIEW_MAX_CHARS: usize = 180;
+const TASK_BOARD_SCROLLBAR_WIDTH: f32 = 4.0;
+const TASK_BOARD_SCROLLBAR_GUTTER: f32 = 7.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct KanbanColumn {
+    status: TaskStatus,
+    label: String,
+}
 
 fn now_ms() -> u64 {
     crate::app::time::now_ms()
@@ -73,11 +82,36 @@ fn task_status_tag_colors(status: TaskStatus) -> (Color, Color) {
         TaskStatus::PrSubmitted => (Color::from_rgb8(8, 145, 178), Color::from_rgb8(207, 250, 254)),
         TaskStatus::Completed => (Color::from_rgb8(22, 163, 74), Color::from_rgb8(220, 252, 231)),
         TaskStatus::Archived => (Color::from_rgb8(100, 116, 139), Color::from_rgb8(241, 245, 249)),
+        // 自定义状态暂用中性灰，待工作流迁移任务接管自定义列样式。
+        TaskStatus::Custom(_) => (Color::from_rgb8(107, 114, 128), Color::from_rgb8(243, 244, 246)),
     }
 }
 
 fn bulk_actions_supported(status: TaskStatus) -> bool {
     status != TaskStatus::Archived
+}
+
+fn sort_task_cards(tasks: &mut [&Task]) {
+    tasks.sort_by(|a, b| {
+        b.created_at_ms
+            .cmp(&a.created_at_ms)
+            .then_with(|| b.priority.cmp(&a.priority))
+            .then_with(|| a.order.cmp(&b.order))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+}
+
+fn kanban_columns(app: &App) -> Vec<KanbanColumn> {
+    let workflow_id = app.task_board_settings.workflow_id.as_str();
+    TaskStatus::all_for_workflow_id(workflow_id)
+        .into_iter()
+        .filter(|status| *status != TaskStatus::Archived)
+        .map(|status| KanbanColumn { status, label: status.label_for_workflow_id(workflow_id) })
+        .collect()
+}
+
+fn task_status_label(app: &App, status: TaskStatus) -> String {
+    status.label_for_workflow_id(&app.task_board_settings.workflow_id)
 }
 
 /// 构建对应界面片段。
@@ -94,11 +128,8 @@ pub fn build_kanban_board<'a>(app: &'a App) -> Element<'a, Message> {
     let now_ms = now_ms();
     let mut columns_row = row![].spacing(12).width(Length::Fill).height(Length::Fill);
 
-    for status in TaskStatus::all() {
-        if status == TaskStatus::Archived {
-            continue;
-        }
-        let col = build_status_column(app, status, now_ms);
+    for column in kanban_columns(app) {
+        let col = build_status_column(app, column.status, now_ms);
         columns_row = columns_row.push(col);
     }
 
@@ -117,7 +148,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         .iter()
         .filter(|t| t.status == status && !t.deleted && !t.archived)
         .collect();
-    tasks.sort_by(|a, b| a.order.cmp(&b.order).then_with(|| a.created_at_ms.cmp(&b.created_at_ms)));
+    sort_task_cards(&mut tasks);
 
     let count = tasks.len();
     let selected_count =
@@ -165,7 +196,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
     };
 
     let header_top = row![
-        text(status.label())
+        text(task_status_label(app, status))
             .size(13)
             .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
         container(text(count.to_string()).size(11)).padding([2, 6]).style(move |theme: &Theme| {
@@ -283,6 +314,38 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         .spacing(6)
         .width(Length::Fill);
 
+        let reasoning_effort_rows = column![
+            build_bulk_reasoning_effort_selector(app),
+            row![
+                button(text("应用").size(10)).padding([5, 8]).style(button_style_success).on_press(
+                    Message::TaskBoard(TaskBoardMessage::BulkSetReasoningEffortInStatus {
+                        status,
+                        reasoning_effort: app.task_board_bulk_reasoning_effort,
+                    })
+                ),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center)
+        ]
+        .spacing(6)
+        .width(Length::Fill);
+
+        let task_split_rows = column![
+            build_bulk_task_split_selector(app),
+            row![
+                button(text("应用").size(10)).padding([5, 8]).style(button_style_success).on_press(
+                    Message::TaskBoard(TaskBoardMessage::BulkSetTaskSplitModeInStatus {
+                        status,
+                        task_split_mode: app.task_board_bulk_task_split_mode,
+                    })
+                ),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center)
+        ]
+        .spacing(6)
+        .width(Length::Fill);
+
         header = header
             .push(Space::new().height(8.0))
             .push(text(format!("已选 {} 项", selected_count)).size(10).style(|theme: &Theme| {
@@ -306,7 +369,31 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
             .push(text("批量 ACP 智能体").size(10))
             .push(Space::new().height(4.0))
             .push(executor_rows)
+            .push(Space::new().height(6.0))
+            .push(text("批量推理强度").size(10))
+            .push(Space::new().height(4.0))
+            .push(reasoning_effort_rows)
+            .push(Space::new().height(6.0))
+            .push(text("批量任务拆分").size(10))
+            .push(Space::new().height(4.0))
+            .push(task_split_rows)
             .push(Space::new().height(6.0));
+
+        if status == TaskStatus::PrSubmitted {
+            let merge_row = row![
+                button(text("批量合并").size(10))
+                    .padding([5, 8])
+                    .style(button_style_success)
+                    .on_press(Message::TaskBoard(TaskBoardMessage::BulkMergeTasksInStatus(status))),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center);
+            header = header
+                .push(text("手动合并队列").size(10))
+                .push(Space::new().height(4.0))
+                .push(merge_row)
+                .push(Space::new().height(6.0));
+        }
 
         let action_row = row![
             button(text("批量归档").size(10))
@@ -322,7 +409,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         .align_y(Alignment::Center);
         header = header.push(Space::new().height(6.0)).push(action_row);
 
-        let move_targets = TaskStatus::all()
+        let move_targets = TaskStatus::all_for_workflow_id(&app.task_board_settings.workflow_id)
             .into_iter()
             .filter(|candidate| *candidate != status && *candidate != TaskStatus::Archived)
             .collect::<Vec<_>>();
@@ -331,7 +418,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
             let mut move_row = row![].spacing(6).width(Length::Fill);
             for target in chunk {
                 move_row = move_row.push(
-                    button(text(format!("移到{}", target.label())).size(10))
+                    button(text(format!("移到{}", task_status_label(app, *target))).size(10))
                         .padding([4, 6])
                         .style(button_style_secondary)
                         .on_press(Message::TaskBoard(TaskBoardMessage::BulkMoveTasksInStatus {
@@ -387,7 +474,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
 
     let right_inset =
         if app.task_board_column_has_vertical_scrollbar.get(&status).copied().unwrap_or(false) {
-            6.0
+            TASK_BOARD_SCROLLBAR_GUTTER
         } else {
             0.0
         };
@@ -430,7 +517,9 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
     let col_container = container(
         scrollable(content)
             .direction(iced::widget::scrollable::Direction::Vertical(
-                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+                iced::widget::scrollable::Scrollbar::new()
+                    .width(TASK_BOARD_SCROLLBAR_WIDTH)
+                    .scroller_width(TASK_BOARD_SCROLLBAR_WIDTH),
             ))
             .on_scroll(move |viewport| {
                 Message::TaskBoard(TaskBoardMessage::ColumnScrollChanged {
@@ -512,9 +601,9 @@ fn build_task_card<'a>(
     let content = task_card_preview(task);
     let (status_color, status_bg_color) = task_status_tag_colors(task.status);
     let status_text = if task.status == TaskStatus::Running {
-        format!("{} {}", task.status.label(), running_dots(now_ms))
+        format!("{} {}", task_status_label(app, task.status), running_dots(now_ms))
     } else {
-        task.status.label().to_string()
+        task_status_label(app, task.status)
     };
     let status_badge =
         container(text(status_text).size(9)).padding([1, 6]).style(move |_theme: &Theme| {

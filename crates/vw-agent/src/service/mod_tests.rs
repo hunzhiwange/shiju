@@ -1,4 +1,5 @@
-use super::{InitSystem, ServiceCommands};
+use super::{InitSystem, ServiceCommands, internal_command_delay};
+use std::time::Duration;
 
 #[test]
 fn init_system_from_str_accepts_supported_values_case_insensitively() {
@@ -63,4 +64,17 @@ fn service_commands_clone_and_debug_include_variant_name() {
 
     assert_eq!(cloned, ServiceCommands::Restart);
     assert_eq!(format!("{:?}", cloned), "Restart");
+}
+
+#[test]
+fn internal_command_delay_accepts_trimmed_values_within_safe_range() {
+    assert_eq!(internal_command_delay(Some(" 1 ")), Some(Duration::from_millis(1)));
+    assert_eq!(internal_command_delay(Some("10000")), Some(Duration::from_millis(10_000)));
+}
+
+#[test]
+fn internal_command_delay_rejects_missing_invalid_zero_and_excessive_values() {
+    for raw in [None, Some(""), Some("abc"), Some("-1"), Some("0"), Some("10001")] {
+        assert_eq!(internal_command_delay(raw), None, "raw delay: {raw:?}");
+    }
 }

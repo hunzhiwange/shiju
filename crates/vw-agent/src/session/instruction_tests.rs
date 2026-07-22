@@ -245,6 +245,44 @@ async fn system_paths_selects_first_project_instruction_family() {
 }
 
 #[tokio::test]
+async fn system_paths_falls_back_to_context_when_higher_priority_project_files_are_missing() {
+    let _guard = ENV_LOCK.lock().await;
+    let project = tempfile::tempdir().expect("project dir");
+    let config_dir = tempfile::tempdir().expect("config dir");
+    let context = project.path().join("CONTEXT.md");
+    std::fs::write(&context, "root context").expect("write context");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+
+    let paths = instance::provide(project.path(), None, move || {
+        Box::pin(async move { system_paths().await })
+    })
+    .await
+    .expect("project instance should provide");
+
+    assert!(paths.contains(&normalize_str(context)));
+}
+
+#[tokio::test]
+async fn system_paths_ignores_project_files_when_project_config_is_disabled() {
+    let _guard = ENV_LOCK.lock().await;
+    let project = tempfile::tempdir().expect("project dir");
+    let config_dir = tempfile::tempdir().expect("config dir");
+    let project_agents = project.path().join("AGENTS.md");
+    std::fs::write(&project_agents, "project agents").expect("write project agents");
+    let _disable = EnvGuard::set("VIBEWINDOW_DISABLE_PROJECT_CONFIG", "1");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+
+    let paths = instance::provide(project.path(), None, move || {
+        Box::pin(async move { system_paths().await })
+    })
+    .await
+    .expect("project instance should provide");
+
+    assert!(!paths.contains(&normalize_str(project_agents)));
+}
+
+#[tokio::test]
 async fn system_reads_first_existing_global_instruction_and_skips_empty_files() {
     let _guard = ENV_LOCK.lock().await;
     let config_dir = tempfile::tempdir().expect("config dir");
@@ -266,12 +304,28 @@ async fn system_reads_first_existing_global_instruction_and_skips_empty_files() 
 }
 
 #[tokio::test]
+async fn system_skips_global_candidate_that_cannot_be_read_as_a_file() {
+    let _guard = ENV_LOCK.lock().await;
+    let config_dir = tempfile::tempdir().expect("config dir");
+    std::fs::create_dir(config_dir.path().join("AGENTS.md")).expect("create agents directory");
+    let _disable = EnvGuard::set("VIBEWINDOW_DISABLE_PROJECT_CONFIG", "1");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+
+    assert!(system().await.is_empty());
+}
+
+#[tokio::test]
 async fn fetch_url_reads_successful_response_and_returns_empty_for_http_errors() {
     let ok_url = serve_once("200 OK", "remote instructions");
     let missing_url = serve_once("404 Not Found", "nope");
 
     assert_eq!(fetch_url(&ok_url).await, "remote instructions");
     assert_eq!(fetch_url(&missing_url).await, "");
+}
+
+#[tokio::test]
+async fn fetch_url_returns_empty_for_invalid_url() {
+    assert_eq!(fetch_url("not a valid url").await, "");
 }
 
 #[test]
@@ -290,6 +344,21 @@ fn loaded_collects_uncompacted_read_and_file_read_metadata() {
     assert_eq!(paths, HashSet::from(["/a".to_string(), "/b".to_string(), "/c".to_string()]));
 }
 
+#[test]
+fn loaded_ignores_non_array_metadata_and_deduplicates_paths() {
+    let messages = vec![with_parts(vec![
+        completed_tool_part("not-array", "read", Some(json!("/ignored")), None),
+        completed_tool_part(
+            "duplicates",
+            "file_read",
+            Some(json!(["/same", "/same", null, false])),
+            None,
+        ),
+    ])];
+
+    assert_eq!(loaded(&messages), HashSet::from(["/same".to_string()]));
+}
+
 #[tokio::test]
 async fn find_prefers_agents_then_claude_then_context() {
     let dir = tempfile::tempdir().expect("instruction dir");
@@ -304,6 +373,84 @@ async fn find_prefers_agents_then_claude_then_context() {
     std::fs::write(&agents, "agents").expect("write agents");
     assert_eq!(find(&path_string(dir.path())).await, Some(normalize_str(&agents)));
     assert_eq!(find(&path_string(dir.path().join("missing"))).await, None);
+}
+
+#[tokio::test]
+async fn find_returns_context_when_it_is_the_only_candidate() {
+    let dir = tempfile::tempdir().expect("instruction dir");
+    let context = dir.path().join("CONTEXT.md");
+    std::fs::write(&context, "context").expect("write context");
+
+    assert_eq!(find(&path_string(dir.path())).await, Some(normalize_str(context)));
+}
+
+#[tokio::test]
+async fn resolve_rejects_target_outside_project_root() {
+    let _guard = ENV_LOCK.lock().await;
+    let project = tempfile::tempdir().expect("project dir");
+    let external = tempfile::tempdir().expect("external dir");
+    let config_dir = tempfile::tempdir().expect("config dir");
+    let external_agents = external.path().join("AGENTS.md");
+    let target = external.path().join("main.rs");
+    std::fs::write(&external_agents, "external instructions").expect("write external agents");
+    std::fs::write(&target, "fn main() {}").expect("write external target");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+    let message_id = unique_id("outside-root");
+
+    let resolved = instance::provide(project.path(), None, move || {
+        let target = path_string(target);
+        Box::pin(async move { resolve(&[], &target, &message_id).await })
+    })
+    .await
+    .expect("project instance should provide");
+
+    assert!(resolved.is_empty());
+}
+
+#[tokio::test]
+async fn resolve_rejects_empty_target_without_claiming_instructions() {
+    let _guard = ENV_LOCK.lock().await;
+    let config_dir = tempfile::tempdir().expect("config dir");
+    let _disable = EnvGuard::set("VIBEWINDOW_DISABLE_PROJECT_CONFIG", "1");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+    let message_id = unique_id("empty-target");
+
+    let resolved = resolve(&[], "", &message_id).await;
+
+    assert!(resolved.is_empty());
+    clear(&message_id).await;
+}
+
+#[tokio::test]
+async fn resolve_claims_unreadable_candidate_without_returning_content() {
+    let _guard = ENV_LOCK.lock().await;
+    let project = tempfile::tempdir().expect("project dir");
+    let config_dir = tempfile::tempdir().expect("config dir");
+    let leaf = project.path().join("nested");
+    std::fs::create_dir_all(leaf.join("AGENTS.md")).expect("create unreadable candidate");
+    let target = leaf.join("main.rs");
+    std::fs::write(&target, "fn main() {}").expect("write target");
+    let found = normalize_str(leaf.join("AGENTS.md"));
+    let message_id = unique_id("unreadable-resolve");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
+
+    let (resolved, claimed) = instance::provide(project.path(), None, move || {
+        let target = path_string(target);
+        let message_id = message_id.clone();
+        Box::pin(async move {
+            let resolved = resolve(&[], &target, &message_id).await;
+            let claimed = is_claimed(&message_id, &found).await;
+            clear(&message_id).await;
+            (resolved, claimed)
+        })
+    })
+    .await
+    .expect("project instance should provide");
+
+    assert!(resolved.is_empty());
+    assert!(claimed);
 }
 
 #[tokio::test]

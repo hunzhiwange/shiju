@@ -31,3 +31,19 @@ mod query_and_utils;
 mod retention;
 #[path = "tests/trigger_matching.rs"]
 mod trigger_matching;
+
+#[test]
+fn reload_replaces_preloaded_sops_with_workspace_contents() {
+    let mut engine = fixtures::engine_with_sops(vec![fixtures::test_sop(
+        "preloaded",
+        SopExecutionMode::Auto,
+        SopPriority::Normal,
+    )]);
+    let workspace = tempfile::tempdir().unwrap();
+
+    assert_eq!(engine.sops().len(), 1);
+    engine.reload(workspace.path());
+
+    assert!(engine.sops().is_empty());
+    assert!(engine.active_runs().is_empty());
+}

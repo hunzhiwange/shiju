@@ -29,7 +29,8 @@ pub(super) fn handle_close_input_context_menu(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_copy_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_copy_input_selection(app: &mut App) -> Task<Message> {
-    let selected = app.current_session_runtime().input_editor.selection().unwrap_or_default();
+    let selected =
+        app.current_session_runtime_mut().input_editor.selection().unwrap_or_default();
     close_input_context_menu(app);
     if selected.is_empty() { Task::none() } else { Task::done(Message::CopyCode(selected)) }
 }
@@ -37,7 +38,8 @@ pub(super) fn handle_copy_input_selection(app: &mut App) -> Task<Message> {
 /// 模块内可见函数，执行 handle_cut_input_selection 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_cut_input_selection(app: &mut App) -> Task<Message> {
-    let selected = app.current_session_runtime().input_editor.selection().unwrap_or_default();
+    let selected =
+        app.current_session_runtime_mut().input_editor.selection().unwrap_or_default();
     close_input_context_menu(app);
 
     if selected.is_empty() {

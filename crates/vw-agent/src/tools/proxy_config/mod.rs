@@ -4,9 +4,9 @@
 
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::config::{
-    Config, ProxyConfig, ProxyScope, apply_proxy_to_process_env, clear_proxy_env,
-    load_from_path_without_env_blocking, runtime_proxy_config, save_config,
-    set_runtime_proxy_config, validate_proxy_config,
+    self, Config, ProxyConfig, ProxyScope, apply_proxy_to_process_env, clear_proxy_env,
+    get_project_without_env_blocking, runtime_proxy_config, set_runtime_proxy_config,
+    validate_proxy_config,
 };
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::util::MaybeSet;
@@ -67,9 +67,9 @@ impl ProxyConfigTool {
         Self { config, security }
     }
 
-    /// 从配置文件加载配置（不包含环境变量）
+    /// 从数据库基础配置与项目覆盖加载配置（不包含环境变量）
     ///
-    /// 读取配置文件并解析为 Config 对象，保留配置文件路径和工作目录信息
+    /// 读取本地租户基础配置并合并项目覆盖。
     ///
     /// # 返回值
     ///
@@ -78,14 +78,11 @@ impl ProxyConfigTool {
     ///
     /// # 错误
     ///
-    /// - 配置文件读取失败（权限、不存在等）
-    /// - TOML 格式解析失败
+    /// - 共享数据库读取失败
+    /// - 项目覆盖解析或校验失败
     fn load_config_without_env(&self) -> anyhow::Result<Config> {
-        load_from_path_without_env_blocking(
-            &self.config.config_path,
-            self.config.workspace_dir.clone(),
-        )
-        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        get_project_without_env_blocking(&self.config.workspace_dir)
+            .map_err(|error| anyhow::anyhow!(error.to_string()))
     }
 
     /// 检查写操作权限
@@ -374,6 +371,7 @@ impl ProxyConfigTool {
     /// - 如果从 Environment 切换到其他 scope，会自动清除环境变量
     async fn handle_set(&self, args: &Value) -> anyhow::Result<ToolResult> {
         let mut cfg = self.load_config_without_env()?;
+        let before = cfg.clone();
         let previous_scope = cfg.proxy.scope;
         let mut proxy = cfg.proxy.clone();
         let mut touched_proxy_url = false;
@@ -457,7 +455,7 @@ impl ProxyConfigTool {
 
         // 保存到配置文件
         cfg.proxy = proxy.clone();
-        save_config(&cfg).await?;
+        config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
         // 更新运行时配置
         set_runtime_proxy_config(proxy.clone());
 
@@ -499,10 +497,11 @@ impl ProxyConfigTool {
     /// - 可通过 clear_env 参数覆盖默认行为
     async fn handle_disable(&self, args: &Value) -> anyhow::Result<ToolResult> {
         let mut cfg = self.load_config_without_env()?;
+        let before = cfg.clone();
         // 默认行为：如果当前 scope 为 Environment，则清除环境变量
         let clear_env_default = cfg.proxy.scope == ProxyScope::Environment;
         cfg.proxy.enabled = false;
-        save_config(&cfg).await?;
+        config::update_project_from_configs(&self.config.workspace_dir, &before, &cfg).await?;
 
         // 更新运行时配置
         set_runtime_proxy_config(cfg.proxy.clone());

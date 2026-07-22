@@ -359,3 +359,7 @@ pub fn tool_config_view<'a>(
 #[cfg(test)]
 #[path = "tests/config_view.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "config_view_tests.rs"]
+mod coverage_tests;

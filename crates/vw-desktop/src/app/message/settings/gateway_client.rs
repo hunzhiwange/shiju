@@ -4,6 +4,7 @@ use crate::app::state::GatewayClientServerDraft;
 use crate::app::{App, Message, update_gateway_client_config};
 use iced::Task;
 use vw_config_types::ui::GatewayClientSystemSettingsConfig;
+use vw_gateway_client::vw_api_types::id::TenantScope;
 
 use super::messages::{GatewayClientMessage, SettingsMessage};
 
@@ -28,19 +29,25 @@ fn selected_index(app: &App) -> Option<usize> {
         .position(|server| server.id == app.gateway_client_settings.selected_server_id)
 }
 
-fn sync_selected_server_from_inputs(app: &mut App) {
+fn sync_selected_server_from_inputs(app: &mut App) -> Result<(), String> {
     let Some(index) = selected_index(app) else {
-        return;
+        return Ok(());
     };
     let settings = &app.gateway_client_settings;
+    let platform_id = settings.platform_id_input.trim();
+    let company_id = settings.company_id_input.trim();
+    TenantScope::new(platform_id, company_id).map_err(|err| format!("租户配置无效：{err}"))?;
     let draft = GatewayClientServerDraft {
         id: settings.selected_server_id.clone(),
         name: normalize_name(&settings.name_input, index),
         host: normalize_host(&settings.host_input),
         port: settings.port.clamp(1, u16::MAX),
+        platform_id: platform_id.to_string(),
+        company_id: company_id.to_string(),
         skey: settings.skey_input.trim().to_string(),
     };
     app.gateway_client_settings.servers[index] = draft;
+    Ok(())
 }
 
 fn load_selected_server_into_inputs(app: &mut App) {
@@ -51,6 +58,8 @@ fn load_selected_server_into_inputs(app: &mut App) {
     app.gateway_client_settings.name_input = draft.name;
     app.gateway_client_settings.host_input = normalize_host(&draft.host);
     app.gateway_client_settings.port = draft.port.clamp(1, u16::MAX);
+    app.gateway_client_settings.platform_id_input = draft.platform_id;
+    app.gateway_client_settings.company_id_input = draft.company_id;
     app.gateway_client_settings.skey_input = draft.skey;
 }
 
@@ -69,8 +78,8 @@ fn next_server_id(config: &GatewayClientSystemSettingsConfig) -> String {
     "gateway-new".to_string()
 }
 
-fn persist_gateway_client_settings(app: &mut App) {
-    sync_selected_server_from_inputs(app);
+fn persist_gateway_client_settings(app: &mut App) -> Result<(), String> {
+    sync_selected_server_from_inputs(app)?;
     let servers = app
         .gateway_client_settings
         .servers
@@ -82,6 +91,12 @@ fn persist_gateway_client_settings(app: &mut App) {
     update_gateway_client_config(|cfg| {
         cfg.set_servers(servers, active_server_id);
     });
+    Ok(())
+}
+
+fn tenant_validation_failure(app: &mut App, error: String) -> Task<Message> {
+    app.gateway_client_settings.save_error = Some(error.clone());
+    app.show_error_toast(error)
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -99,18 +114,24 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             | GatewayClientMessage::RemoveServerConfirmed(_)
             | GatewayClientMessage::HostChanged(_)
             | GatewayClientMessage::PortChanged(_)
+            | GatewayClientMessage::PlatformIdChanged(_)
+            | GatewayClientMessage::CompanyIdChanged(_)
     );
 
     match message {
         GatewayClientMessage::SelectServer(server_id) => {
-            sync_selected_server_from_inputs(app);
+            if let Err(error) = sync_selected_server_from_inputs(app) {
+                return tenant_validation_failure(app, error);
+            }
             if app.gateway_client_settings.servers.iter().any(|server| server.id == server_id) {
                 app.gateway_client_settings.selected_server_id = server_id;
                 load_selected_server_into_inputs(app);
             }
         }
         GatewayClientMessage::AddServer => {
-            sync_selected_server_from_inputs(app);
+            if let Err(error) = sync_selected_server_from_inputs(app) {
+                return tenant_validation_failure(app, error);
+            }
             let id = {
                 let mut cfg = GatewayClientSystemSettingsConfig::default();
                 cfg.set_servers(
@@ -129,6 +150,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 name: format!("网关 {}", index + 1),
                 host: "127.0.0.1".to_string(),
                 port: 42617,
+                platform_id: "10000".to_string(),
+                company_id: "100000000".to_string(),
                 skey: String::new(),
             };
             app.gateway_client_settings.servers.push(draft);
@@ -180,6 +203,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         GatewayClientMessage::PortChanged(value) => {
             app.gateway_client_settings.port = value.clamp(1, u16::MAX);
         }
+        GatewayClientMessage::PlatformIdChanged(value) => {
+            app.gateway_client_settings.platform_id_input = value;
+        }
+        GatewayClientMessage::CompanyIdChanged(value) => {
+            app.gateway_client_settings.company_id_input = value;
+        }
         GatewayClientMessage::SkeyChanged(value) => app.gateway_client_settings.skey_input = value,
         GatewayClientMessage::HelpOpen => {
             app.gateway_client_settings.show_help_modal = true;
@@ -191,7 +220,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
     }
 
-    persist_gateway_client_settings(app);
+    if let Err(error) = persist_gateway_client_settings(app) {
+        return tenant_validation_failure(app, error);
+    }
     load_selected_server_into_inputs(app);
     app.gateway_client_settings.host_input =
         normalize_host(&app.gateway_client_settings.host_input);

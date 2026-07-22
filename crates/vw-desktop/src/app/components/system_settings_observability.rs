@@ -1,8 +1,8 @@
 //! 可观测性配置设置界面组件
 //!
 //! 本模块提供可观测性（Observability）配置的可视化设置界面，用于配置
-//! VibeWindow 运行时的观测后端和追踪存储行为。配置将保存到
-//! `~/.vibewindow/vibewindow.json` 文件的 `observability` 字段。
+//! VibeWindow 运行时的观测后端和追踪存储行为。配置通过 Gateway 保存到
+//! 共享数据库的 `observability` 字段。
 //!
 //! # 主要功能
 //!
@@ -22,9 +22,9 @@
 //! - `runtime_trace_max_entries`：rolling 模式下保留的最大条目数
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_divider, settings_error_banner, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_divider, settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_section_card, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, slider, text, text_input};
@@ -195,7 +195,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro(
                 "可观测性配置",
@@ -230,10 +230,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

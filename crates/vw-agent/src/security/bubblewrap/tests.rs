@@ -61,6 +61,14 @@ mod tests {
         assert_eq!(sandbox.description(), "User namespace sandbox (requires bwrap)");
     }
 
+    #[test]
+    fn bubblewrap_default_constructs_named_backend() {
+        let sandbox = BubblewrapSandbox::default();
+
+        assert_eq!(sandbox.name(), "bubblewrap");
+        assert_eq!(sandbox.description(), "User namespace sandbox (requires bwrap)");
+    }
+
     // ── §1.1 沙箱隔离标志测试 ──────────────────────
 
     /// 测试命令包装是否包含必要的隔离标志

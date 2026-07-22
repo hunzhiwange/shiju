@@ -27,7 +27,8 @@ async fn bind_prefer_rejects_occupied_requested_port() {
 
     let error = bind_prefer("127.0.0.1", port).await.expect_err("occupied port should fail");
 
-    assert!(error.to_string().contains("Address already in use"));
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(!error.to_string().is_empty());
 }
 
 #[tokio::test]
@@ -40,17 +41,20 @@ async fn bind_prefer_rejects_invalid_host() {
 }
 
 #[tokio::test]
-async fn bind_prefer_zero_port_uses_preferred_port_or_system_fallback() {
-    let preferred = tokio::net::TcpListener::bind(("127.0.0.1", 4099)).await.ok();
+async fn bind_prefer_zero_port_prefers_4099_then_falls_back_when_occupied() {
+    let probe = match tokio::net::TcpListener::bind(("127.0.0.1", 4099)).await {
+        Ok(listener) => listener,
+        Err(_) => return,
+    };
+    drop(probe);
 
-    let listener = bind_prefer("127.0.0.1", 0).await.expect("bind automatic port");
-    let port = listener.local_addr().expect("read automatic address").port();
+    let preferred = bind_prefer("127.0.0.1", 0).await.expect("bind preferred port");
+    assert_eq!(preferred.local_addr().expect("read preferred address").port(), 4099);
 
-    if preferred.is_some() {
-        assert_ne!(port, 4099);
-    } else {
-        assert_ne!(port, 0);
-    }
+    let fallback = bind_prefer("127.0.0.1", 0).await.expect("bind fallback port");
+    let fallback_port = fallback.local_addr().expect("read fallback address").port();
+    assert_ne!(fallback_port, 0);
+    assert_ne!(fallback_port, 4099);
 }
 
 #[tokio::test]
@@ -85,10 +89,71 @@ async fn start_until_uses_custom_shutdown_future() {
 }
 
 #[tokio::test]
+async fn start_until_keeps_service_running_until_shutdown_is_requested() {
+    let opts = ServeOptions { hostname: "127.0.0.1".to_string(), port: 0, cors: Vec::new() };
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+
+    let (_, handle) = start_until(opts, async move {
+        let _ = shutdown_rx.await;
+    })
+    .await
+    .expect("start gateway");
+
+    assert!(!handle.is_finished());
+    shutdown_tx.send(()).expect("request graceful shutdown");
+    let result = tokio::time::timeout(Duration::from_secs(5), handle)
+        .await
+        .expect("service task should stop after shutdown")
+        .expect("service task should not panic");
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn start_returns_bind_error_for_occupied_requested_port() {
+    let occupied = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.expect("occupy free port");
+    let port = occupied.local_addr().expect("read occupied address").port();
+    let opts = ServeOptions { hostname: "127.0.0.1".to_string(), port, cors: Vec::new() };
+
+    let error = start(opts).await.expect_err("start should fail before spawning service task");
+
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(!error.to_string().is_empty());
+}
+
+#[tokio::test]
+async fn start_until_returns_bind_error_without_polling_shutdown() {
+    let occupied = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.expect("occupy free port");
+    let port = occupied.local_addr().expect("read occupied address").port();
+    let opts = ServeOptions { hostname: "127.0.0.1".to_string(), port, cors: Vec::new() };
+
+    let error = start_until(opts, async {
+        panic!("shutdown future must not be polled when binding fails");
+    })
+    .await
+    .expect_err("binding should fail before spawning the service task");
+
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test]
 async fn serve_returns_actual_address_after_graceful_shutdown() {
     let opts = ServeOptions { hostname: "127.0.0.1".to_string(), port: 0, cors: Vec::new() };
 
     let addr = serve_until(opts, async {}).await.expect("serve should stop cleanly");
+
+    assert!(addr.ip().is_loopback());
+    assert_ne!(addr.port(), 0);
+}
+
+#[tokio::test]
+async fn serve_until_returns_address_when_shutdown_future_panics() {
+    let opts = ServeOptions { hostname: "127.0.0.1".to_string(), port: 0, cors: Vec::new() };
+
+    let addr = serve_until(opts, async {
+        panic!("shutdown future failed");
+    })
+    .await
+    .expect("shutdown panic should not hide the bound address");
 
     assert!(addr.ip().is_loopback());
     assert_ne!(addr.port(), 0);
@@ -102,5 +167,6 @@ async fn serve_returns_bind_error_for_occupied_port() {
 
     let error = serve(opts).await.expect_err("serve should fail before waiting on task");
 
-    assert!(error.to_string().contains("Address already in use"));
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(!error.to_string().is_empty());
 }

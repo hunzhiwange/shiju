@@ -15,14 +15,14 @@
 //!
 //! # 配置持久化
 //!
-//! 所有配置项的修改会实时更新到应用状态，并通过消息系统保存到
-//! `~/.vibewindow/vibewindow.json` 的 `research` 字段中。
+//! 所有配置项的修改会实时更新到应用状态，并通过 Gateway 保存到
+//! 共享数据库的 `research` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, slider, text, text_input};
@@ -214,7 +214,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::ResearchSystemPromptPrefixChanged(v)),
     );
 
-    let mut col = column![
+    let col = column![
         row![
             container(settings_page_intro(
                 "研究配置",
@@ -246,10 +246,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        col = col.push(settings_error_banner(err));
-    }
 
     col.into()
 }

@@ -90,15 +90,6 @@ impl CronRemoveTool {
             });
         }
 
-        // 检查是否触发速率限制
-        if self.security.is_rate_limited() {
-            return Some(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: too many actions in the last hour".to_string()),
-            });
-        }
-
         // 尝试记录本次操作，检查配额是否耗尽
         if !self.security.record_action() {
             return Some(ToolResult {

@@ -42,26 +42,79 @@ fn file_tree_rename_builds_modal_from_path_filename() {
     app.file_tree_rename_path = Some("/workspace/src/main.rs".to_string());
     app.file_tree_rename_value = "lib.rs".to_string();
 
+    assert_eq!(super::file_tree_rename_old_name(app.file_tree_rename_path.as_deref()), "main.rs");
     let element = super::with_file_tree_rename(&app, text("root").into());
 
     std::hint::black_box(element);
 }
 
 #[test]
-fn session_rename_uses_global_or_project_sessions() {
+fn file_tree_rename_builds_modal_when_path_has_no_filename() {
+    let (mut app, _) = crate::app::App::new();
+    app.file_tree_rename_path = Some(String::new());
+
+    assert_eq!(super::file_tree_rename_old_name(app.file_tree_rename_path.as_deref()), "");
+    let element = super::with_file_tree_rename(&app, text("root").into());
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn file_tree_rename_old_name_is_empty_for_missing_or_root_path() {
+    assert_eq!(super::file_tree_rename_old_name(None), "");
+    assert_eq!(super::file_tree_rename_old_name(Some("/")), "");
+}
+
+#[test]
+fn session_rename_uses_global_session_title() {
     let (mut app, _) = crate::app::App::new();
     app.session_rename_id = Some("session-1".to_string());
     app.session_rename_value = "new title".to_string();
     app.sessions.push(session("session-1", "old title"));
 
-    let global_element = super::with_session_rename(&app, text("root").into());
-    std::hint::black_box(global_element);
+    assert_eq!(super::session_rename_old_title(&app, "session-1"), "old title");
+    let element = super::with_session_rename(&app, text("root").into());
 
-    app.sessions.clear();
+    std::hint::black_box(element);
+}
+
+#[test]
+fn session_rename_falls_back_to_project_session_title() {
+    let (mut app, _) = crate::app::App::new();
+    app.session_rename_id = Some("session-1".to_string());
+    app.session_rename_value = "new title".to_string();
     app.project_sessions
         .insert("/workspace".to_string(), vec![session("session-1", "project title")]);
-    let project_element = super::with_session_rename(&app, text("root").into());
-    std::hint::black_box(project_element);
+
+    assert_eq!(super::session_rename_old_title(&app, "session-1"), "project title");
+    let element = super::with_session_rename(&app, text("root").into());
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn session_rename_prefers_global_session_over_project_session() {
+    let (mut app, _) = crate::app::App::new();
+    app.session_rename_id = Some("session-1".to_string());
+    app.sessions.push(session("session-1", "global title"));
+    app.project_sessions
+        .insert("/workspace".to_string(), vec![session("session-1", "project title")]);
+
+    assert_eq!(super::session_rename_old_title(&app, "session-1"), "global title");
+    let element = super::with_session_rename(&app, text("root").into());
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn session_rename_builds_modal_when_session_is_unknown() {
+    let (mut app, _) = crate::app::App::new();
+    app.session_rename_id = Some("missing-session".to_string());
+
+    assert_eq!(super::session_rename_old_title(&app, "missing-session"), "");
+    let element = super::with_session_rename(&app, text("root").into());
+
+    std::hint::black_box(element);
 }
 
 #[test]

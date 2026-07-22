@@ -33,6 +33,18 @@ async fn append_to_file_creates_daily_header_for_daily_path() {
     assert!(content.contains("daily entry"));
 }
 
+#[tokio::test]
+async fn append_to_file_reports_error_when_existing_path_is_directory() {
+    let (_tmp, memory) = temp_memory();
+    let path = memory.workspace_dir.join("blocked.md");
+    std::fs::create_dir_all(&path).unwrap();
+
+    let result = memory.append_to_file(&path, "entry").await;
+
+    assert!(result.is_err());
+    assert!(path.is_dir());
+}
+
 #[test]
 fn parse_entries_from_file_skips_headers_and_cleans_markdown_bullets() {
     let path = std::path::Path::new("/tmp/2024-05-01.md");

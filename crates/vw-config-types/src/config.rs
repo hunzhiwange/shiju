@@ -29,6 +29,7 @@ use crate::gateway::TunnelConfig;
 use crate::hooks::HooksConfig;
 use crate::memory::{MemoryConfig, StorageConfig};
 use crate::observability::ObservabilityConfig;
+use crate::plugins::PluginsConfig;
 use crate::provider::{ModelProviderConfig, ProviderApiMode, ProviderConfig};
 use crate::proxy::ProxyConfig;
 use crate::reliability::ReliabilityConfig;
@@ -36,6 +37,7 @@ use crate::routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassification
 use crate::runtime::RuntimeConfig;
 use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};
 use crate::skills::SkillsConfig;
+use crate::staff::StaffConfig;
 use crate::tools::{
     BrowserConfig, ComposioConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig,
     WebSearchConfig,
@@ -43,7 +45,8 @@ use crate::tools::{
 use crate::transcription::TranscriptionConfig;
 use crate::ui::AppUiConfig;
 
-const CONFIG_JSON_FILENAME: &str = "vibewindow.json";
+/// 仅用于填充运行时兼容路径；生产系统配置不从该文件读写。
+const LEGACY_CONFIG_JSON_FILENAME: &str = "vibewindow.json";
 
 /// ACP 代理进程配置。
 ///
@@ -70,7 +73,8 @@ pub struct AcpAgentConfig {
 ///
 /// # 配置来源
 ///
-/// - 磁盘上的主配置文件
+/// - 共享系统配置数据库
+/// - 项目 `.vibewindow.json` 覆盖
 /// - 运行时默认值
 /// - 少量兼容字段别名
 ///
@@ -79,6 +83,7 @@ pub struct AcpAgentConfig {
 /// `workspace_dir` 与 `config_path` 使用 `#[serde(skip)]`，因为它们属于运行时解析结果，
 /// 而不是用户手写配置内容本身。
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
 pub struct Config {
     /// 工作区根目录。
     ///
@@ -86,7 +91,7 @@ pub struct Config {
     #[serde(skip)]
     pub workspace_dir: PathBuf,
 
-    /// 当前配置文件路径。
+    /// 当前配置的运行时兼容路径。
     ///
     /// 该字段由运行时注入，不从配置文件中反序列化。
     #[serde(skip)]
@@ -173,6 +178,9 @@ pub struct Config {
     pub skills: SkillsConfig,
 
     #[serde(default)]
+    pub plugins: PluginsConfig,
+
+    #[serde(default)]
     pub model_routes: Vec<ModelRouteConfig>,
 
     #[serde(default)]
@@ -239,6 +247,9 @@ pub struct Config {
     pub agents: HashMap<String, DelegateAgentConfig>,
 
     #[serde(default)]
+    pub staff: StaffConfig,
+
+    #[serde(default)]
     pub coordination: CoordinationConfig,
 
     #[serde(default)]
@@ -258,6 +269,12 @@ pub struct Config {
 
     #[serde(default)]
     pub acp: HashMap<String, AcpAgentConfig>,
+
+    #[serde(default, rename = "mcpServers", skip_serializing_if = "Vec::is_empty")]
+    pub mcp_servers: Vec<serde_json::Value>,
+
+    #[serde(default, rename = "mcpServerOverrides", skip_serializing_if = "Vec::is_empty")]
+    pub mcp_server_overrides: Vec<serde_json::Value>,
 }
 
 impl std::fmt::Debug for Config {
@@ -316,6 +333,7 @@ impl std::fmt::Debug for Config {
             .field("cli_channel_enabled", &self.channels_config.cli)
             .field("enabled_channels_count", &enabled_channel_count)
             .field("acp_count", &self.acp.len())
+            .field("mcp_servers_count", &self.mcp_servers.len())
             .field("sensitive_sections", &"***REDACTED***")
             .finish_non_exhaustive()
     }
@@ -330,7 +348,7 @@ impl Default for Config {
 
         Self {
             workspace_dir: vibewindow_dir.join("workspace"),
-            config_path: vibewindow_dir.join(CONFIG_JSON_FILENAME),
+            config_path: vibewindow_dir.join(LEGACY_CONFIG_JSON_FILENAME),
             enabled_providers: Vec::new(),
             popular_providers: Vec::new(),
             providers: HashMap::new(),
@@ -353,6 +371,7 @@ impl Default for Config {
             agent: AgentConfig::default(),
             workspaces: WorkspacesConfig::default(),
             skills: SkillsConfig::default(),
+            plugins: PluginsConfig::default(),
             model_routes: Vec::new(),
             embedding_routes: Vec::new(),
             heartbeat: HeartbeatConfig::default(),
@@ -374,6 +393,7 @@ impl Default for Config {
             proxy: ProxyConfig::default(),
             identity: IdentityConfig::default(),
             agents: HashMap::new(),
+            staff: StaffConfig::default(),
             coordination: CoordinationConfig::default(),
             hooks: HooksConfig::default(),
             query_classification: QueryClassificationConfig::default(),
@@ -382,6 +402,8 @@ impl Default for Config {
             model_support_vision: None,
             app_ui: AppUiConfig::default(),
             acp: HashMap::new(),
+            mcp_servers: Vec::new(),
+            mcp_server_overrides: Vec::new(),
         }
     }
 }

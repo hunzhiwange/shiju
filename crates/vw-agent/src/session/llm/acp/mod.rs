@@ -52,6 +52,14 @@ struct CachedAcpClient {
     output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,
 }
 
+/// ACP 客户端缓存命中结果。
+///
+/// `key` 用于在一次性请求结束后安全移除对应缓存项，`client` 是实际共享客户端。
+struct CachedAcpClientEntry {
+    key: String,
+    client: Arc<CachedAcpClient>,
+}
+
 /// 从运行时选项解析出的 ACP 会话参数。
 ///
 /// 字段保持为 `Option`，让调用方能区分“用户未配置”和“明确配置为空”的场景。

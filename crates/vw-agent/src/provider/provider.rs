@@ -25,22 +25,19 @@
 //! let model = provider::get_model("openai", "gpt-4").await?;
 //! ```
 
-use super::models;
 use crate::app::agent::auth;
 use crate::app::agent::config;
-use crate::app::agent::config::schema::{default_config_and_workspace_dirs, resolve_runtime_config_dirs};
 use crate::app::agent::env;
 use crate::app::agent::project::instance;
 use crate::app::agent::util::log;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::hash::{Hash, Hasher};
 use std::sync::{Arc, LazyLock, Mutex};
-use std::time::UNIX_EPOCH;
 
 pub use vw_shared::provider::state::{
-    State, as_string_map, builtin_model_limit, from_models_dev_model,
-    from_models_dev_provider, normalize_adapter,
+    State, as_string_map, builtin_model_limit, from_models_dev_model, from_models_dev_provider,
+    normalize_adapter,
 };
 pub use vw_shared::provider::types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
@@ -61,13 +58,8 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-struct ConfigFingerprint {
-    path: PathBuf,
-    exists: bool,
-    modified_nanos: u128,
-    len: u64,
-}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct ConfigFingerprint(u64);
 
 static CONFIG_FINGERPRINTS: LazyLock<Mutex<HashMap<String, ConfigFingerprint>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -129,37 +121,14 @@ pub async fn invalidate_cache() {
 }
 
 async fn current_config_fingerprint() -> ConfigFingerprint {
-    let Ok((default_config_dir, default_workspace_dir)) = default_config_and_workspace_dirs() else {
-        return ConfigFingerprint::default();
-    };
+    config_fingerprint(&config::get().await)
+}
 
-    let Ok((config_dir, _, _)) =
-        resolve_runtime_config_dirs(&default_config_dir, &default_workspace_dir).await
-    else {
-        return ConfigFingerprint::default();
-    };
-
-    let path = config_dir.join("vibewindow.json");
-    let mut fingerprint = ConfigFingerprint {
-        path: path.clone(),
-        exists: false,
-        modified_nanos: 0,
-        len: 0,
-    };
-
-    let Ok(metadata) = std::fs::metadata(&path) else {
-        return fingerprint;
-    };
-
-    fingerprint.exists = true;
-    fingerprint.len = metadata.len();
-    fingerprint.modified_nanos = metadata
-        .modified()
-        .ok()
-        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default();
-    fingerprint
+fn config_fingerprint(config: &config::Config) -> ConfigFingerprint {
+    let payload = serde_json::to_vec(&config.providers).unwrap_or_default();
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    payload.hash(&mut hasher);
+    ConfigFingerprint(hasher.finish())
 }
 
 async fn invalidate_cache_if_config_changed() {
@@ -622,11 +591,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                 let model = Model {
                     id: model_id.to_string(),
                     provider_id: provider_id.to_string(),
-                    api: ApiInfo {
-                        id: api_id,
-                        url: api_url,
-                        adapter: api_adapter,
-                    },
+                    api: ApiInfo { id: api_id, url: api_url, adapter: api_adapter },
                     name,
                     family,
                     capabilities: cap,

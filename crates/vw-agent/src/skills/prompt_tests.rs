@@ -64,3 +64,25 @@ fn full_prompt_includes_tools_instructions_and_absolute_locations() {
 fn prompt_returns_empty_string_for_no_skills() {
     assert_eq!(skills_to_prompt(&[], std::path::Path::new("/workspace")), "");
 }
+
+#[test]
+fn compact_prompt_keeps_absolute_location_outside_workspace() {
+    let skill = Skill {
+        name: "shared".to_string(),
+        description: "Shared skill".to_string(),
+        version: "0.1.0".to_string(),
+        author: None,
+        tags: Vec::new(),
+        tools: Vec::new(),
+        prompts: Vec::new(),
+        location: Some(std::path::PathBuf::from("/opt/shared/SKILL.md")),
+    };
+
+    let prompt = skills_to_prompt_with_mode(
+        &[skill],
+        std::path::Path::new("/workspace"),
+        SkillsPromptInjectionMode::Compact,
+    );
+
+    assert!(prompt.contains("<location>/opt/shared/SKILL.md</location>"));
+}

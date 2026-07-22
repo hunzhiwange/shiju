@@ -2,7 +2,6 @@
 
 use crate::app::config;
 use crate::app::config::server_config_unreachable_error;
-use crate::app::provider::provider as model_provider;
 use crate::app::{
     App, Message,
     state::{ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary},
@@ -50,6 +49,13 @@ fn summarize_models(
     out
 }
 
+async fn load_models_for_settings() -> Result<Vec<ProviderModelsSummary>, String> {
+    let response = config::gateway_client()?.provider_list(None).await?;
+    let providers =
+        response.all.into_iter().map(|provider| (provider.id.clone(), provider)).collect();
+    Ok(summarize_models(providers))
+}
+
 #[cfg(test)]
 #[path = "models_tests.rs"]
 mod models_tests;
@@ -60,11 +66,7 @@ mod models_tests;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn models_refresh_task() -> Task<Message> {
     Task::perform(
-        async move {
-            model_provider::invalidate_cache().await;
-            let providers = model_provider::list_for_settings().await;
-            Ok(summarize_models(providers))
-        },
+        async move { load_models_for_settings().await.map_err(server_config_unreachable_error) },
         |res| Message::Settings(SettingsMessage::ModelsRefreshed(res)),
     )
 }
@@ -130,9 +132,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     config::patch_full_agent_config_async(Value::Object(root))
                         .await
                         .map_err(server_config_unreachable_error)?;
-                    model_provider::invalidate_cache().await;
-                    let providers = model_provider::list_for_settings().await;
-                    Ok(summarize_models(providers))
+                    load_models_for_settings().await.map_err(server_config_unreachable_error)
                 },
                 |res| Message::Settings(SettingsMessage::ModelsRefreshed(res)),
             )
@@ -167,6 +167,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         }
                     }
                 }
+                out.sort_unstable();
                 if out.is_empty() { "无".to_string() } else { out.join(", ") }
             };
 

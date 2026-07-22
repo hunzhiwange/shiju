@@ -44,6 +44,12 @@ fn constructor_stores_domain() {
     assert_eq!(tunnel.domain.as_deref(), Some("my.ngrok.app"));
 }
 
+#[test]
+fn name_identifies_ngrok_provider() {
+    let tunnel = NgrokTunnel::new("ngrok-token".into(), None);
+    assert_eq!(tunnel.name(), "ngrok");
+}
+
 /// 测试在隧道启动前 public_url() 返回 None
 ///
 /// # 测试目的
@@ -67,6 +73,14 @@ fn public_url_is_none_before_start() {
     let tunnel = NgrokTunnel::new("ngrok-token".into(), None);
 
     // 验证在未启动状态下，公共 URL 应该是 None
+    assert!(tunnel.public_url().is_none());
+}
+
+#[test]
+fn public_url_returns_none_while_process_state_is_locked() {
+    let tunnel = NgrokTunnel::new("ngrok-token".into(), None);
+    let _guard = tunnel.proc.try_lock().expect("process state lock");
+
     assert!(tunnel.public_url().is_none());
 }
 
@@ -105,6 +119,25 @@ async fn stop_without_started_process_is_ok() {
     assert!(result.is_ok());
 }
 
+#[tokio::test]
+async fn start_returns_error_when_ngrok_command_is_unavailable() {
+    let tunnel = NgrokTunnel::new("ngrok-token".into(), Some("my.ngrok.app".into()));
+
+    let error = tunnel
+        .start("localhost", 3000)
+        .await
+        .expect_err("unit-test ngrok command should be unavailable")
+        .to_string();
+
+    assert!(
+        error.contains("No such file")
+            || error.contains("not found")
+            || error.contains("cannot find")
+            || error.contains("os error")
+    );
+    assert!(tunnel.public_url().is_none());
+}
+
 /// 测试在隧道启动前 health_check() 返回 false
 ///
 /// # 测试目的
@@ -136,4 +169,35 @@ async fn health_check_is_false_before_start() {
 
     // 验证在未启动状态下，健康检查应该返回 false
     assert!(!tunnel.health_check().await);
+}
+
+#[tokio::test]
+async fn public_url_and_health_check_reflect_stored_running_process() -> Result<()> {
+    let tunnel = NgrokTunnel::new("ngrok-token".into(), None);
+    let child = tokio_command("sleep").arg("5").kill_on_drop(true).spawn()?;
+    {
+        let mut guard = tunnel.proc.lock().await;
+        *guard = Some(TunnelProcess { child, public_url: "https://example.ngrok.app".to_string() });
+    }
+
+    assert_eq!(tunnel.public_url().as_deref(), Some("https://example.ngrok.app"));
+    assert!(tunnel.health_check().await);
+
+    tunnel.stop().await?;
+    assert!(tunnel.public_url().is_none());
+    Ok(())
+}
+
+#[test]
+fn extract_ngrok_public_url_reads_logfmt_url_field() {
+    assert_eq!(
+        extract_ngrok_public_url("lvl=info msg=start url=https://demo.ngrok.app region=us")
+            .as_deref(),
+        Some("https://demo.ngrok.app")
+    );
+    assert_eq!(
+        extract_ngrok_public_url("url=https://demo.ngrok.app/path?q=1\tstatus=ok").as_deref(),
+        Some("https://demo.ngrok.app/path?q=1")
+    );
+    assert!(extract_ngrok_public_url("lvl=info msg=no-url").is_none());
 }

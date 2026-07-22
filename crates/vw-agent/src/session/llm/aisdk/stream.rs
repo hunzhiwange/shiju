@@ -204,7 +204,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     merged_options: &Value,
     retries: u64,
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
-    on_event: &mut impl FnMut(StreamEvent),
+    on_event: &mut (dyn FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
     // 初始化请求构建器，设置模型和消息
     let mut builder = LanguageModelRequest::<M>::builder().model(model).messages(messages);

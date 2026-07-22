@@ -121,7 +121,11 @@ pub fn truncate_string_to_limit(s: &str, limit: usize) -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn build_font_settings(font_family: &str, font_size: f32) -> iced_term::settings::FontSettings {
-    let family = crate::app::views::design::canvas::parse::intern_font_family_name(font_family);
+    let family = if font_family.trim().is_empty() {
+        "JetBrains Mono"
+    } else {
+        Box::leak(font_family.trim().to_string().into_boxed_str())
+    };
     iced_term::settings::FontSettings {
         size: 13.0,
         scale_factor: ((font_size / 13.0) * 1.2).max(0.5),

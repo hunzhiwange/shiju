@@ -42,7 +42,7 @@ async fn read_prompt_with_empty_stdin(
 fn config() -> ResolvedAcpxConfig {
     ResolvedAcpxConfig {
         default_agent: "codex".to_string(),
-        default_permissions: PermissionMode::ApproveReads,
+        default_permissions: PermissionMode::ApproveAll,
         non_interactive_permissions: NonInteractivePermissionPolicy::Deny,
         auth_policy: AuthPolicy::Skip,
         ttl_ms: 30_000,
@@ -53,6 +53,7 @@ fn config() -> ResolvedAcpxConfig {
         auth: HashMap::new(),
         disable_exec: false,
         mcp_servers: Vec::new(),
+        mcp_server_management: Vec::new(),
         global_path: "/tmp/global.json".to_string(),
         project_path: "/tmp/project.json".to_string(),
         has_global_config: false,
@@ -158,6 +159,20 @@ fn bootstrap_plan_detects_queue_owner_cwd_and_flags() {
 }
 
 #[test]
+fn bootstrap_plan_uses_safe_defaults_for_empty_argv() {
+    let plan = build_cli_bootstrap_plan(&[], "/work/./repo/../project");
+
+    assert!(plan.cli_args.is_empty());
+    assert_eq!(plan.perf_capture_role, PerfCaptureRole::Cli);
+    assert!(!plan.print_version);
+    assert!(!plan.queue_owner_mode);
+    assert!(!plan.should_handle_skillflag);
+    assert_eq!(plan.initial_cwd, PathBuf::from("/work/project"));
+    assert!(!plan.requested_json_strict);
+    assert!(!plan.suppress_reads);
+}
+
+#[test]
 fn requested_output_format_stops_at_argument_separator() {
     assert_eq!(
         detect_requested_output_format(
@@ -185,6 +200,26 @@ fn requested_output_format_stops_at_argument_separator() {
             &argv(&["--format", "json", "--format=quiet"]),
             OutputFormat::Text
         ),
+        OutputFormat::Quiet
+    );
+}
+
+#[test]
+fn requested_output_format_handles_missing_invalid_and_trimmed_inline_values() {
+    assert_eq!(
+        detect_requested_output_format(&argv(&["--format"]), OutputFormat::Quiet),
+        OutputFormat::Quiet
+    );
+    assert_eq!(
+        detect_requested_output_format(&argv(&["--format", "invalid"]), OutputFormat::Json),
+        OutputFormat::Json
+    );
+    assert_eq!(
+        detect_requested_output_format(&argv(&["--format= json "]), OutputFormat::Text),
+        OutputFormat::Json
+    );
+    assert_eq!(
+        detect_requested_output_format(&argv(&["--format=invalid"]), OutputFormat::Quiet),
         OutputFormat::Quiet
     );
 }
@@ -261,6 +296,25 @@ fn runtime_plan_respects_cli_format_over_config() {
 }
 
 #[test]
+fn runtime_plan_applies_json_strict_and_suppress_reads_flags() {
+    let plan =
+        build_cli_runtime_plan(&argv(&["--json-strict", "--suppress-reads", "status"]), &config());
+
+    assert_eq!(plan.requested_output_format, OutputFormat::Json);
+    assert_eq!(
+        plan.requested_output_policy,
+        OutputPolicy {
+            format: OutputFormat::Json,
+            json_strict: true,
+            suppress_reads: true,
+            suppress_non_json_stderr: true,
+            queue_error_already_emitted: true,
+            suppress_sdk_console_errors: true,
+        }
+    );
+}
+
+#[test]
 fn top_level_verbs_are_exposed_as_owned_set() {
     let verbs = top_level_verbs();
 
@@ -326,6 +380,21 @@ fn detect_initial_cwd_handles_missing_values_separator_and_absolute_paths() {
 }
 
 #[test]
+fn detect_initial_cwd_scans_options_and_trims_inline_value() {
+    assert_eq!(
+        detect_initial_cwd(
+            &argv(&["--format", "json", "--cwd", "./child/../repo/./nested"]),
+            "/work/base"
+        ),
+        PathBuf::from("/work/base/repo/nested")
+    );
+    assert_eq!(
+        detect_initial_cwd(&argv(&["--cwd= ./child/../next "]), "/work/base"),
+        PathBuf::from("/work/base/next")
+    );
+}
+
+#[test]
 fn compatible_config_id_only_rewrites_codex_thought_level() {
     assert_eq!(
         resolve_compatible_config_id("codex", "codex acp", "thought_level"),
@@ -374,6 +443,24 @@ async fn read_prompt_reads_relative_file_and_appends_argument_text() {
         read_prompt_file_source("prompts/source.txt", &dir).await.expect("file source should read"),
         "from file\n"
     );
+    std::fs::remove_dir_all(dir).expect("test dir should be removed");
+}
+
+#[tokio::test]
+async fn read_prompt_reads_absolute_file_path_with_parent_segments() {
+    let dir = unique_test_dir("absolute-file");
+    std::fs::create_dir_all(dir.join("prompts")).expect("test dir should be created");
+    let source_path = dir.join("prompts").join("source.txt");
+    std::fs::write(&source_path, "from absolute file").expect("prompt file should be written");
+    let absolute_path = dir.join("prompts").join("..").join("prompts").join("source.txt");
+    let absolute_path =
+        absolute_path.to_str().expect("temp path should be valid utf-8 for this test");
+
+    let prompt = read_prompt(&argv(&["suffix"]), Some(absolute_path), "/ignored", true)
+        .await
+        .expect("absolute file prompt should parse");
+
+    assert_eq!(prompt_to_display_text(&prompt), "from absolute file\n\nsuffix");
     std::fs::remove_dir_all(dir).expect("test dir should be removed");
 }
 
@@ -515,6 +602,10 @@ fn prompt_from_stdin_source_accepts_non_empty_text() {
 
 #[test]
 fn prompt_from_stdin_helpers_preserve_errors() {
+    assert_eq!(
+        prompt_from_stdin_result(Ok(" \n".to_string())),
+        Err(CliCoreError::PromptStdinEmpty)
+    );
     assert_eq!(
         prompt_from_stdin_result(Err(CliCoreError::Io("stdin failed".to_string()))),
         Err(CliCoreError::Io("stdin failed".to_string()))

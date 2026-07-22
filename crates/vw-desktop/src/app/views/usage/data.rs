@@ -48,16 +48,38 @@ impl UsageData {
             + app.usage.reasoning_tokens;
         let session_id = app.active_session_id.clone().unwrap_or_else(|| "暂无".to_string());
         let message_count = app.chat.len();
-        let call_count = 0;
 
-        let session_title = app
+        let session_info = app
             .active_session_id
             .as_ref()
-            .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.title.as_str()))
-            .unwrap_or("暂无")
-            .to_string();
+            .and_then(|id| app.sessions.iter().find(|s| &s.id == id))
+            .or_else(|| {
+                app.active_session_id.as_ref().and_then(|id| {
+                    app.project_sessions
+                        .values()
+                        .flat_map(|sessions| sessions.iter())
+                        .find(|session| &session.id == id)
+                })
+            });
 
-        let last_step_usage = app.active_session_view_state.steps.last().map(|s| s.usage.clone());
+        let session_title =
+            session_info.map(|info| info.title.as_str()).unwrap_or("暂无").to_string();
+        let session = app.active_session_id.as_ref().map(|id| models::ChatSession {
+            id: id.clone(),
+            title: session_title.clone(),
+            messages: Vec::new(),
+            message_ids: Vec::new(),
+            calls: app.active_session_view_state.calls.clone(),
+            steps: app.active_session_view_state.steps.clone(),
+            created_ms: session_info.map(|info| info.time.created).unwrap_or_default(),
+            updated_ms: session_info
+                .map(|info| info.time.updated)
+                .unwrap_or(app.active_session_view_state.updated_ms),
+        });
+        let call_count = session.as_ref().map(|session| session.calls.len()).unwrap_or_default();
+
+        let last_step_usage =
+            session.as_ref().and_then(|session| session.steps.last()).map(|s| s.usage.clone());
         let last_step_input_tokens = last_step_usage.as_ref().map(|u| u.input_tokens).unwrap_or(0);
         let last_step_output_tokens =
             last_step_usage.as_ref().map(|u| u.output_tokens).unwrap_or(0);
@@ -88,7 +110,7 @@ impl UsageData {
 
         Self {
             total_tokens,
-            session: None,
+            session,
             session_id,
             message_count,
             call_count,

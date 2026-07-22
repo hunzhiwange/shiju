@@ -79,7 +79,7 @@ pub(crate) mod config {
     /// 返回序列化为 `serde_json::Value` 的配置快照；读取失败时由底层
     /// 配置模块决定默认值或错误表示。
     pub fn load_app_config() -> serde_json::Value {
-        crate::session::ui_config::load_app_config()
+        crate::session::ui_config::load_app_config(&vw_api_types::id::TenantScope::default())
     }
 
     /// 设置单个配置字段。
@@ -94,7 +94,11 @@ pub(crate) mod config {
     /// 本函数保持历史 fire-and-forget 语义，不向调用方返回错误；失败
     /// 行为由底层 UI 配置模块处理。
     pub fn set_config_field(key: &str, value: serde_json::Value) {
-        crate::session::ui_config::set_config_field(key, value)
+        crate::session::ui_config::set_config_field(
+            &vw_api_types::id::TenantScope::default(),
+            key,
+            value,
+        )
     }
 }
 
@@ -116,6 +120,9 @@ pub(crate) mod task {
     #[cfg(not(target_arch = "wasm32"))]
     use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
+    #[cfg(not(target_arch = "wasm32"))]
+    const GATEWAY_TASK_LOG_DETAIL_LIMIT: usize = 2000;
+
     /// 轻量任务描述。
     ///
     /// 字段保持公开以兼容既有构造与测试代码，调用方可以直接检查任务
@@ -133,6 +140,16 @@ pub(crate) mod task {
         /// ACP 智能体 key。
         pub acp_agent: Option<String>,
         /// 用户或系统提供的任务提示词。
+        pub prompt: String,
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct GatewayTaskExecutionRecord {
+        pub id: String,
+        pub model: String,
+        pub agent: Option<String>,
+        pub acp_agent: Option<String>,
         pub prompt: String,
     }
 
@@ -265,8 +282,179 @@ pub(crate) mod task {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    pub fn load_pending_gateway_execution_tasks(
+        project_path: &str,
+        task_ids: &[String],
+    ) -> std::io::Result<Vec<GatewayTaskExecutionRecord>> {
+        let task_dir = task_dir(project_path);
+        if task_ids.is_empty() || !task_dir.join("_index.sqlite3").is_file() {
+            return Ok(Vec::new());
+        }
+
+        let wanted: std::collections::HashSet<&str> = task_ids.iter().map(String::as_str).collect();
+        let conn = open_task_connection(&task_dir)?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, model, agent, acp_agent, prompt
+                 FROM tasks
+                 WHERE status_key = 'pending' AND deleted = 0 AND archived = 0",
+            )
+            .map_err(sqlite_to_io_error)?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(GatewayTaskExecutionRecord {
+                    id: row.get(0)?,
+                    model: row.get(1)?,
+                    agent: row.get(2)?,
+                    acp_agent: row.get(3)?,
+                    prompt: row.get(4)?,
+                })
+            })
+            .map_err(sqlite_to_io_error)?;
+
+        let mut out = Vec::new();
+        for row in rows {
+            let task = row.map_err(sqlite_to_io_error)?;
+            if wanted.contains(task.id.as_str()) {
+                out.push(task);
+            }
+        }
+        Ok(out)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn claim_pending_gateway_execution_task(
+        project_path: &str,
+        task_id: &str,
+    ) -> std::io::Result<Option<GatewayTaskExecutionRecord>> {
+        let task_dir = task_dir(project_path);
+        if !task_dir.join("_index.sqlite3").is_file() {
+            return Ok(None);
+        }
+
+        std::fs::create_dir_all(&task_dir)?;
+        let _guard = IndexFileLockGuard::acquire(&task_dir.join("_index.lock"))?;
+        let mut conn = open_task_connection(&task_dir)?;
+        let tx = conn.transaction().map_err(sqlite_to_io_error)?;
+        let Some(task) = load_pending_task_with_tx(&tx, task_id)? else {
+            return Ok(None);
+        };
+
+        let now_ms = Utc::now().timestamp_millis().max(0);
+        let order_no = next_order_no(&tx, "running")?;
+        let changed = tx
+            .execute(
+                "UPDATE tasks
+                 SET status_key = 'running',
+                     updated_at_ms = ?1,
+                     order_no = ?2,
+                     last_error = NULL,
+                     pause_reason = NULL,
+                     last_active_at_ms = ?3,
+                     execution_started_at_ms = ?4
+                 WHERE id = ?5 AND status_key = 'pending' AND deleted = 0 AND archived = 0",
+                params![now_ms, order_no, now_ms, now_ms, task_id],
+            )
+            .map_err(sqlite_to_io_error)?;
+        if changed == 0 {
+            return Ok(None);
+        }
+        tx.execute(
+            "INSERT OR REPLACE INTO task_index_entries (task_id, status_key, order_no)
+             VALUES (?1, 'running', ?2)",
+            params![task_id, order_no],
+        )
+        .map_err(sqlite_to_io_error)?;
+        append_task_status_log(&tx, task_id, now_ms, Some("pending"), Some("running"))?;
+        append_task_message_log(&tx, task_id, now_ms, "网关任务池 worker 开始执行")?;
+        tx.commit().map_err(sqlite_to_io_error)?;
+        Ok(Some(task))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn finish_gateway_execution_task(
+        project_path: &str,
+        task_id: &str,
+        result: Result<String, String>,
+    ) -> std::io::Result<()> {
+        let task_dir = task_dir(project_path);
+        if !task_dir.join("_index.sqlite3").is_file() {
+            return Ok(());
+        }
+
+        std::fs::create_dir_all(&task_dir)?;
+        let _guard = IndexFileLockGuard::acquire(&task_dir.join("_index.lock"))?;
+        let mut conn = open_task_connection(&task_dir)?;
+        let tx = conn.transaction().map_err(sqlite_to_io_error)?;
+        let current = tx
+            .query_row(
+                "SELECT status_key, execution_started_at_ms
+                 FROM tasks
+                 WHERE id = ?1",
+                params![task_id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?)),
+            )
+            .optional()
+            .map_err(sqlite_to_io_error)?;
+        let Some((current_status, started_at_ms)) = current else {
+            return Ok(());
+        };
+        if current_status != "running" {
+            return Ok(());
+        }
+
+        let now_ms = Utc::now().timestamp_millis().max(0);
+        let duration_ms = started_at_ms.map(|started_at| now_ms.saturating_sub(started_at));
+        let (status_key, last_error, message) = match result {
+            Ok(output) => {
+                let detail = truncate_log_detail(output.trim());
+                let message = if detail.is_empty() {
+                    "网关执行完成".to_string()
+                } else {
+                    format!("网关执行完成: {detail}")
+                };
+                ("code_complete", None, message)
+            }
+            Err(error) => {
+                let detail = truncate_log_detail(error.trim());
+                let message = if detail.is_empty() {
+                    "网关执行失败".to_string()
+                } else {
+                    format!("网关执行失败: {detail}")
+                };
+                ("failed", Some(error), message)
+            }
+        };
+        let order_no = next_order_no(&tx, status_key)?;
+        tx.execute(
+            "UPDATE tasks
+             SET status_key = ?1,
+                 updated_at_ms = ?2,
+                 order_no = ?3,
+                 last_error = ?4,
+                 pause_reason = NULL,
+                 last_active_at_ms = ?5,
+                 execution_started_at_ms = NULL,
+                 last_execution_duration_ms = ?6
+             WHERE id = ?7",
+            params![status_key, now_ms, order_no, last_error, now_ms, duration_ms, task_id],
+        )
+        .map_err(sqlite_to_io_error)?;
+        tx.execute(
+            "INSERT OR REPLACE INTO task_index_entries (task_id, status_key, order_no)
+             VALUES (?1, ?2, ?3)",
+            params![task_id, status_key, order_no],
+        )
+        .map_err(sqlite_to_io_error)?;
+        append_task_message_log(&tx, task_id, now_ms, &message)?;
+        append_task_status_log(&tx, task_id, now_ms, Some("running"), Some(status_key))?;
+        tx.commit().map_err(sqlite_to_io_error)?;
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn task_dir(project_path: &str) -> PathBuf {
-        PathBuf::from(project_path).join(".vibewindow").join("tasks")
+        PathBuf::from(project_path).join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -392,6 +580,87 @@ pub(crate) mod task {
     fn normalize_model(model: &str) -> String {
         let model = model.trim();
         if model.is_empty() { "auto".to_string() } else { model.to_string() }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn truncate_log_detail(value: &str) -> String {
+        let value = value.trim();
+        if value.chars().count() <= GATEWAY_TASK_LOG_DETAIL_LIMIT {
+            return value.to_string();
+        }
+        let mut out: String = value.chars().take(GATEWAY_TASK_LOG_DETAIL_LIMIT).collect();
+        out.push_str("...");
+        out
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn load_pending_task_with_tx(
+        tx: &Transaction<'_>,
+        task_id: &str,
+    ) -> io::Result<Option<GatewayTaskExecutionRecord>> {
+        tx.query_row(
+            "SELECT id, model, agent, acp_agent, prompt
+             FROM tasks
+             WHERE id = ?1 AND status_key = 'pending' AND deleted = 0 AND archived = 0",
+            params![task_id],
+            |row| {
+                Ok(GatewayTaskExecutionRecord {
+                    id: row.get(0)?,
+                    model: row.get(1)?,
+                    agent: row.get(2)?,
+                    acp_agent: row.get(3)?,
+                    prompt: row.get(4)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(sqlite_to_io_error)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn append_task_status_log(
+        tx: &Transaction<'_>,
+        task_id: &str,
+        timestamp_ms: i64,
+        status_from: Option<&str>,
+        status_to: Option<&str>,
+    ) -> io::Result<()> {
+        append_task_log(tx, task_id, timestamp_ms, status_from, status_to, "")
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn append_task_message_log(
+        tx: &Transaction<'_>,
+        task_id: &str,
+        timestamp_ms: i64,
+        message: &str,
+    ) -> io::Result<()> {
+        append_task_log(tx, task_id, timestamp_ms, None, None, message)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn append_task_log(
+        tx: &Transaction<'_>,
+        task_id: &str,
+        timestamp_ms: i64,
+        status_from: Option<&str>,
+        status_to: Option<&str>,
+        message: &str,
+    ) -> io::Result<()> {
+        let seq_no = tx
+            .query_row(
+                "SELECT COALESCE(MAX(seq_no), -1) + 1 FROM task_logs WHERE task_id = ?1",
+                params![task_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(sqlite_to_io_error)?;
+        tx.execute(
+            "INSERT INTO task_logs (task_id, seq_no, timestamp_ms, status_from, status_to, message)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![task_id, seq_no, timestamp_ms, status_from, status_to, message],
+        )
+        .map_err(sqlite_to_io_error)?;
+        Ok(())
     }
 
     #[cfg(not(target_arch = "wasm32"))]

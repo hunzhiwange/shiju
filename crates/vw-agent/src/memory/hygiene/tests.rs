@@ -190,22 +190,22 @@ fn purges_old_memory_archives() {
 /// 测试修剪 SQLite 后端中过期的对话记录
 ///
 /// 验证 SQLite 数据库中超过保留期限的对话类型记忆被正确修剪，
-/// 而核心类型的记忆不受影响并被保留。
+/// 而近期对话和过期核心记忆均被保留。
 ///
 /// # 测试步骤
 ///
 /// 1. 创建临时工作空间并初始化 SQLiteMemory 后端
-/// 2. 存储一条对话记录和一条核心记录
-/// 3. 手动修改数据库，将对话记录的创建时间设为 60 天前
-/// 4. 配置并运行清理任务（设置对话保留期为 30 天）
-/// 5. 验证对话记录被修剪，核心记录保留
+/// 2. 存储过期对话、近期对话和核心记录
+/// 3. 手动修改数据库，将过期对话和核心记录的时间设为 60 天前
+/// 4. 以 30 天保留期修剪对话并验证删除计数
+/// 5. 验证仅过期对话被修剪，其他两条记录保留
 ///
 /// # 技术细节
 ///
 /// - 使用 `UPDATE` SQL 语句直接修改 `created_at` 和 `updated_at` 字段
 /// - 验证不同 `MemoryCategory` 类型的不同保留策略
 #[tokio::test]
-async fn prunes_old_conversation_rows_in_sqlite_backend() {
+async fn prunes_only_old_conversation_rows_in_sqlite_backend() {
     let tmp = TempDir::new().unwrap();
     let workspace = tmp.path();
 
@@ -213,6 +213,7 @@ async fn prunes_old_conversation_rows_in_sqlite_backend() {
     let storage = paths::project_data_dir(workspace).unwrap();
     let mem: SqliteMemory = SqliteMemory::new(workspace).unwrap();
     mem.store("conv_old", "outdated", MemoryCategory::Conversation, None).await.unwrap();
+    mem.store("conv_recent", "current", MemoryCategory::Conversation, None).await.unwrap();
     mem.store("core_keep", "durable", MemoryCategory::Core, None).await.unwrap();
     drop(mem);
 
@@ -221,24 +222,100 @@ async fn prunes_old_conversation_rows_in_sqlite_backend() {
     let conn = Connection::open(&db_path).unwrap();
     let old_cutoff = (Local::now() - Duration::days(60)).to_rfc3339();
     conn.execute(
-        "UPDATE memories SET created_at = ?1, updated_at = ?1 WHERE key = 'conv_old'",
+        "UPDATE memories SET created_at = ?1, updated_at = ?1 \
+         WHERE key IN ('conv_old', 'core_keep')",
         params![old_cutoff],
     )
     .unwrap();
     drop(conn);
 
-    // 配置清理参数：禁用文件归档/清理，设置对话保留期为 30 天
-    let mut cfg = default_cfg();
-    cfg.archive_after_days = 0;
-    cfg.purge_after_days = 0;
-    cfg.conversation_retention_days = 30;
-
-    run_if_due(&cfg, workspace).unwrap();
+    assert_eq!(prune_conversation_rows(&storage, 30).unwrap(), 1);
 
     // 验证修剪结果
     let mem2: SqliteMemory = SqliteMemory::new(workspace).unwrap();
     let conv_old = mem2.get("conv_old").await.unwrap();
     assert!(conv_old.is_none(), "old conversation rows should be pruned");
+    let conv_recent = mem2.get("conv_recent").await.unwrap();
+    assert!(conv_recent.is_some(), "recent conversation rows should remain");
     let core_keep = mem2.get("core_keep").await.unwrap();
-    assert!(core_keep.is_some(), "core memory should remain");
+    assert!(core_keep.is_some(), "old core memory should remain");
+}
+
+#[test]
+fn prune_conversation_rows_reports_missing_memories_table() {
+    let tmp = TempDir::new().unwrap();
+    let memory_dir = tmp.path().join("memory");
+    fs::create_dir_all(&memory_dir).unwrap();
+    let connection = Connection::open(memory_dir.join("brain.db")).unwrap();
+    drop(connection);
+
+    let error = prune_conversation_rows(tmp.path(), 30).unwrap_err();
+
+    assert!(error.to_string().contains("memories"));
+}
+
+#[test]
+fn move_to_archive_handles_nameless_and_missing_sources_conservatively() {
+    let tmp = TempDir::new().unwrap();
+    let archive_dir = tmp.path().join("archive");
+    fs::create_dir_all(&archive_dir).unwrap();
+
+    move_to_archive(Path::new(""), &archive_dir).unwrap();
+
+    let missing = tmp.path().join("missing.log");
+    assert!(move_to_archive(&missing, &archive_dir).is_err());
+    assert!(!archive_dir.join("missing.log").exists());
+}
+
+#[test]
+fn date_helpers_reject_ambiguous_and_unicode_prefixes() {
+    let leap_day = NaiveDate::from_ymd_opt(2024, 2, 29).unwrap();
+
+    assert_eq!(memory_date_from_filename("2024-02-29_.md"), Some(leap_day));
+    assert_eq!(memory_date_from_filename("2024-02-29_notes.MD"), None);
+    assert_eq!(memory_date_from_filename("2024-02-29.md.backup"), None);
+    assert_eq!(date_prefix("2024-02-29"), Some(leap_day));
+    assert_eq!(date_prefix("数据2024-02-29-session"), None);
+    assert_eq!(split_name("report."), ("report", ""));
+    assert_eq!(split_name(".env"), ("", "env"));
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+#[test]
+fn filesystem_scans_ignore_non_utf8_entries() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let tmp = TempDir::new().unwrap();
+    let storage = tmp.path();
+    let memory_dir = storage.join("memory");
+    let sessions_dir = storage.join("sessions");
+    let memory_archive = memory_dir.join("archive");
+    let sessions_archive = sessions_dir.join("archive");
+    fs::create_dir_all(&memory_archive).unwrap();
+    fs::create_dir_all(&sessions_archive).unwrap();
+
+    let invalid_markdown = OsString::from_vec(vec![0xff, b'.', b'm', b'd']);
+    let invalid_session = OsString::from_vec(vec![0xff, b'.', b'l', b'o', b'g']);
+    let memory_file = memory_dir.join(&invalid_markdown);
+    let session_file = sessions_dir.join(&invalid_session);
+    let archived_memory_file = memory_archive.join(&invalid_markdown);
+    let archived_session_file = sessions_archive.join(&invalid_session);
+    for path in [&memory_file, &session_file, &archived_memory_file, &archived_session_file] {
+        if let Err(error) = fs::write(path, "keep") {
+            if error.raw_os_error() == Some(92) {
+                return;
+            }
+            panic!("non-UTF-8 fixture should be written: {error}");
+        }
+    }
+
+    assert_eq!(archive_daily_memory_files(storage, 1).unwrap(), 0);
+    assert_eq!(archive_session_files(storage, 1).unwrap(), 0);
+    assert_eq!(purge_memory_archives(storage, 1).unwrap(), 0);
+    assert_eq!(purge_session_archives(storage, 1).unwrap(), 0);
+    assert!(memory_file.exists());
+    assert!(session_file.exists());
+    assert!(archived_memory_file.exists());
+    assert!(archived_session_file.exists());
 }

@@ -251,7 +251,7 @@ impl LinqChannel {
         if !self.is_sender_allowed(&normalized_from) {
             tracing::warn!(
                 "Linq: ignoring message from unauthorized sender: {normalized_from}. \
-                Add to channels.linq.allowed_senders in vibewindow.json."
+                Add it to channels.linq.allowed_senders in system settings."
             );
             return messages;
         }

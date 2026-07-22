@@ -31,7 +31,10 @@ fn is_local_ollama_endpoint(api_url: Option<&str>) -> bool {
 
     reqwest::Url::parse(raw)
         .ok()
-        .and_then(|url| url.host_str().map(|host| host.to_ascii_lowercase()))
+        .and_then(|url| {
+            url.host_str()
+                .map(|host| host.trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase())
+        })
         .is_some_and(|host| matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1" | "0.0.0.0"))
 }
 
@@ -210,6 +213,17 @@ pub fn validate_config(config: &Config) -> Result<()> {
     }
     if config.scheduler.max_tasks == 0 {
         anyhow::bail!("scheduler.max_tasks must be greater than 0");
+    }
+
+    for (i, plugin_name) in config.plugins.enabled.iter().enumerate() {
+        if plugin_name.trim().is_empty() {
+            anyhow::bail!("plugins.enabled[{i}] must not be empty");
+        }
+    }
+    for (i, source) in config.plugins.sources.iter().enumerate() {
+        if source.trim().is_empty() {
+            anyhow::bail!("plugins.sources[{i}] must not be empty");
+        }
     }
 
     for (i, route) in config.model_routes.iter().enumerate() {

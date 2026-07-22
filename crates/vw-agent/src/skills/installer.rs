@@ -180,6 +180,9 @@ pub(crate) fn install_skill_from_source(source: &str, skills_path: &Path) -> Res
 
     // 清理来源字符串（移除首尾空白）
     let source = source.trim().to_string();
+    if source.is_empty() {
+        anyhow::bail!("skill source must not be empty");
+    }
 
     // 解析来源别名（将简短名称映射到完整 URL）
     let resolved_source = resolve_skill_source_alias(&source, &download_policy);

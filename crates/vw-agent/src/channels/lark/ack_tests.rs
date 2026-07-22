@@ -10,6 +10,11 @@ fn map_locale_tag_handles_supported_locale_variants() {
 }
 
 #[test]
+fn map_locale_tag_rejects_unsupported_language() {
+    assert_eq!(map_locale_tag(" fr-FR "), None);
+}
+
+#[test]
 fn lark_ack_pool_is_non_empty_for_every_locale() {
     for locale in [LarkAckLocale::ZhCn, LarkAckLocale::ZhTw, LarkAckLocale::En, LarkAckLocale::Ja] {
         assert!(!lark_ack_pool(locale).is_empty());

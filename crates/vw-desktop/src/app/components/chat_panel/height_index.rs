@@ -26,7 +26,7 @@ impl ChatHeightWindow {
 
 /// CHAT_MESSAGE_GAP 是该模块对外使用的常量值。
 pub(crate) const CHAT_MESSAGE_GAP: f32 = 18.0;
-const CHAT_LIST_VERTICAL_PADDING: f32 = 20.0;
+pub(super) const CHAT_LIST_VERTICAL_PADDING: f32 = 20.0;
 /// CHAT_VIRTUALIZATION_OVERSCAN_PX 是该模块对外使用的常量值。
 pub(crate) const CHAT_VIRTUALIZATION_OVERSCAN_PX: f32 = 900.0;
 
@@ -53,6 +53,7 @@ impl ChatHeightIndex {
         self.total_slot_height = 0.0;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         self.heights.len()
     }
@@ -113,6 +114,10 @@ impl ChatHeightIndex {
         }
 
         self.lower_bound_prefix(target)
+    }
+
+    pub(crate) fn scroll_top_for_item(&self, idx: usize) -> f32 {
+        self.prefix_before_item(idx)
     }
 
     pub(crate) fn compute_window(

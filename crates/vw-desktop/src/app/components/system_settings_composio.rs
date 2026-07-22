@@ -6,9 +6,8 @@
 //! - 默认实体 ID
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_section_card, settings_text_input_style,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, text, text_input};
@@ -114,7 +113,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |value| Message::Settings(ComposioMessage::EntityIdChanged(value).into()),
     );
 
-    let mut content = column![
+    let content = column![
         settings_page_intro(
             "Composio 集成配置",
             "配置 OAuth 工具集成开关、API Key 和默认实体 ID。"
@@ -126,10 +125,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }

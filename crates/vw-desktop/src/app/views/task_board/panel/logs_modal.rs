@@ -9,7 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_close_button, settings_text_input_style,
 };
 use crate::app::message::TaskBoardMessage;
-use crate::app::task::Task;
+use crate::app::task::{Task, TaskLogEntry};
 use crate::app::{App, Message};
 
 use super::super::common::{button_style_danger, button_style_primary, button_style_secondary};
@@ -31,12 +31,17 @@ use super::styles::{
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 #[allow(dead_code)]
 pub fn build_task_logs_modal<'a>(app: &'a App, task: &'a Task) -> Element<'a, Message> {
+    build_task_logs_modal_content(&app.task_board_new_subtask_content, task)
+}
+
+fn build_task_logs_modal_content<'a>(
+    new_subtask_content: &'a str,
+    task: &'a Task,
+) -> Element<'a, Message> {
     let close_btn = settings_close_button(Message::TaskBoard(TaskBoardMessage::CloseTaskLogs));
 
     let header = row![
-        text(&task.id).size(11).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.extended_palette().background.base.text) }
-        }),
+        text(&task.id).size(11).style(task_id_text_style),
         Space::new().width(Length::Fill),
         close_btn,
     ]
@@ -49,7 +54,7 @@ pub fn build_task_logs_modal<'a>(app: &'a App, task: &'a Task) -> Element<'a, Me
         main_col = build_subtasks_section(task, main_col);
     }
 
-    main_col = build_add_subtask_section(app, task, main_col);
+    main_col = build_add_subtask_section(new_subtask_content, task, main_col);
 
     main_col = build_logs_section(task, main_col);
 
@@ -57,18 +62,24 @@ pub fn build_task_logs_modal<'a>(app: &'a App, task: &'a Task) -> Element<'a, Me
 
     container(content)
         .padding(20)
-        .style(|theme: &Theme| {
-            let mut style = panel_container_style(theme);
-            style.shadow = iced::Shadow {
-                color: Color::BLACK.scale_alpha(0.2),
-                offset: iced::Vector::new(-4.0, 0.0),
-                blur_radius: 16.0,
-            };
-            style
-        })
+        .style(modal_panel_style)
         .width(Length::FillPortion(1))
         .height(Length::Fill)
         .into()
+}
+
+fn task_id_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.extended_palette().background.base.text) }
+}
+
+fn modal_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = panel_container_style(theme);
+    style.shadow = iced::Shadow {
+        color: Color::BLACK.scale_alpha(0.2),
+        offset: iced::Vector::new(-4.0, 0.0),
+        blur_radius: 16.0,
+    };
+    style
 }
 
 fn build_subtasks_section<'a>(
@@ -84,14 +95,7 @@ fn build_subtasks_section<'a>(
     let now_ms = crate::app::time::now_ms();
     for (idx, subtask) in task.subtasks.iter().enumerate() {
         let status = subtask.status;
-        let created_secs = subtask.created_at_ms / 1000;
-        let created_date = format!(
-            "{}-{} {}:{}",
-            (created_secs / 86400 / 365 + 1970),
-            (created_secs / 86400 % 365) / 30 + 1,
-            (created_secs % 86400) / 3600,
-            (created_secs % 3600) / 60
-        );
+        let created_date = format_subtask_created_date(subtask.created_at_ms);
 
         let status_icon = container(
             text(subtask_status_icon(status, now_ms))
@@ -139,19 +143,7 @@ fn build_subtasks_section<'a>(
         } else {
             let up_btn: Element<'_, Message> = button(text("↑").size(10))
                 .padding([2, 6])
-                .style(|theme: &Theme, _| {
-                    let p = theme.extended_palette();
-                    iced::widget::button::Style {
-                        background: None,
-                        border: iced::Border {
-                            radius: 4.0.into(),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        text_color: p.background.weak.text,
-                        ..Default::default()
-                    }
-                })
+                .style(disabled_arrow_button_style)
                 .into();
             subtask_row = subtask_row.push(up_btn);
         }
@@ -169,19 +161,7 @@ fn build_subtasks_section<'a>(
         } else {
             let down_btn: Element<'_, Message> = button(text("↓").size(10))
                 .padding([2, 6])
-                .style(|theme: &Theme, _| {
-                    let p = theme.extended_palette();
-                    iced::widget::button::Style {
-                        background: None,
-                        border: iced::Border {
-                            radius: 4.0.into(),
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                        },
-                        text_color: p.background.weak.text,
-                        ..Default::default()
-                    }
-                })
+                .style(disabled_arrow_button_style)
                 .into();
             subtask_row = subtask_row.push(down_btn);
         }
@@ -195,36 +175,60 @@ fn build_subtasks_section<'a>(
             .style(button_style_danger)
             .into();
 
-        subtask_row = subtask_row.push(delete_btn).push(Space::new().width(8.0)).push(
-            text(created_date).size(9).style(|_theme: &Theme| iced::widget::text::Style {
-                color: Some(Color::from_rgb8(156, 163, 175)),
-            }),
-        );
+        subtask_row = subtask_row
+            .push(delete_btn)
+            .push(Space::new().width(8.0))
+            .push(text(created_date).size(9).style(subtask_created_at_text_style));
 
         subtasks_col = subtasks_col.push(subtask_row);
     }
     main_col.push(subtasks_col).push(Space::new().height(12.0))
 }
 
+fn format_subtask_created_date(created_at_ms: u64) -> String {
+    let created_secs = created_at_ms / 1000;
+    format!(
+        "{}-{} {}:{}",
+        (created_secs / 86400 / 365 + 1970),
+        (created_secs / 86400 % 365) / 30 + 1,
+        (created_secs % 86400) / 3600,
+        (created_secs % 3600) / 60
+    )
+}
+
+fn disabled_arrow_button_style(
+    theme: &Theme,
+    _status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    iced::widget::button::Style {
+        background: None,
+        border: iced::Border { radius: 4.0.into(), width: 0.0, color: Color::TRANSPARENT },
+        text_color: p.background.weak.text,
+        ..Default::default()
+    }
+}
+
+fn subtask_created_at_text_style(_theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(Color::from_rgb8(156, 163, 175)) }
+}
+
 fn build_add_subtask_section<'a>(
-    app: &'a App,
+    new_subtask_content: &'a str,
     task: &'a Task,
     main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
     let add_subtask_title = text("添加子任务").size(12);
-    let add_subtask_input = text_input("输入子任务内容...", &app.task_board_new_subtask_content)
-        .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(v)))
+    let add_subtask_input = text_input("输入子任务内容...", new_subtask_content)
+        .on_input(update_new_subtask_content_message)
         .padding(8)
         .width(Length::Fill)
         .style(settings_text_input_style);
 
-    let content_for_add = app.task_board_new_subtask_content.clone();
+    let content_for_add = new_subtask_content.to_string();
     let task_id_for_add = task.id.clone();
     let add_subtask_btn = button(text("添加").size(11))
-        .on_press(Message::TaskBoard(TaskBoardMessage::AddSubTask {
-            task_id: task_id_for_add,
-            content: content_for_add,
-        }))
+        .on_press(add_subtask_message(task_id_for_add, content_for_add))
         .padding([8, 12])
         .style(button_style_primary);
 
@@ -237,6 +241,14 @@ fn build_add_subtask_section<'a>(
         .push(Space::new().height(12.0))
 }
 
+fn update_new_subtask_content_message(content: String) -> Message {
+    Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(content))
+}
+
+fn add_subtask_message(task_id: String, content: String) -> Message {
+    Message::TaskBoard(TaskBoardMessage::AddSubTask { task_id, content })
+}
+
 fn build_logs_section<'a>(
     task: &'a Task,
     mut main_col: iced::widget::Column<'a, Message>,
@@ -246,37 +258,38 @@ fn build_logs_section<'a>(
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     main_col = main_col.push(logs_title).push(Space::new().height(8.0));
 
-    let logs_content: String = task
-        .logs
-        .iter()
-        .map(|log| {
-            let ts_mins = log.timestamp_ms / 60000;
-            let ts_secs = (log.timestamp_ms % 60000) / 1000;
-            format!("{}:{} - {}", ts_mins, ts_secs, log.message)
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    let logs_content = format_logs_content(task);
 
     let logs_widget =
         container(text(logs_content).size(11).wrapping(iced::widget::text::Wrapping::Word))
             .padding([8, 10])
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(iced::Background::Color(
-                        p.background.weak.color.scale_alpha(0.35),
-                    )),
-                    border: iced::Border {
-                        radius: 8.0.into(),
-                        width: 1.0,
-                        color: p.background.strong.color.scale_alpha(0.4),
-                    },
-                    ..Default::default()
-                }
-            })
+            .style(logs_container_style)
             .width(Length::Fill);
     let scrollable_widget = scrollable(logs_widget).height(Length::Fill);
     main_col.push(scrollable_widget)
+}
+
+fn format_logs_content(task: &Task) -> String {
+    task.logs.iter().map(format_log_entry).collect::<Vec<_>>().join("\n")
+}
+
+fn format_log_entry(log: &TaskLogEntry) -> String {
+    let ts_mins = log.timestamp_ms / 60000;
+    let ts_secs = (log.timestamp_ms % 60000) / 1000;
+    format!("{}:{} - {}", ts_mins, ts_secs, log.message)
+}
+
+fn logs_container_style(theme: &Theme) -> iced::widget::container::Style {
+    let p = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(iced::Background::Color(p.background.weak.color.scale_alpha(0.35))),
+        border: iced::Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: p.background.strong.color.scale_alpha(0.4),
+        },
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]

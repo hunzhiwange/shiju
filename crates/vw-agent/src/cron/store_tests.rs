@@ -7,6 +7,9 @@ use chrono::{Duration as ChronoDuration, Utc};
 use rusqlite::params;
 use tempfile::TempDir;
 
+#[path = "tests/store.rs"]
+mod legacy_store_tests;
+
 fn test_config(tmp: &TempDir) -> Config {
     let config = Config {
         workspace_dir: tmp.path().join("workspace"),
@@ -196,4 +199,31 @@ fn missing_schedule_and_empty_legacy_expression_are_reported() {
 
     let err = get_job(&config, "missing-schedule").unwrap_err().to_string();
     assert!(err.contains("Missing schedule and legacy expression"));
+}
+
+#[test]
+fn invalid_persisted_delivery_and_fallback_json_are_reported() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let delivery_job = add_job(&config, "*/5 * * * *", "echo delivery").unwrap();
+    let fallback_job = add_job(&config, "*/5 * * * *", "echo fallback").unwrap();
+
+    with_connection(&config, |conn| {
+        conn.execute(
+            "UPDATE cron_jobs SET delivery = ?1 WHERE id = ?2",
+            params!["{not-json", &delivery_job.id],
+        )?;
+        conn.execute(
+            "UPDATE cron_jobs SET fallbacks = ?1 WHERE id = ?2",
+            params!["{not-json", &fallback_job.id],
+        )?;
+        Ok(())
+    })
+    .unwrap();
+
+    let delivery_err = get_job(&config, &delivery_job.id).unwrap_err().to_string();
+    assert!(delivery_err.contains("Failed to parse cron delivery JSON"));
+
+    let fallback_err = get_job(&config, &fallback_job.id).unwrap_err().to_string();
+    assert!(fallback_err.contains("Failed to parse cron fallbacks JSON"));
 }

@@ -70,6 +70,14 @@ fn text_part(session_id: &str, message_id: &str, part_id: &str, text: &str) -> P
     })
 }
 
+#[test]
+fn event_definitions_preserve_public_message_event_names() {
+    assert_eq!(event::UPDATED.r#type, "message.updated");
+    assert_eq!(event::REMOVED.r#type, "message.removed");
+    assert_eq!(event::PART_UPDATED.r#type, "message.part.updated");
+    assert_eq!(event::PART_REMOVED.r#type, "message.part.removed");
+}
+
 #[tokio::test]
 async fn update_get_and_remove_messages_round_trip() {
     let session_id = unique_session_id("round-trip");
@@ -132,6 +140,74 @@ async fn parts_fall_back_to_legacy_session_message_layout() {
 }
 
 #[tokio::test]
+async fn parts_prefer_current_layout_when_legacy_parts_also_exist() {
+    let session_id = unique_session_id("parts-current-preferred");
+    let message_id = format!("{session_id}-message");
+    let current = text_part(&session_id, &message_id, "current-part", "current text");
+    let legacy = text_part(&session_id, &message_id, "legacy-part", "legacy text");
+
+    update_part(&current).await.expect("current part should persist");
+    storage::write(&["part", &session_id, &message_id, "legacy-part"], &legacy)
+        .await
+        .expect("legacy part should persist");
+
+    let loaded = parts(&session_id, &message_id).await.expect("current parts should load");
+    assert_eq!(loaded.iter().map(Part::id).collect::<Vec<_>>(), vec!["current-part"]);
+
+    remove_part(&session_id, &message_id, "current-part").await.expect("current cleanup");
+    storage::remove(&["part", &session_id, &message_id, "legacy-part"])
+        .await
+        .expect("legacy cleanup");
+}
+
+#[tokio::test]
+async fn remove_part_cleans_current_and_legacy_storage_layouts() {
+    let session_id = unique_session_id("remove-both-layouts");
+    let message_id = format!("{session_id}-message");
+    let part_id = "shared-part";
+    let part = text_part(&session_id, &message_id, part_id, "shared text");
+
+    storage::write(&["part", &message_id, part_id], &part)
+        .await
+        .expect("current part should persist");
+    storage::write(&["part", &session_id, &message_id, part_id], &part)
+        .await
+        .expect("legacy part should persist");
+
+    remove_part(&session_id, &message_id, part_id).await.expect("both layouts should remove");
+
+    let current_error = storage::read::<Part>(&["part", &message_id, part_id])
+        .await
+        .expect_err("current part should be absent");
+    let legacy_error = storage::read::<Part>(&["part", &session_id, &message_id, part_id])
+        .await
+        .expect_err("legacy part should be absent");
+    assert!(matches!(current_error, storage::Error::NotFound(_)));
+    assert!(matches!(legacy_error, storage::Error::NotFound(_)));
+}
+
+#[tokio::test]
+async fn get_combines_message_info_with_sorted_parts() {
+    let session_id = unique_session_id("get-with-parts");
+    let message_id = format!("{session_id}-message");
+    let info = user_info(&session_id, &message_id);
+    let part_b = text_part(&session_id, &message_id, "part-b", "second");
+    let part_a = text_part(&session_id, &message_id, "part-a", "first");
+
+    update_message(&info).await.expect("message should persist");
+    update_part(&part_b).await.expect("part b should persist");
+    update_part(&part_a).await.expect("part a should persist");
+
+    let loaded = get(&session_id, &message_id).await.expect("message with parts should load");
+    assert_eq!(loaded.info.id(), message_id.as_str());
+    assert_eq!(loaded.parts.iter().map(Part::id).collect::<Vec<_>>(), vec!["part-a", "part-b"]);
+
+    remove_message(&session_id, &message_id).await.expect("message cleanup");
+    remove_part(&session_id, &message_id, "part-a").await.expect("part a cleanup");
+    remove_part(&session_id, &message_id, "part-b").await.expect("part b cleanup");
+}
+
+#[tokio::test]
 async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
     let session_id = unique_session_id("messages");
     let older = user_info(&session_id, "001");
@@ -156,4 +232,16 @@ async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
     remove_message(&session_id, "002").await.expect("newer cleanup");
     storage::remove(&["message", &session_id, "003"]).await.expect("bad cleanup");
     storage::remove(&["message", &session_id, "nested", "ignored"]).await.expect("nested cleanup");
+}
+
+#[tokio::test]
+async fn messages_with_zero_limit_return_no_persisted_entries() {
+    let session_id = unique_session_id("messages-zero-limit");
+    let message = user_info(&session_id, "001");
+    update_message(&message).await.expect("message should persist");
+
+    let loaded = messages(&session_id, Some(0)).await.expect("zero limit should be accepted");
+    assert!(loaded.is_empty());
+
+    remove_message(&session_id, "001").await.expect("message cleanup");
 }

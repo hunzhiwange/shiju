@@ -1,7 +1,7 @@
 use super::super::*;
 use super::session_commands::{
     handle_new_session, handle_set_model, handle_set_provider, handle_show_model,
-    handle_show_providers, handle_task_mode,
+    handle_show_providers, handle_task_mode, with_test_provider_init_error,
 };
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
@@ -136,6 +136,28 @@ fn handle_set_model_trims_backticks_persists_route_and_clears_history() {
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key("sender"));
 }
 
+#[test]
+fn handle_set_model_updates_only_target_sender_and_preserves_task_mode() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let ctx = context(temp.path(), "default-provider", "default-model");
+    ctx.conversation_histories
+        .lock()
+        .unwrap()
+        .insert("other-sender".to_string(), vec![ChatMessage::user("other turn")]);
+    set_route_selection(&ctx, "other-sender", route("other-provider", "other-model", false));
+    let mut current = route("default-provider", "default-model", true);
+
+    let response = handle_set_model(&ctx, "target-sender", &mut current, "next-model".to_string());
+
+    assert!(response.contains("Model switched to `next-model`"));
+    assert_eq!(current, route("default-provider", "next-model", true));
+    assert_eq!(
+        get_route_selection(&ctx, "other-sender"),
+        route("other-provider", "other-model", false)
+    );
+    assert!(ctx.conversation_histories.lock().unwrap().contains_key("other-sender"));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn handle_set_provider_reports_unknown_provider_without_mutating_state() {
     let temp = tempfile::tempdir().expect("temp dir");
@@ -198,6 +220,35 @@ async fn handle_set_provider_leaves_history_when_provider_is_already_selected() 
 
     assert!(response.contains(&format!("Provider switched to `{provider_name}`")));
     assert_eq!(current, route(&provider_name, "default-model", false));
+    assert!(ctx.conversation_histories.lock().unwrap().contains_key("sender"));
+    assert!(ctx.route_overrides.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn handle_set_provider_reports_sanitized_init_error_without_mutating_state() {
+    let Some(provider_name) = available_provider_ids().into_iter().next() else {
+        return;
+    };
+    let temp = tempfile::tempdir().expect("temp dir");
+    let ctx = context(temp.path(), "default-provider", "default-model");
+    ctx.conversation_histories
+        .lock()
+        .unwrap()
+        .insert("sender".to_string(), vec![ChatMessage::user("old turn")]);
+    let mut current = route("default-provider", "default-model", false);
+    let injected_error = "provider init failed Authorization: Bearer sk-secret-value";
+
+    let response = with_test_provider_init_error(
+        injected_error,
+        handle_set_provider(&ctx, "sender", &mut current, provider_name.clone()),
+    )
+    .await;
+
+    assert!(response.contains(&format!("Failed to initialize provider `{provider_name}`")));
+    assert!(response.contains("Route unchanged."));
+    assert!(response.contains("[REDACTED]"));
+    assert!(!response.contains("sk-secret-value"));
+    assert_eq!(current, route("default-provider", "default-model", false));
     assert!(ctx.conversation_histories.lock().unwrap().contains_key("sender"));
     assert!(ctx.route_overrides.lock().unwrap().is_empty());
 }

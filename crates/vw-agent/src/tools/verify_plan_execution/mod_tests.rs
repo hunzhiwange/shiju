@@ -14,14 +14,15 @@ fn save_todos(session: &str, statuses: &[&str]) {
     let todos = statuses
         .iter()
         .enumerate()
-        .map(|(index, status)| crate::session::ui_types::SessionTodoItem {
-            id: format!("todo-{index}"),
+        .map(|(index, status)| crate::app::agent::tools::todo::Todo {
+            id: (index + 1).to_string(),
             content: format!("Todo {index}"),
             status: (*status).to_string(),
             priority: "medium".to_string(),
         })
         .collect::<Vec<_>>();
-    let _ = crate::session::ui_store::save_session_todos(session, &todos);
+    crate::app::agent::tools::todo::write_session_todos_for_test(session, todos)
+        .expect("save test todos");
 }
 
 #[test]
@@ -71,4 +72,22 @@ async fn call_blocks_multiple_in_progress_todos() {
         .unwrap();
     assert!(!result.data["ready"].as_bool().unwrap());
     assert_eq!(result.data["in_progress_count"], 2);
+}
+
+#[tokio::test]
+async fn call_allows_active_plan_when_all_todos_are_completed() {
+    let session = session("completed");
+    save_todos(&session, &["completed", "completed"]);
+    let context = Arc::new(ToolUseContext::new(session, None));
+    context.enter_plan_mode(Some("finished goal".into()), None);
+
+    let result = scope_tool_use_context(context, VerifyPlanExecutionTool::new().call(json!({})))
+        .await
+        .unwrap();
+
+    assert!(result.data["ready"].as_bool().unwrap());
+    assert_eq!(result.data["todo_count"], 2);
+    assert_eq!(result.data["pending_count"], 0);
+    assert_eq!(result.data["in_progress_count"], 0);
+    assert_eq!(result.render_hint.unwrap().summary.as_deref(), Some("Ready to execute 0 todo(s)"));
 }

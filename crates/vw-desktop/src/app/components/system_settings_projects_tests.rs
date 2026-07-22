@@ -1,59 +1,119 @@
 use super::*;
-// Tests for plan6 task 805.
-const SOURCE: &str = include_str!("system_settings_projects.rs");
-
-use crate::app::{App, Message};
+use iced::advanced::widget::Tree;
+use iced::{Length, Size};
 
 fn test_app() -> App {
-    App::new().0
+    let mut app = App::new().0;
+    app.project_path = None;
+    app.project_worktree_enabled.clear();
+    app.recent_projects.clear();
+    app.recent_projects_edits.clear();
+    app.recent_project_delete_confirm_idx = None;
+    app
 }
 
-fn keep_element(element: iced::Element<'_, Message>) {
-    std::hint::black_box(element);
+fn tree_node_count(tree: &Tree) -> usize {
+    1 + tree.children.iter().map(tree_node_count).sum::<usize>()
 }
 
-fn source_declares_symbol(name: &str) -> bool {
-    let needles = [
-        format!("fn {name}"),
-        format!("pub fn {name}"),
-        format!("struct {name}"),
-        format!("pub struct {name}"),
-        format!("enum {name}"),
-        format!("pub enum {name}"),
-        format!("type {name}"),
-        format!("pub type {name}"),
-        format!("const {name}"),
-        format!("pub const {name}"),
-        format!("static {name}"),
-        format!("pub static {name}"),
-        format!("impl {name}"),
-    ];
+fn view_shape(app: &App) -> (usize, usize) {
+    let element = view(app);
+    let children = element.as_widget().children();
+    let node_count = children.iter().map(tree_node_count).sum();
 
-    needles.iter().any(|needle| SOURCE.contains(needle))
+    (children.len(), node_count)
 }
 
 #[test]
-fn view_builds_no_project_current_project_and_recent_project_states() {
-    let mut app = test_app();
-    keep_element(view(&app));
+fn field_row_builds_fill_width_label_description_and_control_layout() {
+    let element = field_row("标签", "说明", text("控件"));
 
+    assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Shrink));
+
+    let container_children = element.as_widget().children();
+    assert_eq!(container_children.len(), 2);
+    assert_eq!(container_children[0].children.len(), 2);
+    assert!(container_children[1].children.is_empty());
+}
+
+#[test]
+fn view_without_project_builds_static_sections_and_open_project_action() {
+    let app = test_app();
+
+    assert_eq!(view_shape(&app).0, 4);
+}
+
+#[test]
+fn view_with_project_builds_worktree_toggle_for_default_and_enabled_states() {
+    let mut app = test_app();
     let project_path = "/tmp/vibe-window-project".to_string();
     app.project_path = Some(project_path.clone());
-    app.project_worktree_enabled.insert(project_path.clone(), true);
-    keep_element(view(&app));
 
-    app.recent_projects =
-        vec!["/tmp/vibe-window-one".to_string(), "/tmp/vibe-window-two".to_string()];
-    app.recent_projects_edits = vec!["One".to_string(), "Two".to_string()];
-    keep_element(view(&app));
+    assert_eq!(view_shape(&app).0, 4);
 
-    app.recent_project_delete_confirm_idx = Some(1);
-    keep_element(view(&app));
+    app.project_worktree_enabled.insert(project_path, true);
+
+    assert_eq!(view_shape(&app).0, 4);
 }
 
 #[test]
-fn system_settings_projects_tests_keeps_planned_coverage_targets() {
-    for name in ["field_row", "view"] {
-        assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
-    }
+fn recent_project_cards_follow_edit_rows_and_tolerate_missing_paths() {
+    let mut app = test_app();
+    app.recent_projects = vec!["/tmp/vibe-window-one".to_string()];
+    app.recent_projects_edits = vec!["One".to_string(), "Missing path".to_string()];
+
+    assert_eq!(view_shape(&app).0, 6);
+}
+
+#[test]
+fn recent_project_paths_without_edit_rows_do_not_render_cards() {
+    let mut app = test_app();
+    app.recent_projects =
+        vec!["/tmp/vibe-window-one".to_string(), "/tmp/vibe-window-two".to_string()];
+
+    assert_eq!(view_shape(&app).0, 4);
+}
+
+#[test]
+fn delete_confirmation_only_expands_matching_recent_project() {
+    let mut ordinary = test_app();
+    ordinary.recent_projects = vec!["/tmp/vibe-window-one".to_string()];
+    ordinary.recent_projects_edits = vec!["One".to_string()];
+    let ordinary_shape = view_shape(&ordinary);
+
+    let mut matching = test_app();
+    matching.recent_projects = ordinary.recent_projects.clone();
+    matching.recent_projects_edits = ordinary.recent_projects_edits.clone();
+    matching.recent_project_delete_confirm_idx = Some(0);
+    let matching_shape = view_shape(&matching);
+
+    let mut out_of_range = test_app();
+    out_of_range.recent_projects = ordinary.recent_projects;
+    out_of_range.recent_projects_edits = ordinary.recent_projects_edits;
+    out_of_range.recent_project_delete_confirm_idx = Some(1);
+    let out_of_range_shape = view_shape(&out_of_range);
+
+    assert_eq!(ordinary_shape.0, 5);
+    assert_eq!(matching_shape.0, ordinary_shape.0);
+    assert!(matching_shape.1 > ordinary_shape.1);
+    assert_eq!(out_of_range_shape, ordinary_shape);
+}
+
+#[test]
+fn delete_confirmation_expands_only_the_selected_card_in_multiple_projects() {
+    let mut ordinary = test_app();
+    ordinary.recent_projects = vec!["/tmp/one".to_string(), "/tmp/two".to_string()];
+    ordinary.recent_projects_edits = vec!["One".to_string(), "Two".to_string()];
+    let ordinary_shape = view_shape(&ordinary);
+
+    let mut first = test_app();
+    first.recent_projects = ordinary.recent_projects.clone();
+    first.recent_projects_edits = ordinary.recent_projects_edits.clone();
+    first.recent_project_delete_confirm_idx = Some(0);
+
+    let mut second = ordinary;
+    second.recent_project_delete_confirm_idx = Some(1);
+
+    assert_eq!(view_shape(&first), view_shape(&second));
+    assert!(view_shape(&second).1 > ordinary_shape.1);
 }

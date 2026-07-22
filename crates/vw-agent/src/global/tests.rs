@@ -65,6 +65,20 @@ fn resolve_paths_falls_back_to_home_scoped_directories_without_platform_dirs() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn resolve_paths_falls_back_to_current_directory_without_platform_dirs_or_test_home() {
+    let paths = resolve_paths(None, None);
+
+    assert_eq!(paths.home, PathBuf::from("."));
+    assert_eq!(paths.data, PathBuf::from(".").join(".local").join("share").join(APP));
+    assert_eq!(paths.cache, PathBuf::from(".").join(".cache").join(APP));
+    assert_eq!(paths.config, PathBuf::from(".").join(".config").join(APP));
+    assert_eq!(paths.state, PathBuf::from(".").join(".local").join("state").join(APP));
+    assert_eq!(paths.bin, paths.data.join("bin"));
+    assert_eq!(paths.log, paths.data.join("log"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn prepare_paths_creates_directories_and_writes_missing_cache_version() {
     let temp = tempfile::tempdir().expect("tempdir should be created");
     let paths = test_paths(temp.path().to_path_buf());
@@ -113,6 +127,27 @@ fn prepare_paths_clears_cache_when_version_is_empty() {
     prepare_paths(&paths);
 
     assert!(!paths.cache.join("stale.txt").exists());
+    assert_eq!(
+        std::fs::read_to_string(paths.cache.join("version")).expect("version should be rewritten"),
+        CACHE_VERSION
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn prepare_paths_rewrites_cache_when_version_path_is_directory() {
+    let temp = tempfile::tempdir().expect("tempdir should be created");
+    let paths = test_paths(temp.path().to_path_buf());
+    let version_dir = paths.cache.join("version");
+    std::fs::create_dir_all(&version_dir).expect("version dir should be created");
+    std::fs::write(paths.cache.join("stale.txt"), "stale").expect("stale file should be written");
+    std::fs::write(version_dir.join("stale.txt"), "stale")
+        .expect("nested stale file should be written");
+
+    prepare_paths(&paths);
+
+    assert!(!paths.cache.join("stale.txt").exists());
+    assert!(paths.cache.join("version").is_file());
     assert_eq!(
         std::fs::read_to_string(paths.cache.join("version")).expect("version should be rewritten"),
         CACHE_VERSION

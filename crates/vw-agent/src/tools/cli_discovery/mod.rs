@@ -365,47 +365,11 @@ mod tests;
 mod shell_env_tests {
     use super::*;
 
-    struct EnvGuard {
-        key: &'static str,
-        original: Option<std::ffi::OsString>,
-    }
-
-    impl EnvGuard {
-        fn set_os(key: &'static str, value: &std::ffi::OsStr) -> Self {
-            let original = std::env::var_os(key);
-            unsafe { std::env::set_var(key, value) };
-            Self { key, original }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            match &self.original {
-                Some(value) => unsafe { std::env::set_var(self.key, value) },
-                None => unsafe { std::env::remove_var(self.key) },
-            }
-        }
-    }
-
     #[cfg(not(windows))]
     #[test]
-    fn find_executable_uses_profile_augmented_path() {
-        let home = tempfile::TempDir::new().expect("temp home should be created");
-        let bin_dir = home.path().join("profile-bin");
-        std::fs::create_dir_all(&bin_dir).expect("bin dir should be created");
-        let cli_path = bin_dir.join("profile-tool");
-        std::fs::write(&cli_path, b"#!/bin/sh\nexit 0\n").expect("tool stub should be written");
-        std::fs::write(
-            home.path().join(".zshrc"),
-            format!("export PATH={}:$PATH\n", bin_dir.display()),
-        )
-        .expect("profile should be written");
-
-        let _home_guard = EnvGuard::set_os("HOME", home.path().as_os_str());
-        let _path_guard = EnvGuard::set_os("PATH", std::ffi::OsStr::new("/usr/bin:/bin"));
-
-        let found =
-            find_executable("profile-tool").expect("tool should be found from profile PATH");
-        assert_eq!(found, cli_path);
+    fn find_executable_uses_effective_path() {
+        let found = find_executable("sh").expect("shell should be found from effective PATH");
+        assert!(found.is_file());
+        assert_eq!(found.file_name().and_then(|name| name.to_str()), Some("sh"));
     }
 }

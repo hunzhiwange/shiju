@@ -19,6 +19,15 @@ use std::path::{Path, PathBuf};
 /// 目录缺失、写入失败或空间不足会被转换为诊断项；函数本身不返回错误，以便
 /// doctor 能继续展示同一轮中的其他检查结果。
 pub(super) fn check_workspace(config: &Config, items: &mut Vec<DiagItem>) {
+    check_workspace_with_disk_probe(config, items, disk_available_mb);
+}
+
+/// 使用指定磁盘空间探针检查当前工作区并追加诊断项。
+pub(super) fn check_workspace_with_disk_probe(
+    config: &Config,
+    items: &mut Vec<DiagItem>,
+    disk_probe: fn(&Path) -> Option<u64>,
+) {
     let cat = "workspace";
     let workspace_dir = &config.workspace_dir;
 
@@ -49,17 +58,28 @@ pub(super) fn check_workspace(config: &Config, items: &mut Vec<DiagItem>) {
         }
     }
 
-    if let Some(avail_mb) = disk_available_mb(workspace_dir) {
-        if avail_mb >= 100 {
-            items.push(DiagItem::ok(cat, format!("disk space: {avail_mb} MB available")));
-        } else {
-            items
-                .push(DiagItem::warn(cat, format!("low disk space: only {avail_mb} MB available")));
-        }
-    }
+    append_disk_space_check(disk_probe(workspace_dir), cat, items);
 
     check_file_exists(workspace_dir, "SOUL.md", false, cat, items);
     check_file_exists(workspace_dir, "AGENTS.md", false, cat, items);
+}
+
+/// 根据可用磁盘空间追加对应诊断项。
+pub(super) fn append_disk_space_check(
+    available_mb: Option<u64>,
+    category: &'static str,
+    items: &mut Vec<DiagItem>,
+) {
+    if let Some(avail_mb) = available_mb {
+        if avail_mb >= 100 {
+            items.push(DiagItem::ok(category, format!("disk space: {avail_mb} MB available")));
+        } else {
+            items.push(DiagItem::warn(
+                category,
+                format!("low disk space: only {avail_mb} MB available"),
+            ));
+        }
+    }
 }
 
 /// 检查指定文件是否存在并追加对应诊断项。
@@ -70,7 +90,7 @@ pub(super) fn check_workspace(config: &Config, items: &mut Vec<DiagItem>) {
 /// - `required`：是否将缺失视为错误。
 /// - `category`：诊断分类。
 /// - `items`：收集诊断结果的输出列表。
-fn check_file_exists(
+pub(super) fn check_file_exists(
     base: &Path,
     name: &str,
     required: bool,

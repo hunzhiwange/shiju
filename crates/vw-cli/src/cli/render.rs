@@ -14,9 +14,7 @@
 //! - 创建专业的终端 UI 外观
 //! - 增强用户对系统状态的感知
 
-use crate::app::agent::agent::loop_::cli::theme::{
-    ACCENT_CYAN, EXECUTION_DOT, SCANLINE_DARK, SCANLINE_LIGHT, SURFACE_BASE,
-};
+use super::theme::{ACCENT_CYAN, EXECUTION_DOT, SCANLINE_DARK, SCANLINE_LIGHT, SURFACE_BASE};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::Paragraph;

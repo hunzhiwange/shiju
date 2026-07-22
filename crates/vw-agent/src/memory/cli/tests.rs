@@ -8,6 +8,13 @@ use crate::app::agent::config::{Config, StorageProviderConfig};
 use crate::app::agent::memory::MemoryEntry;
 use std::sync::Mutex;
 
+#[derive(Debug, clap::Parser)]
+#[command(name = "memory-test")]
+struct MemoryTestCli {
+    #[command(subcommand)]
+    command: MemoryCommands,
+}
+
 /// 测试 `parse_category` 函数对已知分类变体的解析
 ///
 /// # 验证点
@@ -115,6 +122,87 @@ fn truncate_content_exact_boundary_is_unchanged() {
 }
 
 #[test]
+fn truncate_content_truncates_unicode_on_character_boundaries() {
+    assert_eq!(truncate_content("甲乙丙丁戊己庚辛", 6), "甲乙丙...");
+}
+
+#[test]
+fn memory_commands_parse_list_defaults() {
+    let cli = <MemoryTestCli as clap::Parser>::try_parse_from(["memory-test", "list"])
+        .expect("list command parses");
+
+    assert_eq!(
+        cli.command,
+        MemoryCommands::List { category: None, session: None, limit: 50, offset: 0 }
+    );
+}
+
+#[test]
+fn memory_commands_parse_list_filters_and_pagination() {
+    let cli = <MemoryTestCli as clap::Parser>::try_parse_from([
+        "memory-test",
+        "list",
+        "--category",
+        "core",
+        "--session",
+        "session-1",
+        "--limit",
+        "25",
+        "--offset",
+        "5",
+    ])
+    .expect("filtered list command parses");
+
+    assert_eq!(
+        cli.command,
+        MemoryCommands::List {
+            category: Some("core".into()),
+            session: Some("session-1".into()),
+            limit: 25,
+            offset: 5,
+        }
+    );
+}
+
+#[test]
+fn memory_commands_parse_get_stats_and_clear_variants() {
+    let get =
+        <MemoryTestCli as clap::Parser>::try_parse_from(["memory-test", "get", "project-notes"])
+            .expect("get command parses");
+    let stats = <MemoryTestCli as clap::Parser>::try_parse_from(["memory-test", "stats"])
+        .expect("stats command parses");
+    let clear = <MemoryTestCli as clap::Parser>::try_parse_from([
+        "memory-test",
+        "clear",
+        "--key",
+        "project-notes",
+        "--category",
+        "daily",
+        "--yes",
+    ])
+    .expect("clear command parses");
+
+    assert_eq!(get.command, MemoryCommands::Get { key: "project-notes".into() });
+    assert_eq!(stats.command, MemoryCommands::Stats);
+    assert_eq!(
+        clear.command,
+        MemoryCommands::Clear {
+            key: Some("project-notes".into()),
+            category: Some("daily".into()),
+            yes: true,
+        }
+    );
+}
+
+#[test]
+fn memory_commands_reject_unknown_subcommand() {
+    let error = <MemoryTestCli as clap::Parser>::try_parse_from(["memory-test", "unknown"])
+        .expect_err("unknown command should be rejected");
+
+    assert_eq!(error.kind(), clap::error::ErrorKind::InvalidSubcommand);
+}
+
+#[test]
 fn create_cli_memory_rejects_disabled_backend() {
     let tmp = tempfile::TempDir::new().unwrap();
     let mut config = Config::default();
@@ -167,15 +255,100 @@ fn create_cli_memory_rejects_mariadb_without_connection_settings() {
     assert!(message.contains("mariadb") || message.contains("memory-mariadb"));
 }
 
+#[test]
+fn create_cli_memory_normalizes_and_creates_markdown_backend() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let mut config = Config::default();
+    config.workspace_dir = tmp.path().to_path_buf();
+    config.memory.backend = "  MARKDOWN  ".into();
+
+    let memory = create_cli_memory(&config).expect("markdown backend should be available");
+
+    assert_eq!(memory.name(), "markdown");
+}
+
+#[test]
+fn create_cli_memory_ignores_blank_storage_provider_override() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let mut config = Config::default();
+    config.workspace_dir = tmp.path().to_path_buf();
+    config.memory.backend = "none".into();
+    config.storage.provider.config.provider = "   ".into();
+
+    let error = match create_cli_memory(&config) {
+        Ok(_) => panic!("blank provider should preserve the disabled memory backend"),
+        Err(error) => error,
+    };
+
+    assert!(error.to_string().contains("disabled"));
+}
+
+#[tokio::test]
+async fn handle_command_routes_all_variants_to_disabled_backend_rejection() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let mut config = Config::default();
+    config.workspace_dir = tmp.path().to_path_buf();
+    config.memory.backend = "none".into();
+    let commands = [
+        MemoryCommands::List { category: None, session: None, limit: 50, offset: 0 },
+        MemoryCommands::Get { key: "alpha".into() },
+        MemoryCommands::Stats,
+        MemoryCommands::Clear { key: None, category: None, yes: true },
+    ];
+
+    for command in commands {
+        let error = handle_command(command, &config)
+            .await
+            .expect_err("disabled backend should reject every command");
+        assert!(error.to_string().contains("disabled"));
+    }
+}
+
+#[tokio::test]
+async fn empty_markdown_backend_handles_all_commands_without_external_services() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let mut config = Config::default();
+    config.workspace_dir = tmp.path().to_path_buf();
+    config.memory.backend = "markdown".into();
+
+    handle_command(
+        MemoryCommands::List {
+            category: Some("core".into()),
+            session: Some("session-1".into()),
+            limit: 1,
+            offset: usize::MAX,
+        },
+        &config,
+    )
+    .await
+    .expect("an empty backend should produce an empty list");
+    handle_command(MemoryCommands::Get { key: "missing".into() }, &config)
+        .await
+        .expect("a missing key should be reported without failing");
+    handle_command(MemoryCommands::Stats, &config)
+        .await
+        .expect("empty-backend statistics should remain available");
+    handle_command(
+        MemoryCommands::Clear { key: None, category: Some("daily".into()), yes: true },
+        &config,
+    )
+    .await
+    .expect("clearing an empty category should be a no-op");
+}
+
 #[derive(Default)]
 struct StubMemory {
     entries: Mutex<Vec<MemoryEntry>>,
     forgotten: Mutex<Vec<String>>,
+    get_error: Option<&'static str>,
+    list_error: Option<&'static str>,
+    forget_error: Option<&'static str>,
+    forget_result: Option<bool>,
 }
 
 impl StubMemory {
     fn with_entries(entries: Vec<MemoryEntry>) -> Self {
-        Self { entries: Mutex::new(entries), forgotten: Mutex::new(Vec::new()) }
+        Self { entries: Mutex::new(entries), forgotten: Mutex::new(Vec::new()), ..Self::default() }
     }
 
     fn forgotten_keys(&self) -> Vec<String> {
@@ -221,6 +394,9 @@ impl Memory for StubMemory {
     }
 
     async fn get(&self, key: &str) -> anyhow::Result<Option<MemoryEntry>> {
+        if let Some(message) = self.get_error {
+            anyhow::bail!(message);
+        }
         Ok(self.entries.lock().unwrap().iter().find(|entry| entry.key == key).cloned())
     }
 
@@ -229,6 +405,9 @@ impl Memory for StubMemory {
         category: Option<&MemoryCategory>,
         session_id: Option<&str>,
     ) -> anyhow::Result<Vec<MemoryEntry>> {
+        if let Some(message) = self.list_error {
+            anyhow::bail!(message);
+        }
         let entries = self
             .entries
             .lock()
@@ -249,7 +428,12 @@ impl Memory for StubMemory {
 
     async fn forget(&self, key: &str) -> anyhow::Result<bool> {
         self.forgotten.lock().unwrap().push(key.to_string());
-        Ok(self.entries.lock().unwrap().iter().any(|entry| entry.key == key))
+        if let Some(message) = self.forget_error {
+            anyhow::bail!(message);
+        }
+        Ok(self
+            .forget_result
+            .unwrap_or_else(|| self.entries.lock().unwrap().iter().any(|entry| entry.key == key)))
     }
 
     async fn count(&self) -> anyhow::Result<usize> {
@@ -289,7 +473,7 @@ async fn clear_key_deletes_unique_prefix_match() {
 async fn clear_key_leaves_missing_prefix_untouched() {
     let memory = StubMemory::with_entries(vec![entry("alpha", MemoryCategory::Core, None)]);
 
-    handle_clear_key(&memory, "missing", true).await.unwrap();
+    handle_clear_key(&memory, "missing", false).await.unwrap();
 
     assert!(memory.forgotten_keys().is_empty());
 }
@@ -301,7 +485,59 @@ async fn clear_key_leaves_ambiguous_prefix_untouched() {
         entry("alphabet", MemoryCategory::Daily, None),
     ]);
 
-    handle_clear_key(&memory, "alph", true).await.unwrap();
+    handle_clear_key(&memory, "alph", false).await.unwrap();
 
     assert!(memory.forgotten_keys().is_empty());
+}
+
+#[tokio::test]
+async fn clear_key_propagates_exact_lookup_error_without_forgetting() {
+    let memory =
+        StubMemory { get_error: Some("get failed"), ..StubMemory::with_entries(Vec::new()) };
+
+    let error =
+        handle_clear_key(&memory, "alpha", true).await.expect_err("get failure should be returned");
+
+    assert_eq!(error.to_string(), "get failed");
+    assert!(memory.forgotten_keys().is_empty());
+}
+
+#[tokio::test]
+async fn clear_key_propagates_prefix_list_error_without_forgetting() {
+    let memory =
+        StubMemory { list_error: Some("list failed"), ..StubMemory::with_entries(Vec::new()) };
+
+    let error = handle_clear_key(&memory, "alpha", true)
+        .await
+        .expect_err("list failure should be returned");
+
+    assert_eq!(error.to_string(), "list failed");
+    assert!(memory.forgotten_keys().is_empty());
+}
+
+#[tokio::test]
+async fn clear_key_propagates_forget_error_for_resolved_target() {
+    let memory = StubMemory {
+        forget_error: Some("forget failed"),
+        ..StubMemory::with_entries(vec![entry("alpha", MemoryCategory::Core, None)])
+    };
+
+    let error = handle_clear_key(&memory, "alpha", true)
+        .await
+        .expect_err("forget failure should be returned");
+
+    assert_eq!(error.to_string(), "forget failed");
+    assert_eq!(memory.forgotten_keys(), vec!["alpha"]);
+}
+
+#[tokio::test]
+async fn clear_key_calls_forget_once_when_backend_reports_not_deleted() {
+    let memory = StubMemory {
+        forget_result: Some(false),
+        ..StubMemory::with_entries(vec![entry("alpha", MemoryCategory::Core, None)])
+    };
+
+    handle_clear_key(&memory, "alpha", true).await.unwrap();
+
+    assert_eq!(memory.forgotten_keys(), vec!["alpha"]);
 }

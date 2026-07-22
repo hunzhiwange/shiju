@@ -175,6 +175,64 @@ fn embedded_custom_diff_and_main_view_cover_modal_and_filter_paths() {
 }
 
 #[test]
+fn discard_file_modal_requires_target_file_and_builds_stack() {
+    let mut app = app();
+
+    assert!(super::discard_file_modal(&app).is_none());
+
+    app.file_to_discard = Some("src/lib.rs".to_string());
+    let modal = super::discard_file_modal(&app).expect("discard modal should render");
+
+    assert_eq!(modal.as_widget().children().len(), 2);
+}
+
+#[test]
+fn main_view_covers_help_and_copy_modal_layers() {
+    let mut app = app();
+    app.show_git_commit_help_modal = true;
+    app.show_git_filter_help_modal = true;
+    let with_help = super::view(&app);
+    drop(with_help);
+
+    app.show_git_commit_help_modal = false;
+    app.show_git_filter_help_modal = false;
+    app.show_git_copy_modal = true;
+    app.git_copy_modal_use_color = false;
+    let text_modal = super::view(&app);
+    assert_eq!(text_modal.as_widget().children().len(), 3);
+    drop(text_modal);
+
+    app.git_copy_modal_use_color = true;
+    let colored_modal = super::view(&app);
+    assert_eq!(colored_modal.as_widget().children().len(), 3);
+}
+
+#[test]
+fn main_view_filters_included_files_from_all_selection_sources() {
+    let mut app = app();
+    app.git_diff_file_metas = vec![
+        meta("src/file.rs", FileStatus::Modified, 1, 1),
+        meta("src/hunk.rs", FileStatus::Modified, 1, 0),
+        meta("src/line.rs", FileStatus::Modified, 0, 1),
+        meta("src/old_line.rs", FileStatus::Deleted, 0, 1),
+        meta("src/excluded.rs", FileStatus::Added, 1, 0),
+    ];
+    app.git_filter_included = true;
+    app.staged_files_selected.push("src/file.rs".to_string());
+    app.staged_hunks_selected.push(("src/hunk.rs".to_string(), 1));
+    app.staged_lines_selected.push(("src/line.rs".to_string(), 2));
+    app.staged_old_lines_selected.push(("src/old_line.rs".to_string(), 3));
+
+    let included = super::view(&app);
+    drop(included);
+
+    app.git_filter_included = false;
+    app.git_filter_excluded = true;
+    let excluded = super::view(&app);
+    drop(excluded);
+}
+
+#[test]
 fn main_view_covers_empty_and_virtualized_lists() {
     let mut app = app();
     let empty = super::view(&app);
@@ -186,4 +244,24 @@ fn main_view_covers_empty_and_virtualized_lists() {
     app.git_diff_scroll_offset_y = 0.5;
 
     let _virtualized = super::view(&app);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn repository_wrappers_preserve_empty_results_for_missing_repository() {
+    let temp = tempfile::tempdir().expect("temporary parent");
+    let missing = temp.path().join("missing-repository");
+    let path = missing.to_str().expect("utf8 path");
+    let mut app = app();
+    app.project_path = Some(path.to_string());
+    let missing_meta = meta("missing.txt", FileStatus::Modified, 0, 0);
+
+    assert_eq!(super::git_repo_path_for_app(&app), Some(path.to_string()));
+    assert!(super::get_diff_file_metas_for_repo_path(path).is_empty());
+    assert_eq!(
+        super::load_diff_content_for_repo_path(path, &missing_meta),
+        (String::new(), String::new())
+    );
+    assert!(super::changed_files_in_repo(path).is_empty());
+    assert!(super::changed_files(&app).is_empty());
 }

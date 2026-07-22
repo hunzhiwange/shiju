@@ -102,3 +102,21 @@ fn blank_acp_error_message_uses_fallback_error() {
         }))
     );
 }
+
+#[test]
+fn jsonrpc_error_object_skips_missing_data_when_serialized() {
+    let value = serde_json::to_value(JsonRpcErrorObject {
+        code: -32603,
+        message: "runtime failed".to_string(),
+        data: None,
+    })
+    .unwrap();
+
+    assert_eq!(
+        value,
+        json!({
+            "code": -32603,
+            "message": "runtime failed"
+        })
+    );
+}

@@ -12,6 +12,7 @@ use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::context::scope_tool_use_context;
 use crate::app::agent::tools::{FileSnapshot, ToolUseContext};
 use serde_json::json;
+use tempfile::TempDir;
 use vw_api_types::tools::ToolResultContentDto;
 
 /// 创建测试用的安全策略
@@ -57,6 +58,65 @@ fn schema_is_object() {
 
     // 验证 patchText 属性存在且类型正确
     assert!(s["properties"]["patchText"].is_object());
+}
+
+#[test]
+fn tool_metadata_and_failure_results_are_stable() {
+    let dir = TempDir::new().unwrap();
+    let tool = ApplyPatchTool::new(test_security(dir.path().to_path_buf()));
+
+    assert_eq!(tool.name(), "apply_patch");
+    assert!(tool.description().contains("apply_patch"));
+    assert_eq!(tool.parameters_schema(), ApplyPatchTool::schema());
+
+    let failure = ApplyPatchTool::failure("blocked");
+    assert!(!failure.success);
+    assert_eq!(failure.output, "blocked");
+    assert_eq!(failure.error.as_deref(), Some("blocked"));
+}
+
+#[tokio::test]
+async fn apply_patch_rejects_invalid_empty_and_noop_inputs() {
+    let dir = TempDir::new().unwrap();
+    let tool = ApplyPatchTool::new(test_security(dir.path().to_path_buf()));
+
+    let missing = tool.call(json!({})).await.unwrap_err();
+    assert!(missing.to_string().contains("Missing or invalid 'patchText' parameter"));
+
+    let wrong_type = tool.call(json!({"patchText": 7})).await.unwrap_err();
+    assert!(wrong_type.to_string().contains("Missing or invalid 'patchText' parameter"));
+
+    let empty = tool.call(json!({"patchText": "   "})).await.unwrap();
+    assert!(!empty.is_success());
+    assert!(empty.error_text().unwrap_or_default().contains("Missing patchText"));
+
+    let noop = tool.call(json!({"patchText": "*** Begin Patch\n*** End Patch"})).await.unwrap();
+    assert!(!noop.is_success());
+    assert!(noop.error_text().unwrap_or_default().contains("empty patch"));
+}
+
+#[tokio::test]
+async fn apply_patch_move_updates_destination_and_removes_source() {
+    let dir = TempDir::new().unwrap();
+    tokio::fs::write(dir.path().join("source.txt"), "old\n").await.unwrap();
+    let tool = ApplyPatchTool::new(test_security(dir.path().to_path_buf()));
+
+    let result = tool
+        .call(json!({
+            "patchText": "*** Begin Patch\n*** Update File: source.txt\n*** Move to: nested/target.txt\n@@\n-old\n+new\n*** End Patch"
+        }))
+        .await
+        .unwrap();
+
+    assert!(result.is_success(), "error: {:?}", result.error_text());
+    assert_eq!(result.data["files"][0]["operation"], json!("move"));
+    assert_eq!(result.data["files"][0]["from_path"], json!("source.txt"));
+    assert_eq!(result.data["files"][0]["file"]["path"], json!("nested/target.txt"));
+    assert!(!dir.path().join("source.txt").exists());
+    assert_eq!(
+        tokio::fs::read_to_string(dir.path().join("nested/target.txt")).await.unwrap(),
+        "new\n"
+    );
 }
 
 /// 测试应用添加文件的补丁功能

@@ -292,14 +292,12 @@ impl TelegramChannel {
 
         // 验证用户权限
         if !self.is_any_user_allowed(identities.iter().copied()) {
-            tracing::debug!(
-                "Skipping voice message from unauthorized user: {} (allowed_users: {:?})",
-                sender_identity,
-                self.allowed_users
-                    .read()
-                    .map(|u| u.iter().cloned().collect::<Vec<_>>())
-                    .unwrap_or_default()
-            );
+            let allowed_users = self
+                .allowed_users
+                .read()
+                .map(|u| u.iter().cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
+            tracing::debug!(?allowed_users, %sender_identity, "Skipping voice message from unauthorized user");
             return None;
         }
 
@@ -333,12 +331,6 @@ impl TelegramChannel {
         } else {
             chat_id.clone()
         };
-
-        // 重复检查群组消息条件（可能是冗余的，保留原逻辑）
-        let is_group = Self::is_group_message(message);
-        if self.mention_only && is_group {
-            return None;
-        }
 
         // 获取文件路径
         let file_path = match self.get_file_path(&metadata.file_id).await {
@@ -387,12 +379,8 @@ impl TelegramChannel {
         }
 
         // 记录成功日志
-        tracing::info!(
-            "Voice message transcribed successfully ({} chars) for user {} in chat {}",
-            text.len(),
-            sender_identity,
-            chat_id
-        );
+        let text_len = text.len();
+        tracing::info!(text_len, %sender_identity, %chat_id, "Voice message transcribed successfully");
 
         // 构建消息内容（包含可能的引用上下文）
         let content = if let Some(quote) = self.extract_reply_context(message) {

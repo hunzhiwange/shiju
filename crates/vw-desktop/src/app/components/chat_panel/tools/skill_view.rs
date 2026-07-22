@@ -3,7 +3,7 @@
 //! 该视图只展示技能名称，完整技能内容交给已有工具详情弹窗承载。
 
 use iced::widget::{Space, button, container, mouse_area, row, text};
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Alignment, Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
@@ -73,7 +73,7 @@ pub fn tool_skill_view<'a>(
             .spacing(10)
             .align_y(Alignment::Center),
         )
-        .padding([4, 6])
+        .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
         .width(Length::Fill),
     )
     .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))

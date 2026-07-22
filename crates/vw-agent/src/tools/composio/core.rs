@@ -26,12 +26,138 @@ use crate::app::agent::security::SecurityPolicy;
 use parking_lot::RwLock;
 use reqwest::Client;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use util::{
     build_tool_slug_candidates, infer_app_slug_from_action_name, normalize_action_cache_key,
     normalize_app_slug, normalize_entity_id, normalize_tool_slug,
 };
+
+pub(super) type ApiFuture<'a, T> = Pin<Box<dyn Future<Output = anyhow::Result<T>> + Send + 'a>>;
+
+pub(super) trait ComposioApiClient: Send + Sync {
+    fn list_actions_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: Option<&'a str>,
+    ) -> ApiFuture<'a, types::ComposioToolsResponse>;
+
+    fn list_connected_accounts<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: Option<&'a str>,
+        entity_id: Option<&'a str>,
+    ) -> ApiFuture<'a, Vec<types::ComposioConnectedAccount>>;
+
+    fn execute_action_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        tool_slug: &'a str,
+        params: serde_json::Value,
+        text: Option<&'a str>,
+        entity_id: Option<&'a str>,
+        connected_account_ref: Option<&'a str>,
+    ) -> ApiFuture<'a, serde_json::Value>;
+
+    fn resolve_auth_config_id<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: &'a str,
+    ) -> ApiFuture<'a, String>;
+
+    fn get_connection_url_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        auth_config_id: &'a str,
+        entity_id: &'a str,
+    ) -> ApiFuture<'a, types::ComposioConnectionLink>;
+
+    fn get_tool_schema<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        slug: &'a str,
+    ) -> ApiFuture<'a, serde_json::Value>;
+}
+
+struct RealComposioApiClient;
+
+impl ComposioApiClient for RealComposioApiClient {
+    fn list_actions_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: Option<&'a str>,
+    ) -> ApiFuture<'a, types::ComposioToolsResponse> {
+        Box::pin(api::list_actions_v3(client, api_key, app_name))
+    }
+
+    fn list_connected_accounts<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: Option<&'a str>,
+        entity_id: Option<&'a str>,
+    ) -> ApiFuture<'a, Vec<types::ComposioConnectedAccount>> {
+        Box::pin(api::list_connected_accounts(client, api_key, app_name, entity_id))
+    }
+
+    fn execute_action_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        tool_slug: &'a str,
+        params: serde_json::Value,
+        text: Option<&'a str>,
+        entity_id: Option<&'a str>,
+        connected_account_ref: Option<&'a str>,
+    ) -> ApiFuture<'a, serde_json::Value> {
+        Box::pin(api::execute_action_v3(
+            client,
+            api_key,
+            tool_slug,
+            params,
+            text,
+            entity_id,
+            connected_account_ref,
+        ))
+    }
+
+    fn resolve_auth_config_id<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        app_name: &'a str,
+    ) -> ApiFuture<'a, String> {
+        Box::pin(api::resolve_auth_config_id(client, api_key, app_name))
+    }
+
+    fn get_connection_url_v3<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        auth_config_id: &'a str,
+        entity_id: &'a str,
+    ) -> ApiFuture<'a, types::ComposioConnectionLink> {
+        Box::pin(api::get_connection_url_v3(client, api_key, auth_config_id, entity_id))
+    }
+
+    fn get_tool_schema<'a>(
+        &'a self,
+        client: &'a Client,
+        api_key: &'a str,
+        slug: &'a str,
+    ) -> ApiFuture<'a, serde_json::Value> {
+        Box::pin(api::get_tool_schema(client, api_key, slug))
+    }
+}
 
 /// Composio 工具代理结构体
 ///
@@ -61,6 +187,7 @@ pub struct ComposioTool {
     recent_connected_accounts: RwLock<HashMap<String, String>>,
     /// 操作名称到 slug 的映射缓存
     action_slug_cache: RwLock<HashMap<String, String>>,
+    api: Arc<dyn ComposioApiClient>,
 }
 
 impl ComposioTool {
@@ -87,6 +214,15 @@ impl ComposioTool {
         default_entity_id: Option<&str>,
         security: Arc<SecurityPolicy>,
     ) -> Self {
+        Self::new_with_api(api_key, default_entity_id, security, Arc::new(RealComposioApiClient))
+    }
+
+    pub(super) fn new_with_api(
+        api_key: &str,
+        default_entity_id: Option<&str>,
+        security: Arc<SecurityPolicy>,
+        api: Arc<dyn ComposioApiClient>,
+    ) -> Self {
         Self {
             api_key: api_key.to_string(),
             // 对实体 ID 进行规范化处理，确保格式一致
@@ -94,6 +230,7 @@ impl ComposioTool {
             security,
             recent_connected_accounts: RwLock::new(HashMap::new()),
             action_slug_cache: RwLock::new(HashMap::new()),
+            api,
         }
     }
 
@@ -149,7 +286,7 @@ impl ComposioTool {
         app_name: Option<&str>,
     ) -> anyhow::Result<Vec<types::ComposioAction>> {
         // 调用 v3 API 获取操作列表
-        let body = api::list_actions_v3(&self.client(), &self.api_key, app_name).await?;
+        let body = self.api.list_actions_v3(&self.client(), &self.api_key, app_name).await?;
         // 更新操作 slug 缓存，加速后续的执行调用
         api::update_action_slug_cache_from_v3(&self.action_slug_cache, &body.items);
         // 将 v3 API 响应转换为统一的 ComposioAction 类型
@@ -174,7 +311,7 @@ impl ComposioTool {
         app_name: Option<&str>,
         entity_id: Option<&str>,
     ) -> anyhow::Result<Vec<types::ComposioConnectedAccount>> {
-        api::list_connected_accounts(&self.client(), &self.api_key, app_name, entity_id).await
+        self.api.list_connected_accounts(&self.client(), &self.api_key, app_name, entity_id).await
     }
 
     /// 缓存已连接账户信息
@@ -361,16 +498,18 @@ impl ComposioTool {
         for slug in slug_candidates {
             // 缓存成功的 slug 映射
             self.cache_action_slug(action_name, &slug);
-            match api::execute_action_v3(
-                &self.client(),
-                &self.api_key,
-                &slug,
-                params.clone(),
-                text,
-                normalized_entity_id.as_deref(),
-                resolved_account_ref.as_deref(),
-            )
-            .await
+            match self
+                .api
+                .execute_action_v3(
+                    &self.client(),
+                    &self.api_key,
+                    &slug,
+                    params.clone(),
+                    text,
+                    normalized_entity_id.as_deref(),
+                    resolved_account_ref.as_deref(),
+                )
+                .await
             {
                 Ok(result) => return Ok(result),
                 Err(err) => v3_errors.push(format!("{slug}: {err}")),
@@ -514,12 +653,14 @@ impl ComposioTool {
                 let app = app_name.ok_or_else(|| {
                     anyhow::anyhow!("Missing 'app' or 'auth_config_id' for v3 connect")
                 })?;
-                api::resolve_auth_config_id(&self.client(), &self.api_key, app).await?
+                self.api.resolve_auth_config_id(&self.client(), &self.api_key, app).await?
             }
         };
 
         // 调用 v3 API 获取连接 URL
-        api::get_connection_url_v3(&self.client(), &self.api_key, &auth_config_id, entity_id).await
+        self.api
+            .get_connection_url_v3(&self.client(), &self.api_key, &auth_config_id, entity_id)
+            .await
     }
 
     /// 获取工具的完整模式定义
@@ -541,7 +682,7 @@ impl ComposioTool {
     ) -> anyhow::Result<serde_json::Value> {
         // 规范化 slug
         let slug = normalize_tool_slug(tool_slug);
-        api::get_tool_schema(&self.client(), &self.api_key, &slug).await
+        self.api.get_tool_schema(&self.client(), &self.api_key, &slug).await
     }
 
     /// 构建 v3 执行操作的请求体

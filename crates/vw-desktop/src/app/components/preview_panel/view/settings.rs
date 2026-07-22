@@ -22,11 +22,62 @@ use crate::app::components::system_settings_common::{
     settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_panel,
     settings_pick_list_menu_style, settings_pick_list_style, settings_value_badge,
 };
+use crate::app::message::editor::EditorMessage;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text};
 use iced::{Alignment, Element, Length};
 
 use super::super::tabs::{DisplayLanguage, all_languages};
+
+/// 设置面板控件产生的局部交互。
+pub(super) enum SettingsControl {
+    /// 关闭设置面板。
+    Close,
+    /// 更新编辑器字号。
+    FontSize(f32),
+    /// 切换自动行高。
+    AutoLineHeight(bool),
+    /// 更新手动行高。
+    LineHeight(f32),
+    /// 更新编辑器语言。
+    Language(iced_code_editor::i18n::Language),
+    /// 切换跟随系统主题。
+    FollowSystemTheme(bool),
+    /// 更新手动主题。
+    Theme(iced::Theme),
+}
+
+/// 将设置面板的局部交互映射为应用消息。
+pub(super) fn control_message(control: SettingsControl) -> Message {
+    let message = match control {
+        SettingsControl::Close => EditorMessage::ToggleSettings,
+        SettingsControl::FontSize(value) => EditorMessage::FontSizeChanged(value),
+        SettingsControl::AutoLineHeight(enabled) => EditorMessage::ToggleAutoLineHeight(enabled),
+        SettingsControl::LineHeight(value) => EditorMessage::LineHeightChanged(value),
+        SettingsControl::Language(language) => EditorMessage::LanguageChanged(language),
+        SettingsControl::FollowSystemTheme(enabled) => {
+            EditorMessage::ToggleFollowSystemTheme(enabled)
+        }
+        SettingsControl::Theme(theme) => EditorMessage::ThemeChanged(theme),
+    };
+
+    Message::Editor(message)
+}
+
+/// 返回设置面板当前应显示的编辑器主题。
+pub(super) fn selected_editor_theme(app: &App) -> iced::Theme {
+    if app.editor_follow_system_theme { app.app_theme.clone() } else { app.editor_theme.clone() }
+}
+
+/// 格式化字号徽标。
+pub(super) fn font_size_badge_label(font_size: f32) -> String {
+    format!("{font_size:.0} pt")
+}
+
+/// 格式化行高徽标。
+pub(super) fn line_height_badge_label(line_height: f32) -> String {
+    format!("{line_height:.1}")
+}
 
 /// 构建设置面板覆盖层
 ///
@@ -101,25 +152,19 @@ pub fn build_settings_overlay<'a>(
         .into()
     }
 
-    let close_message = Message::Editor(crate::app::message::editor::EditorMessage::ToggleSettings);
+    let close_message = control_message(SettingsControl::Close);
     let language_pick =
         pick_list(all_languages(), Some(DisplayLanguage(app.current_language)), |l| {
-            Message::Editor(crate::app::message::editor::EditorMessage::LanguageChanged(l.0))
+            control_message(SettingsControl::Language(l.0))
         })
         .padding([10, 14])
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(240.0));
 
-    let theme_pick = pick_list(
-        iced::Theme::ALL,
-        Some(if app.editor_follow_system_theme {
-            app.app_theme.clone()
-        } else {
-            app.editor_theme.clone()
-        }),
-        |t| Message::Editor(crate::app::message::editor::EditorMessage::ThemeChanged(t)),
-    )
+    let theme_pick = pick_list(iced::Theme::ALL, Some(selected_editor_theme(app)), |theme| {
+        control_message(SettingsControl::Theme(theme))
+    })
     .padding([10, 14])
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
@@ -142,11 +187,11 @@ pub fn build_settings_overlay<'a>(
                     "字号",
                     "调整编辑器基础字体大小。",
                     row![
-                        slider(10.0..=30.0, app.current_font_size, |v| Message::Editor(
-                            crate::app::message::editor::EditorMessage::FontSizeChanged(v)
-                        ))
+                        slider(10.0..=30.0, app.current_font_size, |value| {
+                            control_message(SettingsControl::FontSize(value))
+                        })
                         .width(Length::Fill),
-                        settings_value_badge(format!("{:.0} pt", app.current_font_size)),
+                        settings_value_badge(font_size_badge_label(app.current_font_size)),
                     ]
                     .spacing(12)
                     .align_y(Alignment::Center),
@@ -157,10 +202,8 @@ pub fn build_settings_overlay<'a>(
                     "启用后根据字体大小自动匹配行距。",
                     checkbox(app.auto_adjust_line_height)
                         .label("启用")
-                        .on_toggle(|b| {
-                            Message::Editor(
-                                crate::app::message::editor::EditorMessage::ToggleAutoLineHeight(b),
-                            )
+                        .on_toggle(|enabled| {
+                            control_message(SettingsControl::AutoLineHeight(enabled))
                         })
                         .style(settings_checkbox_style),
                 ),
@@ -169,11 +212,11 @@ pub fn build_settings_overlay<'a>(
                     "行高",
                     "关闭自动行高后可手动微调阅读密度。",
                     row![
-                        slider(10.0..=50.0, app.current_line_height, |v| Message::Editor(
-                            crate::app::message::editor::EditorMessage::LineHeightChanged(v)
-                        ))
+                        slider(10.0..=50.0, app.current_line_height, |value| {
+                            control_message(SettingsControl::LineHeight(value))
+                        })
                         .width(Length::Fill),
-                        settings_value_badge(format!("{:.1}", app.current_line_height)),
+                        settings_value_badge(line_height_badge_label(app.current_line_height)),
                     ]
                     .spacing(12)
                     .align_y(Alignment::Center),
@@ -186,12 +229,8 @@ pub fn build_settings_overlay<'a>(
                     "启用后编辑器自动同步桌面主题。",
                     checkbox(app.editor_follow_system_theme)
                         .label("启用")
-                        .on_toggle(|b| {
-                            Message::Editor(
-                                crate::app::message::editor::EditorMessage::ToggleFollowSystemTheme(
-                                    b,
-                                ),
-                            )
+                        .on_toggle(|enabled| {
+                            control_message(SettingsControl::FollowSystemTheme(enabled))
                         })
                         .style(settings_checkbox_style),
                 ),

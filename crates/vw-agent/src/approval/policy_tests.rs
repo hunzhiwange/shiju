@@ -124,6 +124,16 @@ fn policy_manages_non_cli_session_and_allow_all_once_tokens() {
 }
 
 #[test]
+fn policy_allow_all_once_grant_saturates_at_u32_max() {
+    let manager = ApprovalManager::from_config(&AutonomyConfig::default());
+
+    *manager.non_cli_allow_all_once_remaining.lock() = u32::MAX;
+
+    assert_eq!(manager.grant_non_cli_allow_all_once(), u32::MAX);
+    assert_eq!(manager.non_cli_allow_all_once_remaining(), u32::MAX);
+}
+
+#[test]
 fn policy_checks_non_cli_approval_actor_patterns() {
     let open = ApprovalManager::from_config(&AutonomyConfig::default());
     assert!(open.is_non_cli_approval_actor_allowed("discord", "anyone"));
@@ -149,6 +159,22 @@ fn policy_checks_non_cli_approval_actor_patterns() {
     assert!(manager.is_non_cli_approval_actor_allowed("slack", "mallory"));
     assert!(manager.is_non_cli_approval_actor_allowed("matrix", "carol"));
     assert!(!manager.is_non_cli_approval_actor_allowed("discord", "mallory"));
+}
+
+#[test]
+fn policy_channel_mode_lookup_trims_channel_before_matching() {
+    let mut modes = HashMap::new();
+    modes.insert("telegram".to_string(), NonCliNaturalLanguageApprovalMode::RequestConfirm);
+    let manager = ApprovalManager::from_config(&AutonomyConfig {
+        non_cli_natural_language_approval_mode: NonCliNaturalLanguageApprovalMode::Direct,
+        non_cli_natural_language_approval_mode_by_channel: modes,
+        ..AutonomyConfig::default()
+    });
+
+    assert_eq!(
+        manager.non_cli_natural_language_approval_mode_for_channel(" Telegram "),
+        NonCliNaturalLanguageApprovalMode::RequestConfirm
+    );
 }
 
 #[test]

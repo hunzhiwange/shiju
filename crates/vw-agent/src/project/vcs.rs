@@ -81,10 +81,9 @@ pub async fn init(worktree: PathBuf) -> Arc<Mutex<Info>> {
 
     let info2 = info.clone();
     bus::subscribe(file_watcher::event::UPDATED, move |evt| {
-        let Some(props) = evt.get("properties") else {
-            return;
-        };
-        let Some(file) = props.get("file").and_then(|v| v.as_str()) else {
+        let Some(file) =
+            evt.get("properties").and_then(|props| props.get("file")).and_then(|v| v.as_str())
+        else {
             return;
         };
         if !file.ends_with("HEAD") {

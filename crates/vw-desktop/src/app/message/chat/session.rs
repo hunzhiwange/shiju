@@ -61,16 +61,20 @@ async fn create_fork_worktree_directory(
     project_directory: &str,
 ) -> Result<String, String> {
     let project = client
-        .project_resolve(&ResolveProjectRequest {
-            directory: project_directory.to_string(),
-            create_if_missing: true,
-        })
+        .project_resolve(
+            &crate::app::session_gateway::active_tenant_scope(),
+            &ResolveProjectRequest {
+                directory: project_directory.to_string(),
+                create_if_missing: true,
+            },
+        )
         .await?
         .project;
+    let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
     let requested_name = format!("fork-{}", create_slug().to_ascii_lowercase());
     let worktree = client
         .project_worktree_create(
-            &project.id.0,
+            &project_scope,
             &CreateWorktreeRequest {
                 name: requested_name.clone(),
                 branch: format!("vibewindow/{requested_name}"),
@@ -447,6 +451,22 @@ fn recover_message_ids_for_action_task(
     )
 }
 
+fn reset_runtime_history_snapshots(
+    app: &mut App,
+    session_id: &str,
+    retained_chat: &[models::ChatMessage],
+) {
+    let runtime = app.get_session_runtime_mut(session_id);
+    if let Some(request) = runtime.active_agent_request.as_mut() {
+        request.history = retained_chat.to_vec();
+    }
+    for item in &mut runtime.queue {
+        if item.resume_history_only || item.request_history_override.is_some() {
+            item.request_history_override = Some(retained_chat.to_vec());
+        }
+    }
+}
+
 fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> Task<Message> {
     let root = current_session_directory(app).or_else(|| app.project_path.clone());
     let retain_end = msg_idx.saturating_add(1);
@@ -466,6 +486,9 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     app.active_session_id = Some(session_id.clone());
     app.chat = retained_chat;
     app.chat_message_ids = retained_message_ids;
+    app.mark_session_history_reset_boundary(session_id.clone(), app.chat_message_ids.clone());
+    let retained_history = app.chat.clone();
+    reset_runtime_history_snapshots(app, &session_id, &retained_history);
     app.invalidate_chat_ui_state();
     app.sync_active_session_preferences();
     app.rebuild_active_session_message_meta();
@@ -690,6 +713,8 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let task_mode_enabled = runtime.task_mode_enabled;
     let task_mode_priority = runtime.task_mode_priority.clone();
     let task_mode_model = runtime.task_mode_model.clone();
+    let task_mode_reasoning_effort = runtime.task_mode_reasoning_effort;
+    let task_mode_task_split_mode = runtime.task_mode_task_split_mode;
     let task_mode_subtasks = runtime.task_mode_subtasks.clone();
     let workflow_mode_enabled = runtime.workflow_mode_enabled;
     if let Some(command) = parse_inline_mode_command(&query) {
@@ -702,6 +727,8 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
             content: compose_query_with_attachments(&query, &attachments),
             priority: task_mode_priority,
             model: task_mode_model,
+            reasoning_effort: task_mode_reasoning_effort,
+            task_split_mode: task_mode_task_split_mode,
             subtasks: task_mode_subtasks,
         }));
     }
@@ -712,6 +739,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.directory.clone()))
         .or_else(|| app.project_path.clone());
     let model = if runtime.auto_model { None } else { Some(runtime.model.clone()) };
+    let reasoning_effort = runtime.reasoning_effort;
     let acp_agent = resolve_acp_agent(app, runtime.acp_agent.clone());
     let allowed_tools = app.session_allowed_tools_for_request(&runtime);
     let agent = request_delegate_agent(runtime.agent.clone());
@@ -745,6 +773,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         attachments,
         root,
         model,
+        reasoning_effort,
         acp_test,
         acp_agent,
         acp_allowed_tools,
@@ -818,6 +847,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.auto_model = auto_model;
             persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
         }
+        ChatMessage::ReasoningEffortSelected(reasoning_effort) => {
+            app.current_session_runtime_mut().reasoning_effort = reasoning_effort;
+            app.reasoning_effort = reasoning_effort;
+            app.show_reasoning_effort_popover = false;
+            Task::none()
+        }
         ChatMessage::AcpAgentSelected(agent) => {
             let (model, auto_model) = {
                 let runtime = app.current_session_runtime_mut();
@@ -826,6 +861,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             app.acp_agent = agent.clone();
             app.show_acp_popover = false;
+            app.show_reasoning_effort_popover = false;
             info!(
                 target: "vw_desktop",
                 requested_acp_agent = ?agent,
@@ -1535,6 +1571,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     if let Some(session_id) = app.active_session_id.clone() {
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.is_requesting = true;
+        runtime.request_started_ms = crate::app::time::now_ms();
         runtime.submit_anim = 0;
         runtime.has_unseen_success = false;
         info!(
@@ -1565,6 +1602,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             query: request_query,
             root: item.root,
             model: item.model,
+            reasoning_effort: item.reasoning_effort,
             acp_test: item.acp_test,
             acp_agent: item.acp_agent,
             acp_allowed_tools: item.acp_allowed_tools,

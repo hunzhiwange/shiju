@@ -113,3 +113,7 @@ pub async fn connect_to_queue_owner(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "queue_ipc_transport_tests.rs"]
+mod queue_ipc_transport_tests;

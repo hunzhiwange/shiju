@@ -368,14 +368,14 @@ fn trim_diff_range_whitespace(content: &str, range: Range<usize>) -> Option<Rang
 /// 5. 差异范围外的文本使用 `base_bg` 背景色
 /// 6. 每个文本片段包装在 `container` 中，带有适当的样式
 #[derive(Clone, Copy)]
-struct LineContentPart {
-    start: usize,
-    end: usize,
-    color: Option<Color>,
-    is_highlighted: bool,
+pub(super) struct LineContentPart {
+    pub(super) start: usize,
+    pub(super) end: usize,
+    pub(super) color: Option<Color>,
+    pub(super) is_highlighted: bool,
 }
 
-fn line_content_parts(
+pub(super) fn line_content_parts(
     content: &str,
     lang: Lang,
     theme: DiffTheme,

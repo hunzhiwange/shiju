@@ -1,9 +1,9 @@
 use super::{
     apply_main_agent_overrides, gateway_blocking_runtime, gateway_client, gateway_client_endpoint,
     load_config_value_at_path, load_tools_list_via_gateway, load_vibewindow_root_json,
-    normalize_gateway_host, normalize_identity_format, normalize_tool_ids, run_gateway_call,
-    server_config_unreachable_error, set_config_value_at_path, should_attempt_tools_list_request,
-    vibewindow_config_path, vibewindow_home_config_path, vibewindow_legacy_config_path,
+    normalize_gateway_host, normalize_identity_format, normalize_tool_ids,
+    project_config_override_path, run_gateway_call, server_config_unreachable_error,
+    set_config_value_at_path, should_attempt_tools_list_request,
 };
 use serde_json::json;
 use std::io::{Read, Write};
@@ -120,6 +120,8 @@ fn active_gateway_config(port: u16) -> GatewayClientSystemSettingsConfig {
         name: "Stub".to_string(),
         host: "127.0.0.1".to_string(),
         port,
+        platform_id: "20000".to_string(),
+        company_id: "200000001".to_string(),
         bearer_token: " token ".to_string(),
         username: " user ".to_string(),
         password: " pass ".to_string(),
@@ -190,91 +192,115 @@ fn apply_main_agent_overrides_noops_without_main_agent() {
 }
 
 #[test]
-fn vibewindow_home_config_path_uses_home_directory() {
-    let _env_guard = env_lock().lock().expect("env lock should be acquired");
-    let home = tempfile::tempdir().expect("temp home should be created");
-    let _home = EnvVarGuard::set("HOME", home.path());
-
-    assert_eq!(
-        vibewindow_home_config_path(),
-        Some(vw_config_types::paths::home_config_dir(home.path()).join("vibewindow.json"))
+fn apply_main_agent_overrides_updates_provider_without_erasing_model_for_blank_model() {
+    let mut cfg = Config::default();
+    cfg.default_provider = Some("old-provider".to_string());
+    cfg.default_model = Some("old-provider/old-model".to_string());
+    cfg.agents.insert(
+        "main".to_string(),
+        AgentDefinitionConfig {
+            provider: " new-provider ".to_string(),
+            model: " \t ".to_string(),
+            ..AgentDefinitionConfig::default()
+        },
     );
+
+    apply_main_agent_overrides(&mut cfg);
+
+    assert_eq!(cfg.default_provider.as_deref(), Some("new-provider"));
+    assert_eq!(cfg.default_model.as_deref(), Some("old-provider/old-model"));
 }
 
 #[test]
-fn vibewindow_config_path_prefers_file_like_env_path() {
+fn apply_main_agent_overrides_applies_independent_fields_for_blank_provider() {
+    let mut cfg = Config::default();
+    cfg.default_provider = Some("kept-provider".to_string());
+    cfg.default_model = Some("kept-provider/kept-model".to_string());
+    cfg.identity.format = "aieos".to_string();
+    cfg.identity.aieos_path = Some("identity.json".to_string());
+    cfg.identity.aieos_inline = Some("inline identity".to_string());
+    cfg.agents.insert(
+        "main".to_string(),
+        AgentDefinitionConfig {
+            provider: " ".to_string(),
+            model: "ignored".to_string(),
+            temperature: Some(0.45),
+            identity_format: Some("aieos".to_string()),
+            ..AgentDefinitionConfig::default()
+        },
+    );
+
+    apply_main_agent_overrides(&mut cfg);
+
+    assert_eq!(cfg.default_provider.as_deref(), Some("kept-provider"));
+    assert_eq!(cfg.default_model.as_deref(), Some("kept-provider/kept-model"));
+    assert_eq!(cfg.default_temperature, 0.45);
+    assert_eq!(cfg.identity.format, "openclaw");
+    assert!(cfg.identity.aieos_path.is_none());
+    assert!(cfg.identity.aieos_inline.is_none());
+}
+
+#[test]
+fn project_config_override_path_uses_explicit_workspace() {
+    let _env_guard = env_lock().lock().expect("env lock should be acquired");
+    let workspace = tempfile::tempdir().expect("temp workspace should be created");
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", workspace.path());
+
+    assert_eq!(project_config_override_path(), Some(workspace.path().join(".vibewindow.json")));
+}
+
+#[test]
+fn project_config_override_path_ignores_legacy_user_config_env() {
     let _env_guard = env_lock().lock().expect("env lock should be acquired");
     let temp = tempfile::tempdir().expect("temp dir should be created");
-    let file = temp.path().join("custom.json");
-    std::fs::write(&file, "{}").expect("config file should be written");
-    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", &file);
-    let _config_dir = EnvVarGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().join("ignored"));
-    let _home = EnvVarGuard::set("HOME", temp.path().join("home"));
+    let workspace = temp.path().join("project");
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", &workspace);
+    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", temp.path().join("vibewindow.json"));
+    let _config_dir = EnvVarGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().join("config"));
 
-    assert_eq!(vibewindow_config_path(), Some(file));
+    assert_eq!(project_config_override_path(), Some(workspace.join(".vibewindow.json")));
 }
 
 #[test]
-fn vibewindow_config_path_uses_config_dir_when_config_env_is_directory() {
+fn project_config_override_path_falls_back_to_current_dir_for_blank_workspace() {
+    let _env_guard = env_lock().lock().expect("env lock should be acquired");
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", " \t ");
+    let current_dir = std::env::current_dir().expect("current dir should be available");
+
+    assert_eq!(project_config_override_path(), Some(current_dir.join(".vibewindow.json")));
+}
+
+#[test]
+fn load_vibewindow_root_json_reads_only_project_override() {
     let _env_guard = env_lock().lock().expect("env lock should be acquired");
     let temp = tempfile::tempdir().expect("temp dir should be created");
-    let config_dir = temp.path().join("config-dir");
-    std::fs::create_dir_all(&config_dir).expect("config dir should be created");
-    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", &config_dir);
-    let _config_dir = EnvVarGuard::set("VIBEWINDOW_CONFIG_DIR", &config_dir);
-    let _home = EnvVarGuard::set("HOME", temp.path().join("home"));
+    let workspace = temp.path().join("project");
+    write_json(&workspace.join(".vibewindow.json"), json!({"from_project": true}));
+    write_json(&temp.path().join("vibewindow.json"), json!({"from_legacy": true}));
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", &workspace);
+    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", temp.path().join("vibewindow.json"));
 
-    assert_eq!(vibewindow_config_path(), Some(config_dir.join("vibewindow.json")));
-}
-
-#[test]
-fn vibewindow_config_path_falls_back_to_home_path() {
-    let _env_guard = env_lock().lock().expect("env lock should be acquired");
-    let home = tempfile::tempdir().expect("temp home should be created");
-    let _config = EnvVarGuard::remove("VIBEWINDOW_CONFIG");
-    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
-    let _home = EnvVarGuard::set("HOME", home.path());
-
-    assert_eq!(
-        vibewindow_config_path(),
-        Some(vw_config_types::paths::home_config_dir(home.path()).join("vibewindow.json"))
-    );
-}
-
-#[test]
-fn vibewindow_legacy_config_path_returns_project_config_path_when_available() {
-    assert_eq!(
-        vibewindow_legacy_config_path()
-            .and_then(|path| path.file_name().map(|name| name.to_owned())),
-        Some(std::ffi::OsString::from("vibewindow.json"))
-    );
-}
-
-#[test]
-fn load_vibewindow_root_json_reads_first_valid_candidate() {
-    let _env_guard = env_lock().lock().expect("env lock should be acquired");
-    let temp = tempfile::tempdir().expect("temp dir should be created");
-    let invalid = temp.path().join("invalid.json");
-    let fallback_home = temp.path().join("home");
-    std::fs::write(&invalid, "{not json").expect("invalid config should be written");
-    write_json(
-        &vw_config_types::paths::home_config_dir(&fallback_home).join("vibewindow.json"),
-        json!({"from_home": true}),
-    );
-    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", &invalid);
-    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
-    let _home = EnvVarGuard::set("HOME", &fallback_home);
-
-    assert_eq!(load_vibewindow_root_json()["from_home"], true);
+    assert_eq!(load_vibewindow_root_json(), json!({"from_project": true}));
 }
 
 #[test]
 fn load_vibewindow_root_json_returns_empty_object_without_readable_candidates() {
     let _env_guard = env_lock().lock().expect("env lock should be acquired");
     let temp = tempfile::tempdir().expect("temp dir should be created");
-    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", temp.path().join("missing.json"));
-    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
-    let _home = EnvVarGuard::set("HOME", temp.path().join("home"));
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", temp.path().join("missing"));
+
+    assert_eq!(load_vibewindow_root_json(), json!({}));
+}
+
+#[test]
+fn load_vibewindow_root_json_returns_empty_object_for_invalid_json() {
+    let _env_guard = env_lock().lock().expect("env lock should be acquired");
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let workspace = temp.path().join("project");
+    std::fs::create_dir_all(&workspace).expect("workspace should be created");
+    std::fs::write(workspace.join(".vibewindow.json"), "{not-json")
+        .expect("invalid json fixture should be written");
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", &workspace);
 
     assert_eq!(load_vibewindow_root_json(), json!({}));
 }
@@ -305,17 +331,47 @@ fn set_config_value_at_path_creates_missing_objects_and_overwrites_scalars() {
 }
 
 #[test]
+fn set_config_value_at_path_replaces_non_object_root_with_object() {
+    let mut root = json!(["not", "an", "object"]);
+
+    set_config_value_at_path(&mut root, &["gateway"], json!("enabled"));
+
+    assert_eq!(root, json!({"gateway": "enabled"}));
+}
+
+#[test]
+fn set_config_value_at_path_preserves_existing_objects_and_siblings() {
+    let mut root = json!({
+        "app_ui": {
+            "theme": "dark",
+            "system_settings": {
+                "gateway_client": {"host": "old", "port": 42618}
+            }
+        }
+    });
+
+    set_config_value_at_path(
+        &mut root,
+        &["app_ui", "system_settings", "gateway_client", "host"],
+        json!("new"),
+    );
+
+    assert_eq!(root["app_ui"]["theme"], json!("dark"));
+    assert_eq!(root["app_ui"]["system_settings"]["gateway_client"]["host"], json!("new"));
+    assert_eq!(root["app_ui"]["system_settings"]["gateway_client"]["port"], json!(42618));
+}
+
+#[test]
 fn load_config_value_at_path_deserializes_existing_value() {
     let _env_guard = env_lock().lock().expect("env lock should be acquired");
     let temp = tempfile::tempdir().expect("temp dir should be created");
-    let config = temp.path().join("vibewindow.json");
+    let workspace = temp.path().join("project");
+    let config = workspace.join(".vibewindow.json");
     write_json(
         &config,
         json!({"app_ui": {"system_settings": {"gateway_client": {"host": "gw", "port": 9000}}}}),
     );
-    let _config = EnvVarGuard::set("VIBEWINDOW_CONFIG", &config);
-    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
-    let _home = EnvVarGuard::set("HOME", temp.path().join("home"));
+    let _workspace = EnvVarGuard::set("VIBEWINDOW_WORKSPACE", &workspace);
 
     let value = load_config_value_at_path::<GatewayClientSystemSettingsConfig>(&[
         "app_ui",
@@ -354,6 +410,8 @@ fn gateway_client_endpoint_trims_auth_and_clamps_port() {
         name: "Remote".to_string(),
         host: " gateway.internal ".to_string(),
         port: 0,
+        platform_id: " 20000 ".to_string(),
+        company_id: " 200000001 ".to_string(),
         bearer_token: " token ".to_string(),
         username: " user ".to_string(),
         password: " pass ".to_string(),
@@ -370,8 +428,46 @@ fn gateway_client_endpoint_trims_auth_and_clamps_port() {
 
     assert_eq!(endpoint.normalized_host(), "gateway.internal");
     assert_eq!(endpoint.port, 1);
+    assert_eq!(endpoint.tenant_scope().platform_id().as_ref(), "20000");
+    assert_eq!(endpoint.tenant_scope().company_id().as_ref(), "200000001");
     let auth = endpoint.auth.expect("auth should be present");
     assert_eq!(auth.skey.as_deref(), Some("skey"));
+}
+
+#[test]
+fn gateway_client_endpoint_uses_trimmed_bearer_token_when_skey_is_blank() {
+    let _env_guard = env_lock().lock().expect("env lock should be acquired");
+    let home = tempfile::tempdir().expect("temp home should be created");
+    let mut cfg = active_gateway_config(42618);
+    cfg.servers[0].skey = " \t ".to_string();
+    cfg.servers[0].bearer_token = " legacy-token ".to_string();
+    write_gateway_bootstrap_config(home.path(), &cfg);
+    let _home = EnvVarGuard::set("HOME", home.path());
+    let _config = EnvVarGuard::remove("VIBEWINDOW_CONFIG");
+    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
+
+    let endpoint = gateway_client_endpoint();
+
+    let auth = endpoint.auth.expect("auth should be present");
+    assert_eq!(auth.skey.as_deref(), Some("legacy-token"));
+}
+
+#[test]
+fn gateway_client_endpoint_omits_auth_key_when_credentials_are_blank() {
+    let _env_guard = env_lock().lock().expect("env lock should be acquired");
+    let home = tempfile::tempdir().expect("temp home should be created");
+    let mut cfg = active_gateway_config(42618);
+    cfg.servers[0].skey = " \t ".to_string();
+    cfg.servers[0].bearer_token = " ".to_string();
+    write_gateway_bootstrap_config(home.path(), &cfg);
+    let _home = EnvVarGuard::set("HOME", home.path());
+    let _config = EnvVarGuard::remove("VIBEWINDOW_CONFIG");
+    let _config_dir = EnvVarGuard::remove("VIBEWINDOW_CONFIG_DIR");
+
+    let endpoint = gateway_client_endpoint();
+
+    let auth = endpoint.auth.expect("auth container should be present");
+    assert!(auth.skey.is_none());
 }
 
 #[test]
@@ -406,6 +502,14 @@ fn normalize_tool_ids_sorts_and_dedups() {
     ]);
 
     assert_eq!(tools, vec!["bash".to_string(), "file_read".to_string()]);
+}
+
+#[test]
+fn normalize_tool_ids_drops_blank_entries_without_trimming_non_blank_ids() {
+    let tools =
+        normalize_tool_ids(vec![" zed ".to_string(), " \t ".to_string(), "alpha".to_string()]);
+
+    assert_eq!(tools, vec![" zed ".to_string(), "alpha".to_string()]);
 }
 
 #[test]

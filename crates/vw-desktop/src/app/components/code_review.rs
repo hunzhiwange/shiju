@@ -41,7 +41,14 @@ use crate::app::{App, Message, message};
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     let (files, patches) = git_diff_by_file(app);
+    build_code_review_view_from_diff(app, files, patches)
+}
 
+pub(super) fn build_code_review_view_from_diff(
+    app: &App,
+    files: Vec<String>,
+    patches: std::collections::HashMap<String, String>,
+) -> Element<'_, Message> {
     let refresh =
         button(text("刷新")).on_press(Message::Git(message::GitMessage::RefreshGitPanelData));
 
@@ -109,6 +116,11 @@ fn render_unified_patch(patch: String) -> Element<'static, Message> {
         col = col.push(render_unified_line(line.to_string()));
     }
     container(col).width(Length::Fill).into()
+}
+
+#[cfg(test)]
+pub(super) fn render_unified_patch_for_test(patch: String) -> Element<'static, Message> {
+    render_unified_patch(patch)
 }
 
 /// 渲染合并视图中的单行

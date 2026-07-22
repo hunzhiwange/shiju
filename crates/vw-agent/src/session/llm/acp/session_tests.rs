@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use serde_json::{Value, json};
-use tokio::sync::watch;
+use tokio::sync::{Mutex, watch};
 use vw_acp::{
     AcpSessionOptions, AuthPolicy, DEFAULT_EVENT_MAX_SEGMENTS, NonInteractivePermissionPolicy,
     PermissionMode,
@@ -14,7 +14,7 @@ use crate::app::agent::session::message;
 
 use super::*;
 
-static CACHE_LOCK: Mutex<()> = Mutex::new(());
+static CACHE_LOCK: Mutex<()> = Mutex::const_new(());
 
 fn acp_config(command: &str) -> config::schema::AcpAgentConfig {
     config::schema::AcpAgentConfig {
@@ -56,6 +56,14 @@ fn clone_non_empty_tools_trims_entries_and_drops_empty_values() {
 }
 
 #[test]
+fn clone_non_empty_tools_preserves_order_and_duplicates() {
+    assert_eq!(
+        clone_non_empty_tools(&[" edit ".to_string(), "shell".to_string(), "edit".to_string(),]),
+        Some(vec!["edit".to_string(), "shell".to_string(), "edit".to_string()])
+    );
+}
+
+#[test]
 fn should_abort_reflects_watch_receiver_state() {
     assert!(!should_abort(None));
 
@@ -94,15 +102,47 @@ fn cache_key_is_stable_and_includes_behavioral_inputs() {
 }
 
 #[test]
+fn cache_key_is_stable_across_environment_insertion_order() {
+    let mut first = acp_config("agent");
+    first.env.insert("B".to_string(), "2".to_string());
+    first.env.insert("A".to_string(), "1".to_string());
+
+    let mut second = acp_config("agent");
+    second.env.insert("A".to_string(), "1".to_string());
+    second.env.insert("B".to_string(), "2".to_string());
+
+    assert_eq!(
+        acp_client_cache_key("custom", &first, Path::new("/tmp/project"), &parsed_options()),
+        acp_client_cache_key("custom", &second, Path::new("/tmp/project"), &parsed_options())
+    );
+}
+
+#[test]
+fn cache_key_changes_when_session_behavior_changes() {
+    let cfg = acp_config("agent");
+    let cwd = Path::new("/tmp/project");
+    let baseline = parsed_options();
+    let baseline_key = acp_client_cache_key("custom", &cfg, cwd, &baseline);
+
+    let mut changed = parsed_options();
+    changed.auth_policy = Some(AuthPolicy::Skip);
+    assert_ne!(baseline_key, acp_client_cache_key("custom", &cfg, cwd, &changed));
+
+    let mut changed = parsed_options();
+    changed.session_options.as_mut().expect("session options").max_turns = Some(8);
+    assert_ne!(baseline_key, acp_client_cache_key("custom", &cfg, cwd, &changed));
+}
+
+#[test]
 fn normalize_session_name_rejects_blank_names() {
     assert_eq!(normalize_session_name(Some("  worktree  ")).as_deref(), Some("worktree"));
     assert_eq!(normalize_session_name(Some("   ")), None);
     assert_eq!(normalize_session_name(None), None);
 }
 
-#[test]
-fn cached_client_is_reused_only_for_matching_keys() {
-    let _guard = CACHE_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+#[tokio::test]
+async fn cached_client_is_reused_only_for_matching_keys() {
+    let _guard = CACHE_LOCK.lock().await;
     ACP_CLIENT_CACHE.lock().clear();
 
     let cwd = Path::new("/tmp/project");
@@ -111,13 +151,73 @@ fn cached_client_is_reused_only_for_matching_keys() {
 
     let first = get_cached_acp_client("custom", &cfg, cwd, &options);
     let second = get_cached_acp_client("custom", &cfg, cwd, &options);
-    assert!(Arc::ptr_eq(&first, &second));
+    assert!(Arc::ptr_eq(&first.client, &second.client));
 
     let mut changed_cfg = cfg.clone();
     changed_cfg.args.push("--other".to_string());
     let changed = get_cached_acp_client("custom", &changed_cfg, cwd, &options);
-    assert!(!Arc::ptr_eq(&first, &changed));
+    assert!(!Arc::ptr_eq(&first.client, &changed.client));
 
+    ACP_CLIENT_CACHE.lock().clear();
+}
+
+#[tokio::test]
+async fn close_cached_client_removes_matching_unshared_entry() {
+    let _guard = CACHE_LOCK.lock().await;
+    ACP_CLIENT_CACHE.lock().clear();
+
+    let entry = get_cached_acp_client(
+        "custom",
+        &acp_config("agent"),
+        Path::new("/tmp/project"),
+        &parsed_options(),
+    );
+    assert!(ACP_CLIENT_CACHE.lock().contains_key(&entry.key));
+
+    close_cached_acp_client_if_unshared(&entry).await;
+
+    assert!(!ACP_CLIENT_CACHE.lock().contains_key(&entry.key));
+}
+
+#[tokio::test]
+async fn close_cached_client_keeps_entry_while_another_request_shares_it() {
+    let _guard = CACHE_LOCK.lock().await;
+    ACP_CLIENT_CACHE.lock().clear();
+
+    let entry = get_cached_acp_client(
+        "custom",
+        &acp_config("agent"),
+        Path::new("/tmp/project"),
+        &parsed_options(),
+    );
+    let shared_client = entry.client.clone();
+
+    close_cached_acp_client_if_unshared(&entry).await;
+
+    let cache = ACP_CLIENT_CACHE.lock();
+    let cached = cache.get(&entry.key).expect("shared client should remain cached");
+    assert!(Arc::ptr_eq(cached, &shared_client));
+    drop(cache);
+    ACP_CLIENT_CACHE.lock().clear();
+}
+
+#[tokio::test]
+async fn close_cached_client_keeps_replacement_for_stale_entry() {
+    let _guard = CACHE_LOCK.lock().await;
+    ACP_CLIENT_CACHE.lock().clear();
+
+    let cfg = acp_config("agent");
+    let options = parsed_options();
+    let stale = get_cached_acp_client("custom", &cfg, Path::new("/tmp/project"), &options);
+    let replacement = build_cached_acp_client("custom", &cfg, &options);
+    ACP_CLIENT_CACHE.lock().insert(stale.key.clone(), replacement.clone());
+
+    close_cached_acp_client_if_unshared(&stale).await;
+
+    let cache = ACP_CLIENT_CACHE.lock();
+    let cached = cache.get(&stale.key).expect("replacement should remain cached");
+    assert!(Arc::ptr_eq(cached, &replacement));
+    drop(cache);
     ACP_CLIENT_CACHE.lock().clear();
 }
 
@@ -169,6 +269,20 @@ fn session_state_options_keeps_model_or_turns_without_tools() {
 }
 
 #[test]
+fn session_state_options_keeps_explicit_empty_tool_state() {
+    let state = session_state_options(Some(&AcpSessionOptions {
+        model: None,
+        allowed_tools: Some(Vec::new()),
+        max_turns: None,
+    }))
+    .expect("an explicitly supplied tool option creates session state");
+
+    assert_eq!(state.model, None);
+    assert_eq!(state.allowed_tools, None);
+    assert_eq!(state.max_turns, None);
+}
+
+#[test]
 fn missing_session_error_includes_search_boundary_and_create_command() {
     let named =
         assistant_message_text(missing_session_error("/repo", "claude-code", Some("session-a")));
@@ -178,4 +292,13 @@ fn missing_session_error_includes_search_boundary_and_create_command() {
     let unnamed = assistant_message_text(missing_session_error("/repo", "claude-code", None));
     assert!(unnamed.contains("vwacp claude-code sessions new"));
     assert!(!unnamed.contains("--name"));
+}
+
+#[test]
+fn missing_session_error_treats_blank_name_as_unnamed() {
+    let message =
+        assistant_message_text(missing_session_error("/repo", "claude-code", Some(" \n\t ")));
+
+    assert!(message.contains("vwacp claude-code sessions new"));
+    assert!(!message.contains("--name"));
 }

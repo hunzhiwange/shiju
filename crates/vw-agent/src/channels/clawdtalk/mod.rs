@@ -43,6 +43,8 @@ pub struct ClawdTalkChannel {
     allowed_destinations: Vec<String>,
     /// 用于调用 Telnyx API 的 HTTP 客户端
     client: Client,
+    #[cfg(test)]
+    telnyx_api_url: String,
     /// Webhook 密钥，用于验证传入通话的签名
     webhook_secret: Option<String>,
 }
@@ -92,6 +94,8 @@ impl ClawdTalkChannel {
                 let builder = builder.timeout(std::time::Duration::from_secs(30));
                 builder.build().unwrap_or_else(|_| Client::new())
             },
+            #[cfg(test)]
+            telnyx_api_url: Self::TELNYX_API_URL.to_string(),
             webhook_secret: config.webhook_secret,
         }
     }
@@ -100,6 +104,23 @@ impl ClawdTalkChannel {
     ///
     /// 所有 Telnyx Call Control API 请求都基于此 URL
     const TELNYX_API_URL: &'static str = "https://api.telnyx.com/v2";
+
+    fn telnyx_api_url(&self) -> &str {
+        #[cfg(test)]
+        {
+            &self.telnyx_api_url
+        }
+        #[cfg(not(test))]
+        {
+            Self::TELNYX_API_URL
+        }
+    }
+
+    #[cfg(test)]
+    fn with_telnyx_api_url(mut self, telnyx_api_url: String) -> Self {
+        self.telnyx_api_url = telnyx_api_url;
+        self
+    }
 
     /// 检查目标号码是否在允许列表中
     ///
@@ -175,7 +196,7 @@ impl ClawdTalkChannel {
         // 向 Telnyx API 发起呼叫请求
         let response = self
             .client
-            .post(format!("{}/calls", Self::TELNYX_API_URL))
+            .post(format!("{}/calls", self.telnyx_api_url()))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&request)
@@ -232,7 +253,7 @@ impl ClawdTalkChannel {
         // 调用 Telnyx speak API 端点
         let response = self
             .client
-            .post(format!("{}/calls/{}/actions/speak", Self::TELNYX_API_URL, call_control_id))
+            .post(format!("{}/calls/{}/actions/speak", self.telnyx_api_url(), call_control_id))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&request)
@@ -266,7 +287,7 @@ impl ClawdTalkChannel {
         // 调用 Telnyx hangup API 端点
         let response = self
             .client
-            .post(format!("{}/calls/{}/actions/hangup", Self::TELNYX_API_URL, call_control_id))
+            .post(format!("{}/calls/{}/actions/hangup", self.telnyx_api_url(), call_control_id))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await?;
@@ -322,7 +343,7 @@ impl ClawdTalkChannel {
             .client
             .post(format!(
                 "{}/calls/{}/actions/ai_conversation",
-                Self::TELNYX_API_URL,
+                self.telnyx_api_url(),
                 call_control_id
             ))
             .header("Authorization", format!("Bearer {}", self.api_key))
@@ -521,7 +542,7 @@ impl Channel for ClawdTalkChannel {
         // 查询 Telnyx 电话号码列表以验证 API 密钥
         let response = self
             .client
-            .get(format!("{}/phone_numbers", Self::TELNYX_API_URL))
+            .get(format!("{}/phone_numbers", self.telnyx_api_url()))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .send()
             .await;

@@ -95,6 +95,7 @@ pub(super) async fn start_typing(
     typing_handles: &TypingHandles,
     client: reqwest::Client,
     bot_token: String,
+    api_base_url: String,
     recipient: String,
 ) -> anyhow::Result<()> {
     // 先停止该接收者的任何现有 typing 任务，避免重复
@@ -106,7 +107,8 @@ pub(super) async fn start_typing(
     // 启动异步任务：循环发送 typing 状态
     let handle = tokio::spawn(async move {
         // 构造 Discord typing API 端点 URL
-        let url = format!("https://discord.com/api/v10/channels/{recipient_for_task}/typing");
+        let url =
+            format!("{}/channels/{recipient_for_task}/typing", api_base_url.trim_end_matches('/'));
 
         // 无限循环，每 8 秒发送一次 typing 请求
         loop {

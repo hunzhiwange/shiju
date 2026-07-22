@@ -65,3 +65,69 @@ fn usage_button_builds_with_context_tokens_and_cost_data() {
 
     keep(usage_button(&app));
 }
+
+#[test]
+fn usage_button_builds_with_model_info_but_zero_tokens() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info());
+
+    keep(usage_button(&app));
+}
+
+#[test]
+fn usage_button_builds_with_high_percentage_near_context_limit() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info());
+    app.active_session_view_state.steps.push(step(999));
+    app.usage.input_tokens = 800;
+    app.usage.output_tokens = 100;
+    app.usage.cached_tokens = 50;
+    app.usage.reasoning_tokens = 50;
+
+    keep(usage_button(&app));
+}
+
+#[test]
+fn usage_button_builds_without_model_info_and_with_zero_context_limit() {
+    let mut app = test_app();
+    app.usage_model_info = Some(UsageModelInfo { context_limit: 0, ..model_info() });
+
+    keep(usage_button(&app));
+}
+
+#[test]
+fn usage_button_builds_with_large_token_values() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info());
+    app.active_session_view_state.steps.push(step(500_000));
+    app.usage.input_tokens = 1_000_000;
+    app.usage.output_tokens = 500_000;
+    app.usage.cached_tokens = 200_000;
+    app.usage.reasoning_tokens = 100_000;
+
+    keep(usage_button(&app));
+}
+
+#[test]
+fn usage_button_builds_with_only_session_steps_no_model_info() {
+    let mut app = test_app();
+    app.active_session_view_state.steps.push(step(725));
+
+    keep(usage_button(&app));
+}
+
+#[test]
+fn usage_button_retains_trigger_and_tooltip_with_multiple_session_steps() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info());
+    app.active_session_view_state.steps.push(step(100));
+    app.active_session_view_state.steps.push(step(875));
+    app.usage.input_tokens = 600;
+    app.usage.output_tokens = 200;
+    app.usage.cached_tokens = 50;
+    app.usage.reasoning_tokens = 25;
+
+    let element = usage_button(&app);
+
+    assert_eq!(element.as_widget().children().len(), 2);
+}

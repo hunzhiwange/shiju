@@ -170,7 +170,7 @@ pub fn hover_tooltip_overlay<'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn hover_anchor(hover: &Option<ModelPopoverHover>) -> Option<HoverAnchor> {
+pub(super) fn hover_anchor(hover: &Option<ModelPopoverHover>) -> Option<HoverAnchor> {
     match hover {
         Some(ModelPopoverHover::Model { anchor, .. }) => *anchor,
         Some(ModelPopoverHover::Text { anchor, .. }) => *anchor,
@@ -191,7 +191,7 @@ fn hover_anchor(hover: &Option<ModelPopoverHover>) -> Option<HoverAnchor> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_hover_tip<'a>(
+pub(super) fn build_hover_tip<'a>(
     app: &'a App,
     // tooltip_style 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     tooltip_style: fn(&Theme) -> iced::widget::container::Style,

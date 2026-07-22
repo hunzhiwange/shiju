@@ -1,6 +1,7 @@
 //! 验证聊天消息高度索引。
 //! 测试覆盖高度累计、范围查询和更新边界，保护滚动定位稳定性。
 
+use super::height_index::{CHAT_LIST_VERTICAL_PADDING, CHAT_MESSAGE_GAP};
 use super::height_index::{CHAT_VIRTUALIZATION_OVERSCAN_PX, ChatHeightIndex};
 
 fn assert_window_is_consistent(
@@ -87,6 +88,19 @@ fn negative_heights_are_clamped_and_updates_ignore_out_of_range() {
 }
 
 #[test]
+fn scroll_top_for_item_uses_slot_prefixes_and_total_height_removes_trailing_gap() {
+    let index = ChatHeightIndex::from_heights(&[10.0, 20.0, 30.0]);
+
+    assert_eq!(index.scroll_top_for_item(0), 0.0);
+    assert_eq!(index.scroll_top_for_item(1), 10.0 + CHAT_MESSAGE_GAP);
+    assert_eq!(index.scroll_top_for_item(3), 10.0 + 20.0 + 30.0 + CHAT_MESSAGE_GAP * 3.0);
+    assert_eq!(
+        index.total_height(),
+        10.0 + 20.0 + 30.0 + CHAT_MESSAGE_GAP * 2.0 + CHAT_LIST_VERTICAL_PADDING
+    );
+}
+
+#[test]
 fn zero_viewport_returns_full_window() {
     let index = ChatHeightIndex::from_heights(&[20.0, 30.0, 40.0]);
 
@@ -98,4 +112,15 @@ fn zero_viewport_returns_full_window() {
     assert_eq!(window.visible_end_idx, 3);
     assert_eq!(window.top_spacer_h, 0.0);
     assert_eq!(window.bottom_spacer_h, 0.0);
+}
+
+#[test]
+fn equivalent_update_is_a_noop_and_scroll_past_total_returns_len() {
+    let mut index = ChatHeightIndex::from_heights(&[-10.0, 24.0]);
+    let initial_total = index.total_height();
+
+    index.update_height(0, -50.0);
+
+    assert_eq!(index.total_height(), initial_total);
+    assert_eq!(index.find_start_by_scroll_top(initial_total + 100.0), index.len());
 }

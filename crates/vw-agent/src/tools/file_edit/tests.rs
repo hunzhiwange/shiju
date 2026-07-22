@@ -22,9 +22,22 @@ mod tests {
     use vw_api_types::tools::ToolResultContentDto;
 
     fn test_security(workspace: std::path::PathBuf) -> Arc<SecurityPolicy> {
+        test_security_with(
+            workspace,
+            AutonomyLevel::Supervised,
+            SecurityPolicy::default().max_actions_per_hour,
+        )
+    }
+
+    fn test_security_with(
+        workspace: std::path::PathBuf,
+        autonomy: AutonomyLevel,
+        max_actions_per_hour: u32,
+    ) -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Supervised,
+            autonomy,
             workspace_dir: workspace,
+            max_actions_per_hour,
             ..SecurityPolicy::default()
         })
     }
@@ -278,6 +291,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn edit_reports_no_op_when_replacement_is_identical() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_no_op");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        tokio::fs::write(dir.join("same.txt"), "unchanged\n").await.unwrap();
+
+        let tool = FileEditTool::new(test_security(dir.clone()));
+        let context = Arc::new(ToolUseContext::new(
+            "file-edit-no-op",
+            Some(dir.to_string_lossy().to_string()),
+        ));
+        seed_read_state(&context, dir.as_path(), "same.txt", "unchanged\n");
+
+        let result = scope_tool_use_context(
+            context,
+            tool.call(json!({
+                "file_path": "same.txt",
+                "old_string": "unchanged",
+                "new_string": "unchanged"
+            })),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_success(), "error: {:?}", result.error_text());
+        assert_eq!(result.data["replacements"], json!(1));
+        assert!(result.model_result.as_str().unwrap_or_default().contains("did not change"));
+        assert!(matches!(
+            result.content_blocks.first(),
+            Some(ToolResultContentDto::StructuredPatch { hunks }) if hunks.is_empty()
+        ));
+        assert_eq!(tokio::fs::read_to_string(dir.join("same.txt")).await.unwrap(), "unchanged\n");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
     async fn edit_rejects_notebook_paths() {
         let dir = std::env::temp_dir().join("vibewindow_test_file_edit_notebook_reject");
         let _ = tokio::fs::remove_dir_all(&dir).await;
@@ -305,6 +355,186 @@ mod tests {
         assert!(!result.is_success());
         assert!(result.error_text().unwrap_or_default().contains("use notebook_edit instead"));
 
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn edit_call_rejects_blank_file_path() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_blank_path");
+        let tool = FileEditTool::new(test_security(dir));
+
+        let result = tool
+            .call(json!({
+                "file_path": "  ",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert_eq!(result.error_text().as_deref(), Some("Missing file_path"));
+    }
+
+    #[tokio::test]
+    async fn edit_execute_rejects_invalid_parameters() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_execute_invalid");
+        let tool = FileEditTool::new(test_security(dir));
+
+        let error = tool
+            .execute(json!({
+                "file_path": "main.rs",
+                "old_string": "before"
+            }))
+            .await
+            .expect_err("missing new_string must reject parameters");
+
+        assert!(error.to_string().contains("Missing or invalid parameters"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn edit_call_rejects_invalid_parameters() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_call_invalid");
+        let tool = FileEditTool::new(test_security(dir));
+
+        let error = tool
+            .call(json!({
+                "file_path": "main.rs",
+                "new_string": "after"
+            }))
+            .await
+            .expect_err("missing old_string must reject parameters");
+
+        assert!(error.to_string().contains("Missing or invalid parameters"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn edit_execute_returns_failure_for_missing_file() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_execute_missing_file");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let tool = FileEditTool::new(test_security(dir.clone()));
+
+        let result = tool
+            .execute(json!({
+                "file_path": "missing.txt",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.contains("Failed to read file metadata"), "{}", result.output);
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn edit_blocks_read_only_before_file_access() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_read_only");
+        let tool = FileEditTool::new(test_security_with(dir, AutonomyLevel::ReadOnly, 20));
+
+        let result = tool
+            .call(json!({
+                "file_path": "main.rs",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert_eq!(result.error_text().as_deref(), Some("Action blocked: autonomy is read-only"));
+    }
+
+    #[tokio::test]
+    async fn edit_blocks_when_rate_limited_before_file_access() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_rate_limited");
+        let tool = FileEditTool::new(test_security_with(dir, AutonomyLevel::Supervised, 0));
+
+        let result = tool
+            .call(json!({
+                "file_path": "main.rs",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert_eq!(
+            result.error_text().as_deref(),
+            Some("Rate limit exceeded: too many actions in the last hour")
+        );
+    }
+
+    #[tokio::test]
+    async fn edit_rejects_missing_file_metadata() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_missing_file");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let tool = FileEditTool::new(test_security(dir.clone()));
+
+        let result = tool
+            .call(json!({
+                "file_path": "missing.txt",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert!(result.error_text().unwrap_or_default().contains("Failed to read file metadata"));
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn edit_rejects_directory_target() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_directory");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(dir.join("nested")).await.unwrap();
+        let tool = FileEditTool::new(test_security(dir.clone()));
+
+        let result = tool
+            .call(json!({
+                "file_path": "nested",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert!(result.error_text().unwrap_or_default().contains("Path is a directory"));
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn edit_rejects_symlink_target() {
+        use std::os::unix::fs::symlink;
+
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_symlink");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        tokio::fs::write(dir.join("real.txt"), "before\n").await.unwrap();
+        symlink(dir.join("real.txt"), dir.join("linked.txt")).unwrap();
+        let tool = FileEditTool::new(test_security(dir.clone()));
+
+        let result = tool
+            .call(json!({
+                "file_path": "linked.txt",
+                "old_string": "before",
+                "new_string": "after"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.is_success());
+        assert!(
+            result.error_text().unwrap_or_default().contains("Refusing to edit through symlink")
+        );
         let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 }

@@ -40,6 +40,30 @@ fn setting_row<'a>(
     .into()
 }
 
+fn app_theme_selected(theme: iced::Theme) -> Message {
+    Message::View(message::ViewMessage::AppThemeSelected(theme))
+}
+
+fn terminal_shell_selected(shell: Shell) -> Message {
+    Message::Terminal(message::TerminalMessage::ShellSelected(shell))
+}
+
+fn terminal_theme_selected(theme: TerminalTheme) -> Message {
+    Message::Terminal(message::TerminalMessage::ThemeSelected(theme))
+}
+
+fn terminal_font_selected(font_family: String) -> Message {
+    Message::Terminal(message::TerminalMessage::FontSelected(font_family))
+}
+
+fn preview_auto_save_mode_changed(mode: PreviewAutoSaveMode) -> Message {
+    Message::Preview(message::PreviewMessage::AutoSaveModeChanged(mode))
+}
+
+fn terminal_font_size_changed(font_size: f32) -> Message {
+    Message::Terminal(message::TerminalMessage::FontSizeChanged(font_size))
+}
+
 /// 渲染系统设置通用页面的视图
 ///
 /// 该函数构建并返回包含所有通用系统设置选项的 UI 元素。
@@ -60,32 +84,27 @@ fn setting_row<'a>(
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let theme_pick = pick_list(iced::Theme::ALL, Some(app.app_theme.clone()), |t| {
-        Message::View(message::ViewMessage::AppThemeSelected(t))
-    })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    let theme_pick = pick_list(iced::Theme::ALL, Some(app.app_theme.clone()), app_theme_selected)
+        .padding([10, 14])
+        .text_size(13)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fixed(280.0));
 
-    let shell_pick = pick_list(Shell::all(), Some(app.terminal.shell), |s| {
-        Message::Terminal(message::TerminalMessage::ShellSelected(s))
-    })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    let shell_pick = pick_list(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
+        .padding([10, 14])
+        .text_size(13)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fixed(280.0));
 
-    let term_theme_pick = pick_list([TerminalTheme::System], Some(app.terminal.theme), |t| {
-        Message::Terminal(message::TerminalMessage::ThemeSelected(t))
-    })
-    .padding([10, 14])
-    .text_size(13)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(280.0));
+    let term_theme_pick =
+        pick_list([TerminalTheme::System], Some(app.terminal.theme), terminal_theme_selected)
+            .padding([10, 14])
+            .text_size(13)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fixed(280.0));
 
     let font_pick = pick_list(
         [
@@ -95,7 +114,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "Monaco".to_string(),
         ],
         Some(app.terminal.font_family.clone()),
-        |f| Message::Terminal(message::TerminalMessage::FontSelected(f)),
+        terminal_font_selected,
     )
     .padding([10, 14])
     .text_size(13)
@@ -103,20 +122,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let auto_save_pick =
-        pick_list(PreviewAutoSaveMode::ALL, Some(app.preview_auto_save_mode), |mode| {
-            Message::Preview(message::PreviewMessage::AutoSaveModeChanged(mode))
-        })
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+    let auto_save_pick = pick_list(
+        PreviewAutoSaveMode::ALL,
+        Some(app.preview_auto_save_mode),
+        preview_auto_save_mode_changed,
+    )
+    .padding([10, 14])
+    .text_size(13)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fixed(280.0));
 
-    let size_slider = slider(10.0..=18.0, app.terminal.font_size, |s| {
-        Message::Terminal(message::TerminalMessage::FontSizeChanged(s))
-    })
-    .width(Length::Fill);
+    let size_slider =
+        slider(10.0..=18.0, app.terminal.font_size, terminal_font_size_changed).width(Length::Fill);
 
     column![
         settings_page_intro("常规", "统一管理界面语言、主题与终端基础体验。"),

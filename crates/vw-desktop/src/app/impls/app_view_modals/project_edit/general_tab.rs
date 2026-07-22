@@ -1,16 +1,49 @@
 //! 渲染应用视图中的模态窗口。
 //! 本模块只描述模态内容和交互消息，不直接承担持久化策略。
 
+use crate::app::components::color_picker::parse_color;
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_panel, settings_section_card,
     settings_text_input_style,
 };
-use crate::app::views::design::properties::color_picker::parse_color;
 use iced::widget::{Image, Space, button, column, container, mouse_area, row, text, text_input};
 use iced::{Background, Color, Element, Length, Theme};
 
 use super::common::{icon_image_handle, parse_hex_color};
 use super::{App, Message};
+
+const DEFAULT_ICON_COLOR: Color = Color::from_rgb8(96, 165, 250);
+
+fn icon_color_preset_is_selected(current: &str, preset: &str) -> bool {
+    current.trim().trim_start_matches('#').eq_ignore_ascii_case(preset.trim_start_matches('#'))
+}
+
+fn current_icon_color(input: &str) -> Color {
+    parse_color(input).or_else(|| parse_hex_color(input)).unwrap_or(DEFAULT_ICON_COLOR)
+}
+
+fn preview_badge_color(input: &str) -> Color {
+    parse_hex_color(input).unwrap_or(DEFAULT_ICON_COLOR)
+}
+
+fn preview_label(icon: &str, name: &str) -> String {
+    icon.trim()
+        .chars()
+        .next()
+        .or_else(|| name.chars().next())
+        .map(|ch| ch.to_string())
+        .unwrap_or_else(|| "P".to_string())
+}
+
+fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message {
+    if has_preview_image && hovered {
+        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
+            String::new(),
+        ))
+    } else {
+        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconPickFile)
+    }
+}
 
 /// 模块内可见函数，执行 general_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -42,11 +75,9 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let mut preset_grid = column![].spacing(6);
     let mut preset_row = row![].spacing(6);
     let mut row_count = 0usize;
-    let selected_preset =
-        app.project_edit_icon_color.trim().trim_start_matches('#').to_ascii_lowercase();
     for preset in icon_color_presets {
-        let preset_color = parse_hex_color(preset).unwrap_or(Color::from_rgb8(96, 165, 250));
-        let is_selected = selected_preset == preset.trim_start_matches('#').to_ascii_lowercase();
+        let preset_color = parse_hex_color(preset).unwrap_or(DEFAULT_ICON_COLOR);
+        let is_selected = icon_color_preset_is_selected(&app.project_edit_icon_color, preset);
         let preset_button = button(Space::new().width(18.0).height(18.0))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditIconColorPresetSelected(
@@ -82,9 +113,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let icon_color_presets_row =
         column![text("预设颜色").size(12).style(settings_muted_text_style), preset_grid,]
             .spacing(4);
-    let current_icon_color = parse_color(&app.project_edit_icon_color)
-        .or_else(|| parse_hex_color(&app.project_edit_icon_color))
-        .unwrap_or(Color::from_rgb8(96, 165, 250));
+    let current_icon_color = current_icon_color(&app.project_edit_icon_color);
     let color_preview_btn = button(
         row![
             container(Space::new().width(16).height(16)).style(move |_: &Theme| {
@@ -109,16 +138,8 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .padding([6, 10])
     .style(rounded_action_btn_style);
 
-    let preview_color =
-        parse_hex_color(&app.project_edit_icon_color).unwrap_or(Color::from_rgb8(96, 165, 250));
-    let preview_label =
-        app.project_edit_icon.trim().chars().next().map(|ch| ch.to_string()).unwrap_or_else(|| {
-            app.project_edit_name
-                .chars()
-                .next()
-                .map(|ch| ch.to_string())
-                .unwrap_or_else(|| "P".to_string())
-        });
+    let preview_color = preview_badge_color(&app.project_edit_icon_color);
+    let preview_label = preview_label(&app.project_edit_icon, &app.project_edit_name);
     let preview_image = icon_image_handle(&app.project_edit_icon);
     let has_preview_image = preview_image.is_some();
     let preview_badge_content: Element<'_, Message> = if let Some(handle) = preview_image {
@@ -175,13 +196,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .on_exit(Message::Project(
             crate::app::message::project::ProjectMessage::ProjectEditIconHovered(false),
         ))
-        .on_press(if has_preview_image && app.project_edit_icon_hovered {
-            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
-                String::new(),
-            ))
-        } else {
-            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconPickFile)
-        });
+        .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
 
     column![
         settings_section_card("项目展示", "配置项目名称、图标来源与图标主题色。"),

@@ -8,7 +8,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use agent_client_protocol::SessionModelState;
+use agent_client_protocol::{
+    SessionConfigOption, SessionModelState, SetSessionConfigOptionResponse,
+};
 use async_trait::async_trait;
 
 use crate::acp_error_shapes::is_acp_resource_not_found_error;
@@ -20,7 +22,9 @@ use crate::perf_metrics::increment_perf_counter;
 use crate::queue_lease_store::is_process_alive;
 use crate::queue_owner_turn_controller::QueueOwnerActiveSessionController;
 use crate::session_mode_preference::{
-    get_desired_mode_id, get_desired_model_id, set_current_model_id, sync_advertised_model_state,
+    get_desired_config_options, get_desired_mode_id, get_desired_model_id, resolve_config_value,
+    resolve_model_config_value, set_current_model_id, sync_advertised_model_state,
+    sync_config_options,
 };
 use crate::session_runtime::lifecycle::{
     AgentLifecycleSnapshot, apply_lifecycle_snapshot_to_record, reconcile_agent_session_id,
@@ -41,6 +45,7 @@ pub struct ConnectAndLoadClientSession {
     pub session_id: String,
     pub agent_session_id: Option<String>,
     pub models: Option<SessionModelState>,
+    pub config_options: Option<Vec<SessionConfigOption>>,
 }
 
 #[async_trait(?Send)]
@@ -64,6 +69,13 @@ pub trait ConnectAndLoadClient: Send + Sync {
         cwd: &Path,
         model_id: &str,
     ) -> Result<(), AcpError>;
+    async fn set_session_config_option(
+        &self,
+        session_id: &str,
+        cwd: &Path,
+        config_id: &str,
+        value: &str,
+    ) -> Result<SetSessionConfigOptionResponse, AcpError>;
     fn has_reusable_session(&self, session_id: &str) -> bool;
     fn supports_load_session(&self) -> bool;
     fn get_agent_lifecycle_snapshot(&self) -> AgentLifecycleSnapshot;
@@ -76,8 +88,14 @@ impl ConnectAndLoadClient for crate::AcpClient {
     }
 
     async fn create_session(&self, cwd: &Path) -> Result<ConnectAndLoadClientSession, AcpError> {
-        let SessionInfo { session_id } = crate::AcpClient::create_session(self, cwd).await?;
-        Ok(ConnectAndLoadClientSession { session_id, agent_session_id: None, models: None })
+        let SessionInfo { session_id, models, config_options } =
+            crate::AcpClient::create_session(self, cwd).await?;
+        Ok(ConnectAndLoadClientSession {
+            session_id,
+            agent_session_id: None,
+            models,
+            config_options,
+        })
     }
 
     async fn load_session_with_options(
@@ -85,9 +103,14 @@ impl ConnectAndLoadClient for crate::AcpClient {
         session_id: &str,
         cwd: &Path,
     ) -> Result<ConnectAndLoadClientSession, AcpError> {
-        let SessionInfo { session_id } =
+        let SessionInfo { session_id, models, config_options } =
             crate::AcpClient::load_session(self, session_id, cwd).await?;
-        Ok(ConnectAndLoadClientSession { session_id, agent_session_id: None, models: None })
+        Ok(ConnectAndLoadClientSession {
+            session_id,
+            agent_session_id: None,
+            models,
+            config_options,
+        })
     }
 
     async fn set_session_mode(
@@ -106,6 +129,16 @@ impl ConnectAndLoadClient for crate::AcpClient {
         model_id: &str,
     ) -> Result<(), AcpError> {
         crate::AcpClient::set_session_model(self, session_id, cwd, model_id).await
+    }
+
+    async fn set_session_config_option(
+        &self,
+        session_id: &str,
+        cwd: &Path,
+        config_id: &str,
+        value: &str,
+    ) -> Result<SetSessionConfigOptionResponse, AcpError> {
+        crate::AcpClient::set_session_config_option(self, session_id, cwd, config_id, value).await
     }
 
     fn has_reusable_session(&self, _session_id: &str) -> bool {
@@ -180,6 +213,7 @@ where
     let original_agent_session_id = record.agent_session_id.clone();
     let desired_mode_id = get_desired_mode_id(record.vwacp.as_ref());
     let desired_model_id = get_desired_model_id(record.vwacp.as_ref());
+    let desired_config_options = get_desired_config_options(record.vwacp.as_ref());
     let stored_process_alive = is_process_alive(record.pid);
     let should_reconnect = record.pid.is_some() && !stored_process_alive;
     let cwd = std::path::PathBuf::from(&record.cwd);
@@ -220,6 +254,7 @@ where
     let mut created_fresh_session = false;
     let mut pending_agent_session_id = record.agent_session_id.clone();
     let mut session_models = None;
+    let mut session_config_options = None;
 
     if reusing_loaded_session {
         resumed = true;
@@ -234,6 +269,7 @@ where
             Ok(load_result) => {
                 reconcile_agent_session_id(record, load_result.agent_session_id.as_deref());
                 session_models = load_result.models;
+                session_config_options = load_result.config_options;
                 resumed = true;
             }
             Err(error) => {
@@ -257,6 +293,7 @@ where
                 created_fresh_session = true;
                 pending_agent_session_id = created_session.agent_session_id;
                 session_models = created_session.models;
+                session_config_options = created_session.config_options;
             }
         }
     } else {
@@ -281,6 +318,72 @@ where
         created_fresh_session = true;
         pending_agent_session_id = created_session.agent_session_id;
         session_models = created_session.models;
+        session_config_options = created_session.config_options;
+    }
+
+    if created_fresh_session && let Some(desired_model_id) = desired_model_id.as_deref() {
+        let model_config_id =
+            resolve_model_config_value(session_config_options.as_deref(), desired_model_id)
+                .map_err(AcpError::SetSessionConfigOption)?;
+        let model_result = if let Some(config_id) = model_config_id {
+            with_timeout_result(
+                client.set_session_config_option(
+                    &session_id,
+                    cwd.as_path(),
+                    &config_id,
+                    desired_model_id,
+                ),
+                timeout_ms,
+            )
+            .await
+            .map(|response| session_config_options = Some(response.config_options))
+        } else if session_models
+            .as_ref()
+            .is_none_or(|models| desired_model_id != models.current_model_id.to_string())
+        {
+            with_timeout_result(
+                client.set_session_model(&session_id, cwd.as_path(), desired_model_id),
+                timeout_ms,
+            )
+            .await
+        } else {
+            Ok(())
+        };
+        if let Err(error) = model_result {
+            let message = format!(
+                "Failed to replay saved session model {desired_model_id} on fresh ACP session {session_id}: {error}"
+            );
+            record.acp_session_id = original_session_id;
+            record.agent_session_id = original_agent_session_id;
+            return Err(SessionModelReplayError::new(
+                message,
+                AcpxErrorOptions {
+                    source: Some(Box::new(error)),
+                    retryable: Some(true),
+                    ..AcpxErrorOptions::default()
+                },
+            )
+            .into());
+        }
+    }
+
+    if created_fresh_session {
+        let is_reasoning = |id: &str| matches!(id, "reasoning_effort" | "thought_level" | "effort");
+        for (config_id, value) in desired_config_options
+            .iter()
+            .filter(|(config_id, _)| is_reasoning(config_id))
+            .chain(desired_config_options.iter().filter(|(config_id, _)| !is_reasoning(config_id)))
+        {
+            let resolved_id =
+                resolve_config_value(session_config_options.as_deref(), config_id, value)
+                    .map_err(AcpError::SetSessionConfigOption)?;
+            let response = with_timeout_result(
+                client.set_session_config_option(&session_id, cwd.as_path(), &resolved_id, value),
+                timeout_ms,
+            )
+            .await?;
+            session_config_options = Some(response.config_options);
+        }
     }
 
     if created_fresh_session
@@ -311,43 +414,13 @@ where
         .into());
     }
 
-    if created_fresh_session
-        && let Some(desired_model_id) = desired_model_id.as_deref()
-        && session_models
-            .as_ref()
-            .is_some_and(|models| desired_model_id != models.current_model_id.to_string())
-        && let Err(error) = with_timeout_result(
-            client.set_session_model(&session_id, cwd.as_path(), desired_model_id),
-            timeout_ms,
-        )
-        .await
-    {
-        let message = format!(
-            "Failed to replay saved session model {desired_model_id} on fresh ACP session {session_id}: {}",
-            error
-        );
-        record.acp_session_id = original_session_id;
-        record.agent_session_id = original_agent_session_id;
-        if verbose {
-            eprintln!("[vwacp] {message}");
-        }
-        return Err(SessionModelReplayError::new(
-            message,
-            AcpxErrorOptions {
-                source: Some(Box::new(error)),
-                retryable: Some(true),
-                ..AcpxErrorOptions::default()
-            },
-        )
-        .into());
-    }
-
     if created_fresh_session {
         record.acp_session_id = session_id.clone();
         reconcile_agent_session_id(record, pending_agent_session_id.as_deref());
     }
 
     sync_advertised_model_state(record, session_models.as_ref());
+    sync_config_options(record, session_config_options);
     if created_fresh_session
         && let Some(desired_model_id) = desired_model_id.as_deref()
         && session_models.is_some()

@@ -5,10 +5,12 @@ fn lsp_overlay_tests_are_wired() {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
-    use super::super::lsp_overlay::lsp_overlay;
+    use super::super::lsp_overlay::{lsp_overlay, map_lsp_overlay_message};
     use crate::app::components::editor::Editor;
+    use crate::app::message::PreviewMessage;
     use crate::app::{App, Message, PreviewTab};
     use iced::widget::Id;
+    use iced_code_editor::LspOverlayMessage;
 
     fn app() -> App {
         App::new().0
@@ -68,5 +70,45 @@ mod native {
         app.preview_tabs = vec![tab("/tmp/a.rs")];
 
         keep(lsp_overlay(&app));
+    }
+
+    #[test]
+    fn message_mapper_preserves_hover_direction() {
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::HoverEntered),
+            Message::Preview(PreviewMessage::LspHoverEntered)
+        ));
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::HoverExited),
+            Message::Preview(PreviewMessage::LspHoverExited)
+        ));
+    }
+
+    #[test]
+    fn message_mapper_preserves_completion_selection_index() {
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::CompletionSelected(usize::MAX)),
+            Message::Preview(PreviewMessage::LspCompletionSelected(usize::MAX))
+        ));
+    }
+
+    #[test]
+    fn message_mapper_preserves_completion_controls() {
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::CompletionClosed),
+            Message::Preview(PreviewMessage::LspCompletionClosed)
+        ));
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::CompletionNavigateUp),
+            Message::Preview(PreviewMessage::LspCompletionNavigateUp)
+        ));
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::CompletionNavigateDown),
+            Message::Preview(PreviewMessage::LspCompletionNavigateDown)
+        ));
+        assert!(matches!(
+            map_lsp_overlay_message(LspOverlayMessage::CompletionConfirm),
+            Message::Preview(PreviewMessage::LspCompletionConfirm)
+        ));
     }
 }

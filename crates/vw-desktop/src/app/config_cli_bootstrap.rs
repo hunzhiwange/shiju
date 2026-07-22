@@ -3,26 +3,70 @@
 //! 这里不依赖 gateway，因为它的职责正是确保 gateway 所在的本机服务可用。
 
 #[cfg(not(target_arch = "wasm32"))]
-use rand::Rng;
-#[cfg(not(target_arch = "wasm32"))]
 use std::fs;
 #[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
+use std::io::{Read, Write};
+#[cfg(not(target_arch = "wasm32"))]
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::process::Command;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+#[cfg(not(target_arch = "wasm32"))]
+use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+#[cfg(not(target_arch = "wasm32"))]
+use vw_gateway_client::vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
 #[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_GATEWAY_PORT: u16 = 42617;
 #[cfg(not(target_arch = "wasm32"))]
-const DESKTOP_GATEWAY_PORT_BASE: u16 = 14600;
-#[cfg(not(target_arch = "wasm32"))]
-const DESKTOP_GATEWAY_PORT_RANGE: u16 = 100;
-#[cfg(not(target_arch = "wasm32"))]
 const MACOS_SERVICE_LABEL: &str = "com.vibewindow.daemon";
+#[cfg(not(target_arch = "wasm32"))]
+const GATEWAY_HEALTH_PATH: &str = "/v1/health";
+#[cfg(not(target_arch = "wasm32"))]
+const GATEWAY_HEALTH_CONNECT_TIMEOUT: Duration = Duration::from_millis(250);
+#[cfg(not(target_arch = "wasm32"))]
+const GATEWAY_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(200);
+#[cfg(not(target_arch = "wasm32"))]
+const GATEWAY_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 const WINDOWS_TASK_NAME: &str = "VibeWindow Daemon";
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GatewayRuntimeEndpoint {
+    host: String,
+    port: u16,
+    tenant_scope: TenantScope,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl GatewayRuntimeEndpoint {
+    fn new(host: impl Into<String>, port: u16) -> Self {
+        let host = host.into();
+        let host = if host.trim().is_empty() { "127.0.0.1".to_string() } else { host };
+        Self { host, port: port.max(1), tenant_scope: TenantScope::default() }
+    }
+
+    fn with_tenant_scope(mut self, tenant_scope: TenantScope) -> Self {
+        self.tenant_scope = tenant_scope;
+        self
+    }
+
+    fn connect_host(&self) -> String {
+        match self.host.trim().trim_matches(|ch| ch == '[' || ch == ']') {
+            "" | "0.0.0.0" => "127.0.0.1".to_string(),
+            "::" => "::1".to_string(),
+            host => host.to_string(),
+        }
+    }
+
+    fn describe(&self) -> String {
+        format!("{}:{}", self.connect_host(), self.port)
+    }
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn bootstrap_cli_service_async() -> Result<(), String> {
@@ -33,18 +77,24 @@ pub async fn bootstrap_cli_service_async() -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn bootstrap_cli_service() -> Result<(), String> {
+    if cfg!(debug_assertions) {
+        tracing::debug!(
+            target: "vw_desktop",
+            "debug build skips desktop CLI service bootstrap"
+        );
+        return Ok(());
+    }
+
     let home = resolve_home_dir()?;
     let config_dir = vw_config_types::paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;
+    let endpoint = sync_gateway_client_bootstrap_from_runtime_config(&home)?;
 
     if !service_installed(&home) {
-        if let Some(port) = ensure_first_install_gateway_port(&home)? {
-            sync_gateway_client_bootstrap_port(port);
-        }
         run_cli_command(&cli, &config_dir, &["service", "install"])?;
     }
 
-    if !service_running(&home) {
+    if !service_running(&home) || !gateway_health_ready(&endpoint) {
         if let Err(server_start_error) = run_cli_command(&cli, &config_dir, &["server", "start"]) {
             tracing::debug!(
                 target: "vw_desktop",
@@ -55,20 +105,27 @@ fn bootstrap_cli_service() -> Result<(), String> {
         }
     }
 
-    Ok(())
+    wait_for_gateway_health(&endpoint, GATEWAY_STARTUP_TIMEOUT)
+        .then_some(())
+        .ok_or_else(|| format!("Gateway 服务启动后未就绪: {}", endpoint.describe()))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     let install_dir = vw_config_types::paths::home_config_dir(home).join("bin");
     let target_bin = install_dir.join(cli_binary_name());
-    if verify_cli_binary(&target_bin).is_ok() {
+    let source_bin = resolve_agent_binary_path();
+    if let Ok(source_bin) = source_bin.as_ref() {
+        if installed_cli_matches_source(&target_bin, source_bin) {
+            return Ok(target_bin);
+        }
+    } else if verify_cli_binary(&target_bin).is_ok() {
         return Ok(target_bin);
     }
 
     fs::create_dir_all(&install_dir).map_err(|err| format!("创建 CLI 安装目录失败: {err}"))?;
 
-    let install_result = match resolve_agent_binary_path() {
+    let install_result = match source_bin {
         Ok(source_bin) => {
             fs::copy(&source_bin, &target_bin).map_err(|err| {
                 format!(
@@ -123,15 +180,47 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn verify_cli_binary(path: &Path) -> Result<(), String> {
+    cli_version(path).map(|_| ())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn installed_cli_matches_source(target: &Path, source: &Path) -> bool {
+    let Ok(target_version) = cli_version(target) else {
+        return false;
+    };
+    let Ok(source_version) = cli_version(source) else {
+        return false;
+    };
+    target_version == source_version && same_file_contents(target, source).unwrap_or(false)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn same_file_contents(left: &Path, right: &Path) -> Result<bool, String> {
+    let left_meta = fs::metadata(left)
+        .map_err(|err| format!("读取文件元数据失败 {}: {err}", left.display()))?;
+    let right_meta = fs::metadata(right)
+        .map_err(|err| format!("读取文件元数据失败 {}: {err}", right.display()))?;
+    if left_meta.len() != right_meta.len() {
+        return Ok(false);
+    }
+
+    let left_bytes =
+        fs::read(left).map_err(|err| format!("读取文件失败 {}: {err}", left.display()))?;
+    let right_bytes =
+        fs::read(right).map_err(|err| format!("读取文件失败 {}: {err}", right.display()))?;
+    Ok(left_bytes == right_bytes)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cli_version(path: &Path) -> Result<String, String> {
     let output = Command::new(path)
         .arg("--version")
         .output()
         .map_err(|err| format!("执行 {} --version 失败: {err}", path.display()))?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(command_failure_message(path, &["--version"], output))
+    if !output.status.success() {
+        return Err(command_failure_message(path, &["--version"], output));
     }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -172,173 +261,148 @@ fn format_cli_command(cli: &Path, args: &[&str]) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn ensure_first_install_gateway_port(home: &Path) -> Result<Option<u16>, String> {
-    let config_dir = vw_config_types::paths::home_config_dir(home);
-    let config_path = config_dir.join("vibewindow.json");
-    let existing_root = read_config_root(&config_path)?;
-    let mut root = if existing_root.as_object().is_some_and(|obj| obj.is_empty()) {
-        default_config_root(home)?
-    } else {
-        merge_json_defaults(default_config_root(home)?, existing_root)
-    };
-
-    let current_port = root
-        .get("gateway")
-        .and_then(|value| value.get("port"))
-        .and_then(serde_json::Value::as_u64)
-        .and_then(|value| u16::try_from(value).ok());
-
-    if current_port.is_some_and(|port| port != DEFAULT_GATEWAY_PORT) {
-        return Ok(None);
-    }
-
-    let port = random_desktop_gateway_port();
-    set_gateway_port(&mut root, port);
-    write_json_atomically(&config_path, &root)?;
-    Ok(Some(port))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn read_config_root(path: &Path) -> Result<serde_json::Value, String> {
-    if !path.exists() {
-        return Ok(serde_json::json!({}));
-    }
-    let content = fs::read_to_string(path)
-        .map_err(|err| format!("读取配置文件失败 {}: {err}", path.display()))?;
-    if content.trim().is_empty() {
-        return Ok(serde_json::json!({}));
-    }
-    serde_json::from_str(&content)
-        .map_err(|err| format!("解析配置文件失败 {}: {err}", path.display()))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn default_config_root(home: &Path) -> Result<serde_json::Value, String> {
-    let mut config = vw_config_types::config::Config::default();
-    let config_dir = vw_config_types::paths::home_config_dir(home);
-    config.config_path = config_dir.join("vibewindow.json");
-    config.workspace_dir = config_dir.join("workspace");
-    serde_json::to_value(config).map_err(|err| format!("序列化默认配置失败: {err}"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn merge_json_defaults(
-    default: serde_json::Value,
-    existing: serde_json::Value,
-) -> serde_json::Value {
-    match (default, existing) {
-        (serde_json::Value::Object(mut defaults), serde_json::Value::Object(existing)) => {
-            for (key, value) in existing {
-                let merged = defaults
-                    .remove(&key)
-                    .map(|default_value| merge_json_defaults(default_value, value.clone()))
-                    .unwrap_or(value);
-                defaults.insert(key, merged);
-            }
-            serde_json::Value::Object(defaults)
-        }
-        (_, existing) => existing,
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn set_gateway_port(root: &mut serde_json::Value, port: u16) {
-    if !root.is_object() {
-        *root = serde_json::json!({});
-    }
-    let obj = root.as_object_mut().expect("root object exists");
-    let gateway = obj.entry("gateway").or_insert_with(|| serde_json::json!({}));
-    if !gateway.is_object() {
-        *gateway = serde_json::json!({});
-    }
-    gateway
-        .as_object_mut()
-        .expect("gateway object exists")
-        .insert("port".to_string(), serde_json::Value::Number(port.into()));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn write_json_atomically(path: &Path, value: &serde_json::Value) -> Result<(), String> {
-    let parent = path.parent().ok_or_else(|| format!("配置路径缺少父目录: {}", path.display()))?;
-    fs::create_dir_all(parent)
-        .map_err(|err| format!("创建配置目录失败 {}: {err}", parent.display()))?;
-
-    let file_name = path.file_name().and_then(|value| value.to_str()).unwrap_or("vibewindow.json");
-    let tmp_path = parent.join(format!(
-        ".{file_name}.tmp-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_nanos())
-            .unwrap_or_default()
-    ));
-    let content =
-        serde_json::to_string_pretty(value).map_err(|err| format!("序列化配置文件失败: {err}"))?;
-    fs::write(&tmp_path, content)
-        .map_err(|err| format!("写入临时配置文件失败 {}: {err}", tmp_path.display()))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600))
-            .map_err(|err| format!("设置配置文件权限失败 {}: {err}", tmp_path.display()))?;
-    }
-
-    #[cfg(windows)]
-    if path.exists() {
-        fs::remove_file(path)
-            .map_err(|err| format!("移除旧配置文件失败 {}: {err}", path.display()))?;
-    }
-
-    fs::rename(&tmp_path, path).map_err(|err| {
-        let _ = fs::remove_file(&tmp_path);
-        format!("替换配置文件失败 {}: {err}", path.display())
-    })?;
-    Ok(())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn random_desktop_gateway_port() -> u16 {
-    let start = rand::thread_rng().gen_range(0..DESKTOP_GATEWAY_PORT_RANGE);
-    for offset in 0..DESKTOP_GATEWAY_PORT_RANGE {
-        let port = DESKTOP_GATEWAY_PORT_BASE + ((start + offset) % DESKTOP_GATEWAY_PORT_RANGE);
-        if port_available(port) {
-            return port;
-        }
-    }
-    DESKTOP_GATEWAY_PORT_BASE + start
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn port_available(port: u16) -> bool {
-    std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn sync_gateway_client_bootstrap_port(port: u16) {
+fn sync_gateway_client_bootstrap_from_runtime_config(
+    home: &Path,
+) -> Result<GatewayRuntimeEndpoint, String> {
+    let endpoint = load_gateway_runtime_endpoint(home)?;
     let mut cfg = super::system_settings::load_gateway_client_bootstrap_config();
-    let mut active = cfg.active_server();
-    if active.port != DEFAULT_GATEWAY_PORT && !cfg.servers.is_empty() {
-        return;
+    let active = cfg.active_server();
+
+    if !should_refresh_gateway_client_bootstrap(&active, &endpoint) {
+        return Ok(endpoint);
     }
 
-    active.host = if active.host.trim().is_empty() { "127.0.0.1".to_string() } else { active.host };
-    active.port = port;
+    let mut next = active.clone();
+    if next.id.trim().is_empty() {
+        next.id = "local".to_string();
+    }
+    if next.name.trim().is_empty() {
+        next.name = "本地网关".to_string();
+    }
+    next.host = endpoint.host.clone();
+    next.port = endpoint.port;
 
     let mut servers = cfg.normalized_servers();
     let mut replaced = false;
     for server in &mut servers {
-        if server.id == active.id {
-            *server = active.clone();
+        if server.id == next.id {
+            *server = next.clone();
             replaced = true;
-        } else if server.id == "local" && server.port == DEFAULT_GATEWAY_PORT {
-            server.port = port;
+        } else if server.id == "local" && is_local_gateway_host(&server.host) {
+            server.host = endpoint.host.clone();
+            server.port = endpoint.port;
         }
     }
     if !replaced {
-        servers.insert(0, active.clone());
+        servers.insert(0, next.clone());
     }
-    cfg.set_servers(servers, active.id);
+
+    cfg.set_servers(servers, next.id);
     super::system_settings::save_gateway_client_bootstrap_config(&cfg);
+    Ok(endpoint)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn should_refresh_gateway_client_bootstrap(
+    active: &GatewayClientServerConfig,
+    endpoint: &GatewayRuntimeEndpoint,
+) -> bool {
+    if !is_local_gateway_host(&active.host) {
+        return false;
+    }
+
+    let tenant_scope = TenantScope::new(active.platform_id.clone(), active.company_id.clone())
+        .expect("gateway client tenant IDs are validated when loading bootstrap config");
+    let active_endpoint = GatewayRuntimeEndpoint::new(active.host.clone(), active.port)
+        .with_tenant_scope(tenant_scope);
+    active_endpoint != *endpoint && !gateway_health_ready(&active_endpoint)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_gateway_runtime_endpoint(home: &Path) -> Result<GatewayRuntimeEndpoint, String> {
+    let config_dir = vw_config_types::paths::home_config_dir(home);
+    let config_path = config_dir.join("gateway-client-bootstrap.json");
+    let config = fs::read_to_string(config_path)
+        .ok()
+        .and_then(|content| {
+            serde_json::from_str::<GatewayClientSystemSettingsConfig>(&content).ok()
+        })
+        .unwrap_or_default();
+    let servers = config.normalized_servers();
+    let local = servers
+        .iter()
+        .find(|server| server.id == "local" && is_local_gateway_host(&server.host))
+        .or_else(|| servers.iter().find(|server| is_local_gateway_host(&server.host)))
+        .cloned()
+        .unwrap_or_default();
+    let port = if local.port == 0 { DEFAULT_GATEWAY_PORT } else { local.port };
+    let tenant_scope = TenantScope::new(local.platform_id, local.company_id)
+        .expect("gateway client tenant IDs are validated when loading bootstrap config");
+    Ok(GatewayRuntimeEndpoint::new(local.host, port).with_tenant_scope(tenant_scope))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn is_local_gateway_host(host: &str) -> bool {
+    matches!(
+        host.trim().trim_matches(|ch| ch == '[' || ch == ']').to_ascii_lowercase().as_str(),
+        "" | "127.0.0.1" | "localhost" | "::1" | "0.0.0.0" | "::"
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn wait_for_gateway_health(endpoint: &GatewayRuntimeEndpoint, timeout: Duration) -> bool {
+    let started = Instant::now();
+    while started.elapsed() < timeout {
+        if gateway_health_ready(endpoint) {
+            return true;
+        }
+        std::thread::sleep(GATEWAY_STARTUP_POLL_INTERVAL);
+    }
+    false
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn gateway_health_ready(endpoint: &GatewayRuntimeEndpoint) -> bool {
+    let address = match resolve_gateway_socket_address(endpoint) {
+        Some(address) => address,
+        None => return false,
+    };
+
+    let mut stream = match TcpStream::connect_timeout(&address, GATEWAY_HEALTH_CONNECT_TIMEOUT) {
+        Ok(stream) => stream,
+        Err(_) => return false,
+    };
+    let _ = stream.set_read_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
+
+    let request = format!(
+        "GET {GATEWAY_HEALTH_PATH} HTTP/1.1\r\nHost: {}\r\n{PLATFORM_ID_HEADER}: {}\r\n{COMPANY_ID_HEADER}: {}\r\nConnection: close\r\n\r\n",
+        endpoint.describe(),
+        endpoint.tenant_scope.platform_id().as_ref(),
+        endpoint.tenant_scope.company_id().as_ref(),
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+
+    let mut response = String::new();
+    if stream.read_to_string(&mut response).is_err() {
+        return false;
+    }
+
+    let Some(status_line) = response.lines().next() else {
+        return false;
+    };
+    status_line.contains(" 200 ")
+        && (response.contains("\"status\":\"ok\"") || response.contains("\"status\": \"ok\""))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_gateway_socket_address(endpoint: &GatewayRuntimeEndpoint) -> Option<SocketAddr> {
+    format!("{}:{}", endpoint.connect_host(), endpoint.port)
+        .to_socket_addrs()
+        .ok()?
+        .find(|addr| addr.is_ipv4() || addr.is_ipv6())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -569,30 +633,117 @@ fn ensure_profile_contains_path(profile: &Path, install_dir: &Path) -> Result<bo
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    fn write_test_cli(path: &Path, version: &str, marker: &str) {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::write(path, format!("#!/bin/sh\n# {marker}\nprintf '%s\\n' '{version}'\n")).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[cfg(unix)]
     #[test]
-    fn merge_json_defaults_preserves_existing_values_and_fills_missing() {
-        let default = serde_json::json!({
-            "gateway": { "host": "127.0.0.1", "port": 42617 },
-            "default_temperature": 0.7
-        });
-        let existing = serde_json::json!({
-            "gateway": { "host": "0.0.0.0" },
-            "custom": true
-        });
+    fn installed_cli_matches_source_requires_same_version() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("target-cli");
+        let source = tmp.path().join("source-cli");
+        write_test_cli(&target, "vibewindow 1.0.0", "same-build");
+        write_test_cli(&source, "vibewindow 1.0.0", "same-build");
 
-        let merged = merge_json_defaults(default, existing);
+        assert!(installed_cli_matches_source(&target, &source));
 
-        assert_eq!(merged["gateway"]["host"], "0.0.0.0");
-        assert_eq!(merged["gateway"]["port"], 42617);
-        assert_eq!(merged["default_temperature"], 0.7);
-        assert_eq!(merged["custom"], true);
+        write_test_cli(&target, "vibewindow 1.0.0", "old-build");
+
+        assert!(!installed_cli_matches_source(&target, &source));
+
+        write_test_cli(&target, "vibewindow 0.9.0", "same-build");
+
+        assert!(!installed_cli_matches_source(&target, &source));
     }
 
     #[test]
-    fn set_gateway_port_creates_gateway_object() {
-        let mut root = serde_json::json!({});
-        set_gateway_port(&mut root, 14642);
+    fn load_gateway_runtime_endpoint_reads_bootstrap_cache() {
+        let tmp = tempfile::tempdir().unwrap();
+        let config_dir = vw_config_types::paths::home_config_dir(tmp.path());
+        fs::create_dir_all(&config_dir).unwrap();
+        let config = GatewayClientSystemSettingsConfig {
+            host: "0.0.0.0".to_string(),
+            port: 14682,
+            servers: Vec::new(),
+            ..GatewayClientSystemSettingsConfig::default()
+        };
+        fs::write(
+            config_dir.join("gateway-client-bootstrap.json"),
+            serde_json::to_string(&config).unwrap(),
+        )
+        .unwrap();
 
-        assert_eq!(root["gateway"]["port"], 14642);
+        let endpoint = load_gateway_runtime_endpoint(tmp.path()).unwrap();
+
+        assert_eq!(endpoint.host, "0.0.0.0");
+        assert_eq!(endpoint.connect_host(), "127.0.0.1");
+        assert_eq!(endpoint.port, 14682);
+    }
+
+    #[test]
+    fn refresh_bootstrap_keeps_remote_gateway_client_server() {
+        let active = GatewayClientServerConfig {
+            host: "gateway.internal".to_string(),
+            port: 53607,
+            ..GatewayClientServerConfig::default()
+        };
+        let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", 42617);
+
+        assert!(!should_refresh_gateway_client_bootstrap(&active, &endpoint));
+    }
+
+    #[test]
+    fn refresh_bootstrap_replaces_unhealthy_loopback_server() {
+        let active = GatewayClientServerConfig {
+            host: "127.0.0.1".to_string(),
+            port: 1,
+            ..GatewayClientServerConfig::default()
+        };
+        let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", 42617);
+
+        assert!(should_refresh_gateway_client_bootstrap(&active, &endpoint));
+    }
+
+    #[test]
+    fn gateway_health_probe_sends_tenant_headers() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 512];
+            while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                let read = stream.read(&mut buffer).unwrap();
+                if read == 0 {
+                    break;
+                }
+                request.extend_from_slice(&buffer[..read]);
+            }
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}",
+                )
+                .unwrap();
+            String::from_utf8(request).unwrap()
+        });
+        let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", port).with_tenant_scope(
+            vw_gateway_client::vw_api_types::id::TenantScope::new("20000", "200000001").unwrap(),
+        );
+
+        assert!(gateway_health_ready(&endpoint));
+        let request = server.join().unwrap();
+        assert!(request.contains("X-Platform-ID: 20000\r\n"));
+        assert!(request.contains("X-Company-ID: 200000001\r\n"));
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "config_cli_bootstrap_tests.rs"]
+mod config_cli_bootstrap_tests;

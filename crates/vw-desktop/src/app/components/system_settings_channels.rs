@@ -18,8 +18,8 @@ mod enterprise_channels_tests;
 mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_text_input_style,
+    settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -134,10 +134,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     content = content.push(enterprise_channels::qq_panel(app));
     content = content.push(enterprise_channels::nostr_panel(app));
     content = content.push(enterprise_channels::clawdtalk_panel(app));
-
-    if let Some(err) = &app.channels_settings.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     container(content).width(Length::Fill).into()
 }

@@ -165,6 +165,95 @@ mod tests {
         );
     }
 
+    #[test]
+    fn shell_argument_helpers_trim_defaults_and_reject_invalid_timeouts() {
+        assert_eq!(
+            extract_description_argument(&json!({"description": "  inspect files  "})).as_deref(),
+            Some("inspect files")
+        );
+        assert_eq!(extract_description_argument(&json!({"description": "  "})), None);
+        assert_eq!(parse_timeout_ms(&json!({})).unwrap(), DEFAULT_TIMEOUT_MS);
+        assert_eq!(parse_timeout_ms(&json!({"timeout": 17})).unwrap(), 17);
+        assert!(
+            parse_timeout_ms(&json!({"timeout": 0}))
+                .unwrap_err()
+                .to_string()
+                .contains("greater than 0")
+        );
+        assert!(parse_timeout_ms(&json!({"timeout": -1})).is_err());
+        assert!(parse_timeout_ms(&json!({"timeout": "17"})).is_err());
+    }
+
+    #[test]
+    fn output_helpers_normalize_merge_and_append_notes_without_extra_blank_lines() {
+        assert_eq!(normalize_line_endings("one\r\ntwo\rthree".into()), "one\ntwo\nthree");
+        assert_eq!(merge_shell_output("", ""), "");
+        assert_eq!(merge_shell_output("out\n", ""), "out\n");
+        assert_eq!(merge_shell_output("", "err\n"), "err\n");
+        assert_eq!(merge_shell_output("out", "err"), "out\nerr");
+        assert_eq!(append_note(String::new(), "[note]"), "[note]");
+        assert_eq!(append_note("output".into(), "[note]"), "output\n[note]");
+        assert_eq!(append_note("output\n".into(), "[note]"), "output\n[note]");
+    }
+
+    #[test]
+    fn interpretation_results_keep_semantic_success_and_error_details() {
+        for interpretation in [
+            ExitInterpretation::Success,
+            ExitInterpretation::ConditionTrue,
+            ExitInterpretation::DifferencesFound,
+        ] {
+            let result =
+                tool_result_from_interpretation(interpretation, "stdout".into(), String::new());
+            assert!(result.success);
+            assert_eq!(result.output, "stdout");
+            assert!(result.error.is_none());
+        }
+
+        for (interpretation, note) in [
+            (ExitInterpretation::NoMatches, "[No matches found]"),
+            (ExitInterpretation::PartialSuccess, "[Command completed with partial success]"),
+            (ExitInterpretation::ConditionFalse, "[Condition evaluated to false]"),
+        ] {
+            let result =
+                tool_result_from_interpretation(interpretation, String::new(), String::new());
+            assert!(result.success);
+            assert_eq!(result.output, note);
+            assert!(result.error.is_none());
+        }
+
+        let without_stderr = tool_result_from_interpretation(
+            ExitInterpretation::Error { message: "failed".into() },
+            String::new(),
+            String::new(),
+        );
+        assert!(!without_stderr.success);
+        assert_eq!(without_stderr.error.as_deref(), Some("failed"));
+
+        let with_stderr = tool_result_from_interpretation(
+            ExitInterpretation::Error { message: "failed".into() },
+            String::new(),
+            "details".into(),
+        );
+        assert!(!with_stderr.success);
+        assert_eq!(with_stderr.output, "details");
+        assert_eq!(with_stderr.error.as_deref(), Some("failed: details"));
+    }
+
+    #[test]
+    fn dedupe_paths_preserves_first_occurrence_order() {
+        let paths = vec![
+            PathBuf::from("/workspace"),
+            PathBuf::from("/allowed"),
+            PathBuf::from("/workspace"),
+        ];
+
+        assert_eq!(
+            dedupe_paths(paths),
+            vec![PathBuf::from("/workspace"), PathBuf::from("/allowed")]
+        );
+    }
+
     /// 测试 Shell 工具能够执行允许的命令
     ///
     /// 验证在 Supervised 模式下，`echo hello` 命令能够成功执行，
@@ -526,6 +615,8 @@ mod tests {
     /// 不会出现在 `env` 命令的输出中
     #[tokio::test(flavor = "current_thread")]
     async fn shell_does_not_leak_api_key() {
+        let _lock =
+            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
         let _g1 = EnvGuard::set("API_KEY", "sk-test-secret-12345");
         let _g2 = EnvGuard::set("VIBEWINDOW_API_KEY", "sk-test-secret-67890");
 
@@ -579,6 +670,8 @@ mod tests {
     /// 验证在 `shell_env_passthrough` 中配置的变量能够传递到 shell 环境
     #[tokio::test(flavor = "current_thread")]
     async fn shell_allows_configured_env_passthrough() {
+        let _lock =
+            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
         let _guard = EnvGuard::set("VIBEWINDOW_TEST_PASSTHROUGH", "db://unit-test");
         let tool = ShellTool::new(
             test_security_with_env_passthrough(&["VIBEWINDOW_TEST_PASSTHROUGH"]),
@@ -616,18 +709,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn apply_allowed_shell_environment_prefers_effective_path() {
-        let profile_home = tempfile::TempDir::new().expect("temp home should be created");
-        let profile_bin = profile_home.path().join("profile-bin");
-        std::fs::create_dir_all(&profile_bin).expect("profile bin dir should be created");
-        std::fs::write(
-            profile_home.path().join(".zshrc"),
-            format!("export PATH={}:$PATH\n", profile_bin.display()),
-        )
-        .expect("profile should be written");
-
-        let home_guard = EnvGuard::set("HOME", profile_home.path().to_string_lossy().as_ref());
+    async fn apply_allowed_shell_environment_injects_effective_path() {
+        let _lock =
+            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
         let path_guard = EnvGuard::set("PATH", "/usr/bin:/bin");
+        let expected = allowed_shell_env_value("PATH").expect("effective PATH should resolve");
 
         let security = test_security_with_env_cmd();
         let mut cmd = tokio::process::Command::new("env");
@@ -636,14 +722,12 @@ mod tests {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         drop(path_guard);
-        drop(home_guard);
 
-        let expected = profile_bin.to_string_lossy().to_string();
         let path_line = stdout
             .lines()
             .find(|line| line.starts_with("PATH="))
             .expect("PATH should be present in command environment");
-        assert!(path_line.contains(&expected));
+        assert_eq!(path_line, format!("PATH={expected}"));
     }
 
     /// 测试中风险命令需要显式批准

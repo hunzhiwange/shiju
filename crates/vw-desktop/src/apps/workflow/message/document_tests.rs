@@ -240,6 +240,18 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     assert_eq!(app.workflow_state.title(), "文件重载");
     let _ = std::fs::remove_file(&reload_path);
 
+    app.workflow_state.error_message = None;
+    let missing_path = std::env::temp_dir().join("vibe-window-workflow-reload-missing.yml");
+    let _ = std::fs::remove_file(&missing_path);
+    app.workflow_state.source_path = Some(missing_path.to_string_lossy().to_string());
+    document_message(&mut app, WorkflowMessage::Reload);
+    assert!(
+        app.workflow_state
+            .error_message
+            .as_deref()
+            .is_some_and(|message| message.starts_with("读取工作流文件失败:"))
+    );
+
     let mut empty_app = App::new().0;
     document_message(&mut empty_app, WorkflowMessage::Reload);
     assert_eq!(
@@ -258,4 +270,17 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     let ignored =
         super::document::handle(&mut app, WorkflowMessage::SelectNode("start".to_string()));
     assert!(ignored.is_none());
+}
+
+#[test]
+fn action_menu_toggle_opens_closed_menu_and_close_is_idempotent() {
+    let mut app = app_with_workflow();
+    assert!(!app.workflow_state.action_menu_open);
+
+    document_message(&mut app, WorkflowMessage::ToggleActionMenu);
+    assert!(app.workflow_state.action_menu_open);
+
+    document_message(&mut app, WorkflowMessage::CloseFloatingPanels);
+    document_message(&mut app, WorkflowMessage::CloseFloatingPanels);
+    assert!(!app.workflow_state.action_menu_open);
 }

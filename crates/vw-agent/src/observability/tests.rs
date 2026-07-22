@@ -67,6 +67,29 @@ fn factory_otlp_alias() {
     assert_eq!(create_observer(&cfg).name(), expected);
 }
 
+#[cfg(feature = "observability-otel")]
+#[test]
+fn factory_otel_default_endpoint_returns_otel() {
+    let cfg = ObservabilityConfig {
+        backend: "otel".into(),
+        otel_service_name: Some("test".into()),
+        ..ObservabilityConfig::default()
+    };
+    assert_eq!(create_observer(&cfg).name(), "otel");
+}
+
+#[cfg(feature = "observability-otel")]
+#[test]
+fn factory_otel_invalid_endpoint_falls_back_to_noop() {
+    let cfg = ObservabilityConfig {
+        backend: "otel".into(),
+        otel_endpoint: Some("not a valid endpoint".into()),
+        otel_service_name: Some("test".into()),
+        ..ObservabilityConfig::default()
+    };
+    assert_eq!(create_observer(&cfg).name(), "noop");
+}
+
 #[test]
 fn factory_unknown_falls_back_to_noop() {
     let cfg =

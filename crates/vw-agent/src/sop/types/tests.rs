@@ -306,4 +306,50 @@ mod tests {
         assert_eq!(parsed.step_results.len(), 1);
         assert_eq!(parsed.step_results[0].status, SopStepStatus::Completed);
     }
+
+    #[test]
+    fn display_contracts_cover_all_remaining_variants() {
+        assert_eq!(SopPriority::Normal.to_string(), "normal");
+        assert_eq!(SopPriority::High.to_string(), "high");
+
+        assert_eq!(
+            SopTrigger::Webhook { path: "/incoming".into() }.to_string(),
+            "webhook:/incoming"
+        );
+        assert_eq!(
+            SopTrigger::Cron { expression: "0 * * * *".into() }.to_string(),
+            "cron:0 * * * *"
+        );
+
+        assert_eq!(SopTriggerSource::Webhook.to_string(), "webhook");
+        assert_eq!(SopTriggerSource::Cron.to_string(), "cron");
+
+        let run_statuses = [
+            (SopRunStatus::Pending, "pending"),
+            (SopRunStatus::Running, "running"),
+            (SopRunStatus::Completed, "completed"),
+            (SopRunStatus::Failed, "failed"),
+            (SopRunStatus::Cancelled, "cancelled"),
+        ];
+        for (status, expected) in run_statuses {
+            assert_eq!(status.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn manifest_defaults_include_version_and_execution_limits() {
+        let manifest: SopManifest = toml::from_str(
+            r#"
+            [sop]
+            name = "defaults"
+            description = "Defaulted metadata"
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(manifest.sop.version, "0.1.0");
+        assert_eq!(manifest.sop.cooldown_secs, 0);
+        assert_eq!(manifest.sop.max_concurrent, 1);
+        assert!(manifest.triggers.is_empty());
+    }
 }

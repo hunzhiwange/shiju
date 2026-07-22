@@ -1,4 +1,6 @@
-use iced::Theme;
+use iced::advanced::renderer::Headless;
+use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+use iced::{Font, Pixels, Rectangle, Size, Theme};
 
 use crate::app::App;
 use crate::app::models::{ChatSession, ChatSessionStep, TokenUsage};
@@ -70,8 +72,22 @@ fn seg_color_covers_all_segments() {
 fn stacked_bar_handles_empty_zero_and_weighted_values() {
     let _empty = super::stacked_bar(&[]);
     let _zero = super::stacked_bar(&[(0, super::BarSeg::User), (0, super::BarSeg::Tool)]);
-    let _weighted =
-        super::stacked_bar(&[(1, super::BarSeg::Prompt), (999, super::BarSeg::Answer)]);
+    let _weighted = super::stacked_bar(&[(1, super::BarSeg::Prompt), (999, super::BarSeg::Answer)]);
+}
+
+#[test]
+fn stacked_bar_handles_minimum_portion_overflow() {
+    let values = vec![(1, super::BarSeg::Tool); 2_001];
+
+    let _bar = super::stacked_bar(&values);
+}
+
+#[test]
+fn stacked_bar_skips_zero_width_segments_when_total_is_nonzero() {
+    let bar = super::stacked_bar(&[(0, super::BarSeg::User), (5, super::BarSeg::Assistant)]);
+    let tree = Tree::new(bar.as_widget());
+
+    assert_eq!(tree.children.len(), 1);
 }
 
 #[test]
@@ -84,6 +100,15 @@ fn legend_item_handles_zero_and_nonzero_totals() {
 fn build_steps_panel_handles_empty_steps() {
     let (app, _task) = App::new();
     let data = usage_data_with_steps(Vec::new());
+
+    let _panel = super::build_steps_panel(&app, &data);
+}
+
+#[test]
+fn build_steps_panel_handles_missing_session() {
+    let (app, _task) = App::new();
+    let mut data = usage_data_with_steps(Vec::new());
+    data.session = None;
 
     let _panel = super::build_steps_panel(&app, &data);
 }
@@ -111,4 +136,114 @@ fn build_steps_panel_handles_expanded_step_without_optional_fields() {
     let data = usage_data_with_steps(vec![s]);
 
     let _panel = super::build_steps_panel(&app, &data);
+}
+
+#[test]
+fn raw_payload_text_reports_loaded_loading_error_and_missing_states() {
+    let (mut app, _task) = App::new();
+    app.usage_step_raw_payloads.insert(
+        ("session-1".to_string(), 1),
+        Ok(Some(serde_json::json!({
+            "messages": [{"role": "user", "content": "hello"}],
+            "output": {"tool_calls": [{"id": "call-1"}]}
+        }))),
+    );
+    app.usage_step_raw_payloads
+        .insert(("session-1".to_string(), 2), Err("gateway request failed".to_string()));
+    app.usage_step_raw_loading.insert(("session-1".to_string(), 3));
+
+    assert!(super::raw_payload_text(&app, "session-1", 1).contains("历史消息 1 条"));
+    assert!(super::raw_payload_text(&app, "session-1", 2).contains("加载失败"));
+    assert!(super::raw_payload_text(&app, "session-1", 3).contains("加载中"));
+    assert!(super::raw_payload_text(&app, "session-1", 4).contains("等待加载"));
+}
+
+#[test]
+fn raw_payload_text_reports_absent_record_state() {
+    let (mut app, _task) = App::new();
+    app.usage_step_raw_payloads.insert(("session-1".to_string(), 5), Ok(None));
+
+    assert!(super::raw_payload_text(&app, "session-1", 5).contains("暂无记录"));
+}
+
+#[test]
+fn raw_payload_text_prefers_loading_state_over_cached_payload() {
+    let (mut app, _task) = App::new();
+    let key = ("session-1".to_string(), 6);
+    app.usage_step_raw_payloads
+        .insert(key.clone(), Ok(Some(serde_json::json!({"messages": [{"role": "user"}]}))));
+    app.usage_step_raw_loading.insert(key);
+
+    assert_eq!(super::raw_payload_text(&app, "session-1", 6), "原始 LLM：加载中...");
+}
+
+#[test]
+fn truncate_raw_text_preserves_short_values_and_truncates_long_values() {
+    assert_eq!(super::truncate_raw_text("hello", 10), "hello");
+    assert_eq!(super::truncate_raw_text("abcdef", 3), "abc\n... 已截断");
+    assert_eq!(super::truncate_raw_text("abcdef", 0), "\n... 已截断");
+}
+
+#[test]
+fn raw_payload_summary_counts_missing_and_present_fields() {
+    let empty = serde_json::json!({});
+    let populated = serde_json::json!({
+        "messages": [{"role": "user"}, {"role": "assistant"}],
+        "output": {"tool_calls": [{"id": "call-1"}, {"id": "call-2"}]}
+    });
+
+    assert_eq!(super::raw_payload_summary(&empty), "历史消息 0 条 · 工具调用 0 条");
+    assert_eq!(super::raw_payload_summary(&populated), "历史消息 2 条 · 工具调用 2 条");
+}
+
+#[test]
+fn raw_payload_preview_includes_summary_and_truncation_marker() {
+    let preview = super::raw_payload_preview(&serde_json::json!({
+        "messages": [{"role": "user", "content": "hello"}],
+        "output": {"tool_calls": [{"id": "call-1"}]},
+        "long": "x".repeat(17_000),
+    }));
+
+    assert!(preview.contains("历史消息 1 条 · 工具调用 1 条"));
+    assert!(preview.contains("... 已截断"));
+}
+
+#[test]
+fn raw_payload_panel_builds_for_loaded_payload() {
+    let (mut app, _task) = App::new();
+    app.usage_step_raw_payloads.insert(
+        ("session-1".to_string(), 1),
+        Ok(Some(serde_json::json!({
+            "messages": [{"role": "user", "content": "hello"}],
+            "output": {"tool_calls": []}
+        }))),
+    );
+
+    let _panel = super::raw_payload_panel(&app, "session-1", 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expanded_steps_panel_draws_dark_theme_styles() {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let (mut app, _task) = App::new();
+    app.usage_step_expanded.insert(1);
+    let data = usage_data_with_steps(vec![step(1, Some(1_700_000_002_000))]);
+    let mut element = super::build_steps_panel(&app, &data);
+    let bounds = Size::new(800.0, 520.0);
+    let limits = layout::Limits::new(Size::ZERO, bounds);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &mut renderer, &limits);
+
+    element.as_widget().draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle::with_size(bounds),
+    );
 }

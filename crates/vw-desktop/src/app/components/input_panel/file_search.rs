@@ -15,6 +15,70 @@ use crate::app::message::chat::input::ranked_file_search_entries;
 /// 重新导出 use crate::app::{App, Message, message}，让上层模块通过稳定路径访问。
 use crate::app::{App, Message, message};
 
+pub(super) fn highlighted_file_search_query(query: &str) -> String {
+    format!("@{}", query.trim().replace('\\', "/"))
+}
+
+pub(super) fn display_file_search_path(path: &str, project_root: Option<&str>) -> String {
+    if let Some(project_root) = project_root {
+        std::path::Path::new(path)
+            .strip_prefix(project_root)
+            .ok()
+            .and_then(|path| path.to_str())
+            .unwrap_or(path)
+            .replace('\\', "/")
+    } else {
+        path.replace('\\', "/")
+    }
+}
+
+pub(super) fn empty_file_search_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.extended_palette().secondary.base.text) }
+}
+
+pub(super) fn file_search_icon_style(theme: &Theme, _status: svg::Status) -> svg::Style {
+    svg::Style { color: Some(theme.palette().text.scale_alpha(0.65)) }
+}
+
+pub(super) fn file_search_entry_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let hovered = matches!(status, iced::widget::button::Status::Hovered);
+    let background = if hovered || selected {
+        Some(Background::Color(palette.background.weak.color))
+    } else {
+        None
+    };
+
+    iced::widget::button::Style {
+        background,
+        border: Border { radius: 6.0.into(), ..Default::default() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+pub(super) fn file_search_query_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.palette().primary) }
+}
+
+pub(super) fn file_search_overlay_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        background: Some(Background::Color(palette.background.base.color)),
+        border: Border { width: 1.0, color: palette.background.strong.color, radius: 12.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.12),
+            offset: iced::Vector::new(0.0, 4.0),
+            blur_radius: 12.0,
+        },
+        ..Default::default()
+    }
+}
+
 /// 构建或定位 file search overlay，用于把浮层稳定附着到目标控件。
 ///
 /// # 参数
@@ -30,38 +94,22 @@ use crate::app::{App, Message, message};
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
     let files = ranked_file_search_entries(app);
-    let highlighted_query = format!("@{}", app.file_search_query.trim().replace('\\', "/"));
+    let highlighted_query = highlighted_file_search_query(&app.file_search_query);
 
     let mut list = column![].spacing(4);
 
     if files.is_empty() {
-        list = list.push(text("No matching files").size(13).style(|theme: &Theme| {
-            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            iced::widget::text::Style { color: Some(theme.extended_palette().secondary.base.text) }
-        }));
+        list = list.push(text("No matching files").size(13).style(empty_file_search_text_style));
     } else {
         for (i, entry) in files.iter().take(20).enumerate() {
             let path = &entry.path;
-            let display_path = if let Some(project_root) = &app.project_path {
-                // std 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                std::path::Path::new(path)
-                    .strip_prefix(project_root)
-                    .ok()
-                    .and_then(|p| p.to_str())
-                    .unwrap_or(path)
-                    .replace('\\', "/")
-            } else {
-                path.replace('\\', "/")
-            };
+            let display_path = display_file_search_path(path, app.project_path.as_deref());
 
             let icon = if entry.is_dir { Icon::FolderOpen } else { Icon::FileText };
             let icon_svg = svg::Svg::<iced::Theme>::new(assets::get_icon(icon))
                 .width(Length::Fixed(14.0))
                 .height(Length::Fixed(14.0))
-                .style(move |theme: &Theme, _| svg::Style {
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: Some(theme.palette().text.scale_alpha(0.65)),
-                });
+                .style(file_search_icon_style);
 
             let row_content = row![icon_svg, text(display_path).size(13)]
                 .spacing(8)
@@ -72,22 +120,7 @@ pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
                 .width(Length::Fill)
                 .padding([6, 10])
                 .style(move |theme: &Theme, status| {
-                    let p = theme.extended_palette();
-                    let hovered = matches!(status, iced::widget::button::Status::Hovered);
-                    let bg = if hovered || selected {
-                        Some(Background::Color(p.background.weak.color))
-                    } else {
-                        None
-                    };
-                    iced::widget::button::Style {
-                        // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        background: bg,
-                        // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        border: Border { radius: 6.0.into(), ..Default::default() },
-                        // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        text_color: theme.palette().text,
-                        ..Default::default()
-                    }
+                    file_search_entry_style(theme, status, selected)
                 })
                 .on_press(Message::Chat(message::ChatMessage::FileSearchSelect(path.clone())));
 
@@ -97,35 +130,14 @@ pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
 
     container(
         column![
-            container(text(highlighted_query).size(12).style(|theme: &Theme| {
-                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                iced::widget::text::Style { color: Some(theme.palette().primary) }
-            }))
-            .padding([2, 2]),
+            container(text(highlighted_query).size(12).style(file_search_query_text_style))
+                .padding([2, 2]),
             scrollable(list).id(app.file_search_scroll_id.clone()).height(Length::Fixed(320.0))
         ]
         .spacing(6),
     )
     .padding([6, 8])
     .width(Length::Fixed(320.0))
-    .style(|theme: &Theme| {
-        let p = theme.extended_palette();
-        iced::widget::container::Style {
-            // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            background: Some(Background::Color(p.background.base.color)),
-            // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border { width: 1.0, color: p.background.strong.color, radius: 12.0.into() },
-            // shadow 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            shadow: iced::Shadow {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Color::BLACK.scale_alpha(0.12),
-                // offset 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                offset: iced::Vector::new(0.0, 4.0),
-                // blur_radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                blur_radius: 12.0,
-            },
-            ..Default::default()
-        }
-    })
+    .style(file_search_overlay_style)
     .into()
 }

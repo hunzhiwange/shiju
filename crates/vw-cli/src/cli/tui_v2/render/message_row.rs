@@ -21,10 +21,7 @@ pub(super) fn render_transcript_item_lines(
     match item {
         TuiTranscriptItem::Standalone(message) => render_message_lines(message, theme),
         TuiTranscriptItem::AssistantTurn(turn) => {
-            let mut lines = render_assistant_lines(turn.assistant, theme);
-            if !turn.preface.is_empty() || !turn.children.is_empty() {
-                lines.push(Line::raw(""));
-            }
+            let mut lines = Vec::new();
 
             for (index, entry) in turn.preface.iter().enumerate() {
                 lines.extend(render_assistant_turn_entry_lines(entry, theme, true));
@@ -39,6 +36,11 @@ pub(super) fn render_transcript_item_lines(
                     lines.push(Line::raw(""));
                 }
             }
+
+            if !lines.is_empty() {
+                lines.push(Line::raw(""));
+            }
+            lines.extend(render_assistant_lines(turn.assistant, theme));
             lines
         }
     }

@@ -12,8 +12,8 @@ pub use artifacts::{
     write_task_code_review_result_log, write_task_execution_result_log,
 };
 pub use operations::{
-    archive_completed_tasks, archive_task, create_task, load_tasks_by_status,
-    reorder_tasks_in_status, soft_delete_task, update_task, update_task_status,
+    create_task, load_tasks_by_status, rebuild_failed_task_from_current_branch,
+    reorder_tasks_in_status, update_task,
 };
 pub use persistence::{
     delete_task_file, load_all_tasks, load_index, load_task, rebuild_index_from_task_files,

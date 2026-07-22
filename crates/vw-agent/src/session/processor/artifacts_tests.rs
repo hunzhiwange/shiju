@@ -1,3 +1,4 @@
+use crate::project;
 use crate::session::llm::ToolCall;
 use crate::session::processor::Request;
 use crate::session::session::{Message, Role, Session};
@@ -9,10 +10,21 @@ use uuid::Uuid;
 use super::super::llm_runner::LlmStep;
 use super::{
     persist_final_ai_call_payload, persist_llm_raw_step_payload, persist_step_ai_call_payload,
+    session_messages_payload,
 };
 
 fn unique_id(label: &str) -> String {
     format!("artifacts-test-{label}-{}", Uuid::new_v4())
+}
+
+fn project_scope() -> (tempfile::TempDir, String) {
+    let workspace = tempfile::tempdir().expect("project workspace should create");
+    let tenant = crate::app::agent::project::default_tenant_scope();
+    let (project, _) = super::super::prefetch::block_on(
+        crate::app::agent::project::from_directory(&tenant, workspace.path()),
+    )
+    .expect("project scope should resolve");
+    (workspace, project.id)
 }
 
 fn request(session_id: &str, stream: u64, persist: bool) -> Request {
@@ -77,10 +89,34 @@ fn read_json(path: &std::path::Path) -> Value {
     serde_json::from_str(&content).expect("json file should parse")
 }
 
+fn register_scope_project(scope: &str) -> tempfile::TempDir {
+    let temp = tempfile::tempdir().expect("project tempdir");
+    let info = project::Info {
+        id: scope.to_string(),
+        worktree: temp.path().to_string_lossy().to_string(),
+        vcs: None,
+        name: None,
+        icon: None,
+        commands: None,
+        time: project::TimeInfo { created: 10, updated: 20, initialized: None },
+        sandboxes: Vec::new(),
+    };
+    project::store_local_test_project(&info).expect("project should write");
+    temp
+}
+
+#[test]
+fn session_messages_payload_returns_empty_array_for_empty_session() {
+    let session = Session { id: unique_id("empty"), messages: Vec::new() };
+
+    assert!(session_messages_payload(&session).is_empty());
+}
+
 #[test]
 fn step_and_final_ai_call_payloads_persist_to_scoped_session() {
     let session_id = unique_id("ai-call");
     let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
     let req = request(&session_id, 77, true);
     let session = session_with_all_roles(&session_id);
     let step = llm_step();
@@ -102,13 +138,17 @@ fn step_and_final_ai_call_payloads_persist_to_scoped_session() {
     assert_eq!(call["usage"]["cached_tokens"], 33);
     assert_eq!(call["usage"]["reasoning_tokens"], 44);
     assert_eq!(call["answer"], "step answer");
-    let roles = call["messages"]
-        .as_array()
-        .expect("messages array")
-        .iter()
-        .map(|message| message["role"].as_str().expect("role should be a string"))
-        .collect::<Vec<_>>();
-    assert_eq!(roles, vec!["system", "user", "assistant", "tool"]);
+    assert!(call["time"]["created_ms"].is_u64());
+    assert!(call["prompt"].is_string());
+    assert_eq!(
+        call["messages"],
+        json!([
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "user"},
+            {"role": "assistant", "content": "assistant"},
+            {"role": "tool", "content": "tool"},
+        ])
+    );
 
     persist_final_ai_call_payload(
         &req,
@@ -164,6 +204,33 @@ fn ai_call_payloads_respect_persistence_guards() {
 }
 
 #[test]
+fn final_ai_call_payload_uses_explicit_persist_decision() {
+    let session_id = unique_id("final-explicit-persist");
+    let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    let req = request(&session_id, 95, false);
+    let session = session_with_all_roles(&session_id);
+    ui_store::delete_session_scoped(&session_id, Some(&scope));
+
+    persist_final_ai_call_payload(
+        &req,
+        &session,
+        &usage(7, 8, 9, 10),
+        "persisted by caller decision",
+        Some(&scope),
+        true,
+    );
+
+    let loaded = ui_store::load_session_scoped(&session_id, Some(&scope))
+        .expect("explicit final persist decision should be authoritative");
+    assert_eq!(loaded.calls.len(), 1);
+    assert_eq!(loaded.calls[0]["answer"], "persisted by caller decision");
+    assert_eq!(loaded.calls[0]["usage"]["reasoning_tokens"], 10);
+
+    ui_store::delete_session_scoped(&session_id, Some(&scope));
+}
+
+#[test]
 fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
     let session_id = unique_id("raw");
     let scope = unique_id("scope");
@@ -195,6 +262,42 @@ fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
 }
 
 #[test]
+fn raw_llm_step_payload_serializes_empty_optional_output() {
+    let session_id = unique_id("raw-empty-output");
+    let scope = unique_id("scope");
+    let mut req = request(&session_id, 94, true);
+    req.model = None;
+    let step = LlmStep {
+        usage: usage(0, 0, 0, 0),
+        finish_reason: None,
+        reasoning_content: String::new(),
+        text: String::new(),
+        tool_calls: Vec::new(),
+        full_messages: vec![
+            json!({"role": "system"}),
+            json!({"role": "system", "content": null}),
+            json!({"role": "assistant", "content": "ignored"}),
+        ],
+    };
+
+    persist_llm_raw_step_payload(&req, &session_id, 6, &[], &step, Some(&scope));
+
+    let path = ui_store::session_step_llm_raw_file_path_scoped(&session_id, 6, Some(&scope))
+        .expect("raw step path should resolve");
+    let payload = read_json(&path);
+    assert_eq!(payload["model"], Value::Null);
+    assert_eq!(payload["system"], json!([]));
+    assert_eq!(payload["messages"], json!([]));
+    assert_eq!(payload["output"]["text"], "");
+    assert_eq!(payload["output"]["reasoning_content"], "");
+    assert_eq!(payload["output"]["finish_reason"], Value::Null);
+    assert_eq!(payload["output"]["tool_calls"], json!([]));
+    assert_eq!(payload["output"]["usage"], json!(usage(0, 0, 0, 0)));
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn raw_llm_step_payload_respects_persistence_guards() {
     let session_id = unique_id("raw-skip");
     let scope = unique_id("scope");
@@ -209,4 +312,7 @@ fn raw_llm_step_payload_respects_persistence_guards() {
 
     let empty_session = request("", 93, true);
     persist_llm_raw_step_payload(&empty_session, "", 5, &[], &step, Some(&scope));
+    let empty_session_path = ui_store::session_step_llm_raw_file_path_scoped("", 5, Some(&scope))
+        .expect("empty session raw step path should resolve");
+    assert!(!empty_session_path.exists());
 }

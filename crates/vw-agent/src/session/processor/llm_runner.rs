@@ -26,9 +26,17 @@
 
 use super::types::StreamEvent;
 use crate::app::agent::session::llm;
+use crate::app::agent::tools::ToolSpec;
 use crate::session::ui_types as models;
 use serde_json::Value;
+use std::time::Duration;
 use web_time::Instant;
+
+const DEFAULT_LLM_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+// ACP 一次性会话由远端代理自行执行工具；一次工具调用（如 cargo llvm-cov、长测试）
+// 可能数分钟内不产生任何流事件，空窗时间远超模型 token 间隔。这里按分钟级命令的空窗
+// 设置上限，避免把仍在执行的长命令误判为“模型响应超时”。
+const ONE_SHOT_ACP_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// LLM 步骤执行结果
 ///
@@ -82,6 +90,8 @@ fn is_acp_retryable_error(error: &str) -> bool {
         || normalized.contains("timeout")
         || normalized.contains("acp agent disconnected during request")
         || normalized.contains("queue owner disconnected before prompt completion")
+        || normalized.contains("error decoding response body")
+        || normalized.contains("eof while parsing a value")
 }
 
 fn llm_error_message(error: &str) -> String {
@@ -101,6 +111,7 @@ fn is_non_retryable_llm_error(error: &str) -> bool {
         "model not found",
         "unknown model",
         "unsupported model",
+        STREAM_CONSUMER_STOPPED_ERR,
     ]
     .iter()
     .any(|marker| normalized.contains(marker))
@@ -114,9 +125,78 @@ fn llm_step_retry_allowed(error: &str, is_acp: bool) -> bool {
     !is_non_retryable_llm_error(error)
 }
 
+fn llm_step_idle_timeout(options: &Value) -> Duration {
+    if options.get("acp_close_client_after_request").and_then(Value::as_bool) == Some(true) {
+        return ONE_SHOT_ACP_STEP_IDLE_TIMEOUT;
+    }
+
+    DEFAULT_LLM_STEP_IDLE_TIMEOUT
+}
+
+const STREAM_CONSUMER_STOPPED_ERR: &str = "stream consumer stopped";
+
+fn request_stream_abort(abort_tx: &tokio::sync::watch::Sender<bool>) {
+    let _ = abort_tx.send(true);
+}
+
+fn emit_stream_event(
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
+    abort_tx: &tokio::sync::watch::Sender<bool>,
+    event: StreamEvent,
+) -> Result<(), String> {
+    if on_event(event) {
+        return Ok(());
+    }
+
+    request_stream_abort(abort_tx);
+    Err(STREAM_CONSUMER_STOPPED_ERR.to_string())
+}
+
+#[cfg(test)]
+fn spawn_llm_stream_thread(
+    _session_id: String,
+    _messages: Vec<serde_json::Value>,
+    _system: Vec<String>,
+    _model: Option<String>,
+    _options: serde_json::Value,
+    tools: std::collections::HashMap<String, ToolSpec>,
+    abort_rx: tokio::sync::watch::Receiver<bool>,
+    tx: std::sync::mpsc::Sender<llm::StreamEvent>,
+) {
+    llm_runner_tests::spawn_test_llm_stream_thread(tools, abort_rx, tx);
+}
+
+#[cfg(not(test))]
+fn spawn_llm_stream_thread(
+    session_id: String,
+    messages: Vec<serde_json::Value>,
+    system: Vec<String>,
+    model: Option<String>,
+    options: serde_json::Value,
+    tools: std::collections::HashMap<String, ToolSpec>,
+    abort_rx: tokio::sync::watch::Receiver<bool>,
+    tx: std::sync::mpsc::Sender<llm::StreamEvent>,
+) {
+    std::thread::spawn(move || {
+        llm::stream_chat_with_tools_for_session_with_abort(
+            &session_id,
+            messages,
+            system,
+            model,
+            options,
+            tools,
+            Some(abort_rx),
+            move |ev| {
+                let _ = tx.send(ev);
+            },
+        );
+    });
+}
+
 fn collect_llm_step_from_stream(
     rx: std::sync::mpsc::Receiver<llm::StreamEvent>,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
+    abort_tx: &tokio::sync::watch::Sender<bool>,
     idle_timeout: std::time::Duration,
 ) -> Result<LlmStep, String> {
     /// 流式内容刷新的最小时间间隔（约 30 FPS）
@@ -151,17 +231,22 @@ fn collect_llm_step_from_stream(
                 // 刷新待输出的普通文本
                 if !pending.is_empty() {
                     let chunk = std::mem::take(&mut pending);
-                    on_event(StreamEvent::Delta(chunk));
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                 }
                 // 刷新待输出的推理文本
                 if !pending_reasoning.is_empty() {
                     let chunk = std::mem::take(&mut pending_reasoning);
-                    on_event(StreamEvent::Delta(chunk));
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                 }
                 // 如果 thinking 标签仍然打开，则关闭它
                 if thinking_open {
-                    on_event(StreamEvent::Delta("</think>\n\n".to_string()));
+                    emit_stream_event(
+                        on_event,
+                        abort_tx,
+                        StreamEvent::Delta("</think>\n\n".to_string()),
+                    )?;
                 }
+                request_stream_abort(abort_tx);
                 return Err("模型响应超时".to_string());
             }
             // 发送端断开，表示流结束
@@ -179,9 +264,13 @@ fn collect_llm_step_from_stream(
                     if thinking_open {
                         if !pending_reasoning.is_empty() {
                             let chunk = std::mem::take(&mut pending_reasoning);
-                            on_event(StreamEvent::Delta(chunk));
+                            emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                         }
-                        on_event(StreamEvent::Delta("</think>\n\n".to_string()));
+                        emit_stream_event(
+                            on_event,
+                            abort_tx,
+                            StreamEvent::Delta("</think>\n\n".to_string()),
+                        )?;
                         thinking_open = false;
                     }
                 }
@@ -192,7 +281,7 @@ fn collect_llm_step_from_stream(
                 if pending.len() >= FLUSH_MIN_CHARS || last_flush.elapsed() >= FLUSH_MIN_INTERVAL {
                     let chunk = std::mem::take(&mut pending);
                     last_flush = Instant::now();
-                    on_event(StreamEvent::Delta(chunk));
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                 }
             }
             // 处理推理内容增量
@@ -216,7 +305,7 @@ fn collect_llm_step_from_stream(
                     {
                         let chunk = std::mem::take(&mut pending_reasoning);
                         last_reasoning_flush = Instant::now();
-                        on_event(StreamEvent::Delta(chunk));
+                        emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                     }
                 }
             }
@@ -239,14 +328,18 @@ fn collect_llm_step_from_stream(
                 // 刷新所有待输出内容
                 if !pending.is_empty() {
                     let chunk = std::mem::take(&mut pending);
-                    on_event(StreamEvent::Delta(chunk));
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                 }
                 if !pending_reasoning.is_empty() {
                     let chunk = std::mem::take(&mut pending_reasoning);
-                    on_event(StreamEvent::Delta(chunk));
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
                 }
                 if thinking_open {
-                    on_event(StreamEvent::Delta("</think>\n\n".to_string()));
+                    emit_stream_event(
+                        on_event,
+                        abort_tx,
+                        StreamEvent::Delta("</think>\n\n".to_string()),
+                    )?;
                 }
                 // 将错误转换为字符串并返回
                 return Err(
@@ -260,26 +353,27 @@ fn collect_llm_step_from_stream(
 
     // 刷新剩余的待输出普通文本
     if !pending.is_empty() {
-        on_event(StreamEvent::Delta(pending));
+        emit_stream_event(on_event, abort_tx, StreamEvent::Delta(pending))?;
     }
 
     // 刷新剩余的待输出推理文本
     if !pending_reasoning.is_empty() {
-        on_event(StreamEvent::Delta(pending_reasoning));
+        emit_stream_event(on_event, abort_tx, StreamEvent::Delta(pending_reasoning))?;
     }
 
     // 关闭仍打开的 thinking 标签
     if thinking_open {
-        on_event(StreamEvent::Delta("</think>\n\n".to_string()));
+        emit_stream_event(on_event, abort_tx, StreamEvent::Delta("</think>\n\n".to_string()))?;
     }
 
     // 如果推理内容未在流中输出，则在此处统一输出
     // 这种情况发生在推理内容在普通内容开始后才到达
     if !thinking_emitted && !reasoning_content.trim().is_empty() {
-        on_event(StreamEvent::Delta(format!(
-            "\n\n<think>{}</think>\n\n",
-            reasoning_content.trim_end()
-        )));
+        emit_stream_event(
+            on_event,
+            abort_tx,
+            StreamEvent::Delta(format!("\n\n<think>{}</think>\n\n", reasoning_content.trim_end())),
+        )?;
     }
 
     // 如果普通文本为空但推理内容不为空，使用推理内容作为回退文本
@@ -364,42 +458,32 @@ pub(crate) fn run_llm_step(
     system: &[String],
     model: Option<String>,
     options: &serde_json::Value,
+    available_tools: &[ToolSpec],
     allowed_tools: &std::collections::HashSet<String>,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
 ) -> Result<LlmStep, String> {
     // 创建用于跨线程通信的通道
     let (tx, rx) = std::sync::mpsc::channel::<llm::StreamEvent>();
+    let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
 
     // 克隆数据以便在独立线程中使用
     let session_id = session_id.to_string();
     let messages = messages.to_vec();
     let system = system.to_vec();
+    let idle_timeout = llm_step_idle_timeout(options);
     let options = options.clone();
+    let available_tools = available_tools.to_vec();
 
     // 获取工具规范并根据允许列表过滤
-    let tools = crate::tools::registry::specs(model.as_deref());
-    let tools = tools
+    let tools = available_tools
         .into_iter()
         .filter(|s| allowed_tools.contains(&s.id)) // 仅保留允许的工具
         .map(|s| (s.id.clone(), s))
         .collect::<std::collections::HashMap<_, _>>();
 
-    // 在独立线程中启动 LLM 流式调用，避免阻塞当前线程
-    std::thread::spawn(move || {
-        llm::stream_chat_with_tools_for_session(
-            &session_id,
-            messages,
-            system,
-            model,
-            options,
-            tools,
-            move |ev| {
-                let _ = tx.send(ev); // 将事件发送到主线程
-            },
-        );
-    });
+    spawn_llm_stream_thread(session_id, messages, system, model, options, tools, abort_rx, tx);
 
-    collect_llm_step_from_stream(rx, on_event, std::time::Duration::from_secs(90))
+    collect_llm_step_from_stream(rx, on_event, &abort_tx, idle_timeout)
 }
 
 /// 执行带重试机制的 LLM 调用
@@ -460,8 +544,9 @@ pub(crate) fn run_llm_step_with_retry(
     system: &[String],
     model: Option<String>,
     options: &serde_json::Value,
+    available_tools: &[ToolSpec],
     allowed_tools: &std::collections::HashSet<String>,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
     max_attempts: usize,
 ) -> Result<LlmStep, String> {
     // 保存最后一次错误信息
@@ -479,6 +564,7 @@ pub(crate) fn run_llm_step_with_retry(
             system,
             model.clone(),
             options,
+            available_tools,
             allowed_tools,
             on_event,
         ) {
@@ -494,6 +580,8 @@ pub(crate) fn run_llm_step_with_retry(
                     ),
                     240,
                 );
+                let acp_retry_allowed =
+                    last_err.as_deref().is_some_and(|err| is_acp && is_acp_retryable_error(err));
                 tracing::warn!(
                     target: "vw_agent",
                     session_id,
@@ -501,9 +589,7 @@ pub(crate) fn run_llm_step_with_retry(
                     attempts,
                     is_acp,
                     retry_allowed,
-                    acp_retry_allowed = last_err
-                        .as_deref()
-                        .is_some_and(|err| is_acp && is_acp_retryable_error(err)),
+                    acp_retry_allowed,
                     error_preview = %error_preview,
                     "session processor llm step attempt failed"
                 );

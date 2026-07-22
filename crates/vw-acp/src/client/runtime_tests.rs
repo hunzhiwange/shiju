@@ -184,3 +184,52 @@ async fn shutdown_actor_runtime_records_exit_and_clears_reusable_session() {
         })
         .await;
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn prepare_actor_runtime_reuses_healthy_runtime_for_same_cwd() {
+    let local = tokio::task::LocalSet::new();
+    local
+        .run_until(async {
+            let cwd = Path::new("/tmp/vw-acp-runtime-reuse");
+            let client = client("sh", &["-c", "sleep 30"]);
+            let mut runtime = Some(running_runtime(&client, cwd, pending_io_task()));
+            let original_pid = runtime.as_ref().and_then(|runtime| runtime.child.id());
+
+            client
+                .prepare_actor_runtime(&mut runtime, cwd.to_path_buf())
+                .await
+                .expect("healthy runtime should be reused");
+
+            assert_eq!(runtime.as_ref().and_then(|runtime| runtime.child.id()), original_pid);
+            client
+                .shutdown_actor_runtime(
+                    runtime.take().expect("runtime should remain available"),
+                    Some("test_cleanup"),
+                    false,
+                )
+                .await;
+        })
+        .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn prepare_actor_runtime_cleans_up_when_initialize_connection_fails() {
+    let local = tokio::task::LocalSet::new();
+    local
+        .run_until(async {
+            let cwd = Path::new("/tmp/vw-acp-runtime-init-fails");
+            let client = client("sh", &["-c", "exit 0"]);
+            let mut runtime = None;
+
+            let error = client
+                .prepare_actor_runtime(&mut runtime, cwd.to_path_buf())
+                .await
+                .expect_err("exited agent should fail initialization");
+
+            assert!(runtime.is_none());
+            assert!(!error.to_string().is_empty());
+        })
+        .await;
+}

@@ -112,3 +112,11 @@ async fn health_check_with_unreachable_health_url_returns_false() {
 
     assert!(!tunnel.health_check().await);
 }
+
+#[tokio::test]
+async fn public_url_returns_none_while_process_state_is_locked() {
+    let tunnel = CustomTunnel::new("echo ready".into(), None, None);
+    let _guard = tunnel.proc.lock().await;
+
+    assert!(tunnel.public_url().is_none());
+}

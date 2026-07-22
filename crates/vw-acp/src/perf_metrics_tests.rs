@@ -1,11 +1,9 @@
 use super::*;
 
-use std::sync::{Mutex, MutexGuard};
-
-static TEST_LOCK: Mutex<()> = Mutex::new(());
+use std::sync::MutexGuard;
 
 fn lock_test_metrics() -> MutexGuard<'static, ()> {
-    TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    TEST_PERF_METRICS_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 #[test]
@@ -25,6 +23,46 @@ fn perf_metrics_snapshot_rounds_values_and_accumulates() {
     assert_eq!(snapshot.timings["run"].count, 2);
     assert_eq!(snapshot.timings["run"].total_ms, 3.333);
     assert_eq!(snapshot.timings["run"].max_ms, 2.222);
+}
+
+#[test]
+fn reset_perf_metrics_clears_all_metric_groups() {
+    let _guard = lock_test_metrics();
+    reset_perf_metrics();
+
+    increment_perf_counter("requests", 1);
+    set_perf_gauge("depth", 1.0);
+    record_perf_duration("run", 1.0);
+    reset_perf_metrics();
+
+    let snapshot = get_perf_metrics_snapshot();
+    assert!(snapshot.counters.is_empty());
+    assert!(snapshot.gauges.is_empty());
+    assert!(snapshot.timings.is_empty());
+}
+
+#[test]
+fn increment_perf_counter_allows_negative_delta() {
+    let _guard = lock_test_metrics();
+    reset_perf_metrics();
+
+    increment_perf_counter("requests", 2);
+    increment_perf_counter("requests", -5);
+
+    let snapshot = get_perf_metrics_snapshot();
+    assert_eq!(snapshot.counters["requests"], -3);
+}
+
+#[test]
+fn lock_recovers_poisoned_mutex_guard() {
+    let mutex = Mutex::new(41);
+    let result = std::panic::catch_unwind(|| {
+        let _guard = mutex.lock().expect("mutex should start unpoisoned");
+        panic!("poison test mutex");
+    });
+
+    assert!(result.is_err());
+    assert_eq!(*lock(&mutex), 41);
 }
 
 #[test]

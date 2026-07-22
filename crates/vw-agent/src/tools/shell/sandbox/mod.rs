@@ -241,3 +241,7 @@ fn is_nice_priority(value: &str) -> bool {
 #[cfg(test)]
 #[path = "sandbox_tests.rs"]
 mod sandbox_tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;

@@ -13,7 +13,7 @@ use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
-fn field_row<'a>(
+pub(super) fn field_row<'a>(
     label: &'a str,
     description: &'a str,
     control: impl Into<Element<'a, Message>>,
@@ -36,7 +36,7 @@ fn field_row<'a>(
     .into()
 }
 
-fn text_row<'a>(
+pub(super) fn text_row<'a>(
     label: &'a str,
     description: &'a str,
     placeholder: &'a str,

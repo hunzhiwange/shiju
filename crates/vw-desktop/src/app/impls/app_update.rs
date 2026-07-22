@@ -186,41 +186,6 @@ impl App {
             self.file_manager_width = width;
             self.file_manager_start_width = width;
         }
-        if let Some(width) = cfg.get("layer_panel_width").and_then(|v| v.as_f64()).map(|v| v as f32)
-        {
-            self.layer_panel_width = width;
-            self.layer_panel_start_width = width;
-        }
-        if let Some(width) =
-            cfg.get("properties_panel_width").and_then(|v| v.as_f64()).map(|v| v as f32)
-        {
-            self.properties_panel_width = width;
-            self.properties_panel_start_width = width;
-        }
-        if let Some(width) = cfg
-            .get("design_planner_panel_width")
-            .and_then(|v| v.as_f64())
-            .map(|v| (v as f32).clamp(260.0, 640.0))
-        {
-            self.design_planner_panel_width = width;
-            self.design_planner_panel_start_width = width;
-        }
-        self.design_planner_corner = match cfg
-            .get("design_planner_corner")
-            .and_then(|v| v.as_str())
-            .unwrap_or(match self.design_planner_corner {
-                crate::app::views::design::state::DesignPlannerCorner::TopLeft => "top_left",
-                crate::app::views::design::state::DesignPlannerCorner::TopRight => "top_right",
-                crate::app::views::design::state::DesignPlannerCorner::BottomLeft => "bottom_left",
-                crate::app::views::design::state::DesignPlannerCorner::BottomRight => {
-                    "bottom_right"
-                }
-            }) {
-            "top_left" => crate::app::views::design::state::DesignPlannerCorner::TopLeft,
-            "top_right" => crate::app::views::design::state::DesignPlannerCorner::TopRight,
-            "bottom_left" => crate::app::views::design::state::DesignPlannerCorner::BottomLeft,
-            _ => crate::app::views::design::state::DesignPlannerCorner::BottomLeft,
-        };
         let file_tree_expanded = cfg
             .get("file_tree_expanded")
             .and_then(|v| v.as_array())
@@ -303,6 +268,8 @@ impl App {
             if value.is_empty() { "127.0.0.1".to_string() } else { value }
         };
         self.gateway_client_settings.port = active_gateway_client.port.clamp(1, u16::MAX);
+        self.gateway_client_settings.platform_id_input = active_gateway_client.platform_id;
+        self.gateway_client_settings.company_id_input = active_gateway_client.company_id;
         self.gateway_client_settings.skey_input = active_gateway_client.skey;
         #[cfg(not(target_arch = "wasm32"))]
         if self.terminal.theme == crate::app::TerminalTheme::System {
@@ -398,10 +365,17 @@ impl App {
             Message::StartupCliServiceBootstrapped(result) => {
                 match result {
                     Ok(()) => {
-                        tracing::info!(
-                            target: "vw_desktop",
-                            "desktop CLI service bootstrap completed"
-                        );
+                        if cfg!(debug_assertions) {
+                            tracing::debug!(
+                                target: "vw_desktop",
+                                "desktop CLI service bootstrap skipped for debug build"
+                            );
+                        } else {
+                            tracing::info!(
+                                target: "vw_desktop",
+                                "desktop CLI service bootstrap completed"
+                            );
+                        }
                     }
                     Err(error) => {
                         tracing::warn!(
@@ -538,83 +512,6 @@ impl App {
             // 视图相关消息，委托给 view 模块处理
             Message::View(msg) => message::view::update(self, msg),
 
-            // 设计模块消息处理（包含屏幕上下文感知逻辑）
-            Message::Design(msg) => {
-                // 当在思维导图工具屏幕时，将设计操作映射为思维导图操作
-                if self.screen == Screen::MindMapTool {
-                    match msg {
-                        // 复制操作映射为思维导图节点复制
-                        message::DesignMessage::Copy => {
-                            return self.update(Message::MindMapTool(
-                                crate::apps::mindmap::message::MindMapMessage::CopyNode,
-                            ));
-                        }
-                        // 粘贴操作映射为思维导图节点粘贴
-                        message::DesignMessage::Paste => {
-                            return self.update(Message::MindMapTool(
-                                crate::apps::mindmap::message::MindMapMessage::PasteNode,
-                            ));
-                        }
-                        // 放大操作：缩放比例为 1.10，以鼠标位置为中心
-                        message::DesignMessage::ZoomIn => {
-                            return self.update(Message::MindMapTool(
-                                crate::apps::mindmap::message::MindMapMessage::Zoom(
-                                    1.10,
-                                    Some(self.cursor_position),
-                                ),
-                            ));
-                        }
-                        // 缩小操作：缩放比例为 1/1.10，以鼠标位置为中心
-                        message::DesignMessage::ZoomOut => {
-                            return self.update(Message::MindMapTool(
-                                crate::apps::mindmap::message::MindMapMessage::Zoom(
-                                    1.0 / 1.10,
-                                    Some(self.cursor_position),
-                                ),
-                            ));
-                        }
-                        _ => {}
-                    }
-                }
-
-                // 根据当前屏幕和消息类型进行上下文检查
-                match msg {
-                    // 这些操作仅在设计屏幕下有效
-                    message::DesignMessage::Undo
-                    | message::DesignMessage::Redo
-                    | message::DesignMessage::Cut
-                    | message::DesignMessage::Copy
-                    | message::DesignMessage::ZoomIn
-                    | message::DesignMessage::ZoomOut
-                    | message::DesignMessage::SaveAs => {
-                        if self.screen != Screen::Design {
-                            return Task::none();
-                        }
-                    }
-                    // 粘贴操作在项目屏幕下委托给编辑器处理
-                    message::DesignMessage::Paste => {
-                        if self.screen == Screen::Project {
-                            return message::editor::update(self, message::EditorMessage::Paste);
-                        }
-                        if self.screen != Screen::Design {
-                            return Task::none();
-                        }
-                    }
-                    // 保存操作：预览屏幕下调用预览保存，否则需要在设计屏幕
-                    message::DesignMessage::Save => {
-                        if self.screen == Screen::Preview {
-                            return self
-                                .update(Message::Preview(message::PreviewMessage::SaveFile));
-                        } else if self.screen != Screen::Design {
-                            return Task::none();
-                        }
-                    }
-                    _ => {}
-                }
-                // 委托给设计模块的实际处理函数
-                message::design::update(self, msg)
-            }
-
             // Git 版本控制相关消息
             Message::Git(msg) => message::git::update(self, msg),
 
@@ -636,56 +533,15 @@ impl App {
             // 编辑器相关消息
             Message::Editor(msg) => message::editor::update(self, msg),
 
-            // JSON 工具相关消息
-            Message::JsonTool(msg) => message::json_tool::update(self, msg),
-
-            // JSON/YAML 转换工具相关消息
-            Message::JsonYamlTool(msg) => message::json_yaml_tool::update(self, msg),
-
             // 知识库工作台相关消息
             Message::Knowledge(msg) => message::knowledge_tool::update(self, msg),
-
-            // SQL 工具相关消息
-            Message::SqlTool(msg) => message::sql_tool::update(self, msg),
-
-            // Redis 工具相关消息
-            Message::RedisTool(msg) => message::redis_tool::update(self, msg),
-
-            // HTML 工具相关消息
-            Message::HtmlTool(msg) => message::html_tool::update(self, msg),
-
-            // JSON 对比工具相关消息
-            Message::JsonDiffTool(msg) => message::json_diff_tool::update(self, msg),
-
-            // Markdown 工具相关消息
-            Message::MarkdownTool(msg) => message::markdown_tool::update(self, msg),
 
             // Dify 工作流工具相关消息
             Message::WorkflowTool(msg) => crate::apps::workflow::update(self, msg),
 
-            // 思维导图工具相关消息
-            Message::MindMapTool(msg) => crate::apps::mindmap::update(self, msg),
-
-            // 密码生成工具相关消息
-            Message::PasswordTool(msg) => message::password_tool::update(self, msg),
-
-            // 进制转换工具相关消息
-            Message::BaseTool(msg) => message::base_tool::update(self, msg),
-
-            // 时间戳工具相关消息
-            Message::TimestampTool(msg) => message::timestamp_tool::update(self, msg),
-
-            // 二维码工具相关消息
-            Message::QrTool(msg) => message::qr_tool::update(self, msg),
-
-            // 颜色工具相关消息
-            Message::ColorTool(msg) => message::color_tool::update(self, msg),
-
-            // 电脑垃圾清理工具相关消息
-            Message::CleanerTool(msg) => message::cleaner_tool::update(self, msg),
-
-            // 大文件查找工具相关消息
-            Message::LargeFileTool(msg) => message::large_file_tool::update(self, msg),
+            Message::WorkflowManager(msg) => {
+                crate::app::views::workflow_manager::update_app(self, msg)
+            }
 
             // 通知相关消息
             Message::Notification(msg) => message::notification::update(self, msg),
@@ -723,9 +579,6 @@ impl App {
                 {
                     // 在项目屏幕且显示 diff 且有选中行时，复制 diff 选区
                     message::git::update(self, message::GitMessage::CopyDiffSelection)
-                } else if self.screen == Screen::Design {
-                    // 在设计屏幕下，使用设计模块的复制功能
-                    message::design::update(self, message::DesignMessage::Copy)
                 } else {
                     // 其他情况不执行任何操作
                     Task::none()

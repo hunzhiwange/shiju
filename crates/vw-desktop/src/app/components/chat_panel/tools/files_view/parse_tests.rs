@@ -121,6 +121,24 @@ fn parse_output_files_prefers_structured_changes_and_sorts_paths() {
 }
 
 #[test]
+fn parse_output_files_keeps_unresolved_structured_change_path() {
+    let app = App::new().0;
+    let value = serde_json::json!({
+        "result": {
+            "content": [{
+                "type": "structured_patch",
+                "hunks": [{"path":"file:///","lines":["+new"]}]
+            }]
+        }
+    });
+
+    let (changes, items) = parse_output_files(&app, "file_edit", "{}", "", &value);
+
+    assert!(changes.contains_key("file:///"));
+    assert_eq!(items, vec![("file:///".to_string(), "file:///".to_string())]);
+}
+
+#[test]
 fn parse_output_files_reads_path_lines_bullets_and_dedups() {
     let app = test_app();
     let output = "path: src/main.rs\n- src/main.rs\n- src/lib.rs";
@@ -162,4 +180,71 @@ fn parse_output_files_falls_back_to_read_and_edit_input_paths() {
     let input = r#"{"path":"src/write.rs"}"#;
     let (_changes, items) = parse_output_files(&app, "write", input, "", &serde_json::json!({}));
     assert_eq!(items[0].1, "/tmp/vibe-window/src/write.rs");
+}
+
+#[test]
+fn parse_output_files_falls_back_to_changes_block() {
+    let app = test_app();
+    let output = "<changes>\n{\"files\":[{\"path\":\"src/test.rs\",\"additions\":3,\"deletions\":1}]}\n</changes>";
+    let (changes, items) = parse_output_files(&app, "bash", "{}", output, &serde_json::json!({}));
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes["src/test.rs"].path, "src/test.rs");
+    assert_eq!(items[0].1, "/tmp/vibe-window/src/test.rs");
+}
+
+#[test]
+fn parse_output_files_falls_through_with_no_matches() {
+    let app = test_app();
+    let (changes, items) = parse_output_files(&app, "bash", "echo hi", "", &serde_json::json!({}));
+    assert!(changes.is_empty());
+    assert!(items.is_empty());
+}
+
+#[test]
+fn parse_output_files_uses_file_link_open_without_path_line() {
+    let app = test_app();
+    let output = "<file_link>\nopen: /tmp/out.rs\n</file_link>";
+    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    assert_eq!(items, vec![("/tmp/out.rs".to_string(), "/tmp/out.rs".to_string())]);
+}
+
+#[test]
+fn parse_output_files_skips_file_link_with_non_absolute_open() {
+    let app = test_app();
+    let output = "<file_link>\nopen: relative/path.rs\n</file_link>";
+    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    assert!(items.is_empty());
+}
+
+#[test]
+fn parse_output_files_ignores_file_link_without_open() {
+    let app = test_app();
+    let output = "<file_link>\npath: shown.rs\n</file_link>";
+    let (_changes, items) = parse_output_files(&app, "read", "{}", output, &serde_json::json!({}));
+    assert!(items.is_empty());
+}
+
+#[test]
+fn parse_read_range_rejects_invalid_json() {
+    assert_eq!(parse_read_range("read", "{bad json}"), None);
+}
+
+#[test]
+fn build_file_list_state_non_search_ignores_filter() {
+    let items = vec![
+        ("src/main.rs".to_string(), "/tmp/main.rs".to_string()),
+        ("README.md".to_string(), "/tmp/readme.md".to_string()),
+    ];
+    let state = build_file_list_state(items.clone(), false, "main", 100);
+    assert_eq!(state.display_count, 2);
+    assert!(!state.is_empty_filtered);
+    assert_eq!(state.filter_query, "main");
+}
+
+#[test]
+fn build_file_list_state_empty_items() {
+    let state = build_file_list_state(vec![], true, "", 100);
+    assert_eq!(state.display_count, 0);
+    assert!(state.is_empty_filtered);
+    assert_eq!(state.total_items, 0);
 }

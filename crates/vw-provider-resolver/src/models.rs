@@ -32,7 +32,11 @@ const BUNDLED_MODELS_TEXT: &str = include_str!("../assets/model/api.json");
 #[allow(dead_code)]
 /// 返回 models.dev 的基础地址。
 fn url() -> String {
-    flag::VIBEWINDOW_MODELS_URL.clone().unwrap_or_else(|| "https://models.dev".to_string())
+    models_url(flag::VIBEWINDOW_MODELS_URL.as_deref())
+}
+
+fn models_url(configured: Option<&str>) -> String {
+    configured.unwrap_or("https://models.dev").to_string()
 }
 
 #[allow(dead_code)]

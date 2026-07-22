@@ -194,6 +194,34 @@ fn scan_snapshot(root: &Path) -> HashMap<String, SystemTime> {
     out
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn snapshot_updates(
+    previous: &HashMap<String, SystemTime>,
+    next: &HashMap<String, SystemTime>,
+) -> Vec<UpdatedProperties> {
+    let mut updates = Vec::new();
+
+    for (path, mtime) in next {
+        match previous.get(path) {
+            None => {
+                updates.push(UpdatedProperties { file: path.clone(), event: "add".to_string() })
+            }
+            Some(old) if old != mtime => {
+                updates.push(UpdatedProperties { file: path.clone(), event: "change".to_string() })
+            }
+            Some(_) => {}
+        }
+    }
+
+    for path in previous.keys() {
+        if !next.contains_key(path) {
+            updates.push(UpdatedProperties { file: path.clone(), event: "unlink".to_string() });
+        }
+    }
+
+    updates
+}
+
 /// 启动文件监视任务
 ///
 /// 在指定目录上启动异步监视任务，定期扫描文件变更并通过事件总线发布通知。
@@ -267,42 +295,9 @@ pub fn init(directory: impl AsRef<Path>) {
             // 获取新快照
             let next = scan_snapshot(&dir);
 
-            // 检测新增和修改的文件
-            for (path, mtime) in next.iter() {
-                match prev.get(path) {
-                    // 新增的文件
-                    None => {
-                        let _ = bus::publish(
-                            event::UPDATED,
-                            UpdatedProperties { file: path.clone(), event: "add".to_string() },
-                            None,
-                        );
-                    }
-                    // 已存在的文件，检查是否修改
-                    Some(old) => {
-                        if *old != *mtime {
-                            let _ = bus::publish(
-                                event::UPDATED,
-                                UpdatedProperties {
-                                    file: path.clone(),
-                                    event: "change".to_string(),
-                                },
-                                None,
-                            );
-                        }
-                    }
-                }
-            }
-
-            // 检测删除的文件
-            for path in prev.keys() {
-                if !next.contains_key(path) {
-                    let _ = bus::publish(
-                        event::UPDATED,
-                        UpdatedProperties { file: path.clone(), event: "unlink".to_string() },
-                        None,
-                    );
-                }
+            // 发布新增、修改和删除事件
+            for update in snapshot_updates(&prev, &next) {
+                let _ = bus::publish(event::UPDATED, update, None);
             }
 
             // 更新快照用于下次比较

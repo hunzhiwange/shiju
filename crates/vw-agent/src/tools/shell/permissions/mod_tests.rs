@@ -7,6 +7,14 @@ use crate::tools::shell::permissions::{
 use crate::tools::shell::security::{SecurityCategory, SecurityFinding, Severity};
 
 #[test]
+fn permission_result_default_has_no_decision_or_findings() {
+    let result = PermissionResult::default();
+
+    assert_eq!(result.permission, None);
+    assert!(result.security_findings.is_empty());
+}
+
+#[test]
 fn permission_result_helpers_build_expected_variants() {
     assert_eq!(PermissionResult::allow().permission, Some(Permission::Allow));
     assert_eq!(
@@ -20,16 +28,34 @@ fn permission_result_helpers_build_expected_variants() {
 }
 
 #[test]
-fn permission_result_with_findings_replaces_findings() {
-    let findings = vec![SecurityFinding {
+fn permission_result_ask_preserves_missing_warning() {
+    assert_eq!(
+        PermissionResult::ask("review", None).permission,
+        Some(Permission::Ask { reason: "review".into(), warning: None })
+    );
+}
+
+#[test]
+fn permission_result_with_findings_replaces_existing_findings_and_preserves_permission() {
+    let original_findings = vec![SecurityFinding {
         severity: Severity::Warn,
         category: SecurityCategory::UnsafePattern,
-        message: "watch this".into(),
+        message: "original".into(),
+        suggestion: None,
+    }];
+    let replacement_findings = vec![SecurityFinding {
+        severity: Severity::Warn,
+        category: SecurityCategory::UnsafePattern,
+        message: "replacement".into(),
         suggestion: Some("review".into()),
     }];
 
-    let result = PermissionResult::allow().with_findings(findings.clone());
-    assert_eq!(result.security_findings, findings);
+    let result = PermissionResult::deny("blocked")
+        .with_findings(original_findings)
+        .with_findings(replacement_findings.clone());
+
+    assert_eq!(result.permission, Some(Permission::Deny { reason: "blocked".into() }));
+    assert_eq!(result.security_findings, replacement_findings);
 }
 
 #[test]

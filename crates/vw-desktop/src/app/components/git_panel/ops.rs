@@ -131,7 +131,7 @@ pub struct DiffFileMeta {
 pub fn current_branch(path: &str) -> Option<String> {
     let repo = git2::Repository::open(path).ok()?;
     let head = repo.head().ok()?;
-    let name = head.name()?;
+    let name = head.name().ok()?;
     // 去除 "refs/heads/" 前缀以获取简短分支名
     let short = name.strip_prefix("refs/heads/").unwrap_or(name);
     // 如果是 "HEAD" 则表示分离 HEAD 状态
@@ -496,7 +496,7 @@ pub fn get_changed_file_paths(repo_path: &str) -> Vec<String> {
             continue;
         }
 
-        let Some(path) = entry.path() else {
+        let Ok(path) = entry.path() else {
             continue;
         };
 

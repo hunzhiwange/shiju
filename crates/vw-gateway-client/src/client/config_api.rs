@@ -1,5 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
+use vw_api_types::id::TenantScope;
 
 use super::GatewayClient;
 use crate::http::directory_query;
@@ -26,6 +27,23 @@ impl GatewayClient {
 
     /// 按补丁方式更新全局配置。
     pub async fn global_config_patch(&self, patch: &Value) -> Result<(), String> {
+        let _: Value = self.patch_json("/v1/global/config", &[], patch).await?;
+        Ok(())
+    }
+
+    /// 读取显式平台和公司的租户基础配置。
+    pub async fn tenant_global_config_get(&self, tenant: &TenantScope) -> Result<Value, String> {
+        self.ensure_endpoint_tenant_scope(tenant)?;
+        self.get_json("/v1/global/config", &[]).await
+    }
+
+    /// 按补丁方式更新显式平台和公司的租户基础配置。
+    pub async fn tenant_global_config_patch(
+        &self,
+        tenant: &TenantScope,
+        patch: &Value,
+    ) -> Result<(), String> {
+        self.ensure_endpoint_tenant_scope(tenant)?;
         let _: Value = self.patch_json("/v1/global/config", &[], patch).await?;
         Ok(())
     }
@@ -65,6 +83,13 @@ impl GatewayClient {
             patch = Value::Object(object);
         }
         self.global_config_patch(&patch).await
+    }
+
+    fn ensure_endpoint_tenant_scope(&self, tenant: &TenantScope) -> Result<(), String> {
+        if tenant != self.endpoint().tenant_scope() {
+            return Err("tenant scope does not match gateway endpoint tenant scope".to_string());
+        }
+        Ok(())
     }
 }
 

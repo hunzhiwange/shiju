@@ -1,0 +1,210 @@
+{
+  "entity_class": "product:product_snapshot",
+  "connection_id": "data_database",
+  "table": "product_snapshot",
+  "connect": ":data_database",
+  "table_name": "商品表SKU快照",
+  "primary_key": "id",
+  "auto_increment": "id",
+  "unique_indexes": {
+    "PRIMARY": {
+      "field": [
+        "id"
+      ],
+      "comment": "ID"
+    }
+  },
+  "description": "商品表SKU快照.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "spuNo",
+      "type": "string",
+      "label": "商品编码",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "spu_no",
+      "sortable": true
+    },
+    {
+      "name": "skuNo",
+      "type": "string",
+      "label": "商品条码",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "sku_no",
+      "sortable": true
+    },
+    {
+      "name": "snapshotVersion",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "snapshot_version",
+      "sortable": true
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "label": "快照内容",
+      "column_struct": {
+        "type": "mediumtext",
+        "default": null
+      },
+      "column": "content",
+      "sortable": true
+    }
+  ],
+  "properties": [
+    {
+      "name": "id",
+      "type": "int",
+      "label": "ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": null
+      },
+      "readonly": true,
+      "column": "id",
+      "sortable": true
+    },
+    {
+      "name": "platformId",
+      "type": "int",
+      "label": "平台ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "platform_id",
+      "sortable": true
+    },
+    {
+      "name": "companyId",
+      "type": "int",
+      "label": "公司ID",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "company_id",
+      "sortable": true
+    },
+    {
+      "name": "spuNo",
+      "type": "string",
+      "label": "商品编码",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "spu_no",
+      "sortable": true
+    },
+    {
+      "name": "skuNo",
+      "type": "string",
+      "label": "商品条码",
+      "column_struct": {
+        "type": "varchar",
+        "default": "",
+        "length": 30
+      },
+      "validator": {
+        "scenes": [
+          "max_length:30"
+        ],
+        "store": null,
+        "update": null
+      },
+      "column": "sku_no",
+      "sortable": true
+    },
+    {
+      "name": "snapshotVersion",
+      "type": "int",
+      "label": "操作版本号",
+      "column_struct": {
+        "type": "bigint",
+        "default": 0
+      },
+      "column": "snapshot_version",
+      "sortable": true
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "label": "快照内容",
+      "column_struct": {
+        "type": "mediumtext",
+        "default": null
+      },
+      "column": "content",
+      "sortable": true
+    }
+  ]
+}

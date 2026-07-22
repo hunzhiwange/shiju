@@ -29,6 +29,80 @@ fn preview_tab(path: &str) -> crate::app::PreviewTab {
 }
 
 #[test]
+fn directory_detection_distinguishes_files_directories_and_unknown_paths() {
+    let files = vec!["/project/src/main.rs".to_string(), "/project/README.md".to_string()];
+
+    assert!(super::is_directory_path("/project/src", &files));
+    assert!(!super::is_directory_path("/project/README.md", &files));
+    assert!(super::is_directory_path("/project/empty", &files));
+}
+
+#[test]
+fn unique_name_preserves_free_name_and_suffixes_collisions() {
+    let directory = std::path::Path::new("/project/src");
+    let mut existing = std::collections::HashSet::new();
+
+    assert_eq!(
+        super::unique_name_for_target(directory, "main.rs", &existing),
+        "/project/src/main.rs"
+    );
+
+    existing.insert("/project/src/main.rs".to_string());
+    existing.insert("/project/src/main copy.rs".to_string());
+    assert_eq!(
+        super::unique_name_for_target(directory, "main.rs", &existing),
+        "/project/src/main copy 2.rs"
+    );
+
+    existing.insert("/project/src/LICENSE".to_string());
+    assert_eq!(
+        super::unique_name_for_target(directory, "LICENSE", &existing),
+        "/project/src/LICENSE copy"
+    );
+}
+
+#[test]
+fn unique_name_falls_back_to_original_after_suffix_space_is_exhausted() {
+    let directory = std::path::Path::new("/project/src");
+    let mut existing = std::collections::HashSet::from([
+        "/project/src/main.rs".to_string(),
+        "/project/src/main copy.rs".to_string(),
+    ]);
+    for suffix in 2..=999 {
+        existing.insert(format!("/project/src/main copy {suffix}.rs"));
+    }
+
+    assert_eq!(
+        super::unique_name_for_target(directory, "main.rs", &existing),
+        "/project/src/main.rs"
+    );
+}
+
+#[test]
+fn path_prefix_replacement_updates_exact_and_descendant_paths_only() {
+    assert_eq!(
+        super::replace_path_prefix("/project/old", "/project/old", "/project/new").as_deref(),
+        Some("/project/new")
+    );
+    assert_eq!(
+        super::replace_path_prefix("/project/old/nested/file.rs", "/project/old", "/project/new",)
+            .as_deref(),
+        Some("/project/new/nested/file.rs")
+    );
+    assert_eq!(
+        super::replace_path_prefix("/project/older/file.rs", "/project/old", "/project/new"),
+        None
+    );
+}
+
+#[test]
+fn path_display_name_uses_final_component_or_original_fallback() {
+    assert_eq!(super::path_display_name("/project/src/main.rs"), "main.rs");
+    assert_eq!(super::path_display_name(""), "");
+    assert_eq!(super::path_display_name("/"), "/");
+}
+
+#[test]
 fn file_tree_right_click_and_close_manage_menu_state() {
     let mut app = app();
 
@@ -94,16 +168,50 @@ fn drag_start_and_end_transfer_pending_drop_state() {
 }
 
 #[test]
-fn rename_save_rejects_invalid_names() {
-    let mut app = app();
-    app.file_tree_rename_path = Some("/tmp/a.txt".to_string());
-    app.file_tree_rename_value = "../b".to_string();
+fn rename_save_rejects_each_invalid_name_shape() {
+    for invalid_name in ["", "   ", ".", "..", "a/b", "a\\b"] {
+        let mut app = app();
+        app.file_tree_rename_path = Some("/tmp/a.txt".to_string());
+        app.file_tree_rename_value = invalid_name.to_string();
 
+        let _ = super::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::FileTreeRenameSave,
+        );
+
+        assert_eq!(app.error_message.as_deref(), Some("文件名不合法"));
+        assert_eq!(app.file_tree_rename_path.as_deref(), Some("/tmp/a.txt"));
+    }
+}
+
+#[test]
+fn rename_save_without_target_or_project_is_safely_ignored() {
+    let mut app = app();
+    app.file_tree_rename_value = "new.txt".to_string();
     let _ =
         super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeRenameSave);
+    assert!(app.file_tree_rename_path.is_none());
 
-    assert_eq!(app.error_message.as_deref(), Some("文件名不合法"));
+    app.file_tree_rename_path = Some("/tmp/a.txt".to_string());
+    let _ =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeRenameSave);
     assert_eq!(app.file_tree_rename_path.as_deref(), Some("/tmp/a.txt"));
+    assert_eq!(app.file_tree_rename_value, "new.txt");
+}
+
+#[test]
+fn rename_save_with_project_queues_operation_and_clears_editor_state() {
+    let mut app = app();
+    app.project_path = Some("/tmp/project".to_string());
+    app.file_tree_rename_path = Some("/tmp/project/a.txt".to_string());
+    app.file_tree_rename_value = " b.txt ".to_string();
+
+    let task =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeRenameSave);
+
+    assert!(task.is_some());
+    assert!(app.file_tree_rename_path.is_none());
+    assert!(app.file_tree_rename_value.is_empty());
 }
 
 #[test]
@@ -125,6 +233,26 @@ fn rename_completed_updates_preview_paths_on_success() {
     assert_eq!(app.preview_tabs[0].path, "/tmp/project/src/new.rs");
     assert_eq!(app.preview_tabs[1].path, "/tmp/project/src/new.rs/nested.txt");
     assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/new.rs"));
+}
+
+#[test]
+fn rename_completed_failure_preserves_paths_and_reports_error() {
+    let mut app = app();
+    app.project_path = Some("/tmp/project".to_string());
+    app.preview_tabs.push(preview_tab("/tmp/project/src/old.rs"));
+    app.active_preview_path = Some("/tmp/project/src/old.rs".to_string());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeRenameCompleted {
+            old_path: "/tmp/project/src/old.rs".to_string(),
+            result: Err("denied".to_string()),
+        },
+    );
+
+    assert_eq!(app.preview_tabs[0].path, "/tmp/project/src/old.rs");
+    assert_eq!(app.active_preview_path.as_deref(), Some("/tmp/project/src/old.rs"));
+    assert_eq!(app.error_message.as_deref(), Some("重命名失败: denied"));
 }
 
 #[test]
@@ -205,6 +333,109 @@ fn rename_action_primes_rename_fields() {
 }
 
 #[test]
+fn open_and_copy_path_actions_clear_menu_and_return_tasks() {
+    let mut app = app();
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    app.file_tree_menu_source = Some("tree".to_string());
+    app.file_tree_menu_anchor = Some(iced::Point::new(1.0, 2.0));
+
+    let open_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Open,
+        ),
+    );
+    assert!(open_task.is_some());
+    assert!(app.file_tree_menu_path.is_none());
+    assert!(app.file_tree_menu_source.is_none());
+    assert!(app.file_tree_menu_anchor.is_none());
+
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    let copy_task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::CopyPath,
+        ),
+    );
+    assert!(copy_task.is_some());
+    assert!(app.file_tree_menu_path.is_none());
+}
+
+#[test]
+fn relative_copy_delete_and_add_to_chat_handle_missing_project_root() {
+    let mut app = app();
+
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    let relative_copy = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::CopyRelativePath,
+        ),
+    );
+    assert!(relative_copy.is_some());
+    assert!(app.file_tree_menu_path.is_none());
+
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    let delete = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Delete,
+        ),
+    );
+    assert!(delete.is_some());
+    assert!(app.error_message.is_none());
+
+    app.file_tree_menu_path = Some("/tmp/project/src/main.rs".to_string());
+    let add_to_chat = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::AddToChat,
+        ),
+    );
+    assert!(add_to_chat.is_some());
+    assert!(!app.show_file_search);
+}
+
+#[test]
+fn paste_without_clipboard_or_project_does_not_mutate_clipboard() {
+    let mut app = app();
+    app.file_tree_menu_path = Some("/tmp/project/src".to_string());
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Paste,
+        ),
+    );
+    assert!(app.file_tree_clipboard.is_none());
+
+    app.file_tree_menu_path = Some("/tmp/project/src".to_string());
+    app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
+        mode: crate::app::state::FileTreeClipboardMode::Copy,
+        src_path: "/tmp/source.txt".to_string(),
+    });
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Paste,
+        ),
+    );
+    assert_eq!(
+        app.file_tree_clipboard.as_ref().map(|value| value.src_path.as_str()),
+        Some("/tmp/source.txt")
+    );
+}
+
+#[test]
+fn unrelated_project_message_is_not_handled() {
+    let mut app = app();
+
+    let task =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
+
+    assert!(task.is_none());
+}
+
+#[test]
 fn paste_completed_cut_success_clears_clipboard() {
     let mut app = app();
     app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
@@ -221,6 +452,28 @@ fn paste_completed_cut_success_clears_clipboard() {
     );
 
     assert!(app.file_tree_clipboard.is_none());
+}
+
+#[test]
+fn paste_completed_copy_success_preserves_clipboard() {
+    let mut app = app();
+    app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
+        mode: crate::app::state::FileTreeClipboardMode::Copy,
+        src_path: "/tmp/a.txt".to_string(),
+    });
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreePasteCompleted {
+            clear_clipboard: false,
+            result: Ok(()),
+        },
+    );
+
+    assert_eq!(
+        app.file_tree_clipboard.as_ref().map(|value| value.src_path.as_str()),
+        Some("/tmp/a.txt")
+    );
 }
 
 #[test]

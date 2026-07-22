@@ -1,10 +1,7 @@
 use super::ViewMessage;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::FocusArea;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::config::save_json_tool_content;
-#[cfg(target_arch = "wasm32")]
-use crate::app::config::save_json_tool_content_async;
+use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
 use crate::app::{App, Message, SettingsTab, set_config_field};
 use iced::Task;
@@ -224,12 +221,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.cli_install_modal_show_install_action = false;
             app.cli_install_modal_use_app_update_action = true;
             app.cli_install_modal_is_checking_update = false;
+            app.app_update_progress = None;
+            app.app_update_progress_rx = None;
             Task::none()
         }
         ViewMessage::CheckAppUpdate => {
             app.cli_install_modal_is_checking_update = true;
             app.cli_install_modal_show_install_action = false;
             app.cli_install_modal_message = "正在请求最新应用版本...".to_string();
+            app.app_update_progress = None;
+            app.app_update_progress_rx = None;
             Task::perform(fetch_latest_app_release_version(), |res| {
                 Message::View(ViewMessage::CheckAppUpdateFinished(res))
             })
@@ -258,15 +259,39 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::RunAppUpdate => {
+            let (progress_tx, progress_rx) = std::sync::mpsc::channel();
             app.cli_install_modal_is_checking_update = true;
             app.cli_install_modal_show_install_action = false;
             app.cli_install_modal_message = "正在下载并安装应用更新...".to_string();
-            Task::perform(run_app_self_update(), |res| {
+            app.app_update_progress = None;
+            app.app_update_progress_rx = Some(progress_rx);
+            Task::perform(run_app_self_update(progress_tx), |res| {
                 Message::View(ViewMessage::AppUpdateFinished(res))
             })
         }
+        ViewMessage::AppUpdateProgressTick => {
+            if let Some(receiver) = app.app_update_progress_rx.take() {
+                let mut active_receiver = Some(receiver);
+                for _ in 0..48 {
+                    let Some(current_receiver) = active_receiver.as_ref() else {
+                        break;
+                    };
+                    match current_receiver.try_recv() {
+                        Ok(progress) => app.app_update_progress = Some(progress),
+                        Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                            active_receiver = None;
+                            break;
+                        }
+                    }
+                }
+                app.app_update_progress_rx = active_receiver;
+            }
+            Task::none()
+        }
         ViewMessage::AppUpdateFinished(res) => {
             app.cli_install_modal_is_checking_update = false;
+            app.app_update_progress_rx = None;
             match res {
                 Ok(message) => {
                     app.cli_install_modal_title = "应用更新完成".to_string();
@@ -370,6 +395,21 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::GatewayServicesTabSelected(tab) => {
             app.top_bar_gateway_tab = tab;
+            if tab == crate::app::state::TopBarGatewayTab::Plugins
+                && app.skills_settings.plugin_catalog.is_empty()
+                && !app.skills_settings.plugin_loading
+            {
+                app.skills_settings.plugin_loading = true;
+                return Task::done(Message::Settings(SettingsMessage::PluginsRefresh));
+            }
+            if tab == crate::app::state::TopBarGatewayTab::Mcp
+                && !app.mcp_settings.loading
+                && !app.mcp_settings.saving
+            {
+                app.mcp_settings.loading = true;
+                app.mcp_settings.save_error = None;
+                return Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)));
+            }
             Task::none()
         }
         ViewMessage::MenuAction(msg) => {
@@ -395,29 +435,10 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
     }
 
     if let Some(main_window_id) = windows.main_window_id {
-        if app.json_tool_remember {
-            tasks.push(save_json_tool_content_task(app.json_tool_editor.text()));
-        }
         tasks.push(iced::window::close(main_window_id));
     }
 
     Task::batch(tasks)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn save_json_tool_content_task(content: String) -> Task<Message> {
-    Task::perform(async move { save_json_tool_content_async(&content).await }, |result| {
-        if let Err(error) = result {
-            tracing::warn!(target: "vw_desktop", error = %error, "failed to save json tool content on close");
-        }
-        Message::None
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn save_json_tool_content_task(content: String) -> Task<Message> {
-    save_json_tool_content(&content);
-    Task::none()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -445,21 +466,13 @@ fn install_cli_tool() -> Result<String, String> {
 
     let target_name = if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" };
     let target_bin = install_dir.join(target_name);
+    let replacing_existing = target_bin.exists();
 
     let source_bin_res = resolve_agent_binary_path();
     if let Ok(source_bin) = source_bin_res {
-        fs::copy(&source_bin, &target_bin).map_err(|e| {
-            format!(
-                "复制 CLI 可执行文件失败: {} -> {}: {e}",
-                source_bin.display(),
-                target_bin.display()
-            )
-        })?;
+        install_cli_binary_from_path(&source_bin, &target_bin)?;
     } else if let Ok(url) = std::env::var("VIBEWINDOW_CLI_URL") {
-        let tmp_path =
-            install_dir.join(if cfg!(windows) { "vibewindow.tmp.exe" } else { "vibewindow.tmp" });
-        download_file(&url, &tmp_path)?;
-        fs::rename(&tmp_path, &target_bin).map_err(|e| format!("移动临时文件失败: {e}"))?;
+        install_cli_binary_from_url(&url, &target_bin)?;
     } else {
         return Err(format!(
             "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 vibewindow 或 vibewindow.exe\n3) 确保 PATH 包含 {} 后重启终端",
@@ -468,16 +481,14 @@ fn install_cli_tool() -> Result<String, String> {
         ));
     }
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&target_bin, fs::Permissions::from_mode(0o755))
-            .map_err(|e| format!("设置执行权限失败: {e}"))?;
-    }
-
     let updated_profiles = ensure_path_profiles(&home, &install_dir)?;
     let mut message =
         format!("已安装到 {}\n可执行文件: {}", install_dir.display(), target_bin.display());
+    if replacing_existing {
+        message.push_str(
+            "\n已安全替换旧 CLI；如果后台 service 正在运行，请重启 service 以加载新版本。",
+        );
+    }
     if updated_profiles.is_empty() {
         message.push_str("\nPATH 配置已存在，无需重复写入。");
     } else {
@@ -492,6 +503,105 @@ fn install_cli_tool() -> Result<String, String> {
 #[cfg(target_arch = "wasm32")]
 fn install_cli_tool() -> Result<String, String> {
     Err("当前平台不支持安装 CLI 工具".to_string())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn install_cli_binary_from_path(source_bin: &Path, target_bin: &Path) -> Result<(), String> {
+    let staged_bin = staged_cli_binary_path(target_bin);
+    remove_stale_staged_cli_binary(&staged_bin)?;
+    fs::copy(source_bin, &staged_bin).map_err(|e| {
+        let _ = fs::remove_file(&staged_bin);
+        format!(
+            "复制 CLI 可执行文件失败: {} -> {}: {e}",
+            source_bin.display(),
+            staged_bin.display()
+        )
+    })?;
+    install_staged_cli_binary(&staged_bin, target_bin)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn install_cli_binary_from_url(url: &str, target_bin: &Path) -> Result<(), String> {
+    let staged_bin = staged_cli_binary_path(target_bin);
+    remove_stale_staged_cli_binary(&staged_bin)?;
+    if let Err(error) = download_file(url, &staged_bin) {
+        let _ = fs::remove_file(&staged_bin);
+        return Err(error);
+    }
+    install_staged_cli_binary(&staged_bin, target_bin)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn install_staged_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
+    ensure_cli_binary_executable(staged_bin)?;
+    replace_cli_binary(staged_bin, target_bin).map_err(|error| {
+        let _ = fs::remove_file(staged_bin);
+        error
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn staged_cli_binary_path(target_bin: &Path) -> PathBuf {
+    let file_name = target_bin.file_name().and_then(|value| value.to_str()).unwrap_or("vibewindow");
+    target_bin.with_file_name(format!(".{file_name}.installing"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn remove_stale_staged_cli_binary(staged_bin: &Path) -> Result<(), String> {
+    if staged_bin.exists() {
+        fs::remove_file(staged_bin)
+            .map_err(|e| format!("清理旧临时 CLI 文件失败 {}: {e}", staged_bin.display()))?;
+    }
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn ensure_cli_binary_executable(_path: &Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(_path, fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("设置执行权限失败: {e}"))?;
+    }
+    Ok(())
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+fn replace_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
+    fs::rename(staged_bin, target_bin).map_err(|e| {
+        format!(
+            "替换 CLI 可执行文件失败: {} -> {}: {e}",
+            staged_bin.display(),
+            target_bin.display()
+        )
+    })
+}
+
+#[cfg(all(not(unix), not(target_arch = "wasm32")))]
+fn replace_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String> {
+    let backup_bin = target_bin.with_extension("backup");
+    if backup_bin.exists() {
+        let _ = fs::remove_file(&backup_bin);
+    }
+    if target_bin.exists() {
+        fs::rename(target_bin, &backup_bin).map_err(|e| {
+            format!(
+                "备份旧 CLI 可执行文件失败: {} -> {}: {e}",
+                target_bin.display(),
+                backup_bin.display()
+            )
+        })?;
+    }
+    if let Err(error) = fs::rename(staged_bin, target_bin) {
+        let _ = fs::rename(&backup_bin, target_bin);
+        return Err(format!(
+            "替换 CLI 可执行文件失败: {} -> {}: {error}",
+            staged_bin.display(),
+            target_bin.display()
+        ));
+    }
+    let _ = fs::remove_file(&backup_bin);
+    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -515,12 +625,20 @@ async fn fetch_latest_app_release_version() -> Result<String, String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn run_app_self_update() -> Result<String, String> {
-    update::desktop_self_update().await.map_err(|e| format!("更新应用失败: {e}"))
+async fn run_app_self_update(
+    progress_tx: std::sync::mpsc::Sender<update::UpdateProgress>,
+) -> Result<String, String> {
+    update::desktop_self_update_with_progress(move |progress| {
+        let _ = progress_tx.send(progress);
+    })
+    .await
+    .map_err(|e| format!("更新应用失败: {e}"))
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn run_app_self_update() -> Result<String, String> {
+async fn run_app_self_update(
+    _progress_tx: std::sync::mpsc::Sender<vw_shared::update::UpdateProgress>,
+) -> Result<String, String> {
     Err("当前平台不支持应用自更新".to_string())
 }
 
@@ -531,6 +649,8 @@ fn reset_cli_update_modal_state(app: &mut App) {
     app.cli_install_modal_show_install_action = false;
     app.cli_install_modal_use_app_update_action = false;
     app.cli_install_modal_is_checking_update = false;
+    app.app_update_progress = None;
+    app.app_update_progress_rx = None;
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -611,12 +611,9 @@ impl ConfigTool {
     }
 
     async fn load_current_config(&self) -> anyhow::Result<Config> {
-        config::load_from_path_without_env(
-            &self.config.config_path,
-            self.config.workspace_dir.clone(),
-        )
-        .await
-        .map_err(|error| anyhow::anyhow!(error.to_string()))
+        config::get_project_without_env(&self.config.workspace_dir)
+            .await
+            .map_err(|error| anyhow::anyhow!(error.to_string()))
     }
 
     async fn handle_setting_request(
@@ -638,7 +635,13 @@ impl ConfigTool {
         };
 
         let canonical_setting = spec.key.to_string();
-        let current = self.load_current_config().await?;
+        let current = if value.is_some() {
+            config::get_project(&self.config.workspace_dir)
+                .await
+                .map_err(|error| anyhow::anyhow!(error.to_string()))?
+        } else {
+            self.load_current_config().await?
+        };
 
         if let Some(value) = value {
             if !self.security.can_act() {
@@ -704,19 +707,26 @@ impl ConfigTool {
                 });
             }
 
-            if let Err(error) = config::save_config(&next).await {
-                return Ok(ConfigResponse {
-                    success: false,
-                    operation: Some("set"),
-                    setting: Some(canonical_setting),
-                    value: None,
-                    previous_value: Some(previous_value),
-                    new_value: None,
-                    error: Some(error.to_string()),
-                });
-            }
-
-            let updated = self.load_current_config().await?;
+            let updated = match config::update_project_from_configs(
+                &self.config.workspace_dir,
+                &current,
+                &next,
+            )
+            .await
+            {
+                Ok(updated) => updated,
+                Err(error) => {
+                    return Ok(ConfigResponse {
+                        success: false,
+                        operation: Some("set"),
+                        setting: Some(canonical_setting),
+                        value: None,
+                        previous_value: Some(previous_value),
+                        new_value: None,
+                        error: Some(error.to_string()),
+                    });
+                }
+            };
             let new_value = read_setting_value(&updated, spec)?;
             return Ok(ConfigResponse {
                 success: true,

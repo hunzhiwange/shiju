@@ -75,3 +75,14 @@ fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
     assert!(summary.contains("curl-pipe-shell"));
     assert!(!summary.contains("missing file"));
 }
+
+#[test]
+fn markdown_link_without_parent_reports_resolution_error() {
+    let mut report = SkillAuditReport::default();
+
+    audit_markdown_link_target(Path::new("."), Path::new(""), "docs/guide.md", &mut report);
+
+    assert_eq!(report.findings.len(), 1);
+    assert!(report.findings[0].contains("failed to resolve parent directory"));
+    assert!(report.findings[0].contains("docs/guide.md"));
+}

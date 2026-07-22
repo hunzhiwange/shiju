@@ -10,17 +10,21 @@
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
+use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
 
 use crate::endpoint::GatewayEndpoint;
 
-/// 为异步请求构造器附加网关 skey Bearer 认证头。
+/// 为异步请求构造器附加网关认证与租户上下文头。
 ///
 /// 当认证字段为空或仅包含空白字符时，会自动跳过对应认证项。
-pub fn apply_auth(
+pub fn apply_request_context(
     builder: reqwest::RequestBuilder,
     endpoint: &GatewayEndpoint,
 ) -> reqwest::RequestBuilder {
+    let builder = builder
+        .header(PLATFORM_ID_HEADER, endpoint.tenant_scope().platform_id().as_ref())
+        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref());
     let Some(auth) = endpoint.auth.as_ref() else {
         return builder;
     };
@@ -33,13 +37,16 @@ pub fn apply_auth(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 为阻塞请求构造器附加网关 skey Bearer 认证头。
+/// 为阻塞请求构造器附加网关认证与租户上下文头。
 ///
 /// 行为与异步版本保持一致，只是作用于阻塞客户端。
-pub fn apply_blocking_auth(
+pub fn apply_blocking_request_context(
     builder: reqwest::blocking::RequestBuilder,
     endpoint: &GatewayEndpoint,
 ) -> reqwest::blocking::RequestBuilder {
+    let builder = builder
+        .header(PLATFORM_ID_HEADER, endpoint.tenant_scope().platform_id().as_ref())
+        .header(COMPANY_ID_HEADER, endpoint.tenant_scope().company_id().as_ref());
     let Some(auth) = endpoint.auth.as_ref() else {
         return builder;
     };
@@ -92,29 +99,15 @@ pub async fn parse_json_response<T: DeserializeOwned>(
     })
 }
 
-/// 记录成功响应；高频、低风险的 Git 子命令保持在 DEBUG，避免淹没 INFO 日志。
+/// 记录成功响应；成功请求频率较高，保持在 DEBUG 避免淹没 INFO 日志。
 pub fn log_request_succeeded(method: &str, endpoint: &GatewayEndpoint, path: &str) {
-    if is_quiet_success_path(path) {
-        debug!(
-            target: "vw_gateway_client",
-            method = method,
-            endpoint = %endpoint.describe(),
-            path = path,
-            "gateway request succeeded"
-        );
-    } else {
-        info!(
-            target: "vw_gateway_client",
-            method = method,
-            endpoint = %endpoint.describe(),
-            path = path,
-            "gateway request succeeded"
-        );
-    }
-}
-
-fn is_quiet_success_path(path: &str) -> bool {
-    path == "/v1/git/command"
+    debug!(
+        target: "vw_gateway_client",
+        method = method,
+        endpoint = %endpoint.describe(),
+        path = path,
+        "gateway request succeeded"
+    );
 }
 
 /// 将非成功响应转换为统一错误文本，便于上层直接展示。
@@ -202,15 +195,72 @@ pub fn transport_error(
     err: reqwest::Error,
 ) -> String {
     let msg = err.to_string();
-    error!(
-        target: "vw_gateway_client",
-        method = method,
-        endpoint = %endpoint.describe(),
-        path = path,
-        error = %msg,
-        "gateway transport error"
-    );
+    #[cfg(not(target_arch = "wasm32"))]
+    let is_unavailable =
+        err.is_connect() || err.is_timeout() || is_gateway_unavailable_error(&msg);
+    #[cfg(target_arch = "wasm32")]
+    let is_unavailable = err.is_timeout() || is_gateway_unavailable_error(&msg);
+    if is_unavailable {
+        debug!(
+            target: "vw_gateway_client",
+            method = method,
+            endpoint = %endpoint.describe(),
+            path = path,
+            error = %msg,
+            "gateway transport unavailable"
+        );
+    } else {
+        warn!(
+            target: "vw_gateway_client",
+            method = method,
+            endpoint = %endpoint.describe(),
+            path = path,
+            error = %msg,
+            "gateway transport error"
+        );
+    }
     msg
+}
+
+/// 判断错误文本是否表示网关当前不可达，适用于有本地/默认回退的读取路径。
+pub fn is_gateway_unavailable_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    [
+        "timed out",
+        "timeout",
+        "connection refused",
+        "connection reset",
+        "connection closed",
+        "connection aborted",
+        "broken pipe",
+        "error sending request",
+        "error trying to connect",
+        "tcp connect error",
+        "dns error",
+        "operation was canceled",
+    ]
+    .iter()
+    .any(|needle| lower.contains(needle))
+}
+
+/// 判断网关错误文本是否适合做一次短重试。
+///
+/// 这里只覆盖传输层抖动与明确的临时 HTTP 状态，调用方仍应只在幂等接口上使用。
+pub(crate) fn is_retryable_gateway_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    let retryable_status = [
+        "gateway request failed: 408",
+        "gateway request failed: 429",
+        "gateway request failed: 500",
+        "gateway request failed: 502",
+        "gateway request failed: 503",
+        "gateway request failed: 504",
+    ];
+    if retryable_status.iter().any(|needle| lower.contains(needle)) {
+        return true;
+    }
+
+    is_gateway_unavailable_error(message)
 }
 
 fn format_query(query: &[(String, String)]) -> String {

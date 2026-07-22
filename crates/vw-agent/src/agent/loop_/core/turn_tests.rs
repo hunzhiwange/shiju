@@ -236,6 +236,68 @@ async fn run_tool_call_loop_with_reply_target_scopes_target_for_tool_execution()
 }
 
 #[tokio::test]
+async fn run_tool_call_loop_with_reply_target_scopes_none_when_target_is_absent() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider = RecordingProvider::from_responses(
+        vec![
+            crate::app::agent::providers::ChatResponse {
+                text: Some("capture missing context".to_string()),
+                tool_calls: vec![crate::app::agent::providers::ToolCall {
+                    id: "call-1".to_string(),
+                    name: "testcov_0091_context_capture".to_string(),
+                    arguments: "{}".to_string(),
+                }],
+                usage: None,
+                reasoning_content: None,
+            },
+            crate::app::agent::providers::ChatResponse {
+                text: Some("done".to_string()),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+        ],
+        Arc::clone(&calls),
+    );
+    let mut history = vec![ChatMessage::user("hello")];
+    let tools_registry: Vec<Box<dyn Tool>> = vec![Box::new(ContextCaptureTool)];
+    let observer = crate::app::agent::observability::NoopObserver;
+
+    let result = run_tool_call_loop_with_reply_target(
+        &provider,
+        &mut history,
+        &tools_registry,
+        &observer,
+        "recording",
+        "turn-model",
+        0.0,
+        true,
+        None,
+        "matrix",
+        None,
+        &crate::app::agent::config::MultimodalConfig::default(),
+        3,
+        None,
+        None,
+        None,
+        None,
+        &[],
+    )
+    .await
+    .expect("missing reply target should still scope an empty target");
+
+    assert_eq!(result, "done");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert!(
+        history.iter().any(|message| {
+            message.role == "tool" && message.content.contains("reply=unset;approval=unset")
+        }),
+        "tool result should show that no reply target was scoped"
+    );
+    assert!(TOOL_LOOP_REPLY_TARGET.try_with(|target| target.clone()).is_err());
+}
+
+#[tokio::test]
 async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_reply_target() {
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = RecordingProvider::from_responses(
@@ -300,6 +362,69 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_re
                 && message.content.contains("reply=approval-room;approval=alice:approval-room")
         }),
         "tool result should include scoped approval and derived reply target"
+    );
+    assert!(TOOL_LOOP_REPLY_TARGET.try_with(|target| target.clone()).is_err());
+    assert!(TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT.try_with(|ctx| ctx.clone()).is_err());
+}
+
+#[tokio::test]
+async fn run_tool_call_loop_with_non_cli_approval_context_scopes_none_when_context_is_absent() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider = RecordingProvider::from_responses(
+        vec![
+            crate::app::agent::providers::ChatResponse {
+                text: Some("capture absent approval context".to_string()),
+                tool_calls: vec![crate::app::agent::providers::ToolCall {
+                    id: "call-1".to_string(),
+                    name: "testcov_0091_context_capture".to_string(),
+                    arguments: "{}".to_string(),
+                }],
+                usage: None,
+                reasoning_content: None,
+            },
+            crate::app::agent::providers::ChatResponse {
+                text: Some("done".to_string()),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+        ],
+        Arc::clone(&calls),
+    );
+    let mut history = vec![ChatMessage::user("hello")];
+    let tools_registry: Vec<Box<dyn Tool>> = vec![Box::new(ContextCaptureTool)];
+    let observer = crate::app::agent::observability::NoopObserver;
+
+    let result = run_tool_call_loop_with_non_cli_approval_context(
+        &provider,
+        &mut history,
+        &tools_registry,
+        &observer,
+        "recording",
+        "turn-model",
+        0.0,
+        true,
+        None,
+        "telegram",
+        None,
+        &crate::app::agent::config::MultimodalConfig::default(),
+        3,
+        None,
+        None,
+        None,
+        None,
+        &[],
+    )
+    .await
+    .expect("missing non-cli approval context should still scope empty context");
+
+    assert_eq!(result, "done");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert!(
+        history.iter().any(|message| {
+            message.role == "tool" && message.content.contains("reply=unset;approval=unset")
+        }),
+        "tool result should show that no approval context was scoped"
     );
     assert!(TOOL_LOOP_REPLY_TARGET.try_with(|target| target.clone()).is_err());
     assert!(TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT.try_with(|ctx| ctx.clone()).is_err());

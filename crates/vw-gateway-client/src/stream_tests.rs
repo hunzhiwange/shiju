@@ -6,10 +6,58 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener};
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread::JoinHandle;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
 
 use super::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatUsage, GatewayTypedChatStreamEvent,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+
+#[cfg(not(target_arch = "wasm32"))]
+struct EnabledStreamTraceSubscriber;
+
+#[cfg(not(target_arch = "wasm32"))]
+impl tracing::Subscriber for EnabledStreamTraceSubscriber {
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        metadata.target() == "vw_gateway_client"
+    }
+
+    fn new_span(&self, _span: &tracing::span::Attributes<'_>) -> tracing::Id {
+        tracing::Id::from_u64(1)
+    }
+
+    fn record(&self, _span: &tracing::Id, _values: &tracing::span::Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &tracing::Id, _follows: &tracing::Id) {}
+
+    fn event(&self, _event: &tracing::Event<'_>) {}
+
+    fn enter(&self, _span: &tracing::Id) {}
+
+    fn exit(&self, _span: &tracing::Id) {}
+
+    fn register_callsite(
+        &self,
+        metadata: &'static tracing::Metadata<'static>,
+    ) -> tracing::subscriber::Interest {
+        if metadata.target() == "vw_gateway_client" {
+            tracing::subscriber::Interest::always()
+        } else {
+            tracing::subscriber::Interest::never()
+        }
+    }
+
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(tracing::metadata::LevelFilter::TRACE)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn enable_stream_trace() -> tracing::dispatcher::DefaultGuard {
+    tracing::subscriber::set_default(EnabledStreamTraceSubscriber)
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 struct StreamServer {
@@ -40,6 +88,34 @@ impl StreamServer {
         Self { addr, handle: Some(handle) }
     }
 
+    fn respond_without_content_length_until_client_closes(
+        status: &str,
+        body: &str,
+        read_timeout: Duration,
+    ) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("test server should bind");
+        let addr = listener.local_addr().expect("test server addr should be available");
+        let status = status.to_string();
+        let body = body.as_bytes().to_vec();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("test connection should be accepted");
+            let mut request = [0_u8; 4096];
+            let bytes_read = stream.read(&mut request).expect("request should be readable");
+            let request = String::from_utf8_lossy(&request[..bytes_read]).to_string();
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: text/event-stream\r\nConnection: keep-alive\r\n\r\n"
+            );
+            stream.write_all(response.as_bytes()).expect("headers should be written");
+            stream.write_all(&body).expect("body should be written");
+            stream.flush().expect("body should be flushed");
+            stream.set_read_timeout(Some(read_timeout)).expect("read timeout should be set");
+            let mut probe = [0_u8; 1];
+            let _ = stream.read(&mut probe);
+            request
+        });
+        Self { addr, handle: Some(handle) }
+    }
+
     fn endpoint(&self) -> crate::endpoint::GatewayEndpoint {
         crate::endpoint::GatewayEndpoint::new("127.0.0.1", self.addr.port())
     }
@@ -56,6 +132,17 @@ impl Drop for StreamServer {
             let _ = handle.join();
         }
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn assert_raw_tenant_headers(request: &str, platform_id: &str, company_id: &str) {
+    let header = |name: &str| {
+        request.lines().filter_map(|line| line.split_once(':')).find_map(|(header, value)| {
+            header.eq_ignore_ascii_case(name).then(|| value.trim().to_string())
+        })
+    };
+    assert_eq!(header(PLATFORM_ID_HEADER).as_deref(), Some(platform_id));
+    assert_eq!(header(COMPANY_ID_HEADER).as_deref(), Some(company_id));
 }
 
 #[test]
@@ -144,6 +231,21 @@ fn event_name_returns_stable_names() {
     );
     assert_eq!(super::event_name(&GatewayChatStreamEvent::Error(String::new())), "chat.error");
     assert_eq!(super::event_name(&GatewayChatStreamEvent::Other(json!({}))), "other");
+}
+
+#[test]
+fn terminal_stream_event_accepts_done_and_error_only() {
+    let done = GatewayChatStreamEvent::Done {
+        finish_reason: None,
+        usage: None,
+        message_id: None,
+        parent_message_id: None,
+    };
+
+    assert!(super::is_terminal_stream_event(&done));
+    assert!(super::is_terminal_stream_event(&GatewayChatStreamEvent::Error("failed".to_string())));
+    assert!(!super::is_terminal_stream_event(&GatewayChatStreamEvent::Delta(String::new())));
+    assert!(!super::is_terminal_stream_event(&GatewayChatStreamEvent::Other(json!({}))));
 }
 
 #[test]
@@ -364,6 +466,45 @@ fn structured_event_parsers_default_invalid_fields() {
     );
 }
 
+#[test]
+fn normalize_chat_stream_event_defaults_missing_usage_and_optional_titles() {
+    assert_eq!(
+        super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.usage_updated"
+        }))),
+        GatewayTypedChatStreamEvent::UsageUpdated {
+            session_id: None,
+            usage: GatewayChatUsage::default(),
+        }
+    );
+    assert_eq!(
+        super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.usage_updated",
+            "usage": {"bad": true}
+        }))),
+        GatewayTypedChatStreamEvent::UsageUpdated {
+            session_id: None,
+            usage: GatewayChatUsage::default(),
+        }
+    );
+    assert_eq!(
+        super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.title_updated"
+        }))),
+        GatewayTypedChatStreamEvent::TitleUpdated { session_id: None, title: String::new() }
+    );
+    assert_eq!(
+        super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.session_updated",
+            "session_id": "s7"
+        }))),
+        GatewayTypedChatStreamEvent::SessionUpdated {
+            session_id: Some("s7".to_string()),
+            title: None,
+        }
+    );
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn stream_chat_reads_sse_events_and_stops_when_callback_returns_false() {
@@ -372,7 +513,9 @@ async fn stream_chat_reads_sse_events_and_stops_when_callback_returns_false() {
         "data: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n\
          data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
     );
-    let endpoint = server.endpoint();
+    let endpoint = server
+        .endpoint()
+        .with_tenant_scope(TenantScope::new("platform-chat", "company-chat").expect("tenant"));
     let body = GatewayChatStreamRequest::default();
     let mut events = Vec::new();
 
@@ -386,6 +529,7 @@ async fn stream_chat_reads_sse_events_and_stops_when_callback_returns_false() {
 
     assert_eq!(events, vec![GatewayChatStreamEvent::Delta("a".to_string())]);
     assert!(request.starts_with("POST /v1/chat/stream?directory="));
+    assert_raw_tenant_headers(&request, "platform-chat", "company-chat");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -416,6 +560,7 @@ async fn stream_chat_skips_empty_payload_frames_and_collects_multiline_data() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn stream_chat_reports_http_and_json_errors() {
+    let _trace = enable_stream_trace();
     let mut http_server = StreamServer::respond("500 Internal Server Error", " down ");
     let http_error = super::stream_chat(
         &http_server.endpoint(),
@@ -442,15 +587,175 @@ async fn stream_chat_reports_http_and_json_errors() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn stream_chat_blocking_reads_events_and_honors_callback_stop() {
+#[tokio::test]
+async fn stream_chat_stops_on_terminal_event_without_waiting_for_socket_close() {
+    let _trace = enable_stream_trace();
+    let mut server = StreamServer::respond_without_content_length_until_client_closes(
+        "200 OK",
+        "data: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n\
+         data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
+        Duration::from_secs(2),
+    );
+    let endpoint = server.endpoint();
+    let body = GatewayChatStreamRequest::default();
+    let mut events = Vec::new();
+    let started = Instant::now();
+
+    super::stream_chat(&endpoint, None, &body, |event| {
+        events.push(event);
+        true
+    })
+    .await
+    .unwrap();
+    let elapsed = started.elapsed();
+    let request = server.join();
+
+    assert!(elapsed < Duration::from_secs(1), "stream should stop on chat.done: {elapsed:?}");
+    assert_eq!(
+        events,
+        vec![
+            GatewayChatStreamEvent::Delta("a".to_string()),
+            GatewayChatStreamEvent::Done {
+                finish_reason: Some("stop".to_string()),
+                usage: None,
+                message_id: None,
+                parent_message_id: None,
+            },
+        ]
+    );
+    assert_raw_tenant_headers(&request, "10000", "100000000");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn stream_chat_completes_when_server_closes_stream() {
+    let _trace = enable_stream_trace();
     let mut server =
-        StreamServer::respond("200 OK", "data: {\"type\":\"chat.delta\",\"delta\":\"b\"}\r\n\r\n");
+        StreamServer::respond("200 OK", "data: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n");
     let endpoint = server.endpoint();
     let body = GatewayChatStreamRequest::default();
     let mut events = Vec::new();
 
-    super::stream_chat_blocking(&endpoint, None, &body, |event| {
+    super::stream_chat(&endpoint, None, &body, |event| {
+        events.push(event);
+        true
+    })
+    .await
+    .unwrap();
+    let _ = server.join();
+
+    assert_eq!(events, vec![GatewayChatStreamEvent::Delta("a".to_string())]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn stream_chat_with_idle_timeout_delivers_events_within_window() {
+    let mut server = StreamServer::respond(
+        "200 OK",
+        "data: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n\
+         data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
+    );
+    let endpoint = server.endpoint();
+    let body = GatewayChatStreamRequest::default();
+    let mut events = Vec::new();
+
+    super::stream_chat_with_idle_timeout(&endpoint, None, &body, Duration::from_secs(5), |event| {
+        events.push(event);
+        true
+    })
+    .await
+    .unwrap();
+    let _ = server.join();
+
+    assert_eq!(
+        events,
+        vec![
+            GatewayChatStreamEvent::Delta("a".to_string()),
+            GatewayChatStreamEvent::Done {
+                finish_reason: Some("stop".to_string()),
+                usage: None,
+                message_id: None,
+                parent_message_id: None,
+            },
+        ]
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn stream_chat_blocking_with_idle_timeout_reports_response_gap() {
+    let mut server = StreamServer::respond_without_content_length_until_client_closes(
+        "200 OK",
+        "",
+        Duration::from_secs(2),
+    );
+    let endpoint = server.endpoint();
+    let body = GatewayChatStreamRequest::default();
+    let started = Instant::now();
+
+    let error = super::stream_chat_blocking_with_idle_timeout(
+        &endpoint,
+        None,
+        &body,
+        Duration::from_millis(50),
+        |_| true,
+    )
+    .unwrap_err();
+    let elapsed = started.elapsed();
+    let request = server.join();
+
+    assert!(elapsed < Duration::from_secs(1), "idle timeout should be prompt: {elapsed:?}");
+    assert!(error.contains("idle timeout"));
+    assert!(error.contains("without response"));
+    assert_raw_tenant_headers(&request, "10000", "100000000");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn stream_chat_with_idle_timeout_reports_response_gap() {
+    let mut server = StreamServer::respond_without_content_length_until_client_closes(
+        "200 OK",
+        "",
+        Duration::from_secs(2),
+    );
+    let endpoint = server.endpoint().with_tenant_scope(
+        TenantScope::new("platform-chat-timeout", "company-chat-timeout").expect("tenant"),
+    );
+    let body = GatewayChatStreamRequest::default();
+    let started = Instant::now();
+
+    let error = super::stream_chat_with_idle_timeout(
+        &endpoint,
+        None,
+        &body,
+        Duration::from_millis(50),
+        |_| true,
+    )
+    .await
+    .unwrap_err();
+    let elapsed = started.elapsed();
+    let request = server.join();
+
+    assert!(elapsed < Duration::from_secs(1), "idle timeout should be prompt: {elapsed:?}");
+    assert!(error.contains("idle timeout"));
+    assert!(error.contains("without response"));
+    assert!(request.starts_with("POST /v1/chat/stream HTTP/1.1"));
+    assert_raw_tenant_headers(&request, "platform-chat-timeout", "company-chat-timeout");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn stream_chat_blocking_reads_events_and_honors_callback_stop() {
+    let _trace = enable_stream_trace();
+    let mut server =
+        StreamServer::respond("200 OK", "data: {\"type\":\"chat.delta\",\"delta\":\"b\"}\r\n\r\n");
+    let endpoint = server.endpoint().with_tenant_scope(
+        TenantScope::new("platform-chat-blocking", "company-chat-blocking").expect("tenant"),
+    );
+    let body = GatewayChatStreamRequest::default();
+    let mut events = Vec::new();
+
+    super::stream_chat_blocking(&endpoint, Some(" /blocking/project "), &body, |event| {
         events.push(event);
         false
     })
@@ -458,12 +763,74 @@ fn stream_chat_blocking_reads_events_and_honors_callback_stop() {
     let request = server.join();
 
     assert_eq!(events, vec![GatewayChatStreamEvent::Delta("b".to_string())]);
+    assert!(request.starts_with("POST /v1/chat/stream?directory="));
+    assert_raw_tenant_headers(&request, "platform-chat-blocking", "company-chat-blocking");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn stream_chat_blocking_stops_after_done_without_waiting_for_socket_close() {
+    let _trace = enable_stream_trace();
+    let mut server = StreamServer::respond_without_content_length_until_client_closes(
+        "200 OK",
+        "data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
+        Duration::from_secs(2),
+    );
+    let endpoint = server.endpoint();
+    let body = GatewayChatStreamRequest::default();
+    let mut events = Vec::new();
+    let started = Instant::now();
+
+    super::stream_chat_blocking(&endpoint, None, &body, |event| {
+        events.push(event);
+        true
+    })
+    .unwrap();
+    let elapsed = started.elapsed();
+    let request = server.join();
+
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "stream should stop on chat.done, elapsed={elapsed:?}"
+    );
+    assert_eq!(
+        events,
+        vec![GatewayChatStreamEvent::Done {
+            finish_reason: Some("stop".to_string()),
+            usage: None,
+            message_id: None,
+            parent_message_id: None,
+        }]
+    );
     assert!(request.starts_with("POST /v1/chat/stream HTTP/1.1"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn stream_chat_blocking_completes_when_server_closes_stream() {
+    let _trace = enable_stream_trace();
+    let mut server = StreamServer::respond(
+        "200 OK",
+        "event: ping\r\n\r\ndata: {\"type\":\"chat.delta\",\"delta\":\"c\"}\r\n\r\n",
+    );
+    let endpoint = server.endpoint();
+    let body = GatewayChatStreamRequest::default();
+    let mut events = Vec::new();
+
+    super::stream_chat_blocking(&endpoint, None, &body, |event| {
+        events.push(event);
+        true
+    })
+    .unwrap();
+    let _ = server.join();
+
+    assert_eq!(events, vec![GatewayChatStreamEvent::Delta("c".to_string())]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn stream_chat_blocking_reports_http_and_json_errors() {
+    let _trace = enable_stream_trace();
     let mut http_server = StreamServer::respond("503 Service Unavailable", "offline");
     let http_error = super::stream_chat_blocking(
         &http_server.endpoint(),

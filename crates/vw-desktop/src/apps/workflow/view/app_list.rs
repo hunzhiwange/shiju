@@ -6,6 +6,10 @@ use iced::widget::{column, row};
 
 const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 38.0;
 const SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT: f32 = 20.0;
+const SAVED_APP_RUN_PROMPT_WIDTH: f32 = 520.0;
+const SAVED_APP_RUN_PROMPT_FORM_MAX_HEIGHT: f32 = 440.0;
+const SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH: f32 = 4.0;
+const SAVED_APP_RUN_PROMPT_SCROLLBAR_GUTTER: f32 = 12.0;
 
 /// 构建 saved apps view 对应的界面元素。
 ///
@@ -191,6 +195,8 @@ fn build_saved_app_card(
     let enabled = state.opening_saved_app_uuid.is_none();
     let copied = state.copied_saved_app_uuid.as_deref() == Some(app.uuid.as_str());
     let deleting = state.deleting_saved_app_uuid.as_deref() == Some(app.uuid.as_str());
+    let running = state.running_saved_app_uuid.as_deref() == Some(app.uuid.as_str());
+    let run_blocked = state.running_saved_app_uuid.is_some();
     let actions_open = state.saved_app_actions_menu_uuid.as_deref() == Some(app.uuid.as_str());
 
     let open_area = button(
@@ -217,7 +223,7 @@ fn build_saved_app_card(
     .on_press_maybe(
         enabled.then_some(Message::WorkflowTool(WorkflowMessage::OpenSavedApp(uuid.clone()))),
     );
-    let actions = build_saved_app_actions_menu(uuid, actions_open, deleting);
+    let actions = build_saved_app_actions_menu(uuid, actions_open, deleting, running, run_blocked);
 
     container(
         column![
@@ -226,7 +232,13 @@ fn build_saved_app_card(
             row![
                 saved_app_tag("内部应用"),
                 saved_app_tag("工作流"),
-                if opening { saved_app_tag("打开中") } else { saved_app_tag("正式") },
+                if opening {
+                    saved_app_tag("打开中")
+                } else if running {
+                    saved_app_tag("运行中")
+                } else {
+                    saved_app_tag("正式")
+                },
             ]
             .spacing(6)
             .wrap(),
@@ -245,6 +257,8 @@ fn build_saved_app_actions_menu(
     uuid: String,
     actions_open: bool,
     deleting: bool,
+    running: bool,
+    run_blocked: bool,
 ) -> Element<'static, Message> {
     let trigger = button(
         container(
@@ -266,6 +280,13 @@ fn build_saved_app_actions_menu(
     .height(Length::Fixed(32.0))
     .on_press(Message::WorkflowTool(WorkflowMessage::ToggleSavedAppActions(uuid.clone())));
 
+    let run_item = build_saved_app_action_item(
+        Icon::ArrowRepeat,
+        if running { "运行中" } else { "运行" },
+        saved_app_run_action_message(uuid.clone(), run_blocked),
+        false,
+    );
+
     let delete_message = (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid));
     let delete_item = build_saved_app_action_item(
         Icon::Trash,
@@ -276,7 +297,7 @@ fn build_saved_app_actions_menu(
 
     PointBelowOverlay::new(
         trigger,
-        container(column![delete_item].spacing(4).width(Length::Fill))
+        container(column![run_item, delete_item].spacing(4).width(Length::Fill))
             .width(Length::Fixed(142.0))
             .padding(6)
             .style(saved_app_actions_menu_style),
@@ -287,6 +308,10 @@ fn build_saved_app_actions_menu(
     .on_close(Message::WorkflowTool(WorkflowMessage::CloseSavedAppActions))
     .capture_outside_click(false)
     .into()
+}
+
+fn saved_app_run_action_message(uuid: String, run_blocked: bool) -> Option<WorkflowMessage> {
+    (!run_blocked).then_some(WorkflowMessage::OpenSavedAppRunPrompt(uuid))
 }
 
 fn build_saved_app_action_item(
@@ -393,6 +418,209 @@ pub(super) fn build_saved_app_delete_confirm_dialog(
         Message::WorkflowTool(WorkflowMessage::DeleteSavedApp(uuid.to_string())),
         Message::WorkflowTool(WorkflowMessage::CancelDeleteSavedApp),
     ))
+}
+
+pub(super) fn build_saved_app_run_prompt_dialog(
+    state: &WorkflowState,
+) -> Option<Element<'_, Message>> {
+    let prompt = state.saved_app_run_prompt.as_ref()?;
+    let app_name = state
+        .saved_apps
+        .iter()
+        .find(|app| app.uuid == prompt.uuid)
+        .map(|app| saved_app_title(&app.name))
+        .unwrap_or_else(|| "该应用".to_string());
+
+    let header = row![
+        column![
+            text("运行工作流").size(22),
+            text(format!("为「{app_name}」填写本次运行参数"))
+                .size(12)
+                .style(settings_muted_text_style),
+        ]
+        .spacing(4),
+        Space::new().width(Length::Fill),
+        settings_close_button(Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt)),
+    ]
+    .align_y(Alignment::Center);
+
+    let mut form = column![].spacing(16).width(Length::Fill);
+
+    if !prompt.loading && !saved_app_run_prompt_has_query_input(prompt) {
+        form = form.push(build_editor_field(
+            "query",
+            workflow_text_input("输入本次运行的 query", &prompt.query, |value| {
+                Message::WorkflowTool(WorkflowMessage::SavedAppRunQueryChanged(value))
+            }),
+        ));
+    }
+
+    form = form.push(build_saved_app_run_inputs(prompt));
+
+    if let Some(error) = &prompt.error {
+        form = form.push(
+            container(text(error).size(12))
+                .width(Length::Fill)
+                .padding([9, 12])
+                .style(workflow_run_prompt_error_style),
+        );
+    }
+
+    let form_scroll = container(
+        scrollable(container(form).width(Length::Fill).padding(iced::Padding {
+            top: 0.0,
+            right: SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH + SAVED_APP_RUN_PROMPT_SCROLLBAR_GUTTER,
+            bottom: 0.0,
+            left: 0.0,
+        }))
+        .direction(Direction::Vertical(
+            Scrollbar::new()
+                .width(SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH)
+                .scroller_width(SAVED_APP_RUN_PROMPT_SCROLLBAR_WIDTH),
+        ))
+        .height(Length::Shrink),
+    )
+    .width(Length::Fill)
+    .max_height(SAVED_APP_RUN_PROMPT_FORM_MAX_HEIGHT);
+
+    let footer = row![
+        Space::new().width(Length::Fill),
+        button(text("取消"))
+            .style(rounded_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt)),
+        button(text("运行"))
+            .style(primary_action_btn_style)
+            .padding([9, 14])
+            .on_press(Message::WorkflowTool(WorkflowMessage::SubmitSavedAppRunPrompt)),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
+
+    let card = container(column![header, form_scroll, footer].spacing(18).width(Length::Fill))
+        .width(Length::Fixed(SAVED_APP_RUN_PROMPT_WIDTH))
+        .padding([22, 24])
+        .style(settings_modal_card_style);
+
+    Some(settings_modal_overlay(
+        None,
+        Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt),
+        card,
+    ))
+}
+
+fn build_saved_app_run_inputs(prompt: &state::WorkflowRunPromptDraft) -> Element<'_, Message> {
+    let mut rows = column![].spacing(8).width(Length::Fill);
+
+    if prompt.loading {
+        rows = rows.push(text("正在读取运行参数...").size(12).style(settings_muted_text_style));
+    } else if prompt.inputs.iter().all(|input| input.hidden) {
+        rows = rows.push(text("没有额外参数").size(12).style(settings_muted_text_style));
+    }
+
+    for (index, input) in prompt.inputs.iter().enumerate() {
+        if !input.hidden {
+            rows = rows.push(build_saved_app_run_input_field(index, input));
+        }
+    }
+
+    build_editor_field("inputs", rows.into())
+}
+
+fn build_saved_app_run_input_field(
+    index: usize,
+    input: &state::WorkflowRunInputDraft,
+) -> Element<'_, Message> {
+    let label = if input.required {
+        format!("{} *", saved_app_run_input_label(input))
+    } else {
+        saved_app_run_input_label(input)
+    };
+    let meta = row![
+        text(label).size(12).style(settings_muted_text_style),
+        settings_value_badge(start_variable_value_type_label(&input.input_type)),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    column![meta, build_saved_app_run_input_control(index, input)]
+        .spacing(6)
+        .width(Length::Fill)
+        .into()
+}
+
+fn build_saved_app_run_input_control(
+    index: usize,
+    input: &state::WorkflowRunInputDraft,
+) -> Element<'_, Message> {
+    match input.input_type.as_str() {
+        "checkbox" => row![
+            toggler(input.value.trim().eq_ignore_ascii_case("true")).on_toggle(move |value| {
+                Message::WorkflowTool(WorkflowMessage::SavedAppRunInputToggled(index, value))
+            }),
+            text(saved_app_run_input_placeholder(input)).size(12).style(settings_muted_text_style),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .into(),
+        "select" if !input.options.is_empty() => {
+            let options = input.options.clone();
+            let selected =
+                options.iter().find(|option| option.as_str() == input.value.trim()).cloned();
+            pick_list(options, selected, move |value| {
+                Message::WorkflowTool(WorkflowMessage::SavedAppRunInputChanged(index, value))
+            })
+            .padding([9, 12])
+            .text_size(13)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fill)
+            .into()
+        }
+        _ => text_input(saved_app_run_input_placeholder(input), &input.value)
+            .on_input(move |value| {
+                Message::WorkflowTool(WorkflowMessage::SavedAppRunInputChanged(index, value))
+            })
+            .padding([9, 12])
+            .size(13)
+            .style(settings_text_input_style)
+            .width(Length::Fill)
+            .into(),
+    }
+}
+
+fn saved_app_run_prompt_has_query_input(prompt: &state::WorkflowRunPromptDraft) -> bool {
+    prompt.inputs.iter().any(|input| input.name == "query")
+}
+
+fn saved_app_run_input_label(input: &state::WorkflowRunInputDraft) -> String {
+    if input.label.trim().is_empty() { input.name.clone() } else { input.label.clone() }
+}
+
+fn saved_app_run_input_placeholder(input: &state::WorkflowRunInputDraft) -> &str {
+    if !input.placeholder.trim().is_empty() {
+        return input.placeholder.as_str();
+    }
+    match input.input_type.as_str() {
+        "number" => "请输入数字",
+        "file" => "输入文件 URL 或路径",
+        "file-list" => "输入文件 URL 或路径，逗号分隔",
+        _ if !input.hint.trim().is_empty() => input.hint.as_str(),
+        _ => "请输入",
+    }
+}
+
+fn workflow_run_prompt_error_style(theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(theme.extended_palette().danger.weak.color)),
+        text_color: Some(theme.extended_palette().danger.strong.color),
+        border: Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: theme.extended_palette().danger.base.color.scale_alpha(0.5),
+        },
+        ..Default::default()
+    }
 }
 
 fn build_saved_apps_notice(message: &'static str) -> Element<'static, Message> {

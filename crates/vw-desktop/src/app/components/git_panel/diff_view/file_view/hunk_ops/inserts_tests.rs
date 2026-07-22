@@ -2,7 +2,7 @@ use iced::Color;
 
 use crate::app::components::git_panel::diff_view::DiffRenderCtx;
 use crate::app::components::git_panel::utils::Lang;
-use crate::app::state::GitDiffSelectedLine;
+use crate::app::state::{GitDiffLineRange, GitDiffSelectedLine};
 use crate::app::{App, DiffTheme};
 
 fn colors() -> (Color, Color, Color) {
@@ -68,7 +68,7 @@ fn render_insert_ops_tolerates_missing_source_lines_and_zero_len() {
 }
 
 #[test]
-fn render_insert_ops_covers_selected_staged_and_hovered_branches() {
+fn render_insert_ops_covers_explicit_selection_and_line_staging() {
     let mut app = App::new().0;
     app.staged_lines_selected = vec![("src/lib.rs".to_string(), 0)];
     app.git_diff_selected_lines = vec![GitDiffSelectedLine {
@@ -77,10 +77,24 @@ fn render_insert_ops_covers_selected_staged_and_hovered_branches() {
         is_old: false,
         text: "new one".to_string(),
     }];
+
+    assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["new one"]), 1);
+}
+
+#[test]
+fn render_insert_ops_covers_hover_and_file_staging_without_selection() {
+    let mut app = App::new().0;
     app.git_diff_hovered_line = Some(("src/lib.rs".to_string(), 0, false));
-
-    assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["new one"]), 1);
-
     app.staged_files_selected = vec!["src/lib.rs".to_string()];
+
     assert_eq!(render_count(&app, "src/lib.rs", 0, 1, &["new one"]), 1);
+}
+
+#[test]
+fn render_insert_ops_handles_range_selection_empty_and_unicode_content() {
+    let mut app = App::new().0;
+    app.git_diff_selected_range =
+        Some(GitDiffLineRange { file: "src/lib.rs".to_string(), start: 1, end: 2, is_old: false });
+
+    assert_eq!(render_count(&app, "src/lib.rs", 1, 2, &["keep", "", "新增行"]), 2);
 }

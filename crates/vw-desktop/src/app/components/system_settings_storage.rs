@@ -4,9 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
@@ -162,7 +162,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
-    let mut content = column![
+    let content = column![
         settings_page_intro("存储配置", "配置存储后端、连接串、schema、表名和连接超时。"),
         settings_section_card("连接参数", "选择数据库类型并配置基础连接信息。"),
         settings_panel(column![provider_row, settings_divider(), db_url_row].spacing(0)),
@@ -178,10 +178,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
-    }
 
     content.into()
 }

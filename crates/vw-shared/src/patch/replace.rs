@@ -26,7 +26,7 @@ fn try_match(
     compare: impl Fn(&str, &str) -> bool,
     eof: bool,
 ) -> Option<usize> {
-    if pattern.is_empty() {
+    if pattern.is_empty() || lines.len() < pattern.len() {
         return None;
     }
 
@@ -42,7 +42,12 @@ fn try_match(
         }
     }
 
-    for index in start_index..=lines.len().saturating_sub(pattern.len()) {
+    let last_start = lines.len() - pattern.len();
+    if start_index > last_start {
+        return None;
+    }
+
+    for index in start_index..=last_start {
         let ok = pattern
             .iter()
             .enumerate()

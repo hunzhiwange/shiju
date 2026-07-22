@@ -149,6 +149,8 @@ pub struct LarkChannel {
     mention_only: bool,
     /// 平台类型（Lark 或飞书）
     platform: LarkPlatform,
+    #[cfg(test)]
+    api_base_override: Option<String>,
     /// 事件接收模式：WebSocket 长连接或 HTTP Webhook
     receive_mode: crate::app::agent::config::schema::LarkReceiveMode,
     /// 缓存的租户访问令牌
@@ -244,6 +246,8 @@ impl LarkChannel {
             resolved_bot_open_id: Arc::new(StdRwLock::new(None)),
             mention_only,
             platform,
+            #[cfg(test)]
+            api_base_override: None,
             receive_mode: crate::app::agent::config::schema::LarkReceiveMode::default(),
             tenant_token: Arc::new(RwLock::new(None)),
             ws_seen_ids: Arc::new(RwLock::new(HashMap::new())),
@@ -365,8 +369,19 @@ impl LarkChannel {
     /// 获取 API 基础 URL
     ///
     /// 根据平台类型返回对应的 Open API 基础地址。
-    fn api_base(&self) -> &'static str {
+    fn api_base(&self) -> &str {
+        #[cfg(test)]
+        if let Some(api_base) = self.api_base_override.as_deref() {
+            return api_base;
+        }
+
         self.platform.api_base()
+    }
+
+    #[cfg(test)]
+    fn with_api_base(mut self, api_base: String) -> Self {
+        self.api_base_override = Some(api_base.trim_end_matches('/').to_string());
+        self
     }
 
     /// 获取 WebSocket 基础 URL
@@ -546,6 +561,9 @@ impl Channel for LarkChannel {
     }
 }
 
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

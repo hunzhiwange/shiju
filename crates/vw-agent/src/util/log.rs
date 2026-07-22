@@ -288,13 +288,18 @@ fn log_dir() -> PathBuf {
 /// });
 /// ```
 pub fn init(options: InitOptions) {
+    let dir = log_dir();
+    init_in_dir(options, &dir);
+}
+
+fn init_in_dir(options: InitOptions, dir: &Path) {
     // 设置日志级别
     if let Some(lv) = options.level {
         LEVEL.store(lv.priority(), Ordering::Relaxed);
     }
 
     // 清理旧的日志文件
-    cleanup(&log_dir());
+    cleanup(dir);
 
     // 如果配置为打印模式，输出到 stderr
     if options.print {
@@ -310,10 +315,10 @@ pub fn init(options: InitOptions) {
     // 确定日志文件名：开发模式使用固定名称，生产模式使用时间戳
     let name =
         if options.dev { "dev.log".to_string() } else { format!("{}.log", iso_file_stamp_utc()) };
-    let path = log_dir().join(name);
+    let path = dir.join(name);
 
     // 确保日志目录存在
-    let _ = std::fs::create_dir_all(log_dir());
+    let _ = std::fs::create_dir_all(dir);
 
     // 清空现有文件（如果存在）
     let _ = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(&path);

@@ -9,7 +9,7 @@ use super::changes::{
     apply_bool_change, apply_number_change, apply_receive_mode_change, apply_text_change,
 };
 use super::persist::persist_channels_settings;
-use super::toggles::toggle_enabled;
+use super::toggles::{add_channel_instance, remove_channel_instance, toggle_enabled};
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
@@ -45,6 +45,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         ChannelsMessage::EnabledToggled(channel, enabled) => {
             toggle_enabled(app, &channel, enabled);
+            app.channels_settings.refresh_text_inputs();
+            persist_channels_settings(app).unwrap_or_else(Task::none)
+        }
+        ChannelsMessage::InstanceAdded(channel) => {
+            add_channel_instance(app, &channel);
+            app.channels_settings.refresh_text_inputs();
+            persist_channels_settings(app).unwrap_or_else(Task::none)
+        }
+        ChannelsMessage::InstanceRemoved(channel, index) => {
+            remove_channel_instance(app, &channel, index);
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }

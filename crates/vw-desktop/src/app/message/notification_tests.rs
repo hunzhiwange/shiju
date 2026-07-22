@@ -9,6 +9,21 @@ fn test_app() -> App {
 }
 
 #[test]
+fn add_preserves_message_id_and_collapsed_state() {
+    let mut app = test_app();
+    app.next_notification_id = 41;
+
+    let _ = update(&mut app, NotificationMessage::Add("notice text".to_string()));
+
+    assert_eq!(app.next_notification_id, 42);
+    assert_eq!(app.notifications.len(), 1);
+    assert_eq!(app.notifications[0].id, 41);
+    assert_eq!(app.notifications[0].message, "notice text");
+    assert_eq!(app.notification_editors[&41].text(), "notice text");
+    assert!(!app.notifications_expanded);
+}
+
+#[test]
 fn add_remove_toggle_and_clear_keep_editors_in_sync() {
     let mut app = test_app();
 
@@ -39,6 +54,26 @@ fn add_remove_toggle_and_clear_keep_editors_in_sync() {
     assert!(app.notification_editors.is_empty());
     assert_eq!(app.copied_notification_id, None);
     assert!(!app.notifications_expanded);
+}
+
+#[test]
+fn remove_copied_notification_clears_matching_feedback_and_preserves_others() {
+    let mut app = test_app();
+    let _ = update(&mut app, NotificationMessage::Add("first".to_string()));
+    let _ = update(&mut app, NotificationMessage::Add("second".to_string()));
+    let first_id = app.notifications[0].id;
+    let second_id = app.notifications[1].id;
+    app.copied_notification_id = Some(first_id);
+    app.notifications_expanded = true;
+
+    let _ = update(&mut app, NotificationMessage::Remove(first_id));
+
+    assert_eq!(app.copied_notification_id, None);
+    assert!(!app.notification_editors.contains_key(&first_id));
+    assert_eq!(app.notifications.len(), 1);
+    assert_eq!(app.notifications[0].id, second_id);
+    assert!(app.notification_editors.contains_key(&second_id));
+    assert!(app.notifications_expanded);
 }
 
 #[test]

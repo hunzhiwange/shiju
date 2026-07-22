@@ -152,3 +152,17 @@ fn submission_tool_terminal_overlay_and_scroll_actions_are_reduced() {
     assert_eq!(state.status.last_error.as_deref(), Some("sync failed"));
     assert!(state.tasks.todo_overlay.is_some());
 }
+
+#[test]
+fn session_preview_actions_clear_and_refresh_derived_metadata() {
+    let mut state = TuiState::from_chat_session(&snapshot("s1"));
+    assert!(state.session.preview.is_some());
+
+    reduce_tui_state(&mut state, TuiAction::SessionPreviewSet(None));
+    assert!(state.session.preview.is_none());
+
+    reduce_tui_state(&mut state, TuiAction::SessionUpdatedMsSet(77));
+
+    assert_eq!(state.session.updated_ms, 77);
+    assert_eq!(state.session.preview.as_ref().map(|preview| preview.updated_ms), Some(77));
+}

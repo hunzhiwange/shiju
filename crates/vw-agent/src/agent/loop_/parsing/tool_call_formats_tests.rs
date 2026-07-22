@@ -147,6 +147,18 @@ fn text_argument_normalization_prefers_primary_aliases_and_hints() {
         normalize_tool_arguments("grep", serde_json::json!(42), Some("needle")),
         serde_json::json!({"pattern": "needle"})
     );
+    assert_eq!(
+        normalize_tool_arguments("grep", serde_json::json!({"input": "  needle  "}), None),
+        serde_json::json!({"input": "  needle  ", "pattern": "needle"})
+    );
+    assert_eq!(
+        normalize_tool_arguments("codesearch", serde_json::json!({"query": "  Symbol  "}), None),
+        serde_json::json!({"query": "  Symbol  "})
+    );
+    assert_eq!(
+        normalize_tool_arguments("glob", serde_json::json!({"pattern": "   "}), Some("  *.rs  ")),
+        serde_json::json!({"pattern": "*.rs"})
+    );
 }
 
 #[test]
@@ -166,6 +178,13 @@ fn parses_xml_attribute_tool_calls_and_skips_empty_argument_sets() {
     assert_eq!(calls[1].arguments["path"], "Cargo.toml");
     assert!(calls[0].tool_call_id.is_none());
     assert!(parse_xml_attribute_tool_calls("<invoke name=\"shell\"></invoke>").is_empty());
+
+    let empty_value_calls = parse_xml_attribute_tool_calls(
+        r#"<invoke name="send_message"><parameter name="body"></parameter></invoke>"#,
+    );
+    assert_eq!(empty_value_calls.len(), 1);
+    assert_eq!(empty_value_calls[0].name, "message_send");
+    assert_eq!(empty_value_calls[0].arguments["body"], "");
 }
 
 #[test]
@@ -184,13 +203,23 @@ fn parses_perl_style_tool_calls_and_ignores_incomplete_blocks() {
         TOOL_CALL
         {tool => "bash", args => {}}}
         /TOOL_CALL
+        TOOL_CALL
+        {tool => "file_read"}}
+        /TOOL_CALL
+        TOOL_CALL
+        {tool => "file_read", args => {
+          --path "/tmp/readme.md"
+        }}}
+        /TOOL_CALL
         "#,
     );
 
-    assert_eq!(calls.len(), 1);
+    assert_eq!(calls.len(), 2);
     assert_eq!(calls[0].name, "shell");
     assert_eq!(calls[0].arguments["command"], "ls -la");
     assert_eq!(calls[0].arguments["description"], "List files");
+    assert_eq!(calls[1].name, "file_read");
+    assert_eq!(calls[1].arguments["path"], "/tmp/readme.md");
 }
 
 #[test]
@@ -413,4 +442,54 @@ fn glm_shortened_body_parses_single_value_for_shell_http_and_default_params() {
     assert_eq!(unsafe_shell_url.arguments["command"], "https://bad host");
 
     assert!(parse_glm_shortened_body("bash>").is_none());
+}
+
+#[test]
+fn shell_argument_normalization_handles_remaining_aliases_and_invalid_urls() {
+    for (alias, expected) in [
+        ("shell_command", "echo shell"),
+        ("command_line", "echo line"),
+        ("bash", "echo bash"),
+        ("sh", "echo sh"),
+        ("input", "echo input"),
+    ] {
+        let arguments = serde_json::json!({ alias: expected });
+
+        assert_eq!(normalize_shell_arguments(arguments, None)["command"], expected);
+    }
+
+    assert_eq!(
+        normalize_shell_arguments(
+            serde_json::json!({"command": "   ", "url": "https://bad host"}),
+            None,
+        )["command"],
+        "https://bad host"
+    );
+}
+
+#[test]
+fn glm_style_lines_keep_json_payloads_and_unknown_tool_names() {
+    let calls = parse_glm_style_tool_calls(
+        r#"
+        custom_tool/input>value
+        bash/{"cmd":"pwd"}
+        "#,
+    );
+
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].0, "custom_tool");
+    assert_eq!(calls[0].1, serde_json::json!({"input": "value"}));
+    assert_eq!(calls[1].0, "shell");
+    assert_eq!(calls[1].1, serde_json::json!({"cmd": "pwd"}));
+}
+
+#[test]
+fn glm_shortened_body_handles_attribute_parser_edges() {
+    let partial =
+        parse_glm_shortened_body(r#"custom_tool first="1" second="unterminated"#).unwrap();
+    assert_eq!(partial.name, "custom_tool");
+    assert_eq!(partial.arguments, serde_json::json!({"first": "1"}));
+
+    let empty_key = parse_glm_shortened_body(r#"custom_tool ="x" />"#).unwrap();
+    assert_eq!(empty_key.arguments, serde_json::json!({"input": r#"="x""#}));
 }

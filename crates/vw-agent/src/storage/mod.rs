@@ -107,7 +107,7 @@ fn now_ms() -> u64 {
 async fn state() -> &'static StorageState {
     STATE
         .get_or_init(|| async {
-            let dir = global::paths().data.join("storage");
+            let dir = storage_root_dir();
             let _ = tokio::fs::create_dir_all(&dir).await;
 
             let migration_path = dir.join("migration");
@@ -142,6 +142,16 @@ async fn state() -> &'static StorageState {
             StorageState { dir }
         })
         .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn storage_root_dir() -> PathBuf {
+    storage_root_dir_for_home(&global::paths().home)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn storage_root_dir_for_home(home: &Path) -> PathBuf {
+    vw_config_types::paths::home_config_dir(home).join("storage")
 }
 
 #[cfg(not(target_arch = "wasm32"))]

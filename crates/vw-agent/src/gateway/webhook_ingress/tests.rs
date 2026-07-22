@@ -2,6 +2,7 @@ use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};
+use crate::app::agent::observability::traits::{Observer, ObserverEvent, ObserverMetric};
 use crate::app::agent::providers::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use async_trait::async_trait;
@@ -52,8 +53,89 @@ impl Provider for FailingProvider {
 }
 
 #[derive(Default)]
+struct FailingStoreMemory {
+    store_calls: AtomicUsize,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Memory for FailingStoreMemory {
+    fn name(&self) -> &str {
+        "failing-store"
+    }
+
+    async fn store(
+        &self,
+        _key: &str,
+        _content: &str,
+        _category: MemoryCategory,
+        _session_id: Option<&str>,
+    ) -> anyhow::Result<()> {
+        self.store_calls.fetch_add(1, Ordering::SeqCst);
+        anyhow::bail!("memory store unavailable")
+    }
+
+    async fn recall(
+        &self,
+        _query: &str,
+        _limit: usize,
+        _session_id: Option<&str>,
+    ) -> anyhow::Result<Vec<MemoryEntry>> {
+        Ok(Vec::new())
+    }
+
+    async fn get(&self, _key: &str) -> anyhow::Result<Option<MemoryEntry>> {
+        Ok(None)
+    }
+
+    async fn list(
+        &self,
+        _category: Option<&MemoryCategory>,
+        _session_id: Option<&str>,
+    ) -> anyhow::Result<Vec<MemoryEntry>> {
+        Ok(Vec::new())
+    }
+
+    async fn forget(&self, _key: &str) -> anyhow::Result<bool> {
+        Ok(false)
+    }
+
+    async fn count(&self) -> anyhow::Result<usize> {
+        Ok(0)
+    }
+
+    async fn health_check(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Default)]
 struct TrackingMemory {
     entries: Mutex<Vec<(String, String, MemoryCategory)>>,
+}
+
+#[derive(Default)]
+struct RecordingObserver {
+    events: Mutex<Vec<ObserverEvent>>,
+    metrics: Mutex<Vec<ObserverMetric>>,
+}
+
+impl Observer for RecordingObserver {
+    fn record_event(&self, event: &ObserverEvent) {
+        self.events.lock().push(event.clone());
+    }
+
+    fn record_metric(&self, metric: &ObserverMetric) {
+        self.metrics.lock().push(metric.clone());
+    }
+
+    fn name(&self) -> &str {
+        "recording"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -197,6 +279,12 @@ fn extract_webhook_secret_header_hash_trims_and_hashes_nonempty_secret() {
         extract_webhook_secret_header_hash(&headers),
         Some(hash_webhook_secret("shared-secret"))
     );
+
+    headers.insert(
+        "X-Webhook-Secret",
+        HeaderValue::from_bytes(b"\xff").expect("invalid utf-8 header value should build"),
+    );
+    assert_eq!(extract_webhook_secret_header_hash(&headers), None);
 }
 
 #[test]
@@ -243,6 +331,23 @@ fn enforce_idempotency_allows_missing_and_first_key_then_rejects_duplicate() {
 }
 
 #[test]
+fn enforce_idempotency_treats_trimmed_equivalent_keys_as_duplicates() {
+    let state = basic_state();
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Idempotency-Key", HeaderValue::from_static("  normalized-key  "));
+
+    assert!(enforce_idempotency(&state, &headers).is_none());
+
+    headers.insert("X-Idempotency-Key", HeaderValue::from_static("normalized-key"));
+    let (status, body) = payload(
+        enforce_idempotency(&state, &headers).expect("trim-equivalent key should be duplicate"),
+    );
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "duplicate");
+    assert_eq!(body["message"], "Request already processed for this idempotency key");
+}
+
+#[test]
 fn enforce_rate_limit_returns_retry_after_after_limit_is_exceeded() {
     let state = state_with(
         Arc::new(StaticProvider::default()),
@@ -262,6 +367,26 @@ fn enforce_rate_limit_returns_retry_after_after_limit_is_exceeded() {
 
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(body["retry_after"], RATE_LIMIT_WINDOW_SECS);
+}
+
+#[test]
+fn enforce_rate_limit_scopes_limits_to_each_peer_address() {
+    let state = state_with(
+        Arc::new(StaticProvider::default()),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        1,
+        false,
+    );
+    let headers = HeaderMap::new();
+    let first_peer = peer("192.0.2.10");
+    let second_peer = peer("192.0.2.11");
+
+    assert!(enforce_rate_limit(&state, first_peer, &headers).is_none());
+    assert!(enforce_rate_limit(&state, second_peer, &headers).is_none());
+    assert!(enforce_rate_limit(&state, first_peer, &headers).is_some());
+    assert!(enforce_rate_limit(&state, second_peer, &headers).is_some());
 }
 
 #[test]
@@ -325,6 +450,40 @@ fn authorize_webhook_request_requires_matching_webhook_secret_when_configured() 
     assert!(authorize_webhook_request(&state, peer("203.0.113.10"), &headers).is_none());
 }
 
+#[test]
+fn authorize_webhook_request_requires_both_credentials_when_both_are_configured() {
+    let paired_token = "paired-token".to_string();
+    let state = state_with(
+        Arc::new(StaticProvider::default()),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(true, std::slice::from_ref(&paired_token)),
+        Some(Arc::from(hash_webhook_secret("shared-secret"))),
+        100,
+        false,
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Webhook-Secret", HeaderValue::from_static("shared-secret"));
+
+    let (status, body) = payload(
+        authorize_webhook_request(&state, peer("203.0.113.10"), &headers)
+            .expect("webhook secret alone should not bypass gateway auth"),
+    );
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body["error"].as_str().expect("error should be string").contains("valid skey"));
+
+    headers.remove("X-Webhook-Secret");
+    headers.insert(header::AUTHORIZATION, HeaderValue::from_static("Bearer paired-token"));
+    let (status, body) = payload(
+        authorize_webhook_request(&state, peer("203.0.113.10"), &headers)
+            .expect("gateway auth alone should not bypass webhook secret"),
+    );
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(body["error"].as_str().expect("error should be string").contains("X-Webhook-Secret"));
+
+    headers.insert("X-Webhook-Secret", HeaderValue::from_static("shared-secret"));
+    assert!(authorize_webhook_request(&state, peer("203.0.113.10"), &headers).is_none());
+}
+
 #[tokio::test]
 async fn maybe_persist_inbound_message_skips_when_auto_save_is_disabled() {
     let tracking = Arc::new(TrackingMemory::default());
@@ -364,6 +523,35 @@ async fn maybe_persist_inbound_message_stores_conversation_when_auto_save_is_ena
 }
 
 #[tokio::test]
+async fn handle_webhook_inner_continues_when_auto_save_store_fails() {
+    let provider = Arc::new(StaticProvider::default());
+    let memory = Arc::new(FailingStoreMemory::default());
+    let state = state_with(
+        provider.clone(),
+        memory.clone(),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        true,
+    );
+
+    let (status, body) = payload(
+        handle_webhook_inner(
+            state,
+            peer("127.0.0.1"),
+            HeaderMap::new(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["response"], "test-model:hello");
+    assert_eq!(memory.store_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
 async fn handle_webhook_inner_returns_success_payload_for_authorized_loopback_request() {
     let provider = Arc::new(StaticProvider::default());
     let state = state_with(
@@ -392,6 +580,137 @@ async fn handle_webhook_inner_returns_success_payload_for_authorized_loopback_re
 }
 
 #[tokio::test]
+async fn handle_webhook_inner_returns_rate_limit_before_provider_call() {
+    let provider = Arc::new(StaticProvider::default());
+    let state = state_with(
+        provider.clone(),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        1,
+        false,
+    );
+    let headers = HeaderMap::new();
+
+    let (first_status, _) = payload(
+        handle_webhook_inner(
+            state.clone(),
+            peer("127.0.0.1"),
+            headers.clone(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+    let (second_status, body) = payload(
+        handle_webhook_inner(
+            state,
+            peer("127.0.0.1"),
+            headers,
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(first_status, StatusCode::OK);
+    assert_eq!(second_status, StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(body["retry_after"], RATE_LIMIT_WINDOW_SECS);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn handle_webhook_inner_returns_auth_error_before_provider_call() {
+    let provider = Arc::new(StaticProvider::default());
+    let state = state_with(
+        provider.clone(),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        false,
+    );
+
+    let (status, body) = payload(
+        handle_webhook_inner(
+            state,
+            peer("203.0.113.10"),
+            HeaderMap::new(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert!(
+        body["error"].as_str().expect("error should be string").contains("configure gateway auth")
+    );
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn handle_webhook_inner_returns_bad_request_before_provider_call() {
+    let provider = Arc::new(StaticProvider::default());
+    let state = state_with(
+        provider.clone(),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        false,
+    );
+    let request = Request::builder()
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from("{"))
+        .expect("request should build");
+    let rejected = Json::<WebhookBody>::from_request(request, &()).await;
+
+    let (status, body) =
+        payload(handle_webhook_inner(state, peer("127.0.0.1"), HeaderMap::new(), rejected).await);
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "Invalid JSON body. Expected: {\"message\": \"...\"}");
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn handle_webhook_inner_returns_duplicate_without_second_provider_call() {
+    let provider = Arc::new(StaticProvider::default());
+    let state = state_with(
+        provider.clone(),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        false,
+    );
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Idempotency-Key", HeaderValue::from_static("same-request"));
+
+    let (first_status, _) = payload(
+        handle_webhook_inner(
+            state.clone(),
+            peer("127.0.0.1"),
+            headers.clone(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+    let (second_status, body) = payload(
+        handle_webhook_inner(
+            state,
+            peer("127.0.0.1"),
+            headers,
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(first_status, StatusCode::OK);
+    assert_eq!(second_status, StatusCode::OK);
+    assert_eq!(body["status"], "duplicate");
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
 async fn handle_webhook_inner_returns_provider_error_without_leaking_details() {
     let state = state_with(
         Arc::new(FailingProvider),
@@ -414,4 +733,114 @@ async fn handle_webhook_inner_returns_provider_error_without_leaking_details() {
 
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body["error"], "LLM request failed");
+}
+
+#[tokio::test]
+async fn handle_webhook_inner_records_success_telemetry() {
+    let observer = Arc::new(RecordingObserver::default());
+    let mut state = state_with(
+        Arc::new(StaticProvider::default()),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        false,
+    );
+    state.config.lock().default_provider = Some("configured-provider".to_string());
+    state.observer = observer.clone();
+
+    let (status, _) = payload(
+        handle_webhook_inner(
+            state,
+            peer("127.0.0.1"),
+            HeaderMap::new(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(status, StatusCode::OK);
+    let events = observer.events.lock();
+    assert!(matches!(
+        &events[0],
+        ObserverEvent::AgentStart { provider, model }
+            if provider == "configured-provider" && model == "test-model"
+    ));
+    assert!(matches!(
+        &events[1],
+        ObserverEvent::LlmRequest { provider, model, messages_count }
+            if provider == "configured-provider" && model == "test-model" && *messages_count == 1
+    ));
+    assert!(matches!(
+        &events[2],
+        ObserverEvent::LlmResponse { provider, model, success, error_message, .. }
+            if provider == "configured-provider"
+                && model == "test-model"
+                && *success
+                && error_message.is_none()
+    ));
+    assert!(matches!(
+        &events[3],
+        ObserverEvent::AgentEnd { provider, model, tokens_used, cost_usd, .. }
+            if provider == "configured-provider"
+                && model == "test-model"
+                && tokens_used.is_none()
+                && cost_usd.is_none()
+    ));
+    assert!(matches!(observer.metrics.lock().as_slice(), [ObserverMetric::RequestLatency(_)]));
+}
+
+#[tokio::test]
+async fn handle_webhook_inner_records_error_telemetry_with_unknown_provider() {
+    let observer = Arc::new(RecordingObserver::default());
+    let mut state = state_with(
+        Arc::new(FailingProvider),
+        Arc::new(NoneMemory::new()),
+        PairingGuard::new(false, &[]),
+        None,
+        100,
+        false,
+    );
+    state.config.lock().default_provider = None;
+    state.observer = observer.clone();
+
+    let (status, _) = payload(
+        handle_webhook_inner(
+            state,
+            peer("127.0.0.1"),
+            HeaderMap::new(),
+            Ok(Json(WebhookBody { message: "hello".to_string() })),
+        )
+        .await,
+    );
+
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    let events = observer.events.lock();
+    assert!(matches!(
+        &events[0],
+        ObserverEvent::AgentStart { provider, model }
+            if provider == "unknown" && model == "test-model"
+    ));
+    assert!(matches!(
+        &events[2],
+        ObserverEvent::LlmResponse { provider, model, success, error_message, .. }
+            if provider == "unknown"
+                && model == "test-model"
+                && !*success
+                && error_message.as_deref() == Some("provider token [REDACTED] failed")
+    ));
+    assert!(matches!(
+        &events[3],
+        ObserverEvent::Error { component, message }
+            if component == "gateway" && message == "provider token [REDACTED] failed"
+    ));
+    assert!(matches!(
+        &events[4],
+        ObserverEvent::AgentEnd { provider, model, tokens_used, cost_usd, .. }
+            if provider == "unknown"
+                && model == "test-model"
+                && tokens_used.is_none()
+                && cost_usd.is_none()
+    ));
+    assert!(matches!(observer.metrics.lock().as_slice(), [ObserverMetric::RequestLatency(_)]));
 }

@@ -110,6 +110,34 @@ pub enum TaskBoardSettingsModalTab {
     Scheduling,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaskBoardDetailTab {
+    #[default]
+    Basic,
+    Logs,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaskBoardStaffFeedTab {
+    #[default]
+    Tasks,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaskBoardStaffAssignmentTab {
+    #[default]
+    Primary,
+    Manager,
+    Backup,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TaskBoardStaffOrchestrationTab {
+    #[default]
+    Dispatch,
+    Staffing,
+}
+
 /// 文件夹内查找匹配结果
 ///
 /// 表示在文件夹搜索中找到的单个匹配项，

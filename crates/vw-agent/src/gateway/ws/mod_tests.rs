@@ -1,7 +1,68 @@
 use super::*;
 
-use axum::http::{HeaderMap, header};
+use crate::app::agent::config::Config;
+use crate::app::agent::memory::NoneMemory;
+use crate::app::agent::providers::Provider;
+use crate::app::agent::security::pairing::PairingGuard;
+use axum::Router;
+use axum::body::Body;
+use axum::http::{HeaderMap, Request, StatusCode, header};
+use axum::routing::get;
+use parking_lot::Mutex;
+use std::time::Duration;
+use tower::util::ServiceExt;
 use vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
+
+struct StaticProvider;
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for StaticProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        Ok("ok".to_string())
+    }
+}
+
+fn authenticated_state() -> AppState {
+    AppState {
+        config: Arc::new(Mutex::new(Config::default())),
+        provider: Arc::new(StaticProvider),
+        model: "test-model".to_string(),
+        temperature: 0.0,
+        mem: Arc::new(NoneMemory::new()),
+        auto_save: false,
+        webhook_secret_hash: None,
+        pairing: Arc::new(PairingGuard::new(true, &["paired-token".to_string()])),
+        trust_forwarded_headers: false,
+        rate_limiter: Arc::new(super::super::GatewayRateLimiter::new(100, 100, 100)),
+        idempotency_store: Arc::new(super::super::IdempotencyStore::new(
+            Duration::from_secs(300),
+            1000,
+        )),
+        whatsapp: None,
+        whatsapp_app_secret: None,
+        linq: None,
+        linq_signing_secret: None,
+        nextcloud_talk: None,
+        nextcloud_talk_webhook_secret: None,
+        wati: None,
+        qq: None,
+        qq_webhook_enabled: false,
+        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        tools_registry: Arc::new(Vec::new()),
+        tools_registry_exec: Arc::new(Vec::new()),
+        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        max_tool_iterations: 10,
+        event_tx: tokio::sync::broadcast::channel(16).0,
+        session_query_engines: Default::default(),
+    }
+}
 
 #[test]
 fn websocket_entrypoints_and_constants_are_available() {
@@ -100,4 +161,22 @@ fn parse_ws_delta_event_maps_empty_hint_to_none_and_bad_duration_to_none() {
             result: None,
         })
     );
+}
+
+#[tokio::test]
+async fn websocket_upgrade_requires_real_hyper_upgrade_extension() {
+    let app = Router::new().route("/ws", get(handle_ws_chat)).with_state(authenticated_state());
+    let request = Request::get("/ws")
+        .header(header::HOST, "localhost")
+        .header(header::CONNECTION, "upgrade")
+        .header(header::UPGRADE, "websocket")
+        .header(header::SEC_WEBSOCKET_VERSION, "13")
+        .header(header::SEC_WEBSOCKET_KEY, "dGhlIHNhbXBsZSBub25jZQ==")
+        .header(header::SEC_WEBSOCKET_PROTOCOL, "vibewindow.v1")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::UPGRADE_REQUIRED);
 }

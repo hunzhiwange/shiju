@@ -721,5 +721,5 @@ pub trait Channel: ChannelBounds {
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
+#[path = "mod_tests.rs"]
 mod tests;

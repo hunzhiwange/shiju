@@ -2,6 +2,53 @@ use super::*;
 use crate::app::App;
 use crate::app::components::system_settings::SystemTab;
 
+const SUPPORTED_HELP: &[(SystemTab, &str, &str)] = &[
+    (SystemTab::General, "常规设置帮助", GENERAL_HELP),
+    (SystemTab::DialogueFlow, "对话流设置帮助", DIALOGUE_FLOW_HELP),
+    (SystemTab::Editor, "编辑器设置帮助", EDITOR_HELP),
+    (SystemTab::Projects, "项目设置帮助", PROJECTS_HELP),
+    (SystemTab::Providers, "模型提供商帮助", PROVIDERS_HELP),
+    (SystemTab::Models, "模型设置帮助", MODELS_HELP),
+    (SystemTab::EmbeddingRoutes, "嵌入路由帮助", EMBEDDING_ROUTES_HELP),
+    (SystemTab::ModelRoutes, "模型路由帮助", MODEL_ROUTES_HELP),
+    (SystemTab::QueryClassification, "查询分类帮助", QUERY_CLASSIFICATION_HELP),
+    (SystemTab::GoalLoop, "目标循环帮助", GOAL_LOOP_HELP),
+    (SystemTab::Sop, "标准流程帮助", SOP_HELP),
+    (SystemTab::Agents, "委托代理配置帮助", AGENTS_HELP),
+    (SystemTab::Channels, "通道配置帮助", CHANNELS_HELP),
+    (SystemTab::Memory, "记忆系统帮助", MEMORY_HELP),
+    (SystemTab::Runtime, "运行时配置帮助", RUNTIME_HELP),
+    (SystemTab::Storage, "存储配置帮助", STORAGE_HELP),
+    (SystemTab::Tunnel, "隧道配置帮助", TUNNEL_HELP),
+    (SystemTab::Composio, "Composio 集成帮助", COMPOSIO_HELP),
+    (SystemTab::Hooks, "钩子配置帮助", HOOKS_HELP),
+    (SystemTab::HttpRequest, "网络请求帮助", HTTP_REQUEST_HELP),
+    (SystemTab::Browser, "浏览器配置帮助", BROWSER_HELP),
+    (SystemTab::Multimodal, "多模态配置帮助", MULTIMODAL_HELP),
+];
+
+const UNSUPPORTED_TABS: &[SystemTab] = &[
+    SystemTab::Heartbeat,
+    SystemTab::Cron,
+    SystemTab::Scheduler,
+    SystemTab::Staff,
+    SystemTab::AgentsIpc,
+    SystemTab::Coordination,
+    SystemTab::Reliability,
+    SystemTab::Acp,
+    SystemTab::Mcp,
+    SystemTab::Autonomy,
+    SystemTab::Security,
+    SystemTab::GatewayClient,
+    SystemTab::Gateway,
+    SystemTab::Observability,
+    SystemTab::Proxy,
+    SystemTab::Skills,
+    SystemTab::Research,
+    SystemTab::WebSearch,
+    SystemTab::Transcription,
+];
+
 fn test_app() -> App {
     App::new().0
 }
@@ -12,52 +59,42 @@ fn system_settings_help_tests_are_wired() {
 }
 
 #[test]
+fn help_content_maps_every_supported_tab_to_its_title_and_copy() {
+    for &(tab, title, copy) in SUPPORTED_HELP {
+        assert_eq!(help_content(tab), Some((title, copy)));
+    }
+}
+
+#[test]
+fn help_content_rejects_every_tab_without_help_copy() {
+    for &tab in UNSUPPORTED_TABS {
+        assert_eq!(help_content(tab), None);
+    }
+}
+
+#[test]
 fn help_open_for_tab_requires_matching_supported_tab() {
-    assert!(help_open_for_tab(
-        Some(SystemTab::General),
-        SystemTab::General
-    ));
-    assert!(!help_open_for_tab(
-        Some(SystemTab::General),
-        SystemTab::Memory
-    ));
-    assert!(!help_open_for_tab(None, SystemTab::General));
-    assert!(!help_open_for_tab(
-        Some(SystemTab::Security),
-        SystemTab::Security
-    ));
+    for &(tab, _, _) in SUPPORTED_HELP {
+        assert!(help_open_for_tab(Some(tab), tab));
+        assert!(!help_open_for_tab(None, tab));
+    }
+
+    assert!(!help_open_for_tab(Some(SystemTab::General), SystemTab::Memory));
+
+    for &tab in UNSUPPORTED_TABS {
+        assert!(!help_open_for_tab(Some(tab), tab));
+    }
 }
 
 #[test]
 fn help_button_bar_exists_only_for_supported_tabs() {
-    for tab in [
-        SystemTab::General,
-        SystemTab::DialogueFlow,
-        SystemTab::Editor,
-        SystemTab::Projects,
-        SystemTab::Providers,
-        SystemTab::Models,
-        SystemTab::EmbeddingRoutes,
-        SystemTab::ModelRoutes,
-        SystemTab::QueryClassification,
-        SystemTab::GoalLoop,
-        SystemTab::Sop,
-        SystemTab::Agents,
-        SystemTab::Channels,
-        SystemTab::Memory,
-        SystemTab::Runtime,
-        SystemTab::Storage,
-        SystemTab::Tunnel,
-        SystemTab::Composio,
-        SystemTab::Hooks,
-        SystemTab::HttpRequest,
-        SystemTab::Browser,
-        SystemTab::Multimodal,
-    ] {
+    for &(tab, _, _) in SUPPORTED_HELP {
         assert!(help_button_bar(tab).is_some());
     }
 
-    assert!(help_button_bar(SystemTab::Security).is_none());
+    for &tab in UNSUPPORTED_TABS {
+        assert!(help_button_bar(tab).is_none());
+    }
 }
 
 #[test]
@@ -67,30 +104,15 @@ fn with_help_modal_returns_base_for_closed_mismatched_and_unsupported_tabs() {
     let _ = with_help_modal(&app, base, SystemTab::General, None);
 
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let _ = with_help_modal(
-        &app,
-        base,
-        SystemTab::General,
-        Some(SystemTab::Memory),
-    );
+    let _ = with_help_modal(&app, base, SystemTab::General, Some(SystemTab::Memory));
 
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let _ = with_help_modal(
-        &app,
-        base,
-        SystemTab::Security,
-        Some(SystemTab::Security),
-    );
+    let _ = with_help_modal(&app, base, SystemTab::Security, Some(SystemTab::Security));
 }
 
 #[test]
 fn with_help_modal_wraps_supported_open_tab() {
     let app = test_app();
     let base = iced::widget::container(iced::widget::text("base")).into();
-    let _ = with_help_modal(
-        &app,
-        base,
-        SystemTab::Memory,
-        Some(SystemTab::Memory),
-    );
+    let _ = with_help_modal(&app, base, SystemTab::Memory, Some(SystemTab::Memory));
 }

@@ -85,9 +85,7 @@ pub(crate) fn handle_estop_command(
 ) -> Result<()> {
     // 检查紧急停止功能是否启用
     if !config.security.estop.enabled {
-        bail!(
-            "Emergency stop is disabled. Enable [security.estop].enabled = true in vibewindow.json"
-        );
+        bail!("Emergency stop is disabled. Enable security.estop.enabled in system settings");
     }
 
     // 加载紧急停止管理器，从配置目录读取状态

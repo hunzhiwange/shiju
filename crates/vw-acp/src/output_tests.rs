@@ -511,3 +511,141 @@ fn quiet_formatter_writes_only_message_and_string_thought_chunks() {
 
     assert_eq!(quiet_output_text(formatter), "answer plus thought\n");
 }
+
+#[test]
+fn text_formatter_merges_tool_updates_and_clears_completed_state() {
+    let mut formatter = TextOutputFormatter::new(
+        Vec::<u8>::new(),
+        OutputFormatterOptions { context: None, suppress_reads: true, is_tty: false },
+    );
+
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+            "update": {
+                "sessionUpdate": "tool_call",
+                "toolCallId": "tool-read",
+                "title": "Read file",
+                "kind": "read",
+                "status": "running",
+                "rawInput": true
+            }
+        }
+    })));
+    assert!(formatter.tool_states.contains_key("tool-read"));
+
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+            "update": {
+                "sessionUpdate": "tool_call_update",
+                "toolCallId": "tool-read",
+                "status": "completed",
+                "locations": [{ "path": "src/output.rs", "line": 12 }],
+                "rawOutput": "secret file contents"
+            }
+        }
+    })));
+
+    assert!(!formatter.tool_states.contains_key("tool-read"));
+
+    let output = output_text(formatter);
+    assert!(output.contains("[tool] Read file (running)"));
+    assert!(output.contains("input: true"));
+    assert!(output.contains("[tool] Read file (completed)"));
+    assert!(output.contains("locations: src/output.rs:12"));
+    assert!(output.contains(SUPPRESSED_READ_OUTPUT));
+    assert!(!output.contains("secret file contents"));
+}
+
+#[test]
+fn text_formatter_resets_duplicate_client_operations_after_normal_traffic() {
+    let mut formatter =
+        TextOutputFormatter::new(Vec::<u8>::new(), OutputFormatterOptions::default());
+
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": "init-1"
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": "init-2"
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/cancel",
+        "id": "cancel-1"
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": "init-3"
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/prompt",
+        "id": "prompt-1"
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": "init-4"
+    })));
+    formatter.flush();
+
+    let output = output_text(formatter);
+    assert_eq!(output.matches("[client]").count(), 3);
+    assert_eq!(output.matches("initialize (running)").count(), 3);
+}
+
+#[test]
+fn quiet_formatter_clears_buffer_without_adding_extra_newline() {
+    let mut formatter = QuietOutputFormatter::new(Vec::<u8>::new(), None);
+
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+            "update": {
+                "sessionUpdate": "agent_message_chunk",
+                "content": { "type": "text", "text": "line one\n" }
+            }
+        }
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": { "stopReason": "end_turn" }
+    })));
+
+    assert!(formatter.output.is_empty());
+
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+            "update": {
+                "sessionUpdate": "agent_message_chunk",
+                "content": { "type": "resource", "resource": { "uri": "file:///tmp/next" } }
+            }
+        }
+    })));
+    formatter.on_acp_message(acp_message(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": { "stopReason": "end_turn" }
+    })));
+
+    let output = quiet_output_text(formatter);
+    assert_eq!(output, "line one\nfile:///tmp/next\n");
+}
+
+#[test]
+fn session_update_returns_none_for_non_object_shapes() {
+    assert_eq!(session_update(&json!({ "params": [] })), None);
+    assert_eq!(session_update(&json!({ "params": { "update": [] } })), None);
+}

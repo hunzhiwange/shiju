@@ -8,8 +8,9 @@ use iced::Element;
 use iced::widget::column;
 
 use super::common::{
-    GROUP_REPLY_MODE_OPTIONS, bool_row, group_reply_mode_value, number_row, panel, pick_row,
-    text_row,
+    GROUP_REPLY_MODE_OPTIONS, add_instance_row, bool_row, bool_row_with_key,
+    group_reply_mode_value, instance_title_row, number_row, panel, pick_row, text_row,
+    text_row_with_key,
 };
 
 /// 构建或处理 `telegram_panel` 对应的界面片段与交互数据。
@@ -425,69 +426,149 @@ pub(super) fn imessage_panel(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn matrix_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.matrix.as_ref() {
-        column![
-            text_row(
+    let enabled = s.matrix.is_some() || !s.matrix_instances.is_empty();
+    let mut body = column![].spacing(12);
+
+    if let Some(cfg) = s.matrix.as_ref() {
+        body = body
+            .push(text_row(
                 app,
                 "homeserver",
                 "https://matrix.org",
                 &cfg.homeserver,
                 "matrix.homeserver",
                 false,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "access_token",
                 "Matrix access token",
                 &cfg.access_token,
                 "matrix.access_token",
                 true,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "user_id",
                 "@bot:matrix.org",
                 cfg.user_id.as_deref().unwrap_or(""),
                 "matrix.user_id",
                 false,
-            ),
-            text_row(
+            ))
+            .push(text_row(
                 app,
                 "device_id",
                 "可选 device id",
                 cfg.device_id.as_deref().unwrap_or(""),
                 "matrix.device_id",
                 false,
-            ),
-            text_row(app, "room_id", "!room:matrix.org", &cfg.room_id, "matrix.room_id", false),
-            text_row(
+            ))
+            .push(text_row(
+                app,
+                "room_id",
+                "#room:matrix.org 或 matrix.to 链接",
+                &cfg.room_id,
+                "matrix.room_id",
+                false,
+            ))
+            .push(text_row(
                 app,
                 "allowed_users",
                 "逗号或换行分隔",
                 "",
                 "matrix.allowed_users",
                 false,
-            ),
-            bool_row(
+            ))
+            .push(bool_row(
                 "mention_only",
                 cfg.mention_only,
                 "仅提及或回复时触发",
                 "matrix.mention_only",
-            ),
-        ]
-        .spacing(12)
-        .into()
-    } else {
-        column![].into()
-    };
+            ));
+    }
+
+    for (index, instance) in s.matrix_instances.iter().enumerate() {
+        let key_prefix = format!("matrix_instances.{index}");
+        let title = if instance.id.trim().is_empty() {
+            format!("Matrix 实例 {}", index + 1)
+        } else {
+            format!("Matrix 实例 {}", instance.id)
+        };
+        body = body
+            .push(instance_title_row(title, "matrix", index))
+            .push(text_row_with_key(
+                app,
+                "instance_id",
+                "planner",
+                &instance.id,
+                format!("{key_prefix}.id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "homeserver",
+                "https://matrix.org",
+                &instance.config.homeserver,
+                format!("{key_prefix}.homeserver"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "access_token",
+                "Matrix access token",
+                &instance.config.access_token,
+                format!("{key_prefix}.access_token"),
+                true,
+            ))
+            .push(text_row_with_key(
+                app,
+                "user_id",
+                "@bot:matrix.org",
+                instance.config.user_id.as_deref().unwrap_or(""),
+                format!("{key_prefix}.user_id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "device_id",
+                "可选 device id",
+                instance.config.device_id.as_deref().unwrap_or(""),
+                format!("{key_prefix}.device_id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "room_id",
+                "#room:matrix.org 或 matrix.to 链接",
+                &instance.config.room_id,
+                format!("{key_prefix}.room_id"),
+                false,
+            ))
+            .push(text_row_with_key(
+                app,
+                "allowed_users",
+                "逗号或换行分隔",
+                "",
+                format!("{key_prefix}.allowed_users"),
+                false,
+            ))
+            .push(bool_row_with_key(
+                "mention_only",
+                instance.config.mention_only,
+                "仅提及或回复时触发",
+                format!("{key_prefix}.mention_only"),
+            ));
+    }
+
+    body = body.push(add_instance_row("matrix", "新增 Matrix 实例"));
 
     panel(
         "matrix",
-        "Matrix",
-        "Homeserver、access token 与 room 绑定。",
-        s.matrix.is_some(),
+        "外部 Matrix 桥",
+        "可选：把任务池事件同步到外部 Matrix room。本地员工协同不需要配置服务器。",
+        enabled,
         s.expanded_panels.contains("matrix"),
-        body,
+        body.into(),
     )
 }
 

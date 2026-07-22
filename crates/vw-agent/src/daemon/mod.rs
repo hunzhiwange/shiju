@@ -22,6 +22,12 @@
 //! 3. 给予各组件宽限期完成清理
 //! 4. 超时后强制中止未完成的任务
 
+use crate::agent_scheduler::runner::matrix::{
+    ConfiguredMatrixWorkerComponent, MATRIX_WORKER_RUNTIME, configured_matrix_worker_from_stored,
+    matrix_worker_desired_state_is_running,
+};
+use crate::agent_scheduler::store::AgentSchedulerStore;
+use crate::agent_scheduler::store::workers::AgentWorkerFilter;
 use crate::app::agent::config::Config;
 use crate::app::agent::config::schema::ChannelsConfigExt;
 use anyhow::Result;
@@ -275,6 +281,37 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
         tracing::info!("Cron disabled; scheduler supervisor not started");
     }
 
+    let matrix_worker_components = configured_matrix_worker_components(&config)?;
+    if matrix_worker_components.is_empty() {
+        crate::app::agent::health::mark_component_ok("matrix-workers");
+        tracing::info!(
+            "No desired Running Matrix workers configured; matrix worker supervisors disabled"
+        );
+    } else {
+        for component in matrix_worker_components {
+            let worker_cfg = config.clone();
+            let component_name = matrix_worker_component_name(&component);
+            handles.push(spawn_component_supervisor(
+                component_name,
+                initial_backoff,
+                max_backoff,
+                move || {
+                    let cfg = worker_cfg.clone();
+                    let project_path = component.project_path.clone();
+                    let worker_id = component.worker_id.clone();
+                    async move {
+                        crate::agent_scheduler::runner::matrix::run_configured_matrix_worker(
+                            cfg,
+                            project_path,
+                            worker_id,
+                        )
+                        .await
+                    }
+                },
+            ));
+        }
+    }
+
     // 输出启动信息到控制台
     println!("💡 VibeWindow daemon started");
     if gateway_already_running {
@@ -282,7 +319,7 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     } else {
         println!("   Gateway:  http://{host}:{port}");
     }
-    println!("   Components: gateway, channels, heartbeat, scheduler");
+    println!("   Components: gateway, channels, heartbeat, scheduler, matrix-workers");
     println!("   {}", shutdown_hint());
 
     // 等待关闭信号
@@ -301,6 +338,28 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn configured_matrix_worker_components(
+    config: &Config,
+) -> Result<Vec<ConfiguredMatrixWorkerComponent>> {
+    let store = AgentSchedulerStore::new();
+    let workers = store.list_workers(
+        &config.workspace_dir,
+        AgentWorkerFilter {
+            runtime: Some(MATRIX_WORKER_RUNTIME.to_string()),
+            ..AgentWorkerFilter::default()
+        },
+    )?;
+    workers
+        .into_iter()
+        .filter(matrix_worker_desired_state_is_running)
+        .map(|worker| configured_matrix_worker_from_stored(&config.workspace_dir, worker))
+        .collect()
+}
+
+fn matrix_worker_component_name(component: &ConfiguredMatrixWorkerComponent) -> String {
+    format!("matrix-worker:{}", component.worker_id.as_str())
 }
 
 async fn existing_gateway_status(host: &str, port: u16) -> ExistingGatewayStatus {
@@ -495,7 +554,7 @@ fn spawn_state_writer(config: Config) -> JoinHandle<()> {
 /// - 组件正常退出时，重置退避时间为初始值
 /// - 退避时间在睡眠后更新，首次错误使用初始退避时间
 fn spawn_component_supervisor<F, Fut>(
-    name: &'static str,
+    name: impl Into<String>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
     mut run_component: F,
@@ -504,6 +563,7 @@ where
     F: FnMut() -> Fut + Send + 'static,
     Fut: Future<Output = Result<()>> + Send + 'static,
 {
+    let name = name.into();
     tokio::spawn(async move {
         // 确保退避时间参数有效
         let mut backoff = initial_backoff_secs.max(1);
@@ -511,12 +571,12 @@ where
 
         loop {
             // 标记组件为健康状态
-            crate::app::agent::health::mark_component_ok(name);
+            crate::app::agent::health::mark_component_ok(&name);
             match run_component().await {
                 Ok(()) => {
                     // 组件正常退出（但守护进程期望它持续运行）
                     crate::app::agent::health::mark_component_error(
-                        name,
+                        &name,
                         "component exited unexpectedly",
                     );
                     tracing::warn!("Daemon component '{name}' exited unexpectedly");
@@ -525,8 +585,8 @@ where
                 }
                 Err(e) => {
                     // 组件失败
-                    crate::app::agent::health::mark_component_error(name, e.to_string());
-                    if is_non_retryable_component_error(name, &e) {
+                    crate::app::agent::health::mark_component_error(&name, e.to_string());
+                    if is_non_retryable_component_error(&name, &e) {
                         tracing::error!(
                             "Daemon component '{name}' failed with a non-retryable error: {e}"
                         );
@@ -537,7 +597,7 @@ where
             }
 
             // 记录组件重启次数并等待退避时间
-            crate::app::agent::health::bump_component_restart(name);
+            crate::app::agent::health::bump_component_restart(&name);
             tokio::time::sleep(Duration::from_secs(backoff)).await;
             // 在睡眠后更新退避时间，这样首次错误使用初始退避时间
             backoff = backoff.saturating_mul(2).min(max_backoff);

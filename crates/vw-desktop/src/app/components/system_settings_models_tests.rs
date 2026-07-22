@@ -1,8 +1,7 @@
 use super::*;
-// Tests for plan6 task 802.
-const SOURCE: &str = include_str!("system_settings_models.rs");
-
-use crate::app::state::{ModelSummary, ProviderModelsSummary};
+use crate::app::state::{
+    ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary,
+};
 use crate::app::{App, Message};
 use iced::widget::text;
 use serde_json::json;
@@ -42,24 +41,85 @@ fn provider_summary() -> ProviderModelsSummary {
     }
 }
 
-fn source_declares_symbol(name: &str) -> bool {
-    let needles = [
-        format!("fn {name}"),
-        format!("pub fn {name}"),
-        format!("struct {name}"),
-        format!("pub struct {name}"),
-        format!("enum {name}"),
-        format!("pub enum {name}"),
-        format!("type {name}"),
-        format!("pub type {name}"),
-        format!("const {name}"),
-        format!("pub const {name}"),
-        format!("static {name}"),
-        format!("pub static {name}"),
-        format!("impl {name}"),
-    ];
+fn provider_anthropic_summary() -> ProviderModelsSummary {
+    ProviderModelsSummary {
+        id: "anthropic".to_string(),
+        name: "Anthropic".to_string(),
+        models: vec![
+            ModelSummary {
+                id: "claude-sonnet-4-6".to_string(),
+                name: "Claude Sonnet 4.6".to_string(),
+                enabled: true,
+                toolcall: true,
+                attachment: true,
+                context_limit: 200_000,
+                detail: json!({"id": "claude-sonnet-4-6"}),
+            },
+            ModelSummary {
+                id: "claude-haiku-4-5".to_string(),
+                name: "Claude Haiku 4.5".to_string(),
+                enabled: true,
+                toolcall: true,
+                attachment: false,
+                context_limit: 100_000,
+                detail: json!({"id": "claude-haiku-4-5"}),
+            },
+            ModelSummary {
+                id: "claude-opus-4-6".to_string(),
+                name: "Claude Opus 4.6".to_string(),
+                enabled: false,
+                toolcall: true,
+                attachment: true,
+                context_limit: 500_000,
+                detail: json!({"id": "claude-opus-4-6"}),
+            },
+        ],
+    }
+}
 
-    needles.iter().any(|needle| SOURCE.contains(needle))
+#[test]
+fn main_view_with_multiple_providers() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_search_matches_provider_name() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
+    // "open" matches provider name "OpenAI" but not its id "openai"? Actually id is "openai" too.
+    // Use "anth" which matches "Anthropic" name but not id "anthropic"? Actually id is "anthropic" too.
+    // Use "AI" suffix: matches name "OpenAI" and "Anthropic" (through name, not ID)
+    app.model_settings.query = "AI".to_string();
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_search_matches_model_id() {
+    let mut app = test_app();
+    // "claude-sonnet" matches nothing in provider_summary().
+    // Add anthropic provider; "claude-sonnet" matches model id "claude-sonnet-4-6"
+    app.model_settings.providers = vec![provider_anthropic_summary()];
+    app.model_settings.query = "claude-sonnet".to_string();
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_search_matches_model_name() {
+    let mut app = test_app();
+    // "Haiku" matches model name "Claude Haiku 4.5" (but not model id "claude-haiku-4-5")
+    app.model_settings.providers = vec![provider_anthropic_summary()];
+    app.model_settings.query = "Haiku".to_string();
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_search_no_match_any_field() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
+    app.model_settings.query = "zzzznotfound".to_string();
+    keep_element(main_view(&app));
 }
 
 #[test]
@@ -91,14 +151,13 @@ fn overlays_return_dialog_or_model_detail_modal() {
     keep_element(view_overlays(&app, text("dialog").into()));
 
     app.model_settings.providers = vec![provider_summary()];
-    app.model_settings.detail_modal = Some(crate::app::state::ModelDetailModalState {
+    app.model_settings.detail_modal = Some(ModelDetailModalState {
         provider_id: "openai".to_string(),
         provider_name: "OpenAI".to_string(),
         model_id: "gpt-5".to_string(),
         model_name: "GPT-5".to_string(),
-        rows: vec![crate::app::state::ModelDetailRow {
-            label: "模型名称".to_string(),
-            value: "GPT-5".to_string(),
+        rows: vec![ModelDetailRow {
+            label: "模型名称".to_string(), value: "GPT-5".to_string()
         }],
         raw_json: "{\n  \"id\": \"gpt-5\"\n}".to_string(),
         show_raw: false,
@@ -110,8 +169,47 @@ fn overlays_return_dialog_or_model_detail_modal() {
 }
 
 #[test]
-fn system_settings_models_tests_keeps_planned_coverage_targets() {
-    for name in ["main_view", "view_overlays"] {
-        assert!(source_declares_symbol(name), "expected source to declare coverage target {name}");
-    }
+fn overlays_with_empty_rows() {
+    let mut app = test_app();
+    app.model_settings.detail_modal = Some(ModelDetailModalState {
+        provider_id: "anthropic".to_string(),
+        provider_name: "Anthropic".to_string(),
+        model_id: "claude-sonnet-4-6".to_string(),
+        model_name: "Claude Sonnet 4.6".to_string(),
+        rows: vec![],
+        raw_json: "{}".to_string(),
+        show_raw: false,
+    });
+    keep_element(view_overlays(&app, text("dialog").into()));
+}
+
+#[test]
+fn overlays_with_many_rows() {
+    let mut app = test_app();
+    app.model_settings.detail_modal = Some(ModelDetailModalState {
+        provider_id: "openai".to_string(),
+        provider_name: "OpenAI".to_string(),
+        model_id: "gpt-5".to_string(),
+        model_name: "GPT-5".to_string(),
+        rows: vec![
+            ModelDetailRow { label: "模型名称".into(), value: "GPT-5".into() },
+            ModelDetailRow { label: "提供商".into(), value: "OpenAI".into() },
+            ModelDetailRow { label: "上下文限制".into(), value: "200000".into() },
+        ],
+        raw_json: "{\"id\":\"gpt-5\"}".to_string(),
+        show_raw: false,
+    });
+    keep_element(view_overlays(&app, text("dialog").into()));
+}
+
+#[test]
+fn main_view_skips_provider_without_models_and_shows_empty_state() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![ProviderModelsSummary {
+        id: "empty-provider".to_string(),
+        name: "Empty Provider".to_string(),
+        models: Vec::new(),
+    }];
+
+    keep_element(main_view(&app));
 }

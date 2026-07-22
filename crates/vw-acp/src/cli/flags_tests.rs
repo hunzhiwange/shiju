@@ -24,7 +24,7 @@ static CWD_LOCK: Mutex<()> = Mutex::new(());
 fn make_config(ttl_ms: u64) -> ResolvedAcpxConfig {
     ResolvedAcpxConfig {
         default_agent: "codex".to_string(),
-        default_permissions: PermissionMode::ApproveReads,
+        default_permissions: PermissionMode::ApproveAll,
         non_interactive_permissions: NonInteractivePermissionPolicy::Deny,
         auth_policy: AuthPolicy::Skip,
         ttl_ms,
@@ -35,6 +35,7 @@ fn make_config(ttl_ms: u64) -> ResolvedAcpxConfig {
         auth: HashMap::new(),
         disable_exec: false,
         mcp_servers: Vec::new(),
+        mcp_server_management: Vec::new(),
         global_path: "/tmp/global.json".to_string(),
         project_path: "/tmp/project.json".to_string(),
         has_global_config: false,
@@ -231,6 +232,14 @@ fn has_explicit_permission_mode_flag_reports_any_selected_mode() {
         approve_all: true,
         ..PermissionFlags::default()
     }));
+    assert!(has_explicit_permission_mode_flag(&PermissionFlags {
+        approve_reads: true,
+        ..PermissionFlags::default()
+    }));
+    assert!(has_explicit_permission_mode_flag(&PermissionFlags {
+        deny_all: true,
+        ..PermissionFlags::default()
+    }));
 }
 
 #[test]
@@ -328,12 +337,24 @@ fn resolve_global_flags_merges_options_over_config_defaults() {
 #[test]
 fn resolve_global_flags_uses_config_ttl_and_current_dir_defaults() {
     let _cwd_guard = CWD_LOCK.lock().expect("cwd lock");
-    let flags = resolve_global_flags(&GlobalFlagOptions::default(), &make_config(12_345))
-        .expect("resolve flags");
+    let mut config = make_config(12_345);
+    config.auth_policy = AuthPolicy::Fail;
+    config.non_interactive_permissions = NonInteractivePermissionPolicy::Fail;
+    config.timeout_ms = Some(2_500);
+    config.format = OutputFormat::Quiet;
+
+    let flags =
+        resolve_global_flags(&GlobalFlagOptions::default(), &config).expect("resolve flags");
 
     let expected_cwd = std::env::current_dir().expect("current dir").to_string_lossy().into_owned();
     assert_eq!(flags.cwd, expected_cwd);
+    assert_eq!(flags.auth_policy, Some(AuthPolicy::Fail));
+    assert_eq!(flags.non_interactive_permissions, NonInteractivePermissionPolicy::Fail);
+    assert_eq!(flags.timeout, Some(2_500));
     assert_eq!(flags.ttl, 12_345);
+    assert_eq!(flags.format, OutputFormat::Quiet);
+    assert!(!flags.json_strict);
+    assert!(!flags.verbose);
 }
 
 #[test]
@@ -414,6 +435,22 @@ fn resolve_agent_invocation_uses_override_command_without_agent_config() {
 }
 
 #[test]
+fn resolve_agent_invocation_uses_config_command_but_no_config_for_blank_override() {
+    let mut config = make_config(0);
+    config.default_agent = "custom".to_string();
+    config.agents.insert("custom".to_string(), custom_agent("custom-acp"));
+    let mut flags = make_global_flags("/abs/workspace");
+    flags.agent = Some(" \t ".to_string());
+
+    let invocation = resolve_agent_invocation(None, &flags, &config).expect("agent invocation");
+
+    assert_eq!(invocation.agent_name, "custom");
+    assert_eq!(invocation.agent_command, "custom-acp --stdio");
+    assert!(invocation.agent_config.is_none());
+    assert_eq!(invocation.cwd, "/abs/workspace");
+}
+
+#[test]
 fn resolve_agent_invocation_uses_positional_agent_and_relative_cwd() {
     let _cwd_guard = CWD_LOCK.lock().expect("cwd lock");
     let mut config = make_config(0);
@@ -427,8 +464,23 @@ fn resolve_agent_invocation_uses_positional_agent_and_relative_cwd() {
         std::env::current_dir().expect("current dir").join(PathBuf::from("workspace"));
     assert_eq!(invocation.agent_name, "custom");
     assert_eq!(invocation.agent_command, "custom-acp --stdio");
-    assert_eq!(invocation.agent_config.expect("agent config").command, "custom-acp");
+    let agent_config = invocation.agent_config.expect("agent config");
+    assert_eq!(agent_config.command, "custom-acp");
+    assert_eq!(agent_config.args, vec!["--stdio".to_string()]);
+    assert_eq!(agent_config.env.get("CUSTOM_ENV").map(String::as_str), Some("1"));
     assert_eq!(invocation.cwd, expected_cwd.to_string_lossy());
+}
+
+#[test]
+fn resolve_agent_invocation_normalizes_current_and_parent_dirs_in_absolute_cwd() {
+    let invocation = resolve_agent_invocation(
+        Some("local-acp"),
+        &make_global_flags("/abs/./workspace/../other"),
+        &make_config(0),
+    )
+    .expect("agent invocation");
+
+    assert_eq!(invocation.cwd, "/abs/other");
 }
 
 #[test]

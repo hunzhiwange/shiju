@@ -450,7 +450,7 @@ mod tests {
         let output = concat!(
             "<file_link>\n",
             "path: docs/agents/README.md\n",
-            "open: file:////Users/Shared/work/dir/data/codes/vibe-window/docs/agents/README.md\n",
+            "open: file:///docs/agents/README.md\n",
             "size_bytes: 1528\n",
             "</file_link>\n",
             "内容已隐藏，点击文件名打开"

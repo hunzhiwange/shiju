@@ -563,8 +563,6 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             }
 
             providers.insert(provider_id.clone(), provider);
-
-            tracing::info!(provider_id, "found");
         }
 
         State { providers }

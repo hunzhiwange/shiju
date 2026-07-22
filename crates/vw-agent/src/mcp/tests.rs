@@ -42,6 +42,20 @@ fn registry_specs_are_mapped_to_mcp_tools() {
 }
 
 #[test]
+fn registry_specs_preserve_identity_description_and_object_schema() {
+    let expected = tools::registry::spec_dtos(None);
+    let actual = mcp_tools_from_registry();
+
+    assert_eq!(actual.len(), expected.len());
+    for (actual, expected) in actual.iter().zip(&expected) {
+        assert_eq!(actual.name.as_ref(), expected.id.0.as_str());
+        assert_eq!(actual.description.as_deref(), Some(expected.description.as_str()));
+        let expected_schema = expected.input_schema.as_object().cloned().unwrap_or_default();
+        assert_eq!(actual.input_schema.as_ref(), &expected_schema);
+    }
+}
+
+#[test]
 fn serialize_tool_arguments_defaults_to_empty_object() {
     assert_eq!(serialize_tool_arguments(None), "{}");
     assert_eq!(serialize_tool_arguments(Some(Default::default())), "{}");
@@ -82,9 +96,53 @@ fn successful_tool_execution_maps_to_successful_mcp_result() {
 }
 
 #[test]
+fn structured_tool_execution_maps_to_pretty_json_text() {
+    let tool_result = tools::ToolCallResult {
+        model_result: json!({ "count": 2, "items": ["alpha"] }),
+        telemetry: Some(tools::ToolCallTelemetry { success: true, ..Default::default() }),
+        ..Default::default()
+    };
+
+    let result = mcp_call_tool_result(Ok(tool_result));
+
+    assert_eq!(result.is_error, Some(false));
+    let decoded: serde_json::Value = serde_json::from_str(first_text(&result)).unwrap();
+    assert_eq!(decoded, json!({ "count": 2, "items": ["alpha"] }));
+}
+
+#[test]
 fn failed_tool_execution_maps_to_mcp_error_result() {
     let result = mcp_call_tool_result(Err(tools::ToolCallError::Failed("boom".into())));
 
     assert_eq!(result.is_error, Some(true));
     assert!(first_text(&result).contains("Failed(\"boom\")"));
+}
+
+#[test]
+fn denied_tool_execution_maps_to_mcp_error_result() {
+    let result = mcp_call_tool_result(Err(tools::ToolCallError::denied("policy blocked")));
+
+    assert_eq!(result.is_error, Some(true));
+    assert!(first_text(&result).contains("Denied"));
+    assert!(first_text(&result).contains("policy blocked"));
+}
+
+#[test]
+fn unknown_tool_call_is_rejected_without_execution() {
+    let ctx = ToolRuntimeContext::for_specs();
+
+    let result = call_tool_with_context("definitely_missing_tool", None, &ctx);
+
+    assert_eq!(result.is_error, Some(true));
+    assert!(first_text(&result).contains("Unknown tool: definitely_missing_tool"));
+}
+
+#[test]
+fn registered_tool_call_with_missing_arguments_is_rejected_before_execution() {
+    let ctx = ToolRuntimeContext::for_specs();
+
+    let result = call_tool_with_context("file_read", Some(Default::default()), &ctx);
+
+    assert_eq!(result.is_error, Some(true));
+    assert!(first_text(&result).contains("path"));
 }

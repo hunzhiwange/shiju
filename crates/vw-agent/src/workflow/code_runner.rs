@@ -364,3 +364,7 @@ const __vwReadStdin = () => new Promise((resolve) => {{
 "#
     )
 }
+
+#[cfg(test)]
+#[path = "code_runner_tests.rs"]
+mod code_runner_tests;

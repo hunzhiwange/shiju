@@ -49,9 +49,11 @@
 //! - **WebAssembly**：监听操作将无限等待，因为 WASM 环境不支持直接访问 stdin
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
+#[cfg(target_arch = "wasm32")]
 use async_trait::async_trait;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::io::{self, AsyncBufReadExt, BufReader};
+#[cfg(not(target_arch = "wasm32"))]
 use uuid::Uuid;
 
 /// CLI 通道结构体
@@ -100,14 +102,61 @@ impl CliChannel {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+async fn listen_from_reader(
+    reader: Box<dyn tokio::io::AsyncBufRead + Unpin + Send>,
+    tx: tokio::sync::mpsc::Sender<ChannelMessage>,
+) -> anyhow::Result<()> {
+    let mut lines = reader.lines();
+
+    while let Ok(Some(line)) = lines.next_line().await {
+        let line = line.trim().to_string();
+
+        if line.is_empty() {
+            continue;
+        }
+
+        if line == "/quit" || line == "/exit" {
+            break;
+        }
+
+        let msg = ChannelMessage {
+            id: Uuid::new_v4().to_string(),
+            sender: "user".to_string(),
+            reply_target: "user".to_string(),
+            content: line,
+            channel: "cli".to_string(),
+            timestamp: unix_timestamp_secs(std::time::SystemTime::now()),
+            thread_ts: None,
+        };
+
+        if tx.send(msg).await.is_err() {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_cli_message(message: &SendMessage) {
+    use std::io::Write;
+
+    let mut stdout = std::io::stdout();
+    stdout.write_all(message.content.as_bytes()).expect("failed to write cli message");
+    stdout.write_all(b"\n").expect("failed to write cli newline");
+}
+
+fn unix_timestamp_secs(now: std::time::SystemTime) -> u64 {
+    now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()
+}
+
 /// 为 [`CliChannel`] 实现 [`Channel`] trait
 ///
 /// 该实现提供了 CLI 通道的核心功能：
 /// - 消息发送到标准输出
 /// - 从标准输入监听用户消息
 /// - 通道标识与管理
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg(not(target_arch = "wasm32"))]
 impl Channel for CliChannel {
     /// 获取通道名称
     ///
@@ -155,9 +204,21 @@ impl Channel for CliChannel {
     /// # Ok(())
     /// # }
     /// ```
-    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        println!("{}", message.content);
-        Ok(())
+    fn send<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        message: &'life1 SendMessage,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
+            write_cli_message(message);
+            Ok(())
+        })
     }
 
     /// 监听标准输入并转发消息
@@ -220,69 +281,38 @@ impl Channel for CliChannel {
     ///     Ok(())
     /// }
     /// ```
-    async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // 获取标准输入句柄
+    fn listen<'life0, 'async_trait>(
+        &'life0 self,
+        tx: tokio::sync::mpsc::Sender<ChannelMessage>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
             let stdin = io::stdin();
-            // 创建带缓冲的异步读取器，提高读取效率
-            let reader = BufReader::new(stdin);
-            // 获取行迭代器
-            let mut lines = reader.lines();
+            let reader = Box::new(BufReader::new(stdin));
+            listen_from_reader(reader, tx).await
+        })
+    }
+}
 
-            // 主监听循环：持续读取用户输入
-            while let Ok(Some(line)) = lines.next_line().await {
-                // 去除首尾空白字符
-                let line = line.trim().to_string();
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl Channel for CliChannel {
+    fn name(&self) -> &str {
+        "cli"
+    }
 
-                // 跳过空行，避免产生无意义的消息
-                if line.is_empty() {
-                    continue;
-                }
+    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+        write_cli_message(message);
+        Ok(())
+    }
 
-                // 检查退出命令
-                if line == "/quit" || line == "/exit" {
-                    break;
-                }
-
-                // 构造通道消息对象
-                // 每条消息都有唯一 ID，便于追踪和去重
-                let msg = ChannelMessage {
-                    // 生成 UUID 作为消息唯一标识符
-                    id: Uuid::new_v4().to_string(),
-                    // CLI 通道中发送者始终为 "user"
-                    sender: "user".to_string(),
-                    // 回复目标也为 "user"，表示消息将回复给当前用户
-                    reply_target: "user".to_string(),
-                    // 消息内容（已去除空白）
-                    content: line,
-                    // 标识消息来源通道
-                    channel: "cli".to_string(),
-                    // 记录消息时间戳（Unix 纪元秒数）
-                    // 使用 unwrap_or_default 确保系统时间异常时不会 panic
-                    timestamp: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs(),
-                    // CLI 通道不支持线程时间戳（用于论坛式回复）
-                    thread_ts: None,
-                };
-
-                // 通过通道发送消息
-                // 如果发送失败（接收端已关闭），则退出监听循环
-                if tx.send(msg).await.is_err() {
-                    break;
-                }
-            }
-        }
-
-        // WASM 平台特殊处理
-        // WASM 环境无法直接访问标准输入，因此无限等待
-        #[cfg(target_arch = "wasm32")]
-        {
-            std::future::pending::<()>().await;
-        }
-
+    async fn listen(&self, _tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
+        std::future::pending::<()>().await;
         Ok(())
     }
 }

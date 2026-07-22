@@ -1,5 +1,7 @@
+use crate::id::ProjectId;
 use crate::project::{
-    ListProjectsRequest, ProjectGitStateDto, ProjectStatus, UpdateProjectRequest,
+    ListProjectsRequest, ProjectGitStateDto, ProjectScopeDto, ProjectStatus, TenantScopeDto,
+    UpdateProjectRequest,
 };
 use serde_json::json;
 
@@ -25,4 +27,17 @@ fn project_requests_default_optional_fields() {
         behind: Some(1),
     };
     assert_eq!(serde_json::to_value(git).expect("serialize")["behind"], json!(1));
+}
+
+#[test]
+fn project_scope_dtos_reject_empty_tenant_ids() {
+    assert!(TenantScopeDto::new("", "company-a").is_err());
+    assert!(TenantScopeDto::new("platform-a", " ").is_err());
+
+    let tenant = TenantScopeDto::new("platform/a", "company a").expect("tenant scope");
+    let scope =
+        ProjectScopeDto::new(tenant, ProjectId::from("project?one")).expect("project scope");
+    assert_eq!(scope.platform_id().as_ref(), "platform/a");
+    assert_eq!(scope.company_id().as_ref(), "company a");
+    assert_eq!(scope.project_id().as_ref(), "project?one");
 }

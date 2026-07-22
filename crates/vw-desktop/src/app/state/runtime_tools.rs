@@ -295,6 +295,11 @@ impl SessionToolSelectorState {
         self.explicit_allowed_tools.is_some()
     }
 
+    pub(crate) fn has_tool_filter(&self) -> bool {
+        self.explicit_allowed_tools.is_some()
+            || self.enabled_buckets.len() != SessionToolBucket::ALL.len()
+    }
+
     /// 执行 has_manual_context_selection 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -561,6 +566,7 @@ impl SessionToolSelectorState {
 /// 表示 SessionToolInventory 相关的应用状态或派生数据。
 pub(crate) struct SessionToolInventory {
     pub(crate) base_tools: Vec<String>,
+    pub(crate) restricts_tools: bool,
 }
 
 /// 执行 tool_bucket 对应的领域操作。
@@ -627,8 +633,10 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "lsp" => SessionToolGroup::Search,
         "apply_patch" | "edit" | "edit_file" | "editfile" | "file_edit" | "notebook_edit"
         | "bash" | "shell" | "process" | "git_operations" => SessionToolGroup::Execute,
-        "browser" | "browser_open" | "http_request" | "web_fetch" | "web_search" | "websearch"
-        | "web_search_tool" | "screenshot" | "image_info" => SessionToolGroup::Web,
+        "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
+        | "web_search" | "websearch" | "web_search_tool" | "screenshot" | "image_info" => {
+            SessionToolGroup::Web
+        }
         "AgentTool"
         | "Agent"
         | "agent"

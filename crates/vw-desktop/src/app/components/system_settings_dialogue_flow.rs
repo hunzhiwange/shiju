@@ -41,6 +41,36 @@ fn field_row<'a>(
     .into()
 }
 
+fn show_reasoning_summary_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::DialogueFlowShowReasoningSummaryToggled(value))
+}
+
+fn expand_shell_tool_section_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::DialogueFlowExpandShellToolSectionToggled(value))
+}
+
+fn expand_edit_tool_section_toggled(value: bool) -> Message {
+    Message::Settings(message::SettingsMessage::DialogueFlowExpandEditToolSectionToggled(value))
+}
+
+fn is_success_save_message(message: &str) -> bool {
+    message.starts_with("已保存")
+}
+
+fn success_banner_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    iced::widget::container::Style {
+        text_color: Some(palette.success.base.color),
+        background: Some(iced::Background::Color(palette.success.weak.color.scale_alpha(0.18))),
+        border: iced::Border {
+            width: 1.0,
+            color: palette.success.base.color.scale_alpha(0.45),
+            radius: 14.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
 /// 渲染对话流设置页面视图
 ///
 /// 构建并返回对话流配置页面的完整 UI 元素，包括标题、说明、
@@ -84,11 +114,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "在时间线中显示模型推理摘要。",
         checkbox(app.dialogue_flow_show_reasoning_summary)
             .label("启用")
-            .on_toggle(|v| {
-                Message::Settings(
-                    message::SettingsMessage::DialogueFlowShowReasoningSummaryToggled(v),
-                )
-            })
+            .on_toggle(show_reasoning_summary_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -97,11 +123,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "默认在时间线中展开 shell 工具部分。",
         checkbox(app.dialogue_flow_expand_shell_tool_section)
             .label("启用")
-            .on_toggle(|v| {
-                Message::Settings(
-                    message::SettingsMessage::DialogueFlowExpandShellToolSectionToggled(v),
-                )
-            })
+            .on_toggle(expand_shell_tool_section_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -110,11 +132,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "默认在时间线中展开 edit、write、patch 工具部分。",
         checkbox(app.dialogue_flow_expand_edit_tool_section)
             .label("启用")
-            .on_toggle(|v| {
-                Message::Settings(
-                    message::SettingsMessage::DialogueFlowExpandEditToolSectionToggled(v),
-                )
-            })
+            .on_toggle(expand_edit_tool_section_toggled)
             .style(settings_checkbox_style),
     );
 
@@ -135,26 +153,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(msg) = &app.dialogue_flow_settings_save_message {
-        let ok = msg.starts_with("已保存");
-        if ok {
+        if is_success_save_message(msg) {
             let success_banner: Element<'_, Message> = container(text(msg).size(13))
                 .padding([10, 12])
                 .width(Length::Fill)
-                .style(|t: &iced::Theme| {
-                    let palette = t.extended_palette();
-                    iced::widget::container::Style {
-                        text_color: Some(palette.success.base.color),
-                        background: Some(iced::Background::Color(
-                            palette.success.weak.color.scale_alpha(0.18),
-                        )),
-                        border: iced::Border {
-                            width: 1.0,
-                            color: palette.success.base.color.scale_alpha(0.45),
-                            radius: 14.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(success_banner_style)
                 .into();
             col = col.push(success_banner);
         } else {

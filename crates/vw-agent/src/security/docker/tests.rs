@@ -221,4 +221,158 @@ mod tests {
         let image_pos = args.iter().position(|arg| arg == "busybox:latest").unwrap();
         assert_eq!(&args[image_pos + 1..], ["sh", "-c", "echo hello"]);
     }
+
+    /// 测试 Debug 和 Clone derives
+    ///
+    /// 验证 `DockerSandbox` 正确实现了 `Debug` 和 `Clone` trait。
+    /// 这些派生 trait 用于日志记录和沙箱实例共享。
+    #[test]
+    fn docker_sandbox_debug_and_clone() {
+        let sandbox = DockerSandbox::default();
+        let cloned = sandbox.clone();
+        assert_eq!(format!("{:?}", sandbox), format!("{:?}", cloned));
+        assert_eq!(sandbox.image, cloned.image);
+    }
+
+    /// 测试命令包装保留程序路径
+    ///
+    /// 验证当原始程序带有路径前缀（如 `/usr/bin/env`）时，
+    /// 包装后的 Docker 命令仍然正确地在参数中保留程序路径。
+    #[test]
+    fn docker_wrap_command_preserves_program_with_path() {
+        let sandbox = DockerSandbox::default();
+        let mut cmd = Command::new("/usr/bin/env");
+        cmd.arg("SHELL=/bin/bash");
+        sandbox.wrap_command(&mut cmd).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|s| s.to_string_lossy().to_string()).collect();
+
+        // 验证原始程序路径作为参数保留
+        assert!(
+            args.contains(&"/usr/bin/env".to_string()),
+            "original program path must be preserved as argument"
+        );
+        assert!(
+            args.contains(&"SHELL=/bin/bash".to_string()),
+            "original arguments must be preserved"
+        );
+    }
+
+    /// 测试命令包装无参数的情况
+    ///
+    /// 验证当原始命令没有任何参数时，包装后的命令仍然正常工作。
+    /// 这是 `wrap_command` 的边界值测试。
+    #[test]
+    fn docker_wrap_command_with_no_args() {
+        let sandbox = DockerSandbox::default();
+        let mut cmd = Command::new("true");
+        sandbox.wrap_command(&mut cmd).unwrap();
+
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert_eq!(program, "docker", "program should be docker");
+
+        let args: Vec<String> = cmd.get_args().map(|s| s.to_string_lossy().to_string()).collect();
+        assert!(args.contains(&"true".to_string()), "original program must appear as argument");
+    }
+
+    /// 测试命令包装完全替换原命令
+    ///
+    /// 验证 `wrap_command` 后，原 `Command` 对象被完全替换为 Docker 命令，
+    /// 原程序不再作为程序（而是作为参数），所有安全标志都正确注入。
+    #[test]
+    fn docker_wrap_command_fully_replaces_command() {
+        let sandbox = DockerSandbox::default();
+        let mut cmd = Command::new("original_prog");
+        cmd.args(["arg1", "arg2", "arg3"]);
+        sandbox.wrap_command(&mut cmd).unwrap();
+
+        let program = cmd.get_program().to_string_lossy().to_string();
+        assert_eq!(program, "docker", "program must be fully replaced to docker");
+
+        let args: Vec<String> = cmd.get_args().map(|s| s.to_string_lossy().to_string()).collect();
+
+        // 验证安全标志都在
+        for flag in &["run", "--rm", "--memory", "512m", "--cpus", "1.0", "--network", "none"] {
+            assert!(args.contains(&flag.to_string()), "must contain flag: {}", flag);
+        }
+
+        // 验证镜像在参数中
+        assert!(args.contains(&"alpine:latest".to_string()), "must contain default image");
+
+        // 验证原始程序变为参数
+        assert!(args.contains(&"original_prog".to_string()), "original program must be in args");
+        assert!(args.contains(&"arg1".to_string()), "original arg1 must be in args");
+        assert!(args.contains(&"arg2".to_string()), "original arg2 must be in args");
+        assert!(args.contains(&"arg3".to_string()), "original arg3 must be in args");
+    }
+
+    /// 测试自定义镜像空字符串边界值
+    ///
+    /// 验证使用空字符串作为镜像名称时，`with_image` 的行为。
+    /// 当 Docker 安装时，`with_image("")` 会创建空白镜像名的沙箱；
+    /// 未安装时返回错误。
+    ///
+    /// 这是 `with_image` 的边界值测试。
+    #[test]
+    fn docker_with_empty_image() {
+        let result = DockerSandbox::with_image("".to_string());
+        match result {
+            Ok(sandbox) => assert_eq!(
+                sandbox.image, "",
+                "empty image string should be accepted when docker is installed"
+            ),
+            Err(_) => assert!(
+                !DockerSandbox::is_installed(),
+                "error should only occur when docker is not installed"
+            ),
+        }
+    }
+
+    /// 测试 wrap_command 使用空镜像名
+    ///
+    /// 验证当沙箱使用空字符串作为镜像名时，wrap_command 仍然能够
+    /// 正常构造 Docker 命令。这测试了代码路径中 `self.image` 的表达能力。
+    #[test]
+    fn docker_wrap_command_with_empty_image() {
+        let sandbox = DockerSandbox { image: "".to_string() };
+        let mut cmd = Command::new("ls");
+        sandbox.wrap_command(&mut cmd).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|s| s.to_string_lossy().to_string()).collect();
+        // 验证空镜像作为空参数存在
+        assert!(args.contains(&"".to_string()), "empty image should appear as empty arg");
+    }
+
+    /// 测试 with_image 创建后 wrap_command 一致性
+    ///
+    /// 验证通过 `with_image` 创建的沙箱，其 `wrap_command` 使用正确的镜像名称。
+    #[test]
+    fn docker_with_image_wrap_consistency() {
+        let result = DockerSandbox::with_image("python:3.11-slim".to_string());
+        match result {
+            Ok(sandbox) => {
+                let mut cmd = Command::new("python");
+                cmd.arg("-c");
+                cmd.arg("print('hello')");
+                sandbox.wrap_command(&mut cmd).unwrap();
+
+                let args: Vec<String> =
+                    cmd.get_args().map(|s| s.to_string_lossy().to_string()).collect();
+                assert!(args.contains(&"python:3.11-slim".to_string()), "must use custom image");
+                assert!(args.contains(&"-c".to_string()), "must preserve -c flag");
+                assert!(args.contains(&"print('hello')".to_string()), "must preserve script arg");
+            }
+            Err(_) => assert!(!DockerSandbox::is_installed()),
+        }
+    }
+
+    /// 测试 is_available 返回一致结果
+    ///
+    /// 验证 `is_available` 与 `is_installed` 返回相同的结果。
+    /// 确保可用性检查的一致性。
+    #[test]
+    fn docker_is_available_consistent_with_is_installed() {
+        let sandbox = DockerSandbox::default();
+        assert_eq!(sandbox.is_available(), DockerSandbox::is_installed());
+    }
 }

@@ -22,13 +22,12 @@
 #[cfg(target_arch = "wasm32")]
 use iced::widget::mouse_area;
 use iced::widget::{button, column, container, text, text_editor};
-use iced::{Element, Length};
+use iced::{Background, Border, Color, Element, Length, Theme};
 
 use crate::app::components::input_mention_highlighter::{
     MentionHighlighter, Settings as MentionHighlightSettings, mention_format,
 };
 use crate::app::components::input_panel::styles::editor_style;
-use crate::app::components::input_panel::styles::popover_style;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
@@ -281,29 +280,87 @@ pub fn build_input_editor<'a>(
 }
 
 pub(super) fn input_context_menu<'a>() -> Element<'a, Message> {
+    let menu_item = |label: &'static str, message: Message| {
+        button(
+            container(text(label).size(12))
+                .width(Length::Fill)
+                .padding([5, 9])
+                .align_x(iced::alignment::Horizontal::Left),
+        )
+        .width(Length::Fill)
+        .padding(0)
+        .style(input_context_menu_button_style)
+        .on_press(message)
+    };
+
     container(
         column![
-            button(text("复制").size(12))
-                .width(Length::Fill)
-                .style(iced::widget::button::secondary)
-                .on_press(Message::Chat(message::ChatMessage::CopyInputSelection)),
-            button(text("剪切").size(12))
-                .width(Length::Fill)
-                .style(iced::widget::button::secondary)
-                .on_press(Message::Chat(message::ChatMessage::CutInputSelection)),
-            button(text("粘贴").size(12))
-                .width(Length::Fill)
-                .style(iced::widget::button::secondary)
-                .on_press(Message::Chat(message::ChatMessage::PasteIntoInput)),
-            button(text("全选").size(12))
-                .width(Length::Fill)
-                .style(iced::widget::button::secondary)
-                .on_press(Message::Chat(message::ChatMessage::SelectAllInput)),
+            menu_item("复制", Message::Chat(message::ChatMessage::CopyInputSelection)),
+            menu_item("剪切", Message::Chat(message::ChatMessage::CutInputSelection)),
+            menu_item("粘贴", Message::Chat(message::ChatMessage::PasteIntoInput)),
+            menu_item("全选", Message::Chat(message::ChatMessage::SelectAllInput)),
         ]
-        .spacing(4)
-        .width(Length::Fixed(132.0)),
+        .spacing(0)
+        .width(Length::Fixed(134.0)),
     )
-    .padding(6)
-    .style(popover_style)
+    .padding([3, 3])
+    .style(input_context_menu_style)
     .into()
+}
+
+pub(super) fn input_context_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
+    let hovered_bg = if is_dark {
+        Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.05)
+    } else {
+        Color::from_rgba8(0xEA, 0xED, 0xF1, 0.85)
+    };
+    let pressed_bg = if is_dark {
+        Color::from_rgba8(0xFF, 0xFF, 0xFF, 0.09)
+    } else {
+        Color::from_rgba8(0xE2, 0xE6, 0xEB, 0.95)
+    };
+
+    iced::widget::button::Style {
+        background: match status {
+            iced::widget::button::Status::Pressed => Some(Background::Color(pressed_bg)),
+            iced::widget::button::Status::Hovered => Some(Background::Color(hovered_bg)),
+            _ => None,
+        },
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+pub(super) fn input_context_menu_style(theme: &Theme) -> iced::widget::container::Style {
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
+    let background = if is_dark {
+        Color::from_rgba8(0x22, 0x22, 0x24, 0.98)
+    } else {
+        Color::from_rgba8(0xF3, 0xF4, 0xF6, 0.98)
+    };
+    let border = if is_dark {
+        Color::from_rgba8(0x3A, 0x3A, 0x3F, 0.95)
+    } else {
+        Color::from_rgba8(0xDD, 0xE1, 0xE6, 1.0)
+    };
+
+    iced::widget::container::Style {
+        background: Some(Background::Color(background)),
+        border: Border { width: 1.0, color: border, radius: 8.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.20 } else { 0.08 }),
+            offset: iced::Vector::new(0.0, 4.0),
+            blur_radius: 10.0,
+        },
+        ..Default::default()
+    }
 }

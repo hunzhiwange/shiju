@@ -90,6 +90,77 @@ wip: 进行中的工作（临时提交，慎用）
 typo: 修复拼写错误
 locale: 国际化/本地化相关"#;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CommitButtonState {
+    InProgress,
+    NoSelection,
+    MissingSummary,
+    MissingType,
+    Ready,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct CommitPanelState {
+    pub(super) hint: &'static str,
+    pub(super) button: CommitButtonState,
+}
+
+pub(super) fn has_selected_changes(app: &App) -> bool {
+    !app.staged_files_selected.is_empty()
+        || !app.staged_hunks_selected.is_empty()
+        || !app.staged_lines_selected.is_empty()
+        || !app.staged_old_lines_selected.is_empty()
+}
+
+pub(super) fn commit_panel_state(app: &App) -> CommitPanelState {
+    let any_selected = has_selected_changes(app);
+    let summary = app.git_commit_message.trim();
+    let type_valid = !app.show_git_diff_summary || app.git_commit_type.is_some();
+
+    if app.git_commit_in_progress {
+        CommitPanelState { hint: "正在提交已选变更", button: CommitButtonState::InProgress }
+    } else if !any_selected {
+        CommitPanelState {
+            hint: "请选择至少一项变更后再提交",
+            button: CommitButtonState::NoSelection,
+        }
+    } else if summary.is_empty() {
+        CommitPanelState {
+            hint: "填写摘要后即可提交", button: CommitButtonState::MissingSummary
+        }
+    } else if !type_valid {
+        CommitPanelState {
+            hint: "选择提交类型后即可提交", button: CommitButtonState::MissingType
+        }
+    } else {
+        CommitPanelState {
+            hint: "已满足提交条件，可直接提交", button: CommitButtonState::Ready
+        }
+    }
+}
+
+pub(super) fn help_icon_style(theme: &Theme, _status: svg::Status) -> svg::Style {
+    svg::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
+}
+
+pub(super) fn help_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let is_hovered = matches!(
+        status,
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
+    );
+
+    iced::widget::button::Style {
+        background: is_hovered.then(|| palette.background.weak.color.scale_alpha(0.72).into()),
+        text_color: theme.palette().text,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+        ..Default::default()
+    }
+}
+
 /// 构建 Git 面板左侧面板视图
 ///
 /// 该函数创建包含提交表单的完整左侧面板，根据应用状态动态调整界面布局：
@@ -185,83 +256,45 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .height(Length::Fixed(88.0))
         .style(settings_text_editor_style);
 
-    // 检查是否有任何变更被选中（包括文件、代码块、行级别和旧行级别的选择）
-    let any_selected = !app.staged_files_selected.is_empty()
-        || !app.staged_hunks_selected.is_empty()
-        || !app.staged_lines_selected.is_empty()
-        || !app.staged_old_lines_selected.is_empty();
-
-    // 获取去除首尾空白的摘要文本，用于验证
-    let summary = app.git_commit_message.trim();
-
-    // 验证提交类型是否有效（仅在约定式提交模式下需要检查）
-    let type_valid = !app.show_git_diff_summary || app.git_commit_type.is_some();
-    let commit_hint = if app.git_commit_in_progress {
-        "正在提交已选变更"
-    } else if !any_selected {
-        "请选择至少一项变更后再提交"
-    } else if summary.is_empty() {
-        "填写摘要后即可提交"
-    } else if !type_valid {
-        "选择提交类型后即可提交"
-    } else {
-        "已满足提交条件，可直接提交"
-    };
+    let commit_state = commit_panel_state(app);
 
     // 根据条件构建提交按钮，动态显示不同的状态提示
-    let commit_btn = if app.git_commit_in_progress {
-        disabled_square_content_button_tiny(
+    let commit_btn = match commit_state.button {
+        CommitButtonState::InProgress => disabled_square_content_button_tiny(
             container(text(spinner_frame(app.file_manager_refresh_frame)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
             "正在提交…".to_string(),
-        )
-    } else if !any_selected {
-        // 未选择任何变更时，按钮禁用并提示
-        disabled_square_icon_button_tiny(Icon::Save, "选择变更后可提交".to_string())
-    } else if summary.is_empty() {
-        // 摘要字段为空时，按钮禁用并提示
-        disabled_square_icon_button_tiny(Icon::Save, "填写摘要后可提交".to_string())
-    } else if !type_valid {
-        // 未选择提交类型时，按钮禁用并提示（仅约定式提交模式）
-        disabled_square_icon_button_tiny(Icon::Save, "请选择类型".to_string())
-    } else {
-        // 所有条件满足，按钮启用并可执行提交操作
-        square_icon_button_tiny(
+        ),
+        CommitButtonState::NoSelection => {
+            disabled_square_icon_button_tiny(Icon::Save, "选择变更后可提交".to_string())
+        }
+        CommitButtonState::MissingSummary => {
+            disabled_square_icon_button_tiny(Icon::Save, "填写摘要后可提交".to_string())
+        }
+        CommitButtonState::MissingType => {
+            disabled_square_icon_button_tiny(Icon::Save, "请选择类型".to_string())
+        }
+        CommitButtonState::Ready => square_icon_button_tiny(
             Icon::Save,
             "提交所选".to_string(),
             Message::Git(message::GitMessage::CommitSelected),
-        )
+        ),
     };
     // 构建帮助按钮，点击后显示约定式提交规范弹窗。
     let help_btn = button(
-        container(icon_svg(Icon::QuestionCircle, 14.0).style(|theme: &Theme, _status| {
-            svg::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
-        }))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center),
+        container(icon_svg(Icon::QuestionCircle, 14.0).style(help_icon_style))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center),
     )
     .padding(0)
     .width(Length::Fixed(24.0))
     .height(Length::Fixed(24.0))
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        let is_hovered = matches!(
-            status,
-            iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
-        );
-
-        iced::widget::button::Style {
-            background: is_hovered.then(|| palette.background.weak.color.scale_alpha(0.72).into()),
-            text_color: theme.palette().text,
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-            ..Default::default()
-        }
-    })
+    .style(help_button_style)
     .on_press(Message::Git(message::GitMessage::CommitHelpOpen));
 
     // 构建主内容列，按顺序添加摘要输入、描述编辑器和底部操作区
@@ -298,7 +331,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let col = column![
         form_col,
         row![
-            container(text(commit_hint).size(11).style(settings_muted_text_style))
+            container(text(commit_state.hint).size(11).style(settings_muted_text_style))
                 .width(Length::Fill)
                 .center_y(Length::Shrink),
             container(commit_btn).center_x(Length::Shrink).center_y(Length::Shrink),

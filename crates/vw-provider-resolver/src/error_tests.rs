@@ -255,6 +255,41 @@ fn parse_api_call_error_treats_openai_404_as_retryable() {
 }
 
 #[test]
+fn parse_api_call_error_preserves_openai_retryable_for_non_404_status() {
+    let not_retryable = parse_api_call_error(
+        "openai-chat",
+        ApiCallError {
+            message: "server error".to_string(),
+            status_code: Some(500),
+            is_retryable: false,
+            url: None,
+            response_headers: None,
+            response_body: None,
+        },
+    );
+    let retryable = parse_api_call_error(
+        "openai-chat",
+        ApiCallError {
+            message: "rate limited".to_string(),
+            status_code: Some(429),
+            is_retryable: true,
+            url: None,
+            response_headers: None,
+            response_body: None,
+        },
+    );
+
+    match not_retryable {
+        ParsedApiCallError::ApiError { is_retryable, .. } => assert!(!is_retryable),
+        other => panic!("expected api error, got {other:?}"),
+    }
+    match retryable {
+        ParsedApiCallError::ApiError { is_retryable, .. } => assert!(is_retryable),
+        other => panic!("expected api error, got {other:?}"),
+    }
+}
+
+#[test]
 fn parse_api_call_error_preserves_openai_retryable_without_status() {
     let parsed = parse_api_call_error(
         "openai",

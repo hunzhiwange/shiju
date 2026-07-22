@@ -76,6 +76,17 @@ fn new_reports_invalid_connection_url_after_identifier_validation() {
 }
 
 #[test]
+fn new_normalizes_trimmed_public_schema_before_parsing_connection_url() {
+    let error = match MariadbMemory::new("not a mysql url", "  PuBlIc\n", "memories", None, false) {
+        Ok(_) => panic!("invalid connection URL should fail"),
+        Err(error) => error.to_string(),
+    };
+
+    assert!(error.contains("invalid MariaDB connection URL"));
+    assert!(!error.contains("storage schema"));
+}
+
+#[test]
 fn timeout_cap_constant_documents_the_constructor_bound() {
     assert_eq!(MARIADB_CONNECT_TIMEOUT_CAP_SECS, 300);
 }

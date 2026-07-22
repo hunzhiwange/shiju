@@ -297,20 +297,24 @@ impl EmailChannel {
     fn extract_text(parsed: &mail_parser::Message) -> String {
         // 优先使用纯文本正文
         if let Some(text) = parsed.body_text(0) {
-            return text.to_string();
+            if !text.contains('\u{fffd}') {
+                return text.trim().to_string();
+            }
         }
         // 其次使用 HTML 正文（移除标签）
         if let Some(html) = parsed.body_html(0) {
-            return Self::strip_html(html.as_ref());
+            return Self::strip_html(html.as_ref()).trim().to_string();
         }
         // 最后尝试从附件中提取文本
         for part in parsed.attachments() {
             let part: &mail_parser::MessagePart = part;
             if let Some(ct) = MimeHeaders::content_type(part) {
                 if ct.ctype() == "text" {
-                    if let Ok(text) = std::str::from_utf8(part.contents()) {
+                    if let Ok(text) = std::str::from_utf8(part.contents())
+                        && !text.contains('\u{fffd}')
+                    {
                         let name = MimeHeaders::attachment_name(part).unwrap_or("file");
-                        return format!("[Attachment: {}]\n{}", name, text);
+                        return format!("[Attachment: {}]\n{}", name, text.trim());
                     }
                 }
             }
@@ -411,50 +415,10 @@ impl EmailChannel {
         for msg in messages {
             let uid = msg.uid.unwrap_or(0);
             if let Some(body) = msg.body() {
-                // 使用 mail_parser 解析邮件内容
-                if let Some(parsed) = MessageParser::default().parse(body) {
-                    // 提取发件人、主题和正文
-                    let sender = Self::extract_sender(&parsed);
-                    let subject = parsed.subject().unwrap_or("(no subject)").to_string();
-                    let body_text = Self::extract_text(&parsed);
-                    // 组合成标准格式的内容
-                    let content = format!("Subject: {}\n\n{}", subject, body_text);
-                    // 获取或生成邮件 ID（用于去重）
-                    let msg_id = parsed
-                        .message_id()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| format!("gen-{}", Uuid::new_v4()));
-
-                    // 解析邮件时间戳，失败时使用当前系统时间
-                    #[allow(clippy::cast_sign_loss)]
-                    let ts = parsed
-                        .date()
-                        .map(|d| {
-                            // 构建日期时间对象
-                            let naive = chrono::NaiveDate::from_ymd_opt(
-                                d.year as i32,
-                                u32::from(d.month),
-                                u32::from(d.day),
-                            )
-                            .and_then(|date| {
-                                date.and_hms_opt(
-                                    u32::from(d.hour),
-                                    u32::from(d.minute),
-                                    u32::from(d.second),
-                                )
-                            });
-                            // 转换为 Unix 时间戳（秒）
-                            naive.map_or(0, |n| n.and_utc().timestamp() as u64)
-                        })
-                        .unwrap_or_else(|| {
-                            // 解析失败时使用当前系统时间
-                            SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .map(|d| d.as_secs())
-                                .unwrap_or(0)
-                        });
-
-                    results.push(ParsedEmail { _uid: uid, msg_id, sender, content, timestamp: ts });
+                let fallback_timestamp =
+                    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+                if let Some(email) = Self::parsed_email_from_body(uid, body, fallback_timestamp) {
+                    results.push(email);
                 }
             }
         }
@@ -696,6 +660,11 @@ impl EmailChannel {
     /// - `smtp_tls = true`：使用 STARTTLS 加密（推荐）
     /// - `smtp_tls = false`：明文传输（仅用于测试或不安全的内网环境）
     fn create_smtp_transport(&self) -> Result<SmtpTransport> {
+        anyhow::ensure!(
+            !self.config.smtp_host.is_empty()
+                && !self.config.smtp_host.chars().any(char::is_whitespace),
+            "SMTP host must be a non-empty hostname without whitespace"
+        );
         let creds = Credentials::new(self.config.username.clone(), self.config.password.clone());
         let transport = if self.config.smtp_tls {
             // TLS 模式：使用安全的 SMTP 中继
@@ -711,6 +680,63 @@ impl EmailChannel {
                 .build()
         };
         Ok(transport)
+    }
+
+    fn parsed_email_from_body(
+        uid: u32,
+        body: &[u8],
+        fallback_timestamp: u64,
+    ) -> Option<ParsedEmail> {
+        let parsed = MessageParser::default().parse(body)?;
+        let sender = Self::extract_sender(&parsed);
+        let subject = parsed.subject().unwrap_or("(no subject)").to_string();
+        let body_text = Self::extract_text(&parsed);
+        let content = format!("Subject: {}\n\n{}", subject, body_text);
+        let msg_id = parsed
+            .message_id()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("gen-{}", Uuid::new_v4()));
+
+        #[allow(clippy::cast_sign_loss)]
+        let timestamp = parsed
+            .date()
+            .map(|d| {
+                let naive = chrono::NaiveDate::from_ymd_opt(
+                    d.year as i32,
+                    u32::from(d.month),
+                    u32::from(d.day),
+                )
+                .and_then(|date| {
+                    date.and_hms_opt(u32::from(d.hour), u32::from(d.minute), u32::from(d.second))
+                });
+                naive.map_or(0, |n| n.and_utc().timestamp() as u64)
+            })
+            .unwrap_or(fallback_timestamp);
+
+        Some(ParsedEmail { _uid: uid, msg_id, sender, content, timestamp })
+    }
+
+    fn outgoing_subject_and_body(message: &SendMessage) -> (&str, &str) {
+        if let Some(ref subj) = message.subject {
+            (subj.as_str(), message.content.as_str())
+        } else if message.content.starts_with("Subject: ") {
+            if let Some(pos) = message.content.find('\n') {
+                (&message.content[9..pos], message.content[pos + 1..].trim())
+            } else {
+                ("VibeWindow Message", message.content.as_str())
+            }
+        } else {
+            ("VibeWindow Message", message.content.as_str())
+        }
+    }
+
+    fn build_outgoing_email(&self, message: &SendMessage) -> Result<Message> {
+        let (subject, body) = Self::outgoing_subject_and_body(message);
+        Ok(Message::builder()
+            .from(self.config.from_address.parse()?)
+            .to(message.recipient.parse()?)
+            .subject(subject)
+            .singlepart(SinglePart::plain(body.to_string()))?)
     }
 }
 
@@ -794,26 +820,7 @@ impl Channel for EmailChannel {
     /// 2. 如果内容以 `"Subject: "` 开头，尝试解析第一行为主题
     /// 3. 否则使用默认主题 `"VibeWindow Message"`
     async fn send(&self, message: &SendMessage) -> Result<()> {
-        // 优先使用显式指定的主题，否则尝试从内容解析或使用默认值
-        let (subject, body) = if let Some(ref subj) = message.subject {
-            (subj.as_str(), message.content.as_str())
-        } else if message.content.starts_with("Subject: ") {
-            // 兼容旧格式：内容首行为 "Subject: xxx"
-            if let Some(pos) = message.content.find('\n') {
-                (&message.content[9..pos], message.content[pos + 1..].trim())
-            } else {
-                ("VibeWindow Message", message.content.as_str())
-            }
-        } else {
-            ("VibeWindow Message", message.content.as_str())
-        };
-
-        // 构建邮件消息
-        let email = Message::builder()
-            .from(self.config.from_address.parse()?)
-            .to(message.recipient.parse()?)
-            .subject(subject)
-            .singlepart(SinglePart::plain(body.to_string()))?;
+        let email = self.build_outgoing_email(message)?;
 
         // 创建 SMTP 传输并发送
         let transport = self.create_smtp_transport()?;
@@ -872,6 +879,9 @@ impl Channel for EmailChannel {
     }
 }
 
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

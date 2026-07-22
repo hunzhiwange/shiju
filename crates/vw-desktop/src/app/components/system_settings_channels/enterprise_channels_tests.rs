@@ -1,7 +1,8 @@
 use crate::app::{App, Message};
 use vw_config_types::channels::{
-    ClawdTalkConfig, DingTalkConfig, FeishuConfig, GroupReplyConfig, GroupReplyMode, LarkConfig,
-    LarkReceiveMode, NostrConfig, QQConfig, QQReceiveMode,
+    ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
+    GroupReplyConfig, GroupReplyMode, LarkConfig, LarkReceiveMode, NostrConfig, QQConfig,
+    QQReceiveMode,
 };
 
 fn test_app() -> App {
@@ -97,4 +98,122 @@ fn enterprise_panels_build_disabled_and_expanded_enabled_states() {
     keep_element(super::enterprise_channels::qq_panel(&app));
     keep_element(super::enterprise_channels::nostr_panel(&app));
     keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+}
+
+#[test]
+fn enterprise_panels_build_configured_but_collapsed_state() {
+    let mut app = test_app();
+    configure_enterprise_channels(&mut app);
+    app.channels_settings.expanded_panels.clear();
+
+    keep_element(super::enterprise_channels::lark_panel(&app));
+    keep_element(super::enterprise_channels::feishu_panel(&app));
+    keep_element(super::enterprise_channels::dingtalk_panel(&app));
+    keep_element(super::enterprise_channels::qq_panel(&app));
+    keep_element(super::enterprise_channels::nostr_panel(&app));
+    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+}
+
+#[test]
+fn enterprise_panels_build_when_optional_credentials_are_absent() {
+    let mut app = test_app();
+    configure_enterprise_channels(&mut app);
+
+    let lark = app.channels_settings.lark.as_mut().expect("configured Lark channel");
+    lark.encrypt_key = None;
+    lark.verification_token = None;
+    lark.group_reply = None;
+    lark.receive_mode = LarkReceiveMode::Websocket;
+    lark.port = None;
+
+    let feishu = app.channels_settings.feishu.as_mut().expect("configured Feishu channel");
+    feishu.encrypt_key = None;
+    feishu.verification_token = None;
+    feishu.group_reply = None;
+    feishu.receive_mode = LarkReceiveMode::Webhook;
+    feishu.port = Some(u16::MAX);
+
+    app.channels_settings.qq.as_mut().expect("configured QQ channel").receive_mode =
+        QQReceiveMode::Webhook;
+    app.channels_settings
+        .clawdtalk
+        .as_mut()
+        .expect("configured ClawdTalk channel")
+        .webhook_secret = None;
+    app.channels_settings.refresh_text_inputs();
+
+    keep_element(super::enterprise_channels::lark_panel(&app));
+    keep_element(super::enterprise_channels::feishu_panel(&app));
+    keep_element(super::enterprise_channels::qq_panel(&app));
+    keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+}
+
+#[test]
+fn feishu_panel_builds_instance_only_state_with_named_and_fallback_titles() {
+    let mut app = test_app();
+    app.channels_settings.feishu_instances.extend([
+        FeishuInstanceConfig {
+            id: "   ".to_string(),
+            config: FeishuConfig {
+                app_id: "fallback-app".to_string(),
+                app_secret: "fallback-secret".to_string(),
+                encrypt_key: None,
+                verification_token: None,
+                allowed_users: Vec::new(),
+                group_reply: None,
+                receive_mode: LarkReceiveMode::Webhook,
+                port: None,
+                draft_update_interval_ms: 100,
+                max_draft_edits: 1,
+            },
+        },
+        FeishuInstanceConfig {
+            id: "support".to_string(),
+            config: FeishuConfig {
+                app_id: "named-app".to_string(),
+                app_secret: "named-secret".to_string(),
+                encrypt_key: Some("encrypt".to_string()),
+                verification_token: Some("verify".to_string()),
+                allowed_users: vec!["alice".to_string()],
+                group_reply: Some(group_reply()),
+                receive_mode: LarkReceiveMode::Websocket,
+                port: Some(3002),
+                draft_update_interval_ms: 60_000,
+                max_draft_edits: 200,
+            },
+        },
+    ]);
+    app.channels_settings.expanded_panels.insert("feishu".to_string());
+    app.channels_settings.refresh_text_inputs();
+
+    assert!(app.channels_settings.feishu.is_none());
+    keep_element(super::enterprise_channels::feishu_panel(&app));
+}
+
+#[test]
+fn dingtalk_panel_builds_instance_only_state_with_named_and_fallback_titles() {
+    let mut app = test_app();
+    app.channels_settings.dingtalk_instances.extend([
+        DingTalkInstanceConfig {
+            id: "\t".to_string(),
+            config: DingTalkConfig {
+                client_id: "fallback-client".to_string(),
+                client_secret: "fallback-secret".to_string(),
+                allowed_users: Vec::new(),
+            },
+        },
+        DingTalkInstanceConfig {
+            id: "operations".to_string(),
+            config: DingTalkConfig {
+                client_id: "named-client".to_string(),
+                client_secret: "named-secret".to_string(),
+                allowed_users: vec!["alice".to_string()],
+            },
+        },
+    ]);
+    app.channels_settings.expanded_panels.insert("dingtalk".to_string());
+    app.channels_settings.refresh_text_inputs();
+
+    assert!(app.channels_settings.dingtalk.is_none());
+    keep_element(super::enterprise_channels::dingtalk_panel(&app));
 }

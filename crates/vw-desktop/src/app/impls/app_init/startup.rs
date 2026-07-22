@@ -8,13 +8,7 @@ use super::*;
 /// 模块内可见函数，执行 build_startup_task 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
-    #[cfg(all(not(target_arch = "wasm32"), debug_assertions))]
-    {
-        let _ = app;
-        Task::done(Message::StartupCliServiceBootstrapped(Ok(())))
-    }
-
-    #[cfg(all(not(target_arch = "wasm32"), not(debug_assertions)))]
+    #[cfg(not(target_arch = "wasm32"))]
     {
         let _ = app;
         Task::perform(

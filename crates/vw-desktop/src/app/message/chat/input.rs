@@ -20,12 +20,23 @@ mod shared_tests;
 
 use super::ChatMessage;
 use super::ClipboardPastePayload;
+use crate::app::components::chat_panel::message_measure::ChatMessageMeasurement;
 use crate::app::{App, Message, message};
 pub(crate) use file_search::{
     FileSearchResult, build_ranked_file_search_entries, ranked_file_search_entries,
 };
 use iced::Task;
 use std::time::Duration;
+
+const CHAT_MESSAGE_MEASURE_EPSILON_PX: f32 = 1.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChatScrollUpdateOutcome {
+    pub(crate) visible_range: (usize, usize),
+    pub(crate) pending_chunk_starts: Vec<usize>,
+    pub(crate) measure_visible_messages: bool,
+    pub(crate) viewport_or_offset_changed: bool,
+}
 
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
@@ -63,50 +74,43 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ToolTextEditorAction(msg_idx, tool_idx, text_idx, action) => {
             editor_actions::handle_tool_text_editor_action(app, msg_idx, tool_idx, text_idx, action)
         }
+        ChatMessage::MarkdownBlockEditorAction(msg_idx, text_idx, block_idx, action) => {
+            editor_actions::handle_markdown_block_editor_action(
+                app, msg_idx, text_idx, block_idx, action,
+            )
+        }
         ChatMessage::ThinkEditorAction(msg_idx, think_idx, action) => {
             editor_actions::handle_think_editor_action(app, msg_idx, think_idx, action)
         }
         ChatMessage::ScrollChanged { offset_y: rel_y, viewport_h } => {
-            let next_offset_y = rel_y.clamp(0.0, 1.0);
-            let next_viewport_h = viewport_h.max(0.0);
-            let offset_changed = (app.chat_scroll_offset_y - next_offset_y).abs() > 0.0005;
-            let viewport_changed = (app.chat_scroll_viewport_h - next_viewport_h).abs() > 0.5;
-            let within_hold_window = super::now_ms() < app.chat_autoscroll_hold_until_ms;
-            let next_auto_scroll = if within_hold_window && app.chat_auto_scroll {
-                next_offset_y >= 0.82
-            } else if app.chat_auto_scroll {
-                next_offset_y >= 0.90
-            } else {
-                next_offset_y >= 0.975
-            };
-
-            app.chat_scroll_offset_y = next_offset_y;
-            app.chat_scroll_viewport_h = next_viewport_h;
-            app.chat_auto_scroll = next_auto_scroll;
-
-            if !offset_changed && !viewport_changed {
-                return Task::none();
+            let outcome = apply_chat_scroll_changed(app, rel_y, viewport_h);
+            let measure_task = super::measure_visible_chat_messages_task();
+            if !outcome.viewport_or_offset_changed {
+                return measure_task;
             }
 
-            let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
-            app.prune_chat_heavy_editor_caches(visible_start_idx, visible_end_idx);
-            let pending_chunk_starts =
-                app.pending_chat_ui_chunk_starts(visible_start_idx, visible_end_idx, true);
-
-            if !pending_chunk_starts.is_empty()
+            if !outcome.pending_chunk_starts.is_empty()
                 && let Some(session_id) = app.active_session_id.clone()
             {
-                app.mark_chat_ui_chunks_preparing(&pending_chunk_starts);
-                return crate::app::message::project::prepare_session_ui_chunks_task(
+                app.mark_chat_ui_chunks_preparing(&outcome.pending_chunk_starts);
+                let chunk_task = crate::app::message::project::prepare_session_ui_chunks_task(
                     session_id,
                     app.active_shared_chat_messages(),
-                    pending_chunk_starts,
+                    outcome.pending_chunk_starts,
                     None,
                     app.dialogue_flow_show_reasoning_summary,
                 );
+                return Task::batch([chunk_task, measure_task]);
             }
 
-            Task::none()
+            measure_task
+        }
+        ChatMessage::VisibleMessageMeasurements(measurements) => {
+            if apply_chat_message_measurements(app, measurements) {
+                super::measure_visible_chat_messages_task()
+            } else {
+                Task::none()
+            }
         }
         ChatMessage::ScrollToBottom => super::scroll_chat_to_bottom_task(app),
         ChatMessage::LocateChatMessage(message_id) => shared::locate_chat_message(app, &message_id),
@@ -162,11 +166,19 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 true
             };
 
-            if next_expanded {
-                return super::scroll_chat_to_bottom_with_followups(app);
+            if app.chat_auto_scroll {
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
+                if next_expanded {
+                    return super::scroll_chat_to_bottom_with_followups(app);
+                }
+                app.chat_virtualizer.snap_to_tail();
+                app.sync_chat_virtualizer_compat_fields();
+            } else {
+                app.chat_virtualizer.preserve_current_anchor_around();
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
             }
 
-            Task::none()
+            super::measure_visible_chat_messages_task()
         }
         ChatMessage::ThinkHover(msg_idx, think_idx) => {
             let key = ((msg_idx as u64) << 32) | (think_idx as u64);
@@ -303,8 +315,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::TaskModeModelChanged(model) => {
             task_mode::handle_task_mode_model_changed(app, model)
         }
+        ChatMessage::TaskModeTaskSplitModeChanged(mode) => {
+            task_mode::handle_task_mode_task_split_mode_changed(app, mode)
+        }
         ChatMessage::TaskModeExecutorChanged(executor) => {
             task_mode::handle_task_mode_executor_changed(app, executor)
+        }
+        ChatMessage::TaskModeReasoningEffortChanged(reasoning_effort) => {
+            task_mode::handle_task_mode_reasoning_effort_changed(app, reasoning_effort)
         }
         ChatMessage::TaskModeSubtaskChanged { index, value } => {
             task_mode::handle_task_mode_subtask_changed(app, index, value)
@@ -354,6 +372,96 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         _ => Task::none(),
     }
+}
+
+pub(crate) fn apply_chat_scroll_changed(
+    app: &mut App,
+    rel_y: f32,
+    viewport_h: f32,
+) -> ChatScrollUpdateOutcome {
+    let next_offset_y = rel_y.clamp(0.0, 1.0);
+    let next_viewport_h = viewport_h.max(0.0);
+    let offset_changed = (app.chat_virtualizer.relative_y() - next_offset_y).abs() > 0.0005;
+    let viewport_changed =
+        (app.chat_virtualizer.viewport_height_px() - next_viewport_h).abs() > 0.5;
+    let within_hold_window = super::now_ms() < app.chat_autoscroll_hold_until_ms;
+    let next_auto_scroll = if within_hold_window && app.chat_auto_scroll {
+        next_offset_y >= 0.82
+    } else if app.chat_auto_scroll {
+        next_offset_y >= 0.90
+    } else {
+        next_offset_y >= 0.975
+    };
+
+    app.chat_auto_scroll = next_auto_scroll;
+    app.chat_virtualizer.set_viewport_height(next_viewport_h);
+    if app.chat_virtualizer.len() != app.chat.len() {
+        app.sync_chat_message_estimated_heights_len();
+    }
+    if next_auto_scroll {
+        app.chat_virtualizer.snap_to_tail();
+    } else {
+        app.chat_virtualizer.set_relative_y(next_offset_y);
+    }
+    app.sync_chat_scroll_compat_fields();
+
+    let visible_range = app.visible_chat_message_window();
+    let pending_chunk_starts = if offset_changed || viewport_changed {
+        app.prune_chat_heavy_editor_caches(visible_range.0, visible_range.1);
+        app.pending_chat_ui_chunk_starts(visible_range.0, visible_range.1, true)
+    } else {
+        Vec::new()
+    };
+
+    ChatScrollUpdateOutcome {
+        visible_range,
+        pending_chunk_starts,
+        measure_visible_messages: true,
+        viewport_or_offset_changed: offset_changed || viewport_changed,
+    }
+}
+
+pub(crate) fn apply_chat_message_measurements(
+    app: &mut App,
+    measurements: Vec<ChatMessageMeasurement>,
+) -> bool {
+    if measurements.is_empty() {
+        return false;
+    }
+
+    if app.chat_virtualizer.len() != app.chat.len() {
+        app.sync_chat_message_estimated_heights_len();
+    }
+
+    let mut changed = false;
+    for measurement in measurements {
+        if measurement.message_idx >= app.chat.len() || !measurement.height.is_finite() {
+            continue;
+        }
+
+        let idx = measurement.message_idx;
+        let height = measurement.height.max(0.0);
+        let current = app
+            .chat_message_measured_heights
+            .get(&idx)
+            .copied()
+            .or_else(|| app.chat_virtualizer.estimated_height(idx))
+            .unwrap_or(0.0);
+
+        if (current - height).abs() <= CHAT_MESSAGE_MEASURE_EPSILON_PX {
+            continue;
+        }
+
+        app.chat_message_measured_heights.insert(idx, height);
+        app.chat_virtualizer.apply_measured_height(idx, height);
+        changed = true;
+    }
+
+    if changed {
+        app.sync_chat_virtualizer_compat_fields();
+    }
+
+    changed
 }
 
 #[cfg(target_arch = "wasm32")]

@@ -127,6 +127,49 @@ fn stream_input_keeps_all_request_fields() {
 }
 
 #[test]
+fn stream_input_clone_preserves_empty_options_and_observes_abort_updates() {
+    let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
+    let input = StreamInput {
+        user: user_info(),
+        session_id: "session-clone".to_string(),
+        model: test_model(),
+        agent: AgentInfo {
+            name: "clone-agent".to_string(),
+            mode: "chat".to_string(),
+            prompt: None,
+            temperature: None,
+            top_p: None,
+            options: HashMap::new(),
+            permission: Vec::new(),
+        },
+        system: Vec::new(),
+        abort: Some(abort_rx),
+        messages: Vec::new(),
+        small: false,
+        tools: HashMap::new(),
+        retries: 0,
+    };
+
+    let cloned = input.clone();
+
+    assert_eq!(cloned.session_id, "session-clone");
+    assert_eq!(cloned.agent.name, "clone-agent");
+    assert!(cloned.agent.prompt.is_none());
+    assert!(cloned.agent.temperature.is_none());
+    assert!(cloned.agent.top_p.is_none());
+    assert!(cloned.agent.options.is_empty());
+    assert!(cloned.system.is_empty());
+    assert!(cloned.messages.is_empty());
+    assert!(!cloned.small);
+    assert!(cloned.tools.is_empty());
+    assert_eq!(cloned.retries, 0);
+
+    abort_tx.send(true).expect("cloned abort receivers should remain open");
+    assert!(*input.abort.as_ref().expect("original abort receiver").borrow());
+    assert!(*cloned.abort.as_ref().expect("cloned abort receiver").borrow());
+}
+
+#[test]
 fn stream_event_variants_clone_with_payloads() {
     let tool_call = ToolCall {
         id: "call-1".to_string(),
@@ -191,7 +234,7 @@ fn prompt_stream_event_variants_clone_with_payloads() {
 }
 
 #[test]
-fn error_display_formats_all_variants() {
+fn error_display_formats_provider_abort_and_unknown_variants() {
     assert_eq!(
         Error::ProviderNotFound("missing-provider".to_string()).to_string(),
         "provider not found: missing-provider"
@@ -208,21 +251,79 @@ fn error_display_formats_all_variants() {
         Error::Api(message::AssistantError::Unknown { message: "plain".to_string() }).to_string(),
         "plain"
     );
+    assert_eq!(
+        Error::Api(message::AssistantError::Unknown { message: "acp: acp: nested".to_string() })
+            .to_string(),
+        "acp: nested"
+    );
+}
 
-    let api_error = Error::Api(message::AssistantError::APIError {
-        message: "rate limited".to_string(),
-        status_code: Some(429),
-        is_retryable: true,
-        response_headers: None,
-        response_body: None,
-        metadata: None,
-    })
-    .to_string();
-    assert!(api_error.contains("APIError"));
-    assert!(api_error.contains("rate limited"));
+#[test]
+fn error_display_serializes_each_structured_assistant_error_variant() {
+    let cases = [
+        (
+            message::AssistantError::ProviderAuthError {
+                provider_id: "test-provider".to_string(),
+                message: "authentication failed".to_string(),
+            },
+            json!({
+                "name": "ProviderAuthError",
+                "provider_id": "test-provider",
+                "message": "authentication failed"
+            }),
+        ),
+        (
+            message::AssistantError::MessageOutputLengthError,
+            json!({"name": "MessageOutputLengthError"}),
+        ),
+        (
+            message::AssistantError::MessageAbortedError { message: "cancelled".to_string() },
+            json!({"name": "MessageAbortedError", "message": "cancelled"}),
+        ),
+        (
+            message::AssistantError::ContextOverflowError {
+                message: "context is full".to_string(),
+                response_body: None,
+            },
+            json!({"name": "ContextOverflowError", "message": "context is full"}),
+        ),
+        (
+            message::AssistantError::APIError {
+                message: "rate limited".to_string(),
+                status_code: Some(429),
+                is_retryable: true,
+                response_headers: Some(HashMap::from([(
+                    "retry-after".to_string(),
+                    "5".to_string(),
+                )])),
+                response_body: Some("slow down".to_string()),
+                metadata: Some(HashMap::from([("request_id".to_string(), "req-1".to_string())])),
+            },
+            json!({
+                "name": "APIError",
+                "message": "rate limited",
+                "status_code": 429,
+                "is_retryable": true,
+                "response_headers": {"retry-after": "5"},
+                "response_body": "slow down",
+                "metadata": {"request_id": "req-1"}
+            }),
+        ),
+    ];
 
+    for (error, expected) in cases {
+        let rendered = Error::Api(error).to_string();
+        let serialized: serde_json::Value =
+            serde_json::from_str(&rendered).expect("structured error should render as JSON");
+        assert_eq!(serialized, expected);
+    }
+}
+
+#[test]
+fn reqwest_error_conversion_preserves_http_display() {
     let reqwest_error =
         reqwest::Client::new().get("http://[::1").build().err().expect("invalid URL should fail");
+    let expected = reqwest_error.to_string();
     let wrapped: Error = reqwest_error.into();
-    assert!(!wrapped.to_string().is_empty());
+    assert_eq!(wrapped.to_string(), expected);
 }

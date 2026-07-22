@@ -432,3 +432,137 @@ fn should_abort_reflects_watch_receiver_state() {
 
     assert!(should_abort(Some(&rx)));
 }
+
+#[test]
+fn normalize_strict_object_required_preserves_primitive_schema_objects() {
+    let mut schema = json!({
+        "type": "string",
+        "additionalProperties": true,
+        "required": ["keep"],
+        "items": 7,
+        "anyOf": { "type": "object" }
+    });
+    let original = schema.clone();
+
+    normalize_strict_object_required(&mut schema);
+
+    assert_eq!(schema, original);
+}
+
+#[test]
+fn assistant_text_with_reasoning_treats_blank_content_and_non_string_reasoning_as_empty() {
+    let mut blank_content = serde_json::Map::new();
+    blank_content.insert("content".to_string(), json!(" \n "));
+    blank_content.insert("reasoning_content".to_string(), json!(" reason "));
+    assert_eq!(assistant_text_with_reasoning(&blank_content), "[reasoning]\nreason");
+
+    let mut non_string_reasoning = serde_json::Map::new();
+    non_string_reasoning.insert("content".to_string(), json!("answer"));
+    non_string_reasoning.insert("reasoning_content".to_string(), json!(["ignored"]));
+    assert_eq!(assistant_text_with_reasoning(&non_string_reasoning), "answer");
+}
+
+#[test]
+fn openai_messages_to_aisdk_messages_skips_malformed_calls_and_preserves_tool_outputs() {
+    let model = test_model("openai", "gpt-test", "GPT Test");
+    let messages = json!([
+        {
+            "role": "assistant",
+            "content": "   ",
+            "tool_calls": [
+                { "id": "ignored", "function": null },
+                {
+                    "id": "call-text",
+                    "function": { "name": "lookup", "arguments": 5 }
+                }
+            ]
+        },
+        { "role": "tool", "tool_call_id": "call-text", "content": "not-json" },
+        { "role": "tool", "tool_call_id": "unknown", "content": "null" }
+    ]);
+
+    let converted = openai_messages_to_aisdk_messages(&messages, &model).expect("convert");
+
+    assert_eq!(converted.len(), 3);
+    assert!(matches!(
+        &converted[0],
+        Message::Assistant(assistant)
+            if matches!(
+                &assistant.content,
+                LanguageModelResponseContentType::ToolCall(info)
+                    if info.tool.id == "call-text"
+                        && info.tool.name == "lookup"
+                        && info.input == json!({})
+            )
+    ));
+    assert!(matches!(
+        &converted[1],
+        Message::Tool(result)
+            if result.tool.id == "call-text"
+                && result.tool.name == "lookup"
+                && result.output.as_ref().ok() == Some(&json!("not-json"))
+    ));
+    assert!(matches!(
+        &converted[2],
+        Message::Tool(result)
+            if result.tool.id == "unknown"
+                && result.tool.name.is_empty()
+                && result.output.as_ref().ok() == Some(&Value::Null)
+    ));
+}
+
+#[test]
+fn openai_messages_to_aisdk_messages_detects_deepseek_provider_case_insensitively() {
+    let model = test_model("DeEpSeEk Cloud", "chat-model", "DeepSeek Chat");
+    let messages = json!([
+        {
+            "role": "assistant",
+            "reasoning_content": "analysis",
+            "tool_calls": [{
+                "id": "call-1",
+                "function": { "name": "lookup", "arguments": "{}" }
+            }]
+        },
+        { "role": "tool", "tool_call_id": "call-1", "content": "result" }
+    ]);
+
+    let converted = openai_messages_to_aisdk_messages(&messages, &model).expect("convert");
+
+    assert_eq!(converted.len(), 2);
+    assert!(matches!(
+        &converted[0],
+        Message::Assistant(assistant)
+            if matches!(
+                &assistant.content,
+                LanguageModelResponseContentType::Text(text)
+                    if text == "[reasoning]\nanalysis"
+            )
+    ));
+    assert_eq!(user_text(&converted[1]).as_deref(), Some("[tool_result:call-1]\nresult"));
+}
+
+#[test]
+fn merge_tool_call_delta_ignores_blank_updates_and_keeps_fallback_id_stable() {
+    let mut states = Vec::<StreamingToolCallState>::new();
+    merge_tool_call_delta(
+        &mut states,
+        0,
+        &json!({ "function": { "name": "lookup", "arguments": "{" } }),
+        2,
+    );
+
+    merge_tool_call_delta(
+        &mut states,
+        0,
+        &json!({
+            "id": "   ",
+            "function": { "name": " ", "arguments": "" }
+        }),
+        9,
+    );
+    merge_tool_call_delta(&mut states, 0, &Value::Null, 20);
+
+    assert_eq!(states[0].id, "call_3");
+    assert_eq!(states[0].name, "lookup");
+    assert_eq!(states[0].arguments, "{");
+}

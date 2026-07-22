@@ -15,8 +15,16 @@ use super::*;
 static AGENT_REGISTRY_ENV_TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 static TEMP_DIR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-fn agent_registry_env_test_lock() -> MutexGuard<'static, ()> {
-    AGENT_REGISTRY_ENV_TEST_LOCK.lock().expect("agent registry env test lock should acquire")
+struct AgentRegistryEnvTestGuard {
+    _registry: MutexGuard<'static, ()>,
+    _process_env: tokio::sync::MutexGuard<'static, ()>,
+}
+
+fn agent_registry_env_test_lock() -> AgentRegistryEnvTestGuard {
+    let registry =
+        AGENT_REGISTRY_ENV_TEST_LOCK.lock().expect("agent registry env test lock should acquire");
+    let process_env = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
+    AgentRegistryEnvTestGuard { _registry: registry, _process_env: process_env }
 }
 
 struct EnvGuard {
@@ -28,6 +36,12 @@ impl EnvGuard {
     fn set_os(key: &'static str, value: &OsStr) -> Self {
         let original = std::env::var_os(key);
         unsafe { std::env::set_var(key, value) };
+        Self { key, original }
+    }
+
+    fn remove(key: &'static str) -> Self {
+        let original = std::env::var_os(key);
+        unsafe { std::env::remove_var(key) };
         Self { key, original }
     }
 }
@@ -104,15 +118,67 @@ fn normalize_agent_name_trims_and_lowercases() {
 #[test]
 fn built_in_specs_include_stable_user_keys() {
     let specs = built_in_agent_specs();
+    let codex_args = &specs[DEFAULT_AGENT_NAME].args;
+    let gemini_args = &specs["gemini"].args;
+    let qoder_args = &specs["qoder"].args;
+    let qwen_args = &specs["qwen"].args;
 
     assert!(specs.contains_key(DEFAULT_AGENT_NAME));
     assert!(specs.contains_key("claude"));
     assert_eq!(specs["auggie"].env["AUGMENT_DISABLE_AUTO_UPDATE"], "1");
+    assert_eq!(codex_args.first().map(String::as_str), Some("-y"));
+    assert!(codex_args.iter().any(|arg| arg == CODEX_ADAPTER_PACKAGE));
+    assert!(!codex_args.iter().any(|arg| arg.contains("mcp_servers.node_repl")));
+    assert!(gemini_args.windows(2).any(|args| args[0] == "--approval-mode" && args[1] == "yolo"));
+    assert!(
+        qoder_args
+            .windows(2)
+            .any(|args| args[0] == "--permission-mode" && args[1] == "bypass_permissions")
+    );
+    assert!(qwen_args.windows(2).any(|args| args[0] == "--approval-mode" && args[1] == "yolo"));
     assert!(
         built_in_agent_definitions()
             .iter()
             .all(|definition| definition.name == normalize_agent_name(definition.name))
     );
+}
+
+#[test]
+fn merge_specs_normalizes_legacy_codex_acp_args() {
+    let mut overrides = HashMap::new();
+    overrides.insert(
+        " Codex ".to_string(),
+        test_spec(
+            "npx",
+            &[
+                "-y",
+                "@zed-industries/codex-acp@latest",
+                "-c",
+                "mcp_servers.node_repl.enabled=false",
+                "--config=mcp_servers.node_repl.enabled=false",
+            ],
+        ),
+    );
+
+    let merged = merge_agent_specs(Some(&overrides));
+    let spec = merged.get(DEFAULT_AGENT_NAME).expect("codex override should be normalized");
+
+    assert_eq!(spec.command, "npx");
+    assert_eq!(spec.args, ["-y", CODEX_ADAPTER_PACKAGE]);
+}
+
+#[test]
+fn merge_registry_normalizes_legacy_codex_acp_command_line() {
+    let mut overrides = HashMap::new();
+    overrides.insert(
+        "codex".to_string(),
+        test_spec("npx", &["@openai/codex-acp", "-c=mcp_servers.node_repl.enabled=false"]),
+    );
+
+    let merged = merge_agent_registry(Some(&overrides));
+    let command = merged.get(DEFAULT_AGENT_NAME).expect("codex command should resolve");
+
+    assert_eq!(command, &format!("npx {CODEX_ADAPTER_PACKAGE}"));
 }
 
 #[test]
@@ -152,6 +218,44 @@ fn resolve_opencode_command_uses_home_bin_when_env_path_is_missing() {
 
     assert_eq!(
         resolve_opencode_command().expect("home opencode path should resolve"),
+        binary.to_string_lossy().to_string()
+    );
+}
+
+#[test]
+fn resolve_opencode_command_uses_userprofile_bin_when_home_is_missing() {
+    let _env_lock = agent_registry_env_test_lock();
+    let userprofile = TestDir::new("opencode-userprofile");
+    let missing = userprofile.path().join("missing-opencode");
+    let binary = userprofile.path().join(".opencode").join("bin").join(opencode_binary_name());
+    write_file(&binary);
+
+    let _opencode_bin_guard = EnvGuard::set_os("OPENCODE_BIN", missing.as_os_str());
+    let _home_guard = EnvGuard::remove("HOME");
+    let _userprofile_guard = EnvGuard::set_os("USERPROFILE", userprofile.path().as_os_str());
+
+    assert_eq!(
+        resolve_opencode_command().expect("USERPROFILE opencode path should resolve"),
+        binary.to_string_lossy().to_string()
+    );
+}
+
+#[test]
+fn resolve_opencode_command_falls_back_to_path() {
+    let _env_lock = agent_registry_env_test_lock();
+    let home = TestDir::new("opencode-path-home");
+    let bin_dir = TestDir::new("opencode-path-bin");
+    let missing = home.path().join("missing-opencode");
+    let binary = bin_dir.path().join(opencode_binary_name());
+    write_file(&binary);
+    let path_value = std::env::join_paths([bin_dir.path()]).expect("PATH should join");
+
+    let _opencode_bin_guard = EnvGuard::set_os("OPENCODE_BIN", missing.as_os_str());
+    let _home_guard = EnvGuard::set_os("HOME", home.path().as_os_str());
+    let _path_guard = EnvGuard::set_os("PATH", path_value.as_os_str());
+
+    assert_eq!(
+        resolve_opencode_command().expect("PATH opencode binary should resolve"),
         binary.to_string_lossy().to_string()
     );
 }

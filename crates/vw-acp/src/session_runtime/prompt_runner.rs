@@ -24,7 +24,8 @@ use crate::queue_ipc::{
 };
 use crate::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerActiveSessionController};
 use crate::session_mode_preference::{
-    set_current_model_id, set_desired_mode_id, set_desired_model_id,
+    resolve_config_value, resolve_model_config_value, set_current_model_id,
+    set_desired_config_option, set_desired_mode_id, set_desired_model_id, sync_config_options,
 };
 use crate::session_persistence::{
     absolute_path, iso_now, resolve_session_record, write_session_record,
@@ -39,6 +40,10 @@ use crate::types::{
     SessionRecord, SessionSetConfigOptionResult, SessionSetModeResult, SessionSetModelResult,
     SessionStateOptions,
 };
+
+#[cfg(test)]
+#[path = "prompt_runner_tests.rs"]
+mod prompt_runner_tests;
 
 pub type ActiveSessionController = Arc<dyn QueueOwnerActiveSessionController>;
 pub type ClientAvailableCallback = Arc<dyn Fn(ActiveSessionController) + Send + Sync>;
@@ -299,16 +304,42 @@ pub async fn run_session_set_mode_direct(
 pub async fn set_session_model(
     options: SessionSetModelOptions,
 ) -> Result<SessionSetModelResult, PromptRunnerError> {
-    let submitted_to_owner = try_set_model_on_running_owner(
-        &options.session_id,
+    let mut record = resolve_session_record(&options.session_id).await?;
+    let model_config_id = resolve_model_config_value(
+        record.vwacp.as_ref().and_then(|state| state.config_options.as_deref()),
         &options.model_id,
-        options.timeout_ms,
-        options.verbose,
     )
-    .await?;
+    .map_err(AcpError::SetSessionConfigOption)?;
+    if let Some(config_id) = model_config_id.as_deref()
+        && let Some(response) = try_set_config_option_on_running_owner(
+            &options.session_id,
+            config_id,
+            &options.model_id,
+            options.timeout_ms,
+            options.verbose,
+        )
+        .await?
+    {
+        set_desired_model_id(&mut record, Some(&options.model_id));
+        set_current_model_id(&mut record, Some(&options.model_id));
+        sync_config_options(&mut record, Some(response.config_options));
+        write_session_record(&record).await?;
+        return Ok(SessionSetModelResult { record, resumed: false, load_error: None });
+    }
+
+    let submitted_to_owner = if model_config_id.is_none() {
+        try_set_model_on_running_owner(
+            &options.session_id,
+            &options.model_id,
+            options.timeout_ms,
+            options.verbose,
+        )
+        .await?
+    } else {
+        None
+    };
 
     if submitted_to_owner == Some(true) {
-        let mut record = resolve_session_record(&options.session_id).await?;
         set_desired_model_id(&mut record, Some(&options.model_id));
         set_current_model_id(&mut record, Some(&options.model_id));
         write_session_record(&record).await?;
@@ -351,15 +382,34 @@ pub async fn run_session_set_model_direct(
         move |client, session_id, record| {
             let model_id = model_id.clone();
             Box::pin(async move {
-                with_timeout(
-                    client.set_session_model(
-                        session_id,
-                        absolute_path(&record.cwd),
-                        model_id.clone(),
-                    ),
-                    timeout_ms,
+                let model_config_id = resolve_model_config_value(
+                    record.vwacp.as_ref().and_then(|state| state.config_options.as_deref()),
+                    &model_id,
                 )
-                .await??;
+                .map_err(AcpError::SetSessionConfigOption)?;
+                if let Some(config_id) = model_config_id {
+                    let response = with_timeout(
+                        client.set_session_config_option(
+                            session_id,
+                            absolute_path(&record.cwd),
+                            config_id,
+                            model_id.clone(),
+                        ),
+                        timeout_ms,
+                    )
+                    .await??;
+                    sync_config_options(record, Some(response.config_options));
+                } else {
+                    with_timeout(
+                        client.set_session_model(
+                            session_id,
+                            absolute_path(&record.cwd),
+                            model_id.clone(),
+                        ),
+                        timeout_ms,
+                    )
+                    .await??;
+                }
                 set_desired_model_id(record, Some(&model_id));
                 set_current_model_id(record, Some(&model_id));
                 Ok(())
@@ -378,9 +428,16 @@ pub async fn run_session_set_model_direct(
 pub async fn set_session_config_option(
     options: SessionSetConfigOptionOptions,
 ) -> Result<SessionSetConfigOptionResult, PromptRunnerError> {
+    let mut record = resolve_session_record(&options.session_id).await?;
+    let resolved_config_id = resolve_config_value(
+        record.vwacp.as_ref().and_then(|state| state.config_options.as_deref()),
+        &options.config_id,
+        &options.value,
+    )
+    .map_err(AcpError::SetSessionConfigOption)?;
     let owner_response = try_set_config_option_on_running_owner(
         &options.session_id,
-        &options.config_id,
+        &resolved_config_id,
         &options.value,
         options.timeout_ms,
         options.verbose,
@@ -388,11 +445,13 @@ pub async fn set_session_config_option(
     .await?;
 
     if let Some(response) = owner_response {
-        let mut record = resolve_session_record(&options.session_id).await?;
         if options.config_id == "mode" {
             set_desired_mode_id(&mut record, Some(&options.value));
-            write_session_record(&record).await?;
+        } else {
+            set_desired_config_option(&mut record, &options.config_id, &options.value);
         }
+        sync_config_options(&mut record, Some(response.config_options.clone()));
+        write_session_record(&record).await?;
 
         return Ok(SessionSetConfigOptionResult {
             record,
@@ -440,11 +499,17 @@ pub async fn run_session_set_config_option_direct(
             let config_id = config_id.clone();
             let value = value.clone();
             Box::pin(async move {
+                let resolved_config_id = resolve_config_value(
+                    record.vwacp.as_ref().and_then(|state| state.config_options.as_deref()),
+                    &config_id,
+                    &value,
+                )
+                .map_err(AcpError::SetSessionConfigOption)?;
                 let response = with_timeout(
                     client.set_session_config_option(
                         session_id,
                         absolute_path(&record.cwd),
-                        config_id.clone(),
+                        resolved_config_id,
                         value.clone(),
                     ),
                     timeout_ms,
@@ -452,7 +517,10 @@ pub async fn run_session_set_config_option_direct(
                 .await??;
                 if config_id == "mode" {
                     set_desired_mode_id(record, Some(&value));
+                } else {
+                    set_desired_config_option(record, &config_id, &value);
                 }
+                sync_config_options(record, Some(response.config_options.clone()));
                 Ok(response)
             })
         },
@@ -640,7 +708,7 @@ fn build_client(record: &SessionRecord, options: &WithConnectedSessionOptions) -
     let agent_config = parse_agent_command(&record.agent_command);
     let mut client = crate::AcpClient::new(record.agent_command.clone(), agent_config)
         .with_mcp_servers(options.mcp_servers.clone().unwrap_or_default())
-        .with_permission_mode(options.permission_mode.unwrap_or(PermissionMode::ApproveReads))
+        .with_permission_mode(options.permission_mode.unwrap_or(PermissionMode::ApproveAll))
         .with_non_interactive_permissions(options.non_interactive_permissions)
         .with_auth_credentials(options.auth_credentials.clone().unwrap_or_default())
         .with_auth_policy(options.auth_policy.unwrap_or(AuthPolicy::Skip))

@@ -1,8 +1,38 @@
 use super::*;
+use crate::app::message::project::ProjectMessage;
 
 fn test_app() -> App {
     let (app, _task) = App::new();
     app
+}
+
+fn unwrap_project_message(message: Message) -> ProjectMessage {
+    let Message::Project(message) = message else {
+        panic!("expected a project message");
+    };
+    message
+}
+
+#[test]
+fn start_script_editor_action_preserves_editor_action() {
+    assert!(matches!(
+        unwrap_project_message(start_script_editor_action(
+            iced::widget::text_editor::Action::SelectAll,
+        )),
+        ProjectMessage::ProjectEditStartScriptEditorAction(
+            iced::widget::text_editor::Action::SelectAll,
+        )
+    ));
+}
+
+#[test]
+fn worktree_toggled_preserves_enabled_value() {
+    for enabled in [false, true] {
+        assert!(matches!(
+            unwrap_project_message(worktree_toggled(enabled)),
+            ProjectMessage::ProjectEditWorktreeToggled(value) if value == enabled
+        ));
+    }
 }
 
 #[test]

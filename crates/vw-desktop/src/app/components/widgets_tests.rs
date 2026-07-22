@@ -347,6 +347,69 @@ fn right_click_without_cursor_only_reaches_child() {
 }
 
 #[test]
+fn preserved_area_forwards_non_right_click_to_child() {
+    let mut area = area().preserve_on_right_click();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn preserved_area_forwards_right_click_outside_to_child() {
+    let mut area = area().preserve_on_right_click();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(500.0, 47.0)),
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn non_button_mouse_event_only_reaches_child() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(34.0, 47.0) }),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn right_click_at_top_left_publishes_zero_local_position() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(10.0, 20.0)),
+    );
+
+    assert_eq!(
+        messages,
+        vec![TestMessage::ChildUpdated, TestMessage::RightClicked(Point::new(0.0, 0.0)),]
+    );
+}
+
+#[test]
 fn mouse_interaction_delegates_to_content() {
     let area = RightClickArea::new(
         TestContent { interaction: mouse::Interaction::Text, ..TestContent::default() }.into(),

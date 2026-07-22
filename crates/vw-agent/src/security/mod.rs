@@ -65,7 +65,7 @@ pub mod domain_matcher;
 /// 紧急停止模块：提供紧急停止和恢复机制，用于危急情况下的快速干预
 pub mod estop;
 
-/// Gateway skey SQLite metadata store.
+/// Tenant-scoped gateway skey metadata store in the shared database.
 pub mod gateway_skey_store;
 
 /// Firejail 沙箱模块：使用 Firejail 实现细粒度的进程隔离

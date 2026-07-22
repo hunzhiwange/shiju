@@ -18,6 +18,32 @@ fn state(entries: &[(&str, ResolvedAgentDefinition)], default_agent: Option<&str
 }
 
 #[test]
+fn info_serialization_flattens_and_round_trips_definition() {
+    let info = Info {
+        key: "review".into(),
+        definition: DelegateAgentConfig {
+            provider: "openai".into(),
+            model: "gpt-5".into(),
+            description: Some("Reviews changes".into()),
+            ..DelegateAgentConfig::default()
+        },
+    };
+
+    let value = serde_json::to_value(&info).unwrap();
+
+    assert_eq!(value["key"], "review");
+    assert_eq!(value["provider"], "openai");
+    assert_eq!(value["model"], "gpt-5");
+    assert!(value.get("definition").is_none());
+
+    let decoded: Info = serde_json::from_value(value).unwrap();
+    assert_eq!(decoded.key, "review");
+    assert_eq!(decoded.definition.provider, "openai");
+    assert_eq!(decoded.definition.model, "gpt-5");
+    assert_eq!(decoded.definition.description.as_deref(), Some("Reviews changes"));
+}
+
+#[test]
 fn primary_visible_excludes_hidden_and_subagents() {
     assert!(is_primary_visible(&config("primary", false)));
     assert!(is_primary_visible(&config("all", false)));
@@ -145,6 +171,31 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
 }
 
 #[test]
+fn load_agent_configs_discards_malformed_configured_map() {
+    let agents = load_agent_configs(&json!({
+        "agents": {
+            "incomplete": {
+                "provider": "openai"
+            }
+        }
+    }));
+
+    assert!(!agents.contains_key("incomplete"));
+    assert!(agents.contains_key("main"));
+    assert!(agents.contains_key("build"));
+}
+
+#[test]
+fn load_agent_configs_uses_builtins_when_agents_key_is_missing() {
+    let agents = load_agent_configs(&json!({"default_agent": "main"}));
+
+    assert!(agents.contains_key("main"));
+    assert!(agents.contains_key("build"));
+    assert!(agents.contains_key("plan"));
+    assert!(agents.values().all(|agent| agent.builtin));
+}
+
+#[test]
 fn resolve_model_ref_handles_direct_split_and_missing_values() {
     let direct = DelegateAgentConfig {
         provider: "openai".into(),
@@ -169,6 +220,26 @@ fn resolve_model_ref_handles_direct_split_and_missing_values() {
 
     let unsplit = DelegateAgentConfig { model: "gpt-5".into(), ..DelegateAgentConfig::default() };
     assert!(resolve_model_ref(&unsplit).is_none());
+}
+
+#[test]
+fn resolve_model_ref_trims_components_and_prefers_explicit_provider() {
+    let explicit = DelegateAgentConfig {
+        provider: " openai ".into(),
+        model: " anthropic/claude/sonnet ".into(),
+        ..DelegateAgentConfig::default()
+    };
+    let explicit_ref = resolve_model_ref(&explicit).unwrap();
+    assert_eq!(explicit_ref.provider_id, "openai");
+    assert_eq!(explicit_ref.model_id, "anthropic/claude/sonnet");
+
+    let combined = DelegateAgentConfig {
+        model: " anthropic/claude/sonnet ".into(),
+        ..DelegateAgentConfig::default()
+    };
+    let combined_ref = resolve_model_ref(&combined).unwrap();
+    assert_eq!(combined_ref.provider_id, "anthropic");
+    assert_eq!(combined_ref.model_id, "claude/sonnet");
 }
 
 #[test]
@@ -203,6 +274,114 @@ fn build_resolved_agent_applies_runtime_defaults() {
             resolved.definition.system_prompt.as_ref().is_some_and(|prompt| !prompt.is_empty())
         );
     }
+}
+
+#[test]
+fn build_resolved_agent_orders_permission_layers() {
+    let defaults = permission_next::from_config(&json!({"shared": "allow"}));
+    let user = permission_next::from_config(&json!({"shared": "ask"}));
+    let resolved = build_resolved_agent(
+        "custom",
+        DelegateAgentConfig {
+            permission: json!({"shared": "deny"}),
+            ..DelegateAgentConfig::default()
+        },
+        &defaults,
+        &user,
+    );
+
+    let actions = resolved
+        .permission
+        .iter()
+        .filter(|rule| rule.permission == "shared")
+        .map(|rule| rule.action)
+        .collect::<Vec<_>>();
+    assert_eq!(actions, vec![Action::Allow, Action::Deny, Action::Ask]);
+}
+
+#[test]
+fn build_resolved_agent_preserves_custom_builtin_prompts() {
+    for key in ["explore", "compaction", "title", "summary"] {
+        let resolved = build_resolved_agent(
+            key,
+            DelegateAgentConfig {
+                system_prompt: Some("custom prompt".into()),
+                ..DelegateAgentConfig::default()
+            },
+            &Vec::new(),
+            &Vec::new(),
+        );
+
+        assert_eq!(resolved.definition.system_prompt.as_deref(), Some("custom prompt"));
+    }
+}
+
+#[test]
+fn build_resolved_agent_keeps_explicit_tool_output_deny() {
+    let trunc = truncate_glob();
+    let resolved = build_resolved_agent(
+        "main",
+        DelegateAgentConfig {
+            permission: json!({"external_directory": {trunc.clone(): "deny"}}),
+            ..DelegateAgentConfig::default()
+        },
+        &Vec::new(),
+        &Vec::new(),
+    );
+
+    assert!(resolved.permission.iter().any(|rule| {
+        rule.permission == "external_directory"
+            && rule.pattern == trunc
+            && rule.action == Action::Deny
+    }));
+}
+
+#[test]
+fn load_state_skips_disabled_agents_and_preserves_default_name() {
+    let cfg = json!({
+        "default_agent": "custom",
+        "permission": {
+            "question": "ask"
+        },
+        "agents": {
+            "custom": {
+                "provider": "openai",
+                "model": "gpt-5",
+                "mode": "primary"
+            },
+            "disabled": {
+                "enabled": false,
+                "provider": "openai",
+                "model": "gpt-5"
+            }
+        }
+    });
+    let configured_agents = load_agent_configs(&cfg);
+    let user = permission_next::from_config(cfg.get("permission").unwrap_or(&Value::Null));
+    let defaults = permission_next::from_config(&json!({"read": "allow"}));
+    let agents = configured_agents
+        .into_iter()
+        .filter(|(_, config)| config.enabled)
+        .map(|(key, config)| {
+            let resolved = build_resolved_agent(&key, config, &defaults, &user);
+            (key, resolved)
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+
+    let state = State {
+        agents,
+        default_agent: cfg.get("default_agent").and_then(Value::as_str).map(str::to_string),
+    };
+
+    assert_eq!(choose_default_agent(&state).unwrap(), "custom");
+    assert!(state.agents.contains_key("custom"));
+    assert!(!state.agents.contains_key("disabled"));
+    assert!(
+        state.agents["custom"]
+            .permission
+            .iter()
+            .any(|rule| { rule.permission == "question" && rule.action == Action::Ask })
+    );
 }
 
 #[test]

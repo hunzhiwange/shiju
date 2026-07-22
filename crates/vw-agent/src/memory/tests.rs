@@ -63,6 +63,59 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn injected_memory_builders_propagate_local_and_postgres_errors() {
+        let tmp = TempDir::new().unwrap();
+
+        for backend in ["sqlite", "lucid"] {
+            let error = create_memory_with_builders(
+                backend,
+                tmp.path(),
+                || Err(anyhow::anyhow!("local builder failed")),
+                || -> anyhow::Result<Box<dyn Memory>> {
+                    panic!("postgres builder should not be called")
+                },
+                " in test",
+            )
+            .err()
+            .expect("local builder error should be preserved");
+
+            assert_eq!(error.to_string(), "local builder failed");
+        }
+
+        let error = create_memory_with_builders(
+            "postgres",
+            tmp.path(),
+            || -> anyhow::Result<SqliteMemory> { panic!("sqlite builder should not be called") },
+            || Err(anyhow::anyhow!("postgres builder failed")),
+            " in test",
+        )
+        .err()
+        .expect("postgres builder error should be preserved");
+
+        assert_eq!(error.to_string(), "postgres builder failed");
+    }
+
+    #[test]
+    #[cfg(not(target_arch = "wasm32"))]
+    fn injected_none_backend_skips_storage_builders() {
+        let tmp = TempDir::new().unwrap();
+
+        let memory = create_memory_with_builders(
+            "none",
+            tmp.path(),
+            || -> anyhow::Result<SqliteMemory> { panic!("sqlite builder should not be called") },
+            || -> anyhow::Result<Box<dyn Memory>> {
+                panic!("postgres builder should not be called")
+            },
+            " in test",
+        )
+        .unwrap();
+
+        assert_eq!(memory.name(), "none");
+    }
+
+    #[test]
     fn migration_factory_lucid() {
         let tmp = TempDir::new().unwrap();
         let mem = create_memory_for_migration("lucid", tmp.path()).unwrap();
@@ -229,5 +282,47 @@ mod tests {
                 api_key: Some("base-key".into()),
             }
         );
+    }
+
+    #[test]
+    fn resolve_embedding_config_rejects_each_invalid_route_field() {
+        let cfg = MemoryConfig {
+            embedding_provider: "openai".into(),
+            embedding_model: "hint:semantic".into(),
+            embedding_dimensions: 1536,
+            ..MemoryConfig::default()
+        };
+        let invalid_routes = [
+            EmbeddingRouteConfig {
+                hint: "semantic".into(),
+                provider: " ".into(),
+                model: "text-embedding-3-small".into(),
+                dimensions: Some(1536),
+                api_key: Some("route-key".into()),
+            },
+            EmbeddingRouteConfig {
+                hint: "semantic".into(),
+                provider: "openai".into(),
+                model: "\t".into(),
+                dimensions: Some(1536),
+                api_key: Some("route-key".into()),
+            },
+            EmbeddingRouteConfig {
+                hint: "semantic".into(),
+                provider: "openai".into(),
+                model: "text-embedding-3-small".into(),
+                dimensions: Some(0),
+                api_key: Some("route-key".into()),
+            },
+        ];
+
+        for route in invalid_routes {
+            let resolved = resolve_embedding_config(&cfg, &[route], Some("base-key"));
+
+            assert_eq!(resolved.provider, "openai");
+            assert_eq!(resolved.model, "hint:semantic");
+            assert_eq!(resolved.dimensions, 1536);
+            assert_eq!(resolved.api_key(), Some("base-key"));
+        }
     }
 }

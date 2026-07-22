@@ -4,6 +4,18 @@
 //! 不改变任何运行时行为。
 
 use super::*;
+use crate::app::task::{
+    TaskBoardStaffCapability, TaskBoardStaffCapabilityDraftField,
+    TaskBoardStaffCapabilitySummaryKind,
+};
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
+
+#[derive(Debug, Clone)]
+pub struct WorktreePoolMaintenanceOutcome {
+    pub(crate) idle_count: usize,
+    pub(crate) target_idle_count: usize,
+    pub(crate) snapshot: Option<crate::app::task::WorktreePoolSnapshot>,
+}
 
 #[derive(Debug, Clone)]
 /// 描述 TaskBoardMessage 支持的离散状态或消息分支。
@@ -11,7 +23,133 @@ pub enum TaskBoardMessage {
     ToggleBoard,
     CloseBoard,
     LoadTasks,
-    TasksLoaded(Vec<Task>),
+    TasksLoaded {
+        project_path: String,
+        tasks: Vec<Task>,
+    },
+    ToggleStaffMode(bool),
+    StaffConfigLoaded(Result<TaskBoardStaffConfig, String>),
+    StaffConfigLoadedForWorkflow {
+        workflow_id: String,
+        result: Result<TaskBoardStaffConfig, String>,
+    },
+    LoadStaffCapabilityCatalog,
+    LoadStaffCapabilityCatalogForWorkflow {
+        workflow_id: String,
+    },
+    StaffCapabilityCatalogLoaded(Result<Vec<TaskBoardStaffCapability>, String>),
+    StaffCapabilityCatalogLoadedForWorkflow {
+        workflow_id: String,
+        result: Result<Vec<TaskBoardStaffCapability>, String>,
+    },
+    UpdateStaffCapabilityDraft {
+        capability_id: String,
+        field: TaskBoardStaffCapabilityDraftField,
+        value: String,
+    },
+    UpdateStaffCapabilitySummaryDraft {
+        capability_id: String,
+        summary: TaskBoardStaffCapabilitySummaryKind,
+        description: String,
+        fields: Vec<String>,
+    },
+    AddStaffCapabilityDraft,
+    DeleteStaffCapabilityDraft {
+        capability_id: String,
+    },
+    SaveStaffCapabilityCatalog,
+    SaveStaffCapabilityCatalogForWorkflow {
+        workflow_id: String,
+    },
+    StaffCapabilityCatalogSaved(Result<Vec<TaskBoardStaffCapability>, String>),
+    StaffCapabilityCatalogSavedForWorkflow {
+        workflow_id: String,
+        result: Result<Vec<TaskBoardStaffCapability>, String>,
+    },
+    RefreshStaffProjection,
+    ReloadStaffConfig,
+    ReloadStaffConfigForWorkflow {
+        workflow_id: String,
+    },
+    StaffAutoSchedulePlanLoaded {
+        result:
+            Result<vw_gateway_client::vw_api_types::staff::StaffAutoSchedulePlanResponse, String>,
+    },
+    SubmitStaffCommand(TaskBoardStaffCommand),
+    SubmitStaffCommandSilently(TaskBoardStaffCommand),
+    StaffCommandQueueTick,
+    StaffCommandGatewayCompleted {
+        command: TaskBoardStaffCommand,
+        result: Result<vw_gateway_client::vw_api_types::staff::StaffCommandResponse, String>,
+    },
+    SelectStaffFeedTab(TaskBoardStaffFeedTab),
+    SelectAllStaffTaskStatuses,
+    ToggleStaffTaskStatusFilter(TaskStatus),
+    UpdateStaffCommandInput(String),
+    SelectStaffCommandMember {
+        member_id: String,
+    },
+    SubmitStaffCommandInput,
+    OpenMatrixTaskPoolConfig,
+    OpenStaffStageAssignment,
+    CloseStaffStageAssignment,
+    SelectStaffStageAssignmentTab {
+        status: TaskStatus,
+        tab: TaskBoardStaffAssignmentTab,
+    },
+    SelectStaffOrchestrationTab(TaskBoardStaffOrchestrationTab),
+    SelectStaffStagePrimaryMember {
+        status: TaskStatus,
+        member_id: Option<String>,
+    },
+    SelectStaffStageActionCapability {
+        status: TaskStatus,
+        capability_id: Option<String>,
+    },
+    SelectStaffStageActionWorkflow {
+        status: TaskStatus,
+        workflow_uuid: Option<String>,
+    },
+    CreateStaffStageActionWorkflow {
+        status: TaskStatus,
+        workflow_id: String,
+    },
+    StaffStageActionWorkflowCreated {
+        status: TaskStatus,
+        result: Result<vw_gateway_client::WorkflowRecordSummary, String>,
+    },
+    UpdateStaffStageActionParameter {
+        status: TaskStatus,
+        key: String,
+        value: String,
+    },
+    RequestResetStaffStageActions,
+    ConfirmResetStaffStageActions,
+    CancelResetStaffStageActions,
+    SelectStaffStageWorkflowBinding {
+        status: TaskStatus,
+        workflow_uuid: Option<String>,
+    },
+    LoadStaffStageWorkflowOptions,
+    StaffStageWorkflowOptionsLoaded(Result<Vec<vw_gateway_client::WorkflowRecordSummary>, String>),
+    ToggleStaffStageBackupMember {
+        status: TaskStatus,
+        member_id: String,
+    },
+    ToggleStaffStageManagerMember {
+        status: TaskStatus,
+        member_id: String,
+    },
+    ToggleStaffStageAutonomous {
+        status: TaskStatus,
+        enabled: bool,
+    },
+    SaveStaffStageAssignment,
+    SaveStaffStageAssignmentForWorkflow {
+        workflow_id: String,
+    },
+    StaffStageAssignmentPersisted(Result<(), String>),
+    StaffTaskAssignmentPersisted(Result<(), String>),
     CreateTask,
     CreateTaskSubmitted,
     AddTaskFromInput(String),
@@ -19,6 +157,8 @@ pub enum TaskBoardMessage {
         content: String,
         priority: String,
         model: String,
+        reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+        task_split_mode: TaskSplitMode,
         subtasks: Vec<String>,
     },
     CreateTaskCancelled,
@@ -30,6 +170,8 @@ pub enum TaskBoardMessage {
     UpdateDraftModel(String),
     UpdateDraftAgent(Option<String>),
     UpdateDraftExecutor(Option<String>),
+    UpdateDraftReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
+    UpdateDraftTaskSplitMode(TaskSplitMode),
     UpdateDraftDescription(String),
     UpdateDraftPrompt(String),
     UpdateDraftSubtask {
@@ -41,7 +183,10 @@ pub enum TaskBoardMessage {
     MoveDraftSubtaskUp(usize),
     MoveDraftSubtaskDown(usize),
     UpdateDraftAutoPromoteDelay(String),
-    TaskCreated(Task),
+    TaskCreated {
+        project_path: String,
+        task: Task,
+    },
     TaskStatusChanged {
         task_id: String,
         new_status: TaskStatus,
@@ -59,13 +204,23 @@ pub enum TaskBoardMessage {
     InvertTaskSelectionInStatus(TaskStatus),
     UpdateBulkPriorityInput(String),
     UpdateBulkModelInput(String),
+    UpdateBulkTaskSplitMode(TaskSplitMode),
     BulkAgentSelected(String),
+    UpdateBulkReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
     BulkSetPriorityInStatus(TaskStatus),
     BulkSetModelInStatus(TaskStatus),
     BulkSetAgentInStatus(TaskStatus),
     BulkSetExecutorInStatus {
         status: TaskStatus,
         executor: Option<String>,
+    },
+    BulkSetReasoningEffortInStatus {
+        status: TaskStatus,
+        reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
+    },
+    BulkSetTaskSplitModeInStatus {
+        status: TaskStatus,
+        task_split_mode: TaskSplitMode,
     },
     ToggleBulkExecutorPopover,
     BulkExecutorSelected(Option<String>),
@@ -76,7 +231,13 @@ pub enum TaskBoardMessage {
         from_status: TaskStatus,
         to_status: TaskStatus,
     },
+    BulkMergeTasksInStatus(TaskStatus),
+    ManualMergeQueueTick,
     BulkActionCompleted(Result<(), String>),
+    MoveTaskStatusCompleted {
+        target_status: TaskStatus,
+        result: Result<(), String>,
+    },
     DuplicateTask(String),
     DragStarted {
         task_id: String,
@@ -99,33 +260,42 @@ pub enum TaskBoardMessage {
     DeselectTask,
     ViewTaskLogs(String),
     CloseTaskLogs,
+    SelectDetailTab(TaskBoardDetailTab),
     EditTask(String),
     UpdateEditingTaskPriority(String),
     UpdateEditingTaskModel(String),
     UpdateEditingTaskModelInput(String),
     UpdateEditingTaskAgent(Option<String>),
     UpdateEditingTaskExecutor(Option<String>),
+    UpdateEditingTaskReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
+    UpdateEditingTaskSplitMode(TaskSplitMode),
     UpdateEditingTaskPrompt(String),
     SaveEditingTask,
     CloseTaskPanel,
-    ToggleAutoExecute(bool),
     SetMaxConcurrent(u32),
     ToggleAutoRefresh(bool),
     SetRefreshIntervalSeconds(u64),
     SetSchedulerTickIntervalSeconds(u64),
     SetAutoPromoteTickIntervalSeconds(u64),
     SetFailedRetryMinutes(u32),
+    SetFailedRetryMaxAttempts(u32),
     SetRunningTimeoutMinutes(u32),
     ToggleRecycleWorktreeOnTaskFinish(bool),
     SetPrSubmittedStallTimeoutSeconds(u32),
+    SetAgentSchedulerDispatchMode(AgentSchedulerDispatchModeDto),
     StartExecution,
     StopExecution,
     ExecutionTick,
     WorktreePoolMaintained {
-        result: Result<(usize, usize), String>,
+        project_path: String,
+        result: Result<WorktreePoolMaintenanceOutcome, String>,
     },
-    WorktreeSnapshotLoaded(Option<crate::app::task::WorktreePoolSnapshot>),
+    WorktreeSnapshotLoaded {
+        project_path: String,
+        result: Result<Option<crate::app::task::WorktreePoolSnapshot>, String>,
+    },
     AutoCodeReviewTick,
+    AutoMergeTick,
     UiTick,
     SimulateStep {
         task_id: String,
@@ -134,26 +304,34 @@ pub enum TaskBoardMessage {
         task_id: String,
     },
     TaskExecutionCompleted {
+        project_path: String,
         task_id: String,
         result: Result<String, String>,
     },
     TaskPlanningCompleted {
+        project_path: String,
         task_id: String,
         result: Result<crate::app::task::TaskPlanGenerationOutcome, String>,
     },
     TaskCodeReviewCompleted {
+        project_path: String,
         task_id: String,
         result: Result<String, String>,
     },
     TaskMergeCompleted {
+        project_path: String,
         task_id: String,
         result: Result<String, String>,
     },
-    TaskWorktreeRecycled {
+    TaskStageWorkflowCompleted {
+        project_path: String,
         task_id: String,
-        result: Result<(), String>,
+        status: TaskStatus,
+        workflow_uuid: String,
+        result: Result<vw_gateway_client::GatewayWorkflowRunOutcome, String>,
     },
-    TaskWorktreeReleased {
+    TaskRemovalWorktreeRecycled {
+        project_path: String,
         task_id: String,
         result: Result<(), String>,
     },
@@ -161,6 +339,13 @@ pub enum TaskBoardMessage {
     CleanAllWorktreesCompleted(Result<usize, String>),
     DeleteAllWorktreesPressed,
     DeleteAllWorktreesCompleted(Result<usize, String>),
+    RecycleWorktreeSlotPressed {
+        slot_id: String,
+    },
+    WorktreeSlotRecycled {
+        slot_id: String,
+        result: Result<(), String>,
+    },
     CommitMergeAllWorktreesPressed,
     CommitMergeAllWorktreesCompleted(Result<usize, String>),
     CancelWorktreeManualConfirm,
@@ -183,7 +368,6 @@ pub enum TaskBoardMessage {
         y: f32,
     },
     ContextMenuClosed,
-    ToggleAutoPromotePoolTasks(bool),
     SetAutoPromoteDelay(u64),
     AddSubTask {
         task_id: String,
@@ -215,8 +399,62 @@ pub enum TaskBoardMessage {
         subtasks: Vec<SubTask>,
     },
     PromotePoolTasksTick,
-    PoolTasksScheduled(
-        Result<vw_gateway_client::vw_api_types::task::TaskPoolScheduleResponse, String>,
+    AgentSchedulerPoolWakeCompleted(
+        Result<
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
+            String,
+        >,
+    ),
+    AgentSchedulerExecutionWakeCompleted(
+        Result<
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
+            String,
+        >,
+    ),
+    AgentSchedulerCommandInFlightStatusTick {
+        project_path: String,
+        task_id: String,
+    },
+    AgentSchedulerMergeReadyPersisted {
+        project_path: String,
+        task: Task,
+        result: Result<(), String>,
+    },
+    AgentSchedulerStatusLoaded {
+        project_path: String,
+        result: Result<
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse,
+            String,
+        >,
+    },
+    AgentSchedulerLogsLoaded {
+        project_path: String,
+        result: Result<
+            Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,
+            String,
+        >,
+    },
+    PollMatrixTaskPoolEvents,
+    TaskPoolMatrixEventPublished {
+        task_id: String,
+        result: Result<(), String>,
+    },
+    StaffHandoffIpcDeliveryCompleted {
+        task_id: String,
+        from_member_id: String,
+        to_member_id: String,
+        to_agent: String,
+        timestamp_ms: u64,
+        result: Result<(), String>,
+    },
+    MatrixTaskPoolEventsLoaded(
+        Result<vw_gateway_client::vw_api_types::task::TaskPoolMatrixEventsResponse, String>,
+    ),
+    AgentSchedulerAutoMergeWakeCompleted(
+        Result<
+            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,
+            String,
+        >,
     ),
     UpdateNewSubtaskContent(String),
     DescEditorAction(iced::widget::text_editor::Action),
@@ -248,7 +486,6 @@ pub enum TaskBoardMessage {
     ToggleExecutorPopover,
     ToggleWorktreePanelExpanded,
     ToggleWorktreePixelOffice(bool),
-    ToggleCodeReview(bool),
     ToggleClearPromptAfterCreate(bool),
     ToggleCloseAfterCreate(bool),
     ToggleCloseAfterEdit(bool),

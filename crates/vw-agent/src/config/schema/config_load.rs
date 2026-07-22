@@ -1,35 +1,50 @@
 //! 配置加载与首次初始化流程。
 //!
-//! 本模块负责在运行时解析配置目录、读取 JSON 或旧 TOML 配置、处理兼容迁移、解密密钥、
-//! 展开环境变量引用并执行最终校验。加载失败会显式返回错误，避免 agent 在部分配置状态下启动。
+//! 本模块负责迁移旧用户配置、加载租户数据库基础 payload、叠加显式项目覆盖，并在统一反序列化后
+//! 解密密钥、展开环境变量引用、应用环境变量和执行最终校验。加载失败会显式返回错误，避免 agent 在
+//! 部分配置状态下启动。
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
+#[cfg(not(target_arch = "wasm32"))]
+use directories::UserDirs;
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
+
+use vw_api_types::id::TenantScope;
 use vw_config_types::config::Config;
 
-use crate::app::agent::config::schema::CONFIG_JSON_FILENAME;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::SystemConfigStore;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::migration::migrate_user_config;
 use crate::app::agent::config::schema::config_env::apply_env_overrides;
 use crate::app::agent::config::schema::config_helpers::config_dir_creation_error;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::config::schema::config_io::read_project_config_override;
 use crate::app::agent::config::schema::config_io::{
-    extract_config_payload, normalize_legacy_alias_conflicts, normalize_top_level_table_aliases,
-    read_config_root_json,
+    extract_config_payload, merge_config_payload, normalize_legacy_alias_conflicts,
+    normalize_top_level_table_aliases, read_config_root_json,
 };
-use crate::app::agent::config::schema::config_save::save_config;
-use crate::app::agent::config::schema::config_secrets::decrypt_config_secrets;
+use crate::app::agent::config::schema::config_secrets::{
+    decrypt_config_secrets, encrypt_config_secrets,
+};
 use crate::app::agent::config::schema::config_validate::validate_config;
 use crate::app::agent::config::schema::resolve_telegram_allowed_users_env_refs;
 use crate::app::agent::config::schema::workspace::ConfigResolutionSource;
+use crate::app::agent::config::schema::{CONFIG_OVERRIDE_FILENAME, LEGACY_CONFIG_JSON_FILENAME};
 use crate::app::agent::config::schema::{
     default_config_and_workspace_dirs, resolve_runtime_config_dirs,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use crate::global_database::GlobalDatabase;
 
 /// 返回当前配置目录下的 JSON 配置文件路径。
 ///
 /// 参数 `vibewindow_dir` 是已经解析好的 VibeWindow 配置目录；函数只拼接文件名，不访问文件系统。
 pub(crate) fn config_json_path(vibewindow_dir: &Path) -> PathBuf {
-    vibewindow_dir.join(CONFIG_JSON_FILENAME)
+    vibewindow_dir.join(LEGACY_CONFIG_JSON_FILENAME)
 }
 
 /// 从旧 TOML 配置文件加载完整配置。
@@ -68,12 +83,13 @@ pub(crate) async fn load_config_from_toml_path(
 
         for path in ignored_paths {
             tracing::warn!(
-                "Unknown config key ignored: \"{}\". Check vibewindow.json for typos or deprecated options.",
+                "Unknown config key ignored: \"{}\". Check the system config payload for typos or deprecated options.",
                 path
             );
         }
         config.config_path = config_path.to_path_buf();
         config.workspace_dir = workspace_dir;
+        discard_legacy_staff_stage_config(&mut config);
         decrypt_config_secrets(&mut config, vibewindow_dir)?;
         resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
         apply_env_overrides(&mut config);
@@ -87,6 +103,54 @@ pub(crate) async fn load_config_from_toml_path(
         );
         Ok(config)
     }
+}
+
+fn decode_json_config_with_environment(
+    mut config_payload: Value,
+    config_path: &Path,
+    workspace_dir: PathBuf,
+    vibewindow_dir: &Path,
+    apply_environment: impl FnOnce(&mut Config),
+) -> Result<Config> {
+    if !config_payload.is_object() {
+        bail!("config payload root must be an object");
+    }
+
+    normalize_legacy_alias_conflicts(&mut config_payload);
+    let config_json =
+        serde_json::to_string(&config_payload).context("Failed to serialize config payload")?;
+    let mut ignored_paths = Vec::new();
+    let mut deserializer = serde_json::Deserializer::from_str(&config_json);
+    let mut config: Config = serde_ignored::deserialize(&mut deserializer, |path| {
+        ignored_paths.push(path.to_string());
+    })
+    .context("Failed to deserialize config payload")?;
+
+    for path in ignored_paths {
+        tracing::warn!(key = %path, "Unknown config key ignored");
+    }
+    config.config_path = config_path.to_path_buf();
+    config.workspace_dir = workspace_dir;
+    discard_legacy_staff_stage_config(&mut config);
+    decrypt_config_secrets(&mut config, vibewindow_dir)?;
+    resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
+    apply_environment(&mut config);
+    validate_config(&config)?;
+    Ok(config)
+}
+
+fn log_loaded_config(
+    config: &Config,
+    resolution_source: ConfigResolutionSource,
+    initialized: bool,
+) {
+    tracing::info!(
+        path = %config.config_path.display(),
+        workspace = %config.workspace_dir.display(),
+        source = resolution_source.as_str(),
+        initialized,
+        "Config loaded"
+    );
 }
 
 /// 从 JSON 根对象加载配置。
@@ -107,146 +171,172 @@ pub(crate) async fn load_config_from_json_root(
     #[cfg(not(target_arch = "wasm32"))]
     {
         let root = read_config_root_json(config_path).await?;
-        let Some(mut config_payload) = extract_config_payload(&root) else {
+        let Some(config_payload) = extract_config_payload(&root) else {
             return Ok(None);
         };
-
-        normalize_legacy_alias_conflicts(&mut config_payload);
-        let config_str =
-            serde_json::to_string(&config_payload).context("Failed to serialize config file")?;
-        let mut ignored_paths: Vec<String> = Vec::new();
-        let mut deserializer = serde_json::Deserializer::from_str(&config_str);
-        // 未知字段只警告不失败，兼顾老版本配置和手写配置；真正危险或无效的值交给 validate_config 拒绝。
-        let mut config: Config = serde_ignored::deserialize(&mut deserializer, |path| {
-            ignored_paths.push(path.to_string());
-        })
-        .context("Failed to deserialize config file")?;
-
-        for path in ignored_paths {
-            tracing::warn!(
-                "Unknown config key ignored: \"{}\". Check vibewindow.json for typos or deprecated options.",
-                path
-            );
-        }
-        config.config_path = config_path.to_path_buf();
-        config.workspace_dir = workspace_dir;
-        decrypt_config_secrets(&mut config, vibewindow_dir)?;
-        resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
-        apply_env_overrides(&mut config);
-        validate_config(&config)?;
-        tracing::info!(
-            path = %config.config_path.display(),
-            workspace = %config.workspace_dir.display(),
-            source = resolution_source.as_str(),
-            initialized = false,
-            "Config loaded"
-        );
+        let config = decode_json_config_with_environment(
+            config_payload,
+            config_path,
+            workspace_dir,
+            vibewindow_dir,
+            apply_env_overrides,
+        )?;
+        log_loaded_config(&config, resolution_source, false);
         Ok(Some(config))
     }
 }
 
-/// 加载现有配置，或在首次运行时创建默认配置。
-///
-/// 非 WASM 环境会解析默认与运行时目录，优先读取当前 JSON 配置；当发现旧 `vibewindow.json` TOML 配置时会加载并
-/// 保存为当前 JSON 路径。新建配置会尝试设置为仅当前用户可读写。
-///
-/// 返回完整可用的 `Config`。目录创建、文件读写、密钥处理或校验失败都会返回错误；WASM 目标直接返回默认配置。
-pub async fn load_or_init_config() -> Result<Config> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        Ok(Config::default())
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn load_config_for_tenant_from_store(
+    store: &SystemConfigStore,
+    tenant: &TenantScope,
+    project_root: Option<&Path>,
+    vibewindow_dir: &Path,
+    workspace_dir: PathBuf,
+    resolution_source: ConfigResolutionSource,
+    apply_environment: impl FnOnce(&mut Config),
+) -> Result<Config> {
+    let config_path = project_root
+        .map(|root| root.join(CONFIG_OVERRIDE_FILENAME))
+        .unwrap_or_else(|| config_json_path(vibewindow_dir));
+    let blocking_store = store.clone();
+    let blocking_tenant = tenant.clone();
+    let stored_payload = tokio::task::spawn_blocking(move || blocking_store.get(&blocking_tenant))
+        .await
+        .context("join system config load task")??;
+    let (base_payload_json, initialized) = match stored_payload {
+        Some(payload) => (payload, false),
+        None => {
+            let mut config = Config::default();
+            config.config_path = config_json_path(vibewindow_dir);
+            config.workspace_dir = workspace_dir.clone();
+            validate_config(&config)?;
+            encrypt_config_secrets(&mut config)?;
+            let payload =
+                serde_json::to_string(&config).context("serialize default tenant system config")?;
+            (payload, true)
+        }
+    };
+
+    let mut merged_payload: Value = serde_json::from_str(&base_payload_json)
+        .context("Failed to parse tenant system config payload")?;
+    if !merged_payload.is_object() {
+        bail!("tenant system config payload root must be an object");
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let (default_vibewindow_dir, default_workspace_dir) = default_config_and_workspace_dirs()?;
+    if let Some(project_root) = project_root {
+        let override_path = project_root.join(CONFIG_OVERRIDE_FILENAME);
+        if let Some(project_override) = read_project_config_override(&override_path).await? {
+            merge_config_payload(&mut merged_payload, project_override);
+        }
+    }
 
-        let (vibewindow_dir, workspace_dir, resolution_source) =
-            resolve_runtime_config_dirs(&default_vibewindow_dir, &default_workspace_dir).await?;
+    let config = decode_json_config_with_environment(
+        merged_payload,
+        &config_path,
+        workspace_dir,
+        vibewindow_dir,
+        apply_environment,
+    )?;
+    if initialized {
+        let blocking_store = store.clone();
+        let blocking_tenant = tenant.clone();
+        let blocking_payload = base_payload_json.clone();
+        tokio::task::spawn_blocking(move || {
+            blocking_store.upsert(&blocking_tenant, &blocking_payload)
+        })
+        .await
+        .context("join system config initialization task")??;
+    }
+    log_loaded_config(&config, resolution_source, initialized);
+    Ok(config)
+}
 
-        let config_path = config_json_path(&vibewindow_dir);
-        let legacy_config_path = vibewindow_dir.join("vibewindow.json");
+/// 按显式租户加载数据库基础配置，并可选择叠加一个显式项目根的 `.vibewindow.json`。
+///
+/// 本函数不会向项目父目录搜索。旧用户配置迁移仅在加载 `local/local` 时执行。
+#[cfg(not(target_arch = "wasm32"))]
+async fn load_or_init_config_for_tenant_with_environment(
+    tenant: &TenantScope,
+    project_root: Option<&Path>,
+    apply_environment: impl FnOnce(&mut Config),
+) -> Result<Config> {
+    let home = UserDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context("Could not find home directory")?;
+    if tenant == &TenantScope::default() {
+        migrate_user_config(&home)?;
+    }
 
-        fs::create_dir_all(&vibewindow_dir)
-            .await
-            .with_context(|| config_dir_creation_error(&vibewindow_dir))?;
+    let (default_vibewindow_dir, default_workspace_dir) = default_config_and_workspace_dirs()?;
+    let (vibewindow_dir, resolved_workspace_dir, resolution_source) =
+        resolve_runtime_config_dirs(&default_vibewindow_dir, &default_workspace_dir).await?;
+    fs::create_dir_all(&vibewindow_dir)
+        .await
+        .with_context(|| config_dir_creation_error(&vibewindow_dir))?;
+
+    let workspace_dir = project_root.map(Path::to_path_buf).unwrap_or(resolved_workspace_dir);
+    if project_root.is_none() {
         fs::create_dir_all(&workspace_dir).await.context("Failed to create workspace directory")?;
+    }
 
-        if config_path.exists() {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                // 配置中可能保存 provider 密钥引用；世界可读不会阻断启动，但必须提示用户收紧权限。
-                if let Ok(meta) = fs::metadata(&config_path).await {
-                    if meta.permissions().mode() & 0o004 != 0 {
-                        tracing::warn!(
-                            "Config file {:?} is world-readable (mode {:o}). \
-                             Consider restricting with: chmod 600 {:?}",
-                            config_path,
-                            meta.permissions().mode() & 0o777,
-                            config_path,
-                        );
-                    }
-                }
-            }
+    #[cfg(test)]
+    let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
+    #[cfg(not(test))]
+    let store = tokio::task::spawn_blocking(move || {
+        SystemConfigStore::new(GlobalDatabase::for_home(home)?)
+    })
+    .await
+    .context("join system config store initialization task")??;
+    load_config_for_tenant_from_store(
+        &store,
+        tenant,
+        project_root,
+        &vibewindow_dir,
+        workspace_dir,
+        resolution_source,
+        apply_environment,
+    )
+    .await
+}
 
-            if let Some(config) = load_config_from_json_root(
-                &config_path,
-                workspace_dir.clone(),
-                &vibewindow_dir,
-                resolution_source,
-            )
-            .await?
-            {
-                return Ok(config);
-            }
+#[cfg(target_arch = "wasm32")]
+async fn load_or_init_config_for_tenant_with_environment(
+    _tenant: &TenantScope,
+    _project_root: Option<&Path>,
+    apply_environment: impl FnOnce(&mut Config),
+) -> Result<Config> {
+    let mut config = Config::default();
+    apply_environment(&mut config);
+    validate_config(&config)?;
+    Ok(config)
+}
 
-            if legacy_config_path.exists() {
-                // JSON 文件存在但为空时，仍允许从旧 TOML 迁移，避免升级后生成空文件导致旧配置被忽略。
-                let mut config = load_config_from_toml_path(
-                    &legacy_config_path,
-                    workspace_dir.clone(),
-                    &vibewindow_dir,
-                    resolution_source,
-                )
-                .await?;
-                config.config_path = config_path.clone();
-                save_config(&config).await?;
-                return Ok(config);
-            }
-        } else if legacy_config_path.exists() {
-            let mut config = load_config_from_toml_path(
-                &legacy_config_path,
-                workspace_dir.clone(),
-                &vibewindow_dir,
-                resolution_source,
-            )
-            .await?;
-            config.config_path = config_path.clone();
-            save_config(&config).await?;
-            return Ok(config);
-        }
+pub async fn load_or_init_config_for_tenant(
+    tenant: &TenantScope,
+    project_root: Option<&Path>,
+) -> Result<Config> {
+    load_or_init_config_for_tenant_with_environment(tenant, project_root, apply_env_overrides).await
+}
 
-        let mut config = Config::default();
-        config.config_path = config_path.clone();
-        config.workspace_dir = workspace_dir;
-        save_config(&config).await?;
+pub(crate) async fn load_or_init_config_for_tenant_without_env(
+    tenant: &TenantScope,
+    project_root: Option<&Path>,
+) -> Result<Config> {
+    load_or_init_config_for_tenant_with_environment(tenant, project_root, |_| {}).await
+}
 
-        #[cfg(unix)]
-        {
-            use std::{fs::Permissions, os::unix::fs::PermissionsExt};
-            let _ = fs::set_permissions(&config_path, Permissions::from_mode(0o600)).await;
-        }
+/// 使用本地租户加载配置的兼容入口。
+pub async fn load_or_init_config() -> Result<Config> {
+    load_or_init_config_for_tenant(&TenantScope::default(), None).await
+}
 
-        apply_env_overrides(&mut config);
-        validate_config(&config)?;
-        tracing::info!(
-            path = %config.config_path.display(),
-            workspace = %config.workspace_dir.display(),
-            source = resolution_source.as_str(),
-            initialized = true,
-            "Config loaded"
-        );
-        Ok(config)
+fn discard_legacy_staff_stage_config(config: &mut Config) {
+    config.staff.project_state.capabilities.clear();
+    config.staff.project_state.stage_assignments.clear();
+    config.staff.project_state.stage_workflow_bindings.clear();
+    config.staff.project_state.stage_actions.clear();
+    for orchestration in config.staff.workflow_orchestrations.values_mut() {
+        orchestration.stage_workflow_bindings.clear();
     }
 }

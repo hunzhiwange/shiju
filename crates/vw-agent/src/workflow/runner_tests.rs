@@ -23,6 +23,60 @@ fn graph(nodes: Vec<WorkflowNode>, edges: Vec<WorkflowEdge>, starts: Vec<&str>) 
 }
 
 #[test]
+fn workflow_source_and_start_variables_handle_blank_and_fallback_inputs() {
+    let missing = WorkflowRunRequest {
+        workflow_yaml: Some(" \n ".to_string()),
+        ..WorkflowRunRequest::default()
+    };
+    assert!(resolve_workflow_source(&missing).expect_err("blank workflow").contains("必须提供"));
+
+    let request = WorkflowRunRequest {
+        workflow_yaml: Some("workflow source".to_string()),
+        inputs: BTreeMap::from([
+            ("query".to_string(), Value::String("input query".to_string())),
+            ("count".to_string(), Value::Number(3.into())),
+        ]),
+        ..WorkflowRunRequest::default()
+    };
+    assert_eq!(resolve_workflow_source(&request).expect("workflow source"), "workflow source");
+
+    let graph = graph(
+        vec![node(
+            "start",
+            "start",
+            json!({
+                "variables": [
+                    {"variable": "query"},
+                    {"variable": "count"},
+                    {"variable": "missing"},
+                    {"label": "ignored"}
+                ]
+            }),
+        )],
+        Vec::new(),
+        vec!["start", "unknown"],
+    );
+    let pool = initialize_variable_pool(&graph, &request, "run-431");
+
+    assert_eq!(
+        pool.get_selector(&["sys".to_string(), "query".to_string()]),
+        Some(&Value::String("input query".to_string()))
+    );
+    assert_eq!(
+        pool.get_selector(&["sys".to_string(), "workflow_run_id".to_string()]),
+        Some(&Value::String("run-431".to_string()))
+    );
+    assert_eq!(
+        pool.get_selector(&["start".to_string(), "count".to_string()]),
+        Some(&Value::Number(3.into()))
+    );
+    assert_eq!(
+        pool.get_selector(&["start".to_string(), "missing".to_string()]),
+        Some(&Value::Null)
+    );
+}
+
+#[test]
 fn workflow_execution_batch_parallelizes_only_llm_nodes() {
     let graph = graph(
         vec![
@@ -174,6 +228,51 @@ fn node_execution_helpers_extract_inputs_outputs_and_messages() {
 
     let no_prompt = node("llm2", "llm", json!({}));
     assert_eq!(build_llm_messages(&no_prompt, &pool)[0].content, "fallback query");
+
+    // {{#context#}} 必须展开为 knowledge-retrieval 节点 result 数组的 content 拼接。
+    let mut context_pool = VariablePool::default();
+    context_pool.insert_node_output(
+        "kb",
+        "result",
+        json!([
+            {"content": "库存预警开启路径：系统-系统设置", "score": 0.89},
+            {"content": "按仓库权限区分预警", "score": 0.71}
+        ]),
+    );
+    let context_llm = node(
+        "llm",
+        "llm",
+        json!({
+            "context": {
+                "enabled": true,
+                "variable_selector": ["kb", "result"]
+            },
+            "prompt_template": [
+                {"role": "system", "text": "<context>{{#context#}}</context>"}
+            ]
+        }),
+    );
+    let context_messages = build_llm_messages(&context_llm, &context_pool);
+    assert_eq!(
+        context_messages[0].content,
+        "<context>库存预警开启路径：系统-系统设置\n\n按仓库权限区分预警</context>"
+    );
+
+    // context.enabled 为 false 时不注入，{{#context#}} 渲染为空。
+    let disabled_llm = node(
+        "llm",
+        "llm",
+        json!({
+            "context": {
+                "enabled": false,
+                "variable_selector": ["kb", "result"]
+            },
+            "prompt_template": [
+                {"role": "system", "text": "<context>{{#context#}}</context>"}
+            ]
+        }),
+    );
+    assert_eq!(build_llm_messages(&disabled_llm, &context_pool)[0].content, "<context></context>");
 
     let mapping_node = node(
         "code",
@@ -526,6 +625,9 @@ fn http_helpers_render_validate_and_redact_values() {
 fn output_delta_token_and_redaction_helpers_cover_edge_cases() {
     let outputs = llm_outputs(r#"{"ok":true}"#.to_string());
     assert_eq!(outputs["json"], json!({"ok": true}));
+    let plain_outputs = llm_outputs("plain answer".to_string());
+    assert_eq!(plain_outputs["text"], json!("plain answer"));
+    assert!(plain_outputs.get("json").is_none());
     assert!(workflow_token_usage(None).is_none());
     assert!(workflow_token_usage(Some(&TokenUsage::default())).is_none());
     let usage = workflow_token_usage(Some(&TokenUsage {
@@ -559,10 +661,26 @@ fn output_delta_token_and_redaction_helpers_cover_edge_cases() {
         workflow_node_delta_from_execution(&node("llm", "llm", json!({})), 1, &answer_execution)
             .is_none()
     );
+    let output_execution = NodeExecution {
+        status: WorkflowNodeRunStatus::Succeeded,
+        inputs: BTreeMap::new(),
+        outputs: BTreeMap::from([("result".to_string(), Value::String("result text".into()))]),
+        selected_handle: None,
+        answer: None,
+        error: None,
+        elapsed_ms: 0,
+    };
+    assert_eq!(
+        workflow_node_delta_from_execution(&node("out", "answer", json!({})), 2, &output_execution)
+            .expect("output delta")
+            .text,
+        "result text"
+    );
     assert!(
         truncate_workflow_node_delta(&"x".repeat(WORKFLOW_NODE_DELTA_MAX_CHARS + 10))
             .contains("已截断")
     );
+    assert_eq!(truncate_workflow_node_delta("short"), "short");
 
     let redacted = redact_map(&BTreeMap::from([
         ("api_key".to_string(), Value::String("secret".into())),
@@ -570,10 +688,21 @@ fn output_delta_token_and_redaction_helpers_cover_edge_cases() {
     ]));
     assert_eq!(redacted["api_key"], Value::String("[REDACTED]".into()));
     assert_eq!(redacted["nested"]["password"], Value::String("[REDACTED]".into()));
+    let redacted_headers = redact_string_map(&BTreeMap::from([
+        ("Authorization".to_string(), "Bearer secret".to_string()),
+        ("X-Trace".to_string(), "trace".to_string()),
+    ]));
+    assert_eq!(redacted_headers["Authorization"], "[REDACTED]");
+    assert_eq!(redacted_headers["X-Trace"], "trace");
     assert!(
         debug_json_value(&json!({"text": "x".repeat(WORKFLOW_DEBUG_MAX_CHARS + 10)}))
             .ends_with("...")
     );
     assert!(!debug_body_text(r#"{"password":"pw"}"#).contains("pw"));
+    assert!(debug_body_text("plain body").contains("plain body"));
     assert!(is_sensitive_key("Cookie"));
+    assert!(workflow_value_truthy(&json!(1)));
+    assert!(!workflow_value_truthy(&json!(0)));
+    assert!(workflow_value_truthy(&json!({"ok": true})));
+    assert!(!workflow_value_truthy(&json!({})));
 }

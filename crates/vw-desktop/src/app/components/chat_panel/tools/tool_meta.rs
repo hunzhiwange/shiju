@@ -12,8 +12,8 @@ use crate::app::components::chat_panel::utils::{
 };
 /// 重新导出 use iced::widget::{container, row, svg, text}，让上层模块通过稳定路径访问。
 use iced::widget::{container, row, svg, text};
-/// 重新导出 use iced::{Alignment, Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+/// 重新导出 use iced::{Alignment, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
+use iced::{Alignment, Color, Element, Length, Theme};
 
 /// 重新导出 use super::canonical_tool_name，让上层模块通过稳定路径访问。
 use super::canonical_tool_name;
@@ -50,6 +50,7 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
         | "file_search"
         | "semantic_search"
         | "web_search"
+        | "tool_search"
         | "github_repo"
         | "copilot_getnotebooksummary"
         | "vscode_listcodeusages" => "🔍",
@@ -120,7 +121,12 @@ pub fn tool_icon(tool_name: &str) -> Icon {
         "browser" | "browser_open" | "open_browser_page" => Icon::Link,
         "skill" => Icon::Star,
         "task" | "question" => Icon::Check,
-        "agenttool" | "agent" => Icon::Box,
+        "agenttool"
+        | "agent"
+        | "mcp"
+        | "list_mcp_resources"
+        | "list_mcp_resource_templates"
+        | "read_mcp_resource" => Icon::Box,
         "screenshot" => Icon::Image,
         "get_errors" => Icon::Code,
         "schedule" | "cron_add" | "cron_list" | "cron_run" | "cron_update" | "cron_remove" => {
@@ -131,6 +137,7 @@ pub fn tool_icon(tool_name: &str) -> Icon {
         "git_operations" | "git_diff" | "get_changed_files" => Icon::GitBranch,
         "image_info" | "view_image" => Icon::Image,
         "workflow_node" => Icon::Grid1x2,
+        name if name.starts_with("mcp_") => Icon::Box,
         _ => Icon::FileText,
     }
 }
@@ -214,6 +221,8 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
         "question" => "提问",
         "screenshot" => "截图",
         "agenttool" | "agent" => "AgentTool",
+        "tool_search" => "tool_search",
+        "mcp" | "list_mcp_resources" | "list_mcp_resource_templates" | "read_mcp_resource" => "MCP",
         "todowrite" => "写任务",
         "todoread" => "读任务",
         "schedule" | "cron_add" | "cron_list" | "cron_run" | "cron_update" | "cron_remove" => {
@@ -230,6 +239,7 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
         "pushover" => "通知",
         "process" => "进程",
         "workflow_node" => "工作流",
+        name if name.starts_with("mcp_") => "MCP",
         _ => "工具",
     }
 }
@@ -274,45 +284,16 @@ pub fn tool_icon_badge<'a>(tool_name: &str, is_error: bool) -> Element<'a, Messa
             color: Some(tool_icon_badge_color(theme, is_compact_file_tool, is_error)),
         });
 
+    // 徽标只保留居中的图标，去掉背景、边框，保持与标题对齐的固定尺寸。
+    // 星形图标几何视框上下对称，但视觉重心偏上，居中后看起来比文字略高，
+    // 用顶部 padding 把它向下压一点，与文字光学居中对齐。
+    let optical_top = if matches!(tool_icon(tool_name), Icon::Star) { 1.5 } else { 0.0 };
     container(icon)
-        .width(Length::Fixed(24.0))
-        .height(Length::Fixed(24.0))
+        .width(Length::Fixed(20.0))
+        .height(Length::Fixed(20.0))
+        .padding(iced::Padding { top: optical_top, right: 0.0, bottom: 0.0, left: 0.0 })
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
-        .style(|theme: &Theme| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            iced::widget::container::Style {
-                // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                background: Some(Background::Color(if is_dark {
-                    // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    Color::from_rgba8(24, 25, 29, 0.92)
-                } else {
-                    // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    Color::from_rgba8(247, 248, 250, 1.0)
-                })),
-                // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                border: Border {
-                    // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    width: 1.0,
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: if is_dark {
-                        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        Color::from_rgba8(45, 48, 54, 0.92)
-                    } else {
-                        // Color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        Color::from_rgba8(226, 231, 237, 1.0)
-                    },
-                    // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    radius: 999.0.into(),
-                },
-                // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                text_color: Some(chat_secondary_text_color(theme)),
-                ..Default::default()
-            }
-        })
         .into()
 }
 

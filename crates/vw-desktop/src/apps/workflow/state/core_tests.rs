@@ -19,6 +19,8 @@ fn title_uses_list_title_without_active_app() {
 use super::*;
 use crate::apps::workflow::model::{WorkflowHandle, WorkflowHandleSide, WorkflowViewport};
 use iced::Size;
+use serde_json::json;
+use vw_gateway_client::{GatewayWorkflowStreamError, GatewayWorkflowStreamEvent};
 
 #[test]
 fn saved_app_loading_open_delete_confirm_actions_and_copy_state_are_tracked() {
@@ -83,6 +85,185 @@ fn saved_app_loading_open_delete_confirm_actions_and_copy_state_are_tracked() {
     assert_eq!(state.copied_saved_app_uuid.as_deref(), Some("uuid-1"));
     state.clear_saved_app_uuid_copied("uuid-1");
     assert!(state.copied_saved_app_uuid.is_none());
+}
+
+#[test]
+fn workflow_run_state_transitions_collect_preview_events() {
+    let mut state = WorkflowState {
+        saved_app_actions_menu_uuid: Some("workflow-1".to_string()),
+        ..WorkflowState::default()
+    };
+    let mut inputs = std::collections::BTreeMap::new();
+    inputs.insert("topic".to_string(), json!("rust"));
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        inputs.clone(),
+    ));
+    assert_eq!(state.running_saved_app_uuid.as_deref(), Some("workflow-1"));
+    assert!(state.saved_app_actions_menu_uuid.is_none());
+    assert_eq!(state.running_saved_app_query, "hello");
+    assert!(!state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "again".to_string(),
+        Default::default(),
+    ));
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::WorkflowStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"status": "running"}),
+    });
+    assert_eq!(
+        state.saved_app_run_preview.as_ref().and_then(|preview| preview.run_id.as_deref()),
+        Some("run-1")
+    );
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"node_id": "start", "title": "Start", "status": "running"}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"node_id": "start", "title": "Start", "status": "succeeded"}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::TextChunk {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        text: "hello".to_string(),
+        data: json!({"text": "hello"}),
+    });
+
+    let preview = state.saved_app_run_preview.as_ref().expect("preview should exist");
+    assert_eq!(preview.uuid, "workflow-1");
+    assert_eq!(preview.nodes.len(), 1);
+    assert_eq!(preview.nodes[0].id, "start");
+    assert_eq!(preview.nodes[0].status.as_deref(), Some("succeeded"));
+    assert_eq!(preview.text_output, "hello");
+    assert!(!preview.is_finished);
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::Error(
+        GatewayWorkflowStreamError {
+            task_id: "task-1".to_string(),
+            status: 500,
+            code: "workflow_failed".to_string(),
+            message: "boom".to_string(),
+        },
+    ));
+
+    let preview = state.saved_app_run_preview.as_ref().expect("preview should remain");
+    assert!(preview.is_finished);
+    assert_eq!(state.running_saved_app_uuid, None);
+    assert_eq!(state.running_saved_app_query, "hello");
+    assert_eq!(state.running_saved_app_inputs, inputs);
+    let error = preview.error.as_ref().expect("error should be retained");
+    assert_eq!(error.status, 500);
+    assert_eq!(error.code, "workflow_failed");
+    assert_eq!(error.message, "boom");
+}
+
+#[test]
+fn workflow_run_retry_restarts_from_clean_preview_after_success_or_failure() {
+    let mut state = WorkflowState::default();
+    let mut inputs = std::collections::BTreeMap::new();
+    inputs.insert("topic".to_string(), json!("rust"));
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        inputs.clone()
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"node_id": "start", "title": "Start", "status": "succeeded"}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::TextChunk {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        text: "done".to_string(),
+        data: json!({"text": "done"}),
+    });
+    state.finish_saved_app_run();
+
+    assert!(state.retry_saved_app_run_preview());
+    assert_eq!(state.running_saved_app_uuid.as_deref(), Some("workflow-1"));
+    assert_eq!(state.running_saved_app_query, "hello");
+    assert_eq!(state.running_saved_app_inputs, inputs);
+
+    let preview = state.saved_app_run_preview.as_ref().expect("preview should reset");
+    assert_eq!(preview.status, WorkflowRunStatus::Running);
+    assert!(preview.nodes.is_empty());
+    assert!(preview.text_output.is_empty());
+    assert!(preview.error.is_none());
+    assert!(!preview.is_finished);
+    assert!(preview.run_id.is_none());
+}
+
+#[test]
+fn workflow_run_retry_rejects_running_and_canceled_preview() {
+    let mut state = WorkflowState::default();
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+    assert!(!state.retry_saved_app_run_preview());
+
+    state.cancel_saved_app_run();
+    assert!(!state.retry_saved_app_run_preview());
+}
+
+#[test]
+fn workflow_run_preview_error_details_keep_status_code_message() {
+    let mut state = WorkflowState::default();
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::WorkflowStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-42".to_string(),
+        data: json!({"status": "running"}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-42".to_string(),
+        data: json!({
+            "node_id": "agent",
+            "title": "Agent 执行",
+            "status": "failed"
+        }),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::Error(
+        GatewayWorkflowStreamError {
+            task_id: "task-1".to_string(),
+            status: 502,
+            code: "workflow_run_error".to_string(),
+            message: "节点执行失败".to_string(),
+        },
+    ));
+
+    let preview = state.saved_app_run_preview.as_ref().expect("preview should remain");
+    assert_eq!(preview.status, WorkflowRunStatus::Failed);
+    assert!(preview.is_finished);
+    let error = preview.error.as_ref().expect("error should be retained");
+    assert_eq!(error.status, 502);
+    assert_eq!(error.code, "workflow_run_error");
+    assert_eq!(error.message, "节点执行失败");
+
+    let debug_text = preview.debug_text();
+    assert!(debug_text.contains("run_id: run-42"));
+    assert!(debug_text.contains("status: 502"));
+    assert!(debug_text.contains("code: workflow_run_error"));
+    assert!(debug_text.contains("message: 节点执行失败"));
+    assert!(debug_text.contains("failed_node: Agent 执行 (agent)"));
 }
 
 #[test]
@@ -338,7 +519,8 @@ fn apply_loaded_replace_loaded_and_select_app_manage_active_entries() {
     assert!(!state.select_app_by_local_uuid("Second-uuid"));
     assert_eq!(state.source_name, "Second Dirty");
 
-    let replacement = loaded_workflow("Replacement", Some(WorkflowViewport { x: 1.0, y: 2.0, zoom: 0.01 }));
+    let replacement =
+        loaded_workflow("Replacement", Some(WorkflowViewport { x: 1.0, y: 2.0, zoom: 0.01 }));
     let active_id = state.active_app_id.clone().unwrap();
     state.replace_active_loaded(replacement, (640.0, 480.0));
     assert_eq!(state.active_app_id.as_deref(), Some(active_id.as_str()));
@@ -397,6 +579,692 @@ fn editor_openers_panel_toggles_and_saved_identifiers_update_current_and_entry_s
     assert_eq!(state.local_uuid.as_deref(), Some("local-uuid"));
     assert_eq!(state.apps[0].local_uuid.as_deref(), Some("local-uuid"));
     assert!(!state.active_is_dirty);
+}
+
+#[test]
+fn run_prompt_reopens_with_remembered_query_and_input_values() {
+    let mut state = WorkflowState::default();
+
+    // 首次打开并加载参数结构（值为空）。
+    state.open_saved_app_run_prompt("workflow-1".to_string());
+    state.set_saved_app_run_query("first run".to_string());
+    state.finish_saved_app_run_prompt_load(
+        "workflow-1",
+        Ok(vec![run_input_draft("topic", "text"), run_input_draft("count", "number")]),
+    );
+    state.set_saved_app_run_input_value(0, "rust".to_string());
+    state.set_saved_app_run_input_value(1, "3".to_string());
+
+    // 提交运行会缓存草稿。
+    let prompt = state.saved_app_run_prompt.clone().expect("prompt present");
+    state.remember_saved_app_run_draft(prompt);
+    state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "first run".to_string(),
+        Default::default(),
+    );
+    state.close_saved_app_run_preview();
+
+    // 再次打开同一应用：query 立即回填，参数值在加载完成后按名称回填。
+    state.open_saved_app_run_prompt("workflow-1".to_string());
+    assert_eq!(state.saved_app_run_prompt.as_ref().unwrap().query, "first run");
+    state.finish_saved_app_run_prompt_load(
+        "workflow-1",
+        Ok(vec![run_input_draft("topic", "text"), run_input_draft("count", "number")]),
+    );
+    let inputs = &state.saved_app_run_prompt.as_ref().unwrap().inputs;
+    assert_eq!(inputs[0].value, "rust");
+    assert_eq!(inputs[1].value, "3");
+}
+
+#[test]
+fn run_prompt_does_not_reuse_drafts_across_different_apps() {
+    let mut state = WorkflowState::default();
+    state.open_saved_app_run_prompt("workflow-1".to_string());
+    state.set_saved_app_run_query("kept".to_string());
+    let prompt = state.saved_app_run_prompt.clone().unwrap();
+    state.remember_saved_app_run_draft(prompt);
+
+    state.open_saved_app_run_prompt("workflow-2".to_string());
+    assert_eq!(state.saved_app_run_prompt.as_ref().unwrap().query, "");
+}
+
+#[test]
+fn run_detail_opens_node_and_output_and_closes() {
+    let mut state = WorkflowState::default();
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hi".to_string(),
+        Default::default(),
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"id": "node-1", "title": "LLM", "outputs": {"text": "hello"}}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::TextChunk {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        text: "final answer".to_string(),
+        data: json!({"text": "final answer"}),
+    });
+
+    state.open_saved_app_run_node_detail(0);
+    let detail = state.saved_app_run_detail.as_ref().expect("node detail open");
+    assert_eq!(detail.title, "LLM");
+    assert!(detail.content.text().contains("hello"));
+
+    state.open_saved_app_run_output_detail();
+    let detail = state.saved_app_run_detail.as_ref().expect("output detail open");
+    assert_eq!(detail.title, "运行输出");
+    assert!(detail.content.text().contains("final answer"));
+
+    state.close_saved_app_run_detail();
+    assert!(state.saved_app_run_detail.is_none());
+
+    // 关闭运行预览时一并清掉详情弹窗。
+    state.open_saved_app_run_output_detail();
+    state.close_saved_app_run_preview();
+    assert!(state.saved_app_run_detail.is_none());
+}
+
+#[test]
+fn run_detail_action_rejects_edits_and_accepts_read_only_actions() {
+    let mut state = WorkflowState::default();
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hi".to_string(),
+        Default::default(),
+    ));
+    state.open_saved_app_run_output_detail();
+
+    state.saved_app_run_detail_action(text_editor::Action::Edit(text_editor::Edit::Insert('x')));
+    state.saved_app_run_detail_action(text_editor::Action::Scroll { lines: 1 });
+
+    assert_eq!(
+        state.saved_app_run_detail.as_ref().expect("detail should stay open").content.text(),
+        ""
+    );
+}
+
+#[test]
+fn run_detail_node_detail_ignores_out_of_range_index() {
+    let mut state = WorkflowState::default();
+    state.open_saved_app_run_node_detail(0);
+    assert!(state.saved_app_run_detail.is_none());
+}
+
+#[test]
+fn run_error_copy_returns_report_sets_flag_and_clears() {
+    let mut state = WorkflowState::default();
+    // 没有运行预览时不返回报告，也不会标记已复制。
+    assert!(state.copy_saved_app_run_error().is_none());
+    assert!(!state.run_error_copied);
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hi".to_string(),
+        Default::default(),
+    ));
+    // 仅有运行中预览、尚无错误时也不返回报告。
+    assert!(state.copy_saved_app_run_error().is_none());
+
+    state.fail_saved_app_run(WorkflowRunErrorPreview {
+        status: 0,
+        code: "node_failed".to_string(),
+        message: "节点失败".to_string(),
+    });
+
+    let report = state.copy_saved_app_run_error().expect("error report present");
+    assert!(report.contains("code: node_failed"));
+    assert!(report.contains("message: 节点失败"));
+    assert!(state.run_error_copied);
+
+    state.clear_saved_app_run_error_copied();
+    assert!(!state.run_error_copied);
+}
+
+#[test]
+fn run_error_copied_flag_resets_on_close_and_new_run() {
+    let mut state = WorkflowState::default();
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hi".to_string(),
+        Default::default(),
+    ));
+    state.fail_saved_app_run(WorkflowRunErrorPreview {
+        status: 0,
+        code: "node_failed".to_string(),
+        message: "节点失败".to_string(),
+    });
+    state.copy_saved_app_run_error();
+    assert!(state.run_error_copied);
+
+    // 重新发起运行会清掉旧的 ✓ 状态。
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "again".to_string(),
+        Default::default(),
+    ));
+    assert!(!state.run_error_copied);
+
+    state.fail_saved_app_run(WorkflowRunErrorPreview {
+        status: 0,
+        code: "node_failed".to_string(),
+        message: "节点失败".to_string(),
+    });
+    state.copy_saved_app_run_error();
+    state.close_saved_app_run_preview();
+    assert!(!state.run_error_copied);
+}
+
+#[test]
+fn run_prompt_load_rejects_stale_results_and_tracks_error_and_boolean_edits() {
+    let mut state = WorkflowState::default();
+    state.open_saved_app_run_prompt("workflow-1".to_string());
+
+    state.finish_saved_app_run_prompt_load(
+        "workflow-2",
+        Ok(vec![run_input_draft("stale", "text-input")]),
+    );
+    let prompt = state.saved_app_run_prompt.as_ref().expect("prompt should remain open");
+    assert!(prompt.loading);
+    assert!(prompt.inputs.is_empty());
+
+    state.finish_saved_app_run_prompt_load(
+        "workflow-1",
+        Ok(vec![run_input_draft("enabled", "checkbox")]),
+    );
+    state.set_saved_app_run_prompt_error("invalid input".to_string());
+    state.toggle_saved_app_run_input_value(0, true);
+    let prompt = state.saved_app_run_prompt.as_ref().unwrap();
+    assert_eq!(prompt.inputs[0].value, "true");
+    assert!(prompt.error.is_none());
+
+    state.finish_saved_app_run_prompt_load("workflow-1", Err("load failed".to_string()));
+    let prompt = state.saved_app_run_prompt.as_ref().unwrap();
+    assert!(!prompt.loading);
+    assert!(prompt.inputs.is_empty());
+    assert_eq!(prompt.error.as_deref(), Some("load failed"));
+
+    state.set_saved_app_run_query("retry".to_string());
+    assert!(state.saved_app_run_prompt.as_ref().unwrap().error.is_none());
+    state.close_saved_app_run_prompt();
+    assert!(state.saved_app_run_prompt.is_none());
+}
+
+#[test]
+fn run_subscription_request_exposes_current_run_and_close_clears_it() {
+    let mut state = WorkflowState::default();
+    assert!(state.saved_app_run_subscription_request().is_none());
+
+    let inputs = std::collections::BTreeMap::from([
+        ("count".to_string(), json!(3)),
+        ("topic".to_string(), json!("rust")),
+    ]);
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "summarize".to_string(),
+        inputs.clone(),
+    ));
+
+    let request = state.saved_app_run_subscription_request().expect("active request");
+    assert_eq!(request.uuid, "workflow-1");
+    assert_eq!(request.query, "summarize");
+    assert_eq!(request.inputs, inputs);
+    assert_eq!(request.user, "desktop-workflow");
+
+    state.close_saved_app_run_preview();
+    assert!(state.saved_app_run_subscription_request().is_none());
+    assert!(state.running_saved_app_query.is_empty());
+    assert!(state.running_saved_app_inputs.is_empty());
+    assert!(state.saved_app_run_preview.is_none());
+}
+
+#[test]
+fn stream_message_fallback_and_terminal_events_preserve_meaningful_status() {
+    let mut state = WorkflowState::default();
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::Message {
+        id: "event-1".to_string(),
+        task_id: "task-1".to_string(),
+        message_id: "message-1".to_string(),
+        conversation_id: "conversation-1".to_string(),
+        answer: "fallback answer".to_string(),
+        created_at: 1,
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::Message {
+        id: "event-2".to_string(),
+        task_id: "task-1".to_string(),
+        message_id: "message-2".to_string(),
+        conversation_id: "conversation-1".to_string(),
+        answer: "must not overwrite".to_string(),
+        created_at: 2,
+    });
+    assert_eq!(state.saved_app_run_preview.as_ref().unwrap().text_output, "fallback answer");
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::WorkflowFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"status": "cancelled"}),
+    });
+    let preview = state.saved_app_run_preview.as_ref().unwrap();
+    assert_eq!(preview.run_id.as_deref(), Some("run-1"));
+    assert_eq!(preview.status, WorkflowRunStatus::Canceled);
+    assert!(preview.is_finished);
+    assert!(state.running_saved_app_uuid.is_none());
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "again".to_string(),
+        Default::default(),
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::Unknown {
+        event_type: Some("future_event".to_string()),
+        payload: json!({"ignored": true}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::MessageEnd {
+        id: "event-3".to_string(),
+        task_id: "task-2".to_string(),
+        message_id: "message-3".to_string(),
+        conversation_id: "conversation-2".to_string(),
+        metadata: json!({}),
+    });
+    let preview = state.saved_app_run_preview.as_ref().unwrap();
+    assert_eq!(preview.status, WorkflowRunStatus::Succeeded);
+    assert!(preview.is_finished);
+}
+
+#[test]
+fn node_events_ignore_missing_ids_upsert_existing_nodes_and_record_node_failures() {
+    let mut state = WorkflowState::default();
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: String::new(),
+        data: json!({"title": "missing id", "status": "running"}),
+    });
+    assert!(state.saved_app_run_preview.as_ref().unwrap().nodes.is_empty());
+
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"id": "agent", "title": "", "status": "running"}),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: String::new(),
+        data: json!({"node_id": "agent", "title": "Agent", "status": "error"}),
+    });
+
+    let preview = state.saved_app_run_preview.as_ref().unwrap();
+    assert_eq!(preview.run_id.as_deref(), Some("run-1"));
+    assert_eq!(preview.nodes.len(), 1);
+    assert_eq!(preview.nodes[0].title, "Agent");
+    assert_eq!(preview.nodes[0].status.as_deref(), Some("error"));
+    assert_eq!(preview.status, WorkflowRunStatus::Failed);
+    let error = preview.error.as_ref().expect("node failure should synthesize an error");
+    assert_eq!(error.status, 0);
+    assert_eq!(error.code, "node_failed");
+    assert_eq!(error.message, "节点失败: Agent");
+}
+
+#[test]
+fn debug_text_classifies_failures_and_redacts_nested_sensitive_fields() {
+    let node = WorkflowRunNodePreview {
+        id: "agent".to_string(),
+        title: "Agent".to_string(),
+        status: Some("failed".to_string()),
+        data: json!({
+            "visible": "kept",
+            "api_key": "top-secret",
+            "nested": [{"Authorization": "Bearer token", "result": "ok"}],
+            "cookie": "session-secret",
+            "__vw_internal": "private"
+        }),
+    };
+    let data_text = node.debug_data_text();
+    assert!(data_text.contains("visible"));
+    assert!(data_text.contains("result"));
+    assert!(!data_text.contains("top-secret"));
+    assert!(!data_text.contains("Bearer token"));
+    assert!(!data_text.contains("session-secret"));
+    assert!(!data_text.contains("private"));
+
+    let transport = WorkflowRunPreview {
+        uuid: "workflow-1".to_string(),
+        run_id: None,
+        status: WorkflowRunStatus::Failed,
+        nodes: vec![node],
+        text_output: String::new(),
+        error: Some(WorkflowRunErrorPreview {
+            status: 0,
+            code: "transport_error".to_string(),
+            message: "offline".to_string(),
+        }),
+        is_finished: true,
+    };
+    let debug_text = transport.debug_text();
+    assert!(debug_text.contains("source: connection"));
+    assert!(debug_text.contains("status: transport"));
+
+    let gateway = WorkflowRunPreview {
+        error: Some(WorkflowRunErrorPreview {
+            status: 503,
+            code: "unavailable".to_string(),
+            message: "retry later".to_string(),
+        }),
+        ..transport
+    };
+    assert!(gateway.debug_text().contains("source: gateway"));
+}
+
+#[test]
+fn workflow_run_inputs_extract_start_variables_and_skip_blank_names() {
+    let mut start = test_node("start", "start");
+    start.raw_node = serde_yaml::from_str(
+        r#"
+data:
+  variables:
+    - label: " Topic "
+      variable: " topic "
+      type: text-input
+      required: true
+      hide: true
+      default: rust
+      placeholder: Ask a topic
+      hint: Used for search
+      max_length: 32
+    - label: ""
+      variable: uploads
+      type: file-list
+      default:
+        - first.txt
+        - second.txt
+    - variable: "   "
+      type: text-input
+"#,
+    )
+    .expect("fixture yaml should parse");
+    let non_start =
+        WorkflowNode { raw_node: start.raw_node.clone(), ..test_node("answer", "answer") };
+    let document = WorkflowDocument { nodes: vec![start, non_start], ..test_document() };
+
+    let inputs = workflow_run_inputs_from_document(&document);
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(inputs[0].name, "topic");
+    assert_eq!(inputs[0].label, "Topic");
+    assert_eq!(inputs[0].input_type, "text-input");
+    assert!(!inputs[0].required);
+    assert!(inputs[0].hidden);
+    assert_eq!(inputs[0].value, "rust");
+    assert_eq!(inputs[0].placeholder, "Ask a topic");
+    assert_eq!(inputs[0].hint, "Used for search");
+    assert_eq!(inputs[0].max_length_input, "32");
+    assert_eq!(inputs[1].name, "uploads");
+    assert_eq!(inputs[1].label, "uploads");
+    assert_eq!(inputs[1].input_type, "file-list");
+    assert_eq!(inputs[1].value, "first.txt\nsecond.txt");
+}
+
+#[test]
+fn saved_app_run_prompt_noops_without_matching_prompt_and_clears_error_on_edits() {
+    let mut state = WorkflowState::default();
+
+    state.set_saved_app_run_query("ignored".to_string());
+    state.set_saved_app_run_input_value(0, "ignored".to_string());
+    state.toggle_saved_app_run_input_value(0, true);
+    state.set_saved_app_run_prompt_error("ignored".to_string());
+    state.finish_saved_app_run_prompt_load("missing", Ok(vec![run_input_draft("topic", "text")]));
+    assert!(state.saved_app_run_prompt.is_none());
+
+    state.open_saved_app_run_prompt("workflow-1".to_string());
+    state.finish_saved_app_run_prompt_load(
+        "workflow-1",
+        Ok(vec![run_input_draft("topic", "text"), run_input_draft("enabled", "checkbox")]),
+    );
+    state.set_saved_app_run_prompt_error("invalid".to_string());
+    state.set_saved_app_run_input_value(99, "out of range".to_string());
+    assert!(state.saved_app_run_prompt.as_ref().unwrap().error.is_none());
+    state.set_saved_app_run_prompt_error("invalid".to_string());
+    state.toggle_saved_app_run_input_value(99, true);
+    assert!(state.saved_app_run_prompt.as_ref().unwrap().error.is_none());
+}
+
+#[test]
+fn saved_app_run_retry_finish_fail_cancel_and_events_noop_without_valid_preview() {
+    let mut state = WorkflowState::default();
+
+    assert!(!state.retry_saved_app_run_preview());
+    state.finish_saved_app_run();
+    state.cancel_saved_app_run();
+    state.fail_saved_app_run(WorkflowRunErrorPreview {
+        status: 500,
+        code: "ignored".to_string(),
+        message: "ignored".to_string(),
+    });
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::TextChunk {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        text: "ignored".to_string(),
+        data: json!({}),
+    });
+    assert!(state.saved_app_run_preview.is_none());
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "   ".to_string(),
+        Default::default(),
+    ));
+    state.finish_saved_app_run();
+    assert_eq!(state.saved_app_run_preview.as_ref().unwrap().status, WorkflowRunStatus::Succeeded);
+    assert!(!state.retry_saved_app_run_preview());
+
+    state.close_saved_app_run_preview();
+    assert!(state.begin_saved_app_run(
+        "workflow-2".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::WorkflowFinished {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-2".to_string(),
+        data: json!({"status": "failed"}),
+    });
+    let preview = state.saved_app_run_preview.as_ref().unwrap();
+    assert_eq!(preview.status, WorkflowRunStatus::Failed);
+    assert!(preview.is_finished);
+}
+
+#[test]
+fn non_active_saved_app_removal_clears_related_menus_without_resetting_current_document() {
+    let document = test_document();
+    let mut state = state_with_document("active", Some("active-uuid"), "Active", document);
+    state.local_uuid = Some("active-uuid".to_string());
+    state.saved_apps = vec![
+        WorkflowSavedAppSummary {
+            uuid: "active-uuid".to_string(),
+            name: "Active".to_string(),
+            description: String::new(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        },
+        WorkflowSavedAppSummary {
+            uuid: "inactive-uuid".to_string(),
+            name: "Inactive".to_string(),
+            description: String::new(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        },
+    ];
+    state.apps.push(app_entry("inactive", Some("inactive-uuid"), "Inactive", test_document()));
+    state.confirm_delete_saved_app_uuid = Some("inactive-uuid".to_string());
+    state.saved_app_actions_menu_uuid = Some("inactive-uuid".to_string());
+    state.copied_saved_app_uuid = Some("inactive-uuid".to_string());
+
+    assert!(!state.remove_saved_app("inactive-uuid"));
+
+    assert_eq!(state.active_app_id.as_deref(), Some("active"));
+    assert_eq!(state.local_uuid.as_deref(), Some("active-uuid"));
+    assert_eq!(state.source_name, "Active");
+    assert_eq!(state.document.nodes.len(), 1);
+    assert!(state.saved_apps.iter().all(|app| app.uuid != "inactive-uuid"));
+    assert!(state.apps.iter().all(|app| app.local_uuid.as_deref() != Some("inactive-uuid")));
+    assert!(state.confirm_delete_saved_app_uuid.is_none());
+    assert!(state.saved_app_actions_menu_uuid.is_none());
+    assert!(state.copied_saved_app_uuid.is_none());
+}
+
+#[test]
+fn select_app_by_uuid_success_persists_previous_dirty_entry_and_resets_transient_state() {
+    let mut first_document = test_document();
+    first_document.nodes[0].selected = true;
+    let second_document = WorkflowDocument {
+        name: "Second Doc".to_string(),
+        nodes: vec![test_node("second-start", "start")],
+        edges: Vec::new(),
+        viewport: WorkflowViewport::default(),
+    };
+    let mut state = state_with_document("first", Some("first-uuid"), "First", first_document);
+    state.apps.push(app_entry("second", Some("second-uuid"), "Second", second_document));
+    state.source_name = "First Dirty".to_string();
+    state.active_is_dirty = true;
+    state.context_menu = Some(WorkflowCanvasContextMenu {
+        target: WorkflowCanvasContextMenuTarget::Canvas,
+        anchor: Point::new(0.0, 0.0),
+        world: Point::new(0.0, 0.0),
+    });
+    state.quick_insert_panel_open = true;
+    state.action_menu_open = true;
+    state.zoom_menu_open = true;
+    state.dragging_node_id = Some("start".to_string());
+    state.drag_pending_snapshot = state.current_history_snapshot();
+    state.error_message = Some("boom".to_string());
+
+    assert!(state.select_app_by_local_uuid("second-uuid"));
+
+    let previous = state.apps.iter().find(|app| app.id == "first").unwrap();
+    assert_eq!(previous.meta.name, "First Dirty");
+    assert!(previous.is_dirty);
+    assert_eq!(state.active_app_id.as_deref(), Some("second"));
+    assert_eq!(state.local_uuid.as_deref(), Some("second-uuid"));
+    assert_eq!(state.source_name, "Second");
+    assert!(state.context_menu.is_none());
+    assert!(!state.quick_insert_panel_open);
+    assert!(!state.action_menu_open);
+    assert!(!state.zoom_menu_open);
+    assert!(state.dragging_node_id.is_none());
+    assert!(state.drag_pending_snapshot.is_none());
+    assert!(state.error_message.is_none());
+    assert_eq!(state.status_message.as_deref(), Some("已切换到 Second"));
+}
+
+#[test]
+fn editor_and_identifier_updates_handle_missing_active_app_without_side_effect_entries() {
+    let mut state = WorkflowState::default();
+
+    state.open_edit_editor(None);
+    assert!(state.app_editor.is_none());
+    state.open_edit_editor(Some("missing"));
+    assert!(state.app_editor.is_none());
+
+    state.update_active_source_path("/tmp/orphan.yml".to_string());
+    assert_eq!(state.source_path.as_deref(), Some("/tmp/orphan.yml"));
+    assert!(state.saved_snapshot.is_none());
+    state.update_active_local_uuid("orphan-uuid".to_string());
+    assert_eq!(state.local_uuid.as_deref(), Some("orphan-uuid"));
+    assert!(state.apps.is_empty());
+}
+
+#[test]
+fn run_detail_title_falls_back_to_node_id_and_output_detail_ignores_missing_preview() {
+    let mut state = WorkflowState::default();
+
+    state.open_saved_app_run_output_detail();
+    assert!(state.saved_app_run_detail.is_none());
+
+    assert!(state.begin_saved_app_run(
+        "workflow-1".to_string(),
+        "hello".to_string(),
+        Default::default(),
+    ));
+    state.apply_saved_app_run_event(GatewayWorkflowStreamEvent::NodeStarted {
+        task_id: "task-1".to_string(),
+        workflow_run_id: "run-1".to_string(),
+        data: json!({"id": "node-1", "title": "   ", "status": "running"}),
+    });
+    state.open_saved_app_run_node_detail(0);
+    let detail = state.saved_app_run_detail.as_ref().expect("detail opens");
+    assert_eq!(detail.title, "node-1");
+    assert!(detail.content.text().contains("node-1"));
+}
+
+#[test]
+fn workflow_run_inputs_return_empty_without_start_variable_sequence_and_support_file_default() {
+    assert!(workflow_run_inputs_from_document(&WorkflowDocument::default()).is_empty());
+
+    let mut start_without_variables = test_node("start", "start");
+    start_without_variables.raw_node = serde_yaml::from_str(
+        r#"
+data:
+  title: Start
+"#,
+    )
+    .expect("fixture yaml should parse");
+    assert!(
+        workflow_run_inputs_from_document(&WorkflowDocument {
+            nodes: vec![start_without_variables],
+            ..test_document()
+        })
+        .is_empty()
+    );
+
+    let mut start_with_file = test_node("start", "start");
+    start_with_file.raw_node = serde_yaml::from_str(
+        r#"
+data:
+  variables:
+    - variable: upload
+      type: file
+      default:
+        - one.txt
+        - two.txt
+"#,
+    )
+    .expect("fixture yaml should parse");
+    let inputs = workflow_run_inputs_from_document(&WorkflowDocument {
+        nodes: vec![start_with_file],
+        ..test_document()
+    });
+    assert_eq!(inputs.len(), 1);
+    assert_eq!(inputs[0].name, "upload");
+    assert_eq!(inputs[0].input_type, "file");
+    assert_eq!(inputs[0].value, "- one.txt\n- two.txt");
+}
+
+fn run_input_draft(name: &str, input_type: &str) -> WorkflowRunInputDraft {
+    WorkflowRunInputDraft {
+        name: name.to_string(),
+        label: name.to_string(),
+        input_type: input_type.to_string(),
+        required: false,
+        hidden: false,
+        options: Vec::new(),
+        value: String::new(),
+        placeholder: String::new(),
+        hint: String::new(),
+        max_length_input: String::new(),
+    }
 }
 
 fn test_node(id: &str, block_type: &str) -> WorkflowNode {
@@ -467,7 +1335,12 @@ fn test_snapshot(name: &str, document: &WorkflowDocument) -> WorkflowHistorySnap
     }
 }
 
-fn app_entry(id: &str, local_uuid: Option<&str>, name: &str, document: WorkflowDocument) -> WorkflowAppEntry {
+fn app_entry(
+    id: &str,
+    local_uuid: Option<&str>,
+    name: &str,
+    document: WorkflowDocument,
+) -> WorkflowAppEntry {
     let snapshot = test_snapshot(name, &document);
     WorkflowAppEntry {
         id: id.to_string(),
@@ -528,7 +1401,8 @@ fn state_with_document(
 }
 
 fn loaded_workflow(name: &str, viewport: Option<WorkflowViewport>) -> LoadedWorkflow {
-    let start = WorkflowNode { id: format!("{name}-start"), selected: true, ..test_node("start", "start") };
+    let start =
+        WorkflowNode { id: format!("{name}-start"), selected: true, ..test_node("start", "start") };
     let answer = WorkflowNode { id: format!("{name}-answer"), ..test_node("answer", "answer") };
     let edge = WorkflowEdge {
         id: format!("{name}-edge"),

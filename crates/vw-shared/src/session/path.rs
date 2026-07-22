@@ -23,33 +23,10 @@ pub fn sessions_dir_for_scope(data_dir: &Path, scope: Option<&str>) -> Option<Pa
     })
 }
 
-/// 返回指定 scope 对应的会话索引数据库路径。
-pub fn sessions_db_path_for_scope(data_dir: &Path, scope: Option<&str>) -> Option<PathBuf> {
-    Some(sessions_dir_for_scope(data_dir, scope)?.join("index.sqlite3"))
-}
-
 #[cfg(target_arch = "wasm32")]
 /// 在 WASM 场景下返回单个会话 JSON 文件路径。
-pub fn session_file_path_for_scope(
-    data_dir: &Path,
-    id: &str,
-    scope: Option<&str>,
-) -> Option<PathBuf> {
-    Some(sessions_dir_for_scope(data_dir, scope)?.join(format!("session-{id}.json")))
-}
-
-/// 返回单个会话的持久化路径。
 pub fn session_file_path(data_dir: &Path, id: &str, scope: Option<&str>) -> Option<PathBuf> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = id;
-        sessions_db_path_for_scope(data_dir, scope)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        session_file_path_for_scope(data_dir, id, scope)
-    }
+    Some(sessions_dir_for_scope(data_dir, scope)?.join(format!("session-{id}.json")))
 }
 
 /// 返回会话步骤快照文件路径。

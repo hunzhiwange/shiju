@@ -5,68 +5,77 @@ fn test_module_is_wired() {
     assert!(module.ends_with("worktree_pool_tests"));
 }
 
-fn unique_path(label: &str) -> String {
-    format!(
-        "/tmp/vibewindow-{label}-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("system time should be after epoch")
-            .as_nanos()
-    )
-}
-
-fn clear_pool(repo_root: &str) {
-    let mut pools = super::worktree_pools().lock().expect("worktree pool lock");
-    pools.remove(repo_root);
-}
-
 #[test]
-fn needs_maintenance_uses_cached_pool_before_git_lookup() {
-    let repo_root = unique_path("cached-pool");
+fn desktop_task_executor_no_local_worktree_pool_exports() {
+    let executor_mod = include_str!("mod.rs");
+    let state_mod = include_str!("state.rs");
+    let worktree_admin_mod = include_str!("worktree_admin.rs");
 
-    {
-        let mut pools = super::worktree_pools().lock().expect("worktree pool lock");
-        pools.insert(
-            repo_root.clone(),
-            super::RepoWorktreePool {
-                repo_root: repo_root.clone(),
-                base_branch: "main".to_string(),
-                slots: Vec::new(),
-                task_slots: std::collections::HashMap::new(),
-                merge_target_locks: std::collections::HashMap::new(),
-                last_synced_at_ms: 0,
-            },
-        );
-    }
+    assert!(!executor_mod.contains("pub use worktree_pool"));
+    assert!(!state_mod.contains("WORKTREE_POOLS"));
+    assert!(!state_mod.contains("RepoWorktreePool"));
+    assert!(!worktree_admin_mod.contains("worktree_pools"));
+}
 
-    assert!(super::worktree_pool_needs_maintenance(&repo_root, 1));
-    assert!(super::worktree_pool_needs_maintenance(&format!("{repo_root}/nested"), 1));
-
-    clear_pool(&repo_root);
+fn legacy_worktree_path(repo_root: &str, leaf: &str) -> String {
+    format!(
+        "{repo_root}/{}/{}/{leaf}",
+        vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME,
+        vw_config_types::paths::TASK_WORKTREES_DIR_NAME
+    )
 }
 
 #[test]
 fn parse_worktree_list_handles_branches_detached_heads_and_blank_records() {
-    let output = "\
+    let slot_path = legacy_worktree_path("/repo", "slot-1");
+    let output = format!(
+        "\
 worktree /repo
 HEAD abc
 branch refs/heads/main
 
-worktree /repo/.vibewindow/task-worktrees/slot-1
+worktree {slot_path}
 HEAD def
 branch refs/heads/vw/task/one
 
 worktree /repo/detached
 HEAD 123
 detached
-";
+"
+    );
 
-    let entries = super::parse_worktree_list(output);
+    let entries = super::parse_worktree_list(&output);
 
     assert_eq!(entries.len(), 3);
     assert_eq!(entries[0].path, "/repo");
     assert_eq!(entries[0].branch.as_deref(), Some("main"));
     assert_eq!(entries[1].branch.as_deref(), Some("vw/task/one"));
+    assert_eq!(entries[2].path, "/repo/detached");
+    assert_eq!(entries[2].branch, None);
+}
+
+#[test]
+fn parse_worktree_list_returns_empty_without_worktree_records() {
+    let entries = super::parse_worktree_list(
+        "branch refs/heads/orphan\nHEAD abc123\ndetached\nunknown value\n\n",
+    );
+
+    assert!(entries.is_empty());
+}
+
+#[test]
+fn parse_worktree_list_flushes_adjacent_records_and_preserves_branch_forms() {
+    let entries = super::parse_worktree_list(
+        "worktree   /repo/one  \nbranch topic/raw\n\
+         worktree /repo/two\nbranch refs/heads/first\nbranch refs/heads/final\n\
+         worktree /repo/detached\nHEAD abc123",
+    );
+
+    assert_eq!(entries.len(), 3);
+    assert_eq!(entries[0].path, "/repo/one");
+    assert_eq!(entries[0].branch.as_deref(), Some("topic/raw"));
+    assert_eq!(entries[1].path, "/repo/two");
+    assert_eq!(entries[1].branch.as_deref(), Some("final"));
     assert_eq!(entries[2].path, "/repo/detached");
     assert_eq!(entries[2].branch, None);
 }
@@ -79,195 +88,113 @@ fn sanitize_branch_token_replaces_unsafe_chars_and_trims_dashes() {
 }
 
 #[test]
-fn pool_needs_maintenance_respects_idle_target_and_max_capacity() {
-    let repo_root = unique_path("pool-needs");
-    let pool = super::RepoWorktreePool {
-        repo_root: repo_root.clone(),
-        base_branch: "main".into(),
-        slots: vec![
-            super::WorktreeSlot {
-                id: "idle".into(),
-                path: format!("{repo_root}/idle"),
-                base_branch: "main".into(),
-                branch: "vw/task/idle".into(),
-                state: super::WorktreeState::Idle,
-                leased_task_id: None,
-                taint_reason: None,
-            },
-            super::WorktreeSlot {
-                id: "busy".into(),
-                path: format!("{repo_root}/busy"),
-                base_branch: "main".into(),
-                branch: "vw/task/busy".into(),
-                state: super::WorktreeState::Busy,
-                leased_task_id: Some("task".into()),
-                taint_reason: None,
-            },
-        ],
-        task_slots: std::collections::HashMap::new(),
-        merge_target_locks: std::collections::HashMap::new(),
-        last_synced_at_ms: 0,
+fn sanitize_branch_token_handles_empty_unicode_and_repeated_separators() {
+    assert_eq!(super::sanitize_branch_token(""), "");
+    assert_eq!(super::sanitize_branch_token("任务"), "");
+    assert_eq!(super::sanitize_branch_token("a//b"), "a--b");
+    assert_eq!(super::sanitize_branch_token(".-_"), ".-_");
+}
+
+#[test]
+fn managed_worktree_path_accepts_current_and_legacy_pool_roots() {
+    let repo_root = "/repo";
+    let current_slot = super::worktree_pool_root(repo_root).join("slot-1");
+    let current_fork = super::worktree_pool_root(repo_root).join("fork-1");
+    let current_sibling = super::worktree_pool_root(repo_root).with_file_name("task-worktrees-old");
+    let legacy_root = std::path::Path::new(repo_root)
+        .join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
+        .join(vw_config_types::paths::TASK_WORKTREES_DIR_NAME);
+    let legacy_slot = legacy_root.join("slot-2");
+    let legacy_fork = legacy_root.join("fork-2");
+    let unrelated_slot = std::path::Path::new(repo_root).join("other").join("slot-3");
+
+    assert!(super::is_managed_worktree_path(repo_root, current_slot.to_string_lossy().as_ref()));
+    assert!(super::is_managed_worktree_path(repo_root, legacy_slot.to_string_lossy().as_ref()));
+    assert!(!super::is_managed_worktree_path(repo_root, current_fork.to_string_lossy().as_ref()));
+    assert!(!super::is_managed_worktree_path(repo_root, legacy_fork.to_string_lossy().as_ref()));
+    assert!(!super::is_managed_worktree_path(
+        repo_root,
+        current_sibling.join("slot-x").to_string_lossy().as_ref()
+    ));
+    assert!(!super::is_managed_worktree_path(repo_root, unrelated_slot.to_string_lossy().as_ref()));
+}
+
+#[test]
+fn managed_worktree_path_requires_slot_dash_leaf_name() {
+    let repo_root = "/repo";
+    let legacy_root = std::path::Path::new(repo_root)
+        .join(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
+        .join(vw_config_types::paths::TASK_WORKTREES_DIR_NAME);
+
+    assert!(super::is_managed_worktree_path(
+        repo_root,
+        legacy_root.join("slot-").to_string_lossy().as_ref()
+    ));
+    assert!(!super::is_managed_worktree_path(
+        repo_root,
+        legacy_root.join("slot").to_string_lossy().as_ref()
+    ));
+    assert!(!super::is_managed_worktree_path(
+        repo_root,
+        legacy_root.join("prefix-slot-1").to_string_lossy().as_ref()
+    ));
+}
+
+#[test]
+fn desktop_worktree_snapshot_maps_gateway_dto() {
+    use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};
+    use vw_gateway_client::vw_api_types::task::{
+        TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotStateDto,
+        TaskPoolWorktreeSnapshotResponse,
     };
 
-    assert!(!super::pool_needs_maintenance(&pool, 1));
-    assert!(super::pool_needs_maintenance(&pool, 2));
+    let snapshot =
+        super::WorktreePoolSnapshot::from_gateway_response(TaskPoolWorktreeSnapshotResponse {
+            project_id: ProjectId("project-1".to_string()),
+            repo_root: "/repo".to_string(),
+            pool_root: "/pool".to_string(),
+            base_branch: "main".to_string(),
+            idle_count: 1,
+            busy_count: 1,
+            tainted_count: 1,
+            recycling_count: 1,
+            dead_count: 1,
+            merge_target_locks: vec![TaskPoolWorktreeMergeLockDto {
+                target_branch: "main".to_string(),
+                task_id: TaskId("T-lock".to_string()),
+                age_ms: 0,
+            }],
+            slots: vec![TaskPoolWorktreeSlotDto {
+                id: "slot-1".to_string(),
+                path: "/pool/slot-1".to_string(),
+                branch: "vw/task/slot-1".to_string(),
+                state: TaskPoolWorktreeSlotStateDto::Busy,
+                leased_task_id: Some(TaskId("T-busy".to_string())),
+                taint_reason: Some("dirty".to_string()),
+            }],
+        });
 
-    let empty = super::RepoWorktreePool { slots: Vec::new(), ..pool };
-    assert!(super::pool_needs_maintenance(&empty, 1));
-
-    let full = super::RepoWorktreePool {
-        slots: vec![
-            super::WorktreeSlot {
-                id: "a".into(),
-                path: format!("{repo_root}/a"),
-                base_branch: "main".into(),
-                branch: "a".into(),
-                state: super::WorktreeState::Busy,
-                leased_task_id: Some("a".into()),
-                taint_reason: None,
-            },
-            super::WorktreeSlot {
-                id: "b".into(),
-                path: format!("{repo_root}/b"),
-                base_branch: "main".into(),
-                branch: "b".into(),
-                state: super::WorktreeState::Busy,
-                leased_task_id: Some("b".into()),
-                taint_reason: None,
-            },
-        ],
-        ..empty
-    };
-    assert!(!super::pool_needs_maintenance(&full, 1));
-}
-
-#[test]
-fn task_worktree_path_returns_assigned_slot_path_from_cached_pool() {
-    let repo_root = super::normalized_repo_root(".").expect("test repository root");
-    let slot_path = format!("{repo_root}/slot-1");
-    {
-        let mut pools = super::worktree_pools().lock().expect("worktree pool lock");
-        let mut task_slots = std::collections::HashMap::new();
-        task_slots.insert("task-1".into(), "slot-1".into());
-        pools.insert(
-            repo_root.clone(),
-            super::RepoWorktreePool {
-                repo_root: repo_root.clone(),
-                base_branch: "main".into(),
-                slots: vec![super::WorktreeSlot {
-                    id: "slot-1".into(),
-                    path: slot_path.clone(),
-                    base_branch: "main".into(),
-                    branch: "vw/task/task-1".into(),
-                    state: super::WorktreeState::Busy,
-                    leased_task_id: Some("task-1".into()),
-                    taint_reason: None,
-                }],
-                task_slots,
-                merge_target_locks: std::collections::HashMap::new(),
-                last_synced_at_ms: super::now_ms(),
-            },
-        );
-    }
-
-    assert_eq!(super::task_worktree_path(&repo_root, "task-1"), Some(slot_path));
-    assert_eq!(super::task_worktree_path(&repo_root, "missing"), None);
-    clear_pool(&repo_root);
-}
-
-#[test]
-fn merge_dispatch_uses_cached_target_locks() {
-    let repo_root = super::normalized_repo_root(".").expect("test repository root");
-    {
-        let mut pools = super::worktree_pools().lock().expect("worktree pool lock");
-        let mut locks = std::collections::HashMap::new();
-        locks.insert("main".into(), "holder".into());
-        pools.insert(
-            repo_root.clone(),
-            super::RepoWorktreePool {
-                repo_root: repo_root.clone(),
-                base_branch: "main".into(),
-                slots: Vec::new(),
-                task_slots: std::collections::HashMap::new(),
-                merge_target_locks: locks,
-                last_synced_at_ms: super::now_ms(),
-            },
-        );
-    }
-
-    let mut task = crate::app::task::models::Task::new(1);
-    task.id = "holder".into();
-    task.merge_target_branch = Some("main".into());
-    assert!(super::can_dispatch_merge_task(&repo_root, &task));
-    assert_eq!(super::task_merge_lock_holder(&repo_root, &task).as_deref(), Some("holder"));
-
-    task.id = "other".into();
-    assert!(!super::can_dispatch_merge_task(&repo_root, &task));
-    clear_pool(&repo_root);
-}
-
-#[test]
-fn worktree_pool_snapshot_counts_and_sorts_cached_slots_for_repo() {
-    let repo_root = super::normalized_repo_root(".").expect("test repository root");
-    {
-        let mut pools = super::worktree_pools().lock().expect("worktree pool lock");
-        let mut locks = std::collections::HashMap::new();
-        locks.insert("z".into(), "task-z".into());
-        locks.insert("a".into(), "task-a".into());
-        pools.insert(
-            repo_root.clone(),
-            super::RepoWorktreePool {
-                repo_root: repo_root.clone(),
-                base_branch: "main".into(),
-                slots: vec![
-                    super::WorktreeSlot {
-                        id: "b".into(),
-                        path: format!("{repo_root}/b"),
-                        base_branch: "main".into(),
-                        branch: "branch-b".into(),
-                        state: super::WorktreeState::Tainted,
-                        leased_task_id: None,
-                        taint_reason: Some("dirty".into()),
-                    },
-                    super::WorktreeSlot {
-                        id: "a".into(),
-                        path: format!("{repo_root}/a"),
-                        base_branch: "main".into(),
-                        branch: "branch-a".into(),
-                        state: super::WorktreeState::Idle,
-                        leased_task_id: None,
-                        taint_reason: None,
-                    },
-                    super::WorktreeSlot {
-                        id: "c".into(),
-                        path: format!("{repo_root}/c"),
-                        base_branch: "main".into(),
-                        branch: "branch-c".into(),
-                        state: super::WorktreeState::Dead,
-                        leased_task_id: None,
-                        taint_reason: Some("missing".into()),
-                    },
-                ],
-                task_slots: std::collections::HashMap::new(),
-                merge_target_locks: locks,
-                last_synced_at_ms: super::now_ms(),
-            },
-        );
-    }
-
-    let snapshot = super::worktree_pool_snapshot(".").expect("snapshot");
-
-    assert_eq!(snapshot.repo_root, repo_root);
+    assert_eq!(snapshot.repo_root, "/repo");
+    assert_eq!(snapshot.pool_root, "/pool");
+    assert_eq!(snapshot.base_branch, "main");
     assert_eq!(snapshot.idle_count, 1);
+    assert_eq!(snapshot.busy_count, 1);
     assert_eq!(snapshot.tainted_count, 1);
+    assert_eq!(snapshot.recycling_count, 1);
     assert_eq!(snapshot.dead_count, 1);
-    assert_eq!(
-        snapshot.merge_target_locks,
-        vec![("a".into(), "task-a".into()), ("z".into(), "task-z".into())]
-    );
-    assert_eq!(
-        snapshot.slots.iter().map(|slot| slot.id.as_str()).collect::<Vec<_>>(),
-        vec!["a", "b", "c"]
-    );
-    clear_pool(&repo_root);
+    assert_eq!(snapshot.merge_target_locks, vec![("main".to_string(), "T-lock".to_string())]);
+    assert_eq!(snapshot.slots[0].id, "slot-1");
+    assert_eq!(snapshot.slots[0].state, super::WorktreeState::Busy);
+    assert_eq!(snapshot.slots[0].leased_task_id.as_deref(), Some("T-busy"));
+    assert_eq!(snapshot.slots[0].taint_reason.as_deref(), Some("dirty"));
+}
+
+#[cfg(unix)]
+#[test]
+fn pool_slot_path_rejects_non_utf8_leaf_names() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let path = std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![b's', b'l', 0xff]));
+
+    assert!(!super::is_pool_slot_path(&path));
 }

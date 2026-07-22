@@ -42,6 +42,8 @@ mod listener;
 mod outbound;
 mod types;
 
+pub(crate) use listener::MatrixAgentSchedulerDispatchTimelineEvent;
+
 /// Matrix 频道实现
 ///
 /// 通过 Matrix Client-Server API 与 Matrix 服务器通信，使用 matrix-sdk
@@ -78,6 +80,8 @@ pub struct MatrixChannel {
     session_owner_hint: Option<String>,
     /// 设备 ID 提示（用于 E2EE 会话恢复）
     session_device_id_hint: Option<String>,
+    /// 运行时通道实例 ID
+    instance_id: Option<String>,
     /// VibeWindow 数据目录
     vibewindow_dir: Option<PathBuf>,
     /// 已解析的房间 ID 缓存

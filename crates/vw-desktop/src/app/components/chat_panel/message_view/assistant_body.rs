@@ -11,7 +11,8 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::models::{self, ParsedChatBlock};
 use crate::app::{App, Message};
 
-use super::super::tool_text_support::{chat_text_font_name, is_safe_for_text_editor};
+use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
+use super::super::tool_text_support::chat_text_font_name;
 use super::super::tools::{
     ExploreItem, ToolTextTarget, is_explore_tool, pending_permission_badge_label,
     pending_permission_request_badge_label, pending_permission_request_for_tool_call,
@@ -22,16 +23,14 @@ use super::super::tools::{
 use super::super::utils::{chat_secondary_text_color, is_dark_theme};
 use super::assistant_error::assistant_api_error_view;
 use super::styles::MESSAGE_TEXT_SIZE;
-use super::text::{
-    MAX_EDITOR_CHARS, message_editor_body, message_text_body, should_segment_text_block,
-};
+use super::text::{message_editor_body, message_text_body, should_segment_text_block};
 use super::think_block::{should_render_think_block, think_block_is_running, think_block_view};
 use super::tool_summaries::{
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
     trailing_tool_tail_text_source_block_idx,
 };
 
-fn count_visible_non_explore_tool_cards(
+pub(super) fn count_visible_non_explore_tool_cards(
     blocks: &[ParsedChatBlock],
     tool_last: &HashMap<String, usize>,
 ) -> usize {
@@ -246,12 +245,21 @@ fn push_special_text_block<'a>(
     text_idx: usize,
     text: String,
     use_editor: bool,
+    prefer_markdown: bool,
 ) -> Column<'a, Message> {
     if let Some(view) = assistant_api_error_view(app, idx, Some(text_idx), &text) {
         return body.push(view);
     }
 
     let special_text_key = ((idx as u64) << 32) | (text_idx as u64);
+
+    if prefer_markdown
+        && let Some(blocks) = app.chat_markdown_blocks.get(&special_text_key)
+        && !blocks.is_empty()
+    {
+        return body.push(super::markdown::markdown_body_view(app, idx, text_idx, blocks));
+    }
+
     let editor_content = app.chat_special_text_editors.get(&special_text_key);
 
     if use_editor && editor_content.is_some() && !should_segment_text_block(&text) {
@@ -294,8 +302,8 @@ pub(super) fn render_assistant_body<'a>(
 ) -> Column<'a, Message> {
     let mut body = column![].spacing(8);
     let use_editor = !is_streaming_assistant
-        && visible_for_copy.len() <= MAX_EDITOR_CHARS
-        && is_safe_for_text_editor(visible_for_copy)
+        && selectable_text_policy(visible_for_copy, should_segment_text_block(visible_for_copy))
+            != SelectableTextPolicy::PreviewWithCopyFallback
         && app.chat_message_editors.get(idx).is_some();
 
     if has_special {
@@ -523,8 +531,15 @@ pub(super) fn render_assistant_body<'a>(
                         continue;
                     }
 
-                    body =
-                        push_special_text_block(body, app, idx, current_text_idx, text, use_editor);
+                    body = push_special_text_block(
+                        body,
+                        app,
+                        idx,
+                        current_text_idx,
+                        text,
+                        use_editor,
+                        !is_streaming_assistant,
+                    );
                 }
             }
         }
@@ -540,19 +555,33 @@ pub(super) fn render_assistant_body<'a>(
         );
 
         if let Some((deferred_idx, deferred_text)) = deferred_text.take() {
-            body = push_special_text_block(body, app, idx, deferred_idx, deferred_text, use_editor);
+            body = push_special_text_block(
+                body,
+                app,
+                idx,
+                deferred_idx,
+                deferred_text,
+                use_editor,
+                !is_streaming_assistant,
+            );
         }
 
         body
-    } else if use_editor {
-        if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
-            body = body.push(view);
-        }
-        body
     } else {
         let text = display_text;
+        let markdown_key = (idx as u64) << 32;
         if let Some(view) = assistant_api_error_view(app, idx, None, &text) {
             body = body.push(view);
+        } else if !is_streaming_assistant
+            && let Some(blocks) = app.chat_markdown_blocks.get(&markdown_key)
+            && !blocks.is_empty()
+        {
+            // 助手正文按块级 Markdown 渲染，每块用可划选只读编辑器承载。
+            body = body.push(super::markdown::markdown_body_view(app, idx, 0, blocks));
+        } else if use_editor {
+            if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
+                body = body.push(view);
+            }
         } else if !text.is_empty() {
             body = body.push(message_text_body(text, false));
         }

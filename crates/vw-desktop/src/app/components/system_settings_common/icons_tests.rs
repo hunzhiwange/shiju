@@ -1,7 +1,16 @@
 use super::{icon_btn, icon_svg, provider_logo_svg};
 use crate::app::Message;
 use crate::app::assets::Icon;
-use iced::{Element, Length};
+use iced::widget::{button, svg};
+use iced::{Background, Element, Length, Theme};
+
+fn background_color(background: Option<Background>) -> Option<iced::Color> {
+    match background {
+        Some(Background::Color(color)) => Some(color),
+        Some(other) => panic!("expected solid color background, got {other:?}"),
+        None => None,
+    }
+}
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
     let size = element.as_widget().size();
@@ -57,4 +66,55 @@ fn icon_button_keeps_shrink_size_inside_tooltip() {
     let element = icon_btn(Icon::Gear, "Settings", Some(Message::None));
 
     assert_size(&element, Length::Shrink, Length::Shrink);
+}
+
+#[test]
+fn provider_logo_svg_style_only_tints_dark_theme() {
+    let dark = super::icons::provider_logo_svg_style(&Theme::Dark, svg::Status::Idle);
+    let light = super::icons::provider_logo_svg_style(&Theme::Light, svg::Status::Hovered);
+
+    assert_eq!(dark.color, Some(Theme::Dark.palette().text));
+    assert_eq!(light.color, None);
+}
+
+#[test]
+fn icon_button_svg_style_uses_theme_text_color() {
+    let dark = super::icons::icon_btn_svg_style(&Theme::Dark, svg::Status::Idle);
+    let light = super::icons::icon_btn_svg_style(&Theme::Light, svg::Status::Hovered);
+
+    assert_eq!(dark.color, Some(Theme::Dark.palette().text));
+    assert_eq!(light.color, Some(Theme::Light.palette().text));
+}
+
+#[test]
+fn icon_button_style_covers_interaction_statuses() {
+    let theme = Theme::Dark;
+    let palette = theme.extended_palette();
+
+    let active = super::icons::icon_btn_style(&theme, button::Status::Active);
+    let hovered = super::icons::icon_btn_style(&theme, button::Status::Hovered);
+    let pressed = super::icons::icon_btn_style(&theme, button::Status::Pressed);
+    let disabled = super::icons::icon_btn_style(&theme, button::Status::Disabled);
+
+    assert_eq!(background_color(active.background), None);
+    assert_eq!(background_color(hovered.background), Some(palette.background.weak.color));
+    assert_eq!(background_color(pressed.background), Some(palette.background.strong.color));
+    assert_eq!(background_color(disabled.background), None);
+    assert_eq!(active.border.width, 0.0);
+    assert_eq!(active.border.radius.top_left, 8.0);
+    assert_eq!(active.text_color, theme.palette().text);
+}
+
+#[test]
+fn icon_button_tooltip_style_matches_theme_surface() {
+    let theme = Theme::Light;
+    let style = super::icons::icon_btn_tooltip_style(&theme);
+
+    assert_eq!(style.text_color, Some(theme.palette().text));
+    assert_eq!(background_color(style.background), Some(theme.palette().background));
+    assert_eq!(style.border.width, 1.0);
+    assert_eq!(style.border.color, theme.extended_palette().background.strong.color);
+    assert_eq!(style.border.radius.top_left, 8.0);
+    assert_eq!(style.shadow, iced::Shadow::default());
+    assert!(!style.snap);
 }

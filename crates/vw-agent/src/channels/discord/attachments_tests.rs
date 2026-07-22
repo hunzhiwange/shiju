@@ -56,24 +56,80 @@ fn duration_parser_accepts_integer_zero_and_rejects_non_numbers() {
     assert_eq!(parse_attachment_duration_secs(&serde_json::json!({})), None);
 }
 
-async fn serve_once(status: &str, body: &str) -> String {
+#[test]
+fn duration_parser_rejects_values_above_u64_range() {
+    assert_eq!(parse_attachment_duration_secs(&serde_json::json!({"duration_secs": 1.0e30})), None);
+}
+
+fn http_response(status: &str, content_type: &str, body: &[u8]) -> Vec<u8> {
+    let mut response = format!(
+        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    )
+    .into_bytes();
+    response.extend_from_slice(body);
+    response
+}
+
+async fn serve_responses(responses: Vec<Vec<u8>>) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let status = status.to_string();
-    let body = body.to_string();
 
     tokio::spawn(async move {
-        let (mut socket, _) = listener.accept().await.unwrap();
-        let mut request = [0_u8; 1024];
-        let _ = socket.read(&mut request).await;
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        socket.write_all(response.as_bytes()).await.unwrap();
+        for response in responses {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 8192];
+            let _ = socket.read(&mut request).await;
+            socket.write_all(&response).await.unwrap();
+        }
     });
 
-    format!("http://{addr}/attachment")
+    format!("http://{addr}")
+}
+
+async fn serve_once(status: &str, body: &str) -> String {
+    let base = serve_responses(vec![http_response(status, "text/plain", body.as_bytes())]).await;
+    format!("{base}/attachment")
+}
+
+async fn unused_local_url(path: &str) -> String {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    drop(listener);
+    format!("http://{addr}/{path}")
+}
+
+fn set_transcription_api_key() {
+    unsafe { std::env::set_var("GROQ_API_KEY", "test-key") };
+}
+
+fn transcription_config(api_url: String) -> TranscriptionConfig {
+    TranscriptionConfig {
+        enabled: true,
+        api_url,
+        max_duration_secs: 10,
+        ..TranscriptionConfig::default()
+    }
+}
+
+async fn serve_audio_and_transcription(transcript: &str) -> String {
+    serve_responses(vec![
+        http_response("200 OK", "audio/ogg", &[1, 2, 3, 4]),
+        http_response(
+            "200 OK",
+            "application/json",
+            format!(r#"{{"text":"{transcript}"}}"#).as_bytes(),
+        ),
+    ])
+    .await
+}
+
+fn truncated_http_response() -> Vec<u8> {
+    b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\nabc".to_vec()
+}
+
+async fn unused_audio_url() -> String {
+    unused_local_url("audio.ogg").await
 }
 
 #[tokio::test]
@@ -112,6 +168,7 @@ async fn process_attachments_inlines_images_and_text_files() {
 #[tokio::test]
 async fn process_attachments_skips_failed_text_fetch_and_long_audio() {
     let text_url = serve_once("404 Not Found", "nope").await;
+    let text_error_url = unused_local_url("missing.txt").await;
     let mut transcription = TranscriptionConfig {
         enabled: true,
         max_duration_secs: 1,
@@ -123,6 +180,11 @@ async fn process_attachments_skips_failed_text_fetch_and_long_audio() {
             "content_type": "text/plain",
             "filename": "missing.txt",
             "url": text_url
+        }),
+        serde_json::json!({
+            "content_type": "text/plain",
+            "filename": "error.txt",
+            "url": text_error_url
         }),
         serde_json::json!({
             "content_type": "audio/ogg",
@@ -138,9 +200,94 @@ async fn process_attachments_skips_failed_text_fetch_and_long_audio() {
     ];
 
     let output =
-        process_attachments(&attachments[..2], &reqwest::Client::new(), Some(&transcription)).await;
+        process_attachments(&attachments[..3], &reqwest::Client::new(), Some(&transcription)).await;
     assert!(output.is_empty());
 
-    let output = process_attachments(&attachments[2..], &reqwest::Client::new(), None).await;
+    let output = process_attachments(&attachments[3..], &reqwest::Client::new(), None).await;
+    assert!(output.is_empty());
+}
+
+#[tokio::test]
+async fn process_attachments_transcribes_audio_and_uses_url_extension() {
+    set_transcription_api_key();
+    let base = serve_audio_and_transcription("  hello from audio  ").await;
+    let transcription = transcription_config(format!("{base}/transcribe"));
+    let attachments = vec![serde_json::json!({
+        "content_type": "application/octet-stream",
+        "filename": "blob",
+        "url": format!("{base}/clip.mp3?download=1"),
+        "duration_secs": 1.2
+    })];
+
+    let output =
+        process_attachments(&attachments, &reqwest::Client::new(), Some(&transcription)).await;
+
+    assert_eq!(output, "[Voice:audio.mp3] hello from audio");
+}
+
+#[tokio::test]
+async fn process_attachments_skips_empty_transcript_and_audio_fetch_failures() {
+    set_transcription_api_key();
+    let base = serve_responses(vec![
+        http_response("200 OK", "audio/ogg", &[1, 2, 3, 4]),
+        http_response("200 OK", "application/json", br#"{"text":"   "}"#),
+        http_response("503 Service Unavailable", "text/plain", b"no"),
+    ])
+    .await;
+    let transcription = transcription_config(format!("{base}/transcribe"));
+    let attachments = vec![
+        serde_json::json!({
+            "content_type": "audio/ogg",
+            "filename": "empty.ogg",
+            "url": format!("{base}/empty.ogg")
+        }),
+        serde_json::json!({
+            "content_type": "audio/ogg",
+            "filename": "unavailable.ogg",
+            "url": format!("{base}/unavailable.ogg")
+        }),
+        serde_json::json!({
+            "content_type": "audio/ogg",
+            "filename": "network.ogg",
+            "url": unused_audio_url().await
+        }),
+    ];
+
+    let output =
+        process_attachments(&attachments, &reqwest::Client::new(), Some(&transcription)).await;
+
+    assert!(output.is_empty());
+}
+
+#[tokio::test]
+async fn process_attachments_skips_audio_body_errors_and_transcription_errors() {
+    set_transcription_api_key();
+    let base = serve_responses(vec![
+        truncated_http_response(),
+        http_response("200 OK", "audio/ogg", &[1, 2, 3, 4]),
+        http_response(
+            "500 Internal Server Error",
+            "application/json",
+            br#"{"error":{"message":"no transcript"}}"#,
+        ),
+    ])
+    .await;
+    let transcription = transcription_config(format!("{base}/transcribe"));
+    let attachments = vec![
+        serde_json::json!({
+            "content_type": "audio/ogg",
+            "filename": "bad-body.ogg",
+            "url": format!("{base}/bad-body.ogg")
+        }),
+        serde_json::json!({
+            "content_type": "audio/ogg",
+            "filename": "api-error.ogg",
+            "url": format!("{base}/api-error.ogg")
+        }),
+    ];
+
+    let output =
+        process_attachments(&attachments, &reqwest::Client::new(), Some(&transcription)).await;
+
     assert!(output.is_empty());
 }

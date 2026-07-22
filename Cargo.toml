@@ -9,7 +9,6 @@ members = [
   "crates/vw-agent",
   "crates/vw-cli",
   "crates/vw-desktop",
-  "crates/vw-figma-json",
   "crates/vw-webview",
   "crates/vw-provider-resolver",
 ]

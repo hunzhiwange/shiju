@@ -29,6 +29,8 @@ fn test_security_with(
 fn glob_search_name_and_schema() {
     let tool = GlobSearchTool::new(test_security(std::env::temp_dir()));
     assert_eq!(tool.name(), "glob_search");
+    assert!(tool.description().contains("glob 模式"));
+    assert!(tool.description().contains("src/**/mod.rs"));
 
     let schema = tool.parameters_schema();
     assert!(schema["properties"]["pattern"].is_object());
@@ -130,6 +132,17 @@ async fn glob_search_rejects_path_traversal() {
 
     assert!(!result.success);
     assert!(result.error.as_ref().unwrap().contains("Path traversal"));
+}
+
+#[tokio::test]
+async fn glob_search_rejects_disallowed_relative_search_path() {
+    let dir = TempDir::new().unwrap();
+    let tool = GlobSearchTool::new(test_security(dir.path().to_path_buf()));
+
+    let result = tool.execute(json!({"pattern": "*.txt", "path": "../outside"})).await.unwrap();
+
+    assert!(!result.success);
+    assert!(result.error.as_deref().unwrap().contains("Path not allowed by security policy"));
 }
 
 #[tokio::test]
@@ -247,4 +260,29 @@ async fn glob_search_invalid_pattern() {
 
     assert!(!result.success);
     assert!(result.error.as_ref().unwrap().contains("Invalid glob pattern"));
+}
+
+#[tokio::test]
+async fn glob_search_rejects_blank_pattern_before_filesystem_access() {
+    let tool = GlobSearchTool::new(test_security(PathBuf::from("/path/that/does/not/exist")));
+
+    let result = tool.execute(json!({"pattern": " \t\n "})).await.unwrap();
+
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("Missing pattern"));
+}
+
+#[tokio::test]
+async fn glob_search_reports_missing_and_non_directory_search_paths() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(dir.path().join("file.txt"), "content").unwrap();
+    let tool = GlobSearchTool::new(test_security(dir.path().to_path_buf()));
+
+    let missing = tool.execute(json!({"pattern": "*.txt", "path": "missing"})).await.unwrap();
+    assert!(!missing.success);
+    assert!(missing.error.as_deref().unwrap().contains("does not exist"));
+
+    let file = tool.execute(json!({"pattern": "*.txt", "path": "file.txt"})).await.unwrap();
+    assert!(!file.success);
+    assert!(file.error.as_deref().unwrap().contains("not a directory"));
 }

@@ -3,15 +3,17 @@
 
 use super::message_view::{
     assistant_render_blocks, deduped_tool_last_indices, effective_assistant_render_cache,
-    explore_summary_text_blocks, hash_chat_content, should_highlight_pending_permission_tool,
-    should_prefer_plain_think_body, should_render_think_block, summarize_explore_items,
-    think_block_default_expanded, think_block_resolved_expanded, tool_card_text_blocks,
-    trailing_tool_tail_text_source_block_idx,
+    explore_summary_text_blocks, hash_chat_content, message_footer_padding, message_view,
+    should_highlight_pending_permission_tool, should_prefer_plain_think_body,
+    should_render_think_block, summarize_explore_items, think_block_default_expanded,
+    think_block_resolved_expanded, tool_card_text_blocks, trailing_tool_tail_text_source_block_idx,
 };
 use super::tools::{EXPLORE_GROUP_TOOL_IDX, tool_name_from_raw};
 use super::utils::strip_internal_tool_trace;
-use crate::app::models::{ChatRenderCacheEntry, ParsedChatBlock, ThinkTiming};
+use crate::app::App;
+use crate::app::models::{ChatRenderCacheEntry, ChatRole, ParsedChatBlock, ThinkTiming};
 use crate::app::ui::chat::split_think;
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 fn stale_plain_text_cache() -> ChatRenderCacheEntry {
@@ -450,6 +452,26 @@ fn tool_card_text_blocks_use_bash_command_title() {
 }
 
 #[test]
+fn assistant_footer_padding_keeps_left_edge_flush() {
+    let padding = message_footer_padding(false);
+
+    assert_eq!(padding.top, 0.0);
+    assert_eq!(padding.right, 0.0);
+    assert_eq!(padding.bottom, 0.0);
+    assert_eq!(padding.left, 0.0);
+}
+
+#[test]
+fn user_footer_padding_preserves_meta_breathing_room() {
+    let padding = message_footer_padding(true);
+
+    assert_eq!(padding.top, 0.0);
+    assert_eq!(padding.right, 6.0);
+    assert_eq!(padding.bottom, 0.0);
+    assert_eq!(padding.left, 6.0);
+}
+
+#[test]
 fn tool_name_from_raw_canonicalizes_ask_user_question() {
     let raw = "tool AskUserQuestion\n{\"status\":\"completed\",\"output\":\"ok\"}";
 
@@ -676,4 +698,55 @@ fn should_highlight_pending_permission_tool_only_for_active_request() {
     assert!(should_highlight_pending_permission_tool(Some("perm-2"), Some("perm-2"), false,));
     assert!(should_highlight_pending_permission_tool(None, Some("perm-2"), true));
     assert!(!should_highlight_pending_permission_tool(Some("perm-1"), Some("perm-2"), false,));
+}
+
+#[test]
+fn message_view_builds_user_message_with_metadata_and_attachment() {
+    let app = App::new().0;
+    let content = "please review\n\n[DOCUMENT:/tmp/spec.pdf]";
+    let cache = ChatRenderCacheEntry::default();
+
+    let view = message_view(
+        &app,
+        0,
+        ChatRole::User,
+        content,
+        &[],
+        Some(Cow::Borrowed("You · now")),
+        &cache,
+        true,
+    );
+
+    std::hint::black_box(view);
+}
+
+#[test]
+fn message_view_builds_assistant_special_blocks_without_metadata() {
+    let app = App::new().0;
+    let content = "<think>inspect</think>\ntool read\n{\"status\":\"completed\",\"input\":\"{\\\"filePath\\\":\\\"src/lib.rs\\\"}\"}\nanswer";
+    let cache = ChatRenderCacheEntry::default();
+
+    let view = message_view(&app, 0, ChatRole::Assistant, content, &[], None, &cache, false);
+
+    std::hint::black_box(view);
+}
+
+#[test]
+fn message_view_builds_tool_role_with_metadata() {
+    let app = App::new().0;
+    let content = "tool shell\n{\"status\":\"completed\",\"input\":\"pwd\",\"output\":\"/tmp\"}";
+    let cache = ChatRenderCacheEntry::default();
+
+    let view = message_view(
+        &app,
+        0,
+        ChatRole::Tool,
+        content,
+        &[],
+        Some(Cow::Borrowed("Tool")),
+        &cache,
+        true,
+    );
+
+    std::hint::black_box(view);
 }

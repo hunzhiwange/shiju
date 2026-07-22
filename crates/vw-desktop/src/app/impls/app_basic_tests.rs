@@ -1,6 +1,5 @@
+use crate::app::message::chat::input::FileSearchResult;
 use crate::app::state::{ExternalOpenApp, ToastKind};
-use crate::app::views::design::models::DesignDoc;
-use crate::app::views::design::state::DesignState;
 use crate::app::{App, Screen};
 use iced::Theme;
 
@@ -108,32 +107,37 @@ fn file_tree_expansion_helpers_toggle_and_deduplicate() {
 }
 
 #[test]
+fn expansion_toggles_clear_membership_when_ordered_entries_are_absent() {
+    let mut app = new_app();
+    app.expanded_files.clear();
+    app.expanded_files_set.clear();
+    app.file_tree_expanded.clear();
+    app.file_tree_expanded_set.clear();
+
+    app.expanded_files_set.insert("src/lib.rs".to_string());
+    app.file_tree_expanded_set.insert("src".to_string());
+
+    app.toggle_diff_file_expanded("src/lib.rs".to_string());
+    app.toggle_file_tree_dir_expanded("src".to_string());
+
+    assert!(!app.is_diff_file_expanded("src/lib.rs"));
+    assert!(app.expanded_files.is_empty());
+    assert!(!app.is_file_tree_dir_expanded("src"));
+    assert!(app.file_tree_expanded.is_empty());
+}
+
+#[test]
 fn title_covers_each_screen_and_pet_window_override() {
     let mut app = new_app();
     let expected = [
         (Screen::Home, "Vibe Window 氛围视窗 - 项目"),
         (Screen::Project, "Vibe Window 氛围视窗 - 项目"),
-        (Screen::Design, "Vibe Window 氛围视窗 - 设计"),
         (Screen::Preview, "Vibe Window 氛围视窗 - 预览"),
         (Screen::Apps, "Vibe Window 氛围视窗 - 应用"),
         (Screen::Usage, "Vibe Window 氛围视窗 - 用量"),
-        (Screen::JsonTool, "Vibe Window 氛围视窗 - JSON工具"),
-        (Screen::JsonYamlTool, "Vibe Window 氛围视窗 - JSON/YAML互转工具"),
         (Screen::Knowledge, "Vibe Window 氛围视窗 - 知识库"),
-        (Screen::SqlTool, "Vibe Window 氛围视窗 - SQL美化工具"),
-        (Screen::RedisTool, "Vibe Window 氛围视窗 - Redis客户端"),
-        (Screen::HtmlTool, "Vibe Window 氛围视窗 - HTML美化工具"),
-        (Screen::JsonDiffTool, "Vibe Window 氛围视窗 - JSON比对工具"),
-        (Screen::MarkdownTool, "Vibe Window 氛围视窗 - Markdown编辑器"),
         (Screen::WorkflowTool, "Vibe Window 氛围视窗 - 工作流"),
-        (Screen::MindMapTool, "Vibe Window 氛围视窗 - 思维导图"),
-        (Screen::PasswordTool, "Vibe Window 氛围视窗 - 随机密码生成器"),
-        (Screen::BaseTool, "Vibe Window 氛围视窗 - 进制转换器"),
-        (Screen::TimestampTool, "Vibe Window 氛围视窗 - 时间戳转换器"),
-        (Screen::QrTool, "Vibe Window 氛围视窗 - 二维码生成器"),
-        (Screen::ColorTool, "Vibe Window 氛围视窗 - 颜色转换工具"),
-        (Screen::CleanerTool, "Vibe Window 氛围视窗 - 垃圾清理工具"),
-        (Screen::LargeFileTool, "Vibe Window 氛围视窗 - 大文件查找工具"),
+        (Screen::WorkflowManager, "Vibe Window 氛围视窗 - 任务编排"),
         (Screen::TaskBoard, "Vibe Window 氛围视窗 - 任务看板"),
     ];
 
@@ -202,6 +206,96 @@ fn search_panel_file_cache_limits_to_first_eight_matches() {
 }
 
 #[test]
+fn search_caches_keep_entries_when_cache_keys_match() {
+    let mut app = new_app();
+    app.project_path = Some("/workspace".to_string());
+    app.file_index_revision = 9;
+
+    app.search_text = " SRC\\ ".to_string();
+    app.search_panel_file_cache_query = "src/".to_string();
+    app.search_panel_file_cache_project_path = Some("/workspace".to_string());
+    app.search_panel_file_cache_revision = 9;
+    app.search_panel_file_cache_results = vec!["kept-panel-result".to_string()];
+
+    app.file_search_query = " SRC\\ ".to_string();
+    app.file_search_cache_query = "src/".to_string();
+    app.file_search_cache_project_path = Some("/workspace".to_string());
+    app.file_search_cache_revision = 9;
+    app.file_search_cache_entries =
+        vec![FileSearchResult { path: "kept-file-result".to_string(), is_dir: true }];
+
+    app.refresh_search_panel_file_cache();
+    app.refresh_file_search_cache();
+
+    assert_eq!(app.cached_search_panel_file_results(), ["kept-panel-result"]);
+    assert_eq!(app.cached_file_search_entries().len(), 1);
+    assert_eq!(app.cached_file_search_entries()[0].path, "kept-file-result");
+    assert!(app.cached_file_search_entries()[0].is_dir);
+}
+
+#[test]
+fn search_caches_invalidate_for_query_project_and_revision_changes() {
+    let mut app = new_app();
+    app.file_index_cache.clear();
+    app.file_index_cache
+        .insert("/workspace".to_string(), vec!["src/lib.rs".to_string(), "README.md".to_string()]);
+    app.file_index_cache.insert("/other".to_string(), vec!["src/library.rs".to_string()]);
+    app.project_path = Some("/workspace".to_string());
+    app.file_index_revision = 10;
+    app.search_text = " SRC\\LIB ".to_string();
+    app.file_search_query = String::new();
+
+    app.refresh_search_panel_file_cache();
+    app.refresh_file_search_cache();
+
+    assert_eq!(app.search_panel_file_cache_query, "src/lib");
+    assert_eq!(app.cached_search_panel_file_results(), ["src/lib.rs"]);
+    assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib.rs"));
+
+    app.project_path = Some("/other".to_string());
+    app.refresh_search_panel_file_cache();
+    app.refresh_file_search_cache();
+
+    assert_eq!(app.cached_search_panel_file_results(), ["src/library.rs"]);
+    assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/library.rs"));
+    assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib.rs"));
+
+    app.file_index_cache.insert("/other".to_string(), vec!["src/lib_new.rs".to_string()]);
+    app.file_index_revision = 11;
+    app.refresh_search_panel_file_cache();
+    app.refresh_file_search_cache();
+
+    assert_eq!(app.search_panel_file_cache_revision, 11);
+    assert_eq!(app.cached_search_panel_file_results(), ["src/lib_new.rs"]);
+    assert_eq!(app.file_search_cache_revision, 11);
+    assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/lib_new.rs"));
+    assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "src/library.rs"));
+}
+
+#[test]
+fn set_file_index_overwrites_existing_files_and_wraps_revision() {
+    let mut app = new_app();
+    app.file_index_cache.clear();
+    app.file_tree_model_cache.clear();
+    app.file_index_cache.insert("/workspace".to_string(), vec!["old.rs".to_string()]);
+    app.project_path = Some("/workspace".to_string());
+    app.search_text = "new".to_string();
+    app.file_search_query = "new".to_string();
+    app.file_index_revision = u64::MAX;
+
+    app.set_file_index("/workspace", vec!["src/new.rs".to_string()]);
+
+    assert_eq!(app.file_index_revision, 0);
+    assert_eq!(app.current_file_index(), ["src/new.rs"]);
+    assert!(app.current_file_tree_model().is_some());
+    assert_eq!(app.search_panel_file_cache_revision, 0);
+    assert_eq!(app.cached_search_panel_file_results(), ["src/new.rs"]);
+    assert_eq!(app.file_search_cache_revision, 0);
+    assert!(app.cached_file_search_entries().iter().any(|entry| entry.path == "src/new.rs"));
+    assert!(!app.cached_file_search_entries().iter().any(|entry| entry.path == "old.rs"));
+}
+
+#[test]
 fn can_open_external_defaults_false_and_uses_cached_value() {
     let mut app = new_app();
     app.open_external_exists.clear();
@@ -253,22 +347,6 @@ fn toast_helpers_store_kind_message_and_increment_id() {
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.id), Some(6));
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Warning));
     assert_eq!(app.next_toast_id, 7);
-}
-
-#[test]
-fn active_design_state_uses_active_tab_id() {
-    let mut app = new_app();
-    let tab_id = "design-tab".to_string();
-
-    assert!(app.active_design_state().is_none());
-    assert!(app.active_design_state_mut().is_none());
-
-    app.active_tab_id = Some(tab_id.clone());
-    app.design_states.insert(tab_id, DesignState::new(DesignDoc::default()));
-
-    assert!(app.active_design_state().is_some());
-    app.active_design_state_mut().unwrap().zoom = 1.5;
-    assert_eq!(app.active_design_state().map(|state| state.zoom), Some(1.5));
 }
 
 #[test]

@@ -385,10 +385,11 @@ impl TerminalManager {
 
         let (done_tx, done_rx) = oneshot::channel();
         if terminal.command_tx.send(TerminalCommand::Kill { done_tx }).is_err() {
-            if terminal.has_exited() {
-                return Ok(());
-            }
-            return Err("terminal process controller unavailable".into());
+            return if terminal.has_exited() {
+                Ok(())
+            } else {
+                Err("terminal process controller unavailable".into())
+            };
         }
 
         let _ = done_rx.await;
@@ -481,10 +482,7 @@ async fn run_terminal_process(
     while !terminal.has_exited() {
         tokio::select! {
             status = child.wait() => {
-                match status {
-                    Ok(status) => terminal.record_exit(status),
-                    Err(_) => terminal.record_exit(exit_status_from_failed_wait()),
-                }
+                terminal.record_exit(status.unwrap_or_else(|_| exit_status_from_failed_wait()));
                 break;
             }
             maybe_command = command_rx.recv() => {
@@ -547,14 +545,11 @@ async fn kill_child_process(
         return;
     }
 
-    tokio::select! {
-        status = child.wait() => {
-            if let Ok(status) = status {
-                terminal.record_exit(status);
-            }
-        }
-        _ = tokio::time::sleep(Duration::from_millis(kill_grace_ms)) => {}
-    };
+    if let Ok(Ok(status)) =
+        tokio::time::timeout(Duration::from_millis(kill_grace_ms), child.wait()).await
+    {
+        terminal.record_exit(status);
+    }
 }
 
 #[cfg(unix)]
@@ -637,8 +632,7 @@ fn normalize_absolute_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
-            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
-            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::Prefix(_) | Component::RootDir => normalized.push(component.as_os_str()),
             Component::CurDir => {}
             Component::ParentDir => {
                 normalized.pop();

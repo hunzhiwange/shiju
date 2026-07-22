@@ -266,3 +266,113 @@ fn native_to_provider_messages_serializes_tool_calls_and_tool_results() {
     assert!(dispatcher.prompt_instructions(&[]).is_empty());
     assert!(dispatcher.should_send_tool_specs());
 }
+
+#[test]
+fn parsed_types_support_debug_clone_and_default_dispatcher() {
+    let dispatcher = XmlToolDispatcher::default();
+    assert!(!dispatcher.should_send_tool_specs());
+
+    let call = ParsedToolCall {
+        name: "shell".to_string(),
+        arguments: json!({"command": "pwd"}),
+        tool_call_id: Some("tc-1".to_string()),
+    };
+    let cloned_call = call.clone();
+
+    assert_eq!(cloned_call.name, "shell");
+    assert_eq!(cloned_call.arguments, json!({"command": "pwd"}));
+    assert_eq!(cloned_call.tool_call_id.as_deref(), Some("tc-1"));
+    assert!(format!("{cloned_call:?}").contains("ParsedToolCall"));
+
+    let result = ToolExecutionResult {
+        name: "shell".to_string(),
+        output: "done".to_string(),
+        success: true,
+        tool_call_id: Some("tc-1".to_string()),
+    };
+    let cloned_result = result.clone();
+
+    assert_eq!(cloned_result.name, "shell");
+    assert_eq!(cloned_result.output, "done");
+    assert!(cloned_result.success);
+    assert_eq!(cloned_result.tool_call_id.as_deref(), Some("tc-1"));
+    assert!(format!("{cloned_result:?}").contains("ToolExecutionResult"));
+}
+
+#[test]
+fn xml_parse_response_handles_empty_and_tool_only_messages() {
+    let dispatcher = XmlToolDispatcher;
+
+    let (empty_text, empty_calls) = dispatcher.parse_response(&response(None, vec![]));
+    assert_eq!(empty_text, "");
+    assert!(empty_calls.is_empty());
+
+    let (tool_text, tool_calls) = dispatcher.parse_response(&response(
+        Some(" \n<tool_call_result>{\"name\":\"only\"}</tool_call_result>\n "),
+        vec![],
+    ));
+
+    assert_eq!(tool_text, "");
+    assert_eq!(tool_calls.len(), 1);
+    assert_eq!(tool_calls[0].name, "only");
+    assert_eq!(tool_calls[0].arguments, json!({}));
+}
+
+#[test]
+fn xml_format_results_and_prompt_handle_empty_inputs() {
+    let dispatcher = XmlToolDispatcher;
+
+    match dispatcher.format_results(&[]) {
+        ConversationMessage::Chat(chat) => {
+            assert_eq!(chat.role, "user");
+            assert_eq!(chat.content, "[Tool results]\n");
+        }
+        other => panic!("expected chat message, got {other:?}"),
+    }
+
+    let instructions = dispatcher.prompt_instructions(&[]);
+    assert!(instructions.contains("## Tool Use Protocol"));
+    assert!(instructions.contains("### Available Tools"));
+    assert!(XmlToolDispatcher::tool_specs(&[]).is_empty());
+}
+
+#[test]
+fn native_format_results_keeps_existing_call_id() {
+    let dispatcher = NativeToolDispatcher;
+
+    let message = dispatcher.format_results(&[ToolExecutionResult {
+        name: "shell".to_string(),
+        output: "ok".to_string(),
+        success: true,
+        tool_call_id: Some("tc-1".to_string()),
+    }]);
+
+    match message {
+        ConversationMessage::ToolResults(results) => {
+            assert_eq!(results.len(), 1);
+            assert_eq!(results[0].tool_call_id, "tc-1");
+            assert_eq!(results[0].content, "ok");
+        }
+        other => panic!("expected tool results, got {other:?}"),
+    }
+}
+
+#[test]
+fn native_to_provider_messages_handles_empty_history_and_absent_reasoning() {
+    let dispatcher = NativeToolDispatcher;
+
+    assert!(dispatcher.to_provider_messages(&[]).is_empty());
+
+    let messages = dispatcher.to_provider_messages(&[ConversationMessage::AssistantToolCalls {
+        text: None,
+        tool_calls: vec![],
+        reasoning_content: None,
+    }]);
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].role, "assistant");
+    let payload: Value = serde_json::from_str(&messages[0].content).unwrap();
+    assert!(payload["content"].is_null());
+    assert!(payload["tool_calls"].as_array().unwrap().is_empty());
+    assert!(payload.get("reasoning_content").is_none());
+}

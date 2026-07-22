@@ -92,7 +92,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_icon_color = edited_icon_color;
             app.project_edit_icon_color_picker_open = false;
             app.project_edit_icon_color_format =
-                crate::app::views::design::models::ColorFormat::Hex;
+                crate::app::components::color_picker::ColorFormat::Hex;
             app.project_edit_start_script = edited_worktree_start_command;
             app.project_edit_start_script_editor =
                 iced::widget::text_editor::Content::with_text(&app.project_edit_start_script);
@@ -139,6 +139,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 .project_edit_task_board_settings
                 .failed_retry_minutes
                 .clamp(1, 1440)
+                .to_string();
+            app.project_edit_failed_retry_max_attempts_input = app
+                .project_edit_task_board_settings
+                .failed_retry_max_attempts
+                .clamp(0, 10)
                 .to_string();
             app.project_edit_running_timeout_minutes_input = app
                 .project_edit_task_board_settings
@@ -237,11 +242,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_worktree_enabled = enabled;
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectEditAutoPromotePoolTasksToggled(enabled) => {
-            app.project_edit_task_board_settings.auto_promote_pool_tasks = enabled;
-            app.project_edit_task_board_settings.auto_execute = enabled;
-            Some(iced::Task::none())
-        }
         ProjectMessage::ProjectEditTaskBoardAutoRefreshToggled(enabled) => {
             app.project_edit_task_board_auto_refresh = enabled;
             app.project_edit_task_board_settings.auto_refresh = enabled;
@@ -249,10 +249,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditSessionAutoRefreshToggled(enabled) => {
             app.project_edit_session_auto_refresh = enabled;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectEditCodeReviewToggled(enabled) => {
-            app.project_edit_task_board_settings.code_review_enabled = enabled;
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditMaxConcurrentInputChanged(value) => {
@@ -277,6 +273,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditFailedRetryMinutesInputChanged(value) => {
             app.project_edit_failed_retry_minutes_input = value;
+            Some(iced::Task::none())
+        }
+        ProjectMessage::ProjectEditFailedRetryMaxAttemptsInputChanged(value) => {
+            app.project_edit_failed_retry_max_attempts_input = value;
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditRunningTimeoutMinutesInputChanged(value) => {
@@ -323,6 +323,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_failed_retry_minutes_input = clamped.to_string();
             Some(iced::Task::none())
         }
+        ProjectMessage::ProjectEditFailedRetryMaxAttemptsChanged(attempts) => {
+            let clamped = attempts.clamp(0, 10);
+            app.project_edit_task_board_settings.failed_retry_max_attempts = clamped;
+            app.project_edit_failed_retry_max_attempts_input = clamped.to_string();
+            Some(iced::Task::none())
+        }
         ProjectMessage::ProjectEditRunningTimeoutMinutesChanged(minutes) => {
             let clamped = minutes.clamp(1, 1440);
             app.project_edit_task_board_settings.running_timeout_minutes = clamped;
@@ -337,6 +343,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditRecycleWorktreeOnTaskFinishToggled(enabled) => {
             app.project_edit_task_board_settings.recycle_worktree_on_task_finish = enabled;
+            Some(iced::Task::none())
+        }
+        ProjectMessage::ProjectEditWorkflowIdChanged(workflow_id) => {
+            app.project_edit_task_board_settings.workflow_id =
+                if crate::app::task::task_workflow_by_id(&workflow_id).is_some() {
+                    workflow_id
+                } else {
+                    crate::app::task::DEFAULT_TASK_WORKFLOW_ID.to_string()
+                };
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditSaved => {
@@ -391,6 +406,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 task_board_settings.failed_retry_minutes,
                 1,
                 1440,
+            );
+            task_board_settings.failed_retry_max_attempts = parse_clamped_u32(
+                &app.project_edit_failed_retry_max_attempts_input,
+                task_board_settings.failed_retry_max_attempts,
+                0,
+                10,
             );
             task_board_settings.running_timeout_minutes = parse_clamped_u32(
                 &app.project_edit_running_timeout_minutes_input,
@@ -457,7 +478,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_icon_color.clear();
             app.project_edit_icon_color_picker_open = false;
             app.project_edit_icon_color_format =
-                crate::app::views::design::models::ColorFormat::Hex;
+                crate::app::components::color_picker::ColorFormat::Hex;
             app.project_edit_start_script.clear();
             app.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
             app.project_edit_worktree_enabled = false;
@@ -470,6 +491,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_task_board_scheduler_tick_interval_seconds_input.clear();
             app.project_edit_task_board_auto_promote_tick_interval_seconds_input.clear();
             app.project_edit_failed_retry_minutes_input.clear();
+            app.project_edit_failed_retry_max_attempts_input.clear();
             app.project_edit_running_timeout_minutes_input.clear();
             app.project_edit_pr_submitted_stall_timeout_seconds_input.clear();
             app.project_tools_menu_path = None;
@@ -481,9 +503,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         let project =
                             crate::app::message::project::helpers::resolve_gateway_project(&path)
                                 .await?;
+                        let scope =
+                            crate::app::session_gateway::active_project_scope(project.id.clone())?;
                         client
                             .project_update(
-                                &project.id.0,
+                                &scope,
                                 &vw_gateway_client::vw_api_types::project::UpdateProjectRequest {
                                     name: Some(final_name_for_runtime),
                                     active_worktree_id: None,
@@ -522,7 +546,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_icon_color.clear();
             app.project_edit_icon_color_picker_open = false;
             app.project_edit_icon_color_format =
-                crate::app::views::design::models::ColorFormat::Hex;
+                crate::app::components::color_picker::ColorFormat::Hex;
             app.project_edit_start_script.clear();
             app.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
             app.project_edit_worktree_enabled = false;
@@ -535,6 +559,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.project_edit_task_board_scheduler_tick_interval_seconds_input.clear();
             app.project_edit_task_board_auto_promote_tick_interval_seconds_input.clear();
             app.project_edit_failed_retry_minutes_input.clear();
+            app.project_edit_failed_retry_max_attempts_input.clear();
             app.project_edit_running_timeout_minutes_input.clear();
             app.project_edit_pr_submitted_stall_timeout_seconds_input.clear();
             Some(iced::Task::none())
@@ -564,7 +589,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 app.project_edit_icon_color.clear();
                 app.project_edit_icon_color_picker_open = false;
                 app.project_edit_icon_color_format =
-                    crate::app::views::design::models::ColorFormat::Hex;
+                    crate::app::components::color_picker::ColorFormat::Hex;
                 app.project_edit_start_script.clear();
                 app.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
                 app.project_edit_worktree_enabled = false;
@@ -578,6 +603,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 app.project_edit_task_board_scheduler_tick_interval_seconds_input.clear();
                 app.project_edit_task_board_auto_promote_tick_interval_seconds_input.clear();
                 app.project_edit_failed_retry_minutes_input.clear();
+                app.project_edit_failed_retry_max_attempts_input.clear();
                 app.project_edit_running_timeout_minutes_input.clear();
             }
 

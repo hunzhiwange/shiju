@@ -76,3 +76,66 @@ async fn default_trait_call_maps_legacy_failure_and_default_flags() {
     assert!(default_tool_concurrency_safe("file_read"));
     assert!(default_tool_requires_user_interaction("question"));
 }
+
+#[test]
+fn dto_content_falls_back_to_model_result_then_structured_data() {
+    let model_result = ToolCallResult { model_result: json!({"answer": 42}), ..Default::default() };
+    let dto = model_result.to_dto();
+    assert_eq!(dto.content.len(), 1);
+    assert!(matches!(
+        &dto.content[0],
+        ToolResultContentDto::Json { value } if value == &json!({"answer": 42})
+    ));
+
+    let null_output =
+        ToolCallResult { data: json!({"output": null, "details": "kept"}), ..Default::default() };
+    let dto = null_output.to_dto();
+    assert_eq!(dto.content.len(), 1);
+    assert!(matches!(
+        &dto.content[0],
+        ToolResultContentDto::Json { value }
+            if value == &json!({"output": null, "details": "kept"})
+    ));
+}
+
+#[test]
+fn result_helpers_cover_data_fallbacks_and_error_shapes() {
+    let output = ToolCallResult { data: json!({"output": "from-data"}), ..Default::default() };
+    assert_eq!(output.default_model_result(), json!("from-data"));
+
+    let error = ToolCallResult { data: json!({"error": {"code": 7}}), ..Default::default() };
+    assert!(!error.is_success());
+    assert_eq!(error.default_model_result(), json!({"code": 7}));
+    assert_eq!(error.error_text(), Some("{\n  \"code\": 7\n}".to_string()));
+
+    let explicit_success = ToolCallResult { data: json!({"success": true}), ..Default::default() };
+    assert!(explicit_success.is_success());
+
+    let empty_error = ToolCallResult { data: json!({"error": "  "}), ..Default::default() };
+    assert!(empty_error.is_success());
+    assert_eq!(empty_error.error_text().as_deref(), Some("  "));
+
+    let no_data = ToolCallResult::default();
+    assert_eq!(no_data.default_model_result(), json!(""));
+    assert_eq!(no_data.model_text(), "");
+}
+
+#[test]
+fn render_helpers_use_hint_values_and_safe_fallbacks() {
+    let hinted = ToolCallResult {
+        render_hint: Some(ToolRenderHint {
+            title: Some("Result".to_string()),
+            metadata: json!({"kind": "preview"}),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert_eq!(hinted.render_title("Fallback"), "Result");
+    assert_eq!(hinted.render_metadata(), json!({"kind": "preview"}));
+
+    let null_metadata =
+        ToolCallResult { render_hint: Some(ToolRenderHint::default()), ..Default::default() };
+    assert_eq!(null_metadata.render_title("Fallback"), "Fallback");
+    assert_eq!(null_metadata.render_metadata(), json!({}));
+    assert_eq!(ToolCallResult::default().render_metadata(), json!({}));
+}

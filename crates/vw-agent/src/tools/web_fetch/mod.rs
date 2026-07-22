@@ -267,7 +267,7 @@ impl WebFetchTool {
                 blocked_domains: &self.blocked_domains,
                 allowed_field_name: "web_fetch.allowed_domains",
                 blocked_field_name: Some("web_fetch.blocked_domains"),
-                empty_allowed_message: "web_fetch tool is enabled but no allowed_domains are configured. Add [web_fetch].allowed_domains in vibewindow.json",
+                empty_allowed_message: "web_fetch tool is enabled but no allowed_domains are configured. Add web_fetch.allowed_domains in system settings",
                 scheme_policy: UrlSchemePolicy::HttpOrHttps,
                 ipv6_error_context: "web_fetch",
             },
@@ -368,7 +368,7 @@ impl WebFetchTool {
             }
             // 未知提供方
             _ => anyhow::bail!(
-                "Unknown web_fetch provider: '{}'. Set [web_fetch].provider to 'fast_html2md', 'nanohtml2text', 'firecrawl', or 'tavily' in vibewindow.json",
+                "Unknown web_fetch provider: '{}'. Set web_fetch.provider to 'fast_html2md', 'nanohtml2text', 'firecrawl', or 'tavily' in system settings",
                 self.provider
             ),
         }
@@ -626,7 +626,7 @@ impl WebFetchTool {
         // 获取 API 密钥（支持轮询）
         let auth_token = self.get_next_api_key().ok_or_else(|| {
             anyhow::anyhow!(
-                "web_fetch provider 'firecrawl' requires [web_fetch].api_key in vibewindow.json"
+                "web_fetch provider 'firecrawl' requires web_fetch.api_key in system settings"
             )
         })?;
 
@@ -736,7 +736,7 @@ impl WebFetchTool {
         // 获取 API 密钥（支持轮询）
         let api_key = self.get_next_api_key().ok_or_else(|| {
             anyhow::anyhow!(
-                "web_fetch provider 'tavily' requires [web_fetch].api_key in vibewindow.json"
+                "web_fetch provider 'tavily' requires web_fetch.api_key in system settings"
             )
         })?;
 
@@ -1060,7 +1060,7 @@ impl Tool for WebFetchTool {
             "tavily" => self.fetch_with_tavily(&url, args.timeout).await,
             // 未知提供方
             _ => Err(anyhow::anyhow!(
-                "Unknown web_fetch provider: '{}'. Set [web_fetch].provider to 'fast_html2md', 'nanohtml2text', 'firecrawl', or 'tavily' in vibewindow.json",
+                "Unknown web_fetch provider: '{}'. Set web_fetch.provider to 'fast_html2md', 'nanohtml2text', 'firecrawl', or 'tavily' in system settings",
                 self.provider
             )),
         };

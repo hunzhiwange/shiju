@@ -30,7 +30,13 @@ fn write_trace_events(path: &std::path::Path) {
         "model": "glm",
         "payload": {"reason": "needle"}
     });
-    fs::write(path, format!("{old}\nnot-json\n{newest}\n")).expect("write trace jsonl");
+    let pending = json!({
+        "id": "pending-id",
+        "timestamp": "2026-01-01T00:00:01Z",
+        "event_type": "agent_turn",
+        "payload": {}
+    });
+    fs::write(path, format!("{old}\nnot-json\n{pending}\n{newest}\n")).expect("write trace jsonl");
 }
 
 #[test]
@@ -54,6 +60,16 @@ fn run_traces_lists_matching_events_with_safe_limit() {
 }
 
 #[test]
+fn run_traces_lists_events_with_default_filters_and_statuses() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let trace = temp.path().join("trace.jsonl");
+    write_trace_events(&trace);
+    let config = config_for_trace_file(&trace);
+
+    run_traces(&config, None, None, None, 10).expect("unfiltered trace list");
+}
+
+#[test]
 fn run_traces_handles_empty_query_result() {
     let temp = tempfile::tempdir().expect("tempdir");
     let trace = temp.path().join("trace.jsonl");
@@ -72,4 +88,33 @@ fn run_traces_can_lookup_by_id_and_report_miss() {
 
     run_traces(&config, Some(" new-id "), None, None, 10).expect("trace lookup hit");
     run_traces(&config, Some("missing-id"), None, None, 10).expect("trace lookup miss");
+}
+
+#[test]
+fn run_traces_treats_blank_id_as_list_query() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let trace = temp.path().join("trace.jsonl");
+    write_trace_events(&trace);
+    let config = config_for_trace_file(&trace);
+
+    run_traces(&config, Some(" \t"), None, None, 10).expect("blank id should list traces");
+}
+
+#[test]
+fn run_traces_returns_error_when_trace_path_is_not_readable_file() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config = config_for_trace_file(temp.path());
+
+    let err = run_traces(&config, None, None, None, 10).expect_err("directory read should fail");
+    assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn run_traces_propagates_id_lookup_read_error() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config = config_for_trace_file(temp.path());
+
+    let err = run_traces(&config, Some("event-id"), None, None, 10)
+        .expect_err("directory lookup should fail");
+    assert!(!err.to_string().is_empty());
 }

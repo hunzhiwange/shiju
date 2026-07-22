@@ -39,6 +39,23 @@ fn memory_category_serde_roundtrip_uses_plain_strings() {
 }
 
 #[test]
+fn memory_category_deserialization_preserves_custom_strings_verbatim() {
+    for raw in ["", " Core ", "CORE", "conversation "] {
+        let json = serde_json::to_string(raw).unwrap();
+        let category = serde_json::from_str::<MemoryCategory>(&json).unwrap();
+
+        assert_eq!(category, MemoryCategory::Custom(raw.to_owned()));
+    }
+}
+
+#[test]
+fn memory_category_deserialization_rejects_non_string_values() {
+    for json in ["null", "1", "true", "[]", "{}"] {
+        assert!(serde_json::from_str::<MemoryCategory>(json).is_err());
+    }
+}
+
+#[test]
 fn memory_entry_roundtrip_preserves_optional_fields() {
     let entry = MemoryEntry {
         id: "id-1".into(),
@@ -75,4 +92,60 @@ fn memory_entry_serializes_custom_category_as_plain_string() {
 
     let json = serde_json::to_value(&entry).unwrap();
     assert_eq!(json.get("category").unwrap(), "travel");
+}
+
+#[test]
+fn memory_entry_deserialization_defaults_omitted_optional_fields() {
+    let json = serde_json::json!({
+        "id": "id-optional",
+        "key": "optional_fields",
+        "content": "no session or score",
+        "category": "conversation",
+        "timestamp": "2026-04-01T00:00:00Z"
+    });
+
+    let entry = serde_json::from_value::<MemoryEntry>(json).unwrap();
+
+    assert_eq!(entry.category, MemoryCategory::Conversation);
+    assert_eq!(entry.session_id, None);
+    assert_eq!(entry.score, None);
+}
+
+#[test]
+fn memory_entry_deserialization_rejects_missing_required_fields() {
+    let json = serde_json::json!({
+        "id": "id-incomplete",
+        "key": "missing_content",
+        "category": "daily",
+        "timestamp": "2026-04-02T00:00:00Z",
+        "session_id": null,
+        "score": null
+    });
+
+    assert!(serde_json::from_value::<MemoryEntry>(json).is_err());
+}
+
+#[test]
+fn memory_entry_debug_includes_public_fields_and_omits_session_id() {
+    let entry = MemoryEntry {
+        id: "id-3".into(),
+        key: "debug_key".into(),
+        content: "debug content".into(),
+        category: MemoryCategory::Daily,
+        timestamp: "2026-04-05T00:00:00Z".into(),
+        session_id: Some("session-secret".into()),
+        score: None,
+    };
+
+    let debug = format!("{entry:?}");
+
+    assert!(debug.contains("MemoryEntry"));
+    assert!(debug.contains("id-3"));
+    assert!(debug.contains("debug_key"));
+    assert!(debug.contains("debug content"));
+    assert!(debug.contains("Daily"));
+    assert!(debug.contains("2026-04-05T00:00:00Z"));
+    assert!(debug.contains("score"));
+    assert!(!debug.contains("session_id"));
+    assert!(!debug.contains("session-secret"));
 }

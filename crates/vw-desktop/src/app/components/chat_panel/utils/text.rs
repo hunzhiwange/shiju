@@ -206,6 +206,7 @@ pub fn strip_internal_tool_trace(s: &str) -> String {
             && !s.contains("tool ")
             && !s.contains("<path>")
             && !s.contains("<content>")
+            && !s.contains("<file>")
             && !s.contains("toolread(")
             && !s.contains("toolwrite(")
             && !s.contains("tooledit(")
@@ -265,11 +266,19 @@ pub fn strip_internal_tool_trace(s: &str) -> String {
     let mut in_content_dump = false;
     let mut in_file_dump = false;
     let mut in_tool_leak_dump = false;
+    let mut in_tool_input_dump = false;
 
     for line in s.lines() {
         let folded = fold_fullwidth_ascii(line);
         let t = folded.trim();
         let t_lower = t.to_ascii_lowercase();
+
+        if in_tool_input_dump {
+            if t.is_empty() {
+                in_tool_input_dump = false;
+            }
+            continue;
+        }
 
         if in_tool_leak_dump {
             if t.is_empty() {
@@ -297,7 +306,8 @@ pub fn strip_internal_tool_trace(s: &str) -> String {
                 || t_lower.ends_with(" tool")
                 || t_lower.contains(" tool "))
         {
-            in_tool_leak_dump = true;
+            in_tool_input_dump = t_lower.contains(" tool with the following input:");
+            in_tool_leak_dump = !in_tool_input_dump;
             continue;
         }
 

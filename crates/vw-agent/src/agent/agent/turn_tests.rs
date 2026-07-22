@@ -3,6 +3,7 @@ use crate::app::agent::agent::memory_loader::MemoryLoader;
 use crate::app::agent::config::AgentConfig;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};
 use crate::app::agent::observability::{NoopObserver, Observer};
+use crate::app::agent::providers::traits::ProviderCapabilities;
 use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::tools::{Tool, ToolResult};
 use anyhow::{Result, anyhow};
@@ -36,7 +37,11 @@ impl ProviderHandle {
     }
 
     fn provider(&self) -> Box<dyn Provider> {
-        Box::new(RecordingProvider { state: self.state.clone() })
+        Box::new(RecordingProvider { state: self.state.clone(), native_tools: false })
+    }
+
+    fn native_provider(&self) -> Box<dyn Provider> {
+        Box::new(RecordingProvider { state: self.state.clone(), native_tools: true })
     }
 
     fn seen_models(&self) -> Vec<String> {
@@ -50,11 +55,16 @@ impl ProviderHandle {
 
 struct RecordingProvider {
     state: Arc<Mutex<ProviderState>>,
+    native_tools: bool,
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for RecordingProvider {
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities { native_tool_calling: self.native_tools, vision: false }
+    }
+
     async fn chat_with_system(
         &self,
         _system_prompt: Option<&str>,
@@ -242,6 +252,17 @@ fn final_user_message(messages: &[ChatMessage]) -> &ChatMessage {
         .expect("request should contain user message")
 }
 
+async fn collect_chunks(mut rx: tokio::sync::mpsc::Receiver<String>) -> Vec<String> {
+    let mut chunks = Vec::new();
+    while let Some(chunk) = rx.recv().await {
+        chunks.push(chunk);
+    }
+    chunks
+}
+
+#[path = "turn_research_tests.rs"]
+mod turn_research_tests;
+
 #[test]
 fn run_single_method_is_available_on_agent_type() {
     let method = Agent::run_single;
@@ -403,17 +424,47 @@ async fn turn_with_stream_sends_progress_and_final_response() {
         provider.provider(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
     );
-    let (tx, mut rx) = tokio::sync::mpsc::channel(8);
+    let (tx, rx) = tokio::sync::mpsc::channel(8);
 
     let response = agent.turn_with_stream("hi", tx).await.expect("streaming turn should succeed");
 
-    let mut chunks = Vec::new();
-    while let Some(chunk) = rx.recv().await {
-        chunks.push(chunk);
-    }
+    let chunks = collect_chunks(rx).await;
 
     assert_eq!(response, "streamed answer");
     assert!(chunks.iter().any(|chunk| chunk.contains("思考中")));
     assert!(chunks.iter().any(|chunk| chunk == "streamed "));
     assert!(chunks.iter().any(|chunk| chunk == "answer"));
+}
+
+#[tokio::test]
+async fn turn_with_stream_auto_saves_and_uses_memory_context() {
+    let provider = ProviderHandle::with_responses(vec![Ok(text_response("streamed"))]);
+    let memory = Arc::new(RecordingMemory::default());
+    let mut agent = build_agent(
+        provider.provider(),
+        memory.clone(),
+        Box::new(StaticMemoryLoader { result: Ok("[Memory context]\n".to_string()) }),
+        AgentConfig::default(),
+    );
+    agent.auto_save = true;
+    let (tx, rx) = tokio::sync::mpsc::channel(8);
+
+    let response =
+        agent.turn_with_stream("stream memory", tx).await.expect("streaming turn should succeed");
+
+    assert_eq!(response, "streamed");
+    assert_eq!(
+        memory.stored_entries(),
+        vec![(
+            "user_msg".to_string(),
+            "stream memory".to_string(),
+            MemoryCategory::Conversation,
+            None
+        )]
+    );
+    let requests = provider.seen_messages();
+    let user = final_user_message(&requests[0]);
+    assert!(user.content.contains("[Memory context]"));
+    assert!(user.content.contains("] stream memory"));
+    assert!(!collect_chunks(rx).await.is_empty());
 }

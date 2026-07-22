@@ -39,6 +39,10 @@ impl ResponseSpec {
             content_type: "application/octet-stream",
         }
     }
+
+    fn status(status: StatusCode) -> Self {
+        Self { status, body: Vec::new(), content_type: "text/plain" }
+    }
 }
 
 struct TestServerState {
@@ -170,6 +174,22 @@ fn parse_attachment_metadata_rejects_missing_file_ids_and_empty_photos() {
     );
 }
 
+#[test]
+fn parse_attachment_metadata_rejects_non_string_file_ids() {
+    assert!(
+        TelegramChannel::parse_attachment_metadata(&serde_json::json!({
+            "document": {"file_id": 123, "file_name": "report.pdf"}
+        }))
+        .is_none()
+    );
+    assert!(
+        TelegramChannel::parse_attachment_metadata(&serde_json::json!({
+            "photo": [{"file_id": "small"}, {"file_id": 123}]
+        }))
+        .is_none()
+    );
+}
+
 #[tokio::test]
 async fn try_parse_attachment_message_downloads_document_to_workspace() {
     let tempdir = tempfile::tempdir().expect("tempdir");
@@ -212,6 +232,44 @@ async fn try_parse_attachment_message_downloads_document_to_workspace() {
 }
 
 #[tokio::test]
+async fn try_parse_attachment_message_uses_fallback_document_filename_and_quote() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let server = TestServer::spawn(vec![
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"docs/original.bin"}}"#),
+        ResponseSpec::bytes(b"data"),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url, tempdir.path());
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 5,
+            "chat": {"id": 77, "type": "private"},
+            "from": {"id": 123, "username": "tester"},
+            "reply_to_message": {
+                "message_id": 4,
+                "from": {"first_name": "Alice"},
+                "text": "line one\nline two"
+            },
+            "document": {"file_id": "doc-id", "file_name": "../", "file_size": 4},
+            "caption": ""
+        }
+    });
+
+    let message = channel
+        .try_parse_attachment_message(&update)
+        .await
+        .expect("attachment message should parse");
+
+    assert_eq!(message.id, "telegram_77_5");
+    assert!(message.content.starts_with("> @Alice:\n> line one\n> line two\n\n"));
+    assert!(message.content.contains("[Document: attachment_77_5.bin]"));
+    assert!(!message.content.ends_with("\n\n"));
+
+    let saved = tempdir.path().join("telegram_files/attachment_77_5.bin");
+    assert_eq!(tokio::fs::read(&saved).await.expect("saved file"), b"data");
+}
+
+#[tokio::test]
 async fn try_parse_attachment_message_generates_photo_filename_and_thread_target() {
     let tempdir = tempfile::tempdir().expect("tempdir");
     let server = TestServer::spawn(vec![
@@ -244,6 +302,78 @@ async fn try_parse_attachment_message_generates_photo_filename_and_thread_target
 
     let saved = tempdir.path().join("telegram_files/photo_-100_7.webp");
     assert_eq!(tokio::fs::read(&saved).await.expect("saved photo"), b"photo-data");
+}
+
+#[tokio::test]
+async fn try_parse_attachment_message_sanitizes_photo_extension_without_suffix() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let server = TestServer::spawn(vec![
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"photos/file."}}"#),
+        ResponseSpec::bytes(b"photo-data"),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url, tempdir.path());
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 9,
+            "chat": {"id": 42, "type": "private"},
+            "from": {"id": 123, "username": "tester"},
+            "photo": [{"file_id": "photo-id", "file_size": 10}]
+        }
+    });
+
+    let message = channel.try_parse_attachment_message(&update).await.expect("photo should parse");
+
+    assert!(message.content.contains("[IMAGE:"));
+    let saved = tempdir.path().join("telegram_files/photo_42_9.jpg");
+    assert_eq!(tokio::fs::read(&saved).await.expect("saved photo"), b"photo-data");
+}
+
+#[tokio::test]
+async fn try_parse_attachment_message_returns_none_when_get_file_path_fails() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let server = TestServer::spawn(vec![ResponseSpec::json(r#"{"ok":true,"result":{}}"#)]).await;
+    let channel = test_channel(&server.base_url, tempdir.path());
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 1,
+            "chat": {"id": 2, "type": "private"},
+            "from": {"id": 123, "username": "tester"},
+            "document": {"file_id": "doc-id", "file_name": "report.pdf", "file_size": 4}
+        }
+    });
+
+    assert!(channel.try_parse_attachment_message(&update).await.is_none());
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].path_and_query, "/bot123:ABC/getFile?file_id=doc-id");
+}
+
+#[tokio::test]
+async fn try_parse_attachment_message_returns_none_when_download_fails() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let server = TestServer::spawn(vec![
+        ResponseSpec::json(r#"{"ok":true,"result":{"file_path":"docs/report.pdf"}}"#),
+        ResponseSpec::status(StatusCode::INTERNAL_SERVER_ERROR),
+    ])
+    .await;
+    let channel = test_channel(&server.base_url, tempdir.path());
+    let update = serde_json::json!({
+        "message": {
+            "message_id": 1,
+            "chat": {"id": 2, "type": "private"},
+            "from": {"id": 123, "username": "tester"},
+            "document": {"file_id": "doc-id", "file_name": "report.pdf", "file_size": 4}
+        }
+    });
+
+    assert!(channel.try_parse_attachment_message(&update).await.is_none());
+    assert!(!tempdir.path().join("telegram_files/report.pdf").exists());
+
+    let requests = server.requests().await;
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].path_and_query, "/file/bot123:ABC/docs/report.pdf");
 }
 
 #[tokio::test]
@@ -291,6 +421,26 @@ async fn try_parse_attachment_message_requires_group_mention_when_configured() {
             "from": {"id": 123, "username": "tester"},
             "document": {"file_id": "doc", "file_name": "report.pdf", "file_size": 1},
             "caption": "not for the bot"
+        }
+    });
+
+    assert!(channel.try_parse_attachment_message(&update).await.is_none());
+    assert!(server.requests().await.is_empty());
+}
+
+#[tokio::test]
+async fn try_parse_attachment_message_rejects_group_when_bot_username_is_unavailable() {
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let server = TestServer::spawn(Vec::new()).await;
+    let mut channel = test_channel(&server.base_url, tempdir.path());
+    channel.mention_only = true;
+
+    let update = serde_json::json!({
+        "message": {
+            "chat": {"id": -100, "type": "group"},
+            "from": {"id": 123, "username": "tester"},
+            "document": {"file_id": "doc", "file_name": "report.pdf", "file_size": 1},
+            "caption": "@vibebot see this"
         }
     });
 

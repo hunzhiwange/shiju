@@ -64,6 +64,35 @@ impl TaskBoardExecutorSelectorKind {
     }
 }
 
+fn executor_option_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let hovered = matches!(status, iced::widget::button::Status::Hovered);
+    let p = theme.extended_palette();
+
+    let bg = if hovered {
+        Some(Background::Color(p.background.weak.color.scale_alpha(0.35)))
+    } else if selected {
+        Some(Background::Color(Color::from_rgba(
+            theme.palette().primary.r,
+            theme.palette().primary.g,
+            theme.palette().primary.b,
+            0.10,
+        )))
+    } else {
+        None
+    };
+
+    iced::widget::button::Style {
+        background: bg,
+        border: Border { radius: 6.0.into(), width: 0.0, color: theme.palette().primary },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
 /// 构建对应界面片段。
 ///
 /// # 参数
@@ -164,28 +193,7 @@ fn build_executor_popover<'a>(
     .padding([6, 10])
     .width(Length::Fill)
     .style(move |theme: &Theme, status: iced::widget::button::Status| {
-        let hovered = matches!(status, iced::widget::button::Status::Hovered);
-        let p = theme.extended_palette();
-
-        let bg = if hovered {
-            Some(Background::Color(p.background.weak.color.scale_alpha(0.35)))
-        } else if default_selected {
-            Some(Background::Color(Color::from_rgba(
-                theme.palette().primary.r,
-                theme.palette().primary.g,
-                theme.palette().primary.b,
-                0.10,
-            )))
-        } else {
-            None
-        };
-
-        iced::widget::button::Style {
-            background: bg,
-            border: Border { radius: 6.0.into(), width: 0.0, color: theme.palette().primary },
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
+        executor_option_button_style(theme, status, default_selected)
     })
     .on_press(Message::TaskBoard(kind.select_message(None)));
 
@@ -217,28 +225,7 @@ fn build_executor_popover<'a>(
         .padding([6, 10])
         .width(Length::Fill)
         .style(move |theme: &Theme, status: iced::widget::button::Status| {
-            let hovered = matches!(status, iced::widget::button::Status::Hovered);
-            let p = theme.extended_palette();
-
-            let bg = if hovered {
-                Some(Background::Color(p.background.weak.color.scale_alpha(0.35)))
-            } else if selected {
-                Some(Background::Color(Color::from_rgba(
-                    theme.palette().primary.r,
-                    theme.palette().primary.g,
-                    theme.palette().primary.b,
-                    0.10,
-                )))
-            } else {
-                None
-            };
-
-            iced::widget::button::Style {
-                background: bg,
-                border: Border { radius: 6.0.into(), width: 0.0, color: theme.palette().primary },
-                text_color: theme.palette().text,
-                ..Default::default()
-            }
+            executor_option_button_style(theme, status, selected)
         })
         .on_press(Message::TaskBoard(kind.select_message(Some(backend))));
 

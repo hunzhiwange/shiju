@@ -1,13 +1,18 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::session_gateway::{
+    gateway_plugin_delete_async, gateway_plugin_set_enabled_async, gateway_plugins_async,
     gateway_skill_create_async, gateway_skill_delete_async, gateway_skill_detail_async,
     gateway_skill_install_builtin_async, gateway_skill_set_enabled_async, gateway_skills_async,
 };
-use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SkillsSelectedDetail};
+use crate::app::state::{
+    PluginCatalogItem, SkillsCatalogItem, SkillsCatalogKind, SkillsSelectedDetail,
+};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{DesktopSkillCatalogEntryDto, DesktopSkillDetailDto};
+use vw_gateway_client::{
+    DesktopPluginCatalogEntryDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto,
+};
 
 use super::messages::SettingsMessage;
 
@@ -20,9 +25,18 @@ fn clear_selected_detail(app: &mut App) {
     app.skills_settings.detail_error = None;
 }
 
+fn clear_selected_plugin(app: &mut App) {
+    app.skills_settings.selected_plugin_id = None;
+}
+
 fn set_status(app: &mut App, message: impl Into<String>, is_error: bool) {
     app.skills_settings.status_message = Some(message.into());
     app.skills_settings.status_is_error = is_error;
+}
+
+fn set_plugin_status(app: &mut App, message: impl Into<String>, is_error: bool) {
+    app.skills_settings.plugin_status_message = Some(message.into());
+    app.skills_settings.plugin_status_is_error = is_error;
 }
 
 fn clear_catalog_load_error(app: &mut App) {
@@ -38,9 +52,28 @@ fn clear_catalog_load_error(app: &mut App) {
     }
 }
 
+fn clear_plugin_catalog_load_error(app: &mut App) {
+    let is_load_error = app.skills_settings.plugin_status_is_error
+        && app
+            .skills_settings
+            .plugin_status_message
+            .as_deref()
+            .is_some_and(|message| message.starts_with("读取插件目录失败:"));
+    if is_load_error {
+        app.skills_settings.plugin_status_message = None;
+        app.skills_settings.plugin_status_is_error = false;
+    }
+}
+
 fn refresh_task(project_path: Option<String>) -> Task<Message> {
     Task::perform(async move { gateway_skills_async(project_path.as_deref()).await }, |result| {
         Message::Settings(SettingsMessage::SkillsLoaded(result))
+    })
+}
+
+fn plugins_refresh_task() -> Task<Message> {
+    Task::perform(async move { gateway_plugins_async().await }, |result| {
+        Message::Settings(SettingsMessage::PluginsLoaded(result))
     })
 }
 
@@ -90,6 +123,30 @@ fn delete_task(project_path: Option<String>, skill_id: String) -> Task<Message> 
     )
 }
 
+fn plugin_set_enabled_task(plugin_id: String, enabled: bool) -> Task<Message> {
+    let response_plugin_id = plugin_id.clone();
+    Task::perform(
+        async move { gateway_plugin_set_enabled_async(&plugin_id, enabled).await },
+        move |result| {
+            Message::Settings(SettingsMessage::PluginsSetEnabledCompleted {
+                plugin_id: response_plugin_id.clone(),
+                enabled,
+                result,
+            })
+        },
+    )
+}
+
+fn plugin_delete_task(plugin_id: String) -> Task<Message> {
+    let response_plugin_id = plugin_id.clone();
+    Task::perform(async move { gateway_plugin_delete_async(&plugin_id).await }, move |result| {
+        Message::Settings(SettingsMessage::PluginsDeleteCompleted {
+            plugin_id: response_plugin_id.clone(),
+            result,
+        })
+    })
+}
+
 fn map_skill_kind(kind: &str) -> SkillsCatalogKind {
     match kind {
         "recommended" => SkillsCatalogKind::Recommended,
@@ -110,6 +167,21 @@ fn map_catalog_items(items: Vec<DesktopSkillCatalogEntryDto>) -> Vec<SkillsCatal
             installed: item.installed,
             enabled: item.enabled,
             source: item.source,
+            source_path: item.source_path,
+        })
+        .collect()
+}
+
+fn map_plugin_catalog_items(items: Vec<DesktopPluginCatalogEntryDto>) -> Vec<PluginCatalogItem> {
+    items
+        .into_iter()
+        .map(|item| PluginCatalogItem {
+            id: item.id,
+            display_name: item.display_name,
+            version: item.version,
+            description: item.description,
+            enabled: item.enabled,
+            component_count: item.component_count,
             source_path: item.source_path,
         })
         .collect()
@@ -159,9 +231,91 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.skills_settings.loading = true;
             refresh_task(app.project_path.clone())
         }
+        SettingsMessage::PluginsRefresh => {
+            app.skills_settings.plugin_loading = true;
+            plugins_refresh_task()
+        }
+        SettingsMessage::PluginsLoaded(result) => {
+            app.skills_settings.plugin_loading = false;
+            match result {
+                Ok(items) => {
+                    app.skills_settings.plugin_catalog = map_plugin_catalog_items(items);
+                    if app.skills_settings.selected_plugin_id.as_deref().is_some_and(|selected| {
+                        !app.skills_settings
+                            .plugin_catalog
+                            .iter()
+                            .any(|plugin| plugin.id == selected)
+                    }) {
+                        clear_selected_plugin(app);
+                    }
+                    clear_plugin_catalog_load_error(app);
+                }
+                Err(err) => {
+                    app.skills_settings.plugin_catalog.clear();
+                    set_plugin_status(app, format!("读取插件目录失败: {err}"), true);
+                }
+            }
+            Task::none()
+        }
+        SettingsMessage::PluginsSelected(plugin_id) => {
+            app.skills_settings.selected_plugin_id = Some(plugin_id);
+            Task::none()
+        }
+        SettingsMessage::PluginsSetEnabledRequested { plugin_id, enabled } => {
+            app.skills_settings.plugin_loading = true;
+            plugin_set_enabled_task(plugin_id, enabled)
+        }
+        SettingsMessage::PluginsSetEnabledCompleted { plugin_id, enabled, result } => {
+            match result {
+                Ok(path) => {
+                    let action = if enabled { "已启用插件" } else { "已禁用插件" };
+                    set_plugin_status(app, format!("{action}: {path}"), false);
+                    app.skills_settings.plugin_loading = true;
+                    return plugins_refresh_task();
+                }
+                Err(err) => {
+                    app.skills_settings.plugin_loading = false;
+                    set_plugin_status(app, err, true);
+                    if app.skills_settings.selected_plugin_id.as_deref() == Some(plugin_id.as_str())
+                    {
+                        app.skills_settings.selected_plugin_id = Some(plugin_id);
+                    }
+                }
+            }
+            Task::none()
+        }
+        SettingsMessage::PluginsDeleteRequested(plugin_id) => {
+            app.skills_settings.plugin_loading = true;
+            plugin_delete_task(plugin_id)
+        }
+        SettingsMessage::PluginsDeleteCompleted { plugin_id, result } => {
+            match result {
+                Ok(path) => {
+                    set_plugin_status(app, format!("已删除插件: {path}"), false);
+                    if app.skills_settings.selected_plugin_id.as_deref() == Some(plugin_id.as_str())
+                    {
+                        clear_selected_plugin(app);
+                    }
+                    app.skills_settings.plugin_loading = true;
+                    return plugins_refresh_task();
+                }
+                Err(err) => {
+                    app.skills_settings.plugin_loading = false;
+                    set_plugin_status(app, err, true);
+                }
+            }
+            Task::none()
+        }
         SettingsMessage::SkillsTabChanged(tab) => {
             app.skills_settings.active_tab = tab;
             clear_selected_detail(app);
+            if matches!(tab, crate::app::state::SkillsSettingsTab::Plugins)
+                && app.skills_settings.plugin_catalog.is_empty()
+                && !app.skills_settings.plugin_loading
+            {
+                app.skills_settings.plugin_loading = true;
+                return plugins_refresh_task();
+            }
             Task::none()
         }
         SettingsMessage::SkillsDetailClosed => {

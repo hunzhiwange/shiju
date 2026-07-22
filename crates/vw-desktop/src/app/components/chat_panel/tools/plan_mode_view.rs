@@ -26,7 +26,8 @@ use super::tool_parse::{
 };
 /// 重新导出 use super::{，让上层模块通过稳定路径访问。
 use super::{
-    canonical_tool_name, tool_permission_error_text, tool_permission_state, tool_permission_title,
+    ToolPermissionState, canonical_tool_name, tool_permission_error_text, tool_permission_state,
+    tool_permission_title,
 };
 
 /// 处理 is plan mode tool 对应的局部职责。
@@ -210,6 +211,32 @@ pub(super) fn metadata_text(tool_name: &str, data: Option<&Map<String, Value>>) 
     parts.join(" · ")
 }
 
+pub(super) fn plan_mode_base_title(tool_name: &str) -> Option<&'static str> {
+    match tool_name {
+        "enter_plan_mode" => Some("进入规划模式"),
+        "exit_plan_mode" => Some("退出规划模式"),
+        "verify_plan_execution" => Some("校验计划执行"),
+        _ => None,
+    }
+}
+
+pub(super) fn plan_mode_title(
+    base_title: &str,
+    permission_state: Option<ToolPermissionState>,
+    is_running: bool,
+    is_error: bool,
+) -> String {
+    if let Some(permission_state) = permission_state {
+        tool_permission_title(base_title, permission_state)
+    } else if is_running {
+        format!("{} 运行中", base_title)
+    } else if is_error {
+        format!("{} 失败", base_title)
+    } else {
+        base_title.to_string()
+    }
+}
+
 /// 处理 fallback output lines 对应的局部职责。
 ///
 /// # 参数
@@ -252,7 +279,7 @@ fn fallback_output_lines(value: &Value) -> Vec<String> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn body_lines(tool_name: &str, value: &Value, is_error: bool) -> Vec<String> {
+pub(super) fn body_lines(tool_name: &str, value: &Value, is_error: bool) -> Vec<String> {
     if is_error {
         return tool_permission_error_text(tool_name, value)
             .or_else(|| tool_error_text(value))
@@ -360,21 +387,8 @@ pub fn tool_plan_mode_view<'a>(
     let data = tool_result_data(&value).and_then(Value::as_object);
     let permission_state = tool_permission_state(tool_name, &value);
 
-    let base_title = match tool_name {
-        "enter_plan_mode" => "进入规划模式",
-        "exit_plan_mode" => "退出规划模式",
-        "verify_plan_execution" => "校验计划执行",
-        _ => return None,
-    };
-    let title = if let Some(permission_state) = permission_state {
-        tool_permission_title(base_title, permission_state)
-    } else if is_running {
-        format!("{} 运行中", base_title)
-    } else if is_error {
-        format!("{} 失败", base_title)
-    } else {
-        base_title.to_string()
-    };
+    let base_title = plan_mode_base_title(tool_name)?;
+    let title = plan_mode_title(base_title, permission_state, is_running, is_error);
 
     let summary = tool_summary_text(&value)
         .filter(|text| !text.trim().is_empty())

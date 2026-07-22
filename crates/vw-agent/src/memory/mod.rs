@@ -305,6 +305,23 @@ impl std::fmt::Debug for ResolvedEmbeddingConfig {
     }
 }
 
+impl ResolvedEmbeddingConfig {
+    pub fn api_key_configured(&self) -> bool {
+        self.api_key.as_deref().map(str::trim).is_some_and(|value| !value.is_empty())
+    }
+
+    pub(crate) fn api_key(&self) -> Option<&str> {
+        self.api_key.as_deref().map(str::trim).filter(|value| !value.is_empty())
+    }
+
+    pub(crate) fn set_api_key(&mut self, api_key: Option<String>) {
+        self.api_key = api_key.and_then(|value| {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        });
+    }
+}
+
 /// 解析嵌入配置
 ///
 /// 根据配置和嵌入路由规则，解析出最终的嵌入配置。

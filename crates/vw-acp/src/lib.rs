@@ -142,7 +142,8 @@ pub use jsonrpc_error::{
     build_json_rpc_error_response, output_error_jsonrpc_code,
 };
 pub use mcp_servers::{
-    ParseMcpServersError, parse_mcp_servers, parse_mcp_servers_with_field_name,
+    McpServerConfig, McpServerManagement, ParseMcpServersError, parse_mcp_server_configs,
+    parse_mcp_server_configs_with_field_name, parse_mcp_servers, parse_mcp_servers_with_field_name,
     parse_optional_mcp_servers, parse_optional_mcp_servers_with_field_name,
 };
 pub use output::{

@@ -121,6 +121,23 @@ fn channel_system_prompt_can_allow_explicit_execution_details() {
 }
 
 #[test]
+fn channel_system_prompt_uses_visibility_as_root_for_unknown_non_cli_channel() {
+    let prompt = build_channel_system_prompt("", "custom", "", false);
+
+    assert!(prompt.starts_with("Execution visibility: run tools/functions in the background"));
+    assert!(!prompt.starts_with("\n\n"));
+    assert!(!prompt.contains("Channel context:"));
+}
+
+#[test]
+fn channel_system_prompt_uses_delivery_instructions_when_base_is_empty() {
+    let prompt = build_channel_system_prompt("", "whatsapp", "", false);
+
+    assert!(prompt.starts_with("When responding on WhatsApp:"));
+    assert!(prompt.contains("Do not reveal raw tool names"));
+}
+
+#[test]
 fn runtime_tool_visibility_sorts_filters_and_uses_native_protocol_text() {
     let tools: Vec<Box<dyn Tool>> = vec![
         Box::new(NamedTool("zeta")),
@@ -144,6 +161,26 @@ fn runtime_tool_visibility_reports_no_tools_and_xml_protocol() {
 
     assert!(prompt.contains("- Allowed tools: (none)"));
     assert!(prompt.contains("Excluded by runtime policy: (none)"));
+    assert!(prompt.contains("Tool Use Protocol"));
+    assert!(prompt.contains("<tool_call>"));
+}
+
+#[test]
+fn runtime_tool_visibility_xml_protocol_lists_sorted_tools_and_exclusions() {
+    let tools: Vec<Box<dyn Tool>> = vec![
+        Box::new(NamedTool("zeta")),
+        Box::new(NamedTool("alpha")),
+        Box::new(NamedTool("beta")),
+    ];
+    let prompt = build_runtime_tool_visibility_prompt(
+        &tools,
+        &["zeta".to_string(), "alpha".to_string()],
+        false,
+    );
+
+    assert!(prompt.contains("- Allowed tools (1):"));
+    assert!(prompt.contains("  - `beta`"));
+    assert!(prompt.contains("Excluded by runtime policy: alpha, zeta"));
     assert!(prompt.contains("Tool Use Protocol"));
     assert!(prompt.contains("<tool_call>"));
 }
@@ -191,6 +228,45 @@ async fn memory_context_is_empty_when_recall_fails_or_filters_everything() {
     assert_eq!(build_memory_context(&filtered, "query", 0.9).await, "");
 }
 
+#[tokio::test]
+async fn memory_context_limits_included_entries_to_maximum() {
+    let mem = FakeMemory {
+        entries: vec![
+            memory_entry("one", "1", None),
+            memory_entry("two", "2", None),
+            memory_entry("three", "3", None),
+            memory_entry("four", "4", None),
+            memory_entry("five", "5", None),
+        ],
+        fail: false,
+    };
+
+    let context = build_memory_context(&mem, "query", 0.0).await;
+
+    assert!(context.contains("- one: 1\n"));
+    assert!(context.contains("- four: 4\n"));
+    assert!(!context.contains("- five: 5\n"));
+}
+
+#[tokio::test]
+async fn memory_context_stops_when_total_character_budget_would_be_exceeded() {
+    let long_key = "k".repeat(1_980);
+    let mem = FakeMemory {
+        entries: vec![
+            memory_entry(&format!("{long_key}-1"), "short", None),
+            memory_entry(&format!("{long_key}-2"), "short", None),
+            memory_entry("tail", "should not fit", None),
+        ],
+        fail: false,
+    };
+
+    let context = build_memory_context(&mem, "query", 0.0).await;
+
+    assert!(context.contains(&format!("- {long_key}-1: short\n")));
+    assert!(context.contains(&format!("- {long_key}-2: short\n")));
+    assert!(!context.contains("- tail: should not fit\n"));
+}
+
 #[test]
 fn inject_workspace_file_handles_present_missing_empty_and_truncated_files() {
     let temp = tempfile::tempdir().unwrap();
@@ -225,6 +301,35 @@ fn workspace_identity_context_loads_openclaw_bootstrap_files() {
 }
 
 #[test]
+fn load_openclaw_bootstrap_files_skips_missing_bootstrap_marker() {
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::write(temp.path().join("AGENTS.md"), "agent notes").unwrap();
+
+    let mut prompt = String::new();
+    load_openclaw_bootstrap_files(&mut prompt, temp.path(), 200);
+
+    assert!(prompt.contains("agent notes"));
+    assert!(prompt.contains("[File not found: SOUL.md]"));
+    assert!(!prompt.contains("### BOOTSTRAP.md"));
+}
+
+#[test]
+fn workspace_identity_context_accepts_identity_config_and_default_limit() {
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::write(temp.path().join("AGENTS.md"), "agent notes").unwrap();
+    let identity_config = crate::app::agent::config::IdentityConfig {
+        format: "aieos".to_string(),
+        aieos_path: Some("identity.json".to_string()),
+        aieos_inline: None,
+    };
+
+    let prompt = build_workspace_identity_context(temp.path(), Some(&identity_config), None);
+
+    assert!(prompt.starts_with("## Project Context"));
+    assert!(prompt.contains("agent notes"));
+}
+
+#[test]
 fn system_prompt_includes_tools_workspace_runtime_and_mode_specific_task_text() {
     let temp = tempfile::tempdir().unwrap();
     let prompt = build_system_prompt_with_mode(
@@ -253,4 +358,34 @@ fn system_prompt_default_wrapper_uses_xml_task_text() {
 
     assert!(prompt.contains("Instead: emit actual <tool_call> tags"));
     assert!(prompt.contains("Model: model-y"));
+}
+
+#[test]
+fn system_prompt_with_compact_skill_mode_includes_skills_without_tools_section() {
+    let temp = tempfile::tempdir().unwrap();
+    let skill = crate::app::agent::skills::Skill {
+        name: "do-task-plans".to_string(),
+        description: "executes task plans".to_string(),
+        version: "1.0.0".to_string(),
+        author: None,
+        tags: Vec::new(),
+        tools: Vec::new(),
+        prompts: vec!["follow the written task plan".to_string()],
+        location: Some(temp.path().join("skills/do-task-plans/SKILL.md")),
+    };
+    let prompt = build_system_prompt_with_mode(
+        temp.path(),
+        "model-z",
+        &[],
+        &[skill],
+        None,
+        Some(50),
+        false,
+        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+    );
+
+    assert!(!prompt.contains("## Tools"));
+    assert!(prompt.contains("## Available Skills"));
+    assert!(prompt.contains("do-task-plans"));
+    assert!(prompt.contains("skills/do-task-plans/SKILL.md"));
 }

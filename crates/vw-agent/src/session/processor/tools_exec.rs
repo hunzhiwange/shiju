@@ -25,22 +25,98 @@ use super::utils::{
 use crate::app::agent::tools::{self, ToolCallError, ToolRuntimeContext};
 use crate::app::agent::tools::{is_todo_read_tool_id, is_todo_write_tool_id};
 
-fn preserve_full_output_in_session(name: &str) -> bool {
-    matches!(name, "apply_patch" | "write" | "file_write" | "file_edit" | "notebook_edit")
+const FULL_SESSION_OUTPUT_TOOLS: &[&str] =
+    &["apply_patch", "write", "file_write", "file_edit", "notebook_edit"];
+
+fn string_value(value: &str) -> serde_json::Value {
+    serde_json::Value::String(value.to_string())
 }
 
-fn denied_tool_payload(input: Option<&str>, denied: &ToolCallError) -> serde_json::Value {
+fn metadata_not_truncated() -> serde_json::Value {
+    let mut metadata = serde_json::Map::new();
+    metadata.insert("truncated".to_string(), serde_json::Value::Bool(false));
+    serde_json::Value::Object(metadata)
+}
+
+fn empty_object() -> serde_json::Value {
+    serde_json::Value::Object(serde_json::Map::new())
+}
+
+fn running_tool_payload(input: &str, title: &str) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
-    payload.insert("status".to_string(), serde_json::json!("denied"));
-    if let Some(input) = input {
-        payload.insert("input".to_string(), serde_json::json!(input));
-    }
-    payload.insert("error".to_string(), serde_json::json!(denied.message()));
-    if let Some(permission_request) = denied.permission_request()
-        && let Ok(value) = serde_json::to_value(permission_request)
-    {
-        payload.insert("permission_request".to_string(), value);
-    }
+    payload.insert("status".to_string(), string_value("running"));
+    payload.insert("input".to_string(), string_value(input));
+    payload.insert("title".to_string(), string_value(title));
+    payload.insert("metadata".to_string(), metadata_not_truncated());
+    payload.insert("output".to_string(), string_value(""));
+    serde_json::Value::Object(payload)
+}
+
+fn error_payload_map(error: &str) -> serde_json::Map<String, serde_json::Value> {
+    let mut payload = serde_json::Map::new();
+    payload.insert("status".to_string(), string_value("error"));
+    payload.insert("error".to_string(), string_value(error));
+    payload
+}
+
+fn error_tool_payload(error: &str) -> serde_json::Value {
+    serde_json::Value::Object(error_payload_map(error))
+}
+
+fn error_tool_payload_with_input(input: &str, error: &str) -> serde_json::Value {
+    let mut payload = error_payload_map(error);
+    payload.insert("input".to_string(), string_value(input));
+    serde_json::Value::Object(payload)
+}
+
+fn insert_permission_request(
+    payload: &mut serde_json::Map<String, serde_json::Value>,
+    permission_request: Option<&vw_api_types::tools::PermissionRequestDto>,
+) {
+    let Some(permission_request) = permission_request else {
+        return;
+    };
+    let value =
+        serde_json::to_value(permission_request).expect("permission request DTO should serialize");
+    payload.insert("permission_request".to_string(), value);
+}
+
+fn completed_session_payload(output: &str) -> serde_json::Value {
+    let mut payload = serde_json::Map::new();
+    payload.insert("status".to_string(), string_value("completed"));
+    payload.insert("output".to_string(), string_value(output));
+    serde_json::Value::Object(payload)
+}
+
+fn completed_batch_payload(input: &str, output: &str) -> serde_json::Value {
+    let mut payload = serde_json::Map::new();
+    payload.insert("status".to_string(), string_value("completed"));
+    payload.insert("input".to_string(), string_value(input));
+    payload.insert("title".to_string(), string_value("batch"));
+    payload.insert("metadata".to_string(), metadata_not_truncated());
+    payload.insert("output".to_string(), string_value(output));
+    serde_json::Value::Object(payload)
+}
+
+fn preserve_full_output_in_session(name: &str) -> bool {
+    FULL_SESSION_OUTPUT_TOOLS.contains(&name)
+}
+
+fn denied_payload_map(denied: &ToolCallError) -> serde_json::Map<String, serde_json::Value> {
+    let mut payload = serde_json::Map::new();
+    payload.insert("status".to_string(), string_value("denied"));
+    payload.insert("error".to_string(), string_value(denied.message()));
+    insert_permission_request(&mut payload, denied.permission_request());
+    payload
+}
+
+fn denied_tool_payload(denied: &ToolCallError) -> serde_json::Value {
+    serde_json::Value::Object(denied_payload_map(denied))
+}
+
+fn denied_tool_payload_with_input(input: &str, denied: &ToolCallError) -> serde_json::Value {
+    let mut payload = denied_payload_map(denied);
+    payload.insert("input".to_string(), string_value(input));
     serde_json::Value::Object(payload)
 }
 
@@ -51,19 +127,170 @@ fn completed_tool_payload_for_ui(
     output: &str,
 ) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
-    payload.insert("status".to_string(), serde_json::json!("completed"));
-    payload.insert("input".to_string(), serde_json::json!(input));
-    payload.insert("title".to_string(), serde_json::json!(result.render_title(tool_name)));
+    payload.insert("status".to_string(), string_value("completed"));
+    payload.insert("input".to_string(), string_value(input));
+    payload.insert("title".to_string(), string_value(&result.render_title(tool_name)));
     payload.insert("metadata".to_string(), result.render_metadata());
-    payload.insert("output".to_string(), serde_json::json!(output));
+    payload.insert("output".to_string(), string_value(output));
 
-    if !result.content_blocks.is_empty()
-        && let Ok(value) = serde_json::to_value(result.to_dto())
-    {
-        payload.insert("result".to_string(), value);
+    if result.content_blocks.is_empty() {
+        return serde_json::Value::Object(payload);
     }
 
+    let value = serde_json::to_value(result.to_dto()).expect("tool result DTO should serialize");
+    payload.insert("result".to_string(), value);
+
     serde_json::Value::Object(payload)
+}
+
+#[derive(Debug, Clone)]
+struct BatchPlannedCall {
+    tool: String,
+    input_effective: String,
+    input_sanitized: String,
+    input_ui: String,
+    is_non_todo: bool,
+}
+
+#[derive(Debug, Clone)]
+struct BatchComputed {
+    tool: String,
+    input_sanitized: String,
+    ui_message: String,
+    session_message: String,
+    is_non_todo: bool,
+    success: bool,
+    output_for_model: Option<String>,
+    error_for_model: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct BatchSummaryRecord {
+    input_sanitized: String,
+    ui_message: String,
+    session_message: String,
+}
+
+fn completed_batch_summary_record(input: &str, output_ui: &str) -> BatchSummaryRecord {
+    let input_sanitized = sanitize_tool_input("batch", input);
+    let input_ui = sanitize_tool_input_for_ui("batch", input);
+    BatchSummaryRecord {
+        input_sanitized,
+        ui_message: format!(
+            "tool {}\n{}\n",
+            "batch",
+            completed_batch_payload(&input_ui, output_ui)
+        ),
+        session_message: format!("tool {}\n{}\n", "batch", completed_session_payload(output_ui)),
+    }
+}
+
+fn batch_join_error_computed(error: impl std::fmt::Display) -> BatchComputed {
+    let error = format!("Batch subtask join error: {error}");
+    BatchComputed {
+        tool: "batch".to_string(),
+        input_sanitized: String::new(),
+        ui_message: format!("tool {}\n{}\n", "batch", error_tool_payload_with_input("", &error)),
+        session_message: format!("tool {}\n{}\n", "batch", error_tool_payload(&error)),
+        is_non_todo: false,
+        success: false,
+        output_for_model: None,
+        error_for_model: Some(error),
+    }
+}
+
+fn batch_model_output(ran: usize, computed_results: &[BatchComputed]) -> String {
+    let successful = computed_results.iter().filter(|result| result.success).count();
+    let failed = computed_results.len().saturating_sub(successful);
+    let output_message = if ran == 0 {
+        "未执行任何子任务".to_string()
+    } else if failed > 0 {
+        format!("已成功执行 {}/{} 个工具，失败 {} 个。", successful, computed_results.len(), failed)
+    } else {
+        format!(
+            "全部 {} 个工具均执行成功。\n\n后续也可以继续使用 batch 工具以获得更高的执行效率。",
+            successful
+        )
+    };
+
+    let mut out = vec![output_message];
+    let mut success_outputs: Vec<String> = computed_results
+        .iter()
+        .filter(|result| result.success)
+        .filter_map(|result| result.output_for_model.as_deref())
+        .map(str::trim)
+        .filter(|output| !output.is_empty())
+        .map(str::to_string)
+        .collect();
+    if !success_outputs.is_empty() {
+        out.push(String::new());
+        out.append(&mut success_outputs);
+    }
+
+    let errors: Vec<(&str, &str)> = computed_results
+        .iter()
+        .filter(|result| !result.success)
+        .filter_map(|result| {
+            result.error_for_model.as_deref().map(|error| (result.tool.as_str(), error))
+        })
+        .collect();
+    if !errors.is_empty() {
+        out.push(String::new());
+        out.push("错误：".to_string());
+        for (tool, error) in errors {
+            out.push(format!("- {tool}: {error}"));
+        }
+    }
+
+    out.join("\n\n")
+}
+
+fn batch_ui_output(ran: usize, ran_list: &[String]) -> String {
+    if ran == 0 {
+        "未执行任何子任务".to_string()
+    } else {
+        format!("已执行 {} 个子任务：\n{}", ran, ran_list.join("\n"))
+    }
+}
+
+fn should_rewrite_todowrite(tool: &str, non_todo_runs: u64) -> bool {
+    if !is_todo_write_tool_id(tool) {
+        return false;
+    }
+    non_todo_runs == 0
+}
+
+fn is_non_todo_tool(tool: &str) -> bool {
+    if is_todo_write_tool_id(tool) {
+        return false;
+    }
+    !is_todo_read_tool_id(tool)
+}
+
+fn should_emit_running_tool(emit_ui: bool, tool: &str) -> bool {
+    if !emit_ui {
+        return false;
+    }
+    super::utils::is_streaming_tool(tool)
+}
+
+fn record_computed_tool(
+    session: &mut super::Session,
+    computed: BatchComputed,
+    emit_ui: bool,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
+    tool_state: &mut super::ToolSessionState,
+) {
+    if emit_ui {
+        on_event(StreamEvent::Delta(computed.ui_message));
+    }
+    let fp = tool_fingerprint(&computed.tool, &computed.input_sanitized, &computed.session_message);
+    if tool_state.seen.insert(fp) {
+        session.push(super::Role::Tool, computed.session_message);
+    }
+    if computed.is_non_todo {
+        tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
+    }
 }
 
 /// 执行单个工具并记录到会话
@@ -114,7 +341,7 @@ pub(crate) fn run_tool_and_record(
     }
 
     // 对 todowrite 工具进行特殊处理：当没有其他工具执行时，重写输入参数
-    let input_effective = if is_todo_write_tool_id(name) && tool_state.non_todo_tool_runs == 0 {
+    let input_effective = if should_rewrite_todowrite(name, tool_state.non_todo_tool_runs) {
         super::utils::rewrite_todowrite_completed_when_no_work(input)
     } else {
         input.to_string()
@@ -123,26 +350,21 @@ pub(crate) fn run_tool_and_record(
     // 净化工具输入，移除敏感信息或格式化
     let input_sanitized = sanitize_tool_input(name, &input_effective);
     let input_ui = sanitize_tool_input_for_ui(name, &input_effective);
+    let tool_input_for_trace = super::utils::truncate_string(&input_sanitized, 200);
     tracing::info!(
         target: "vw_agent",
         session_id = %ctx.session,
         tool_name = name,
-        tool_input = %super::utils::truncate_string(&input_sanitized, 200),
+        tool_input = %tool_input_for_trace,
         "session processor executing tool"
     );
 
     // 对于流式工具，在执行前发送 "running" 状态的 UI 事件
-    if emit_ui && super::utils::is_streaming_tool(name) {
+    if should_emit_running_tool(emit_ui, name) {
         on_event(StreamEvent::Delta(format!(
             "tool {}\n{}\n",
             name,
-            serde_json::json!({
-                "status": "running",
-                "input": input_ui,
-                "title": name,
-                "metadata": serde_json::json!({ "truncated": false }),
-                "output": ""
-            })
+            running_tool_payload(&input_ui, name)
         )));
     }
 
@@ -170,14 +392,7 @@ pub(crate) fn run_tool_and_record(
                         completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui)
                     ),
                     // 会话消息：仅包含状态和输出（节省上下文空间）
-                    format!(
-                        "tool {}\n{}\n",
-                        name,
-                        serde_json::json!({
-                            "status": "completed",
-                            "output": output_session
-                        })
-                    ),
+                    format!("tool {}\n{}\n", name, completed_session_payload(&output_session)),
                     output_for_model,
                 )
             }
@@ -189,9 +404,9 @@ pub(crate) fn run_tool_and_record(
                         format!(
                             "tool {}\n{}\n",
                             name,
-                            denied_tool_payload(Some(&input_ui), &denied)
+                            denied_tool_payload_with_input(&input_ui, &denied)
                         ),
-                        format!("tool {}\n{}\n", name, denied_tool_payload(None, &denied)),
+                        format!("tool {}\n{}\n", name, denied_tool_payload(&denied)),
                         content,
                     )
                 }
@@ -199,20 +414,9 @@ pub(crate) fn run_tool_and_record(
                     format!(
                         "tool {}\n{}\n",
                         name,
-                        serde_json::json!({
-                            "status": "error",
-                            "input": input_sanitized,
-                            "error": content
-                        })
+                        error_tool_payload_with_input(&input_sanitized, &content)
                     ),
-                    format!(
-                        "tool {}\n{}\n",
-                        name,
-                        serde_json::json!({
-                            "status": "error",
-                            "error": content
-                        })
-                    ),
+                    format!("tool {}\n{}\n", name, error_tool_payload(&content)),
                     content,
                 ),
             },
@@ -230,7 +434,7 @@ pub(crate) fn run_tool_and_record(
     }
 
     // 更新非 todo 工具的执行计数（用于 todowrite 的特殊处理逻辑）
-    if !is_todo_write_tool_id(name) && !is_todo_read_tool_id(name) {
+    if is_non_todo_tool(name) {
         tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
     }
 
@@ -294,46 +498,6 @@ pub(crate) fn run_batch_tool_and_record(
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     tool_state: &mut super::ToolSessionState,
 ) -> String {
-    /// 批量调用的计划项
-    ///
-    /// 包含单个工具调用的所有必要信息，用于后续执行
-    #[derive(Debug, Clone)]
-    struct BatchPlannedCall {
-        /// 工具名称
-        tool: String,
-        /// 有效的输入参数（经过重写处理）
-        input_effective: String,
-        /// 净化后的输入参数（用于日志与去重）
-        input_sanitized: String,
-        /// UI 展示使用的输入参数
-        input_ui: String,
-        /// 是否为非 todo 工具（用于统计计数）
-        is_non_todo: bool,
-    }
-
-    /// 批量调用的计算结果
-    ///
-    /// 包含单个工具执行后的完整结果信息
-    #[derive(Debug, Clone)]
-    struct BatchComputed {
-        /// 工具名称
-        tool: String,
-        /// 净化后的输入参数
-        input_sanitized: String,
-        /// UI 显示消息（包含完整信息）
-        ui_message: String,
-        /// 会话存储消息（精简信息）
-        session_message: String,
-        /// 是否为非 todo 工具
-        is_non_todo: bool,
-        /// 执行是否成功
-        success: bool,
-        /// 成功时的输出（提供给模型）
-        output_for_model: Option<String>,
-        /// 失败时的错误信息（提供给模型）
-        error_for_model: Option<String>,
-    }
-
     /// 在同步上下文中执行异步任务
     ///
     /// 此函数用于在同步代码中执行异步工具调用。
@@ -407,14 +571,7 @@ pub(crate) fn run_batch_tool_and_record(
                             tool,
                             completed_tool_payload_for_ui(&tool, &input_ui, &v, &output_ui)
                         ),
-                        format!(
-                            "tool {}\n{}\n",
-                            tool,
-                            serde_json::json!({
-                                "status": "completed",
-                                "output": output_session
-                            })
-                        ),
+                        format!("tool {}\n{}\n", tool, completed_session_payload(&output_session)),
                         true,
                         Some(output_for_model),
                         None,
@@ -428,9 +585,9 @@ pub(crate) fn run_batch_tool_and_record(
                             format!(
                                 "tool {}\n{}\n",
                                 tool,
-                                denied_tool_payload(Some(&input_ui), &denied)
+                                denied_tool_payload_with_input(&input_ui, &denied)
                             ),
-                            format!("tool {}\n{}\n", tool, denied_tool_payload(None, &denied)),
+                            format!("tool {}\n{}\n", tool, denied_tool_payload(&denied)),
                             false,
                             None,
                             Some(error_text),
@@ -441,23 +598,12 @@ pub(crate) fn run_batch_tool_and_record(
                             format!(
                                 "tool {}\n{}\n",
                                 tool,
-                                serde_json::json!({
-                                    "status": "error",
-                                    "input": input_ui,
-                                    "error": error_text
-                                })
+                                error_tool_payload_with_input(&input_ui, &error_text)
                             ),
-                            format!(
-                                "tool {}\n{}\n",
-                                tool,
-                                serde_json::json!({
-                                    "status": "error",
-                                    "error": error_text
-                                })
-                            ),
+                            format!("tool {}\n{}\n", tool, error_tool_payload(&error_text)),
                             false,
                             None,
-                            Some(denied.message().to_string()),
+                            Some(error_text),
                         )
                     }
                 }
@@ -543,11 +689,11 @@ pub(crate) fn run_batch_tool_and_record(
         }
 
         // 提取工具参数（默认为空对象）
-        let params = call.get("parameters").cloned().unwrap_or(serde_json::json!({}));
+        let params = call.get("parameters").cloned().unwrap_or_else(empty_object);
         let input_raw = params.to_string();
 
         // 对 todowrite 工具进行特殊处理
-        let input_effective = if is_todo_write_tool_id(tool) && non_todo_runs_snapshot == 0 {
+        let input_effective = if should_rewrite_todowrite(tool, non_todo_runs_snapshot) {
             super::utils::rewrite_todowrite_completed_when_no_work(&input_raw)
         } else {
             input_raw
@@ -556,20 +702,14 @@ pub(crate) fn run_batch_tool_and_record(
         // 净化输入并标记工具类型
         let input_sanitized = sanitize_tool_input(tool, &input_effective);
         let input_ui = sanitize_tool_input_for_ui(tool, &input_effective);
-        let is_non_todo = !is_todo_write_tool_id(tool) && !is_todo_read_tool_id(tool);
+        let is_non_todo = is_non_todo_tool(tool);
 
         // 对于流式工具，发送 "running" 状态事件
-        if emit_ui && super::utils::is_streaming_tool(tool) {
+        if should_emit_running_tool(emit_ui, tool) {
             on_event(StreamEvent::Delta(format!(
                 "tool {}\n{}\n",
                 tool,
-                serde_json::json!({
-                    "status": "running",
-                    "input": input_ui,
-                    "title": tool,
-                    "metadata": serde_json::json!({ "truncated": false }),
-                    "output": ""
-                })
+                running_tool_payload(&input_ui, tool)
             )));
         }
 
@@ -599,19 +739,7 @@ pub(crate) fn run_batch_tool_and_record(
         let call = planned.remove(0);
         let computed = compute_single_tool(call, ctx.clone());
         computed_results.push(computed.clone());
-
-        // 发送 UI 事件并记录到会话
-        if emit_ui {
-            on_event(StreamEvent::Delta(computed.ui_message));
-        }
-        let fp =
-            tool_fingerprint(&computed.tool, &computed.input_sanitized, &computed.session_message);
-        if tool_state.seen.insert(fp) {
-            session.push(super::Role::Tool, computed.session_message);
-        }
-        if computed.is_non_todo {
-            tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
-        }
+        record_computed_tool(session, computed, emit_ui, on_event, tool_state);
     } else if planned.len() > 1 {
         // 多个工具：并行执行（限制最大并发数）
         const MAX_PARALLEL_BATCH: usize = 4; // 最大并行执行数量
@@ -643,48 +771,22 @@ pub(crate) fn run_batch_tool_and_record(
                 let ctx = ctx.clone();
                 set.spawn(async move {
                     // 获取信号量许可（限制并发）
-                    let _permit = sem.acquire_owned().await.ok();
+                    let _permit =
+                        sem.acquire_owned().await.expect("batch semaphore should stay open");
 
                     // 在阻塞线程池中执行工具（避免阻塞异步运行时）
                     let computed =
                         tokio::task::spawn_blocking(move || compute_single_tool(item, ctx))
                             .await
-                            .unwrap_or_else(|e| BatchComputed {
-                                tool: "batch".to_string(),
-                                input_sanitized: String::new(),
-                                ui_message: format!(
-                                    "tool {}\n{}\n",
-                                    "batch",
-                                    serde_json::json!({
-                                        "status": "error",
-                                        "input": "",
-                                        "error": format!("Batch subtask join error: {}", e)
-                                    })
-                                ),
-                                session_message: format!(
-                                    "tool {}\n{}\n",
-                                    "batch",
-                                    serde_json::json!({
-                                        "status": "error",
-                                        "error": format!("Batch subtask join error: {}", e)
-                                    })
-                                ),
-                                is_non_todo: false,
-                                success: false,
-                                output_for_model: None,
-                                error_for_model: Some(format!("Batch subtask join error: {}", e)),
-                            });
+                            .unwrap_or_else(batch_join_error_computed);
                     (idx, computed)
                 });
             }
 
             // 收集所有任务结果
             while let Some(res) = set.join_next().await {
-                if let Ok((idx, computed)) = res {
-                    if idx < out.len() {
-                        out[idx] = Some(computed);
-                    }
-                }
+                let (idx, computed) = res.expect("batch join task should not panic");
+                out[idx] = Some(computed);
             }
             out
         });
@@ -692,111 +794,26 @@ pub(crate) fn run_batch_tool_and_record(
         // 处理并行执行的结果
         for computed in computed.into_iter().flatten() {
             computed_results.push(computed.clone());
-
-            // 发送 UI 事件并记录到会话
-            if emit_ui {
-                on_event(StreamEvent::Delta(computed.ui_message));
-            }
-            let fp = tool_fingerprint(
-                &computed.tool,
-                &computed.input_sanitized,
-                &computed.session_message,
-            );
-            if tool_state.seen.insert(fp) {
-                session.push(super::Role::Tool, computed.session_message);
-            }
-            if computed.is_non_todo {
-                tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
-            }
+            record_computed_tool(session, computed, emit_ui, on_event, tool_state);
         }
     }
 
     // ========== 汇总并格式化结果 ==========
 
-    // 统计成功和失败的工具数量
-    let successful = computed_results.iter().filter(|r| r.success).count();
-    let failed = computed_results.len().saturating_sub(successful);
-
-    // 生成执行摘要消息
-    let output_message = if ran == 0 {
-        "未执行任何子任务".to_string()
-    } else if failed > 0 {
-        format!("已成功执行 {}/{} 个工具，失败 {} 个。", successful, computed_results.len(), failed)
-    } else {
-        format!(
-            "全部 {} 个工具均执行成功。\n\n后续也可以继续使用 batch 工具以获得更高的执行效率。",
-            successful
-        )
-    };
-
-    // 构建输出内容
-    let mut out: Vec<String> = Vec::new();
-    out.push(output_message);
-
-    // 添加所有成功工具的输出
-    let mut success_outputs = computed_results
-        .iter()
-        .filter(|r| r.success)
-        .filter_map(|r| r.output_for_model.as_ref())
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-    if !success_outputs.is_empty() {
-        out.push(String::new());
-        out.append(&mut success_outputs);
-    }
-
-    // 添加所有失败工具的错误信息
-    let errors = computed_results
-        .iter()
-        .filter(|r| !r.success)
-        .filter_map(|r| r.error_for_model.as_ref().map(|e| (r.tool.as_str(), e.as_str())))
-        .collect::<Vec<_>>();
-    if !errors.is_empty() {
-        out.push(String::new());
-        out.push("错误：".to_string());
-        for (tool, err) in errors {
-            out.push(format!("- {}: {}", tool, err));
-        }
-    }
-    let output_for_model = out.join("\n\n");
+    let output_for_model = batch_model_output(ran, &computed_results);
 
     // 生成 batch 工具的 UI 和会话消息
-    let input_sanitized = sanitize_tool_input("batch", input);
-    let input_ui = sanitize_tool_input_for_ui("batch", input);
-    let output_ui = if ran == 0 {
-        "未执行任何子任务".to_string()
-    } else {
-        format!("已执行 {} 个子任务：\n{}", ran, ran_list.join("\n"))
-    };
-    let ui_message = format!(
-        "tool {}\n{}\n",
-        "batch",
-        serde_json::json!({
-            "status": "completed",
-            "input": input_ui,
-            "title": "batch",
-            "metadata": serde_json::json!({ "truncated": false }),
-            "output": output_ui
-        })
-    );
-    let session_message = format!(
-        "tool {}\n{}\n",
-        "batch",
-        serde_json::json!({
-            "status": "completed",
-            "output": output_ui
-        })
-    );
+    let output_ui = batch_ui_output(ran, &ran_list);
+    let summary_record = completed_batch_summary_record(input, &output_ui);
 
     // 发送 UI 事件并记录到会话
     if emit_ui {
-        on_event(StreamEvent::Delta(ui_message));
+        on_event(StreamEvent::Delta(summary_record.ui_message));
     }
-    let fp = tool_fingerprint("batch", &input_sanitized, &session_message);
+    let fp =
+        tool_fingerprint("batch", &summary_record.input_sanitized, &summary_record.session_message);
     if tool_state.seen.insert(fp) {
-        session.push(super::Role::Tool, session_message);
+        session.push(super::Role::Tool, summary_record.session_message);
     }
 
     output_for_model
@@ -889,7 +906,7 @@ fn describe_batch_call(tool: &str, params: &serde_json::Value) -> String {
         super::utils::truncate_string(&sanitized, 200)
     });
 
-    if detail.is_empty() { format!("- {}", tool) } else { format!("- {} {}", tool, detail) }
+    format!("- {} {}", tool, detail)
 }
 
 /// 记录批量工具执行错误
@@ -920,23 +937,9 @@ fn run_batch_error_and_record(
     // 净化输入并生成错误消息
     let input_sanitized = sanitize_tool_input("batch", input);
     let input_ui = sanitize_tool_input_for_ui("batch", input);
-    let ui_message = format!(
-        "tool {}\n{}\n",
-        "batch",
-        serde_json::json!({
-            "status": "error",
-            "input": input_ui,
-            "error": error
-        })
-    );
-    let session_message = format!(
-        "tool {}\n{}\n",
-        "batch",
-        serde_json::json!({
-            "status": "error",
-            "error": error
-        })
-    );
+    let ui_message =
+        format!("tool {}\n{}\n", "batch", error_tool_payload_with_input(&input_ui, &error));
+    let session_message = format!("tool {}\n{}\n", "batch", error_tool_payload(&error));
 
     // 发送 UI 错误事件
     if emit_ui {

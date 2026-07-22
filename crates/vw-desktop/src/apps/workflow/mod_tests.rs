@@ -44,6 +44,27 @@ fn sync_top_tab_replaces_apps_tab_and_updates_existing_workflow_tab() {
 }
 
 #[test]
+fn sync_top_tab_adds_workflow_tab_when_missing() {
+    let mut app = App::new().0;
+    app.workflow_state.source_name = "新建工作流".to_string();
+    app.workflow_state.active_app_id = Some("app".to_string());
+    app.open_tabs.clear();
+    app.active_tab_id = Some("other".to_string());
+    app.screen = Screen::Apps;
+
+    sync_top_tab(&mut app);
+
+    assert_eq!(app.open_tabs.len(), 1);
+    let workflow_tab = &app.open_tabs[0];
+    assert_eq!(workflow_tab.id, WORKFLOW_TOOL_TAB_ID);
+    assert_eq!(workflow_tab.title, "新建工作流");
+    assert_eq!(workflow_tab.screen, Screen::WorkflowTool);
+    assert!(workflow_tab.project_path.is_none());
+    assert_eq!(app.active_tab_id.as_deref(), Some(WORKFLOW_TOOL_TAB_ID));
+    assert_eq!(app.screen, Screen::WorkflowTool);
+}
+
+#[test]
 fn ensure_initialized_starts_saved_apps_load_once() {
     let mut app = App::new().0;
 
@@ -59,6 +80,13 @@ fn ensure_initialized_starts_saved_apps_load_once() {
     app.workflow_state.saved_apps_loaded = true;
     let _ = ensure_initialized(&mut app);
     assert!(!app.workflow_state.saved_apps_loading);
+}
+
+#[test]
+fn view_builds_workflow_element_from_app_state() {
+    let app = App::new().0;
+
+    let _element = view(&app);
 }
 
 #[test]

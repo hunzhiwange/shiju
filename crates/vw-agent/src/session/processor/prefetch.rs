@@ -166,11 +166,15 @@ pub(crate) fn app_session_scope_from_root(root: Option<&str>) -> Option<String> 
 
         // 转换为路径对象
         let root_path = PathBuf::from(root);
+        if !root_path.is_dir() {
+            return None;
+        }
 
         // 异步读取项目信息并提取项目 ID
-        block_on(
-            async move { project::from_directory(&root_path).await.ok().map(|(info, _)| info.id) },
-        )
+        block_on(async move {
+            let tenant = project::default_tenant_scope();
+            project::from_directory(&tenant, &root_path).await.ok().map(|(info, _)| info.id)
+        })
     }
 }
 

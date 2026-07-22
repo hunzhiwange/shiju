@@ -43,6 +43,40 @@ fn constructor_validation_timeout_truncation_and_conversion_helpers() {
 }
 
 #[test]
+fn api_key_rotation_handles_empty_configuration_and_wraps() {
+    let without_keys = WebFetchTool::new(
+        Arc::new(SecurityPolicy::default()),
+        "fast_html2md".to_string(),
+        None,
+        None,
+        vec!["example.com".to_string()],
+        vec![],
+        100,
+        30,
+        "ua".to_string(),
+    );
+    assert_eq!(without_keys.get_next_api_key(), None);
+
+    let rotating = tool("fast_html2md");
+    assert_eq!(rotating.get_next_api_key().as_deref(), Some("a"));
+    assert_eq!(rotating.get_next_api_key().as_deref(), Some("b"));
+    assert_eq!(rotating.get_next_api_key().as_deref(), Some("a"));
+}
+
+#[test]
+fn non_html_http_output_is_preserved_for_every_requested_format() {
+    let tool = tool("unknown");
+    let body = "plain <content> that must stay unchanged";
+
+    for format in [Format::Text, Format::Markdown, Format::Html] {
+        assert_eq!(
+            tool.convert_http_output(body, "text/plain; charset=utf-8", format).unwrap(),
+            body
+        );
+    }
+}
+
+#[test]
 fn schema_spec_and_unknown_provider_are_covered() {
     let tool = tool("unknown");
     assert!(

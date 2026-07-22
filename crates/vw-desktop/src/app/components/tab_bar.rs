@@ -40,6 +40,108 @@ use iced::{Element, Length, Point, Rectangle, Renderer, Theme};
 /// 此常量定义了标签栏组件的固定高度，用于保持整个应用程序中标签栏高度的一致性。
 pub const TAB_BAR_HEIGHT: f32 = 36.0;
 
+fn is_dark_theme(theme: &Theme) -> bool {
+    let base = theme.extended_palette().background.base.color;
+    let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
+    luma < 0.5
+}
+
+fn add_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let hover_bg = if is_dark_theme(theme) {
+        palette.background.strong.color.scale_alpha(0.8)
+    } else {
+        palette.background.weak.color
+    };
+
+    iced::widget::button::Style {
+        background: if status == iced::widget::button::Status::Hovered {
+            Some(hover_bg.into())
+        } else {
+            None
+        },
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 999.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn tab_bar_style(theme: &Theme, hide_border_for_project: bool) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let base = palette.background.base.color;
+    let border_color = if is_dark_theme(theme) {
+        palette.background.strong.color
+    } else {
+        palette.background.weak.color
+    };
+
+    iced::widget::container::Style {
+        background: Some(base.into()),
+        border: iced::Border {
+            width: if hide_border_for_project { 0.0 } else { 1.0 },
+            color: border_color,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+fn display_tab_label(label: &str, is_home: bool) -> String {
+    let max_chars = if is_home { 22 } else { 24 };
+    if label.chars().count() > max_chars {
+        let mut display_label: String = label.chars().take(max_chars).collect();
+        display_label.push_str("...");
+        display_label
+    } else {
+        label.to_string()
+    }
+}
+
+fn tab_label_style(theme: &Theme, active: bool, hovered: bool) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark = is_dark_theme(theme);
+    let active_bg = if is_dark {
+        palette.background.strong.color.scale_alpha(0.85)
+    } else {
+        palette.background.weak.color.scale_alpha(0.35)
+    };
+    let hover_bg = if is_dark {
+        palette.background.weak.color.scale_alpha(0.7)
+    } else {
+        palette.background.weak.color.scale_alpha(0.25)
+    };
+    let background = if active {
+        active_bg
+    } else if hovered {
+        hover_bg
+    } else {
+        iced::Color::TRANSPARENT
+    };
+    let text_color = if active {
+        theme.palette().text
+    } else {
+        theme.palette().text.scale_alpha(if is_dark { 0.78 } else { 0.55 })
+    };
+
+    iced::widget::container::Style {
+        background: Some(background.into()),
+        text_color: Some(text_color),
+        border: iced::Border {
+            radius: iced::border::Radius {
+                top_left: 6.0,
+                top_right: 6.0,
+                bottom_left: 0.0,
+                bottom_right: 0.0,
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 /// 渲染标签栏视图
 ///
 /// 根据应用程序当前状态生成标签栏的 UI 元素，包括所有已打开的标签页和新增按钮。
@@ -99,29 +201,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .align_y(iced::alignment::Vertical::Center),
             )
             .on_press(Message::View(ViewMessage::OpenApps))
-            .style(move |theme: &Theme, status| {
-                // 根据主题亮度计算悬停背景色
-                let palette = theme.extended_palette();
-                let base = palette.background.base.color;
-                // 使用 BT.709 亮度公式计算颜色亮度
-                let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
-                let is_dark = luma < 0.5;
-                let hover_bg = if is_dark {
-                    palette.background.strong.color.scale_alpha(0.8)
-                } else {
-                    palette.background.weak.color
-                };
-                iced::widget::button::Style {
-                    background: if status == iced::widget::button::Status::Hovered {
-                        Some(hover_bg.into())
-                    } else {
-                        None
-                    },
-                    text_color: theme.palette().text,
-                    border: iced::Border { radius: 999.0.into(), ..Default::default() },
-                    ..Default::default()
-                }
-            })
+            .style(add_button_style)
             .padding(0)
             .width(Length::Fixed(22.0))
             .height(Length::Fixed(22.0)),
@@ -138,29 +218,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 构建标签栏容器
     container(tabs_row.spacing(3).align_y(iced::Alignment::Center))
         .width(Length::Fill)
-        .height(Length::Fixed(36.0))
+        .height(Length::Fixed(TAB_BAR_HEIGHT))
         .padding(iced::Padding { top: 4.0, right: 4.0, bottom: 0.0, left: 4.0 })
-        .style(move |theme: &Theme| {
-            // 根据主题计算边框颜色
-            let palette = theme.extended_palette();
-            let base = palette.background.base.color;
-            let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
-            let is_dark = luma < 0.5;
-            let border_color = if is_dark {
-                palette.background.strong.color
-            } else {
-                palette.background.weak.color
-            };
-            iced::widget::container::Style {
-                background: Some(base.into()),
-                border: iced::Border {
-                    width: if hide_border_for_project { 0.0 } else { 1.0 },
-                    color: border_color,
-                    ..Default::default()
-                },
-                ..Default::default()
-            }
-        })
+        .style(move |theme: &Theme| tab_bar_style(theme, hide_border_for_project))
         .into()
 }
 
@@ -292,14 +352,7 @@ fn tab_btn<'a>(
     let close_gap = 6.0;
 
     // 标签标题截断逻辑：首页标签最多22字符，其他标签最多24字符
-    let max_chars = if is_home { 22 } else { 24 };
-    let display_label = if label.chars().count() > max_chars {
-        let mut s: String = label.chars().take(max_chars).collect();
-        s.push_str("...");
-        s
-    } else {
-        label
-    };
+    let display_label = display_tab_label(&label, is_home);
 
     // 关闭按钮：仅对非首页标签且悬停时显示
     let close_btn = if !is_home && hovered {
@@ -380,60 +433,7 @@ fn tab_btn<'a>(
             let p = close_btn_size + close_gap;
             iced::Padding { left: p, right: p, top: 0.0, bottom: 0.0 }
         })
-        .style(move |theme: &Theme| {
-            // 根据主题亮度和标签状态计算样式
-            let palette = theme.extended_palette();
-            let base = palette.background.base.color;
-            // BT.709 亮度公式
-            let luma = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
-            let is_dark = luma < 0.5;
-            let a = active;
-            let h = hovered;
-
-            // 活动标签背景色
-            let active_bg = if is_dark {
-                palette.background.strong.color.scale_alpha(0.85)
-            } else {
-                palette.background.weak.color.scale_alpha(0.35)
-            };
-            // 悬停标签背景色
-            let hover_bg = if is_dark {
-                palette.background.weak.color.scale_alpha(0.7)
-            } else {
-                palette.background.weak.color.scale_alpha(0.25)
-            };
-            // 确定最终背景色
-            let bg = if a {
-                active_bg
-            } else if h {
-                hover_bg
-            } else {
-                iced::Color::TRANSPARENT
-            };
-
-            // 文本颜色：活动标签全不透明，非活动标签半透明
-            let text_color = if a {
-                theme.palette().text
-            } else {
-                theme.palette().text.scale_alpha(if is_dark { 0.78 } else { 0.55 })
-            };
-
-            iced::widget::container::Style {
-                background: Some(bg.into()),
-                text_color: Some(text_color),
-                // 标签顶部圆角
-                border: iced::Border {
-                    radius: iced::border::Radius {
-                        top_left: 6.0,
-                        top_right: 6.0,
-                        bottom_left: 0.0,
-                        bottom_right: 0.0,
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }
-        });
+        .style(move |theme: &Theme| tab_label_style(theme, active, hovered));
 
     // 叠加标签内容和关闭按钮（如果存在）
     let stack_content = if let Some(close) = close_btn {

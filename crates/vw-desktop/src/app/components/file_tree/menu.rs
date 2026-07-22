@@ -24,6 +24,44 @@ use iced::{Background, Color, Element, Length, Theme, Vector};
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{App, Message};
 
+pub(super) fn file_tree_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    let bg = match status {
+        iced::widget::button::Status::Hovered => p.background.weak.color,
+        iced::widget::button::Status::Pressed => p.background.strong.color,
+        _ => Color::TRANSPARENT,
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 4.0.into(), ..iced::Border::default() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn file_tree_menu_separator_style(theme: &Theme) -> container::Style {
+    let p = theme.extended_palette();
+    container::Style { background: Some(p.background.strong.color.into()), ..Default::default() }
+}
+
+pub(super) fn file_tree_menu_container_style(theme: &Theme) -> container::Style {
+    let p = theme.extended_palette();
+    container::Style {
+        background: Some(p.background.base.color.into()),
+        border: iced::Border { color: p.background.strong.color, width: 1.0, radius: 8.0.into() },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.1),
+            offset: Vector::new(0.0, 4.0),
+            blur_radius: 12.0,
+        },
+        ..Default::default()
+    }
+}
+
 /// 构建文件树右键菜单
 ///
 /// 根据当前应用状态和配置创建一个包含多种文件操作的上下文菜单。
@@ -64,23 +102,7 @@ pub fn build_file_tree_menu<'a>(
         let label = label.to_string();
         button(container(text(label).size(13)).width(Length::Fill).padding([2, 8]))
             .on_press(Message::Project(ProjectMessage::FileTreeAction(action)))
-            .style(|theme: &Theme, status| {
-                // 获取主题的扩展调色板
-                let p = theme.extended_palette();
-                // 根据按钮状态设置背景色
-                let bg = match status {
-                    iced::widget::button::Status::Hovered => p.background.weak.color,
-                    iced::widget::button::Status::Pressed => p.background.strong.color,
-                    _ => Color::TRANSPARENT,
-                };
-                // 返回按钮样式：透明背景、主题文本颜色、圆角边框
-                iced::widget::button::Style {
-                    background: Some(Background::Color(bg)),
-                    text_color: theme.palette().text,
-                    border: iced::Border { radius: 4.0.into(), ..iced::Border::default() },
-                    ..Default::default()
-                }
-            })
+            .style(file_tree_menu_button_style)
             .width(Length::Fill)
             .into()
     };
@@ -91,13 +113,7 @@ pub fn build_file_tree_menu<'a>(
         container(Space::new())
             .width(Length::Fill)
             .height(Length::Fixed(1.0))
-            .style(|theme: &Theme| {
-                let p = theme.extended_palette();
-                container::Style {
-                    background: Some(p.background.strong.color.into()),
-                    ..Default::default()
-                }
-            })
+            .style(file_tree_menu_separator_style)
             .into()
     };
 
@@ -142,26 +158,5 @@ pub fn build_file_tree_menu<'a>(
 
     // 包装菜单内容，应用容器样式
     // 设置背景、边框和阴影效果
-    container(content)
-        .style(|theme: &Theme| {
-            let p = theme.extended_palette();
-            container::Style {
-                // 背景色：主题基础背景色
-                background: Some(p.background.base.color.into()),
-                // 边框：主题强背景色、1px 宽度、圆角
-                border: iced::Border {
-                    color: p.background.strong.color,
-                    width: 1.0,
-                    radius: 8.0.into(),
-                },
-                // 阴影：黑色半透明、向下偏移、模糊半径 12px
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(0.1),
-                    offset: Vector::new(0.0, 4.0),
-                    blur_radius: 12.0,
-                },
-                ..Default::default()
-            }
-        })
-        .into()
+    container(content).style(file_tree_menu_container_style).into()
 }

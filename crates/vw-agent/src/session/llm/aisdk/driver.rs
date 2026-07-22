@@ -73,7 +73,7 @@ pub(crate) async fn dispatch_stream_request(
     merged_options: &Value,
     retries: u64,
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
-    on_event: &mut impl FnMut(StreamEvent),
+    on_event: &mut (impl FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
     match resolve_driver_kind(provider_id, &model.api.adapter) {
         DriverKind::AlibabaCn => {

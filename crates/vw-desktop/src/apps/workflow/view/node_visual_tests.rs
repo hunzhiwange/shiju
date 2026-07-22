@@ -136,6 +136,25 @@ fn node_visual_section_builds_answer_visual() {
 }
 
 #[test]
+fn node_visual_section_dispatches_by_visual_draft_instead_of_block_type() {
+    assert_visual_section_builds(
+        "answer",
+        WorkflowNodeVisualDraft::Tool {
+            provider_id: "provider_1".to_string(),
+            provider_type: "builtin".to_string(),
+            provider_name: "search".to_string(),
+            tool_name: "web_search".to_string(),
+            tool_label: "Web Search".to_string(),
+            tool_description: "search the web".to_string(),
+            credential_id: "credential_1".to_string(),
+            plugin_unique_identifier: "plugin.search".to_string(),
+            tool_parameters_editor: text_editor::Content::with_text("{}"),
+            tool_configurations_editor: text_editor::Content::with_text("{}"),
+        },
+    );
+}
+
+#[test]
 fn node_visual_section_builds_if_else_visual() {
     assert_visual_section_builds(
         "if-else",
@@ -148,6 +167,11 @@ fn node_visual_section_builds_if_else_visual() {
             }],
         },
     );
+}
+
+#[test]
+fn node_visual_section_builds_empty_if_else_visual() {
+    assert_visual_section_builds("if-else", WorkflowNodeVisualDraft::IfElse { cases: Vec::new() });
 }
 
 #[test]

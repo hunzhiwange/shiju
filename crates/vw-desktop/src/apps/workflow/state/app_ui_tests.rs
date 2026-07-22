@@ -54,6 +54,29 @@ fn organize_active_app_separates_overlapped_connected_nodes() {
 }
 
 #[test]
+fn organized_node_positions_returns_empty_for_empty_document_and_layers_chain_edges() {
+    assert!(organized_node_positions(&WorkflowDocument::default()).is_empty());
+
+    let document = WorkflowDocument {
+        nodes: vec![
+            WorkflowNode { size: Size::new(100.0, 80.0), ..test_node("a", "start") },
+            WorkflowNode { size: Size::new(220.0, 140.0), ..test_node("b", "llm") },
+            WorkflowNode { size: Size::new(120.0, 120.0), ..test_node("c", "answer") },
+        ],
+        edges: vec![test_edge("a", "b"), test_edge("b", "c")],
+        ..WorkflowDocument::default()
+    };
+
+    let positions = organized_node_positions(&document);
+
+    assert_eq!(positions.get("a"), Some(&Point::new(-180.0, 120.0)));
+    assert!(positions["b"].x > positions["a"].x);
+    assert!(positions["c"].x > positions["b"].x);
+    assert_eq!(positions["b"].y, 120.0);
+    assert_eq!(positions["c"].y, 120.0);
+}
+
+#[test]
 fn open_context_menu_selects_target_and_closes_other_interactions() {
     let document = WorkflowDocument {
         nodes: vec![test_node("start", "start"), test_node("answer", "answer")],
@@ -144,6 +167,61 @@ fn context_menu_new_node_position_uses_canvas_world_or_node_right_side() {
         Point::new(700.0, 800.0),
     );
     assert_eq!(state.context_menu_new_node_position(), Point::new(700.0, 800.0));
+}
+
+#[test]
+fn context_menu_edge_uses_world_and_node_insert_selects_node() {
+    let document = WorkflowDocument {
+        nodes: vec![test_node("start", "start")],
+        edges: vec![test_edge("start", "missing")],
+        ..WorkflowDocument::default()
+    };
+    let mut state = state_with_document(document);
+
+    state.open_context_menu(
+        WorkflowCanvasContextMenuTarget::Edge("start-missing".to_string()),
+        Point::new(1.0, 2.0),
+        Point::new(33.0, 44.0),
+    );
+
+    assert_eq!(state.context_menu_new_node_position(), Point::new(33.0, 44.0));
+    assert!(state.context_menu_auto_connect_source_node_id().is_none());
+
+    state.open_context_menu(
+        WorkflowCanvasContextMenuTarget::NodeInsert("start".to_string()),
+        Point::new(5.0, 6.0),
+        Point::new(7.0, 8.0),
+    );
+
+    assert_eq!(state.selected_node_id.as_deref(), Some("start"));
+    assert!(state.selected_edge_id.is_none());
+    assert!(state.document.node("start").unwrap().selected);
+}
+
+#[test]
+fn editor_setters_are_noops_without_editor_and_update_draft_when_present() {
+    let mut state = WorkflowState::default();
+
+    state.set_editor_name("Ignored".to_string());
+    state.set_editor_description("Ignored".to_string());
+    state.set_editor_icon("Ignored".to_string());
+    state.set_editor_use_icon_as_answer_icon(true);
+    state.set_editor_max_active_requests_input("9".to_string());
+    assert!(state.app_editor.is_none());
+
+    state.open_create_editor();
+    state.set_editor_name("Name".to_string());
+    state.set_editor_description("Description".to_string());
+    state.set_editor_icon("Icon".to_string());
+    state.set_editor_use_icon_as_answer_icon(false);
+    state.set_editor_max_active_requests_input("7".to_string());
+
+    let editor = state.app_editor.as_ref().expect("editor should remain open");
+    assert_eq!(editor.name, "Name");
+    assert_eq!(editor.description, "Description");
+    assert_eq!(editor.icon, "Icon");
+    assert!(!editor.use_icon_as_answer_icon);
+    assert_eq!(editor.max_active_requests_input, "7");
 }
 
 #[test]
@@ -287,6 +365,35 @@ fn submit_editor_reports_invalid_name_or_max_requests_and_marks_inactive_edits_d
 }
 
 #[test]
+fn submit_editor_for_missing_target_still_closes_editor_without_dirtying_active_app() {
+    let document = WorkflowDocument {
+        nodes: vec![test_node("start", "start")],
+        ..WorkflowDocument::default()
+    };
+    let mut state = state_with_document(document);
+    state.action_menu_open = true;
+    state.app_editor = Some(WorkflowAppEditorDraft {
+        mode: WorkflowAppEditorMode::Edit("missing".to_string()),
+        name: "Missing".to_string(),
+        description: "Desc".to_string(),
+        icon: "M".to_string(),
+        use_icon_as_answer_icon: true,
+        max_active_requests_input: "1".to_string(),
+    });
+
+    state
+        .submit_editor((800.0, 600.0), loaded_workflow("Unused"))
+        .expect("missing target edit should be accepted as a closed editor");
+
+    assert!(state.app_editor.is_none());
+    assert!(!state.action_menu_open);
+    assert_eq!(state.status_message.as_deref(), Some("已更新应用信息"));
+    assert_eq!(state.apps[0].meta.name, "App");
+    assert!(!state.active_is_dirty);
+    assert!(state.undo_stack.is_empty());
+}
+
+#[test]
 fn organize_active_app_reports_missing_active_or_empty_document() {
     let mut state = WorkflowState::default();
     assert_eq!(state.organize_active_app((800.0, 600.0)).unwrap_err(), "请先打开一个应用");
@@ -315,6 +422,45 @@ fn organize_active_app_reports_missing_active_or_empty_document() {
     state.active_app_id = Some("app".to_string());
     state.saved_snapshot = Some(snapshot);
     assert_eq!(state.organize_active_app((800.0, 600.0)).unwrap_err(), "当前应用没有可整理的节点");
+}
+
+#[test]
+fn organize_active_app_handles_cycles_missing_edges_and_resets_transient_ui_state() {
+    let document = WorkflowDocument {
+        nodes: vec![
+            WorkflowNode { size: Size::new(120.0, 90.0), ..test_node("a", "start") },
+            WorkflowNode { size: Size::new(360.0, 160.0), ..test_node("b", "llm") },
+            WorkflowNode { size: Size::new(180.0, 80.0), ..test_node("c", "answer") },
+        ],
+        edges: vec![test_edge("a", "b"), test_edge("b", "a"), test_edge("missing", "c")],
+        ..WorkflowDocument::default()
+    };
+    let mut state = state_with_document(document);
+    state.context_menu = Some(WorkflowCanvasContextMenu {
+        target: WorkflowCanvasContextMenuTarget::Canvas,
+        anchor: Point::new(1.0, 1.0),
+        world: Point::new(2.0, 2.0),
+    });
+    state.quick_insert_panel_open = true;
+    state.action_menu_open = true;
+    state.zoom_menu_open = true;
+    state.dragging_node_id = Some("a".to_string());
+    state.drag_pending_snapshot = Some(test_snapshot(&state.document));
+
+    state.organize_active_app((1280.0, 860.0)).expect("layout should succeed");
+
+    let a = state.document.node("a").expect("a node should exist");
+    let b = state.document.node("b").expect("b node should exist");
+    let c = state.document.node("c").expect("c node should exist");
+    assert_ne!(a.position, b.position);
+    assert_eq!(c.position, Point::new(-180.0, 120.0));
+    assert!(state.context_menu.is_none());
+    assert!(!state.quick_insert_panel_open);
+    assert!(!state.action_menu_open);
+    assert!(!state.zoom_menu_open);
+    assert!(state.dragging_node_id.is_none());
+    assert!(state.drag_pending_snapshot.is_none());
+    assert_eq!(state.status_message.as_deref(), Some("已整理应用节点位置"));
 }
 
 #[test]
@@ -350,6 +496,37 @@ fn persist_active_snapshot_updates_entry_and_active_entry_snapshot_returns_clone
     assert_eq!(entry.selected_node_id.as_deref(), Some("start"));
     assert_eq!(entry.environment_variables.len(), 1);
     assert_eq!(state.apps[0].saved_snapshot.meta.name, "Renamed");
+}
+
+#[test]
+fn persist_active_snapshot_preserves_explicit_saved_snapshot_and_handles_missing_active() {
+    let document = WorkflowDocument {
+        nodes: vec![test_node("start", "start")],
+        ..WorkflowDocument::default()
+    };
+    let explicit_snapshot = WorkflowHistorySnapshot {
+        meta: WorkflowAppMeta { name: "Saved".to_string(), ..Default::default() },
+        document: document.clone(),
+        environment_variables: Vec::new(),
+        conversation_variables: Vec::new(),
+        pan: Vector::new(1.0, 2.0),
+        zoom: 1.25,
+        selected_node_id: Some("start".to_string()),
+        selected_edge_id: None,
+    };
+    let mut state = state_with_document(document);
+    state.saved_snapshot = Some(explicit_snapshot.clone());
+    state.source_name = "App".to_string();
+
+    state.persist_active_snapshot();
+
+    assert_eq!(state.apps[0].saved_snapshot, explicit_snapshot);
+
+    state.active_app_id = None;
+    state.source_name = "Ignored".to_string();
+    state.persist_active_snapshot();
+    assert_eq!(state.apps[0].meta.name, "App");
+    assert!(state.active_entry_snapshot().is_none());
 }
 
 fn test_node(id: &str, block_type: &str) -> WorkflowNode {

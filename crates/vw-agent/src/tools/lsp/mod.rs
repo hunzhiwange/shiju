@@ -454,6 +454,9 @@ impl Tool for LspTool {
     }
 
     fn validate_input(&self, input: Value) -> anyhow::Result<Value> {
+        if !input.is_object() {
+            anyhow::bail!("Missing or invalid parameters: expected object");
+        }
         let args: Args = serde_json::from_value(input.clone())
             .map_err(|error| anyhow::anyhow!("Missing or invalid parameters: {error}"))?;
 
@@ -481,6 +484,9 @@ impl Tool for LspTool {
     }
 
     async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
+        if !input.is_object() {
+            anyhow::bail!("Missing or invalid parameters: expected object");
+        }
         let args: Args = serde_json::from_value(input)
             .map_err(|error| anyhow::anyhow!("Missing or invalid parameters: {error}"))?;
         let validated = self.validate_args(&args).await?;

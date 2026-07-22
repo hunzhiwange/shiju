@@ -6,14 +6,17 @@
 
 use axum::http::HeaderMap;
 use serde::Deserialize;
+use vw_api_types::id::TenantScope;
 use vw_api_types::session::GatewaySessionCreateBody;
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
+use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::session as agent_session;
 use crate::app::agent::storage;
+use crate::session::ui_store;
 
 /// 将 session 层错误映射为网关 API 错误。
 ///
@@ -90,11 +93,23 @@ pub(super) struct UiSessionCreateBody {
 ///
 /// 返回当前目录对应的 scope id；无法解析时返回 `None`。
 pub(super) fn resolve_scope_from_query(
+    tenant: &TenantScope,
     query: &InstanceQuery,
     headers: &HeaderMap,
 ) -> Option<String> {
     let dir = resolve_directory(query, headers);
-    crate::session::ui_store::resolve_session_scope_id(Some(&dir), None)
+    crate::session::ui_store::resolve_session_scope_id_for_tenant(tenant, Some(&dir), None)
+}
+
+pub(super) async fn with_tenant_instance<T>(
+    tenant: TenantScope,
+    directory: String,
+    f: impl FnOnce() -> crate::app::agent::project::BoxFuture<Result<T, ApiError>> + Send + 'static,
+) -> Result<T, ApiError> {
+    crate::app::agent::project::from_directory(&tenant, &directory)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    ui_store::with_tenant_scope(tenant, with_instance(directory, f)).await
 }
 
 #[cfg(test)]

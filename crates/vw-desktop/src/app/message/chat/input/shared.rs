@@ -1,7 +1,6 @@
 //! 处理聊天输入区的局部消息。
 //! 本模块将编辑器操作、文件检索和工具细节限制在输入面板边界内。
 
-use crate::app::components::chat_panel::height_index::CHAT_MESSAGE_GAP;
 use crate::app::components::chat_panel::message_view::{
     build_render_cache_entry, deduped_tool_last_indices,
 };
@@ -155,16 +154,7 @@ fn locate_chat_message_idx(
     app.sync_chat_message_estimated_heights_len();
     app.refine_chat_message_estimated_heights(target_idx, (target_idx + 1).min(app.chat.len()));
 
-    let total_height = app.chat_height_index.total_height().max(0.0);
     let viewport_h = app.chat_scroll_viewport_h.max(0.0);
-    let max_scroll = (total_height - viewport_h).max(0.0);
-    let prefix_height = app
-        .chat_message_estimated_heights
-        .iter()
-        .take(target_idx)
-        .fold(0.0, |acc, height| acc + height.max(0.0) + CHAT_MESSAGE_GAP);
-    let target_height =
-        app.chat_message_estimated_heights.get(target_idx).copied().unwrap_or(0.0).max(0.0);
     let target_anchor_fraction = app
         .chat
         .get(target_idx)
@@ -177,13 +167,9 @@ fn locate_chat_message_idx(
             )
         })
         .unwrap_or(0.50);
-    let desired_top = if viewport_h > 0.0 {
-        (prefix_height + target_height * target_anchor_fraction - viewport_h * 0.18).max(0.0)
-    } else {
-        prefix_height
-    };
-    let relative_y =
-        if max_scroll <= 0.0 { 0.0 } else { (desired_top / max_scroll).clamp(0.0, 1.0) };
+    app.chat_virtualizer.set_viewport_height(viewport_h);
+    app.chat_virtualizer.scroll_to_item_anchor(target_idx, target_anchor_fraction, 0.18);
+    app.sync_chat_virtualizer_compat_fields();
 
     let target_chunk_start = crate::app::session::chat_ui_chunk_start_idx(target_idx);
     let prewarm_task =
@@ -208,7 +194,7 @@ fn locate_chat_message_idx(
         prewarm_task,
         operation::snap_to(
             app.chat_scroll_id.clone(),
-            scrollable::RelativeOffset { x: Some(0.0), y: Some(relative_y) },
+            scrollable::RelativeOffset { x: Some(0.0), y: Some(app.chat_scroll_offset_y) },
         )
         .map(|_: ()| Message::CopyDone),
     ])

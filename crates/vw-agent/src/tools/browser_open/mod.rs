@@ -99,7 +99,7 @@ impl BrowserOpenTool {
                 blocked_domains: &[],
                 allowed_field_name: "browser.allowed_domains",
                 blocked_field_name: None,
-                empty_allowed_message: "Browser tool is enabled but no allowed_domains are configured. Add [browser].allowed_domains in vibewindow.json",
+                empty_allowed_message: "Browser tool is enabled but no allowed_domains are configured. Add browser.allowed_domains in system settings",
                 scheme_policy: UrlSchemePolicy::HttpsOnly,
                 ipv6_error_context: "browser_open",
             },

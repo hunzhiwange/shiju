@@ -316,9 +316,7 @@ impl<W: Write> OutputFormatter for TextOutputFormatter<W> {
     }
 
     fn on_acp_message(&mut self, message: AcpJsonRpcMessage) {
-        let Ok(value) = serde_json::to_value(message) else {
-            return;
-        };
+        let value = serde_json::to_value(message).unwrap_or(Value::Null);
 
         if let Some(update) = session_update(&value) {
             let update_type =
@@ -449,9 +447,7 @@ impl<W: Write> OutputFormatter for QuietOutputFormatter<W> {
     }
 
     fn on_acp_message(&mut self, message: AcpJsonRpcMessage) {
-        let Ok(value) = serde_json::to_value(message) else {
-            return;
-        };
+        let value = serde_json::to_value(message).unwrap_or(Value::Null);
 
         if let Some(update) = session_update(&value) {
             let update_type =
@@ -650,6 +646,9 @@ fn truncate_text(text: &str) -> String {
     format!("{}...", &text[..end])
 }
 
+#[cfg(test)]
+#[path = "output_coverage_tests.rs"]
+mod output_coverage_tests;
 #[cfg(test)]
 #[path = "output_tests.rs"]
 mod output_tests;

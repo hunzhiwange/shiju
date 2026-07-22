@@ -119,6 +119,29 @@ fn picker_close_and_name_change_update_state() {
 }
 
 #[test]
+fn picking_existing_workspace_remembers_directory_and_resets_picker_state() {
+    let mut app = app();
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_picker_options =
+        vec![("/tmp/project-wt".to_string(), "功能工作区".to_string())];
+    app.new_session_worktree_name = "stale-name".to_string();
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionPicked {
+            project_path: "/tmp/project".to_string(),
+            directory: "/tmp/project-wt".to_string(),
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.new_session_last_directory.as_deref(), Some("/tmp/project-wt"));
+    assert!(app.new_session_picker_project.is_none());
+    assert!(app.new_session_picker_options.is_empty());
+    assert!(app.new_session_worktree_name.is_empty());
+}
+
+#[test]
 fn create_worktree_validates_empty_and_invalid_names_before_async_call() {
     let mut app = app();
     let project = "/tmp/project".to_string();
@@ -209,6 +232,51 @@ fn delete_worktree_cancel_and_missing_confirmation_are_noops() {
 }
 
 #[test]
+fn delete_worktree_confirmed_requires_project_and_directory() {
+    let mut app = app();
+    app.new_session_confirm_delete_directory = Some("/tmp/wt".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed,
+    );
+    assert!(task.is_some());
+    assert_eq!(app.new_session_confirm_delete_directory.as_deref(), Some("/tmp/wt"));
+
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_confirm_delete_directory = None;
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed,
+    );
+    assert!(task.is_some());
+    assert!(app.new_session_confirm_delete_directory.is_none());
+}
+
+#[test]
+fn delete_worktree_confirmed_for_secondary_clears_messages_before_async_task() {
+    let mut app = app();
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_confirm_delete_directory = Some("/tmp/wt".to_string());
+    app.new_session_force_delete_directory = Some("/tmp/old-force".to_string());
+    app.new_session_delete_error = Some("old delete error".to_string());
+    app.new_session_confirm_reset_directory = Some("/tmp/old-reset".to_string());
+    app.new_session_reset_error = Some("old reset error".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed,
+    );
+
+    assert!(task.is_some());
+    assert!(app.new_session_confirm_delete_directory.is_none());
+    assert!(app.new_session_force_delete_directory.is_none());
+    assert!(app.new_session_delete_error.is_none());
+    assert!(app.new_session_confirm_reset_directory.is_none());
+    assert!(app.new_session_reset_error.is_none());
+}
+
+#[test]
 fn delete_worktree_confirmed_blocks_primary_and_result_handles_success_error_and_stale_project() {
     let mut app = app();
     let project = "/tmp/project".to_string();
@@ -261,6 +329,32 @@ fn delete_worktree_confirmed_blocks_primary_and_result_handles_success_error_and
 }
 
 #[test]
+fn delete_worktree_success_preserves_a_different_last_directory() {
+    let mut app = app();
+    let project = "/tmp/project".to_string();
+    app.new_session_picker_project = Some(project.clone());
+    app.new_session_last_directory = Some("/tmp/recent-wt".to_string());
+    app.new_session_delete_error = Some("old".to_string());
+    app.new_session_force_delete_directory = Some("/tmp/deleted-wt".to_string());
+    app.new_session_reset_error = Some("old reset".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionDeleteWorktreeResult {
+            project_path: project,
+            directory: "/tmp/deleted-wt".to_string(),
+            result: Ok(()),
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.new_session_last_directory.as_deref(), Some("/tmp/recent-wt"));
+    assert!(app.new_session_delete_error.is_none());
+    assert!(app.new_session_force_delete_directory.is_none());
+    assert!(app.new_session_reset_error.is_none());
+}
+
+#[test]
 fn force_delete_requires_directory_then_starts_async_task() {
     let mut app = app();
     app.new_session_picker_project = Some("/tmp/project".to_string());
@@ -278,6 +372,20 @@ fn force_delete_requires_directory_then_starts_async_task() {
     );
     assert!(task.is_some());
     assert!(app.new_session_force_delete_directory.is_none());
+}
+
+#[test]
+fn force_delete_requires_an_active_project() {
+    let mut app = app();
+    app.new_session_force_delete_directory = Some("/tmp/wt".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionDeleteWorktreeForceConfirmed,
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.new_session_force_delete_directory.as_deref(), Some("/tmp/wt"));
 }
 
 #[test]
@@ -364,4 +472,31 @@ fn reset_worktree_confirmed_and_result_update_state() {
     );
     assert!(app.new_session_reset_error.is_none());
     assert!(app.notifications.iter().any(|item| item.message == "工作区已重置"));
+}
+
+#[test]
+fn reset_worktree_confirmed_for_secondary_clears_prompt_before_async_task() {
+    let mut app = app();
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_confirm_reset_directory = Some("/tmp/wt".to_string());
+    app.new_session_reset_error = Some("old".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionResetWorktreeConfirmed,
+    );
+
+    assert!(task.is_some());
+    assert!(app.new_session_confirm_reset_directory.is_none());
+    assert!(app.new_session_reset_error.is_none());
+}
+
+#[test]
+fn unrelated_project_message_is_not_handled() {
+    let mut app = app();
+
+    let task =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::OpenFolderPressed);
+
+    assert!(task.is_none());
 }

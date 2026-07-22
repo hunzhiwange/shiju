@@ -315,3 +315,7 @@ fn fill_missing_change_fields(target: &mut ChangeFile, source: &ChangeFile) {
 #[cfg(test)]
 #[path = "tests/apply_patch_preview.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "apply_patch_preview_tests.rs"]
+mod coverage_tests;

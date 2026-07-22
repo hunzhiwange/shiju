@@ -3,15 +3,15 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_input_style,
+    settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
-use crate::app::views::design::properties::NumberInput;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Border, Element, Length};
@@ -72,6 +72,10 @@ fn bool_row<'a>(
     )
 }
 
+fn parse_bounded_number(value: &str, min: f32, max: f32) -> f32 {
+    value.parse::<f32>().unwrap_or(min).clamp(min, max)
+}
+
 fn number_row<'a>(
     label: &'static str,
     value: String,
@@ -87,7 +91,7 @@ fn number_row<'a>(
         "",
         row![
             NumberInput::new(
-                value.parse::<f32>().unwrap_or(min).clamp(min, max),
+                parse_bounded_number(&value, min, max),
                 min,
                 max,
                 step,
@@ -551,10 +555,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if let Some(qdrant_section) = qdrant_section {
         content = content.push(qdrant_section);
-    }
-
-    if let Some(err) = &s.save_error {
-        content = content.push(settings_error_banner(err));
     }
 
     content.into()

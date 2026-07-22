@@ -65,7 +65,7 @@ fn unique_dir(prefix: &str) -> PathBuf {
 fn write_config(dir: &Path, value: serde_json::Value) {
     std::fs::create_dir_all(dir).expect("config dir should be created");
     std::fs::write(
-        dir.join("vibewindow.json"),
+        dir.join(".vibewindow.json"),
         serde_json::to_string_pretty(&value).expect("config should serialize"),
     )
     .expect("config should be written");
@@ -83,28 +83,41 @@ fn valid_config(
 }
 
 #[test]
-fn config_path_uses_explicit_config_dir() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+fn project_config_override_path_uses_explicit_workspace() {
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("path");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
 
-    assert_eq!(super::config_path(), Some(dir.join("vibewindow.json")));
+    assert_eq!(super::project_config_override_path(), Some(dir.join(".vibewindow.json")));
 }
 
 #[test]
-fn config_path_falls_back_for_blank_explicit_dir_as_literal_path() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
-    env.set("VIBEWINDOW_CONFIG_DIR", "  ");
+fn config_path_matches_project_override_compatibility_alias() {
+    let _env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
+    let workspace = unique_dir("config-path-alias");
+    _env.set_path("VIBEWINDOW_WORKSPACE", &workspace);
 
-    assert_eq!(super::config_path(), Some(PathBuf::from("  ").join("vibewindow.json")));
+    assert_eq!(super::config_path(), super::project_config_override_path());
+    assert_eq!(super::config_path(), Some(workspace.join(".vibewindow.json")));
+}
+
+#[test]
+fn project_config_override_path_ignores_blank_workspace() {
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
+    env.set("VIBEWINDOW_WORKSPACE", "  ");
+
+    assert_eq!(
+        super::project_config_override_path(),
+        std::env::current_dir().ok().map(|dir| dir.join(".vibewindow.json"))
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let missing = unique_dir("missing");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &missing);
+    env.set_path("VIBEWINDOW_WORKSPACE", &missing);
     assert_eq!(
         super::get().await.default_model,
         vw_config_types::config::Config::default().default_model
@@ -112,8 +125,8 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
 
     let empty = unique_dir("empty");
     std::fs::create_dir_all(&empty).expect("empty dir should be created");
-    std::fs::write(empty.join("vibewindow.json"), "   ").expect("empty config should be written");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &empty);
+    std::fs::write(empty.join(".vibewindow.json"), "   ").expect("empty config should be written");
+    env.set_path("VIBEWINDOW_WORKSPACE", &empty);
     assert_eq!(
         super::get().await.default_model,
         vw_config_types::config::Config::default().default_model
@@ -121,8 +134,9 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
 
     let invalid = unique_dir("invalid");
     std::fs::create_dir_all(&invalid).expect("invalid dir should be created");
-    std::fs::write(invalid.join("vibewindow.json"), "{").expect("invalid config should be written");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &invalid);
+    std::fs::write(invalid.join(".vibewindow.json"), "{")
+        .expect("invalid config should be written");
+    env.set_path("VIBEWINDOW_WORKSPACE", &invalid);
     assert_eq!(
         super::get().await.default_model,
         vw_config_types::config::Config::default().default_model
@@ -132,9 +146,9 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn get_reads_valid_config_file() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("valid");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(
         &dir,
         valid_config(
@@ -154,9 +168,9 @@ async fn get_reads_valid_config_file() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn get_blocking_reads_config_without_existing_runtime() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("blocking");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(&dir, valid_config(json!("blocking/model"), json!({})));
 
     let config = super::get_blocking();
@@ -167,9 +181,9 @@ fn get_blocking_reads_config_without_existing_runtime() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn get_blocking_reads_config_from_existing_runtime() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("blocking-runtime");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(&dir, valid_config(json!("runtime/model"), json!({})));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -184,9 +198,9 @@ fn get_blocking_reads_config_from_existing_runtime() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn load_provider_overrides_keeps_only_object_provider_values() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("providers");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(
         &dir,
         valid_config(
@@ -209,9 +223,9 @@ async fn load_provider_overrides_keeps_only_object_provider_values() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn read_default_model_returns_configured_value() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("default-model");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(&dir, valid_config(json!("configured/model"), json!({})));
 
     assert_eq!(super::read_default_model().await.as_deref(), Some("configured/model"));
@@ -220,20 +234,20 @@ async fn read_default_model_returns_configured_value() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn read_default_model_can_return_none_when_config_sets_null() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
     let dir = unique_dir("default-model-null");
-    env.set_path("VIBEWINDOW_CONFIG_DIR", &dir);
+    env.set_path("VIBEWINDOW_WORKSPACE", &dir);
     write_config(&dir, valid_config(serde_json::Value::Null, json!({})));
 
     assert_eq!(super::read_default_model().await, None);
 }
 
 #[test]
-fn env_guard_can_remove_config_dir_for_default_path_branch() {
-    let env = EnvGuard::new(&["VIBEWINDOW_CONFIG_DIR"]);
-    env.remove("VIBEWINDOW_CONFIG_DIR");
+fn project_config_override_path_falls_back_to_current_directory() {
+    let env = EnvGuard::new(&["VIBEWINDOW_WORKSPACE"]);
+    env.remove("VIBEWINDOW_WORKSPACE");
 
-    let path = super::config_path();
+    let path = super::project_config_override_path();
 
-    assert!(path.as_ref().is_some_and(|value| value.ends_with("vibewindow.json")));
+    assert!(path.as_ref().is_some_and(|value| value.ends_with(".vibewindow.json")));
 }

@@ -24,6 +24,32 @@ use crate::app::message::PreviewMessage;
 use crate::app::{App, Message};
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 将编辑器叠加层消息映射为应用预览消息。
+pub(super) fn map_lsp_overlay_message(msg: iced_code_editor::LspOverlayMessage) -> Message {
+    use iced_code_editor::LspOverlayMessage;
+
+    match msg {
+        LspOverlayMessage::HoverEntered => Message::Preview(PreviewMessage::LspHoverEntered),
+        LspOverlayMessage::HoverExited => Message::Preview(PreviewMessage::LspHoverExited),
+        LspOverlayMessage::CompletionSelected(index) => {
+            Message::Preview(PreviewMessage::LspCompletionSelected(index))
+        }
+        LspOverlayMessage::CompletionClosed => {
+            Message::Preview(PreviewMessage::LspCompletionClosed)
+        }
+        LspOverlayMessage::CompletionNavigateUp => {
+            Message::Preview(PreviewMessage::LspCompletionNavigateUp)
+        }
+        LspOverlayMessage::CompletionNavigateDown => {
+            Message::Preview(PreviewMessage::LspCompletionNavigateDown)
+        }
+        LspOverlayMessage::CompletionConfirm => {
+            Message::Preview(PreviewMessage::LspCompletionConfirm)
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn lsp_overlay(app: &App) -> Element<'_, Message> {
     // 记录当前 LSP 叠加层路径和活动预览路径的调试信息
     tracing::debug!(
@@ -65,45 +91,13 @@ pub fn lsp_overlay(app: &App) -> Element<'_, Message> {
     // - &app.app_theme: 主题配置，用于样式化叠加层
     // - app.current_font_size: 字体大小，影响叠加层的尺寸计算
     // - app.current_line_height: 行高，影响叠加层的位置定位
-    // - 消息映射闭包：将底层 LSP 消息转换为应用程序消息
+    // - map_lsp_overlay_message：将底层 LSP 消息转换为应用程序消息
     iced_code_editor::view_lsp_overlay(
         &app.lsp_overlay,
         &tab.editor.inner,
         app.effective_editor_theme_ref(),
         app.current_font_size,
         app.current_line_height,
-        // 消息映射闭包：将 iced_code_editor 的 LspOverlayMessage 转换为应用程序的 Message
-        // 这允许 LSP 叠加层的用户交互触发应用程序级别的消息处理
-        |msg| {
-            use iced_code_editor::LspOverlayMessage;
-            match msg {
-                // 鼠标进入悬停区域，显示提示信息
-                LspOverlayMessage::HoverEntered => {
-                    Message::Preview(PreviewMessage::LspHoverEntered)
-                }
-                // 鼠标离开悬停区域，隐藏提示信息
-                LspOverlayMessage::HoverExited => Message::Preview(PreviewMessage::LspHoverExited),
-                // 用户选中（点击）补全列表中的某一项
-                LspOverlayMessage::CompletionSelected(index) => {
-                    Message::Preview(PreviewMessage::LspCompletionSelected(index))
-                }
-                // 补全列表关闭（用户取消或选择完成）
-                LspOverlayMessage::CompletionClosed => {
-                    Message::Preview(PreviewMessage::LspCompletionClosed)
-                }
-                // 在补全列表中向上移动选择（键盘上箭头）
-                LspOverlayMessage::CompletionNavigateUp => {
-                    Message::Preview(PreviewMessage::LspCompletionNavigateUp)
-                }
-                // 在补全列表中向下移动选择（键盘下箭头）
-                LspOverlayMessage::CompletionNavigateDown => {
-                    Message::Preview(PreviewMessage::LspCompletionNavigateDown)
-                }
-                // 确认当前选中的补全项（Enter 键）
-                LspOverlayMessage::CompletionConfirm => {
-                    Message::Preview(PreviewMessage::LspCompletionConfirm)
-                }
-            }
-        },
+        map_lsp_overlay_message,
     )
 }

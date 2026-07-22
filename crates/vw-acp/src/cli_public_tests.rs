@@ -14,7 +14,7 @@ fn argv(values: &[&str]) -> Vec<String> {
 fn config() -> ResolvedAcpxConfig {
     ResolvedAcpxConfig {
         default_agent: "codex".to_string(),
-        default_permissions: PermissionMode::ApproveReads,
+        default_permissions: PermissionMode::ApproveAll,
         non_interactive_permissions: NonInteractivePermissionPolicy::Deny,
         auth_policy: AuthPolicy::Skip,
         ttl_ms: 30_000,
@@ -25,6 +25,7 @@ fn config() -> ResolvedAcpxConfig {
         auth: HashMap::new(),
         disable_exec: false,
         mcp_servers: Vec::new(),
+        mcp_server_management: Vec::new(),
         global_path: "/tmp/global.json".to_string(),
         project_path: "/tmp/project.json".to_string(),
         has_global_config: false,
@@ -86,6 +87,48 @@ fn detect_agent_token_skips_boolean_global_flags() {
 }
 
 #[test]
+fn detect_agent_token_skips_space_separated_value_global_flags() {
+    for flag in [
+        "--auth-policy",
+        "--non-interactive-permissions",
+        "--format",
+        "--model",
+        "--allowed-tools",
+        "--max-turns",
+        "--timeout",
+        "--ttl",
+        "--file",
+    ] {
+        let scan = detect_agent_token(&argv(&[flag, "value", "custom-agent"]));
+
+        assert_eq!(scan.token, Some("custom-agent".to_string()), "{flag}");
+        assert!(!scan.has_agent_override, "{flag}");
+    }
+}
+
+#[test]
+fn detect_agent_token_skips_equals_value_global_flags() {
+    for flag in [
+        "--cwd=/tmp/repo",
+        "--auth-policy=skip",
+        "--non-interactive-permissions=deny",
+        "--format=json",
+        "--model=fast",
+        "--allowed-tools=read",
+        "--max-turns=3",
+        "--json-strict=true",
+        "--timeout=10",
+        "--ttl=30",
+        "--file=prompt.txt",
+    ] {
+        let scan = detect_agent_token(&argv(&[flag, "custom-agent"]));
+
+        assert_eq!(scan.token, Some("custom-agent".to_string()), "{flag}");
+        assert!(!scan.has_agent_override, "{flag}");
+    }
+}
+
+#[test]
 fn detect_agent_token_returns_none_for_unknown_flag_before_agent() {
     let scan = detect_agent_token(&argv(&["--unknown", "custom-agent"]));
 
@@ -138,6 +181,18 @@ fn root_prompt_action_shows_help_or_errors_for_empty_tty_prompt() {
 }
 
 #[test]
+fn root_prompt_action_handles_empty_non_tty_prompt() {
+    assert_eq!(
+        resolve_root_prompt_action(&[], false, false).expect("prompt action"),
+        RootPromptAction::HandlePrompt
+    );
+    assert_eq!(
+        resolve_root_prompt_action(&[], false, true).expect("prompt action"),
+        RootPromptAction::HandlePrompt
+    );
+}
+
+#[test]
 fn configure_public_cli_invokes_registration_callbacks_in_order() {
     let calls = RefCell::new(Vec::new());
     let mut program = ();
@@ -159,5 +214,30 @@ fn configure_public_cli_invokes_registration_callbacks_in_order() {
     assert_eq!(plan.dynamic_agent_command, Some("new-agent".to_string()));
     assert!(calls.iter().any(|call| call == "agent:new-agent"));
     assert_eq!(calls[calls.len() - 2], "root:true");
+    assert_eq!(calls[calls.len() - 1], "help:true");
+}
+
+#[test]
+fn configure_public_cli_skips_dynamic_agent_for_top_level_verb() {
+    let calls = RefCell::new(Vec::new());
+    let mut program = ();
+    let plan = configure_public_cli(ConfigurePublicCliOptions {
+        program: &mut program,
+        argv: &argv(&["status"]),
+        config: &config(),
+        requested_json_strict: false,
+        top_level_verbs: &HashSet::from(["status".to_string()]),
+        register_agent_command: |_, name, _| calls.borrow_mut().push(format!("agent:{name}")),
+        register_default_commands: |_, _| calls.borrow_mut().push("defaults".to_string()),
+        register_root_prompt: |_, strict| calls.borrow_mut().push(format!("root:{strict}")),
+        add_help_text: |_, text| {
+            calls.borrow_mut().push(format!("help:{}", text.contains("Examples:")))
+        },
+    });
+    let calls = calls.into_inner();
+
+    assert_eq!(plan.dynamic_agent_command, None);
+    assert!(!calls.iter().any(|call| call == "agent:status"));
+    assert_eq!(calls[calls.len() - 2], "root:false");
     assert_eq!(calls[calls.len() - 1], "help:true");
 }

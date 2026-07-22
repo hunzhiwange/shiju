@@ -36,6 +36,19 @@ fn best_effort_uses_normal_project_dir_when_home_is_available() {
 }
 
 #[test]
+fn fallback_project_data_dir_uses_temp_worktree_projects_scope() {
+    let workspace = TempDir::new().unwrap();
+
+    let fallback = fallback_project_data_dir(workspace.path());
+
+    assert!(fallback.starts_with(
+        std::env::temp_dir().join(vw_config_types::paths::APP_DIR_NAME).join("worktree")
+    ));
+    assert!(fallback.components().any(|component| component.as_os_str() == "projects"));
+    assert!(fallback.file_name().and_then(|name| name.to_str()).unwrap().contains('-'));
+}
+
+#[test]
 fn canonical_path_keeps_absolute_missing_paths_without_fs_errors() {
     let workspace = TempDir::new().unwrap();
     let missing = workspace.path().join("missing").join("child");
@@ -51,10 +64,26 @@ fn canonical_path_resolves_existing_relative_paths() {
 }
 
 #[test]
+fn canonical_path_keeps_relative_missing_paths_absolute_to_current_dir() {
+    let relative = Path::new("target").join("definitely-missing-memory-path");
+    let expected = std::env::current_dir().unwrap().join(&relative);
+
+    assert_eq!(canonical_path(&relative), expected);
+}
+
+#[test]
 fn git_common_dir_returns_none_outside_git_repositories() {
     let workspace = TempDir::new().unwrap();
 
     assert!(git_common_dir(workspace.path()).is_none());
+}
+
+#[test]
+fn git_common_dir_returns_none_when_working_directory_is_missing() {
+    let workspace = TempDir::new().unwrap();
+    let missing = workspace.path().join("missing");
+
+    assert!(git_common_dir(&missing).is_none());
 }
 
 #[test]

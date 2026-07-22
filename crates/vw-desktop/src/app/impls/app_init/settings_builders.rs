@@ -12,7 +12,8 @@ pub(super) fn build_channels_settings(
     let channels_mattermost_enabled = channels_cfg.mattermost.is_some();
     let channels_webhook_enabled = channels_cfg.webhook.is_some();
     let channels_imessage_enabled = channels_cfg.imessage.is_some();
-    let channels_matrix_enabled = channels_cfg.matrix.is_some();
+    let channels_matrix_enabled =
+        channels_cfg.matrix.is_some() || !channels_cfg.matrix_instances.is_empty();
     let channels_signal_enabled = channels_cfg.signal.is_some();
     let channels_whatsapp_enabled = channels_cfg.whatsapp.is_some();
     let channels_linq_enabled = channels_cfg.linq.is_some();
@@ -22,8 +23,10 @@ pub(super) fn build_channels_settings(
     let channels_email_enabled = channels_cfg.email.is_some();
     let channels_irc_enabled = channels_cfg.irc.is_some();
     let channels_lark_enabled = channels_cfg.lark.is_some();
-    let channels_feishu_enabled = channels_cfg.feishu.is_some();
-    let channels_dingtalk_enabled = channels_cfg.dingtalk.is_some();
+    let channels_feishu_enabled =
+        channels_cfg.feishu.is_some() || !channels_cfg.feishu_instances.is_empty();
+    let channels_dingtalk_enabled =
+        channels_cfg.dingtalk.is_some() || !channels_cfg.dingtalk_instances.is_empty();
     let channels_qq_enabled = channels_cfg.qq.is_some();
     let channels_nostr_enabled = channels_cfg.nostr.is_some();
     let channels_clawdtalk_enabled = channels_cfg.clawdtalk.is_some();
@@ -44,6 +47,7 @@ pub(super) fn build_channels_settings(
         webhook: channels_cfg.webhook.clone(),
         imessage: channels_cfg.imessage.clone(),
         matrix: channels_cfg.matrix.clone(),
+        matrix_instances: channels_cfg.matrix_instances.clone(),
         signal: channels_cfg.signal.clone(),
         whatsapp: channels_cfg.whatsapp.clone(),
         linq: channels_cfg.linq.clone(),
@@ -54,7 +58,9 @@ pub(super) fn build_channels_settings(
         irc: channels_cfg.irc.clone(),
         lark: channels_cfg.lark.clone(),
         feishu: channels_cfg.feishu.clone(),
+        feishu_instances: channels_cfg.feishu_instances.clone(),
         dingtalk: channels_cfg.dingtalk.clone(),
+        dingtalk_instances: channels_cfg.dingtalk_instances.clone(),
         qq: channels_cfg.qq.clone(),
         nostr: channels_cfg.nostr.clone(),
         clawdtalk: channels_cfg.clawdtalk.clone(),
@@ -129,6 +135,15 @@ pub(super) fn build_channels_settings(
     channels_settings.refresh_text_inputs();
     channels_settings
 }
+
+/// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
+/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn build_staff_settings(
+    full_agent_cfg: &vw_config_types::config::Config,
+) -> super::state::StaffSettingsState {
+    super::state::StaffSettingsState::from_config(full_agent_cfg.staff.clone())
+}
+
 #[cfg(test)]
 #[path = "settings_builders_tests.rs"]
 mod settings_builders_tests;

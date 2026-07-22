@@ -93,6 +93,35 @@ fn empty_string_falls_back() {
 }
 
 #[test]
+fn unsupported_delimiters_fall_back_and_preserve_original_source() {
+    for command in [
+        "echo 'unterminated",
+        "echo \"unterminated",
+        "echo `unterminated",
+        "echo unexpected )",
+        "echo unexpected }",
+        "echo $(unterminated",
+        "{ echo unterminated",
+    ] {
+        let (ast, quality) = BashAst::parse(command);
+
+        assert_eq!(quality, ParseQuality::Fallback, "command: {command}");
+        assert_eq!(ast.source(), command);
+        assert!(ast.root_node().is_none());
+    }
+}
+
+#[test]
+fn repeated_parse_returns_equivalent_ast_and_quality() {
+    let (first, first_quality) = BashAst::parse("printf cache-probe");
+    let (second, second_quality) = BashAst::parse("printf cache-probe");
+
+    assert_eq!(first, second);
+    assert_eq!(first_quality, second_quality);
+    assert_eq!(second.source(), "printf cache-probe");
+}
+
+#[test]
 fn unicode_command_parses() {
     let info =
         CommandInfo::from_command("echo '你好，世界'").expect("unicode command should parse");

@@ -99,6 +99,21 @@ fn toast_badge_style_adjusts_alpha_for_theme() {
 }
 
 #[test]
+fn toast_badge_style_preserves_circular_border_geometry_across_themes() {
+    let accent = Color::from_rgb8(0x2A, 0x6F, 0xC2);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let style = toast_icon_badge_style(&theme, accent);
+
+        assert_eq!(style.border.width, 1.0);
+        assert_eq!(style.border.radius.top_left, 999.0);
+        assert_eq!(style.border.radius.top_right, 999.0);
+        assert_eq!(style.border.radius.bottom_right, 999.0);
+        assert_eq!(style.border.radius.bottom_left, 999.0);
+    }
+}
+
+#[test]
 fn toast_message_text_color_uses_theme_specific_alpha() {
     assert_color_close(
         toast_message_text_color(&Theme::Light),
@@ -126,6 +141,24 @@ fn toast_card_style_uses_theme_specific_background_border_and_shadow() {
     assert_color_close(style_background_color(dark), palette.background.scale_alpha(0.22));
     assert_color_close(dark.border.color, palette.accent.scale_alpha(0.54));
     assert_color_close(dark.shadow.color, Color::BLACK.scale_alpha(0.18));
+}
+
+#[test]
+fn toast_card_style_preserves_border_and_shadow_geometry_across_themes() {
+    let palette = toast_palette(ToastKind::Info);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let style = toast_card_style(&theme, palette.accent, palette.background);
+
+        assert_eq!(style.border.width, 1.0);
+        assert_eq!(style.border.radius.top_left, 12.0);
+        assert_eq!(style.border.radius.top_right, 12.0);
+        assert_eq!(style.border.radius.bottom_right, 12.0);
+        assert_eq!(style.border.radius.bottom_left, 12.0);
+        assert_eq!(style.shadow.offset.x, 0.0);
+        assert_eq!(style.shadow.offset.y, 14.0);
+        assert_eq!(style.shadow.blur_radius, 26.0);
+    }
 }
 
 #[test]

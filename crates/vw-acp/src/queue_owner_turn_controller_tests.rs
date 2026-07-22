@@ -168,6 +168,66 @@ fn turn_controller_tracks_lifecycle_state() {
     assert!(!controller.has_pending_cancel());
 }
 
+#[test]
+fn mark_prompt_active_only_changes_running_turns() {
+    let mut controller = QueueOwnerTurnController::new(options());
+
+    controller.mark_prompt_active();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Idle);
+
+    controller.begin_closing();
+    controller.mark_prompt_active();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Closing);
+}
+
+#[test]
+fn mark_prompt_active_is_idempotent_while_active() {
+    let mut controller = QueueOwnerTurnController::new(options());
+
+    controller.begin_turn();
+    controller.mark_prompt_active();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Active);
+    controller.mark_prompt_active();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Active);
+}
+
+#[tokio::test]
+async fn request_cancel_marks_pending_while_prompt_active_state() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    controller.begin_turn();
+    controller.mark_prompt_active();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Active);
+
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+    assert!(controller.has_pending_cancel());
+}
+
+#[tokio::test]
+async fn request_cancel_returns_false_when_closing() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    controller.begin_closing();
+
+    assert!(!controller.request_cancel().await.expect("cancel should resolve"));
+    assert!(!controller.has_pending_cancel());
+}
+
+#[tokio::test]
+async fn begin_turn_end_turn_and_begin_closing_clear_pending_cancel() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    controller.begin_turn();
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+
+    controller.end_turn();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Idle);
+    assert!(!controller.has_pending_cancel());
+
+    controller.begin_turn();
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+    controller.begin_closing();
+    assert_eq!(controller.lifecycle_state(), QueueOwnerTurnState::Closing);
+    assert!(!controller.has_pending_cancel());
+}
+
 #[tokio::test]
 async fn closing_controller_rejects_control_requests() {
     let mut controller = QueueOwnerTurnController::new(options());
@@ -193,6 +253,17 @@ async fn request_cancel_returns_false_when_no_turn_is_active() {
 }
 
 #[tokio::test]
+async fn request_cancel_ignores_inactive_controller_without_running_turn() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    let active_controller = TestActiveController::default();
+    controller.set_active_controller(Arc::new(active_controller.clone()));
+
+    assert!(!controller.request_cancel().await.expect("cancel should resolve"));
+    assert!(!controller.has_pending_cancel());
+    assert_eq!(active_controller.state().cancel_calls, 0);
+}
+
+#[tokio::test]
 async fn request_cancel_marks_pending_until_active_prompt_can_cancel() {
     let mut controller = QueueOwnerTurnController::new(options());
     let active_controller = TestActiveController::default();
@@ -211,6 +282,19 @@ async fn request_cancel_marks_pending_until_active_prompt_can_cancel() {
 }
 
 #[tokio::test]
+async fn request_cancel_uses_active_controller_and_clears_pending_on_cancel() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    let active_controller = TestActiveController::with_active_prompt();
+    controller.begin_turn();
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+    controller.set_active_controller(Arc::new(active_controller.clone()));
+
+    assert!(controller.request_cancel().await.expect("active cancel should resolve"));
+    assert!(!controller.has_pending_cancel());
+    assert_eq!(active_controller.state().cancel_calls, 1);
+}
+
+#[tokio::test]
 async fn apply_pending_cancel_returns_false_without_pending_cancel_or_controller() {
     let mut controller = QueueOwnerTurnController::new(options());
 
@@ -219,6 +303,35 @@ async fn apply_pending_cancel_returns_false_without_pending_cancel_or_controller
     controller.begin_turn();
     assert!(controller.request_cancel().await.expect("cancel should be queued"));
     assert!(!controller.apply_pending_cancel().await.expect("missing controller cannot cancel"));
+    assert!(controller.has_pending_cancel());
+}
+
+#[tokio::test]
+async fn apply_pending_cancel_preserves_pending_when_active_cancel_returns_false() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    let active_controller = TestActiveController::with_active_prompt();
+    lock(&active_controller.state).cancel_result = Ok(false);
+    controller.begin_turn();
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+    controller.set_active_controller(Arc::new(active_controller.clone()));
+
+    assert!(!controller.apply_pending_cancel().await.expect("active cancel should resolve"));
+    assert!(controller.has_pending_cancel());
+    assert_eq!(active_controller.state().cancel_calls, 1);
+}
+
+#[tokio::test]
+async fn apply_pending_cancel_propagates_active_controller_errors() {
+    let mut controller = QueueOwnerTurnController::new(options());
+    let active_controller = TestActiveController::with_active_prompt();
+    lock(&active_controller.state).cancel_result = Err("cancel failed".to_string());
+    controller.begin_turn();
+    assert!(controller.request_cancel().await.expect("cancel should be queued"));
+    controller.set_active_controller(Arc::new(active_controller));
+
+    let error =
+        controller.apply_pending_cancel().await.expect_err("active cancel error should propagate");
+    assert_eq!(error.to_string(), "cancel failed");
     assert!(controller.has_pending_cancel());
 }
 

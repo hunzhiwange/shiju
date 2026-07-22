@@ -46,14 +46,17 @@ pub mod config;
 /// 身份认证路由处理器模块
 pub mod auth;
 
+/// Agent Scheduler 路由处理器模块
+pub mod agent_scheduler;
+
 /// Desktop 本地状态网关化处理器模块
 pub mod desktop;
 
-/// Desktop 清理工具网关化处理器模块
-pub(crate) mod desktop_cleaner;
-
 /// Gateway skills 目录处理器模块
 pub(crate) mod desktop_skills;
+
+/// Gateway 插件目录与本地管理处理器模块
+pub(crate) mod plugins;
 
 /// 定时任务（Cron）管理处理器模块
 ///
@@ -62,6 +65,9 @@ pub mod cron;
 
 /// AI-DATA 路由处理器模块
 pub mod data;
+
+/// ApiQL V1 兼容路由模块
+pub(crate) mod apiql;
 
 /// 第三方集成处理器模块
 ///
@@ -88,6 +94,9 @@ pub mod instance;
 /// 提供代理记忆的存储、检索和管理操作处理器。
 pub mod memory;
 
+/// MCP 检查处理器模块
+pub mod mcp;
+
 /// 杂项元数据路由处理器模块
 pub mod misc;
 
@@ -106,9 +115,6 @@ pub mod pty;
 /// 问题请求路由处理器模块
 pub mod question;
 
-/// Redis 路由处理器模块
-pub mod redis;
-
 /// Session 路由处理器模块
 pub mod session;
 
@@ -117,8 +123,17 @@ pub mod session;
 /// 提供系统健康检查和运行状态查询处理器。
 pub mod status;
 
-/// 任务池调度路由处理器模块
+/// 员工任务流本地 IPC 消息路由处理器模块
+pub mod staff_ipc;
+
+/// 任务池 worktree 池路由处理器模块
 pub mod task_pool;
+
+/// 任务生命周期 workflow 路由处理器模块
+pub mod task_lifecycle;
+
+/// 任务池 Matrix 协同事件路由处理器模块
+pub mod task_pool_matrix;
 
 /// 工具管理处理器模块
 ///
@@ -168,11 +183,30 @@ pub use integrations::{
 /// - `handle_api_memory_delete`: 删除指定记忆（DELETE /api/memory/:id）
 pub use memory::{handle_api_memory_delete, handle_api_memory_list, handle_api_memory_store};
 
+/// 重新导出 MCP 检查处理器
+pub use mcp::handle_api_mcp_inspect;
+
 /// 重新导出系统状态处理器
 ///
 /// - `handle_api_health`: 健康检查端点（GET /api/health）
 /// - `handle_api_status`: 系统运行状态（GET /api/status）
 pub use status::{handle_api_health, handle_api_status};
+
+/// 重新导出任务池 Matrix 协同事件处理器
+pub use task_pool_matrix::{
+    handle_api_task_pool_matrix_events, handle_api_task_pool_matrix_publish,
+};
+
+/// 重新导出员工任务流 IPC 消息处理器
+pub use staff_ipc::handle_api_staff_ipc_message;
+
+/// 重新导出任务池 worktree pool 处理器
+pub use task_pool::{
+    handle_api_task_pool_worktree_acquire, handle_api_task_pool_worktree_maintain,
+    handle_api_task_pool_worktree_merge_lock, handle_api_task_pool_worktree_merge_unlock,
+    handle_api_task_pool_worktree_recycle, handle_api_task_pool_worktree_release,
+    handle_api_task_pool_worktree_slot_recycle, handle_api_task_pool_worktree_snapshot,
+};
 
 /// 重新导出工具管理处理器
 ///

@@ -20,10 +20,6 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
 
     let mut content = column![].spacing(12);
 
-    if editor.validation.has_errors() {
-        content = content.push(build_node_validation_summary(&editor.validation));
-    }
-
     match active_tab {
         WorkflowNodeEditorTab::Visual => {
             if let Some(visual_section) = build_node_visual_section(state, editor) {
@@ -52,6 +48,12 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         left: 0.0,
     });
 
+    let validation_summary = editor
+        .validation
+        .has_errors()
+        .then(|| build_node_validation_summary(&editor.validation))
+        .unwrap_or_else(|| container(Space::new().height(0)).into());
+
     settings_modal_overlay(
         None,
         Message::None,
@@ -59,13 +61,16 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
             column![
                 build_node_editor_header(editor),
                 build_node_editor_tabs(has_visual_tab, active_tab),
+                validation_summary,
                 scrollable(scroll_content)
                     .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                    .height(Length::Fixed(548.0)),
+                    .height(Length::Fill),
             ]
-            .spacing(14),
+            .spacing(14)
+            .height(Length::Fill),
         )
-        .width(Length::Fixed(920.0))
+        .width(Length::Fill)
+        .height(Length::Fill)
         .padding([18, 20])
         .style(modal_card_style),
     )

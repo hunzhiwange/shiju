@@ -82,3 +82,7 @@ pub(super) fn refresh_node_editor_validation(editor: &mut WorkflowNodeEditorDraf
         editor.visual_draft.as_ref(),
     );
 }
+
+pub(super) fn clear_node_editor_validation(editor: &mut WorkflowNodeEditorDraft) {
+    editor.validation = WorkflowNodeEditorValidation::default();
+}

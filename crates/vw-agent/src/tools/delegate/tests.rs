@@ -21,6 +21,7 @@
 
 use super::super::*;
 use crate::app::agent::coordination::CoordinationPayload;
+use crate::app::agent::coordination::InMemoryMessageBus;
 use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::delegate::DEFAULT_COORDINATION_LEAD_AGENT;
@@ -679,6 +680,47 @@ fn delegate_uses_workspace_identity_context_without_agent_prompt() {
     let merged = tool.merged_system_prompt("researcher", None).unwrap();
 
     assert_eq!(merged, "## Project Context\n\nIDENTITY");
+}
+
+#[test]
+fn delegate_merges_workspace_skill_and_agent_sections_in_order() {
+    let tool = DelegateTool::new(sample_agents(), None, test_security())
+        .with_workspace_identity_context("workspace identity".to_string())
+        .with_skill_contexts(HashMap::from([(
+            "researcher".to_string(),
+            "skill instructions".to_string(),
+        )]));
+
+    assert_eq!(
+        tool.merged_system_prompt("researcher", Some("  agent prompt  ")).as_deref(),
+        Some("workspace identity\n\nskill instructions\n\nagent prompt")
+    );
+}
+
+#[test]
+fn delegate_builders_store_multimodal_config_and_disable_coordination() {
+    let multimodal = crate::app::agent::config::MultimodalConfig {
+        max_images: 7,
+        max_image_size_mb: 9,
+        allow_remote_fetch: true,
+    };
+    let tool = DelegateTool::new(sample_agents(), None, test_security())
+        .with_multimodal_config(multimodal)
+        .with_coordination_disabled();
+
+    assert_eq!(tool.multimodal_config.max_images, 7);
+    assert_eq!(tool.multimodal_config.max_image_size_mb, 9);
+    assert!(tool.multimodal_config.allow_remote_fetch);
+    assert!(tool.coordination_bus_snapshot().is_none());
+}
+
+#[test]
+fn delegate_coordination_builder_normalizes_blank_lead_agent() {
+    let tool = DelegateTool::new(sample_agents(), None, test_security())
+        .with_coordination_bus(InMemoryMessageBus::new(), " \n ");
+
+    assert_eq!(tool.coordination_lead_agent, DEFAULT_COORDINATION_LEAD_AGENT);
+    assert!(tool.coordination_bus_snapshot().is_some());
 }
 
 /// 测试无代理配置时的执行错误

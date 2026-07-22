@@ -18,9 +18,28 @@ fn debug_output_redacts_access_token_and_session_hints() {
     assert!(debug.contains("MatrixChannel"));
     assert!(debug.contains("https://matrix.example.com"));
     assert!(debug.contains("!room:matrix.example.com"));
+    assert!(debug.contains("transcription_enabled: false"));
     assert!(!debug.contains("syt_secret_token"));
     assert!(!debug.contains("DEVICEID"));
     assert!(!debug.contains("@bot:matrix.example.com"));
+}
+
+#[test]
+fn debug_output_reports_enabled_transcription_without_config_details() {
+    let mut transcription = crate::app::agent::config::TranscriptionConfig::default();
+    transcription.enabled = true;
+    let channel = MatrixChannel::new(
+        "https://matrix.example.com".to_string(),
+        "token".to_string(),
+        "!room:matrix.example.com".to_string(),
+        vec!["@user:matrix.example.com".to_string()],
+    )
+    .with_transcription(transcription);
+
+    let debug = format!("{channel:?}");
+
+    assert!(debug.contains("transcription_enabled: true"));
+    assert!(!debug.contains("https://api.groq.com"));
 }
 
 #[test]

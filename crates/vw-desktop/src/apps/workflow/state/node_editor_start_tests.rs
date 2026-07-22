@@ -102,7 +102,7 @@ fn empty_state_methods_are_noops_or_expected_errors() {
 }
 
 #[test]
-fn title_description_raw_editor_and_visibility_update_validation() {
+fn title_description_raw_editor_and_visibility_defer_validation_until_submit() {
     let mut state = state_with_start_editor();
 
     state.set_node_editor_title(String::new());
@@ -118,6 +118,12 @@ fn title_description_raw_editor_and_visibility_update_validation() {
     state.set_node_editor_show_raw_data_editor(true);
     assert!(editor(&state).show_raw_data_editor);
     state.node_editor_action(action_insert("\nnot: [valid"));
+    assert!(!editor(&state).validation.has_errors());
+
+    assert_eq!(
+        state.submit_node_editor(),
+        Err("请先修正节点表单中的错误字段，再保存。".to_string())
+    );
     assert!(editor(&state).validation.has_errors());
 }
 
@@ -154,6 +160,22 @@ fn create_edit_close_and_submit_text_start_variable() {
     state.open_node_editor_start_variable_edit(0);
     state.close_node_editor_start_variable_editor();
     assert!(editor(&state).start_variable_editor.is_none());
+}
+
+#[test]
+fn open_start_variable_edit_ignores_missing_index_without_replacing_current_editor() {
+    let mut state = state_with_start_editor();
+    state.open_node_editor_start_variable_create();
+    state.set_node_editor_start_variable_editor_label("Draft".to_string());
+    let hovered = editor(&state).hovered_start_variable_index;
+    let focused = editor(&state).start_variable_focus_index;
+
+    state.open_node_editor_start_variable_edit(99);
+
+    assert_eq!(start_variable_editor(&state).mode, WorkflowStartVariableEditorMode::Create);
+    assert_eq!(start_variable_editor(&state).variable.label, "Draft");
+    assert_eq!(editor(&state).hovered_start_variable_index, hovered);
+    assert_eq!(editor(&state).start_variable_focus_index, focused);
 }
 
 #[test]
@@ -242,6 +264,25 @@ fn file_variable_default_url_and_type_controls_are_normalized() {
 
     assert_eq!(start_variables(&state)[0].input_type, "paragraph");
     assert_eq!(start_variables(&state)[0].default_value, "");
+}
+
+#[test]
+fn removing_single_file_default_clears_url_input() {
+    let mut state = state_with_start_editor();
+    fill_start_variable_editor(&mut state, "Upload", "upload");
+    state.set_node_editor_start_variable_editor_type("file".to_string());
+    state
+        .set_node_editor_start_variable_editor_default_file_path(
+            "https://example.test/file.txt".to_string(),
+        )
+        .expect("single file default should be accepted");
+
+    state.remove_node_editor_start_variable_editor_default_file(0);
+
+    let editor = start_variable_editor(&state);
+    assert!(editor.variable.default_file_values.is_empty());
+    assert!(editor.variable.default_value.is_empty());
+    assert!(editor.default_file_url_input.is_empty());
 }
 
 #[test]
@@ -408,4 +449,125 @@ fn delete_node_and_edge_by_id_select_the_target_before_delete() {
     assert!(state.delete_node_by_id(&answer_id));
     assert!(state.document.node(&answer_id).is_none());
     assert_eq!(state.selected_node_id, None);
+}
+
+#[test]
+fn editor_field_setters_keep_dependent_flags_and_buffers_in_sync() {
+    let mut state = state_with_start_editor();
+
+    fill_start_variable_editor(&mut state, "Consent", "consent");
+    state.set_node_editor_start_variable_editor_required(true);
+    assert!(start_variable_editor(&state).variable.required);
+    assert!(!start_variable_editor(&state).variable.hidden);
+
+    state.set_node_editor_start_variable_editor_hidden(true);
+    assert!(start_variable_editor(&state).variable.hidden);
+    assert!(!start_variable_editor(&state).variable.required);
+
+    state.set_node_editor_start_variable_editor_default("yes".to_string());
+    assert_eq!(start_variable_editor(&state).default_value_editor.text(), "yes");
+    assert_eq!(start_variable_editor(&state).default_file_url_input, "yes");
+
+    state.set_node_editor_start_variable_editor_type("checkbox".to_string());
+    assert_eq!(start_variable_editor(&state).variable.input_type, "checkbox");
+    assert_eq!(start_variable_editor(&state).default_value_editor.text(), "yes");
+    assert!(!start_variable_editor(&state).show_default_file_url_input);
+
+    state.open_node_editor_start_variable_editor_default_file_url_input();
+    state.set_node_editor_start_variable_editor_upload_method("local_file".to_string());
+    assert!(!start_variable_editor(&state).show_default_file_url_input);
+
+    state.set_node_editor_start_variable_editor_upload_method("remote_url".to_string());
+    assert_eq!(
+        start_variable_editor(&state).variable.allowed_file_upload_methods,
+        vec!["remote_url"]
+    );
+    state.set_node_editor_start_variable_editor_upload_method("unexpected".to_string());
+    assert!(
+        start_variable_editor(&state)
+            .variable
+            .allowed_file_upload_methods
+            .iter()
+            .any(|method| method == "remote_url")
+    );
+}
+
+#[test]
+fn submit_errors_restore_editor_for_merge_failure_and_missing_edit_target() {
+    let mut state = state_with_start_editor();
+
+    fill_start_variable_editor(&mut state, "Amount", "amount");
+    state.set_node_editor_start_variable_editor_type("number".to_string());
+    state.set_node_editor_start_variable_editor_default("not a number".to_string());
+    assert_eq!(
+        state.submit_node_editor_start_variable_editor(),
+        Err("数字类型默认值必须是数字".to_string())
+    );
+    assert_eq!(start_variable_editor(&state).mode, WorkflowStartVariableEditorMode::Create);
+    assert_eq!(start_variable_editor(&state).variable.default_value, "not a number");
+
+    let mut missing_target = start_variables(&state)[0].clone();
+    missing_target.variable = "missing_target".to_string();
+    missing_target.label = "Missing target".to_string();
+    editor_mut(&mut state).start_variable_editor = Some(build_start_variable_editor_draft(
+        WorkflowStartVariableEditorMode::Edit(99),
+        missing_target,
+    ));
+
+    assert_eq!(state.submit_node_editor_start_variable_editor(), Err("目标变量不存在".to_string()));
+    assert_eq!(start_variable_editor(&state).mode, WorkflowStartVariableEditorMode::Edit(99));
+}
+
+#[test]
+fn raw_editor_valid_yaml_rebuilds_visual_draft_and_clamps_start_focus() {
+    let mut state = state_with_start_editor();
+    submit_text_variable(&mut state, "Extra", "extra");
+    editor_mut(&mut state).start_variable_focus_index = Some(99);
+    state.set_node_editor_show_raw_data_editor(true);
+
+    let yaml = r#"variables:
+  - label: Only
+    variable: only
+    type: text-input
+"#;
+    editor_mut(&mut state).raw_data_editor = text_editor::Content::with_text("");
+    state.node_editor_action(action_insert(yaml));
+
+    assert_eq!(start_variables(&state).len(), 1);
+    assert_eq!(start_variables(&state)[0].variable, "only");
+    assert_eq!(editor(&state).start_variable_focus_index, Some(0));
+    assert!(!editor(&state).validation.has_errors());
+}
+
+#[test]
+fn inline_visual_updates_noop_without_visual_draft_or_start_variables() {
+    let mut state = state_with_start_editor();
+    editor_mut(&mut state).visual_draft = None;
+    let raw_before = editor(&state).raw_data_editor.text();
+
+    state.set_node_editor_start_variable_label(0, "ignored".to_string());
+    state.set_node_editor_start_variable_name(0, "ignored".to_string());
+    state.set_node_editor_start_variable_type(0, "ignored".to_string());
+    state.set_node_editor_start_variable_required(0, true);
+    state.set_node_editor_start_variable_default(0, "ignored".to_string());
+    state.set_node_editor_start_variable_placeholder(0, "ignored".to_string());
+    state.set_node_editor_start_variable_hint(0, "ignored".to_string());
+    state.set_node_editor_start_variable_max_length(0, "ignored".to_string());
+
+    assert_eq!(editor(&state).raw_data_editor.text(), raw_before);
+
+    let mut state = WorkflowState::default();
+    state.open_create_node_editor("answer", Point::new(0.0, 0.0)).unwrap();
+    let raw_before = editor(&state).raw_data_editor.text();
+
+    state.set_node_editor_start_variable_label(0, "ignored".to_string());
+    state.set_node_editor_start_variable_name(0, "ignored".to_string());
+    state.set_node_editor_start_variable_type(0, "ignored".to_string());
+    state.set_node_editor_start_variable_required(0, true);
+    state.set_node_editor_start_variable_default(0, "ignored".to_string());
+    state.set_node_editor_start_variable_placeholder(0, "ignored".to_string());
+    state.set_node_editor_start_variable_hint(0, "ignored".to_string());
+    state.set_node_editor_start_variable_max_length(0, "ignored".to_string());
+
+    assert_eq!(editor(&state).raw_data_editor.text(), raw_before);
 }

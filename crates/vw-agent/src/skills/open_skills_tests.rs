@@ -1,10 +1,10 @@
 use super::*;
-use std::process::Command;
-use std::sync::{Mutex, OnceLock};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::sync::MutexGuard;
 
-fn env_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
+fn env_lock() -> MutexGuard<'static, ()> {
+    crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner())
 }
 
 struct EnvVarGuard {
@@ -36,6 +36,27 @@ impl Drop for EnvVarGuard {
     }
 }
 
+#[cfg(unix)]
+fn fake_git_path_guard(bin_dir: &std::path::Path) -> EnvVarGuard {
+    let original_path = std::env::var("PATH").unwrap_or_default();
+    let path = if original_path.is_empty() {
+        bin_dir.to_string_lossy().into_owned()
+    } else {
+        format!("{}:{original_path}", bin_dir.display())
+    };
+    EnvVarGuard::set("PATH", &path)
+}
+
+#[cfg(unix)]
+fn write_fake_git(bin_dir: &std::path::Path, script: &str) {
+    std::fs::create_dir_all(bin_dir).unwrap();
+    let git = bin_dir.join("git");
+    std::fs::write(&git, script).unwrap();
+    let mut perms = std::fs::metadata(&git).unwrap().permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(&git, perms).unwrap();
+}
+
 #[test]
 fn open_skills_enabled_sources_prefer_valid_env_override() {
     assert!(open_skills_enabled_from_sources(Some(false), Some("yes")));
@@ -46,7 +67,19 @@ fn open_skills_enabled_sources_prefer_valid_env_override() {
     assert!(!open_skills_enabled_from_sources(Some(true), Some("0")));
     assert!(!open_skills_enabled_from_sources(Some(true), Some("false")));
     assert!(!open_skills_enabled_from_sources(Some(true), Some("no")));
+}
+
+#[test]
+fn open_skills_enabled_sources_normalize_case_and_whitespace() {
+    assert!(open_skills_enabled_from_sources(Some(false), Some("  YeS\t")));
+    assert!(!open_skills_enabled_from_sources(Some(true), Some("\nOFF ")));
+}
+
+#[test]
+fn open_skills_enabled_sources_fall_back_for_missing_empty_and_invalid_overrides() {
     assert!(open_skills_enabled_from_sources(Some(true), Some("invalid")));
+    assert!(!open_skills_enabled_from_sources(Some(false), Some("invalid")));
+    assert!(open_skills_enabled_from_sources(Some(true), Some("  ")));
     assert!(!open_skills_enabled_from_sources(None, None));
 }
 
@@ -69,8 +102,23 @@ fn open_skills_dir_sources_use_env_then_config_then_home() {
 }
 
 #[test]
+fn open_skills_dir_sources_ignore_blank_values_before_falling_back() {
+    let home = std::path::Path::new("/home/example");
+
+    assert_eq!(
+        resolve_open_skills_dir_from_sources(Some("  "), Some(" /config/open "), None),
+        Some(PathBuf::from("/config/open"))
+    );
+    assert_eq!(
+        resolve_open_skills_dir_from_sources(Some("\t"), Some("\n"), Some(home)),
+        Some(PathBuf::from("/home/example/open-skills"))
+    );
+    assert_eq!(resolve_open_skills_dir_from_sources(Some(""), Some(""), None), None);
+}
+
+#[test]
 fn open_skills_env_wrappers_read_process_environment() {
-    let _lock = env_lock().lock().unwrap();
+    let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();
     let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "true");
     let _dir = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_DIR", dir.path().to_str().unwrap());
@@ -80,8 +128,21 @@ fn open_skills_env_wrappers_read_process_environment() {
 }
 
 #[test]
+fn open_skills_env_wrappers_fall_back_to_config_when_environment_is_absent() {
+    let _lock = env_lock();
+    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+
+    assert!(open_skills_enabled(Some(true)));
+    assert_eq!(
+        resolve_open_skills_dir(Some(" /config/open ")),
+        Some(PathBuf::from("/config/open"))
+    );
+}
+
+#[test]
 fn ensure_repo_uses_existing_config_dir_and_respects_disabled_state() {
-    let _lock = env_lock().lock().unwrap();
+    let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();
     let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
@@ -94,17 +155,37 @@ fn ensure_repo_uses_existing_config_dir_and_respects_disabled_state() {
 }
 
 #[test]
-fn sync_marker_and_pull_behaviour_handles_plain_and_git_dirs() {
+fn sync_marker_and_pull_behaviour_handles_plain_directories() {
     let plain = tempfile::tempdir().unwrap();
     assert!(should_sync_open_skills(plain.path()));
     mark_open_skills_synced(plain.path()).unwrap();
     assert!(!should_sync_open_skills(plain.path()));
     assert!(pull_open_skills_repo(plain.path()));
+}
 
-    let repo = tempfile::tempdir().unwrap();
-    let output = Command::new("git").arg("init").current_dir(repo.path()).output().unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert!(!pull_open_skills_repo(repo.path()));
+#[test]
+fn expired_sync_marker_requires_sync() {
+    let dir = tempfile::tempdir().unwrap();
+    mark_open_skills_synced(dir.path()).unwrap();
+    let marker = dir.path().join(OPEN_SKILLS_SYNC_MARKER);
+    let file = std::fs::OpenOptions::new().write(true).open(marker).unwrap();
+    let times = std::fs::FileTimes::new().set_modified(SystemTime::UNIX_EPOCH);
+    file.set_times(times).unwrap();
+
+    assert!(should_sync_open_skills(dir.path()));
+}
+
+#[test]
+fn future_sync_marker_requires_sync_for_clock_skew() {
+    let dir = tempfile::tempdir().unwrap();
+    mark_open_skills_synced(dir.path()).unwrap();
+    let marker = dir.path().join(OPEN_SKILLS_SYNC_MARKER);
+    let file = std::fs::OpenOptions::new().write(true).open(marker).unwrap();
+    let future = SystemTime::now() + Duration::from_secs(OPEN_SKILLS_SYNC_INTERVAL_SECS);
+    let times = std::fs::FileTimes::new().set_modified(future);
+    file.set_times(times).unwrap();
+
+    assert!(should_sync_open_skills(dir.path()));
 }
 
 #[test]
@@ -114,6 +195,155 @@ fn clone_open_skills_repo_returns_false_when_parent_cannot_be_created() {
     std::fs::write(&parent_file, "plain").unwrap();
 
     assert!(!clone_open_skills_repo(&parent_file.join("repo")));
+}
+
+#[cfg(unix)]
+#[test]
+fn clone_open_skills_repo_uses_git_and_marks_success_when_command_succeeds() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    let log = dir.path().join("git.log");
+    write_fake_git(
+        &bin,
+        &format!(
+            r#"#!/bin/sh
+printf '%s\n' "$*" >> "{}"
+last=""
+for arg in "$@"; do last="$arg"; done
+mkdir -p "$last"
+exit 0
+"#,
+            log.display()
+        ),
+    );
+    let _path = fake_git_path_guard(&bin);
+    let repo_dir = dir.path().join("parent").join("repo");
+
+    assert!(clone_open_skills_repo(&repo_dir));
+
+    assert!(repo_dir.is_dir());
+    let invocation = std::fs::read_to_string(log).unwrap();
+    assert!(invocation.contains("clone --depth 1"));
+    assert!(invocation.contains(OPEN_SKILLS_REPO_URL));
+}
+
+#[cfg(unix)]
+#[test]
+fn clone_open_skills_repo_returns_false_when_git_exits_unsuccessfully() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    write_fake_git(
+        &bin,
+        r#"#!/bin/sh
+printf 'clone rejected\n' >&2
+exit 23
+"#,
+    );
+    let _path = fake_git_path_guard(&bin);
+
+    assert!(!clone_open_skills_repo(&dir.path().join("repo")));
+}
+
+#[cfg(unix)]
+#[test]
+fn ensure_open_skills_repo_returns_none_when_initial_clone_fails() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    write_fake_git(
+        &bin,
+        r#"#!/bin/sh
+exit 42
+"#,
+    );
+    let _path = fake_git_path_guard(&bin);
+    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let repo_dir = dir.path().join("missing-repo");
+
+    assert_eq!(ensure_open_skills_repo(Some(true), Some(repo_dir.to_str().unwrap())), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn pull_open_skills_repo_uses_git_for_git_directories_and_reports_status() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    let log = dir.path().join("git.log");
+    write_fake_git(
+        &bin,
+        &format!(
+            r#"#!/bin/sh
+printf '%s\n' "$*" >> "{}"
+case "$VIBEWINDOW_FAKE_GIT_EXIT" in
+  fail) exit 19 ;;
+  *) exit 0 ;;
+esac
+"#,
+            log.display()
+        ),
+    );
+    let _path = fake_git_path_guard(&bin);
+    let repo = dir.path().join("repo");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+
+    let _exit = EnvVarGuard::set("VIBEWINDOW_FAKE_GIT_EXIT", "ok");
+    assert!(pull_open_skills_repo(&repo));
+    drop(_exit);
+    let _exit = EnvVarGuard::set("VIBEWINDOW_FAKE_GIT_EXIT", "fail");
+    assert!(!pull_open_skills_repo(&repo));
+
+    let invocations = std::fs::read_to_string(log).unwrap();
+    assert!(invocations.contains("-C"));
+    assert!(invocations.contains("pull --ff-only"));
+}
+
+#[cfg(unix)]
+#[test]
+fn ensure_open_skills_repo_keeps_existing_repo_when_pull_fails() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    write_fake_git(
+        &bin,
+        r#"#!/bin/sh
+exit 17
+"#,
+    );
+    let _path = fake_git_path_guard(&bin);
+    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let repo = dir.path().join("repo");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    mark_open_skills_synced(&repo).unwrap();
+    let marker = repo.join(OPEN_SKILLS_SYNC_MARKER);
+    let file = std::fs::OpenOptions::new().write(true).open(&marker).unwrap();
+    file.set_times(std::fs::FileTimes::new().set_modified(SystemTime::UNIX_EPOCH)).unwrap();
+
+    assert_eq!(ensure_open_skills_repo(Some(true), Some(repo.to_str().unwrap())), Some(repo));
+    assert_eq!(std::fs::read(marker).unwrap(), b"synced");
+}
+
+#[test]
+fn mark_open_skills_synced_reports_missing_directory_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("missing");
+
+    assert!(mark_open_skills_synced(&missing).is_err());
+}
+
+#[test]
+fn mark_open_skills_synced_writes_and_replaces_marker_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let marker = dir.path().join(OPEN_SKILLS_SYNC_MARKER);
+    std::fs::write(&marker, b"outdated marker content").unwrap();
+
+    mark_open_skills_synced(dir.path()).unwrap();
+
+    assert_eq!(std::fs::read(marker).unwrap(), b"synced");
 }
 
 #[test]
@@ -143,4 +373,57 @@ fn load_open_skills_supports_nested_and_flat_layouts() {
     assert_eq!(flat_loaded.len(), 1);
     assert_eq!(flat_loaded[0].name, "flat");
     assert!(flat_loaded[0].prompts.is_empty());
+}
+
+#[test]
+fn load_open_skills_returns_empty_for_missing_repository() {
+    let dir = tempfile::tempdir().unwrap();
+
+    assert!(load_open_skills(&dir.path().join("missing"), SkillLoadMode::Full).is_empty());
+}
+
+#[test]
+fn load_open_skills_nested_layout_takes_priority_even_when_empty() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::create_dir(repo.path().join("skills")).unwrap();
+    std::fs::write(repo.path().join("flat.md"), "# Flat\nMust not be loaded\n").unwrap();
+
+    assert!(load_open_skills(repo.path(), SkillLoadMode::Full).is_empty());
+}
+
+#[test]
+fn load_open_skills_filters_markdown_and_readme_case_insensitively() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::write(repo.path().join("UPPER.MD"), "# Upper\nUppercase extension\n").unwrap();
+    std::fs::write(repo.path().join("ReadMe.Md"), "# Repository documentation\n").unwrap();
+    std::fs::write(repo.path().join("notes.txt"), "Not a skill\n").unwrap();
+
+    let loaded = load_open_skills(repo.path(), SkillLoadMode::MetadataOnly);
+
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].name, "UPPER");
+}
+
+#[cfg(unix)]
+#[test]
+fn load_open_skills_skips_markdown_that_escapes_repository_root() {
+    let repo = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let outside_skill = outside.path().join("escaped.md");
+    std::fs::write(&outside_skill, "# Escaped\nOutside repository\n").unwrap();
+    std::os::unix::fs::symlink(outside_skill, repo.path().join("escaped.md")).unwrap();
+
+    assert!(load_open_skills(repo.path(), SkillLoadMode::Full).is_empty());
+}
+
+#[test]
+fn load_open_skills_skips_unauditable_markdown_and_keeps_safe_neighbors() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::write(repo.path().join("safe.md"), "# Safe\nSafe skill\n").unwrap();
+    std::fs::write(repo.path().join("invalid.md"), [0xff, 0xfe]).unwrap();
+
+    let loaded = load_open_skills(repo.path(), SkillLoadMode::MetadataOnly);
+
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].name, "safe");
 }

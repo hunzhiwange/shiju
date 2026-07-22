@@ -159,6 +159,31 @@ fn start_variable_summary_error_returns_none_without_matching_errors() {
 }
 
 #[test]
+fn start_variable_summary_error_includes_advanced_constraint_errors_in_order() {
+    let paths_and_messages = [
+        ("max_length", "最大长度无效"),
+        ("options", "至少需要一个选项"),
+        ("allowed_file_types", "文件类型无效"),
+        ("allowed_file_extensions", "扩展名无效"),
+        ("allowed_file_upload_methods", "上传方式无效"),
+    ];
+    let validation = state::WorkflowNodeEditorValidation {
+        field_errors: paths_and_messages
+            .iter()
+            .map(|(field, message)| WorkflowNodeValidationError {
+                path: format!("start.variables[3].{field}"),
+                message: (*message).to_string(),
+            })
+            .collect(),
+    };
+
+    assert_eq!(
+        start_variable_summary_error(3, &validation).as_deref(),
+        Some("最大长度无效 · 至少需要一个选项 · 文件类型无效 · 扩展名无效 · 上传方式无效")
+    );
+}
+
+#[test]
 fn start_variable_default_error_only_rejects_invalid_number_defaults() {
     assert_eq!(
         start_variable_default_error(&start_variable("number", "abc")),

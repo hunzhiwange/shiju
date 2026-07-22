@@ -182,6 +182,52 @@ fn factory_custom_blank_config_returns_none() {
     assert!(t.is_none());
 }
 
+#[test]
+fn factory_custom_each_optional_field_enables_tunnel() {
+    let optional_configs = [
+        CustomTunnelConfig {
+            url: Some("https://public.example".into()),
+            auth_token: None,
+            start_command: String::new(),
+            health_url: None,
+            url_pattern: None,
+        },
+        CustomTunnelConfig {
+            url: None,
+            auth_token: Some("secret".into()),
+            start_command: String::new(),
+            health_url: None,
+            url_pattern: None,
+        },
+        CustomTunnelConfig {
+            url: None,
+            auth_token: None,
+            start_command: String::new(),
+            health_url: Some("https://health.example".into()),
+            url_pattern: None,
+        },
+        CustomTunnelConfig {
+            url: None,
+            auth_token: None,
+            start_command: String::new(),
+            health_url: None,
+            url_pattern: Some("https://[^ ]+".into()),
+        },
+    ];
+
+    for custom in optional_configs {
+        let cfg = TunnelConfig {
+            provider: "custom".into(),
+            custom: Some(custom),
+            ..TunnelConfig::default()
+        };
+
+        let tunnel = create_tunnel(&cfg).unwrap();
+        assert!(tunnel.is_some());
+        assert_eq!(tunnel.unwrap().name(), "custom");
+    }
+}
+
 /// 测试 NoneTunnel 的名称属性
 ///
 /// NoneTunnel 的 name() 方法应返回 "none"。

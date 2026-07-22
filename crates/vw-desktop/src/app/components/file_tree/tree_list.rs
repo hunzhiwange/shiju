@@ -11,6 +11,8 @@
 //! - 支持文件拖拽操作
 //! - 支持文件/目录的点击选中与预览
 
+use std::collections::BTreeMap;
+
 use iced::widget::{button, column, container, row, text};
 use iced::{Background, Color, Element, Length, Theme};
 
@@ -22,6 +24,102 @@ use crate::app::components::file_tree::widgets::RightClickArea;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::ProjectMessage;
 use crate::app::{App, Message, message};
+
+/// Git 变更列表使用的目录节点。
+#[derive(Default)]
+pub(super) struct DirNode {
+    pub(super) children: BTreeMap<String, DirNode>,
+    pub(super) files: Vec<String>,
+}
+
+/// 将 Git 变更文件路径插入目录树。
+pub(super) fn insert_path(tree: &mut DirNode, rel: &str) {
+    let parts = rel.split('/').filter(|segment| !segment.is_empty()).collect::<Vec<_>>();
+    if parts.is_empty() {
+        return;
+    }
+    if parts.len() == 1 {
+        tree.files.push(rel.to_string());
+        return;
+    }
+
+    let mut node = tree;
+    for (index, part) in parts.iter().enumerate() {
+        if index == parts.len() - 1 {
+            node.files.push(rel.to_string());
+            return;
+        }
+        node = node.children.entry((*part).to_string()).or_default();
+    }
+}
+
+fn primary_background(theme: &Theme, alpha: f32) -> Background {
+    let primary = theme.palette().primary;
+    Background::Color(Color::from_rgba(primary.r, primary.g, primary.b, alpha))
+}
+
+fn button_style(theme: &Theme, background: Option<Background>) -> iced::widget::button::Style {
+    iced::widget::button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn tree_directory_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let background = match status {
+        iced::widget::button::Status::Hovered => Some(primary_background(theme, 0.10)),
+        iced::widget::button::Status::Pressed => Some(primary_background(theme, 0.18)),
+        _ => None,
+    };
+    button_style(theme, background)
+}
+
+pub(super) fn tree_file_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let background = match status {
+        iced::widget::button::Status::Hovered => Some(primary_background(theme, 0.10)),
+        iced::widget::button::Status::Pressed => Some(primary_background(theme, 0.18)),
+        _ if selected => Some(primary_background(theme, 0.18)),
+        _ => None,
+    };
+    button_style(theme, background)
+}
+
+pub(super) fn changes_directory_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let background = match status {
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+            Some(primary_background(theme, 0.10))
+        }
+        _ => None,
+    };
+    button_style(theme, background)
+}
+
+pub(super) fn changes_file_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let background = match status {
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+            Some(primary_background(theme, 0.10))
+        }
+        _ if selected => Some(primary_background(theme, 0.10)),
+        _ => None,
+    };
+    button_style(theme, background)
+}
 
 /// 构建项目文件树列表
 ///
@@ -93,33 +191,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
                 .on_press(Message::Project(message::ProjectMessage::ToggleTreeDir(full.clone())))
-                .style(move |theme: &Theme, status| {
-                    let p = theme.palette().primary;
-                    // 悬停时的背景色（主色的 10% 透明度）
-                    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-                    // 按下时的背景色（主色的 18% 透明度）
-                    let pressed_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
-                    // 根据按钮状态选择背景色
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => hover_bg,
-                        iced::widget::button::Status::Pressed => pressed_bg,
-                        _ => Color::TRANSPARENT,
-                    };
-                    iced::widget::button::Style {
-                        background: if bg != Color::TRANSPARENT {
-                            Some(Background::Color(bg))
-                        } else {
-                            None
-                        },
-                        text_color: theme.palette().text,
-                        border: iced::Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 4.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(tree_directory_button_style)
                 .width(Length::Fill);
 
             // 构建目录的绝对路径
@@ -187,35 +259,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             // 构建可点击的文件按钮，点击时打开文件预览
             let btn = button(container(content_row).width(Length::Fill))
                 .on_press(Message::Preview(message::PreviewMessage::Open(abs_clone.clone())))
-                .style(move |theme: &Theme, status| {
-                    let p = theme.palette().primary;
-                    // 悬停时的背景色
-                    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-                    // 选中状态的背景色
-                    let selected_bg = Color::from_rgba(p.r, p.g, p.b, 0.18);
-
-                    // 基础背景色：如果已选中则显示选中背景
-                    let base_bg =
-                        if selected { Some(Background::Color(selected_bg)) } else { None };
-                    // 根据按钮状态选择背景色
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
-                        iced::widget::button::Status::Pressed => {
-                            Some(Background::Color(selected_bg))
-                        }
-                        _ => base_bg,
-                    };
-                    iced::widget::button::Style {
-                        background: bg,
-                        text_color: theme.palette().text,
-                        border: iced::Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 4.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(move |theme, status| tree_file_button_style(theme, status, selected))
                 .width(Length::Fill);
 
             let abs_for_right_click = abs.clone();
@@ -312,53 +356,6 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
         return column![text("无变更")].padding(10).into();
     }
 
-    use std::collections::BTreeMap;
-
-    /// 目录节点结构体
-    ///
-    /// 用于构建变更文件树的层级数据结构。每个节点代表一个目录，
-    /// 包含子目录映射和当前目录下的变更文件列表。
-    #[derive(Default)]
-    struct DirNode {
-        /// 子目录映射：目录名 -> 子目录节点
-        children: BTreeMap<String, DirNode>,
-        /// 当前目录下的变更文件路径列表（相对路径）
-        files: Vec<String>,
-    }
-
-    /// 将相对路径插入到目录树结构中
-    ///
-    /// 根据路径的分段信息，递归地在树结构中创建对应的节点。
-    /// 路径的最后一段作为文件名添加到对应节点的 files 列表中。
-    ///
-    /// # 参数
-    ///
-    /// * `tree` - 目录树根节点
-    /// * `rel` - 相对于项目根目录的文件路径
-    fn insert_path(tree: &mut DirNode, rel: &str) {
-        // 按路径分隔符拆分，过滤空字符串
-        let parts = rel.split('/').filter(|s| !s.is_empty()).collect::<Vec<_>>();
-        if parts.is_empty() {
-            return;
-        }
-        // 如果只有一个部分，说明是根目录下的文件
-        if parts.len() == 1 {
-            tree.files.push(rel.to_string());
-            return;
-        }
-        let mut node = tree;
-        // 遍历路径分段，构建目录层级
-        for (i, part) in parts.iter().enumerate() {
-            // 路径的最后一段是文件名
-            if i == parts.len() - 1 {
-                node.files.push(rel.to_string());
-                return;
-            }
-            // 否则进入或创建对应的子目录节点
-            node = node.children.entry(part.to_string()).or_default();
-        }
-    }
-
     /// 递归渲染变更目录节点
     ///
     /// 将变更文件树结构渲染为 UI 元素，包括目录项和文件项。
@@ -407,31 +404,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
                 .on_press(Message::Project(message::ProjectMessage::ToggleTreeDir(key.clone())))
-                .style(move |theme: &Theme, status| {
-                    let p = theme.palette().primary;
-                    // 悬停时的背景色（主色的 10% 透明度）
-                    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-                    // 根据按钮状态选择背景色
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => hover_bg,
-                        iced::widget::button::Status::Pressed => hover_bg,
-                        _ => Color::TRANSPARENT,
-                    };
-                    iced::widget::button::Style {
-                        background: if bg != Color::TRANSPARENT {
-                            Some(Background::Color(bg))
-                        } else {
-                            None
-                        },
-                        text_color: theme.palette().text,
-                        border: iced::Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 4.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(changes_directory_button_style)
                 .width(Length::Fill);
 
             // 构建目录的绝对路径
@@ -497,30 +470,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             // 构建可点击的文件按钮，点击时打开变更文件查看
             let btn = button(container(content_row).width(Length::Fill))
                 .on_press(Message::Project(message::ProjectMessage::OpenChangedFile(rel_for_open)))
-                .style(move |theme: &Theme, status| {
-                    let p = theme.palette().primary;
-                    // 悬停时的背景色
-                    let hover_bg = Color::from_rgba(p.r, p.g, p.b, 0.10);
-
-                    // 基础背景色：如果已选中则显示悬停背景
-                    let base_bg = if selected { Some(Background::Color(hover_bg)) } else { None };
-                    // 根据按钮状态选择背景色
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => Some(Background::Color(hover_bg)),
-                        iced::widget::button::Status::Pressed => Some(Background::Color(hover_bg)),
-                        _ => base_bg,
-                    };
-                    iced::widget::button::Style {
-                        background: bg,
-                        text_color: theme.palette().text,
-                        border: iced::Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 4.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
+                .style(move |theme, status| changes_file_button_style(theme, status, selected))
                 .width(Length::Fill);
 
             let abs_for_click = abs.clone();

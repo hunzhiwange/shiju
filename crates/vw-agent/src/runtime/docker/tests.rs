@@ -47,14 +47,20 @@ mod tests {
         assert!(runtime.has_shell_access());
         assert!(runtime.has_filesystem_access());
         assert!(!runtime.supports_long_running());
-        assert_eq!(runtime.storage_path(), PathBuf::from("/workspace/.vibewindow"));
+        assert_eq!(
+            runtime.storage_path(),
+            PathBuf::from("/workspace").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        );
 
         let runtime = DockerRuntime::new(DockerRuntimeConfig {
             mount_workspace: false,
             ..DockerRuntimeConfig::default()
         });
         assert!(!runtime.has_filesystem_access());
-        assert_eq!(runtime.storage_path(), PathBuf::from("/tmp/.vibewindow"));
+        assert_eq!(
+            runtime.storage_path(),
+            PathBuf::from("/tmp").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
+        );
     }
 
     #[test]
@@ -126,6 +132,21 @@ mod tests {
 
         // 应返回错误，拒绝访问
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn docker_workspace_mount_rejects_relative_path() {
+        let runtime = DockerRuntime::new(DockerRuntimeConfig {
+            mount_workspace: true,
+            ..DockerRuntimeConfig::default()
+        });
+
+        let error = runtime
+            .build_shell_command("echo test", Path::new("relative/workspace"))
+            .expect_err("relative workspace path must be rejected")
+            .to_string();
+
+        assert!(error.contains("Failed to validate workspace mount path"));
     }
 
     #[test]

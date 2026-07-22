@@ -6,10 +6,125 @@
 use super::*;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use std::time::{Duration as StdDuration, Instant, SystemTime, UNIX_EPOCH};
 
 static UNIQUE_TEST_ID: AtomicU64 = AtomicU64::new(1);
+
+#[test]
+fn clone_shares_runtime_state_and_preserves_config() {
+    let client = AcpClient::new(
+        "test-agent",
+        AcpAgentConfig {
+            command: "agent".to_string(),
+            args: vec!["--acp".to_string()],
+            env: HashMap::new(),
+        },
+    );
+    let clone = client.clone();
+    *client.permission_stats.lock() =
+        PermissionStats { requested: 2, approved: 1, denied: 1, cancelled: 0 };
+    client.store_reusable_session(Some("session-1".to_string()));
+    client.cancelling_session_ids.lock().insert("session-1".to_string());
+    let (cancel_tx, _cancel_rx) = watch::channel(false);
+    let (_completed_tx, completed_rx) = watch::channel(false);
+    client.register_active_prompt("session-1".to_string(), cancel_tx, completed_rx);
+
+    assert_eq!(clone.agent_name, "test-agent");
+    assert_eq!(clone.config.command, "agent");
+    assert_eq!(clone.config.args, vec!["--acp"]);
+    assert_eq!(
+        clone.permission_stats(),
+        PermissionStats { requested: 2, approved: 1, denied: 1, cancelled: 0 }
+    );
+    assert!(clone.has_reusable_session("session-1"));
+    assert!(clone.has_active_prompt());
+    assert!(clone.cancelling_session_ids.lock().contains("session-1"));
+    assert!(Arc::ptr_eq(&client.permission_stats, &clone.permission_stats));
+    assert!(Arc::ptr_eq(&client.active_prompt, &clone.active_prompt));
+    assert!(Arc::ptr_eq(&client.cancelling_session_ids, &clone.cancelling_session_ids));
+    assert!(Arc::ptr_eq(&client.actor_state, &clone.actor_state));
+}
+
+#[test]
+fn clone_preserves_builder_configuration_and_callbacks() {
+    let mcp_servers =
+        vec![acp::McpServer::Http(acp::McpServerHttp::new("project", "https://example.test/mcp"))];
+    let session_options = AcpSessionOptions {
+        model: Some("fast-model".to_string()),
+        allowed_tools: Some(vec!["shell".to_string(), "read".to_string()]),
+        max_turns: Some(3),
+    };
+    let mut auth_credentials = HashMap::new();
+    auth_credentials.insert("api_key".to_string(), "secret".to_string());
+    let acp_callback: AcpMessageCallback = Arc::new(|_direction, _message| {});
+    let acp_output_callback: AcpMessageCallback = Arc::new(|_direction, _message| {});
+    let session_update_callback: SessionUpdateCallback = Arc::new(|_notification| {});
+    let client_operation_callback: ClientOperationCallback = Arc::new(|_operation| {});
+
+    let mut client = AcpClient::new(
+        "configured-agent",
+        AcpAgentConfig {
+            command: "agent".to_string(),
+            args: vec!["--acp".to_string()],
+            env: HashMap::from([("AGENT_ENV".to_string(), "1".to_string())]),
+        },
+    )
+    .with_client_info("host-client", "1.2.3")
+    .with_mcp_servers(mcp_servers.clone())
+    .with_permission_mode(PermissionMode::ApproveReads)
+    .with_non_interactive_permissions(Some(NonInteractivePermissionPolicy::Deny))
+    .with_auth_credentials(auth_credentials.clone())
+    .with_auth_policy(AuthPolicy::Fail)
+    .with_session_options(Some(session_options.clone()))
+    .with_verbose(true)
+    .with_acp_message_callback(Some(acp_callback.clone()))
+    .with_acp_output_message_callback(Some(acp_output_callback.clone()))
+    .with_session_update_callback(Some(session_update_callback.clone()))
+    .with_client_operation_callback(Some(client_operation_callback.clone()));
+
+    let clone = client.clone();
+    client.config.args.push("--mutated-after-clone".to_string());
+    client.auth_credentials.insert("late".to_string(), "ignored".to_string());
+
+    assert_eq!(clone.agent_name, "configured-agent");
+    assert_eq!(clone.config.command, "agent");
+    assert_eq!(clone.config.args, vec!["--acp"]);
+    assert_eq!(clone.config.env.get("AGENT_ENV"), Some(&"1".to_string()));
+    assert_eq!(clone.client_name, "host-client");
+    assert_eq!(clone.client_version, "1.2.3");
+    assert_eq!(clone.mcp_servers, mcp_servers);
+    assert_eq!(clone.permission_mode, PermissionMode::ApproveReads);
+    assert_eq!(clone.non_interactive_permissions, Some(NonInteractivePermissionPolicy::Deny));
+    assert_eq!(clone.auth_credentials, auth_credentials);
+    assert_eq!(clone.auth_policy, AuthPolicy::Fail);
+    assert_eq!(clone.session_options, Some(session_options));
+    assert!(clone.verbose);
+    assert!(
+        clone.on_acp_message.as_ref().is_some_and(|callback| Arc::ptr_eq(callback, &acp_callback))
+    );
+    assert!(
+        clone
+            .on_acp_output_message
+            .as_ref()
+            .is_some_and(|callback| Arc::ptr_eq(callback, &acp_output_callback))
+    );
+    assert!(
+        clone
+            .on_session_update
+            .as_ref()
+            .is_some_and(|callback| Arc::ptr_eq(callback, &session_update_callback))
+    );
+    assert!(
+        clone
+            .on_client_operation
+            .as_ref()
+            .is_some_and(|callback| Arc::ptr_eq(callback, &client_operation_callback))
+    );
+}
 
 #[cfg(unix)]
 #[tokio::test]

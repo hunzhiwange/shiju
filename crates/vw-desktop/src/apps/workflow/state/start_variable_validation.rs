@@ -26,6 +26,7 @@ pub(super) fn parse_start_variable_file_default_values(
             .map(|item| item.trim().to_string())
             .filter(|item| !item.is_empty())
             .collect::<Vec<_>>(),
+        ("file" | "file-list", Some(Value::Mapping(_))) => Vec::new(),
         ("file" | "file-list", Some(value)) => {
             let text = scalar_value_to_string(value).trim().to_string();
             if text.is_empty() { Vec::new() } else { vec![text] }

@@ -38,6 +38,9 @@ mod app_sync_store_tests;
 #[path = "device_store_tests.rs"]
 mod device_store_tests;
 #[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;
+#[cfg(test)]
 #[path = "protocol_store_tests.rs"]
 mod protocol_store_tests;
 #[cfg(test)]
@@ -82,7 +85,9 @@ impl RusqliteStore {
     pub fn new<P: AsRef<Path>>(db_path: P) -> anyhow::Result<Self> {
         let db_path = db_path.as_ref().to_string_lossy().to_string();
 
-        if let Some(parent) = Path::new(&db_path).parent() {
+        if let Some(parent) =
+            Path::new(&db_path).parent().filter(|parent| !parent.as_os_str().is_empty())
+        {
             std::fs::create_dir_all(parent)?;
         }
 

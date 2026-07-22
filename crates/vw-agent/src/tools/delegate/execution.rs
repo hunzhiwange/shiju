@@ -5,13 +5,29 @@
 
 use super::super::traits::ToolResult;
 use super::{DELEGATE_TIMEOUT_SECS, DelegateTool};
-use crate::app::agent::providers::Provider;
+use crate::app::agent::providers::{Provider, ProviderRuntimeOptions};
 use crate::app::agent::security::policy::ToolOperation;
 use std::time::Duration;
 
 pub(super) async fn execute(
     tool: &DelegateTool,
     args: serde_json::Value,
+) -> anyhow::Result<ToolResult> {
+    execute_with_provider_factory(tool, args, &|provider, credential, options| {
+        crate::app::agent::providers::create_provider_with_options(provider, credential, options)
+    })
+    .await
+}
+
+type ProviderFactory<'a> = dyn Fn(&str, Option<&str>, &ProviderRuntimeOptions) -> anyhow::Result<Box<dyn Provider>>
+    + Send
+    + Sync
+    + 'a;
+
+async fn execute_with_provider_factory(
+    tool: &DelegateTool,
+    args: serde_json::Value,
+    create_provider: &ProviderFactory<'_>,
 ) -> anyhow::Result<ToolResult> {
     let called_via_agent_tool =
         args.get("_via_agent_tool").and_then(|value| value.as_bool()).unwrap_or(false);
@@ -91,31 +107,25 @@ pub(super) async fn execute(
     #[allow(clippy::option_as_ref_deref)]
     let provider_credential = provider_credential_owned.as_ref().map(String::as_str);
 
-    let provider: Box<dyn Provider> =
-        match crate::app::agent::providers::create_provider_with_options(
-            &agent_config.provider,
-            provider_credential,
-            &tool.provider_runtime_options,
-        ) {
-            Ok(provider) => provider,
-            Err(error) => {
-                let error_message = format!(
-                    "Failed to create provider '{}' for agent '{agent_name}': {error}",
-                    agent_config.provider
-                );
-                tool.finish_coordination_trace(
-                    agent_name,
-                    &coordination_trace,
-                    false,
-                    &error_message,
-                );
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(error_message),
-                });
-            }
-        };
+    let provider: Box<dyn Provider> = match create_provider(
+        &agent_config.provider,
+        provider_credential,
+        &tool.provider_runtime_options,
+    ) {
+        Ok(provider) => provider,
+        Err(error) => {
+            let error_message = format!(
+                "Failed to create provider '{}' for agent '{agent_name}': {error}",
+                agent_config.provider
+            );
+            tool.finish_coordination_trace(agent_name, &coordination_trace, false, &error_message);
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(error_message),
+            });
+        }
+    };
 
     let full_prompt = if context.is_empty() {
         prompt.to_string()

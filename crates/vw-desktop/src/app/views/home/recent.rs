@@ -348,9 +348,16 @@ fn recent_project_name(app: &App, index: usize, path: &str) -> String {
 
 fn project_name_from_path(path: &str) -> String {
     let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return "未命名项目".to_string();
+    }
     let without_trailing_separator = trimmed.trim_end_matches(|ch| ch == '/' || ch == '\\');
     let display_path =
         if without_trailing_separator.is_empty() { trimmed } else { without_trailing_separator };
+
+    if let Some(name) = display_path.rsplit(['/', '\\']).find(|segment| !segment.is_empty()) {
+        return name.to_string();
+    }
 
     std::path::Path::new(display_path)
         .file_name()

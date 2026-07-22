@@ -46,6 +46,13 @@ fn file_mtime_from_system_time_keeps_epoch_parts() {
 }
 
 #[test]
+fn dir_mtime_returns_none_for_missing_path() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+
+    assert!(dir_mtime(&temp.path().join("missing")).is_none());
+}
+
+#[test]
 fn hex_encode_encodes_utf8_bytes() {
     assert_eq!(hex_encode("Az0/中"), "417a302fe4b8ad");
 }
@@ -124,6 +131,25 @@ fn collect_cached_subtree_returns_before_subdirs_when_limit_is_reached_by_files(
 
     assert_eq!(files.len(), FILE_INDEX_LIMIT);
     assert_eq!(entries.len(), 1);
+}
+
+#[test]
+fn collect_cached_subtree_leaves_outputs_unchanged_for_missing_entry() {
+    let cache = FileIndexCache {
+        version: FILE_INDEX_CACHE_VERSION,
+        root: "root".to_string(),
+        root_mtime: None,
+        gitignore_mtime: None,
+        entries: Vec::new(),
+    };
+    let map = cache_map(&cache);
+    let mut files = vec!["existing.txt".to_string()];
+    let mut entries = Vec::new();
+
+    collect_cached_subtree("missing", &map, &mut files, &mut entries);
+
+    assert_eq!(files, vec!["existing.txt"]);
+    assert!(entries.is_empty());
 }
 
 #[test]
@@ -292,6 +318,39 @@ fn index_files_applies_name_only_globs_and_backslash_normalization() {
 }
 
 #[test]
+fn index_files_uses_last_matching_ignore_rule() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    write_file(
+        &root.join(".gitignore"),
+        "*.tmp\n!important.tmp\nimportant.tmp\n*.log\n!keep.log\n",
+    );
+    write_file(&root.join("important.tmp"), "ignored again");
+    write_file(&root.join("other.tmp"), "ignored");
+    write_file(&root.join("drop.log"), "ignored");
+    write_file(&root.join("keep.log"), "kept");
+    write_file(&root.join("source.rs"), "kept");
+
+    let files = rel_files(root, index_files(root.to_string_lossy().to_string()));
+
+    assert_eq!(files, vec![".gitignore", "keep.log", "source.rs"]);
+}
+
+#[test]
+fn index_files_matches_unanchored_path_rule_only_at_declared_relative_path() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    write_file(&root.join(".gitignore"), "docs/private.txt\n");
+    write_file(&root.join("private.txt"), "kept");
+    write_file(&root.join("docs/private.txt"), "ignored");
+    write_file(&root.join("nested/docs/private.txt"), "kept");
+
+    let files = rel_files(root, index_files(root.to_string_lossy().to_string()));
+
+    assert_eq!(files, vec![".gitignore", "private.txt", "nested/docs/private.txt"]);
+}
+
+#[test]
 fn refresh_file_index_reuses_cached_unchanged_subtree_and_rescans_changed_root() {
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let root = temp.path();
@@ -307,6 +366,50 @@ fn refresh_file_index_reuses_cached_unchanged_subtree_and_rescans_changed_root()
     let second = rel_files(root, refresh_file_index(&root_string));
 
     assert_eq!(second, vec!["new.txt", "root.txt", "stable/cached.txt"]);
+    remove_cache_for(&root_string);
+}
+
+#[test]
+fn index_files_with_cache_reuses_unchanged_root_entry() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    write_file(&root.join("disk.txt"), "not scanned when cache matches");
+    let cached_file = root.join("cached.txt").to_string_lossy().to_string();
+    let root_mtime = dir_mtime(root);
+    let cache = FileIndexCache {
+        version: FILE_INDEX_CACHE_VERSION,
+        root: root_string.clone(),
+        root_mtime,
+        gitignore_mtime: None,
+        entries: vec![DirEntry {
+            path: "".to_string(),
+            mtime: root_mtime,
+            files: vec![cached_file.clone()],
+            subdirs: Vec::new(),
+        }],
+    };
+
+    let updated = index_files_with_cache(&root_string, Some(&cache));
+
+    assert_eq!(cache_files(&updated), vec![cached_file]);
+}
+
+#[test]
+fn refresh_file_index_skips_default_ignored_directories() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    remove_cache_for(&root_string);
+    write_file(&root.join("keep.txt"), "kept");
+    write_file(&root.join("src/lib.rs"), "kept");
+    write_file(&root.join(".git/config"), "ignored");
+    write_file(&root.join("target/debug.bin"), "ignored");
+    write_file(&root.join("node_modules/pkg/index.js"), "ignored");
+
+    let files = rel_files(root, refresh_file_index(&root_string));
+
+    assert_eq!(files, vec!["keep.txt", "src/lib.rs"]);
     remove_cache_for(&root_string);
 }
 
@@ -347,6 +450,41 @@ fn refresh_file_index_applies_anchored_exact_gitignore_rules_and_handles_file_ro
 }
 
 #[test]
+fn refresh_file_index_treats_invalid_gitignore_glob_as_exact_name() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    remove_cache_for(&root_string);
+    write_file(&root.join(".gitignore"), "[invalid\n");
+    write_file(&root.join("[invalid"), "ignored by exact fallback");
+    write_file(&root.join("[invalid.txt"), "kept");
+
+    let files = rel_files(root, refresh_file_index(&root_string));
+
+    assert_eq!(files, vec![".gitignore", "[invalid.txt"]);
+    remove_cache_for(&root_string);
+}
+
+#[test]
+fn refresh_file_index_applies_name_only_globs_and_backslash_normalization() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    remove_cache_for(&root_string);
+    write_file(&root.join(".gitignore"), "generated?.txt\nlogs\\\\\n");
+    write_file(&root.join("generated1.txt"), "ignored");
+    write_file(&root.join("generated10.txt"), "kept");
+    write_file(&root.join("logs/app.txt"), "ignored");
+    write_file(&root.join("src/generated2.txt"), "ignored by name glob");
+    write_file(&root.join("src/keep.rs"), "kept");
+
+    let files = rel_files(root, refresh_file_index(&root_string));
+
+    assert_eq!(files, vec![".gitignore", "generated10.txt", "src/keep.rs"]);
+    remove_cache_for(&root_string);
+}
+
+#[test]
 fn indexers_stop_before_files_beyond_max_depth() {
     let temp = tempfile::tempdir().expect("temp dir should be created");
     let root = temp.path();
@@ -361,4 +499,46 @@ fn indexers_stop_before_files_beyond_max_depth() {
 
     assert!(indexed.is_empty());
     assert!(refreshed.is_empty());
+}
+
+#[test]
+fn indexers_include_files_at_max_depth() {
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    remove_cache_for(&root_string);
+    let mut deepest_dir = root.to_path_buf();
+    let mut relative_parts = Vec::new();
+    for level in 0..FILE_INDEX_MAX_DEPTH {
+        let part = format!("d{level}");
+        deepest_dir = deepest_dir.join(&part);
+        relative_parts.push(part);
+    }
+    write_file(&deepest_dir.join("boundary.txt"), "included");
+    let expected = format!("{}/boundary.txt", relative_parts.join("/"));
+
+    let indexed = rel_files(root, index_files(root_string.clone()));
+    let refreshed = rel_files(root, refresh_file_index(&root_string));
+
+    assert_eq!(indexed, vec![expected.clone()]);
+    assert_eq!(refreshed, vec![expected]);
+    remove_cache_for(&root_string);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn indexers_skip_non_utf8_file_paths() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let temp = tempfile::tempdir().expect("temp dir should be created");
+    let root = temp.path();
+    let root_string = root.to_string_lossy().to_string();
+    remove_cache_for(&root_string);
+    let invalid_name = std::ffi::OsString::from_vec(vec![b'f', 0xff]);
+    fs::write(root.join(invalid_name), "not representable as UTF-8")
+        .expect("non-UTF-8 file should be written");
+
+    assert!(index_files(root_string.clone()).is_empty());
+    assert!(refresh_file_index(&root_string).is_empty());
+    remove_cache_for(&root_string);
 }

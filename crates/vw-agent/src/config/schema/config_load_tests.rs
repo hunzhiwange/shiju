@@ -1,7 +1,12 @@
 use super::config_load::{
-    config_json_path, load_config_from_json_root, load_config_from_toml_path,
+    config_json_path, load_config_for_tenant_from_store, load_config_from_json_root,
+    load_config_from_toml_path,
 };
 use super::workspace::ConfigResolutionSource;
+use crate::app::agent::config::SystemConfigStore;
+use crate::global_database::GlobalDatabase;
+use serde_json::json;
+use vw_api_types::id::TenantScope;
 
 #[test]
 fn config_json_path_appends_stable_filename() {
@@ -29,6 +34,73 @@ async fn load_config_from_json_root_returns_none_for_missing_or_empty_file() {
 }
 
 #[tokio::test]
+async fn load_config_from_json_root_treats_non_object_root_as_absent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("vibewindow.json");
+    tokio::fs::write(&path, "[]").await.unwrap();
+
+    let loaded = load_config_from_json_root(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap();
+
+    assert!(loaded.is_none());
+}
+
+#[tokio::test]
+async fn load_config_from_json_root_reports_parse_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("vibewindow.json");
+    tokio::fs::write(&path, "{").await.unwrap();
+
+    let error = load_config_from_json_root(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap_err();
+
+    assert!(error.to_string().contains("Failed to parse config file"));
+}
+
+#[tokio::test]
+async fn load_config_from_json_root_propagates_deserialize_secret_and_validation_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("vibewindow.json");
+
+    for (contents, expected_error) in [
+        (r#"{"default_temperature":"warm"}"#, "Failed to deserialize config payload"),
+        (
+            r#"{"default_temperature":0.7,"api_key":"enc2:not-hex"}"#,
+            "Failed to decrypt config.api_key",
+        ),
+        (
+            r#"{"default_temperature":0.7,"autonomy":{"max_actions_per_hour":0}}"#,
+            "autonomy.max_actions_per_hour must be greater than 0",
+        ),
+    ] {
+        tokio::fs::write(&path, contents).await.unwrap();
+
+        let error = load_config_from_json_root(
+            &path,
+            tmp.path().join("workspace"),
+            tmp.path(),
+            ConfigResolutionSource::DefaultConfigDir,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains(expected_error), "unexpected error: {error:#}");
+    }
+}
+
+#[tokio::test]
 async fn load_config_from_toml_path_sets_runtime_paths() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("legacy.toml");
@@ -49,4 +121,501 @@ async fn load_config_from_toml_path_sets_runtime_paths() {
     assert_eq!(loaded.config_path, path);
     assert_eq!(loaded.workspace_dir, workspace);
     assert_eq!(loaded.default_model.as_deref(), Some("model"));
+}
+
+#[tokio::test]
+async fn load_config_from_toml_path_normalizes_legacy_gateway_table() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("legacy.toml");
+    tokio::fs::write(&path, "default_temperature = 0.7\n[Gateway]\nauth_enabled = true\n")
+        .await
+        .unwrap();
+
+    let loaded = load_config_from_toml_path(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap();
+
+    assert!(loaded.gateway.auth_enabled);
+}
+
+#[tokio::test]
+async fn load_config_from_toml_path_reports_read_and_parse_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("legacy.toml");
+
+    let read_error = load_config_from_toml_path(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap_err();
+    assert!(read_error.to_string().contains("Failed to read config file"));
+
+    tokio::fs::write(&path, "default_temperature = [").await.unwrap();
+    let parse_error = load_config_from_toml_path(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap_err();
+    assert!(parse_error.to_string().contains("Failed to parse config file"));
+}
+
+#[tokio::test]
+async fn load_config_from_toml_path_propagates_deserialize_secret_and_validation_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("legacy.toml");
+
+    for (contents, expected_error) in [
+        ("default_temperature = \"warm\"\n", "Failed to deserialize config file"),
+        (
+            "default_temperature = 0.7\napi_key = \"enc2:not-hex\"\n",
+            "Failed to decrypt config.api_key",
+        ),
+        (
+            "default_temperature = 0.7\n[autonomy]\nmax_actions_per_hour = 0\n",
+            "autonomy.max_actions_per_hour must be greater than 0",
+        ),
+    ] {
+        tokio::fs::write(&path, contents).await.unwrap();
+
+        let error = load_config_from_toml_path(
+            &path,
+            tmp.path().join("workspace"),
+            tmp.path(),
+            ConfigResolutionSource::DefaultConfigDir,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains(expected_error), "unexpected error: {error:#}");
+    }
+}
+
+#[tokio::test]
+async fn load_config_from_json_root_accepts_channel_instances_and_staff_bindings() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("vibewindow.json");
+    let workspace = tmp.path().join("workspace");
+    tokio::fs::write(
+        &path,
+        serde_json::to_string(&json!({
+            "default_temperature": 0.7,
+            "channels_config": {
+                "cli": true,
+                "matrix_instances": [{
+                    "id": "planner",
+                    "homeserver": "https://matrix.example",
+                    "access_token": "matrix-token",
+                    "room_id": "!room:example",
+                    "allowed_users": ["@planner:example"]
+                }],
+                "feishu_instances": [{
+                    "id": "cn",
+                    "app_id": "feishu-app",
+                    "app_secret": "feishu-secret"
+                }],
+                "dingtalk_instances": [{
+                    "id": "ops",
+                    "client_id": "dingtalk-client",
+                    "client_secret": "dingtalk-secret"
+                }]
+            },
+            "staff": {
+                "members": [{
+                    "id": "staff-planner",
+                    "name": "Planner",
+                    "role": "planner",
+                    "level": "manager",
+                    "ipc_agent_id": "ipc-planner",
+                    "channel_bindings": [{
+                        "channel_type": "matrix",
+                        "instance_id": "planner"
+                    }]
+                }],
+                "workflow_stages": [{
+                    "id": "planning",
+                    "name": "Planning",
+                    "task_status": "planning",
+                    "role": "planner"
+                }],
+                "workflow_orchestrations": {
+                    "planning-workflow": {
+                        "stage_workflow_bindings": [{
+                            "stage_id": "planning",
+                            "workflow_uuid": "018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f003"
+                        }]
+                    }
+                },
+                "project_state": {
+                    "capabilities": [{
+                        "id": "legacy_saved_workflow",
+                        "label": "Legacy Saved Workflow",
+                        "type": "saved_workflow"
+                    }],
+                    "stage_assignments": [{
+                        "stage_id": "planning",
+                        "primary_member_id": "staff-planner",
+                        "autonomous": true
+                    }],
+                    "stage_workflow_bindings": [{
+                        "stage_id": "planning",
+                        "workflow_uuid": "018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f001"
+                    }],
+                    "stage_actions": [{
+                        "stage_id": "planning",
+                        "capability_id": "saved_workflow",
+                        "workflow_uuid": "018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f002"
+                    }],
+                    "member_task_assignments": [{
+                        "member_id": "staff-planner",
+                        "task_ids": ["task-1"]
+                    }]
+                }
+            }
+        }))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+    let loaded = load_config_from_json_root(
+        &path,
+        workspace.clone(),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap()
+    .expect("config payload");
+
+    assert_eq!(loaded.config_path, path);
+    assert_eq!(loaded.workspace_dir, workspace);
+    assert_eq!(loaded.channels_config.matrix_instances[0].id, "planner");
+    assert_eq!(loaded.channels_config.feishu_instances[0].id, "cn");
+    assert_eq!(loaded.channels_config.dingtalk_instances[0].id, "ops");
+    assert_eq!(loaded.staff.members[0].ipc_agent_id.as_deref(), Some("ipc-planner"));
+    assert_eq!(loaded.staff.members[0].channel_bindings[0].channel_type, "matrix");
+    let planning_workflow = loaded.staff.workflow_orchestrations.get("planning-workflow").unwrap();
+    assert!(planning_workflow.stage_workflow_bindings.is_empty());
+    assert!(loaded.staff.project_state.capabilities.is_empty());
+    assert!(loaded.staff.project_state.stage_assignments.is_empty());
+    assert!(loaded.staff.project_state.stage_workflow_bindings.is_empty());
+    assert!(loaded.staff.project_state.stage_actions.is_empty());
+    assert_eq!(loaded.staff.project_state.member_task_assignments[0].task_ids, vec!["task-1"]);
+}
+
+#[tokio::test]
+async fn load_config_merges_tenant_base_project_override_then_environment() {
+    let temp_home = tempfile::tempdir().unwrap();
+    let config_dir = temp_home.path().join("config");
+    let project_dir = temp_home.path().join("project");
+    tokio::fs::create_dir_all(&config_dir).await.unwrap();
+    tokio::fs::create_dir_all(&project_dir).await.unwrap();
+
+    let store = SystemConfigStore::new(
+        GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap(),
+    )
+    .unwrap();
+    let tenant = TenantScope::new("platform-a", "company-a").unwrap();
+    let other_tenant = TenantScope::new("platform-a", "company-b").unwrap();
+    store
+        .upsert(
+            &tenant,
+            &json!({
+                "default_model": "database-model",
+                "default_provider": "database-provider",
+                "default_temperature": 0.2
+            })
+            .to_string(),
+        )
+        .unwrap();
+    store
+        .upsert(
+            &other_tenant,
+            &json!({
+                "default_model": "other-model",
+                "default_provider": "other-provider",
+                "default_temperature": 0.9
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+    let override_path = project_dir.join(super::CONFIG_OVERRIDE_FILENAME);
+    let override_contents = json!({
+        "default_provider": "project-provider",
+        "default_model": "project-model"
+    })
+    .to_string();
+    tokio::fs::write(&override_path, &override_contents).await.unwrap();
+
+    let loaded = load_config_for_tenant_from_store(
+        &store,
+        &tenant,
+        Some(&project_dir),
+        &config_dir,
+        project_dir.clone(),
+        ConfigResolutionSource::DefaultConfigDir,
+        |config| config.default_model = Some("environment-model".to_string()),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(loaded.default_temperature, 0.2, "database base must be retained");
+    assert_eq!(loaded.default_provider.as_deref(), Some("project-provider"));
+    assert_eq!(loaded.default_model.as_deref(), Some("environment-model"));
+    assert_eq!(loaded.workspace_dir, project_dir);
+    assert_eq!(loaded.config_path, override_path);
+    assert_eq!(tokio::fs::read_to_string(&loaded.config_path).await.unwrap(), override_contents);
+
+    let other_loaded = load_config_for_tenant_from_store(
+        &store,
+        &other_tenant,
+        None,
+        &config_dir,
+        config_dir.join("workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(other_loaded.default_model.as_deref(), Some("other-model"));
+    assert_eq!(other_loaded.default_provider.as_deref(), Some("other-provider"));
+    assert_eq!(other_loaded.default_temperature, 0.9);
+
+    let clean_project = temp_home.path().join("nested/clean-project");
+    tokio::fs::create_dir_all(&clean_project).await.unwrap();
+    tokio::fs::write(
+        temp_home.path().join(super::CONFIG_OVERRIDE_FILENAME),
+        r#"{"default_provider":"must-not-be-scanned"}"#,
+    )
+    .await
+    .unwrap();
+    let clean_project_loaded = load_config_for_tenant_from_store(
+        &store,
+        &tenant,
+        Some(&clean_project),
+        &config_dir,
+        clean_project.clone(),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(clean_project_loaded.default_model.as_deref(), Some("database-model"));
+    assert_eq!(clean_project_loaded.default_provider.as_deref(), Some("database-provider"));
+    assert!(!clean_project.join(super::CONFIG_OVERRIDE_FILENAME).exists());
+
+    let new_tenant = TenantScope::new("platform-b", "company-new").unwrap();
+    let initialized = load_config_for_tenant_from_store(
+        &store,
+        &new_tenant,
+        None,
+        &config_dir,
+        config_dir.join("workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(initialized.default_provider.as_deref(), Some("openrouter"));
+    let initialized_payload: serde_json::Value =
+        serde_json::from_str(&store.get(&new_tenant).unwrap().unwrap()).unwrap();
+    assert!(initialized_payload.is_object());
+    assert!(initialized_payload.get("gateway").is_some());
+}
+
+#[tokio::test]
+async fn load_config_from_store_normalizes_legacy_model_aliases_without_overriding_current_keys() {
+    let temp_home = tempfile::tempdir().unwrap();
+    let config_dir = temp_home.path().join("config");
+    tokio::fs::create_dir_all(&config_dir).await.unwrap();
+    let store = SystemConfigStore::new(
+        GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap(),
+    )
+    .unwrap();
+    let legacy_tenant = TenantScope::new("platform", "legacy-company").unwrap();
+    let conflict_tenant = TenantScope::new("platform", "conflict-company").unwrap();
+    store
+        .upsert(
+            &legacy_tenant,
+            &json!({
+                "model": "legacy-model",
+                "model_provider": "legacy-provider",
+                "default_temperature": 0.7
+            })
+            .to_string(),
+        )
+        .unwrap();
+    store
+        .upsert(
+            &conflict_tenant,
+            &json!({
+                "default_model": "current-model",
+                "model": "legacy-model",
+                "default_provider": "current-provider",
+                "model_provider": "legacy-provider",
+                "default_temperature": 0.7
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+    let legacy = load_config_for_tenant_from_store(
+        &store,
+        &legacy_tenant,
+        None,
+        &config_dir,
+        config_dir.join("legacy-workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(legacy.default_model.as_deref(), Some("legacy-model"));
+    assert_eq!(legacy.default_provider.as_deref(), Some("legacy-provider"));
+
+    let conflict = load_config_for_tenant_from_store(
+        &store,
+        &conflict_tenant,
+        None,
+        &config_dir,
+        config_dir.join("conflict-workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(conflict.default_model.as_deref(), Some("current-model"));
+    assert_eq!(conflict.default_provider.as_deref(), Some("current-provider"));
+}
+
+#[tokio::test]
+async fn load_config_from_store_rejects_malformed_and_non_object_base_payloads() {
+    let temp_home = tempfile::tempdir().unwrap();
+    let config_dir = temp_home.path().join("config");
+    tokio::fs::create_dir_all(&config_dir).await.unwrap();
+    let store = SystemConfigStore::new(
+        GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap(),
+    )
+    .unwrap();
+    let malformed_tenant = TenantScope::new("platform", "malformed-company").unwrap();
+    let array_tenant = TenantScope::new("platform", "array-company").unwrap();
+    store.upsert(&malformed_tenant, "{").unwrap();
+    store.upsert(&array_tenant, "[]").unwrap();
+
+    let malformed_error = load_config_for_tenant_from_store(
+        &store,
+        &malformed_tenant,
+        None,
+        &config_dir,
+        config_dir.join("workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert!(malformed_error.to_string().contains("Failed to parse tenant system config payload"));
+
+    let array_error = load_config_for_tenant_from_store(
+        &store,
+        &array_tenant,
+        None,
+        &config_dir,
+        config_dir.join("workspace"),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        array_error.to_string().contains("tenant system config payload root must be an object")
+    );
+}
+
+#[tokio::test]
+async fn load_config_rejects_invalid_project_override_without_mutating_base() {
+    let temp_home = tempfile::tempdir().unwrap();
+    let config_dir = temp_home.path().join("config");
+    let project_dir = temp_home.path().join("project");
+    tokio::fs::create_dir_all(&config_dir).await.unwrap();
+    tokio::fs::create_dir_all(&project_dir).await.unwrap();
+
+    let store = SystemConfigStore::new(
+        GlobalDatabase::new(temp_home.path().join("database/_index.sqlite3")).unwrap(),
+    )
+    .unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let base_payload = json!({
+        "default_model": "database-model",
+        "gateway": { "host": "127.0.0.1" }
+    })
+    .to_string();
+    store.upsert(&tenant, &base_payload).unwrap();
+
+    let override_path = project_dir.join(super::CONFIG_OVERRIDE_FILENAME);
+    tokio::fs::write(&override_path, "[]").await.unwrap();
+
+    let error = load_config_for_tenant_from_store(
+        &store,
+        &tenant,
+        Some(&project_dir),
+        &config_dir,
+        project_dir.clone(),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+
+    assert!(error.to_string().contains("project config override root must be an object"));
+    assert_eq!(store.get(&tenant).unwrap().as_deref(), Some(base_payload.as_str()));
+    assert_eq!(tokio::fs::read_to_string(&override_path).await.unwrap(), "[]");
+
+    let missing_tenant = TenantScope::new("platform", "missing-company").unwrap();
+    let missing_error = load_config_for_tenant_from_store(
+        &store,
+        &missing_tenant,
+        Some(&project_dir),
+        &config_dir,
+        project_dir.clone(),
+        ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert!(missing_error.to_string().contains("project config override root must be an object"));
+    assert_eq!(store.get(&missing_tenant).unwrap(), None);
+
+    for (contents, expected_error) in [
+        (r#"{"gateway":{"host":""}}"#, "gateway.host must not be empty"),
+        (r#"{"api_key":"enc2:not-hex"}"#, "Failed to decrypt config.api_key"),
+    ] {
+        tokio::fs::write(&override_path, contents).await.unwrap();
+        let error = load_config_for_tenant_from_store(
+            &store,
+            &tenant,
+            Some(&project_dir),
+            &config_dir,
+            project_dir.clone(),
+            ConfigResolutionSource::DefaultConfigDir,
+            |_| {},
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains(expected_error), "unexpected error: {error:#}");
+        assert_eq!(store.get(&tenant).unwrap().as_deref(), Some(base_payload.as_str()));
+        assert_eq!(tokio::fs::read_to_string(&override_path).await.unwrap(), contents);
+    }
 }

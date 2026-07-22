@@ -174,17 +174,17 @@ impl RuntimeAdapter for DockerRuntime {
     ///
     /// # 返回值
     ///
-    /// - 如果挂载了工作区：`/workspace/.vibewindow`（容器内路径）
-    /// - 如果未挂载工作区：`/tmp/.vibewindow`（容器内临时路径）
+    /// - 如果挂载了工作区：`/workspace/<mode-config-dir>`（容器内路径）
+    /// - 如果未挂载工作区：`/tmp/<mode-config-dir>`（容器内临时路径）
     ///
     /// # 说明
     ///
     /// 该路径是容器内部的路径，用于存储运行时状态和临时文件
     fn storage_path(&self) -> PathBuf {
         if self.config.mount_workspace {
-            PathBuf::from("/workspace/.vibewindow")
+            PathBuf::from("/workspace").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
         } else {
-            PathBuf::from("/tmp/.vibewindow")
+            PathBuf::from("/tmp").join(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
         }
     }
 

@@ -23,6 +23,8 @@ fn full_config() -> Config {
     config.reliability.api_keys =
         vec!["reliability-a".to_string(), String::new(), "reliability-c".to_string()];
     config.composio.api_key = secret("composio-key");
+    config.gateway.paired_tokens =
+        vec!["paired-a".to_string(), String::new(), "paired-c".to_string()];
     config.proxy.http_proxy = secret("http://user:pass@proxy.local:8080");
     config.proxy.https_proxy = secret("https://user:pass@proxy.local:8443");
     config.proxy.all_proxy = secret("socks5://user:pass@proxy.local:1080");
@@ -213,6 +215,10 @@ fn assert_all_config_secrets_masked(config: &Config) {
     assert_eq!(config.reliability.api_keys[1], "");
     assert_eq!(config.reliability.api_keys[2], MASKED_SECRET);
     assert_eq!(config.composio.api_key.as_deref(), Some(MASKED_SECRET));
+    assert_eq!(
+        config.gateway.paired_tokens,
+        vec![MASKED_SECRET.to_string(), String::new(), MASKED_SECRET.to_string()]
+    );
     assert_eq!(config.proxy.http_proxy.as_deref(), Some(MASKED_SECRET));
     assert_eq!(config.proxy.https_proxy.as_deref(), Some(MASKED_SECRET));
     assert_eq!(config.proxy.all_proxy.as_deref(), Some(MASKED_SECRET));
@@ -318,6 +324,10 @@ fn mask_helpers_handle_present_empty_and_absent_values() {
     mask_optional_secret(&mut optional);
     assert_eq!(optional.as_deref(), Some(MASKED_SECRET));
 
+    let mut empty_optional = secret("");
+    mask_optional_secret(&mut empty_optional);
+    assert_eq!(empty_optional.as_deref(), Some(MASKED_SECRET));
+
     let mut absent = None;
     mask_optional_secret(&mut absent);
     assert_eq!(absent, None);
@@ -349,6 +359,10 @@ fn restore_helpers_only_replace_masked_values() {
     restore_optional_secret(&mut changed_optional, &secret("current"));
     assert_eq!(changed_optional.as_deref(), Some("changed"));
 
+    let mut absent_optional = None;
+    restore_optional_secret(&mut absent_optional, &secret("current"));
+    assert_eq!(absent_optional, None);
+
     let mut required = MASKED_SECRET.to_string();
     restore_required_secret(&mut required, "current");
     assert_eq!(required, "current");
@@ -373,6 +387,19 @@ fn mask_sensitive_fields_masks_every_configured_secret_without_mutating_source()
         Some("telegram-token")
     );
     assert_all_config_secrets_masked(&masked);
+}
+
+#[test]
+fn hydrate_config_for_save_restores_every_configured_secret() {
+    let current = full_config();
+    let incoming = mask_sensitive_fields(&current);
+
+    let restored = hydrate_config_for_save(incoming, &current);
+
+    assert_eq!(
+        serde_json::to_value(&restored).expect("restored config should serialize"),
+        serde_json::to_value(&current).expect("current config should serialize")
+    );
 }
 
 #[test]
@@ -448,6 +475,21 @@ fn hydrate_config_for_save_restores_masked_fields_and_preserves_user_changes() {
         restored.channels_config.clawdtalk.as_ref().map(|value| value.api_key.as_str()),
         Some("clawdtalk-key")
     );
+}
+
+#[test]
+fn hydrate_config_for_save_matches_embedding_routes_by_hint_after_reordering() {
+    let mut current = full_config();
+    current.embedding_routes[1].api_key = secret("public-embedding-key");
+    let mut incoming = mask_sensitive_fields(&current);
+    incoming.embedding_routes.swap(0, 1);
+
+    let restored = hydrate_config_for_save(incoming, &current);
+
+    assert_eq!(restored.embedding_routes[0].hint, "public");
+    assert_eq!(restored.embedding_routes[0].api_key.as_deref(), Some("public-embedding-key"));
+    assert_eq!(restored.embedding_routes[1].hint, "semantic");
+    assert_eq!(restored.embedding_routes[1].api_key.as_deref(), Some("embedding-key"));
 }
 
 #[test]

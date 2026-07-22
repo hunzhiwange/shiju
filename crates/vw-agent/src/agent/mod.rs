@@ -443,7 +443,11 @@ fn merge_json_value(target: &mut Value, source: &Value) {
 /// 返回初始化完成的 `State` 结构体
 async fn load_state() -> State {
     // 加载应用配置
-    let cfg: Value = app_config::load_app_config();
+    let cfg: Value =
+        tokio::task::spawn_blocking(app_config::load_app_config).await.unwrap_or_else(|error| {
+            tracing::error!(%error, "join application config load task failed");
+            serde_json::json!({})
+        });
     let configured_agents = load_agent_configs(&cfg);
 
     // 解析用户权限配置

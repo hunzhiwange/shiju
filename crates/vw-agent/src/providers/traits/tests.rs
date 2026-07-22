@@ -600,6 +600,53 @@ mod tests {
         // 验证错误信息包含 non-prompt-guided 关键字
         assert!(message.contains("non-prompt-guided"));
     }
+
+    #[tokio::test]
+    async fn provider_chat_prompt_guided_prepends_missing_system_message() {
+        let provider = EchoSystemProvider { supports_native: false };
+        let tools =
+            vec![ToolSpec::new("shell", "Run commands", serde_json::json!({"type": "object"}))];
+        let request = ChatRequest { messages: &[ChatMessage::user("Hello")], tools: Some(&tools) };
+
+        let response = provider.chat(request, "model", 0.7).await.unwrap();
+        let text = response.text.unwrap_or_default();
+
+        assert!(text.starts_with("## Tool Use Protocol"));
+        assert!(text.contains("**shell**: Run commands"));
+    }
+
+    #[tokio::test]
+    async fn provider_chat_prompt_guided_fills_empty_system_without_separator() {
+        let provider = CustomConvertProvider;
+        let tools =
+            vec![ToolSpec::new("shell", "Run commands", serde_json::json!({"type": "object"}))];
+        let request = ChatRequest {
+            messages: &[ChatMessage::system(""), ChatMessage::user("Hello")],
+            tools: Some(&tools),
+        };
+
+        let response = provider.chat(request, "model", 0.7).await.unwrap();
+
+        assert_eq!(response.text_or_empty(), "CUSTOM_TOOL_INSTRUCTIONS");
+    }
+
+    #[tokio::test]
+    async fn provider_chat_with_native_tools_bypasses_prompt_injection() {
+        let provider = EchoSystemProvider { supports_native: true };
+        let tools =
+            vec![ToolSpec::new("shell", "Run commands", serde_json::json!({"type": "object"}))];
+        let request = ChatRequest {
+            messages: &[ChatMessage::system("BASE"), ChatMessage::user("Hello")],
+            tools: Some(&tools),
+        };
+
+        let response = provider.chat(request, "model", 0.7).await.unwrap();
+
+        assert_eq!(response.text_or_empty(), "BASE");
+        assert!(!response.has_tool_calls());
+        assert!(response.usage.is_none());
+        assert!(response.reasoning_content.is_none());
+    }
 }
 
 struct HistoryEchoProvider;
@@ -615,6 +662,39 @@ impl Provider for HistoryEchoProvider {
         _temperature: f64,
     ) -> anyhow::Result<String> {
         Ok(format!("system={}; message={message}", system.unwrap_or("")))
+    }
+}
+
+struct StreamEchoProvider;
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Provider for StreamEchoProvider {
+    async fn chat_with_system(
+        &self,
+        _system: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        Ok(String::new())
+    }
+
+    fn stream_chat_with_system(
+        &self,
+        system_prompt: Option<&str>,
+        message: &str,
+        model: &str,
+        temperature: f64,
+        options: StreamOptions,
+    ) -> stream::BoxStream<'static, StreamResult<StreamChunk>> {
+        let summary = format!(
+            "system={}; message={message}; model={model}; temperature={temperature}; enabled={}; count_tokens={}",
+            system_prompt.unwrap_or(""),
+            options.enabled,
+            options.count_tokens
+        );
+        Box::pin(stream::iter([Ok(StreamChunk::delta(summary))]))
     }
 }
 
@@ -634,6 +714,31 @@ async fn default_history_and_tool_chat_use_system_and_last_user() {
     let response = provider.chat_with_tools(&messages, &[], "model", 0.0).await.unwrap();
     assert_eq!(response.text_or_empty(), "system=sys; message=last");
     assert!(!response.has_tool_calls());
+}
+
+#[tokio::test]
+async fn default_history_handles_empty_messages_and_uses_first_system() {
+    let provider = HistoryEchoProvider;
+
+    let empty = provider.chat_with_history(&[], "model", 0.0).await.unwrap();
+    assert_eq!(empty, "system=; message=");
+
+    let messages = [
+        ChatMessage::system("first-system"),
+        ChatMessage::system("second-system"),
+        ChatMessage::assistant("no user message"),
+    ];
+    let without_user = provider.chat_with_history(&messages, "model", 0.0).await.unwrap();
+    assert_eq!(without_user, "system=first-system; message=");
+}
+
+#[test]
+fn provider_default_capabilities_reject_optional_features() {
+    let provider = HistoryEchoProvider;
+
+    assert_eq!(provider.capabilities(), ProviderCapabilities::default());
+    assert!(!provider.supports_native_tools());
+    assert!(!provider.supports_vision());
 }
 
 #[tokio::test]
@@ -680,6 +785,17 @@ fn stream_chunks_and_options_helpers_are_stable() {
     assert!(options.count_tokens);
 }
 
+#[test]
+fn stream_token_estimate_rounds_up_at_four_character_boundaries() {
+    for (text, expected) in [("", 0), ("a", 1), ("abcd", 1), ("abcde", 2)] {
+        assert_eq!(StreamChunk::delta(text).with_token_estimate().token_count, expected);
+    }
+
+    let defaults = StreamOptions::default();
+    assert!(!defaults.enabled);
+    assert!(!defaults.count_tokens);
+}
+
 #[tokio::test]
 async fn default_streaming_returns_empty_stream() {
     use futures_util::StreamExt;
@@ -693,6 +809,82 @@ async fn default_streaming_returns_empty_stream() {
     assert!(!provider.supports_streaming());
 }
 
+#[tokio::test]
+async fn stream_history_forwards_first_system_last_user_and_options() {
+    use futures_util::StreamExt;
+
+    let provider = StreamEchoProvider;
+    let messages = [
+        ChatMessage::user("first"),
+        ChatMessage::system("first-system"),
+        ChatMessage::system("second-system"),
+        ChatMessage::user("last"),
+    ];
+    let options = StreamOptions::new(true).with_token_count();
+    let mut stream = provider.stream_chat_with_history(&messages, "model", 0.25, options);
+
+    let chunk = stream.next().await.unwrap().unwrap();
+
+    assert_eq!(
+        chunk.delta,
+        "system=first-system; message=last; model=model; temperature=0.25; enabled=true; count_tokens=true"
+    );
+    assert!(stream.next().await.is_none());
+
+    let mut empty_stream =
+        provider.stream_chat_with_history(&[], "empty-model", 0.0, StreamOptions::default());
+    let empty_chunk = empty_stream.next().await.unwrap().unwrap();
+    assert_eq!(
+        empty_chunk.delta,
+        "system=; message=; model=empty-model; temperature=0; enabled=false; count_tokens=false"
+    );
+}
+
+#[test]
+fn conversation_messages_round_trip_all_tagged_variants() {
+    let messages = [
+        ConversationMessage::Chat(ChatMessage::assistant("answer")),
+        ConversationMessage::AssistantToolCalls {
+            text: Some("calling".to_string()),
+            tool_calls: vec![ToolCall {
+                id: "call-1".to_string(),
+                name: "lookup".to_string(),
+                arguments: r#"{"query":"rust"}"#.to_string(),
+            }],
+            reasoning_content: Some("reasoning".to_string()),
+        },
+        ConversationMessage::ToolResults(vec![ToolResultMessage {
+            tool_call_id: "call-1".to_string(),
+            content: "result".to_string(),
+        }]),
+    ];
+
+    for message in messages {
+        let json = serde_json::to_string(&message).unwrap();
+        let decoded: ConversationMessage = serde_json::from_str(&json).unwrap();
+
+        match decoded {
+            ConversationMessage::Chat(chat) => {
+                assert_eq!(chat.role, "assistant");
+                assert_eq!(chat.content, "answer");
+            }
+            ConversationMessage::AssistantToolCalls { text, tool_calls, reasoning_content } => {
+                assert_eq!(text.as_deref(), Some("calling"));
+                assert_eq!(tool_calls.len(), 1);
+                assert_eq!(tool_calls[0].id, "call-1");
+                assert_eq!(tool_calls[0].name, "lookup");
+                assert_eq!(tool_calls[0].arguments, r#"{"query":"rust"}"#);
+                assert_eq!(reasoning_content.as_deref(), Some("reasoning"));
+            }
+            ConversationMessage::ToolResults(results) => {
+                assert_eq!(results.len(), 1);
+                assert_eq!(results[0].tool_call_id, "call-1");
+                assert_eq!(results[0].content, "result");
+            }
+        }
+    }
+}
+
 #[test]
 fn capability_error_and_stream_errors_display_context() {
     let err = ProviderCapabilityError {
@@ -703,4 +895,13 @@ fn capability_error_and_stream_errors_display_context() {
     assert!(err.to_string().contains("provider=p"));
     assert!(StreamError::Provider("bad".to_string()).to_string().contains("bad"));
     assert!(StreamError::InvalidSse("line".to_string()).to_string().contains("line"));
+
+    let json_error = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+    assert!(StreamError::Json(json_error).to_string().contains("JSON parse error"));
+
+    let io_error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+    assert!(StreamError::from(io_error).to_string().contains("denied"));
+
+    let http_error = reqwest::Client::new().get("\n").build().unwrap_err();
+    assert!(StreamError::Http(http_error).to_string().contains("HTTP error"));
 }

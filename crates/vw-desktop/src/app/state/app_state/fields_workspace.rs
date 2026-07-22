@@ -379,11 +379,3 @@
     pub(crate) preview_context_menu_pos: Option<(f32, f32)>,
     /// 预览导航弹出框（文件路径，X，Y，选项列表）
     pub(crate) preview_nav_popup: Option<(String, f32, f32, Vec<(String, bool)>)>,
-    /// 按项目分组的设计编辑器状态映射
-    pub(crate) design_states: HashMap<String, DesignState>,
-    /// 是否启用鼠标滚轮缩放
-    pub mouse_wheel_zoom_enabled: bool,
-    /// 是否显示设计设置面板
-    pub show_design_settings: bool,
-    /// 设计设置面板当前标签页
-    pub design_settings_active_tab: DesignSettingsTab,

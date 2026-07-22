@@ -3,7 +3,8 @@
 
 use super::ChatMessage;
 use crate::app::components::chat_panel::tools::{
-    tool_error_text, tool_header_label, tool_output_text, tool_status,
+    format_mcp_detail_content, is_mcp_tool_raw, tool_error_text, tool_header_label,
+    tool_output_text, tool_status,
 };
 use crate::app::components::text_editor_context_menu::{
     focus_editor_task, paste_action, paste_task, selection_copy_task, selection_cut_task,
@@ -200,7 +201,9 @@ pub(super) fn handle_close_tool_detail(app: &mut App) -> Task<Message> {
 
 fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
     let (first, rest) = raw.split_once('\n')?;
-    let tool_name = first.trim().strip_prefix("tool ")?.trim();
+    let raw_tool_name = first.trim().strip_prefix("tool ")?.trim();
+    let is_mcp = is_mcp_tool_raw(raw);
+    let tool_name = if is_mcp { "MCP" } else { raw_tool_name };
     let fallback_title = tool_header_label(tool_name).to_string();
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok();
     let title = value
@@ -217,6 +220,7 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
         .and_then(tool_output_text)
         .or_else(|| value.as_ref().and_then(tool_error_text))
         .unwrap_or_else(|| rest.trim().to_string());
+    let content = if is_mcp { format_mcp_detail_content(&content) } else { content };
     Some((title, content))
 }
 

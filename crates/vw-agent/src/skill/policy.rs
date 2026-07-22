@@ -356,7 +356,7 @@ pub(crate) fn ensure_source_domain_trust(
     }
 
     // 检测是否在交互式终端环境中运行
-    let interactive = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    let interactive = source_domain_trust_can_prompt_interactively();
     let mut policy_changed = false;
 
     for url in urls {
@@ -429,6 +429,18 @@ pub(crate) fn ensure_source_domain_trust(
     }
 
     Ok(())
+}
+
+fn source_domain_trust_can_prompt_interactively() -> bool {
+    #[cfg(test)]
+    {
+        false
+    }
+
+    #[cfg(not(test))]
+    {
+        std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+    }
 }
 
 /// 解析开放技能启用状态的字符串值

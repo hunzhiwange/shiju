@@ -110,6 +110,56 @@ fn skills_enums_and_default_state_are_stable() {
 }
 
 #[test]
+fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
+    let tabs = [
+        SkillsSettingsTab::Skills,
+        SkillsSettingsTab::DiscoveryOrder,
+        SkillsSettingsTab::Plugins,
+        SkillsSettingsTab::SystemConfig,
+    ];
+    assert_eq!(tabs.len(), 4);
+
+    let scopes = [
+        SkillsDirectoryScope::Project,
+        SkillsDirectoryScope::Ancestor,
+        SkillsDirectoryScope::Global,
+        SkillsDirectoryScope::Bundled,
+        SkillsDirectoryScope::All,
+    ];
+    assert_eq!(scopes.len(), 5);
+
+    let kinds =
+        [SkillsCatalogKind::Recommended, SkillsCatalogKind::System, SkillsCatalogKind::Personal];
+    assert_eq!(kinds.len(), 3);
+
+    let plugin = PluginCatalogItem {
+        id: "plugin-id".to_string(),
+        display_name: "Plugin".to_string(),
+        version: "1.2.3".to_string(),
+        description: "Plugin description".to_string(),
+        enabled: true,
+        component_count: 4,
+        source_path: Some("plugins/plugin-id".to_string()),
+    };
+    assert_eq!(plugin.id, "plugin-id");
+    assert_eq!(plugin.display_name, "Plugin");
+    assert_eq!(plugin.version, "1.2.3");
+    assert_eq!(plugin.description, "Plugin description");
+    assert!(plugin.enabled);
+    assert_eq!(plugin.component_count, 4);
+    assert_eq!(plugin.source_path.as_deref(), Some("plugins/plugin-id"));
+
+    let state = SkillsSettingsState::default();
+    assert!(state.open_skills_dir_input.is_empty());
+    assert!(state.query.is_empty());
+    assert!(state.plugin_catalog.is_empty());
+    assert!(!state.plugin_loading);
+    assert!(state.selected_plugin_id.is_none());
+    assert!(state.plugin_status_message.is_none());
+    assert!(!state.plugin_status_is_error);
+}
+
+#[test]
 fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     let research = ResearchSettingsState::default();
     assert!(!research.enabled);
@@ -120,6 +170,7 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
     assert!(research.show_progress);
     assert!(research.system_prompt_prefix.is_empty());
     assert!(!research.show_help_modal);
+    assert!(research.save_error.is_none());
 
     let web = WebSearchSettingsState::default();
     assert!(!web.enabled);
@@ -131,18 +182,26 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
     assert_eq!(web.timeout_secs_input, "15");
     assert_eq!(web.user_agent, "VibeWindow/1.0");
     assert!(!web.show_help_modal);
+    assert!(web.save_error.is_none());
 
     let browser = BrowserSettingsState::default();
     assert!(!browser.enabled);
     assert!(browser.allowed_domains_input.is_empty());
     assert!(browser.allowed_domains_editor.text().is_empty());
     assert_eq!(browser.browser_open, "default");
+    assert!(browser.session_name_input.is_empty());
     assert_eq!(browser.backend, "agent_browser");
     assert!(browser.native_headless);
     assert_eq!(browser.native_webdriver_url, "http://127.0.0.1:9515");
+    assert!(browser.native_chrome_path_input.is_empty());
     assert_eq!(browser.computer_use_endpoint, "http://127.0.0.1:8787/v1/actions");
+    assert!(browser.computer_use_api_key_input.is_empty());
     assert_eq!(browser.computer_use_timeout_ms_input, "15000");
     assert!(!browser.computer_use_allow_remote_endpoint);
+    assert!(browser.computer_use_window_allowlist_input.is_empty());
+    assert!(browser.computer_use_max_coordinate_x_input.is_empty());
+    assert!(browser.computer_use_max_coordinate_y_input.is_empty());
+    assert!(browser.save_error.is_none());
 
     let gateway = GatewaySettingsState::default();
     assert_eq!(gateway.active_tab, GatewaySettingsTab::Config);
@@ -151,13 +210,26 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
     assert!(!gateway.auth_enabled);
     assert!(!gateway.allow_public_bind);
     assert!(gateway.skeys.is_empty());
+    assert!(gateway.new_skey_name_input.is_empty());
+    assert!(gateway.new_skey_expires_at_input.is_empty());
+    assert!(gateway.new_skey_calendar_month.is_empty());
+    assert!(!gateway.new_skey_calendar_open);
+    assert!(gateway.last_created_skey.is_none());
+    assert!(!gateway.last_created_skey_copied);
     assert_eq!(gateway.webhook_rate_limit_per_minute, 60);
     assert!(!gateway.trust_forwarded_headers);
     assert_eq!(gateway.rate_limit_max_keys, 10_000);
     assert_eq!(gateway.idempotency_ttl_secs, 300);
     assert_eq!(gateway.idempotency_max_keys, 10_000);
     assert!(!gateway.node_control_enabled);
+    assert!(gateway.node_control_auth_token_input.is_empty());
+    assert!(gateway.node_control_allowed_node_ids_input.is_empty());
+    assert!(gateway.service_action_running.is_none());
+    assert!(gateway.service_action_output.is_none());
+    assert!(gateway.copied_service_command.is_none());
+    assert!(gateway.pending_service_command_confirmation.is_none());
     assert!(!gateway.show_help_modal);
+    assert!(gateway.save_error.is_none());
 }
 
 #[test]
@@ -167,6 +239,8 @@ fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
         name: "Remote".to_string(),
         host: "gw.example".to_string(),
         port: 0,
+        platform_id: "20000".to_string(),
+        company_id: "200000001".to_string(),
         bearer_token: "bearer".to_string(),
         username: "user".to_string(),
         password: "pass".to_string(),
@@ -178,6 +252,8 @@ fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
     assert_eq!(draft.name, "Remote");
     assert_eq!(draft.host, "gw.example");
     assert_eq!(draft.port, 1);
+    assert_eq!(draft.platform_id, "20000");
+    assert_eq!(draft.company_id, "200000001");
     assert_eq!(draft.skey, "skey");
 
     let round_trip = draft.to_config();
@@ -185,10 +261,54 @@ fn gateway_client_server_draft_round_trips_config_and_clamps_port() {
     assert_eq!(round_trip.name, "Remote");
     assert_eq!(round_trip.host, "gw.example");
     assert_eq!(round_trip.port, 1);
+    assert_eq!(round_trip.platform_id, "20000");
+    assert_eq!(round_trip.company_id, "200000001");
     assert!(round_trip.bearer_token.is_empty());
     assert!(round_trip.username.is_empty());
     assert!(round_trip.password.is_empty());
     assert_eq!(round_trip.skey, "skey");
+}
+
+#[test]
+fn gateway_client_server_draft_uses_bearer_token_when_skey_is_blank() {
+    let config = vw_config_types::ui::GatewayClientServerConfig {
+        id: "legacy".to_string(),
+        name: "Legacy".to_string(),
+        host: "legacy.example".to_string(),
+        port: u16::MAX,
+        platform_id: "platform".to_string(),
+        company_id: "company".to_string(),
+        bearer_token: "legacy-token".to_string(),
+        username: String::new(),
+        password: String::new(),
+        skey: "  \n".to_string(),
+    };
+
+    let draft = GatewayClientServerDraft::from_config(&config);
+
+    assert_eq!(draft.port, u16::MAX);
+    assert_eq!(draft.skey, "legacy-token");
+}
+
+#[test]
+fn gateway_client_server_draft_to_config_clamps_zero_and_clears_legacy_credentials() {
+    let draft = GatewayClientServerDraft {
+        id: "manual".to_string(),
+        name: "Manual".to_string(),
+        host: "127.0.0.1".to_string(),
+        port: 0,
+        platform_id: "10000".to_string(),
+        company_id: "100000000".to_string(),
+        skey: "current-skey".to_string(),
+    };
+
+    let config = draft.to_config();
+
+    assert_eq!(config.port, 1);
+    assert!(config.bearer_token.is_empty());
+    assert!(config.username.is_empty());
+    assert!(config.password.is_empty());
+    assert_eq!(config.skey, "current-skey");
 }
 
 #[test]
@@ -200,6 +320,9 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert!(client.health.is_empty());
     assert_eq!(client.host_input, "127.0.0.1");
     assert_eq!(client.port, 42617);
+    assert_eq!(client.platform_id_input, "10000");
+    assert_eq!(client.company_id_input, "100000000");
+    assert!(client.skey_input.is_empty());
     assert!(client.pending_remove_server_id.is_none());
     assert!(!client.show_help_modal);
     assert!(client.save_error.is_none());
@@ -209,6 +332,7 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert_eq!(ipc.db_path_input, vw_config_types::paths::AGENTS_IPC_DB_PATH);
     assert_eq!(ipc.staleness_secs, 300);
     assert!(!ipc.show_help_modal);
+    assert!(ipc.save_error.is_none());
 
     let coordination = CoordinationSettingsState::default();
     assert!(coordination.enabled);
@@ -218,6 +342,7 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert_eq!(coordination.max_context_entries, 512);
     assert_eq!(coordination.max_seen_message_ids, 4096);
     assert!(!coordination.show_help_modal);
+    assert!(coordination.save_error.is_none());
 
     let price = CostPriceInput::default();
     assert!(price.model.is_empty());
@@ -232,6 +357,28 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert!(!cost.allow_override);
     assert!(cost.prices.is_empty());
     assert!(!cost.show_help_modal);
+    assert!(cost.save_error.is_none());
+}
+
+#[test]
+fn gateway_tab_variants_and_runtime_state_clones_are_independent() {
+    assert_ne!(GatewaySettingsTab::Config, GatewaySettingsTab::Skeys);
+
+    let mut original = RuntimeSettingsState {
+        kind: "docker".to_string(),
+        docker_image: "custom/image:latest".to_string(),
+        save_error: Some("old error".to_string()),
+        ..RuntimeSettingsState::default()
+    };
+    let cloned = original.clone();
+
+    original.kind = "wasm".to_string();
+    original.docker_image = "changed".to_string();
+    original.save_error = None;
+
+    assert_eq!(cloned.kind, "docker");
+    assert_eq!(cloned.docker_image, "custom/image:latest");
+    assert_eq!(cloned.save_error.as_deref(), Some("old error"));
 }
 
 #[test]

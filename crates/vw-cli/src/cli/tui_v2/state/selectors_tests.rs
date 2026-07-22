@@ -233,3 +233,43 @@ fn visible_grouped_window_reports_summaries_sticky_prompt_and_unseen_range() {
         Some("3 new messages".to_string())
     );
 }
+
+#[test]
+fn visible_items_exclude_leading_overscan_before_viewport_top() {
+    let mut state = TuiState::default();
+    state.messages = vec![user("u1", "one"), user("u2", "two"), user("u3", "three")];
+    state.refresh_transcript_projection();
+    state.scroll = TuiScrollState {
+        top_message: 1,
+        viewport_messages: 1,
+        viewport_height: 1,
+        viewport_width: 80,
+        overscan: 1,
+        follow_tail: false,
+        sticky_message: None,
+        last_seen_message: None,
+    };
+
+    let window = select_visible_grouped_transcript_window(&state);
+    let visible = window.visible_items();
+
+    assert_eq!(window.start_item_index, 0);
+    assert_eq!(window.top_item_index, 1);
+    assert!(matches!(
+        visible.first(),
+        Some(TuiTranscriptItem::Standalone(UiMessage::User(message))) if message.text == "two"
+    ));
+}
+
+#[test]
+fn search_excerpt_preserves_unicode_boundaries_around_long_context() {
+    let text = format!("{}🙂{}目标a{}", "x".repeat(30), "界".repeat(7), "界".repeat(20));
+    let messages = vec![user("u1", &text)];
+
+    let matches = derive_search_matches(&messages, "目标", true);
+
+    assert_eq!(matches.len(), 1);
+    assert!(matches[0].preview.starts_with("..."));
+    assert!(matches[0].preview.contains("[目标]"));
+    assert!(matches[0].preview.ends_with("..."));
+}

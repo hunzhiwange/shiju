@@ -13,9 +13,13 @@ use std::collections::HashSet;
 /// 根据指定的模型名称，从工具注册表中提取当前模型可见的工具 ID，
 /// 供会话处理主循环和工具解析逻辑复用。
 pub(crate) fn allowed_tool_ids(model: Option<&str>) -> HashSet<String> {
-    tools::registry::specs(model)
-        .into_iter()
-        .flat_map(|spec| std::iter::once(spec.id).chain(spec.aliases.into_iter()))
+    allowed_tool_ids_from_specs(&tools::registry::specs(model))
+}
+
+pub(crate) fn allowed_tool_ids_from_specs(specs: &[tools::ToolSpec]) -> HashSet<String> {
+    specs
+        .iter()
+        .flat_map(|spec| std::iter::once(spec.id.clone()).chain(spec.aliases.iter().cloned()))
         .collect()
 }
 
@@ -23,7 +27,15 @@ pub(crate) fn allowed_tool_ids_for_request(
     model: Option<&str>,
     options: &Value,
 ) -> HashSet<String> {
-    let base = allowed_tool_ids(model);
+    let specs = tools::registry::specs(model);
+    allowed_tool_ids_for_request_from_specs(&specs, options)
+}
+
+pub(crate) fn allowed_tool_ids_for_request_from_specs(
+    specs: &[tools::ToolSpec],
+    options: &Value,
+) -> HashSet<String> {
+    let base = allowed_tool_ids_from_specs(specs);
     let Some(raw_tools) = options.get("allowed_tools").and_then(Value::as_array) else {
         return base;
     };

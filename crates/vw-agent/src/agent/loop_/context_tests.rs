@@ -119,6 +119,16 @@ async fn build_context_keeps_unscored_entries_and_uses_fixed_recall_scope() {
 }
 
 #[tokio::test]
+async fn build_context_keeps_entries_at_min_relevance_boundary() {
+    let memory =
+        FakeMemory::with_entries(vec![memory_entry("boundary", "exact threshold", Some(0.5))]);
+
+    let context = build_context(&memory, "threshold", 0.5).await;
+
+    assert_eq!(context, "[Memory context]\n- boundary: exact threshold\n\n");
+}
+
+#[tokio::test]
 async fn build_context_returns_empty_when_no_entries_are_relevant() {
     let memory = FakeMemory::with_entries(vec![memory_entry("weak", "ignore me", Some(0.49))]);
 

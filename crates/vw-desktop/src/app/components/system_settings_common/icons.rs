@@ -48,10 +48,49 @@ pub fn provider_logo_svg(provider_id: &str, size: f32) -> Svg<'static> {
     Svg::new(assets::get_provider_icon(provider_id))
         .width(Length::Fixed(size))
         .height(Length::Fixed(size))
-        .style(|theme: &iced::Theme, _status| {
-            let color = if is_dark_theme(theme) { Some(theme.palette().text) } else { None };
-            svg::Style { color }
-        })
+        .style(provider_logo_svg_style)
+}
+
+pub(super) fn provider_logo_svg_style(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+    let color = if is_dark_theme(theme) { Some(theme.palette().text) } else { None };
+    svg::Style { color }
+}
+
+pub(super) fn icon_btn_svg_style(theme: &iced::Theme, _status: svg::Status) -> svg::Style {
+    svg::Style { color: Some(theme.palette().text) }
+}
+
+pub(super) fn icon_btn_style(
+    theme: &iced::Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let bg = match status {
+        iced::widget::button::Status::Hovered => Some(palette.background.weak.color.into()),
+        iced::widget::button::Status::Pressed => Some(palette.background.strong.color.into()),
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background: bg,
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
+}
+
+pub(super) fn icon_btn_tooltip_style(theme: &iced::Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        text_color: Some(theme.palette().text),
+        background: Some(Background::Color(theme.palette().background)),
+        border: Border {
+            width: 1.0,
+            color: theme.extended_palette().background.strong.color,
+            radius: 8.0.into(),
+        },
+        shadow: Shadow::default(),
+        snap: false,
+    }
 }
 
 /// 构建或处理 `icon_btn` 对应的界面片段与交互数据。
@@ -69,45 +108,14 @@ pub fn provider_logo_svg(provider_id: &str, size: f32) -> Svg<'static> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn icon_btn(icon: Icon, tip: &'static str, on: Option<Message>) -> Element<'static, Message> {
     let btn = {
-        let base = button(icon_svg(icon, 14.0).style(|theme: &iced::Theme, _status| svg::Style {
-            color: Some(theme.palette().text),
-        }))
-        .padding([4, 6])
-        .style(|theme: &iced::Theme, status| {
-            let palette = theme.extended_palette();
-            let bg = match status {
-                iced::widget::button::Status::Hovered => Some(palette.background.weak.color.into()),
-                iced::widget::button::Status::Pressed => {
-                    Some(palette.background.strong.color.into())
-                }
-                _ => None,
-            };
-
-            iced::widget::button::Style {
-                background: bg,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                text_color: theme.palette().text,
-                ..Default::default()
-            }
-        });
+        let base = button(icon_svg(icon, 14.0).style(icon_btn_svg_style))
+            .padding([4, 6])
+            .style(icon_btn_style);
 
         if let Some(msg) = on { base.on_press(msg) } else { base }
     };
 
-    let tip_content =
-        container(text(tip).size(12)).padding([6, 10]).style(|theme: &iced::Theme| {
-            iced::widget::container::Style {
-                text_color: Some(theme.palette().text),
-                background: Some(Background::Color(theme.palette().background)),
-                border: Border {
-                    width: 1.0,
-                    color: theme.extended_palette().background.strong.color,
-                    radius: 8.0.into(),
-                },
-                shadow: Shadow::default(),
-                snap: false,
-            }
-        });
+    let tip_content = container(text(tip).size(12)).padding([6, 10]).style(icon_btn_tooltip_style);
 
     Tooltip::new(btn, tip_content, TooltipPosition::FollowCursor).gap(6).into()
 }

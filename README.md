@@ -2,7 +2,7 @@
 
 VibeWindow 是一个 Rust-first 的自主代理运行时，目标是在桌面端、CLI、网关服务和长驻守护进程之间提供同一套高性能、可扩展、可审计的 Agent 能力。
 
-项目当前包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接、Figma 解析工具和跨平台 WebView helper。
+项目当前包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。
 
 ## 主要能力
 
@@ -10,7 +10,6 @@ VibeWindow 是一个 Rust-first 的自主代理运行时，目标是在桌面端
 - `vibe-window` 桌面端：基于 Iced 的本地桌面应用。
 - `vw-webview` helper：跨平台 WebView 窗口，用于桌面打包场景。
 - `vw-acp`：Agent Client Protocol 桥接入口。
-- `vw-fig2json`：Figma `.fig` 文件到 JSON 的转换工具。
 - 共享 crate：API 类型、配置类型、网关客户端、运行时核心、提供商解析和通用工具。
 
 ## 仓库结构
@@ -27,7 +26,6 @@ crates/
   vw-provider-resolver/ # 提供商和模型解析
   vw-shared/            # 跨 crate 共享工具
   vw-webview/           # WebView helper
-  vw-figma-json/        # Figma 解析与转换
 docs/                   # 使用文档、OpenAPI 和参考资料
 scripts/                # 构建、安装和打包脚本
 release/                # 发布说明与发布辅助文件
@@ -135,12 +133,6 @@ cargo build -p vw-webview --bin vw-webview --release
 cargo build -p vw-acp --bin acp --release
 ```
 
-构建 Figma 转换工具：
-
-```bash
-cargo build -p vw-fig2json --bin vw-fig2json --release
-```
-
 ## 打包
 
 macOS `.app` 打包：
@@ -211,6 +203,9 @@ cargo clippy -p vw-desktop --all-targets -- -D warnings
 
 ## 相关文档
 
+- [`docs/knowledge-base.md`](docs/knowledge-base.md)：知识库入库、嵌入配置和验证指南。
+- [`docs/staff-task-flow-messages.md`](docs/staff-task-flow-messages.md)：员工任务流交接消息、IPC 投递和阶段 Workflow 绑定说明。
+- [`docs/matrix-task-pool-rooms.md`](docs/matrix-task-pool-rooms.md)：可选 Matrix 任务池审计桥接说明。
 - [`docs/vibe-agent-usage.md`](docs/vibe-agent-usage.md)：Vibe Agent 使用指南。
 - [`docs/openapi.json`](docs/openapi.json)：网关 OpenAPI 描述。
 - [`scripts/BUILDING.md`](scripts/BUILDING.md)：macOS / Windows 构建与打包说明。

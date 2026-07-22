@@ -43,6 +43,10 @@ fn header_surface_style(_theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
+fn theme_is_dark(theme: &Theme) -> bool {
+    theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
+}
+
 /// 获取当前活跃会话的工作目录
 ///
 /// # 参数
@@ -55,6 +59,65 @@ fn header_surface_style(_theme: &Theme) -> iced::widget::container::Style {
 fn active_session_directory(app: &App) -> Option<String> {
     let session_id = app.active_session_id.as_ref()?;
     app.sessions.iter().find(|s| &s.id == session_id).map(|s| s.directory.clone())
+}
+
+fn session_workspace_badge_state(app: &App) -> Option<(String, bool)> {
+    let directory = active_session_directory(app)?;
+    let project_path = app.project_path.as_deref().unwrap_or_default();
+    let is_primary = !project_path.is_empty() && directory == project_path;
+    let label = if is_primary {
+        "主工作区".to_string()
+    } else {
+        std::path::Path::new(&directory)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "工作区".to_string())
+    };
+
+    Some((label, is_primary))
+}
+
+fn session_workspace_badge_style(
+    theme: &Theme,
+    is_primary: bool,
+) -> iced::widget::container::Style {
+    let is_dark = theme_is_dark(theme);
+    let p = theme.extended_palette();
+    let (bg, border, fg) = if is_primary {
+        if is_dark {
+            (
+                Color::from_rgba8(24, 25, 29, 0.96),
+                Color::from_rgba8(45, 48, 54, 0.94),
+                theme.palette().text.scale_alpha(0.92),
+            )
+        } else {
+            (
+                Color::from_rgb8(247, 248, 250),
+                Color::from_rgb8(226, 231, 237),
+                Color::from_rgb8(75, 85, 99),
+            )
+        }
+    } else if is_dark {
+        (
+            p.primary.base.color.scale_alpha(0.14),
+            p.primary.base.color.scale_alpha(0.28),
+            p.primary.base.text.scale_alpha(0.92),
+        )
+    } else {
+        (
+            p.primary.base.color.scale_alpha(0.08),
+            p.primary.base.color.scale_alpha(0.18),
+            p.primary.base.color.scale_alpha(0.82),
+        )
+    };
+    iced::widget::container::Style {
+        background: Some(Background::Color(bg)),
+        border: Border { width: 1.0, color: border, radius: 999.0.into() },
+        text_color: Some(fg),
+        ..Default::default()
+    }
 }
 
 /// 创建会话的工作区徽章组件
@@ -74,63 +137,12 @@ fn active_session_directory(app: &App) -> Option<String> {
 /// - **主工作区**：灰色背景（RGB: 229, 231, 235），深灰文字（RGB: 75, 85, 99）
 /// - **普通工作区**：浅蓝背景（RGB: 219, 234, 254），蓝色文字（RGB: 30, 64, 175）
 fn session_workspace_badge<'a>(app: &App) -> Option<Element<'a, Message>> {
-    let directory = active_session_directory(app)?;
-    let project_path = app.project_path.as_deref().unwrap_or_default();
-    let is_primary = !project_path.is_empty() && directory == project_path;
-    let label = if is_primary {
-        "主工作区".to_string()
-    } else {
-        std::path::Path::new(&directory)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.to_string())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "工作区".to_string())
-    };
+    let (label, is_primary) = session_workspace_badge_state(app)?;
 
     Some(
         container(text(label).size(10))
             .padding([3, 8])
-            .style(move |theme: &Theme| {
-                let is_dark = theme.palette().background.r
-                    + theme.palette().background.g
-                    + theme.palette().background.b
-                    < 1.5;
-                let p = theme.extended_palette();
-                let (bg, border, fg) = if is_primary {
-                    if is_dark {
-                        (
-                            Color::from_rgba8(24, 25, 29, 0.96),
-                            Color::from_rgba8(45, 48, 54, 0.94),
-                            theme.palette().text.scale_alpha(0.92),
-                        )
-                    } else {
-                        (
-                            Color::from_rgb8(247, 248, 250),
-                            Color::from_rgb8(226, 231, 237),
-                            Color::from_rgb8(75, 85, 99),
-                        )
-                    }
-                } else if is_dark {
-                    (
-                        p.primary.base.color.scale_alpha(0.14),
-                        p.primary.base.color.scale_alpha(0.28),
-                        p.primary.base.text.scale_alpha(0.92),
-                    )
-                } else {
-                    (
-                        p.primary.base.color.scale_alpha(0.08),
-                        p.primary.base.color.scale_alpha(0.18),
-                        p.primary.base.color.scale_alpha(0.82),
-                    )
-                };
-                iced::widget::container::Style {
-                    background: Some(Background::Color(bg)),
-                    border: Border { width: 1.0, color: border, radius: 999.0.into() },
-                    text_color: Some(fg),
-                    ..Default::default()
-                }
-            })
+            .style(move |theme: &Theme| session_workspace_badge_style(theme, is_primary))
             .into(),
     )
 }
@@ -179,6 +191,29 @@ fn get_session_status(app: &App) -> (bool, usize, bool, f32, Color) {
         (is_running, queued, has_unseen_success, breathe, running_color)
     } else {
         (false, 0, false, 0.0, Color::TRANSPARENT)
+    }
+}
+
+fn colored_text_style(color: Color) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(color) }
+}
+
+fn running_status_badge_style(color: Color) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(color.scale_alpha(0.16))),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+        text_color: Some(color),
+        ..Default::default()
+    }
+}
+
+fn queued_status_badge_style() -> iced::widget::container::Style {
+    let color = Color::from_rgb8(245, 158, 11);
+    iced::widget::container::Style {
+        background: Some(Background::Color(color.scale_alpha(0.16))),
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+        text_color: Some(color),
+        ..Default::default()
     }
 }
 
@@ -245,26 +280,18 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let status_icon: Element<'_, Message> = {
         if is_running {
-            text("●")
-                .size(12.0)
-                .style(move |_: &Theme| iced::widget::text::Style { color: Some(running_color) })
-                .into()
+            text("●").size(12.0).style(move |_: &Theme| colored_text_style(running_color)).into()
         } else if queued > 0 {
             let queued_color = mix_color(
                 Color::from_rgb8(245, 158, 11),
                 Color::from_rgb8(239, 68, 68),
                 breathe * 0.75,
             );
-            text("●")
-                .size(8.5)
-                .style(move |_: &Theme| iced::widget::text::Style { color: Some(queued_color) })
-                .into()
+            text("●").size(8.5).style(move |_: &Theme| colored_text_style(queued_color)).into()
         } else if has_unseen_success {
             text("●")
                 .size(11)
-                .style(|_: &Theme| iced::widget::text::Style {
-                    color: Some(Color::from_rgb8(46, 184, 114)),
-                })
+                .style(|_: &Theme| colored_text_style(Color::from_rgb8(46, 184, 114)))
                 .into()
         } else {
             Space::new().width(Length::Fixed(0.0)).height(Length::Fixed(0.0)).into()
@@ -279,41 +306,23 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
             badges_row = badges_row.push(
                 container(
                     row![
-                        text(spinner_frame(app.status_animation_frame)).size(9).style(
-                            move |_: &Theme| iced::widget::text::Style {
-                                color: Some(running_badge_color),
-                            }
-                        ),
+                        text(spinner_frame(app.status_animation_frame))
+                            .size(9)
+                            .style(move |_: &Theme| colored_text_style(running_badge_color)),
                         text("运行中").size(9)
                     ]
                     .spacing(4)
                     .align_y(Alignment::Center),
                 )
                 .padding([1, 6])
-                .style(move |_: &Theme| iced::widget::container::Style {
-                    background: Some(Background::Color(running_badge_color.scale_alpha(0.16))),
-                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-                    text_color: Some(running_badge_color),
-                    ..Default::default()
-                }),
+                .style(move |_: &Theme| running_status_badge_style(running_badge_color)),
             );
         }
         if queued > 0 {
             badges_row = badges_row.push(
-                container(text(format!("排队 {}", queued)).size(9)).padding([1, 6]).style(
-                    |_: &Theme| iced::widget::container::Style {
-                        background: Some(Background::Color(
-                            Color::from_rgb8(245, 158, 11).scale_alpha(0.16),
-                        )),
-                        border: Border {
-                            width: 0.0,
-                            color: Color::TRANSPARENT,
-                            radius: 999.0.into(),
-                        },
-                        text_color: Some(Color::from_rgb8(245, 158, 11)),
-                        ..Default::default()
-                    },
-                ),
+                container(text(format!("排队 {}", queued)).size(9))
+                    .padding([1, 6])
+                    .style(|_: &Theme| queued_status_badge_style()),
             );
         }
         status_badges = badges_row.into();
@@ -453,46 +462,74 @@ fn session_actions_button<'a>(label: &str, msg: Message) -> Element<'a, Message>
 
     button(container(text(label).size(13)).width(Length::Fill).padding([2, 6]))
         .width(Length::Fill)
-        .style(|theme: &Theme, status| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            let bg = match status {
-                iced::widget::button::Status::Hovered => {
-                    if is_dark {
-                        Color::from_rgba8(31, 33, 38, 0.96)
-                    } else {
-                        Color::from_rgba8(241, 243, 246, 1.0)
-                    }
-                }
-                iced::widget::button::Status::Pressed => {
-                    if is_dark {
-                        Color::from_rgba8(36, 38, 44, 0.98)
-                    } else {
-                        Color::from_rgba8(232, 236, 241, 1.0)
-                    }
-                }
-                _ => Color::TRANSPARENT,
-            };
-
-            iced::widget::button::Style {
-                background: Some(Background::Color(bg)),
-                border: Border {
-                    radius: 8.0.into(),
-                    width: 1.0,
-                    color: if is_dark {
-                        Color::from_rgba8(45, 48, 54, 0.72)
-                    } else {
-                        Color::from_rgba8(226, 231, 237, 0.92)
-                    },
-                },
-                text_color: theme.palette().text.scale_alpha(0.92),
-                ..Default::default()
-            }
-        })
+        .style(session_actions_button_style)
         .on_press(msg)
         .into()
+}
+
+fn session_actions_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let is_dark = theme_is_dark(theme);
+    let bg = match status {
+        iced::widget::button::Status::Hovered => {
+            if is_dark {
+                Color::from_rgba8(31, 33, 38, 0.96)
+            } else {
+                Color::from_rgba8(241, 243, 246, 1.0)
+            }
+        }
+        iced::widget::button::Status::Pressed => {
+            if is_dark {
+                Color::from_rgba8(36, 38, 44, 0.98)
+            } else {
+                Color::from_rgba8(232, 236, 241, 1.0)
+            }
+        }
+        _ => Color::TRANSPARENT,
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        border: Border {
+            radius: 8.0.into(),
+            width: 1.0,
+            color: if is_dark {
+                Color::from_rgba8(45, 48, 54, 0.72)
+            } else {
+                Color::from_rgba8(226, 231, 237, 0.92)
+            },
+        },
+        text_color: theme.palette().text.scale_alpha(0.92),
+        ..Default::default()
+    }
+}
+
+fn session_actions_popover_style(theme: &Theme) -> iced::widget::container::Style {
+    let is_dark = theme_is_dark(theme);
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            Color::from_rgba8(20, 21, 24, 0.985)
+        } else {
+            Color::from_rgba8(252, 252, 253, 1.0)
+        })),
+        border: Border {
+            width: 1.0,
+            color: if is_dark {
+                Color::from_rgba8(44, 47, 53, 0.96)
+            } else {
+                Color::from_rgba8(226, 231, 237, 1.0)
+            },
+            radius: 12.0.into(),
+        },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.20 } else { 0.08 }),
+            offset: iced::Vector::new(0.0, 8.0),
+            blur_radius: 24.0,
+        },
+        ..Default::default()
+    }
 }
 
 fn session_actions_popover(app: &App) -> Element<'_, Message> {
@@ -514,34 +551,7 @@ fn session_actions_popover(app: &App) -> Element<'_, Message> {
 
     container(content)
         .padding([6, 8])
-        .style(|theme: &Theme| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            iced::widget::container::Style {
-                background: Some(Background::Color(if is_dark {
-                    Color::from_rgba8(20, 21, 24, 0.985)
-                } else {
-                    Color::from_rgba8(252, 252, 253, 1.0)
-                })),
-                border: Border {
-                    width: 1.0,
-                    color: if is_dark {
-                        Color::from_rgba8(44, 47, 53, 0.96)
-                    } else {
-                        Color::from_rgba8(226, 231, 237, 1.0)
-                    },
-                    radius: 12.0.into(),
-                },
-                shadow: iced::Shadow {
-                    color: Color::BLACK.scale_alpha(if is_dark { 0.20 } else { 0.08 }),
-                    offset: iced::Vector::new(0.0, 8.0),
-                    blur_radius: 24.0,
-                },
-                ..Default::default()
-            }
-        })
+        .style(session_actions_popover_style)
         .width(Length::Fixed(120.0))
         .into()
 }

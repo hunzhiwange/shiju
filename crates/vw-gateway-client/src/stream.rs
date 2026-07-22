@@ -218,11 +218,35 @@ pub async fn stream_chat(
     endpoint: &GatewayEndpoint,
     directory: Option<&str>,
     body: &GatewayChatStreamRequest,
+    on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
+) -> Result<(), String> {
+    stream_chat_inner(endpoint, directory, body, None, on_event).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 连接网关聊天流接口，并在连续无响应超过 `idle_timeout` 时返回超时错误。
+///
+/// 该超时只约束两次网关响应之间的空窗，不限制整次任务的总执行时长。
+pub async fn stream_chat_with_idle_timeout(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    idle_timeout: std::time::Duration,
+    on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
+) -> Result<(), String> {
+    stream_chat_inner(endpoint, directory, body, Some(idle_timeout), on_event).await
+}
+
+async fn stream_chat_inner(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    idle_timeout: Option<std::time::Duration>,
     mut on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
 ) -> Result<(), String> {
     use futures_util::StreamExt;
 
-    use crate::http::{apply_auth, directory_query, log_request, transport_error};
+    use crate::http::{apply_request_context, directory_query, log_request, transport_error};
 
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
 
@@ -240,7 +264,7 @@ pub async fn stream_chat(
     if let Some(directory) = directory.filter(|value| !value.trim().is_empty()) {
         request = request.query(&[("directory", directory)]);
     }
-    request = apply_auth(request, endpoint);
+    request = apply_request_context(request, endpoint);
 
     let response = request
         .send()
@@ -272,7 +296,23 @@ pub async fn stream_chat(
     let mut bytes_stream = response.bytes_stream();
     let mut sse_buffer = String::new();
 
-    while let Some(chunk) = bytes_stream.next().await {
+    loop {
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_chunk = if let Some(timeout) = idle_timeout {
+            tokio::time::timeout(timeout, bytes_stream.next()).await.map_err(|_| {
+                format!("gateway stream idle timeout after {timeout:?} without response")
+            })?
+        } else {
+            bytes_stream.next().await
+        };
+        #[cfg(target_arch = "wasm32")]
+        let next_chunk = {
+            let _ = idle_timeout;
+            bytes_stream.next().await
+        };
+        let Some(chunk) = next_chunk else {
+            break;
+        };
         let chunk = chunk.map_err(|err| err.to_string())?;
         sse_buffer.push_str(&String::from_utf8_lossy(&chunk));
 
@@ -299,12 +339,24 @@ pub async fn stream_chat(
                 "gateway stream event"
             );
             let event_type = event_name(&event);
+            let terminal_event = is_terminal_stream_event(&event);
             if !on_event(event) {
                 info!(
                     target: "vw_gateway_client",
                     endpoint = %endpoint.describe(),
                     path = CHAT_STREAM_PATH,
                     reason = "consumer requested stop",
+                    terminal_event = event_type,
+                    "gateway stream finished"
+                );
+                return Ok(());
+            }
+            if terminal_event {
+                info!(
+                    target: "vw_gateway_client",
+                    endpoint = %endpoint.describe(),
+                    path = CHAT_STREAM_PATH,
+                    reason = "terminal event",
                     terminal_event = event_type,
                     "gateway stream finished"
                 );
@@ -336,7 +388,9 @@ pub fn stream_chat_blocking(
 ) -> Result<(), String> {
     use std::io::Read;
 
-    use crate::http::{apply_blocking_auth, directory_query, log_request, transport_error};
+    use crate::http::{
+        apply_blocking_request_context, directory_query, log_request, transport_error,
+    };
 
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
     let client = reqwest::blocking::Client::builder()
@@ -349,7 +403,7 @@ pub fn stream_chat_blocking(
     if let Some(directory) = directory.filter(|value| !value.trim().is_empty()) {
         request = request.query(&[("directory", directory)]);
     }
-    request = apply_blocking_auth(request, endpoint);
+    request = apply_blocking_request_context(request, endpoint);
 
     let response =
         request.send().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
@@ -411,12 +465,24 @@ pub fn stream_chat_blocking(
                 "gateway stream event"
             );
             let event_type = event_name(&event);
+            let terminal_event = is_terminal_stream_event(&event);
             if !on_event(event) {
                 info!(
                     target: "vw_gateway_client",
                     endpoint = %endpoint.describe(),
                     path = CHAT_STREAM_PATH,
                     reason = "consumer requested stop",
+                    terminal_event = event_type,
+                    "gateway stream finished"
+                );
+                return Ok(());
+            }
+            if terminal_event {
+                info!(
+                    target: "vw_gateway_client",
+                    endpoint = %endpoint.describe(),
+                    path = CHAT_STREAM_PATH,
+                    reason = "terminal event",
                     terminal_event = event_type,
                     "gateway stream finished"
                 );
@@ -434,6 +500,28 @@ pub fn stream_chat_blocking(
     );
 
     Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 以阻塞方式连接聊天流接口，并在连续无响应超过 `idle_timeout` 时返回超时错误。
+pub fn stream_chat_blocking_with_idle_timeout(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    idle_timeout: std::time::Duration,
+    on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
+) -> Result<(), String> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|err| err.to_string())?;
+    runtime.block_on(stream_chat_with_idle_timeout(
+        endpoint,
+        directory,
+        body,
+        idle_timeout,
+        on_event,
+    ))
 }
 
 /// 将网关返回的原始 JSON 事件映射为稳定的流式事件枚举。
@@ -494,6 +582,10 @@ pub(crate) fn event_name(event: &GatewayChatStreamEvent) -> &'static str {
         GatewayChatStreamEvent::Error(_) => "chat.error",
         GatewayChatStreamEvent::Other(_) => "other",
     }
+}
+
+fn is_terminal_stream_event(event: &GatewayChatStreamEvent) -> bool {
+    matches!(event, GatewayChatStreamEvent::Done { .. } | GatewayChatStreamEvent::Error(_))
 }
 
 fn normalize_chat_usage(value: Option<serde_json::Value>) -> Option<GatewayChatUsage> {

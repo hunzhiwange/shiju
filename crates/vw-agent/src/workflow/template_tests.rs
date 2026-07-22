@@ -24,6 +24,14 @@ fn render_template_ignores_empty_selector_parts() {
 }
 
 #[test]
+fn render_template_blanks_whitespace_selector_and_preserves_malformed_markers() {
+    let pool = VariablePool::default();
+
+    assert_eq!(render_template("before {{#   #}} after", &pool), "before  after");
+    assert_eq!(render_template("before {{#missing after", &pool), "before {{#missing after");
+}
+
+#[test]
 fn render_jinja_value_template_supports_values_and_reports_errors() {
     let values = BTreeMap::from([
         ("name".to_string(), Value::String("Alice".into())),

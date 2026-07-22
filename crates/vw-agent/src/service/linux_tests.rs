@@ -22,6 +22,23 @@ fn systemd_quote_arg_quotes_spaces_and_escapes_special_characters() {
 }
 
 #[test]
+fn systemd_quote_arg_leaves_empty_value_unquoted() {
+    assert_eq!(systemd_quote_arg(""), "");
+}
+
+#[test]
+fn systemd_quote_arg_quotes_unicode_values() {
+    assert_eq!(systemd_quote_arg("/home/测试/vibewindow"), "\"/home/测试/vibewindow\"");
+}
+
+#[test]
+fn systemd_quote_arg_quotes_shell_metacharacters_without_rewriting_them() {
+    for value in ["/tmp/$HOME", "/tmp/a;b", "/tmp/a=b", "/tmp/a\nb"] {
+        assert_eq!(systemd_quote_arg(value), format!("\"{value}\""));
+    }
+}
+
+#[test]
 fn systemd_config_dir_args_uses_parent_directory_and_quotes_when_needed() {
     let mut config = Config::default();
     config.config_path = "/Users/me/Application Support/VibeWindow/vibewindow.json".into();
@@ -41,9 +58,42 @@ fn systemd_config_dir_args_returns_empty_when_config_path_has_no_parent() {
 }
 
 #[test]
+fn systemd_config_dir_args_leaves_safe_absolute_parent_unquoted() {
+    let mut config = Config::default();
+    config.config_path = "/home/me/.config/vibewindow/vibewindow.json".into();
+
+    assert_eq!(systemd_config_dir_args(&config), " --config-dir /home/me/.config/vibewindow");
+}
+
+#[test]
+fn systemd_config_dir_args_preserves_relative_parent() {
+    let mut config = Config::default();
+    config.config_path = "profiles/dev/vibewindow.json".into();
+
+    assert_eq!(systemd_config_dir_args(&config), " --config-dir profiles/dev");
+}
+
+#[test]
+fn systemd_config_dir_args_uses_filesystem_root_parent() {
+    let mut config = Config::default();
+    config.config_path = "/vibewindow.json".into();
+
+    assert_eq!(systemd_config_dir_args(&config), " --config-dir /");
+}
+
+#[test]
 fn linux_service_file_points_to_user_systemd_unit() {
     let file = linux_service_file(&Config::default()).unwrap();
     assert!(file.ends_with(".config/systemd/user/vibewindow.service"));
+}
+
+#[test]
+fn linux_service_file_does_not_depend_on_selected_config_path() {
+    let default_file = linux_service_file(&Config::default()).unwrap();
+    let mut config = Config::default();
+    config.config_path = "/tmp/another-profile/vibewindow.json".into();
+
+    assert_eq!(linux_service_file(&config).unwrap(), default_file);
 }
 
 #[test]

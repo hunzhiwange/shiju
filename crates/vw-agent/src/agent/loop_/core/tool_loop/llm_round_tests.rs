@@ -1,7 +1,9 @@
 use super::*;
+use crate::hooks::{HookHandler, HookRunner};
 use crate::observability::traits::ObserverMetric;
 use crate::providers::traits::{ChatResponse, ProviderCapabilities, TokenUsage};
 use async_trait::async_trait;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -27,8 +29,18 @@ fn fallback_tool_call_ids_are_stable_per_iteration() {
 }
 
 #[test]
-fn assistant_history_keeps_plain_text_without_native_tools() {
+fn assistant_history_handles_plain_text_and_missing_native_ids() {
     let history = build_assistant_history("plain response", &[], &[], None, false);
+
+    assert_eq!(history, "plain response");
+
+    let calls = vec![ParsedToolCall {
+        name: "shell".to_string(),
+        arguments: serde_json::json!({ "command": "pwd" }),
+        tool_call_id: None,
+    }];
+
+    let history = build_assistant_history("plain response", &calls, &[], Some("reasoning"), true);
 
     assert_eq!(history, "plain response");
 }
@@ -48,8 +60,9 @@ async fn run_llm_round_plain_success_records_usage_and_text() {
     });
     let observer = RecordingObserver::default();
     let history = vec![ChatMessage::user("hello")];
+    let token = CancellationToken::new();
 
-    let result = run_test_round(&provider, &observer, &history, false, &[], None, 0)
+    let result = run_test_round(&provider, &observer, &history, false, &[], Some(&token), 0)
         .await
         .expect("plain response should succeed");
 
@@ -82,6 +95,30 @@ async fn run_llm_round_plain_success_records_usage_and_text() {
 }
 
 #[tokio::test]
+async fn run_llm_round_accepts_image_markers_for_vision_provider() {
+    let provider = TestProvider::with_result(
+        Ok(ChatResponse {
+            text: Some("vision accepted".to_string()),
+            tool_calls: Vec::new(),
+            usage: None,
+            reasoning_content: None,
+        }),
+        None,
+        ProviderCapabilities { native_tool_calling: false, vision: true },
+    );
+    let observer = RecordingObserver::default();
+    let history = vec![ChatMessage::user("inspect [IMAGE:data:image/png;base64,iVBORw0KGgo=]")];
+
+    let result = run_test_round(&provider, &observer, &history, false, &[], None, 0)
+        .await
+        .expect("vision provider should accept image markers");
+
+    assert_eq!(result.response_text, "vision accepted");
+    assert_eq!(provider.calls(), 1);
+    assert_eq!(observer.events().len(), 2);
+}
+
+#[tokio::test]
 async fn run_llm_round_text_fallback_assigns_ids_and_native_history() {
     let provider = TestProvider::with_response(ChatResponse {
         text: Some(
@@ -110,6 +147,26 @@ async fn run_llm_round_text_fallback_assigns_ids_and_native_history() {
     assert!(result.assistant_history_content.contains("fallback_5_1"));
     assert!(result.assistant_history_content.contains("reasoning-testcov-0088"));
     assert_eq!(provider.last_tools_len(), Some(1));
+}
+
+#[tokio::test]
+async fn run_llm_round_detects_malformed_tool_call_parse_issue() {
+    let provider = TestProvider::with_response(ChatResponse {
+        text: Some("<tool_call>{\"name\":\"shell\"".to_string()),
+        tool_calls: Vec::new(),
+        usage: None,
+        reasoning_content: None,
+    });
+    let observer = RecordingObserver::default();
+    let history = vec![ChatMessage::user("use a tool")];
+
+    let result = run_test_round(&provider, &observer, &history, false, &[], None, 0)
+        .await
+        .expect("malformed response should still produce a round result");
+
+    assert!(result.tool_calls.is_empty());
+    assert!(result.parse_issue_detected);
+    assert_eq!(result.display_text, "<tool_call>{\"name\":\"shell\"");
 }
 
 #[tokio::test]
@@ -167,6 +224,51 @@ async fn run_llm_round_rejects_image_markers_for_non_vision_provider() {
     assert!(error.to_string().contains("capability=vision"));
     assert_eq!(provider.calls(), 0);
     assert!(observer.events().is_empty());
+}
+
+#[tokio::test]
+async fn run_llm_round_fires_llm_input_hook() {
+    let provider = TestProvider::with_response(ChatResponse {
+        text: Some("hooked response".to_string()),
+        tool_calls: Vec::new(),
+        usage: None,
+        reasoning_content: None,
+    });
+    let observer = RecordingObserver::default();
+    let history = vec![ChatMessage::user("hello hook")];
+    let hook_calls = Arc::new(AtomicUsize::new(0));
+    let hook_models = Arc::new(Mutex::new(Vec::new()));
+    let mut hooks = HookRunner::new();
+    hooks.register(Box::new(RecordingLlmInputHook {
+        calls: Arc::clone(&hook_calls),
+        models: Arc::clone(&hook_models),
+    }));
+
+    let result = run_llm_round(
+        &provider,
+        &history,
+        &observer,
+        "testcov-provider",
+        "testcov-model",
+        0.2,
+        "testcov-channel",
+        &crate::app::agent::config::MultimodalConfig::default(),
+        None,
+        Some(&hooks),
+        &[],
+        false,
+        "turn-testcov-0088",
+        0,
+    )
+    .await
+    .expect("round with hook should succeed");
+
+    assert_eq!(result.response_text, "hooked response");
+    assert_eq!(hook_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        hook_models.lock().expect("models lock should not be poisoned").as_slice(),
+        ["testcov-model"]
+    );
 }
 
 #[tokio::test]
@@ -261,6 +363,24 @@ struct TestProvider {
     calls: Mutex<usize>,
     last_tools_len: Mutex<Option<usize>>,
     delay: Option<Duration>,
+}
+
+struct RecordingLlmInputHook {
+    calls: Arc<AtomicUsize>,
+    models: Arc<Mutex<Vec<String>>>,
+}
+
+#[async_trait]
+impl HookHandler for RecordingLlmInputHook {
+    fn name(&self) -> &str {
+        "recording-llm-input-testcov-0088"
+    }
+
+    async fn on_llm_input(&self, messages: &[ChatMessage], model: &str) {
+        assert_eq!(messages.len(), 1);
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.models.lock().expect("models lock should not be poisoned").push(model.to_string());
+    }
 }
 
 impl TestProvider {

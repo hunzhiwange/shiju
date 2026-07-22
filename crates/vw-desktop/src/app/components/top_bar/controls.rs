@@ -82,7 +82,7 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                 Icon::Search,
                 "搜索",
                 TooltipPosition::Bottom,
-                Message::Search(message::SearchMessage::InputChanged("/".to_string())),
+                Message::Search(message::SearchMessage::Open),
             ),
         ]
         .spacing(2);

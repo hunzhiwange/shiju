@@ -50,3 +50,31 @@ fn verbose_metrics_and_flush_do_not_panic() {
     obs.record_metric(&ObserverMetric::TokensUsed(123));
     obs.flush();
 }
+
+#[test]
+fn verbose_llm_response_duration_overflow_is_capped() {
+    let obs = VerboseObserver::new();
+
+    obs.record_event(&ObserverEvent::LlmResponse {
+        provider: "openrouter".into(),
+        model: "claude".into(),
+        duration: Duration::from_secs(u64::MAX),
+        success: false,
+        error_message: Some("timeout".into()),
+        input_tokens: None,
+        output_tokens: None,
+        cached_tokens: None,
+        reasoning_tokens: None,
+    });
+}
+
+#[test]
+fn verbose_tool_call_duration_overflow_is_capped() {
+    let obs = VerboseObserver::new();
+
+    obs.record_event(&ObserverEvent::ToolCall {
+        tool: "shell".into(),
+        duration: Duration::from_secs(u64::MAX),
+        success: false,
+    });
+}

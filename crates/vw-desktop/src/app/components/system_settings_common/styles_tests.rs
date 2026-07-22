@@ -240,3 +240,130 @@ fn segment_button_style_covers_dark_pressed_and_active() {
     assert_ne!(background_color(inactive.background), background_color(pressed.background));
     assert_ne!(pressed.text_color, active.text_color);
 }
+
+#[test]
+fn rounded_and_round_icon_button_styles_cover_remaining_dark_statuses() {
+    let theme = Theme::Dark;
+    let rounded_active =
+        background_color(rounded_action_btn_style(&theme, button::Status::Active).background);
+    let rounded_pressed =
+        background_color(rounded_action_btn_style(&theme, button::Status::Pressed).background);
+    let rounded_disabled =
+        background_color(rounded_action_btn_style(&theme, button::Status::Disabled).background);
+    let round_hovered =
+        background_color(round_icon_btn_style(&theme, button::Status::Hovered).background);
+    let round_disabled =
+        background_color(round_icon_btn_style(&theme, button::Status::Disabled).background);
+
+    assert_ne!(rounded_active, rounded_pressed);
+    assert_eq!(rounded_active, rounded_disabled);
+    assert_ne!(round_hovered, round_disabled);
+}
+
+#[test]
+fn panel_and_modal_styles_cover_light_and_dark_branches() {
+    let dark_panel = settings_panel_style(&Theme::Dark);
+    let light_panel = settings_panel_style(&Theme::Light);
+    let dark_modal = settings_modal_card_style(&Theme::Dark);
+    let light_modal = settings_modal_card_style(&Theme::Light);
+
+    assert_ne!(background_color(dark_panel.background), background_color(light_panel.background));
+    assert_ne!(dark_panel.border.color, light_panel.border.color);
+    assert_ne!(background_color(dark_modal.background), background_color(light_modal.background));
+    assert_ne!(dark_modal.shadow.color, light_modal.shadow.color);
+}
+
+#[test]
+fn text_input_style_covers_light_hovered_background() {
+    let theme = Theme::Light;
+    let active = settings_text_input_style(&theme, text_input::Status::Active);
+    let hovered = settings_text_input_style(&theme, text_input::Status::Hovered);
+
+    assert_ne!(solid_background(active.background), solid_background(hovered.background));
+    assert_ne!(active.border.color, hovered.border.color);
+}
+
+#[test]
+fn text_editor_style_accepts_all_statuses_without_changing_output() {
+    let theme = Theme::Dark;
+    let active = settings_text_editor_style(&theme, text_editor::Status::Active);
+    let hovered = settings_text_editor_style(&theme, text_editor::Status::Hovered);
+    let disabled = settings_text_editor_style(&theme, text_editor::Status::Disabled);
+
+    assert_eq!(active, hovered);
+    assert_eq!(hovered, disabled);
+}
+
+#[test]
+fn pick_list_styles_cover_dark_hovered_and_light_opened_without_hover() {
+    let dark_active = settings_pick_list_style(&Theme::Dark, pick_list::Status::Active);
+    let dark_hovered = settings_pick_list_style(&Theme::Dark, pick_list::Status::Hovered);
+    let light_active = settings_pick_list_style(&Theme::Light, pick_list::Status::Active);
+    let light_opened =
+        settings_pick_list_style(&Theme::Light, pick_list::Status::Opened { is_hovered: false });
+
+    assert_ne!(solid_background(dark_active.background), solid_background(dark_hovered.background));
+    assert_ne!(dark_active.border.color, dark_hovered.border.color);
+    assert_ne!(
+        solid_background(light_active.background),
+        solid_background(light_opened.background)
+    );
+    assert_ne!(light_active.handle_color, light_opened.handle_color);
+}
+
+#[test]
+fn pick_list_menu_style_covers_light_theme_branch() {
+    let dark = settings_pick_list_menu_style(&Theme::Dark);
+    let light = settings_pick_list_menu_style(&Theme::Light);
+
+    assert_ne!(solid_background(dark.background), solid_background(light.background));
+    assert_ne!(dark.border.color, light.border.color);
+    assert_ne!(dark.selected_background, light.selected_background);
+    assert_ne!(dark.shadow.color, light.shadow.color);
+}
+
+#[test]
+fn checkbox_style_covers_unchecked_light_active_and_dark_disabled() {
+    let light_active =
+        settings_checkbox_style(&Theme::Light, checkbox::Status::Active { is_checked: false });
+    let light_hovered =
+        settings_checkbox_style(&Theme::Light, checkbox::Status::Hovered { is_checked: false });
+    let dark_disabled =
+        settings_checkbox_style(&Theme::Dark, checkbox::Status::Disabled { is_checked: false });
+
+    assert_ne!(
+        solid_background(light_active.background),
+        solid_background(light_hovered.background)
+    );
+    assert_ne!(
+        solid_background(light_active.background),
+        solid_background(dark_disabled.background)
+    );
+    assert_eq!(light_active.icon_color, Color::TRANSPARENT);
+}
+
+#[test]
+fn checkbox_style_dims_text_only_when_disabled() {
+    let theme = Theme::Dark;
+    let active = settings_checkbox_style(&theme, checkbox::Status::Active { is_checked: false });
+    let disabled =
+        settings_checkbox_style(&theme, checkbox::Status::Disabled { is_checked: false });
+
+    assert_eq!(active.text_color, Some(theme.palette().text.scale_alpha(0.94)));
+    assert_eq!(disabled.text_color, Some(theme.palette().text.scale_alpha(0.48)));
+}
+
+#[test]
+fn segment_button_style_covers_light_pressed_and_dark_hovered_branches() {
+    let light_active = settings_segment_button_style(&Theme::Light, button::Status::Active, false);
+    let light_pressed =
+        settings_segment_button_style(&Theme::Light, button::Status::Pressed, false);
+    let dark_active = settings_segment_button_style(&Theme::Dark, button::Status::Active, false);
+    let dark_hovered = settings_segment_button_style(&Theme::Dark, button::Status::Hovered, false);
+
+    assert_ne!(
+        background_color(light_active.background),
+        background_color(light_pressed.background)
+    );
+    assert_ne!(background_color(dark_active.background), background_color(dark_hovered.background));
+}

@@ -411,7 +411,7 @@ fn parse_snapshot(input: &str) -> Vec<(String, String)> {
         if trimmed.starts_with("### 🔑 `") && trimmed.ends_with('`') {
             // 保存前一条记忆（如果存在）
             if let Some(key) = current_key.take() {
-                let content = current_content.trim().to_string();
+                let content = trim_blank_boundary_lines(&current_content).to_string();
                 if !content.is_empty() {
                     entries.push((key, content));
                 }
@@ -445,7 +445,7 @@ fn parse_snapshot(input: &str) -> Vec<(String, String)> {
 
     // 处理最后一条记忆（文件末尾可能没有下一个标题）
     if let Some(key) = current_key {
-        let content = current_content.trim().to_string();
+        let content = trim_blank_boundary_lines(&current_content).to_string();
         if !content.is_empty() {
             entries.push((key, content));
         }
@@ -454,6 +454,40 @@ fn parse_snapshot(input: &str) -> Vec<(String, String)> {
     entries
 }
 
+fn trim_blank_boundary_lines(content: &str) -> &str {
+    let mut start = 0;
+
+    while start < content.len() {
+        let rest = &content[start..];
+        let line_end = rest.find('\n').unwrap_or(rest.len());
+        let line = &rest[..line_end];
+
+        if line.trim().is_empty() {
+            start += line_end.saturating_add(1).min(rest.len());
+        } else {
+            break;
+        }
+    }
+
+    let mut end = content.len();
+    while end > start {
+        let line_start = content[start..end].rfind('\n').map_or(start, |index| start + index + 1);
+        let line = &content[line_start..end];
+
+        if line.trim().is_empty() {
+            end = line_start.saturating_sub(1).max(start);
+        } else {
+            break;
+        }
+    }
+
+    &content[start..end]
+}
+
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "mod_tests.rs"]
+mod mod_tests;

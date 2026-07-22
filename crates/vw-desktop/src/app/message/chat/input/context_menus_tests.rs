@@ -4,16 +4,22 @@ use super::{
     handle_append_context_menu_text, handle_clipboard_paste_resolved,
     handle_close_fork_session_dialog, handle_close_input_context_menu,
     handle_close_message_context_menu, handle_close_reset_menu, handle_copy_context_menu_text,
-    handle_open_fork_session_dialog, handle_open_input_context_menu,
-    handle_open_message_context_menu, handle_search_context_menu_with_baidu,
-    handle_search_context_menu_with_bing, handle_search_context_menu_with_google,
-    handle_select_all_input, handle_toggle_reset_menu,
+    handle_copy_input_selection, handle_cut_input_selection, handle_open_fork_session_dialog,
+    handle_open_input_context_menu, handle_open_message_context_menu, handle_paste_into_input,
+    handle_search_context_menu_with_baidu, handle_search_context_menu_with_bing,
+    handle_search_context_menu_with_google, handle_select_all_input, handle_toggle_reset_menu,
 };
 use crate::app::{App, Message};
 use iced::widget::text_editor;
 
 fn test_app() -> App {
     App::new().0
+}
+
+fn selected_editor(text: &str) -> text_editor::Content {
+    let mut editor = text_editor::Content::with_text(text);
+    editor.perform(text_editor::Action::SelectAll);
+    editor
 }
 
 #[test]
@@ -46,12 +52,66 @@ fn input_context_menu_open_close_and_select_all_sync_editor() {
 }
 
 #[test]
+fn input_context_menu_copy_cut_and_paste_handle_selection_state() {
+    let mut app = test_app();
+    app.current_session_runtime_mut().input_editor = selected_editor("copy me");
+    handle_open_input_context_menu(&mut app, 4.0, 5.0);
+
+    let _task = handle_copy_input_selection(&mut app);
+
+    assert!(!app.input_context_menu_open);
+    assert_eq!(app.input_context_menu_pos, None);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "copy me");
+
+    app.current_session_runtime_mut().input_editor = selected_editor("cut me");
+    app.input_editor = text_editor::Content::with_text("stale");
+    handle_open_input_context_menu(&mut app, 6.0, 7.0);
+
+    let _task = handle_cut_input_selection(&mut app);
+
+    assert!(!app.input_context_menu_open);
+    assert_eq!(app.input_context_menu_pos, None);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "");
+    assert_eq!(app.input_editor.text(), "");
+
+    handle_open_input_context_menu(&mut app, 8.0, 9.0);
+    let _task = handle_paste_into_input(&mut app);
+
+    assert!(!app.input_context_menu_open);
+    assert_eq!(app.input_context_menu_pos, None);
+}
+
+#[test]
+fn input_context_menu_cut_without_selection_only_closes_menu() {
+    let mut app = test_app();
+    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("unchanged");
+    handle_open_input_context_menu(&mut app, 2.0, 3.0);
+
+    let _task = handle_cut_input_selection(&mut app);
+
+    assert!(!app.input_context_menu_open);
+    assert_eq!(app.input_context_menu_pos, None);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
+}
+
+#[test]
+fn input_context_menu_copy_without_selection_only_closes_menu() {
+    let mut app = test_app();
+    app.current_session_runtime_mut().input_editor = text_editor::Content::with_text("unchanged");
+    handle_open_input_context_menu(&mut app, 2.0, 3.0);
+
+    let _task = handle_copy_input_selection(&mut app);
+
+    assert!(!app.input_context_menu_open);
+    assert_eq!(app.input_context_menu_pos, None);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "unchanged");
+}
+
+#[test]
 fn clipboard_paste_resolved_updates_attachments_or_notifications() {
     let mut app = test_app();
-    let image_path = std::env::temp_dir().join(format!(
-        "vw-desktop-clipboard-paste-{}.png",
-        std::process::id()
-    ));
+    let image_path =
+        std::env::temp_dir().join(format!("vw-desktop-clipboard-paste-{}.png", std::process::id()));
     std::fs::write(&image_path, b"image").unwrap();
 
     handle_clipboard_paste_resolved(
@@ -114,6 +174,21 @@ fn message_context_menu_copy_append_and_search_trim_text() {
     app.chat_context_menu_text = "   ".to_string();
     let _task = handle_copy_context_menu_text(&mut app);
     let _task = handle_append_context_menu_text(&mut app);
+    app.chat_context_menu_text = "   ".to_string();
+    let _task = handle_search_context_menu_with_google(&mut app);
+    assert!(app.chat_context_menu_text.is_empty());
+}
+
+#[test]
+fn message_context_menu_prefers_active_text_selection_over_fallback_text() {
+    let mut app = test_app();
+    app.chat_message_editors.push(selected_editor("selected message"));
+
+    handle_open_message_context_menu(&mut app, 0, 3.0, 4.0, "fallback".to_string());
+
+    assert_eq!(app.chat_context_menu_target, Some(0));
+    assert_eq!(app.chat_context_menu_pos, Some((3.0, 4.0)));
+    assert_eq!(app.chat_context_menu_text, "selected message");
 }
 
 #[test]

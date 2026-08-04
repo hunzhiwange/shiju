@@ -11,9 +11,9 @@ use crate::app::components::overlays::{BelowOverlay, PointBelowOverlay, SideOver
 use crate::app::components::status_animation::spinner_frame;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::widgets::RightClickArea;
+use crate::app::message::{ProjectMessage, SearchMessage, TaskBoardMessage, ViewMessage};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
-use crate::app::message::{ProjectMessage, SearchMessage, TaskBoardMessage, ViewMessage};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::skill_hub::ExpertHubSection;
 use crate::app::state::{
@@ -310,34 +310,19 @@ fn expert_hub_message(section: ExpertHubSection) -> Message {
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn expert_hub_button() -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[5];
-    navigation_button(
-        label,
-        icon,
-        Message::SkillHub(SkillHubMessage::Open),
-        trailing,
-    )
+    navigation_button(label, icon, Message::SkillHub(SkillHubMessage::Open), trailing)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn shiju_apps_button() -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[3];
-    navigation_button(
-        label,
-        icon,
-        Message::ShijuApps(ShijuAppsMessage::Open),
-        trailing,
-    )
+    navigation_button(label, icon, Message::ShijuApps(ShijuAppsMessage::Open), trailing)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn shiju_skills_button() -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[4];
-    navigation_button(
-        label,
-        icon,
-        Message::SkillHub(SkillHubMessage::OpenShijuSkills),
-        trailing,
-    )
+    navigation_button(label, icon, Message::SkillHub(SkillHubMessage::OpenShijuSkills), trailing)
 }
 
 pub(super) fn sidebar_style(theme: &Theme) -> container::Style {
@@ -665,17 +650,12 @@ pub(super) fn refresh_all_control(app: &App) -> Element<'static, Message> {
 
 pub(super) fn task_pool_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[2];
-    header_icon_button(
-        icon,
-        label,
-        Message::TaskBoard(TaskBoardMessage::ToggleBoard),
-        false,
-    )
+    header_icon_button(icon, label, Message::TaskBoard(TaskBoardMessage::ToggleBoard), false)
 }
 
 fn expanded_header(app: &App) -> Element<'static, Message> {
     row![
-        container(text("氛围视窗").size(17))
+        container(text("识矩").size(17))
             .width(Length::Fill)
             .align_y(iced::alignment::Vertical::Center),
         sidebar_toggle_control(app),
@@ -878,10 +858,8 @@ fn task_button(app: &App, task: &WorkTaskItem) -> Element<'static, Message> {
         task.title.clone()
     };
     let title = truncate_work_task_text(&raw_title, app.work_sidebar_width, false);
-    let project_label =
-        truncate_work_task_text(&task.project_label, app.work_sidebar_width, true);
-    let updated =
-        crate::app::components::chat_panel::utils::relative_time_label(task.updated);
+    let project_label = truncate_work_task_text(&task.project_label, app.work_sidebar_width, true);
+    let updated = crate::app::components::chat_panel::utils::relative_time_label(task.updated);
     let mut meta = row![
         text(project_label)
             .size(11)
@@ -948,9 +926,7 @@ fn task_status_badge(
         WorkTaskStatus::Queued(count) => {
             (text(format!("排队 {count}")).size(10).into(), Color::from_rgb8(245, 158, 11))
         }
-        WorkTaskStatus::Updated => {
-            (text("有更新").size(10).into(), Color::from_rgb8(46, 184, 114))
-        }
+        WorkTaskStatus::Updated => (text("有更新").size(10).into(), Color::from_rgb8(46, 184, 114)),
     };
     Some(
         container(content)
@@ -972,8 +948,7 @@ pub(super) fn truncate_work_task_text(
 ) -> String {
     let trailing_width =
         if reserve_time { WORK_TASK_TIME_RESERVED_WIDTH } else { WORK_TASK_TITLE_END_GUTTER_WIDTH };
-    let available_width =
-        (sidebar_width - WORK_TASK_ROW_FIXED_WIDTH - trailing_width).max(65.0);
+    let available_width = (sidebar_width - WORK_TASK_ROW_FIXED_WIDTH - trailing_width).max(65.0);
     let max_display_width = (available_width / WORK_TASK_DISPLAY_UNIT_WIDTH).max(10.0) as usize;
     truncate_display_width(value, max_display_width)
 }
@@ -1165,12 +1140,7 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
             expert_hub_message(ExpertHubSection::Experts),
             specs[1].2,
         ))
-        .push(navigation_button(
-            specs[2].0,
-            specs[2].1,
-            project_navigation_message(),
-            specs[2].2,
-        ))
+        .push(navigation_button(specs[2].0, specs[2].1, project_navigation_message(), specs[2].2))
         .push(shiju_apps_button())
         .push(shiju_skills_button())
         .push(expert_hub_button());
@@ -1330,13 +1300,13 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fill)
             .padding(iced::Padding::default().right(WORK_SIDEBAR_SCROLLBAR_GUTTER)),
     )
-        .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(WORK_SIDEBAR_SCROLLBAR_WIDTH)
-                .scroller_width(WORK_SIDEBAR_SCROLLBAR_WIDTH),
-        ))
-        .width(Length::Fill)
-        .height(Length::Fill);
+    .direction(Direction::Vertical(
+        Scrollbar::new()
+            .width(WORK_SIDEBAR_SCROLLBAR_WIDTH)
+            .scroller_width(WORK_SIDEBAR_SCROLLBAR_WIDTH),
+    ))
+    .width(Length::Fill)
+    .height(Length::Fill);
 
     container(
         column![header, navigation_section(app), tabs(&model, app.work_sidebar_tab), scroll,]

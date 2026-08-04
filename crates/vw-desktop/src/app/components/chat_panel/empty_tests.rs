@@ -7,7 +7,7 @@ use iced::{Background, Color, Theme, theme::Palette};
 
 #[test]
 fn empty_session_title_matches_workspace_mode() {
-    assert_eq!(empty_session_title(WorkspaceMode::Code), "氛围视窗软件智能体");
+    assert_eq!(empty_session_title(WorkspaceMode::Code), "识矩软件智能体");
     assert_eq!(empty_session_title(WorkspaceMode::Work), "您的专属 AI 工作助理");
 }
 

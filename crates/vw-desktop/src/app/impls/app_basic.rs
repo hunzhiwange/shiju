@@ -111,21 +111,21 @@ impl App {
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn title(&self) -> String {
         match self.screen {
-            Screen::Home => "Vibe Window 氛围视窗 - 项目".to_string(),
-            Screen::Project => "Vibe Window 氛围视窗 - 项目".to_string(),
-            Screen::Preview => "Vibe Window 氛围视窗 - 预览".to_string(),
-            Screen::Apps => "Vibe Window 氛围视窗 - 应用".to_string(),
-            Screen::Usage => "Vibe Window 氛围视窗 - 用量".to_string(),
-            Screen::Knowledge => "Vibe Window 氛围视窗 - 知识库".to_string(),
-            Screen::WorkflowTool => "Vibe Window 氛围视窗 - 工作流".to_string(),
-            Screen::WorkflowManager => "Vibe Window 氛围视窗 - 任务编排".to_string(),
-            Screen::TaskBoard => "Vibe Window 氛围视窗 - 任务看板".to_string(),
+            Screen::Home => "识矩 - 项目".to_string(),
+            Screen::Project => "识矩 - 项目".to_string(),
+            Screen::Preview => "识矩 - 预览".to_string(),
+            Screen::Apps => "识矩 - 应用".to_string(),
+            Screen::Usage => "识矩 - 用量".to_string(),
+            Screen::Knowledge => "识矩 - 知识库".to_string(),
+            Screen::WorkflowTool => "识矩 - 工作流".to_string(),
+            Screen::WorkflowManager => "识矩 - 任务编排".to_string(),
+            Screen::TaskBoard => "识矩 - 任务看板".to_string(),
             #[cfg(not(target_arch = "wasm32"))]
-            Screen::ShijuApps => "Vibe Window 氛围视窗 - 识矩应用".to_string(),
+            Screen::ShijuApps => "识矩 - 识矩应用".to_string(),
             #[cfg(not(target_arch = "wasm32"))]
-            Screen::ShijuSkills => "Vibe Window 氛围视窗 - 识矩技能".to_string(),
+            Screen::ShijuSkills => "识矩 - 识矩技能".to_string(),
             #[cfg(not(target_arch = "wasm32"))]
-            Screen::ExpertHub => "Vibe Window 氛围视窗 - 专家·技能·连接器".to_string(),
+            Screen::ExpertHub => "识矩 - 专家·技能·连接器".to_string(),
         }
     }
 

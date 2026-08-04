@@ -15,7 +15,7 @@ use crate::app::{App, Message};
 
 fn empty_session_title(workspace_mode: WorkspaceMode) -> &'static str {
     match workspace_mode {
-        WorkspaceMode::Code => "氛围视窗软件智能体",
+        WorkspaceMode::Code => "识矩软件智能体",
         WorkspaceMode::Work => "您的专属 AI 工作助理",
     }
 }

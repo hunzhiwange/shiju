@@ -101,16 +101,14 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
         row![
             hero_logo,
             column![
-                text("Vibe Window 氛围视窗").size(22).font(home_cjk_emphasis_font()).style(
-                    |theme: &Theme| {
-                        let color = if is_dark_theme(theme) {
-                            theme.extended_palette().background.base.text
-                        } else {
-                            theme.palette().text
-                        };
-                        text::Style { color: Some(color) }
-                    }
-                ),
+                text("识矩").size(22).font(home_cjk_emphasis_font()).style(|theme: &Theme| {
+                    let color = if is_dark_theme(theme) {
+                        theme.extended_palette().background.base.text
+                    } else {
+                        theme.palette().text
+                    };
+                    text::Style { color: Some(color) }
+                }),
                 text("选择文件夹开始一个项目，或从下方最近项目继续。").size(12).style(
                     |theme: &Theme| {
                         let color = if is_dark_theme(theme) {

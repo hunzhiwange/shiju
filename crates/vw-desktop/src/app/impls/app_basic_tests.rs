@@ -130,21 +130,18 @@ fn expansion_toggles_clear_membership_when_ordered_entries_are_absent() {
 fn title_covers_each_screen_and_pet_window_override() {
     let mut app = new_app();
     let expected = [
-        (Screen::Home, "Vibe Window 氛围视窗 - 项目"),
-        (Screen::Project, "Vibe Window 氛围视窗 - 项目"),
-        (Screen::Preview, "Vibe Window 氛围视窗 - 预览"),
-        (Screen::Apps, "Vibe Window 氛围视窗 - 应用"),
-        (Screen::Usage, "Vibe Window 氛围视窗 - 用量"),
-        (Screen::Knowledge, "Vibe Window 氛围视窗 - 知识库"),
-        (Screen::WorkflowTool, "Vibe Window 氛围视窗 - 工作流"),
-        (Screen::WorkflowManager, "Vibe Window 氛围视窗 - 任务编排"),
-        (Screen::TaskBoard, "Vibe Window 氛围视窗 - 任务看板"),
-        (Screen::ShijuApps, "Vibe Window 氛围视窗 - 识矩应用"),
-        (Screen::ShijuSkills, "Vibe Window 氛围视窗 - 识矩技能"),
-        (
-            Screen::ExpertHub,
-            "Vibe Window 氛围视窗 - 专家·技能·连接器",
-        ),
+        (Screen::Home, "识矩 - 项目"),
+        (Screen::Project, "识矩 - 项目"),
+        (Screen::Preview, "识矩 - 预览"),
+        (Screen::Apps, "识矩 - 应用"),
+        (Screen::Usage, "识矩 - 用量"),
+        (Screen::Knowledge, "识矩 - 知识库"),
+        (Screen::WorkflowTool, "识矩 - 工作流"),
+        (Screen::WorkflowManager, "识矩 - 任务编排"),
+        (Screen::TaskBoard, "识矩 - 任务看板"),
+        (Screen::ShijuApps, "识矩 - 识矩应用"),
+        (Screen::ShijuSkills, "识矩 - 识矩技能"),
+        (Screen::ExpertHub, "识矩 - 专家·技能·连接器"),
     ];
 
     for (screen, title) in expected {
@@ -157,7 +154,7 @@ fn title_covers_each_screen_and_pet_window_override() {
     app.task_pet_window_id = Some(pet_window);
     app.screen = Screen::Project;
     assert_eq!(app.title_for_window(pet_window), "VibeWindow Pet");
-    assert_eq!(app.title_for_window(main_window), "Vibe Window 氛围视窗 - 项目");
+    assert_eq!(app.title_for_window(main_window), "识矩 - 项目");
 }
 
 #[test]

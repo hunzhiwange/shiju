@@ -222,10 +222,10 @@ fn binary_and_archive_names_match_platform_conventions() {
     let archive_name = super::get_archive_name(&target);
 
     if cfg!(windows) {
-        assert_eq!(binary_name, "vibewindow.exe");
+        assert_eq!(binary_name, "shiju.exe");
         assert!(archive_name.ends_with(".zip"));
     } else {
-        assert_eq!(binary_name, "vibewindow");
+        assert_eq!(binary_name, "shiju");
         assert!(archive_name.ends_with(".tar.gz"));
     }
 }
@@ -335,7 +335,7 @@ fn candidate_binary_names_prioritizes_explicit_name_and_removes_duplicates() {
 
     let names = super::candidate_binary_names(current_exe, Some(" vibewindow-custom "));
 
-    assert_eq!(names, vec!["vibewindow-custom", "vibewindow", "vw-webview"]);
+    assert_eq!(names, vec!["vibewindow-custom", "shiju", "vw-webview"]);
 }
 
 #[cfg(all(not(windows), not(target_arch = "wasm32")))]
@@ -345,7 +345,7 @@ fn candidate_binary_names_uses_current_exe_then_defaults() {
 
     let names = super::candidate_binary_names(current_exe, Some("  "));
 
-    assert_eq!(names, vec!["custom-cli", "vibewindow", "vw-webview"]);
+    assert_eq!(names, vec!["custom-cli", "shiju", "vw-webview"]);
 }
 
 #[cfg(all(not(windows), not(target_arch = "wasm32")))]
@@ -353,7 +353,7 @@ fn candidate_binary_names_uses_current_exe_then_defaults() {
 fn candidate_binary_names_uses_defaults_when_current_path_has_no_file_name() {
     let names = super::candidate_binary_names(std::path::Path::new("/"), None);
 
-    assert_eq!(names, vec!["vibewindow", "vw-webview"]);
+    assert_eq!(names, vec!["shiju", "vw-webview"]);
 }
 
 #[cfg(all(not(windows), not(target_arch = "wasm32")))]

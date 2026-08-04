@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP="vibewindow"
+APP="shiju"
 PACKAGE="vw-cli"
 REPO="hunzhiwange/vibewindow"
 INSTALL_DIR="${VIBEWINDOW_INSTALL_DIR:-$HOME/.vibewindow/bin}"
@@ -13,7 +13,7 @@ NC='\033[0m'
 
 usage() {
     cat <<EOF
-VibeWindow CLI Installer
+ShiJu CLI Installer
 
 Usage: install [options]
 
@@ -26,7 +26,7 @@ Options:
 Examples:
     curl -fsSL https://github.com/${REPO}/raw/main/install | bash
     curl -fsSL https://github.com/${REPO}/raw/main/install | bash -s -- --version 0.2.3
-    ./install --binary /path/to/vibewindow
+    ./install --binary /path/to/shiju
 EOF
 }
 
@@ -218,7 +218,7 @@ add_to_path() {
     if grep -Fxq "$command" "$config_file"; then
         print_message info "Command already exists in $config_file, skipping write."
     elif [[ -w $config_file ]]; then
-        printf '\n# VibeWindow\n' >> "$config_file"
+        printf '\n# ShiJu\n' >> "$config_file"
         echo "$command" >> "$config_file"
         print_message info "${MUTED}Successfully added ${NC}${APP} ${MUTED}to PATH in ${NC}$config_file"
     else
@@ -292,7 +292,7 @@ if [[ -n "${GITHUB_ACTIONS-}" && "${GITHUB_ACTIONS}" == "true" ]]; then
 fi
 
 printf '\n'
-printf 'VibeWindow CLI installed successfully.\n\n'
+printf 'ShiJu CLI installed successfully.\n\n'
 printf 'Run:\n'
 printf '  %s --version\n' "$APP"
 printf '  %s agent\n\n' "$APP"

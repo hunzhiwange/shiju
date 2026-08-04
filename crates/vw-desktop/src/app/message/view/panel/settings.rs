@@ -474,7 +474,7 @@ fn install_cli_tool() -> Result<String, String> {
     let install_dir = vw_config_types::paths::home_config_dir(&home).join("bin");
     fs::create_dir_all(&install_dir).map_err(|e| format!("创建安装目录失败: {e}"))?;
 
-    let target_name = if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" };
+    let target_name = if cfg!(windows) { "shiju.exe" } else { "shiju" };
     let target_bin = install_dir.join(target_name);
     let replacing_existing = target_bin.exists();
 
@@ -552,7 +552,7 @@ fn install_staged_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(),
 
 #[cfg(not(target_arch = "wasm32"))]
 fn staged_cli_binary_path(target_bin: &Path) -> PathBuf {
-    let file_name = target_bin.file_name().and_then(|value| value.to_str()).unwrap_or("vibewindow");
+    let file_name = target_bin.file_name().and_then(|value| value.to_str()).unwrap_or("shiju");
     target_bin.with_file_name(format!(".{file_name}.installing"))
 }
 
@@ -701,7 +701,7 @@ fn normalize_version(value: &str) -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn read_installed_cli_version() -> Result<String, String> {
-    let output = match Command::new("vibewindow").arg("--version").output() {
+    let output = match Command::new("shiju").arg("--version").output() {
         Ok(output) => output,
         Err(_) => {
             let cli_path = resolve_cli_binary_path()?;
@@ -733,7 +733,7 @@ fn resolve_cli_binary_path() -> Result<PathBuf, String> {
     let home = resolve_home_dir()?;
     let cli_path = vw_config_types::paths::home_config_dir(home)
         .join("bin")
-        .join(if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" });
+        .join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
     if cli_path.exists() {
         Ok(cli_path)
     } else {
@@ -765,9 +765,9 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|e| format!("获取当前可执行文件失败: {e}"))?;
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
     let agent_names = if cfg!(windows) {
-        ["vibewindow.exe", "vibe-agent.exe"]
+        ["shiju.exe", "vibe-agent.exe"]
     } else {
-        ["vibewindow", "vibe-agent"]
+        ["shiju", "vibe-agent"]
     };
     let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
 

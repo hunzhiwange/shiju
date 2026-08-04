@@ -156,7 +156,7 @@ fn resolve_gateway_socket_address_rejects_malformed_host_text() {
 
 #[test]
 fn cli_binary_name_matches_current_platform() {
-    let expected = if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" };
+    let expected = if cfg!(windows) { "shiju.exe" } else { "shiju" };
     assert_eq!(cli_binary_name(), expected);
 }
 
@@ -172,7 +172,7 @@ fn service_install_is_required_for_outdated_or_missing_service() {
 #[test]
 fn cli_command_helpers_return_trimmed_stdout_and_prefer_stderr_failures() {
     let tmp = tempfile::tempdir().expect("tempdir");
-    let cli = tmp.path().join("vibewindow");
+    let cli = tmp.path().join("shiju");
     let config_dir = tmp.path().join("config");
     fs::create_dir_all(&config_dir).expect("config dir");
     write_test_cli(&cli);

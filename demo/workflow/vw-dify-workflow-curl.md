@@ -7,14 +7,14 @@
 启动网关：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- gateway --host 127.0.0.1 --port 42617
+cargo run -p vw-cli --bin shiju -- gateway --host 127.0.0.1 --port 42617
 ```
 
 需要定位节点执行、Python `requests` 外部 API 请求、请求参数和响应预览时，用 debug 日志启动：
 
 ```bash
 RUST_LOG=info,vw_agent::workflow=debug,vw_agent::workflow::http_bridge=debug,vw_agent::workflow::http_request=debug \
-cargo run -p vw-cli --bin vibewindow -- gateway --host 127.0.0.1 --port 42617
+cargo run -p vw-cli --bin shiju -- gateway --host 127.0.0.1 --port 42617
 ```
 
 日志会脱敏 `dhb_skey`、token、authorization、cookie 等敏感字段，并截断过长响应。

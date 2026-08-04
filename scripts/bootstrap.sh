@@ -41,9 +41,9 @@ Options:
   --api-key <key>            API key for non-interactive onboarding
   --provider <id>            Provider for non-interactive onboarding (default: openrouter)
   --model <id>               Model for non-interactive onboarding (optional)
-  --build-first              Alias for explicitly enabling separate `cargo build --release --locked -p vw-cli --bin vibewindow --bin vibe-agent`
-  --skip-build               Skip build step (`cargo build --release --locked -p vw-cli --bin vibewindow --bin vibe-agent` or Docker image build)
-  --skip-install             Skip `cargo install --path crates/vw-cli --force --locked --bin vibewindow --bin vibe-agent`
+  --build-first              Alias for explicitly enabling separate `cargo build --release --locked -p vw-cli --bin shiju --bin vibe-agent`
+  --skip-build               Skip build step (`cargo build --release --locked -p vw-cli --bin shiju --bin vibe-agent` or Docker image build)
+  --skip-install             Skip `cargo install --path crates/vw-cli --force --locked --bin shiju --bin vibe-agent`
   -h, --help                 Show help
 
 Examples:
@@ -273,9 +273,9 @@ install_prebuilt_binary() {
     return 1
   fi
 
-  archive_url="https://github.com/hunzhiwange/vibewindow/releases/latest/download/vibewindow-${target}.tar.gz"
+  archive_url="https://github.com/hunzhiwange/vibewindow/releases/latest/download/shiju-${target}.tar.gz"
   temp_dir="$(mktemp -d -t vibewindow-prebuilt-XXXXXX)"
-  archive_path="$temp_dir/vibewindow-${target}.tar.gz"
+  archive_path="$temp_dir/shiju-${target}.tar.gz"
 
   info "Attempting pre-built binary install for target: $target"
   if ! curl -fsSL "$archive_url" -o "$archive_path"; then
@@ -290,22 +290,22 @@ install_prebuilt_binary() {
     return 1
   fi
 
-  extracted_bin="$temp_dir/vibewindow"
+  extracted_bin="$temp_dir/shiju"
   if [[ ! -x "$extracted_bin" ]]; then
-    extracted_bin="$(find "$temp_dir" -maxdepth 2 -type f -name vibewindow -perm -u+x | head -n 1 || true)"
+    extracted_bin="$(find "$temp_dir" -maxdepth 2 -type f -name shiju -perm -u+x | head -n 1 || true)"
   fi
   if [[ -z "$extracted_bin" || ! -x "$extracted_bin" ]]; then
-    warn "Archive did not contain an executable vibewindow binary."
+    warn "Archive did not contain an executable shiju binary."
     rm -rf "$temp_dir"
     return 1
   fi
 
   install_dir="$HOME/.cargo/bin"
   mkdir -p "$install_dir"
-  install -m 0755 "$extracted_bin" "$install_dir/vibewindow"
+  install -m 0755 "$extracted_bin" "$install_dir/shiju"
   rm -rf "$temp_dir"
 
-  info "Installed pre-built binary to $install_dir/vibewindow"
+  info "Installed pre-built binary to $install_dir/shiju"
   if [[ ":$PATH:" != *":$install_dir:"* ]]; then
     warn "$install_dir is not in PATH for this shell."
     warn "Run: export PATH=\"$install_dir:\$PATH\""
@@ -1644,7 +1644,7 @@ fi
 
 if [[ "$SKIP_BUILD" == false ]]; then
   info "Building release binary"
-  BUILD_CMD=(cargo build --release --locked -p vw-cli --bin vibewindow --bin vibe-agent)
+  BUILD_CMD=(cargo build --release --locked -p vw-cli --bin shiju --bin vibe-agent)
   if [[ -n "$LOCAL_CARGO_FEATURES" ]]; then
     info "Applying local Cargo features for build: $LOCAL_CARGO_FEATURES"
     BUILD_CMD+=(--features "$LOCAL_CARGO_FEATURES")
@@ -1655,8 +1655,8 @@ else
 fi
 
 if [[ "$SKIP_INSTALL" == false ]]; then
-  info "Installing vibewindow to cargo bin"
-  INSTALL_CMD=(cargo install --path "$WORK_DIR/crates/vw-cli" --force --locked --bin vibewindow --bin vibe-agent)
+  info "Installing shiju to cargo bin"
+  INSTALL_CMD=(cargo install --path "$WORK_DIR/crates/vw-cli" --force --locked --bin shiju --bin vibe-agent)
   if [[ -n "$LOCAL_CARGO_FEATURES" ]]; then
     info "Applying local Cargo features for install: $LOCAL_CARGO_FEATURES"
     INSTALL_CMD+=(--features "$LOCAL_CARGO_FEATURES")
@@ -1667,18 +1667,18 @@ else
 fi
 
 VIBEWINDOW_BIN=""
-if have_cmd vibewindow; then
-  VIBEWINDOW_BIN="vibewindow"
-elif [[ -x "$HOME/.cargo/bin/vibewindow" ]]; then
-  VIBEWINDOW_BIN="$HOME/.cargo/bin/vibewindow"
-elif [[ -x "$WORK_DIR/target/release/vibewindow" ]]; then
-  VIBEWINDOW_BIN="$WORK_DIR/target/release/vibewindow"
+if have_cmd shiju; then
+  VIBEWINDOW_BIN="shiju"
+elif [[ -x "$HOME/.cargo/bin/shiju" ]]; then
+  VIBEWINDOW_BIN="$HOME/.cargo/bin/shiju"
+elif [[ -x "$WORK_DIR/target/release/shiju" ]]; then
+  VIBEWINDOW_BIN="$WORK_DIR/target/release/shiju"
 fi
 
 if [[ "$RUN_ONBOARD" == true ]]; then
   if [[ -z "$VIBEWINDOW_BIN" ]]; then
-    error "onboarding requested but vibewindow binary is not available."
-    error "Run without --skip-install, or ensure vibewindow is in PATH."
+    error "onboarding requested but shiju binary is not available."
+    error "Run without --skip-install, or ensure shiju is in PATH."
     exit 1
   fi
 
@@ -1716,7 +1716,7 @@ cat <<'DONE'
 ✅ Bootstrap complete.
 
 Next steps:
-  vibewindow status
-  vibewindow agent -m "Hello, VibeWindow!"
-  vibewindow gateway
+  shiju status
+  shiju agent -m "Hello, ShiJu!"
+  shiju gateway
 DONE

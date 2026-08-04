@@ -45,88 +45,88 @@ skills/                 # 本地技能说明
 查看 CLI 帮助：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- --help
+cargo run -p vw-cli --bin shiju -- --help
 ```
 
 启动交互式 Agent：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- agent
+cargo run -p vw-cli --bin shiju -- agent
 ```
 
 发送单条消息：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- agent -m "总结这个仓库的主要模块"
+cargo run -p vw-cli --bin shiju -- agent -m "总结这个仓库的主要模块"
 ```
 
 启动桌面应用：
 
 ```bash
 cargo build -p vw-webview --bin vw-webview
-cargo run -p vw-desktop --bin vibe-window
+cargo run -p vw-desktop --bin shi-ju
 ```
 
 启动网关：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- gateway --host 127.0.0.1 --port 8080
+cargo run -p vw-cli --bin shiju -- gateway --host 127.0.0.1 --port 8080
 ```
 
 启动长驻运行时：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- daemon
+cargo run -p vw-cli --bin shiju -- daemon
 ```
 
 作为 ACP Agent 供外部 Client 启动：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- acp
+cargo run -p vw-cli --bin shiju -- acp
 ```
 
 ## 常用 CLI 命令
 
 ```bash
 # 查看运行状态
-cargo run -p vw-cli --bin vibewindow -- status
+cargo run -p vw-cli --bin shiju -- status
 
 # 诊断模型提供商
-cargo run -p vw-cli --bin vibewindow -- doctor models
+cargo run -p vw-cli --bin shiju -- doctor models
 
 # 导出配置 JSON Schema
-cargo run -p vw-cli --bin vibewindow -- config schema
+cargo run -p vw-cli --bin shiju -- config schema
 
 # 查看支持的提供商
-cargo run -p vw-cli --bin vibewindow -- providers
+cargo run -p vw-cli --bin shiju -- providers
 
 # 创建项目任务
-cargo run -p vw-cli --bin vibewindow -- task create --prompt "检查 OAuth 回调并修复"
+cargo run -p vw-cli --bin shiju -- task create --prompt "检查 OAuth 回调并修复"
 
 # 读取项目任务
-cargo run -p vw-cli --bin vibewindow -- task read --limit 20
+cargo run -p vw-cli --bin shiju -- task read --limit 20
 
 # 查看计划任务
-cargo run -p vw-cli --bin vibewindow -- cron list
+cargo run -p vw-cli --bin shiju -- cron list
 
 # 生成 shell 补全
-cargo run -p vw-cli --bin vibewindow -- completions zsh
+cargo run -p vw-cli --bin shiju -- completions zsh
 ```
 
-本地安装或 release 构建后，可将上面的 `cargo run -p vw-cli --bin vibewindow --` 替换为 `vibewindow`。
+本地安装或 release 构建后，可将上面的 `cargo run -p vw-cli --bin shiju --` 替换为 `shiju`。
 
 ## 构建
 
 构建 CLI：
 
 ```bash
-cargo build -p vw-cli --bin vibewindow --release
+cargo build -p vw-cli --bin shiju --release
 ```
 
 构建桌面应用：
 
 ```bash
-cargo build -p vw-desktop --bin vibe-window --release
+cargo build -p vw-desktop --bin shi-ju --release
 ```
 
 构建 WebView helper：

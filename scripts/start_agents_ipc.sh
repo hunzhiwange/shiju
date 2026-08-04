@@ -88,13 +88,13 @@ ensure_agent_config() {
 }
 
 resolve_run_cmd() {
-  if command -v vibewindow >/dev/null 2>&1; then
-    RUN_CMD=("vibewindow")
+  if command -v shiju >/dev/null 2>&1; then
+    RUN_CMD=("shiju")
     return
   fi
 
   need_cmd cargo
-  RUN_CMD=("cargo" "run" "--manifest-path" "${REPO_DIR}/Cargo.toml" "--bin" "vibewindow" "--")
+  RUN_CMD=("cargo" "run" "--manifest-path" "${REPO_DIR}/Cargo.toml" "--bin" "shiju" "--")
 }
 
 start_one() {

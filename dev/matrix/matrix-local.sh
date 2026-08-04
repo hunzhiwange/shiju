@@ -89,13 +89,13 @@ resolve_vibewindow_cmd() {
     return 0
   fi
 
-  if [[ -x "$ROOT_DIR/target/debug/vibewindow" ]]; then
-    VIBEWINDOW_CMD=("$ROOT_DIR/target/debug/vibewindow")
+  if [[ -x "$ROOT_DIR/target/debug/shiju" ]]; then
+    VIBEWINDOW_CMD=("$ROOT_DIR/target/debug/shiju")
     return 0
   fi
 
-  if command -v vibewindow >/dev/null 2>&1; then
-    VIBEWINDOW_CMD=("vibewindow")
+  if command -v shiju >/dev/null 2>&1; then
+    VIBEWINDOW_CMD=("shiju")
     return 0
   fi
 
@@ -109,7 +109,7 @@ resolve_vibewindow_cmd() {
     "--manifest-path" "$ROOT_DIR/Cargo.toml"
     "-p" "vw-cli"
     "--features" "channel-matrix"
-    "--bin" "vibewindow"
+    "--bin" "shiju"
     "--"
   )
 }

@@ -39,7 +39,7 @@ Run the bundle script:
 ```
 
 Output defaults to:
-- `target/release/bundle/osx/VibeWindow.app`
+- `target/release/bundle/osx/ShiJu.app`
 
 ## 2. Windows (Native Build on Windows Machine)
 
@@ -59,7 +59,7 @@ cargo build --release
 ```
 
 Output (example):
-- `target\release\vibe-window.exe`
+- `target\release\shi-ju.exe`
 - `target\release\vw-webview.exe`
 
 When distributing, ensure both exe files are in the same directory.
@@ -91,7 +91,7 @@ cargo xwin build --release --target x86_64-pc-windows-msvc
 ```
 
 Output location:
-- `target/x86_64-pc-windows-msvc/release/vibe-window.exe`
+- `target/x86_64-pc-windows-msvc/release/shi-ju.exe`
 - `target/x86_64-pc-windows-msvc/release/vw-webview.exe`
 
 ### 3.3 One-click Zip Bundle
@@ -102,7 +102,7 @@ bash scripts/bundle_windows.sh
 ```
 
 Default output:
-- `dist/windows/VibeWindow-x86_64-pc-windows-msvc-release.zip`
+- `dist/windows/ShiJu-x86_64-pc-windows-msvc-release.zip`
 
 Optional environment variables:
 ```bash

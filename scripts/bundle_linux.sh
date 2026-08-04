@@ -4,7 +4,7 @@ set -euo pipefail
 TARGET="${TARGET:-x86_64-unknown-linux-gnu}"
 PROFILE="${PROFILE:-release}"
 OUT_DIR="${OUT_DIR:-target/distrib}"
-PACKAGE_NAME="${PACKAGE_NAME:-vibewindow}"
+PACKAGE_NAME="${PACKAGE_NAME:-shiju}"
 LINUX_ICON_SOURCE="${LINUX_ICON_SOURCE:-assets/logo.png}"
 LINUX_DESKTOP_SOURCE="${LINUX_DESKTOP_SOURCE:-release/linux/vibewindow.desktop}"
 CREATE_DEB="${CREATE_DEB:-1}"
@@ -58,21 +58,21 @@ install_common_root() {
     "$ROOT_DIR/usr/share/icons/hicolor/256x256/apps" \
     "$ROOT_DIR/usr/share/doc/$PACKAGE_NAME"
 
-  install -m 0755 "$BIN_DIR/vibe-window" "$ROOT_DIR/usr/bin/vibe-window"
+  install -m 0755 "$BIN_DIR/shi-ju" "$ROOT_DIR/usr/bin/shi-ju"
   install -m 0755 "$BIN_DIR/vw-webview" "$ROOT_DIR/usr/bin/vw-webview"
-  install -m 0755 "$BIN_DIR/vibewindow" "$ROOT_DIR/usr/bin/vibewindow"
+  install -m 0755 "$BIN_DIR/shiju" "$ROOT_DIR/usr/bin/shiju"
   install -m 0755 "$BIN_DIR/acp" "$ROOT_DIR/usr/bin/acp"
-  install -m 0644 "$LINUX_DESKTOP_SOURCE" "$ROOT_DIR/usr/share/applications/vibewindow.desktop"
-  install -m 0644 "$LINUX_ICON_SOURCE" "$ROOT_DIR/usr/share/icons/hicolor/256x256/apps/vibewindow.png"
+  install -m 0644 "$LINUX_DESKTOP_SOURCE" "$ROOT_DIR/usr/share/applications/shiju.desktop"
+  install -m 0644 "$LINUX_ICON_SOURCE" "$ROOT_DIR/usr/share/icons/hicolor/256x256/apps/shiju.png"
 
   cat > "$ROOT_DIR/usr/share/doc/$PACKAGE_NAME/copyright" <<EOF
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: VibeWindow
+Upstream-Name: ShiJu
 Source: $HOMEPAGE
 License: $LICENSE
 
 Files: *
-Copyright: VibeWindow contributors
+Copyright: ShiJu contributors
 License: $LICENSE
 EOF
 }
@@ -118,7 +118,7 @@ Version: $DEB_VERSION
 Section: devel
 Priority: optional
 Architecture: $DEB_ARCH
-Maintainer: VibeWindow contributors <actions@github.com>
+Maintainer: ShiJu contributors <actions@github.com>
 Depends: libc6, libgcc-s1, libgtk-3-0, libwebkit2gtk-4.1-0, libfontconfig1, libxkbcommon0, hicolor-icon-theme
 Homepage: $HOMEPAGE
 Description: $DESCRIPTION
@@ -184,12 +184,12 @@ fi
 
 %files
 %doc /usr/share/doc/$PACKAGE_NAME/copyright
-/usr/bin/vibe-window
+/usr/bin/shi-ju
 /usr/bin/vw-webview
-/usr/bin/vibewindow
+/usr/bin/shiju
 /usr/bin/acp
-/usr/share/applications/vibewindow.desktop
-/usr/share/icons/hicolor/256x256/apps/vibewindow.png
+/usr/share/applications/shiju.desktop
+/usr/share/icons/hicolor/256x256/apps/shiju.png
 EOF
 
   rpmbuild -bb "$spec_abs" --define "_topdir $rpm_topdir_abs"
@@ -207,9 +207,9 @@ RPM_VERSION="$(printf '%s' "$VERSION" | tr '-' '~')"
 
 mkdir -p "$OUT_DIR"
 
-require_binary vibe-window
+require_binary shi-ju
 require_binary vw-webview
-require_binary vibewindow
+require_binary shiju
 require_binary acp
 
 if [ ! -f "$LINUX_DESKTOP_SOURCE" ]; then

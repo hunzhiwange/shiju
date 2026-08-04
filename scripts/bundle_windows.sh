@@ -12,12 +12,15 @@ else
 fi
 CREATE_MSI="${CREATE_MSI:-0}"
 CREATE_ZIP="${CREATE_ZIP:-1}"
-CLI_BIN_NAME="vibewindow.exe"
+DESKTOP_SOURCE_BIN_NAME="shi-ju.exe"
+DESKTOP_BIN_NAME="shi-ju.exe"
+CLI_SOURCE_BIN_NAME="shiju.exe"
+CLI_BIN_NAME="shiju.exe"
 CLI_COMPAT_BIN_NAME="vibe-agent.exe"
 ACP_BIN_NAME="acp.exe"
 WINDOWS_ICON_SOURCE="${WINDOWS_ICON_SOURCE:-assets/logo.png}"
-WINDOWS_ICON_NAME="VibeWindow.ico"
-GATEWAY_LAUNCHER_NAME="Start VibeWindow Gateway.cmd"
+WINDOWS_ICON_NAME="ShiJu.ico"
+GATEWAY_LAUNCHER_NAME="Start ShiJu Gateway.cmd"
 
 if [ "$PROFILE" = "release" ]; then
   PROFILE_ARGS=(--release)
@@ -89,7 +92,7 @@ from pathlib import Path
 dst = Path(sys.argv[1])
 dst.write_text(
     '@echo off\r\n'
-    "powershell.exe -NoExit -ExecutionPolicy Bypass -Command \"Set-Location -LiteralPath '%~dp0'; & '.\\vibewindow.exe' gateway\"\r\n",
+    "powershell.exe -NoExit -ExecutionPolicy Bypass -Command \"Set-Location -LiteralPath '%~dp0'; & '.\\shiju.exe' gateway\"\r\n",
     encoding="utf-8",
 )
 PY
@@ -118,7 +121,7 @@ if not match:
 
 text = template.read_text(encoding="utf-8")
 text = text.replace("{{ .Version }}", match.group(1))
-text = text.replace("{{ .Binary }}", "vibe-window")
+text = text.replace("{{ .Binary }}", "shi-ju")
 dst.write_text(text, encoding="utf-8")
 PY
 }
@@ -130,7 +133,7 @@ build_msi() {
   fi
 
   render_wix_template
-  local msi_name="VibeWindow-$TARGET-$PROFILE.msi"
+  local msi_name="ShiJu-$TARGET-$PROFILE.msi"
   rm -f "$OUT_DIR/$msi_name"
   (cd "$OUT_DIR" && wix build vibewindow.wxs -out "$msi_name")
   echo "$OUT_DIR/$msi_name"
@@ -147,17 +150,17 @@ missing_binaries() {
 
 build_cli_binaries() {
   if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibewindow --bin vibe-agent --all-features
+    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --bin vibe-agent --all-features
   else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibewindow --bin vibe-agent --all-features
+    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --bin vibe-agent --all-features
   fi
 }
 
 build_cli_binary() {
   if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibewindow --all-features
+    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --all-features
   else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibewindow --all-features
+    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --all-features
   fi
 }
 
@@ -171,10 +174,10 @@ build_cli_compat_binary() {
 
 build_app_binaries() {
   if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin vibe-window --all-features
+    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin shi-ju --all-features
     cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-webview --bin vw-webview --all-features
   else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin vibe-window --all-features
+    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin shi-ju --all-features
     cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-webview --bin vw-webview --all-features
   fi
 }
@@ -190,34 +193,34 @@ build_acp_binary() {
 BIN_DIR="target/$TARGET/$PROFILE"
 
 if [ "$MODE" = "cli" ]; then
-  if missing_binaries "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME"; then
+  if missing_binaries "$CLI_SOURCE_BIN_NAME" "$CLI_COMPAT_BIN_NAME"; then
     build_cli_binaries
   fi
   mkdir -p "$OUT_DIR"
   generate_windows_icon
-  cp "$BIN_DIR/$CLI_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
+  cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
   cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
-  ZIP_NAME="VibeWindow-CLI-$TARGET-$PROFILE.zip"
+  ZIP_NAME="ShiJu-CLI-$TARGET-$PROFILE.zip"
   zip_from_out_dir "$ZIP_NAME" "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$WINDOWS_ICON_NAME"
   echo "$OUT_DIR/$ZIP_NAME"
   exit 0
 fi
 
-if missing_binaries "vibe-window.exe" "vw-webview.exe"; then
+if missing_binaries "$DESKTOP_SOURCE_BIN_NAME" "vw-webview.exe"; then
   build_app_binaries
 fi
 
 mkdir -p "$OUT_DIR"
 generate_windows_icon
 write_gateway_launcher
-cp "$BIN_DIR/vibe-window.exe" "$OUT_DIR/"
+cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
 cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
-ZIP_FILES=("vibe-window.exe" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$GATEWAY_LAUNCHER_NAME")
+ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$GATEWAY_LAUNCHER_NAME")
 if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
-  if missing_binaries "$CLI_BIN_NAME"; then
+  if missing_binaries "$CLI_SOURCE_BIN_NAME"; then
     build_cli_binary
   fi
-  cp "$BIN_DIR/$CLI_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
+  cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
   ZIP_FILES+=("$CLI_BIN_NAME")
   if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
     if missing_binaries "$CLI_COMPAT_BIN_NAME"; then
@@ -236,7 +239,7 @@ if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
 fi
 
 if [ "$CREATE_ZIP" = "1" ]; then
-  ZIP_NAME="VibeWindow-$TARGET-$PROFILE.zip"
+  ZIP_NAME="ShiJu-$TARGET-$PROFILE.zip"
   zip_from_out_dir "$ZIP_NAME" "${ZIP_FILES[@]}"
   echo "$OUT_DIR/$ZIP_NAME"
 fi

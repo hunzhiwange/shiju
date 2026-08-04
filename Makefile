@@ -267,7 +267,7 @@ release-check-test: ## 对齐 CI 测试: workspace lib/bin/tests
 	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test --workspace --lib --bins --tests
 
 release-check-wasm: ensure-wasm-target ## 对齐 CI wasm 构建
-	cargo build -p vw-desktop --target wasm32-unknown-unknown --bin vibe-window
+	cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
 
 release-check-dist-plan: ## 校验 cargo-dist 发布矩阵和配置
 	@command -v dist >/dev/null || { echo "$(RED)Error: dist not found. Install cargo-dist first.$(RESET)"; exit 1; }
@@ -369,11 +369,11 @@ desktop-check: ## 检查 vw-desktop 是否可构建
 
 desktop-run: ## 启动 vw-desktop 桌面应用
 	cargo build -p vw-webview --bin vw-webview
-	cargo run -p vw-desktop --bin vibe-window
+	cargo run -p vw-desktop --bin shi-ju
 
 desktop-release: ## 以 release 模式构建 vw-desktop
 	cargo build -p vw-webview --release --bin vw-webview
-	cargo build -p vw-desktop --release --bin vibe-window
+	cargo build -p vw-desktop --release --bin shi-ju
 
 ensure-wasm-target:
 	@if ! rustup target list --installed | grep -qx 'wasm32-unknown-unknown'; then \

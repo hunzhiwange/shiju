@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# VibeWindow CLI 通用构建脚本
+# ShiJu CLI 通用构建脚本
 # 用法: ./scripts/build-cli.sh --target <triple> [--profile <profile>] [--out-dir <dir>] [--use-cross]
 # 示例: ./scripts/build-cli.sh --target x86_64-unknown-linux-gnu --use-cross
 
@@ -32,9 +32,10 @@ PROFILE="release"
 OUT_DIR=""
 USE_CROSS=false
 USE_XWIN=false
-CANONICAL_BINARY_NAME="vibewindow"
+SOURCE_BINARY_NAME="shiju"
+CANONICAL_BINARY_NAME="shiju"
 COMPAT_BINARY_NAME="vibe-agent"
-BINARY_NAME="$CANONICAL_BINARY_NAME"
+BINARY_NAME="$SOURCE_BINARY_NAME"
 
 # 解析参数
 while [[ $# -gt 0 ]]; do
@@ -188,7 +189,7 @@ package() {
     mkdir -p "$OUT_DIR"
     
     # 复制二进制文件
-    cp "$src_binary" "$OUT_DIR/"
+    cp "$src_binary" "$OUT_DIR/${CANONICAL_BINARY_NAME}${EXE_SUFFIX}"
     cp "$src_binary" "$compat_binary"
     
     # 获取二进制大小
@@ -197,18 +198,18 @@ package() {
     local size_mb=$((size / 1024 / 1024))
     
     # 创建压缩包
-    local archive_name="vibewindow-$TARGET.tar.gz"
+    local archive_name="shiju-$TARGET.tar.gz"
     if [[ -n "$EXE_SUFFIX" ]]; then
-        archive_name="vibewindow-$TARGET.zip"
-        (cd "$OUT_DIR" && zip -qry "$archive_name" "${BINARY_NAME}${EXE_SUFFIX}" "${COMPAT_BINARY_NAME}${EXE_SUFFIX}")
+        archive_name="shiju-$TARGET.zip"
+        (cd "$OUT_DIR" && zip -qry "$archive_name" "${CANONICAL_BINARY_NAME}${EXE_SUFFIX}" "${COMPAT_BINARY_NAME}${EXE_SUFFIX}")
     else
-        (cd "$OUT_DIR" && tar -czf "$archive_name" "$BINARY_NAME" "$COMPAT_BINARY_NAME")
+        (cd "$OUT_DIR" && tar -czf "$archive_name" "$CANONICAL_BINARY_NAME" "$COMPAT_BINARY_NAME")
     fi
     
     echo ""
     echo "============================================"
     echo "Build complete!"
-    echo "Binary: $OUT_DIR/${BINARY_NAME}${EXE_SUFFIX}"
+    echo "Binary: $OUT_DIR/${CANONICAL_BINARY_NAME}${EXE_SUFFIX}"
     echo "Compat alias: $compat_binary"
     echo "Size: ${size_mb}MB"
     echo "Archive: $OUT_DIR/$archive_name"

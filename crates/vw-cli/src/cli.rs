@@ -95,7 +95,7 @@ pub(crate) enum EstopLevelArg {
 /// vibewindow --config-dir /path/to/config agent
 /// ```
 #[derive(Parser, Debug)]
-#[command(name = "vibewindow")]
+#[command(name = "shiju")]
 #[command(author = "theonlyhennygod")]
 #[command(version)]
 #[command(about = "The fastest, smallest AI assistant.", long_about = None)]

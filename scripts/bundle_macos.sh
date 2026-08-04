@@ -11,11 +11,13 @@ if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
 else
   export VIBEWINDOW_RELEASE_BUILD=0
 fi
-CLI_BIN_NAME="vibewindow"
+DESKTOP_BIN_NAME="shi-ju"
+CLI_SOURCE_BIN_NAME="shiju"
+CLI_BIN_NAME="shiju"
 CLI_COMPAT_BIN_NAME="vibe-agent"
 ACP_BIN_NAME="acp"
 MACOS_ICON_SOURCE="${MACOS_ICON_SOURCE:-assets/logo/icon.icns}"
-MACOS_ICON_NAME="VibeWindow.icns"
+MACOS_ICON_NAME="ShiJu.icns"
 PACKAGE_APP="${PACKAGE_APP:-0}"
 CREATE_DMG="${CREATE_DMG:-0}"
 
@@ -84,12 +86,12 @@ ensure_app_icon() {
 }
 
 if [ "$MODE" = "cli" ]; then
-  if [ ! -f "$TARGET_DIR/${CLI_BIN_NAME}" ] || [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
+  if [ ! -f "$TARGET_DIR/${CLI_SOURCE_BIN_NAME}" ] || [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
     echo "Building CLI (${CLI_BIN_NAME})..."
-    cargo_build -p vw-cli --bin "$CLI_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" --all-features
   fi
   mkdir -p "$OUT_DIR"
-  SRC_BIN="$TARGET_DIR/${CLI_BIN_NAME}"
+  SRC_BIN="$TARGET_DIR/${CLI_SOURCE_BIN_NAME}"
   COMPAT_SRC_BIN="$TARGET_DIR/${CLI_COMPAT_BIN_NAME}"
   if [ ! -f "$SRC_BIN" ]; then
     echo "Error: CLI binary not found at $SRC_BIN"
@@ -101,21 +103,20 @@ if [ "$MODE" = "cli" ]; then
   fi
   cp "$SRC_BIN" "$OUT_DIR/${CLI_BIN_NAME}"
   cp "$COMPAT_SRC_BIN" "$OUT_DIR/${CLI_COMPAT_BIN_NAME}"
-  ZIP_NAME="VibeWindow-CLI-macos${TARGET_SUFFIX}-${PROFILE}.zip"
+  ZIP_NAME="ShiJu-CLI-macos${TARGET_SUFFIX}-${PROFILE}.zip"
   (cd "$OUT_DIR" && /usr/bin/zip -qry "$ZIP_NAME" "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME")
   echo "$OUT_DIR/$ZIP_NAME"
   exit 0
 fi
 
 BUNDLE_DIR="$TARGET_DIR/bundle/osx"
-APP_BUNDLE_PRIMARY="$BUNDLE_DIR/VibeWindow.app"
-APP_BUNDLE_FALLBACK="$BUNDLE_DIR/vibe-window.app"
+APP_BUNDLE="$BUNDLE_DIR/ShiJu.app"
 
 need_cargo_bundle
 
-if [ ! -d "$APP_BUNDLE_PRIMARY" ] && [ ! -d "$APP_BUNDLE_FALLBACK" ]; then
+if [ ! -f "$APP_BUNDLE/Contents/MacOS/$DESKTOP_BIN_NAME" ]; then
   echo "Bundling main application..."
-  cargo_bundle -p vw-desktop --bin vibe-window --all-features
+  cargo_bundle -p vw-desktop --bin shi-ju --all-features
 fi
 
 if [ ! -f "$TARGET_DIR/vw-webview" ]; then
@@ -123,9 +124,9 @@ if [ ! -f "$TARGET_DIR/vw-webview" ]; then
   cargo_build -p vw-webview --bin vw-webview --all-features
 fi
 if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
-  if [ ! -f "$TARGET_DIR/${CLI_BIN_NAME}" ]; then
+  if [ ! -f "$TARGET_DIR/${CLI_SOURCE_BIN_NAME}" ]; then
     echo "Building CLI binary (to include in app bundle)..."
-    cargo_build -p vw-cli --bin "$CLI_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --all-features
   fi
   if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ] && [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
     echo "Building CLI compatibility binary (to include in app bundle)..."
@@ -140,14 +141,6 @@ if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
 fi
 
 HELPER_BIN="$TARGET_DIR/vw-webview"
-if [ -d "$APP_BUNDLE_PRIMARY" ]; then
-    APP_BUNDLE="$APP_BUNDLE_PRIMARY"
-elif [ -d "$APP_BUNDLE_FALLBACK" ]; then
-    APP_BUNDLE="$APP_BUNDLE_FALLBACK"
-else
-    echo "Error: App bundle not found at $APP_BUNDLE_PRIMARY or $APP_BUNDLE_FALLBACK"
-    exit 1
-fi
 DEST_DIR="$APP_BUNDLE/Contents/MacOS"
 
 if [ ! -d "$APP_BUNDLE" ]; then
@@ -155,11 +148,16 @@ if [ ! -d "$APP_BUNDLE" ]; then
     exit 1
 fi
 
+if [ -x /usr/libexec/PlistBuddy ]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $DESKTOP_BIN_NAME" \
+    "$APP_BUNDLE/Contents/Info.plist"
+fi
+
 echo "Copying helper binary to bundle..."
 cp "$HELPER_BIN" "$DEST_DIR/"
 if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
   echo "Copying CLI binary to bundle..."
-  AGENT_BIN="$TARGET_DIR/${CLI_BIN_NAME}"
+  AGENT_BIN="$TARGET_DIR/${CLI_SOURCE_BIN_NAME}"
   cp "$AGENT_BIN" "$DEST_DIR/${CLI_BIN_NAME}"
   if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
     cp "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" "$DEST_DIR/${CLI_COMPAT_BIN_NAME}"
@@ -185,7 +183,7 @@ echo "You can run it with: open \"$APP_BUNDLE\""
 
 if [ "$PACKAGE_APP" = "1" ]; then
   mkdir -p "$OUT_DIR"
-  ZIP_NAME="VibeWindow-macos${TARGET_SUFFIX}-${PROFILE}.zip"
+  ZIP_NAME="ShiJu-macos${TARGET_SUFFIX}-${PROFILE}.zip"
   rm -f "$OUT_DIR/$ZIP_NAME"
   ditto -c -k --keepParent "$APP_BUNDLE" "$OUT_DIR/$ZIP_NAME"
   echo "Zip package: $OUT_DIR/$ZIP_NAME"
@@ -197,13 +195,13 @@ if [ "$CREATE_DMG" = "1" ]; then
     exit 1
   fi
   mkdir -p "$OUT_DIR"
-  DMG_NAME="VibeWindow-macos${TARGET_SUFFIX}-${PROFILE}.dmg"
+  DMG_NAME="ShiJu-macos${TARGET_SUFFIX}-${PROFILE}.dmg"
   DMG_STAGE="$OUT_DIR/dmg-stage"
   rm -f "$OUT_DIR/$DMG_NAME"
   rm -rf "$DMG_STAGE"
   mkdir -p "$DMG_STAGE"
   ditto "$APP_BUNDLE" "$DMG_STAGE/$(basename "$APP_BUNDLE")"
   ln -s /Applications "$DMG_STAGE/Applications"
-  hdiutil create -volname "VibeWindow" -srcfolder "$DMG_STAGE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
+  hdiutil create -volname "ShiJu" -srcfolder "$DMG_STAGE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
   echo "DMG package: $OUT_DIR/$DMG_NAME"
 fi

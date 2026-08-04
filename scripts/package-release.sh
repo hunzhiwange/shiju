@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/package-release.sh [OPTIONS]
 
-Build and package VibeWindow release artifacts for one target.
+Build and package ShiJu release artifacts for one target.
 
 Options:
   --kind <kind>        Package kind: cli, acp, desktop, all (default: all)
@@ -133,12 +133,12 @@ fi
 
 build_cli() {
   "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-cli \
-    --bin vibewindow --bin vibe-agent --all-features
+    --bin shiju --bin vibe-agent --all-features
 }
 
 build_primary_cli() {
   "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-cli \
-    --bin vibewindow --all-features
+    --bin shiju --all-features
 }
 
 build_acp() {
@@ -148,19 +148,25 @@ build_acp() {
 
 build_desktop() {
   "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-desktop \
-    --bin vibe-window --all-features
+    --bin shi-ju --all-features
   "${CARGO_CMD[@]}" "${PROFILE_FLAG[@]}" --target "$TARGET" -p vw-webview \
     --bin vw-webview --all-features
 }
 
 copy_binary() {
   local name="$1"
-  local src="$BIN_DIR/$name$EXE_SUFFIX"
+  copy_binary_as "$name" "$name"
+}
+
+copy_binary_as() {
+  local source_name="$1"
+  local destination_name="$2"
+  local src="$BIN_DIR/$source_name$EXE_SUFFIX"
   if [ ! -f "$src" ]; then
     echo "error: expected binary not found: $src" >&2
     exit 1
   fi
-  cp "$src" "$STAGE_DIR/"
+  cp "$src" "$STAGE_DIR/$destination_name$EXE_SUFFIX"
 }
 
 copy_linux_desktop_files() {
@@ -171,16 +177,16 @@ copy_linux_desktop_files() {
   mkdir -p \
     "$STAGE_DIR/share/applications" \
     "$STAGE_DIR/share/icons/hicolor/256x256/apps"
-  cp release/linux/vibewindow.desktop "$STAGE_DIR/share/applications/vibewindow.desktop"
-  cp assets/logo.png "$STAGE_DIR/share/icons/hicolor/256x256/apps/vibewindow.png"
+  cp release/linux/vibewindow.desktop "$STAGE_DIR/share/applications/shiju.desktop"
+  cp assets/logo.png "$STAGE_DIR/share/icons/hicolor/256x256/apps/shiju.png"
 }
 
 archive_name() {
   case "$KIND" in
-    cli) echo "vibewindow-cli-$TARGET.$ARCHIVE_EXT" ;;
+    cli) echo "shiju-cli-$TARGET.$ARCHIVE_EXT" ;;
     acp) echo "vwacp-$TARGET.$ARCHIVE_EXT" ;;
-    desktop) echo "VibeWindow-desktop-$TARGET.$ARCHIVE_EXT" ;;
-    all) echo "vibewindow-$TARGET.$ARCHIVE_EXT" ;;
+    desktop) echo "ShiJu-desktop-$TARGET.$ARCHIVE_EXT" ;;
+    all) echo "shiju-$TARGET.$ARCHIVE_EXT" ;;
   esac
 }
 
@@ -206,21 +212,21 @@ mkdir -p "$STAGE_DIR" "$OUT_DIR"
 
 case "$KIND" in
   cli)
-    copy_binary vibewindow
+    copy_binary shiju
     copy_binary vibe-agent
     ;;
   acp)
     copy_binary acp
     ;;
   desktop)
-    copy_binary vibe-window
+    copy_binary shi-ju
     copy_binary vw-webview
     copy_linux_desktop_files
     ;;
   all)
-    copy_binary vibewindow
+    copy_binary shiju
     copy_binary acp
-    copy_binary vibe-window
+    copy_binary shi-ju
     copy_binary vw-webview
     copy_linux_desktop_files
     ;;

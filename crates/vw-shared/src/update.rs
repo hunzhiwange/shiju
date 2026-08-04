@@ -155,7 +155,7 @@ fn get_target_triple() -> Result<String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn get_binary_name() -> String {
-    if cfg!(windows) { "vibewindow.exe".to_string() } else { "vibewindow".to_string() }
+    if cfg!(windows) { "shiju.exe".to_string() } else { "shiju".to_string() }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

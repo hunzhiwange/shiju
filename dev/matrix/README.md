@@ -27,7 +27,7 @@ dev/matrix/matrix-local.sh up
 生产一致路径是让 daemon 监督 gateway、scheduler 和 Matrix workers：
 
 ```bash
-cargo run -p vw-cli --features channel-matrix --bin vibewindow -- \
+cargo run -p vw-cli --features channel-matrix --bin shiju -- \
   --config-dir dev/matrix/runtime/config \
   daemon
 ```
@@ -71,7 +71,7 @@ dev/matrix/matrix-local.sh worker-run test
 dev/matrix/matrix-local.sh worker-run review
 ```
 
-脚本会优先使用当前仓库已构建的 `target/debug/vibewindow`，再退到 PATH 中的
+脚本会优先使用当前仓库已构建的 `target/debug/shiju`，再退到 PATH 中的
 `vibewindow` 或 `cargo run`；如需指定二进制，设置 `VIBEWINDOW_BIN=/path/to/vibewindow`。
 脚本启动前会停止同一 project/worker 的旧进程，避免多个 Matrix 进程抢同一会话。
 

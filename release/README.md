@@ -4,12 +4,12 @@ Release publishing is driven by cargo-dist and GitHub Actions.
 
 ## Outputs
 
-- `vibewindow-<target>` archives contain the CLI (`vibewindow`), ACP binary (`acp`), desktop binary (`vibe-window`), and webview helper (`vw-webview`) for that target.
+- `shiju-<target>` archives contain the CLI (`shiju`), ACP binary (`acp`), desktop binary (`shi-ju`), and webview helper (`vw-webview`) for that target.
 - `vwacp-<target>` archives contain only the ACP binary.
 - macOS publishes per-architecture DMG files for `x86_64-apple-darwin` and `aarch64-apple-darwin`.
 - Linux publishes portable archives plus `.deb` and `.rpm` packages for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`.
 - Windows publishes portable zip archives plus MSI installers for `x86_64-pc-windows-msvc` and `aarch64-pc-windows-msvc`.
-- npm publishes the CLI installer package as `vibewindow`, so users can run `npm install -g vibewindow`.
+- npm publishes the CLI installer package as `shiju`, so users can run `npm install -g shiju`.
 
 Linux `.deb`/`.rpm` packages are built by `scripts/bundle_linux.sh` with `dpkg-deb` and `rpmbuild` after cargo-dist has produced the target binaries.
 

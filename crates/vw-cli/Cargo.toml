@@ -6,17 +6,17 @@ repository = "https://github.com/hunzhiwange/vibewindow"
 homepage = "https://github.com/hunzhiwange/vibewindow"
 description = "Rust-first autonomous agent runtime CLI"
 license = "MIT"
-default-run = "vibewindow"
+default-run = "shiju"
 autobins = false
 
 [package.metadata.dist]
 dist = true
-npm-package = "vibewindow"
+npm-package = "shiju"
 # Enable this when Homebrew publishing is enabled in dist-workspace.toml.
-# formula = "vibewindow"
+# formula = "shiju"
 
 [[bin]]
-name = "vibewindow"
+name = "shiju"
 path = "src/main.rs"
 
 [[bin]]

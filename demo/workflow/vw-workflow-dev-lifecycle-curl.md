@@ -11,7 +11,7 @@
 ## 启动网关
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- gateway --host 127.0.0.1 --port 42617
+cargo run -p vw-cli --bin shiju -- gateway --host 127.0.0.1 --port 42617
 ```
 
 ## 跑通过路径

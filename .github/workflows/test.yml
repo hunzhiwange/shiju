@@ -80,4 +80,4 @@ jobs:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
       - run: rustup target add wasm32-unknown-unknown
-      - run: cargo build -p vw-desktop --target wasm32-unknown-unknown --bin vibe-window
+      - run: cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju

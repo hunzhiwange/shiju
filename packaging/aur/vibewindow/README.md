@@ -1,6 +1,6 @@
-# VibeWindow AUR package
+# ShiJu AUR package
 
-This directory contains the stable AUR package metadata for `paru -S vibewindow`.
+This directory contains the stable AUR package metadata for `paru -S shiju`.
 
 ## Before publishing
 
@@ -30,29 +30,29 @@ This directory contains the stable AUR package metadata for `paru -S vibewindow`
 3. Clone the empty AUR package repository:
 
    ```bash
-   git clone ssh://aur@aur.archlinux.org/vibewindow.git
+   git clone ssh://aur@aur.archlinux.org/shiju.git
    ```
 
 4. Copy the package files into that clone:
 
    ```bash
-   cp packaging/aur/vibewindow/PKGBUILD vibewindow/
-   cp packaging/aur/vibewindow/.SRCINFO vibewindow/
+   cp packaging/aur/vibewindow/PKGBUILD shiju/
+   cp packaging/aur/vibewindow/.SRCINFO shiju/
    ```
 
 5. Commit and push:
 
    ```bash
-   cd vibewindow
+   cd shiju
    git add PKGBUILD .SRCINFO
-   git commit -m "Add vibewindow package"
+   git commit -m "Add shiju package"
    git push
    ```
 
 After the push succeeds, users can install it with:
 
 ```bash
-paru -S vibewindow
+paru -S shiju
 ```
 
 ## Updating the package

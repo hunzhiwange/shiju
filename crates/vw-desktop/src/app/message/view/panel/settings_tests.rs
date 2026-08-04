@@ -563,8 +563,8 @@ fn version_output_falls_back_to_stderr_and_rejects_blank_output() {
 #[test]
 fn install_cli_binary_from_path_replaces_old_file_without_tail_bytes() {
     let dir = tempfile::tempdir().expect("temp dir should be created");
-    let source_bin = dir.path().join("source-vibewindow");
-    let target_bin = dir.path().join(if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" });
+    let source_bin = dir.path().join("source-shiju");
+    let target_bin = dir.path().join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
     std::fs::write(&source_bin, b"new").expect("source binary should be written");
     std::fs::write(&target_bin, b"old-binary-tail").expect("old binary should be written");
 
@@ -579,10 +579,10 @@ fn install_cli_binary_from_path_replaces_old_file_without_tail_bytes() {
 #[test]
 fn staged_cli_path_is_hidden_and_stale_file_is_removed() {
     let dir = tempfile::tempdir().expect("temp dir should be created");
-    let target = dir.path().join("vibewindow");
+    let target = dir.path().join("shiju");
     let staged = super::staged_cli_binary_path(&target);
 
-    assert_eq!(staged, dir.path().join(".vibewindow.installing"));
+    assert_eq!(staged, dir.path().join(".shiju.installing"));
     std::fs::write(&staged, b"stale").expect("staged file should be written");
     super::remove_stale_staged_cli_binary(&staged).expect("staged file should be removed");
     assert!(!staged.exists());

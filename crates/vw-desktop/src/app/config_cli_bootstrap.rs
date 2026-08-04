@@ -509,7 +509,7 @@ fn service_running(home: &Path) -> bool {
         }
         if Path::new("/etc/init.d/vibewindow").exists() {
             return Command::new("rc-service")
-                .args(["vibewindow", "status"])
+                .args(["shiju", "status"])
                 .status()
                 .is_ok_and(|status| status.success());
         }
@@ -555,7 +555,7 @@ fn resolve_home_dir() -> Result<PathBuf, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn cli_binary_name() -> &'static str {
-    if cfg!(windows) { "vibewindow.exe" } else { "vibewindow" }
+    if cfg!(windows) { "shiju.exe" } else { "shiju" }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -564,9 +564,9 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|err| format!("获取当前可执行文件失败: {err}"))?;
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
     let agent_names = if cfg!(windows) {
-        ["vibewindow.exe", "vibe-agent.exe"]
+        ["shiju.exe", "vibe-agent.exe"]
     } else {
-        ["vibewindow", "vibe-agent"]
+        ["shiju", "vibe-agent"]
     };
     let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
 

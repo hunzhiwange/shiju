@@ -23,7 +23,7 @@ impl Write for FlushFailWriter {
 #[test]
 fn cli_definition_builds_without_panicking() {
     let command = crate::cli::Cli::command();
-    assert_eq!(command.get_name(), "vibewindow");
+    assert_eq!(command.get_name(), "shiju");
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn shell_completion_generation_covers_every_renderer() {
         crate::cli::write_shell_completion(shell, &mut output)
             .expect("completion generation should write to memory");
         let script = String::from_utf8(output).expect("completion output should be UTF-8");
-        assert!(script.contains("vibewindow"));
+        assert!(script.contains("shiju"));
         rendered_scripts.push(script);
     }
 
@@ -512,7 +512,7 @@ fn matrix_local_script_commands_reference_rust_worker() {
         "matrix-local.sh should launch the Rust Matrix worker CLI"
     );
     assert!(
-        script.contains("target/debug/vibewindow"),
+        script.contains("target/debug/shiju"),
         "matrix-local.sh should prefer the current repo debug binary before PATH"
     );
     assert!(

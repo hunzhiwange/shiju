@@ -108,7 +108,7 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
 
     for compiler in ["rc.exe", "rc", "llvm-rc.exe", "llvm-rc"] {
         if try_compile_windows_resource(compiler, &rc_path, &res_path) {
-            println!("cargo:rustc-link-arg-bin=vibe-window={}", res_path.display());
+            println!("cargo:rustc-link-arg-bin=shi-ju={}", res_path.display());
             return;
         }
     }

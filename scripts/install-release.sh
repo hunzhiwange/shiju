@@ -62,10 +62,10 @@ while [ "$#" -gt 0 ]; do
       cat <<'EOF'
 Usage: install-release.sh [--no-onboard]
 
-Installs the latest Linux VibeWindow binary from official GitHub releases.
+Installs the latest Linux ShiJu binary from official GitHub releases.
 
 Options:
-  --no-onboard   Install only; do not run `vibewindow onboard`
+  --no-onboard   Install only; do not run `shiju onboard`
 
 Environment:
   VIBEWINDOW_INSTALL_DIR  Override install directory
@@ -91,7 +91,7 @@ need_cmd mktemp
 need_cmd install
 
 TRIPLE="$(linux_triple)"
-ASSET="vibewindow-${TRIPLE}.tar.gz"
+ASSET="shiju-${TRIPLE}.tar.gz"
 DOWNLOAD_URL="${RELEASE_BASE}/${ASSET}"
 
 TMP_DIR="$(mktemp -d)"
@@ -111,24 +111,24 @@ curl -fL "$DOWNLOAD_URL" -o "$TMP_DIR/$ASSET"
 
 echo "==> Extracting release archive"
 tar -xzf "$TMP_DIR/$ASSET" -C "$TMP_DIR"
-if [ ! -f "$TMP_DIR/vibewindow" ]; then
-  echo "error: release archive does not contain expected 'vibewindow' binary" >&2
+if [ ! -f "$TMP_DIR/shiju" ]; then
+  echo "error: release archive does not contain expected 'shiju' binary" >&2
   exit 1
 fi
 
 INSTALL_DIR="$(pick_install_dir)"
-BIN_PATH="${INSTALL_DIR}/vibewindow"
+BIN_PATH="${INSTALL_DIR}/shiju"
 
 if [ "${INSTALL_DIR#/usr/local/}" != "$INSTALL_DIR" ]; then
   run_privileged mkdir -p "$INSTALL_DIR"
-  run_privileged install -m 0755 "$TMP_DIR/vibewindow" "$BIN_PATH"
+  run_privileged install -m 0755 "$TMP_DIR/shiju" "$BIN_PATH"
 else
   mkdir -p "$INSTALL_DIR"
-  install -m 0755 "$TMP_DIR/vibewindow" "$BIN_PATH"
+  install -m 0755 "$TMP_DIR/shiju" "$BIN_PATH"
 fi
 
 echo "==> Installed: $BIN_PATH"
-if ! command -v vibewindow >/dev/null 2>&1; then
+if ! command -v shiju >/dev/null 2>&1; then
   echo "note: '$INSTALL_DIR' may not be in PATH for this shell yet." >&2
   echo "      run: export PATH=\"$INSTALL_DIR:\$PATH\"" >&2
 fi

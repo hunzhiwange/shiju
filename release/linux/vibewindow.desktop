@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=VibeWindow
+Name=ShiJu
 GenericName=Autonomous Agent Runtime
 Comment=Rust-first autonomous agent runtime with CLI, ACP, and desktop client
-TryExec=vibe-window
-Exec=vibe-window
-Icon=vibewindow
+TryExec=shi-ju
+Exec=shi-ju
+Icon=shiju
 Terminal=false
 Categories=Development;Utility;
-StartupWMClass=VibeWindow
+StartupWMClass=ShiJu

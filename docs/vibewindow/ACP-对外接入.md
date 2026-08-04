@@ -12,7 +12,7 @@ VibeWindow 提供两个方向不同的 ACP 入口：
 从源码启动：
 
 ```bash
-cargo run -p vw-cli --bin vibewindow -- acp
+cargo run -p vw-cli --bin shiju -- acp
 ```
 
 安装后启动：
@@ -26,8 +26,8 @@ vibewindow acp
 ```json
 {
   "agents": {
-    "vibewindow": {
-      "command": "vibewindow",
+    "shiju": {
+      "command": "shiju",
       "args": ["acp"]
     }
   }
@@ -38,7 +38,7 @@ vibewindow acp
 
 ```json
 {
-  "command": "vibewindow",
+  "command": "shiju",
   "args": ["--config-dir", "/absolute/path/to/config", "acp"]
 }
 ```

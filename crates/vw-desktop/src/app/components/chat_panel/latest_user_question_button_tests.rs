@@ -43,17 +43,23 @@ fn user_question_indices_preserve_question_order() {
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::User,
             content: "问题一".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::Assistant,
             content: "回答一".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::User,
             content: "问题二".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 

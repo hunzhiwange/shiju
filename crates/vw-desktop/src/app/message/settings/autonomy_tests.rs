@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::App;
+use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use vw_config_types::security::{
     AutonomyLevel, NonCliNaturalLanguageApprovalMode, ShellRedirectPolicy,
 };
@@ -48,16 +49,8 @@ fn update_tracks_field_changes_and_help_modal() {
 
     let _ = update(&mut app, SettingsMessage::AutonomyLevelChanged(AutonomyLevel::Full));
     let _ = update(&mut app, SettingsMessage::AutonomyWorkspaceOnlyToggled(true));
-    let _ = update(
-        &mut app,
-        SettingsMessage::AutonomyAllowedCommandsChanged("git status\ncargo test".to_string()),
-    );
-    let _ = update(
-        &mut app,
-        SettingsMessage::AutonomyForbiddenPathsChanged(" /tmp , /var ".to_string()),
-    );
     let _ = update(&mut app, SettingsMessage::AutonomyMaxActionsPerHourChanged(0));
-    let _ = update(&mut app, SettingsMessage::AutonomyMaxCostPerDayCentsChanged(2_000_000));
+    let _ = update(&mut app, SettingsMessage::AutonomyMaxCostPerDayCentsChanged(u32::MAX));
     let _ = update(
         &mut app,
         SettingsMessage::AutonomyShellRedirectPolicyChanged(ShellRedirectPolicy::Strip),
@@ -77,10 +70,8 @@ fn update_tracks_field_changes_and_help_modal() {
 
     assert_eq!(app.autonomy_settings.level, AutonomyLevel::Full);
     assert!(app.autonomy_settings.workspace_only);
-    assert_eq!(app.autonomy_settings.allowed_commands_input, "git status\ncargo test");
-    assert_eq!(app.autonomy_settings.forbidden_paths_input, " /tmp , /var ");
     assert_eq!(app.autonomy_settings.max_actions_per_hour, 1);
-    assert_eq!(app.autonomy_settings.max_cost_per_day_cents, 1_000_000);
+    assert_eq!(app.autonomy_settings.max_cost_per_day_cents, 100_000_000);
     assert_eq!(app.autonomy_settings.shell_redirect_policy, ShellRedirectPolicy::Strip);
     assert_eq!(
         app.autonomy_settings.non_cli_natural_language_approval_mode,
@@ -99,26 +90,12 @@ fn update_tracks_field_changes_and_help_modal() {
 }
 
 #[test]
-fn update_tracks_risk_and_list_field_changes() {
+fn update_tracks_risk_and_legacy_text_field_changes() {
     let mut app = app();
     app.autonomy_settings.save_error = Some("old".to_string());
 
     apply(&mut app, SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(false));
     apply(&mut app, SettingsMessage::AutonomyBlockHighRiskCommandsToggled(false));
-    apply(&mut app, SettingsMessage::AutonomyShellEnvPassthroughChanged("PATH\nHOME".to_string()));
-    apply(
-        &mut app,
-        SettingsMessage::AutonomyAutoApproveChanged("file_read, memory_recall".to_string()),
-    );
-    apply(&mut app, SettingsMessage::AutonomyAlwaysAskChanged("shell\nfile_write".to_string()));
-    apply(
-        &mut app,
-        SettingsMessage::AutonomyAllowedRootsChanged("/workspace, /tmp/safe".to_string()),
-    );
-    apply(
-        &mut app,
-        SettingsMessage::AutonomyNonCliExcludedToolsChanged("shell, browser".to_string()),
-    );
     apply(
         &mut app,
         SettingsMessage::AutonomyNonCliApprovalApproversChanged("alice\nbob".to_string()),
@@ -126,13 +103,108 @@ fn update_tracks_risk_and_list_field_changes() {
 
     assert!(!app.autonomy_settings.require_approval_for_medium_risk);
     assert!(!app.autonomy_settings.block_high_risk_commands);
-    assert_eq!(app.autonomy_settings.shell_env_passthrough_input, "PATH\nHOME");
-    assert_eq!(app.autonomy_settings.auto_approve_input, "file_read, memory_recall");
-    assert_eq!(app.autonomy_settings.always_ask_input, "shell\nfile_write");
-    assert_eq!(app.autonomy_settings.allowed_roots_input, "/workspace, /tmp/safe");
-    assert_eq!(app.autonomy_settings.non_cli_excluded_tools_input, "shell, browser");
     assert_eq!(app.autonomy_settings.non_cli_approval_approvers_input, "alice\nbob");
     assert!(app.autonomy_settings.save_error.is_none());
+}
+
+fn list_snapshots(app: &App) -> [Vec<String>; 7] {
+    AutonomyListKind::ALL.map(|kind| app.autonomy_settings.list(kind).to_vec())
+}
+
+#[test]
+fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
+    let cases = [
+        (AutonomyListKind::AllowedCommands, "  cargo test  "),
+        (AutonomyListKind::ForbiddenPaths, "  /工作区/私密  "),
+        (AutonomyListKind::ShellEnvPassthrough, "  RUST_LOG  "),
+        (AutonomyListKind::AutoApprove, "  file_read  "),
+        (AutonomyListKind::AlwaysAsk, "  shell  "),
+        (AutonomyListKind::AllowedRoots, "  /tmp/safe  "),
+        (AutonomyListKind::NonCliExcludedTools, "  legacy_tool  "),
+    ];
+
+    for (kind, input) in cases {
+        let mut app = app();
+        for list_kind in AutonomyListKind::ALL {
+            app.autonomy_settings.list_mut(list_kind).clear();
+        }
+        let before = list_snapshots(&app);
+
+        apply(
+            &mut app,
+            SettingsMessage::AutonomyListDraftChanged(kind, input.to_string()),
+        );
+        apply(&mut app, SettingsMessage::AutonomyListAdd(kind));
+
+        let after_add = list_snapshots(&app);
+        assert_eq!(app.autonomy_settings.list(kind), &[input.trim().to_string()]);
+        for other in AutonomyListKind::ALL {
+            if other != kind {
+                assert_eq!(after_add[other.index()], before[other.index()]);
+            }
+        }
+        assert!(app.autonomy_settings.list_editor.draft(kind).is_empty());
+
+        apply(&mut app, SettingsMessage::AutonomyListRemove(kind, 0));
+        assert!(app.autonomy_settings.list(kind).is_empty());
+    }
+}
+
+#[test]
+fn autonomy_list_add_rejects_blank_duplicate_and_invalid_environment_names() {
+    let mut app = app();
+    app.autonomy_settings.allowed_commands = vec!["cargo".to_string()];
+
+    for input in [" ", " cargo "] {
+        apply(
+            &mut app,
+            SettingsMessage::AutonomyListDraftChanged(
+                AutonomyListKind::AllowedCommands,
+                input.to_string(),
+            ),
+        );
+        apply(
+            &mut app,
+            SettingsMessage::AutonomyListAdd(AutonomyListKind::AllowedCommands),
+        );
+        assert_eq!(app.autonomy_settings.allowed_commands, ["cargo"]);
+        assert!(app.autonomy_settings.save_error.is_some());
+    }
+
+    for invalid in ["1PATH", "BAD-NAME", "中文变量"] {
+        apply(
+            &mut app,
+            SettingsMessage::AutonomyListDraftChanged(
+                AutonomyListKind::ShellEnvPassthrough,
+                invalid.to_string(),
+            ),
+        );
+        apply(
+            &mut app,
+            SettingsMessage::AutonomyListAdd(AutonomyListKind::ShellEnvPassthrough),
+        );
+        assert!(app.autonomy_settings.shell_env_passthrough.is_empty());
+        assert!(app.autonomy_settings.save_error.is_some());
+    }
+}
+
+#[test]
+fn structured_lists_are_cloned_directly_into_persisted_autonomy_config() {
+    let mut app = app();
+    app.autonomy_settings.allowed_commands = vec!["cargo test --workspace".to_string()];
+    app.autonomy_settings.forbidden_paths = vec!["/私密 目录".to_string()];
+    app.autonomy_settings.shell_env_passthrough = vec!["RUST_LOG".to_string()];
+    app.autonomy_settings.auto_approve = vec!["file_read".to_string()];
+    app.autonomy_settings.always_ask = vec!["shell".to_string()];
+    app.autonomy_settings.allowed_roots = vec!["/工作区".to_string()];
+    app.autonomy_settings.non_cli_excluded_tools = vec!["retired_tool".to_string()];
+    let mut config = vw_config_types::security::AutonomyConfig::default();
+
+    apply_autonomy_settings_to_config(&app.autonomy_settings, &mut config);
+
+    for kind in AutonomyListKind::ALL {
+        assert_eq!(config_list(&config, kind), app.autonomy_settings.list(kind));
+    }
 }
 
 #[test]
@@ -140,7 +212,7 @@ fn update_clamps_both_resource_bounds_and_save_clears_error() {
     let mut app = app();
 
     apply(&mut app, SettingsMessage::AutonomyMaxActionsPerHourChanged(u32::MAX));
-    assert_eq!(app.autonomy_settings.max_actions_per_hour, 10_000);
+    assert_eq!(app.autonomy_settings.max_actions_per_hour, 1_000_000);
 
     apply(&mut app, SettingsMessage::AutonomyMaxCostPerDayCentsChanged(0));
     assert_eq!(app.autonomy_settings.max_cost_per_day_cents, 1);
@@ -148,6 +220,20 @@ fn update_clamps_both_resource_bounds_and_save_clears_error() {
     app.autonomy_settings.save_error = Some("retry".to_string());
     apply(&mut app, SettingsMessage::AutonomySave);
     assert!(app.autonomy_settings.save_error.is_none());
+}
+
+#[test]
+fn update_switches_tab_without_persisting() {
+    let mut app = app();
+    app.autonomy_settings.save_error = Some("keep".to_string());
+
+    apply(
+        &mut app,
+        SettingsMessage::AutonomyTabSelected(AutonomySettingsTab::NonCli),
+    );
+
+    assert_eq!(app.autonomy_settings.active_tab, AutonomySettingsTab::NonCli);
+    assert_eq!(app.autonomy_settings.save_error.as_deref(), Some("keep"));
 }
 
 #[test]

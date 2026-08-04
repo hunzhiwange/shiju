@@ -6,7 +6,7 @@ use std::path::Path;
 use vw_config_types::plugins::PluginsConfig;
 
 fn write_plugin_manifest(plugin_root: &Path, name: &str) {
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(
         manifest_dir.join("plugin.json"),
@@ -226,7 +226,7 @@ fn plugin_loader_reports_plugin_root_when_manifest_load_fails() {
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
     let plugin_root = workspace_dir.join(".vibewindow/plugins/broken-plugin");
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(manifest_dir.join("plugin.json"), "{").expect("invalid manifest");
     let options = PluginDiscoveryOptions::new(workspace_dir, config_dir, PluginsConfig::default());

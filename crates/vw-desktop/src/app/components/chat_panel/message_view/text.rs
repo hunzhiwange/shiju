@@ -6,11 +6,12 @@
 use iced::widget::{column, container, row, text, text_editor};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
+use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
 
 use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::{
-    chat_text_font, chat_text_line_height, read_only_text_style,
+    READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
 };
 use super::super::utils::normalize_display_text;
 use super::styles::{
@@ -26,6 +27,7 @@ const SESSION_CONTROL_CLOSE: &str = "</session_control_selection>";
 pub(super) struct SessionControlSelection {
     pub(super) tools: Vec<String>,
     pub(super) skills: Vec<String>,
+    pub(super) shiju_skills: Vec<String>,
 }
 
 pub(super) fn estimate_text_height(text: &str) -> f32 {
@@ -98,7 +100,11 @@ pub(super) fn split_session_control_selection(
     let close_end = close_start + SESSION_CONTROL_CLOSE.len();
 
     let block = &raw[content_start..close_start];
-    let mut selection = SessionControlSelection { tools: Vec::new(), skills: Vec::new() };
+    let mut selection = SessionControlSelection {
+        tools: Vec::new(),
+        skills: Vec::new(),
+        shiju_skills: Vec::new(),
+    };
     for line in block.lines().map(str::trim) {
         if let Some(items) = parse_session_control_items(line, "工具：")
             .or_else(|| parse_session_control_items(line, "工具:"))
@@ -108,6 +114,10 @@ pub(super) fn split_session_control_selection(
             .or_else(|| parse_session_control_items(line, "技能:"))
         {
             selection.skills = items;
+        } else if let Some(items) = parse_session_control_items(line, "识矩功能：")
+            .or_else(|| parse_session_control_items(line, "识矩功能:"))
+        {
+            selection.shiju_skills = items;
         }
     }
 
@@ -116,7 +126,10 @@ pub(super) fn split_session_control_selection(
     cleaned.push_str(&raw[close_end..]);
     let cleaned = cleaned.trim().to_string();
 
-    if selection.tools.is_empty() && selection.skills.is_empty() {
+    if selection.tools.is_empty()
+        && selection.skills.is_empty()
+        && selection.shiju_skills.is_empty()
+    {
         (cleaned, None)
     } else {
         (cleaned, Some(selection))
@@ -184,6 +197,9 @@ pub(super) fn session_control_selection_card<'a>(
         rows = rows.push(row);
     }
     if let Some(row) = session_control_row("技能", &selection.skills) {
+        rows = rows.push(row);
+    }
+    if let Some(row) = session_control_row("识矩功能", &selection.shiju_skills) {
         rows = rows.push(row);
     }
 
@@ -263,12 +279,13 @@ pub(super) fn message_editor_body<'a>(
         .line_height(message_text_line_height())
         .padding(0)
         .height(Length::Shrink)
+        .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
         .font(chat_text_font())
         .style(move |theme: &Theme, _status: text_editor::Status| {
             read_only_text_style(theme, value)
         });
 
-    Some(container(editor).width(Length::Fill).into())
+    Some(container(pass_wheel_to_parent(editor)).width(Length::Fill).into())
 }
 
 pub(super) fn think_text_body<'a>(
@@ -293,12 +310,13 @@ pub(super) fn think_text_body<'a>(
             .line_height(chat_text_line_height())
             .padding(0)
             .height(Length::Shrink)
+            .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
             .font(chat_text_font())
             .style(move |theme: &Theme, _status: text_editor::Status| {
                 let value = think_block_text_color(theme);
                 read_only_text_style(theme, value)
             });
-        return container(editor)
+        return container(pass_wheel_to_parent(editor))
             .width(Length::Fill)
             .style(|_theme: &Theme| iced::widget::container::Style {
                 background: None,

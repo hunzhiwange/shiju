@@ -291,7 +291,9 @@ impl std::fmt::Debug for Config {
             self.channels_config.mattermost.is_some(),
             self.channels_config.webhook.is_some(),
             self.channels_config.imessage.is_some(),
-            self.channels_config.matrix.is_some(),
+            self.channels_config.matrix_enabled
+                && (self.channels_config.matrix.is_some()
+                    || !self.channels_config.matrix_instances.is_empty()),
             self.channels_config.signal.is_some(),
             self.channels_config.whatsapp.is_some(),
             self.channels_config.linq.is_some(),
@@ -345,19 +347,33 @@ impl Default for Config {
             UserDirs::new().map_or_else(|| PathBuf::from("."), |u| u.home_dir().to_path_buf());
 
         let vibewindow_dir = crate::paths::home_config_dir(home);
+        let providers = HashMap::from([(
+            "shiju".to_string(),
+            serde_json::json!({
+                "api": "https://router.shiju.cloud/v1",
+                "env": ["SHIJU_API_KEY"],
+                "adapter": "openai-compatible",
+                "models": {
+                    "deepseek-v4-flash": {
+                        "id": "deepseek-v4-flash",
+                        "status": "active"
+                    }
+                }
+            }),
+        )]);
 
         Self {
             workspace_dir: vibewindow_dir.join("workspace"),
             config_path: vibewindow_dir.join(LEGACY_CONFIG_JSON_FILENAME),
             enabled_providers: Vec::new(),
-            popular_providers: Vec::new(),
-            providers: HashMap::new(),
+            popular_providers: vec!["shiju".to_string()],
+            providers,
             small_model: None,
             api_key: None,
             api_url: None,
-            default_provider: Some("openrouter".to_string()),
+            default_provider: Some("shiju".to_string()),
             provider_api: None,
-            default_model: Some("zhipuai-coding-plan/glm-5".to_string()),
+            default_model: Some("shiju/deepseek-v4-flash".to_string()),
             model_providers: HashMap::new(),
             provider: ProviderConfig::default(),
             default_temperature: 0.7,

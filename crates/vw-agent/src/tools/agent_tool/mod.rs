@@ -1,35 +1,89 @@
 //! 统一的 agent 调用工具。
 //!
-//! `AgentTool` 兼容同步委派和后台子 agent 会话管理。它集中处理 action 推断、
-//! 参数别名、状态查询和终止请求的安全检查，让上层只暴露一个稳定工具入口。
+//! `AgentTool` 为每次 launch 创建并等待持久化子会话，让上层只暴露一个稳定工具入口。
 
-use super::delegate::DelegateTool;
-use super::subagent_registry::{SubAgentRegistry, SubAgentSessionInfo};
-use super::subagent_spawn::SubAgentSpawnTool;
-use super::traits::{Tool, ToolResult, ToolSpec};
+use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult, ToolSpec};
 use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::security::SecurityPolicy;
-use crate::app::agent::security::policy::ToolOperation;
+use crate::session::child_agent::coordinator::{
+    ChildAgentCoordinator, WaitCondition, global_child_agent_coordinator,
+};
+use crate::session::child_agent::{self, ChildAgentRunInput, ChildAgentTerminalState};
 use async_trait::async_trait;
-use chrono::Utc;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Semaphore;
+
+const DEFAULT_MAX_PARALLEL_SUBAGENTS: usize = 4;
+const MAX_PARALLEL_SUBAGENTS: usize = 32;
+
+#[cfg(test)]
+type ChildAgentStreamExecutor = Arc<
+    dyn Fn(
+            vw_api_types::chat::GatewayChatStreamRequest,
+        ) -> futures_util::future::BoxFuture<
+            'static,
+            std::result::Result<
+                crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected,
+                crate::gateway::ApiError,
+            >,
+        > + Send
+        + Sync,
+>;
+
+#[cfg(test)]
+async fn run_created_with_optional_executor(
+    created: child_agent::CreatedChildAgentRun,
+    execute_stream: Option<ChildAgentStreamExecutor>,
+) -> anyhow::Result<child_agent::ChildAgentRunResult> {
+    if let Some(execute_stream) = execute_stream {
+        return child_agent::run_created_with_stream_executor(created, move |request| {
+            execute_stream(request)
+        })
+        .await;
+    }
+    child_agent::run_created(created).await
+}
+
+/// AgentTool 创建持久化子会话后发布的定位信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AgentToolChildSessionCreated {
+    pub parent_session_id: String,
+    pub child_session_id: String,
+    pub agent: String,
+    pub task: String,
+}
+
+pub(crate) type AgentToolChildSessionCreatedCallback =
+    Arc<dyn Fn(AgentToolChildSessionCreated) + Send + Sync>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AgentToolAction {
+    Launch,
+    Run,
+    Status,
+    Wait,
+    Stop,
+}
+
+struct PreparedChildRun {
+    parent_session_id: String,
+    agent: String,
+    task: String,
+    created: child_agent::CreatedChildAgentRun,
+}
 
 /// 统一 agent 工具的运行时状态。
 pub struct AgentTool {
     agents: Arc<HashMap<String, DelegateAgentConfig>>,
-    delegate_tool: Arc<DelegateTool>,
-    background_tool: Arc<SubAgentSpawnTool>,
-    registry: Arc<SubAgentRegistry>,
-    security: Arc<SecurityPolicy>,
-}
-
-enum AgentAction {
-    Launch,
-    List,
-    Get,
-    Stop,
+    parent_session_id: Option<String>,
+    workspace_dir: std::path::PathBuf,
+    parallelism: Arc<Semaphore>,
+    coordinator: ChildAgentCoordinator,
+    #[cfg(test)]
+    child_agent_stream_executor: Option<ChildAgentStreamExecutor>,
+    child_session_created: Option<AgentToolChildSessionCreatedCallback>,
 }
 
 impl AgentTool {
@@ -38,27 +92,182 @@ impl AgentTool {
     /// # 参数
     ///
     /// - `agents`: 可调用 agent 配置表。
-    /// - `delegate_tool`: 同步委派工具。
-    /// - `background_tool`: 后台子 agent 启动工具。
-    /// - `registry`: 后台会话注册表。
-    /// - `security`: 安全策略，用于终止等动作型操作。
+    /// - `parent_session_id`: 当前父会话 ID，launch 时必须存在。
+    /// - `workspace_dir`: 子会话运行工作区。
     pub fn new(
         agents: HashMap<String, DelegateAgentConfig>,
-        delegate_tool: Arc<DelegateTool>,
-        background_tool: Arc<SubAgentSpawnTool>,
-        registry: Arc<SubAgentRegistry>,
-        security: Arc<SecurityPolicy>,
+        parent_session_id: Option<String>,
+        workspace_dir: std::path::PathBuf,
     ) -> Self {
-        Self { agents: Arc::new(agents), delegate_tool, background_tool, registry, security }
+        Self {
+            agents: Arc::new(agents),
+            parent_session_id,
+            workspace_dir,
+            parallelism: Arc::new(Semaphore::new(DEFAULT_MAX_PARALLEL_SUBAGENTS)),
+            coordinator: global_child_agent_coordinator(),
+            #[cfg(test)]
+            child_agent_stream_executor: None,
+            child_session_created: None,
+        }
+    }
+
+    /// 设置同一 AgentTool 实例可同时运行的子智能体数量。
+    pub(crate) fn with_max_parallel_subagents(mut self, max_parallel: usize) -> Self {
+        self.parallelism = Arc::new(Semaphore::new(max_parallel.clamp(1, MAX_PARALLEL_SUBAGENTS)));
+        self
+    }
+
+    #[cfg(test)]
+    fn with_child_agent_stream_executor(mut self, executor: ChildAgentStreamExecutor) -> Self {
+        self.child_agent_stream_executor = Some(executor);
+        self
+    }
+
+    #[cfg(test)]
+    fn with_coordinator(mut self, coordinator: ChildAgentCoordinator) -> Self {
+        self.coordinator = coordinator;
+        self
+    }
+
+    pub(crate) fn with_child_session_created_callback(
+        mut self,
+        callback: AgentToolChildSessionCreatedCallback,
+    ) -> Self {
+        self.child_session_created = Some(callback);
+        self
+    }
+
+    async fn run_child_agent(
+        &self,
+        created: child_agent::CreatedChildAgentRun,
+    ) -> anyhow::Result<child_agent::ChildAgentRunResult> {
+        #[cfg(test)]
+        if let Some(execute_stream) = &self.child_agent_stream_executor {
+            let execute_stream = Arc::clone(execute_stream);
+            return child_agent::run_created_with_stream_executor(created, move |request| {
+                execute_stream(request)
+            })
+            .await;
+        }
+        child_agent::run_created(created).await
+    }
+
+    fn spawn_background_child(
+        &self,
+        prepared: PreparedChildRun,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<()> {
+        let PreparedChildRun { parent_session_id, agent: _, task: _, created } = prepared;
+        let child_session_id = created.child_session_id.clone();
+        let coordinator = self.coordinator.clone();
+        #[cfg(test)]
+        let execute_stream = self.child_agent_stream_executor.clone();
+        let thread_parent_session_id = parent_session_id.clone();
+        let thread_child_session_id = child_session_id.clone();
+
+        let spawned = std::thread::Builder::new()
+            .name("vw-child-agent".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("failed to build child agent runtime");
+                runtime.block_on(async move {
+                    let _ =
+                        coordinator.mark_running(&thread_parent_session_id, &thread_child_session_id);
+                    let run_created = created.clone();
+                    #[cfg(test)]
+                    let execution = tokio::select! {
+                        _ = cancellation.cancelled() => {
+                            child_agent::cancel_created(created, "cancelled by parent agent").await
+                        }
+                        result = run_created_with_optional_executor(run_created, execute_stream) => {
+                            result
+                        }
+                    };
+                    #[cfg(not(test))]
+                    let execution = tokio::select! {
+                        _ = cancellation.cancelled() => {
+                            child_agent::cancel_created(created, "cancelled by parent agent").await
+                        }
+                        result = child_agent::run_created(run_created) => {
+                            result
+                        }
+                    };
+
+                    match execution {
+                        Ok(result) => match result.terminal_state {
+                            ChildAgentTerminalState::Succeeded => {
+                                let _ = coordinator.mark_succeeded(
+                                    &thread_parent_session_id,
+                                    &thread_child_session_id,
+                                    result.output.unwrap_or_default(),
+                                );
+                            }
+                            ChildAgentTerminalState::Failed => {
+                                let _ = coordinator.mark_failed(
+                                    &thread_parent_session_id,
+                                    &thread_child_session_id,
+                                    result.error.unwrap_or_else(|| {
+                                        "child agent execution failed".to_string()
+                                    }),
+                                );
+                            }
+                            ChildAgentTerminalState::Cancelled => {}
+                        },
+                        Err(error) => {
+                            let _ = coordinator.mark_failed(
+                                &thread_parent_session_id,
+                                &thread_child_session_id,
+                                error.to_string(),
+                            );
+                        }
+                    }
+                });
+            });
+
+        if let Err(error) = spawned {
+            let message = format!("spawn child agent runtime: {error}");
+            let _ =
+                self.coordinator.mark_failed(&parent_session_id, &child_session_id, &message);
+            anyhow::bail!(message);
+        }
+        Ok(())
     }
 
     fn available_agents_description(&self) -> String {
-        let mut names = self.agents.keys().cloned().collect::<Vec<_>>();
-        names.sort();
-        if names.is_empty() { "（未配置）".to_string() } else { names.join(", ") }
+        let mut agents = self.agents.iter().collect::<Vec<_>>();
+        agents.sort_by_key(|(name, _)| *name);
+        if agents.is_empty() {
+            return "（未配置）".to_string();
+        }
+
+        agents
+            .into_iter()
+            .map(|(name, config)| {
+                let label = config.label.as_deref().map(str::trim).filter(|value| !value.is_empty());
+                let description =
+                    config.description.as_deref().map(str::trim).filter(|value| !value.is_empty());
+                match (label, description) {
+                    (Some(label), Some(description)) => {
+                        format!("{name} [{label}]: {description}")
+                    }
+                    (Some(label), None) => format!("{name} [{label}]"),
+                    (None, Some(description)) => format!("{name}: {description}"),
+                    (None, None) => name.clone(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 
-    fn resolve_action(&self, args: &Value) -> anyhow::Result<AgentAction> {
+    fn available_agent_names(&self) -> Vec<String> {
+        let mut names = self.agents.keys().cloned().collect::<Vec<_>>();
+        names.sort();
+        names
+    }
+
+    fn action_from_args(&self, args: &Value) -> anyhow::Result<AgentToolAction> {
         let explicit = args
             .get("action")
             .and_then(Value::as_str)
@@ -66,34 +275,77 @@ impl AgentTool {
             .filter(|value| !value.is_empty())
             .map(|value| value.to_ascii_lowercase());
 
-        let inferred = match explicit.as_deref() {
-            Some("launch") | Some("run") | Some("spawn") => AgentAction::Launch,
-            Some("list") => AgentAction::List,
-            Some("get") | Some("status") => AgentAction::Get,
-            Some("stop") | Some("kill") => AgentAction::Stop,
-            Some("message") => {
-                anyhow::bail!("AgentTool action 'message' is not implemented yet in vw-agent")
-            }
+        match explicit.as_deref() {
+            Some("launch" | "spawn") | None => Ok(AgentToolAction::Launch),
+            Some("run") => Ok(AgentToolAction::Run),
+            Some("status") => Ok(AgentToolAction::Status),
+            Some("wait") => Ok(AgentToolAction::Wait),
+            Some("stop") => Ok(AgentToolAction::Stop),
             Some(other) => anyhow::bail!(
-                "Unknown AgentTool action '{other}'. Supported actions: launch, list, get, stop"
+                "Unknown AgentTool action '{other}'. Supported actions: launch, run, spawn, status, wait, stop"
             ),
-            None => {
-                // 兼容旧调用：只有 status 时视为列表查询，有 session_id 时视为
-                // 查询单个会话，其余情况默认启动 agent。
-                if args.get("status").is_some()
-                    && args.get("agent").is_none()
-                    && args.get("subagent_type").is_none()
-                    && args.get("session_id").is_none()
-                {
-                    AgentAction::List
-                } else if args.get("session_id").is_some() {
-                    AgentAction::Get
-                } else {
-                    AgentAction::Launch
+        }
+    }
+
+    fn parent_session_id(&self) -> anyhow::Result<&str> {
+        self.parent_session_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| anyhow::anyhow!("AgentTool requires a current parent session ID"))
+    }
+
+    fn child_session_ids_from_args(&self, args: &Value) -> anyhow::Result<Vec<String>> {
+        let mut ids = Vec::new();
+        if let Some(value) = args.get("child_session_id") {
+            let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty()) else {
+                anyhow::bail!("'child_session_id' must be a non-empty string");
+            };
+            ids.push(value.to_string());
+        }
+        if let Some(values) = args.get("child_session_ids") {
+            let Some(values) = values.as_array() else {
+                anyhow::bail!("'child_session_ids' must be an array of non-empty strings");
+            };
+            for value in values {
+                let Some(value) =
+                    value.as_str().map(str::trim).filter(|value| !value.is_empty())
+                else {
+                    anyhow::bail!("'child_session_ids' must contain only non-empty strings");
+                };
+                if !ids.iter().any(|existing| existing == value) {
+                    ids.push(value.to_string());
                 }
             }
+        }
+        Ok(ids)
+    }
+
+    fn wait_condition_from_args(&self, args: &Value) -> anyhow::Result<WaitCondition> {
+        match args
+            .get("condition")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_ascii_lowercase)
+            .as_deref()
+        {
+            Some("any") => Ok(WaitCondition::Any),
+            Some("all") | None => Ok(WaitCondition::All),
+            Some(other) => anyhow::bail!("Unknown wait condition '{other}'. Supported: any, all"),
+        }
+    }
+
+    fn wait_timeout_from_args(&self, args: &Value) -> anyhow::Result<Duration> {
+        const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+        const MAX_TIMEOUT_MS: u64 = 60_000;
+        let timeout_ms = match args.get("timeout_ms") {
+            Some(value) => value
+                .as_u64()
+                .ok_or_else(|| anyhow::anyhow!("'timeout_ms' must be a non-negative integer"))?,
+            None => DEFAULT_TIMEOUT_MS,
         };
-        Ok(inferred)
+        Ok(Duration::from_millis(timeout_ms.min(MAX_TIMEOUT_MS)))
     }
 
     fn agent_name_from_args<'a>(&self, args: &'a Value) -> Option<&'a str> {
@@ -105,185 +357,208 @@ impl AgentTool {
     }
 
     fn prompt_from_args<'a>(&self, args: &'a Value) -> Option<&'a str> {
-        args.get("prompt")
-            .and_then(Value::as_str)
-            .or_else(|| args.get("task").and_then(Value::as_str))
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
+        args.get("prompt").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty())
     }
 
-    fn session_id_from_args<'a>(&self, args: &'a Value) -> anyhow::Result<&'a str> {
-        args.get("session_id")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| anyhow::anyhow!("Missing 'session_id' parameter"))
+    fn task_summary(prompt: &str) -> String {
+        const MAX_CHARS: usize = 160;
+        let mut chars = prompt.chars();
+        let summary = chars.by_ref().take(MAX_CHARS).collect::<String>();
+        if chars.next().is_some() { format!("{summary}…") } else { summary }
     }
 
-    fn run_in_background(&self, args: &Value) -> bool {
-        if let Some(value) = args.get("run_in_background").and_then(Value::as_bool) {
-            return value;
-        }
-        args.get("task").and_then(Value::as_str).is_some()
-    }
-
-    fn normalized_status_filter<'a>(&self, args: &'a Value) -> anyhow::Result<Option<&'a str>> {
-        let filter = args.get("status").and_then(Value::as_str).map(str::trim);
-        if let Some(filter) = filter {
-            if filter.is_empty() || filter == "all" {
-                return Ok(None);
-            }
-            if matches!(filter, "running" | "completed" | "failed" | "killed") {
-                return Ok(Some(filter));
-            }
-            anyhow::bail!(
-                "Invalid status filter '{filter}'. Must be one of: running, completed, failed, killed, all"
-            );
-        }
-        Ok(None)
-    }
-
-    async fn handle_launch(&self, args: &Value) -> anyhow::Result<ToolResult> {
+    async fn prepare_child_run(
+        &self,
+        args: &Value,
+    ) -> anyhow::Result<Result<PreparedChildRun, ToolResult>> {
         let agent = self
             .agent_name_from_args(args)
             .ok_or_else(|| anyhow::anyhow!("Missing 'agent' parameter"))?;
         let prompt = self
             .prompt_from_args(args)
             .ok_or_else(|| anyhow::anyhow!("Missing 'prompt' parameter"))?;
-        let context = args.get("context").and_then(Value::as_str).map(str::trim).unwrap_or("");
-
-        if self.run_in_background(args) {
-            // 后台路径通过 SubAgentSpawnTool 复用注册表和生命周期管理，避免
-            // AgentTool 自己复制一套会话调度逻辑。
-            let result = self
-                .background_tool
-                .execute(json!({
-                    "agent": agent,
-                    "task": prompt,
-                    "context": context,
-                    "_via_agent_tool": true,
-                }))
-                .await?;
-            if !result.success {
-                return Ok(result);
+        let max_depth = match self.agents.get(agent) {
+            Some(config) => usize::try_from(config.max_depth).unwrap_or(usize::MAX),
+            None => {
+                return Ok(Err(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Unknown agent '{agent}'")),
+                }));
             }
-
-            let mut output = serde_json::from_str::<Value>(&result.output)?;
-            if let Some(object) = output.as_object_mut() {
-                object.insert(
-                    "message".to_string(),
-                    Value::String(
-                        "AgentTool launched in background. Use AgentTool with action='get' or action='list' to inspect progress."
-                            .to_string(),
-                    ),
-                );
-            }
-            return Ok(ToolResult {
-                success: true,
-                output: serde_json::to_string(&output)?,
-                error: None,
-            });
-        }
-
-        self.delegate_tool
-            .execute(json!({
-                "agent": agent,
-                "prompt": prompt,
-                "context": context,
-                "_via_agent_tool": true,
-            }))
-            .await
-    }
-
-    fn handle_list(&self, args: &Value) -> anyhow::Result<ToolResult> {
-        let sessions: Vec<SubAgentSessionInfo> =
-            self.registry.list(self.normalized_status_filter(args)?);
-        Ok(ToolResult {
-            success: true,
-            output: serde_json::to_string_pretty(&sessions)?,
-            error: None,
-        })
-    }
-
-    fn handle_get(&self, args: &Value) -> anyhow::Result<ToolResult> {
-        let session_id = self.session_id_from_args(args)?;
-        let Some(snap) = self.registry.get_status(session_id) else {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some(format!("Unknown session '{session_id}'")),
-            });
         };
-
-        let duration_ms = snap.completed_at.map(|end| {
-            u64::try_from((end - snap.started_at).num_milliseconds()).unwrap_or_default()
-        });
-
-        let mut output = json!({
-            "session_id": session_id,
-            "agent": snap.agent_name,
-            "title": snap.title,
-            "task": snap.task,
-            "metadata": snap.metadata,
-            "status": snap.status.as_str(),
-            "started_at": snap.started_at.to_rfc3339(),
-            "updated_at": snap.updated_at.to_rfc3339(),
-            "duration_ms": duration_ms,
-        });
-
-        if let Some(end) = snap.completed_at {
-            output["completed_at"] = json!(end.to_rfc3339());
-        }
-
-        if let Some(ref result) = snap.result {
-            output["result"] = json!({
-                "success": result.success,
-                "output": truncate_output(&result.output, 500),
-                "error": result.error,
-            });
-        }
-
-        Ok(ToolResult {
-            success: true,
-            output: serde_json::to_string_pretty(&output)?,
-            error: None,
-        })
-    }
-
-    fn handle_stop(&self, args: &Value) -> anyhow::Result<ToolResult> {
-        let session_id = self.session_id_from_args(args)?;
-        if let Err(error) = self.security.enforce_tool_operation(ToolOperation::Act, "AgentTool") {
-            return Ok(ToolResult { success: false, output: String::new(), error: Some(error) });
-        }
-
-        if !self.registry.exists(session_id) {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some(format!("Unknown session '{session_id}'")),
-            });
-        }
-
-        if !self.registry.kill(session_id) {
-            return Ok(ToolResult {
+        let parent_session_id = self.parent_session_id()?;
+        let current_depth = child_agent::session_depth(
+            self.workspace_dir.to_string_lossy().to_string(),
+            parent_session_id.to_string(),
+        )
+        .await?;
+        if current_depth >= max_depth {
+            return Ok(Err(ToolResult {
                 success: false,
                 output: String::new(),
                 error: Some(format!(
-                    "Session '{session_id}' is not running (may have already completed or been killed)"
+                    "Agent '{agent}' delegation depth limit reached: current depth {current_depth}, max {max_depth}"
                 )),
+            }));
+        }
+        let context = args
+            .get("context")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|value| vec![json!({"role": "system", "content": value})])
+            .unwrap_or_default();
+        let task = Self::task_summary(prompt);
+        let created = child_agent::create(ChildAgentRunInput {
+            parent_session_id: parent_session_id.to_string(),
+            directory: self.workspace_dir.to_string_lossy().to_string(),
+            agent_key: agent.to_string(),
+            prompt: prompt.to_string(),
+            context,
+        })
+        .await?;
+        Ok(Ok(PreparedChildRun {
+            parent_session_id: parent_session_id.to_string(),
+            agent: agent.to_string(),
+            task,
+            created,
+        }))
+    }
+
+    fn report_child_created(&self, prepared: &PreparedChildRun) {
+        if let Some(callback) = &self.child_session_created {
+            callback(AgentToolChildSessionCreated {
+                parent_session_id: prepared.parent_session_id.clone(),
+                child_session_id: prepared.created.child_session_id.clone(),
+                agent: prepared.agent.clone(),
+                task: prepared.task.clone(),
             });
         }
+    }
 
+    async fn handle_launch(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let prepared = match self.prepare_child_run(args).await? {
+            Ok(prepared) => prepared,
+            Err(result) => return Ok(result),
+        };
+        let child_session_id = prepared.created.child_session_id.clone();
+        let cancellation = self.coordinator.register(
+            &prepared.parent_session_id,
+            &child_session_id,
+            &prepared.agent,
+            &prepared.task,
+        )?;
+        self.report_child_created(&prepared);
+        let output = serde_json::to_string(&json!({
+            "action": "launch",
+            "state": "running",
+            "parent_session_id": prepared.parent_session_id,
+            "child_session_id": child_session_id,
+            "agent": prepared.agent,
+            "task": prepared.task,
+        }))?;
+        self.spawn_background_child(prepared, cancellation)?;
+        Ok(ToolResult { success: true, output, error: None })
+    }
+
+    async fn handle_run(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let _parallel_permit = self
+            .parallelism
+            .acquire()
+            .await
+            .map_err(|_| anyhow::anyhow!("AgentTool parallel limiter is unavailable"))?;
+        let prepared = match self.prepare_child_run(args).await? {
+            Ok(prepared) => prepared,
+            Err(result) => return Ok(result),
+        };
+        self.report_child_created(&prepared);
+        let PreparedChildRun { parent_session_id, agent, task, created } = prepared;
+        let result = self.run_child_agent(created).await?;
+        let terminal_state = match result.terminal_state {
+            ChildAgentTerminalState::Succeeded => "succeeded",
+            ChildAgentTerminalState::Failed => "failed",
+            ChildAgentTerminalState::Cancelled => "cancelled",
+        };
+        let output = serde_json::to_string(&json!({
+            "action": "run",
+            "state": terminal_state,
+            "parent_session_id": parent_session_id,
+            "child_session_id": result.child_session_id,
+            "agent": agent,
+            "task": task,
+            "terminal_state": terminal_state,
+            "output": result.output,
+            "error": result.error,
+        }))?;
         Ok(ToolResult {
-            success: true,
-            output: serde_json::to_string(&json!({
-                "session_id": session_id,
-                "status": "killed",
-                "message": "Agent session cancelled successfully",
-                "updated_at": Utc::now().to_rfc3339(),
-            }))?,
-            error: None,
+            success: result.terminal_state == ChildAgentTerminalState::Succeeded,
+            output,
+            error: result.error,
         })
+    }
+
+    fn handle_status(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let parent_session_id = self.parent_session_id()?;
+        let child_session_ids = self.child_session_ids_from_args(args)?;
+        let tasks = self.coordinator.snapshots(parent_session_id, &child_session_ids)?;
+        let output = serde_json::to_string(&json!({
+            "action": "status",
+            "tasks": tasks,
+        }))?;
+        Ok(ToolResult { success: true, output, error: None })
+    }
+
+    async fn handle_wait(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let parent_session_id = self.parent_session_id()?;
+        let child_session_ids = self.child_session_ids_from_args(args)?;
+        let tasks = self.coordinator.snapshots(parent_session_id, &child_session_ids)?;
+        if tasks.is_empty() {
+            let output = serde_json::to_string(&json!({
+                "action": "wait",
+                "condition": "all",
+                "timed_out": false,
+                "tasks": [],
+            }))?;
+            return Ok(ToolResult { success: true, output, error: None });
+        }
+        let condition = self.wait_condition_from_args(args)?;
+        let outcome = self
+            .coordinator
+            .wait(
+                parent_session_id,
+                &child_session_ids,
+                condition,
+                self.wait_timeout_from_args(args)?,
+            )
+            .await?;
+        let output = serde_json::to_string(&json!({
+            "action": "wait",
+            "condition": match condition {
+                WaitCondition::Any => "any",
+                WaitCondition::All => "all",
+            },
+            "timed_out": outcome.timed_out,
+            "tasks": outcome.tasks,
+        }))?;
+        Ok(ToolResult { success: true, output, error: None })
+    }
+
+    fn handle_stop(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let parent_session_id = self.parent_session_id()?;
+        let child_session_ids = self.child_session_ids_from_args(args)?;
+        if child_session_ids.is_empty() {
+            anyhow::bail!("AgentTool stop requires 'child_session_id' or 'child_session_ids'");
+        }
+        for child_session_id in &child_session_ids {
+            self.coordinator.cancel(parent_session_id, child_session_id)?;
+        }
+        let tasks = self.coordinator.snapshots(parent_session_id, &child_session_ids)?;
+        let output = serde_json::to_string(&json!({
+            "action": "stop",
+            "tasks": tasks,
+        }))?;
+        Ok(ToolResult { success: true, output, error: None })
     }
 }
 
@@ -295,51 +570,57 @@ impl Tool for AgentTool {
     }
 
     fn description(&self) -> &str {
-        "统一的 AgentTool。可同步运行专门 agent，也可在后台启动 agent 会话，并支持列出、查看、终止后台 agent。"
+        "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Completed run/wait outputs contain each child's final handoff report, including evidence for research tasks and validation for execution tasks. Continue useful parent work after launch, then verify and synthesize required results before answering."
     }
 
     fn parameters_schema(&self) -> Value {
+        let agent_names = self.available_agent_names();
         json!({
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["launch", "run", "spawn", "list", "get", "stop", "kill"],
-                    "description": "AgentTool 操作类型。省略时会根据参数自动推断。"
+                    "enum": ["launch", "run", "spawn", "status", "wait", "stop"],
+                    "description": "操作。省略时默认 launch；launch/spawn 后台启动，run 前台等待。"
                 },
                 "agent": {
                     "type": "string",
-                    "description": format!("要调用的 agent 名称。可用：{}", self.available_agents_description())
+                    "enum": agent_names,
+                    "description": format!("要调用的 agent 名称。可用候选（名称、标签与用途）：{}", self.available_agents_description())
                 },
                 "subagent_type": {
                     "type": "string",
-                    "description": "Claude Code 兼容别名，等价于 agent。"
+                    "enum": self.available_agent_names(),
+                    "description": "Claude Code 兼容别名，等价于 agent；必须从 agent 候选中选择。"
                 },
                 "prompt": {
                     "type": "string",
-                    "description": "发送给 agent 的任务描述。"
-                },
-                "task": {
-                    "type": "string",
-                    "description": "后台启动时的兼容字段，等价于 prompt。"
+                    "description": "A bounded, self-contained task with the expected deliverable, relevant constraints, and validation requirements."
                 },
                 "context": {
                     "type": "string",
-                    "description": "可选的补充上下文。"
+                    "description": "Optional task-specific context not already included in prompt."
                 },
-                "run_in_background": {
-                    "type": "boolean",
-                    "description": "为 true 时以后台会话方式启动 agent。"
-                },
-                "session_id": {
+                "child_session_id": {
                     "type": "string",
-                    "description": "后台 agent 会话 ID，用于 get / stop。"
+                    "description": "status、wait 或 stop 的单个子会话 ID。"
                 },
-                "status": {
+                "child_session_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "status、wait 或 stop 的子会话 ID 列表；status/wait 省略时使用当前父会话全部任务。"
+                },
+                "condition": {
                     "type": "string",
-                    "enum": ["running", "completed", "failed", "killed", "all"],
-                    "description": "list 时按会话状态筛选。"
+                    "enum": ["any", "all"],
+                    "description": "wait 返回条件，默认 all。"
+                },
+                "timeout_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 60000,
+                    "description": "wait 的有界超时毫秒数，默认 30000，最大 60000。"
                 }
             }
         })
@@ -351,30 +632,46 @@ impl Tool for AgentTool {
             .with_aliases(vec!["Agent".to_string(), "agent_tool".to_string(), "agent".to_string()])
             .with_read_only(false)
             .with_destructive(false)
-            .with_concurrency_safe(false)
+            .with_concurrency_safe(true)
             .with_requires_user_interaction(false)
             .with_strict(true)
     }
 
     async fn execute(&self, args: Value) -> anyhow::Result<ToolResult> {
-        match self.resolve_action(&args)? {
-            AgentAction::Launch => self.handle_launch(&args).await,
-            AgentAction::List => self.handle_list(&args),
-            AgentAction::Get => self.handle_get(&args),
-            AgentAction::Stop => self.handle_stop(&args),
+        match self.action_from_args(&args)? {
+            AgentToolAction::Launch => self.handle_launch(&args).await,
+            AgentToolAction::Run => self.handle_run(&args).await,
+            AgentToolAction::Status => self.handle_status(&args),
+            AgentToolAction::Wait => self.handle_wait(&args).await,
+            AgentToolAction::Stop => self.handle_stop(&args),
         }
     }
-}
 
-/// 按字符数截断 agent 输出。
-///
-/// 使用字符边界而非字节下标，避免截断 UTF-8 文本时产生无效字符串。
-fn truncate_output(text: &str, max_chars: usize) -> String {
-    if text.chars().count() <= max_chars {
-        return text.to_string();
+    fn render_hint(&self, result: &ToolCallResult) -> Option<ToolRenderHint> {
+        let output = result.data.get("output").and_then(Value::as_str)?;
+        let body: Value = serde_json::from_str(output).ok()?;
+        let details = if body.get("child_session_id").is_some() {
+            &body
+        } else {
+            let tasks = body.get("tasks")?.as_array()?;
+            if tasks.len() != 1 {
+                return None;
+            }
+            &tasks[0]
+        };
+        let metadata = json!({
+            "parent_session_id": details.get("parent_session_id")?,
+            "child_session_id": details.get("child_session_id")?,
+            "agent": details.get("agent")?,
+            "task": details.get("task")?,
+        });
+        Some(ToolRenderHint {
+            title: Some("AgentTool".to_string()),
+            kind: Some("agent_tool".to_string()),
+            summary: details.get("task").and_then(Value::as_str).map(str::to_owned),
+            metadata,
+        })
     }
-    let trunc_idx = text.char_indices().nth(max_chars).map(|(idx, _)| idx).unwrap_or(text.len());
-    format!("{}... (truncated)", &text[..trunc_idx])
 }
 #[cfg(test)]
 mod tests;

@@ -78,6 +78,15 @@ pub enum Message {
     ProjectChatPreferencesLoaded(String, Option<(String, bool, Option<String>)>),
     GatewayHealthTick,
     GatewayHealthChecked(Vec<(String, bool)>),
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
+    Account(message::AccountMessage),
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
+    ShijuApps(message::ShijuAppsMessage),
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(private_interfaces)]
+    SkillHub(message::SkillHubMessage),
     Project(message::ProjectMessage),
     View(message::ViewMessage),
     Search(message::SearchMessage),
@@ -123,6 +132,12 @@ pub enum Screen {
     WorkflowTool,
     WorkflowManager,
     TaskBoard,
+    #[cfg(not(target_arch = "wasm32"))]
+    ShijuApps,
+    #[cfg(not(target_arch = "wasm32"))]
+    ShijuSkills,
+    #[cfg(not(target_arch = "wasm32"))]
+    ExpertHub,
 }
 
 #[cfg(test)]

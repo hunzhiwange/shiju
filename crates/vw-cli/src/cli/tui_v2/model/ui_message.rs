@@ -5,6 +5,8 @@
 
 use vw_shared::session::ui_types as session_ui;
 
+use super::attachment::UiAttachment;
+
 /// 新 TUI 内部使用的消息标识符。
 ///
 /// 当前先统一用字符串承载，调用方可自行选择 `gateway:*` 或 `local:*` 命名空间，
@@ -41,12 +43,13 @@ pub(crate) struct UiMessageBase {
     pub(crate) parent_id: Option<UiMessageId>,
     pub(crate) session_id: Option<String>,
     pub(crate) created_ms: Option<u64>,
+    pub(crate) origin: Option<UiMessageOrigin>,
 }
 
 impl UiMessageBase {
     /// 创建一条最小消息元信息。
     pub(crate) fn new(id: UiMessageId) -> Self {
-        Self { id, parent_id: None, session_id: None, created_ms: None }
+        Self { id, parent_id: None, session_id: None, created_ms: None, origin: None }
     }
 
     /// 绑定父消息 ID。
@@ -66,6 +69,20 @@ impl UiMessageBase {
         self.created_ms = Some(created_ms);
         self
     }
+
+    /// 标记消息来自 gateway、命令或本地恢复流程。
+    pub(crate) fn with_origin(mut self, origin: UiMessageOrigin) -> Self {
+        self.origin = Some(origin);
+        self
+    }
+}
+
+/// 消息进入 UI 管线的来源。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum UiMessageOrigin {
+    Gateway { event_type: String },
+    Command { name: String },
+    Local,
 }
 
 /// 新 TUI 内部使用的 token 统计结构。
@@ -161,6 +178,7 @@ pub(crate) enum UiToolCallState {
     Running,
     Complete,
     Failed,
+    Cancelled,
 }
 
 /// step 消息的执行状态。
@@ -223,6 +241,16 @@ pub(crate) struct UiToolResult {
 }
 
 /// thinking 内容块。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum UiThinkingPhase {
+    #[default]
+    Streaming,
+    Closed,
+    Redacted,
+    HiddenHistory,
+}
+
+/// thinking 内容块。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UiThinkingBlock {
     pub(crate) base: UiMessageBase,
@@ -230,6 +258,7 @@ pub(crate) struct UiThinkingBlock {
     pub(crate) content: String,
     pub(crate) timing: Vec<UiThinkingTiming>,
     pub(crate) collapsed: bool,
+    pub(crate) phase: UiThinkingPhase,
 }
 
 /// step 行为消息。
@@ -261,6 +290,32 @@ pub(crate) struct UiErrorMessage {
     pub(crate) recoverable: bool,
 }
 
+/// 可更新的后台进度消息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UiProgressMessage {
+    pub(crate) base: UiMessageBase,
+    pub(crate) label: String,
+    pub(crate) current: Option<u64>,
+    pub(crate) total: Option<u64>,
+    pub(crate) completed: bool,
+}
+
+/// 会话压缩前后之间的稳定 transcript 边界。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UiCompactBoundary {
+    pub(crate) base: UiMessageBase,
+    pub(crate) summary: String,
+    pub(crate) compacted_messages: usize,
+}
+
+/// 未识别外部内容块的显式、安全降级。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UiUnknownMessage {
+    pub(crate) base: UiMessageBase,
+    pub(crate) external_kind: String,
+    pub(crate) summary: String,
+}
+
 /// 新 TUI 的主消息枚举。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum UiMessage {
@@ -272,6 +327,10 @@ pub(crate) enum UiMessage {
     Step(UiStep),
     System(UiSystemMessage),
     Error(UiErrorMessage),
+    Attachment(UiAttachment),
+    Progress(UiProgressMessage),
+    CompactBoundary(UiCompactBoundary),
+    Unknown(UiUnknownMessage),
 }
 
 /// `UiMessage` 的逻辑分类。
@@ -285,6 +344,10 @@ pub(crate) enum UiMessageKind {
     Step,
     System,
     Error,
+    Attachment,
+    Progress,
+    CompactBoundary,
+    Unknown,
 }
 
 impl UiMessage {
@@ -299,6 +362,10 @@ impl UiMessage {
             Self::Step(message) => &message.base,
             Self::System(message) => &message.base,
             Self::Error(message) => &message.base,
+            Self::Attachment(message) => &message.base,
+            Self::Progress(message) => &message.base,
+            Self::CompactBoundary(message) => &message.base,
+            Self::Unknown(message) => &message.base,
         }
     }
 
@@ -313,6 +380,10 @@ impl UiMessage {
             Self::Step(_) => UiMessageKind::Step,
             Self::System(_) => UiMessageKind::System,
             Self::Error(_) => UiMessageKind::Error,
+            Self::Attachment(_) => UiMessageKind::Attachment,
+            Self::Progress(_) => UiMessageKind::Progress,
+            Self::CompactBoundary(_) => UiMessageKind::CompactBoundary,
+            Self::Unknown(_) => UiMessageKind::Unknown,
         }
     }
 

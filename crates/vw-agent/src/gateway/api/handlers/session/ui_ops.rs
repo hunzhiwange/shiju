@@ -8,6 +8,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::http::HeaderMap;
+use serde::Serialize;
 use serde_json::Value;
 use vw_api_types::session::GatewaySessionScopeBody;
 
@@ -18,20 +19,67 @@ use crate::app::agent::gateway::instance::resolve_directory;
 use crate::session::ui_store;
 use crate::session::ui_types as ui_models;
 
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct SessionStepWithRaw {
+    #[serde(flatten)]
+    step: ui_models::ChatSessionStep,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    llm_raw: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct SessionWithRaw {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub messages: Vec<ui_models::ChatMessage>,
+    #[serde(default)]
+    pub message_ids: Vec<Option<String>>,
+    #[serde(default)]
+    pub calls: Vec<Value>,
+    #[serde(default)]
+    pub steps: Vec<SessionStepWithRaw>,
+    #[serde(default)]
+    pub created_ms: u64,
+    #[serde(default)]
+    pub updated_ms: u64,
+}
+
 pub(super) async fn session_ui_get(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
-) -> Result<Json<Option<ui_models::ChatSession>>, ApiError> {
+) -> Result<Json<Option<SessionWithRaw>>, ApiError> {
     let tenant = ui_store::current_tenant_scope();
     let scope = resolve_scope_from_query(&tenant, &query, &headers);
     let id = session_id.clone();
     // `ui_store` 是同步文件存储接口；放入阻塞线程池可以让网关继续处理其他请求。
-    let session = crate::global_database::run_isolated(move || {
-        ui_store::load_session_scoped_for_tenant(&tenant, &id, scope.as_deref())
+    let session = crate::global_database::run_isolated(move || -> std::io::Result<Option<SessionWithRaw>> {
+        let scope = scope.clone();
+        let session = match ui_store::load_session_scoped_for_tenant(&tenant, &id, scope.as_deref()) {
+            Some(session) => session,
+            None => return Ok(None),
+        };
+        let mut steps = Vec::with_capacity(session.steps.len());
+        let session_id = session.id.clone();
+        for step in session.steps {
+            let llm_raw = ui_store::load_llm_raw_step_scoped(&session_id, step.index, scope.as_deref())?;
+            steps.push(SessionStepWithRaw { step, llm_raw });
+        }
+        Ok(Some(SessionWithRaw {
+            id: session.id,
+            title: session.title,
+            messages: session.messages,
+            message_ids: session.message_ids,
+            calls: session.calls,
+            steps,
+            created_ms: session.created_ms,
+            updated_ms: session.updated_ms,
+        }))
     })
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
+    let session = session.map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(session))
 }
 
@@ -139,22 +187,6 @@ pub(super) async fn session_path_get(
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(path))
-}
-
-pub(super) async fn session_step_llm_raw_get(
-    Path((session_id, step_index)): Path<(String, u32)>,
-    Query(query): Query<InstanceQuery>,
-    headers: HeaderMap,
-) -> Result<Json<Option<Value>>, ApiError> {
-    let tenant = ui_store::current_tenant_scope();
-    let scope = resolve_scope_from_query(&tenant, &query, &headers);
-    let payload = crate::global_database::run_isolated(move || {
-        ui_store::load_llm_raw_step_scoped(&session_id, step_index, scope.as_deref())
-    })
-    .await
-    .map_err(|e| ApiError::internal(e.to_string()))?
-    .map_err(|e| ApiError::internal(e.to_string()))?;
-    Ok(Json(payload))
 }
 
 pub(super) async fn session_scope_get() -> Result<Json<Option<String>>, ApiError> {

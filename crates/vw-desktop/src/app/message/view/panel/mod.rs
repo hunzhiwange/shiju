@@ -10,6 +10,10 @@ mod settings;
 mod tabs;
 mod usage;
 mod web;
+pub(crate) mod work_browser;
+mod work_sidebar;
+mod work_workspace;
+mod workspace_mode;
 
 use super::ViewMessage;
 use crate::app::{App, Message};
@@ -21,6 +25,40 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        ViewMessage::ToggleWorkspaceModePopover
+        | ViewMessage::CloseWorkspaceModePopover
+        | ViewMessage::WorkspaceModeSelected(_) => workspace_mode::update(app, message),
+
+        ViewMessage::WorkResourceModeSelected(_)
+        | ViewMessage::WorkResourcesToggled
+        | ViewMessage::WorkSplitRatioChanged(_)
+        | ViewMessage::WorkResourceFullscreenToggled
+        | ViewMessage::WorkResourceHalfFullscreenToggled
+        | ViewMessage::WorkSpaceToggled(_) => work_workspace::update(app, message),
+
+        ViewMessage::WorkSidebarToggled
+        | ViewMessage::WorkSidebarFilterToggled
+        | ViewMessage::WorkSidebarFilterClosed
+        | ViewMessage::WorkSidebarMoreToggled
+        | ViewMessage::WorkSidebarMoreOpened
+        | ViewMessage::WorkSidebarMoreClosed
+        | ViewMessage::WorkSidebarFilterScopeSelected(_)
+        | ViewMessage::WorkSidebarFilterStatusSelected(_)
+        | ViewMessage::WorkSidebarFilterTimeSelected(_)
+        | ViewMessage::WorkSidebarFilterReset
+        | ViewMessage::WorkSidebarTabSelected(_)
+        | ViewMessage::WorkSidebarLoadMorePressed
+        | ViewMessage::WorkSpacePickerToggled
+        | ViewMessage::WorkSpacePickerClosed => work_sidebar::update(app, message),
+
+        ViewMessage::WorkBrowserAddressChanged(_)
+        | ViewMessage::WorkBrowserNavigate
+        | ViewMessage::WorkBrowserBack
+        | ViewMessage::WorkBrowserForward
+        | ViewMessage::WorkBrowserReload
+        | ViewMessage::WorkBrowserClose
+        | ViewMessage::WorkBrowserRuntimeTick => work_browser::update(app, message),
+
         ViewMessage::ToggleSettingsPanel
         | ViewMessage::ProjectFileNewSession
         | ViewMessage::ProjectFileNewProject
@@ -96,9 +134,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::AppsSearchChanged(_) => apps::update(app, message),
 
         ViewMessage::UsageModelInfoLoaded(_)
-        | ViewMessage::UsageSessionFilePathLoaded(_, _)
         | ViewMessage::UsageStepToggled(_)
-        | ViewMessage::UsageStepRawLoaded(_, _, _) => usage::update(app, message),
+        | ViewMessage::UsageStepRawLoaded(_, _, _)
+        | ViewMessage::UsageStepRawOpen(_)
+        | ViewMessage::UsageStepRawClose => usage::update(app, message),
 
         ViewMessage::OpenWebUrl(_)
         | ViewMessage::OpenWebUrlWithTitle(_, _)
@@ -136,3 +175,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn sync_work_browser(app: &mut App) -> Task<Message> {
+    work_browser::sync_lifecycle(app)
+}
+
+pub(crate) fn close_work_browser(app: &mut App) {
+    work_browser::close(app);
+}

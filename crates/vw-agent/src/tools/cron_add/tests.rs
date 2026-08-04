@@ -373,6 +373,64 @@ async fn agent_job_requires_prompt() {
 }
 
 #[tokio::test]
+async fn agent_job_inherits_execution_project_and_full_access() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let project_path = tmp.path().join("current-project");
+    std::fs::create_dir_all(&project_path).unwrap();
+    let tool = CronAddTool::new(cfg.clone(), test_security(&cfg))
+        .with_execution_defaults(&project_path, true);
+
+    let result = tool
+        .execute(json!({
+            "schedule": { "kind": "every", "every_ms": 60_000 },
+            "job_type": "agent",
+            "prompt": "analyze the current project"
+        }))
+        .await
+        .unwrap();
+
+    assert!(result.success, "{:?}", result.error);
+    let jobs = list_jobs(&cfg).unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(
+        jobs[0].project_path.as_deref(),
+        Some(project_path.to_string_lossy().as_ref())
+    );
+    assert!(jobs[0].full_access);
+}
+
+#[tokio::test]
+async fn agent_job_explicit_execution_options_override_defaults() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let default_project = tmp.path().join("default-project");
+    let explicit_project = tmp.path().join("explicit-project");
+    let tool = CronAddTool::new(cfg.clone(), test_security(&cfg))
+        .with_execution_defaults(&default_project, true);
+
+    let result = tool
+        .execute(json!({
+            "schedule": { "kind": "every", "every_ms": 60_000 },
+            "job_type": "agent",
+            "prompt": "analyze another project",
+            "project_path": explicit_project.to_string_lossy(),
+            "full_access": false
+        }))
+        .await
+        .unwrap();
+
+    assert!(result.success, "{:?}", result.error);
+    let jobs = list_jobs(&cfg).unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(
+        jobs[0].project_path.as_deref(),
+        Some(explicit_project.to_string_lossy().as_ref())
+    );
+    assert!(!jobs[0].full_access);
+}
+
+#[tokio::test]
 async fn rejects_unknown_job_type() {
     let tmp = TempDir::new().unwrap();
     let cfg = test_config(&tmp).await;

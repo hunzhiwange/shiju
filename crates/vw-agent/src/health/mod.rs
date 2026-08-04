@@ -109,6 +109,27 @@ struct HealthRegistry {
 /// 使用 `OnceLock` 实现线程安全的延迟初始化，
 /// 首次访问时自动创建注册表实例
 static REGISTRY: OnceLock<HealthRegistry> = OnceLock::new();
+static RUNTIME_BUILD_ID: OnceLock<String> = OnceLock::new();
+
+/// Records the current executable digest before any on-disk replacement can occur.
+pub fn initialize_runtime_build_id() -> Result<&'static str, String> {
+    if let Some(build_id) = RUNTIME_BUILD_ID.get() {
+        return Ok(build_id);
+    }
+
+    let build_id = vw_shared::build_identity::current_executable_build_id()
+        .map_err(|error| format!("failed to calculate runtime build identity: {error}"))?;
+    let _ = RUNTIME_BUILD_ID.set(build_id);
+    RUNTIME_BUILD_ID
+        .get()
+        .map(String::as_str)
+        .ok_or_else(|| "failed to store runtime build identity".to_string())
+}
+
+/// Returns the executable digest recorded for the running gateway process.
+pub fn runtime_build_id() -> Option<&'static str> {
+    RUNTIME_BUILD_ID.get().map(String::as_str)
+}
 
 /// 获取全局健康状态注册表
 ///

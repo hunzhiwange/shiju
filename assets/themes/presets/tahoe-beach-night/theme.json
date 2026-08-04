@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-beach-night",
+  "name": "太浩星湾 Tahoe Night",
+  "tagline": "星子落下，浅滩泛着青绿。",
+  "palette": {
+    "background": "#070b12",
+    "text": "#dce8ef",
+    "primary": "#3aa8a0",
+    "success": "#5ec4b0",
+    "warning": "#c9a66a",
+    "danger": "#d07070"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#101820",
+    "input_bg": "#162028",
+    "button_bg": "#3aa8a0",
+    "button_text": "#061014",
+    "radius_px": 12,
+    "panel_alpha": 184
+  }
+}

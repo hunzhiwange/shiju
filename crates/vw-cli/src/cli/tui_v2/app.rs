@@ -15,6 +15,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fs::OpenOptions;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
+use std::io::IsTerminal;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
@@ -22,14 +23,7 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{Result, anyhow};
-use crossterm::ExecutableCommand;
-use crossterm::event::{
-    DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
-    PushKeyboardEnhancementFlags,
-};
-use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
-};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use serde_json::json;
@@ -48,11 +42,14 @@ use super::input::{
     TuiSlashCommandInvocation, TuiSlashCommandOutcome, execute_slash_command, parse_slash_command,
 };
 use super::model::{
-    McpServerTransport, PromptSubmission, QueuedPromptCommand, QueuedPromptCommandKind,
-    UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay, UiMcpServerInfo, UiMemoryEntry,
-    UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiQuestionOverlay,
-    UiSystemMessage, UiSystemMessageLevel, UiTaskOverlay, UiTaskStepItem, UiTodoOverlay,
+    AcpBackendOption, DelegateAgentOption, McpServerTransport, PermissionMode, PromptSubmission,
+    QueueDrainBoundary, QueuedPromptCommand, QueuedPromptCommandKind, ReasoningEffort,
+    TranscriptEffectIntent, UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay, UiMcpServerInfo,
+    UiMemoryEntry, UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay,
+    UiQuestionOverlay, UiSystemMessage, UiSystemMessageLevel, UiTaskOverlay, UiTaskStepItem,
+    UiTodoOverlay,
 };
+use super::paste::PromptEditorIntent;
 use super::render::{TuiRenderFeedback, TuiRenderer};
 use super::runtime::gateway::GatewayUiRuntime;
 use super::runtime::gateway::normalize_optional_str_ref;
@@ -61,6 +58,9 @@ use super::state::{
     TuiAction, TuiModelCatalogEntry, TuiState, TuiStickyPromptSummary, TuiUnseenRangeSummary,
     TuiVisibleTranscriptWindow, TuiWindowSummary, apply_runtime_event, reduce_tui_state,
     select_visible_grouped_transcript_window,
+};
+use super::terminal_capabilities::{
+    TerminalCapabilities, TerminalModePlan, TerminalModeSession, TuiBackground,
 };
 use crate::app::agent::config::Config;
 use crate::app::agent::session::processor as legacy_processor;
@@ -406,8 +406,12 @@ pub(crate) fn runtime_event_fallback_overlay(event: &UiRuntimeEvent) -> Option<U
             Some(runtime_unknown_event_overlay(event_type.as_deref()))
         }
         UiRuntimeEvent::Delta(_)
+        | UiRuntimeEvent::PlanRunTaskStarted { .. }
+        | UiRuntimeEvent::ContextLoaded { .. }
+        | UiRuntimeEvent::Message(_)
         | UiRuntimeEvent::StepStart { .. }
         | UiRuntimeEvent::StepFinish { .. }
+        | UiRuntimeEvent::PostToolRound
         | UiRuntimeEvent::TaskStateChanged { .. }
         | UiRuntimeEvent::SessionMetadataChanged { .. }
         | UiRuntimeEvent::UsageUpdated { .. }
@@ -651,7 +655,10 @@ pub(crate) fn dequeue_queued_prompt_command(
     }
 
     loop {
-        let Some(command) = state.prompt.pop_queued_command() else {
+        let session_id = state.session.session_id.clone();
+        let Some(command) =
+            state.prompt.drain_queued_for(QueueDrainBoundary::Turn, session_id.as_deref())
+        else {
             restore_deferred_prompt_draft(state, deferred_prompt_draft);
             return None;
         };
@@ -691,25 +698,34 @@ fn capture_deferred_prompt_draft(state: &mut TuiState, deferred_prompt_draft: &m
     reduce_tui_state(state, TuiAction::PromptValueSet(String::new()));
 }
 
-fn queued_command_to_controller_command(
+pub(crate) fn queued_command_to_controller_command(
     state: &TuiState,
     command: QueuedPromptCommand,
 ) -> Option<TuiControllerCommand> {
     match command.kind {
-        QueuedPromptCommandKind::Submit => build_prompt_submission(state, command.raw.as_str())
-            .map(TuiControllerCommand::SubmitPrompt),
+        QueuedPromptCommandKind::Submit => {
+            let execution = command.execution;
+            build_prompt_submission(state, command.raw.as_str())
+                .map(|mut submission| {
+                    submission.execution = execution;
+                    submission
+                })
+                .map(TuiControllerCommand::SubmitPrompt)
+        }
         QueuedPromptCommandKind::SlashCommand => Some(TuiControllerCommand::ExecuteSlashCommand(
-            parse_queued_slash_command(command.raw.as_str()),
+            parse_queued_slash_command(state, command.raw.as_str()),
         )),
     }
 }
 
-fn parse_queued_slash_command(raw: &str) -> TuiSlashCommandInvocation {
-    parse_slash_command(raw).unwrap_or(TuiSlashCommandInvocation {
+fn parse_queued_slash_command(state: &TuiState, raw: &str) -> TuiSlashCommandInvocation {
+    parse_slash_command(state, raw).unwrap_or(TuiSlashCommandInvocation {
         raw: raw.trim().to_string(),
         token: raw.trim().trim_start_matches('/').to_string(),
         argument: None,
         kind: None,
+        action: None,
+        execution_policy: None,
     })
 }
 
@@ -744,6 +760,15 @@ pub(crate) fn todo_overlay_items_as_shared_todos(overlay: &UiTodoOverlay) -> Vec
         .collect()
 }
 
+#[path = "app_command.rs"]
+mod app_command;
+#[cfg(test)]
+pub(crate) use app_command::{apply_settings_values_to_state, full_access_confirmation};
+#[path = "app_session.rs"]
+mod app_session;
+#[path = "app_stream.rs"]
+mod app_stream;
+
 impl TuiApp {
     /// 基于 CLI 配置与 setup 组装一份可运行的 tui_v2 应用。
     pub(crate) fn bootstrap(
@@ -754,15 +779,26 @@ impl TuiApp {
         let runtime = GatewayUiRuntime::for_workspace(config).map_err(|err| anyhow!(err))?;
         let preflight =
             runtime.ensure_local_gateway_ready_blocking().map_err(|err| anyhow!(err))?;
+        let theme_setting = config.app_ui.system_settings.app_theme.trim().to_ascii_lowercase();
+        let background = if theme_setting.contains("light") {
+            TuiBackground::Light
+        } else if theme_setting.contains("dark") {
+            TuiBackground::Dark
+        } else {
+            TuiBackground::Unknown
+        };
+        let capabilities = TerminalCapabilities::detect(background);
         let mut app = Self {
             run_mode,
             runtime,
             state: TuiState::default(),
             controller: TuiController::default(),
-            renderer: TuiRenderer::default(),
+            renderer: TuiRenderer::for_capabilities(capabilities, theme_setting.contains("dalton")),
             deferred_prompt_draft: None,
         };
-        app.bootstrap_session_state_blocking(setup);
+        app.state.theme_name =
+            if theme_setting.contains("light") { "Light".to_string() } else { "Dark".to_string() };
+        app.bootstrap_session_state_blocking(config, setup);
         if preflight.started_gateway() {
             app.push_app_system_message(
                 format!(
@@ -792,6 +828,7 @@ impl TuiApp {
     pub(crate) fn run(mut self) -> Result<()> {
         let mut terminal = TuiTerminalLifecycle::enter()?;
         let mut feedback = self.draw(terminal.terminal_mut())?;
+        self.state.apply_transcript_measurements(&feedback.transcript_measurements);
         self.controller.sync_layout(&mut self.state, &feedback);
 
         loop {
@@ -806,6 +843,7 @@ impl TuiApp {
                 }
 
                 feedback = self.draw(terminal.terminal_mut())?;
+                self.state.apply_transcript_measurements(&feedback.transcript_measurements);
                 self.controller.sync_layout(&mut self.state, &feedback);
                 continue;
             }
@@ -820,684 +858,11 @@ impl TuiApp {
             }
 
             feedback = self.draw(terminal.terminal_mut())?;
+            self.state.apply_transcript_measurements(&feedback.transcript_measurements);
             self.controller.sync_layout(&mut self.state, &feedback);
         }
 
         Ok(())
-    }
-
-    fn handle_command(
-        &mut self,
-        terminal: &mut TuiTerminal,
-        command: TuiControllerCommand,
-    ) -> Result<TuiAppCommandOutcome> {
-        match command {
-            TuiControllerCommand::Continue | TuiControllerCommand::CancelActiveSubmission => {
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiControllerCommand::Quit => Ok(TuiAppCommandOutcome::Quit),
-            TuiControllerCommand::Overlay(command) => self.handle_overlay_command(command),
-            TuiControllerCommand::ExecuteSlashCommand(invocation) => {
-                Ok(match execute_slash_command(&mut self.state, &invocation) {
-                    TuiSlashCommandOutcome::Quit => TuiAppCommandOutcome::Quit,
-                    TuiSlashCommandOutcome::Continue => TuiAppCommandOutcome::Continue,
-                    TuiSlashCommandOutcome::Resume { session_id } => {
-                        self.restore_session_from_command(session_id.as_deref());
-                        TuiAppCommandOutcome::Continue
-                    }
-                })
-            }
-            TuiControllerCommand::SubmitPrompt(submission) => {
-                self.submit_prompt(terminal, submission)
-            }
-        }
-    }
-
-    fn handle_overlay_command(
-        &mut self,
-        command: TuiOverlayCommand,
-    ) -> Result<TuiAppCommandOutcome> {
-        match command {
-            TuiOverlayCommand::OpenSearchOverlay => {
-                self.open_search_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::OpenPendingQuestions => {
-                if !self.state.prompt.is_busy() {
-                    self.refresh_task_state_blocking();
-                }
-                self.open_pending_question_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::OpenTodoPanel => {
-                if !self.state.prompt.is_busy() {
-                    self.refresh_task_state_blocking();
-                }
-                self.open_todo_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::OpenTaskPanel => {
-                if !self.state.prompt.is_busy() {
-                    self.refresh_task_state_blocking();
-                }
-                self.open_task_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::OpenMcpPanel => {
-                self.open_mcp_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::OpenMemoryPanel => {
-                self.open_memory_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::ConfirmExit => {
-                self.open_exit_confirm_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::ConfirmAccepted(overlay) => {
-                let confirm_label = overlay.confirm_label.trim().to_ascii_lowercase();
-                if confirm_label == "exit" || confirm_label == "退出" {
-                    return Ok(TuiAppCommandOutcome::Quit);
-                }
-
-                if confirm_label == "clear" || confirm_label == "清空" {
-                    self.state.clear_messages();
-                    self.sync_session_metadata_blocking();
-                    self.persist_session_snapshot_blocking();
-                    self.push_app_system_message(
-                        "当前会话内容已清空",
-                        UiSystemMessageLevel::Success,
-                    );
-                    self.refresh_task_state_blocking();
-                    return Ok(TuiAppCommandOutcome::Continue);
-                }
-
-                reduce_tui_state(&mut self.state, TuiAction::OverlayPopped);
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::QuestionSubmitted(overlay) => {
-                let answers = question_overlay_submission_answers(&overlay);
-                if answers.iter().all(Vec::is_empty) {
-                    self.push_overlay_error(
-                        overlay.empty_submission_title(),
-                        overlay.empty_submission_message(),
-                    );
-                    return Ok(TuiAppCommandOutcome::Continue);
-                }
-
-                match self.runtime.question_reply_blocking(overlay.request_id.as_str(), answers) {
-                    Ok(()) => {
-                        reduce_tui_state(&mut self.state, TuiAction::OverlayPopped);
-                        self.refresh_task_state_blocking();
-                        self.push_app_system_message(
-                            format!(
-                                "{} {} 已提交回答",
-                                overlay.request_label(),
-                                overlay.request_id
-                            ),
-                            UiSystemMessageLevel::Success,
-                        );
-                    }
-                    Err(err) => {
-                        self.push_overlay_error(
-                            overlay.reply_error_title(),
-                            format!("问题回复失败: {err}"),
-                        );
-                    }
-                }
-
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::QuestionRejected(overlay) => {
-                match self.runtime.question_reject_blocking(overlay.request_id.as_str()) {
-                    Ok(()) => {
-                        reduce_tui_state(&mut self.state, TuiAction::OverlayPopped);
-                        self.refresh_task_state_blocking();
-                        self.push_app_system_message(
-                            format!("{} {} 已拒绝", overlay.request_label(), overlay.request_id),
-                            UiSystemMessageLevel::Warning,
-                        );
-                    }
-                    Err(err) => {
-                        self.push_overlay_error(
-                            overlay.reject_error_title(),
-                            format!("问题拒绝失败: {err}"),
-                        );
-                    }
-                }
-
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::TodoRefresh(_) => {
-                if self.current_session_id().is_none() {
-                    self.push_error_overlay(todo_session_unavailable_overlay(
-                        TodoSessionAccessAction::Refresh,
-                    ));
-                    return Ok(TuiAppCommandOutcome::Continue);
-                }
-
-                if !self.state.prompt.is_busy() {
-                    self.refresh_task_state_blocking();
-                }
-                self.reload_active_todo_overlay();
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-            TuiOverlayCommand::TodoSave(overlay) => {
-                if self.current_session_id().is_none() {
-                    self.push_error_overlay(todo_session_unavailable_overlay(
-                        TodoSessionAccessAction::Save,
-                    ));
-                    return Ok(TuiAppCommandOutcome::Continue);
-                }
-
-                let todos = todo_overlay_items_as_shared_todos(&overlay);
-                match self
-                    .runtime
-                    .session_todo_update_blocking(overlay.session_id.as_deref(), &todos)
-                {
-                    Ok(()) => {
-                        self.refresh_task_state_blocking();
-                        self.reload_active_todo_overlay();
-                        self.push_app_system_message(
-                            "待办面板已保存",
-                            UiSystemMessageLevel::Success,
-                        );
-                    }
-                    Err(err) => {
-                        self.push_overlay_error("待办保存失败", format!("待办更新失败: {err}"));
-                    }
-                }
-
-                Ok(TuiAppCommandOutcome::Continue)
-            }
-        }
-    }
-
-    fn refresh_task_state_blocking(&mut self) {
-        let question_session_id = self
-            .state
-            .session
-            .session_id
-            .clone()
-            .or_else(|| self.runtime.session_id().map(ToOwned::to_owned));
-        let todo_session_id = self
-            .state
-            .session
-            .session_id
-            .clone()
-            .or_else(|| self.runtime.session_id().map(ToOwned::to_owned));
-        let mut errors = Vec::new();
-
-        if let Some(session_id) = question_session_id.as_deref() {
-            match self.runtime.question_list_for_session_blocking(Some(session_id)) {
-                Ok(requests) => {
-                    let overlays =
-                        requests.iter().map(UiQuestionOverlay::from_request).collect::<Vec<_>>();
-                    reduce_tui_state(&mut self.state, TuiAction::QuestionsReplaced(overlays));
-                }
-                Err(err) => {
-                    reduce_tui_state(&mut self.state, TuiAction::QuestionsReplaced(Vec::new()));
-                    errors.push(format!("问题同步失败: {err}"));
-                }
-            }
-        } else {
-            reduce_tui_state(&mut self.state, TuiAction::QuestionsReplaced(Vec::new()));
-        }
-
-        if let Some(session_id) = todo_session_id.as_deref() {
-            match self.runtime.session_todo_get_blocking(Some(session_id)) {
-                Ok(todos) => {
-                    let overlay = UiTodoOverlay::from_todos(Some(session_id), &todos);
-                    reduce_tui_state(
-                        &mut self.state,
-                        TuiAction::TodoOverlayReplaced(Some(overlay)),
-                    );
-                }
-                Err(err) => {
-                    reduce_tui_state(&mut self.state, TuiAction::TodoOverlayReplaced(None));
-                    errors.push(format!("待办同步失败: {err}"));
-                }
-            }
-        } else {
-            reduce_tui_state(&mut self.state, TuiAction::TodoOverlayReplaced(None));
-        }
-
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::TaskSyncErrorSet((!errors.is_empty()).then(|| errors.join("; "))),
-        );
-        self.reload_active_todo_overlay();
-        self.reload_active_task_overlay();
-    }
-
-    fn refresh_project_context_blocking(&mut self) {
-        let workspace_root = self.runtime.directory().to_path_buf();
-        let project_info = build_project_info(&workspace_root);
-        let git_status = collect_git_workspace_status(&workspace_root);
-
-        reduce_tui_state(&mut self.state, TuiAction::ProjectWorkspaceRootSet(Some(workspace_root)));
-        reduce_tui_state(&mut self.state, TuiAction::ProjectInfoSet(project_info));
-        reduce_tui_state(&mut self.state, TuiAction::ProjectGitStatusSet(git_status));
-    }
-
-    fn open_search_overlay(&mut self) {
-        reduce_tui_state(&mut self.state, TuiAction::SearchQuerySet(String::new()));
-    }
-
-    fn open_pending_question_overlay(&mut self) {
-        if let Some(error) = self.state.tasks.sync_error.clone() {
-            self.push_overlay_error(
-                "问题面板不可用",
-                format!("由于任务同步失败，当前无法读取待处理问题列表。\n{error}"),
-            );
-            return;
-        }
-
-        let Some(question) = self.state.tasks.pending_questions.first().cloned() else {
-            self.push_overlay_error("问题面板", "当前会话没有待处理问题。");
-            return;
-        };
-
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Question(question)));
-    }
-
-    fn open_todo_overlay(&mut self) {
-        if self.current_session_id().is_none() {
-            self.push_error_overlay(todo_session_unavailable_overlay(
-                TodoSessionAccessAction::OpenPanel,
-            ));
-            return;
-        }
-
-        if let Some(error) = self.state.tasks.sync_error.clone() {
-            let overlay = if is_session_unavailable_error(error.as_str()) {
-                todo_session_unavailable_overlay(TodoSessionAccessAction::OpenPanel)
-            } else {
-                UiErrorOverlay {
-                    title: "待办面板不可用".to_string(),
-                    message: format!("由于任务同步失败，当前无法打开待办面板。\n{error}"),
-                    recoverable: true,
-                }
-            };
-            self.push_error_overlay(overlay);
-            return;
-        }
-
-        let Some(todo_overlay) = self.state.tasks.todo_overlay.clone() else {
-            self.push_overlay_error("待办面板", "当前会话没有可用的待办列表。");
-            return;
-        };
-
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Todo(todo_overlay)));
-    }
-
-    fn open_task_overlay(&mut self) {
-        let task_overlay = self.build_task_overlay();
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Task(task_overlay)));
-    }
-
-    fn open_mcp_overlay(&mut self) {
-        let overlay = build_mcp_overlay(self.state.project.workspace_root.as_deref());
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Mcp(overlay)));
-    }
-
-    fn open_memory_overlay(&mut self) {
-        let overlay = build_memory_overlay(self.state.project.workspace_root.as_deref());
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Memory(overlay)));
-    }
-
-    fn open_exit_confirm_overlay(&mut self) {
-        // 若已有退出确认弹层（同 kind），不重复叠加
-        if self
-            .state
-            .overlays
-            .active()
-            .is_some_and(|o| matches!(o, UiOverlay::Confirm(c) if c.confirm_label == "退出"))
-        {
-            return;
-        }
-
-        let body = build_exit_confirm_body(&self.state);
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::OverlayPushed(UiOverlay::Confirm(UiConfirmOverlay {
-                title: "退出 TUI".to_string(),
-                body,
-                confirm_label: "退出".to_string(),
-                cancel_label: "继续留在这里".to_string(),
-                destructive: false,
-            })),
-        );
-    }
-
-    fn build_task_overlay(&self) -> UiTaskOverlay {
-        let steps = self
-            .state
-            .messages
-            .iter()
-            .filter_map(|message| match message {
-                UiMessage::Step(step) => Some(UiTaskStepItem {
-                    message_id: step.base.id.clone(),
-                    step_index: step.step_index,
-                    state: step.state.clone(),
-                    started_ms: step.started_ms,
-                    finished_ms: step.finished_ms,
-                    model: step.model.clone(),
-                    finish_reason: step.finish_reason.clone(),
-                    usage: step.usage.clone(),
-                }),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-
-        UiTaskOverlay {
-            session_id: self.state.session.session_id.clone(),
-            turn_terminal: self.state.status.turn_terminal.clone(),
-            pending_questions: self.state.tasks.pending_questions.len(),
-            todo_count: self
-                .state
-                .tasks
-                .todo_overlay
-                .as_ref()
-                .map(|overlay| overlay.items.len())
-                .unwrap_or_default(),
-            sync_error: self.state.tasks.sync_error.clone(),
-            selected_index: steps.len().saturating_sub(1),
-            steps,
-        }
-    }
-
-    fn reload_active_todo_overlay(&mut self) {
-        if !matches!(self.state.overlays.active(), Some(UiOverlay::Todo(_))) {
-            return;
-        }
-
-        let has_session = self.current_session_id().is_some();
-
-        if let Some(error) = self.state.tasks.sync_error.clone() {
-            let overlay = if !has_session || is_session_unavailable_error(error.as_str()) {
-                todo_session_unavailable_overlay(TodoSessionAccessAction::OpenPanel)
-            } else {
-                UiErrorOverlay {
-                    title: "待办面板不可用".to_string(),
-                    message: format!("由于任务同步失败，当前无法打开待办面板。\n{error}"),
-                    recoverable: true,
-                }
-            };
-
-            if let Some(active_overlay) = self.state.overlays.stack.last_mut() {
-                *active_overlay = UiOverlay::Error(overlay);
-            }
-            return;
-        }
-
-        let Some(todo_overlay) = self.state.tasks.todo_overlay.clone() else {
-            let overlay = if has_session {
-                UiErrorOverlay {
-                    title: "待办面板".to_string(),
-                    message: "当前会话没有可用的待办列表。".to_string(),
-                    recoverable: true,
-                }
-            } else {
-                todo_session_unavailable_overlay(TodoSessionAccessAction::OpenPanel)
-            };
-
-            if let Some(active_overlay) = self.state.overlays.stack.last_mut() {
-                *active_overlay = UiOverlay::Error(overlay);
-            }
-            return;
-        };
-
-        if let Some(UiOverlay::Todo(active_overlay)) = self.state.overlays.stack.last_mut() {
-            *active_overlay = todo_overlay;
-        }
-    }
-
-    fn reload_active_task_overlay(&mut self) {
-        let next_overlay = self.build_task_overlay();
-
-        if let Some(UiOverlay::Task(active_overlay)) = self.state.overlays.stack.last_mut() {
-            let selected_index =
-                active_overlay.selected_index.min(next_overlay.steps.len().saturating_sub(1));
-            *active_overlay = next_overlay;
-            active_overlay.selected_index = selected_index;
-        }
-    }
-
-    fn current_session_id(&self) -> Option<&str> {
-        self.state.session.session_id.as_deref().or_else(|| self.runtime.session_id())
-    }
-
-    fn push_error_overlay(&mut self, overlay: UiErrorOverlay) {
-        if matches!(self.state.overlays.active(), Some(UiOverlay::Error(active)) if active == &overlay)
-        {
-            return;
-        }
-
-        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Error(overlay)));
-    }
-
-    fn push_overlay_error(&mut self, title: impl Into<String>, message: impl Into<String>) {
-        self.push_error_overlay(UiErrorOverlay {
-            title: title.into(),
-            message: message.into(),
-            recoverable: true,
-        });
-    }
-
-    fn push_app_system_message(&mut self, text: impl Into<String>, level: UiSystemMessageLevel) {
-        let message_index = self.state.messages.len();
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::MessagePushed(UiMessage::System(UiSystemMessage {
-                base: UiMessageBase::new(UiMessageId::local(format!(
-                    "ui-app-system-{}",
-                    message_index
-                ))),
-                text: text.into(),
-                level,
-            })),
-        );
-    }
-
-    fn submit_prompt(
-        &mut self,
-        terminal: &mut TuiTerminal,
-        submission: PromptSubmission,
-    ) -> Result<TuiAppCommandOutcome> {
-        let shadow_request = self
-            .run_mode
-            .shadow_compare_enabled()
-            .then(|| legacy_shadow_request_from_state(&self.state, &submission))
-            .flatten();
-
-        reduce_tui_state(&mut self.state, TuiAction::PromptSubmissionStarted(submission.clone()));
-
-        let feedback = self.draw(terminal)?;
-        self.controller.sync_layout(&mut self.state, &feedback);
-
-        let request = gateway_stream_request_from_state(&self.state, &submission);
-        let runtime = self.runtime.clone();
-        let (sender, receiver) = mpsc::channel();
-        let cancel_requested = Arc::new(AtomicBool::new(false));
-        let worker_cancel = Arc::clone(&cancel_requested);
-        let mut gateway_shadow_output = String::new();
-        let mut gateway_shadow_step_finishes = 0usize;
-        let mut gateway_shadow_terminal = None::<UiRuntimeTerminalEvent>;
-
-        let worker = thread::spawn(move || {
-            let mut saw_terminal = false;
-            let terminal_event = runtime.stream_chat_blocking(&request, |event| {
-                if matches!(event, UiRuntimeEvent::Terminal(_)) {
-                    saw_terminal = true;
-                }
-
-                if sender.send(event).is_err() {
-                    return false;
-                }
-
-                !worker_cancel.load(Ordering::Relaxed)
-            });
-
-            if !saw_terminal {
-                let _ = sender.send(UiRuntimeEvent::Terminal(terminal_event));
-            }
-        });
-
-        let mut quit_after_submission = false;
-        let mut saw_terminal = false;
-        let mut worker_disconnected = false;
-
-        while !saw_terminal && !worker_disconnected {
-            loop {
-                match receiver.try_recv() {
-                    Ok(event) => {
-                        match &event {
-                            UiRuntimeEvent::Delta(delta) => {
-                                gateway_shadow_output.push_str(delta);
-                            }
-                            UiRuntimeEvent::StepFinish { .. } => {
-                                gateway_shadow_step_finishes =
-                                    gateway_shadow_step_finishes.saturating_add(1);
-                            }
-                            UiRuntimeEvent::Terminal(terminal_event) => {
-                                gateway_shadow_terminal = Some(terminal_event.clone());
-                            }
-                            UiRuntimeEvent::TaskStateChanged { .. }
-                            | UiRuntimeEvent::SessionMetadataChanged { .. }
-                            | UiRuntimeEvent::UsageUpdated { .. }
-                            | UiRuntimeEvent::StepStart { .. }
-                            | UiRuntimeEvent::Unknown { .. } => {}
-                        }
-                        saw_terminal = self.apply_runtime_event_and_draw(terminal, event)?;
-                        if saw_terminal {
-                            break;
-                        }
-                    }
-                    Err(mpsc::TryRecvError::Empty) => break,
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        worker_disconnected = true;
-                        break;
-                    }
-                }
-            }
-
-            if saw_terminal || worker_disconnected {
-                break;
-            }
-
-            let event = self.controller.next_event_with_timeout(BUSY_HOST_POLL_RATE)?;
-            let command = self.controller.handle_event(&mut self.state, event);
-            match command {
-                TuiControllerCommand::Continue
-                | TuiControllerCommand::SubmitPrompt(_)
-                | TuiControllerCommand::ExecuteSlashCommand(_) => {}
-                TuiControllerCommand::CancelActiveSubmission => {
-                    self.request_submission_cancel(cancel_requested.as_ref());
-                }
-                TuiControllerCommand::Quit => {
-                    quit_after_submission = true;
-                    self.request_submission_cancel(cancel_requested.as_ref());
-                }
-                TuiControllerCommand::Overlay(command) => {
-                    if matches!(self.handle_overlay_command(command)?, TuiAppCommandOutcome::Quit) {
-                        quit_after_submission = true;
-                        self.request_submission_cancel(cancel_requested.as_ref());
-                    }
-                }
-            }
-
-            let feedback = self.draw(terminal)?;
-            self.controller.sync_layout(&mut self.state, &feedback);
-        }
-
-        worker.join().map_err(|_| anyhow!("tui_v2 stream worker panicked"))?;
-
-        if worker_disconnected && !saw_terminal {
-            return Err(anyhow!("tui_v2 stream worker exited before sending a terminal event"));
-        }
-
-        let gateway_shadow_result = gateway_shadow_terminal.as_ref().map(|terminal_event| {
-            SessionProcessorComparableResult {
-                output: gateway_shadow_output,
-                usage: comparable_usage_from_runtime_terminal(terminal_event),
-                step_finishes: gateway_shadow_step_finishes,
-                terminal: comparable_terminal_from_runtime_terminal(terminal_event),
-            }
-        });
-
-        self.refresh_task_state_blocking();
-        self.refresh_project_context_blocking();
-        self.run_shadow_compare_blocking(shadow_request, gateway_shadow_result);
-        self.persist_session_snapshot_blocking();
-
-        if quit_after_submission {
-            Ok(TuiAppCommandOutcome::Quit)
-        } else {
-            Ok(TuiAppCommandOutcome::Continue)
-        }
-    }
-
-    fn apply_runtime_event_and_draw(
-        &mut self,
-        terminal: &mut TuiTerminal,
-        event: UiRuntimeEvent,
-    ) -> Result<bool> {
-        let should_refresh_task_state = matches!(
-            &event,
-            UiRuntimeEvent::TaskStateChanged { session_id }
-                if self.runtime_event_targets_current_session(session_id.as_deref())
-        );
-        let should_refresh_session_metadata = matches!(
-            &event,
-            UiRuntimeEvent::SessionMetadataChanged { session_id, .. }
-                if self.runtime_event_targets_current_session(session_id.as_deref())
-        );
-        let delta_snapshot = matches!(event, UiRuntimeEvent::Delta(_))
-            .then(|| TuiDeltaRedrawSnapshot::capture(&self.state));
-        let saw_terminal = matches!(event, UiRuntimeEvent::Terminal(_));
-        let fallback_overlay = runtime_event_fallback_overlay(&event);
-
-        apply_runtime_event(&mut self.state, event);
-        if should_refresh_session_metadata {
-            self.sync_session_metadata_blocking();
-        }
-        if should_refresh_task_state {
-            self.refresh_task_state_blocking();
-        }
-        self.reload_active_task_overlay();
-        if let Some(overlay) = fallback_overlay {
-            self.push_error_overlay(overlay);
-        }
-
-        if let Some(delta_snapshot) = delta_snapshot.as_ref()
-            && !should_redraw_after_runtime_delta(delta_snapshot, &self.state)
-        {
-            return Ok(saw_terminal);
-        }
-
-        let feedback = self.draw(terminal)?;
-        self.controller.sync_layout(&mut self.state, &feedback);
-        Ok(saw_terminal)
-    }
-
-    fn runtime_event_targets_current_session(&self, session_id: Option<&str>) -> bool {
-        match normalize_optional_str_ref(session_id) {
-            Some(session_id) => self.current_session_id() == Some(session_id),
-            None => true,
-        }
-    }
-
-    fn request_submission_cancel(&mut self, cancel_requested: &AtomicBool) {
-        if cancel_requested.swap(true, Ordering::Relaxed) {
-            return;
-        }
-
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::StatusErrorSet(Some(CANCEL_REQUESTED_STATUS.to_string())),
-        );
     }
 
     fn draw(&mut self, terminal: &mut TuiTerminal) -> Result<TuiRenderFeedback> {
@@ -1516,353 +881,6 @@ impl TuiApp {
         })?;
 
         Ok(feedback)
-    }
-
-    fn bootstrap_session_state_blocking(&mut self, setup: &CliSetup) {
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::ModelCatalogReplaced(load_model_catalog_blocking()),
-        );
-
-        let restored = self.restore_session_snapshot_blocking();
-        if !restored {
-            self.ensure_session_binding_blocking();
-        }
-        self.sync_session_metadata_blocking();
-
-        if self.state.session.title.trim().is_empty() {
-            let title = self
-                .runtime
-                .title()
-                .map(ToOwned::to_owned)
-                .unwrap_or_else(|| default_session_title(self.runtime.directory()));
-            reduce_tui_state(&mut self.state, TuiAction::SessionTitleSet(title));
-        }
-
-        if self.state.session.scope.is_none() {
-            let scope = self.resolve_session_scope_blocking();
-            reduce_tui_state(&mut self.state, TuiAction::SessionScopeSet(scope));
-        }
-
-        let active_model = normalize_optional_str_ref(self.state.status.model_name.as_deref())
-            .map(ToOwned::to_owned)
-            .or_else(|| {
-                normalize_optional_str_ref(Some(setup.model_name.as_str())).map(ToOwned::to_owned)
-            });
-        let active_provider =
-            normalize_optional_str_ref(self.state.status.provider_name.as_deref())
-                .map(ToOwned::to_owned)
-                .or_else(|| active_model.as_deref().and_then(provider_name_from_model))
-                .or_else(|| {
-                    normalize_optional_str_ref(Some(setup.provider_name.as_str()))
-                        .map(ToOwned::to_owned)
-                });
-
-        reduce_tui_state(&mut self.state, TuiAction::StatusProviderSet(active_provider));
-        reduce_tui_state(&mut self.state, TuiAction::StatusModelSet(active_model));
-
-        if self.state.messages.is_empty() {
-            reduce_tui_state(
-                &mut self.state,
-                TuiAction::MessagePushed(UiMessage::System(UiSystemMessage {
-                    base: bootstrap_message_base(),
-                    text: bootstrap_system_message(self.run_mode),
-                    level: UiSystemMessageLevel::Info,
-                })),
-            );
-        }
-    }
-
-    fn run_shadow_compare_blocking(
-        &mut self,
-        request: Option<legacy_processor::Request>,
-        gateway_result: Option<SessionProcessorComparableResult>,
-    ) {
-        if !self.run_mode.shadow_compare_enabled() {
-            return;
-        }
-
-        let Some(request) = request else {
-            self.push_app_system_message(
-                "Shadow compare skipped because no stable session binding was available for the current turn.",
-                UiSystemMessageLevel::Warning,
-            );
-            return;
-        };
-
-        let Some(gateway_result) = gateway_result else {
-            self.push_app_system_message(
-                "Shadow compare skipped because the gateway turn did not produce a comparable terminal result.",
-                UiSystemMessageLevel::Warning,
-            );
-            return;
-        };
-
-        match run_legacy_shadow_compare_blocking(request) {
-            Ok(legacy_result) => match compare_shadow_results(&gateway_result, &legacy_result) {
-                Ok(()) => {
-                    self.push_app_system_message(
-                        shadow_compare_success_message(&gateway_result),
-                        UiSystemMessageLevel::Success,
-                    );
-                }
-                Err(diff) => {
-                    self.push_app_system_message(
-                        format!("Shadow compare diverged from legacy: {diff}."),
-                        UiSystemMessageLevel::Warning,
-                    );
-                }
-            },
-            Err(err) => {
-                self.push_app_system_message(
-                    format!("Shadow compare failed before legacy replay completed: {err}."),
-                    UiSystemMessageLevel::Warning,
-                );
-            }
-        }
-    }
-
-    fn restore_session_snapshot_blocking(&mut self) -> bool {
-        let previews = match self.runtime.session_ui_previews_blocking() {
-            Ok(previews) => previews,
-            Err(err) => {
-                reduce_tui_state(
-                    &mut self.state,
-                    TuiAction::StatusErrorSet(Some(format!("session preview sync failed: {err}"))),
-                );
-                Vec::new()
-            }
-        };
-
-        let Some(session_id) = select_restore_session_id(self.runtime.session_id(), &previews)
-        else {
-            return false;
-        };
-
-        matches!(
-            self.restore_session_snapshot_by_id_blocking(&previews, session_id.as_str(), true),
-            SessionRestoreOutcome::Snapshot
-        )
-    }
-
-    fn restore_session_snapshot_by_id_blocking(
-        &mut self,
-        previews: &[ChatSessionMeta],
-        session_id: &str,
-        allow_empty_binding: bool,
-    ) -> SessionRestoreOutcome {
-        let scope = self.resolve_session_scope_blocking();
-        let path = self.runtime.session_path_blocking(Some(session_id)).ok().flatten();
-
-        let snapshot = match self.runtime.session_ui_load_any_blocking(Some(session_id)) {
-            Ok(snapshot) => snapshot,
-            Err(err) => {
-                reduce_tui_state(
-                    &mut self.state,
-                    TuiAction::StatusErrorSet(Some(format!("session restore failed: {err}"))),
-                );
-                None
-            }
-        };
-
-        let Some(snapshot) = snapshot else {
-            let preview = previews.iter().find(|preview| preview.id == session_id);
-            let Some(snapshot) = preview
-                .map(snapshot_from_preview)
-                .or_else(|| allow_empty_binding.then(|| empty_session_snapshot(session_id)))
-            else {
-                return SessionRestoreOutcome::Missing;
-            };
-
-            reduce_tui_state(
-                &mut self.state,
-                TuiAction::ReplaceFromSnapshot { snapshot, scope, path },
-            );
-            return SessionRestoreOutcome::MetadataOnly;
-        };
-
-        reduce_tui_state(&mut self.state, TuiAction::ReplaceFromSnapshot { snapshot, scope, path });
-        SessionRestoreOutcome::Snapshot
-    }
-
-    fn restore_session_from_command(&mut self, session_id: Option<&str>) {
-        if self.state.session.session_id.is_some() {
-            self.persist_session_snapshot_blocking();
-        }
-
-        let previews = match self.runtime.session_ui_previews_blocking() {
-            Ok(previews) => previews,
-            Err(err) => {
-                self.push_overlay_error("恢复失败", format!("会话预览同步失败: {err}"));
-                return;
-            }
-        };
-
-        let Some(target_session_id) = select_restore_session_id(session_id, &previews) else {
-            self.push_overlay_error("恢复失败", "当前没有可供 TUI 恢复的会话快照。");
-            return;
-        };
-
-        match self.restore_session_snapshot_by_id_blocking(
-            &previews,
-            target_session_id.as_str(),
-            false,
-        ) {
-            SessionRestoreOutcome::Snapshot => {
-                self.finish_session_restore();
-                self.push_app_system_message(
-                    format!("已恢复会话 {}", target_session_id),
-                    UiSystemMessageLevel::Success,
-                );
-            }
-            SessionRestoreOutcome::MetadataOnly => {
-                self.finish_session_restore();
-                self.push_app_system_message(
-                    format!("会话 {} 还没有持久化快照；本次仅恢复了会话绑定。", target_session_id),
-                    UiSystemMessageLevel::Warning,
-                );
-            }
-            SessionRestoreOutcome::Missing => {
-                self.push_overlay_error(
-                    "恢复失败",
-                    format!("没有找到 {} 对应的会话快照或预览。", target_session_id),
-                );
-            }
-        }
-    }
-
-    fn finish_session_restore(&mut self) {
-        self.sync_session_metadata_blocking();
-        if normalize_optional_str_ref(self.state.status.provider_name.as_deref()).is_none()
-            && let Some(provider_name) =
-                self.state.status.model_name.as_deref().and_then(provider_name_from_model)
-        {
-            reduce_tui_state(&mut self.state, TuiAction::StatusProviderSet(Some(provider_name)));
-        }
-        self.refresh_task_state_blocking();
-        self.refresh_project_context_blocking();
-        reduce_tui_state(&mut self.state, TuiAction::StatusErrorSet(None));
-        self.state.refresh_session_preview();
-    }
-
-    fn sync_runtime_session_seed_from_state(&mut self) {
-        let title =
-            (!self.state.session.title.trim().is_empty()).then(|| self.state.session.title.clone());
-        self.runtime.bind_session_seed(
-            self.state.session.session_id.clone(),
-            self.state.session.scope.clone(),
-            title,
-        );
-    }
-
-    fn ensure_session_binding_blocking(&mut self) {
-        if self.state.session.session_id.is_some() {
-            self.sync_runtime_session_seed_from_state();
-            return;
-        }
-
-        if let Some(session_id) = self.runtime.session_id() {
-            self.state.session.session_id = Some(session_id.to_string());
-            self.state.refresh_session_preview();
-            self.sync_runtime_session_seed_from_state();
-            return;
-        }
-
-        let title = self
-            .runtime
-            .title()
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| default_session_title(self.runtime.directory()));
-        match self.runtime.session_create_blocking(Some(title.as_str())) {
-            Ok(created) => {
-                self.state.session.session_id = Some(created.id);
-                self.state.session.title = created.title;
-                self.state.refresh_session_preview();
-                self.sync_runtime_session_seed_from_state();
-            }
-            Err(err) => {
-                reduce_tui_state(
-                    &mut self.state,
-                    TuiAction::StatusErrorSet(Some(format!("session create failed: {err}"))),
-                );
-            }
-        }
-    }
-
-    fn resolve_session_scope_blocking(&mut self) -> Option<String> {
-        if let Some(scope) = self.runtime.scope().map(ToOwned::to_owned) {
-            return Some(scope);
-        }
-
-        match self.runtime.session_scope_get_blocking() {
-            Ok(scope) => scope,
-            Err(err) => {
-                reduce_tui_state(
-                    &mut self.state,
-                    TuiAction::StatusErrorSet(Some(format!("session scope sync failed: {err}"))),
-                );
-                None
-            }
-        }
-    }
-
-    fn sync_session_metadata_blocking(&mut self) {
-        let scope = self.resolve_session_scope_blocking();
-        reduce_tui_state(&mut self.state, TuiAction::SessionScopeSet(scope));
-
-        let Some(session_id) = self.state.session.session_id.clone() else {
-            return;
-        };
-
-        if let Ok(Some(meta)) =
-            self.runtime.session_preview_meta_blocking(Some(session_id.as_str()))
-        {
-            if !meta.title.trim().is_empty() {
-                reduce_tui_state(&mut self.state, TuiAction::SessionTitleSet(meta.title.clone()));
-            }
-            reduce_tui_state(&mut self.state, TuiAction::SessionUpdatedMsSet(meta.updated_ms));
-            reduce_tui_state(&mut self.state, TuiAction::SessionPreviewSet(Some(meta.into())));
-        }
-
-        match self.runtime.session_path_blocking(Some(session_id.as_str())) {
-            Ok(Some(path)) => {
-                reduce_tui_state(&mut self.state, TuiAction::SessionPathSet(Some(path)));
-            }
-            Ok(None) => {
-                reduce_tui_state(&mut self.state, TuiAction::SessionPathSet(None));
-            }
-            Err(_) => {}
-        }
-
-        self.sync_runtime_session_seed_from_state();
-    }
-
-    fn persist_session_snapshot_blocking(&mut self) {
-        self.ensure_session_binding_blocking();
-
-        let Some(session_id) = self.state.session.session_id.clone() else {
-            return;
-        };
-
-        let mut snapshot = self.state.to_chat_session();
-        if snapshot.id.trim().is_empty() {
-            snapshot.id = session_id;
-        }
-        if snapshot.title.trim().is_empty() {
-            snapshot.title = self.state.session.title.clone();
-        }
-
-        match self.runtime.session_ui_save_blocking(&snapshot) {
-            Ok(()) => {
-                self.sync_session_metadata_blocking();
-            }
-            Err(err) => {
-                reduce_tui_state(
-                    &mut self.state,
-                    TuiAction::StatusErrorSet(Some(format!("session save failed: {err}"))),
-                );
-            }
-        }
     }
 }
 
@@ -1935,6 +953,39 @@ pub(crate) fn normalize_catalog_text(value: &str, fallback: &str) -> String {
     if value.is_empty() { fallback.to_string() } else { value.to_string() }
 }
 
+pub(crate) fn delegate_agent_options(
+    config: &Config,
+    selected: Option<&str>,
+) -> Vec<DelegateAgentOption> {
+    let mut agents = config
+        .agents
+        .iter()
+        .filter_map(|(key, agent)| {
+            let key = key.trim();
+            let selected = selected == Some(key);
+            let safe_key = !key.is_empty()
+                && key != "main"
+                && key.chars().all(|ch| !ch.is_whitespace() && !ch.is_control());
+            if !safe_key || ((!agent.enabled || agent.hidden) && !selected) {
+                return None;
+            }
+            let label = agent
+                .label
+                .as_deref()
+                .map(str::trim)
+                .filter(|label| !label.is_empty())
+                .unwrap_or(key);
+            Some(DelegateAgentOption {
+                key: Some(key.to_string()),
+                label: crate::cli::tui_v2::terminal_capabilities::sanitize_terminal_text(label),
+            })
+        })
+        .collect::<Vec<_>>();
+    agents.sort_by(|left, right| left.key.cmp(&right.key));
+    agents.insert(0, DelegateAgentOption::main());
+    agents
+}
+
 fn block_on_sync<F, T>(future: F) -> T
 where
     F: Future<Output = T>,
@@ -1951,25 +1002,77 @@ where
     }
 }
 
-fn gateway_stream_request_from_state(
+pub(crate) fn gateway_stream_request_from_state(
     state: &TuiState,
     submission: &PromptSubmission,
 ) -> GatewayChatStreamRequest {
     let snapshot = state.to_chat_session();
+    let acp_agent = submission.execution.acp_backend.clone();
+    let full_access_enabled = submission.execution.full_access_enabled;
+    let subagent_mode_enabled = submission.execution.subagent_mode_enabled;
+    let mut allowed_tools = (!full_access_enabled
+        && state.session_options.permission_mode == PermissionMode::Plan)
+        .then(|| vec!["todowrite".to_string()]);
+    if subagent_mode_enabled {
+        let tools = allowed_tools.get_or_insert_with(Vec::new);
+        tools.retain(|tool| !tool.eq_ignore_ascii_case("AgentTool"));
+        tools.push("AgentTool".to_string());
+        tools.sort_unstable();
+    }
+    let mut options = acp_agent
+        .as_ref()
+        .map(|acp_agent| {
+        let cwd = normalize_optional_str_ref(submission.root.as_deref())
+            .map(ToOwned::to_owned)
+            .or_else(|| state.project.workspace_root.as_ref().map(|path| path.display().to_string()))
+            .unwrap_or_default();
+        let mut options = json!({
+            "acp_test": true,
+            "acp_agent": acp_agent,
+            "cwd": cwd,
+            "acp_force_new_session": submission.execution.acp_force_new_session,
+            "acp_permission_mode": if full_access_enabled { "approve-all" } else { "approve-reads" },
+        });
+        if full_access_enabled {
+            options["full_access"] = json!(true);
+        }
+        options
+    })
+        .or_else(|| full_access_enabled.then(|| json!({"full_access": true})));
+    if subagent_mode_enabled {
+        let options = options.get_or_insert_with(|| json!({}));
+        options["require_agent_tool"] = json!(true);
+        options["allowed_tools"] = json!(allowed_tools);
+    }
+    let system = subagent_mode_enabled.then(|| vec![SUBAGENT_MODE_SYSTEM_PROMPT.to_string()]);
+    let acp_allowed_tools =
+        acp_agent.is_some().then(|| allowed_tools.clone()).flatten();
     GatewayChatStreamRequest {
         session_id: normalize_optional_str_ref(submission.session_id.as_deref())
             .map(SessionId::from),
         messages: snapshot.messages.iter().map(gateway_message_from_chat_message).collect(),
-        system: None,
+        system,
         model: submission.model.clone(),
-        reasoning_effort: None,
-        agent: None,
-        allowed_tools: None,
-        acp_agent: None,
-        acp_allowed_tools: None,
-        options: None,
+        reasoning_effort: Some(match state.session_options.effort {
+            ReasoningEffort::Minimal => vw_gateway_client::vw_api_types::ReasoningEffortDto::None,
+            ReasoningEffort::Low => vw_gateway_client::vw_api_types::ReasoningEffortDto::Low,
+            ReasoningEffort::Medium => vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium,
+            ReasoningEffort::High => vw_gateway_client::vw_api_types::ReasoningEffortDto::High,
+            ReasoningEffort::XHigh => vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh,
+        }),
+        agent: submission.execution.delegate_agent.clone(),
+        allowed_tools,
+        acp_agent,
+        acp_allowed_tools,
+        options,
     }
 }
+
+const SUBAGENT_MODE_SYSTEM_PROMPT: &str = "## AgentTool-First Mode\n\n\
+- AgentTool is the required primary execution path for this user request. Before substantive work, delegate at least one meaningful workstream through AgentTool.\n\
+- The parent agent may coordinate, perform small supporting steps, verify evidence, and synthesize results, but must not complete the substantive task entirely by itself.\n\
+- If AgentTool is unavailable or delegation is blocked by a hard runtime limit, report that exact blocker instead of silently bypassing this mode.\n\
+- Continue to follow all safety, permission, scope, and validation requirements.";
 
 pub(crate) fn gateway_message_from_chat_message(message: &ChatMessage) -> serde_json::Value {
     json!({
@@ -2001,6 +1104,9 @@ fn legacy_shadow_request_from_state(
         assistant_message_id: None,
         history: snapshot.messages,
         persist_app_session_artifacts: false,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: vw_agent::session::runtime::SessionToolset::default(),
     })
 }
 
@@ -2173,31 +1279,46 @@ pub(crate) fn gateway_role(role: ChatRole) -> &'static str {
 /// 但把职责收口到独立类型里，避免 controller 或 renderer 反向持有 terminal 句柄。
 struct TuiTerminalLifecycle {
     terminal: TuiTerminal,
+    mode_session: TerminalModeSession,
+    raw_mode_enabled: bool,
+    fullscreen: bool,
 }
 
 impl TuiTerminalLifecycle {
     fn enter() -> Result<Self> {
-        enable_raw_mode()?;
-
         #[cfg(unix)]
-        let mut screen: CliBackendWriter =
+        let screen: CliBackendWriter =
             OpenOptions::new().read(true).write(true).open("/dev/tty")?;
 
         #[cfg(not(unix))]
-        let mut screen: CliBackendWriter = std::io::stdout();
-
-        screen.execute(EnterAlternateScreen)?;
-        screen.execute(EnableMouseCapture)?;
-        let _ = screen.execute(PushKeyboardEnhancementFlags(
-            KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
-                | KeyboardEnhancementFlags::REPORT_EVENT_TYPES,
-        ));
+        let screen: CliBackendWriter = std::io::stdout();
 
         let backend = CrosstermBackend::new(screen);
         let mut terminal = Terminal::new(backend)?;
-        terminal.hide_cursor()?;
+        let mode_plan = TerminalModePlan::for_environment(
+            std::io::stdin().is_terminal(),
+            std::env::var("TERM").ok().as_deref(),
+            std::env::var("TERM_PROGRAM").ok().as_deref(),
+        );
+        let fullscreen = mode_plan.is_fullscreen();
+        let mut mode_session = TerminalModeSession::new(mode_plan);
 
-        Ok(Self { terminal })
+        if fullscreen {
+            enable_raw_mode()?;
+        }
+        if let Err(error) = mode_session.enter(terminal.backend_mut()) {
+            if fullscreen {
+                let _ = disable_raw_mode();
+            }
+            return Err(error.into());
+        }
+        if fullscreen && let Err(error) = terminal.hide_cursor() {
+            let _ = mode_session.leave(terminal.backend_mut());
+            let _ = disable_raw_mode();
+            return Err(error.into());
+        }
+
+        Ok(Self { terminal, mode_session, raw_mode_enabled: fullscreen, fullscreen })
     }
 
     fn terminal_mut(&mut self) -> &mut TuiTerminal {
@@ -2207,10 +1328,18 @@ impl TuiTerminalLifecycle {
 
 impl Drop for TuiTerminalLifecycle {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
-        let _ = self.terminal.backend_mut().execute(PopKeyboardEnhancementFlags);
-        let _ = self.terminal.backend_mut().execute(DisableMouseCapture);
-        let _ = self.terminal.backend_mut().execute(LeaveAlternateScreen);
-        let _ = self.terminal.show_cursor();
+        let mut restore_failed = false;
+        if self.fullscreen && self.terminal.show_cursor().is_err() {
+            restore_failed = true;
+        }
+        if self.mode_session.suspend(self.terminal.backend_mut()).is_err() {
+            restore_failed = true;
+        }
+        if self.raw_mode_enabled && disable_raw_mode().is_err() {
+            restore_failed = true;
+        }
+        if restore_failed {
+            eprintln!("TUI terminal restore failed");
+        }
     }
 }

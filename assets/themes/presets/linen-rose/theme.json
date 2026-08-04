@@ -1,0 +1,25 @@
+{
+  "id": "linen-rose",
+  "name": "亚麻玫瑰 Linen Rose",
+  "tagline": "旧书页里夹着的一片干花。",
+  "palette": {
+    "background": "#f5f0ec",
+    "text": "#3b322f",
+    "primary": "#b87b7b",
+    "success": "#d6a3a3",
+    "warning": "#8c7b6b",
+    "danger": "#a89f8d"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#b87b7b",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

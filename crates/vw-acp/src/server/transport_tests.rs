@@ -1,0 +1,30 @@
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+use super::agent_tests::FakeBackend;
+
+#[tokio::test(flavor = "current_thread")]
+async fn stdio_transport_writes_only_jsonrpc_frames() {
+    let (mut client, server) = tokio::io::duplex(16 * 1024);
+    let (server_read, server_write) = tokio::io::split(server);
+    let server_task = super::serve_with_io(FakeBackend::default(), server_read, server_write);
+    let client_task = async move {
+        client
+            .write_all(
+                br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{}}}
+"#,
+            )
+            .await
+            .expect("write initialize");
+        let mut line = String::new();
+        BufReader::new(&mut client).read_line(&mut line).await.expect("read response");
+        client.shutdown().await.expect("shutdown client");
+        line
+    };
+
+    let (server_result, output) = tokio::join!(server_task, client_task);
+    server_result.expect("server transport");
+    for line in output.lines() {
+        let frame: serde_json::Value = serde_json::from_str(line).expect("JSON-RPC frame only");
+        assert_eq!(frame["jsonrpc"], "2.0");
+    }
+}

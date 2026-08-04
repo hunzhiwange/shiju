@@ -160,6 +160,14 @@ fn cli_binary_name_matches_current_platform() {
     assert_eq!(cli_binary_name(), expected);
 }
 
+#[test]
+fn service_install_is_required_for_outdated_or_missing_service() {
+    assert!(service_install_required(true, true));
+    assert!(service_install_required(true, false));
+    assert!(service_install_required(false, false));
+    assert!(!service_install_required(false, true));
+}
+
 #[cfg(unix)]
 #[test]
 fn cli_command_helpers_return_trimmed_stdout_and_prefer_stderr_failures() {
@@ -267,8 +275,29 @@ fn gateway_health_ready_rejects_non_ok_http_responses() {
 }
 
 #[test]
-fn wait_for_gateway_health_respects_zero_timeout() {
+fn wait_for_gateway_build_respects_zero_timeout() {
     let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", 1);
 
-    assert!(!wait_for_gateway_health(&endpoint, Duration::ZERO));
+    assert!(!wait_for_gateway_build(&endpoint, "expected-build", Duration::ZERO));
+}
+
+#[test]
+fn gateway_build_id_reads_running_executable_identity() {
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind health stub");
+    let port = listener.local_addr().expect("address").port();
+    let body = r#"{"status":"ok","build_id":"build-123"}"#;
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept health probe");
+        stream.write_all(response.as_bytes()).expect("write health response");
+    });
+    let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", port);
+
+    assert_eq!(gateway_build_id(&endpoint).as_deref(), Some("build-123"));
+    server.join().expect("health stub should finish");
 }

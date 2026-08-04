@@ -485,6 +485,31 @@ async fn build_event_client_carries_runtime_configuration() {
 }
 
 #[tokio::test]
+async fn build_event_client_propagates_full_access_to_filesystem() {
+    let root = unique_temp_dir("full-access-root");
+    let outside_root = unique_temp_dir("full-access-outside");
+    let outside_file = outside_root.join("outside.txt");
+    fs::write(&outside_file, "outside content").expect("write outside fixture");
+    let (event_tx, _event_rx) = mpsc::unbounded_channel();
+    let client = super::AcpClient::new(
+        "test",
+        AcpAgentConfig { command: "noop".to_string(), args: Vec::new(), env: Default::default() },
+    )
+    .with_full_access(true);
+    let event_client =
+        client.build_event_client(&root, Arc::new(Mutex::new(None)), event_tx);
+
+    let response = event_client
+        .read_text_file(acp::ReadTextFileRequest::new("session-1", &outside_file))
+        .await;
+
+    let _ = fs::remove_dir_all(root);
+    let _ = fs::remove_dir_all(outside_root);
+
+    assert_eq!(response.expect("full access propagated to filesystem").content, "outside content");
+}
+
+#[tokio::test]
 async fn build_event_client_carries_session_update_callback() {
     let (event_tx, _event_rx) = mpsc::unbounded_channel();
     let expected_session_id = Arc::new(Mutex::new(Some("session-1".to_string())));

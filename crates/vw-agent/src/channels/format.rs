@@ -223,6 +223,7 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
 ///
 /// - **telegram**: 支持 Markdown 格式、媒体附件标记、表情符号等
 /// - **whatsapp**: 支持基础格式（粗体）、媒体附件标记，但不支持标题和表格
+/// - **lark/feishu**: 支持 CommonMark 与 GFM 富文本
 pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'static str> {
     match channel_name {
         "telegram" => Some(
@@ -248,6 +249,15 @@ pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'stat
              - The path MUST be an absolute filesystem path to a local file (e.g. [IMAGE:/home/nicolas/.vibewindow/workspace/images/chart.png]).\n\
              - Keep normal text outside markers and never wrap markers in code fences.\n\
              - You can combine text and media in one response — text is sent first, then each attachment.\n\
+             - Use tool results silently: answer the latest user message directly, and do not narrate delayed/internal tool execution bookkeeping.",
+        ),
+        "lark" | "feishu" => Some(
+            "When responding on Lark or Feishu:\n\
+             - Use Markdown for structured, readable replies.\n\
+             - Use headings, bullet or numbered lists, links, and emphasis where helpful.\n\
+             - Use fenced code blocks for multiline code and backticks for inline code.\n\
+             - Use Markdown tables only when rows and columns materially improve clarity.\n\
+             - Be concise and direct, and do not emit raw HTML.\n\
              - Use tool results silently: answer the latest user message directly, and do not narrate delayed/internal tool execution bookkeeping.",
         ),
         _ => None,

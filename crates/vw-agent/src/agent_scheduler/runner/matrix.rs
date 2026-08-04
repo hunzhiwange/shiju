@@ -868,6 +868,10 @@ fn select_matrix_config<'a>(
     config: &'a Config,
     component: &ConfiguredMatrixWorkerComponent,
 ) -> Result<SelectedMatrixConfig<'a>> {
+    if !config.channels_config.matrix_enabled {
+        anyhow::bail!("Matrix channel is disabled");
+    }
+
     let default_id = vw_config_types::channels::chat::DEFAULT_CHANNEL_INSTANCE_ID;
     let candidates = config
         .channels_config

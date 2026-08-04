@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::{App, Message};
+use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use iced::Element;
 use iced::widget::{slider, text};
 
@@ -52,14 +53,16 @@ fn sandbox_enabled_options_are_stable_and_user_facing() {
 
 #[test]
 fn sandbox_backend_options_follow_enabled_policy() {
-    let disabled_values: Vec<_> =
-        sandbox_backend_options("false").iter().map(|option| option.value).collect();
+    let disabled_options = sandbox_backend_options("false");
+    let disabled_values: Vec<_> = disabled_options.iter().map(|option| option.value).collect();
+    let disabled_labels: Vec<_> = disabled_options.iter().map(|option| option.label).collect();
     let forced_values: Vec<_> =
         sandbox_backend_options("true").iter().map(|option| option.value).collect();
     let auto_values: Vec<_> =
         sandbox_backend_options("auto").iter().map(|option| option.value).collect();
 
     assert_eq!(disabled_values, ["none"]);
+    assert_eq!(disabled_labels, ["禁止沙箱"]);
     assert_eq!(forced_values, ["auto", "landlock", "firejail", "bubblewrap", "docker"]);
     assert_eq!(auto_values, ["auto", "landlock", "firejail", "bubblewrap", "docker", "none"]);
 }
@@ -132,8 +135,11 @@ fn view_builds_default_disabled_firejail_and_threshold_states() {
 
     app.security_settings.sandbox_enabled_input = "true".to_string();
     app.security_settings.sandbox_backend_input = "firejail".to_string();
-    app.security_settings.sandbox_firejail_args_input =
-        "--private,--net=none,--read-only=/workspace".to_string();
+    app.security_settings.sandbox_firejail_args = vec![
+        "--private".to_string(),
+        "--net=none".to_string(),
+        "--read-only=/workspace".to_string(),
+    ];
     app.security_settings.resources_max_memory_mb = 65_536;
     app.security_settings.resources_max_cpu_time_seconds = 3600;
     app.security_settings.resources_max_subprocesses = 10_000;
@@ -143,9 +149,12 @@ fn view_builds_default_disabled_firejail_and_threshold_states() {
     app.security_settings.otp_method_input = "cli-prompt".to_string();
     app.security_settings.otp_token_ttl_secs = 600;
     app.security_settings.otp_cache_valid_secs = 3600;
-    app.security_settings.otp_gated_actions_input = "shell,file_write".to_string();
-    app.security_settings.otp_gated_domains_input = "example.com,api.internal".to_string();
-    app.security_settings.otp_gated_domain_categories_input = "payments,admin".to_string();
+    app.security_settings.otp_gated_actions =
+        vec!["shell".to_string(), "file_write".to_string()];
+    app.security_settings.otp_gated_domains =
+        vec!["example.com".to_string(), "api.internal".to_string()];
+    app.security_settings.otp_gated_domain_categories =
+        vec!["payments".to_string(), "admin".to_string()];
     app.security_settings.estop_state_file = "/tmp/vibewindow-estop.json".to_string();
     app.security_settings.estop_require_otp_to_resume = false;
     app.security_settings.syscall_anomaly_alert_on_unknown_syscall = false;
@@ -154,10 +163,49 @@ fn view_builds_default_disabled_firejail_and_threshold_states() {
     app.security_settings.syscall_anomaly_max_alerts_per_minute = 10_000;
     app.security_settings.syscall_anomaly_alert_cooldown_secs = 3600;
     app.security_settings.syscall_anomaly_log_path = "logs/syscall-anomalies.log".to_string();
-    app.security_settings.syscall_anomaly_baseline_syscalls_input = "read,write,openat".to_string();
+    app.security_settings.syscall_anomaly_baseline_syscalls =
+        vec!["read".to_string(), "write".to_string(), "openat".to_string()];
     app.security_settings.semantic_guard_collection = "security_vectors".to_string();
     app.security_settings.semantic_guard_threshold = 1.0;
     keep_element(view(&app));
+}
+
+#[test]
+fn view_builds_each_security_tab_and_unicode_list_items() {
+    let mut app = test_app();
+    app.security_settings.otp_gated_domains = vec!["内部.example".to_string()];
+
+    for tab in [
+        SecuritySettingsTab::Bash,
+        SecuritySettingsTab::SandboxAndResources,
+        SecuritySettingsTab::Audit,
+        SecuritySettingsTab::OtpAndEstop,
+        SecuritySettingsTab::Syscall,
+        SecuritySettingsTab::Guard,
+    ] {
+        app.security_settings.active_tab = tab;
+        keep_element(view(&app));
+    }
+
+    assert!(!SOURCE.contains("Font::MONOSPACE"));
+}
+
+#[test]
+fn list_editor_builds_bounded_scrolling_saved_items() {
+    let items = vec!["read".to_string(), "write".to_string(), "中文调用".to_string()];
+
+    keep_element(list_editor(
+        SecurityListKind::SyscallAnomalyBaselineSyscalls,
+        "系统调用基线",
+        "说明",
+        "例如 openat",
+        &items,
+        "",
+    ));
+
+    assert!(SOURCE.contains("LIST_EDITOR_MAX_HEIGHT"));
+    assert!(SOURCE.contains("Scrollbar::new().width(4).scroller_width(4)"));
+    assert!(SOURCE.contains("right: 12.0"));
 }
 
 #[test]
@@ -183,6 +231,8 @@ fn system_settings_security_tests_keep_planned_coverage_targets() {
     for name in [
         "field_row",
         "text_row",
+        "list_editor",
+        "tab_button",
         "bool_row",
         "slider_row",
         "sandbox_enabled_options",

@@ -2,8 +2,12 @@ use super::assistant_body::{
     count_visible_non_explore_tool_cards, deduped_tool_last_indices, render_assistant_body,
     should_highlight_pending_permission_tool,
 };
-use crate::app::App;
+use super::markdown::parse_markdown_blocks;
 use crate::app::models::{ParsedChatBlock, ThinkTiming};
+use crate::app::{App, Message};
+use iced::Element;
+use iced::advanced::widget::Tree;
+use iced::widget::text_editor;
 
 #[test]
 fn pending_permission_highlight_matches_active_request_or_direct_target() {
@@ -116,6 +120,32 @@ fn render_assistant_body_builds_plain_text_body() {
     );
 
     std::hint::black_box(body);
+}
+
+#[test]
+fn special_markdown_text_uses_single_editor_for_cross_block_selection() {
+    let mut app = App::new().0;
+    let text = "# 标题\n\n第一段\n\n- 列表项";
+    app.chat_special_text_editors.insert(0, text_editor::Content::with_text(text));
+    app.chat_markdown_blocks.insert(0, parse_markdown_blocks(text));
+    assert!(app.chat_markdown_blocks[&0].len() > 1);
+
+    let body = render_assistant_body(
+        &app,
+        0,
+        &[],
+        vec![text.to_string()],
+        String::new(),
+        vec![ParsedChatBlock::Text { content: text.to_string() }],
+        true,
+        false,
+        text,
+    );
+    let element: Element<'_, Message> = body.into();
+    let tree = Tree::new(element.as_widget());
+
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].children.len(), 1);
 }
 
 #[test]

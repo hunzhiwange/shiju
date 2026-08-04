@@ -867,6 +867,7 @@ fn point_left_overlay_element_layout_uses_anchor_and_gap() {
         overlay: &mut overlay,
         tree: &mut tree,
         on_close: None,
+        capture_events: true,
     };
 
     let node = overlay::Overlay::layout(&mut element, &renderer, Size::new(180.0, 120.0));
@@ -888,6 +889,7 @@ fn point_left_overlay_element_layout_snaps_to_viewport() {
         overlay: &mut overlay,
         tree: &mut tree,
         on_close: None,
+        capture_events: true,
     };
 
     let node = overlay::Overlay::layout(&mut element, &renderer, Size::new(180.0, 120.0));
@@ -915,6 +917,7 @@ fn point_left_overlay_element_closes_only_outside_overlay_bounds() {
             overlay: &mut overlay,
             tree: &mut tree,
             on_close: Some(TestMessage::Close),
+            capture_events: true,
         };
         let mut messages = Vec::new();
         let mut shell = Shell::new(&mut messages);
@@ -962,6 +965,7 @@ fn point_left_overlay_element_rejects_close_without_all_preconditions() {
             overlay: &mut overlay,
             tree: &mut tree,
             on_close,
+            capture_events: true,
         };
         let mut messages = Vec::new();
         let mut shell = Shell::new(&mut messages);
@@ -998,6 +1002,7 @@ fn point_left_overlay_element_delegates_draw_and_mouse_interaction() {
         overlay: &mut overlay,
         tree: &mut tree,
         on_close: None,
+        capture_events: true,
     };
     let node = node_at(Rectangle { x: 22.0, y: 40.0, width: 70.0, height: 40.0 });
 
@@ -1018,6 +1023,40 @@ fn point_left_overlay_element_delegates_draw_and_mouse_interaction() {
 
     assert_eq!(interaction, mouse::Interaction::Crosshair);
     assert_eq!(draw_renderer.fills, vec![node.bounds()]);
+}
+
+#[test]
+fn passive_point_left_overlay_does_not_capture_mouse_events() {
+    let renderer = RecordingRenderer::default();
+    let mut clipboard = iced::advanced::clipboard::Null;
+    let mut overlay: Element<'static, TestMessage, Theme, RecordingRenderer> =
+        fixed(70.0, 40.0).into();
+    let mut tree = widget::Tree::new(&overlay);
+    let mut element = PointLeftOverlayElement {
+        anchor: Point::new(100.0, 60.0),
+        viewport: Rectangle::with_size(Size::new(180.0, 120.0)),
+        gap: 8.0,
+        snap_within_viewport: false,
+        overlay: &mut overlay,
+        tree: &mut tree,
+        on_close: None,
+        capture_events: false,
+    };
+    let node = node_at(Rectangle { x: 22.0, y: 40.0, width: 70.0, height: 40.0 });
+    let mut messages = Vec::new();
+    let mut shell = Shell::new(&mut messages);
+
+    overlay::Overlay::update(
+        &mut element,
+        &Event::Mouse(mouse::Event::CursorMoved { position: Point::new(30.0, 50.0) }),
+        Layout::new(&node),
+        mouse::Cursor::Available(Point::new(30.0, 50.0)),
+        &renderer,
+        &mut clipboard,
+        &mut shell,
+    );
+
+    assert!(!shell.is_event_captured());
 }
 
 #[test]
@@ -1072,6 +1111,7 @@ fn point_left_overlay_element_does_not_capture_non_mouse_events() {
         overlay: &mut overlay,
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
+        capture_events: true,
     };
     let node = node_at(Rectangle { x: 22.0, y: 40.0, width: 70.0, height: 40.0 });
     let mut messages = Vec::new();

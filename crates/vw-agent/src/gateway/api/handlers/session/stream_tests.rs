@@ -1,4 +1,5 @@
 use super::*;
+use axum::http::header;
 
 #[test]
 fn tool_content_to_session_text_wraps_plain_output() {
@@ -119,6 +120,27 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
     let mut assistant_model = Some("provider/old".to_string());
     let mut recorder = StreamPatchRecorder::default();
 
+    let context = stream_payload_for_non_done_event(
+        agent_session::processor::StreamEvent::ContextLoaded {
+            paths: vec!["/workspace/AGENTS.md".to_string()],
+        },
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut recorder,
+        "",
+        None,
+        "/unused",
+    )
+    .expect("context payload");
+    assert_eq!(
+        context,
+        serde_json::json!({
+            "type": "chat.context_loaded",
+            "paths": ["/workspace/AGENTS.md"]
+        })
+    );
+
     let delta = stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::Delta("hello".to_string()),
         &mut assistant_text,
@@ -175,6 +197,47 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
     )
     .expect("error payload");
     assert_eq!(error, serde_json::json!({"type": "chat.error", "error": "failed"}));
+}
+
+#[test]
+fn gateway_stream_preserves_existing_tool_payloads() {
+    let mut assistant_text = String::new();
+    let mut finish_reason = None;
+    let mut assistant_model = None;
+    let mut recorder = StreamPatchRecorder::default();
+    let payload = serde_json::json!({
+        "status": "completed",
+        "input": "{\"command\":\"pwd\"}",
+        "output": "/workspace"
+    });
+
+    let event = agent_session::processor::StreamEvent::Tool(
+        agent_session::processor::ToolEvent {
+            call_id: "call-1".to_string(),
+            name: "shell".to_string(),
+            kind: agent_session::processor::ToolEventKind::Complete,
+            status: agent_session::processor::ToolCallStatus::Completed,
+            payload: payload.clone(),
+        },
+    );
+    let stream_payload = stream_payload_for_non_done_event(
+        event,
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut recorder,
+        "",
+        None,
+        "/unused",
+    )
+    .expect("tool payload");
+    let legacy_delta = format!("tool shell\n{payload}\n");
+
+    assert_eq!(
+        stream_payload,
+        serde_json::json!({"type": "chat.delta", "delta": legacy_delta})
+    );
+    assert_eq!(assistant_text, legacy_delta);
 }
 
 #[test]
@@ -476,6 +539,7 @@ fn stream_part_builders_fill_expected_message_boundaries() {
         "prt-patch".to_string(),
         "hash".to_string(),
         vec!["src/main.rs".to_string()],
+        Some((7, 3)),
     );
 
     assert_eq!(base.session_id, "ses-1");
@@ -504,6 +568,8 @@ fn stream_part_builders_fill_expected_message_boundaries() {
             assert_eq!(part.base.id, "prt-patch");
             assert_eq!(part.hash, "hash");
             assert_eq!(part.files, vec!["src/main.rs".to_string()]);
+            assert_eq!(part.additions, Some(7));
+            assert_eq!(part.deletions, Some(3));
         }
         _ => panic!("expected patch part"),
     }
@@ -515,8 +581,14 @@ fn generated_stream_parts_and_preallocated_ids_are_non_empty() {
     let finish =
         new_stream_step_finish_part("ses-1", "msg-a", "snap".to_string()).expect("finish part");
     let patch =
-        new_stream_patch_part("ses-1", "msg-a", "hash".to_string(), vec!["file".to_string()])
-            .expect("patch part");
+        new_stream_patch_part(
+            "ses-1",
+            "msg-a",
+            "hash".to_string(),
+            vec!["file".to_string()],
+            Some((2, 1)),
+        )
+        .expect("patch part");
     let ids = preallocate_stream_turn_message_ids().expect("preallocated ids");
 
     assert!(matches!(start, agent_session::message::Part::StepStart(_)));
@@ -778,6 +850,7 @@ fn stream_patch_recorder_take_parts_drains_recorded_parts() {
         "prt-1".to_string(),
         "hash-1".to_string(),
         vec!["src/lib.rs".to_string()],
+        None,
     );
     let mut recorder = StreamPatchRecorder { active_step: None, parts: vec![part] };
 
@@ -787,6 +860,30 @@ fn stream_patch_recorder_take_parts_drains_recorded_parts() {
     assert_eq!(first.len(), 1);
     assert!(matches!(first.first(), Some(agent_session::message::Part::Patch(_))));
     assert!(second.is_empty());
+}
+
+#[test]
+fn patch_line_stats_accumulate_all_file_diffs() {
+    let diffs = vec![
+        snapshot::FileDiff {
+            file: "src/lib.rs".to_string(),
+            before: String::new(),
+            after: String::new(),
+            additions: 4,
+            deletions: 1,
+            status: Some(snapshot::DiffStatus::Modified),
+        },
+        snapshot::FileDiff {
+            file: "src/main.rs".to_string(),
+            before: String::new(),
+            after: String::new(),
+            additions: 3,
+            deletions: 2,
+            status: Some(snapshot::DiffStatus::Modified),
+        },
+    ];
+
+    assert_eq!(patch_line_stats(&diffs), (7, 3));
 }
 
 #[tokio::test]
@@ -887,13 +984,118 @@ async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message
 }
 
 #[tokio::test]
+async fn stream_processing_elapsed_persists_and_reloads_explicit_request_bounds() {
+    let temp = tempfile::tempdir().expect("temporary workspace");
+    let session_id = format!("ses_stream_timing_{}", uuid::Uuid::new_v4());
+
+    let stored = crate::project::instance::provide(temp.path(), None, move || {
+        Box::pin(async move {
+            let usage = ui_models::TokenUsage {
+                input_tokens: 1,
+                output_tokens: 2,
+                cached_tokens: 0,
+                reasoning_tokens: 0,
+            };
+            let (assistant_id, _) = persist_stream_chat_turn_for_agent(
+                &session_id,
+                "question",
+                "answer",
+                Some("provider/model"),
+                &usage,
+                Some("stop"),
+                None,
+                &[],
+                "gateway",
+                None,
+                Some(agent_session::message::AssistantTime {
+                    created: 1_000,
+                    completed: Some(1_250),
+                    processing_elapsed_ms: Some(200),
+                    llm_elapsed_ms: Some(125),
+                }),
+            )
+            .await
+            .expect("timed stream turn should persist");
+            agent_session::message::get(&session_id, &assistant_id).await
+        })
+    })
+    .await
+    .expect("instance context should be provided")
+    .expect("assistant message should reload");
+
+    let agent_session::message::Info::Assistant(info) = stored.info else {
+        panic!("stored message should be assistant");
+    };
+    assert_eq!(info.time.created, 1_000);
+    assert_eq!(info.time.completed, Some(1_250));
+    assert_eq!(info.time.processing_elapsed_ms, Some(200));
+    assert_eq!(info.time.llm_elapsed_ms, Some(125));
+}
+
+#[tokio::test]
+async fn persist_stream_turn_uses_request_start_for_user_timestamp() {
+    let temp = tempfile::tempdir().expect("temporary workspace");
+    let session_id = format!("ses_stream_user_time_{}", uuid::Uuid::new_v4());
+
+    let stored = crate::project::instance::provide(temp.path(), None, move || {
+        Box::pin(async move {
+            let usage = ui_models::TokenUsage::default();
+            persist_stream_chat_turn_for_agent(
+                &session_id,
+                "question",
+                "answer",
+                Some("provider/model"),
+                &usage,
+                Some("stop"),
+                None,
+                &[],
+                "gateway",
+                None,
+                Some(agent_session::message::AssistantTime {
+                    created: 1_000,
+                    completed: Some(9_000),
+                    processing_elapsed_ms: Some(7_500),
+                    llm_elapsed_ms: Some(500),
+                }),
+            )
+            .await
+            .expect("stream turn should persist");
+            agent_session::message::messages(&session_id, None).await
+        })
+    })
+    .await
+    .expect("instance context should be provided")
+    .expect("persisted messages should load");
+
+    let user = stored
+        .iter()
+        .find(|message| matches!(message.info, agent_session::message::Info::User(_)))
+        .expect("user message should exist");
+    let agent_session::message::Info::User(info) = &user.info else {
+        unreachable!("matched user info");
+    };
+    assert_eq!(info.time.created, 1_000);
+    let agent_session::message::Part::Text(part) = &user.parts[0] else {
+        panic!("user text part should exist");
+    };
+    assert_eq!(part.time.as_ref().map(|time| time.start), Some(1_000));
+    assert_eq!(part.time.as_ref().and_then(|time| time.end), Some(1_000));
+}
+
+#[tokio::test]
 async fn chat_stream_returns_sse_response_for_docs_request() {
     let temp = make_docs_workspace();
     let request = docs_stream_request(None);
+    let request_id = format!("chat-resume-{}", uuid::Uuid::new_v4());
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER,
+        request_id.parse().expect("valid request id header"),
+    );
     let response = chat_stream(
         Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) }),
-        HeaderMap::new(),
-        Json(request),
+        headers,
+        Json(request.clone()),
     )
     .await
     .expect("chat stream response")
@@ -918,4 +1120,32 @@ async fn chat_stream_returns_sse_response_for_docs_request() {
     assert!(body.contains(r#""type":"chat.delta""#));
     assert!(body.contains(r#""type":"chat.done""#));
     assert!(body.contains("docs/guide.md"));
+    let event_ids = body
+        .lines()
+        .filter_map(|line| line.strip_prefix("id:"))
+        .map(str::trim)
+        .map(|id| id.parse::<u64>().expect("numeric SSE id"))
+        .collect::<Vec<_>>();
+    assert_eq!(event_ids, vec![1, 2]);
+
+    let mut resume_headers = HeaderMap::new();
+    resume_headers.insert(
+        crate::app::agent::gateway::api::handlers::resumable_stream::STREAM_REQUEST_ID_HEADER,
+        request_id.parse().expect("valid request id header"),
+    );
+    resume_headers.insert("last-event-id", "1".parse().expect("valid cursor header"));
+    let resumed = chat_stream(
+        Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) }),
+        resume_headers,
+        Json(request),
+    )
+    .await
+    .expect("resumed chat stream response")
+    .into_response();
+    let resumed_body =
+        axum::body::to_bytes(resumed.into_body(), usize::MAX).await.expect("resumed SSE body");
+    let resumed_body = String::from_utf8(resumed_body.to_vec()).expect("utf8 resumed body");
+    assert!(!resumed_body.contains(r#""type":"chat.delta""#));
+    assert!(resumed_body.contains("id: 2") || resumed_body.contains("id:2"));
+    assert!(resumed_body.contains(r#""type":"chat.done""#));
 }

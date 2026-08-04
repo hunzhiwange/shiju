@@ -391,6 +391,15 @@ pub enum GitMessage {
     /// 将所有已暂存的文件、Hunk、行进行 Git 提交。
     CommitSelected,
 
+    /// 暂存当前工作树中的全部变更
+    StageAll,
+
+    /// 暂存全部变更已完成
+    StageAllFinished(Result<(), String>),
+
+    /// 暂存并提交当前工作树中的全部变更
+    CommitAll,
+
     /// 选择提交已完成
     CommitSelectedFinished(Result<(), String>),
 }
@@ -398,6 +407,7 @@ pub enum GitMessage {
 #[derive(Debug, Clone)]
 struct SelectedCommitRequest {
     message: String,
+    stage_all: bool,
     selected_files: Vec<String>,
     selected_hunks: Vec<(String, usize)>,
     selected_lines: Vec<(String, usize)>,
@@ -507,6 +517,9 @@ pub fn update(app: &mut App, message: GitMessage) -> Task<Message> {
         | GitMessage::HoverGitPanelHeaderEnter
         | GitMessage::HoverGitPanelHeaderExit
         | GitMessage::CommitSelected
+        | GitMessage::StageAll
+        | GitMessage::StageAllFinished(_)
+        | GitMessage::CommitAll
         | GitMessage::CommitSelectedFinished(_)) => stage_commit::update(app, message),
     }
 }

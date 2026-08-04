@@ -114,6 +114,13 @@ pub(crate) async fn run_session_processor_comparable_for_cli(
                     let _ = tx.send(delta).await;
                 }
             }
+            legacy_processor::StreamEvent::Tool(event) => {
+                let delta = format!("tool {}\n{}\n", event.name, event.payload);
+                output.push_str(&delta);
+                if let Some(tx) = delta_tx.as_ref() {
+                    let _ = tx.send(delta).await;
+                }
+            }
             legacy_processor::StreamEvent::Done(done_usage) => {
                 return Ok(SessionProcessorComparableResult {
                     output,
@@ -135,7 +142,8 @@ pub(crate) async fn run_session_processor_comparable_for_cli(
                 });
             }
             legacy_processor::StreamEvent::StepStart { .. }
-            | legacy_processor::StreamEvent::PostToolRound { .. } => {}
+            | legacy_processor::StreamEvent::PostToolRound { .. }
+            | legacy_processor::StreamEvent::ContextLoaded { .. } => {}
             legacy_processor::StreamEvent::StepFinish { .. } => {
                 step_finishes = step_finishes.saturating_add(1);
             }
@@ -180,9 +188,13 @@ pub(crate) async fn run_gateway_runtime_for_cli(
                     }
                 }
                 UiRuntimeEvent::StepStart { .. }
+                | UiRuntimeEvent::PlanRunTaskStarted { .. }
+                | UiRuntimeEvent::ContextLoaded { .. }
+                | UiRuntimeEvent::Message(_)
                 | UiRuntimeEvent::TaskStateChanged { .. }
                 | UiRuntimeEvent::SessionMetadataChanged { .. }
                 | UiRuntimeEvent::UsageUpdated { .. }
+                | UiRuntimeEvent::PostToolRound
                 | UiRuntimeEvent::Terminal(_)
                 | UiRuntimeEvent::Unknown { .. } => {}
                 UiRuntimeEvent::StepFinish { .. } => {

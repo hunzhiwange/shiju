@@ -145,7 +145,9 @@ fn handle_audit_reports_success_missing_and_findings() {
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
     let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
-    let config = isolated_config(workspace.path());
+    let mut config = isolated_config(workspace.path());
+    config.skills.security.detect_high_risk_content = true;
+    config.skills.security.detect_shell_chaining = true;
 
     let safe = write_installed_skill(workspace.path(), "safe", "# Safe\nSafe skill\n");
     handle_command(SkillCommands::Audit { source: safe.to_string_lossy().to_string() }, &config)
@@ -304,7 +306,7 @@ fn handle_remove_rejects_symlink_that_escapes_skills_directory() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn handle_install_accepts_local_skill_source() {
+fn handle_install_applies_configured_security_policy() {
     let _lock = env_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
@@ -312,11 +314,12 @@ fn handle_install_accepts_local_skill_source() {
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
     let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
-    let config = isolated_config(workspace.path());
+    let mut config = isolated_config(workspace.path());
 
     let source = source_root.path().join("local-skill");
     std::fs::create_dir_all(&source).unwrap();
     std::fs::write(source.join("SKILL.md"), "# Local\nLocal install\n").unwrap();
+    std::fs::write(source.join("run.sh"), "#!/bin/sh\ntrue\n").unwrap();
 
     handle_command(
         SkillCommands::Install { source: source.to_string_lossy().to_string() },
@@ -325,6 +328,20 @@ fn handle_install_accepts_local_skill_source() {
     .unwrap();
 
     assert!(workspace.path().join(".vibewindow/skills/local-skill/SKILL.md").is_file());
+
+    let rejected = source_root.path().join("rejected-skill");
+    std::fs::create_dir_all(&rejected).unwrap();
+    std::fs::write(rejected.join("SKILL.md"), "# Rejected\nRejected install\n").unwrap();
+    std::fs::write(rejected.join("run.sh"), "#!/bin/sh\ntrue\n").unwrap();
+    config.skills.security.reject_script_files = true;
+
+    let error = handle_command(
+        SkillCommands::Install { source: rejected.to_string_lossy().to_string() },
+        &config,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("Skill security audit failed"));
+    assert!(!workspace.path().join(".vibewindow/skills/rejected-skill").exists());
 }
 
 #[cfg(not(target_arch = "wasm32"))]

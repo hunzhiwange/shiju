@@ -138,7 +138,11 @@ pub async fn run(config: Config) -> Result<()> {
     let poll_secs = config.reliability.scheduler_poll_secs.max(MIN_POLL_SECONDS);
     let mut interval = time::interval(Duration::from_secs(poll_secs));
     interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
-    let security = Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+    let security = Arc::new(SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        &config.workspace_dir,
+    ));
 
     crate::app::agent::health::mark_component_ok(SCHEDULER_COMPONENT);
 
@@ -203,7 +207,8 @@ pub async fn run(config: Config) -> Result<()> {
 /// - 会进行完整的安全策略检查
 /// - 不会自动更新任务的下一次执行时间
 pub async fn execute_job_now(config: &Config, job: &CronJob) -> (bool, String) {
-    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+    let security =
+        SecurityPolicy::from_configs(&config.autonomy, &config.security, &config.workspace_dir);
     execute_job_with_retry(config, &security, job).await
 }
 
@@ -240,7 +245,11 @@ async fn execute_job_with_retry(
     let run_config = effective_job_config(config, job);
     let run_security;
     let security = if run_config.workspace_dir != config.workspace_dir {
-        run_security = SecurityPolicy::from_config(&run_config.autonomy, &run_config.workspace_dir);
+        run_security = SecurityPolicy::from_configs(
+            &run_config.autonomy,
+            &run_config.security,
+            &run_config.workspace_dir,
+        );
         &run_security
     } else {
         security

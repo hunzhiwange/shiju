@@ -255,6 +255,62 @@ fn enter_bindings_cover_enter_newline_and_carriage_return() {
     );
 }
 
+#[test]
+fn new_hidden_terminal_state_does_not_spawn_pty_tabs() {
+    let state = super::TerminalState::new(
+        false,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        None,
+    );
+
+    assert!(!state.is_visible);
+    assert!(state.tabs.is_empty());
+    assert_eq!(state.active_id, None);
+    assert_eq!(state.next_id, 1);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn ensure_default_terminal_creates_first_tab_once() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = super::TerminalState::new(
+        false,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        None,
+    );
+
+    assert!(state.ensure_default_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 1);
+    assert_eq!(state.active_id, Some(1));
+    assert!(!state.ensure_default_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 1);
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn new_visible_terminal_state_lazily_spawns_default_tab() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let state = super::TerminalState::new(
+        true,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+
+    assert!(state.is_visible);
+    assert_eq!(state.tabs.len(), 1);
+    assert_eq!(state.active_id, Some(1));
+    assert_eq!(state.tabs[0].title, "终端 1");
+}
+
 #[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn terminal_state_with_backend_manages_tabs_renames_and_display_updates() {
@@ -308,6 +364,53 @@ fn terminal_state_with_backend_manages_tabs_renames_and_display_updates() {
     state.close_terminal(2);
     assert_eq!(state.active_id, None);
     assert!(state.tabs.is_empty());
+    assert!(state.has_retired());
+    state.reap_retired();
+    assert!(!state.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn terminal_input_stays_responsive_when_backend_event_queue_is_full() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let settings = iced_term::settings::Settings {
+        backend: iced_term::settings::BackendSettings {
+            program: "/bin/sh".to_string(),
+            args: vec![
+                "-c".to_string(),
+                concat!(
+                    "i=0; ",
+                    "while [ \"$i\" -lt 256 ]; do ",
+                    "printf '\\033]0;%s\\007' \"$i\"; ",
+                    "i=$((i + 1)); ",
+                    "done; ",
+                    "sleep 5"
+                )
+                .to_string(),
+            ],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let terminal = iced_term::Terminal::new(9_999, settings).expect("terminal");
+
+    std::thread::sleep(Duration::from_millis(500));
+
+    let (finished_tx, finished_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut terminal = terminal;
+        let _ = terminal.handle(iced_term::Command::ProxyToBackend(
+            iced_term::BackendCommand::Write(b"x".to_vec()),
+        ));
+        let _ = finished_tx.send(());
+    });
+
+    assert!(
+        finished_rx.recv_timeout(Duration::from_secs(1)).is_ok(),
+        "terminal input blocked after the backend event queue filled"
+    );
 }
 
 #[cfg(all(unix, not(target_arch = "wasm32")))]
@@ -384,3 +487,62 @@ fn spawn_pty_terminal_collects_shell_output_for_selected_cwd() {
 
     assert!(output.contains(tmp.path().to_string_lossy().as_ref()), "{output}");
 }
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn close_terminal_defers_drop_until_reap_to_avoid_iced_term_channel_panic() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut state = super::TerminalState::new(
+        true,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+    assert!(state.add_terminal(Some(tmp.path().to_path_buf())));
+    assert_eq!(state.tabs.len(), 2);
+
+    // Keep a live subscription stream (same as App::subscription) while closing.
+    let subscription = state.tabs[0].term.subscription();
+    let closed_id = state.tabs[0].id;
+    assert!(state.close_terminal(closed_id));
+    assert!(state.has_retired());
+    assert!(state.tabs.iter().all(|tab| tab.id != closed_id));
+
+    // Dropping the subscription future first mirrors iced cancelling recipes on
+    // rebuild; only then is it safe to drop the retired Terminal.
+    drop(subscription);
+    state.reap_retired();
+    assert!(!state.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn absorb_replaced_defers_live_tabs_from_previous_terminal_state() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let old = super::TerminalState::new(
+        true,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        Some(tmp.path().to_path_buf()),
+    );
+    assert!(!old.tabs.is_empty());
+
+    let mut next = super::TerminalState::blank_with_settings(
+        false,
+        super::Shell::Bash,
+        super::TerminalTheme::System,
+        "JetBrains Mono".to_string(),
+        13.0,
+        200.0,
+    );
+    next.absorb_replaced(old);
+    assert!(next.tabs.is_empty());
+    assert!(next.has_retired());
+    next.reap_retired();
+    assert!(!next.has_retired());
+}
+

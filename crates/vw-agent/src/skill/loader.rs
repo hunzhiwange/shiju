@@ -28,6 +28,7 @@ use crate::app::agent::skill::types::{
 use anyhow::Result;
 use std::io::BufRead;
 use std::path::Path;
+use vw_config_types::skills::SkillSecurityConfig;
 
 /// 从工作区技能目录加载所有技能
 ///
@@ -137,6 +138,7 @@ fn load_skills_with_open_skills_config(
     config_open_skills_dir: Option<&str>,
     load_mode: SkillLoadMode,
 ) -> Vec<Skill> {
+    let security = SkillSecurityConfig::default();
     // 初始化技能列表
     let mut skills = Vec::new();
 
@@ -144,11 +146,11 @@ fn load_skills_with_open_skills_config(
     if let Some(open_skills_dir) =
         ensure_open_skills_repo(config_open_skills_enabled, config_open_skills_dir)
     {
-        skills.extend(load_open_skills(&open_skills_dir, load_mode));
+        skills.extend(load_open_skills(&open_skills_dir, load_mode, &security));
     }
 
     // 加载工作区技能
-    skills.extend(load_workspace_skills(workspace_dir, load_mode));
+    skills.extend(load_workspace_skills(workspace_dir, load_mode, &security));
     skills
 }
 
@@ -164,10 +166,14 @@ fn load_skills_with_open_skills_config(
 /// # 返回值
 ///
 /// 返回工作区中成功加载的技能列表。
-fn load_workspace_skills(workspace_dir: &Path, load_mode: SkillLoadMode) -> Vec<Skill> {
+fn load_workspace_skills(
+    workspace_dir: &Path,
+    load_mode: SkillLoadMode,
+    security: &SkillSecurityConfig,
+) -> Vec<Skill> {
     // 构建技能目录路径：<workspace>/skills/
     let skills_dir = workspace_dir.join("skills");
-    load_skills_from_directory(&skills_dir, load_mode)
+    load_skills_from_directory(&skills_dir, load_mode, security)
 }
 
 /// 从指定目录加载所有技能
@@ -188,7 +194,11 @@ fn load_workspace_skills(workspace_dir: &Path, load_mode: SkillLoadMode) -> Vec<
 ///
 /// 1. `SKILL.toml`（优先）
 /// 2. `SKILL.md`（备用）
-fn load_skills_from_directory(skills_dir: &Path, load_mode: SkillLoadMode) -> Vec<Skill> {
+fn load_skills_from_directory(
+    skills_dir: &Path,
+    load_mode: SkillLoadMode,
+    security: &SkillSecurityConfig,
+) -> Vec<Skill> {
     // 如果技能目录不存在，直接返回空列表
     if !skills_dir.exists() {
         return Vec::new();
@@ -210,7 +220,7 @@ fn load_skills_from_directory(skills_dir: &Path, load_mode: SkillLoadMode) -> Ve
         }
 
         // 对技能目录进行安全审计
-        match audit::audit_skill_directory(&path) {
+        match audit::audit_skill_directory_with_security(&path, security) {
             // 审计通过（干净）则继续加载
             Ok(report) if report.is_clean() => {}
             // 审计发现安全问题，跳过该技能
@@ -269,12 +279,16 @@ fn load_skills_from_directory(skills_dir: &Path, load_mode: SkillLoadMode) -> Ve
 /// - 跳过非 Markdown 文件
 /// - 跳过 `README.md` 文件
 /// - 跳过未通过安全审计的文件
-fn load_open_skills(repo_dir: &Path, load_mode: SkillLoadMode) -> Vec<Skill> {
+fn load_open_skills(
+    repo_dir: &Path,
+    load_mode: SkillLoadMode,
+    security: &SkillSecurityConfig,
+) -> Vec<Skill> {
     // 现代开放技能布局将技能包存储在 `skills/<name>/SKILL.md`
     // 优先使用这种结构，避免将仓库文档（如 CONTRIBUTING.md）误认为可执行技能
     let nested_skills_dir = repo_dir.join("skills");
     if nested_skills_dir.is_dir() {
-        return load_skills_from_directory(&nested_skills_dir, load_mode);
+        return load_skills_from_directory(&nested_skills_dir, load_mode, security);
     }
 
     // 回退到传统布局：扫描根目录下的 Markdown 文件
@@ -310,7 +324,7 @@ fn load_open_skills(repo_dir: &Path, load_mode: SkillLoadMode) -> Vec<Skill> {
         }
 
         // 对 Markdown 文件进行安全审计
-        match audit::audit_open_skill_markdown(&path, repo_dir) {
+        match audit::audit_open_skill_markdown_with_security(&path, repo_dir, security) {
             // 审计通过则继续加载
             Ok(report) if report.is_clean() => {}
             // 审计发现安全问题，跳过该文件

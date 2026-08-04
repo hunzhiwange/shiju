@@ -89,7 +89,8 @@ use std::borrow::Cow;
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
-use crate::app::{App, Message, TodoPanelPlacement, message};
+use crate::app::theme_catalog::with_panel_background;
+use crate::app::{App, Message, TodoPanelPlacement, message, state::QuickMessageHandoffState};
 
 use self::empty::{empty_session_placeholder, session_loading_placeholder};
 use self::global_status::chat_global_status_view;
@@ -104,6 +105,10 @@ use self::virtualizer::ChatVirtualizer;
 
 static FALLBACK_RENDER_CACHE_ENTRY: Lazy<ChatRenderCacheEntry> =
     Lazy::new(ChatRenderCacheEntry::default);
+
+fn chat_message_column<'a>() -> iced::widget::Column<'a, Message> {
+    column![].spacing(CHAT_MESSAGE_GAP).width(Length::Fill)
+}
 
 #[cfg(test)]
 pub(crate) fn compute_visible_message_window_for_chat(
@@ -126,6 +131,22 @@ pub(crate) fn compute_visible_message_window_for_chat(
 
 pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {
     app.chat_virtualizer.window()
+}
+
+pub(crate) fn is_waiting_for_quick_message_session(app: &App) -> bool {
+    matches!(app.quick_message_handoff, Some(QuickMessageHandoffState::WaitingForSession { .. }))
+}
+
+fn session_loading_panel(app: &App) -> Element<'_, Message> {
+    column![
+        stack![session_loading_placeholder(app), empty_fullscreen_controls(app)]
+            .width(Length::Fill)
+            .height(Length::Fill),
+        chat_global_status_view(app)
+    ]
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 #[allow(dead_code)]
@@ -172,11 +193,12 @@ pub(crate) fn user_question_preview(content: &str) -> String {
 
 pub(crate) fn live_message_meta_fallback(
     role: ChatRole,
-    _is_requesting: bool,
-    _is_last: bool,
+    is_requesting: bool,
+    is_last: bool,
     model: &str,
 ) -> Option<String> {
-    matches!(role, ChatRole::Assistant | ChatRole::User).then(|| format!("{model} · 刚刚"))
+    (is_requesting && is_last && matches!(role, ChatRole::Assistant | ChatRole::User))
+        .then(|| format!("{model} · 刚刚"))
 }
 
 fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
@@ -238,6 +260,12 @@ fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
 /// let main_view = container(chat_panel);
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
+    // 摘要完成后的正文可能包含超长行。创建新会话期间不再重排旧会话正文，
+    // 避免 cosmic-text 在异步会话切换窗口中计算出溢出的字形坐标。
+    if is_waiting_for_quick_message_session(app) {
+        return session_loading_panel(app);
+    }
+
     let window = chat_panel_virtual_window(app);
     let start_idx = window.render_start_idx;
     let end_idx = window.render_end_idx;
@@ -250,7 +278,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let user_question_idxs = user_question_indices(&app.chat);
 
     // 构建消息列，每条消息之间间隔 18px
-    let mut col = column![].spacing(CHAT_MESSAGE_GAP).max_width(1180);
+    let mut col = chat_message_column();
 
     if top_spacer_h > 0.0 {
         col = col.push(Space::new().height(Length::Fixed(top_spacer_h)));
@@ -290,6 +318,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             m.role,
             &m.content,
             &m.think_timing,
+            m.processing_timing.as_ref(),
             message_meta,
             render_cache,
             enable_heavy_tool_content,
@@ -339,21 +368,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let body_base = stack![scroll_content, question_jump_button, jump_button, todo_overlay]
             .width(Length::Fill)
             .height(Length::Fill);
-        let panel_base = column![header, body_base, chat_global_status_view(app)]
+        let body_bg =
+            app.active_theme_skin.as_ref().and_then(|skin| skin.chat_body_path.as_deref());
+        let fit = app
+            .active_theme_skin
+            .as_ref()
+            .map(|skin| {
+                crate::app::theme_catalog::PanelImageFit::parse(
+                    skin.chrome.chat_body_image_fit.as_deref(),
+                )
+                .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        let body = with_panel_background(body_base.into(), body_bg, fit);
+        let panel_base = column![header, body, chat_global_status_view(app)]
             .spacing(6)
             .width(Length::Fill)
             .height(Length::Fill);
         panel_base.into()
     } else if is_loading_session_ui {
-        column![
-            stack![session_loading_placeholder(app), empty_fullscreen_controls(app)]
-                .width(Length::Fill)
-                .height(Length::Fill),
-            chat_global_status_view(app)
-        ]
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+        session_loading_panel(app)
     } else {
         column![
             stack![empty_session_placeholder(app), empty_fullscreen_controls(app)]
@@ -408,23 +442,22 @@ pub(crate) fn rough_message_heights(chat: &[ChatMessage]) -> Vec<f32> {
 
 fn empty_fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
     let fullscreen_icon =
-        if app.chat_panel_fullscreen { Icon::FullscreenExit } else { Icon::Fullscreen };
-    let fullscreen_label = if app.chat_panel_fullscreen { "退出全屏" } else { "全屏" };
+        if app.is_chat_fullscreen() { Icon::FullscreenExit } else { Icon::Fullscreen };
+    let fullscreen_label = if app.is_chat_fullscreen() { "退出全屏" } else { "全屏" };
 
-    let controls = row![
-        header::header_icon_button(
+    let mut controls = row![].spacing(6).align_y(iced::Alignment::Center);
+    if header::show_half_fullscreen_control(app.workspace_mode) {
+        controls = controls.push(header::header_icon_button(
             Icon::LayoutTextWindow,
-            "半屏",
+            if app.is_chat_half_fullscreen() { "退出半屏" } else { "半屏" },
             Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
-        ),
-        header::header_icon_button(
-            fullscreen_icon,
-            fullscreen_label,
-            Message::Chat(message::ChatMessage::ToggleFullscreen),
-        )
-    ]
-    .spacing(6)
-    .align_y(iced::Alignment::Center);
+        ));
+    }
+    let controls = controls.push(header::header_icon_button(
+        fullscreen_icon,
+        fullscreen_label,
+        Message::Chat(message::ChatMessage::ToggleFullscreen),
+    ));
 
     container(controls)
         .width(Length::Fill)

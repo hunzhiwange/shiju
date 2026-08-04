@@ -148,11 +148,12 @@ fn detect_agent_token_records_agent_override_without_dynamic_command() {
 #[test]
 fn resolve_dynamic_agent_command_ignores_top_level_verbs() {
     let verbs = HashSet::from(["status".to_string()]);
+    let agents = vec!["codex".to_string()];
 
     assert_eq!(
         resolve_dynamic_agent_command(
             &AgentTokenScan { token: Some("my-agent".to_string()), has_agent_override: false },
-            &[],
+            &agents,
             &verbs,
         ),
         Some("my-agent".to_string())
@@ -161,6 +162,14 @@ fn resolve_dynamic_agent_command_ignores_top_level_verbs() {
         resolve_dynamic_agent_command(
             &AgentTokenScan { token: Some("status".to_string()), has_agent_override: false },
             &[],
+            &verbs,
+        ),
+        None
+    );
+    assert_eq!(
+        resolve_dynamic_agent_command(
+            &AgentTokenScan { token: Some("codex".to_string()), has_agent_override: false },
+            &agents,
             &verbs,
         ),
         None

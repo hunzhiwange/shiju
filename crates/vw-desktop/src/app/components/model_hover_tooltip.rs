@@ -2,12 +2,12 @@
 //!
 //! 本模块将模型或文本触发区与悬浮提示内容绑定，供模型选择控件展示补充说明。
 
-use iced::widget::{MouseArea, column, container, text};
+use iced::widget::{MouseArea, Space, column, container, text};
 /// 重新导出 use iced::{Color, Element, Length, Point, Theme}，让上层模块通过稳定路径访问。
 use iced::{Color, Element, Length, Point, Theme};
 
-/// 重新导出 use crate::app::components::overlays::{PointLeftOverlay, SideOverlay}，让上层模块通过稳定路径访问。
-use crate::app::components::overlays::{PointLeftOverlay, SideOverlay};
+/// 重新导出模型提示使用的指针左侧浮层。
+use crate::app::components::overlays::PointLeftOverlay;
 /// 重新导出 use crate::app::state::ModelPopoverHover，让上层模块通过稳定路径访问。
 use crate::app::state::ModelPopoverHover;
 /// 重新导出 use crate::app::{App, Message}，让上层模块通过稳定路径访问。
@@ -137,24 +137,21 @@ pub fn hover_tooltip_overlay<'a>(
     tooltip_style: fn(&Theme) -> iced::widget::container::Style,
 ) -> Element<'a, Message> {
     let content = content.into();
+    let anchor = hover_anchor(&app.model_popover_hover);
     let tooltip = build_hover_tip(app, tooltip_style);
+    let show = tooltip.is_some() && anchor.is_some();
+    let tooltip = tooltip.unwrap_or_else(|| Space::new().into());
+    let anchor = anchor.unwrap_or(HoverAnchor { x: 0.0, y: 0.0 });
 
-    let Some(tooltip) = tooltip else {
-        return content;
-    };
-
-    match hover_anchor(&app.model_popover_hover) {
-        Some(anchor) => PointLeftOverlay::new(content, tooltip)
-            .show(true)
-            .anchor(Point::new(anchor.x, anchor.y))
-            .gap(12.0)
-            .snap_within_viewport(true)
-            .into(),
-        None => {
-            // SideOverlay 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            SideOverlay::new(content, tooltip).show(true).gap(8.0).snap_within_viewport(true).into()
-        }
-    }
+    // 始终保留同一种根组件，只切换浮层可见性。若根据 hover 状态替换根组件，
+    // Iced 会重建其下的模型列表，导致滚动状态在 tooltip 更新时回到顶部。
+    PointLeftOverlay::new(content, tooltip)
+        .show(show)
+        .anchor(Point::new(anchor.x, anchor.y))
+        .gap(12.0)
+        .snap_within_viewport(true)
+        .capture_events(false)
+        .into()
 }
 
 /// 处理 hover anchor 对应的局部职责。

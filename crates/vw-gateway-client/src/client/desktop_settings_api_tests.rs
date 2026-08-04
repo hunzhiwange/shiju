@@ -207,6 +207,48 @@ async fn skills_get_trims_project_path_and_omits_blank_values() {
     server.join();
 }
 
+#[test]
+fn installed_skills_preserve_market_source_metadata() {
+    let old: super::DesktopSkillCatalogEntryDto = serde_json::from_value(json!({
+        "id": "local-skill",
+        "title": "Local",
+        "description": "Local skill",
+        "kind": "personal",
+        "resource_count": 0,
+        "installed": true,
+        "enabled": true,
+        "source": "workspace",
+        "source_path": "/repo/.vibewindow/skills/local-skill"
+    }))
+    .expect("old catalog payload remains compatible");
+    assert_eq!(old.origin, None);
+    assert_eq!(old.namespace, None);
+    assert_eq!(old.package_type, None);
+    assert_eq!(old.source_pack, None);
+
+    let market: super::DesktopSkillCatalogEntryDto = serde_json::from_value(json!({
+        "id": "skillhub--public--safe-skill",
+        "title": "Safe Skill",
+        "description": "Installed from market",
+        "kind": "personal",
+        "resource_count": 1,
+        "installed": true,
+        "enabled": true,
+        "source": "skillhub",
+        "source_path": "/repo/.vibewindow/skills/skillhub--public--safe-skill",
+        "origin": "workspace",
+        "namespace": "public",
+        "package_type": "skill",
+        "source_pack": "safe-suite"
+    }))
+    .expect("market catalog payload");
+    assert_eq!(market.source, "skillhub");
+    assert_eq!(market.origin.as_deref(), Some("workspace"));
+    assert_eq!(market.namespace.as_deref(), Some("public"));
+    assert_eq!(market.package_type.as_deref(), Some("skill"));
+    assert_eq!(market.source_pack.as_deref(), Some("safe-suite"));
+}
+
 #[tokio::test]
 async fn external_apps_parser_filters_invalid_entries_and_defaults_fields() {
     let server = test_support::server(vec![
@@ -274,6 +316,22 @@ async fn desktop_values_normalize_commands_and_default_invalid_fields() {
     assert_eq!(
         server.take_request().path,
         "/v1/desktop/project-preferences?project_path=%2Fdefaults"
+    );
+    server.join();
+}
+
+#[tokio::test]
+async fn desktop_project_preferences_get_treats_404_as_missing_preferences() {
+    let server =
+        test_support::server(vec![(404, json!({"error": "project preferences not found"}))]);
+
+    let preferences =
+        server.client().desktop_project_preferences_get("/missing").await.expect("missing prefs");
+
+    assert_eq!(preferences, None);
+    assert_eq!(
+        server.take_request().path,
+        "/v1/desktop/project-preferences?project_path=%2Fmissing"
     );
     server.join();
 }
@@ -436,7 +494,7 @@ async fn desktop_settings_api_routes_plugins() {
         "description": "Shown in settings",
         "enabled": true,
         "source_path": "/tmp/demo-plugin",
-        "manifest_path": "/tmp/demo-plugin/.codex-plugin/plugin.json",
+        "manifest_path": "/tmp/demo-plugin/.vibewindow-plugin/plugin.json",
         "capabilities": {
             "skills": 1,
             "mcp_servers": 1,

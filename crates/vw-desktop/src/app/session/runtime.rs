@@ -45,19 +45,11 @@ impl App {
     }
 
     fn default_session_model(&self) -> String {
-        self.active_session_id
-            .as_ref()
-            .and_then(|id| self.session_runtime_states.get(id))
-            .map(|s| s.model.clone())
-            .unwrap_or_else(|| self.model.clone())
+        self.model.clone()
     }
 
     fn default_session_auto_model(&self) -> bool {
-        self.active_session_id
-            .as_ref()
-            .and_then(|id| self.session_runtime_states.get(id))
-            .map(|s| s.auto_model)
-            .unwrap_or(self.auto_model)
+        self.auto_model
     }
 
     /// 执行 get_session_runtime 对应的领域操作。
@@ -275,12 +267,73 @@ impl App {
             return;
         };
         let runtime = self.get_session_runtime(&session_id);
-        self.model = runtime.model;
-        self.auto_model = runtime.auto_model;
         self.reasoning_effort = runtime.reasoning_effort;
         self.acp_agent = runtime.acp_agent;
         self.acp_history_mode = runtime.acp_history_mode;
         self.acp_recent_count = runtime.acp_recent_count;
+    }
+
+    /// 首次打开历史会话时，以全局最后选择占位并等待恢复会话自己的模型。
+    pub(crate) fn prepare_historical_session_model(&mut self, session_id: &str) {
+        if self.session_runtime_states.contains_key(session_id) {
+            return;
+        }
+
+        let runtime = self.get_session_runtime_mut(session_id);
+        runtime.restore_model_from_history = true;
+    }
+
+    /// 用最后一个有模型记录的历史步骤初始化会话模型。
+    pub(crate) fn restore_session_model_from_steps(
+        &mut self,
+        session_id: &str,
+        steps: &[crate::app::models::ChatSessionStep],
+    ) -> bool {
+        let Some(model) = steps
+            .iter()
+            .filter_map(|step| {
+                let model = step.model.as_deref()?.trim();
+                (!model.is_empty()).then_some((step.index, model))
+            })
+            .max_by_key(|(index, _)| *index)
+            .map(|(_, model)| model.to_string())
+        else {
+            return false;
+        };
+
+        self.restore_session_model_from_history(session_id, &model)
+    }
+
+    /// 用历史记录中的模型初始化等待恢复的会话。
+    pub(crate) fn restore_session_model_from_history(
+        &mut self,
+        session_id: &str,
+        model: &str,
+    ) -> bool {
+        let model = model.trim();
+        if model.is_empty() {
+            return false;
+        }
+
+        let Some(runtime) = self.session_runtime_states.get_mut(session_id) else {
+            return false;
+        };
+        if !runtime.restore_model_from_history {
+            return false;
+        }
+
+        runtime.model = model.to_string();
+        runtime.auto_model = false;
+        runtime.task_mode_model = runtime.model.clone();
+        runtime.restore_model_from_history = false;
+        true
+    }
+
+    /// 用户显式选择模型后，历史加载结果不得再覆盖该选择。
+    pub(crate) fn cancel_session_model_history_restore(&mut self, session_id: &str) {
+        if let Some(runtime) = self.session_runtime_states.get_mut(session_id) {
+            runtime.restore_model_from_history = false;
+        }
     }
 
     /// 执行 mark_session_acp_rebuild_required 对应的领域操作。

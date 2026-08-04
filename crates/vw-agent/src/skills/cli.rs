@@ -156,7 +156,11 @@ pub fn handle_command(
             }
 
             // 执行技能安全审计
-            let report = crate::app::agent::skills::audit::audit_skill_directory(&target)?;
+            let report =
+                crate::app::agent::skills::audit::audit_skill_directory_with_security(
+                    &target,
+                    &config.skills.security,
+                )?;
 
             // 如果审计通过（无安全问题），显示成功信息
             if report.is_clean() {
@@ -193,7 +197,8 @@ pub fn handle_command(
             })?;
 
             // 执行技能安装，支持多种来源（本地、Git、skills.sh）
-            let install_result = install_skill_from_source(&source, &skills_path)?;
+            let install_result =
+                install_skill_from_source(&source, &skills_path, &config.skills.security)?;
 
             print_install_success(install_result);
 

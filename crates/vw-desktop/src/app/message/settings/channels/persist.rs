@@ -28,7 +28,7 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     if settings.imessage.is_some() {
         channels.push("iMessage");
     }
-    if settings.matrix.is_some() || !settings.matrix_instances.is_empty() {
+    if settings.matrix_enabled {
         channels.push("Matrix");
     }
     if settings.signal.is_some() {
@@ -91,6 +91,7 @@ pub(super) fn build_channels_config_from_settings(
         webhook: settings.webhook.clone(),
         imessage: settings.imessage.clone(),
         matrix: settings.matrix.clone(),
+        matrix_enabled: settings.matrix_enabled,
         matrix_instances: settings.matrix_instances.clone(),
         signal: settings.signal.clone(),
         whatsapp: settings.whatsapp.clone(),

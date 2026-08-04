@@ -56,7 +56,12 @@ fn assistant_message(id: &str, parent_id: &str) -> message::WithParts {
         info: message::Info::Assistant(Box::new(message::AssistantInfo {
             id: id.to_string(),
             session_id: "ses_1".to_string(),
-            time: message::AssistantTime { created: 1, completed: None },
+            time: message::AssistantTime {
+                created: 1,
+                completed: None,
+                processing_elapsed_ms: None,
+                llm_elapsed_ms: None,
+            },
             error: None,
             parent_id: parent_id.to_string(),
             model_id: String::new(),
@@ -148,6 +153,8 @@ fn file_diffs_from_patch_parts_counts_unique_files() {
                 },
                 hash: "tree_1".to_string(),
                 files: vec!["src/main.rs".to_string(), "src/lib.rs".to_string()],
+                additions: None,
+                deletions: None,
             }),
             message::Part::Patch(message::PatchPart {
                 base: message::PartBase {
@@ -157,6 +164,8 @@ fn file_diffs_from_patch_parts_counts_unique_files() {
                 },
                 hash: "tree_2".to_string(),
                 files: vec!["src/main.rs".to_string()],
+                additions: None,
+                deletions: None,
             }),
         ],
     }];
@@ -208,6 +217,8 @@ fn file_diffs_from_message_summaries_sums_changed_files() {
                 },
                 hash: "tree_1".to_string(),
                 files: vec!["src/main.rs".to_string(), "src/new.rs".to_string()],
+                additions: None,
+                deletions: None,
             })],
         ),
     ];
@@ -262,6 +273,56 @@ fn summary_from_empty_diffs_returns_zero_totals() {
     assert_eq!(summary.deletions, 0);
     assert_eq!(summary.files, 0);
     assert!(summary.diffs.is_none());
+}
+
+#[test]
+fn summary_from_persisted_patch_stats_accumulates_all_rounds_and_unique_files() {
+    let mut first = assistant_message("msg_2", "msg_1");
+    first.parts = vec![message::Part::Patch(message::PatchPart {
+        base: part_base("prt_1", "msg_2"),
+        hash: "tree_1".to_string(),
+        files: vec!["src/main.rs".to_string(), "src/lib.rs".to_string()],
+        additions: Some(5),
+        deletions: Some(2),
+    })];
+    let mut second = assistant_message("msg_4", "msg_3");
+    second.parts = vec![message::Part::Patch(message::PatchPart {
+        base: part_base("prt_2", "msg_4"),
+        hash: "tree_2".to_string(),
+        files: vec!["src/main.rs".to_string()],
+        additions: Some(3),
+        deletions: Some(4),
+    })];
+
+    let summary =
+        summary_from_persisted_patch_stats(&[first, second]).expect("persisted patch stats");
+
+    assert_eq!(summary.additions, 8);
+    assert_eq!(summary.deletions, 6);
+    assert_eq!(summary.files, 2);
+    assert!(summary.diffs.is_none());
+}
+
+#[test]
+fn summary_from_persisted_patch_stats_ignores_legacy_or_incomplete_stats() {
+    let mut legacy = assistant_message("msg_2", "msg_1");
+    legacy.parts = vec![message::Part::Patch(message::PatchPart {
+        base: part_base("prt_1", "msg_2"),
+        hash: "tree_1".to_string(),
+        files: vec!["src/main.rs".to_string()],
+        additions: None,
+        deletions: None,
+    })];
+    let mut incomplete = assistant_message("msg_4", "msg_3");
+    incomplete.parts = vec![message::Part::Patch(message::PatchPart {
+        base: part_base("prt_2", "msg_4"),
+        hash: "tree_2".to_string(),
+        files: vec!["src/lib.rs".to_string()],
+        additions: Some(9),
+        deletions: None,
+    })];
+
+    assert!(summary_from_persisted_patch_stats(&[legacy, incomplete]).is_none());
 }
 
 #[test]
@@ -395,6 +456,8 @@ fn compute_diff_uses_message_summary_and_patch_fallback_without_snapshots() {
             },
             hash: "tree_1".to_string(),
             files: vec!["src/main.rs".to_string(), "src/extra.rs".to_string()],
+            additions: None,
+            deletions: None,
         })],
     )];
 

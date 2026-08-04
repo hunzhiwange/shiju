@@ -204,6 +204,36 @@ pub(super) fn menu_button_style(
     }
 }
 
+/// 根据弹层状态生成代码/工作模式按钮样式。
+pub(super) fn workspace_mode_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    open: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        iced::widget::button::Status::Hovered => {
+            palette.background.strong.color.scale_alpha(0.72)
+        }
+        iced::widget::button::Status::Pressed => {
+            palette.background.strong.color.scale_alpha(0.88)
+        }
+        _ if open => palette.background.strong.color.scale_alpha(0.68),
+        _ => palette.background.weak.color.scale_alpha(0.72),
+    };
+
+    iced::widget::button::Style {
+        background: Some(background.into()),
+        text_color: theme.palette().text,
+        border: iced::Border {
+            width: 1.0,
+            color: palette.background.strong.color.scale_alpha(0.72),
+            radius: 7.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
 /// 构建或处理 `menu_btn` 对应的界面片段与交互数据。
 ///
 /// # 参数

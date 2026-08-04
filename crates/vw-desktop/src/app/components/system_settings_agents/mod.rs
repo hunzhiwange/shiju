@@ -35,7 +35,8 @@ use self::shared::{
 };
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_text_input_style, settings_value_badge,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
@@ -44,11 +45,22 @@ use crate::app::state::{
 };
 use crate::app::{App, Message};
 use iced::widget::{
-    button, column, container, row, scrollable,
+    button, column, container, pick_list, row, scrollable,
     scrollable::{Direction, Scrollbar},
     text, text_input,
 };
 use iced::{Alignment, Element, Length, Theme};
+
+pub(super) fn agent_project_options(app: &App) -> Vec<String> {
+    let mut options = Vec::new();
+    for path in app.project_path.iter().chain(app.recent_projects.iter()) {
+        let path = path.trim();
+        if !path.is_empty() && !options.iter().any(|option: &String| option.as_str() == path) {
+            options.push(path.to_string());
+        }
+    }
+    options
+}
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
@@ -134,8 +146,33 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let title = settings_page_intro(
         "委托代理配置",
-        "集中管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件与工具白名单。",
+        "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
     );
+    let project_options = agent_project_options(app);
+    let selected_project = settings.project_path.clone().or_else(|| app.project_path.clone());
+    let project_switcher: Element<'_, Message> = if project_options.is_empty() {
+        text("尚未打开项目；当前编辑全局委托代理配置。")
+            .size(12)
+            .style(settings_muted_text_style)
+            .into()
+    } else {
+        row![
+            text("项目目录").size(13).width(Length::Fixed(84.0)),
+            pick_list(project_options, selected_project, |path| {
+                Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectSelected(path)))
+            })
+            .placeholder("选择项目目录")
+            .padding([9, 12])
+            .text_size(12)
+            .width(Length::Fill)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style),
+            settings_value_badge(if settings.loading { "切换中" } else { "项目独立保存" }),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .into()
+    };
     let add_agent_bar = row![
         text_input("新增智能体 key", &settings.new_agent_key_input)
             .on_input(|value| {
@@ -178,9 +215,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         title,
         section_card(
-            "Agent 工作台",
-            "左侧选择 Agent，右侧集中编辑基础参数、身份文件、工具与技能能力。",
+            "项目配置作用域",
+            "切换项目会恢复该项目的委托代理配置；修改写入项目 .vibewindow.json。",
         ),
+        project_switcher,
         row![
             container(
                 column![

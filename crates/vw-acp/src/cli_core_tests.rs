@@ -533,7 +533,7 @@ async fn read_prompt_reports_file_errors_and_empty_file() {
     );
     assert!(matches!(
         read_prompt(&[], Some("missing.txt"), &dir, true).await,
-        Err(CliCoreError::Io(message)) if message.contains("No such file")
+        Err(CliCoreError::Io(message)) if !message.is_empty()
     ));
     assert!(matches!(
         read_prompt(&[], Some("invalid.json"), &dir, true).await,

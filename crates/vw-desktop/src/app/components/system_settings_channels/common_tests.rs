@@ -96,6 +96,7 @@ fn configure_all_direct_channels(app: &mut App) {
     });
     app.channels_settings.webhook = Some(WebhookConfig { port: 8_787, secret: None });
     app.channels_settings.imessage = Some(IMessageConfig { allowed_contacts: vec![] });
+    app.channels_settings.matrix_enabled = true;
     app.channels_settings.matrix = Some(matrix_config());
     app.channels_settings.signal = Some(SignalConfig {
         http_url: "http://127.0.0.1:8686".to_string(),
@@ -527,6 +528,7 @@ fn enabled_channels_reports_every_direct_channel_in_display_order() {
 fn enabled_channels_recognizes_named_instances_without_legacy_config() {
     let mut app = test_app();
     app.channels_settings.cli = false;
+    app.channels_settings.matrix_enabled = true;
     app.channels_settings
         .matrix_instances
         .push(MatrixInstanceConfig { id: "primary".to_string(), config: matrix_config() });
@@ -544,6 +546,7 @@ fn enabled_channels_recognizes_named_instances_without_legacy_config() {
 fn enabled_channels_does_not_duplicate_channels_with_legacy_and_named_instances() {
     let mut app = test_app();
     app.channels_settings.cli = false;
+    app.channels_settings.matrix_enabled = true;
     app.channels_settings.matrix = Some(matrix_config());
     app.channels_settings
         .matrix_instances

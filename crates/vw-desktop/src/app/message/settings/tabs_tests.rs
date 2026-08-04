@@ -64,9 +64,9 @@ fn ordinary_system_tab_selection_changes_tab_closes_help_and_stays_idle() {
     let mut app = app();
     app.system_settings_help_tab = Some(SystemTab::Runtime);
 
-    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::General));
+    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::QuickMessages));
 
-    assert_eq!(app.system_settings_tab, SystemTab::General);
+    assert_eq!(app.system_settings_tab, SystemTab::QuickMessages);
     assert_eq!(app.system_settings_help_tab, None);
     assert!(!has_scheduled_action(task));
 }
@@ -104,6 +104,24 @@ fn providers_and_models_selection_prepare_loading_before_refresh() {
     assert!(app.model_settings.loading);
     assert_eq!(app.model_settings.save_error, None);
     assert!(has_scheduled_action(models_task));
+}
+
+#[test]
+fn multimodal_tab_refreshes_model_catalog() {
+    let mut app = app();
+    app.model_settings.loading = false;
+    app.model_settings.save_error = Some("stale catalog error".to_string());
+    app.multimodal_settings.save_error = Some("stale OCR error".to_string());
+    app.multimodal_settings.ocr_model = "openai/vision".to_string();
+
+    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::Multimodal));
+
+    assert_eq!(app.system_settings_tab, SystemTab::Multimodal);
+    assert!(app.model_settings.loading);
+    assert_eq!(app.model_settings.save_error, None);
+    assert_eq!(app.multimodal_settings.save_error, None);
+    assert_eq!(app.multimodal_settings.ocr_model, "openai/vision");
+    assert!(has_scheduled_action(task));
 }
 
 #[tokio::test(flavor = "multi_thread")]

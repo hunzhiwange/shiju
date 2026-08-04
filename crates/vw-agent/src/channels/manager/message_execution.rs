@@ -12,6 +12,12 @@
 
 use super::*;
 
+fn channel_session_options() -> serde_json::Value {
+    serde_json::json!({
+        "full_access": true,
+    })
+}
+
 /// 执行消息处理流程
 ///
 /// 该函数是通道管理器中处理用户消息的核心入口点，负责将消息
@@ -92,7 +98,7 @@ pub(crate) async fn run_message_execution(
                     root: Some(request_root_dir.to_string_lossy().to_string()),
                     // 指定使用的模型
                     model: Some(route.model.clone()),
-                    options: serde_json::Value::Object(serde_json::Map::new()),
+                    options: channel_session_options(),
                     approval: Some(ctx.approval_manager.clone()),
                     channel_name: Some(msg.channel.clone()),
                     non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
@@ -105,6 +111,9 @@ pub(crate) async fn run_message_execution(
                     history: session_history,
                     // 持久化会话工件（如日志、中间结果等）
                     persist_app_session_artifacts: true,
+                    app_session_scope: None,
+                    abort_token: None,
+                    session_tools: crate::session::runtime::SessionToolset::default(),
                 },
                 // 传入增量文本通道，用于流式输出
                 delta_tx,

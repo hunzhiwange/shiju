@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-beach-day",
+  "name": "太浩晴滩 Tahoe Day",
+  "tagline": "碧水浅滩，午后的松影。",
+  "palette": {
+    "background": "#eef8fb",
+    "text": "#1f3340",
+    "primary": "#1f9bb8",
+    "success": "#3db89a",
+    "warning": "#e0b35c",
+    "danger": "#e07a6a"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#f5fcff",
+    "button_bg": "#1f9bb8",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

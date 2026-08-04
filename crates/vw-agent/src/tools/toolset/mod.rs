@@ -4,8 +4,9 @@ use crate::app::agent::config::schema::load_or_init_config;
 use crate::app::agent::config::{Config, DelegateAgentConfig};
 use crate::app::agent::memory::Memory;
 use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
-use crate::app::agent::security::SecurityPolicy;
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::sop::{SopAuditLogger, SopEngine, SopMetricsCollector};
+use crate::session::runtime::SessionToolset;
 use anyhow::Context;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use vw_config_types::agent::merged_agent_configs;
 
 /// Claude Tools V2 运行时上下文。
 ///
@@ -28,6 +30,9 @@ pub struct ToolRuntimeContext {
     /// 厚上下文共享状态。
     #[serde(skip)]
     tool_use_context: Arc<ToolUseContext>,
+    /// 只属于当前会话的预发现工具。
+    #[serde(skip)]
+    session_tools: SessionToolset,
 }
 
 impl Default for ToolRuntimeContext {
@@ -44,7 +49,12 @@ impl ToolRuntimeContext {
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         let session = session.into();
         let tool_use_context = ToolUseContext::new(session.clone(), root.clone());
-        Self { session, root, tool_use_context: Arc::new(tool_use_context) }
+        Self {
+            session,
+            root,
+            tool_use_context: Arc::new(tool_use_context),
+            session_tools: SessionToolset::default(),
+        }
     }
 
     /// 构造用于工具规格枚举的默认上下文。
@@ -64,6 +74,17 @@ impl ToolRuntimeContext {
     /// 获取当前共享运行时上下文。
     pub fn tool_use_context(&self) -> Arc<ToolUseContext> {
         self.tool_use_context.clone()
+    }
+
+    /// 注入只属于当前会话的工具集合。
+    pub fn with_session_tools(mut self, session_tools: SessionToolset) -> Self {
+        self.session_tools = session_tools;
+        self
+    }
+
+    /// 返回当前会话的工具集合。
+    pub fn session_tools(&self) -> &SessionToolset {
+        &self.session_tools
     }
 }
 
@@ -148,8 +169,12 @@ pub(crate) fn execution_tools_for_context(ctx: &ToolRuntimeContext) -> Vec<Box<d
 fn execution_environment_for_context(
     ctx: &ToolRuntimeContext,
 ) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
-    let base_context = ctx.tool_use_context();
-    let workspace_dir = base_context.workspace_root().unwrap_or_else(|| {
+    let config = runtime_config_for_context(ctx);
+    execution_environment_for_config(ctx, config)
+}
+
+fn runtime_config_for_context(ctx: &ToolRuntimeContext) -> Arc<Config> {
+    let workspace_dir = ctx.tool_use_context().workspace_root().unwrap_or_else(|| {
         ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
         })
@@ -170,6 +195,41 @@ fn execution_environment_for_context(
         }
     });
 
+    config
+}
+
+const DEFAULT_AGENT_TOOL_PARALLEL_LIMIT: usize = 4;
+const MAX_AGENT_TOOL_PARALLEL_LIMIT: usize = 32;
+
+fn agent_tool_parallel_limit(
+    agents: &HashMap<String, DelegateAgentConfig>,
+    agent_name: &str,
+) -> usize {
+    agents
+        .get(agent_name)
+        .map(|config| config.max_parallel_subagents)
+        .unwrap_or(DEFAULT_AGENT_TOOL_PARALLEL_LIMIT)
+        .clamp(1, MAX_AGENT_TOOL_PARALLEL_LIMIT)
+}
+
+pub(crate) fn agent_tool_parallel_limit_for_context(
+    ctx: &ToolRuntimeContext,
+    agent_name: &str,
+) -> usize {
+    let config = runtime_config_for_context(ctx);
+    agent_tool_parallel_limit(&config.agents, agent_name)
+}
+
+fn execution_environment_for_config(
+    ctx: &ToolRuntimeContext,
+    config: Arc<Config>,
+) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
+    let base_context = ctx.tool_use_context();
+    let workspace_dir = base_context.workspace_root().unwrap_or_else(|| {
+        ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+        })
+    });
     let security = security_for_tool_context(&config, &workspace_dir, base_context.as_ref());
     let runtime: Arc<dyn RuntimeAdapter> = Arc::new(NativeRuntime::new());
     let mem_cfg = config.memory.clone();
@@ -197,7 +257,7 @@ fn execution_environment_for_context(
         base_context.as_ref().clone().with_root(ctx.root.clone()).with_security(security.clone()),
     );
 
-    let tools = all_tools_with_runtime(
+    let mut tools = all_tools_with_runtime(
         config.clone(),
         &security,
         runtime,
@@ -208,12 +268,47 @@ fn execution_environment_for_context(
         &http_config,
         &web_fetch_config,
         &workspace_dir,
-        &HashMap::new(),
+        &config.agents,
         None,
         config.as_ref(),
         Some(&ctx.session),
     );
 
+    if !ctx.session_tools.is_empty() {
+        let session_tool_names = ctx
+            .session_tools
+            .tools()
+            .iter()
+            .map(|tool| tool.name())
+            .collect::<std::collections::HashSet<_>>();
+        tools.retain(|tool| !session_tool_names.contains(tool.name()));
+        let mut scoped_tools = boxed_registry_from_arcs(ctx.session_tools.tools().to_vec());
+        scoped_tools.extend(tools);
+        tools = scoped_tools;
+    }
+
+    (tools, tool_use_context)
+}
+
+fn execution_environment_for_context_with_agent_callback(
+    ctx: &ToolRuntimeContext,
+    callback: super::agent_tool::AgentToolChildSessionCreatedCallback,
+) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
+    let config = runtime_config_for_context(ctx);
+    let (mut tools, tool_use_context) = execution_environment_for_config(ctx, config.clone());
+    let delegate_agents = enabled_delegate_agents(&config.agents);
+    if !delegate_agents.is_empty() {
+        tools.retain(|tool| tool.name() != "AgentTool");
+        let workspace_dir = tool_use_context.workspace_root().unwrap_or_else(|| {
+            ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
+                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+            })
+        });
+        tools.push(Box::new(
+            AgentTool::new(delegate_agents, Some(ctx.session.clone()), workspace_dir)
+                .with_child_session_created_callback(callback),
+        ));
+    }
     (tools, tool_use_context)
 }
 
@@ -222,10 +317,18 @@ fn security_for_tool_context(
     workspace_dir: &std::path::Path,
     base_context: &ToolUseContext,
 ) -> Arc<SecurityPolicy> {
-    let mut security = SecurityPolicy::from_config(&config.autonomy, workspace_dir);
+    let mut security =
+        SecurityPolicy::from_configs(&config.autonomy, &config.security, workspace_dir);
     if base_context.full_access_enabled() {
+        security.bash_security_enabled = false;
+        security.autonomy = AutonomyLevel::Full;
         security.workspace_only = false;
         security.allowed_commands = vec!["*".to_string()];
+        security.forbidden_paths.clear();
+        security.max_actions_per_hour = u32::MAX;
+        security.require_approval_for_medium_risk = false;
+        security.block_high_risk_commands = false;
+        security.allow_unsafe_shell_patterns = true;
     }
     Arc::new(security)
 }
@@ -250,6 +353,29 @@ pub fn execute_tool_call(
         tool_use_context.clone(),
     ))?;
 
+    finish_tool_call(executed)
+}
+
+/// 执行 AgentTool，并在真实子会话创建后报告其定位信息。
+pub(crate) fn execute_agent_tool_call(
+    requested_name: &str,
+    input: &str,
+    ctx: &ToolRuntimeContext,
+    callback: super::agent_tool::AgentToolChildSessionCreatedCallback,
+) -> Result<ToolCallResult, ToolCallError> {
+    let parsed = parse_tool_input(requested_name, input)?;
+    let (tools, tool_use_context) =
+        execution_environment_for_context_with_agent_callback(ctx, callback);
+    let executed = block_on(execute_tool_from_registry(
+        &tools,
+        requested_name,
+        parsed,
+        tool_use_context.clone(),
+    ))?;
+    finish_tool_call(executed)
+}
+
+fn finish_tool_call(executed: ExecutedToolCall) -> Result<ToolCallResult, ToolCallError> {
     if executed.result.is_success() {
         return Ok(executed.result);
     }
@@ -497,15 +623,24 @@ pub fn all_tools_with_runtime(
         .filter(|value| !value.trim().is_empty())
         .or_else(|| workspace_dir.file_name().and_then(|name| name.to_str()))
         .unwrap_or("default-session");
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project_scope = block_on(crate::project::from_directory(&tenant, workspace_dir))
+        .ok()
+        .map(|(info, _)| info.id);
 
     let syscall_detector = Arc::new(crate::app::agent::security::SyscallAnomalyDetector::new(
         root_config.security.syscall_anomaly.clone(),
         &vibewindow_dir,
         root_config.security.audit.clone(),
     ));
+    let cron_full_access =
+        security.autonomy == AutonomyLevel::Full && !security.workspace_only;
     let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
         Arc::new(ConfigTool::new(config.clone(), security.clone())),
-        Arc::new(CronAddTool::new(config.clone(), security.clone())),
+        Arc::new(
+            CronAddTool::new(config.clone(), security.clone())
+                .with_execution_defaults(workspace_dir, cron_full_access),
+        ),
         Arc::new(CronListTool::new(config.clone())),
         Arc::new(CronRemoveTool::new(config.clone(), security.clone())),
         Arc::new(CronUpdateTool::new(config.clone(), security.clone())),
@@ -700,20 +835,17 @@ pub fn all_tools_with_runtime(
     )));
     tool_arcs.push(Arc::new(BriefTool::new(security.clone())));
     tool_arcs.push(Arc::new(SleepTool::new()));
-    tool_arcs.push(Arc::new(TodoReadTool::new(session_id.to_string())));
-    tool_arcs.push(Arc::new(TodoWriteTool::new(session_id.to_string(), security.clone())));
+    tool_arcs
+        .push(Arc::new(TodoReadTool::new_scoped(session_id.to_string(), project_scope.clone())));
+    tool_arcs.push(Arc::new(TodoWriteTool::new_scoped(
+        session_id.to_string(),
+        project_scope,
+        security.clone(),
+    )));
     tool_arcs.push(Arc::new(QuestionTool::new(session_id.to_string())));
 
-    let delegate_agents: HashMap<String, DelegateAgentConfig> = agents
-        .iter()
-        .filter(|(_, config)| {
-            if !config.enabled {
-                return false;
-            }
-            !matches!(config.mode.trim().to_ascii_lowercase().as_str(), "primary")
-        })
-        .map(|(name, config)| (name.clone(), config.clone()))
-        .collect();
+    let delegate_agents =
+        enabled_delegate_agents_with_project_skills(agents, workspace_dir, root_config);
     if !delegate_agents.is_empty() {
         let delegate_fallback_credential = fallback_api_key.and_then(|value| {
             let trimmed = value.trim();
@@ -825,29 +957,16 @@ pub fn all_tools_with_runtime(
         } else {
             delegate_tool.with_coordination_disabled()
         };
-        let delegate_tool = Arc::new(delegate_tool);
+        let _delegate_tool = Arc::new(delegate_tool);
 
-        let subagent_registry = Arc::new(SubAgentRegistry::new());
-        let subagent_spawn_tool = Arc::new(
-            SubAgentSpawnTool::new(
+        let agent_tool = Arc::new(
+            AgentTool::new(
                 delegate_agents.clone(),
-                delegate_fallback_credential,
-                security.clone(),
-                provider_runtime_options,
-                subagent_registry.clone(),
-                parent_tools,
-                root_config.multimodal.clone(),
+                session_id_override.map(str::to_owned),
+                workspace_dir.to_path_buf(),
             )
-            .with_workspace_identity_context(workspace_identity_context)
-            .with_skill_contexts(delegate_skill_contexts),
+            .with_max_parallel_subagents(agent_tool_parallel_limit(agents, "main")),
         );
-        let agent_tool = Arc::new(AgentTool::new(
-            delegate_agents.clone(),
-            delegate_tool,
-            subagent_spawn_tool.clone(),
-            subagent_registry.clone(),
-            security.clone(),
-        ));
         tool_arcs.push(agent_tool);
     }
 
@@ -886,6 +1005,42 @@ pub fn all_tools_with_runtime(
     let batch_tools = Arc::new(tool_arcs.clone());
     tool_arcs.push(Arc::new(BatchTool::new(batch_tools)));
     boxed_registry_from_arcs(tool_arcs)
+}
+
+fn enabled_delegate_agents(
+    agents: &HashMap<String, DelegateAgentConfig>,
+) -> HashMap<String, DelegateAgentConfig> {
+    merged_agent_configs(agents)
+        .into_iter()
+        .filter(|(_, config)| config.enabled && config.allow_as_subagent)
+        .collect()
+}
+
+fn enabled_delegate_agents_with_project_skills(
+    agents: &HashMap<String, DelegateAgentConfig>,
+    workspace_dir: &Path,
+    root_config: &Config,
+) -> HashMap<String, DelegateAgentConfig> {
+    let mut enabled = enabled_delegate_agents(agents);
+    if !root_config.skills.auto_load_project_skills || enabled.is_empty() {
+        return enabled;
+    }
+
+    let project_skill_names = crate::app::agent::skills::load_project_skills_with_config(
+        workspace_dir,
+        root_config,
+    )
+    .into_iter()
+    .map(|skill| skill.name)
+    .collect::<Vec<_>>();
+
+    for config in enabled.values_mut() {
+        config.allowed_skills.extend(project_skill_names.iter().cloned());
+        config.allowed_skills.sort();
+        config.allowed_skills.dedup();
+    }
+
+    enabled
 }
 
 fn register_dynamic_mcp_tools(tool_arcs: &mut Vec<Arc<dyn Tool>>, workspace_dir: &Path) {

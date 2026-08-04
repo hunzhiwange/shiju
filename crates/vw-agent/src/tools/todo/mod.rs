@@ -29,7 +29,9 @@ use vw_api_types::tools::ToolResultContentDto;
 
 pub use vw_shared::todo::{LegacyTodo, Todo};
 
-use self::store::{read_for_tool, read_for_ui, write_todos};
+use self::store::{
+    read_for_tool, read_for_tool_scoped, read_for_ui, write_todos, write_todos_scoped,
+};
 
 pub(crate) fn read_session_todos(session: &str) -> Vec<Todo> {
     read_for_tool(session).unwrap_or_default()
@@ -94,6 +96,8 @@ pub fn write(
 pub struct TodoReadTool {
     /// 关联的会话标识符
     session: String,
+    /// 关联的项目作用域，避免后台执行线程依赖全局 UI 状态。
+    scope: Option<String>,
 }
 
 impl TodoReadTool {
@@ -107,7 +111,11 @@ impl TodoReadTool {
     /// let tool = TodoReadTool::new("session-123".to_string());
     /// ```
     pub fn new(session: String) -> Self {
-        Self { session }
+        Self { session, scope: None }
+    }
+
+    pub(crate) fn new_scoped(session: String, scope: Option<String>) -> Self {
+        Self { session, scope }
     }
 }
 
@@ -151,7 +159,7 @@ impl Tool for TodoReadTool {
     }
 
     async fn call(&self, _input: Value) -> anyhow::Result<ToolCallResult> {
-        let todos = read_for_tool(&self.session)?;
+        let todos = read_for_tool_scoped(&self.session, self.scope.as_deref())?;
         let todo_count = todos.len();
         let output = serde_json::to_string_pretty(&todos)?;
         let data = json!({ "todos": todos });
@@ -182,7 +190,7 @@ impl Tool for TodoReadTool {
     /// - `Ok(ToolResult)`: 成功时包含美化格式的 JSON 待办事项列表
     /// - `Err(anyhow::Error)`: 锁获取失败或序列化失败
     async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        let normalized = read_for_tool(&self.session)?;
+        let normalized = read_for_tool_scoped(&self.session, self.scope.as_deref())?;
         let output = serde_json::to_string_pretty(&normalized)?;
         Ok(ToolResult { success: true, output, error: None })
     }
@@ -197,6 +205,8 @@ impl Tool for TodoReadTool {
 pub struct TodoWriteTool {
     /// 关联的会话标识符
     session: String,
+    /// 关联的项目作用域，避免后台执行线程依赖全局 UI 状态。
+    scope: Option<String>,
     /// 安全策略引用，用于速率限制检查
     security: Arc<crate::app::agent::security::SecurityPolicy>,
 }
@@ -217,7 +227,15 @@ impl TodoWriteTool {
         session: String,
         security: Arc<crate::app::agent::security::SecurityPolicy>,
     ) -> Self {
-        Self { session, security }
+        Self { session, scope: None, security }
+    }
+
+    pub(crate) fn new_scoped(
+        session: String,
+        scope: Option<String>,
+        security: Arc<crate::app::agent::security::SecurityPolicy>,
+    ) -> Self {
+        Self { session, scope, security }
     }
 }
 
@@ -320,9 +338,9 @@ impl Tool for TodoWriteTool {
         }
 
         let args: schema::WriteArgs = serde_json::from_value(input.clone())?;
-        let previous = read_for_tool(&self.session)?;
-        let output = write_todos(&self.session, input)?;
-        let next = read_for_tool(&self.session)?;
+        let previous = read_for_tool_scoped(&self.session, self.scope.as_deref())?;
+        let output = write_todos_scoped(&self.session, input, self.scope.as_deref())?;
+        let next = read_for_tool_scoped(&self.session, self.scope.as_deref())?;
         let next_count = next.len();
         let data = json!({
             "oldTodos": previous,
@@ -376,7 +394,7 @@ impl Tool for TodoWriteTool {
             });
         }
 
-        let output = write_todos(&self.session, args)?;
+        let output = write_todos_scoped(&self.session, args, self.scope.as_deref())?;
 
         Ok(ToolResult { success: true, output, error: None })
     }

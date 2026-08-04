@@ -28,6 +28,8 @@ pub use vw_shared::provider::models::{
 
 /// 打包内置的模型元数据，作为本地兜底数据源。
 const BUNDLED_MODELS_TEXT: &str = include_str!("../assets/model/api.json");
+/// 仓库自有的识矩 provider 与离线模型目录。
+const BUNDLED_SHIJU_MODELS_TEXT: &str = include_str!("../assets/model/shiju.json");
 
 #[allow(dead_code)]
 /// 返回 models.dev 的基础地址。
@@ -125,7 +127,20 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
 
 /// 读取打包内置的模型数据。
 fn bundled_models(label: &str) -> HashMap<String, Provider> {
-    parse_models_text(label, BUNDLED_MODELS_TEXT).unwrap_or_default()
+    let mut providers = parse_models_text(label, BUNDLED_MODELS_TEXT).unwrap_or_default();
+    merge_bundled_shiju(&mut providers, label);
+    providers
+}
+
+fn merge_bundled_shiju(providers: &mut HashMap<String, Provider>, label: &str) {
+    let overlay_label = format!("{label}_shiju");
+    let Some(mut overlay) = parse_models_text(&overlay_label, BUNDLED_SHIJU_MODELS_TEXT) else {
+        return;
+    };
+    let Some(shiju) = overlay.remove("shiju") else {
+        return;
+    };
+    providers.insert("shiju".to_string(), shiju);
 }
 
 #[allow(dead_code)]
@@ -252,15 +267,12 @@ async fn load() -> HashMap<String, Provider> {
         "load"
     );
 
-    if let Ok(content) = tokio::fs::read_to_string(&path).await {
-        info!(bytes = content.len() as u64, "load_cache_read");
-
-        if let Some(json) = parse_models_text("load_cache", &content) {
-            if !json.is_empty() {
-                return json;
-            }
-            info!("load_cache_empty");
-        }
+    if let Ok(content) = tokio::fs::read_to_string(&path).await
+        && let Some(mut json) = parse_models_text("load_cache", &content)
+        && !json.is_empty()
+    {
+        merge_bundled_shiju(&mut json, "load_cache");
+        return json;
     }
 
     let bundled = bundled_models("load_bundled");

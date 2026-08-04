@@ -83,6 +83,8 @@ pub struct PointLeftOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rende
     snap_within_viewport: bool,
     // on_close 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     on_close: Option<Message>,
+    // 被动提示浮层不应拦截底层控件的鼠标移动或滚轮事件。
+    capture_events: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> LeftOverlay<'a, Message, ThemeT, RendererT> {
@@ -192,6 +194,7 @@ impl<'a, Message, ThemeT, RendererT> LeftOverlay<'a, Message, ThemeT, RendererT>
         self.snap_within_viewport = snap;
         self
     }
+
 }
 
 impl<'a, Message, ThemeT, RendererT> PointLeftOverlay<'a, Message, ThemeT, RendererT> {
@@ -229,6 +232,7 @@ impl<'a, Message, ThemeT, RendererT> PointLeftOverlay<'a, Message, ThemeT, Rende
             snap_within_viewport: true,
             // on_close 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             on_close: None,
+            capture_events: true,
         }
     }
 
@@ -319,6 +323,12 @@ impl<'a, Message, ThemeT, RendererT> PointLeftOverlay<'a, Message, ThemeT, Rende
     /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
     pub fn snap_within_viewport(mut self, snap: bool) -> Self {
         self.snap_within_viewport = snap;
+        self
+    }
+
+    /// 设置浮层是否拦截鼠标事件。
+    pub fn capture_events(mut self, capture: bool) -> Self {
+        self.capture_events = capture;
         self
     }
 }
@@ -885,6 +895,7 @@ where
                 tree: children.next().unwrap(),
                 // on_close 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 on_close: self.on_close.clone(),
+                capture_events: self.capture_events,
             })))
         } else {
             None
@@ -1155,6 +1166,8 @@ struct PointLeftOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     tree: &'b mut widget::Tree,
     // on_close 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     on_close: Option<Message>,
+    // capture_events 控制被动浮层是否阻止事件继续传递到底层内容。
+    capture_events: bool,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -1255,7 +1268,7 @@ where
             .as_widget_mut()
             .update(self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds);
 
-        if matches!(event, Event::Mouse(_)) {
+        if self.capture_events && matches!(event, Event::Mouse(_)) {
             shell.capture_event();
         }
     }

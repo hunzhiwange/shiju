@@ -3,6 +3,23 @@ use iced::widget::svg;
 use std::collections::HashMap;
 
 pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
+    m.insert(
+        Icon::ArrowLeft,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/arrow-left.svg"
+        )),
+    );
+    m.insert(
+        Icon::ArrowRight,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/arrow-right.svg"
+        )),
+    );
+    m.insert(
+        Icon::Globe,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/globe.svg")),
+    );
+
     // 帮助/问号圆圈图标
     m.insert(
         Icon::QuestionCircle,
@@ -150,6 +167,14 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         Icon::LayoutSidebarReverse,
         svg::Handle::from_memory(include_bytes!(
             "../../../../../assets/icons/bootstrap/layout-sidebar-reverse.svg"
+        )),
+    );
+
+    // 漏斗/过滤图标
+    m.insert(
+        Icon::Funnel,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/funnel.svg"
         )),
     );
 

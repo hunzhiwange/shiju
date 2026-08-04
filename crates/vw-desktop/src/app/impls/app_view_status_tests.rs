@@ -5,6 +5,14 @@ fn app_view_status_tests_module_is_wired() {
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::preview::{LspProgress, PreviewTab};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::{Message, message::NotificationMessage};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::renderer::Headless;
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::{Event, Font, Pixels, Rectangle, Size};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn preview_tab(path: &str, server_key: Option<&'static str>) -> PreviewTab {
@@ -178,5 +186,78 @@ fn status_bar_builds_multiple_notification_count() {
         });
     }
 
+    std::hint::black_box(super::status_bar(&app));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn status_bar_uses_reserved_height() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let (app, _) = crate::app::App::new();
+    let mut status_bar = super::status_bar(&app);
+    let limits = layout::Limits::new(Size::ZERO, Size::new(800.0, 80.0));
+    let mut tree = Tree::new(status_bar.as_widget());
+    let node = status_bar.as_widget_mut().layout(&mut tree, &renderer, &limits);
+
+    assert_eq!(node.bounds().height, super::STATUS_BAR_HEIGHT);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn status_bar_keeps_notification_at_trailing_edge() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let (app, _) = crate::app::App::new();
+    let mut status_bar = super::status_bar(&app);
+    let limits = layout::Limits::new(Size::ZERO, Size::new(800.0, 40.0));
+    let mut tree = Tree::new(status_bar.as_widget());
+    let node = status_bar.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let row =
+        Layout::new(&node).children().next().expect("status bar container should contain a row");
+    let notification = row
+        .children()
+        .last()
+        .expect("notification should remain at the trailing edge")
+        .bounds();
+    let cursor = mouse::Cursor::Available(notification.center());
+    let mut clipboard = clipboard::Null;
+    let mut messages = Vec::new();
+
+    for event in [
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ] {
+        let mut shell = Shell::new(&mut messages);
+        status_bar.as_widget_mut().update(
+            &mut tree,
+            &event,
+            Layout::new(&node),
+            cursor,
+            &renderer,
+            &mut clipboard,
+            &mut shell,
+            &Rectangle::INFINITE,
+        );
+    }
+
+    assert!(messages.into_iter().any(|message| {
+        matches!(
+            message,
+            Message::Notification(NotificationMessage::ToggleExpanded)
+        )
+    }));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn status_bar_builds_account_entry_and_open_menu() {
+    let (mut app, _) = crate::app::App::new();
+    std::hint::black_box(super::status_bar(&app));
+    app.account.menu_open = true;
     std::hint::black_box(super::status_bar(&app));
 }

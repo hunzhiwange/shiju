@@ -13,23 +13,39 @@ use crate::queue_paths::{queue_base_dir, queue_lock_file_path, queue_socket_base
 static NEXT_TEMP_ID: AtomicUsize = AtomicUsize::new(1);
 
 struct HomeEnvGuard {
-    previous: Option<std::ffi::OsString>,
+    previous_home: Option<std::ffi::OsString>,
+    previous_userprofile: Option<std::ffi::OsString>,
+    previous_homedrive: Option<std::ffi::OsString>,
+    previous_homepath: Option<std::ffi::OsString>,
 }
 
 impl HomeEnvGuard {
     fn set(home_dir: &Path) -> Self {
-        let previous = std::env::var_os("HOME");
+        let previous_home = std::env::var_os("HOME");
+        let previous_userprofile = std::env::var_os("USERPROFILE");
+        let previous_homedrive = std::env::var_os("HOMEDRIVE");
+        let previous_homepath = std::env::var_os("HOMEPATH");
         unsafe { std::env::set_var("HOME", home_dir) };
-        Self { previous }
+        unsafe { std::env::set_var("USERPROFILE", home_dir) };
+        unsafe { std::env::remove_var("HOMEDRIVE") };
+        unsafe { std::env::remove_var("HOMEPATH") };
+        Self { previous_home, previous_userprofile, previous_homedrive, previous_homepath }
     }
 }
 
 impl Drop for HomeEnvGuard {
     fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var("HOME", value) },
-            None => unsafe { std::env::remove_var("HOME") },
-        }
+        restore_env("HOME", self.previous_home.take());
+        restore_env("USERPROFILE", self.previous_userprofile.take());
+        restore_env("HOMEDRIVE", self.previous_homedrive.take());
+        restore_env("HOMEPATH", self.previous_homepath.take());
+    }
+}
+
+fn restore_env(key: &str, value: Option<std::ffi::OsString>) {
+    match value {
+        Some(value) => unsafe { std::env::set_var(key, value) },
+        None => unsafe { std::env::remove_var(key) },
     }
 }
 

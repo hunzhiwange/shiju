@@ -1,16 +1,16 @@
 //! 渲染工作流节点执行进度。
-//! 聊天流中的 workflow_node 工具块会被原位更新，用于展示节点状态、耗时和输出。
+//!
+//! 聊天流只保留节点标题、状态与短摘要；完整节点输出统一交给工具详情弹窗。
 
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, mouse_area, row, text};
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::widget::{Space, button, container, mouse_area, row, text};
+use iced::{Alignment, Background, Border, Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, chat_secondary_subtle_text_color, copy_tooltip_content,
-    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
-    simplified_code_block_style,
+    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style,
+    icon_svg, truncate_chars,
 };
 use crate::app::{App, Message, message};
 
@@ -21,14 +21,18 @@ use super::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WorkflowNodeState {
     Running,
+    Waiting,
     Completed,
     Failed,
+    Cancelled,
 }
 
 fn workflow_node_state(status: &str) -> WorkflowNodeState {
     match status {
         "running" => WorkflowNodeState::Running,
+        "waiting" => WorkflowNodeState::Waiting,
         "error" | "failed" | "denied" => WorkflowNodeState::Failed,
+        "cancelled" => WorkflowNodeState::Cancelled,
         _ => WorkflowNodeState::Completed,
     }
 }
@@ -69,16 +73,20 @@ fn icon_button<'a>(icon: Icon, label: &'static str, message: Message) -> Element
 fn status_label(state: WorkflowNodeState) -> &'static str {
     match state {
         WorkflowNodeState::Running => "运行中",
+        WorkflowNodeState::Waiting => "等待中",
         WorkflowNodeState::Completed => "完成",
         WorkflowNodeState::Failed => "失败",
+        WorkflowNodeState::Cancelled => "已取消",
     }
 }
 
 fn status_text(state: WorkflowNodeState) -> &'static str {
     match state {
         WorkflowNodeState::Running => "正在执行节点",
+        WorkflowNodeState::Waiting => "正在等待后代智能体",
         WorkflowNodeState::Completed => "节点执行完成",
         WorkflowNodeState::Failed => "节点执行失败",
+        WorkflowNodeState::Cancelled => "节点执行已取消",
     }
 }
 
@@ -86,27 +94,15 @@ fn status_badge_style(theme: &Theme, state: WorkflowNodeState) -> iced::widget::
     let palette = theme.extended_palette();
     let color = match state {
         WorkflowNodeState::Running => palette.primary.base.color,
+        WorkflowNodeState::Waiting => palette.secondary.base.color,
         WorkflowNodeState::Completed => palette.success.base.color,
         WorkflowNodeState::Failed => palette.danger.base.color,
+        WorkflowNodeState::Cancelled => palette.secondary.base.color,
     };
     iced::widget::container::Style {
         background: Some(Background::Color(color.scale_alpha(0.10))),
         border: Border { width: 1.0, color: color.scale_alpha(0.24), radius: 999.0.into() },
         text_color: Some(color),
-        ..Default::default()
-    }
-}
-
-fn output_block_style(theme: &Theme, state: WorkflowNodeState) -> iced::widget::container::Style {
-    if state != WorkflowNodeState::Failed {
-        return simplified_code_block_style(theme);
-    }
-
-    let danger = theme.extended_palette().danger.base.color;
-    iced::widget::container::Style {
-        background: Some(Background::Color(danger.scale_alpha(0.07))),
-        border: Border { width: 1.0, color: danger.scale_alpha(0.30), radius: 14.0.into() },
-        text_color: Some(danger),
         ..Default::default()
     }
 }
@@ -237,7 +233,7 @@ fn output_preview_text(value: &Value, state: WorkflowNodeState) -> String {
                 return "节点执行完成".to_string();
             }
         }
-        return serde_json::to_string_pretty(&parsed).unwrap_or_else(|_| trimmed.to_string());
+        return serde_json::to_string(&parsed).unwrap_or_else(|_| trimmed.to_string());
     }
 
     trimmed.to_string()
@@ -260,7 +256,70 @@ fn node_meta_label(value: &Value, node_type: &str) -> String {
     parts.join(" · ")
 }
 
-/// 渲染聊天中的工作流节点执行卡片。
+fn chat_summary_text(value: &Value, state: WorkflowNodeState) -> String {
+    let preview = output_preview_text(value, state);
+    let meta = node_meta_label(value, &metadata_string(value, "node_type"));
+    let summary = if meta.is_empty() {
+        preview
+    } else if preview == status_text(state)
+        || preview == "正在执行工作流节点"
+        || preview == "节点执行完成"
+        || preview == "节点执行失败"
+    {
+        meta
+    } else {
+        format!("{preview} · {meta}")
+    };
+    truncate_chars(&summary, 96)
+}
+
+fn workflow_detail_content(value: &Value, state: WorkflowNodeState) -> String {
+    if state == WorkflowNodeState::Failed {
+        return tool_error_text(value).unwrap_or_else(|| "节点执行失败".to_string());
+    }
+    let Some(raw_output) = tool_output_text(value) else {
+        return status_text(state).to_string();
+    };
+    let trimmed = raw_output.trim();
+    if trimmed.is_empty() {
+        return status_text(state).to_string();
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        return serde_json::to_string_pretty(&parsed).unwrap_or_else(|_| trimmed.to_string());
+    }
+    trimmed.to_string()
+}
+
+fn workflow_tool_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
+    Message::Chat(message::ChatMessage::OpenToolDetail(
+        msg_idx,
+        tool_idx,
+        visible.to_string(),
+    ))
+}
+
+/// 节点主点击：只要会话已登记且项目路径可用，即可进入对应子会话。
+/// 独立详情按钮始终保留，供用户查看原始节点信息。
+fn workflow_node_primary_message(
+    project_path: Option<&str>,
+    value: &Value,
+    msg_idx: usize,
+    tool_idx: usize,
+    visible: &str,
+) -> Message {
+    let session_id = metadata_string(value, "session_id");
+    if !session_id.is_empty()
+        && let Some(path) = project_path.map(str::trim).filter(|path| !path.is_empty())
+    {
+        return Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
+            path.to_string(),
+            session_id,
+        ));
+    }
+    workflow_tool_detail_message(msg_idx, tool_idx, visible)
+}
+
+/// 渲染聊天中的工作流节点执行卡片（单行摘要 + 详情弹窗入口）。
 pub fn tool_workflow_view<'a>(
     app: &'a App,
     msg_idx: usize,
@@ -278,69 +337,81 @@ pub fn tool_workflow_view<'a>(
     let is_error = state == WorkflowNodeState::Failed;
     let title = metadata_string(&value, "title");
     let title = if title.is_empty() { "工作流节点".to_string() } else { title };
-    let node_type = metadata_string(&value, "node_type");
-    let meta_label = node_meta_label(&value, &node_type);
-    let preview_text = output_preview_text(&value, state);
+    let summary = chat_summary_text(&value, state);
+    let primary_message = workflow_node_primary_message(
+        app.project_path.as_deref(),
+        &value,
+        msg_idx,
+        tool_idx,
+        visible,
+    );
+    let detail_message = workflow_tool_detail_message(msg_idx, tool_idx, visible);
 
-    let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
-    let is_hovered = app.chat_tool_hovered_idx == Some(key);
-
-    let preview_button = workflow_preview_message(&value)
-        .map(|message| icon_button(Icon::Grid1x2, "预览工作流", message))
-        .unwrap_or_else(|| Space::new().width(Length::Fixed(0.0)).into());
-    let hover_slot: Element<'a, Message> =
-        if is_hovered { preview_button } else { Space::new().width(Length::Fixed(22.0)).into() };
-
-    let title_row = row![
-        tool_header_title("workflow_node", title, is_error),
-        container(text(status_label(state)).size(12))
-            .padding([2, 8])
-            .style(move |theme: &Theme| status_badge_style(theme, state)),
-        container(Space::new()).width(Length::Fill),
-        hover_slot,
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-
-    let meta_row = row![
-        text(status_text(state)).size(13).style(move |theme: &Theme| {
-            let color = match state {
-                WorkflowNodeState::Running => theme.extended_palette().primary.base.color,
-                WorkflowNodeState::Completed => chat_secondary_muted_text_color(theme),
-                WorkflowNodeState::Failed => theme.extended_palette().danger.base.color,
-            };
-            iced::widget::text::Style { color: Some(color) }
-        }),
-        text(meta_label).size(12).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(chat_secondary_subtle_text_color(theme)),
-        }),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-
-    let output_color_state = state;
-    let output_block =
-        container(text(preview_text).size(13).font(iced::Font::with_name("JetBrains Mono")).style(
-            move |theme: &Theme| iced::widget::text::Style {
-                color: Some(if output_color_state == WorkflowNodeState::Failed {
-                    theme.extended_palette().danger.base.color
-                } else {
-                    theme.palette().text
-                }),
-            },
-        ))
-        .padding([10, 12])
-        .width(Length::Fill)
-        .style(move |theme: &Theme| output_block_style(theme, state));
-
-    let content = column![title_row, meta_row, output_block].spacing(8);
-    let card = mouse_area(
-        container(content).padding([10, 12]).width(Length::Fill).style(simplified_block_style),
+    let detail_btn = button(
+        icon_svg(Icon::ChevronRight)
+            .width(Length::Fixed(10.0))
+            .height(Length::Fixed(10.0))
+            .style(eye_icon_svg_style),
     )
-    .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
-    .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));
+    .padding([2, 4])
+    .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
+    .on_press(detail_message);
 
-    Some(card.into())
+    let preview_btn = workflow_preview_message(&value)
+        .map(|message| icon_button(Icon::Grid1x2, "预览工作流", message));
+    let open_session_btn = matches!(
+        &primary_message,
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(..))
+    )
+    .then(|| icon_button(Icon::ChatTextFill, "打开子会话", primary_message.clone()));
+
+    let mut actions = row![].spacing(4).align_y(Alignment::Center);
+    if let Some(preview_btn) = preview_btn {
+        actions = actions.push(preview_btn);
+    }
+    if let Some(open_session_btn) = open_session_btn {
+        actions = actions.push(open_session_btn);
+    }
+    actions = actions.push(detail_btn);
+
+    let summary_text =
+        text(summary).size(13).style(move |theme: &Theme| iced::widget::text::Style {
+            color: Some(if is_error {
+                theme.extended_palette().danger.base.color
+            } else {
+                chat_secondary_muted_text_color(theme)
+            }),
+        });
+
+    Some(
+        mouse_area(
+            container(
+                row![
+                    tool_header_title("workflow_node", title, is_error),
+                    container(text(status_label(state)).size(12))
+                        .padding([2, 8])
+                        .style(move |theme: &Theme| status_badge_style(theme, state)),
+                    summary_text,
+                    container(Space::new()).width(Length::Fill),
+                    actions,
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            )
+            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+            .width(Length::Fill),
+        )
+        .on_press(primary_message)
+        .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
+        .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+        .into(),
+    )
+}
+
+/// 供详情弹窗复用的节点正文（pretty JSON / 错误文本）。
+pub(crate) fn workflow_node_detail_body(value: &Value) -> String {
+    let state = workflow_node_state(tool_status(value));
+    workflow_detail_content(value, state)
 }
 
 #[cfg(test)]

@@ -72,14 +72,15 @@ fn estimate_message_height_rough_has_minimum() {
 
 #[test]
 fn split_session_control_selection_extracts_context_card_data() {
-    let raw = "修一下这里\n\n<session_control_selection>\n用户在会话控制中选中了以下上下文。选中不代表已经执行；请在本轮需要时再主动使用。\n工具：file_write, ls\n技能：writing-plans\n</session_control_selection>";
+    let raw = "修一下这里\n\n<session_control_selection>\n用户在会话控制中选中了以下上下文。选中不代表已经执行；请在本轮需要时再主动使用。\n工具：file_write, ls\n技能：writing-plans, shiju\n识矩功能：skill-4\n</session_control_selection>";
 
     let (text, selection) = split_session_control_selection(raw);
     let selection = selection.expect("selection context should parse");
 
     assert_eq!(text, "修一下这里");
     assert_eq!(selection.tools, vec!["file_write", "ls"]);
-    assert_eq!(selection.skills, vec!["writing-plans"]);
+    assert_eq!(selection.skills, vec!["writing-plans", "shiju"]);
+    assert_eq!(selection.shiju_skills, vec!["skill-4"]);
 }
 
 #[test]
@@ -92,6 +93,7 @@ fn split_session_control_selection_supports_ascii_colons_and_chinese_commas() {
     assert_eq!(text, "正文");
     assert_eq!(selection.tools, vec!["read", "grep"]);
     assert_eq!(selection.skills, vec!["rust", "testing"]);
+    assert!(selection.shiju_skills.is_empty());
 }
 
 #[test]
@@ -113,6 +115,7 @@ fn split_session_control_selection_filters_empty_items_and_ignores_unknown_lines
         Some(SessionControlSelection {
             tools: vec!["read".to_string(), "write".to_string()],
             skills: vec!["testing".to_string()],
+            shiju_skills: Vec::new(),
         })
     );
 }
@@ -192,9 +195,11 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
     let _ = session_control_selection_card(SessionControlSelection {
         tools: vec!["read".to_string()],
         skills: vec!["testing".to_string()],
+        shiju_skills: vec!["skill-4".to_string()],
     });
     let _ = session_control_selection_card(SessionControlSelection {
         tools: Vec::new(),
         skills: Vec::new(),
+        shiju_skills: Vec::new(),
     });
 }

@@ -32,6 +32,14 @@ pub(crate) struct NonCliApprovalPrompt {
     pub tool_name: String,
     /// 工具调用的参数
     pub arguments: serde_json::Value,
+    /// 可选的稳定工具调用 ID。
+    pub call_id: Option<String>,
+    /// 原始审批请求者。
+    pub sender: String,
+    /// 原始审批通道。
+    pub channel: String,
+    /// 原始审批回复目标。
+    pub reply_target: String,
 }
 
 /// 非 CLI 审批上下文
@@ -124,6 +132,9 @@ pub(crate) async fn await_non_cli_approval_decision(
 
         // 检查任务是否被取消
         if cancellation_token.is_some_and(CancellationToken::is_cancelled) {
+            let _ =
+                mgr.reject_non_cli_pending_request(request_id, sender, channel_name, reply_target);
+            let _ = mgr.take_non_cli_pending_resolution(request_id);
             return ApprovalResponse::No;
         }
 

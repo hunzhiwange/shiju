@@ -1,11 +1,13 @@
 use super::{
-    WorkflowNodeState, elapsed_label, metadata_string, metadata_value, node_meta_label,
-    output_block_style, output_preview_text, output_value, status_badge_style, status_label,
-    status_text, token_value, tool_workflow_view, usage_label, usage_value, workflow_node_state,
+    WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string, metadata_value,
+    node_meta_label, output_preview_text, output_value, status_badge_style, status_label,
+    status_text, token_value, tool_workflow_view, usage_label, usage_value,
+    workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
     workflow_preview_message,
 };
+use crate::app::message;
 use crate::app::{App, Message};
-use iced::{Background, Theme};
+use iced::Theme;
 use serde_json::json;
 
 fn test_app() -> App {
@@ -19,6 +21,8 @@ fn keep_element(element: iced::Element<'_, Message>) {
 #[test]
 fn workflow_node_state_maps_running_failures_and_fallbacks() {
     assert_eq!(workflow_node_state("running"), WorkflowNodeState::Running);
+    assert_eq!(workflow_node_state("waiting"), WorkflowNodeState::Waiting);
+    assert_eq!(workflow_node_state("cancelled"), WorkflowNodeState::Cancelled);
     for status in ["error", "failed", "denied"] {
         assert_eq!(workflow_node_state(status), WorkflowNodeState::Failed);
     }
@@ -74,35 +78,49 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
 #[test]
 fn status_copy_matches_each_workflow_state() {
     assert_eq!(status_label(WorkflowNodeState::Running), "运行中");
+    assert_eq!(status_label(WorkflowNodeState::Waiting), "等待中");
     assert_eq!(status_label(WorkflowNodeState::Completed), "完成");
     assert_eq!(status_label(WorkflowNodeState::Failed), "失败");
+    assert_eq!(status_label(WorkflowNodeState::Cancelled), "已取消");
     assert_eq!(status_text(WorkflowNodeState::Running), "正在执行节点");
+    assert_eq!(status_text(WorkflowNodeState::Waiting), "正在等待后代智能体");
     assert_eq!(status_text(WorkflowNodeState::Completed), "节点执行完成");
     assert_eq!(status_text(WorkflowNodeState::Failed), "节点执行失败");
+    assert_eq!(status_text(WorkflowNodeState::Cancelled), "节点执行已取消");
 }
 
 #[test]
-fn status_and_output_styles_use_state_specific_palette_colors() {
+fn status_badge_styles_use_state_specific_palette_colors() {
     let theme = Theme::Dark;
     let palette = theme.extended_palette();
 
     let running = status_badge_style(&theme, WorkflowNodeState::Running);
+    let waiting = status_badge_style(&theme, WorkflowNodeState::Waiting);
     let completed = status_badge_style(&theme, WorkflowNodeState::Completed);
     let failed = status_badge_style(&theme, WorkflowNodeState::Failed);
+    let cancelled = status_badge_style(&theme, WorkflowNodeState::Cancelled);
     assert_eq!(running.text_color, Some(palette.primary.base.color));
+    assert_eq!(waiting.text_color, Some(palette.secondary.base.color));
     assert_eq!(completed.text_color, Some(palette.success.base.color));
     assert_eq!(failed.text_color, Some(palette.danger.base.color));
+    assert_eq!(cancelled.text_color, Some(palette.secondary.base.color));
+}
 
-    let failed_output = output_block_style(&theme, WorkflowNodeState::Failed);
-    assert_eq!(failed_output.text_color, Some(palette.danger.base.color));
-    assert_eq!(
-        failed_output.background,
-        Some(Background::Color(palette.danger.base.color.scale_alpha(0.07)))
-    );
-    assert_ne!(
-        output_block_style(&theme, WorkflowNodeState::Completed).background,
-        failed_output.background
-    );
+#[test]
+fn chat_summary_text_stays_compact_and_detail_body_keeps_full_output() {
+    let value = json!({
+        "status": "completed",
+        "output": "{\"answer\":\"这是一段很长的节点输出，不应该整段塞进聊天摘要行\",\"usage\":{\"total_tokens\":9}}",
+        "metadata": {"node_type": "llm", "index": 3, "elapsed_time": 0.5}
+    });
+    let summary = chat_summary_text(&value, WorkflowNodeState::Completed);
+    assert!(summary.contains("很长的节点输出"));
+    assert!(summary.contains("#3"));
+    assert!(summary.chars().count() <= 96);
+
+    let detail = workflow_node_detail_body(&value);
+    assert!(detail.contains("这是一段很长的节点输出，不应该整段塞进聊天摘要行"));
+    assert!(detail.contains('\n') || detail.contains("answer"));
 }
 
 #[test]
@@ -232,7 +250,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
             &json!({"output": "{\"value\":1,\"usage\":{\"total_tokens\":2}}"}),
             WorkflowNodeState::Completed
         ),
-        "{\n  \"value\": 1\n}"
+        "{\"value\":1}"
     );
     assert_eq!(
         output_preview_text(&json!({"output": " plain output "}), WorkflowNodeState::Completed),
@@ -240,7 +258,7 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
     );
     assert_eq!(
         output_preview_text(&json!({"output": "[1,2]"}), WorkflowNodeState::Completed),
-        "[\n  1,\n  2\n]"
+        "[1,2]"
     );
 }
 
@@ -267,7 +285,7 @@ fn tool_workflow_view_rejects_malformed_wrong_tool_and_invalid_json() {
 }
 
 #[test]
-fn tool_workflow_view_builds_running_completed_and_failed_cards() {
+fn tool_workflow_view_builds_running_waiting_completed_failed_and_cancelled_cards() {
     let app = test_app();
     let running = tool_workflow_view(
         &app,
@@ -278,10 +296,19 @@ fn tool_workflow_view_builds_running_completed_and_failed_cards() {
     .expect("running workflow card");
     keep_element(running);
 
-    let completed = tool_workflow_view(
+    let waiting = tool_workflow_view(
         &app,
         1,
         2,
+        "tool workflow_node\n{\"status\":\"waiting\",\"metadata\":{\"node_type\":\"agent\"}}",
+    )
+    .expect("waiting workflow card");
+    keep_element(waiting);
+
+    let completed = tool_workflow_view(
+        &app,
+        1,
+        3,
         "tool workflow_node\n{\"status\":\"completed\",\"output\":\"{\\\"answer\\\":\\\"done\\\"}\",\"metadata\":{\"title\":\"Answer\"}}",
     )
     .expect("completed workflow card");
@@ -290,11 +317,20 @@ fn tool_workflow_view_builds_running_completed_and_failed_cards() {
     let failed = tool_workflow_view(
         &app,
         1,
-        3,
+        4,
         "tool workflow_node\n{\"status\":\"denied\",\"error\":\"blocked\"}",
     )
     .expect("failed workflow card");
     keep_element(failed);
+
+    let cancelled = tool_workflow_view(
+        &app,
+        1,
+        5,
+        "tool workflow_node\n{\"status\":\"cancelled\",\"metadata\":{\"plan_run\":true}}",
+    )
+    .expect("cancelled workflow card");
+    keep_element(cancelled);
 }
 
 #[test]
@@ -306,4 +342,84 @@ fn tool_workflow_view_builds_hovered_preview_card() {
 
     let element = tool_workflow_view(&app, 2, 4, visible).expect("hovered preview card");
     keep_element(element);
+}
+
+#[test]
+fn plan_run_node_click_opens_session_when_session_id_present() {
+    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+    let value = json!({
+        "status": "completed",
+        "metadata": {
+            "plan_run": true,
+            "session_id": " task-1-plan "
+        }
+    });
+
+    let message =
+        workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
+    match message {
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
+            assert_eq!(path, "/work/proj");
+            assert_eq!(id, "task-1-plan");
+        }
+        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
+    }
+}
+
+#[test]
+fn plan_run_running_node_click_opens_session_with_session_id() {
+    let visible = "tool workflow_node\n{\"status\":\"running\"}";
+    let value = json!({
+        "status": "running",
+        "metadata": {
+            "plan_run": true,
+            "session_id": "task-1-plan"
+        }
+    });
+
+    let message =
+        workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
+    match message {
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
+            assert_eq!(path, "/work/proj");
+            assert_eq!(id, "task-1-plan");
+        }
+        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
+    }
+}
+
+#[test]
+fn plan_run_node_click_keeps_detail_without_session_id() {
+    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+    let value = json!({
+        "status": "completed",
+        "metadata": {"plan_run": true, "title": "Plan"}
+    });
+
+    let message =
+        workflow_node_primary_message(Some("/work/proj"), &value, 3, 4, visible);
+    assert!(matches!(
+        message,
+        Message::Chat(message::ChatMessage::OpenToolDetail(3, 4, ref raw)) if raw == visible
+    ));
+}
+
+#[test]
+fn plan_run_node_click_falls_back_to_detail_without_project_path() {
+    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+    let value = json!({
+        "metadata": {"session_id": "task-1-sub"}
+    });
+
+    for project_path in [None, Some(""), Some("   ")] {
+        let message =
+            workflow_node_primary_message(project_path, &value, 5, 6, visible);
+        assert!(
+            matches!(
+                message,
+                Message::Chat(message::ChatMessage::OpenToolDetail(5, 6, ref raw)) if raw == visible
+            ),
+            "expected detail fallback for project_path={project_path:?}"
+        );
+    }
 }

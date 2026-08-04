@@ -23,6 +23,243 @@ pub enum ExploreToolKind {
     List,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AgentToolSessionStatus {
+    Running,
+    Waiting,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AgentToolSessionPayload {
+    pub parent_session_id: Option<String>,
+    pub child_session_id: String,
+    pub agent: String,
+    pub task: String,
+    pub status: AgentToolSessionStatus,
+}
+
+fn normalized_object_string(object: &Map<String, Value>, keys: &[&str]) -> Option<String> {
+    keys.iter()
+        .filter_map(|key| object.get(*key))
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .find(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn embedded_json_object(value: Option<&Value>) -> Option<Value> {
+    match value? {
+        Value::Object(_) => value.cloned(),
+        Value::String(raw) => {
+            serde_json::from_str::<Value>(raw.trim()).ok().filter(|parsed| parsed.is_object())
+        }
+        _ => None,
+    }
+}
+
+fn agent_tool_payload_from_value(value: &Value) -> Option<AgentToolSessionPayload> {
+    let status = match tool_status(value).trim().to_ascii_lowercase().as_str() {
+        "running" => AgentToolSessionStatus::Running,
+        "waiting" => AgentToolSessionStatus::Waiting,
+        "completed" => AgentToolSessionStatus::Completed,
+        "error" | "failed" | "denied" => AgentToolSessionStatus::Failed,
+        "cancelled" => AgentToolSessionStatus::Cancelled,
+        _ => return None,
+    };
+
+    let output_payload = embedded_json_object(value.get("output"));
+    let result_payload = tool_result_data(value).and_then(|data| {
+        if data.is_object()
+            && (data.get("child_session_id").is_some() || data.get("session_id").is_some())
+        {
+            Some(data.clone())
+        } else {
+            embedded_json_object(data.get("output"))
+        }
+    });
+    let input_payload = embedded_json_object(value.get("input").or_else(|| value.get("rawInput")));
+
+    let mut objects = Vec::new();
+    if let Some(metadata) = value.get("metadata").and_then(Value::as_object) {
+        objects.push(metadata);
+    }
+    if let Some(metadata) = tool_render_hint_metadata(value) {
+        objects.push(metadata);
+    }
+    if let Some(object) = output_payload.as_ref().and_then(Value::as_object) {
+        objects.push(object);
+    }
+    if let Some(object) = result_payload.as_ref().and_then(Value::as_object) {
+        objects.push(object);
+    }
+
+    let child_session_id = objects
+        .iter()
+        .find_map(|object| normalized_object_string(object, &["child_session_id", "session_id"]))?;
+    let parent_session_id =
+        objects.iter().find_map(|object| normalized_object_string(object, &["parent_session_id"]));
+    let agent = objects
+        .iter()
+        .find_map(|object| normalized_object_string(object, &["agent"]))
+        .or_else(|| {
+            input_payload
+                .as_ref()
+                .and_then(Value::as_object)
+                .and_then(|object| normalized_object_string(object, &["agent"]))
+        })
+        .unwrap_or_default();
+    let task = objects
+        .iter()
+        .find_map(|object| normalized_object_string(object, &["task"]))
+        .or_else(|| {
+            input_payload
+                .as_ref()
+                .and_then(Value::as_object)
+                .and_then(|object| normalized_object_string(object, &["task", "prompt"]))
+        })
+        .unwrap_or_default();
+
+    Some(AgentToolSessionPayload { parent_session_id, child_session_id, agent, task, status })
+}
+
+fn agent_tool_status_from_task(
+    task: &Value,
+    action: Option<&str>,
+) -> Option<AgentToolSessionStatus> {
+    match task
+        .get("state")
+        .or_else(|| task.get("status"))
+        .and_then(Value::as_str)?
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "queued" | "running" if action == Some("status") => Some(AgentToolSessionStatus::Running),
+        "queued" | "running" => Some(AgentToolSessionStatus::Waiting),
+        "succeeded" | "completed" => Some(AgentToolSessionStatus::Completed),
+        "error" | "failed" | "denied" => Some(AgentToolSessionStatus::Failed),
+        "cancelled" => Some(AgentToolSessionStatus::Cancelled),
+        _ => None,
+    }
+}
+
+fn agent_tool_payload_from_task(
+    task: &Value,
+    action: Option<&str>,
+) -> Option<AgentToolSessionPayload> {
+    let object = task.as_object()?;
+    let child_session_id = normalized_object_string(object, &["child_session_id", "session_id"])?;
+    Some(AgentToolSessionPayload {
+        parent_session_id: normalized_object_string(object, &["parent_session_id"]),
+        child_session_id,
+        agent: normalized_object_string(object, &["agent"]).unwrap_or_default(),
+        task: normalized_object_string(object, &["task", "prompt"]).unwrap_or_default(),
+        status: agent_tool_status_from_task(task, action)?,
+    })
+}
+
+fn agent_tool_structured_bodies(value: &Value) -> Vec<Value> {
+    let mut bodies = Vec::new();
+    if value.is_object() {
+        bodies.push(value.clone());
+    }
+    if let Some(output) = embedded_json_object(value.get("output")) {
+        bodies.push(output);
+    }
+    if let Some(data) = tool_result_data(value) {
+        if data.is_object() {
+            bodies.push(data.clone());
+        }
+        if let Some(output) = embedded_json_object(data.get("output")) {
+            bodies.push(output);
+        }
+    }
+    bodies
+}
+
+fn agent_tool_payloads_from_value(value: &Value) -> Vec<AgentToolSessionPayload> {
+    let mut payloads = Vec::new();
+    let mut positions = std::collections::HashMap::<String, usize>::new();
+    for body in agent_tool_structured_bodies(value) {
+        let action =
+            body.get("action").and_then(Value::as_str).map(str::trim).map(str::to_ascii_lowercase);
+        let Some(tasks) = body.get("tasks").and_then(Value::as_array) else {
+            continue;
+        };
+        for task in tasks {
+            let Some(payload) = agent_tool_payload_from_task(task, action.as_deref()) else {
+                continue;
+            };
+            if let Some(position) = positions.get(&payload.child_session_id).copied() {
+                payloads[position] = payload;
+            } else {
+                positions.insert(payload.child_session_id.clone(), payloads.len());
+                payloads.push(payload);
+            }
+        }
+    }
+    if payloads.is_empty() {
+        agent_tool_payload_from_value(value).into_iter().collect()
+    } else {
+        payloads
+    }
+}
+
+fn tool_block_value_at(content: &str, start: usize) -> Option<(usize, &str, Value)> {
+    let tail = content.get(start..)?;
+    let line_end = tail.find('\n')?;
+    let tool_name = tail[..line_end].trim().strip_prefix("tool ")?.trim();
+    if tool_name.is_empty() {
+        return None;
+    }
+
+    let json_start = start + line_end + 1;
+    let mut values =
+        serde_json::Deserializer::from_str(content.get(json_start..)?).into_iter::<Value>();
+    let value = values.next()?.ok()?;
+    let end = json_start + values.byte_offset();
+    Some((end, tool_name, value))
+}
+
+fn is_tool_block_boundary(content: &str, start: usize) -> bool {
+    if start == 0 || content[..start].ends_with('\n') {
+        return true;
+    }
+
+    let prefix = content[..start].trim_end_matches([' ', '\t']);
+    prefix.ends_with(':') || prefix.ends_with('：')
+}
+
+pub(crate) fn agent_tool_session_payloads_from_content(
+    content: &str,
+) -> Vec<AgentToolSessionPayload> {
+    let mut payloads = Vec::new();
+    let mut cursor = 0;
+
+    while let Some(relative_start) = content[cursor..].find("tool ") {
+        let start = cursor + relative_start;
+        if !is_tool_block_boundary(content, start) {
+            cursor = start + "tool ".len();
+            continue;
+        }
+        let Some((end, tool_name, value)) = tool_block_value_at(content, start) else {
+            cursor = start + "tool ".len();
+            continue;
+        };
+        cursor = end.max(start + "tool ".len());
+
+        if canonical_tool_name(tool_name) != "AgentTool" {
+            continue;
+        }
+        payloads.extend(agent_tool_payloads_from_value(&value));
+    }
+
+    payloads
+}
+
 fn canonical_tool_name_from_value(value: &Value) -> Option<String> {
     render_hint_object(value)
         .and_then(|hint| hint.get("metadata"))

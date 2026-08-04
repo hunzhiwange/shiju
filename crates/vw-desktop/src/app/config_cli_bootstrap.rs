@@ -15,13 +15,13 @@ use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
 #[cfg(not(target_arch = "wasm32"))]
+use vw_config_types::gateway::DEFAULT_GATEWAY_PORT;
+#[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 #[cfg(not(target_arch = "wasm32"))]
-use vw_gateway_client::vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+use vw_gateway_client::vw_api_types::id::TenantScope;
 
-#[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_GATEWAY_PORT: u16 = 42617;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 const MACOS_SERVICE_LABEL: &str = "com.vibewindow.daemon";
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_HEALTH_PATH: &str = "/v1/health";
@@ -77,10 +77,10 @@ pub async fn bootstrap_cli_service_async() -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn bootstrap_cli_service() -> Result<(), String> {
-    if cfg!(debug_assertions) {
+    if !cfg!(vibewindow_release) {
         tracing::debug!(
             target: "vw_desktop",
-            "debug build skips desktop CLI service bootstrap"
+            "non-release build skips desktop CLI service bootstrap"
         );
         return Ok(());
     }
@@ -88,13 +88,32 @@ fn bootstrap_cli_service() -> Result<(), String> {
     let home = resolve_home_dir()?;
     let config_dir = vw_config_types::paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;
+    let cli_build_id = vw_shared::build_identity::executable_build_id(&cli)
+        .map_err(|error| format!("计算 CLI 构建标识失败 {}: {error}", cli.display()))?;
     let endpoint = sync_gateway_client_bootstrap_from_runtime_config(&home)?;
+    let installed = service_installed(&home);
+    let running = service_running(&home);
+    let health = gateway_health(&endpoint);
+    let running_build_id = health
+        .as_ref()
+        .and_then(|body| body.get("build_id"))
+        .and_then(serde_json::Value::as_str);
+    let service_outdated =
+        installed && running && running_build_id != Some(cli_build_id.as_str());
 
-    if !service_installed(&home) {
+    if service_install_required(service_outdated, installed) {
+        if service_outdated {
+            tracing::info!(
+                target: "vw_desktop",
+                running_build_id = ?running_build_id,
+                cli_build_id = %cli_build_id,
+                "running service build differs from installed CLI; reinstalling the local service"
+            );
+        }
         run_cli_command(&cli, &config_dir, &["service", "install"])?;
     }
 
-    if !service_running(&home) || !gateway_health_ready(&endpoint) {
+    if service_outdated || !running || health.is_none() {
         if let Err(server_start_error) = run_cli_command(&cli, &config_dir, &["server", "start"]) {
             tracing::debug!(
                 target: "vw_desktop",
@@ -105,9 +124,9 @@ fn bootstrap_cli_service() -> Result<(), String> {
         }
     }
 
-    wait_for_gateway_health(&endpoint, GATEWAY_STARTUP_TIMEOUT)
+    wait_for_gateway_build(&endpoint, &cli_build_id, GATEWAY_STARTUP_TIMEOUT)
         .then_some(())
-        .ok_or_else(|| format!("Gateway 服务启动后未就绪: {}", endpoint.describe()))
+        .ok_or_else(|| format!("Gateway 服务启动后构建版本未就绪: {}", endpoint.describe()))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -176,6 +195,11 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     }
 
     Err(install_result.expect_err("install_result is an error"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn service_install_required(service_outdated: bool, service_installed: bool) -> bool {
+    service_outdated || !service_installed
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -350,10 +374,27 @@ fn is_local_gateway_host(host: &str) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn wait_for_gateway_health(endpoint: &GatewayRuntimeEndpoint, timeout: Duration) -> bool {
+fn gateway_health_ready(endpoint: &GatewayRuntimeEndpoint) -> bool {
+    gateway_health(endpoint).is_some()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn gateway_build_id(endpoint: &GatewayRuntimeEndpoint) -> Option<String> {
+    gateway_health(endpoint)?
+        .get("build_id")
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn wait_for_gateway_build(
+    endpoint: &GatewayRuntimeEndpoint,
+    expected_build_id: &str,
+    timeout: Duration,
+) -> bool {
     let started = Instant::now();
     while started.elapsed() < timeout {
-        if gateway_health_ready(endpoint) {
+        if gateway_build_id(endpoint).as_deref() == Some(expected_build_id) {
             return true;
         }
         std::thread::sleep(GATEWAY_STARTUP_POLL_INTERVAL);
@@ -362,39 +403,41 @@ fn wait_for_gateway_health(endpoint: &GatewayRuntimeEndpoint, timeout: Duration)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn gateway_health_ready(endpoint: &GatewayRuntimeEndpoint) -> bool {
+fn gateway_health(endpoint: &GatewayRuntimeEndpoint) -> Option<serde_json::Value> {
     let address = match resolve_gateway_socket_address(endpoint) {
         Some(address) => address,
-        None => return false,
+        None => return None,
     };
 
     let mut stream = match TcpStream::connect_timeout(&address, GATEWAY_HEALTH_CONNECT_TIMEOUT) {
         Ok(stream) => stream,
-        Err(_) => return false,
+        Err(_) => return None,
     };
     let _ = stream.set_read_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
     let _ = stream.set_write_timeout(Some(GATEWAY_HEALTH_CONNECT_TIMEOUT));
 
     let request = format!(
-        "GET {GATEWAY_HEALTH_PATH} HTTP/1.1\r\nHost: {}\r\n{PLATFORM_ID_HEADER}: {}\r\n{COMPANY_ID_HEADER}: {}\r\nConnection: close\r\n\r\n",
+        "GET {GATEWAY_HEALTH_PATH} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
         endpoint.describe(),
-        endpoint.tenant_scope.platform_id().as_ref(),
-        endpoint.tenant_scope.company_id().as_ref(),
     );
     if stream.write_all(request.as_bytes()).is_err() {
-        return false;
+        return None;
     }
 
     let mut response = String::new();
     if stream.read_to_string(&mut response).is_err() {
-        return false;
+        return None;
     }
 
     let Some(status_line) = response.lines().next() else {
-        return false;
+        return None;
     };
-    status_line.contains(" 200 ")
-        && (response.contains("\"status\":\"ok\"") || response.contains("\"status\": \"ok\""))
+    if !status_line.contains(" 200 ") {
+        return None;
+    }
+    let (_, body) = response.split_once("\r\n\r\n")?;
+    let body = serde_json::from_str::<serde_json::Value>(body).ok()?;
+    (body.get("status").and_then(serde_json::Value::as_str) == Some("ok")).then_some(body)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -710,7 +753,7 @@ mod tests {
     }
 
     #[test]
-    fn gateway_health_probe_sends_tenant_headers() {
+    fn gateway_health_probe_omits_tenant_headers() {
         use std::net::TcpListener;
 
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -739,8 +782,8 @@ mod tests {
 
         assert!(gateway_health_ready(&endpoint));
         let request = server.join().unwrap();
-        assert!(request.contains("X-Platform-ID: 20000\r\n"));
-        assert!(request.contains("X-Company-ID: 200000001\r\n"));
+        assert!(!request.contains("X-Platform-ID:"));
+        assert!(!request.contains("X-Company-ID:"));
     }
 }
 

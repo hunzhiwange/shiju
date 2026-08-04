@@ -28,7 +28,13 @@ pub(crate) fn load_plugin_skills(
         .enabled
         .into_iter()
         .filter_map(|plugin| plugin.manifest.skills)
-        .flat_map(|skills_path| load_skills_from_directory(&skills_path.canonical_path, load_mode))
+        .flat_map(|skills_path| {
+            load_skills_from_directory(
+                &skills_path.canonical_path,
+                load_mode,
+                &config.skills.security,
+            )
+        })
         .collect()
 }
 

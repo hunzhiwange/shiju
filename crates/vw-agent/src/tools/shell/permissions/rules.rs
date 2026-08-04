@@ -8,6 +8,7 @@ use regex::Regex;
 use crate::security::policy::allowlist::is_allowlist_entry_match;
 use crate::tools::shell::ast::ParsedCommand;
 use crate::tools::shell::security::{SecurityPipeline, Severity};
+use vw_config_types::security::BashValidatorChecksConfig;
 
 use super::mode::PermissionMode;
 use super::sandbox_allow::SandboxAutoAllow;
@@ -93,6 +94,7 @@ pub struct RuleEngine {
     ask_rules: Vec<PermissionRule>,
     allow_rules: Vec<PermissionRule>,
     legacy_allowlist: Vec<String>,
+    rules_enabled: bool,
     security_pipeline: SecurityPipeline,
     sandbox_auto_allow: SandboxAutoAllow,
 }
@@ -100,12 +102,32 @@ pub struct RuleEngine {
 impl RuleEngine {
     /// 执行 new 操作，并返回调用方需要的结果。
     pub fn new(strict: bool) -> Self {
+        Self::new_with_quoted_newline_blocking(strict, false)
+    }
+
+    /// 创建规则引擎，并显式控制是否阻断 Shell 引号内的换行符。
+    pub fn new_with_quoted_newline_blocking(
+        strict: bool,
+        block_quoted_shell_newlines: bool,
+    ) -> Self {
+        let mut validators = BashValidatorChecksConfig::default();
+        validators.quoted_newline = block_quoted_shell_newlines;
+        Self::new_with_config(strict, true, &validators)
+    }
+
+    /// 创建规则引擎，并分别控制命令规则与 Shell validator。
+    pub fn new_with_config(
+        strict: bool,
+        rules_enabled: bool,
+        validators: &BashValidatorChecksConfig,
+    ) -> Self {
         Self {
             deny_rules: Vec::new(),
             ask_rules: Vec::new(),
             allow_rules: Vec::new(),
             legacy_allowlist: Vec::new(),
-            security_pipeline: SecurityPipeline::new(strict),
+            rules_enabled,
+            security_pipeline: SecurityPipeline::new_with_config(strict, validators),
             sandbox_auto_allow: SandboxAutoAllow::default(),
         }
     }
@@ -137,9 +159,11 @@ impl RuleEngine {
             return PermissionResult::allow();
         }
 
-        for rule in &self.deny_rules {
-            if rule.matches(cmd, context) {
-                return PermissionResult::deny(rule.reason.clone());
+        if self.rules_enabled {
+            for rule in &self.deny_rules {
+                if rule.matches(cmd, context) {
+                    return PermissionResult::deny(rule.reason.clone());
+                }
             }
         }
 
@@ -160,6 +184,10 @@ impl RuleEngine {
         }
 
         if context.mode.auto_allows_command(command_name(cmd).unwrap_or_default()) {
+            return PermissionResult::allow().with_findings(security_report.findings);
+        }
+
+        if !self.rules_enabled {
             return PermissionResult::allow().with_findings(security_report.findings);
         }
 

@@ -13,9 +13,10 @@ use crate::app::components::system_settings_common::{
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_value_badge,
 };
+use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::{column, container, pick_list, row, slider, text};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
 
 fn setting_row<'a>(
     label: &'static str,
@@ -44,6 +45,40 @@ fn app_theme_selected(theme: iced::Theme) -> Message {
     Message::View(message::ViewMessage::AppThemeSelected(theme))
 }
 
+/// 返回常规设置可选择的全部应用主题：Iced 内置主题与本地预设/自定义主题。
+fn app_theme_options(app: &App) -> Vec<Theme> {
+    let mut themes: Vec<Theme> = Theme::ALL.iter().cloned().collect();
+    let Some(store) = theme_store_from_home() else {
+        return themes;
+    };
+
+    match store.list() {
+        Ok(definitions) => {
+            for definition in definitions {
+                match to_iced_theme(&definition) {
+                    Ok(theme) => themes.push(theme),
+                    Err(err) => tracing::warn!(
+                        target: "vw_desktop",
+                        theme_id = %definition.id,
+                        error = %err,
+                        "skipping invalid local theme in general settings picker"
+                    ),
+                }
+            }
+        }
+        Err(err) => tracing::warn!(
+            target: "vw_desktop",
+            error = %err,
+            "failed to load local themes for general settings picker"
+        ),
+    }
+
+    if !themes.contains(&app.app_theme) {
+        themes.push(app.app_theme.clone());
+    }
+    themes
+}
+
 fn terminal_shell_selected(shell: Shell) -> Message {
     Message::Terminal(message::TerminalMessage::ShellSelected(shell))
 }
@@ -58,6 +93,12 @@ fn terminal_font_selected(font_family: String) -> Message {
 
 fn preview_auto_save_mode_changed(mode: PreviewAutoSaveMode) -> Message {
     Message::Preview(message::PreviewMessage::AutoSaveModeChanged(mode))
+}
+
+fn timezone_selected(timezone: String) -> Message {
+    Message::Settings(message::SettingsMessage::General(
+        message::GeneralSettingsMessage::TimezoneSelected(timezone),
+    ))
 }
 
 fn terminal_font_size_changed(font_size: f32) -> Message {
@@ -84,7 +125,7 @@ fn terminal_font_size_changed(font_size: f32) -> Message {
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let theme_pick = pick_list(iced::Theme::ALL, Some(app.app_theme.clone()), app_theme_selected)
+    let theme_pick = pick_list(app_theme_options(app), Some(app.app_theme.clone()), app_theme_selected)
         .padding([10, 14])
         .text_size(13)
         .style(settings_pick_list_style)
@@ -133,6 +174,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
+    let timezone_pick = pick_list(
+        vw_config_types::ui::timezone_options()
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>(),
+        Some(app.chat_timezone.clone()),
+        timezone_selected,
+    )
+    .padding([10, 14])
+    .text_size(13)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fixed(280.0));
+
     let size_slider =
         slider(10.0..=18.0, app.terminal.font_size, terminal_font_size_changed).width(Length::Fill);
 
@@ -147,7 +202,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     settings_value_badge("简体中文"),
                 ),
                 settings_divider(),
-                setting_row("应用主题", "切换整体视觉主题。", theme_pick),
+                setting_row(
+                    "应用主题",
+                    "快速切换内置、预设和自定义主题；完整管理见「主题」页。",
+                    theme_pick,
+                ),
                 settings_divider(),
                 setting_row(
                     "自动保存",
@@ -159,6 +218,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             .style(settings_muted_text_style),
                     ]
                     .spacing(8),
+                ),
+                settings_divider(),
+                setting_row(
+                    "聊天时区",
+                    "用于模型时间上下文，新会话生效。",
+                    timezone_pick,
                 ),
             ]
             .spacing(0)

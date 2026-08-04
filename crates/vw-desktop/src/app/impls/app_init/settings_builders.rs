@@ -12,8 +12,7 @@ pub(super) fn build_channels_settings(
     let channels_mattermost_enabled = channels_cfg.mattermost.is_some();
     let channels_webhook_enabled = channels_cfg.webhook.is_some();
     let channels_imessage_enabled = channels_cfg.imessage.is_some();
-    let channels_matrix_enabled =
-        channels_cfg.matrix.is_some() || !channels_cfg.matrix_instances.is_empty();
+    let channels_matrix_enabled = channels_cfg.matrix_enabled;
     let channels_signal_enabled = channels_cfg.signal.is_some();
     let channels_whatsapp_enabled = channels_cfg.whatsapp.is_some();
     let channels_linq_enabled = channels_cfg.linq.is_some();
@@ -47,6 +46,7 @@ pub(super) fn build_channels_settings(
         webhook: channels_cfg.webhook.clone(),
         imessage: channels_cfg.imessage.clone(),
         matrix: channels_cfg.matrix.clone(),
+        matrix_enabled: channels_cfg.matrix_enabled,
         matrix_instances: channels_cfg.matrix_instances.clone(),
         signal: channels_cfg.signal.clone(),
         whatsapp: channels_cfg.whatsapp.clone(),

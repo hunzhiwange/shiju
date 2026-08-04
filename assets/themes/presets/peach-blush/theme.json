@@ -1,0 +1,25 @@
+{
+  "id": "peach-blush",
+  "name": "蜜桃腮红 Peach Blush",
+  "tagline": "傍晚六点的粉色反光。",
+  "palette": {
+    "background": "#faf4f2",
+    "text": "#3d2e2b",
+    "primary": "#d17a7a",
+    "success": "#e8a8a0",
+    "warning": "#b87b5c",
+    "danger": "#c9a86c"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#d17a7a",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

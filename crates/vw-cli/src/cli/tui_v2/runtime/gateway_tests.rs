@@ -52,12 +52,67 @@ fn spawn_stream_response_server(response_body: &'static str) -> (u16, thread::Jo
     (port, server)
 }
 
+fn spawn_json_sequence_server(
+    responses: Vec<(&'static str, &'static str)>,
+) -> (u16, thread::JoinHandle<Vec<String>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind JSON sequence fixture");
+    let port = listener.local_addr().expect("read JSON fixture addr").port();
+    let server = thread::spawn(move || {
+        responses
+            .into_iter()
+            .map(|(status, body)| {
+                let (mut stream, _) = listener.accept().expect("accept JSON fixture client");
+                let mut request = Vec::new();
+                let mut buffer = [0_u8; 512];
+                while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    let read = stream.read(&mut buffer).expect("read JSON fixture request");
+                    if read == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&buffer[..read]);
+                }
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).expect("write JSON fixture response");
+                String::from_utf8(request).expect("JSON fixture request should be utf8")
+            })
+            .collect()
+    });
+    (port, server)
+}
+
 fn runtime_for_port(port: u16) -> GatewayUiRuntime {
     GatewayUiRuntime::new(
         GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port))
             .expect("client should construct"),
         GatewaySessionSeed::new(PathBuf::from("/tmp/work")).with_id(Some("runtime-session".into())),
     )
+}
+
+#[test]
+fn cd_command_rebinds_runtime_only_after_validated_project_resolution() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let file = workspace.path().join("not-a-directory");
+    fs::write(&file, "x").expect("fixture file");
+    let original = workspace.path().join("original");
+    let target = workspace.path().join("target");
+    fs::create_dir_all(&original).expect("original");
+    fs::create_dir_all(&target).expect("target");
+
+    let mut runtime = GatewayUiRuntime::new(
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 1)).expect("client"),
+        GatewaySessionSeed::new(original.canonicalize().expect("canonical original")),
+    );
+    assert!(runtime.rebind_validated_directory(&file).is_err());
+    assert_eq!(runtime.directory(), original.canonicalize().unwrap());
+    assert!(runtime.rebind_validated_directory(&workspace.path().join("missing")).is_err());
+    assert_eq!(runtime.directory(), original.canonicalize().unwrap());
+
+    let canonical = runtime.rebind_validated_directory(&target).expect("valid directory");
+    assert_eq!(canonical, target.canonicalize().unwrap());
+    assert_eq!(runtime.directory(), canonical);
 }
 
 #[test]
@@ -140,7 +195,7 @@ fn gateway_preflight_outcome_reports_started_flag() {
 fn bootstrap_config_defaults_and_json_mapping_are_stable() {
     let mut config = GatewayClientBootstrapConfig::default();
     assert_eq!(config.host, "127.0.0.1");
-    assert_eq!(config.port, 42617);
+    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.platform_id, "10000");
     assert_eq!(config.company_id, "100000000");
     assert!(config.endpoint().auth.is_none());
@@ -258,7 +313,7 @@ fn bootstrap_json_mapping_ignores_invalid_ports_and_prefers_skey_over_bearer_tok
     }));
 
     assert_eq!(config.host, "gateway.example");
-    assert_eq!(config.port, 42617);
+    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.skey.as_deref(), Some("primary"));
 
     config.apply_json_root(&serde_json::json!({
@@ -269,7 +324,7 @@ fn bootstrap_json_mapping_ignores_invalid_ports_and_prefers_skey_over_bearer_tok
         }
     }));
 
-    assert_eq!(config.port, 42617);
+    assert_eq!(config.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.skey.as_deref(), Some("bearer"));
 }
 
@@ -384,6 +439,48 @@ fn gateway_runtime_for_workspace_uses_current_directory_seed() {
 
     assert_eq!(runtime.directory(), current_dir.as_path());
     assert_eq!(runtime.endpoint().describe(), "127.0.0.1:42617");
+}
+
+#[test]
+fn enabled_acp_backend_keys_load_enabled_config_and_sort_names() {
+    let (port, server) = spawn_json_sequence_server(vec![
+        (
+            "200 OK",
+            r#"{"codex":{"command":"codex"},"alpha":{"command":"alpha"},"zeta":{"command":"zeta"}}"#,
+        ),
+        (
+            "200 OK",
+            r#"{"acp":{"zeta":{"command":"zeta"},"alpha":{"command":"alpha"}}}"#,
+        ),
+    ]);
+    let runtime = runtime_for_port(port);
+
+    assert_eq!(
+        runtime.enabled_acp_backend_keys_blocking().expect("load enabled ACP keys"),
+        ["alpha", "zeta"]
+    );
+    let requests = server.join().expect("join ACP config fixture");
+    assert!(requests[0].starts_with("GET /v1/global/config/acp "));
+    assert!(requests[1].starts_with("GET /v1/global/config "));
+}
+
+#[test]
+fn enabled_acp_backend_keys_use_known_defaults_and_propagate_load_errors() {
+    let catalog = HashMap::from([
+        ("codex".to_string(), AcpAgentConfig::default()),
+        ("claude".to_string(), AcpAgentConfig::default()),
+        ("custom".to_string(), AcpAgentConfig::default()),
+    ]);
+    assert_eq!(
+        resolve_enabled_acp_backend_keys(&catalog, &serde_json::json!({"acp": {}})),
+        ["claude", "codex"]
+    );
+
+    let (port, server) =
+        spawn_json_sequence_server(vec![("500 Internal Server Error", r#"{"error":"offline"}"#)]);
+    let runtime = runtime_for_port(port);
+    assert!(runtime.enabled_acp_backend_keys_blocking().is_err());
+    server.join().expect("join failed ACP config fixture");
 }
 
 #[test]

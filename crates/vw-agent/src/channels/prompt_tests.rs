@@ -341,6 +341,7 @@ fn system_prompt_includes_tools_workspace_runtime_and_mode_specific_task_text() 
         Some(20),
         true,
         crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        chrono_tz::Asia::Shanghai,
     );
 
     assert!(prompt.contains("## Tools"));
@@ -352,9 +353,118 @@ fn system_prompt_includes_tools_workspace_runtime_and_mode_specific_task_text() 
 }
 
 #[test]
+fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available() {
+    let temp = tempfile::tempdir().unwrap();
+    for native_tools in [true, false] {
+        let with_agent_tool = build_system_prompt_with_mode(
+            temp.path(),
+            "model-x",
+            &[("read", "Read files"), ("AgentTool", "Delegate work")],
+            &[],
+            None,
+            None,
+            native_tools,
+            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            chrono_tz::Asia::Shanghai,
+        );
+        for expected in [
+            "not genuinely simple and single-step",
+            "Complex, multi-part, exploratory, implementation, review",
+            "independent workstreams",
+            "When uncertain whether a task is simple, delegate",
+            "same turn",
+            "ordering dependencies",
+            "write sets",
+            "overlapping writes",
+            "finite attempt limit",
+            "delegation depth and parallelism limits",
+            "verify evidence and synthesize",
+        ] {
+            assert!(
+                with_agent_tool.contains(expected),
+                "missing '{expected}' in mode native_tools={native_tools}: {with_agent_tool}"
+            );
+        }
+
+        let without_agent_tool = build_system_prompt_with_mode(
+            temp.path(),
+            "model-x",
+            &[("read", "Read files")],
+            &[],
+            None,
+            None,
+            native_tools,
+            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            chrono_tz::Asia::Shanghai,
+        );
+        assert!(!without_agent_tool.contains("not genuinely simple and single-step"));
+        assert!(!without_agent_tool.contains("When uncertain whether a task is simple, delegate"));
+    }
+}
+
+#[test]
+fn system_prompt_teaches_event_driven_subagent_wait_and_synthesis() {
+    let temp = tempfile::tempdir().unwrap();
+    for native_tools in [true, false] {
+        let with_agent_tool = build_system_prompt_with_mode(
+            temp.path(),
+            "model-x",
+            &[("AgentTool", "Delegate work")],
+            &[],
+            None,
+            None,
+            native_tools,
+            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            chrono_tz::Asia::Shanghai,
+        );
+        for expected in [
+            "`launch` or `spawn`",
+            "Continue useful parent work",
+            "`run`",
+            "`status`",
+            "`wait`",
+            "terminal state",
+            "timeout",
+            "still running",
+            "`stop`",
+            "Do not claim",
+            "verify",
+            "synthesize",
+        ] {
+            assert!(
+                with_agent_tool.contains(expected),
+                "missing '{expected}' in mode native_tools={native_tools}: {with_agent_tool}"
+            );
+        }
+
+        let without_agent_tool = build_system_prompt_with_mode(
+            temp.path(),
+            "model-x",
+            &[("read", "Read files")],
+            &[],
+            None,
+            None,
+            native_tools,
+            crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+            chrono_tz::Asia::Shanghai,
+        );
+        assert!(!without_agent_tool.contains("Continue useful parent work"));
+        assert!(!without_agent_tool.contains("still running"));
+    }
+}
+
+#[test]
 fn system_prompt_default_wrapper_uses_xml_task_text() {
     let temp = tempfile::tempdir().unwrap();
-    let prompt = build_system_prompt(temp.path(), "model-y", &[], &[], None, Some(10));
+    let prompt = build_system_prompt(
+        temp.path(),
+        "model-y",
+        &[],
+        &[],
+        None,
+        Some(10),
+        chrono_tz::Asia::Shanghai,
+    );
 
     assert!(prompt.contains("Instead: emit actual <tool_call> tags"));
     assert!(prompt.contains("Model: model-y"));
@@ -382,6 +492,7 @@ fn system_prompt_with_compact_skill_mode_includes_skills_without_tools_section()
         Some(50),
         false,
         crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        chrono_tz::Asia::Shanghai,
     );
 
     assert!(!prompt.contains("## Tools"));

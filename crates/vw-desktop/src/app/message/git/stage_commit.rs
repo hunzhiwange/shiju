@@ -4,7 +4,8 @@
 
 use super::GitMessage;
 use super::shared::{
-    build_selected_commit_request, execute_selected_commit_via_gateway, git_context_path_for_app,
+    build_all_commit_request, build_selected_commit_request, execute_selected_commit_via_gateway,
+    execute_stage_all_via_gateway, git_context_path_for_app,
     refresh_git_panel_data_after_repo_mutation_task, reset_commit_form_state,
     schedule_commit_button_animation_tick,
 };
@@ -219,12 +220,51 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             app.git_panel_header_hovered = false;
             Task::none()
         }
-        GitMessage::CommitSelected => {
+        GitMessage::StageAll => {
+            if app.git_commit_in_progress {
+                return Task::none();
+            }
+            let Some(path) = git_context_path_for_app(app) else {
+                let error = "未找到项目路径，无法通过网关暂存".to_string();
+                app.error_message = Some(error.clone());
+                app.push_notification(error);
+                return Task::none();
+            };
+
+            app.git_commit_in_progress = true;
+            Task::perform(
+                async move { execute_stage_all_via_gateway(path).await },
+                |result| Message::Git(GitMessage::StageAllFinished(result)),
+            )
+        }
+        GitMessage::StageAllFinished(result) => {
+            app.git_commit_in_progress = false;
+            match result {
+                Ok(()) => {
+                    app.push_notification("暂存完成".to_string());
+                    Task::batch(vec![
+                        refresh_git_panel_data_after_repo_mutation_task(app),
+                        app.show_success_toast("Git 变更已暂存"),
+                    ])
+                }
+                Err(error) => {
+                    app.error_message = Some(error.clone());
+                    app.push_notification(format!("暂存失败: {error}"));
+                    app.show_error_toast(format!("暂存 Git 变更失败：{error}"))
+                }
+            }
+        }
+        message @ (GitMessage::CommitSelected | GitMessage::CommitAll) => {
             if app.git_commit_in_progress {
                 return Task::none();
             }
 
-            let request = match build_selected_commit_request(app) {
+            let request = match message {
+                GitMessage::CommitAll => build_all_commit_request(app),
+                GitMessage::CommitSelected => build_selected_commit_request(app),
+                _ => unreachable!("commit action pattern only accepts commit variants"),
+            };
+            let request = match request {
                 Ok(request) => request,
                 Err(error) => {
                     app.error_message = Some(error.clone());

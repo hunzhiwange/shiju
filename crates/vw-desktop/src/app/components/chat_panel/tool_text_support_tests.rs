@@ -1,6 +1,7 @@
 use super::tool_text_support::{
     ToolTextTarget, chat_text_font, chat_text_font_name, chat_text_line_height,
-    chat_text_selection_color, is_safe_for_text_editor, message_target_from_context,
+    chat_text_selection_color, content_safe_font, is_safe_for_text_editor,
+    message_target_from_context,
     read_only_text_style, selected_chat_text_for_message, selected_chat_text_for_target,
     selected_chat_text_for_tool, tool_inline_text_editor, tool_text_editor, tool_text_key,
     tool_text_style, tool_text_style_with_danger,
@@ -32,6 +33,17 @@ fn chat_text_font_name_is_configured() {
         iced::widget::text::LineHeight::Relative(value) => assert_eq!(value, 1.6),
         _ => panic!("chat text line height should be relative"),
     }
+}
+
+#[test]
+fn content_safe_font_keeps_ascii_monospace_and_falls_back_for_non_ascii() {
+    let preferred = "JetBrains Mono";
+
+    assert_eq!(
+        content_safe_font("fn main() {}", preferred),
+        iced::Font::with_name(preferred)
+    );
+    assert_eq!(content_safe_font("// 中文注释", preferred), chat_text_font());
 }
 
 #[test]

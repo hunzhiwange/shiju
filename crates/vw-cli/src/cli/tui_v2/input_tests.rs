@@ -1,14 +1,24 @@
 //! 验证 TUI v2 输入模型的编辑行为。
 //! 用例覆盖光标移动、文本修改和提交边界，保证终端输入可预测。
 
+use super::commands::registry::{
+    CommandAction, CommandAvailability, CommandExecutionPolicy, CommandRegistry, CommandSource,
+    CommandSpec,
+};
 use super::input::{
-    TuiPromptSuggestionMotion, TuiSlashCommandKind, TuiSlashCommandOutcome, apply_first_suggestion,
-    execute_slash_command, move_prompt_suggestion_selection, parse_slash_command,
+    TuiPromptSuggestionMotion, TuiSlashCommandInvocation, TuiSlashCommandKind,
+    TuiSlashCommandOutcome, apply_first_suggestion, execute_slash_command,
+    move_prompt_suggestion_selection, parse_slash_command as parse_slash_command_with_state,
     prompt_suggestions, selected_prompt_suggestion, selected_suggestion_index,
 };
+use super::completion::active_completion_token;
 use super::state::{
     TuiAction, TuiModelCatalogEntry, TuiSessionPreview, TuiState, reduce_tui_state,
 };
+
+fn parse_slash_command(input: &str) -> Option<TuiSlashCommandInvocation> {
+    parse_slash_command_with_state(&TuiState::default(), input)
+}
 
 #[test]
 fn parse_slash_command_maps_aliases_and_arguments() {
@@ -70,27 +80,51 @@ fn prompt_suggestions_cover_command_prefix_and_model_argument() {
 }
 
 #[test]
+fn trailing_slash_token_suggestions_keep_message_prefix_and_close_on_space() {
+    let mut state = TuiState::default();
+    let value = "请检查 /cl";
+    let (start, token) = active_completion_token(value).expect("active trailing token");
+    assert_eq!(token, "/cl");
+    assert_eq!(&value[..start], "请检查 ");
+
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet(value.to_string()));
+    assert!(
+        prompt_suggestions(&state)
+            .iter()
+            .any(|item| item.replacement == "请检查 /clear")
+    );
+    assert_eq!(apply_first_suggestion(&state).as_deref(), Some("请检查 /clear"));
+
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet("请检查 /cl ".to_string()));
+    assert!(prompt_suggestions(&state).is_empty());
+}
+
+#[test]
 fn prompt_suggestion_selection_clamps_wraps_and_applies_replacement() {
     let mut state = TuiState::default();
     reduce_tui_state(&mut state, TuiAction::PromptValueSet("/".to_string()));
     state.prompt.set_selected_suggestion_index(Some(99));
 
+    let suggestions = prompt_suggestions(&state);
     let selected = selected_prompt_suggestion(&state).expect("last command should be selected");
-    assert_eq!(selected.label, "/exit");
+    assert_eq!(Some(&selected), suggestions.last());
     assert_eq!(move_prompt_suggestion_selection(&state, TuiPromptSuggestionMotion::Next), Some(0));
     assert_eq!(
         move_prompt_suggestion_selection(&state, TuiPromptSuggestionMotion::Previous),
-        Some(3)
+        Some(suggestions.len().saturating_sub(2))
     );
-    assert_eq!(apply_first_suggestion(&state).as_deref(), Some("/exit"));
+    assert_eq!(
+        apply_first_suggestion(&state).as_deref(),
+        suggestions.last().map(|item| item.replacement.as_str())
+    );
 
-    reduce_tui_state(&mut state, TuiAction::PromptValueSet("/exit".to_string()));
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet(selected.replacement));
     state.prompt.set_selected_suggestion_index(Some(0));
     assert_eq!(apply_first_suggestion(&state), None);
 }
 
 #[test]
-fn prompt_suggestions_cover_resume_preview_and_active_model_fallback() {
+fn prompt_suggestions_cover_resume_preview_without_model_free_text() {
     let mut state = TuiState::default();
     state.session.preview = Some(TuiSessionPreview {
         id: "session-1".to_string(),
@@ -110,12 +144,11 @@ fn prompt_suggestions_cover_resume_preview_and_active_model_fallback() {
 
     reduce_tui_state(&mut state, TuiAction::StatusModelSet(Some("custom-fast".to_string())));
     reduce_tui_state(&mut state, TuiAction::PromptValueSet("/model fast".to_string()));
-    let model = prompt_suggestions(&state);
-    assert_eq!(model.first().map(|item| item.replacement.as_str()), Some("/model custom-fast"));
+    assert!(prompt_suggestions(&state).is_empty());
 }
 
 #[test]
-fn execute_slash_command_clear_opens_confirm_overlay_and_preserves_context() {
+fn execute_slash_command_clear_emits_typed_session_intent_and_preserves_context() {
     let mut state = TuiState::default();
     state.session.session_id = Some("session_clear".to_string());
     reduce_tui_state(&mut state, TuiAction::StatusModelSet(Some("gpt-5.4".to_string())));
@@ -133,14 +166,14 @@ fn execute_slash_command_clear_opens_confirm_overlay_and_preserves_context() {
         &parse_slash_command("/clear").expect("clear command should parse"),
     );
 
-    assert_eq!(outcome, TuiSlashCommandOutcome::Continue);
+    assert_eq!(
+        outcome,
+        TuiSlashCommandOutcome::Session(super::commands::session::SessionCommand::Clear)
+    );
     assert_eq!(state.session.session_id.as_deref(), Some("session_clear"));
     assert_eq!(state.status.model_name.as_deref(), Some("gpt-5.4"));
     assert_eq!(state.messages.len(), 1);
-    let Some(super::model::UiOverlay::Confirm(overlay)) = state.overlays.active() else {
-        panic!("clear should open a confirm overlay");
-    };
-    assert_eq!(overlay.confirm_label, "清空");
+    assert!(state.overlays.active().is_none());
     assert!(state.session.persisted_messages.is_empty());
 }
 
@@ -178,8 +211,13 @@ fn execute_slash_command_model_and_unknown_emit_system_feedback() {
         &parse_slash_command("/model openai/gpt-5.4").expect("model command should parse"),
     );
     assert_eq!(model_outcome, TuiSlashCommandOutcome::Continue);
-    assert_eq!(state.status.model_name.as_deref(), Some("openai/gpt-5.4"));
-    assert_eq!(state.status.provider_name.as_deref(), Some("openai"));
+    assert_eq!(state.status.model_name, None, "runtime commit owns model mutation");
+    let super::model::UiMessage::System(model_message) =
+        state.messages.last().expect("model argument should emit warning")
+    else {
+        panic!("model argument should emit system feedback");
+    };
+    assert!(model_message.text.contains("does not accept arguments"));
 
     let unknown_outcome = execute_slash_command(
         &mut state,
@@ -216,50 +254,45 @@ fn execute_slash_command_help_and_model_hint_emit_info_messages() {
         &mut state,
         &parse_slash_command("/model").expect("model command should parse"),
     );
-    assert_eq!(model_hint, TuiSlashCommandOutcome::Continue);
-    let super::model::UiMessage::System(message) =
-        state.messages.last().expect("model hint should append a system message")
-    else {
-        panic!("model hint should emit system feedback");
-    };
-    assert!(message.text.contains("当前值见输入框底部"));
+    assert_eq!(
+        model_hint,
+        TuiSlashCommandOutcome::Settings(
+            super::commands::settings::SettingsCommand::OpenModelPicker
+        )
+    );
 }
 
 #[test]
-fn execute_slash_command_model_uses_catalog_or_current_provider_for_unqualified_input() {
+fn execute_slash_command_acp_opens_picker_and_rejects_free_text() {
     let mut state = TuiState::default();
-    reduce_tui_state(&mut state, TuiAction::StatusProviderSet(Some("anthropic".to_string())));
-    reduce_tui_state(
-        &mut state,
-        TuiAction::ModelCatalogReplaced(vec![
-            TuiModelCatalogEntry {
-                provider_id: "openai".to_string(),
-                provider_name: "OpenAI".to_string(),
-                model_id: "gpt-5.4".to_string(),
-                model_name: "GPT-5.4".to_string(),
-            },
-            TuiModelCatalogEntry {
-                provider_id: "anthropic".to_string(),
-                provider_name: "Anthropic".to_string(),
-                model_id: "claude-sonnet".to_string(),
-                model_name: "Claude Sonnet".to_string(),
-            },
-        ]),
-    );
 
-    execute_slash_command(
-        &mut state,
-        &parse_slash_command("/model claude-sonnet").expect("model command should parse"),
+    assert_eq!(
+        execute_slash_command(
+            &mut state,
+            &parse_slash_command("/acp").expect("ACP command should parse")
+        ),
+        TuiSlashCommandOutcome::Settings(
+            super::commands::settings::SettingsCommand::OpenAcpBackendPicker
+        )
     );
-    assert_eq!(state.status.provider_name.as_deref(), Some("anthropic"));
-    assert_eq!(state.status.model_name.as_deref(), Some("claude-sonnet"));
-
-    execute_slash_command(
-        &mut state,
-        &parse_slash_command("/model unknown-local").expect("model command should parse"),
+    assert_eq!(
+        execute_slash_command(
+            &mut state,
+            &parse_slash_command("/acp codex").expect("ACP command should parse")
+        ),
+        TuiSlashCommandOutcome::Continue
     );
-    assert_eq!(state.status.provider_name.as_deref(), Some("anthropic"));
-    assert_eq!(state.status.model_name.as_deref(), Some("unknown-local"));
+    assert_eq!(
+        execute_slash_command(
+            &mut state,
+            &parse_slash_command("/acp default").expect("ACP command should parse")
+        ),
+        TuiSlashCommandOutcome::Continue
+    );
+    assert_eq!(state.messages.len(), 2);
+    assert!(state.messages.iter().all(|message| {
+        matches!(message, super::model::UiMessage::System(message) if message.text.contains("does not accept arguments"))
+    }));
 }
 
 #[test]
@@ -301,6 +334,10 @@ fn parse_slash_command_parses_all_command_kinds() {
     let resume_with_arg = parse_slash_command("/resume s1").expect("resume with arg");
     assert_eq!(resume_with_arg.kind, Some(TuiSlashCommandKind::Resume));
     assert_eq!(resume_with_arg.argument.as_deref(), Some("s1"));
+
+    let acp = parse_slash_command("/acp codex").expect("ACP with backend");
+    assert_eq!(acp.kind, Some(TuiSlashCommandKind::Acp));
+    assert_eq!(acp.argument.as_deref(), Some("codex"));
 }
 
 #[test]
@@ -338,22 +375,76 @@ fn selection_functions_gracefully_handle_non_slash_input() {
 }
 
 #[test]
+fn merged_registry_drives_parse_completion_and_dispatch_with_availability() {
+    let mut state = TuiState::default();
+    state.command_registry = CommandRegistry::merge(vec![
+        (CommandSource::Builtin, Ok(CommandRegistry::builtin().commands().to_vec())),
+        (
+            CommandSource::Workflow,
+            Ok(vec![
+                CommandSpec {
+                    name: "deploy".to_string(),
+                    aliases: vec!["ship".to_string()],
+                    summary: "deploy the selected workflow".to_string(),
+                    takes_argument: true,
+                    argument_hint: Some("<environment>".to_string()),
+                    source: CommandSource::Workflow,
+                    availability: CommandAvailability::Available,
+                    execution_policy: CommandExecutionPolicy::Queued,
+                    action: CommandAction::Gateway("workflow.deploy".to_string()),
+                },
+                CommandSpec {
+                    name: "disabled".to_string(),
+                    aliases: Vec::new(),
+                    summary: "disabled command".to_string(),
+                    takes_argument: false,
+                    argument_hint: None,
+                    source: CommandSource::Workflow,
+                    availability: CommandAvailability::Unavailable {
+                        reason: "workflow service is offline".to_string(),
+                    },
+                    execution_policy: CommandExecutionPolicy::Immediate,
+                    action: CommandAction::Gateway("workflow.disabled".to_string()),
+                },
+            ]),
+        ),
+    ]);
+
+    let parsed =
+        parse_slash_command_with_state(&state, "/ship production").expect("dynamic command");
+    assert_eq!(parsed.action, Some(CommandAction::Gateway("workflow.deploy".to_string())));
+    assert_eq!(parsed.execution_policy, Some(CommandExecutionPolicy::Queued));
+
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet("/d".to_string()));
+    let suggestions = prompt_suggestions(&state);
+    assert!(suggestions.iter().any(|item| {
+        item.label == "/deploy"
+            && item.detail.as_deref().is_some_and(|detail| {
+                detail.contains("<environment>") && detail.contains("Workflow")
+            })
+    }));
+    assert!(suggestions.iter().any(|item| {
+        item.label == "/disabled"
+            && item
+                .detail
+                .as_deref()
+                .is_some_and(|detail| detail.contains("workflow service is offline"))
+    }));
+
+    let unavailable = state.command_registry.dispatch("disabled", None).unwrap_err();
+    assert!(unavailable.contains("workflow service is offline"));
+}
+
+#[test]
 fn execute_slash_command_model_hint_differs_by_catalog_state() {
-    // With empty catalog, hint suggests provider/model format.
     let mut empty_state = TuiState::default();
-    execute_slash_command(&mut empty_state, &parse_slash_command("/model").expect("model"));
-    let super::model::UiMessage::System(empty_msg) =
-        empty_state.messages.last().expect("should emit hint")
-    else {
-        panic!("expected system message");
-    };
-    assert!(
-        empty_msg.text.contains("<provider/model>"),
-        "empty catalog hint should mention provider/model format: {:?}",
-        empty_msg.text
+    assert_eq!(
+        execute_slash_command(&mut empty_state, &parse_slash_command("/model").expect("model")),
+        TuiSlashCommandOutcome::Settings(
+            super::commands::settings::SettingsCommand::OpenModelPicker
+        )
     );
 
-    // With populated catalog, hint mentions navigation keys.
     let mut catalog_state = TuiState::default();
     reduce_tui_state(
         &mut catalog_state,
@@ -364,16 +455,11 @@ fn execute_slash_command_model_hint_differs_by_catalog_state() {
             model_name: "GPT-5.4".to_string(),
         }]),
     );
-    execute_slash_command(&mut catalog_state, &parse_slash_command("/model").expect("model"));
-    let super::model::UiMessage::System(catalog_msg) =
-        catalog_state.messages.last().expect("should emit hint")
-    else {
-        panic!("expected system message");
-    };
-    assert!(
-        catalog_msg.text.contains("Up/Down"),
-        "populated catalog hint should mention Up/Down: {:?}",
-        catalog_msg.text
+    assert_eq!(
+        execute_slash_command(&mut catalog_state, &parse_slash_command("/model").expect("model")),
+        TuiSlashCommandOutcome::Settings(
+            super::commands::settings::SettingsCommand::OpenModelPicker
+        )
     );
 }
 

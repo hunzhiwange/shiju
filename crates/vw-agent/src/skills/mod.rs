@@ -38,6 +38,8 @@ mod cli;
 mod init;
 mod installer;
 mod loader;
+pub(crate) mod marketplace;
+pub(crate) mod shiju;
 mod open_skills;
 mod policy;
 mod prompt;
@@ -50,6 +52,7 @@ pub(crate) use types::SkillLoadMode;
 pub use types::{Skill, SkillTool};
 
 const SKILL_DISABLED_MARKER_FILE: &str = "SKILL.disabled";
+const COMMON_PROJECT_SKILL_SOURCE_PATHS: [&str; 2] = ["skills", ".agents/skills"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LocalSkillSourceKind {
@@ -93,7 +96,10 @@ pub(crate) fn discover_local_skill_source_dirs_with_provider(
         let workspace_dir =
             workspace_dir.canonicalize().unwrap_or_else(|_| workspace_dir.to_path_buf());
 
-        for relative_path in workspace_skill_source_paths(directory_provider) {
+        for relative_path in workspace_skill_source_paths(directory_provider)
+            .into_iter()
+            .chain(COMMON_PROJECT_SKILL_SOURCE_PATHS)
+        {
             push_skill_source_dir(
                 &mut dirs,
                 &mut seen,
@@ -110,7 +116,10 @@ pub(crate) fn discover_local_skill_source_dirs_with_provider(
                     break;
                 }
 
-                for relative_path in ancestor_skill_source_paths(directory_provider) {
+                for relative_path in ancestor_skill_source_paths(directory_provider)
+                    .into_iter()
+                    .chain(COMMON_PROJECT_SKILL_SOURCE_PATHS)
+                {
                     push_skill_source_dir(
                         &mut dirs,
                         &mut seen,
@@ -299,6 +308,7 @@ pub fn load_skills_with_config(
         config.skills.open_skills_dir.as_deref(),
         types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
         config.skills.directory_provider,
+        &config.skills.security,
         Some(config),
     )
 }
@@ -316,6 +326,7 @@ pub(crate) fn load_skills_full_with_config(
         config.skills.open_skills_dir.as_deref(),
         types::SkillLoadMode::Full,
         config.skills.directory_provider,
+        &config.skills.security,
         Some(config),
     )
 }
@@ -354,6 +365,7 @@ pub(crate) fn load_skills_with_open_skills_config(
         config_open_skills_dir,
         load_mode,
         SkillsDirectoryProvider::Vibewindow,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
         None,
     )
 }
@@ -364,6 +376,7 @@ fn load_skills_with_open_skills_config_and_provider(
     config_open_skills_dir: Option<&str>,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
+    security: &vw_config_types::skills::SkillSecurityConfig,
     config: Option<&crate::app::agent::config::Config>,
 ) -> Vec<Skill> {
     let mut skills = Vec::new();
@@ -372,7 +385,7 @@ fn load_skills_with_open_skills_config_and_provider(
     extend_unique_skills(
         &mut skills,
         &mut seen,
-        load_workspace_skills(workspace_dir, load_mode, directory_provider),
+        load_workspace_skills(workspace_dir, load_mode, directory_provider, security),
     );
 
     if let Some(config) = config {
@@ -389,7 +402,7 @@ fn load_skills_with_open_skills_config_and_provider(
         extend_unique_skills(
             &mut skills,
             &mut seen,
-            open_skills::load_open_skills(&open_skills_dir, load_mode),
+            open_skills::load_open_skills(&open_skills_dir, load_mode, security),
         );
     }
 
@@ -412,11 +425,45 @@ fn load_workspace_skills(
     workspace_dir: &Path,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
+    security: &vw_config_types::skills::SkillSecurityConfig,
 ) -> Vec<Skill> {
     discover_local_skill_source_dirs_with_provider(Some(workspace_dir), directory_provider)
         .into_iter()
-        .flat_map(|source| loader::load_skills_from_directory(&source.path, load_mode))
+        .flat_map(|source| {
+            loader::load_skills_from_directory(&source.path, load_mode, security)
+        })
         .collect()
+}
+
+/// 加载委托代理可默认使用的项目与父级技能。
+pub(crate) fn load_project_skills_with_config(
+    workspace_dir: &Path,
+    config: &crate::app::agent::config::Config,
+) -> Vec<Skill> {
+    let mut skills = Vec::new();
+    let mut seen = HashSet::new();
+    let load_mode = types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode);
+
+    for source in discover_local_skill_source_dirs_with_provider(
+        Some(workspace_dir),
+        config.skills.directory_provider,
+    )
+    .into_iter()
+    .filter(|source| {
+        matches!(source.kind, LocalSkillSourceKind::Workspace | LocalSkillSourceKind::Ancestor)
+    }) {
+        extend_unique_skills(
+            &mut skills,
+            &mut seen,
+            loader::load_skills_from_directory(
+                &source.path,
+                load_mode,
+                &config.skills.security,
+            ),
+        );
+    }
+
+    skills
 }
 /// 获取技能目录路径
 ///

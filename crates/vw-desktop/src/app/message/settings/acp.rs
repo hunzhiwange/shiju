@@ -1,12 +1,16 @@
-//! 处理 ACP 系统设置页的加载与启用状态更新。
+//! 处理 ACP 系统设置页的加载、新增与启用状态更新。
 
 use std::time::Duration;
 
-use crate::app::config::{AcpSettingsSnapshot, set_global_acp_agent_enabled_async};
+use crate::app::config::{
+    AcpSettingsSnapshot, add_global_acp_agent_async, set_global_acp_agent_enabled_async,
+};
 use crate::app::{App, Message};
 use iced::Task;
+use vw_config_types::config::AcpAgentConfig;
 
 use super::messages::{AcpMessage, SettingsMessage};
+use super::util::parse_comma_or_newline_list;
 
 fn sort_acp_agent_names(mut names: Vec<String>) -> Vec<String> {
     names.sort_by(|left, right| {
@@ -32,7 +36,31 @@ fn apply_snapshot(app: &mut App, snapshot: AcpSettingsSnapshot) {
     }
 }
 
-/// 处理 `AcpMessage` 对应的刷新、启用和禁用流程。
+fn new_agent_request(app: &App) -> Result<(String, AcpAgentConfig), String> {
+    let name = app.acp_settings.new_agent_name_input.trim();
+    if name.is_empty() {
+        return Err("ACP 名称不能为空".to_string());
+    }
+    if app.acp_settings.catalog.contains_key(name) {
+        return Err(format!("ACP 名称已存在: {name}"));
+    }
+
+    let command = app.acp_settings.new_agent_command_input.trim();
+    if command.is_empty() {
+        return Err("ACP 启动命令不能为空".to_string());
+    }
+
+    Ok((
+        name.to_string(),
+        AcpAgentConfig {
+            command: command.to_string(),
+            args: parse_comma_or_newline_list(&app.acp_settings.new_agent_args_input),
+            ..AcpAgentConfig::default()
+        },
+    ))
+}
+
+/// 处理 `AcpMessage` 对应的刷新、新增、启用和禁用流程。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::Acp(message) = message else {
         return Task::none();
@@ -54,6 +82,62 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.acp_settings.save_error = Some(err);
+                }
+            }
+            Task::none()
+        }
+        AcpMessage::NewAgentPanelToggled => {
+            app.acp_settings.new_agent_expanded = !app.acp_settings.new_agent_expanded;
+            app.acp_settings.save_error = None;
+            Task::none()
+        }
+        AcpMessage::NewAgentNameChanged(value) => {
+            app.acp_settings.new_agent_name_input = value;
+            app.acp_settings.save_error = None;
+            Task::none()
+        }
+        AcpMessage::NewAgentCommandChanged(value) => {
+            app.acp_settings.new_agent_command_input = value;
+            app.acp_settings.save_error = None;
+            Task::none()
+        }
+        AcpMessage::NewAgentArgsChanged(value) => {
+            app.acp_settings.new_agent_args_input = value;
+            app.acp_settings.save_error = None;
+            Task::none()
+        }
+        AcpMessage::AddAgent => {
+            let (agent, spec) = match new_agent_request(app) {
+                Ok(request) => request,
+                Err(error) => {
+                    app.acp_settings.save_error = Some(error);
+                    return Task::none();
+                }
+            };
+            app.acp_settings.adding_agent = true;
+            app.acp_settings.save_error = None;
+            app.acp_settings.status_message = None;
+            Task::perform(add_global_acp_agent_async(agent.clone(), spec), move |result| {
+                Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgentCompleted {
+                    agent,
+                    result,
+                }))
+            })
+        }
+        AcpMessage::AddAgentCompleted { agent, result } => {
+            app.acp_settings.adding_agent = false;
+            match result {
+                Ok(snapshot) => {
+                    apply_snapshot(app, snapshot);
+                    app.acp_settings.new_agent_expanded = false;
+                    app.acp_settings.new_agent_name_input.clear();
+                    app.acp_settings.new_agent_command_input.clear();
+                    app.acp_settings.new_agent_args_input.clear();
+                    app.acp_settings.save_error = None;
+                    app.acp_settings.status_message = Some(format!("{agent} 已新增并启用"));
+                }
+                Err(error) => {
+                    app.acp_settings.save_error = Some(error);
                 }
             }
             Task::none()

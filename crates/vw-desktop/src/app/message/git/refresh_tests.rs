@@ -26,13 +26,42 @@ fn refresh_worktree_options_without_project_clears_state() {
 
 #[test]
 fn refresh_worktree_options_with_project_marks_request_loading() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    git2::Repository::init(temp.path()).expect("init repo");
+    let project_path = temp.path().to_string_lossy().to_string();
     let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/project".to_string());
+    app.project_path = Some(project_path.clone());
 
     let _task = super::refresh::update(&mut app, GitMessage::RefreshWorktreeOptions);
 
     assert!(app.git_worktree_options_loading);
-    assert_eq!(app.git_worktree_options_project_path.as_deref(), Some("/project"));
+    assert_eq!(app.git_worktree_options_project_path.as_deref(), Some(project_path.as_str()));
+}
+
+#[test]
+fn refresh_worktree_options_for_non_git_project_clears_state_without_error() {
+    let temp = tempfile::TempDir::new().expect("tempdir");
+    let project_path = temp.path().to_string_lossy().to_string();
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some(project_path.clone());
+    app.git_worktree_options = vec![GitWorktreeOption {
+        directory: "/old".to_string(),
+        label: "old".to_string(),
+        branch: Some("main".to_string()),
+    }];
+    app.selected_git_worktree_directory = Some("/old".to_string());
+    app.git_worktree_options_loading = true;
+    app.git_worktree_options_project_path = Some(project_path);
+    app.git_worktree_menu_open = true;
+
+    let _task = super::refresh::update(&mut app, GitMessage::RefreshWorktreeOptions);
+
+    assert!(app.git_worktree_options.is_empty());
+    assert_eq!(app.selected_git_worktree_directory, None);
+    assert!(!app.git_worktree_options_loading);
+    assert_eq!(app.git_worktree_options_project_path, None);
+    assert!(!app.git_worktree_menu_open);
+    assert_eq!(app.error_message, None);
 }
 
 #[test]

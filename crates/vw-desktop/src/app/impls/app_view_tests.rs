@@ -1,5 +1,6 @@
 use super::*;
 use serde_json::Map;
+use crate::app::state::WorkspaceMode;
 
 fn test_app() -> App {
     App::new().0
@@ -27,6 +28,9 @@ fn view_builds_for_primary_screens_without_modal_state() {
         Screen::Knowledge,
         Screen::WorkflowManager,
         Screen::TaskBoard,
+        Screen::ShijuApps,
+        Screen::ShijuSkills,
+        Screen::ExpertHub,
     ] {
         app.screen = screen;
         let _element: iced::Element<'_, Message> = app.view();
@@ -109,4 +113,28 @@ fn view_builds_with_project_edit_and_permission_modals_together() {
     let element: iced::Element<'_, Message> = app.view();
 
     std::hint::black_box(element);
+}
+
+#[test]
+fn view_builds_shiju_install_guide() {
+    let mut app = test_app();
+    app.screen = Screen::ShijuSkills;
+    app.expert_hub.skill_tab = crate::app::skill_hub::SkillTab::Install;
+    app.expert_hub.install_guide.open = true;
+
+    let element: iced::Element<'_, Message> = app.view();
+
+    std::hint::black_box(element);
+}
+
+#[test]
+fn project_shell_keeps_tab_bar_in_code_and_work_modes() {
+    assert!(show_tab_bar(Screen::Project, WorkspaceMode::Work));
+    assert!(show_tab_bar(Screen::Project, WorkspaceMode::Code));
+    assert!(show_tab_bar(Screen::Home, WorkspaceMode::Work));
+
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Work;
+    std::hint::black_box(app.view());
 }

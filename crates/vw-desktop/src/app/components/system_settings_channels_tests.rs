@@ -61,10 +61,9 @@ fn view_builds_multi_channel_enabled_summary() {
         base_url: None,
     });
     app.channels_settings.webhook = Some(WebhookConfig { port: 8787, secret: None });
-    app.channels_settings.text_editors.insert(
-        "telegram.allowed_users".to_string(),
-        iced::widget::text_editor::Content::new(),
-    );
+    app.channels_settings
+        .text_editors
+        .insert("telegram.allowed_users".to_string(), iced::widget::text_editor::Content::new());
     app.channels_settings.text_editors.insert(
         "telegram.group_reply.allowed_sender_ids".to_string(),
         iced::widget::text_editor::Content::new(),

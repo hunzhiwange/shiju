@@ -28,6 +28,7 @@ const SUPPORTED_HELP: &[(SystemTab, &str, &str)] = &[
 ];
 
 const UNSUPPORTED_TABS: &[SystemTab] = &[
+    SystemTab::QuickMessages,
     SystemTab::Heartbeat,
     SystemTab::Cron,
     SystemTab::Scheduler,

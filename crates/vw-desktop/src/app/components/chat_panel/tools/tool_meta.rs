@@ -285,13 +285,13 @@ pub fn tool_icon_badge<'a>(tool_name: &str, is_error: bool) -> Element<'a, Messa
         });
 
     // 徽标只保留居中的图标，去掉背景、边框，保持与标题对齐的固定尺寸。
-    // 星形图标几何视框上下对称，但视觉重心偏上，居中后看起来比文字略高，
-    // 用顶部 padding 把它向下压一点，与文字光学居中对齐。
-    let optical_top = if matches!(tool_icon(tool_name), Icon::Star) { 1.5 } else { 0.0 };
+    // 星形图标视觉重心偏下（下方两尖更重），几何居中后看起来比文字略低，
+    // 用底部 padding 把它向上抬一点，与文字光学居中对齐。
+    let optical_bottom = if matches!(tool_icon(tool_name), Icon::Star) { 2.0 } else { 0.0 };
     container(icon)
         .width(Length::Fixed(20.0))
         .height(Length::Fixed(20.0))
-        .padding(iced::Padding { top: optical_top, right: 0.0, bottom: 0.0, left: 0.0 })
+        .padding(iced::Padding { top: 0.0, right: 0.0, bottom: optical_bottom, left: 0.0 })
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
         .into()

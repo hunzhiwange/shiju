@@ -10,6 +10,7 @@
 //!
 //! 所有设置变更都会立即持久化到配置文件中，确保代理行为的一致性。
 
+use crate::app::state::{AutonomyListKind, AutonomySettingsState};
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -114,48 +115,95 @@ mod autonomy_tests;
 /// - `non_cli_natural_language_approval_mode`：非 CLI 模式默认审批模式
 /// - `non_cli_natural_language_approval_mode_by_channel`：按通道的自定义审批模式
 fn persist_autonomy_settings(app: &mut App) -> Task<Message> {
-    let s = &app.autonomy_settings;
-    let level = s.level;
-    let workspace_only = s.workspace_only;
-    let allowed_commands = parse_comma_or_newline_list(&s.allowed_commands_input);
-    let forbidden_paths = parse_comma_or_newline_list(&s.forbidden_paths_input);
-    let max_actions_per_hour = s.max_actions_per_hour.clamp(1, 10_000);
-    let max_cost_per_day_cents = s.max_cost_per_day_cents.clamp(1, 1_000_000);
-    let require_approval_for_medium_risk = s.require_approval_for_medium_risk;
-    let block_high_risk_commands = s.block_high_risk_commands;
-    let shell_redirect_policy = s.shell_redirect_policy;
-    let shell_env_passthrough = parse_comma_or_newline_list(&s.shell_env_passthrough_input);
-    let auto_approve = parse_comma_or_newline_list(&s.auto_approve_input);
-    let always_ask = parse_comma_or_newline_list(&s.always_ask_input);
-    let allowed_roots = parse_comma_or_newline_list(&s.allowed_roots_input);
-    let non_cli_excluded_tools = parse_comma_or_newline_list(&s.non_cli_excluded_tools_input);
-    let non_cli_approval_approvers =
-        parse_comma_or_newline_list(&s.non_cli_approval_approvers_input);
-    let non_cli_natural_language_approval_mode = s.non_cli_natural_language_approval_mode;
-    let non_cli_natural_language_approval_mode_by_channel =
-        parse_non_cli_mode_by_channel(&s.non_cli_natural_language_approval_mode_by_channel_input);
-
-    // 更新持久化配置
+    let settings = app.autonomy_settings.clone();
     crate::app::update_autonomy_config_async(move |autonomy| {
-        autonomy.level = level;
-        autonomy.workspace_only = workspace_only;
-        autonomy.allowed_commands = allowed_commands;
-        autonomy.forbidden_paths = forbidden_paths;
-        autonomy.max_actions_per_hour = max_actions_per_hour;
-        autonomy.max_cost_per_day_cents = max_cost_per_day_cents;
-        autonomy.require_approval_for_medium_risk = require_approval_for_medium_risk;
-        autonomy.block_high_risk_commands = block_high_risk_commands;
-        autonomy.shell_redirect_policy = shell_redirect_policy;
-        autonomy.shell_env_passthrough = shell_env_passthrough;
-        autonomy.auto_approve = auto_approve;
-        autonomy.always_ask = always_ask;
-        autonomy.allowed_roots = allowed_roots;
-        autonomy.non_cli_excluded_tools = non_cli_excluded_tools;
-        autonomy.non_cli_approval_approvers = non_cli_approval_approvers;
-        autonomy.non_cli_natural_language_approval_mode = non_cli_natural_language_approval_mode;
-        autonomy.non_cli_natural_language_approval_mode_by_channel =
-            non_cli_natural_language_approval_mode_by_channel;
+        apply_autonomy_settings_to_config(&settings, autonomy);
     })
+}
+
+fn apply_autonomy_settings_to_config(
+    settings: &AutonomySettingsState,
+    autonomy: &mut vw_config_types::security::AutonomyConfig,
+) {
+    autonomy.level = settings.level;
+    autonomy.workspace_only = settings.workspace_only;
+    autonomy.allowed_commands = settings.allowed_commands.clone();
+    autonomy.forbidden_paths = settings.forbidden_paths.clone();
+    autonomy.max_actions_per_hour = settings.max_actions_per_hour.clamp(1, 1_000_000);
+    autonomy.max_cost_per_day_cents = settings.max_cost_per_day_cents.clamp(1, 100_000_000);
+    autonomy.require_approval_for_medium_risk = settings.require_approval_for_medium_risk;
+    autonomy.block_high_risk_commands = settings.block_high_risk_commands;
+    autonomy.shell_redirect_policy = settings.shell_redirect_policy;
+    autonomy.shell_env_passthrough = settings.shell_env_passthrough.clone();
+    autonomy.auto_approve = settings.auto_approve.clone();
+    autonomy.always_ask = settings.always_ask.clone();
+    autonomy.allowed_roots = settings.allowed_roots.clone();
+    autonomy.non_cli_excluded_tools = settings.non_cli_excluded_tools.clone();
+    autonomy.non_cli_approval_approvers =
+        parse_comma_or_newline_list(&settings.non_cli_approval_approvers_input);
+    autonomy.non_cli_natural_language_approval_mode =
+        settings.non_cli_natural_language_approval_mode;
+    autonomy.non_cli_natural_language_approval_mode_by_channel = parse_non_cli_mode_by_channel(
+        &settings.non_cli_natural_language_approval_mode_by_channel_input,
+    );
+}
+
+#[cfg(test)]
+fn config_list(
+    config: &vw_config_types::security::AutonomyConfig,
+    kind: AutonomyListKind,
+) -> &[String] {
+    match kind {
+        AutonomyListKind::AllowedCommands => &config.allowed_commands,
+        AutonomyListKind::ForbiddenPaths => &config.forbidden_paths,
+        AutonomyListKind::ShellEnvPassthrough => &config.shell_env_passthrough,
+        AutonomyListKind::AutoApprove => &config.auto_approve,
+        AutonomyListKind::AlwaysAsk => &config.always_ask,
+        AutonomyListKind::AllowedRoots => &config.allowed_roots,
+        AutonomyListKind::NonCliExcludedTools => &config.non_cli_excluded_tools,
+    }
+}
+
+fn is_valid_environment_name(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    matches!(bytes.next(), Some(b'A'..=b'Z' | b'a'..=b'z' | b'_'))
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+fn add_list_item(app: &mut App, kind: AutonomyListKind) -> Task<Message> {
+    let value = app.autonomy_settings.list_editor.draft(kind).trim().to_string();
+    let error = if value.is_empty() {
+        Some("列表项不能为空".to_string())
+    } else if kind == AutonomyListKind::ShellEnvPassthrough
+        && !is_valid_environment_name(&value)
+    {
+        Some("环境变量名必须匹配 [A-Za-z_][A-Za-z0-9_]*".to_string())
+    } else if app.autonomy_settings.list(kind).iter().any(|item| item == &value) {
+        Some("该列表项已存在".to_string())
+    } else {
+        None
+    };
+
+    if let Some(error) = error {
+        app.autonomy_settings.save_error = Some(error);
+        return Task::none();
+    }
+
+    app.autonomy_settings.list_mut(kind).push(value);
+    app.autonomy_settings.list_editor.set_draft(kind, String::new());
+    app.autonomy_settings.save_error = None;
+    persist_autonomy_settings(app)
+}
+
+fn remove_list_item(app: &mut App, kind: AutonomyListKind, index: usize) -> Task<Message> {
+    if index >= app.autonomy_settings.list(kind).len() {
+        app.autonomy_settings.save_error = Some("要删除的列表项不存在".to_string());
+        return Task::none();
+    }
+
+    app.autonomy_settings.list_mut(kind).remove(index);
+    app.autonomy_settings.save_error = None;
+    persist_autonomy_settings(app)
 }
 
 /// 处理自主性设置相关的消息更新
@@ -179,9 +227,10 @@ fn persist_autonomy_settings(app: &mut App) -> Task<Message> {
 /// - `AutonomyLevelChanged`：自主性级别变更
 /// - `AutonomyWorkspaceOnlyToggled`：工作空间限制开关
 ///
-/// ## 命令和路径控制
-/// - `AutonomyAllowedCommandsChanged`：允许命令列表变更
-/// - `AutonomyForbiddenPathsChanged`：禁止路径列表变更
+/// ## 逐项列表管理
+/// - `AutonomyListDraftChanged`：更新指定列表的单项草稿
+/// - `AutonomyListAdd`：校验并添加指定列表项
+/// - `AutonomyListRemove`：按索引删除指定列表项
 ///
 /// ## 资源限制
 /// - `AutonomyMaxActionsPerHourChanged`：每小时最大操作数变更
@@ -193,17 +242,8 @@ fn persist_autonomy_settings(app: &mut App) -> Task<Message> {
 ///
 /// ## Shell 行为
 /// - `AutonomyShellRedirectPolicyChanged`：Shell 重定向策略变更
-/// - `AutonomyShellEnvPassthroughChanged`：环境变量传递列表变更
-///
-/// ## 工具审批策略
-/// - `AutonomyAutoApproveChanged`：自动批准列表变更
-/// - `AutonomyAlwaysAskChanged`：总是询问列表变更
-///
-/// ## 文件系统控制
-/// - `AutonomyAllowedRootsChanged`：允许的根目录列表变更
 ///
 /// ## 非 CLI 模式设置
-/// - `AutonomyNonCliExcludedToolsChanged`：非 CLI 排除工具列表变更
 /// - `AutonomyNonCliApprovalApproversChanged`：非 CLI 审批者列表变更
 /// - `AutonomyNonCliNaturalLanguageApprovalModeChanged`：非 CLI 默认审批模式变更
 /// - `AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged`：按通道的审批模式变更
@@ -221,6 +261,11 @@ fn persist_autonomy_settings(app: &mut App) -> Task<Message> {
 /// 3. 清除任何之前的保存错误信息
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::AutonomyTabSelected(tab) => {
+            app.autonomy_settings.active_tab = tab;
+            Task::none()
+        }
+
         // 自主性级别变更
         SettingsMessage::AutonomyLevelChanged(v) => {
             app.autonomy_settings.level = v;
@@ -235,30 +280,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             persist_autonomy_settings(app)
         }
 
-        // 允许命令列表变更
-        SettingsMessage::AutonomyAllowedCommandsChanged(v) => {
-            app.autonomy_settings.allowed_commands_input = v;
+        SettingsMessage::AutonomyListDraftChanged(kind, value) => {
+            app.autonomy_settings.list_editor.set_draft(kind, value);
             app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
+            Task::none()
         }
 
-        // 禁止路径列表变更
-        SettingsMessage::AutonomyForbiddenPathsChanged(v) => {
-            app.autonomy_settings.forbidden_paths_input = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
+        SettingsMessage::AutonomyListAdd(kind) => add_list_item(app, kind),
 
-        // 每小时最大操作数变更（限制在 1-10,000 之间）
+        SettingsMessage::AutonomyListRemove(kind, index) => remove_list_item(app, kind, index),
+
+        // 每小时最大操作数变更
         SettingsMessage::AutonomyMaxActionsPerHourChanged(v) => {
-            app.autonomy_settings.max_actions_per_hour = v.clamp(1, 10_000);
+            app.autonomy_settings.max_actions_per_hour = v.clamp(1, 1_000_000);
             app.autonomy_settings.save_error = None;
             persist_autonomy_settings(app)
         }
 
-        // 每日最大成本变更（限制在 1-1,000,000 美分之间）
+        // 每日最大成本变更
         SettingsMessage::AutonomyMaxCostPerDayCentsChanged(v) => {
-            app.autonomy_settings.max_cost_per_day_cents = v.clamp(1, 1_000_000);
+            app.autonomy_settings.max_cost_per_day_cents = v.clamp(1, 100_000_000);
             app.autonomy_settings.save_error = None;
             persist_autonomy_settings(app)
         }
@@ -280,41 +321,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         // Shell 重定向策略变更
         SettingsMessage::AutonomyShellRedirectPolicyChanged(v) => {
             app.autonomy_settings.shell_redirect_policy = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
-
-        // Shell 环境变量传递列表变更
-        SettingsMessage::AutonomyShellEnvPassthroughChanged(v) => {
-            app.autonomy_settings.shell_env_passthrough_input = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
-
-        // 自动批准列表变更
-        SettingsMessage::AutonomyAutoApproveChanged(v) => {
-            app.autonomy_settings.auto_approve_input = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
-
-        // 总是询问列表变更
-        SettingsMessage::AutonomyAlwaysAskChanged(v) => {
-            app.autonomy_settings.always_ask_input = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
-
-        // 允许的根目录列表变更
-        SettingsMessage::AutonomyAllowedRootsChanged(v) => {
-            app.autonomy_settings.allowed_roots_input = v;
-            app.autonomy_settings.save_error = None;
-            persist_autonomy_settings(app)
-        }
-
-        // 非 CLI 模式排除工具列表变更
-        SettingsMessage::AutonomyNonCliExcludedToolsChanged(v) => {
-            app.autonomy_settings.non_cli_excluded_tools_input = v;
             app.autonomy_settings.save_error = None;
             persist_autonomy_settings(app)
         }

@@ -9,6 +9,36 @@ fn app() -> crate::app::App {
     crate::app::App::new().0
 }
 
+#[test]
+fn work_space_switch_carries_chat_and_input_draft_into_a_new_session() {
+    let mut app = app();
+    app.project_path = Some("/workspace/alpha".to_string());
+    app.active_session_id = Some("session-1".to_string());
+    app.chat.push(crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::User,
+        content: "保留这段聊天".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    app.get_session_runtime_mut("session-1").input_editor =
+        iced::widget::text_editor::Content::with_text("未发送草稿");
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SwitchWorkSpacePressed(
+            "/workspace/beta".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.project_path.as_deref(), Some("/workspace/beta"));
+    assert!(app.active_session_id.is_none());
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "保留这段聊天");
+    assert_eq!(app.current_session_runtime().input_editor.text(), "未发送草稿");
+}
+
 async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
     use iced_runtime::futures::futures::StreamExt;
 
@@ -92,7 +122,9 @@ fn chat_message(content: &str) -> crate::app::models::ChatMessage {
     crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::User,
         content: content.to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }
 }
 
@@ -229,6 +261,7 @@ async fn recent_hover_none_clears_hover_and_schedules_todo_refresh() {
 #[test]
 fn open_project_session_uses_known_directory_and_restores_cached_state() {
     let mut app = app();
+    let previous_scroll_id = app.chat_scroll_id.clone();
     let mut target = session_info("target", 1, 1);
     target.directory = "/tmp/known-project".to_string();
     app.sessions = vec![target];
@@ -264,6 +297,85 @@ fn open_project_session_uses_known_directory_and_restores_cached_state() {
     assert_eq!(app.active_session_view_state.updated_ms, 0);
     assert!(app.active_session_view_state.ui_preparing);
     assert!(!app.active_session_view_state.base_ready);
+    assert_ne!(app.chat_scroll_id, previous_scroll_id);
+}
+
+#[test]
+fn open_project_session_uses_global_model_until_its_history_is_restored() {
+    let mut app = app();
+    let mut target = session_info("target", 1, 1);
+    target.directory = "/tmp/known-project".to_string();
+    app.sessions = vec![target];
+    app.project_path = Some("/tmp/known-project".to_string());
+    app.active_session_id = Some("previous".to_string());
+    app.model = "provider/previous-model".to_string();
+    app.auto_model = false;
+    app.get_session_runtime_mut("previous").model = "provider/previous-model".to_string();
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/known-project".to_string(),
+            "target".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.active_session_id.as_deref(), Some("target"));
+    assert_eq!(app.model, "provider/previous-model");
+    assert!(!app.auto_model);
+    let runtime = app.session_runtime_states.get("target").expect("target runtime");
+    assert_eq!(runtime.model, "provider/previous-model");
+    assert!(!runtime.auto_model);
+    assert!(runtime.restore_model_from_history);
+}
+
+#[test]
+fn open_project_session_clears_workflow_mode_for_plan_run_child() {
+    let mut app = app();
+    let mut child = session_info("child", 0, 0);
+    child.parent_id = Some("parent".to_string());
+    child.directory = "/tmp/known-project".to_string();
+    app.sessions = vec![child];
+    app.project_path = Some("/tmp/known-project".to_string());
+    app.get_session_runtime_mut("child").workflow_mode_enabled = true;
+    app.get_session_runtime_mut("child").goal_mode_enabled = true;
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/known-project".to_string(),
+            "child".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.active_session_id.as_deref(), Some("child"));
+    assert!(!app.get_session_runtime("child").workflow_mode_enabled);
+    assert!(!app.get_session_runtime("child").goal_mode_enabled);
+}
+
+#[test]
+fn open_project_session_keeps_workflow_mode_for_root_session() {
+    let mut app = app();
+    let mut root = session_info("root", 0, 0);
+    root.directory = "/tmp/known-project".to_string();
+    app.sessions = vec![root];
+    app.project_path = Some("/tmp/known-project".to_string());
+    app.get_session_runtime_mut("root").workflow_mode_enabled = true;
+    app.get_session_runtime_mut("root").goal_mode_enabled = true;
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/known-project".to_string(),
+            "root".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert!(app.get_session_runtime("root").workflow_mode_enabled);
+    assert!(app.get_session_runtime("root").goal_mode_enabled);
 }
 
 #[test]
@@ -464,6 +576,7 @@ fn recent_overlay_closed_clears_anchor_and_all_picker_state() {
 fn project_create_session_opens_picker_when_worktree_enabled() {
     let mut app = app();
     let path = "/tmp/project".to_string();
+    app.project_path = Some("/tmp/other-project".to_string());
     app.project_worktree_enabled.insert(path.clone(), true);
     app.new_session_picker_options.push(("old".to_string(), "旧".to_string()));
     app.new_session_worktree_name = "old-name".to_string();
@@ -475,6 +588,7 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
     );
 
     assert!(task.is_some());
+    assert_eq!(app.project_path.as_deref(), Some(path.as_str()));
     assert_eq!(app.new_session_picker_project, Some(path));
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
@@ -485,6 +599,7 @@ fn project_create_session_opens_picker_when_worktree_enabled() {
 fn project_create_session_without_worktree_resets_picker_before_scheduling_creation() {
     let mut app = app();
     let path = "/tmp/project".to_string();
+    app.project_path = Some("/tmp/other-project".to_string());
     app.project_worktree_enabled.insert(path.clone(), false);
     app.new_session_picker_project = Some(path.clone());
     app.new_session_picker_options = vec![(path.clone(), "Main".to_string())];
@@ -493,14 +608,37 @@ fn project_create_session_without_worktree_resets_picker_before_scheduling_creat
 
     let task = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::ProjectCreateSession(path),
+        crate::app::message::project::ProjectMessage::ProjectCreateSession(path.clone()),
     );
 
     assert!(task.is_some());
+    assert_eq!(app.project_path.as_deref(), Some(path.as_str()));
     assert!(app.new_session_picker_project.is_none());
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
     assert!(app.new_session_reset_error.is_none());
+}
+
+#[test]
+fn session_create_failure_restores_summary_handoff_view_and_shows_error() {
+    let mut app = app();
+    app.quick_message_handoff =
+        Some(crate::app::state::QuickMessageHandoffState::WaitingForSession {
+            prompt: "continue".to_string(),
+        });
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionCreateFailed(
+            "gateway unavailable".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert!(app.quick_message_handoff.is_none());
+    assert!(
+        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("创建新会话失败"))
+    );
 }
 
 #[test]

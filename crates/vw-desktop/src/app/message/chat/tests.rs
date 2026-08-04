@@ -76,10 +76,7 @@ fn scroll_chat_to_bottom_task_snaps_virtualizer_and_syncs_compat_fields() {
 
     assert!(app.chat_auto_scroll);
     assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::TailSticky);
-    assert_eq!(
-        app.chat_virtualizer.scroll_top_px(),
-        app.chat_virtualizer.max_scroll_top_px()
-    );
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), app.chat_virtualizer.max_scroll_top_px());
     assert_eq!(app.chat_scroll_offset_y, 1.0);
     assert_eq!(app.chat_scroll_viewport_h, 100.0);
 }
@@ -98,10 +95,7 @@ fn scroll_chat_to_bottom_with_followups_snaps_virtualizer_and_syncs_compat_field
 
     assert!(app.chat_auto_scroll);
     assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::TailSticky);
-    assert_eq!(
-        app.chat_virtualizer.scroll_top_px(),
-        app.chat_virtualizer.max_scroll_top_px()
-    );
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), app.chat_virtualizer.max_scroll_top_px());
     assert_eq!(app.chat_scroll_offset_y, 1.0);
     assert_eq!(app.chat_scroll_viewport_h, 50.0);
 }
@@ -133,7 +127,9 @@ fn stream_delta_syncs_and_prunes_think_block_state() {
     app.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::Assistant,
         content: "visible <think>still working".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let _task =
@@ -167,7 +163,9 @@ fn stream_delta_with_new_open_think_refreshes_autoscroll_throttle() {
     app.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::Assistant,
         content: "visible <think>still working".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let _task =
@@ -185,7 +183,9 @@ fn non_stream_update_schedules_visible_chunk_preparation() {
     app.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::Assistant,
         content: "<think>working</think>\nvisible answer".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
     app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
     app.chat_virtualizer.set_viewport_height(300.0);

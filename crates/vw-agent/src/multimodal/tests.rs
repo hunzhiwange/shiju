@@ -123,12 +123,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn prepare_openai_json_messages_normalizes_user_image_markers() {
+        let temp = tempfile::tempdir().unwrap();
+        let image_path = temp.path().join("sample.png");
+        std::fs::write(&image_path, [0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n']).unwrap();
+
+        let messages = serde_json::json!([
+            { "role": "system", "content": "sys" },
+            {
+                "role": "user",
+                "content": format!("check [IMAGE:{}]", image_path.display())
+            },
+            {
+                "role": "user",
+                "content": [
+                    { "type": "text", "text": "already structured" },
+                    { "type": "image_url", "image_url": { "url": "https://example.com/a.png" } }
+                ]
+            }
+        ]);
+
+        let prepared = prepare_openai_json_messages_for_provider(messages, &MultimodalConfig::default())
+            .await
+            .unwrap();
+        let arr = prepared.as_array().expect("array");
+        assert_eq!(arr[0]["content"], "sys");
+        let (cleaned, refs) = parse_image_markers(arr[1]["content"].as_str().unwrap());
+        assert_eq!(cleaned, "check");
+        assert_eq!(refs.len(), 1);
+        assert!(refs[0].starts_with("data:image/png;base64,"));
+        assert!(arr[2]["content"].is_array());
+    }
+
+    #[tokio::test]
     async fn prepare_messages_rejects_too_many_images() {
         let messages =
             vec![ChatMessage::user("[IMAGE:/tmp/1.png]\n[IMAGE:/tmp/2.png]".to_string())];
 
-        let config =
-            MultimodalConfig { max_images: 1, max_image_size_mb: 5, allow_remote_fetch: false };
+        let config = MultimodalConfig {
+            max_images: 1,
+            max_image_size_mb: 5,
+            allow_remote_fetch: false,
+            ocr: Default::default(),
+        };
 
         let error = prepare_messages_for_provider(&messages, &config)
             .await
@@ -151,8 +188,12 @@ mod tests {
 
     #[tokio::test]
     async fn normalize_image_reference_reports_malformed_remote_url() {
-        let config =
-            MultimodalConfig { max_images: 4, max_image_size_mb: 5, allow_remote_fetch: true };
+        let config = MultimodalConfig {
+            max_images: 4,
+            max_image_size_mb: 5,
+            allow_remote_fetch: true,
+            ocr: Default::default(),
+        };
         let client = Client::new();
 
         let error = normalize_image_reference("http://[::1", &config, 1024, &client)
@@ -240,8 +281,12 @@ mod tests {
         std::fs::write(&image_path, bytes).unwrap();
 
         let messages = vec![ChatMessage::user(format!("[IMAGE:{}]", image_path.display()))];
-        let config =
-            MultimodalConfig { max_images: 4, max_image_size_mb: 1, allow_remote_fetch: false };
+        let config = MultimodalConfig {
+            max_images: 4,
+            max_image_size_mb: 1,
+            allow_remote_fetch: false,
+            ocr: Default::default(),
+        };
 
         let error = prepare_messages_for_provider(&messages, &config)
             .await

@@ -1,5 +1,10 @@
 //! 会话领域模块入口，集中声明会话运行、提示词、状态同步和 UI 持久化相关子模块。
 
+/// 声明持久化子会话执行子模块。
+pub mod child_agent;
+#[cfg(test)]
+#[path = "child_agent_tests.rs"]
+mod child_agent_tests;
 /// 声明 compaction 子模块，保持当前领域的职责拆分清晰。
 pub mod compaction;
 /// 声明 instruction 子模块，保持当前领域的职责拆分清晰。
@@ -16,6 +21,8 @@ pub mod prompt;
 pub mod retry;
 /// 声明 revert 子模块，保持当前领域的职责拆分清晰。
 pub mod revert;
+/// 声明可供协议适配器和 Gateway 复用的会话运行时边界。
+pub mod runtime;
 /// 声明 session 子模块，保持当前领域的职责拆分清晰。
 pub mod session;
 /// 声明 status 子模块，保持当前领域的职责拆分清晰。

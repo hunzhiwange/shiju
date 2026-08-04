@@ -4,8 +4,6 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::components::preview_panel::lsp_overlay;
-/// 重新导出 use crate::app::components::widgets::RightClickArea，让上层模块通过稳定路径访问。
-use crate::app::components::widgets::RightClickArea;
 /// 重新导出 use crate::app::{App, Message, message}，让上层模块通过稳定路径访问。
 use crate::app::{App, Message, message};
 /// 重新导出 use iced::widget::image::{Handle as ImageHandle, Image}，让上层模块通过稳定路径访问。
@@ -60,23 +58,9 @@ pub fn build_content_base(app: &App) -> Element<'_, Message> {
                     .id(tab.scroll_id.clone())
                     .into()
             } else {
-                let editor_content = tab
+                let editor_view = tab
                     .editor
                     .content_view(|e| Message::Preview(message::PreviewMessage::EditorEvent(e)));
-
-                let editor_view: Element<'_, Message> = Element::new(
-                    RightClickArea::new(
-                        editor_content,
-                        // Box 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        Box::new(|p| {
-                            // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            Message::Preview(
-                                message::PreviewMessage::ContextMenuOpenForActiveEditor(p.x, p.y),
-                            )
-                        }),
-                    )
-                    .preserve_on_right_click(),
-                );
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {

@@ -79,67 +79,11 @@ fn main_window_platform_settings_keep_non_macos_defaults() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn task_pet_initial_position_prefers_right_edge_with_margin() {
-    let window_size = iced::Size::new(260.0, 180.0);
-    let monitor_size = iced::Size::new(1920.0, 1080.0);
-
-    let position = task_pet_initial_position(window_size, monitor_size);
-
-    assert_eq!(position, iced::Point::new(1580.0, 96.0));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_pet_initial_position_clamps_to_left_margin() {
-    let window_size = iced::Size::new(1200.0, 180.0);
-    let monitor_size = iced::Size::new(1000.0, 768.0);
-
-    let position = task_pet_initial_position(window_size, monitor_size);
-
-    assert_eq!(position, iced::Point::new(24.0, 96.0));
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_pet_window_settings_are_fixed_transparent_overlay() {
-    let size = iced::Size::new(240.0, 160.0);
-
-    let settings = task_pet_window_settings(size);
-
-    assert_eq!(settings.size, size);
-    assert_eq!(settings.min_size, Some(size));
-    assert_eq!(settings.max_size, Some(size));
-    assert!(matches!(settings.position, iced::window::Position::SpecificWith(_)));
-    assert!(!settings.resizable);
-    assert!(!settings.decorations);
-    assert!(settings.transparent);
-    assert_eq!(settings.level, iced::window::Level::AlwaysOnTop);
-    assert!(!settings.exit_on_close_request);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn task_pet_window_position_callback_uses_initial_position_policy() {
-    let window_size = iced::Size::new(240.0, 160.0);
-    let monitor_size = iced::Size::new(1440.0, 900.0);
-    let settings = task_pet_window_settings(window_size);
-    let iced::window::Position::SpecificWith(position) = settings.position else {
-        panic!("task pet window should use a position callback");
-    };
-
-    assert_eq!(
-        position(window_size, monitor_size),
-        task_pet_initial_position(window_size, monitor_size)
-    );
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
 fn native_tracing_filter_uses_safe_defaults_when_rust_log_is_absent() {
     let _lock = RUST_LOG_ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let _rust_log = RustLogGuard::remove();
     let expected = tracing_subscriber::EnvFilter::new(
-        "info,iced_winit=error,iced_futures::subscription::tracker=error",
+        "info,rmcp=warn,iced_winit=error,iced_futures::subscription::tracker=error",
     );
 
     assert_eq!(native_tracing_filter().to_string(), expected.to_string());
@@ -161,10 +105,26 @@ fn native_tracing_filter_uses_safe_defaults_for_invalid_rust_log() {
     let _lock = RUST_LOG_ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let _rust_log = RustLogGuard::set("vw_desktop=not-a-level");
     let expected = tracing_subscriber::EnvFilter::new(
-        "info,iced_winit=error,iced_futures::subscription::tracker=error",
+        "info,rmcp=warn,iced_winit=error,iced_futures::subscription::tracker=error",
     );
 
     assert_eq!(native_tracing_filter().to_string(), expected.to_string());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_stderr_filter_suppresses_macos_imk_run_loop_noise() {
+    let line = "2026-07-22 23:35:59.262 vibe-window[98293:81530284] error messaging the mach port for IMKCFRunLoopWakeUpReliable";
+
+    assert!(should_suppress_native_stderr_line(line));
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_stderr_filter_keeps_unrelated_stderr_lines() {
+    assert!(!should_suppress_native_stderr_line(
+        "failed to create runtime log directory /tmp/vibe-window: permission denied",
+    ));
 }
 
 #[test]

@@ -272,3 +272,16 @@ fn session_provider_declares_fallback_capabilities_and_streaming() {
     assert!(!provider.supports_vision());
     assert!(provider.supports_streaming());
 }
+
+#[test]
+fn session_provider_with_options_defaults_vision_enabled() {
+    let provider = SessionLlmProvider::with_options(
+        &crate::app::agent::providers::ProviderRuntimeOptions::default(),
+    );
+    assert!(provider.supports_vision());
+
+    let mut options = crate::app::agent::providers::ProviderRuntimeOptions::default();
+    options.model_support_vision = Some(false);
+    let disabled = SessionLlmProvider::with_options(&options);
+    assert!(!disabled.supports_vision());
+}

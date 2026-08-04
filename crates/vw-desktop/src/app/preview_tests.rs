@@ -5,8 +5,6 @@
 
 use std::fs;
 use std::io::Write;
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::Path;
 
 use super::*;
 
@@ -225,17 +223,9 @@ fn compute_search_matches_skips_empty_terms_and_sorts_byte_positions() {
     assert!(compute_search_matches("anything", &[]).is_empty());
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn path_to_file_uri_encodes_spaces_and_lsp_root_prefers_current_directory() {
-    let cwd = std::env::current_dir().expect("current directory should be available");
-    let nested_file = cwd.join("directory with spaces").join("main.rs");
-    let outside_dir = cwd.parent().expect("workspace should have a parent directory");
-
-    assert_eq!(path_to_file_uri(Path::new("/tmp/a b.rs")), "file:///tmp/a%20b.rs");
-    assert_eq!(lsp_root_uri_for_path(Some(&nested_file)), Some(path_to_file_uri(&cwd)));
-    assert_eq!(lsp_root_uri_for_path(Some(outside_dir)), Some(path_to_file_uri(outside_dir)));
-    assert_eq!(lsp_root_uri_for_path(None), Some(path_to_file_uri(&cwd)));
+fn path_to_file_uri_encodes_spaces() {
+    assert_eq!(path_to_file_uri(std::path::Path::new("/tmp/a b.rs")), "file:///tmp/a%20b.rs");
 }
 
 #[test]

@@ -29,6 +29,19 @@ mod provider_api;
 mod question_api;
 mod request_helpers;
 mod session_api;
+mod shiju_account_api;
+#[cfg(test)]
+#[path = "shiju_account_api_tests.rs"]
+mod shiju_account_api_tests;
+mod shiju_app_api;
+#[cfg(test)]
+#[path = "shiju_app_api_tests.rs"]
+mod shiju_app_api_tests;
+mod shiju_skill_api;
+#[cfg(test)]
+#[path = "shiju_skill_api_tests.rs"]
+mod shiju_skill_api_tests;
+mod skill_market_api;
 mod staff_api;
 mod task_lifecycle_api;
 mod task_pool_api;
@@ -45,6 +58,32 @@ pub use self::desktop_settings_api::{
 };
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
+};
+pub use self::shiju_account_api::{
+    SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
+    ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountRoleDto,
+    ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential,
+    ShijuLoginChallengeDto, ShijuLoginPollDto,
+};
+pub use self::shiju_app_api::{
+    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCatalogAppDto,
+    ShijuInstalledAppDto,
+};
+pub use self::shiju_skill_api::{
+    ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
+    ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto, ShijuSkillVersionContentDto,
+    ShijuSkillVersionDto, ShijuSkillVisibilityDto, ShijuSkillVisibilityScopeDto,
+    ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+};
+pub use self::skill_market_api::{
+    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketEnvelope,
+    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto, SkillMarketSecurityDto, SkillMarketSkillDetailDto,
+    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSort,
+    SkillMarketSourceDto,
 };
 pub use self::workflow_api::{
     GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome, GatewayWorkflowStreamError,
@@ -130,6 +169,19 @@ impl GatewayClient {
         on_event: impl FnMut(crate::stream::GatewayChatStreamEvent) -> bool,
     ) -> Result<(), String> {
         crate::stream::stream_chat(endpoint, directory, body, on_event).await
+    }
+
+    /// 执行一次可恢复聊天流订阅，并返回明确的尝试结束原因。
+    pub async fn stream_chat_resumable(
+        endpoint: &GatewayEndpoint,
+        directory: Option<&str>,
+        body: &crate::stream::GatewayChatStreamRequest,
+        resume: &crate::stream::GatewayStreamResume,
+        on_event: impl FnMut(
+            crate::stream::GatewayStreamEvent<crate::stream::GatewayChatStreamEvent>,
+        ) -> bool,
+    ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
+        crate::stream::stream_chat_resumable(endpoint, directory, body, resume, on_event).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]

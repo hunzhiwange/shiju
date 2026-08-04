@@ -172,6 +172,44 @@ pub(super) fn view<'a>(
         .into()
     };
 
+    let allow_as_subagent_row = row![
+        label_col("作为子智能体", "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。"),
+        checkbox(entry.allow_as_subagent)
+            .label("允许作为子智能体")
+            .on_toggle({
+                let key = entry.key.clone();
+                move |value| {
+                    Message::Settings(SettingsMessage::Agents(
+                        AgentsMessage::AllowAsSubagentToggled(key.clone(), value),
+                    ))
+                }
+            })
+            .style(settings_checkbox_style),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+
+    let max_parallel_subagents_row = row![
+        label_col("子智能体数量", "该 Agent 每轮最多同时启动的子智能体数量。"),
+        NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
+            let key = entry.key.clone();
+            move |value| {
+                Message::Settings(SettingsMessage::Agents(
+                    AgentsMessage::MaxParallelSubagentsChanged(key.clone(), value.round() as u32),
+                ))
+            }
+        },)
+        .settings_style(),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+
+    let delegation_section = column![
+        section_card("子智能体委托", "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。"),
+        column![allow_as_subagent_row, max_parallel_subagents_row].spacing(14),
+    ]
+    .spacing(14);
+
     let max_depth_row = row![
         label_col("最大深度", "委托嵌套深度上限，防止无限递归。"),
         NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
@@ -207,7 +245,7 @@ pub(super) fn view<'a>(
 
     let max_tool_iterations_row = row![
         label_col("工具迭代上限", "主 Agent 单次请求中允许的最大工具循环轮次。"),
-        NumberInput::new(entry.max_tool_iterations as f32, 1.0, 200.0, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_tool_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged(
@@ -275,7 +313,7 @@ pub(super) fn view<'a>(
 
     let max_iterations_row = row![
         label_col("最大迭代次数", "智能体模式下最多运行多少轮工具循环。"),
-        NumberInput::new(entry.max_iterations as f32, 1.0, 100.0, 1.0, 0, 1.0, {
+        NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged(
@@ -328,6 +366,7 @@ pub(super) fn view<'a>(
     column![
         section_card(&entry.label, "为当前 Agent 单独设置 provider、model 与基础运行参数。",),
         registration_section,
+        delegation_section,
         provider_row,
         model_row,
         api_key_row,

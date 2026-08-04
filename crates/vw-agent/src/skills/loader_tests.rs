@@ -67,7 +67,14 @@ fn open_skill_markdown_full_loads_prompt_body_and_defaults_description() {
 fn load_skills_from_directory_skips_disabled_and_missing_directories() {
     let dir = tempfile::tempdir().expect("temp dir");
     let missing = dir.path().join("missing");
-    assert!(load_skills_from_directory(&missing, SkillLoadMode::Full).is_empty());
+    assert!(
+        load_skills_from_directory(
+            &missing,
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 
     let disabled = dir.path().join("disabled");
     std::fs::create_dir_all(&disabled).unwrap();
@@ -75,7 +82,14 @@ fn load_skills_from_directory_skips_disabled_and_missing_directories() {
     std::fs::write(crate::app::agent::skills::local_skill_disabled_marker_path(&disabled), "")
         .unwrap();
 
-    assert!(load_skills_from_directory(dir.path(), SkillLoadMode::Full).is_empty());
+    assert!(
+        load_skills_from_directory(
+            dir.path(),
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -97,7 +111,14 @@ fn directory_loader_rejects_file_path_as_skills_directory() {
     let file = dir.path().join("skills");
     std::fs::write(&file, "not a directory").unwrap();
 
-    assert!(load_skills_from_directory(&file, SkillLoadMode::Full).is_empty());
+    assert!(
+        load_skills_from_directory(
+            &file,
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 }
 
 #[test]

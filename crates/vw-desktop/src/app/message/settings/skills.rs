@@ -208,12 +208,14 @@ fn map_skill_detail(detail: DesktopSkillDetailDto) -> SkillsSelectedDetail {
 fn persist_skills_settings(app: &mut App) -> Task<Message> {
     let s = &app.skills_settings;
     let directory_provider = s.directory_provider;
+    let auto_load_project_skills = s.auto_load_project_skills;
     let open_skills_enabled = s.open_skills_enabled;
     let prompt_injection_mode = s.prompt_injection_mode;
     let open_skills_dir = s.open_skills_dir_input.trim().to_string();
 
     crate::app::update_skills_config_async(move |skills| {
         skills.directory_provider = directory_provider;
+        skills.auto_load_project_skills = auto_load_project_skills;
         skills.open_skills_enabled = open_skills_enabled;
         skills.open_skills_dir =
             if open_skills_dir.is_empty() { None } else { Some(open_skills_dir) };
@@ -227,6 +229,12 @@ fn persist_skills_settings(app: &mut App) -> Task<Message> {
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::SkillsProjectSelected(project_path) => {
+            if app.project_path.as_deref() == Some(project_path.as_str()) {
+                return crate::app::projects::project_settings_refresh_task(project_path);
+            }
+            app.open_project_and_index(project_path)
+        }
         SettingsMessage::SkillsRefresh => {
             app.skills_settings.loading = true;
             refresh_task(app.project_path.clone())
@@ -497,6 +505,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.skills_settings.loading = true;
             clear_selected_detail(app);
             Task::batch(vec![persist_skills_settings(app), refresh_task(app.project_path.clone())])
+        }
+        SettingsMessage::SkillsProjectAutoLoadToggled(v) => {
+            app.skills_settings.auto_load_project_skills = v;
+            app.skills_settings.save_error = None;
+            persist_skills_settings(app)
         }
         SettingsMessage::SkillsOpenEnabledToggled(v) => {
             app.skills_settings.open_skills_enabled = v;

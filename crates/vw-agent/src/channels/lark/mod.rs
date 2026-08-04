@@ -489,11 +489,19 @@ impl Channel for LarkChannel {
         let token = self.get_tenant_access_token().await?;
         let url = self.send_message_url();
 
-        // 构造消息体
-        let content = serde_json::json!({ "text": message.content }).to_string();
+        // 使用富文本 Markdown 节点，避免平台把 Markdown 标记作为普通文本显示。
+        let content = serde_json::json!({
+            "zh_cn": {
+                "content": [[{
+                    "tag": "md",
+                    "text": message.content,
+                }]],
+            },
+        })
+        .to_string();
         let body = serde_json::json!({
             "receive_id": message.recipient,
-            "msg_type": "text",
+            "msg_type": "post",
             "content": content,
         });
 

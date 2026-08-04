@@ -2,6 +2,8 @@ use crate::permission::Ruleset;
 use crate::snapshot::FileDiff;
 use serde::{Deserialize, Serialize};
 
+const PLAN_RUN_SLUG_PREFIX: &str = "plan-run:";
+
 /// 会话摘要中的文件与行数统计。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Summary {
@@ -65,6 +67,22 @@ pub struct Info {
     pub permission: Option<Ruleset>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revert: Option<RevertInfo>,
+}
+
+impl Info {
+    /// 将普通 slug 编码为可持久化的 plan-run 会话标记。
+    pub fn plan_run_slug(slug: &str) -> String {
+        if slug.starts_with(PLAN_RUN_SLUG_PREFIX) {
+            slug.to_string()
+        } else {
+            format!("{PLAN_RUN_SLUG_PREFIX}{slug}")
+        }
+    }
+
+    /// 判断当前会话是否由 plan-run 创建。
+    pub fn is_plan_run(&self) -> bool {
+        self.slug.starts_with(PLAN_RUN_SLUG_PREFIX)
+    }
 }
 
 #[cfg(test)]

@@ -22,7 +22,7 @@ fn write_json(path: &Path, value: Value) {
 
 fn write_plugin_manifest(plugin_root: &Path, name: &str) {
     write_json(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".vibewindow-plugin/plugin.json"),
         json!({
             "name": name,
             "version": "0.1.0",

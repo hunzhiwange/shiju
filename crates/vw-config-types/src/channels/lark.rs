@@ -72,6 +72,12 @@ pub struct LarkConfig {
 }
 
 impl LarkConfig {
+    /// Returns whether all credentials required to start the channel are configured.
+    #[must_use]
+    pub fn has_required_credentials(&self) -> bool {
+        !self.app_id.trim().is_empty() && !self.app_secret.trim().is_empty()
+    }
+
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
         resolve_group_reply_mode(
@@ -131,6 +137,12 @@ pub struct FeishuInstanceConfig {
 }
 
 impl FeishuConfig {
+    /// Returns whether all credentials required to start the channel are configured.
+    #[must_use]
+    pub fn has_required_credentials(&self) -> bool {
+        !self.app_id.trim().is_empty() && !self.app_secret.trim().is_empty()
+    }
+
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
         resolve_group_reply_mode(self.group_reply.as_ref(), None, GroupReplyMode::AllMessages)

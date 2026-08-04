@@ -5,8 +5,8 @@ use anyhow::{Context, Result};
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
-    ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem, ThinkTiming,
-    TokenUsage,
+    ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming, SessionTodoItem,
+    ThinkTiming, TokenUsage,
 };
 
 use super::{
@@ -67,7 +67,12 @@ CREATE TABLE IF NOT EXISTS session_messages (
     role TEXT NOT NULL,
     message_id TEXT,
     content TEXT NOT NULL,
+    model TEXT,
     think_timing_json TEXT NOT NULL,
+    processing_started_ms BIGINT,
+    processing_completed_ms BIGINT,
+    processing_elapsed_ms BIGINT,
+    processing_llm_elapsed_ms BIGINT,
     PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
@@ -75,6 +80,12 @@ CREATE TABLE IF NOT EXISTS session_messages (
         REFERENCES session_index(platform_id, company_id, project_id, session_id)
         ON DELETE CASCADE
 );
+
+ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_started_ms BIGINT;
+ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_completed_ms BIGINT;
+ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_elapsed_ms BIGINT;
+ALTER TABLE session_messages ADD COLUMN IF NOT EXISTS processing_llm_elapsed_ms BIGINT;
 
 CREATE INDEX IF NOT EXISTS idx_session_messages_project_seq
 ON session_messages(platform_id, company_id, project_id, session_id, seq_no);
@@ -143,6 +154,24 @@ CREATE TABLE IF NOT EXISTS session_todos (
 
 CREATE INDEX IF NOT EXISTS idx_session_todos_project_order
 ON session_todos(platform_id, company_id, project_id, session_id, order_no, todo_id);
+
+CREATE TABLE IF NOT EXISTS session_step_llm_raw (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    step_index BIGINT NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
+ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
@@ -366,6 +395,69 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    pub(super) fn save_session_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        step_index: u32,
+        payload: &serde_json::Value,
+    ) -> Result<()> {
+        let step_index = to_i64(step_index as u64, "step index")?;
+        let payload_json = serde_json::to_string(payload)
+            .context("serialize PostgreSQL LLM raw session step payload")?;
+        self.database
+            .connect_postgres()?
+            .execute(
+                "INSERT INTO session_step_llm_raw (
+                     platform_id, company_id, project_id, session_id, step_index, payload_json
+                 ) VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (platform_id, company_id, project_id, session_id, step_index)
+                     DO UPDATE SET payload_json = EXCLUDED.payload_json",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &step_index,
+                    &payload_json,
+                ],
+            )
+            .context("save PostgreSQL session llm raw step payload")?;
+        Ok(())
+    }
+
+    pub(super) fn load_session_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        step_index: u32,
+    ) -> Result<Option<serde_json::Value>> {
+        let step_index = to_i64(step_index as u64, "step index")?;
+        let row = self
+            .database
+            .connect_postgres()?
+            .query_opt(
+                "SELECT payload_json FROM session_step_llm_raw
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4 AND step_index = $5",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &step_index,
+                ],
+            )
+            .context("load PostgreSQL session llm raw step payload")?;
+        row.map(|row| {
+            let payload_json: String = row.try_get(0)?;
+            serde_json::from_str(&payload_json).with_context(|| {
+                format!("parse session llm raw step payload JSON: {session_id}/{step_index}")
+            })
+        })
+        .transpose()
+    }
+
     pub(super) fn load_session_todos(
         &self,
         scope: &ProjectScope,
@@ -586,12 +678,36 @@ fn replace_session_messages(
         let seq_no = usize_to_i64(sequence, "message seq_no")?;
         let think_timing_json =
             serde_json::to_string(&message.think_timing).context("serialize think timing JSON")?;
+        let processing_started_ms = message
+            .processing_timing
+            .as_ref()
+            .map(|timing| to_i64(timing.started_ms, "message processing started_ms"))
+            .transpose()?;
+        let processing_completed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.completed_ms)
+            .map(|value| to_i64(value, "message processing completed_ms"))
+            .transpose()?;
+        let processing_llm_elapsed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.llm_elapsed_ms)
+            .map(|value| to_i64(value, "message processing llm_elapsed_ms"))
+            .transpose()?;
+        let processing_elapsed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.processing_elapsed_ms)
+            .map(|value| to_i64(value, "message processing elapsed_ms"))
+            .transpose()?;
         client
             .execute(
                 "INSERT INTO session_messages (
                      platform_id, company_id, project_id, session_id, seq_no, role, message_id,
-                     content, think_timing_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+                     content, model, think_timing_json, processing_started_ms,
+                     processing_completed_ms, processing_elapsed_ms, processing_llm_elapsed_ms
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
@@ -601,7 +717,12 @@ fn replace_session_messages(
                     &role_to_db(message.role),
                     &message_id,
                     &message.content,
+                    &message.model,
                     &think_timing_json,
+                    &processing_started_ms,
+                    &processing_completed_ms,
+                    &processing_elapsed_ms,
+                    &processing_llm_elapsed_ms,
                 ],
             )
             .context("insert scoped PostgreSQL session message")?;
@@ -737,7 +858,10 @@ fn load_messages(
 ) -> Result<(Vec<ChatMessage>, Vec<Option<String>>)> {
     let rows = client
         .query(
-            "SELECT role, message_id, content, think_timing_json FROM session_messages
+            "SELECT role, message_id, content, think_timing_json, model,
+                    processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                    processing_llm_elapsed_ms
+             FROM session_messages
              WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
              ORDER BY seq_no",
             scoped_id_params!(scope, session_id),
@@ -748,14 +872,38 @@ fn load_messages(
     for row in rows {
         let role: String = row.try_get(0)?;
         let think_timing_json: String = row.try_get(3)?;
+        let processing_started_ms: Option<i64> = row.try_get(5)?;
+        let processing_completed_ms: Option<i64> = row.try_get(6)?;
+        let processing_elapsed_ms: Option<i64> = row.try_get(7)?;
+        let processing_llm_elapsed_ms: Option<i64> = row.try_get(8)?;
+        let processing_timing = match (processing_started_ms, processing_completed_ms) {
+            (None, None) => None,
+            (Some(started_ms), completed_ms) => Some(ProcessingTiming {
+                started_ms: from_i64(started_ms, "message processing started_ms")?,
+                completed_ms: completed_ms
+                    .map(|value| from_i64(value, "message processing completed_ms"))
+                    .transpose()?,
+                processing_elapsed_ms: processing_elapsed_ms
+                    .map(|value| from_i64(value, "message processing elapsed_ms"))
+                    .transpose()?,
+                llm_elapsed_ms: processing_llm_elapsed_ms
+                    .map(|value| from_i64(value, "message processing llm_elapsed_ms"))
+                    .transpose()?,
+            }),
+            (None, Some(_)) => anyhow::bail!(
+                "session message processing completed_ms exists without started_ms: {session_id}"
+            ),
+        };
         message_ids.push(row.try_get(1)?);
         messages.push(ChatMessage {
             role: role_from_db(&role)?,
             content: row.try_get(2)?,
+            model: row.try_get(4)?,
             think_timing: serde_json::from_str::<Vec<ThinkTiming>>(&think_timing_json)
                 .with_context(|| {
                     format!("parse session message think timing JSON: {session_id}")
                 })?,
+            processing_timing,
         });
     }
     Ok((messages, message_ids))

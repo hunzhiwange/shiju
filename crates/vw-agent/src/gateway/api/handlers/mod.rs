@@ -58,6 +58,14 @@ pub(crate) mod desktop_skills;
 /// Gateway 插件目录与本地管理处理器模块
 pub(crate) mod plugins;
 
+/// 统一技能市场只读 API 处理器模块
+pub(crate) mod skill_market;
+
+/// SHIJU account gateway API handlers.
+pub(crate) mod shiju_account;
+pub(crate) mod shiju_apps;
+pub(crate) mod shiju_skills;
+
 /// 定时任务（Cron）管理处理器模块
 ///
 /// 提供定时任务的添加、删除和列表查询操作处理器。
@@ -115,6 +123,9 @@ pub mod pty;
 /// 问题请求路由处理器模块
 pub mod question;
 
+/// 可恢复 SSE 运行存储。
+pub(super) mod resumable_stream;
+
 /// Session 路由处理器模块
 pub mod session;
 
@@ -131,6 +142,9 @@ pub mod task_pool;
 
 /// 任务生命周期 workflow 路由处理器模块
 pub mod task_lifecycle;
+
+/// 聊天工作流执行（task-plan-run）SSE 路由处理器模块
+pub mod task_plan_run;
 
 /// 任务池 Matrix 协同事件路由处理器模块
 pub mod task_pool_matrix;

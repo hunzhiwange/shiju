@@ -16,6 +16,7 @@ use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::session as agent_session;
 use crate::app::agent::storage;
+use crate::session::runtime::LifecycleError;
 use crate::session::ui_store;
 
 /// 将 session 层错误映射为网关 API 错误。
@@ -33,6 +34,18 @@ pub(super) fn session_api_error(e: agent_session::session::Error) -> ApiError {
             ApiError::not_found(e.to_string())
         }
         _ => ApiError::bad_request(e.to_string()),
+    }
+}
+
+/// 将共享会话生命周期错误映射为现有 Gateway 状态码。
+pub(super) fn lifecycle_api_error(error: LifecycleError) -> ApiError {
+    match &error {
+        LifecycleError::SessionNotFound { .. }
+        | LifecycleError::SessionOwnershipMismatch { .. }
+        | LifecycleError::Session(agent_session::session::Error::Storage(
+            storage::Error::NotFound(_),
+        )) => ApiError::not_found(error.to_string()),
+        _ => ApiError::bad_request(error.to_string()),
     }
 }
 

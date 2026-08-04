@@ -87,6 +87,9 @@ use anyhow::Context;
 /// 13. **分发循环运行**：运行消息分发循环，处理来自所有通道的消息
 #[allow(clippy::too_many_lines)]
 pub async fn start_channels(config: Config) -> Result<()> {
+    let timezone =
+        crate::app::agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
+
     // 设置项目目录覆盖存储，允许通道访问项目目录配置
     *channel_project_dir_override_store().lock().unwrap_or_else(|e| e.into_inner()) =
         config.channels_config.project_dir.clone();
@@ -139,7 +142,11 @@ pub async fn start_channels(config: Config) -> Result<()> {
         Arc::from(observability::create_observer(&config.observability));
     let runtime: Arc<dyn runtime::RuntimeAdapter> =
         Arc::from(runtime::create_runtime(&config.runtime)?);
-    let security = Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+    let security = Arc::new(SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        &config.workspace_dir,
+    ));
     let temperature = config.default_temperature;
     let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
         &config.memory,
@@ -191,6 +198,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
         bootstrap_max_chars,
         native_tools,
         config.skills.prompt_injection_mode,
+        timezone,
     );
 
     // 如果 Provider 不支持原生工具，添加工具指令
@@ -247,8 +255,8 @@ pub async fn start_channels(config: Config) -> Result<()> {
         configured_channels.into_iter().map(|configured| configured.channel).collect();
 
     // 显示启动信息
-    println!("🦀 VibeWindow Channel Server");
-    println!("  🤖 Model:    {model}");
+    println!("VibeWindow Channel Server");
+    println!(" Model:    {model}");
     let effective_backend = memory::effective_memory_backend_name(
         &config.memory.backend,
         Some(&config.storage.provider.config),
@@ -258,7 +266,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
         effective_backend,
         if config.memory.auto_save { "on" } else { "off" }
     );
-    println!("  📡 Channels: {}", channels.iter().map(|c| c.name()).collect::<Vec<_>>().join(", "));
+    println!("  Channels: {}", channels.iter().map(|c| c.name()).collect::<Vec<_>>().join(", "));
     println!();
     println!("  Listening for messages... (Ctrl+C to stop)");
     println!();
@@ -290,7 +298,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     // 计算最大并发消息数
     let max_in_flight_messages = compute_max_in_flight_messages(channels.len());
 
-    println!("  🚦 In-flight message limit: {max_in_flight_messages}");
+    println!(" In-flight message limit: {max_in_flight_messages}");
 
     // 初始化 Provider 缓存
     let provider_cache_seed = seed_provider_cache(&provider_name, &provider);
@@ -440,7 +448,7 @@ fn build_channel_tool_descriptions(
     if agent_tool_registered {
         tool_descs.push((
             "AgentTool",
-            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
+            "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Continue useful parent work after launch, then verify and synthesize required results before answering.",
         ));
     }
 

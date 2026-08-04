@@ -99,15 +99,17 @@ impl Drop for TempHome {
 }
 
 struct RuntimeWorkflowGuard {
+    _cache_lock: std::sync::MutexGuard<'static, ()>,
     _home: TempHome,
 }
 
 impl RuntimeWorkflowGuard {
     fn with_workflows(workflows: Vec<crate::app::task::OwnedTaskWorkflow>) -> Self {
+        let cache_lock = crate::app::task::runtime_task_lifecycle_cache_test_lock();
         let home = TempHome::new();
         crate::app::task::replace_runtime_task_lifecycle_workflows_for_tests(workflows)
             .expect("runtime workflows should be isolated");
-        Self { _home: home }
+        Self { _cache_lock: cache_lock, _home: home }
     }
 }
 

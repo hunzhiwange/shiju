@@ -296,6 +296,19 @@ fn from_config_rejects_unknown_provider() {
     assert!(error.to_string().contains("Unknown provider: testcov-0076-unknown-provider"));
 }
 
+#[test]
+fn from_config_rejects_invalid_programmatic_timezone() {
+    let mut config = crate::app::agent::config::Config::default();
+    config.app_ui.system_settings.timezone = "Mars/Olympus_Mons".to_string();
+
+    let error = match Agent::from_config(&config) {
+        Ok(_) => panic!("invalid timezone should be rejected"),
+        Err(error) => error,
+    };
+
+    assert!(error.to_string().contains("invalid IANA timezone: Mars/Olympus_Mons"));
+}
+
 #[tokio::test]
 async fn run_single_delegates_message_to_turn_and_returns_response() {
     let mut agent = build_agent();

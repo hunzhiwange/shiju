@@ -29,15 +29,22 @@ fn sample_request() -> legacy_processor::Request {
             models::ChatMessage {
                 role: models::ChatRole::System,
                 content: "system prompt".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             models::ChatMessage {
                 role: models::ChatRole::Assistant,
                 content: "previous answer".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
         ],
         persist_app_session_artifacts: true,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: vw_agent::session::runtime::SessionToolset::default(),
     }
 }
 
@@ -85,22 +92,30 @@ fn gateway_stream_request_from_processor_request_maps_all_history_roles() {
         models::ChatMessage {
             role: models::ChatRole::User,
             content: "earlier question".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         models::ChatMessage {
             role: models::ChatRole::Assistant,
             content: "earlier answer".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         models::ChatMessage {
             role: models::ChatRole::System,
             content: "system rule".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         models::ChatMessage {
             role: models::ChatRole::Tool,
             content: "tool result".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 

@@ -149,7 +149,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 id: id.clone(),
                 name: format!("网关 {}", index + 1),
                 host: "127.0.0.1".to_string(),
-                port: 42617,
+                port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
                 platform_id: "10000".to_string(),
                 company_id: "100000000".to_string(),
                 skey: String::new(),

@@ -1,8 +1,9 @@
 use super::tool_parse::{
-    ExploreToolKind, explore_item_dedupe_key, explore_tool_kind, is_explore_tool,
-    should_hide_tool_block, tool_call_id_from_raw, tool_change_file_summaries, tool_change_files,
-    tool_error_text, tool_identity_from_raw, tool_input, tool_input_path, tool_name_from_raw,
-    tool_output_path, tool_output_text, tool_render_hint_metadata, tool_result_data, tool_status,
+    AgentToolSessionStatus, ExploreToolKind, agent_tool_session_payloads_from_content,
+    explore_item_dedupe_key, explore_tool_kind, is_explore_tool, should_hide_tool_block,
+    tool_call_id_from_raw, tool_change_file_summaries, tool_change_files, tool_error_text,
+    tool_identity_from_raw, tool_input, tool_input_path, tool_name_from_raw, tool_output_path,
+    tool_output_text, tool_render_hint_metadata, tool_result_data, tool_status,
     tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };
 use crate::app::App;
@@ -16,6 +17,93 @@ fn tool_name_and_call_id_are_read_from_raw_tool_block() {
     assert_eq!(tool_name_from_raw(raw), Some("bash".to_string()));
     assert_eq!(tool_call_id_from_raw(raw), Some("call-1".to_string()));
     assert_eq!(tool_status_from_raw(raw), Some("completed".to_string()));
+}
+
+#[test]
+fn tool_parse_agent_tool_session_payloads_normalize_supported_shapes() {
+    let cases = [
+        (
+            r#"tool Agent
+{"status":"running","metadata":{"parent_session_id":" parent ","child_session_id":" child-running ","agent":" writer ","task":" inspect "}}"#,
+            AgentToolSessionStatus::Running,
+            "child-running",
+            Some("parent"),
+        ),
+        (
+            r#"tool AgentTool
+{"status":"completed","output":"{\"child_session_id\":\"child-completed\",\"agent\":\"reviewer\",\"task\":\"review\"}"}"#,
+            AgentToolSessionStatus::Completed,
+            "child-completed",
+            None,
+        ),
+        (
+            r#"tool agent_tool
+{"status":"error","output":"{\"session_id\":\"child-failed\",\"agent\":\"tester\",\"task\":\"test\"}"}"#,
+            AgentToolSessionStatus::Failed,
+            "child-failed",
+            None,
+        ),
+        (
+            r#"tool AgentTool
+{"status":"waiting","metadata":{"child_session_id":"child-waiting"}}"#,
+            AgentToolSessionStatus::Waiting,
+            "child-waiting",
+            None,
+        ),
+        (
+            r#"tool AgentTool
+{"status":"cancelled","metadata":{"child_session_id":"child-cancelled"}}"#,
+            AgentToolSessionStatus::Cancelled,
+            "child-cancelled",
+            None,
+        ),
+    ];
+
+    for (raw, status, child_session_id, parent_session_id) in cases {
+        let parsed = agent_tool_session_payloads_from_content(raw);
+        assert_eq!(parsed.len(), 1, "{raw}");
+        assert_eq!(parsed[0].status, status, "{raw}");
+        assert_eq!(parsed[0].child_session_id, child_session_id, "{raw}");
+        assert_eq!(parsed[0].parent_session_id.as_deref(), parent_session_id, "{raw}");
+    }
+
+    let ignored = [
+        "tool bash\n{}",
+        "tool AgentTool\nnot-json",
+        r#"tool AgentTool
+{"status":"running","metadata":{"child_session_id":"   "}}"#,
+        r#"tool AgentTool
+{"status":"unknown","metadata":{"child_session_id":"child"}}"#,
+    ];
+    for raw in ignored {
+        assert!(agent_tool_session_payloads_from_content(raw).is_empty(), "{raw}");
+    }
+}
+
+#[test]
+fn agent_tool_batch_lifecycle_parser_expands_mixed_task_snapshots() {
+    let raw = r#"tool AgentTool
+{"status":"waiting","output":"{\"action\":\"wait\",\"timed_out\":true,\"tasks\":[{\"parent_session_id\":\"parent\",\"child_session_id\":\"done\",\"agent\":\"researcher\",\"task\":\"search\",\"state\":\"succeeded\"},{\"parent_session_id\":\"parent\",\"child_session_id\":\"failed\",\"agent\":\"tester\",\"task\":\"verify\",\"state\":\"failed\"},{\"parent_session_id\":\"parent\",\"child_session_id\":\"cancelled\",\"agent\":\"writer\",\"task\":\"edit\",\"state\":\"cancelled\"},{\"parent_session_id\":\"parent\",\"child_session_id\":\"active\",\"agent\":\"reviewer\",\"task\":\"review\",\"state\":\"running\"}]}"}"#;
+
+    let parsed = agent_tool_session_payloads_from_content(raw);
+    assert_eq!(parsed.len(), 4);
+    assert_eq!(
+        parsed.iter().map(|payload| payload.status).collect::<Vec<_>>(),
+        vec![
+            AgentToolSessionStatus::Completed,
+            AgentToolSessionStatus::Failed,
+            AgentToolSessionStatus::Cancelled,
+            AgentToolSessionStatus::Waiting,
+        ]
+    );
+    assert_eq!(
+        parsed.iter().map(|payload| payload.child_session_id.as_str()).collect::<Vec<_>>(),
+        vec!["done", "failed", "cancelled", "active"]
+    );
+
+    let status_raw = raw.replace(r#"\"action\":\"wait\""#, r#"\"action\":\"status\""#);
+    let status = agent_tool_session_payloads_from_content(&status_raw);
+    assert_eq!(status[3].status, AgentToolSessionStatus::Running);
 }
 
 #[test]

@@ -12,7 +12,8 @@ use crate::task::{
     TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto,
     TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotRecycleResponse,
     TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotRequest,
-    TaskPoolWorktreeSnapshotResponse, TaskStatus,
+    TaskPoolWorktreeSnapshotResponse, TaskStatus, TaskPlanRunStatus, TaskPlanRunStatusResponse,
+    TaskPlanRunStreamEventDto,
 };
 use serde_json::json;
 
@@ -694,5 +695,242 @@ fn task_pool_workflow_snapshot_rejects_invalid_identity_and_empty_routes() {
     assert_eq!(
         invalid.validate_for_schedule(),
         Err("workflow transition target must not be empty".to_string())
+    );
+}
+
+#[test]
+fn task_plan_run_request_and_events_serialize_session_fields() {
+    use crate::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+
+    let request = TaskPlanRunRequest {
+        query: "plan it".to_string(),
+        root: "/repo".to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("main-session".to_string()),
+        mode: crate::task::TaskPlanRunMode::Workflow,
+    };
+    assert_eq!(
+        serde_json::to_value(&request).expect("serialize request"),
+        json!({
+            "query": "plan it",
+            "root": "/repo",
+            "parent_session_id": "main-session",
+        })
+    );
+
+    let without_parent: TaskPlanRunRequest = serde_json::from_value(json!({
+        "query": "plan it",
+        "root": "/repo",
+    }))
+    .expect("deserialize without parent_session_id");
+    assert_eq!(without_parent.parent_session_id, None);
+
+    let planning = TaskPlanRunStreamEventDto::PlanningStarted {
+        task_id: "task-1".to_string(),
+        plan_dir: "/plans/task-1".to_string(),
+        session_id: "task-1-plan".to_string(),
+    };
+    assert_eq!(
+        serde_json::to_value(&planning).expect("serialize planning"),
+        json!({
+            "type": "planning_started",
+            "task_id": "task-1",
+            "plan_dir": "/plans/task-1",
+            "session_id": "task-1-plan",
+        })
+    );
+
+    let execution_delta = TaskPlanRunStreamEventDto::SessionDelta {
+        task_id: "task-1".to_string(),
+        session_id: "task-1-2".to_string(),
+        delta: "working".to_string(),
+    };
+    assert_eq!(
+        serde_json::to_value(&execution_delta).expect("serialize execution delta"),
+        json!({
+            "type": "session_delta",
+            "task_id": "task-1",
+            "session_id": "task-1-2",
+            "delta": "working",
+        })
+    );
+
+    let waiting = TaskPlanRunStreamEventDto::SessionWaiting {
+        task_id: "task-1".to_string(),
+        session_id: "task-1-2".to_string(),
+        active_descendant_session_ids: vec![
+            "task-1-2-child".to_string(),
+            "task-1-2-grandchild".to_string(),
+        ],
+    };
+    assert_eq!(
+        serde_json::to_value(&waiting).expect("serialize session waiting"),
+        json!({
+            "type": "session_waiting",
+            "task_id": "task-1",
+            "session_id": "task-1-2",
+            "active_descendant_session_ids": [
+                "task-1-2-child",
+                "task-1-2-grandchild",
+            ],
+        })
+    );
+    assert_eq!(
+        serde_json::from_value::<TaskPlanRunStreamEventDto>(
+            serde_json::to_value(&waiting).expect("re-serialize session waiting"),
+        )
+        .expect("deserialize session waiting"),
+        waiting
+    );
+
+    let batch_finished = TaskPlanRunStreamEventDto::BatchFinished {
+        task_id: "task-1".to_string(),
+        batch: 2,
+        subtask_ids: vec!["2".to_string(), "3".to_string()],
+        success: true,
+    };
+    assert_eq!(
+        serde_json::to_value(&batch_finished).expect("serialize batch finished"),
+        json!({
+            "type": "batch_finished",
+            "task_id": "task-1",
+            "batch": 2,
+            "subtask_ids": ["2", "3"],
+            "success": true,
+        })
+    );
+
+    let finished = TaskPlanRunStreamEventDto::Finished {
+        task_id: "task-1".to_string(),
+        plan_dir: "/plans/task-1".to_string(),
+        status: "completed".to_string(),
+        output: "done".to_string(),
+        session_id: Some("task-1-plan".to_string()),
+    };
+    assert_eq!(
+        serde_json::to_value(&finished).expect("serialize finished"),
+        json!({
+            "type": "finished",
+            "task_id": "task-1",
+            "plan_dir": "/plans/task-1",
+            "status": "completed",
+            "output": "done",
+            "session_id": "task-1-plan",
+        })
+    );
+
+    let finished_without_session: TaskPlanRunStreamEventDto = serde_json::from_value(json!({
+        "type": "finished",
+        "task_id": "task-1",
+        "plan_dir": "/plans/task-1",
+        "status": "completed",
+        "output": "done",
+    }))
+    .expect("finished without session_id remains valid");
+    assert!(matches!(
+        finished_without_session,
+        TaskPlanRunStreamEventDto::Finished { session_id: None, .. }
+    ));
+}
+
+#[test]
+fn task_plan_run_control_status_and_cancelled_event_roundtrip() {
+    let cancelled = TaskPlanRunStreamEventDto::Cancelled {
+        task_id: "task-control".to_string(),
+        session_id: Some("task-control-1".to_string()),
+    };
+    let response = TaskPlanRunStatusResponse {
+        task_id: "task-control".to_string(),
+        status: TaskPlanRunStatus::Cancelled,
+        current_session_id: Some("task-control-1".to_string()),
+        terminal_event: Some(cancelled.clone()),
+    };
+    let encoded = serde_json::to_value(&response).expect("serialize control status");
+
+    assert_eq!(
+        encoded,
+        json!({
+            "task_id": "task-control",
+            "status": "cancelled",
+            "current_session_id": "task-control-1",
+            "terminal_event": {
+                "type": "cancelled",
+                "task_id": "task-control",
+                "session_id": "task-control-1"
+            }
+        })
+    );
+    assert_eq!(
+        serde_json::from_value::<TaskPlanRunStatusResponse>(encoded)
+            .expect("deserialize control status"),
+        response
+    );
+    assert!(TaskPlanRunStatus::Completed.is_terminal());
+    assert!(!TaskPlanRunStatus::Waiting.is_terminal());
+}
+
+#[test]
+fn task_plan_run_modes_and_goal_events_round_trip() {
+    use crate::task::{TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+
+    let workflow: TaskPlanRunRequest = serde_json::from_value(json!({
+        "query": "plan it",
+        "root": "/repo",
+    }))
+    .expect("request without mode");
+    assert_eq!(workflow.mode, TaskPlanRunMode::Workflow);
+
+    let goal = TaskPlanRunRequest {
+        query: "finish with evidence".to_string(),
+        root: "/repo".to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("main-session".to_string()),
+        mode: TaskPlanRunMode::Goal,
+    };
+    assert_eq!(
+        serde_json::to_value(goal).expect("serialize goal request"),
+        json!({
+            "query": "finish with evidence",
+            "root": "/repo",
+            "parent_session_id": "main-session",
+            "mode": "goal",
+        })
+    );
+
+    let turn = TaskPlanRunStreamEventDto::GoalTurnStarted {
+        task_id: "task-1".to_string(),
+        turn: 2,
+        session_id: "task-1-goal-2".to_string(),
+        reason: "tests still fail".to_string(),
+    };
+    assert_eq!(
+        serde_json::to_value(turn).expect("serialize goal turn"),
+        json!({
+            "type": "goal_turn_started",
+            "task_id": "task-1",
+            "turn": 2,
+            "session_id": "task-1-goal-2",
+            "reason": "tests still fail",
+        })
+    );
+
+    let evaluated = TaskPlanRunStreamEventDto::GoalEvaluated {
+        task_id: "task-1".to_string(),
+        turn: 2,
+        achieved: false,
+        reason: "clippy exits 1".to_string(),
+        session_id: "task-1-goal-eval-2".to_string(),
+    };
+    let encoded = serde_json::to_value(&evaluated).expect("serialize goal evaluation");
+    assert_eq!(encoded["type"], "goal_evaluated");
+    assert_eq!(encoded["achieved"], false);
+    assert_eq!(
+        serde_json::from_value::<TaskPlanRunStreamEventDto>(encoded)
+            .expect("deserialize goal evaluation"),
+        evaluated
     );
 }

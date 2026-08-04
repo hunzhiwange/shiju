@@ -5,6 +5,165 @@ use super::message;
 use super::{AgentRequest, Message};
 use vw_gateway_client::vw_api_types;
 
+const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
+    std::time::Duration::from_millis(500);
+const GATEWAY_STREAM_MAX_RETRY_DELAY: std::time::Duration =
+    std::time::Duration::from_secs(3 * 60 * 60);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GatewayStreamStopReason {
+    Backpressure,
+    Cancelled,
+    PostToolRoundHandoff,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum GatewayStreamNext {
+    Terminal,
+    Retry(std::time::Duration),
+    Cancelled,
+    PostToolRoundHandoff,
+    Failed(String),
+}
+
+#[derive(Debug)]
+struct GatewayReconnectState {
+    request_id: String,
+    last_event_id: Option<u64>,
+    next_delay: std::time::Duration,
+}
+
+impl GatewayReconnectState {
+    fn new(request_id: String) -> Self {
+        Self {
+            request_id,
+            last_event_id: None,
+            next_delay: GATEWAY_STREAM_INITIAL_RETRY_DELAY,
+        }
+    }
+
+    fn resume(&self) -> vw_gateway_client::GatewayStreamResume {
+        vw_gateway_client::GatewayStreamResume {
+            request_id: self.request_id.clone(),
+            last_event_id: self.last_event_id,
+        }
+    }
+
+    fn finish_attempt(
+        &mut self,
+        result: Result<vw_gateway_client::GatewayStreamAttemptResult, String>,
+        saw_new_event: bool,
+        last_forwarded_event_id: Option<u64>,
+        stop_reason: Option<GatewayStreamStopReason>,
+    ) -> GatewayStreamNext {
+        if let Some(event_id) = last_forwarded_event_id {
+            self.last_event_id =
+                Some(self.last_event_id.map_or(event_id, |current| current.max(event_id)));
+        }
+        if saw_new_event {
+            self.next_delay = GATEWAY_STREAM_INITIAL_RETRY_DELAY;
+        }
+
+        match stop_reason {
+            Some(GatewayStreamStopReason::Cancelled) => return GatewayStreamNext::Cancelled,
+            Some(GatewayStreamStopReason::PostToolRoundHandoff) => {
+                return GatewayStreamNext::PostToolRoundHandoff;
+            }
+            Some(GatewayStreamStopReason::Backpressure) => {
+                return GatewayStreamNext::Retry(self.take_retry_delay());
+            }
+            None => {}
+        }
+
+        match result {
+            Ok(vw_gateway_client::GatewayStreamAttemptResult::Terminated) => {
+                GatewayStreamNext::Terminal
+            }
+            Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped) => {
+                GatewayStreamNext::Cancelled
+            }
+            Ok(vw_gateway_client::GatewayStreamAttemptResult::Incomplete) => {
+                GatewayStreamNext::Retry(self.take_retry_delay())
+            }
+            Err(error) if gateway_stream_error_is_retryable(&error) => {
+                GatewayStreamNext::Retry(self.take_retry_delay())
+            }
+            Err(error) => GatewayStreamNext::Failed(error),
+        }
+    }
+
+    fn take_retry_delay(&mut self) -> std::time::Duration {
+        let delay = self.next_delay;
+        self.next_delay = self
+            .next_delay
+            .saturating_mul(2)
+            .min(GATEWAY_STREAM_MAX_RETRY_DELAY);
+        delay
+    }
+}
+
+fn gateway_stream_error_is_retryable(error: &str) -> bool {
+    if error.starts_with("请求内容过大") {
+        return false;
+    }
+
+    let lower = error.to_ascii_lowercase();
+    for prefix in ["gateway stream failed: ", "gateway request failed: "] {
+        let Some(status_text) = lower.strip_prefix(prefix) else {
+            continue;
+        };
+        let Some(status) =
+            status_text.get(..3).and_then(|value| value.parse::<u16>().ok())
+        else {
+            continue;
+        };
+        return status == 408 || status == 429 || status >= 500;
+    }
+
+    true
+}
+
+fn desktop_stream_request_id(req: &AgentRequest) -> String {
+    use std::hash::{Hash, Hasher};
+    use std::sync::OnceLock;
+
+    static CLIENT_NONCE: OnceLock<u128> = OnceLock::new();
+
+    let nonce = CLIENT_NONCE.get_or_init(rand::random);
+    let mut session_hasher = std::collections::hash_map::DefaultHasher::new();
+    req.session.hash(&mut session_hasher);
+    format!("desktop-{nonce:032x}-{}-{:016x}", req.id, session_hasher.finish())
+}
+
+async fn gateway_stream_retry_sleep(duration: std::time::Duration) {
+    #[cfg(not(target_arch = "wasm32"))]
+    tokio::time::sleep(duration).await;
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::{JsCast, JsValue, closure::Closure};
+
+        let millis = duration.as_millis().min(i32::MAX as u128) as i32;
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+            let Ok(resolve) = resolve.dyn_into::<js_sys::Function>() else {
+                return;
+            };
+            let callback = Closure::once(move || {
+                let _ = resolve.call0(&JsValue::NULL);
+            });
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                callback.as_ref().unchecked_ref(),
+                millis,
+            );
+            callback.forget();
+        });
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    }
+}
+
 /// 模块内可见函数，执行 agent_stream 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn agent_stream(req: &AgentRequest) -> AgentBoxStream<Message> {
@@ -977,31 +1136,180 @@ fn workflow_node_tool_block(
     format!("tool workflow_node\n{payload}\n")
 }
 
+fn gateway_stream_stop_after_forward_err(
+    err: iced::futures::channel::mpsc::TrySendError<Message>,
+    stop_reason: &mut Option<GatewayStreamStopReason>,
+) -> bool {
+    *stop_reason = Some(if err.is_disconnected() {
+        GatewayStreamStopReason::Cancelled
+    } else {
+        GatewayStreamStopReason::Backpressure
+    });
+    false
+}
+
 fn plan_run_event_type(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &'static str {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. } => "planning_started",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { .. } => "session_delta",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting { .. } => "session_waiting",
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { .. } => "plan_created",
         vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { .. } => "batch_started",
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { .. } => "batch_finished",
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { .. } => {
+            "goal_turn_started"
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { .. } => "goal_evaluated",
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { .. } => "subtask_started",
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { .. } => "subtask_finished",
         vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. } => "blocked",
         vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. } => "finished",
         vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "error",
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. } => "cancelled",
     }
 }
 
 fn plan_run_event_task_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &str {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting { task_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { task_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { task_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { task_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { task_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { task_id, .. }
-        | vw_api_types::task::TaskPlanRunStreamEventDto::Finished { task_id, .. } => task_id,
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Finished { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { task_id, .. } => task_id,
         vw_api_types::task::TaskPlanRunStreamEventDto::Error { task_id, .. } => {
             task_id.as_deref().unwrap_or("unknown")
         }
+    }
+}
+
+fn plan_run_event_session_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> Option<&str> {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { session_id, .. } => {
+            Some(session_id.as_str())
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { session_id, .. } => {
+            session_id.as_deref()
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => None,
+    }
+}
+
+fn plan_run_event_session_title(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+) -> Option<String> {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { task_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { task_id, .. } => {
+            Some(format!("规划 · {task_id}"))
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
+            subtask_id,
+            title,
+            ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            subtask_id,
+            title,
+            ..
+        } => {
+            let title = title.trim();
+            Some(if title.is_empty() {
+                format!("子任务 · {subtask_id}")
+            } else {
+                title.to_string()
+            })
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { turn, .. } => {
+            Some(format!("目标续轮 · 第 {turn} 轮"))
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { turn, .. } => {
+            Some(format!("目标验收 · 第 {turn} 轮"))
+        }
+        _ => None,
+    }
+}
+
+fn plan_run_session_started_message(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+    parent_request_id: u64,
+    parent_session_id: &str,
+    directory: &str,
+    query: &str,
+) -> Option<Message> {
+    let session_title = plan_run_event_session_title(event)?;
+    let (session_id, initial_query) = match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { session_id, .. } => {
+            (session_id, query.to_string())
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { session_id, .. } => {
+            (session_id, session_title.clone())
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted {
+            session_id,
+            reason,
+            ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
+            session_id,
+            reason,
+            ..
+        } => (session_id, reason.clone()),
+        _ => return None,
+    };
+    Some(Message::Chat(message::ChatMessage::PlanRunSessionStarted {
+        parent_request_id,
+        parent_session_id: parent_session_id.to_string(),
+        session_id: session_id.clone(),
+        title: session_title,
+        directory: directory.to_string(),
+        query: initial_query,
+    }))
+}
+
+fn plan_run_session_finished_id(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+) -> Option<&str> {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { session_id, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { session_id, .. } => {
+            Some(session_id)
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { session_id, .. } => {
+            session_id.as_deref()
+        }
+        _ => None,
+    }
+}
+
+fn plan_run_session_cancelled_id(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+) -> Option<&str> {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { session_id, .. } => {
+            session_id.as_deref()
+        }
+        _ => None,
     }
 }
 
@@ -1011,9 +1319,24 @@ fn plan_run_tool_call_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) 
         | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { task_id, .. } => {
             format!("plan-run-{task_id}-planning")
         }
-        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, batch, .. } => {
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta {
+            task_id, session_id, ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting {
+            task_id, session_id, ..
+        } => format!("plan-run-{task_id}-session-{session_id}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, batch, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
+            task_id, batch, ..
+        } => {
             format!("plan-run-{task_id}-batch-{batch}")
         }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted {
+            task_id, turn, ..
+        } => format!("plan-run-{task_id}-goal-turn-{turn}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
+            task_id, turn, ..
+        } => format!("plan-run-{task_id}-goal-evaluation-{turn}"),
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
             task_id,
             subtask_id,
@@ -1033,21 +1356,36 @@ fn plan_run_tool_call_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) 
         vw_api_types::task::TaskPlanRunStreamEventDto::Error { task_id, .. } => {
             format!("plan-run-{}-error", task_id.as_deref().unwrap_or("unknown"))
         }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { task_id, .. } => {
+            format!("plan-run-{task_id}-cancelled")
+        }
     }
 }
 
 fn plan_run_event_status(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &'static str {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
+            achieved: false, ..
+        }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { .. } => "running",
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting { .. } => "waiting",
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            success: false, ..
+        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
             success: false, ..
         }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "error",
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. } => "cancelled",
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { achieved: true, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. } => "completed",
     }
 }
@@ -1057,11 +1395,29 @@ fn plan_run_event_summary(event: &vw_api_types::task::TaskPlanRunStreamEventDto)
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. } => {
             "规划任务".to_string()
         }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { .. } => {
+            "规划会话".to_string()
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting { .. } => {
+            "等待后代智能体".to_string()
+        }
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { subtask_count, .. } => {
             format!("计划已创建 · {subtask_count} 个子任务")
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { batch, .. } => {
             format!("批次 {batch}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { batch, .. } => {
+            format!("批次 {batch}")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { turn, .. } => {
+            format!("目标续轮 · 第 {turn} 轮")
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
+            turn, achieved, ..
+        } => {
+            let status = if *achieved { "通过" } else { "未通过" };
+            format!("目标验收 · 第 {turn} 轮 · {status}")
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { batch, title, .. } => {
             format!("批次 {batch} · {title}")
@@ -1080,6 +1436,9 @@ fn plan_run_event_summary(event: &vw_api_types::task::TaskPlanRunStreamEventDto)
             "计划执行完成".to_string()
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "计划执行失败".to_string(),
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. } => {
+            "计划执行已取消".to_string()
+        }
     }
 }
 
@@ -1088,6 +1447,15 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { plan_dir, .. } => {
             format!("正在规划任务，计划目录: {plan_dir}")
         }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { delta, .. } => delta.clone(),
+        vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting {
+            active_descendant_session_ids,
+            ..
+        } => format!(
+            "等待 {} 个后代智能体完成: {}",
+            active_descendant_session_ids.len(),
+            active_descendant_session_ids.join(", ")
+        ),
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated {
             plan_dir,
             plan_md_path,
@@ -1100,6 +1468,27 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
         vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted {
             batch, subtask_ids, ..
         } => format!("批次 {batch} 开始执行: {}", subtask_ids.join(", ")),
+        vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
+            batch,
+            subtask_ids,
+            success,
+            ..
+        } => {
+            let status = if *success { "执行完毕" } else { "执行失败" };
+            format!("批次 {batch} {status}: {}", subtask_ids.join(", "))
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted {
+            turn, reason, ..
+        } => format!("目标第 {turn} 轮续行：{reason}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
+            turn,
+            achieved,
+            reason,
+            ..
+        } => {
+            let status = if *achieved { "通过" } else { "未通过，继续执行" };
+            format!("目标第 {turn} 轮验收{status}：{reason}")
+        }
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
             task_file, title, ..
         } => format!("子任务开始: {title}\n任务文件: {task_file}"),
@@ -1134,7 +1523,20 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
         vw_api_types::task::TaskPlanRunStreamEventDto::Error { message, .. } => {
             format!("计划执行失败: {message}")
         }
+        vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. } => {
+            "计划执行已取消".to_string()
+        }
     }
+}
+
+fn plan_run_event_is_terminal(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> bool {
+    matches!(
+        event,
+        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. }
+    )
 }
 
 fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
@@ -1147,10 +1549,26 @@ fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) ->
     let error = matches!(
         event,
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { success: false, .. }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
+                success: false,
+                ..
+            }
             | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
             | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. }
     )
     .then(|| plan_run_event_output_text(event));
+    let mut metadata = json!({
+        "canonical_tool_id": "workflow_node",
+        "plan_run": true,
+        "event_type": plan_run_event_type(event),
+        "task_id": plan_run_event_task_id(event),
+    });
+    if let Some(session_id) = plan_run_event_session_id(event) {
+        metadata["session_id"] = json!(session_id);
+    }
+    if let Some(title) = plan_run_event_session_title(event) {
+        metadata["title"] = json!(title);
+    }
     let payload = json!({
         "tool_call_id": plan_run_tool_call_id(event),
         "status": plan_run_event_status(event),
@@ -1158,12 +1576,7 @@ fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) ->
         "summary": summary,
         "output": output,
         "error": error,
-        "metadata": {
-            "canonical_tool_id": "workflow_node",
-            "plan_run": true,
-            "event_type": plan_run_event_type(event),
-            "task_id": plan_run_event_task_id(event),
-        }
+        "metadata": metadata,
     });
     let payload = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
     format!("tool workflow_node\n{payload}\n")
@@ -1329,6 +1742,7 @@ async fn stream_workflow_chat_messages(
     Ok(())
 }
 
+#[cfg(test)]
 async fn stream_task_plan_run(
     endpoint: &vw_gateway_client::GatewayEndpoint,
     body: &vw_api_types::task::TaskPlanRunRequest,
@@ -1341,6 +1755,71 @@ async fn stream_task_plan_run(
         "desktop connected task plan-run stream"
     );
     vw_gateway_client::GatewayClient::stream_task_plan_run(endpoint, body, on_event).await
+}
+
+async fn stream_task_plan_run_resumable(
+    endpoint: &vw_gateway_client::GatewayEndpoint,
+    body: &vw_api_types::task::TaskPlanRunRequest,
+    resume: &vw_gateway_client::GatewayStreamResume,
+    on_event: impl FnMut(
+        vw_gateway_client::GatewayStreamEvent<
+            vw_api_types::task::TaskPlanRunStreamEventDto,
+        >,
+    ) -> bool,
+) -> Result<vw_gateway_client::GatewayStreamAttemptResult, String> {
+    tracing::info!(
+        target: "vw_desktop",
+        endpoint = %endpoint.describe(),
+        path = TASK_PLAN_RUN_STREAM_PATH,
+        "desktop connected resumable task plan-run stream"
+    );
+    vw_gateway_client::GatewayClient::stream_task_plan_run_resumable(
+        endpoint, body, resume, on_event,
+    )
+    .await
+}
+
+fn gateway_request_options(
+    req: &AgentRequest,
+    subagent_system_prompt: Option<&str>,
+) -> Option<serde_json::Value> {
+    use serde_json::{Value, json};
+
+    let mut options = serde_json::Map::new();
+    if req.full_access_enabled || req.acp_test {
+        options.insert("full_access".to_string(), json!(true));
+    }
+    if let Some(agent) = &req.agent {
+        options.insert("agent".to_string(), json!(agent));
+    }
+    if let Some(allowed_tools) = &req.allowed_tools {
+        options.insert("allowed_tools".to_string(), json!(allowed_tools));
+    }
+    if req.require_agent_tool {
+        options.insert("require_agent_tool".to_string(), json!(true));
+    }
+    if req.acp_test {
+        options.insert("acp_test".to_string(), json!(true));
+        options.insert("acp_agent".to_string(), json!(req.acp_agent));
+        if let Some(acp_allowed_tools) = &req.acp_allowed_tools {
+            options.insert("acp_allowed_tools".to_string(), json!(acp_allowed_tools));
+        }
+        options.insert("acp_force_new_session".to_string(), json!(req.acp_force_new_session));
+        options.insert(
+            "acp_history_strategy".to_string(),
+            json!(req.acp_history_mode.as_str()),
+        );
+        options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
+        options.insert("cwd".to_string(), json!(req.root));
+        options.insert("acp_permission_mode".to_string(), json!("approve-all"));
+    }
+    if req.resume_history_only {
+        options.insert("desktop_resume_history_only".to_string(), json!(true));
+    }
+    if let Some(system_prompt) = subagent_system_prompt {
+        options.insert("chat_system_prompt".to_string(), json!(system_prompt));
+    }
+    (!options.is_empty()).then_some(Value::Object(options))
 }
 
 fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
@@ -1356,8 +1835,26 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
         move |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
             let endpoint = crate::app::config::gateway_client_endpoint();
 
+            let subagent_system_prompt = req
+                .history
+                .iter()
+                .find(|message| {
+                    matches!(message.role, models::ChatRole::System)
+                        && message.content
+                            == crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT
+                })
+                .map(|message| message.content.clone());
             let mut messages = Vec::new();
             for message in &req.history {
+                if subagent_system_prompt
+                    .as_deref()
+                    .is_some_and(|prompt| {
+                        matches!(message.role, models::ChatRole::System)
+                            && message.content == prompt
+                    })
+                {
+                    continue;
+                }
                 messages.push(json!({
                     "role": match message.role {
                         models::ChatRole::User => "user",
@@ -1376,65 +1873,10 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "messages": messages,
                 "model": req.model,
             });
-            let acp_cwd = req.root.clone();
-            let mut options = serde_json::Map::new();
-            if req.full_access_enabled || req.acp_test {
-                options.insert("full_access".to_string(), json!(true));
-            }
-            if let Some(agent) = &req.agent {
-                options.insert("agent".to_string(), json!(agent));
-            }
-            if let Some(allowed_tools) = &req.allowed_tools {
-                options.insert("allowed_tools".to_string(), json!(allowed_tools));
-            }
-            if req.acp_test {
-                options.insert("acp_test".to_string(), json!(true));
-                options.insert("acp_agent".to_string(), json!(req.acp_agent));
-                if let Some(acp_allowed_tools) = &req.acp_allowed_tools {
-                    options.insert("acp_allowed_tools".to_string(), json!(acp_allowed_tools));
-                }
-                options
-                    .insert("acp_force_new_session".to_string(), json!(req.acp_force_new_session));
-                options.insert(
-                    "acp_history_strategy".to_string(),
-                    json!(req.acp_history_mode.as_str()),
-                );
-                options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
-                options.insert("cwd".to_string(), json!(acp_cwd));
-                options.insert("acp_permission_mode".to_string(), json!("approve-all"));
-            }
-            if req.resume_history_only {
-                options.insert("desktop_resume_history_only".to_string(), json!(true));
-            }
-            let options = (!options.is_empty()).then_some(Value::Object(options));
-            let mut stream_done = false;
-            let mut ended_by_post_tool_round_handoff = false;
-            let workflow_mode_active = req.workflow_mode_enabled && !req.resume_history_only;
-
-            info!(
-                target: "vw_desktop",
-                request_id = req.id,
-                session_id = %req.session,
-                acp_test = req.acp_test,
-                agent = ?req.agent,
-                allowed_tools = ?req.allowed_tools,
-                acp_agent = ?req.acp_agent,
-                acp_allowed_tools = ?req.acp_allowed_tools,
-                acp_force_new_session = req.acp_force_new_session,
-                acp_history_mode = %req.acp_history_mode.as_str(),
-                acp_recent_count = req.acp_recent_count,
-                full_access_enabled = req.full_access_enabled,
-                workflow_mode_enabled = req.workflow_mode_enabled,
-                workflow_mode_active,
-                model = ?req.model,
-                has_root = req.root.is_some(),
-                history_len = req.history.len(),
-                query_len = req.query.len(),
-                options = ?options,
-                "starting gateway agent stream"
-            );
-
-            let result = if workflow_mode_active {
+            let options = gateway_request_options(&req, subagent_system_prompt.as_deref());
+            let workflow_mode_active =
+                (req.workflow_mode_enabled || req.goal_mode_enabled) && !req.resume_history_only;
+            let plan_run_body = if workflow_mode_active {
                 let Some(root) = req.root.as_deref().filter(|value| !value.trim().is_empty())
                 else {
                     let _ = output
@@ -1445,294 +1887,568 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                         .await;
                     return;
                 };
-                let plan_run_body = vw_api_types::task::TaskPlanRunRequest {
+                Some(vw_api_types::task::TaskPlanRunRequest {
                     query: req.query.clone(),
                     root: root.to_string(),
                     model: req.model.clone(),
                     agent: req.agent.clone(),
                     acp_agent: req.acp_agent.clone(),
-                };
-
-                stream_task_plan_run(&endpoint, &plan_run_body, |event| {
-                    let done_event = matches!(
-                        event,
-                        vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
-                    );
-                    let error_event = match &event {
-                        vw_api_types::task::TaskPlanRunStreamEventDto::Error {
-                            message, ..
-                        } => Some(message.clone()),
-                        _ => None,
-                    };
-                    let event_type = plan_run_event_type(&event);
-                    info!(
-                        target: "vw_desktop",
-                        request_id = req.id,
-                        session_id = %req.session,
-                        event_type,
-                        "desktop received task plan-run event"
-                    );
-
-                    if output
-                        .try_send(Message::Chat(message::ChatMessage::AgentWorkflowNodeUpdate(
-                            req.id,
-                            plan_run_tool_block(&event),
-                        )))
-                        .is_err()
-                    {
-                        return false;
-                    }
-
-                    if done_event {
-                        stream_done = true;
-                        return output
-                            .try_send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                req.id,
-                                crate::app::models::TokenUsage::default(),
-                                None,
-                                None,
-                            )))
-                            .is_ok();
-                    }
-                    if let Some(error) = error_event {
-                        stream_done = true;
-                        return output
-                            .try_send(Message::Chat(message::ChatMessage::AgentStreamError(
-                                req.id, error,
-                            )))
-                            .is_ok();
-                    }
-                    true
-                })
-                .await
-            } else {
-                vw_gateway_client::GatewayClient::stream_chat(
-                    &endpoint,
-                    req.root.as_deref(),
-                    &vw_gateway_client::GatewayChatStreamRequest {
-                        session_id: Some(req.session.clone().into()),
-                        messages: body
-                            .get("messages")
-                            .and_then(Value::as_array)
-                            .cloned()
-                            .unwrap_or_default(),
-                        system: None,
-                        model: body
-                            .get("model")
-                            .cloned()
-                            .and_then(|value| serde_json::from_value(value).ok()),
-                        reasoning_effort: req.acp_test.then_some(req.reasoning_effort).flatten(),
-                        agent: req.agent.clone(),
-                        allowed_tools: req.allowed_tools.clone(),
-                        acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),
-                        acp_allowed_tools: if req.acp_test {
-                            req.acp_allowed_tools.clone()
-                        } else {
-                            None
-                        },
-                        options,
+                    parent_session_id: {
+                        let trimmed = req.session.trim();
+                        (!trimmed.is_empty()).then(|| trimmed.to_string())
                     },
-                    |event| {
-                        let event_kind = match &event {
-                            vw_gateway_client::GatewayChatStreamEvent::Delta(_) => "delta",
-                            vw_gateway_client::GatewayChatStreamEvent::Done { .. } => "done",
-                            vw_gateway_client::GatewayChatStreamEvent::Error(_) => "error",
-                            vw_gateway_client::GatewayChatStreamEvent::Other(_) => "other",
-                        };
-                        let mut stop_after_send = false;
+                    mode: if req.goal_mode_enabled {
+                        vw_api_types::task::TaskPlanRunMode::Goal
+                    } else {
+                        vw_api_types::task::TaskPlanRunMode::Workflow
+                    },
+                })
+            } else {
+                None
+            };
+            let chat_body = vw_gateway_client::GatewayChatStreamRequest {
+                session_id: Some(req.session.clone().into()),
+                messages: body
+                    .get("messages")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default(),
+                system: None,
+                model: body
+                    .get("model")
+                    .cloned()
+                    .and_then(|value| serde_json::from_value(value).ok()),
+                reasoning_effort: req.acp_test.then_some(req.reasoning_effort).flatten(),
+                agent: req.agent.clone(),
+                allowed_tools: req.allowed_tools.clone(),
+                acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),
+                acp_allowed_tools: if req.acp_test {
+                    req.acp_allowed_tools.clone()
+                } else {
+                    None
+                },
+                options: options.clone(),
+            };
 
-                        let next_message = match event {
-                            vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-                                let delta_len = delta.len();
-                                let delta_preview: String = delta.chars().take(80).collect();
-                                info!(
-                                    target: "vw_desktop",
-                                    request_id = req.id,
-                                    session_id = %req.session,
-                                    delta_len,
-                                    delta_preview = %delta_preview,
-                                    "desktop received gateway delta"
-                                );
-                                Some(Message::Chat(message::ChatMessage::AgentStreamDelta(
-                                    req.id, delta,
-                                )))
+            let mut stream_done = false;
+            let mut last_plan_run_event: Option<&'static str> = None;
+            let mut plan_run_session_ids = std::collections::HashSet::<String>::new();
+            let mut plan_run_terminal_error: Option<String> = None;
+            let mut plan_run_cancelled = false;
+            let mut reconnect = GatewayReconnectState::new(desktop_stream_request_id(&req));
+            let mut attempt = 0_u64;
+
+            info!(
+                target: "vw_desktop",
+                request_id = req.id,
+                session_id = %req.session,
+                acp_test = req.acp_test,
+                agent = ?req.agent,
+                allowed_tools = ?req.allowed_tools,
+                require_agent_tool = req.require_agent_tool,
+                acp_agent = ?req.acp_agent,
+                acp_allowed_tools = ?req.acp_allowed_tools,
+                acp_force_new_session = req.acp_force_new_session,
+                acp_history_mode = %req.acp_history_mode.as_str(),
+                acp_recent_count = req.acp_recent_count,
+                full_access_enabled = req.full_access_enabled,
+                workflow_mode_enabled = req.workflow_mode_enabled,
+                goal_mode_enabled = req.goal_mode_enabled,
+                workflow_mode_active,
+                model = ?req.model,
+                has_root = req.root.is_some(),
+                history_len = req.history.len(),
+                query_len = req.query.len(),
+                options = ?options,
+                "starting gateway agent stream"
+            );
+
+            loop {
+                attempt = attempt.saturating_add(1);
+                let resume = reconnect.resume();
+                let mut saw_new_event = false;
+                let mut last_forwarded_event_id = None;
+                let mut stop_reason = None;
+
+                let result = if let Some(plan_run_body) = plan_run_body.as_ref() {
+                    let root = req.root.as_deref().expect("validated workflow root");
+                    stream_task_plan_run_resumable(
+                        &endpoint,
+                        plan_run_body,
+                        &resume,
+                        |stream_event| {
+                            let event_id = stream_event.id;
+                            let event = stream_event.event;
+                            if resume.last_event_id.is_none_or(|last| event_id > last) {
+                                saw_new_event = true;
                             }
-                            vw_gateway_client::GatewayChatStreamEvent::Done {
-                                usage,
-                                message_id,
-                                parent_message_id,
+                            let done_event = matches!(
+                                event,
+                                vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
+                            );
+                            let cancelled_event = matches!(
+                                event,
+                                vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. }
+                            );
+                            let blocked_reason = match &event {
+                                vw_api_types::task::TaskPlanRunStreamEventDto::Blocked {
+                                    reason,
+                                    ..
+                                } => Some(reason.clone()),
+                                _ => None,
+                            };
+                            let error_event = match &event {
+                                vw_api_types::task::TaskPlanRunStreamEventDto::Error {
+                                    message,
+                                    ..
+                                } => Some(message.clone()),
+                                _ => None,
+                            };
+                            let event_type = plan_run_event_type(&event);
+                            last_plan_run_event = Some(event_type);
+                            info!(
+                                target: "vw_desktop",
+                                request_id = req.id,
+                                event_id,
+                                event_type,
+                                "desktop received task plan-run event"
+                            );
+
+                            if let Some(started_message) = plan_run_session_started_message(
+                                &event,
+                                req.id,
+                                &req.session,
+                                root,
+                                &req.query,
+                            ) {
+                                if let Err(err) = output.try_send(started_message) {
+                                    return gateway_stream_stop_after_forward_err(
+                                        err,
+                                        &mut stop_reason,
+                                    );
+                                }
+                                if let Some(session_id) = plan_run_event_session_id(&event) {
+                                    plan_run_session_ids.insert(session_id.to_string());
+                                }
+                            }
+
+                            if let vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta {
+                                session_id,
+                                delta,
                                 ..
-                            } => {
-                                info!(
-                                    target: "vw_desktop",
-                                    request_id = req.id,
-                                    session_id = %req.session,
-                                    has_usage = usage.is_some(),
-                                    message_id = ?message_id,
-                                    parent_message_id = ?parent_message_id,
-                                    "desktop received gateway done"
+                            } = &event
+                            {
+                                match output.try_send(Message::Chat(
+                                    message::ChatMessage::PlanRunSessionDelta {
+                                        session_id: session_id.clone(),
+                                        delta: delta.clone(),
+                                    },
+                                )) {
+                                    Ok(()) => {
+                                        last_forwarded_event_id = Some(event_id);
+                                        return true;
+                                    }
+                                    Err(err) => {
+                                        return gateway_stream_stop_after_forward_err(
+                                            err,
+                                            &mut stop_reason,
+                                        );
+                                    }
+                                }
+                            }
+
+                            if let vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting {
+                                session_id,
+                                ..
+                            } = &event
+                                && let Err(err) = output.try_send(Message::Chat(
+                                    message::ChatMessage::PlanRunSessionWaiting(session_id.clone()),
+                                ))
+                            {
+                                return gateway_stream_stop_after_forward_err(
+                                    err,
+                                    &mut stop_reason,
                                 );
-                                stream_done = true;
-                                Some(Message::Chat(message::ChatMessage::AgentStreamDone(
+                            }
+
+                            if let Some(session_id) =
+                                plan_run_session_cancelled_id(&event).map(str::to_string)
+                            {
+                                match output.try_send(Message::Chat(
+                                    message::ChatMessage::PlanRunSessionCancelled(
+                                        session_id.clone(),
+                                    ),
+                                )) {
+                                    Ok(()) => {
+                                        plan_run_session_ids.remove(&session_id);
+                                    }
+                                    Err(err) => {
+                                        return gateway_stream_stop_after_forward_err(
+                                            err,
+                                            &mut stop_reason,
+                                        );
+                                    }
+                                }
+                            }
+
+                            if let Some(session_id) =
+                                plan_run_session_finished_id(&event).map(str::to_string)
+                            {
+                                match output.try_send(Message::Chat(
+                                    message::ChatMessage::PlanRunSessionFinished(
+                                        session_id.clone(),
+                                    ),
+                                )) {
+                                    Ok(()) => {
+                                        plan_run_session_ids.remove(&session_id);
+                                    }
+                                    Err(err) => {
+                                        return gateway_stream_stop_after_forward_err(
+                                            err,
+                                            &mut stop_reason,
+                                        );
+                                    }
+                                }
+                            }
+
+                            if let Err(err) = output.try_send(Message::Chat(
+                                message::ChatMessage::AgentWorkflowNodeUpdate(
                                     req.id,
-                                    parse_usage(usage.as_ref()),
+                                    plan_run_tool_block(&event),
+                                ),
+                            )) {
+                                return gateway_stream_stop_after_forward_err(
+                                    err,
+                                    &mut stop_reason,
+                                );
+                            }
+
+                            last_forwarded_event_id = Some(event_id);
+                            if done_event {
+                                stream_done = true;
+                            } else if cancelled_event {
+                                stream_done = true;
+                                plan_run_cancelled = true;
+                            } else if let Some(error) = error_event {
+                                stream_done = true;
+                                plan_run_terminal_error = Some(error);
+                            } else if let Some(reason) = blocked_reason {
+                                stream_done = true;
+                                plan_run_terminal_error = Some(if reason.trim().is_empty() {
+                                    "工作流执行受阻".to_string()
+                                } else {
+                                    format!("工作流执行受阻：{reason}")
+                                });
+                            } else {
+                                debug_assert!(!plan_run_event_is_terminal(&event));
+                            }
+                            true
+                        },
+                    )
+                    .await
+                } else {
+                    vw_gateway_client::GatewayClient::stream_chat_resumable(
+                        &endpoint,
+                        req.root.as_deref(),
+                        &chat_body,
+                        &resume,
+                        |stream_event| {
+                            let event_id = stream_event.id;
+                            let event = stream_event.event;
+                            if resume.last_event_id.is_none_or(|last| event_id > last) {
+                                saw_new_event = true;
+                            }
+                            let event_kind = match &event {
+                                vw_gateway_client::GatewayChatStreamEvent::Delta(_) => "delta",
+                                vw_gateway_client::GatewayChatStreamEvent::Done { .. } => "done",
+                                vw_gateway_client::GatewayChatStreamEvent::Error(_) => "error",
+                                vw_gateway_client::GatewayChatStreamEvent::Other(_) => "other",
+                            };
+                            let terminal_event = matches!(
+                                event,
+                                vw_gateway_client::GatewayChatStreamEvent::Done { .. }
+                                    | vw_gateway_client::GatewayChatStreamEvent::Error(_)
+                            );
+                            let mut handoff = false;
+
+                            let next_message = match event {
+                                vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                                    info!(
+                                        target: "vw_desktop",
+                                        request_id = req.id,
+                                        event_id,
+                                        delta_len = delta.len(),
+                                        "desktop received gateway delta"
+                                    );
+                                    Some(Message::Chat(
+                                        message::ChatMessage::AgentStreamDelta(req.id, delta),
+                                    ))
+                                }
+                                vw_gateway_client::GatewayChatStreamEvent::Done {
+                                    usage,
                                     message_id,
                                     parent_message_id,
-                                )))
-                            }
-                            vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
-                                info!(
-                                    target: "vw_desktop",
-                                    request_id = req.id,
-                                    session_id = %req.session,
-                                    error = %error,
-                                    "desktop received gateway error"
-                                );
-                                stream_done = true;
-                                Some(Message::Chat(message::ChatMessage::AgentStreamError(
-                                    req.id, error,
-                                )))
-                            }
-                            vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {
-                                match payload
-                                    .get("type")
-                                    .and_then(serde_json::Value::as_str)
-                                    .unwrap_or_default()
-                                {
-                                    "chat.step_start" => {
-                                        let step_index = payload
-                                            .get("step_index")
-                                            .and_then(serde_json::Value::as_u64)
-                                            .unwrap_or_default()
-                                            as u32;
-                                        let created_ms = payload
-                                            .get("created_ms")
-                                            .and_then(serde_json::Value::as_u64)
-                                            .unwrap_or_default();
-                                        let model = payload
-                                            .get("model")
-                                            .and_then(serde_json::Value::as_str)
-                                            .map(ToOwned::to_owned);
-                                        Some(Message::Chat(message::ChatMessage::AgentStepStart(
+                                    ..
+                                } => {
+                                    info!(
+                                        target: "vw_desktop",
+                                        request_id = req.id,
+                                        event_id,
+                                        has_usage = usage.is_some(),
+                                        message_id = ?message_id,
+                                        parent_message_id = ?parent_message_id,
+                                        "desktop received gateway done"
+                                    );
+                                    Some(Message::Chat(
+                                        message::ChatMessage::AgentStreamDone(
                                             req.id,
-                                            req.session.clone(),
-                                            step_index,
-                                            created_ms,
-                                            model,
-                                        )))
-                                    }
-                                    "chat.step_finish" => {
-                                        let step_index = payload
-                                            .get("step_index")
-                                            .and_then(serde_json::Value::as_u64)
-                                            .unwrap_or_default()
-                                            as u32;
-                                        let finished_ms = payload
-                                            .get("finished_ms")
-                                            .and_then(serde_json::Value::as_u64)
-                                            .unwrap_or_default();
-                                        let usage = parse_usage(payload.get("usage"));
-                                        let finish_reason = payload
-                                            .get("finish_reason")
-                                            .and_then(serde_json::Value::as_str)
-                                            .map(ToOwned::to_owned);
-                                        let model = payload
-                                            .get("model")
-                                            .and_then(serde_json::Value::as_str)
-                                            .map(ToOwned::to_owned);
-                                        Some(Message::Chat(message::ChatMessage::AgentStepFinish(
-                                            req.id,
-                                            req.session.clone(),
-                                            step_index,
-                                            finished_ms,
-                                            usage,
-                                            finish_reason,
-                                            model,
-                                        )))
-                                    }
-                                    "chat.post_tool_round" => {
-                                        if !crate::app::state::take_pending_guide_handoff(req.id) {
-                                            None
-                                        } else {
-                                            ended_by_post_tool_round_handoff = true;
-                                            stop_after_send = true;
+                                            parse_usage(usage.as_ref()),
+                                            message_id,
+                                            parent_message_id,
+                                        ),
+                                    ))
+                                }
+                                vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                                    info!(
+                                        target: "vw_desktop",
+                                        request_id = req.id,
+                                        event_id,
+                                        "desktop received gateway error"
+                                    );
+                                    Some(Message::Chat(
+                                        message::ChatMessage::AgentStreamError(req.id, error),
+                                    ))
+                                }
+                                vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {
+                                    match payload
+                                        .get("type")
+                                        .and_then(serde_json::Value::as_str)
+                                        .unwrap_or_default()
+                                    {
+                                        "chat.context_loaded" => {
+                                            let paths = payload
+                                                .get("paths")
+                                                .and_then(serde_json::Value::as_array)
+                                                .into_iter()
+                                                .flatten()
+                                                .filter_map(serde_json::Value::as_str)
+                                                .map(ToOwned::to_owned)
+                                                .collect::<Vec<_>>();
+                                            (!paths.is_empty()).then(|| {
+                                                Message::Chat(
+                                                    message::ChatMessage::AgentContextLoaded(
+                                                        req.id, paths,
+                                                    ),
+                                                )
+                                            })
+                                        }
+                                        "chat.step_start" => {
                                             let step_index = payload
                                                 .get("step_index")
                                                 .and_then(serde_json::Value::as_u64)
                                                 .unwrap_or_default()
                                                 as u32;
+                                            let created_ms = payload
+                                                .get("created_ms")
+                                                .and_then(serde_json::Value::as_u64)
+                                                .unwrap_or_default();
+                                            let model = payload
+                                                .get("model")
+                                                .and_then(serde_json::Value::as_str)
+                                                .map(ToOwned::to_owned);
                                             Some(Message::Chat(
-                                                message::ChatMessage::AgentPostToolRound(
+                                                message::ChatMessage::AgentStepStart(
                                                     req.id,
                                                     req.session.clone(),
                                                     step_index,
+                                                    created_ms,
+                                                    model,
                                                 ),
                                             ))
                                         }
+                                        "chat.step_finish" => {
+                                            let step_index = payload
+                                                .get("step_index")
+                                                .and_then(serde_json::Value::as_u64)
+                                                .unwrap_or_default()
+                                                as u32;
+                                            let finished_ms = payload
+                                                .get("finished_ms")
+                                                .and_then(serde_json::Value::as_u64)
+                                                .unwrap_or_default();
+                                            let usage = parse_usage(payload.get("usage"));
+                                            let finish_reason = payload
+                                                .get("finish_reason")
+                                                .and_then(serde_json::Value::as_str)
+                                                .map(ToOwned::to_owned);
+                                            let model = payload
+                                                .get("model")
+                                                .and_then(serde_json::Value::as_str)
+                                                .map(ToOwned::to_owned);
+                                            Some(Message::Chat(
+                                                message::ChatMessage::AgentStepFinish(
+                                                    req.id,
+                                                    req.session.clone(),
+                                                    step_index,
+                                                    finished_ms,
+                                                    usage,
+                                                    finish_reason,
+                                                    model,
+                                                ),
+                                            ))
+                                        }
+                                        "chat.post_tool_round" => {
+                                            if !crate::app::state::take_pending_guide_handoff(
+                                                req.id,
+                                            ) {
+                                                None
+                                            } else {
+                                                handoff = true;
+                                                let step_index = payload
+                                                    .get("step_index")
+                                                    .and_then(serde_json::Value::as_u64)
+                                                    .unwrap_or_default()
+                                                    as u32;
+                                                Some(Message::Chat(
+                                                    message::ChatMessage::AgentPostToolRound(
+                                                        req.id,
+                                                        req.session.clone(),
+                                                        step_index,
+                                                    ),
+                                                ))
+                                            }
+                                        }
+                                        _ => None,
                                     }
-                                    _ => None,
+                                }
+                            };
+
+                            let Some(next_message) = next_message else {
+                                last_forwarded_event_id = Some(event_id);
+                                return true;
+                            };
+
+                            match output.try_send(next_message) {
+                                Ok(()) => {
+                                    last_forwarded_event_id = Some(event_id);
+                                    if terminal_event {
+                                        stream_done = true;
+                                    }
+                                    if handoff {
+                                        stop_reason =
+                                            Some(GatewayStreamStopReason::PostToolRoundHandoff);
+                                        false
+                                    } else {
+                                        true
+                                    }
+                                }
+                                Err(err) => {
+                                    debug!(
+                                        target: "vw_desktop",
+                                        request_id = req.id,
+                                        event_id,
+                                        event_kind,
+                                        "desktop agent stream forward failed"
+                                    );
+                                    gateway_stream_stop_after_forward_err(err, &mut stop_reason)
                                 }
                             }
-                        };
+                        },
+                    )
+                    .await
+                };
 
-                        let Some(next_message) = next_message else {
-                            return true;
-                        };
-
-                        match output.try_send(next_message) {
-                            Ok(()) => !stop_after_send,
-                            Err(_) => {
-                                debug!(
-                                    target: "vw_desktop",
-                                    request_id = req.id,
-                                    session_id = %req.session,
-                                    event_kind = event_kind,
-                                    "desktop agent stream forward failed"
-                                );
-                                false
-                            }
+                match reconnect.finish_attempt(
+                    result,
+                    saw_new_event,
+                    last_forwarded_event_id,
+                    stop_reason,
+                ) {
+                    GatewayStreamNext::Terminal => break,
+                    GatewayStreamNext::Cancelled => {
+                        debug!(
+                            target: "vw_desktop",
+                            request_id = req.id,
+                            attempt,
+                            last_event_id = reconnect.last_event_id,
+                            last_plan_run_event,
+                            "gateway agent stream cancelled by UI subscription drop"
+                        );
+                        return;
+                    }
+                    GatewayStreamNext::PostToolRoundHandoff => {
+                        debug!(
+                            target: "vw_desktop",
+                            request_id = req.id,
+                            attempt,
+                            "gateway agent stream stopped after post-tool-round handoff"
+                        );
+                        return;
+                    }
+                    GatewayStreamNext::Failed(error) => {
+                        for session_id in plan_run_session_ids.drain() {
+                            let _ = output
+                                .send(Message::Chat(
+                                    message::ChatMessage::PlanRunSessionFinished(session_id),
+                                ))
+                                .await;
                         }
-                    },
-                )
-                .await
-            };
-
-            if let Err(err) = result {
-                debug!(
-                    target: "vw_desktop",
-                    request_id = req.id,
-                    session_id = %req.session,
-                    error = %err,
-                    "gateway agent stream failed"
-                );
-                let _ = output
-                    .send(Message::Chat(message::ChatMessage::AgentStreamError(req.id, err)))
-                    .await;
-                return;
+                        debug!(
+                            target: "vw_desktop",
+                            request_id = req.id,
+                            attempt,
+                            error = %error,
+                            "gateway agent stream failed without retry"
+                        );
+                        let _ = output
+                            .send(Message::Chat(message::ChatMessage::AgentStreamError(
+                                req.id, error,
+                            )))
+                            .await;
+                        return;
+                    }
+                    GatewayStreamNext::Retry(delay) => {
+                        debug!(
+                            target: "vw_desktop",
+                            request_id = req.id,
+                            stream_kind = if workflow_mode_active { "plan_run" } else { "chat" },
+                            attempt,
+                            delay_ms = delay.as_millis(),
+                            last_event_id = reconnect.last_event_id,
+                            last_plan_run_event,
+                            "gateway agent stream retry scheduled"
+                        );
+                        gateway_stream_retry_sleep(delay).await;
+                    }
+                }
             }
 
-            if !stream_done {
-                if ended_by_post_tool_round_handoff {
-                    debug!(
-                        target: "vw_desktop",
-                        request_id = req.id,
-                        session_id = %req.session,
-                        "gateway agent stream stopped after post-tool-round handoff"
-                    );
-                    return;
+            if workflow_mode_active && stream_done {
+                for session_id in plan_run_session_ids.drain() {
+                    let _ = output
+                        .send(Message::Chat(if plan_run_cancelled {
+                            message::ChatMessage::PlanRunSessionCancelled(session_id)
+                        } else {
+                            message::ChatMessage::PlanRunSessionFinished(session_id)
+                        }))
+                        .await;
                 }
-                debug!(
-                    target: "vw_desktop",
-                    request_id = req.id,
-                    session_id = %req.session,
-                    "gateway agent stream ended without done event"
-                );
-                let _ = output
-                    .send(Message::Chat(message::ChatMessage::AgentStreamError(
-                        req.id,
-                        "任务异常终止：未收到网关完成信号".to_string(),
-                    )))
-                    .await;
+                let terminal_message = if plan_run_cancelled {
+                    Message::Chat(message::ChatMessage::AgentStreamCancelled(req.id))
+                } else {
+                    match plan_run_terminal_error {
+                        Some(error) => {
+                            Message::Chat(message::ChatMessage::AgentStreamError(req.id, error))
+                        }
+                        None => Message::Chat(message::ChatMessage::AgentStreamDone(
+                            req.id,
+                            crate::app::models::TokenUsage::default(),
+                            None,
+                            None,
+                        )),
+                    }
+                };
+                let _ = output.send(terminal_message).await;
             }
         },
     );

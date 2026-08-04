@@ -162,8 +162,12 @@ impl widget::Operation for RecordingOperation {
 fn interceptor() -> WheelInterceptor<'static, TestMessage, Theme, RecordingRenderer> {
     WheelInterceptor {
         content: TestContent::default().into(),
-        on_scroll: Box::new(TestMessage::WheelScrolled),
+        on_scroll: Some(Box::new(TestMessage::WheelScrolled)),
     }
+}
+
+fn passthrough_interceptor() -> WheelInterceptor<'static, TestMessage, Theme, RecordingRenderer> {
+    WheelInterceptor { content: TestContent::default().into(), on_scroll: None }
 }
 
 fn tree_for(
@@ -312,6 +316,13 @@ fn wheel_interceptor_converts_into_element() {
 }
 
 #[test]
+fn wheel_passthrough_converts_into_element() {
+    let element = pass_wheel_to_parent(TestContent::default());
+
+    assert_eq!(element.as_widget().size(), Size::new(Length::Fixed(120.0), Length::Fixed(40.0)));
+}
+
+#[test]
 fn children_and_diff_keep_single_child() {
     let widget = interceptor();
     let children = <WheelInterceptor<'_, TestMessage, Theme, RecordingRenderer> as Widget<
@@ -402,6 +413,24 @@ fn wheel_inside_publishes_scroll_message_and_captures_event() {
 }
 
 #[test]
+fn wheel_passthrough_leaves_pixel_scroll_for_parent() {
+    let mut widget = passthrough_interceptor();
+    let mut tree = tree_for(&widget);
+
+    let (messages, captured) = update_with(
+        &mut widget,
+        &mut tree,
+        Event::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Pixels { x: 0.0, y: 8.0 },
+        }),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert!(messages.is_empty());
+    assert!(!captured);
+}
+
+#[test]
 fn wheel_outside_delegates_to_content() {
     let mut widget = interceptor();
     let mut tree = tree_for(&widget);
@@ -465,7 +494,7 @@ fn mouse_interaction_delegates_to_content() {
     let widget = WheelInterceptor {
         content: TestContent { interaction: mouse::Interaction::Pointer, ..TestContent::default() }
             .into(),
-        on_scroll: Box::new(TestMessage::WheelScrolled),
+        on_scroll: Some(Box::new(TestMessage::WheelScrolled)),
     };
     let tree = tree_for(&widget);
     let renderer = RecordingRenderer::default();

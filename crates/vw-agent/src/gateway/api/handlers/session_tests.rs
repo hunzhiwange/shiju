@@ -137,7 +137,6 @@ async fn session_router_registers_expected_paths_and_methods() {
         (Method::POST, "/session/session-a/ui"),
         (Method::POST, "/session/session-a/preview"),
         (Method::POST, "/session/session-a/path"),
-        (Method::POST, "/session/session-a/step/0/llm-raw"),
         (Method::POST, "/session/session-a/any"),
         (Method::GET, "/session/session-a/title"),
     ];
@@ -330,6 +329,8 @@ async fn persist_stream_chat_turn_stores_extra_assistant_patch_parts() {
         },
         hash: "tree_hash_before_tools".to_string(),
         files: vec!["/tmp/project/src/main.rs".to_string()],
+        additions: Some(3),
+        deletions: Some(1),
     });
 
     let stored = project::instance::provide(temp.path(), None, move || {
@@ -366,6 +367,8 @@ async fn persist_stream_chat_turn_stores_extra_assistant_patch_parts() {
             agent_session::message::Part::Patch(p)
                 if p.hash == "tree_hash_before_tools"
                     && p.files == vec!["/tmp/project/src/main.rs".to_string()]
+                    && p.additions == Some(3)
+                    && p.deletions == Some(1)
         )
     }));
 }

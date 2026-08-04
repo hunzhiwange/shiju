@@ -21,6 +21,12 @@ pub enum Icon {
     ArrowUp,
     /// 向下箭头
     ArrowDown,
+    /// 浏览器后退箭头
+    ArrowLeft,
+    /// 浏览器前进箭头
+    ArrowRight,
+    /// 地球/外部浏览器图标
+    Globe,
     /// 无序列表图标
     ListUl,
     /// 链接图标
@@ -155,6 +161,8 @@ pub enum Icon {
     ArrowClockwise,
     /// 搜索图标
     Search,
+    /// 漏斗/过滤图标
+    Funnel,
     /// 机器人/小宠物图标
     Robot,
     /// 循环箭头/刷新图标

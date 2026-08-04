@@ -22,5 +22,6 @@ mod app_update;
 mod app_view;
 mod app_view_modals;
 mod app_view_status;
+pub(crate) use app_view_status::STATUS_BAR_HEIGHT;
 #[cfg(test)]
 mod tests;

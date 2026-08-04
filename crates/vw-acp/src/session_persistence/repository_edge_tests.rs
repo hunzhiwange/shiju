@@ -9,30 +9,51 @@ fn temp_dir(name: &str) -> PathBuf {
 }
 
 struct EnvVarGuard {
-    key: &'static str,
-    previous: Option<OsString>,
+    saved: Vec<(&'static str, Option<OsString>)>,
 }
 
 impl EnvVarGuard {
     fn set(key: &'static str, value: &Path) -> Self {
-        let previous = std::env::var_os(key);
+        let keys = env_keys(key);
+        let saved = keys.iter().map(|key| (*key, std::env::var_os(key))).collect();
         unsafe { std::env::set_var(key, value) };
-        Self { key, previous }
+        if key == "HOME" {
+            unsafe { std::env::set_var("USERPROFILE", value) };
+            unsafe { std::env::remove_var("HOMEDRIVE") };
+            unsafe { std::env::remove_var("HOMEPATH") };
+        }
+        Self { saved }
     }
 
     fn clear(key: &'static str) -> Self {
-        let previous = std::env::var_os(key);
+        let keys = env_keys(key);
+        let saved = keys.iter().map(|key| (*key, std::env::var_os(key))).collect();
         unsafe { std::env::remove_var(key) };
-        Self { key, previous }
+        if key == "HOME" {
+            unsafe { std::env::remove_var("USERPROFILE") };
+            unsafe { std::env::remove_var("HOMEDRIVE") };
+            unsafe { std::env::remove_var("HOMEPATH") };
+        }
+        Self { saved }
     }
 }
 
 impl Drop for EnvVarGuard {
     fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => unsafe { std::env::set_var(self.key, value) },
-            None => unsafe { std::env::remove_var(self.key) },
+        for (key, value) in self.saved.drain(..) {
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
         }
+    }
+}
+
+fn env_keys(key: &'static str) -> Vec<&'static str> {
+    if key == "HOME" {
+        vec!["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
+    } else {
+        vec![key]
     }
 }
 

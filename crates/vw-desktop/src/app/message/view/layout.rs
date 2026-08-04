@@ -7,6 +7,11 @@ use super::ViewMessage;
 use crate::app::{App, FocusArea, Message, set_config_field};
 use iced::Task;
 
+const MIN_WORK_SIDEBAR_WIDTH: f32 = 220.0;
+const MAX_WORK_SIDEBAR_WIDTH: f32 = 520.0;
+const MIN_WORK_SPLIT_RATIO: f32 = 0.25;
+const MAX_WORK_SPLIT_RATIO: f32 = 0.75;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WindowClosedOutcome {
     Continue,
@@ -50,6 +55,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::WindowClosed(window_id) => {
+            if app.main_window_id == Some(window_id) {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let _ = app.work_browser_controller.close();
+                }
+            }
             if mark_window_closed(&mut app.main_window_id, &mut app.task_pet_window_id, window_id)
                 == WindowClosedOutcome::Exit
             {
@@ -65,10 +76,37 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
+        ViewMessage::WindowFocused(window_id) => {
+            if app.main_window_id == Some(window_id) {
+                app.work_browser.window_focused = true;
+            }
+            Task::none()
+        }
+        ViewMessage::WindowUnfocused(window_id) => {
+            if app.main_window_id == Some(window_id) {
+                app.work_browser.window_focused = false;
+            }
+            Task::none()
+        }
         ViewMessage::SplitDragStarted => {
             app.dragging_split = true;
             app.split_drag_anchor_x = None;
             app.split_drag_start_ratio = app.split_ratio;
+            Task::none()
+        }
+        ViewMessage::WorkSidebarDragStarted => {
+            if app.work_sidebar_collapsed {
+                return Task::none();
+            }
+            app.dragging_work_sidebar = true;
+            app.work_sidebar_drag_anchor_x = None;
+            app.work_sidebar_drag_start_width = app.work_sidebar_width;
+            Task::none()
+        }
+        ViewMessage::WorkSplitDragStarted => {
+            app.dragging_work_split = true;
+            app.work_split_drag_anchor_x = None;
+            app.work_split_drag_start_ratio = app.work_split_ratio;
             Task::none()
         }
         ViewMessage::SettingsDragStarted => {
@@ -116,6 +154,27 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 let ratio = (app.split_drag_start_ratio + delta / w).clamp(0.2, 0.8);
                 app.split_ratio = ratio;
             }
+            if app.dragging_work_sidebar {
+                if app.work_sidebar_drag_anchor_x.is_none() {
+                    app.work_sidebar_drag_anchor_x = Some(x);
+                    return Task::none();
+                }
+                let anchor = app.work_sidebar_drag_anchor_x.unwrap_or(x);
+                let delta = x - anchor;
+                app.work_sidebar_width = (app.work_sidebar_drag_start_width + delta)
+                    .clamp(MIN_WORK_SIDEBAR_WIDTH, MAX_WORK_SIDEBAR_WIDTH);
+            }
+            if app.dragging_work_split {
+                if app.work_split_drag_anchor_x.is_none() {
+                    app.work_split_drag_anchor_x = Some(x);
+                    return Task::none();
+                }
+                let anchor = app.work_split_drag_anchor_x.unwrap_or(x);
+                let available_width = (app.window_size.0 - app.work_sidebar_width).max(1.0);
+                let delta = x - anchor;
+                app.work_split_ratio = (app.work_split_drag_start_ratio + delta / available_width)
+                    .clamp(MIN_WORK_SPLIT_RATIO, MAX_WORK_SPLIT_RATIO);
+            }
             if app.task_pet_dragging {
                 app.drag_task_pet_to(x, y);
             }
@@ -152,8 +211,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             let window_h = h.max(1.0);
             app.window_size = (window_w, window_h);
             if app.fullscreen_layout_settling
-                || app.chat_panel_fullscreen
-                || app.chat_panel_half_fullscreen
+                || app.is_chat_fullscreen()
+                || app.is_chat_half_fullscreen()
                 || app.git_diff_fullscreen
                 || app.git_diff_half_fullscreen
             {
@@ -219,6 +278,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             if app.dragging_split {
                 app.dragging_split = false;
+            }
+            if app.dragging_work_sidebar {
+                app.dragging_work_sidebar = false;
+                app.work_sidebar_drag_anchor_x = None;
+                app.work_sidebar_expanded_width = app.work_sidebar_width;
+            }
+            if app.dragging_work_split {
+                app.dragging_work_split = false;
+                app.work_split_drag_anchor_x = None;
             }
             if app.task_pet_dragging {
                 app.finish_task_pet_drag();

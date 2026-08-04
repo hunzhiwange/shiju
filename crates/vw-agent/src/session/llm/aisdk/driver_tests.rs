@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use aisdk::Error as AiError;
-use aisdk::core::Message;
+use aisdk::core::{LanguageModel, Message};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
@@ -10,7 +10,7 @@ use crate::app::agent::session::llm::types::Error;
 use crate::app::agent::session::message::AssistantError;
 
 use super::super::convert::AisdkRequestInfo;
-use super::{DriverKind, dispatch_stream_request, log_build_failed, resolve_driver_kind};
+use super::{dispatch_stream_request, log_build_failed, resolve_model};
 
 fn test_model(provider_id: &str, adapter: &str) -> provider::Model {
     serde_json::from_value(json!({
@@ -87,15 +87,19 @@ fn assert_invalid_base_url(result: Result<(), Error>) {
 }
 
 #[test]
-fn resolve_driver_kind_selects_alibaba_only_for_matching_provider_and_adapter() {
-    assert_eq!(resolve_driver_kind("alibaba-cn", "openai-compatible"), DriverKind::AlibabaCn);
-    assert_eq!(resolve_driver_kind("ALIBABA-CN", " OpenAI-Compatible "), DriverKind::AlibabaCn);
-    assert_eq!(resolve_driver_kind("deepseek", "openai-compatible"), DriverKind::OpenAICompatible);
-    assert_eq!(resolve_driver_kind("alibaba-cn", "openai"), DriverKind::OpenAICompatible);
-    assert_eq!(
-        resolve_driver_kind(" alibaba-cn ", "openai-compatible"),
-        DriverKind::OpenAICompatible
-    );
+fn resolve_model_uses_complete_provider_model_reference_and_overrides() {
+    let mut model = test_model("alibaba-cn", "openai-compatible");
+    model.api.id = "qwen3.7-plus-2026-05-26".to_string();
+    let request_info = request_info("https://custom.example.com/v1");
+
+    let resolved = resolve_model("alibaba-cn", &model, "token", &request_info)
+        .expect("complete Alibaba model reference should resolve");
+
+    assert_eq!(resolved.settings.provider_name, "alibaba-cn");
+    assert_eq!(resolved.name(), "qwen3.7-plus-2026-05-26");
+    assert_eq!(resolved.settings.api_key, "token");
+    assert_eq!(resolved.settings.base_url, "https://custom.example.com/v1");
+    assert_eq!(resolved.settings.path.as_deref(), Some("chat/completions"));
 }
 
 #[test]

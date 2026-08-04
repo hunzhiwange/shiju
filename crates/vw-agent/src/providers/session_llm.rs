@@ -12,12 +12,25 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
 
 /// 基于当前会话 gateway 的 LLM provider。
-pub struct SessionLlmProvider;
+pub struct SessionLlmProvider {
+    support_vision: bool,
+}
 
 impl SessionLlmProvider {
     /// 创建新的会话 LLM provider。
     pub fn new() -> Self {
-        Self
+        Self { support_vision: false }
+    }
+
+    /// 按运行时选项创建会话 LLM provider。
+    pub fn with_options(options: &crate::app::agent::providers::ProviderRuntimeOptions) -> Self {
+        // gateway/aisdk 路径已支持多模态；未显式关闭时默认放开 vision，避免图片标记被本地误拒。
+        Self { support_vision: options.model_support_vision.unwrap_or(true) }
+    }
+
+    /// 创建并显式声明是否支持视觉输入。
+    pub fn with_vision(support_vision: bool) -> Self {
+        Self { support_vision }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -138,7 +151,7 @@ impl SessionLlmProvider {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl Provider for SessionLlmProvider {
     fn capabilities(&self) -> ProviderCapabilities {
-        ProviderCapabilities { native_tool_calling: false, vision: false }
+        ProviderCapabilities { native_tool_calling: false, vision: self.support_vision }
     }
 
     async fn chat_with_system(

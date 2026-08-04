@@ -134,6 +134,48 @@ fn drag_start_messages_capture_current_dimensions_and_reset_anchors() {
 }
 
 #[test]
+fn work_drag_start_messages_capture_sidebar_width_and_split_ratio() {
+    let mut app = test_app();
+    app.work_sidebar_width = 340.0;
+    app.work_sidebar_drag_anchor_x = Some(1.0);
+    app.work_split_ratio = 0.55;
+    app.work_split_drag_anchor_x = Some(2.0);
+
+    let _task = super::update(&mut app, super::ViewMessage::WorkSidebarDragStarted);
+    let _task = super::update(&mut app, super::ViewMessage::WorkSplitDragStarted);
+
+    assert!(app.dragging_work_sidebar);
+    assert_eq!(app.work_sidebar_drag_anchor_x, None);
+    assert_eq!(app.work_sidebar_drag_start_width, 340.0);
+    assert!(app.dragging_work_split);
+    assert_eq!(app.work_split_drag_anchor_x, None);
+    assert_eq!(app.work_split_drag_start_ratio, 0.55);
+}
+
+#[test]
+fn work_drag_pointer_updates_sidebar_width_and_chat_split() {
+    let mut app = test_app();
+    app.window_size = (1_200.0, 800.0);
+    app.work_sidebar_width = 300.0;
+    app.work_split_ratio = 0.6;
+
+    let _task = super::update(&mut app, super::ViewMessage::WorkSidebarDragStarted);
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(-1_000.0, 10.0));
+    assert_eq!(app.work_sidebar_width, 220.0);
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(1_000.0, 10.0));
+    assert_eq!(app.work_sidebar_width, 520.0);
+
+    app.dragging_work_sidebar = false;
+    let _task = super::update(&mut app, super::ViewMessage::WorkSplitDragStarted);
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(100.0, 10.0));
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(1_000.0, 10.0));
+    assert_eq!(app.work_split_ratio, 0.75);
+    let _task = super::update(&mut app, super::ViewMessage::PointerMoved(-1_000.0, 10.0));
+    assert_eq!(app.work_split_ratio, 0.25);
+}
+
+#[test]
 fn settings_drag_anchors_then_clamps_panel_width() {
     let mut app = test_app();
     app.settings_panel_width = 400.0;
@@ -298,6 +340,10 @@ fn global_release_resets_active_drag_state_without_file_manager_persistence() {
     app.dragging_settings = true;
     app.settings_drag_anchor_x = Some(10.0);
     app.dragging_split = true;
+    app.dragging_work_sidebar = true;
+    app.work_sidebar_drag_anchor_x = Some(30.0);
+    app.dragging_work_split = true;
+    app.work_split_drag_anchor_x = Some(40.0);
     app.terminal.is_dragging = true;
     app.terminal.drag_anchor_y = Some(20.0);
     app.task_board_drag_pending =
@@ -311,6 +357,10 @@ fn global_release_resets_active_drag_state_without_file_manager_persistence() {
     assert!(!app.dragging_settings);
     assert_eq!(app.settings_drag_anchor_x, None);
     assert!(!app.dragging_split);
+    assert!(!app.dragging_work_sidebar);
+    assert_eq!(app.work_sidebar_drag_anchor_x, None);
+    assert!(!app.dragging_work_split);
+    assert_eq!(app.work_split_drag_anchor_x, None);
     assert!(!app.terminal.is_dragging);
     assert_eq!(app.terminal.drag_anchor_y, None);
 }

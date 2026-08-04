@@ -2,11 +2,14 @@ use anyhow::anyhow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use std::sync::MutexGuard;
 use vw_shared::todo::{default_todo_priority, default_todo_status};
 
 use super::Todo;
 use super::normalize::normalize_todos;
 use super::schema::{TodoInput, TodoPatch, WriteArgs};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::project::instance;
 
 /// 全局待办事项存储
 ///
@@ -14,10 +17,38 @@ use super::schema::{TodoInput, TodoPatch, WriteArgs};
 static TODOS: LazyLock<Mutex<HashMap<String, Vec<Todo>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-fn load_todos(session: &str) -> Vec<Todo> {
+pub(super) fn recover_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            let guard = poisoned.into_inner();
+            mutex.clear_poison();
+            guard
+        }
+    }
+}
+
+fn storage_key(session: &str, scope: Option<&str>) -> String {
+    match scope.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(scope) => format!("{scope}\0{session}"),
+        None => session.to_string(),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn scoped_project_id() -> Option<String> {
+    instance::project().map(|info| info.id)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn scoped_project_id() -> Option<String> {
+    None
+}
+
+fn load_todos(session: &str, scope: Option<&str>) -> Vec<Todo> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        return crate::session::ui_store::load_session_todos(session)
+        return crate::session::ui_store::load_session_todos_scoped(session, scope)
             .into_iter()
             .map(|todo| Todo {
                 content: todo.content,
@@ -42,7 +73,7 @@ fn load_todos(session: &str) -> Vec<Todo> {
     }
 }
 
-fn save_todos(session: &str, todos: &[Todo]) {
+fn save_todos(session: &str, todos: &[Todo], scope: Option<&str>) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let mapped = todos
@@ -54,7 +85,7 @@ fn save_todos(session: &str, todos: &[Todo]) {
                 id: todo.id.clone(),
             })
             .collect::<Vec<_>>();
-        let _ = crate::session::ui_store::save_session_todos(session, &mapped);
+        let _ = crate::session::ui_store::save_session_todos_scoped(session, &mapped, scope);
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -74,35 +105,54 @@ fn save_todos(session: &str, todos: &[Todo]) {
 
 /// 供 UI 层使用的待办事项读取接口
 pub(super) fn read_for_ui(session: &str) -> Vec<Todo> {
-    let mut lock = match TODOS.lock() {
-        Ok(lock) => lock,
-        Err(e) => e.into_inner(),
-    };
-    if !lock.contains_key(session) {
-        lock.insert(session.to_string(), normalize_todos(load_todos(session)));
+    read_for_ui_scoped(session, scoped_project_id().as_deref())
+}
+
+fn read_for_ui_scoped(session: &str, scope: Option<&str>) -> Vec<Todo> {
+    let key = storage_key(session, scope);
+    let mut lock = recover_lock(&TODOS);
+    if !lock.contains_key(&key) {
+        lock.insert(key.clone(), normalize_todos(load_todos(session, scope)));
     }
-    lock.get(session).cloned().unwrap_or_default()
+    lock.get(&key).cloned().unwrap_or_default()
 }
 
 pub(super) fn read_for_tool(session: &str) -> anyhow::Result<Vec<Todo>> {
-    let mut lock = TODOS.lock().map_err(|_| anyhow!("Todo 存储已被锁定"))?;
-    if !lock.contains_key(session) {
-        lock.insert(session.to_string(), normalize_todos(load_todos(session)));
+    read_for_tool_scoped(session, scoped_project_id().as_deref())
+}
+
+pub(super) fn read_for_tool_scoped(
+    session: &str,
+    scope: Option<&str>,
+) -> anyhow::Result<Vec<Todo>> {
+    let key = storage_key(session, scope);
+    let mut lock = recover_lock(&TODOS);
+    if !lock.contains_key(&key) {
+        lock.insert(key.clone(), normalize_todos(load_todos(session, scope)));
     }
 
-    let todos = lock.get(session).cloned().unwrap_or_default();
+    let todos = lock.get(&key).cloned().unwrap_or_default();
     let normalized = normalize_todos(todos);
-    lock.insert(session.to_string(), normalized.clone());
-    save_todos(session, &normalized);
+    lock.insert(key, normalized.clone());
+    save_todos(session, &normalized, scope);
     Ok(normalized)
 }
 
 /// 核心写入逻辑：更新或替换待办事项列表
 pub(super) fn write_todos(session: &str, args: serde_json::Value) -> anyhow::Result<String> {
-    let args: WriteArgs = serde_json::from_value(args)?;
+    write_todos_scoped(session, args, scoped_project_id().as_deref())
+}
 
-    let mut lock = TODOS.lock().map_err(|_| anyhow!("Todo 存储已被锁定"))?;
-    let mut current = lock.get(session).cloned().unwrap_or_else(|| load_todos(session));
+pub(super) fn write_todos_scoped(
+    session: &str,
+    args: serde_json::Value,
+    scope: Option<&str>,
+) -> anyhow::Result<String> {
+    let args: WriteArgs = serde_json::from_value(args)?;
+    let key = storage_key(session, scope);
+
+    let mut lock = recover_lock(&TODOS);
+    let mut current = lock.get(&key).cloned().unwrap_or_else(|| load_todos(session, scope));
     current = normalize_todos(current);
 
     let next = if args.merge {
@@ -170,7 +220,7 @@ pub(super) fn write_todos(session: &str, args: serde_json::Value) -> anyhow::Res
         normalize_todos(parsed)
     };
 
-    lock.insert(session.to_string(), next.clone());
-    save_todos(session, &next);
+    lock.insert(key, next.clone());
+    save_todos(session, &next, scope);
     serde_json::to_string_pretty(&next).map_err(|e| anyhow!(e))
 }

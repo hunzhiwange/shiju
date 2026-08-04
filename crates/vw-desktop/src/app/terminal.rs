@@ -288,6 +288,12 @@ pub struct TerminalState {
     pub font_size: f32,
     pub tab_context_menu_id: Option<u64>,
     pub tab_context_menu_pos: Option<(f32, f32)>,
+    /// Closed terminals kept alive until iced cancels their subscriptions.
+    ///
+    /// Dropping `iced_term::Terminal` while its subscription stream is still
+    /// running can panic with "terminal event channel closed unexpected".
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) retiring: Vec<iced_term::Terminal>,
 }
 
 impl TerminalState {
@@ -326,6 +332,8 @@ impl TerminalState {
             font_size,
             tab_context_menu_id: None,
             tab_context_menu_pos: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            retiring: Vec::new(),
         }
     }
 
@@ -335,66 +343,37 @@ impl TerminalState {
         theme: TerminalTheme,
         font_family: String,
         font_size: f32,
-        _initial_cwd: Option<std::path::PathBuf>,
+        initial_cwd: Option<std::path::PathBuf>,
     ) -> Self {
-        let _shell_path = match shell {
-            Shell::Bash => "/bin/bash".to_string(),
-            Shell::Zsh => "/bin/zsh".to_string(),
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let mut terminals = Vec::new();
-        #[cfg(target_arch = "wasm32")]
-        let terminals = Vec::new();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let settings = iced_term::settings::Settings {
-                backend: {
-                    use std::collections::HashMap;
-
-                    let mut env = HashMap::new();
-                    env.insert("TERM".to_string(), "xterm-256color".to_string());
-                    env.insert("CLICOLOR".to_string(), "1".to_string());
-                    env.insert("LSCOLORS".to_string(), "ExFxBxDxCxegedabagacad".to_string());
-                    iced_term::settings::BackendSettings {
-                        program: _shell_path,
-                        args: vec!["-i".to_string()],
-                        env,
-                        working_directory: _initial_cwd.or_else(|| std::env::current_dir().ok()),
-                        ..Default::default()
-                    }
-                },
-                ..Default::default()
-            };
-
-            if let Ok(mut term) = iced_term::Terminal::new(1, settings) {
-                let fs = build_font_settings(&font_family, font_size);
-                let _ = term.handle(iced_term::Command::ChangeFont(fs));
-                let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
-
-                let first_terminal =
-                    TerminalTab { id: 1, title: "终端 1".to_string(), term, edit_title: None };
-                terminals.push(first_terminal);
-            }
-        }
-
-        Self {
+        let mut state = Self::blank_with_settings(
             is_visible,
-            tabs: terminals,
-            active_id: Some(1),
-            next_id: 2,
-            height: 200.0,
-            is_dragging: false,
-            drag_anchor_y: None,
-            drag_start_height: 0.0,
             shell,
             theme,
             font_family,
             font_size,
-            tab_context_menu_id: None,
-            tab_context_menu_pos: None,
+            200.0,
+        );
+        // Only spawn a PTY when the panel will be shown; keep hidden sessions empty.
+        if is_visible {
+            let _ = state.ensure_default_terminal(initial_cwd);
         }
+        state
+    }
+
+    /// Create the first interactive terminal tab if none exist yet.
+    ///
+    /// Returns `true` when a new PTY tab was created.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn ensure_default_terminal(&mut self, cwd: Option<std::path::PathBuf>) -> bool {
+        if !self.tabs.is_empty() {
+            return false;
+        }
+        self.add_terminal(cwd.or_else(|| std::env::current_dir().ok()))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn ensure_default_terminal(&mut self, _cwd: Option<std::path::PathBuf>) -> bool {
+        false
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -636,13 +615,50 @@ fi
         }
     }
 
-    pub fn close_terminal(&mut self, id: u64) {
+    pub fn close_terminal(&mut self, id: u64) -> bool {
         if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
-            self.tabs.remove(pos);
+            let tab = self.tabs.remove(pos);
             if self.active_id == Some(id) {
                 self.active_id = self.tabs.first().map(|t| t.id);
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            self.retiring.push(tab.term);
+            #[cfg(target_arch = "wasm32")]
+            let _ = tab;
+            true
+        } else {
+            false
         }
+    }
+
+    /// Absorb terminals from a replaced [`TerminalState`] so they are not dropped
+    /// while iced may still be running their subscriptions.
+    pub fn absorb_replaced(&mut self, old: Self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.retiring.extend(old.retiring);
+            self.retiring.extend(old.tabs.into_iter().map(|tab| tab.term));
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = old;
+        }
+    }
+
+    pub fn has_retired(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            !self.retiring.is_empty()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            false
+        }
+    }
+
+    pub fn reap_retired(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.retiring.clear();
     }
 
     pub fn start_rename(&mut self, id: u64) {

@@ -13,6 +13,8 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::multimodal;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::provider::provider;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::session::llm::types::Error;
@@ -103,6 +105,83 @@ pub(crate) fn openai_message_content_to_text(content: Option<&Value>) -> String 
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn image_url_from_content_part(part: &Value) -> Option<String> {
+    let image_url = part.get("image_url")?;
+    if let Some(url) = image_url.as_str() {
+        let url = url.trim();
+        return (!url.is_empty()).then(|| url.to_string());
+    }
+    let url = image_url.get("url").and_then(Value::as_str)?.trim();
+    (!url.is_empty()).then(|| url.to_string())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 将用户 content（字符串或 OpenAI parts）转为 aisdk 多模态 `UserMessage`。
+///
+/// 字符串中的 `[IMAGE:...]` 标记、以及 `image_url` / `image` content parts 会变成
+/// `UserContentPart::Image`；纯文本路径保持兼容。
+pub(crate) fn openai_user_content_to_aisdk_message(
+    content: Option<&Value>,
+) -> Option<aisdk::core::UserMessage> {
+    let Some(content) = content else {
+        return None;
+    };
+
+    if let Some(text) = content.as_str() {
+        let (cleaned, refs) = multimodal::parse_image_markers(text);
+        if refs.is_empty() {
+            let trimmed = text.trim();
+            return (!trimmed.is_empty()).then(|| aisdk::core::UserMessage::new(text.to_string()));
+        }
+
+        let mut parts = Vec::with_capacity(refs.len() + usize::from(!cleaned.is_empty()));
+        if !cleaned.is_empty() {
+            parts.push(aisdk::core::UserContentPart::Text(cleaned));
+        }
+        for image_ref in refs {
+            parts.push(aisdk::core::UserContentPart::Image(aisdk::core::UserImage::new(image_ref)));
+        }
+        return (!parts.is_empty()).then(|| aisdk::core::UserMessage::from_parts(parts));
+    }
+
+    let Some(arr) = content.as_array() else {
+        return None;
+    };
+    let mut parts = Vec::new();
+    for part in arr {
+        let Some(ty) = part.get("type").and_then(Value::as_str) else {
+            continue;
+        };
+        match ty {
+            "text" => {
+                if let Some(text) = part.get("text").and_then(Value::as_str) {
+                    if !text.is_empty() {
+                        parts.push(aisdk::core::UserContentPart::Text(text.to_string()));
+                    }
+                }
+            }
+            "image_url" | "image" => {
+                if let Some(url) = image_url_from_content_part(part) {
+                    parts.push(aisdk::core::UserContentPart::Image(aisdk::core::UserImage::new(
+                        url,
+                    )));
+                } else if let Some(url) = part.get("url").and_then(Value::as_str) {
+                    let url = url.trim();
+                    if !url.is_empty() {
+                        parts.push(aisdk::core::UserContentPart::Image(
+                            aisdk::core::UserImage::new(url.to_string()),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (!parts.is_empty()).then(|| aisdk::core::UserMessage::from_parts(parts))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// 将 OpenAI 兼容消息数组转换为 AI SDK 消息列表。
 ///
 /// `messages` 不是数组时返回空列表；无法识别的消息或空文本会被跳过。DeepSeek reasoner
@@ -119,41 +198,110 @@ pub(crate) fn openai_messages_to_aisdk_messages(
     let is_deepseek_reasoner = model.api.id.contains("deepseek-reasoner")
         || model.provider_id.to_ascii_lowercase().contains("deepseek");
 
-    for msg in arr {
-        let Some(obj) = msg.as_object() else { continue };
+    let tool_result_message = |obj: &Map<String, Value>, tool_names: &HashMap<String, String>| {
+        let id = obj.get("tool_call_id").and_then(Value::as_str).unwrap_or_default();
+        let content = openai_message_content_to_text(obj.get("content"));
+        let mut tool_result =
+            AiToolResultInfo::new(tool_names.get(id).cloned().unwrap_or_default());
+        tool_result.id(id.to_string());
+        let output =
+            serde_json::from_str::<Value>(&content).unwrap_or_else(|_| Value::String(content));
+        tool_result.output(output);
+        aisdk::core::Message::Tool(tool_result)
+    };
+
+    let mut message_index = 0usize;
+    while message_index < arr.len() {
+        let msg = &arr[message_index];
+        let Some(obj) = msg.as_object() else {
+            message_index += 1;
+            continue;
+        };
         let role = obj.get("role").and_then(Value::as_str).unwrap_or_default();
 
         if role == "assistant" && !is_deepseek_reasoner {
-            if let Some(tool_calls) = obj.get("tool_calls").and_then(Value::as_array) {
-                for tc in tool_calls {
+            let text = openai_message_content_to_text(obj.get("content"));
+            if !text.trim().is_empty() {
+                out.push(aisdk::core::Message::Assistant(text.into()));
+            }
+
+            let mut tool_calls: Vec<(String, aisdk::core::Message)> = Vec::new();
+            if let Some(source_tool_calls) = obj.get("tool_calls").and_then(Value::as_array) {
+                for tc in source_tool_calls {
                     let Some(fn_obj) = tc.get("function").and_then(Value::as_object) else {
                         continue;
                     };
                     let id = tc.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
                     let name =
                         fn_obj.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+                    if id.trim().is_empty() || name.trim().is_empty() {
+                        continue;
+                    }
                     let args_str = fn_obj
                         .get("arguments")
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_string();
-                    if !id.trim().is_empty() && !name.trim().is_empty() {
-                        tool_name_by_id.insert(id.clone(), name.clone());
-                    }
+                    tool_name_by_id.insert(id.clone(), name.clone());
                     let mut tool_info = AiToolCallInfo::new(name);
-                    tool_info.id(id);
+                    tool_info.id(id.clone());
                     let input = serde_json::from_str::<Value>(&args_str)
                         .unwrap_or_else(|_| Value::Object(Map::new()));
                     tool_info.input(input);
-                    out.push(aisdk::core::Message::Assistant(aisdk::core::AssistantMessage {
-                        content:
-                            aisdk::core::language_model::LanguageModelResponseContentType::ToolCall(
+                    tool_calls.push((
+                        id,
+                        aisdk::core::Message::Assistant(aisdk::core::AssistantMessage {
+                            content: aisdk::core::language_model::LanguageModelResponseContentType::ToolCall(
                                 tool_info,
                             ),
-                        usage: None,
-                    }));
+                            usage: None,
+                        }),
+                    ));
                 }
             }
+
+            if !tool_calls.is_empty() {
+                let mut tool_result_end = message_index + 1;
+                while tool_result_end < arr.len()
+                    && arr[tool_result_end].get("role").and_then(Value::as_str) == Some("tool")
+                {
+                    tool_result_end += 1;
+                }
+                let tool_results = &arr[message_index + 1..tool_result_end];
+                let mut consumed_results = vec![false; tool_results.len()];
+
+                for (tool_call_id, tool_call) in tool_calls {
+                    out.push(tool_call);
+                    if let Some((result_index, result_obj)) =
+                        tool_results.iter().enumerate().find_map(|(index, result)| {
+                            if consumed_results[index] {
+                                return None;
+                            }
+                            let result_obj = result.as_object()?;
+                            (result_obj.get("tool_call_id").and_then(Value::as_str)
+                                == Some(tool_call_id.as_str()))
+                            .then_some((index, result_obj))
+                        })
+                    {
+                        consumed_results[result_index] = true;
+                        out.push(tool_result_message(result_obj, &tool_name_by_id));
+                    }
+                }
+
+                for (result_index, result) in tool_results.iter().enumerate() {
+                    if !consumed_results[result_index] {
+                        if let Some(result_obj) = result.as_object() {
+                            out.push(tool_result_message(result_obj, &tool_name_by_id));
+                        }
+                    }
+                }
+
+                message_index = tool_result_end;
+                continue;
+            }
+
+            message_index += 1;
+            continue;
         }
 
         match role {
@@ -164,17 +312,12 @@ pub(crate) fn openai_messages_to_aisdk_messages(
                 }
             }
             "user" => {
-                let text = openai_message_content_to_text(obj.get("content"));
-                if !text.trim().is_empty() {
-                    out.push(aisdk::core::Message::User(text.into()));
+                if let Some(user) = openai_user_content_to_aisdk_message(obj.get("content")) {
+                    out.push(aisdk::core::Message::User(user));
                 }
             }
             "assistant" => {
-                let text = if is_deepseek_reasoner {
-                    assistant_text_with_reasoning(obj)
-                } else {
-                    openai_message_content_to_text(obj.get("content"))
-                };
+                let text = assistant_text_with_reasoning(obj);
                 if !text.trim().is_empty() {
                     out.push(aisdk::core::Message::Assistant(text.into()));
                 }
@@ -191,15 +334,10 @@ pub(crate) fn openai_messages_to_aisdk_messages(
                         format!("[tool_result:{}]\n{}", id, content)
                     };
                     out.push(aisdk::core::Message::User(text.into()));
+                    message_index += 1;
                     continue;
                 }
-                let mut tool_result =
-                    AiToolResultInfo::new(tool_name_by_id.get(id).cloned().unwrap_or_default());
-                tool_result.id(id.to_string());
-                let output = serde_json::from_str::<Value>(&content)
-                    .unwrap_or_else(|_| Value::String(content));
-                tool_result.output(output);
-                out.push(aisdk::core::Message::Tool(tool_result));
+                out.push(tool_result_message(obj, &tool_name_by_id));
             }
             "developer" => {
                 let text = openai_message_content_to_text(obj.get("content"));
@@ -209,6 +347,8 @@ pub(crate) fn openai_messages_to_aisdk_messages(
             }
             _ => {}
         }
+
+        message_index += 1;
     }
 
     Ok(out)

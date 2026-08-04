@@ -159,6 +159,13 @@ impl App {
             .or(self.acp_agent.clone());
         self.auto_max_mode =
             cfg.get("auto_max_mode").and_then(|v| v.as_bool()).unwrap_or(self.auto_max_mode);
+        if let Some(workspace_mode) = cfg
+            .get("workspace_mode")
+            .and_then(|value| value.as_str())
+            .and_then(crate::app::state::WorkspaceMode::parse)
+        {
+            self.workspace_mode = workspace_mode;
+        }
         self.show_settings =
             cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.show_settings);
         self.show_file_manager = cfg
@@ -225,23 +232,45 @@ impl App {
 
         self.terminal.font_family = system.terminal_font_family.clone();
         self.terminal.font_size = system.terminal_font_size;
+        self.chat_timezone = system.timezone.clone();
         self.project_worktree_enabled = system.project_worktree_enabled.clone();
         self.dialogue_flow_show_reasoning_summary = system.dialogue_flow_show_reasoning_summary;
         self.dialogue_flow_expand_shell_tool_section =
             system.dialogue_flow_expand_shell_tool_section;
         self.dialogue_flow_expand_edit_tool_section = system.dialogue_flow_expand_edit_tool_section;
+        self.quick_messages = system.quick_messages.clone();
+        vw_config_types::ui::upgrade_legacy_quick_message_actions(&mut self.quick_messages);
+        vw_config_types::ui::append_missing_builtin_general_quick_messages(
+            &mut self.quick_messages,
+        );
+        vw_config_types::ui::append_missing_builtin_git_quick_messages(&mut self.quick_messages);
         self.preview_auto_save_mode = system.preview_auto_save;
         self.editor_follow_system_theme = system.editor_follow_system_theme;
-        self.app_theme = iced::Theme::ALL
-            .iter()
-            .find(|theme| theme.to_string() == system.app_theme)
-            .cloned()
-            .unwrap_or_else(|| self.app_theme.clone());
-        self.editor_theme = iced::Theme::ALL
-            .iter()
-            .find(|theme| theme.to_string() == system.editor_theme)
-            .cloned()
-            .unwrap_or_else(|| self.app_theme.clone());
+        let theme_store = crate::app::theme_catalog::theme_store_from_home();
+        match crate::app::theme_catalog::resolve_app_theme_name(
+            &system.app_theme,
+            theme_store.as_ref(),
+        ) {
+            Some(theme) => {
+                self.app_theme = theme;
+                self.active_custom_theme_id =
+                    crate::app::theme_catalog::custom_theme_id_from_config(&system.app_theme)
+                        .map(str::to_string);
+                crate::app::theme_catalog::sync_active_theme_skin(self);
+            }
+            None => {
+                tracing::warn!(
+                    target: "vw_desktop",
+                    theme = %system.app_theme,
+                    "bootstrap could not resolve app theme; keeping current theme"
+                );
+            }
+        }
+        self.editor_theme = crate::app::theme_catalog::resolve_app_theme_name(
+            &system.editor_theme,
+            theme_store.as_ref(),
+        )
+        .unwrap_or_else(|| self.app_theme.clone());
         let editor_theme = self.effective_editor_theme();
         for tab in self.preview_tabs.iter_mut() {
             tab.editor.set_theme(editor_theme.clone());
@@ -386,6 +415,7 @@ impl App {
                     }
                 }
                 let mut tasks = vec![
+                    crate::app::message::account::load_repository(),
                     Task::perform(
                         crate::app::config::load_app_config_async(),
                         Message::StartupAppConfigLoaded,
@@ -506,6 +536,12 @@ impl App {
                 }
                 Task::none()
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::Account(msg) => message::account::update(self, msg),
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::ShijuApps(msg) => message::shiju_apps::update(self, msg),
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::SkillHub(msg) => message::skill_hub::update(self, msg),
             // 项目管理相关消息，委托给 project 模块处理
             Message::Project(msg) => message::project::update(self, msg),
 

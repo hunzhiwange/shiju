@@ -222,6 +222,7 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         max_history_messages: 10,
         min_memory_relevance_score: 0.5,
         turn_count: 0,
+        timezone: chrono_tz::Asia::Shanghai,
     }
 }
 
@@ -458,6 +459,36 @@ async fn submit_message_without_memory_context_uses_timestamp_prefix() {
 }
 
 #[tokio::test]
+async fn submit_message_timestamp_uses_configured_timezone() {
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("final answer", None))]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.timezone = chrono_tz::Asia::Shanghai;
+
+    engine.submit_message("plain request").await.expect("submit should succeed");
+
+    let seen = provider_handle.seen_messages();
+    let user_message = &seen[0][1].content;
+    assert!(user_message.contains("+08:00 (Asia/Shanghai)"));
+    assert!(user_message.ends_with("] plain request"));
+}
+
+#[tokio::test]
+async fn new_rejects_invalid_programmatic_timezone() {
+    let mut config = Config::default();
+    config.app_ui.system_settings.timezone = "Mars/Olympus_Mons".to_string();
+    let provider: Arc<dyn Provider> = Arc::new(ScriptedProvider::default());
+
+    let error = match QueryEngine::new_with_provider(config, "session", Some(provider)).await {
+        Ok(_) => panic!("invalid timezone should be rejected"),
+        Err(error) => error,
+    };
+
+    assert!(error.to_string().contains("invalid IANA timezone: Mars/Olympus_Mons"));
+}
+
+#[tokio::test]
 async fn submit_message_success_trims_history_after_turn() {
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("new answer", None))]);
@@ -568,6 +599,23 @@ fn build_tool_descriptions_tracks_optional_tools() {
     let base = build_tool_descriptions(&config);
     assert!(base.iter().any(|(name, _)| *name == "bash"));
     assert!(!base.iter().any(|(name, _)| *name == "Browser"));
+    let agent_tool = base
+        .iter()
+        .find_map(|(name, description)| (*name == "AgentTool").then_some(*description))
+        .expect("default eligible agents should expose AgentTool");
+    for expected in [
+        "complex",
+        "simple",
+        "parallel",
+        "background",
+        "run",
+        "status",
+        "wait",
+        "stop",
+        "synthesize",
+    ] {
+        assert!(agent_tool.contains(expected), "missing '{expected}': {agent_tool}");
+    }
 
     config.browser.enabled = true;
     config.browser.browser_open = "disable".to_string();

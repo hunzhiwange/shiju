@@ -1,4 +1,4 @@
-//! Parser for `.codex-plugin/plugin.json`.
+//! Parser for `.vibewindow-plugin/plugin.json`.
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use std::path::Path;
 use super::audit::{canonical_plugin_root, plugin_manifest_path, resolve_component_path};
 use super::types::{PluginAuthor, PluginInterface, PluginManifest, PluginPath};
 
-/// Load and statically audit a local Codex-style plugin manifest.
+/// Load and statically audit a local VibeWindow plugin manifest.
 pub fn load_plugin_manifest(plugin_root: &Path) -> Result<PluginManifest> {
     let canonical_root = canonical_plugin_root(plugin_root)?;
     let manifest_path = plugin_manifest_path(&canonical_root)?;

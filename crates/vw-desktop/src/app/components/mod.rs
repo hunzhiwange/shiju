@@ -243,6 +243,9 @@ pub mod system_settings_cron;
 /// 配置对话流程、上下文管理、会话持久化等。
 pub mod system_settings_dialogue_flow;
 
+/// 系统设置：聊天快捷消息。
+pub mod system_settings_quick_messages;
+
 /// 系统设置：编辑器偏好
 ///
 /// 配置编辑器的主题、字体、缩进、快捷键等偏好设置。
@@ -399,6 +402,11 @@ pub mod system_settings_skills;
 /// 配置语音识别、音频转文字等转写功能。
 pub mod system_settings_transcription;
 
+/// 系统设置：主题管理
+///
+/// 展示内置与自定义主题画廊，支持应用与删除自定义主题。
+pub mod system_settings_themes;
+
 /// 标签栏组件
 ///
 /// 提供多标签页界面，支持标签切换、关闭、拖拽排序等。
@@ -427,3 +435,5 @@ pub mod widgets;
 #[cfg(test)]
 #[path = "widgets_tests.rs"]
 mod widgets_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod account_status;

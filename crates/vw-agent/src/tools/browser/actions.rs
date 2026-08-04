@@ -276,19 +276,21 @@ pub fn parse_browser_action(action_str: &str, args: &Value) -> anyhow::Result<Br
 
         // 解析 click 动作：从参数中提取必需的 selector 字段
         "click" => {
-            let selector = args
-                .get("selector")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for click"))?;
+            let selector = args.get("selector").and_then(|v| v.as_str()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing 'selector' for click (required: @ref from snapshot, CSS, or text=...)"
+                )
+            })?;
             Ok(BrowserAction::Click { selector: selector.into() })
         }
 
         // 解析 fill 动作：需要 selector 和 value 两个必需参数
         "fill" => {
-            let selector = args
-                .get("selector")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for fill"))?;
+            let selector = args.get("selector").and_then(|v| v.as_str()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing 'selector' for fill (required: @ref from snapshot, CSS, or text=...)"
+                )
+            })?;
             let value = args
                 .get("value")
                 .and_then(|v| v.as_str())
@@ -298,10 +300,11 @@ pub fn parse_browser_action(action_str: &str, args: &Value) -> anyhow::Result<Br
 
         // 解析 type 动作：需要 selector 和 text 两个必需参数
         "type" => {
-            let selector = args
-                .get("selector")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for type"))?;
+            let selector = args.get("selector").and_then(|v| v.as_str()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing 'selector' for type (required: @ref from snapshot, CSS, or text=...)"
+                )
+            })?;
             let text = args
                 .get("text")
                 .and_then(|v| v.as_str())
@@ -309,12 +312,16 @@ pub fn parse_browser_action(action_str: &str, args: &Value) -> anyhow::Result<Br
             Ok(BrowserAction::Type { selector: selector.into(), text: text.into() })
         }
 
-        // 解析 get_text 动作：需要 selector 参数
+        // 解析 get_text 动作：需要 selector 参数（不会读取整页）
         "get_text" => {
             let selector = args
                 .get("selector")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for get_text"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Missing 'selector' for get_text (required: @ref from snapshot, CSS, or text=...; does not read whole page)"
+                    )
+                })?;
             Ok(BrowserAction::GetText { selector: selector.into() })
         }
 
@@ -346,10 +353,11 @@ pub fn parse_browser_action(action_str: &str, args: &Value) -> anyhow::Result<Br
 
         // 解析 hover 动作：需要 selector 参数
         "hover" => {
-            let selector = args
-                .get("selector")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for hover"))?;
+            let selector = args.get("selector").and_then(|v| v.as_str()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Missing 'selector' for hover (required: @ref from snapshot, CSS, or text=...)"
+                )
+            })?;
             Ok(BrowserAction::Hover { selector: selector.into() })
         }
 
@@ -373,7 +381,11 @@ pub fn parse_browser_action(action_str: &str, args: &Value) -> anyhow::Result<Br
             let selector = args
                 .get("selector")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing 'selector' for is_visible"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Missing 'selector' for is_visible (required: @ref from snapshot, CSS, or text=...)"
+                    )
+                })?;
             Ok(BrowserAction::IsVisible { selector: selector.into() })
         }
 

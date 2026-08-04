@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-beach-dawn",
+  "name": "太浩晨岸 Tahoe Dawn",
+  "tagline": "粉霞落在静水与岩石上。",
+  "palette": {
+    "background": "#f7eef3",
+    "text": "#3a2d36",
+    "primary": "#d27ea8",
+    "success": "#9eb6d4",
+    "warning": "#e0a878",
+    "danger": "#c96b7a"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#fff7fb",
+    "button_bg": "#d27ea8",
+    "button_text": "#1f1724",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

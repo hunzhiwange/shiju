@@ -134,6 +134,20 @@ fn open_project_badge_button_builds() {
 }
 
 #[test]
+fn expert_hub_entry_follows_open_project_action() {
+    assert_eq!(
+        project_list_action_order(),
+        ["open_project", "expert_hub", "shiju_skills", "shiju_apps"]
+    );
+    let element: Element<'_, Message> = expert_hub_badge_button();
+    std::hint::black_box(element);
+    let element: Element<'_, Message> = shiju_skills_badge_button();
+    std::hint::black_box(element);
+    let element: Element<'_, Message> = shiju_apps_badge_button();
+    std::hint::black_box(element);
+}
+
+#[test]
 fn projects_list_builds_empty_recent_projects() {
     let (mut app, _task) = App::new();
     app.recent_projects.clear();
@@ -228,6 +242,7 @@ fn projects_list_builds_with_queue_attention() {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 3,
@@ -236,6 +251,7 @@ fn projects_list_builds_with_queue_attention() {
         request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
     }];
     app.session_runtime_states.insert(session_id, runtime);
 

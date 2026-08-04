@@ -509,10 +509,13 @@ where
         let floating = if self.show {
             let base = layout.position() + translation;
             let anchor = Point::new(base.x + self.anchor.x, base.y + self.anchor.y);
+            let mut target_bounds = layout.bounds();
+            target_bounds.x += translation.x;
+            target_bounds.y += translation.y;
             Some(overlay::Element::new(Box::new(PointBelowOverlayElement {
                 anchor,
                 // target_bounds 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                target_bounds: layout.bounds(),
+                target_bounds,
                 // viewport 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 viewport: *viewport,
                 // gap 保存该结构在渲染、解析或测试断言中需要直接访问的数据。

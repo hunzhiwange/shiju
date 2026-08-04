@@ -1,5 +1,7 @@
-use super::store::{read_for_tool, read_for_ui, write_todos};
+use super::store::{read_for_tool, read_for_ui, recover_lock, write_todos};
 use serde_json::{Value, json};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn session(name: &str) -> String {
@@ -9,6 +11,25 @@ fn session(name: &str) -> String {
 
 fn parse(output: &str) -> Vec<Value> {
     serde_json::from_str(output).unwrap()
+}
+
+#[test]
+fn recover_lock_clears_poisoned_state() {
+    let values = Arc::new(Mutex::new(vec!["before"]));
+    let values_for_panic = Arc::clone(&values);
+
+    let result = std::thread::spawn(move || {
+        let _guard = values_for_panic.lock().unwrap();
+        panic!("poison lock");
+    })
+    .join();
+    assert!(result.is_err());
+    assert!(values.is_poisoned());
+
+    recover_lock(&values).push("after");
+
+    assert!(!values.is_poisoned());
+    assert_eq!(*values.lock().unwrap(), vec!["before", "after"]);
 }
 
 #[test]

@@ -140,10 +140,11 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 
     // 时间、token 紧跟图标，进行内容放到最后。
     let mut meta_parts = Vec::new();
-    let started_ms = app.current_session_runtime_ref().map(|r| r.request_started_ms).unwrap_or(0);
-    if let Some(elapsed) = elapsed_label(started_ms) {
-        meta_parts.push(elapsed);
-    }
+    let elapsed_ms = app
+        .current_session_runtime_ref()
+        .map(|runtime| runtime.llm_timer.elapsed_ms_at(web_time::Instant::now()))
+        .unwrap_or(0);
+    meta_parts.push(format_elapsed(elapsed_ms / 1_000));
     if let Some(tokens) = tokens_label(&app.usage) {
         meta_parts.push(tokens);
     }
@@ -199,15 +200,6 @@ fn single_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// 把请求开始时间格式化为 `X分 Y秒` / `Y秒` 运行时长；未开始返回 None。
-fn elapsed_label(started_ms: u64) -> Option<String> {
-    if started_ms == 0 {
-        return None;
-    }
-    let now_ms = crate::app::time::now_ms();
-    Some(format_elapsed(now_ms.saturating_sub(started_ms) / 1000))
-}
-
 /// 纯函数：把秒数格式化为 `X分 Y秒`（不足一分钟则 `Y秒`）。
 pub(crate) fn format_elapsed(secs: u64) -> String {
     if secs >= 60 { format!("{}分 {}秒", secs / 60, secs % 60) } else { format!("{}秒", secs) }
@@ -217,13 +209,18 @@ pub(crate) fn format_elapsed(secs: u64) -> String {
 pub(crate) fn tokens_label(usage: &crate::app::models::TokenUsage) -> Option<String> {
     let total =
         usage.input_tokens.max(0) + usage.output_tokens.max(0) + usage.reasoning_tokens.max(0);
-    if total <= 0 {
+    format_token_count(total, "tokens")
+}
+
+fn format_token_count(tokens: i64, suffix: &str) -> Option<String> {
+    let tokens = tokens.max(0);
+    if tokens <= 0 {
         return None;
     }
-    if total >= 1000 {
-        Some(format!("{:.1}k tokens", total as f64 / 1000.0))
+    if tokens >= 1000 {
+        Some(format!("{:.1}k {}", tokens as f64 / 1000.0, suffix))
     } else {
-        Some(format!("{} tokens", total))
+        Some(format!("{} {}", tokens, suffix))
     }
 }
 

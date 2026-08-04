@@ -546,7 +546,7 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        println!("🦀 VibeWindow Self-Update");
+        println!("VibeWindow Self-Update");
         println!();
 
         let current_exe = get_current_exe()?;

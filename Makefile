@@ -368,9 +368,11 @@ desktop-check: ## 检查 vw-desktop 是否可构建
 	cargo check -p vw-desktop
 
 desktop-run: ## 启动 vw-desktop 桌面应用
+	cargo build -p vw-webview --bin vw-webview
 	cargo run -p vw-desktop --bin vibe-window
 
 desktop-release: ## 以 release 模式构建 vw-desktop
+	cargo build -p vw-webview --release --bin vw-webview
 	cargo build -p vw-desktop --release --bin vibe-window
 
 ensure-wasm-target:

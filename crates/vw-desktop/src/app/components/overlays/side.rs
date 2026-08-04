@@ -75,6 +75,32 @@ pub(super) fn compute_side_overlay_position(
     Point::new(x, y)
 }
 
+fn side_overlay_hover_contains(
+    target_bounds: Rectangle,
+    overlay_bounds: Rectangle,
+    position: Point,
+) -> bool {
+    if target_bounds.contains(position) || overlay_bounds.contains(position) {
+        return true;
+    }
+
+    let overlap_top = target_bounds.y.max(overlay_bounds.y);
+    let overlap_bottom =
+        (target_bounds.y + target_bounds.height).min(overlay_bounds.y + overlay_bounds.height);
+    if position.y < overlap_top || position.y > overlap_bottom {
+        return false;
+    }
+
+    let target_right = target_bounds.x + target_bounds.width;
+    let overlay_right = overlay_bounds.x + overlay_bounds.width;
+    (target_right <= overlay_bounds.x
+        && position.x >= target_right
+        && position.x <= overlay_bounds.x)
+        || (overlay_right <= target_bounds.x
+            && position.x >= overlay_right
+            && position.x <= target_bounds.x)
+}
+
 /// 侧边覆盖层组件
 ///
 /// 一个组合式组件，包含主内容和侧边覆盖层两部分。覆盖层可以在主内容的右侧显示，
@@ -107,6 +133,7 @@ pub struct SideOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer> 
     snap_within_viewport: bool,
     align_y_start: bool,
     on_close: Option<Message>,
+    on_mouse_exit: Option<Message>,
 }
 
 impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT> {
@@ -149,6 +176,7 @@ impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT>
             snap_within_viewport: true,
             align_y_start: false,
             on_close: None,
+            on_mouse_exit: None,
         }
     }
 
@@ -241,6 +269,12 @@ impl<'a, Message, ThemeT, RendererT> SideOverlay<'a, Message, ThemeT, RendererT>
     /// 返回修改后的 `SideOverlay` 实例（builder 模式）
     pub fn on_close(mut self, msg: Message) -> Self {
         self.on_close = Some(msg);
+        self
+    }
+
+    /// 设置指针离开目标、间距与覆盖层共同区域时触发的消息。
+    pub fn on_mouse_exit(mut self, msg: Message) -> Self {
+        self.on_mouse_exit = Some(msg);
         self
     }
 
@@ -467,6 +501,7 @@ where
                 overlay: &mut self.overlay,
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
+                on_mouse_exit: self.on_mouse_exit.clone(),
             })))
         } else {
             None
@@ -538,6 +573,8 @@ struct SideOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     tree: &'b mut widget::Tree,
     /// 点击外部时的关闭消息
     on_close: Option<Message>,
+    /// 指针离开目标与覆盖层共同区域时的消息
+    on_mouse_exit: Option<Message>,
 }
 
 /// 为 `SideOverlayElement` 实现 `overlay::Overlay` trait
@@ -629,6 +666,26 @@ where
         shell: &mut Shell<'_, Message>,
     ) {
         let bounds = layout.bounds();
+        let target_bounds = Rectangle {
+            x: self.position.x,
+            y: self.position.y,
+            width: self.target_bounds.width,
+            height: self.target_bounds.height,
+        };
+
+        if let Some(on_mouse_exit) = &self.on_mouse_exit {
+            match event {
+                Event::Mouse(mouse::Event::CursorMoved { position })
+                    if !side_overlay_hover_contains(target_bounds, bounds, *position) =>
+                {
+                    shell.publish(on_mouse_exit.clone());
+                }
+                Event::Mouse(mouse::Event::CursorLeft) => {
+                    shell.publish(on_mouse_exit.clone());
+                }
+                _ => {}
+            }
+        }
 
         // 处理点击外部关闭的逻辑
         // 条件：鼠标左键按下 && 有关闭消息 && 光标在目标元素外 && 光标在覆盖层外

@@ -51,6 +51,44 @@ fn build_matrix_channel(
     .with_transcription(config.transcription.clone())
 }
 
+#[cfg(feature = "channel-matrix")]
+fn matrix_config_validation_error(
+    matrix: &crate::app::agent::config::schema::MatrixConfig,
+) -> Option<&'static str> {
+    if matrix.homeserver.trim().is_empty() {
+        return Some("homeserver is empty");
+    }
+    if matrix.access_token.trim().is_empty() {
+        return Some("access_token is empty");
+    }
+
+    let room_id = matrix.room_id.trim();
+    if !room_id.starts_with('!') && !room_id.starts_with('#') {
+        return Some("room_id must start with '!' (room ID) or '#' (room alias)");
+    }
+
+    None
+}
+
+#[cfg(feature = "channel-matrix")]
+fn append_matrix_channel_if_valid(
+    config: &Config,
+    matrix: &crate::app::agent::config::schema::MatrixConfig,
+    instance_id: &str,
+    display_name: String,
+    channels: &mut Vec<ConfiguredChannel>,
+) {
+    if let Some(reason) = matrix_config_validation_error(matrix) {
+        tracing::warn!("{display_name} config is incomplete ({reason}); skipping optional channel.");
+        return;
+    }
+
+    channels.push(ConfiguredChannel::new(
+        display_name,
+        Arc::new(build_matrix_channel(config, matrix, instance_id)),
+    ));
+}
+
 /// 从配置对象中收集所有已配置的通道实例
 ///
 /// 此函数遍历配置中的所有通道设置，为每个已配置且可用的通道创建实例。
@@ -212,30 +250,33 @@ pub(crate) fn collect_configured_channels(
     // ==================== Matrix 通道配置 ====================
     // Matrix 是去中心化的开放通信协议
     #[cfg(feature = "channel-matrix")]
-    if channel_instance_profiles_valid {
+    if channel_instance_profiles_valid && config.channels_config.matrix_enabled {
         if let Some(ref mx) = config.channels_config.matrix {
-            channels.push(ConfiguredChannel::new(
-                "Matrix",
-                Arc::new(build_matrix_channel(config, mx, DEFAULT_CHANNEL_INSTANCE_ID)),
-            ));
+            append_matrix_channel_if_valid(
+                config,
+                mx,
+                DEFAULT_CHANNEL_INSTANCE_ID,
+                "Matrix".to_string(),
+                &mut channels,
+            );
         }
 
         for matrix_instance in &config.channels_config.matrix_instances {
-            channels.push(ConfiguredChannel::new(
+            append_matrix_channel_if_valid(
+                config,
+                &matrix_instance.config,
+                &matrix_instance.id,
                 instance_display_name("Matrix", &matrix_instance.id),
-                Arc::new(build_matrix_channel(
-                    config,
-                    &matrix_instance.config,
-                    &matrix_instance.id,
-                )),
-            ));
+                &mut channels,
+            );
         }
     }
 
     // 当未启用 channel-matrix 特性但配置了 Matrix 时，记录警告
     #[cfg(not(feature = "channel-matrix"))]
-    if config.channels_config.matrix.is_some()
-        || !config.channels_config.matrix_instances.is_empty()
+    if config.channels_config.matrix_enabled
+        && (config.channels_config.matrix.is_some()
+            || !config.channels_config.matrix_instances.is_empty())
     {
         let matrix_instance_count = usize::from(config.channels_config.matrix.is_some())
             + config.channels_config.matrix_instances.len();
@@ -400,7 +441,7 @@ pub(crate) fn collect_configured_channels(
                 tracing::warn!(
                     "Both [channels_config.feishu] and legacy [channels_config.lark].use_feishu=true are configured; ignoring legacy Feishu fallback in lark."
                 );
-            } else {
+            } else if lk.has_required_credentials() {
                 // 使用遗留的 use_feishu 标志创建飞书通道
                 tracing::warn!(
                     "Using legacy [channels_config.lark].use_feishu=true compatibility path; prefer [channels_config.feishu]."
@@ -419,17 +460,21 @@ pub(crate) fn collect_configured_channels(
     #[cfg(feature = "channel-lark")]
     if channel_instance_profiles_valid {
         if let Some(ref fs) = config.channels_config.feishu {
-            channels.push(ConfiguredChannel::new(
-                "Feishu",
-                Arc::new(LarkChannel::from_feishu_config(fs)),
-            ));
+            if fs.has_required_credentials() {
+                channels.push(ConfiguredChannel::new(
+                    "Feishu",
+                    Arc::new(LarkChannel::from_feishu_config(fs)),
+                ));
+            }
         }
 
         for feishu_instance in &config.channels_config.feishu_instances {
-            channels.push(ConfiguredChannel::new(
-                instance_display_name("Feishu", &feishu_instance.id),
-                Arc::new(LarkChannel::from_feishu_config(&feishu_instance.config)),
-            ));
+            if feishu_instance.config.has_required_credentials() {
+                channels.push(ConfiguredChannel::new(
+                    instance_display_name("Feishu", &feishu_instance.id),
+                    Arc::new(LarkChannel::from_feishu_config(&feishu_instance.config)),
+                ));
+            }
         }
     }
 

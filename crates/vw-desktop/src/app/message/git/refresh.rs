@@ -32,6 +32,16 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 return Task::none();
             };
 
+            #[cfg(not(target_arch = "wasm32"))]
+            if git2::Repository::discover(&project_path).is_err() {
+                app.git_worktree_options.clear();
+                app.selected_git_worktree_directory = None;
+                app.git_worktree_options_loading = false;
+                app.git_worktree_options_project_path = None;
+                app.git_worktree_menu_open = false;
+                return Task::none();
+            }
+
             if app.git_worktree_options_loading
                 && app.git_worktree_options_project_path.as_deref() == Some(project_path.as_str())
             {

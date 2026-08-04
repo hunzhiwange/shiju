@@ -38,7 +38,8 @@ pub use path::{
     resolve_path,
 };
 pub use text::{
-    normalize_display_text, strip_internal_tool_trace, truncate_chars, truncate_lines_middle,
+    normalize_display_text, single_line_preview, strip_internal_tool_trace, truncate_chars,
+    truncate_lines_middle,
 };
 pub use theme::{
     additions_pill, change_pills, chat_scroll_direction, chat_secondary_muted_text_color,

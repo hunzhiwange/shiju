@@ -9,9 +9,9 @@ use std::fs;
 use std::path::Path;
 
 fn write_plugin(plugin_root: &Path, name: &str) {
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("manifest dir");
+    fs::create_dir_all(plugin_root.join(".vibewindow-plugin")).expect("manifest dir");
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".vibewindow-plugin/plugin.json"),
         serde_json::to_vec_pretty(&json!({
             "name": name,
             "version": "0.1.0",
@@ -35,7 +35,7 @@ fn plugin_install_uses_manifest_name_for_destination() {
 
     assert_eq!(installed.manifest.name, "manifest-plugin");
     assert_eq!(installed.installed_dir, plugins_dir.join("manifest-plugin"));
-    assert!(plugins_dir.join("manifest-plugin/.codex-plugin/plugin.json").is_file());
+    assert!(plugins_dir.join("manifest-plugin/.vibewindow-plugin/plugin.json").is_file());
 }
 
 #[test]

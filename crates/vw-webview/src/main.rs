@@ -5,19 +5,32 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
 #[cfg(not(target_arch = "wasm32"))]
+mod toolbar;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::borrow::Cow;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{self, Component, Path, PathBuf};
 
 #[cfg(not(target_arch = "wasm32"))]
-use wry::http::{Request, Response, StatusCode};
+use wry::http::{header::COOKIE, HeaderMap, HeaderValue, Request, Response, StatusCode};
+#[cfg(target_os = "macos")]
+use tao::platform::macos::WindowBuilderExtMacOS;
+#[cfg(target_os = "windows")]
+use tao::platform::windows::WindowBuilderExtWindows;
 
 #[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_TARGET: &str = "https://example.com/";
+const DEFAULT_TARGET: &str = "about:blank";
 #[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_TITLE: &str = "Vibe Window WebView";
 #[cfg(not(target_arch = "wasm32"))]
 const SAFARI_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15";
+#[cfg(not(target_arch = "wasm32"))]
+const SHIJU_APP_RUNTIME_HOST: &str = "app.shiju.cloud";
+#[cfg(not(target_arch = "wasm32"))]
+const SHIJU_APP_RUNTIME_SESSION_COOKIE: &str = "app_runtime_session";
+#[cfg(not(target_arch = "wasm32"))]
+const MAX_SHIJU_APP_SET_COOKIE_BYTES: usize = 16 * 1024;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, PartialEq, Eq)]
@@ -25,6 +38,17 @@ enum UserEvent {
     Resize(u32, u32),
     Move(i32, i32),
     OpenUrl(String),
+    OpenExternal(String),
+    NavigationChanged(String),
+    ToolbarReady,
+    ClearBrowser,
+    Back,
+    Forward,
+    Reload,
+    SetAlwaysOnTop(bool),
+    Show,
+    Hide,
+    Close,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -44,6 +68,7 @@ struct LaunchOptions {
     pos_x: Option<i32>,
     pos_y: Option<i32>,
     cookies_json: String,
+    shiju_app_set_cookie_stdin: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -57,6 +82,7 @@ impl Default for LaunchOptions {
             pos_x: None,
             pos_y: None,
             cookies_json: "[]".to_string(),
+            shiju_app_set_cookie_stdin: false,
         }
     }
 }
@@ -262,9 +288,193 @@ fn parse_launch_options(args: &[String]) -> LaunchOptions {
             options.pos_y = v.parse::<i32>().ok();
         } else if let Some(v) = a.strip_prefix("--title=") {
             options.window_title = v.to_string();
+        } else if a == "--shiju-app-set-cookie-stdin" {
+            options.shiju_app_set_cookie_stdin = true;
         }
     }
     options
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn is_trusted_shiju_app_target(target: &str) -> bool {
+    let Some((scheme, remainder)) = target.split_once("://") else {
+        return false;
+    };
+    if !scheme.eq_ignore_ascii_case("https") {
+        return false;
+    }
+
+    let Some((authority, path)) = remainder.split_once('/') else {
+        return false;
+    };
+    if !authority.eq_ignore_ascii_case(SHIJU_APP_RUNTIME_HOST) {
+        return false;
+    }
+
+    let Some(installation_id) =
+        path.strip_prefix("app/").and_then(|path| path.strip_suffix('/'))
+    else {
+        return false;
+    };
+    !installation_id.is_empty()
+        && installation_id.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn read_shiju_app_set_cookie_for_target(
+    target: &str,
+    input: &mut impl std::io::BufRead,
+) -> std::io::Result<String> {
+    use std::io::{BufRead, Read};
+
+    if !is_trusted_shiju_app_target(target) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "识矩应用浏览器会话仅支持受信任的运行地址",
+        ));
+    }
+
+    let mut bytes = Vec::with_capacity(MAX_SHIJU_APP_SET_COOKIE_BYTES + 2);
+    input
+        .take((MAX_SHIJU_APP_SET_COOKIE_BYTES + 2) as u64)
+        .read_until(b'\n', &mut bytes)?;
+    if bytes.last() == Some(&b'\n') {
+        bytes.pop();
+        if bytes.last() == Some(&b'\r') {
+            bytes.pop();
+        }
+    }
+    if bytes.is_empty() || bytes.len() > MAX_SHIJU_APP_SET_COOKIE_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "识矩应用浏览器会话为空或超过长度限制",
+        ));
+    }
+
+    let token = String::from_utf8(bytes).map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "识矩应用浏览器会话不是有效 UTF-8",
+        )
+    })?;
+    if token.chars().any(char::is_control) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "识矩应用浏览器会话包含控制字符",
+        ));
+    }
+    Ok(token)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn runtime_cookie(set_cookie: &str) -> Result<wry::cookie::Cookie<'static>, &'static str> {
+    let mut cookie = wry::cookie::Cookie::parse(set_cookie.to_string())
+        .map_err(|_| "识矩应用浏览器会话 Cookie 无效")?;
+    if cookie.name() != SHIJU_APP_RUNTIME_SESSION_COOKIE
+        || cookie.value().is_empty()
+        || cookie.value().contains(';')
+        || cookie.value().chars().any(char::is_control)
+        || cookie.path() != Some("/")
+        || cookie.http_only() != Some(true)
+        || cookie.secure() != Some(true)
+        || cookie.same_site() != Some(wry::cookie::SameSite::None)
+    {
+        return Err("识矩应用浏览器会话 Cookie 无效");
+    }
+    cookie.set_domain(SHIJU_APP_RUNTIME_HOST);
+    Ok(cookie)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn runtime_cookie_headers(
+    cookie: &wry::cookie::Cookie<'_>,
+) -> Result<HeaderMap, &'static str> {
+    let value = HeaderValue::from_str(&format!("{}={}", cookie.name(), cookie.value()))
+        .map_err(|_| "识矩应用浏览器会话 Cookie 无效")?;
+    let mut headers = HeaderMap::new();
+    headers.insert(COOKIE, value);
+    Ok(headers)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn is_safe_navigation_url(url: &str) -> bool {
+    if url.chars().any(|character| character.is_whitespace() || character.is_control()) {
+        return false;
+    }
+
+    let Some((scheme, remainder)) = url.split_once("://") else {
+        return false;
+    };
+    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
+        return false;
+    }
+
+    let authority = remainder
+        .split_once(['/', '?', '#'])
+        .map_or(remainder, |(authority, _)| authority);
+    authority.rsplit('@').next().is_some_and(|host| !host.is_empty())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn navigation_event_line(url: &str) -> Option<String> {
+    if !is_safe_navigation_url(url) {
+        return None;
+    }
+    let encoded = serde_json::to_string(url).ok()?;
+    Some(format!("navigation {encoded}"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn emit_navigation_url(url: &str) {
+    use std::io::Write;
+
+    let Some(line) = navigation_event_line(url) else {
+        return;
+    };
+    let stdout = std::io::stdout();
+    let mut output = stdout.lock();
+    let _ = writeln!(output, "{line}");
+    let _ = output.flush();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_navigation_ipc_message(message: &str) -> Option<String> {
+    let value = serde_json::from_str::<serde_json::Value>(message).ok()?;
+    if value.get("type").and_then(serde_json::Value::as_str) != Some("navigation") {
+        return None;
+    }
+    let url = value.get("url").and_then(serde_json::Value::as_str)?;
+    is_safe_navigation_url(url).then(|| url.to_string())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn redacted_launch_target(target: &str) -> String {
+    let Some((scheme, remainder)) = target.split_once("://") else {
+        return "<local-or-invalid>".to_string();
+    };
+    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
+        return "<local-or-invalid>".to_string();
+    }
+
+    let authority = remainder
+        .split_once(['/', '?', '#'])
+        .map_or(remainder, |(authority, _)| authority);
+    let host = authority.rsplit('@').next().unwrap_or_default();
+    if host.is_empty() {
+        return "<invalid>".to_string();
+    }
+
+    format!("{}://{host}", scheme.to_ascii_lowercase())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn launch_log_summary(target: &str, options: &LaunchOptions) -> String {
+    format!(
+        "Launch target={} width={} height={}",
+        redacted_launch_target(target),
+        options.width.unwrap_or(1280),
+        options.height.unwrap_or(800)
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -273,6 +483,17 @@ fn parse_stdin_event(line: &str) -> Option<UserEvent> {
     match parts.as_slice() {
         ["resize", w, h, ..] => Some(UserEvent::Resize(w.parse().ok()?, h.parse().ok()?)),
         ["move", x, y, ..] => Some(UserEvent::Move(x.parse().ok()?, y.parse().ok()?)),
+        ["navigate", url] if is_safe_navigation_url(url) => {
+            Some(UserEvent::OpenUrl((*url).to_string()))
+        }
+        ["back"] => Some(UserEvent::Back),
+        ["forward"] => Some(UserEvent::Forward),
+        ["reload"] => Some(UserEvent::Reload),
+        ["raise"] => Some(UserEvent::SetAlwaysOnTop(true)),
+        ["lower"] => Some(UserEvent::SetAlwaysOnTop(false)),
+        ["show"] => Some(UserEvent::Show),
+        ["hide"] => Some(UserEvent::Hide),
+        ["close"] => Some(UserEvent::Close),
         _ => None,
     }
 }
@@ -364,6 +585,38 @@ fn build_init_script(
 
             const DEFAULT_DOMAIN = '';
 
+            function reportNavigation() {{
+                try {{
+                    if (window.ipc && typeof window.ipc.postMessage === 'function') {{
+                        window.ipc.postMessage(JSON.stringify({{
+                            type: 'navigation',
+                            url: window.location.href
+                        }}));
+                    }}
+                }} catch (e) {{
+                    console.error('Navigation Sync Error:', e);
+                }}
+            }}
+
+            try {{
+                const originalPushState = history.pushState;
+                history.pushState = function(...args) {{
+                    const result = originalPushState.apply(this, args);
+                    reportNavigation();
+                    return result;
+                }};
+                const originalReplaceState = history.replaceState;
+                history.replaceState = function(...args) {{
+                    const result = originalReplaceState.apply(this, args);
+                    reportNavigation();
+                    return result;
+                }};
+                window.addEventListener('popstate', reportNavigation);
+                window.addEventListener('hashchange', reportNavigation);
+            }} catch (e) {{
+                console.error('Navigation Hook Error:', e);
+            }}
+
             function escapeRegExp(s) {{
                 return String(s).replace(/[.*+?^${{}}()|[\]\\]/g, '\\$&');
             }}
@@ -388,25 +641,25 @@ fn build_init_script(
                     maxAge = "; max-age=" + Math.floor(days * 24 * 60 * 60);
                 }}
 
-                let cookieVal = `${{name}}=${{value}}${{maxAge}}; path=/`;
+                let serializedCookie = `${{name}}=${{value}}${{maxAge}}; path=/`;
 
                 if (!isHostCookie) {{
                     const d = normalizeDomain(domain || DEFAULT_DOMAIN);
                     if (d) {{
-                        cookieVal += `; domain=${{d}}`;
+                        serializedCookie += `; domain=${{d}}`;
                     }}
                 }}
 
                 if (isHttps || isSecureCookie) {{
-                    cookieVal += "; Secure";
+                    serializedCookie += "; Secure";
                 }}
 
-                document.cookie = cookieVal;
+                document.cookie = serializedCookie;
                 const after = getCookie(name);
                 if (after !== String(value)) {{
-                    console.warn('Set Cookie failed or was rejected:', cookieVal);
+                    console.warn('Set Cookie failed or was rejected:', name);
                 }} else {{
-                    console.log('Set Cookie:', cookieVal);
+                    console.log('Set Cookie:', name);
                 }}
             }}
 
@@ -482,9 +735,13 @@ fn build_init_script(
             }}
 
             if (document.readyState === 'loading') {{
-                document.addEventListener('DOMContentLoaded', initSessionSync);
+                document.addEventListener('DOMContentLoaded', () => {{
+                    initSessionSync();
+                    reportNavigation();
+                }});
             }} else {{
                 initSessionSync();
+                reportNavigation();
             }}
         }})();
         "#
@@ -501,9 +758,26 @@ fn main() {
     use tao::window::WindowBuilder;
     use wry::{NewWindowResponse, WebContext, WebViewBuilder};
 
+    use crate::toolbar::{
+        ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
+        window_regions,
+    };
+
     let args = env::args().skip(1).collect::<Vec<_>>();
     let target = normalize_url(args.first().map(String::as_str).unwrap_or(DEFAULT_TARGET));
     let options = parse_launch_options(&args[1..]);
+    let shiju_app_set_cookie = if options.shiju_app_set_cookie_stdin {
+        let stdin = io::stdin();
+        match read_shiju_app_set_cookie_for_target(&target, &mut stdin.lock()) {
+            Ok(set_cookie) => Some(set_cookie),
+            Err(error) => {
+                show_error_dialog("VibeWindow WebView", &error.to_string());
+                return;
+            }
+        }
+    } else {
+        None
+    };
     let (url, local_root) = match resolve_target(&target) {
         StartTarget::Url(url) => (url, None),
         StartTarget::LocalDir { root, entry } => {
@@ -529,6 +803,14 @@ fn main() {
     let mut wb = WindowBuilder::new().with_title(options.window_title.clone());
     if options.mode == "embedded" {
         wb = wb.with_decorations(false).with_always_on_top(true);
+        #[cfg(target_os = "macos")]
+        {
+            wb = wb.with_has_shadow(false);
+        }
+        #[cfg(target_os = "windows")]
+        {
+            wb = wb.with_undecorated_shadow(false);
+        }
     }
 
     let size_w = options.width.unwrap_or(1280) as f64;
@@ -554,8 +836,7 @@ fn main() {
         println!("WebView data path: {data_path:?}");
         append_log(&log_path, &format!("WebView data path: {data_path:?}"));
     }
-    append_log(&log_path, &format!("Args: {:?}", env::args().collect::<Vec<_>>()));
-    append_log(&log_path, &format!("Normalized url: {url:?}"));
+    append_log(&log_path, &launch_log_summary(&target, &options));
 
     let window = match wb.build(&event_loop) {
         Ok(w) => w,
@@ -567,8 +848,8 @@ fn main() {
         }
     };
 
-    let init_script = match build_init_script(&data_path, &options.cookies_json, SAFARI_USER_AGENT)
-    {
+    let init_script =
+        match build_init_script(&data_path, &options.cookies_json, SAFARI_USER_AGENT) {
         Ok(script) => script,
         Err(e) => {
             let msg = format!("Failed to build initialization script: {e}\nLog: {log_path:?}");
@@ -578,15 +859,76 @@ fn main() {
         }
     };
 
+    let embedded_mode = options.mode == "embedded";
+    let independent_mode = !embedded_mode;
+    let logical_size = window.inner_size().to_logical::<u32>(window.scale_factor());
+    let (toolbar_region, content_region) =
+        window_regions(logical_size.width, logical_size.height, independent_mode);
+
+    let toolbar_webview = if let Some(region) = toolbar_region {
+        let toolbar_proxy = proxy.clone();
+        let toolbar_ready_proxy = proxy.clone();
+        let toolbar = match WebViewBuilder::new()
+            .with_html(toolbar_html())
+            .with_bounds(region.to_wry_rect())
+            .with_on_page_load_handler(move |event, _url| {
+                if matches!(event, wry::PageLoadEvent::Finished) {
+                    let _ = toolbar_ready_proxy.send_event(UserEvent::ToolbarReady);
+                }
+            })
+            .with_ipc_handler(move |request| {
+                let Some(action) = parse_toolbar_ipc_message(request.body()) else {
+                    return;
+                };
+                let event = match action {
+                    ToolbarAction::Back => UserEvent::Back,
+                    ToolbarAction::Forward => UserEvent::Forward,
+                    ToolbarAction::Navigate(url) => UserEvent::OpenUrl(url),
+                    ToolbarAction::Reload => UserEvent::Reload,
+                    ToolbarAction::OpenExternal(url) => UserEvent::OpenExternal(url),
+                    ToolbarAction::Clear => UserEvent::ClearBrowser,
+                };
+                let _ = toolbar_proxy.send_event(event);
+            })
+            .build_as_child(&window)
+        {
+            Ok(toolbar) => toolbar,
+            Err(error) => {
+                let msg =
+                    format!("WebView toolbar build error: {error:?}\nLog: {log_path:?}");
+                append_log(&log_path, &msg);
+                show_error_dialog("VibeWindow WebView", &msg);
+                return;
+            }
+        };
+        Some(toolbar)
+    } else {
+        None
+    };
+
     let mut web_context = WebContext::new(Some(data_path.clone()));
+
+    let initial_url =
+        shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
 
     #[cfg(target_os = "macos")]
     let mut builder = {
+        let page_load_proxy = proxy.clone();
+        let navigation_proxy = proxy.clone();
         WebViewBuilder::new_with_web_context(&mut web_context)
-            .with_url(url.as_str())
+            .with_url(initial_url)
             .with_user_agent(SAFARI_USER_AGENT)
             .with_devtools(true)
+            .with_accept_first_mouse(true)
             .with_initialization_script(&init_script)
+            .with_on_page_load_handler(move |_event, url| {
+                let _ = page_load_proxy.send_event(UserEvent::NavigationChanged(url));
+            })
+            .with_ipc_handler(move |request| {
+                if let Some(url) = parse_navigation_ipc_message(request.body()) {
+                    let _ = navigation_proxy.send_event(UserEvent::NavigationChanged(url));
+                }
+            })
             .with_new_window_req_handler({
                 let newwin_proxy = proxy.clone();
                 move |req_url, _features| {
@@ -598,10 +940,21 @@ fn main() {
 
     #[cfg(not(target_os = "macos"))]
     let mut builder = {
+        let page_load_proxy = proxy.clone();
+        let navigation_proxy = proxy.clone();
         WebViewBuilder::new_with_web_context(&mut web_context)
-            .with_url(url.as_str())
+            .with_url(initial_url)
             .with_devtools(true)
+            .with_accept_first_mouse(true)
             .with_initialization_script(&init_script)
+            .with_on_page_load_handler(move |_event, url| {
+                let _ = page_load_proxy.send_event(UserEvent::NavigationChanged(url));
+            })
+            .with_ipc_handler(move |request| {
+                if let Some(url) = parse_navigation_ipc_message(request.body()) {
+                    let _ = navigation_proxy.send_event(UserEvent::NavigationChanged(url));
+                }
+            })
             .with_new_window_req_handler({
                 let newwin_proxy = proxy.clone();
                 move |req_url, _features| {
@@ -617,7 +970,16 @@ fn main() {
         });
     }
 
-    let webview = match builder.build(&window) {
+    if independent_mode {
+        builder = builder.with_bounds(content_region.to_wry_rect());
+    }
+
+    let webview_result = if independent_mode {
+        builder.build_as_child(&window)
+    } else {
+        builder.build(&window)
+    };
+    let webview = match webview_result {
         Ok(w) => w,
         Err(e) => {
             let msg = format!(
@@ -629,6 +991,37 @@ fn main() {
         }
     };
 
+    if let Some(set_cookie) = shiju_app_set_cookie.as_deref() {
+        let cookie = match runtime_cookie(set_cookie) {
+            Ok(cookie) => cookie,
+            Err(error) => {
+                show_error_dialog("VibeWindow WebView", error);
+                return;
+            }
+        };
+        let headers = match runtime_cookie_headers(&cookie) {
+            Ok(headers) => headers,
+            Err(error) => {
+                show_error_dialog("VibeWindow WebView", error);
+                return;
+            }
+        };
+        if let Err(error) = webview.set_cookie(&cookie) {
+            let msg = format!("设置识矩应用浏览器会话失败: {error}");
+            append_log(&log_path, &msg);
+            show_error_dialog("VibeWindow WebView", &msg);
+            return;
+        }
+        if let Err(error) = webview.load_url_with_headers(&url, headers) {
+            let msg = format!("加载识矩应用失败: {error}");
+            append_log(&log_path, &msg);
+            show_error_dialog("VibeWindow WebView", &msg);
+            return;
+        }
+    }
+
+    let mut current_url = url;
+    let mut browser_cleared = false;
     event_loop.run(move |event, _, control_flow| {
         if *control_flow != ControlFlow::Exit {
             *control_flow = ControlFlow::Wait;
@@ -642,8 +1035,85 @@ fn main() {
                 window.set_outer_position(tao::dpi::LogicalPosition::new(x as f64, y as f64));
             }
             Event::UserEvent(UserEvent::OpenUrl(u)) => {
-                let js = format!("location.href = {}", serde_json::to_string(&u).unwrap());
-                let _ = webview.evaluate_script(&js);
+                if is_safe_navigation_url(&u) {
+                    browser_cleared = false;
+                    let _ = webview.load_url(&u);
+                }
+            }
+            Event::UserEvent(UserEvent::OpenExternal(u)) => {
+                if is_safe_navigation_url(&u) {
+                    let _ = open::that(u);
+                }
+            }
+            Event::UserEvent(UserEvent::NavigationChanged(u)) => {
+                if browser_cleared {
+                    current_url.clear();
+                } else {
+                    current_url.clone_from(&u);
+                    if embedded_mode {
+                        emit_navigation_url(&u);
+                    }
+                    if let Some(toolbar) = toolbar_webview.as_ref()
+                        && let Ok(script) = toolbar_address_script(&u)
+                    {
+                        let _ = toolbar.evaluate_script(&script);
+                    }
+                }
+            }
+            Event::UserEvent(UserEvent::ToolbarReady) => {
+                if let Some(toolbar) = toolbar_webview.as_ref()
+                    && let Ok(script) = toolbar_address_script(&current_url)
+                {
+                    let _ = toolbar.evaluate_script(&script);
+                }
+            }
+            Event::UserEvent(UserEvent::Back) => {
+                if !browser_cleared {
+                    let _ = webview.evaluate_script("history.back()");
+                }
+            }
+            Event::UserEvent(UserEvent::Forward) => {
+                if !browser_cleared {
+                    let _ = webview.evaluate_script("history.forward()");
+                }
+            }
+            Event::UserEvent(UserEvent::Reload) => {
+                if !browser_cleared {
+                    let _ = webview.reload();
+                }
+            }
+            Event::UserEvent(UserEvent::SetAlwaysOnTop(always_on_top)) => {
+                window.set_always_on_top(always_on_top);
+            }
+            Event::UserEvent(UserEvent::Show) => {
+                window.set_visible(true);
+            }
+            Event::UserEvent(UserEvent::Hide) => {
+                window.set_visible(false);
+            }
+            Event::UserEvent(UserEvent::Close) => {
+                *control_flow = ControlFlow::Exit;
+            }
+            Event::UserEvent(UserEvent::ClearBrowser) => {
+                browser_cleared = true;
+                current_url.clear();
+                let _ = webview.load_url(DEFAULT_TARGET);
+                if let Some(toolbar) = toolbar_webview.as_ref()
+                    && let Ok(script) = toolbar_address_script("")
+                {
+                    let _ = toolbar.evaluate_script(&script);
+                }
+            }
+            Event::WindowEvent { event: WindowEvent::Resized(size), .. } if independent_mode => {
+                let size = size.to_logical::<u32>(window.scale_factor());
+                let (toolbar_region, content_region) =
+                    window_regions(size.width, size.height, true);
+                if let (Some(toolbar), Some(toolbar_region)) =
+                    (toolbar_webview.as_ref(), toolbar_region)
+                {
+                    let _ = toolbar.set_bounds(toolbar_region.to_wry_rect());
+                }
+                let _ = webview.set_bounds(content_region.to_wry_rect());
             }
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
@@ -659,3 +1129,7 @@ fn main() {}
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod main_tests;
+
+#[cfg(test)]
+#[path = "toolbar_tests.rs"]
+mod toolbar_tests;

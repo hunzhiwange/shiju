@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::sync::{LazyLock, Mutex, mpsc};
+use std::sync::{MutexGuard, mpsc};
 use std::time::{Duration, Instant};
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleWorkflowDto;
@@ -33,7 +33,9 @@ use super::{
     unique_copy_id, update,
 };
 
-static ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+fn process_state_lock() -> MutexGuard<'static, ()> {
+    crate::app::TEST_PROCESS_STATE_LOCK.lock().unwrap_or_else(|poison| poison.into_inner())
+}
 
 fn custom_status(key: &str, label: &str, role: StatusRole) -> OwnedStatusDefinition {
     OwnedStatusDefinition {
@@ -65,7 +67,7 @@ fn custom_workflow(id: &str) -> OwnedTaskWorkflow {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workflow_manager_saves_lifecycle_via_gateway() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _guard = process_state_lock();
     let _cache = RuntimeLifecycleCacheGuard::new();
     let home = tempfile::TempDir::new().expect("temp home");
     let _home = EnvVarGuard::set("HOME", home.path());
@@ -124,7 +126,7 @@ async fn workflow_manager_saves_lifecycle_via_gateway() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workflow_manager_delete_reloads_gateway_lifecycles() {
-    let _guard = ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _guard = process_state_lock();
     let _cache = RuntimeLifecycleCacheGuard::new();
     crate::app::task::replace_runtime_task_lifecycle_workflows_for_tests(vec![custom_workflow(
         "qa_flow",
@@ -358,6 +360,7 @@ fn workflow_manager_stage_action_rows_follow_selected_workflow_without_project_f
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workflow_manager_stage_actions_tab_reloads_project_staff_config() {
+    let _guard = process_state_lock();
     let (mut app, _task) = crate::app::App::new();
 
     let task = super::update_app(
@@ -399,6 +402,7 @@ async fn workflow_manager_stage_actions_tab_reloads_project_staff_config() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workflow_manager_stage_actions_tab_uses_selected_workflow_for_staff_loads() {
+    let _guard = process_state_lock();
     let (mut app, _task) = crate::app::App::new();
     app.task_board_settings.workflow_id = DEFAULT_TASK_WORKFLOW_ID.to_string();
 
@@ -438,6 +442,7 @@ async fn workflow_manager_stage_actions_tab_uses_selected_workflow_for_staff_loa
 
 #[test]
 fn workflow_manager_stage_actions_waits_for_selected_workflow_state() {
+    let _guard = process_state_lock();
     let (mut app, _task) = crate::app::App::new();
     app.task_board_staff_config_workflow_id = Some(DEFAULT_TASK_WORKFLOW_ID.to_string());
     app.task_board_staff_capability_catalog_workflow_id =
@@ -468,6 +473,7 @@ fn workflow_manager_stage_actions_waits_for_selected_workflow_state() {
 
 #[test]
 fn workflow_manager_stage_actions_scopes_loading_errors_to_selected_workflow() {
+    let _guard = process_state_lock();
     let (mut app, _task) = crate::app::App::new();
     app.task_board_staff_config_workflow_id = Some("marketing_campaign".to_string());
     app.task_board_staff_config_load_error = Some(
@@ -497,6 +503,7 @@ fn workflow_manager_stage_actions_scopes_loading_errors_to_selected_workflow() {
 
 #[test]
 fn workflow_manager_stage_action_tab_builds_selected_workflow_orchestration_panel() {
+    let _guard = process_state_lock();
     let (mut app, _task) = crate::app::App::new();
 
     let _task = super::update_app(
@@ -1124,6 +1131,7 @@ fn route_target_parsing_and_role_mapping_cover_terminal_and_custom_roles() {
 
 #[test]
 fn lifecycle_result_handlers_record_success_errors_and_selected_workflow() {
+    let _guard = process_state_lock();
     let _cache = RuntimeLifecycleCacheGuard::new();
     let mut state = WorkflowManagerState::default();
 
@@ -1198,6 +1206,9 @@ impl RecordingServer {
             while handled < expected_requests && Instant::now() < deadline {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        stream
+                            .set_nonblocking(false)
+                            .expect("accepted request stream should be blocking");
                         let request = read_recorded_request(&mut stream);
                         tx.send(request).expect("request should record");
                         let (status, body) =

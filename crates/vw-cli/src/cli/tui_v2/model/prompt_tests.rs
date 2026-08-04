@@ -116,11 +116,13 @@ fn queued_prompt_commands_are_fifo() {
         raw: "first".to_string(),
         kind: QueuedPromptCommandKind::Submit,
         enqueued_ms: Some(1),
+        ..QueuedPromptCommand::default()
     });
     prompt.queue_command(QueuedPromptCommand {
         raw: "/help".to_string(),
         kind: QueuedPromptCommandKind::SlashCommand,
         enqueued_ms: Some(2),
+        ..QueuedPromptCommand::default()
     });
 
     assert_eq!(prompt.pop_queued_command().map(|command| command.raw), Some("first".to_string()));

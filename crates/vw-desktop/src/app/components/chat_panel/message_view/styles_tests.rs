@@ -1,7 +1,9 @@
 use super::styles::{
-    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE, THINK_META_TEXT_SIZE,
-    THINK_STATUS_TEXT_SIZE, is_dark_theme, message_body_text_color, message_meta_text_color,
-    message_text_line_height, subtle_card_shadow, think_block_text_color, thinking_status_text,
+    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,
+    PROCESSING_DURATION_TEXT_SIZE, THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, is_dark_theme,
+    message_body_text_color, message_meta_text_color, message_text_line_height,
+    processing_duration_separator_color, processing_duration_text_color, subtle_card_shadow,
+    think_block_text_color, thinking_status_text,
 };
 use iced::{Color, Theme, theme::Palette};
 
@@ -48,9 +50,23 @@ fn message_text_line_height_returns_expected_value() {
 fn style_constants_have_expected_values() {
     assert_eq!(MESSAGE_TEXT_SIZE, 15.0);
     assert_eq!(MESSAGE_META_TEXT_SIZE, 13.0);
+    assert_eq!(PROCESSING_DURATION_TEXT_SIZE, 14.0);
     assert_eq!(THINK_STATUS_TEXT_SIZE, 13.0);
     assert_eq!(THINK_META_TEXT_SIZE, 12.0);
     assert_eq!(COMPACT_ACTION_BUTTON_RADIUS, 5.0);
+}
+
+#[test]
+fn processing_duration_colors_adapt_to_light_and_dark_themes() {
+    let light_text = processing_duration_text_color(&Theme::Light);
+    let dark_text = processing_duration_text_color(&Theme::Dark);
+    let light_separator = processing_duration_separator_color(&Theme::Light);
+    let dark_separator = processing_duration_separator_color(&Theme::Dark);
+
+    assert_eq!(light_text, Theme::Light.palette().text.scale_alpha(0.52));
+    assert_eq!(dark_text, Theme::Dark.palette().text.scale_alpha(0.58));
+    assert_eq!(light_separator, Theme::Light.palette().text.scale_alpha(0.12));
+    assert_eq!(dark_separator, Theme::Dark.palette().text.scale_alpha(0.14));
 }
 
 #[test]

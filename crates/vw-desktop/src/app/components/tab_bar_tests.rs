@@ -27,10 +27,7 @@ fn background_color(background: Option<Background>) -> Color {
 }
 
 fn max_child_count(tree: &Tree) -> usize {
-    tree.children
-        .iter()
-        .map(max_child_count)
-        .fold(tree.children.len(), usize::max)
+    tree.children.iter().map(max_child_count).fold(tree.children.len(), usize::max)
 }
 
 #[test]

@@ -32,8 +32,8 @@ pub struct ScheduledToolBatch {
 
 /// 根据工具元数据切分执行批次。
 ///
-/// 当前阶段仅允许“只读且并发安全”的调用进入并发批次；任何写操作、
-/// 非并发安全工具或未知工具都回退为顺序批次，避免 loop 层继续夹带自定义判断。
+/// 当前阶段允许“只读且并发安全”的调用，以及写入隔离子会话的 AgentTool
+/// 进入并发批次；其他写操作、非并发安全工具或未知工具都回退为顺序批次。
 pub fn schedule_tool_calls(
     tool_calls: &[PendingToolCall],
     tools_registry: &[Box<dyn Tool>],
@@ -78,7 +78,11 @@ fn can_run_in_parallel(tool_name: &str, tools_registry: &[Box<dyn Tool>]) -> boo
     };
 
     let spec = tool.spec();
-    spec.read_only && spec.concurrency_safe
+    spec.concurrency_safe && (spec.read_only || is_isolated_agent_tool(tool_name))
+}
+
+fn is_isolated_agent_tool(tool_name: &str) -> bool {
+    matches!(tool_name.trim().to_ascii_lowercase().as_str(), "agenttool" | "agent_tool" | "agent")
 }
 
 fn find_tool_by_name<'a>(

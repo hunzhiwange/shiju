@@ -79,6 +79,7 @@ pub mod glob_search;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod grep;
 mod hooks;
+mod http_headers;
 pub mod http_request;
 pub mod image_info;
 pub mod list_mcp_prompts;
@@ -130,8 +131,6 @@ pub mod sop_approve;
 pub mod sop_execute;
 pub mod sop_list;
 pub mod sop_status;
-pub mod subagent_registry;
-pub mod subagent_spawn;
 pub mod team_create;
 pub mod team_delete;
 pub mod todo;
@@ -238,8 +237,6 @@ pub use sop_approve::SopApproveTool;
 pub use sop_execute::SopExecuteTool;
 pub use sop_list::SopListTool;
 pub use sop_status::SopStatusTool;
-pub(crate) use subagent_registry::SubAgentRegistry;
-pub(crate) use subagent_spawn::SubAgentSpawnTool;
 pub use team_create::TeamCreateTool;
 pub use team_delete::TeamDeleteTool;
 pub use todo::{Todo, TodoReadTool, TodoWriteTool};
@@ -259,6 +256,7 @@ pub use toolset::{
     default_tools, default_tools_with_runtime, execute_tool_call, execute_tool_from_registry,
     is_binary, tool_specs_for_context,
 };
+pub(crate) use toolset::{agent_tool_parallel_limit_for_context, execute_agent_tool_call};
 pub use verify_plan_execution::VerifyPlanExecutionTool;
 pub use wasm_module::WasmModuleTool;
 pub use web_fetch::WebFetchTool;

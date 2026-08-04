@@ -10,6 +10,7 @@ use crate::app::agent::runtime;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::{Tool, ToolSpec};
 use anyhow::Result;
+use chrono_tz::Tz;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -84,6 +85,7 @@ pub struct Agent {
     pub(super) route_model_by_hint: HashMap<String, String>,
     pub(super) research_config: ResearchPhaseConfig,
     pub(super) multimodal_config: crate::app::agent::config::MultimodalConfig,
+    pub(super) timezone: Tz,
 }
 
 impl Agent {
@@ -171,12 +173,19 @@ impl Agent {
     /// # Ok::<(), anyhow::Error>(())
     /// ```
     pub fn from_config(config: &Config) -> Result<Self> {
+        let timezone = crate::app::agent::util::locale::parse_timezone(
+            &config.app_ui.system_settings.timezone,
+        )?;
         let observer: Arc<dyn Observer> =
             Arc::from(observability::create_observer(&config.observability));
         let runtime: Arc<dyn runtime::RuntimeAdapter> =
             Arc::from(runtime::create_runtime(&config.runtime)?);
         let security =
-            Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+            Arc::new(SecurityPolicy::from_configs(
+                &config.autonomy,
+                &config.security,
+                &config.workspace_dir,
+            ));
 
         let memory: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage_and_routes(
             &config.memory,
@@ -255,6 +264,7 @@ impl Agent {
             .auto_save(config.memory.auto_save)
             .research_config(config.research.clone())
             .multimodal_config(config.multimodal.clone())
+            .timezone(timezone)
             .build()
     }
 
@@ -303,6 +313,7 @@ impl Agent {
             skills_prompt_mode: self.skills_prompt_mode,
             identity_config: Some(&self.identity_config),
             dispatcher_instructions: &instructions,
+            timezone: self.timezone,
         };
 
         self.prompt_builder.build(&ctx)

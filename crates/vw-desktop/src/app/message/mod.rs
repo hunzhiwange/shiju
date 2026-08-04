@@ -21,6 +21,8 @@
 //! - `terminal`: 终端操作消息
 //! - `view`: 视图切换消息
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod account;
 pub mod chat;
 pub mod editor;
 pub mod gateway_health;
@@ -31,6 +33,10 @@ pub mod preview;
 pub mod project;
 pub mod search;
 pub mod settings;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod shiju_apps;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod skill_hub;
 pub mod task_board;
 pub mod terminal;
 pub mod view;
@@ -210,6 +216,8 @@ async fn sleep(duration: std::time::Duration) {
 // 而不是 `use crate::app::message::chat::ChatMessage;`
 
 pub use crate::app::views::workflow_manager::WorkflowManagerMessage;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use account::AccountMessage;
 pub use chat::ChatMessage;
 pub use editor::EditorMessage;
 pub use git::GitMessage;
@@ -218,7 +226,11 @@ pub use notification::NotificationMessage;
 pub use preview::PreviewMessage;
 pub use project::ProjectMessage;
 pub use search::SearchMessage;
-pub(crate) use settings::SettingsMessage;
+pub(crate) use settings::{GeneralSettingsMessage, SettingsMessage};
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use shiju_apps::ShijuAppsMessage;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use skill_hub::SkillHubMessage;
 pub use task_board::TaskBoardMessage;
 pub use terminal::TerminalMessage;
 pub use view::ViewMessage;
@@ -234,3 +246,7 @@ mod editor_tests;
 #[cfg(test)]
 #[path = "gateway_health_tests.rs"]
 mod gateway_health_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "skill_hub_tests.rs"]
+mod skill_hub_tests;

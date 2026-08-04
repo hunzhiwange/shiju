@@ -22,10 +22,15 @@ use vw_shared::session::ui_types::{
     self as session_ui, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep,
 };
 
+use super::commands::registry::CommandRegistry;
+use super::completion::CompletionCatalog;
+use super::history_search::HistorySearchState;
 use super::model::{
-    OverlayState, PromptState, UiAssistantMessage, UiMemoryEntry, UiMessage, UiMessageBase,
-    UiMessageId, UiQuestionOverlay, UiStep, UiStepState, UiSystemMessage, UiSystemMessageLevel,
-    UiThinkingTiming, UiTodoOverlay, UiTokenUsage, UiToolResult, UiTurnTerminal, UiUserMessage,
+    MessageActionState, OverlayState, PromptState, TranscriptModeState, UiAssistantMessage,
+    UiAttachment, UiAttachmentKind, UiCompactBoundary, UiMemoryEntry, UiMessage, UiMessageBase,
+    UiMessageId, UiMessageOrigin, UiProgressMessage, UiQuestionOverlay, UiStep, UiStepState,
+    UiSystemMessage, UiSystemMessageLevel, UiThinkingTiming, UiTodoOverlay, UiTokenUsage,
+    UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
 use crate::cli::session::GitWorkspaceStatus;
 
@@ -39,13 +44,16 @@ pub(crate) mod selectors;
 use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache};
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
 
+const EXTENDED_MESSAGE_PREFIX: &str = "vibewindow:tui-v2:";
+
 pub(crate) use reducer::{
     TuiAction, TuiTerminalUpdate, TuiToolCallUpdate, TuiToolResultUpdate, reduce_tui_state,
 };
 pub(crate) use runtime_pipeline::apply_runtime_event;
 pub(crate) use selectors::{
     TuiAssistantTurnEntry, TuiStatusSummary, TuiStickyPromptSummary, TuiTranscriptItem,
-    TuiUnseenRangeSummary, TuiVisibleTranscriptWindow, TuiWindowSummary, select_status_summary,
+    TuiTranscriptMeasurement, TuiTranscriptMeasurements, TuiUnseenRangeSummary,
+    TuiVisibleTranscriptWindow, TuiWindowSummary, select_status_summary,
     select_transcript_message_anchors, select_visible_grouped_transcript_window,
 };
 
@@ -176,6 +184,7 @@ pub(crate) struct TuiStatusState {
     pub(crate) model_name: Option<String>,
     pub(crate) turn_terminal: UiTurnTerminal,
     pub(crate) last_error: Option<String>,
+    pub(crate) verbose: bool,
 }
 
 impl Default for TuiStatusState {
@@ -186,6 +195,7 @@ impl Default for TuiStatusState {
             model_name: None,
             turn_terminal: UiTurnTerminal::Pending,
             last_error: None,
+            verbose: false,
         }
     }
 }
@@ -404,13 +414,18 @@ impl TuiModelCatalogEntry {
 /// 它们仅用于把 transport 层分块文本稳定规整为 `UiMessage`。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct TuiRuntimeState {
+    pub(crate) active_plan_run_task_id: Option<String>,
     pub(crate) thinking_open: bool,
+    pub(crate) thinking_redacted: bool,
+    pub(crate) event_time_ms: Option<u64>,
+    pub(crate) last_event_time_ms: Option<u64>,
 }
 
 /// TUI v2 的顶层状态容器。
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct TuiState {
     pub(crate) messages: Vec<UiMessage>,
+    pub(crate) unseen_baseline_id: Option<UiMessageId>,
     pub(crate) search_index: TuiSearchTextCache,
     pub(crate) transcript: TuiTranscriptProjectionCache,
     pub(crate) transcript_layout: TuiTranscriptLayoutCache,
@@ -423,6 +438,16 @@ pub(crate) struct TuiState {
     pub(crate) session: TuiSessionState,
     pub(crate) runtime: TuiRuntimeState,
     pub(crate) model_catalog: Vec<TuiModelCatalogEntry>,
+    pub(crate) transcript_mode: TranscriptModeState,
+    pub(crate) message_actions: MessageActionState,
+    pub(crate) history_search: HistorySearchState,
+    pub(crate) completion_catalog: CompletionCatalog,
+    pub(crate) command_registry: CommandRegistry,
+    pub(crate) session_options: super::model::SessionOptions,
+    pub(crate) session_capabilities: super::model::SessionCapabilityMatrix,
+    pub(crate) theme_name: String,
+    pub(crate) agent_view: super::model::agent_view::AgentViewState,
+    pub(crate) notifications: super::model::notification::NotificationStore,
 }
 
 impl TuiState {
@@ -491,11 +516,16 @@ impl TuiState {
                         is_error: parsed.is_error,
                     })
                 }
-                ChatRole::System => UiMessage::System(UiSystemMessage {
-                    base,
-                    text: message.content.clone(),
-                    level: UiSystemMessageLevel::Info,
-                }),
+                ChatRole::System => {
+                    deserialize_extended_message(message.content.as_str(), base.clone())
+                        .unwrap_or_else(|| {
+                            UiMessage::System(UiSystemMessage {
+                                base,
+                                text: message.content.clone(),
+                                level: UiSystemMessageLevel::Info,
+                            })
+                        })
+                }
             };
 
             state.messages.push(ui_message);
@@ -592,6 +622,33 @@ impl TuiState {
         self.clamp_scroll();
     }
 
+    /// 在历史头部插入消息，同时按稳定消息 ID 保持手动滚动锚点。
+    pub(crate) fn prepend_messages_preserving_anchor(&mut self, mut messages: Vec<UiMessage>) {
+        if messages.is_empty() {
+            return;
+        }
+        let anchor_id = (!self.scroll.follow_tail)
+            .then(|| {
+                self.messages.get(self.scroll.top_message).map(|message| message.base().id.clone())
+            })
+            .flatten();
+        for message in &mut messages {
+            attach_session_id(self.session.session_id.as_deref(), message);
+        }
+        messages.append(&mut self.messages);
+        self.messages = messages;
+        self.refresh_search_index();
+        self.refresh_transcript_projection();
+        if let Some(anchor_id) = anchor_id
+            && let Some(index) =
+                self.messages.iter().position(|message| message.base().id == anchor_id)
+        {
+            self.scroll.top_message = index;
+        }
+        self.refresh_session_preview();
+        self.clamp_scroll();
+    }
+
     /// 基于当前消息序列刷新可搜索文本缓存。
     pub(crate) fn refresh_search_index(&mut self) {
         self.search_index.rebuild(&self.messages);
@@ -609,14 +666,33 @@ impl TuiState {
     /// 后续 wrap/height cache 会在此基础上继续扩展。
     pub(crate) fn refresh_transcript_projection(&mut self) {
         self.transcript = derive_transcript_projection_cache(&self.messages);
-        self.transcript_layout.clear();
+        self.transcript_layout.reconcile_projection(&self.messages, &self.transcript);
         self.refresh_transcript_layout_for_current_width();
     }
 
     /// 为当前 viewport width 预热对应的 transcript layout bucket。
     pub(crate) fn refresh_transcript_layout_for_current_width(&mut self) {
         let content_width = self.scroll.viewport_width;
-        self.transcript_layout.rebuild_width(&self.messages, &self.transcript, content_width);
+        self.transcript_layout.rebuild_width(
+            &self.messages,
+            &self.transcript,
+            content_width,
+            self.status.verbose,
+        );
+    }
+
+    /// 合并 renderer 对当前可见窗口的真实行高测量结果。
+    pub(crate) fn apply_transcript_measurements(
+        &mut self,
+        measurements: &TuiTranscriptMeasurements,
+    ) {
+        self.transcript_layout.rebuild_width(
+            &self.messages,
+            &self.transcript,
+            measurements.content_width,
+            measurements.verbose,
+        );
+        self.transcript_layout.apply_measurements(measurements);
     }
 
     /// 只刷新一条消息所属 transcript item 的 wrap/height cache。
@@ -647,6 +723,7 @@ impl TuiState {
     /// 清空当前 transcript 与持久化镜像，但保留 workspace/session 上下文。
     pub(crate) fn clear_messages(&mut self) {
         self.messages.clear();
+        self.unseen_baseline_id = None;
         self.search_index = TuiSearchTextCache::default();
         self.transcript = TuiTranscriptProjectionCache::default();
         self.transcript_layout.clear();
@@ -675,6 +752,9 @@ impl TuiState {
             self.scroll.clamp_to_anchors(anchors);
         }
         self.scroll.refresh_seen_tail(self.messages.len());
+        if self.scroll.follow_tail {
+            self.unseen_baseline_id = None;
+        }
     }
 }
 
@@ -688,12 +768,22 @@ pub(super) fn message_base_mut(message: &mut UiMessage) -> &mut UiMessageBase {
         UiMessage::Step(message) => &mut message.base,
         UiMessage::System(message) => &mut message.base,
         UiMessage::Error(message) => &mut message.base,
+        UiMessage::Attachment(message) => &mut message.base,
+        UiMessage::Progress(message) => &mut message.base,
+        UiMessage::CompactBoundary(message) => &mut message.base,
+        UiMessage::Unknown(message) => &mut message.base,
     }
 }
 
 pub(super) fn is_persistable_chat_message(message: &UiMessage) -> bool {
     match message {
-        UiMessage::User(_) | UiMessage::Assistant(_) | UiMessage::ToolResult(_) => true,
+        UiMessage::User(_)
+        | UiMessage::Assistant(_)
+        | UiMessage::ToolResult(_)
+        | UiMessage::Attachment(_)
+        | UiMessage::Progress(_)
+        | UiMessage::CompactBoundary(_)
+        | UiMessage::Unknown(_) => true,
         UiMessage::System(message) => !is_ui_local_message_id(message.base.id.as_str()),
         _ => false,
     }
@@ -841,28 +931,46 @@ fn snapshot_chat_message_from_ui_message(
         UiMessage::User(message) => Some(session_ui::ChatMessage {
             role: ChatRole::User,
             content: message.text.clone(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }),
         UiMessage::Assistant(message) => Some(session_ui::ChatMessage {
             role: ChatRole::Assistant,
             content: message.text.clone(),
+            model: None,
             think_timing: metadata
                 .map(|metadata| {
                     metadata.think_timing.iter().map(snapshot_think_timing).collect::<Vec<_>>()
                 })
                 .unwrap_or_default(),
+            processing_timing: None,
         }),
         UiMessage::ToolResult(message) => Some(session_ui::ChatMessage {
             role: ChatRole::Tool,
             content: metadata
                 .and_then(|metadata| metadata.tool_payload.clone())
                 .unwrap_or_else(|| serialize_tool_result_message(message)),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }),
         UiMessage::System(message) => Some(session_ui::ChatMessage {
             role: ChatRole::System,
             content: message.text.clone(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
+        }),
+        UiMessage::Attachment(_)
+        | UiMessage::Progress(_)
+        | UiMessage::CompactBoundary(_)
+        | UiMessage::Unknown(_) => Some(session_ui::ChatMessage {
+            role: ChatRole::System,
+            content: serialize_extended_message(message),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
         }),
         _ => None,
     }
@@ -911,8 +1019,174 @@ fn last_content_from_ui_message(message: &UiMessage) -> Option<String> {
         UiMessage::System(message) if !is_ui_local_message_id(message.base.id.as_str()) => {
             Some(message.text.clone())
         }
+        UiMessage::Attachment(message) => Some(message.name.clone()),
+        UiMessage::Progress(message) => Some(message.label.clone()),
+        UiMessage::CompactBoundary(message) => Some(message.summary.clone()),
+        UiMessage::Unknown(message) => Some(message.summary.clone()),
         _ => None,
     }
+}
+
+fn serialize_extended_message(message: &UiMessage) -> String {
+    let (base, content) = match message {
+        UiMessage::Attachment(message) => (
+            &message.base,
+            serde_json::json!({
+                "type": "attachment",
+                "kind": match message.kind {
+                    UiAttachmentKind::Image => "image",
+                    UiAttachmentKind::File => "file",
+                    UiAttachmentKind::Link => "link",
+                    UiAttachmentKind::PastedText => "pasted_text",
+                    UiAttachmentKind::Resource => "resource",
+                },
+                "name": message.name,
+                "media_type": message.media_type,
+                "uri": message.uri,
+                "alt_text": message.alt_text,
+                "width_px": message.width_px,
+                "height_px": message.height_px,
+                "size_bytes": message.size_bytes,
+                "source": message.source,
+                "preview": message.preview,
+            }),
+        ),
+        UiMessage::Progress(message) => (
+            &message.base,
+            serde_json::json!({
+                "type": "progress",
+                "label": message.label,
+                "current": message.current,
+                "total": message.total,
+                "completed": message.completed,
+            }),
+        ),
+        UiMessage::CompactBoundary(message) => (
+            &message.base,
+            serde_json::json!({
+                "type": "compact_boundary",
+                "summary": message.summary,
+                "compacted_messages": message.compacted_messages,
+            }),
+        ),
+        UiMessage::Unknown(message) => (
+            &message.base,
+            serde_json::json!({
+                "type": "unknown",
+                "external_kind": message.external_kind,
+                "summary": message.summary,
+            }),
+        ),
+        _ => return String::new(),
+    };
+
+    let origin = match base.origin.as_ref() {
+        Some(UiMessageOrigin::Gateway { event_type }) => {
+            serde_json::json!({"type": "gateway", "event_type": event_type})
+        }
+        Some(UiMessageOrigin::Command { name }) => {
+            serde_json::json!({"type": "command", "name": name})
+        }
+        Some(UiMessageOrigin::Local) => serde_json::json!({"type": "local"}),
+        None => Value::Null,
+    };
+    format!(
+        "{EXTENDED_MESSAGE_PREFIX}{}",
+        serde_json::json!({
+            "parent_id": base.parent_id.as_ref().map(UiMessageId::as_str),
+            "created_ms": base.created_ms,
+            "origin": origin,
+            "content": content,
+        })
+    )
+}
+
+fn deserialize_extended_message(raw: &str, mut base: UiMessageBase) -> Option<UiMessage> {
+    let payload = raw.strip_prefix(EXTENDED_MESSAGE_PREFIX)?;
+    let envelope = serde_json::from_str::<Value>(payload).ok()?;
+    if let Some(parent_id) = envelope.get("parent_id").and_then(Value::as_str) {
+        base.parent_id = Some(UiMessageId::new(parent_id));
+    }
+    base.created_ms = envelope.get("created_ms").and_then(Value::as_u64);
+    base.origin = deserialize_message_origin(envelope.get("origin"));
+
+    let content = envelope.get("content")?;
+    let content_type = content.get("type").and_then(Value::as_str)?;
+    match content_type {
+        "attachment" => Some(UiMessage::Attachment(UiAttachment {
+            base,
+            kind: match content.get("kind").and_then(Value::as_str) {
+                Some("image") => UiAttachmentKind::Image,
+                Some("link") => UiAttachmentKind::Link,
+                Some("pasted_text") => UiAttachmentKind::PastedText,
+                Some("resource") => UiAttachmentKind::Resource,
+                _ => UiAttachmentKind::File,
+            },
+            name: content.get("name").and_then(Value::as_str)?.to_string(),
+            media_type: json_optional_string(content.get("media_type")),
+            uri: content.get("uri").and_then(Value::as_str).unwrap_or_default().to_string(),
+            alt_text: json_optional_string(content.get("alt_text")),
+            width_px: content
+                .get("width_px")
+                .and_then(Value::as_u64)
+                .and_then(|value| u32::try_from(value).ok()),
+            height_px: content
+                .get("height_px")
+                .and_then(Value::as_u64)
+                .and_then(|value| u32::try_from(value).ok()),
+            size_bytes: content.get("size_bytes").and_then(Value::as_u64),
+            source: json_optional_string(content.get("source")),
+            preview: json_optional_string(content.get("preview")),
+        })),
+        "progress" => Some(UiMessage::Progress(UiProgressMessage {
+            base,
+            label: content.get("label").and_then(Value::as_str)?.to_string(),
+            current: content.get("current").and_then(Value::as_u64),
+            total: content.get("total").and_then(Value::as_u64),
+            completed: content.get("completed").and_then(Value::as_bool).unwrap_or(false),
+        })),
+        "compact_boundary" => Some(UiMessage::CompactBoundary(UiCompactBoundary {
+            base,
+            summary: content.get("summary").and_then(Value::as_str)?.to_string(),
+            compacted_messages: content
+                .get("compacted_messages")
+                .and_then(Value::as_u64)
+                .and_then(|count| usize::try_from(count).ok())
+                .unwrap_or_default(),
+        })),
+        "unknown" => Some(UiMessage::Unknown(UiUnknownMessage {
+            base,
+            external_kind: content
+                .get("external_kind")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string(),
+            summary: content.get("summary").and_then(Value::as_str)?.to_string(),
+        })),
+        _ => None,
+    }
+}
+
+fn deserialize_message_origin(value: Option<&Value>) -> Option<UiMessageOrigin> {
+    let value = value?;
+    match value.get("type").and_then(Value::as_str) {
+        Some("gateway") => Some(UiMessageOrigin::Gateway {
+            event_type: value
+                .get("event_type")
+                .and_then(Value::as_str)
+                .unwrap_or("chat.content")
+                .to_string(),
+        }),
+        Some("command") => Some(UiMessageOrigin::Command {
+            name: value.get("name").and_then(Value::as_str).unwrap_or("unknown").to_string(),
+        }),
+        Some("local") => Some(UiMessageOrigin::Local),
+        _ => None,
+    }
+}
+
+fn json_optional_string(value: Option<&Value>) -> Option<String> {
+    value.and_then(Value::as_str).map(ToOwned::to_owned)
 }
 
 fn is_ui_local_message_id(message_id: &str) -> bool {

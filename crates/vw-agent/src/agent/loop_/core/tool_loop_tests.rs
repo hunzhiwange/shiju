@@ -249,6 +249,109 @@ async fn run_tool_call_loop_reports_exhausted_after_last_tool_iteration() {
 }
 
 #[tokio::test]
+async fn run_tool_call_loop_retries_empty_final_response_until_text_arrives() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider = StaticProvider::from_responses(
+        vec![
+            crate::app::agent::providers::ChatResponse {
+                text: Some(" \n\t".to_string()),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+            crate::app::agent::providers::ChatResponse {
+                text: Some("verified result".to_string()),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+        ],
+        Arc::clone(&calls),
+    );
+    let mut history = vec![ChatMessage::user("finish with a result")];
+    let observer = crate::app::agent::observability::NoopObserver;
+    let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
+
+    let result = run_tool_call_loop(
+        &provider,
+        &mut history,
+        &tools_registry,
+        &observer,
+        "static",
+        "model",
+        0.0,
+        true,
+        None,
+        "cli",
+        &crate::app::agent::config::MultimodalConfig::default(),
+        2,
+        None,
+        None,
+        None,
+        None,
+        &[],
+    )
+    .await
+    .expect("empty response should be retried");
+
+    assert_eq!(result, "verified result");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert!(history.iter().any(|message| {
+        message.role == "user" && message.content == EMPTY_FINAL_RESPONSE_RETRY_PROMPT
+    }));
+}
+
+#[tokio::test]
+async fn run_tool_call_loop_reports_exhausted_when_all_final_responses_are_empty() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let provider = StaticProvider::from_responses(
+        vec![
+            crate::app::agent::providers::ChatResponse {
+                text: None,
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+            crate::app::agent::providers::ChatResponse {
+                text: Some("\n".to_string()),
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+        ],
+        Arc::clone(&calls),
+    );
+    let mut history = vec![ChatMessage::user("finish with a result")];
+    let observer = crate::app::agent::observability::NoopObserver;
+    let tools_registry: Vec<Box<dyn Tool>> = Vec::new();
+
+    let error = run_tool_call_loop(
+        &provider,
+        &mut history,
+        &tools_registry,
+        &observer,
+        "static",
+        "model",
+        0.0,
+        true,
+        None,
+        "cli",
+        &crate::app::agent::config::MultimodalConfig::default(),
+        2,
+        None,
+        None,
+        None,
+        None,
+        &[],
+    )
+    .await
+    .expect_err("empty responses must not be accepted as a result");
+
+    assert!(error.to_string().contains("non-empty final response"));
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
 async fn run_tool_call_loop_omits_excluded_tools_from_provider_request() {
     let calls = Arc::new(AtomicUsize::new(0));
     let provider = StaticProvider::from_text("final answer", Arc::clone(&calls));

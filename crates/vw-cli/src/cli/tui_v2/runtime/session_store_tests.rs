@@ -219,6 +219,41 @@ async fn async_session_store_methods_forward_session_directory_and_payloads() {
 }
 
 #[tokio::test]
+async fn session_commands_use_gateway_routes_and_typed_payloads() {
+    let server = server(vec![
+        (200, json!({"id": "bound", "title": "Renamed"})),
+        (200, json!({"id": "forked", "title": "Forked"})),
+        (200, json!({"id": "bound", "title": "Renamed"})),
+        (200, json!(true)),
+    ]);
+    let runtime = runtime_for_server(&server, Some("bound"), "/repo");
+
+    assert_eq!(runtime.session_update_title(None, "Renamed").await.unwrap().title, "Renamed");
+    assert_eq!(runtime.session_fork_from(None, Some("message-1")).await.unwrap().id, "forked");
+    runtime.session_reset_to(None, "message-2", true).await.unwrap();
+    assert!(runtime.session_summarize_from(None, "message-3").await.unwrap());
+
+    let request = server.take_request();
+    assert_eq!(request.method, "PATCH");
+    assert_eq!(request.path, "/v1/session/bound?directory=%2Frepo");
+    assert_eq!(request.body["title"], "Renamed");
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/session/bound/fork?directory=%2Frepo");
+    assert_eq!(request.body["messageID"], "message-1");
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/session/bound/reset?directory=%2Frepo");
+    assert_eq!(request.body["messageID"], "message-2");
+    assert_eq!(request.body["revertCode"], true);
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/session/bound/summarize?directory=%2Frepo");
+    assert_eq!(request.body["messageID"], "message-3");
+    server.join();
+}
+
+#[tokio::test]
 async fn session_create_propagates_gateway_http_error() {
     let server = server(vec![(500, json!({"error": "creation denied"}))]);
     let runtime = runtime_for_server(&server, None, "/repo");

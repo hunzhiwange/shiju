@@ -77,6 +77,8 @@ fn split_internal_progress_delta_hides_ws_event_payloads_and_preserves_normal_te
 fn channel_delivery_instructions_are_known_for_chat_channels() {
     assert!(channel_delivery_instructions("telegram").is_some());
     assert!(channel_delivery_instructions("whatsapp").is_some());
+    assert!(channel_delivery_instructions("lark").is_some());
+    assert!(channel_delivery_instructions("feishu").is_some());
     assert!(channel_delivery_instructions("unknown").is_none());
 }
 
@@ -84,11 +86,19 @@ fn channel_delivery_instructions_are_known_for_chat_channels() {
 fn channel_delivery_instructions_include_channel_specific_requirements() {
     let telegram = channel_delivery_instructions("telegram").expect("telegram instructions");
     let whatsapp = channel_delivery_instructions("whatsapp").expect("whatsapp instructions");
+    let lark = channel_delivery_instructions("lark").expect("lark instructions");
+    let feishu = channel_delivery_instructions("feishu").expect("feishu instructions");
 
     assert!(telegram.contains("[VOICE:<path-or-url>]"));
     assert!(telegram.contains("bold headers"));
     assert!(whatsapp.contains("[IMAGE:<absolute-path>]"));
     assert!(whatsapp.contains("absolute filesystem path"));
+    for instructions in [lark, feishu] {
+        assert!(instructions.contains("Markdown"));
+        assert!(instructions.contains("tables"));
+        assert!(instructions.contains("code blocks"));
+    }
+    assert_eq!(lark, feishu);
 }
 
 #[test]

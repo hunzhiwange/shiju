@@ -20,12 +20,14 @@ fn agent_request(id: u64, session: &str) -> AgentRequest {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     }
 }
@@ -185,7 +187,7 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
 }
 
 #[test]
-fn get_session_runtime_prefers_existing_state_and_uses_active_defaults_for_missing_state() {
+fn get_session_runtime_prefers_existing_state_and_uses_global_defaults_for_missing_state() {
     let mut app = test_app();
     app.session_runtime_states.clear();
     app.model = "app-model".to_string();
@@ -206,9 +208,9 @@ fn get_session_runtime_prefers_existing_state_and_uses_active_defaults_for_missi
     app.session_runtime_states.insert("active".to_string(), active.clone());
     app.active_session_id = Some("active".to_string());
 
-    let active_default = app.get_session_runtime("another-missing");
-    assert_eq!(active_default.model, "active-model");
-    assert!(!active_default.auto_model);
+    let global_default = app.get_session_runtime("another-missing");
+    assert_eq!(global_default.model, "app-model");
+    assert!(global_default.auto_model);
     assert_eq!(app.get_session_runtime("active").acp_agent, active.acp_agent);
 }
 
@@ -303,12 +305,14 @@ fn find_session_by_request_id_returns_matching_session_only() {
 }
 
 #[test]
-fn sync_active_session_preferences_copies_runtime_values_and_ignores_missing_active_session() {
+fn sync_active_session_preferences_preserves_global_model_and_syncs_other_values() {
     let mut app = test_app();
     app.active_session_id = None;
     app.model = "unchanged".to_string();
+    app.auto_model = false;
     app.sync_active_session_preferences();
     assert_eq!(app.model, "unchanged");
+    assert!(!app.auto_model);
 
     let mut runtime = SessionRuntimeState::with_defaults("session-model".to_string(), true);
     runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);
@@ -320,8 +324,8 @@ fn sync_active_session_preferences_copies_runtime_values_and_ignores_missing_act
 
     app.sync_active_session_preferences();
 
-    assert_eq!(app.model, "session-model");
-    assert!(app.auto_model);
+    assert_eq!(app.model, "unchanged");
+    assert!(!app.auto_model);
     assert_eq!(
         app.reasoning_effort,
         Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
@@ -329,6 +333,83 @@ fn sync_active_session_preferences_copies_runtime_values_and_ignores_missing_act
     assert_eq!(app.acp_agent.as_deref(), Some("session-acp"));
     assert_eq!(app.acp_history_mode, AcpHistoryReplayMode::Recent);
     assert_eq!(app.acp_recent_count, 12);
+}
+
+#[test]
+fn historical_session_model_restore_uses_latest_recorded_model() {
+    let mut app = test_app();
+    app.session_runtime_states.clear();
+    app.model = "previous-session-model".to_string();
+    app.auto_model = false;
+
+    app.prepare_historical_session_model("history");
+    app.active_session_id = Some("history".to_string());
+    app.sync_active_session_preferences();
+
+    assert_eq!(app.model, "previous-session-model");
+    assert!(!app.auto_model);
+    assert_eq!(app.get_session_runtime("history").model, "previous-session-model");
+
+    let steps = vec![
+        crate::app::models::ChatSessionStep {
+            index: 1,
+            started_ms: 1,
+            finished_ms: Some(2),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: crate::app::models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: None,
+            model: Some("provider/old-model".to_string()),
+        },
+        crate::app::models::ChatSessionStep {
+            index: 2,
+            started_ms: 3,
+            finished_ms: Some(4),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: crate::app::models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: None,
+            model: Some(" provider/history-model ".to_string()),
+        },
+    ];
+
+    assert!(app.restore_session_model_from_steps("history", &steps));
+    app.sync_active_session_preferences();
+
+    assert_eq!(app.model, "previous-session-model");
+    assert!(!app.auto_model);
+    let runtime = app.session_runtime_states.get("history").expect("history runtime");
+    assert_eq!(runtime.model, "provider/history-model");
+    assert_eq!(runtime.task_mode_model, "provider/history-model");
+    assert!(!runtime.restore_model_from_history);
+}
+
+#[test]
+fn historical_session_model_restore_preserves_existing_session_selection() {
+    let mut app = test_app();
+    app.session_runtime_states.clear();
+    app.session_runtime_states.insert(
+        "history".to_string(),
+        SessionRuntimeState::with_defaults("session-selection".to_string(), false),
+    );
+
+    app.prepare_historical_session_model("history");
+    let steps = vec![crate::app::models::ChatSessionStep {
+        index: 1,
+        started_ms: 1,
+        finished_ms: Some(2),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: crate::app::models::TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: None,
+        model: Some("provider/history-model".to_string()),
+    }];
+
+    assert!(!app.restore_session_model_from_steps("history", &steps));
+    assert_eq!(app.get_session_runtime("history").model, "session-selection");
 }
 
 #[test]

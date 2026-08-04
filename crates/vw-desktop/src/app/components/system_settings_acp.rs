@@ -1,12 +1,13 @@
 //! 系统设置中 ACP 配置页面的界面拼装与交互消息转换。
 
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_success_banner, settings_value_badge,
+    primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_success_banner, settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 use vw_config_types::config::AcpAgentConfig;
 
@@ -169,6 +170,70 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     .into()
 }
 
+fn form_field<'a>(
+    label: &'static str,
+    control: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    column![text(label).size(11).style(settings_muted_text_style), control.into()]
+        .spacing(6)
+        .width(Length::Fill)
+        .into()
+}
+
+fn new_agent_form(app: &App) -> Element<'_, Message> {
+    let name = text_input("例如：my-agent", &app.acp_settings.new_agent_name_input)
+        .on_input(|value| {
+            Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentNameChanged(value)))
+        })
+        .padding([8, 10])
+        .style(settings_text_input_style);
+    let command = text_input("例如：npx", &app.acp_settings.new_agent_command_input)
+        .on_input(|value| {
+            Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentCommandChanged(value)))
+        })
+        .padding([8, 10])
+        .style(settings_text_input_style);
+    let args = text_input(
+        "例如：-y, @scope/my-acp（逗号分隔）",
+        &app.acp_settings.new_agent_args_input,
+    )
+    .on_input(|value| {
+        Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentArgsChanged(value)))
+    })
+    .padding([8, 10])
+    .style(settings_text_input_style);
+
+    let mut save_button = button(text(if app.acp_settings.adding_agent {
+        "新增中..."
+    } else {
+        "新增并启用"
+    }))
+    .padding([8, 16])
+    .style(primary_action_btn_style);
+    if !app.acp_settings.adding_agent {
+        save_button =
+            save_button.on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgent)));
+    }
+
+    settings_panel(
+        column![
+            text("新增自定义 ACP").size(15),
+            text("名称必须唯一；启动命令需已安装并可从 PATH 访问。")
+                .size(12)
+                .style(settings_muted_text_style),
+            row![form_field("名称", name), form_field("启动命令", command)]
+                .spacing(12)
+                .align_y(Alignment::End),
+            form_field("参数", args),
+            container(save_button)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Right),
+        ]
+        .spacing(12),
+    )
+    .into()
+}
+
 /// 构建 ACP 系统设置页。
 pub fn view(app: &App) -> Element<'_, Message> {
     let refresh_btn =
@@ -176,6 +241,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .padding([7, 14])
             .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
             .style(rounded_action_btn_style);
+    let add_btn = button(
+        text(if app.acp_settings.new_agent_expanded { "收起新增" } else { "新增 ACP" }).size(13),
+    )
+    .padding([7, 14])
+    .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentPanelToggled)))
+    .style(rounded_action_btn_style);
 
     let mut content = column![
         row![
@@ -184,7 +255,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 "查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。"
             ))
             .width(Length::Fill),
-            refresh_btn,
+            row![add_btn, refresh_btn].spacing(8),
         ]
         .align_y(Alignment::Start),
         settings_section_card("可用 ACP", "启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
@@ -194,6 +265,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if let Some(message) = &app.acp_settings.status_message {
         content = content.push(settings_success_banner(message));
+    }
+    if let Some(error) = &app.acp_settings.save_error {
+        content = content.push(settings_error_banner(error));
+    }
+    if app.acp_settings.new_agent_expanded {
+        content = content.push(new_agent_form(app));
     }
 
     let agents = ordered_agents(app);

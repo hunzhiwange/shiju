@@ -70,11 +70,9 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
                 enabled.then(|| IMessageConfig { allowed_contacts: Vec::new() })
         }
         "matrix" => {
+            app.channels_settings.matrix_enabled = enabled;
             if enabled {
                 app.channels_settings.matrix.get_or_insert_with(default_matrix_config);
-            } else {
-                app.channels_settings.matrix = None;
-                app.channels_settings.matrix_instances.clear();
             }
         }
         "signal" => {

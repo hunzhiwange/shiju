@@ -6,7 +6,7 @@
 //!
 //! - **文件树视图**：以树形结构展示项目的目录和文件
 //! - **文件管理器视图**：提供更丰富的交互界面，支持切换查看全部文件或仅查看 Git 更改
-//! - **查找结果集成**：与查找结果功能集成，支持在标签页中显示查找结果
+//! - **查找结果集成**：与查找结果功能集成，在文件管理器中显示搜索结果
 //! - **Git 更改追踪**：显示 Git 仓库中的已更改文件列表
 //!
 //! ## 子模块结构
@@ -25,7 +25,8 @@
 //! ```
 
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Theme};
 
 use crate::app::components::status_animation::spinner_frame;
@@ -41,6 +42,11 @@ mod menu;
 pub(crate) mod model;
 mod tree_list;
 mod widgets;
+
+pub(super) const FILE_MANAGER_SEARCH_ICON_SIZE: f32 = 14.0;
+const FILE_MANAGER_SEARCH_BUTTON_SIZE: f32 = 28.0;
+pub(super) const FILE_MANAGER_SEARCH_TAB_WIDTH: f32 = 36.0;
+pub(super) const FILE_MANAGER_MODE_BAR_HEIGHT: f32 = 30.0;
 
 #[cfg(test)]
 #[path = "find_results_tests.rs"]
@@ -101,8 +107,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// 渲染文件管理器视图
 ///
 /// 创建一个功能更丰富的文件管理器视图，提供文件树展示和 Git 更改追踪功能。
-/// 该视图包含一个切换按钮，允许用户在"更改"和"全部文件"之间切换，
-/// 并且支持显示查找结果标签页。
+/// 该视图包含一个模式栏，允许用户在"更改"、"全部文件"和搜索之间切换。
 ///
 /// # 参数
 ///
@@ -117,9 +122,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// # 返回值
 ///
 /// 返回一个 Iced UI 元素，包含以下组件（从上到下）：
-/// 1. **切换按钮栏**：在"更改"和"全部文件"之间切换
-/// 2. **查找结果标签页**（如果存在）：显示查找结果的标签页栏
-/// 3. **内容区域**：
+/// 1. **模式栏**：在"更改"、"全部文件"和搜索之间切换
+/// 2. **内容区域**：
 ///    - 如果有活动的查找结果标签页：显示查找结果列表
 ///    - 如果启用了"显示更改"：显示 Git 更改的文件列表
 ///    - 否则：显示完整的文件树
@@ -138,6 +142,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 /// sidebar.push(file_manager);
 /// ```
 pub fn view_file_manager(app: &App) -> Element<'_, Message> {
+    // 工作模式直接复用本函数；构建视图只读取文件管理器状态，不改写代码模式面板开关。
     if app.project_path.is_none() {
         return column![text("未打开项目")].into();
     }
@@ -225,7 +230,29 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
         app.file_manager_file_tree_refreshing,
     );
 
-    // 组装顶部切换按钮栏
+    let searching = app.active_find_results_tab_id.is_some();
+    let search_btn = button(
+        container(
+            icons::themed_icon_svg(Icon::Search)
+                .width(Length::Fixed(FILE_MANAGER_SEARCH_ICON_SIZE))
+                .height(Length::Fixed(FILE_MANAGER_SEARCH_ICON_SIZE)),
+        )
+        .width(Length::Fixed(FILE_MANAGER_SEARCH_BUTTON_SIZE))
+        .height(Length::Fixed(FILE_MANAGER_SEARCH_BUTTON_SIZE))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(Message::Project(file_manager_search_message(app)))
+    .padding(0)
+    .style(button::text);
+    let search_btn = Tooltip::new(
+        search_btn,
+        container(text("搜索").size(12)).padding([5, 8]),
+        TooltipPosition::Bottom,
+    )
+    .gap(6);
+
+    // 组装单层模式栏，避免文件和搜索再形成第二层标签页。
     let header = row![
         container(
             row![changes_btn, changes_refresh_btn]
@@ -236,7 +263,7 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
         .width(Length::FillPortion(1))
         .center_x(Length::Fill)
         .padding([0, 8])
-        .style(segment_style(app.file_manager_show_changes)),
+        .style(segment_style(app.file_manager_show_changes && !searching)),
         container(
             row![files_btn, files_refresh_btn]
                 .spacing(0)
@@ -246,10 +273,17 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
         .width(Length::FillPortion(1))
         .center_x(Length::Fill)
         .padding([0, 8])
-        .style(segment_style(!app.file_manager_show_changes))
+        .style(segment_style(!app.file_manager_show_changes && !searching)),
+        container(search_btn)
+            .width(Length::Fixed(FILE_MANAGER_SEARCH_TAB_WIDTH))
+            .height(Length::Fixed(FILE_MANAGER_MODE_BAR_HEIGHT))
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center)
+            .style(segment_style(searching))
     ]
     .spacing(4)
     .width(Length::Fill)
+    .height(Length::Fixed(FILE_MANAGER_MODE_BAR_HEIGHT))
     .align_y(iced::Alignment::Center)
     .padding([0, 5]);
 
@@ -274,21 +308,22 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
 
     let content = container(list_content).width(Length::Fill).height(Length::Fill);
 
-    // 构建查找结果标签页栏（如果存在）
-    // 如果没有查找结果标签页，则使用一个高度为 0 的空白元素占位
-    let results_tabs: Element<'_, Message> = if app.find_results_tabs.is_empty() {
-        Space::new().height(Length::Fixed(0.0)).into()
-    } else {
-        find_results::build_find_results_tabs(app)
-    };
-
     // 组装完整的文件管理器界面
-    // 布局顺序：切换按钮栏 -> 查找结果标签页 -> 内容区域
-    let base: Element<'_, Message> = column![header, results_tabs, content]
-        .spacing(2)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into();
+    // 布局顺序：模式栏 -> 内容区域
+    let base: Element<'_, Message> =
+        column![header, content].spacing(2).width(Length::Fill).height(Length::Fill).into();
 
     base
+}
+
+fn file_manager_search_message(app: &App) -> message::ProjectMessage {
+    app.active_find_results_tab_id
+        .as_ref()
+        .filter(|active_id| {
+            app.find_results_tabs.iter().any(|tab| tab.id.as_str() == active_id.as_str())
+        })
+        .cloned()
+        .or_else(|| app.find_results_tabs.last().map(|tab| tab.id.clone()))
+        .map(message::ProjectMessage::FileTreeFindTabSelected)
+        .unwrap_or(message::ProjectMessage::FileTreeFindInProject)
 }

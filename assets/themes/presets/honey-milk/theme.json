@@ -1,0 +1,25 @@
+{
+  "id": "honey-milk",
+  "name": "蜂蜜牛奶 Honey Milk",
+  "tagline": "搅拌后还留一圈琥珀色。",
+  "palette": {
+    "background": "#faf6ed",
+    "text": "#3d362e",
+    "primary": "#c9a35f",
+    "success": "#e0c288",
+    "warning": "#8c9a6d",
+    "danger": "#b8a28a"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#c9a35f",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

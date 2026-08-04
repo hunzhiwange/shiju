@@ -9,7 +9,8 @@ VibeWindow 是一个 Rust-first 的自主代理运行时，目标是在桌面端
 - `vibewindow` CLI：交互式 Agent、单次消息、网关、守护进程、任务、记忆、技能、集成、计划任务和安全维护。
 - `vibe-window` 桌面端：基于 Iced 的本地桌面应用。
 - `vw-webview` helper：跨平台 WebView 窗口，用于桌面打包场景。
-- `vw-acp`：Agent Client Protocol 桥接入口。
+- `acp`：VibeWindow 作为 ACP Client 的现有桥接入口。
+- `vibewindow acp`：VibeWindow 作为 ACP Agent 的 stdio 入口。
 - 共享 crate：API 类型、配置类型、网关客户端、运行时核心、提供商解析和通用工具。
 
 ## 仓库结构
@@ -62,6 +63,7 @@ cargo run -p vw-cli --bin vibewindow -- agent -m "总结这个仓库的主要模
 启动桌面应用：
 
 ```bash
+cargo build -p vw-webview --bin vw-webview
 cargo run -p vw-desktop --bin vibe-window
 ```
 
@@ -75,6 +77,12 @@ cargo run -p vw-cli --bin vibewindow -- gateway --host 127.0.0.1 --port 8080
 
 ```bash
 cargo run -p vw-cli --bin vibewindow -- daemon
+```
+
+作为 ACP Agent 供外部 Client 启动：
+
+```bash
+cargo run -p vw-cli --bin vibewindow -- acp
 ```
 
 ## 常用 CLI 命令
@@ -127,11 +135,14 @@ cargo build -p vw-desktop --bin vibe-window --release
 cargo build -p vw-webview --bin vw-webview --release
 ```
 
-构建 ACP 桥接：
+构建 VibeWindow 作为 ACP Client 的现有桥接程序：
 
 ```bash
 cargo build -p vw-acp --bin acp --release
 ```
+
+ACP Agent 入口包含在 `vibewindow` CLI 构建中，接入配置和支持矩阵见
+[`docs/vibewindow/ACP-对外接入.md`](docs/vibewindow/ACP-对外接入.md)。
 
 ## 打包
 
@@ -203,6 +214,7 @@ cargo clippy -p vw-desktop --all-targets -- -D warnings
 
 ## 相关文档
 
+- [`docs/vibewindow/ACP-对外接入.md`](docs/vibewindow/ACP-对外接入.md)：ACP Agent 启动、能力矩阵与安全边界。
 - [`docs/knowledge-base.md`](docs/knowledge-base.md)：知识库入库、嵌入配置和验证指南。
 - [`docs/staff-task-flow-messages.md`](docs/staff-task-flow-messages.md)：员工任务流交接消息、IPC 投递和阶段 Workflow 绑定说明。
 - [`docs/matrix-task-pool-rooms.md`](docs/matrix-task-pool-rooms.md)：可选 Matrix 任务池审计桥接说明。

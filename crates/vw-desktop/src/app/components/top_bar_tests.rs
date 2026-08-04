@@ -1,8 +1,27 @@
 use crate::app::App;
+use crate::app::Screen;
+use crate::app::state::WorkspaceMode;
+use iced::advanced::widget::Tree;
+use iced::advanced::widget::tree::Tag;
 use iced::{Background, Color, Length, Size, Theme};
 
 fn test_app() -> App {
     App::new().0
+}
+
+fn ordered_tree_shape(trees: &[Tree]) -> Vec<(Tag, usize)> {
+    fn collect(tree: &Tree, shape: &mut Vec<(Tag, usize)>) {
+        shape.push((tree.tag, tree.children.len()));
+        for child in &tree.children {
+            collect(child, shape);
+        }
+    }
+
+    let mut shape = Vec::new();
+    for tree in trees {
+        collect(tree, &mut shape);
+    }
+    shape
 }
 
 #[test]
@@ -12,7 +31,9 @@ fn top_bar_height_remains_28_pixels_for_project_layout() {
 
 #[test]
 fn view_builds_single_row_with_all_toolbar_sections() {
-    let app = test_app();
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Code;
     let element = super::top_bar::view(&app);
 
     assert_eq!(
@@ -21,7 +42,39 @@ fn view_builds_single_row_with_all_toolbar_sections() {
     );
 
     let children = element.as_widget().children();
-    assert_eq!(children.len(), 10);
+    assert_eq!(children.len(), 11);
+}
+
+#[test]
+fn work_top_bar_keeps_all_global_menus_and_project_tools() {
+    let mut code_app = test_app();
+    code_app.screen = Screen::Project;
+    code_app.workspace_mode = WorkspaceMode::Code;
+    let code_element = super::top_bar::view(&code_app);
+    let code_children = code_element.as_widget().children();
+    let code_structure = ordered_tree_shape(&code_children);
+
+    let mut work_app = test_app();
+    work_app.screen = Screen::Project;
+    work_app.workspace_mode = WorkspaceMode::Work;
+    let work_element = super::top_bar::view(&work_app);
+    let work_children = work_element.as_widget().children();
+    let work_structure = ordered_tree_shape(&work_children);
+
+    assert_eq!(code_children.len(), 11);
+    assert_eq!(work_children.len(), 11);
+    assert_eq!(work_structure, code_structure);
+}
+
+#[test]
+fn workspace_mode_selector_keeps_code_controls() {
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Code;
+
+    let element = super::top_bar::view(&app);
+
+    assert_eq!(element.as_widget().children().len(), 11);
 }
 
 #[test]

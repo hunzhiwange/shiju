@@ -35,6 +35,7 @@ use crate::app::agent::cron::{self, DeliveryConfig, JobType, Schedule, SessionTa
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use serde_json::json;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Cron 任务添加工具
@@ -74,6 +75,12 @@ pub struct CronAddTool {
 
     /// 安全策略实例，用于验证操作权限和限制执行频率
     security: Arc<SecurityPolicy>,
+
+    /// 当前工具调用所在的项目目录；通过通用工具注册表创建时自动注入。
+    default_project_path: Option<PathBuf>,
+
+    /// 当前工具调用是否具有完全访问权限；通过通用工具注册表创建时自动注入。
+    default_full_access: Option<bool>,
 }
 
 impl CronAddTool {
@@ -96,7 +103,25 @@ impl CronAddTool {
     /// let tool = CronAddTool::new(config, security);
     /// ```
     pub fn new(config: Arc<Config>, security: Arc<SecurityPolicy>) -> Self {
-        Self { config, security }
+        Self {
+            config,
+            security,
+            default_project_path: None,
+            default_full_access: None,
+        }
+    }
+
+    /// 设置新任务默认继承的当前执行上下文。
+    ///
+    /// 显式工具参数仍优先于这些默认值。
+    pub fn with_execution_defaults(
+        mut self,
+        project_path: impl AsRef<Path>,
+        full_access: bool,
+    ) -> Self {
+        self.default_project_path = Some(project_path.as_ref().to_path_buf());
+        self.default_full_access = Some(full_access);
+        self
     }
 
     /// 强制执行变更权限检查
@@ -266,6 +291,18 @@ impl Tool for CronAddTool {
                 // 模型指定 - 可选的模型覆盖
                 "model": { "type": "string" },
 
+                // 项目目录 - 省略时继承当前工具调用所在的工作区
+                "project_path": {
+                    "type": "string",
+                    "description": "任务执行项目目录；省略时继承当前工作区"
+                },
+
+                // 完全访问权限 - 省略时继承当前工具调用权限
+                "full_access": {
+                    "type": "boolean",
+                    "description": "任务是否以完全访问权限执行；省略时继承当前会话权限"
+                },
+
                 // 投递配置 - 控制输出如何发送到外部渠道
                 "delivery": {
                     "type": "object",
@@ -426,6 +463,21 @@ impl Tool for CronAddTool {
 
         // 解析 approved 标志，用于预先批准高风险命令
         let approved = args.get("approved").and_then(serde_json::Value::as_bool).unwrap_or(false);
+        let project_path = args
+            .get("project_path")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .or_else(|| {
+                self.default_project_path
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().to_string())
+            });
+        let full_access = args
+            .get("full_access")
+            .and_then(serde_json::Value::as_bool)
+            .or(self.default_full_access);
 
         // 步骤 6: 根据任务类型执行不同的创建逻辑
         let result = match job_type {
@@ -533,7 +585,21 @@ impl Tool for CronAddTool {
                     delete_after_run,
                 )
             }
-        };
+        }
+        .and_then(|job| {
+            if project_path.is_none() && full_access.is_none() {
+                return Ok(job);
+            }
+            cron::update_job(
+                &self.config,
+                &job.id,
+                cron::CronJobPatch {
+                    project_path: project_path.clone(),
+                    full_access,
+                    ..cron::CronJobPatch::default()
+                },
+            )
+        });
 
         // 步骤 7: 处理任务创建结果
         // 将结果转换为 ToolResult 格式返回给调用者

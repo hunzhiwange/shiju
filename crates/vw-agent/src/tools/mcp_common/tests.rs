@@ -88,7 +88,7 @@ fn write_json(path: &Path, value: serde_json::Value) {
 }
 
 fn write_plugin_manifest(plugin_root: &Path, name: &str, mcp_path: &str) {
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(
         manifest_dir.join("plugin.json"),

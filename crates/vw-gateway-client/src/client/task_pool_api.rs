@@ -1,11 +1,11 @@
 use vw_api_types::task::{
-    TaskPlanRunRequest, TaskPlanRunStreamEventDto, TaskPoolMatrixEventsResponse,
-    TaskPoolMatrixPublishRequest, TaskPoolMatrixPublishResponse, TaskPoolWorktreeAcquireRequest,
-    TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeMaintenanceRequest,
-    TaskPoolWorktreeMaintenanceResponse, TaskPoolWorktreeMergeLockRequest,
-    TaskPoolWorktreeMergeLockResponse, TaskPoolWorktreeMergeUnlockRequest,
-    TaskPoolWorktreeMergeUnlockResponse, TaskPoolWorktreeRecycleRequest,
-    TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseRequest,
+    TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
+    TaskPoolMatrixEventsResponse, TaskPoolMatrixPublishRequest, TaskPoolMatrixPublishResponse,
+    TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
+    TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
+    TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
+    TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeMergeUnlockResponse,
+    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseRequest,
     TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotRecycleRequest,
     TaskPoolWorktreeSlotRecycleResponse, TaskPoolWorktreeSnapshotRequest,
     TaskPoolWorktreeSnapshotResponse,
@@ -17,6 +17,7 @@ use super::request_helpers::GatewayRetryPolicy;
 const TASK_POOL_RETRY_ATTEMPTS: usize = 3;
 const TASK_POOL_RETRY_BACKOFF_MS: u64 = 120;
 const TASK_PLAN_RUN_STREAM_PATH: &str = "/v1/task-plan-run/stream";
+const TASK_PLAN_RUN_PATH: &str = "/v1/task-plan-run";
 const TASK_POOL_MATRIX_EVENTS_PATH: &str = "/v1/task-pool/matrix/events";
 const TASK_POOL_WORKTREE_SNAPSHOT_PATH: &str = "/v1/task-pool/worktrees/snapshot";
 const TASK_POOL_WORKTREE_MAINTAIN_PATH: &str = "/v1/task-pool/worktrees/maintain";
@@ -34,6 +35,31 @@ impl GatewayClient {
         body: &TaskPlanRunRequest,
         mut on_event: impl FnMut(TaskPlanRunStreamEventDto) -> bool,
     ) -> Result<(), String> {
+        Self::stream_task_plan_run_attempt(endpoint, body, None, |event| on_event(event.event))
+            .await
+            .map(|_| ())
+    }
+
+    /// 执行一次支持请求复用与游标恢复的计划运行流订阅。
+    pub async fn stream_task_plan_run_resumable(
+        endpoint: &crate::endpoint::GatewayEndpoint,
+        body: &TaskPlanRunRequest,
+        resume: &crate::stream::GatewayStreamResume,
+        on_event: impl FnMut(
+            crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>,
+        ) -> bool,
+    ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
+        Self::stream_task_plan_run_attempt(endpoint, body, Some(resume), on_event).await
+    }
+
+    async fn stream_task_plan_run_attempt(
+        endpoint: &crate::endpoint::GatewayEndpoint,
+        body: &TaskPlanRunRequest,
+        resume: Option<&crate::stream::GatewayStreamResume>,
+        mut on_event: impl FnMut(
+            crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>,
+        ) -> bool,
+    ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
         use futures_util::StreamExt;
 
         use crate::http::{
@@ -55,10 +81,12 @@ impl GatewayClient {
         let client = builder
             .build()
             .map_err(|err| transport_error("POST", endpoint, TASK_PLAN_RUN_STREAM_PATH, err))?;
-        let request = apply_request_context(
-            client.post(format!("{}{}", endpoint.base_url(), TASK_PLAN_RUN_STREAM_PATH)).json(body),
-            endpoint,
-        );
+        let mut request =
+            client.post(format!("{}{}", endpoint.base_url(), TASK_PLAN_RUN_STREAM_PATH)).json(body);
+        if let Some(resume) = resume {
+            request = crate::stream::apply_stream_resume(request, resume);
+        }
+        let request = apply_request_context(request, endpoint);
         let response = request
             .send()
             .await
@@ -74,30 +102,57 @@ impl GatewayClient {
             let chunk = chunk.map_err(|err| err.to_string())?;
             sse_buffer.push_str(&String::from_utf8_lossy(&chunk));
             while let Some(frame) = crate::stream::take_next_sse_event(&mut sse_buffer) {
-                let payload = frame
-                    .lines()
-                    .filter_map(|line| line.trim_end_matches('\r').strip_prefix("data:"))
-                    .map(str::trim_start)
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if payload.is_empty() {
+                let Some(frame) = crate::stream::parse_sse_frame(&frame)? else {
                     continue;
-                }
+                };
+                let id = match (frame.id, resume.is_some()) {
+                    (Some(id), _) => id,
+                    (None, true) => {
+                        return Err(
+                            "gateway resumable stream event is missing SSE id".to_string()
+                        );
+                    }
+                    (None, false) => 0,
+                };
 
-                let event = serde_json::from_str::<TaskPlanRunStreamEventDto>(&payload)
+                let event = serde_json::from_str::<TaskPlanRunStreamEventDto>(&frame.data)
                     .map_err(|err| err.to_string())?;
+                // Blocked 与 Finished/Error 同为终态：服务端在 Blocked 后会结束 SSE。
                 let terminal = matches!(
                     event,
                     TaskPlanRunStreamEventDto::Finished { .. }
                         | TaskPlanRunStreamEventDto::Error { .. }
+                        | TaskPlanRunStreamEventDto::Blocked { .. }
+                        | TaskPlanRunStreamEventDto::Cancelled { .. }
                 );
-                if !on_event(event) || terminal {
-                    return Ok(());
+                if !on_event(crate::stream::GatewayStreamEvent { id, event }) {
+                    return Ok(crate::stream::GatewayStreamAttemptResult::CallerStopped);
+                }
+                if terminal {
+                    return Ok(crate::stream::GatewayStreamAttemptResult::Terminated);
                 }
             }
         }
 
-        Ok(())
+        Ok(crate::stream::GatewayStreamAttemptResult::Incomplete)
+    }
+
+    /// 查询当前租户下的 plan-run 状态。
+    pub async fn task_plan_run_status(
+        &self,
+        task_id: &str,
+    ) -> Result<TaskPlanRunStatusResponse, String> {
+        let path = format!("{TASK_PLAN_RUN_PATH}/{task_id}/status");
+        self.get_json(&path, &[]).await
+    }
+
+    /// 幂等停止当前租户下的 plan-run。
+    pub async fn task_plan_run_stop(
+        &self,
+        task_id: &str,
+    ) -> Result<TaskPlanRunStatusResponse, String> {
+        let path = format!("{TASK_PLAN_RUN_PATH}/{task_id}/stop");
+        self.post_json(&path, &[], &serde_json::json!({})).await
     }
 
     /// 通过网关发布任务池 Matrix 协同事件。

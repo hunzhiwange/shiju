@@ -1,8 +1,9 @@
 use super::{
     fullscreen_icon_style, fullscreen_tooltip_style, overlay_icon_button_style,
-    preview_breadcrumb_segments, view,
+    preview_breadcrumb_segments, show_fullscreen_controls, view,
 };
 use crate::app::components::editor::Editor;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, PreviewTab, Screen};
 use iced::widget::button;
 use iced::{Background, Color, Theme, widget::Id};
@@ -100,6 +101,18 @@ fn view_builds_fullscreen_exit_controls() {
     app.git_diff_fullscreen = true;
 
     keep(view(&app));
+}
+
+#[test]
+fn preview_fullscreen_controls_only_show_in_code_mode() {
+    let mut app = app();
+    app.screen = Screen::Project;
+
+    app.workspace_mode = WorkspaceMode::Code;
+    assert!(show_fullscreen_controls(&app));
+
+    app.workspace_mode = WorkspaceMode::Work;
+    assert!(!show_fullscreen_controls(&app));
 }
 
 #[test]

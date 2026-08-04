@@ -55,6 +55,10 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
     base.into_iter().filter(|tool| requested.contains(tool)).collect()
 }
 
+pub(crate) fn require_agent_tool_enabled(options: &Value) -> bool {
+    options.get("require_agent_tool").and_then(Value::as_bool).unwrap_or(false)
+}
+
 /// 构建用于日志输出的响应预览。
 pub(crate) fn response_preview(text: &str) -> String {
     crate::app::agent::util::truncate_with_ellipsis(

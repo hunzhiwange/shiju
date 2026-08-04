@@ -25,7 +25,7 @@ use crate::app::lsp::config::lsp_language_for_path;
 // 导入 LSP 事件类型
 use crate::app::lsp::LspEvent;
 // 导入应用相关的核心类型和工具函数
-use crate::app::{App, Message, PreviewTab, lsp_root_uri_for_path, path_to_file_uri};
+use crate::app::{App, Message, PreviewTab, path_to_file_uri};
 // 导入 Iced 框架的任务和 widget 相关类型
 use iced::Task;
 use iced::widget::operation::{focus, scroll_to};
@@ -35,6 +35,20 @@ use iced_code_editor::LspDocument;
 // 导入标准库的路径和时间类型
 use std::path::Path;
 use std::time::{Duration, Instant};
+
+pub(super) fn lsp_root_uri_for_preview_path(
+    project_path: Option<&str>,
+    file_path: &Path,
+) -> Option<String> {
+    if let Some(project_root) =
+        project_path.filter(|project_root| !project_root.trim().is_empty()).map(Path::new)
+    {
+        return Some(path_to_file_uri(project_root));
+    }
+
+    let standalone_root = if file_path.is_dir() { file_path } else { file_path.parent()? };
+    Some(path_to_file_uri(standalone_root))
+}
 
 /// 断开预览标签页与 LSP 服务器的连接
 ///
@@ -109,7 +123,8 @@ pub(crate) fn sync_lsp_for_path(app: &mut App, path: &str) -> bool {
     };
 
     // 确定项目根目录 URI，无法确定则断开 LSP 并返回失败
-    let Some(root_uri) = lsp_root_uri_for_path(Some(path_obj)) else {
+    let Some(root_uri) = lsp_root_uri_for_preview_path(app.project_path.as_deref(), path_obj)
+    else {
         let tab = &mut app.preview_tabs[tab_index];
         detach_lsp_for_tab(tab);
         return false;
@@ -679,9 +694,7 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                     } else {
                         app.lsp_overlay.show_hover(text);
                         app.lsp_hover_hide_deadline = None;
-                        if app.lsp_overlay_path.is_none() {
-                            app.lsp_overlay_path = app.active_preview_path.clone();
-                        }
+                        app.lsp_overlay_path = app.active_preview_path.clone();
                         tracing::debug!(
                             "[LSP HOVER] show_hover called, hover_visible={}, hover_position={:?}",
                             app.lsp_overlay.hover_visible,
@@ -714,8 +727,8 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                         app.lsp_overlay.completion_position = tab.editor.cursor_screen_position();
                     }
 
-                    // 如果补全窗口可见且没有关联路径，设置当前路径
-                    if app.lsp_overlay_path.is_none() && app.lsp_overlay.completion_visible {
+                    // 补全结果属于当前活动预览，覆盖切换标签前遗留的浮层路径。
+                    if app.lsp_overlay.completion_visible {
                         app.lsp_overlay_path = app.active_preview_path.clone();
                     }
                 }

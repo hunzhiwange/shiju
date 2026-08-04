@@ -6,6 +6,8 @@
 //! - runtime 侧尚未识别的事件，显式转换为 UI warning，而不是静默吞掉
 //! - timeout/error 终态补一条错误消息，便于 renderer 在 transcript 中稳定展示
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use serde_json::Value;
 use vw_gateway_client::GatewayChatUsage;
 
@@ -15,18 +17,50 @@ use super::{
 };
 use crate::cli::tui_v2::model::{
     UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage, UiSystemMessageLevel,
-    UiTokenUsage, UiToolCallState, UiTurnTerminal,
+    UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCallState,
+    UiTurnTerminal,
 };
 use crate::cli::tui_v2::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
 const THINK_OPEN_TAG: &str = "<think>";
 const THINK_CLOSE_TAG: &str = "</think>";
+const REDACTED_THINK_OPEN_TAG: &str = "<redacted-thinking>";
+const REDACTED_THINK_CLOSE_TAG: &str = "</redacted-thinking>";
 
 /// 将单个 runtime 事件应用到状态层。
 pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) {
+    apply_runtime_event_at(state, event, wall_clock_ms());
+}
+
+/// 使用调用方提供的确定时间应用 runtime 事件。
+pub(crate) fn apply_runtime_event_at(
+    state: &mut TuiState,
+    event: UiRuntimeEvent,
+    event_time_ms: u64,
+) {
+    state.runtime.event_time_ms = Some(event_time_ms);
+    state.runtime.last_event_time_ms = Some(event_time_ms);
     match event {
+        UiRuntimeEvent::PlanRunTaskStarted { task_id } => {
+            state.runtime.active_plan_run_task_id = Some(task_id);
+        }
         UiRuntimeEvent::Delta(delta) => {
             apply_runtime_delta(state, delta);
+        }
+        UiRuntimeEvent::ContextLoaded { paths } => {
+            if !paths.is_empty() {
+                reduce_tui_state(
+                    state,
+                    TuiAction::MessagePushed(UiMessage::System(UiSystemMessage {
+                        base: next_ui_message_base(state, "context-loaded"),
+                        text: format!("已加载上下文文件：\n- {}", paths.join("\n- ")),
+                        level: UiSystemMessageLevel::Info,
+                    })),
+                );
+            }
+        }
+        UiRuntimeEvent::Message(message) => {
+            reduce_tui_state(state, TuiAction::MessagePushed(message));
         }
         UiRuntimeEvent::StepStart { step_index, created_ms, model } => {
             reduce_tui_state(
@@ -50,10 +84,14 @@ pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) {
             if state.runtime.thinking_open {
                 reduce_tui_state(state, TuiAction::ThinkingClosed);
                 state.runtime.thinking_open = false;
+                state.runtime.thinking_redacted = false;
             }
             apply_runtime_terminal(state, terminal);
+            state.runtime.active_plan_run_task_id = None;
         }
-        UiRuntimeEvent::TaskStateChanged { .. } | UiRuntimeEvent::UsageUpdated { .. } => {}
+        UiRuntimeEvent::PostToolRound
+        | UiRuntimeEvent::TaskStateChanged { .. }
+        | UiRuntimeEvent::UsageUpdated { .. } => {}
         UiRuntimeEvent::SessionMetadataChanged { session_id, title } => {
             if runtime_event_targets_current_session(state, session_id.as_deref())
                 && let Some(title) = title
@@ -73,9 +111,44 @@ pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) {
             );
         }
     }
+    state.runtime.event_time_ms = None;
 }
 
 fn apply_runtime_delta(state: &mut TuiState, delta: String) {
+    if state.runtime.thinking_redacted {
+        if let Some(close_index) = delta.find(REDACTED_THINK_CLOSE_TAG) {
+            state.runtime.thinking_open = false;
+            state.runtime.thinking_redacted = false;
+            let remaining = delta[close_index + REDACTED_THINK_CLOSE_TAG.len()..]
+                .trim_start_matches(['\r', '\n']);
+            if !remaining.is_empty() {
+                apply_runtime_delta(state, remaining.to_string());
+            }
+        }
+        return;
+    }
+
+    if let Some(open_index) = delta.find(REDACTED_THINK_OPEN_TAG) {
+        let visible_prefix = &delta[..open_index];
+        if !visible_prefix.is_empty() {
+            apply_runtime_delta(state, visible_prefix.to_string());
+        }
+
+        append_redacted_thinking_placeholder(state);
+        let after_open = &delta[open_index + REDACTED_THINK_OPEN_TAG.len()..];
+        if let Some(close_index) = after_open.find(REDACTED_THINK_CLOSE_TAG) {
+            let remaining = after_open[close_index + REDACTED_THINK_CLOSE_TAG.len()..]
+                .trim_start_matches(['\r', '\n']);
+            if !remaining.is_empty() {
+                apply_runtime_delta(state, remaining.to_string());
+            }
+        } else {
+            state.runtime.thinking_open = true;
+            state.runtime.thinking_redacted = true;
+        }
+        return;
+    }
+
     if !state.runtime.thinking_open
         && let Some(tool_update) = parse_tool_delta(delta.as_str())
     {
@@ -126,6 +199,33 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
     }
 }
 
+fn append_redacted_thinking_placeholder(state: &mut TuiState) {
+    let event_time_ms = state.runtime.event_time_ms.unwrap_or_default();
+    let base = next_ui_message_base(state, "thinking-redacted").with_created_ms(event_time_ms);
+    reduce_tui_state(
+        state,
+        TuiAction::MessagePushed(UiMessage::Thinking(UiThinkingBlock {
+            base,
+            summary: Some("Thinking redacted".to_string()),
+            content: String::new(),
+            timing: vec![UiThinkingTiming {
+                start_ms: event_time_ms,
+                end_ms: Some(event_time_ms),
+                last_update_ms: event_time_ms,
+            }],
+            collapsed: true,
+            phase: UiThinkingPhase::Redacted,
+        })),
+    );
+}
+
+fn wall_clock_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or_default()
+}
+
 fn parse_tool_delta(delta: &str) -> Option<TuiToolCallUpdate> {
     let (first, rest) = delta.split_once('\n')?;
     let tool_name = first.trim().strip_prefix("tool ")?.trim();
@@ -140,12 +240,18 @@ fn parse_tool_delta(delta: &str) -> Option<TuiToolCallUpdate> {
         .map(str::trim)
         .filter(|status| !status.is_empty())?;
 
-    let arguments = runtime_text_value(payload.get("input"));
+    let append_arguments = status == "input_json_delta";
+    let arguments = if append_arguments {
+        runtime_text_value(payload.get("input_json_delta"))
+    } else {
+        runtime_text_value(payload.get("input"))
+    };
     let summary = runtime_text_value(payload.get("title"))
         .filter(|title| !title.eq_ignore_ascii_case(tool_name));
 
     let (state, result) = match status {
-        "running" => (UiToolCallState::Running, None),
+        "queued" => (UiToolCallState::Queued, None),
+        "running" | "input_json_delta" => (UiToolCallState::Running, None),
         "completed" => (
             UiToolCallState::Complete,
             Some(TuiToolResultUpdate {
@@ -162,10 +268,18 @@ fn parse_tool_delta(delta: &str) -> Option<TuiToolCallUpdate> {
                 is_error: true,
             }),
         ),
+        "cancelled" | "canceled" => (UiToolCallState::Cancelled, None),
         _ => return None,
     };
 
-    Some(TuiToolCallUpdate { tool_name: tool_name.to_string(), summary, arguments, state, result })
+    Some(TuiToolCallUpdate {
+        tool_name: tool_name.to_string(),
+        summary,
+        arguments,
+        append_arguments,
+        state,
+        result,
+    })
 }
 
 fn runtime_text_value(value: Option<&Value>) -> Option<String> {

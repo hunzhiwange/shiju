@@ -92,3 +92,22 @@ fn schedule_tool_calls_treats_unknown_tools_as_serial() {
     assert_eq!(batches.len(), 1);
     assert_eq!(batches[0].mode, ScheduledToolBatchMode::Sequential);
 }
+
+#[test]
+fn schedule_tool_calls_allows_isolated_agent_tools_to_run_in_parallel() {
+    let registry: Vec<Box<dyn Tool>> =
+        vec![Box::new(FakeTool { name: "AgentTool", read_only: false, concurrency_safe: true })];
+    let calls = (0..3)
+        .map(|index| PendingToolCall {
+            name: "AgentTool".to_string(),
+            arguments: serde_json::json!({ "prompt": format!("task-{index}") }),
+            tool_call_id: None,
+        })
+        .collect::<Vec<_>>();
+
+    let batches = schedule_tool_calls(&calls, &registry);
+
+    assert_eq!(batches.len(), 1);
+    assert_eq!(batches[0].mode, ScheduledToolBatchMode::Parallel);
+    assert_eq!(batches[0].calls.len(), 3);
+}

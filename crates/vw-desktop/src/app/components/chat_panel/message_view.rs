@@ -53,6 +53,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, row, text as iced_text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::borrow::Cow;
+use vw_shared::session::ui_types::ProcessingTiming;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::attachment::{
@@ -66,7 +67,9 @@ use crate::app::{App, Message, message};
 use self::assistant_body::render_assistant_body;
 use self::render_cache::resolve_visible_text_and_copy_hash;
 use self::styles::{
-    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, is_dark_theme, message_meta_text_color,
+    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, PROCESSING_DURATION_TEXT_SIZE,
+    is_dark_theme, message_meta_text_color, processing_duration_separator_color,
+    processing_duration_text_color,
 };
 use self::text::{
     message_editor_body, message_text_body, session_control_selection_card,
@@ -113,6 +116,32 @@ pub(crate) fn message_footer_padding(is_user: bool) -> iced::Padding {
     if is_user { [0, 6].into() } else { iced::Padding::ZERO }
 }
 
+fn processing_duration_label(
+    timing: Option<&ProcessingTiming>,
+    live_elapsed_ms: Option<u64>,
+) -> Option<String> {
+    let timing = timing?;
+    let elapsed_ms = if let Some(completed_ms) = timing.completed_ms {
+        timing
+            .processing_elapsed_ms
+            .unwrap_or_else(|| completed_ms.saturating_sub(timing.started_ms))
+    } else {
+        live_elapsed_ms?
+    };
+    let total_seconds = elapsed_ms / 1_000;
+    let hours = total_seconds / 3_600;
+    let minutes = total_seconds % 3_600 / 60;
+    let seconds = total_seconds % 60;
+    let duration = if hours > 0 {
+        format!("{hours}h {minutes}m {seconds}s")
+    } else if minutes > 0 {
+        format!("{minutes}m {seconds}s")
+    } else {
+        format!("{seconds}s")
+    };
+    Some(format!("已处理 {duration}"))
+}
+
 /// 渲染消息视图（主入口函数）
 ///
 /// 创建完整的消息气泡 UI，包括消息内容、元信息（模型名称、时间）和操作按钮（复制）。
@@ -123,6 +152,7 @@ pub fn message_view<'a>(
     role: ChatRole,
     content: &'a str,
     think_timing: &'a [models::ThinkTiming],
+    processing_timing: Option<&ProcessingTiming>,
     message_meta: Option<Cow<'a, str>>,
     render_cache: &'a models::ChatRenderCacheEntry,
     _enable_heavy_tool_content: bool,
@@ -132,6 +162,8 @@ pub fn message_view<'a>(
     let assistant_like = matches!(role, ChatRole::Assistant | ChatRole::Tool);
     let is_streaming_assistant =
         role == ChatRole::Assistant && runtime.is_requesting && idx + 1 == app.chat.len();
+    let live_processing_elapsed_ms = is_streaming_assistant
+        .then(|| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()));
     let (visible_for_copy, visible_content_hash) =
         resolve_visible_text_and_copy_hash(app, idx, content, render_cache);
     let render_cache = effective_assistant_render_cache(
@@ -336,19 +368,19 @@ pub fn message_view<'a>(
             && selectable_text_policy(content, false)
                 != SelectableTextPolicy::PreviewWithCopyFallback
             && app.chat_message_editors.get(idx).is_some();
+        let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         if use_editor {
             if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
                 body = body.push(view);
             }
         } else {
-            let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
             let text = normalize_display_text(text.trim()).into_owned();
             if !text.is_empty() {
                 body = body.push(message_text_body(text, true));
             }
-            if let Some(selection) = selection {
-                body = body.push(session_control_selection_card(selection));
-            }
+        }
+        if let Some(selection) = selection {
+            body = body.push(session_control_selection_card(selection));
         }
         body
     };
@@ -379,6 +411,32 @@ pub fn message_view<'a>(
             attachment_body = attachment_body.push(session_control_selection_card(selection));
         }
         attachment_body
+    } else {
+        body
+    };
+    let body = if assistant_like {
+        let mut assistant_content = column![].spacing(6);
+        if let Some(label) =
+            processing_duration_label(processing_timing, live_processing_elapsed_ms)
+        {
+            let processing_header = column![
+                iced_text(label).size(PROCESSING_DURATION_TEXT_SIZE).style(|theme: &Theme| {
+                    iced::widget::text::Style { color: Some(processing_duration_text_color(theme)) }
+                }),
+                container(Space::new().width(Length::Fill).height(Length::Fixed(1.0)))
+                    .width(Length::Fill)
+                    .style(|theme: &Theme| {
+                        let color = processing_duration_separator_color(theme);
+                        iced::widget::container::Style {
+                            background: Some(Background::Color(color)),
+                            ..Default::default()
+                        }
+                    })
+            ]
+            .spacing(10);
+            assistant_content = assistant_content.push(processing_header);
+        }
+        assistant_content.push(body)
     } else {
         body
     };
@@ -424,9 +482,19 @@ pub fn message_view<'a>(
                 };
             }
 
+            let background = if is_dark_theme(theme) {
+                Color::from_rgba(
+                    theme.palette().primary.r * 0.18 + 18.0 / 255.0 * 0.82,
+                    theme.palette().primary.g * 0.18 + 19.0 / 255.0 * 0.82,
+                    theme.palette().primary.b * 0.18 + 22.0 / 255.0 * 0.82,
+                    0.92,
+                )
+            } else {
+                Color::from_rgba8(244, 247, 251, 1.0)
+            };
             iced::widget::container::Style {
-                background: None,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
+                background: Some(Background::Color(background)),
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
                 shadow: iced::Shadow::default(),
                 ..Default::default()
             }
@@ -434,9 +502,9 @@ pub fn message_view<'a>(
 
     let context_text = selected_chat_text_for_message(app, idx).unwrap_or_else(|| {
         if !visible_for_copy.trim().is_empty() {
-            visible_for_copy.trim().to_string()
+            visible_for_copy.to_string()
         } else {
-            content.trim().to_string()
+            content.to_string()
         }
     });
 

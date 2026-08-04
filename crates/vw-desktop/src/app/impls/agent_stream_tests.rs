@@ -36,6 +36,268 @@ fn agent_stream_tests_keeps_planned_coverage_targets() {
 }
 
 #[test]
+fn gateway_stream_retries_incomplete_attempts_until_terminal() {
+    use std::collections::VecDeque;
+    use std::time::Duration;
+
+    use vw_gateway_client::GatewayStreamAttemptResult;
+
+    assert_eq!(
+        super::GATEWAY_STREAM_MAX_RETRY_DELAY,
+        Duration::from_secs(3 * 60 * 60)
+    );
+    assert!(
+        !SOURCE.contains("任务异常终止：未收到网关完成信号"),
+        "an incomplete gateway attempt must enter the reconnect loop instead of failing"
+    );
+    assert!(
+        SOURCE.contains("stream_chat_resumable")
+            && SOURCE.contains("stream_task_plan_run_resumable"),
+        "chat and plan-run must both use the resumable gateway APIs"
+    );
+
+    #[derive(Clone)]
+    struct ScriptedAttempt {
+        result: Result<GatewayStreamAttemptResult, String>,
+        saw_new_event: bool,
+        last_forwarded_event_id: Option<u64>,
+        stop_reason: Option<super::GatewayStreamStopReason>,
+    }
+
+    let run_until_stopped = |stream_kind: &str, script: Vec<ScriptedAttempt>| {
+        let mut state =
+            super::GatewayReconnectState::new(format!("desktop-test-{stream_kind}"));
+        let mut attempts = VecDeque::from(script);
+        let mut attempt_count = 0;
+        let mut waits = Vec::new();
+        let mut terminal_messages = 0;
+
+        loop {
+            let attempt = attempts.pop_front().expect("scripted attempt");
+            attempt_count += 1;
+            let next = state.finish_attempt(
+                attempt.result,
+                attempt.saw_new_event,
+                attempt.last_forwarded_event_id,
+                attempt.stop_reason,
+            );
+            match next {
+                super::GatewayStreamNext::Retry(delay) => waits.push(delay),
+                super::GatewayStreamNext::Terminal => {
+                    terminal_messages += 1;
+                    break;
+                }
+                _other => break,
+            }
+        }
+
+        (state, attempt_count, waits, terminal_messages)
+    };
+
+    let incomplete = ScriptedAttempt {
+        result: Ok(GatewayStreamAttemptResult::Incomplete),
+        saw_new_event: false,
+        last_forwarded_event_id: None,
+        stop_reason: None,
+    };
+    let terminal = ScriptedAttempt {
+        result: Ok(GatewayStreamAttemptResult::Terminated),
+        saw_new_event: true,
+        last_forwarded_event_id: Some(7),
+        stop_reason: None,
+    };
+    for stream_kind in ["chat", "plan_run"] {
+        let (state, attempt_count, waits, terminal_messages) = run_until_stopped(
+            stream_kind,
+            vec![incomplete.clone(), incomplete.clone(), terminal.clone()],
+        );
+        assert_eq!(attempt_count, 3, "{stream_kind} attempt count");
+        assert_eq!(
+            waits,
+            vec![Duration::from_millis(500), Duration::from_secs(1)],
+            "{stream_kind} retry sequence"
+        );
+        assert_eq!(terminal_messages, 1, "{stream_kind} terminal message count");
+        assert_eq!(state.last_event_id, Some(7), "{stream_kind} resume cursor");
+    }
+
+    let mut reset = super::GatewayReconnectState::new("desktop-test-reset".to_string());
+    assert_eq!(
+        reset.finish_attempt(
+            Ok(GatewayStreamAttemptResult::Incomplete),
+            false,
+            None,
+            None,
+        ),
+        super::GatewayStreamNext::Retry(Duration::from_millis(500))
+    );
+    assert_eq!(
+        reset.finish_attempt(
+            Ok(GatewayStreamAttemptResult::Incomplete),
+            false,
+            None,
+            None,
+        ),
+        super::GatewayStreamNext::Retry(Duration::from_secs(1))
+    );
+    assert_eq!(
+        reset.finish_attempt(
+            Ok(GatewayStreamAttemptResult::Incomplete),
+            true,
+            Some(11),
+            None,
+        ),
+        super::GatewayStreamNext::Retry(Duration::from_millis(500))
+    );
+    assert_eq!(reset.resume().last_event_id, Some(11));
+
+    let mut capped = super::GatewayReconnectState::new("desktop-test-cap".to_string());
+    let delays = (0..17)
+        .map(|_| {
+            let super::GatewayStreamNext::Retry(delay) = capped.finish_attempt(
+                Ok(GatewayStreamAttemptResult::Incomplete),
+                false,
+                None,
+                None,
+            ) else {
+                panic!("incomplete attempts must retry");
+            };
+            delay
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(delays[0], Duration::from_millis(500));
+    assert_eq!(delays[1], Duration::from_secs(1));
+    assert_eq!(delays[14], Duration::from_secs(8_192));
+    assert_eq!(delays[15], Duration::from_secs(3 * 60 * 60));
+    assert_eq!(delays[16], Duration::from_secs(3 * 60 * 60));
+
+    let mut cancelled = super::GatewayReconnectState::new("desktop-test-cancel".to_string());
+    assert_eq!(
+        cancelled.finish_attempt(
+            Ok(GatewayStreamAttemptResult::CallerStopped),
+            false,
+            None,
+            Some(super::GatewayStreamStopReason::Cancelled),
+        ),
+        super::GatewayStreamNext::Cancelled
+    );
+    assert_eq!(cancelled.resume().last_event_id, None);
+
+    let mut backpressured =
+        super::GatewayReconnectState::new("desktop-test-backpressure".to_string());
+    assert_eq!(
+        backpressured.finish_attempt(
+            Ok(GatewayStreamAttemptResult::CallerStopped),
+            true,
+            None,
+            Some(super::GatewayStreamStopReason::Backpressure),
+        ),
+        super::GatewayStreamNext::Retry(Duration::from_millis(500))
+    );
+    assert_eq!(
+        backpressured.resume().last_event_id,
+        None,
+        "a full UI channel must not advance an unforwarded event cursor"
+    );
+
+    let mut terminal_error =
+        super::GatewayReconnectState::new("desktop-test-terminal-error".to_string());
+    assert_eq!(
+        terminal_error.finish_attempt(
+            Ok(GatewayStreamAttemptResult::Terminated),
+            true,
+            Some(3),
+            None,
+        ),
+        super::GatewayStreamNext::Terminal
+    );
+
+    let mut rejected = super::GatewayReconnectState::new("desktop-test-rejected".to_string());
+    assert_eq!(
+        rejected.finish_attempt(
+            Err("gateway stream failed: 400 Bad Request".to_string()),
+            false,
+            None,
+            None,
+        ),
+        super::GatewayStreamNext::Failed(
+            "gateway stream failed: 400 Bad Request".to_string()
+        )
+    );
+
+    let request = super::AgentRequest {
+        id: 91,
+        session: "private-session".to_string(),
+        query: "private request body".to_string(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: false,
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        goal_mode_enabled: false,
+        history: Vec::new(),
+    };
+    let stable_id = super::desktop_stream_request_id(&request);
+    assert_eq!(stable_id, super::desktop_stream_request_id(&request));
+    assert!(!stable_id.contains(&request.session));
+    assert!(!stable_id.contains(&request.query));
+}
+
+#[test]
+fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() {
+    let mut request = super::AgentRequest {
+        id: 92,
+        session: "subagent-session".to_string(),
+        query: "delegate".to_string(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: Some(vec!["AgentTool".to_string(), "shell".to_string()]),
+        require_agent_tool: true,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: false,
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        goal_mode_enabled: false,
+        history: Vec::new(),
+    };
+
+    let options = super::gateway_request_options(
+        &request,
+        Some(crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT),
+    )
+    .expect("subagent options");
+    assert_eq!(options["require_agent_tool"], true);
+    assert_eq!(options["allowed_tools"], serde_json::json!(["AgentTool", "shell"]));
+    assert_eq!(
+        options["chat_system_prompt"],
+        crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT
+    );
+
+    request.require_agent_tool = false;
+    request.allowed_tools = Some(vec!["shell".to_string()]);
+    let disabled = super::gateway_request_options(&request, None).expect("restricted options");
+    assert!(disabled.get("require_agent_tool").is_none());
+    assert_eq!(disabled["allowed_tools"], serde_json::json!(["shell"]));
+}
+
+#[test]
 fn temporary_workflow_yaml_contains_required_chat_nodes() {
     let yaml = super::temporary_workflow_yaml(
         "请帮我实现 chat 面板里的工作流执行进度展示",
@@ -101,8 +363,12 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
         "workflow mode should declare the task plan-run stream endpoint"
     );
     assert!(
-        SOURCE.contains("stream_task_plan_run"),
-        "workflow mode should subscribe to task plan-run SSE"
+        SOURCE.contains("parent_session_id"),
+        "workflow mode should pass the main session as parent_session_id"
+    );
+    assert!(
+        SOURCE.contains("blocked_reason") && SOURCE.contains("工作流执行受阻"),
+        "workflow mode must treat Blocked as a terminal stream signal"
     );
     assert!(
         !SOURCE.contains("workflow_mode_yaml(&req.query"),
@@ -110,12 +376,12 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
     );
 
     let stream_body = concat!(
-        "data: {\"type\":\"planning_started\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\"}\n\n",
-        "data: {\"type\":\"plan_created\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\",\"plan_md_path\":\"/tmp/plan/plan.md\",\"prompt_md_path\":\"/tmp/plan/prompt.md\",\"tasks_json_path\":\"/tmp/plan/tasks.json\",\"subtask_count\":1}\n\n",
+        "data: {\"type\":\"planning_started\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\",\"session_id\":\"task-1-plan\"}\n\n",
+        "data: {\"type\":\"plan_created\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\",\"plan_md_path\":\"/tmp/plan/plan.md\",\"prompt_md_path\":\"/tmp/plan/prompt.md\",\"tasks_json_path\":\"/tmp/plan/tasks.json\",\"subtask_count\":1,\"session_id\":\"task-1-plan\"}\n\n",
         "data: {\"type\":\"batch_started\",\"task_id\":\"task-1\",\"batch\":1,\"subtask_ids\":[\"subtask-1\"]}\n\n",
-        "data: {\"type\":\"subtask_started\",\"task_id\":\"task-1\",\"batch\":1,\"subtask_id\":\"subtask-1\",\"title\":\"实现入口\",\"task_file\":\"1-entry.md\"}\n\n",
-        "data: {\"type\":\"subtask_finished\",\"task_id\":\"task-1\",\"batch\":1,\"subtask_id\":\"subtask-1\",\"title\":\"实现入口\",\"task_file\":\"1-entry.md\",\"success\":true,\"output\":\"ok\"}\n\n",
-        "data: {\"type\":\"finished\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\",\"status\":\"completed\",\"output\":\"all done\"}\n\n",
+        "data: {\"type\":\"subtask_started\",\"task_id\":\"task-1\",\"batch\":1,\"subtask_id\":\"subtask-1\",\"title\":\"实现入口\",\"task_file\":\"1-entry.md\",\"session_id\":\"task-1-subtask-1\"}\n\n",
+        "data: {\"type\":\"subtask_finished\",\"task_id\":\"task-1\",\"batch\":1,\"subtask_id\":\"subtask-1\",\"title\":\"实现入口\",\"task_file\":\"1-entry.md\",\"success\":true,\"output\":\"ok\",\"session_id\":\"task-1-subtask-1\"}\n\n",
+        "data: {\"type\":\"finished\",\"task_id\":\"task-1\",\"plan_dir\":\"/tmp/plan\",\"status\":\"completed\",\"output\":\"all done\",\"session_id\":\"task-1-plan\"}\n\n",
     )
     .to_string();
     let (endpoint, handle) = spawn_workflow_stream_response("200 OK", stream_body);
@@ -125,6 +391,8 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
         model: Some("demo-model".to_string()),
         agent: Some("main".to_string()),
         acp_agent: Some("codex".to_string()),
+        parent_session_id: Some("main-session".to_string()),
+        mode: vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow,
     };
     let mut events = Vec::new();
 
@@ -339,22 +607,30 @@ fn workflow_history_context_filters_empty_messages_and_keeps_order() {
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::System,
             content: " system rules ".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::User,
             content: "   ".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::Assistant,
             content: " answer ".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: crate::app::models::ChatRole::Tool,
             content: " tool output ".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 
@@ -369,7 +645,9 @@ fn workflow_history_context_truncates_large_context_from_tail() {
     let history = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::User,
         content: "x".repeat(super::WORKFLOW_HISTORY_MAX_CHARS + 64),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let context = super::workflow_history_context(&history);
@@ -909,12 +1187,14 @@ fn agent_stream_wrapper_returns_stream_without_polling() {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     };
 
@@ -1073,6 +1353,17 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
         TaskPlanRunStreamEventDto::PlanningStarted {
             task_id: "task-1".to_string(),
             plan_dir: "/plans/task-1".to_string(),
+            session_id: "task-1-plan".to_string(),
+        },
+        TaskPlanRunStreamEventDto::SessionDelta {
+            task_id: "task-1".to_string(),
+            session_id: "task-1-plan".to_string(),
+            delta: "正在分析".to_string(),
+        },
+        TaskPlanRunStreamEventDto::SessionWaiting {
+            task_id: "task-1".to_string(),
+            session_id: "task-1-plan".to_string(),
+            active_descendant_session_ids: vec!["task-1-plan-child".to_string()],
         },
         TaskPlanRunStreamEventDto::PlanCreated {
             task_id: "task-1".to_string(),
@@ -1081,6 +1372,7 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
             prompt_md_path: "/plans/task-1/prompt.md".to_string(),
             tasks_json_path: "/plans/task-1/tasks.json".to_string(),
             subtask_count: 2,
+            session_id: "task-1-plan".to_string(),
         },
         TaskPlanRunStreamEventDto::BatchStarted {
             task_id: "task-1".to_string(),
@@ -1093,6 +1385,7 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
             subtask_id: "sub-1".to_string(),
             title: "实现入口".to_string(),
             task_file: "1-entry.md".to_string(),
+            session_id: "task-1-sub-1".to_string(),
         },
         TaskPlanRunStreamEventDto::SubtaskFinished {
             task_id: "task-1".to_string(),
@@ -1103,6 +1396,7 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
             success: true,
             output: Some("完成".to_string()),
             error: None,
+            session_id: "task-1-sub-1".to_string(),
         },
         TaskPlanRunStreamEventDto::SubtaskFinished {
             task_id: "task-1".to_string(),
@@ -1113,21 +1407,84 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
             success: false,
             output: None,
             error: None,
+            session_id: "task-1-sub-2".to_string(),
+        },
+        TaskPlanRunStreamEventDto::BatchFinished {
+            task_id: "task-1".to_string(),
+            batch: 3,
+            subtask_ids: vec!["sub-1".to_string(), "sub-2".to_string()],
+            success: false,
         },
         TaskPlanRunStreamEventDto::Blocked {
             task_id: "task-1".to_string(),
             batch: Some(3),
             subtask_id: None,
             reason: "等待输入".to_string(),
+            session_id: "task-1-plan".to_string(),
         },
         TaskPlanRunStreamEventDto::Finished {
             task_id: "task-1".to_string(),
             plan_dir: "/plans/task-1".to_string(),
             status: "completed".to_string(),
             output: "全部完成".to_string(),
+            session_id: Some("task-1-plan".to_string()),
         },
         TaskPlanRunStreamEventDto::Error { task_id: None, message: "连接失败".to_string() },
     ]
+}
+
+#[test]
+fn goal_mode_stream_continues_after_negative_evaluation() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let rejected = TaskPlanRunStreamEventDto::GoalEvaluated {
+        task_id: "task-goal".to_string(),
+        turn: 1,
+        achieved: false,
+        reason: "验证未通过".to_string(),
+        session_id: "task-goal-goal-eval-1".to_string(),
+    };
+    let finished = TaskPlanRunStreamEventDto::Finished {
+        task_id: "task-goal".to_string(),
+        plan_dir: "/plans/task-goal".to_string(),
+        status: "completed".to_string(),
+        output: "验证通过".to_string(),
+        session_id: Some("task-goal-goal-2".to_string()),
+    };
+
+    assert!(!super::plan_run_event_is_terminal(&rejected));
+    assert!(super::plan_run_event_is_terminal(&finished));
+    assert_eq!(super::plan_run_event_status(&rejected), "running");
+}
+
+#[test]
+fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consistent() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let waiting = TaskPlanRunStreamEventDto::SessionWaiting {
+        task_id: "task-2".to_string(),
+        session_id: "task-2-sub-9".to_string(),
+        active_descendant_session_ids: vec!["task-2-sub-9-child".to_string()],
+    };
+    let cancelled = TaskPlanRunStreamEventDto::Cancelled {
+        task_id: "task-2".to_string(),
+        session_id: Some("task-2-sub-9".to_string()),
+    };
+
+    assert_eq!(super::plan_run_event_status(&waiting), "waiting");
+    assert!(!super::plan_run_event_is_terminal(&waiting));
+    assert_eq!(super::plan_run_session_finished_id(&waiting), None);
+
+    assert_eq!(super::plan_run_event_status(&cancelled), "cancelled");
+    assert!(super::plan_run_event_is_terminal(&cancelled));
+    assert_eq!(super::plan_run_session_finished_id(&cancelled), None);
+    assert_eq!(super::plan_run_session_cancelled_id(&cancelled), Some("task-2-sub-9"));
+
+    let waiting_block = super::plan_run_tool_block(&waiting);
+    let cancelled_block = super::plan_run_tool_block(&cancelled);
+    assert!(waiting_block.contains("\"status\":\"waiting\""));
+    assert!(cancelled_block.contains("\"status\":\"cancelled\""));
+    assert!(!cancelled_block.contains("\"status\":\"completed\""));
 }
 
 #[test]
@@ -1137,11 +1494,14 @@ fn plan_run_event_helpers_map_every_variant_and_failure_branch() {
         events.iter().map(super::plan_run_event_type).collect::<Vec<_>>(),
         vec![
             "planning_started",
+            "session_delta",
+            "session_waiting",
             "plan_created",
             "batch_started",
             "subtask_started",
             "subtask_finished",
             "subtask_finished",
+            "batch_finished",
             "blocked",
             "finished",
             "error",
@@ -1151,34 +1511,67 @@ fn plan_run_event_helpers_map_every_variant_and_failure_branch() {
         events.iter().map(super::plan_run_event_status).collect::<Vec<_>>(),
         vec![
             "running",
+            "running",
+            "waiting",
             "completed",
             "running",
             "running",
             "completed",
+            "error",
             "error",
             "error",
             "completed",
             "error",
         ]
     );
-    assert_eq!(super::plan_run_event_task_id(&events[8]), "unknown");
+    assert_eq!(super::plan_run_event_task_id(&events[11]), "unknown");
     assert_eq!(super::plan_run_tool_call_id(&events[0]), "plan-run-task-1-planning");
-    assert_eq!(super::plan_run_tool_call_id(&events[2]), "plan-run-task-1-batch-3");
-    assert_eq!(super::plan_run_tool_call_id(&events[3]), "plan-run-task-1-subtask-sub-1");
-    assert_eq!(super::plan_run_tool_call_id(&events[6]), "plan-run-task-1-blocked-task");
-    assert_eq!(super::plan_run_tool_call_id(&events[8]), "plan-run-unknown-error");
+    assert_eq!(super::plan_run_tool_call_id(&events[1]), "plan-run-task-1-session-task-1-plan");
+    assert_eq!(super::plan_run_tool_call_id(&events[2]), "plan-run-task-1-session-task-1-plan");
+    assert_eq!(super::plan_run_tool_call_id(&events[4]), "plan-run-task-1-batch-3");
+    assert_eq!(super::plan_run_tool_call_id(&events[8]), "plan-run-task-1-batch-3");
+    assert_eq!(super::plan_run_tool_call_id(&events[5]), "plan-run-task-1-subtask-sub-1");
+    assert_eq!(super::plan_run_tool_call_id(&events[9]), "plan-run-task-1-blocked-task");
+    assert_eq!(super::plan_run_tool_call_id(&events[11]), "plan-run-unknown-error");
 
-    assert_eq!(super::plan_run_event_summary(&events[1]), "计划已创建 · 2 个子任务");
-    assert_eq!(super::plan_run_event_summary(&events[5]), "批次 3 · 补测试 · 失败");
-    assert!(super::plan_run_event_output_text(&events[2]).contains("sub-1, sub-2"));
-    assert!(super::plan_run_event_output_text(&events[5]).ends_with("执行失败"));
-    assert_eq!(super::plan_run_event_output_text(&events[6]), "执行受阻: 等待输入");
+    assert_eq!(super::plan_run_event_summary(&events[1]), "规划会话");
+    assert_eq!(super::plan_run_event_output_text(&events[1]), "正在分析");
+    assert_eq!(super::plan_run_event_summary(&events[2]), "等待后代智能体");
+    assert!(super::plan_run_event_output_text(&events[2]).contains("task-1-plan-child"));
+    assert_eq!(super::plan_run_event_summary(&events[3]), "计划已创建 · 2 个子任务");
+    assert_eq!(super::plan_run_event_summary(&events[7]), "批次 3 · 补测试 · 失败");
+    assert!(super::plan_run_event_output_text(&events[4]).contains("sub-1, sub-2"));
+    assert!(super::plan_run_event_output_text(&events[7]).ends_with("执行失败"));
+    assert!(super::plan_run_event_output_text(&events[8]).contains("批次 3 执行失败"));
+    assert_eq!(super::plan_run_event_output_text(&events[9]), "执行受阻: 等待输入");
+}
+
+#[test]
+fn completed_batch_reuses_started_node_and_marks_it_completed() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let started = TaskPlanRunStreamEventDto::BatchStarted {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_ids: vec!["sub-9".to_string()],
+    };
+    let finished = TaskPlanRunStreamEventDto::BatchFinished {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_ids: vec!["sub-9".to_string()],
+        success: true,
+    };
+
+    assert_eq!(super::plan_run_tool_call_id(&started), super::plan_run_tool_call_id(&finished));
+    assert_eq!(super::plan_run_event_status(&finished), "completed");
+    assert_eq!(super::plan_run_event_summary(&finished), "批次 4");
+    assert!(super::plan_run_event_output_text(&finished).contains("批次 4 执行完毕"));
 }
 
 #[test]
 fn plan_run_tool_block_serializes_error_and_metadata() {
     let events = plan_run_events();
-    let block = super::plan_run_tool_block(&events[5]);
+    let block = super::plan_run_tool_block(&events[6]);
     let payload_text = block
         .strip_prefix("tool workflow_node\n")
         .and_then(|value| value.strip_suffix('\n'))
@@ -1190,12 +1583,95 @@ fn plan_run_tool_block_serializes_error_and_metadata() {
     assert_eq!(payload["metadata"]["plan_run"], true);
     assert_eq!(payload["metadata"]["event_type"], "subtask_finished");
     assert_eq!(payload["metadata"]["task_id"], "task-1");
+    assert_eq!(payload["metadata"]["session_id"], "task-1-sub-2");
+    assert_eq!(payload["metadata"]["title"], "补测试");
     assert!(payload["error"].as_str().is_some_and(|error| error.contains("执行失败")));
 
     let output: serde_json::Value =
         serde_json::from_str(payload["output"].as_str().expect("serialized preview output"))
             .expect("preview output json");
     assert!(output["answer"].as_str().is_some_and(|answer| answer.contains("2-tests.md")));
+}
+
+#[test]
+fn plan_run_tool_block_uses_explicit_title_fallback_for_blank_subtask_title() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let event = TaskPlanRunStreamEventDto::SubtaskStarted {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_id: "sub-9".to_string(),
+        title: "   ".to_string(),
+        task_file: "9-verify.md".to_string(),
+        session_id: "task-2-sub-9".to_string(),
+    };
+    let block = super::plan_run_tool_block(&event);
+    let payload_text = block
+        .strip_prefix("tool workflow_node\n")
+        .and_then(|value| value.strip_suffix('\n'))
+        .expect("tool block payload");
+    let payload: serde_json::Value = serde_json::from_str(payload_text).expect("tool block json");
+
+    assert_eq!(payload["metadata"]["title"], "子任务 · sub-9");
+}
+
+#[test]
+fn plan_run_started_messages_register_planning_and_execution_sessions() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let planning = TaskPlanRunStreamEventDto::PlanningStarted {
+        task_id: "task-2".to_string(),
+        plan_dir: "/tmp/plan".to_string(),
+        session_id: "task-2-plan".to_string(),
+    };
+    let subtask = TaskPlanRunStreamEventDto::SubtaskStarted {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_id: "sub-9".to_string(),
+        title: "   ".to_string(),
+        task_file: "9-verify.md".to_string(),
+        session_id: "task-2-sub-9".to_string(),
+    };
+
+    let planning_message =
+        super::plan_run_session_started_message(&planning, 42, "main", "/tmp/project", "需求")
+            .expect("planning registration message");
+    let subtask_message =
+        super::plan_run_session_started_message(&subtask, 42, "main", "/tmp/project", "需求")
+            .expect("subtask registration message");
+
+    match planning_message {
+        super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+            parent_request_id,
+            parent_session_id,
+            session_id,
+            title,
+            directory,
+            query,
+        }) => {
+            assert_eq!(parent_request_id, 42);
+            assert_eq!(parent_session_id, "main");
+            assert_eq!(session_id, "task-2-plan");
+            assert_eq!(title, "规划 · task-2");
+            assert_eq!(directory, "/tmp/project");
+            assert_eq!(query, "需求");
+        }
+        other => panic!("expected planning registration, got {other:?}"),
+    }
+
+    match subtask_message {
+        super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+            session_id,
+            title,
+            query,
+            ..
+        }) => {
+            assert_eq!(session_id, "task-2-sub-9");
+            assert_eq!(title, "子任务 · sub-9");
+            assert_eq!(query, "子任务 · sub-9");
+        }
+        other => panic!("expected subtask registration, got {other:?}"),
+    }
 }
 
 #[test]
@@ -1207,6 +1683,7 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
         batch: Some(4),
         subtask_id: Some("sub-9".to_string()),
         reason: "需要审批".to_string(),
+        session_id: "task-2-sub-9".to_string(),
     };
     assert_eq!(super::plan_run_tool_call_id(&blocked), "plan-run-task-2-blocked-sub-9");
     assert_eq!(super::plan_run_event_summary(&blocked), "执行受阻");
@@ -1221,6 +1698,7 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
         success: true,
         output: None,
         error: Some("ignored".to_string()),
+        session_id: "task-2-sub-10".to_string(),
     };
     let output = super::plan_run_event_output_text(&success_without_output);
     assert!(output.starts_with("子任务完成，任务文件已处理: 10-verify.md\n"));
@@ -1234,6 +1712,7 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
     let payload: serde_json::Value = serde_json::from_str(payload_text).expect("tool block json");
     assert_eq!(payload["status"], "error");
     assert_eq!(payload["metadata"]["event_type"], "blocked");
+    assert_eq!(payload["metadata"]["session_id"], "task-2-sub-9");
     assert!(payload["error"].as_str().is_some_and(|error| error.contains("需要审批")));
 }
 
@@ -1292,12 +1771,14 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: true,
+        goal_mode_enabled: false,
         history: Vec::new(),
     };
 

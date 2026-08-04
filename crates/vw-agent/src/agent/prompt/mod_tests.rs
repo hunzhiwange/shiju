@@ -25,6 +25,28 @@ impl Tool for TestTool {
     }
 }
 
+struct AgentToolStub;
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl Tool for AgentToolStub {
+    fn name(&self) -> &str {
+        "AgentTool"
+    }
+
+    fn description(&self) -> &str {
+        "Delegate work"
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type": "object"})
+    }
+
+    async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        Ok(ToolResult { success: true, output: "ok".into(), error: None })
+    }
+}
+
 struct StaticSection {
     name: &'static str,
     body: &'static str,
@@ -55,6 +77,7 @@ fn empty_context<'a>(workspace_dir: &'a Path, tools: &'a [Box<dyn Tool>]) -> Pro
         skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
         identity_config: None,
         dispatcher_instructions: "",
+        timezone: chrono_tz::Asia::Shanghai,
     }
 }
 
@@ -155,6 +178,184 @@ fn action_section_switches_between_native_and_dispatcher_modes() {
     assert!(native.contains("respond naturally"));
     assert!(dispatcher.contains("<tool_call>"));
     assert_ne!(native, dispatcher);
+}
+
+#[test]
+fn action_section_adds_default_multi_agent_policy_only_when_agent_tool_available() {
+    for dispatcher_instructions in ["", "tool tags"] {
+        let with_agent_tool: Vec<Box<dyn Tool>> =
+            vec![Box::new(TestTool), Box::new(AgentToolStub)];
+        let with_agent_ctx = PromptContext {
+            dispatcher_instructions,
+            ..empty_context(Path::new("/tmp"), &with_agent_tool)
+        };
+        let action = ActionSection.build(&with_agent_ctx).unwrap();
+        for expected in [
+            "not genuinely simple and single-step",
+            "Complex, multi-part, exploratory, implementation, review",
+            "independent workstreams",
+            "When uncertain whether a task is simple, delegate",
+            "same turn",
+            "ordering dependencies",
+            "overlapping writes",
+            "verify evidence and synthesize",
+        ] {
+            assert!(
+                action.contains(expected),
+                "missing '{expected}' with dispatcher '{dispatcher_instructions}': {action}"
+            );
+        }
+
+        let without_agent_tool: Vec<Box<dyn Tool>> = vec![Box::new(TestTool)];
+        let without_agent_ctx = PromptContext {
+            dispatcher_instructions,
+            ..empty_context(Path::new("/tmp"), &without_agent_tool)
+        };
+        let action = ActionSection.build(&without_agent_ctx).unwrap();
+        assert!(!action.contains("not genuinely simple and single-step"));
+        assert!(!action.contains("When uncertain whether a task is simple, delegate"));
+    }
+}
+
+#[test]
+fn action_section_teaches_event_driven_subagent_wait_and_synthesis() {
+    for dispatcher_instructions in ["", "tool tags"] {
+        let with_agent_tool: Vec<Box<dyn Tool>> =
+            vec![Box::new(TestTool), Box::new(AgentToolStub)];
+        let with_agent_ctx = PromptContext {
+            dispatcher_instructions,
+            ..empty_context(Path::new("/tmp"), &with_agent_tool)
+        };
+        let action = ActionSection.build(&with_agent_ctx).unwrap();
+        for expected in [
+            "`launch` or `spawn`",
+            "Continue useful parent work",
+            "`run`",
+            "`status`",
+            "`wait`",
+            "terminal state",
+            "timeout",
+            "still running",
+            "`stop`",
+            "Do not claim",
+            "verify",
+            "synthesize",
+        ] {
+            assert!(
+                action.contains(expected),
+                "missing '{expected}' with dispatcher '{dispatcher_instructions}': {action}"
+            );
+        }
+
+        let without_agent_tool: Vec<Box<dyn Tool>> = vec![Box::new(TestTool)];
+        let without_agent_ctx = PromptContext {
+            dispatcher_instructions,
+            ..empty_context(Path::new("/tmp"), &without_agent_tool)
+        };
+        let action = ActionSection.build(&without_agent_ctx).unwrap();
+        assert!(!action.contains("Continue useful parent work"));
+        assert!(!action.contains("still running"));
+    }
+}
+
+#[test]
+fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
+    let temp = tempfile::tempdir().unwrap();
+    let tools: Vec<Box<dyn Tool>> = vec![Box::new(TestTool), Box::new(AgentToolStub)];
+    let base =
+        ActionSection.build(&empty_context(temp.path(), &tools)).expect("build base action prompt");
+    let channel = crate::channels::build_system_prompt_with_mode(
+        temp.path(),
+        "model-x",
+        &[("inspect", "Inspect workspace"), ("AgentTool", "Delegate work")],
+        &[],
+        None,
+        None,
+        true,
+        crate::app::agent::config::SkillsPromptInjectionMode::Compact,
+        chrono_tz::Asia::Shanghai,
+    );
+    let planning =
+        crate::task_plan_run::build_planning_prompt("workflow-1", "实现递归智能体编排");
+    let execution = crate::task_plan_run::build_execution_prompt(
+        "实现递归智能体编排",
+        4,
+        &[3],
+        "# plan.md\n保持外层编号任务",
+        "# 当前任务\n在任务边界内实现",
+    );
+    let continuation = crate::task_plan_run::build_goal_continuation_prompt(
+        "实现递归智能体编排",
+        "# plan.md",
+        "缺少验收证据",
+        &crate::task_plan_run::GoalTaskFilesState::Pending("任务仍存在".to_string()),
+    );
+
+    for (name, prompt) in [
+        ("base", base.as_str()),
+        ("channel", channel.as_str()),
+        ("planning", planning.as_str()),
+        ("execution", execution.as_str()),
+        ("goal continuation", continuation.as_str()),
+    ] {
+        for expected in [
+            "Identify internal workstreams, ordering dependencies, and write sets",
+            "Launch independent read-only or non-overlapping work",
+            "Run dependency-ordered or overlapping writes serially",
+            "Retry only safely retryable failures, with a finite attempt limit",
+            "`status`",
+            "`wait`",
+            "`stop`",
+            "verify evidence and synthesize required results",
+            "delegation depth and parallelism limits",
+        ] {
+            assert!(prompt.contains(expected), "missing '{expected}' in {name} prompt:\n{prompt}");
+        }
+    }
+
+    assert!(!execution.contains("不要重新拆分任务"));
+    for expected in [
+        "不得改写外层编号任务、批次依赖或任务文件所有权",
+        "可在当前任务边界内自主拆分内部工作流",
+    ] {
+        assert!(execution.contains(expected), "missing execution boundary '{expected}':\n{execution}");
+    }
+
+    let goal_evaluation = crate::task_plan_run::build_goal_evaluation_prompt(
+        "实现递归智能体编排",
+        "# plan.md",
+        "[AgentTool 后代终态]\n- session=child state=failed error=验证失败",
+        &crate::task_plan_run::GoalTaskFilesState::Complete,
+    );
+    for expected in [
+        "active、waiting、queued 或 running",
+        "failed 或 cancelled",
+        "父会话验证并综合",
+    ] {
+        assert!(
+            goal_evaluation.contains(expected),
+            "missing descendant acceptance gate '{expected}':\n{goal_evaluation}"
+        );
+    }
+
+    let workflow_context = crate::app::agent::tools::ToolRuntimeContext::new(
+        "workflow-subtask-session",
+        Some(temp.path().to_string_lossy().to_string()),
+    );
+    let agent_tool = crate::app::agent::tools::tool_specs_for_context(&workflow_context)
+        .into_iter()
+        .find(|spec| spec.id == "AgentTool")
+        .expect("default workflow/goal session toolset should include AgentTool");
+    for action in ["launch", "run", "status", "wait", "stop"] {
+        assert!(
+            agent_tool.input_schema["properties"]["action"]["enum"]
+                .as_array()
+                .expect("AgentTool action enum")
+                .iter()
+                .any(|value| value == action),
+            "AgentTool should expose {action}"
+        );
+    }
 }
 
 #[test]

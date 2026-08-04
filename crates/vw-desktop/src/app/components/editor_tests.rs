@@ -1,5 +1,8 @@
-use super::editor::Editor;
+use super::editor::{
+    APP_CONTEXT_MENU_INSERT_SELECTION, APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS, Editor,
+};
 use iced::Theme;
+use iced_code_editor::{ContextMenuEntry, i18n::Language};
 
 #[test]
 fn editor_starts_with_initial_content() {
@@ -52,11 +55,40 @@ fn editor_search_dialog_tasks_are_constructible() {
 }
 
 #[test]
-fn editor_view_wrappers_are_constructible() {
+fn editor_content_view_is_constructible() {
     let editor = Editor::new("", "rust");
 
     let _ = editor.content_view(|_| ());
-    let _ = editor.view(|_| (), |_| ());
+}
+
+#[test]
+fn preview_context_menu_uses_stable_actions_default_entries_and_localized_labels() {
+    let mut editor = Editor::new("", "rust");
+
+    editor.configure_preview_context_menu(Language::English, true);
+
+    assert!(editor.inner.default_context_menu_enabled());
+    assert!(editor.inner.reveal_in_file_manager_enabled());
+    assert_eq!(
+        editor.inner.custom_context_menu_entries(),
+        &[
+            ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, "Insert selection into chat"),
+            ContextMenuEntry::item(
+                APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS,
+                "Insert selection positions",
+            ),
+        ]
+    );
+
+    editor.set_ui_language(Language::ChineseSimplified);
+
+    assert_eq!(
+        editor.inner.custom_context_menu_entries(),
+        &[
+            ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, "插入选择到聊天"),
+            ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS, "插入选区位置信息"),
+        ]
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]

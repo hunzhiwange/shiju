@@ -435,6 +435,7 @@ pub fn build_system_prompt(
     skills: &[skills::Skill],
     identity_config: Option<&crate::app::agent::config::IdentityConfig>,
     bootstrap_max_chars: Option<usize>,
+    timezone: chrono_tz::Tz,
 ) -> String {
     // 使用默认模式调用完整版本的构建函数
     build_system_prompt_with_mode(
@@ -446,6 +447,7 @@ pub fn build_system_prompt(
         bootstrap_max_chars,
         false,                                                      // 不使用原生工具调用
         crate::app::agent::config::SkillsPromptInjectionMode::Full, // 完整技能提示
+        timezone,
     )
 }
 
@@ -490,6 +492,7 @@ pub fn build_system_prompt_with_mode(
     bootstrap_max_chars: Option<usize>,
     native_tools: bool,
     skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode,
+    timezone: chrono_tz::Tz,
 ) -> String {
     use std::fmt::Write;
 
@@ -527,6 +530,11 @@ pub fn build_system_prompt_with_mode(
         );
     }
 
+    if tools.iter().any(|(name, _)| name.eq_ignore_ascii_case("AgentTool")) {
+        prompt.push_str(crate::agent::prompt::multi_agent::recursive_orchestration_policy());
+        prompt.push_str("\n\n");
+    }
+
     // ── 2. 安全章节 ───────────────────────────────────────────────
     // 定义代理操作的安全护栏
     prompt.push_str("## Safety\n\n");
@@ -560,13 +568,8 @@ pub fn build_system_prompt_with_mode(
 
     // ── 6. 日期时间章节 ──────────────────────────────────────────
     // 注入当前时间，帮助代理理解时间上下文
-    let now = chrono::Local::now();
-    let _ = writeln!(
-        prompt,
-        "## Current Date & Time\n\n{} ({})\n",
-        now.format("%Y-%m-%d %H:%M:%S"),
-        now.format("%Z")
-    );
+    let now = crate::app::agent::util::locale::configured_datetime(timezone);
+    let _ = writeln!(prompt, "## Current Date & Time\n\n{now}\n");
 
     // ── 7. 运行时章节 ──────────────────────────────────────────────
     // 获取主机名（非 WASM 环境）

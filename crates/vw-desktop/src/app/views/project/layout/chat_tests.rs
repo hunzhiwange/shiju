@@ -47,11 +47,15 @@ async fn chat_area_draws_captured_surface_style() {
 
 #[test]
 fn chat_area_style_uses_light_theme_surface() {
-    let style = super::chat_area_style(&Theme::Light, 16.0);
+    let style = super::chat_area_style(&Theme::Light, 16.0, None);
+    let expected = crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.985);
 
-    assert_eq!(style.background, Some(Background::Color(Color::from_rgba8(255, 255, 255, 0.985))));
+    assert_eq!(style.background, Some(Background::Color(expected)));
     assert_eq!(style.border.width, 1.0);
-    assert_eq!(style.border.color, Color::from_rgba8(224, 228, 236, 0.98));
+    assert_eq!(
+        style.border.color,
+        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55)
+    );
     assert_eq!(style.border.radius.top_left, 16.0);
     assert_eq!(style.border.radius.top_right, 16.0);
     assert_eq!(style.border.radius.bottom_right, 16.0);
@@ -60,11 +64,15 @@ fn chat_area_style_uses_light_theme_surface() {
 
 #[test]
 fn chat_area_style_uses_dark_theme_surface() {
-    let style = super::chat_area_style(&Theme::Dark, 4.0);
+    let style = super::chat_area_style(&Theme::Dark, 4.0, None);
+    let expected = crate::app::theme_catalog::panel_surface_color(&Theme::Dark, 0.985);
 
-    assert_eq!(style.background, Some(Background::Color(Color::from_rgba8(17, 18, 22, 0.985))));
+    assert_eq!(style.background, Some(Background::Color(expected)));
     assert_eq!(style.border.width, 1.0);
-    assert_ne!(style.border.color, Color::from_rgba8(224, 228, 236, 0.98));
+    assert_ne!(
+        style.border.color,
+        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55)
+    );
     assert_eq!(style.border.radius.top_left, 4.0);
     assert_eq!(style.border.radius.top_right, 4.0);
     assert_eq!(style.border.radius.bottom_right, 4.0);
@@ -72,8 +80,26 @@ fn chat_area_style_uses_dark_theme_surface() {
 }
 
 #[test]
+fn chat_area_style_follows_custom_palette_background() {
+    let green = Theme::custom(
+        "green-chat".to_string(),
+        iced::theme::Palette {
+            background: Color::from_rgb8(0x12, 0x4A, 0x2E),
+            text: Color::from_rgb8(0xE8, 0xF5, 0xEC),
+            primary: Color::from_rgb8(0x3D, 0xB8, 0x6B),
+            success: Color::from_rgb8(0x3D, 0xB8, 0x6B),
+            warning: Color::from_rgb8(0xE6, 0xB8, 0x00),
+            danger: Color::from_rgb8(0xE0, 0x4F, 0x5F),
+        },
+    );
+    let style = super::chat_area_style(&green, 8.0, None);
+    let expected = crate::app::theme_catalog::panel_surface_color(&green, 0.985);
+    assert_eq!(style.background, Some(Background::Color(expected)));
+}
+
+#[test]
 fn chat_area_style_preserves_fractional_radius() {
-    let style = super::chat_area_style(&Theme::Light, 2.5);
+    let style = super::chat_area_style(&Theme::Light, 2.5, None);
 
     assert_eq!(style.border.radius.top_left, 2.5);
     assert_eq!(style.border.radius.top_right, 2.5);
@@ -83,9 +109,40 @@ fn chat_area_style_preserves_fractional_radius() {
 
 #[test]
 fn chat_area_style_uses_default_shadow() {
-    let style = super::chat_area_style(&Theme::Light, 8.0);
+    let style = super::chat_area_style(&Theme::Light, 8.0, None);
 
     assert_eq!(style.shadow, iced::Shadow::default());
+}
+
+#[test]
+fn chat_area_style_applies_wallpaper_panel_alpha() {
+    use std::path::PathBuf;
+
+    use crate::app::theme_catalog::{
+        resolve_chrome_style_from_skin, ActiveThemeSkin, ThemeChrome, DEFAULT_WALLPAPER_PANEL_ALPHA,
+    };
+
+    let theme = Theme::Dark;
+    let skin = ActiveThemeSkin {
+        theme_id: "wallpaper-theme".to_string(),
+        background_path: Some(PathBuf::from("/tmp/vibe-window-wallpaper.png")),
+        cover_path: None,
+        chat_header_path: None,
+        chat_body_path: None,
+        chat_input_path: None,
+        chrome: ThemeChrome::default(),
+    };
+    let chrome = resolve_chrome_style_from_skin(Some(&skin), &theme);
+    let style = super::chat_area_style(&theme, 12.0, Some(&chrome));
+    let background = match style.background {
+        Some(Background::Color(color)) => color,
+        other => panic!("expected color background, got {other:?}"),
+    };
+    assert!(
+        (background.a - DEFAULT_WALLPAPER_PANEL_ALPHA).abs() < 1.0e-5,
+        "chat shell should use wallpaper panel alpha, got {:?}",
+        background
+    );
 }
 
 fn draw_element(

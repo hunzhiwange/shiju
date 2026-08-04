@@ -165,6 +165,10 @@ fn handler_router() -> Router {
         // Workflow 应用路由：Dify Workflow 保存与列表
         .merge(handlers::workflow::applications_router())
         // Skills 与桌面端轻量 API：偏好、工具内容、服务生命周期等
+        .merge(handlers::shiju_account::router())
+        .merge(handlers::shiju_apps::router())
+        .merge(handlers::shiju_skills::router())
+        .merge(handlers::skill_market::router())
         .merge(handlers::desktop_skills::router())
         .merge(handlers::plugins::router())
         .merge(handlers::desktop::router())

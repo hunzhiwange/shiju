@@ -4,10 +4,21 @@
 
 use vw_desktop::{app, fonts};
 
+#[cfg(target_os = "macos")]
+use std::io::{BufRead, BufReader, Write};
+#[cfg(target_os = "macos")]
+use std::os::fd::FromRawFd;
+#[cfg(target_os = "macos")]
+use std::sync::Once;
+
 #[cfg(not(target_arch = "wasm32"))]
 use tracing_subscriber::prelude::*;
 
 const MAIN_WINDOW_SIZE: iced::Size = iced::Size { width: 1720.0, height: 1000.0 };
+
+#[cfg(any(test, target_os = "macos"))]
+const MACOS_IMK_RUN_LOOP_NOISE: &str =
+    "error messaging the mach port for IMKCFRunLoopWakeUpReliable";
 
 fn main_window_platform_settings() -> iced::window::settings::PlatformSpecific {
     #[cfg(target_os = "macos")]
@@ -67,30 +78,64 @@ fn init_native_tracing() {
 fn native_tracing_filter() -> tracing_subscriber::EnvFilter {
     tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         tracing_subscriber::EnvFilter::new(
-            "info,iced_winit=error,iced_futures::subscription::tracker=error",
+            "info,rmcp=warn,iced_winit=error,iced_futures::subscription::tracker=error",
         )
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn task_pet_initial_position(window_size: iced::Size, monitor_size: iced::Size) -> iced::Point {
-    iced::Point::new((monitor_size.width - window_size.width - 80.0).max(24.0), 96.0)
+#[cfg(any(test, target_os = "macos"))]
+fn should_suppress_native_stderr_line(line: &str) -> bool {
+    line.contains(MACOS_IMK_RUN_LOOP_NOISE)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn task_pet_window_settings(size: iced::Size) -> iced::window::Settings {
-    iced::window::Settings {
-        size,
-        min_size: Some(size),
-        max_size: Some(size),
-        position: iced::window::Position::SpecificWith(task_pet_initial_position),
-        resizable: false,
-        decorations: false,
-        transparent: true,
-        level: iced::window::Level::AlwaysOnTop,
-        exit_on_close_request: false,
-        ..Default::default()
-    }
+#[cfg(target_os = "macos")]
+fn install_macos_native_stderr_filter() {
+    static INSTALL: Once = Once::new();
+
+    INSTALL.call_once(|| {
+        let mut pipe_fds = [-1; 2];
+        let result = unsafe { libc::pipe(pipe_fds.as_mut_ptr()) };
+        if result != 0 {
+            return;
+        }
+
+        let read_fd = pipe_fds[0];
+        let write_fd = pipe_fds[1];
+        let original_stderr = unsafe { libc::dup(libc::STDERR_FILENO) };
+        if original_stderr < 0 {
+            unsafe {
+                libc::close(read_fd);
+                libc::close(write_fd);
+            }
+            return;
+        }
+
+        let dup_result = unsafe { libc::dup2(write_fd, libc::STDERR_FILENO) };
+        unsafe { libc::close(write_fd) };
+        if dup_result < 0 {
+            unsafe {
+                libc::close(read_fd);
+                libc::close(original_stderr);
+            }
+            return;
+        }
+
+        std::thread::spawn(move || {
+            let reader = unsafe { std::fs::File::from_raw_fd(read_fd) };
+            let mut writer = unsafe { std::fs::File::from_raw_fd(original_stderr) };
+
+            for line in BufReader::new(reader).lines() {
+                let Ok(line) = line else {
+                    break;
+                };
+                if should_suppress_native_stderr_line(&line) {
+                    continue;
+                }
+                let _ = writeln!(writer, "{line}");
+                let _ = writer.flush();
+            }
+        });
+    });
 }
 
 fn default_font() -> iced::Font {
@@ -125,18 +170,11 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let (task_pet_window_id, task_pet_window_task) =
-            iced::window::open(task_pet_window_settings(app.task_pet_window_size()));
-
-        app.register_window_ids(main_window_id, Some(task_pet_window_id));
+        app.register_window_ids(main_window_id, None);
 
         (
             app,
-            iced::Task::batch([
-                startup_task,
-                main_window_task.map(|_| app::Message::None),
-                task_pet_window_task.map(|_| app::Message::None),
-            ]),
+            iced::Task::batch([startup_task, main_window_task.map(|_| app::Message::None)]),
         )
     }
 }
@@ -153,6 +191,9 @@ pub fn main() -> iced::Result {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        #[cfg(target_os = "macos")]
+        install_macos_native_stderr_filter();
+
         init_native_tracing();
     }
 

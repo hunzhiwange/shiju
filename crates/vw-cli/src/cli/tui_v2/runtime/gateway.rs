@@ -16,6 +16,7 @@ use super::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_gatewa
 use crate::app::agent::config::Config;
 use std::fmt::Write as _;
 use std::future::Future;
+use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
 #[cfg(not(target_arch = "wasm32"))]
@@ -29,6 +30,10 @@ use vw_gateway_client::vw_api_types::id::{
     COMPANY_ID_HEADER, PLATFORM_ID_HEADER, SessionId, TenantScope,
 };
 use vw_gateway_client::{GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint};
+use vw_config_types::config::AcpAgentConfig;
+use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::id::ProjectScope;
 
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_HEALTH_PATH: &str = "/v1/health";
@@ -76,7 +81,7 @@ impl Default for GatewayClientBootstrapConfig {
     fn default() -> Self {
         Self {
             host: "127.0.0.1".to_string(),
-            port: 42617,
+            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
             skey: None,
             platform_id: "10000".to_string(),
             company_id: "100000000".to_string(),
@@ -317,6 +322,50 @@ impl GatewayUiRuntime {
         self.session = self.session.clone().with_id(session_id).with_scope(scope).with_title(title);
     }
 
+    pub(crate) fn rebind_validated_directory(&mut self, path: &Path) -> Result<PathBuf, String> {
+        let canonical = path
+            .canonicalize()
+            .map_err(|error| format!("cannot resolve directory {}: {error}", path.display()))?;
+        if !canonical.is_dir() {
+            return Err(format!("target is not a directory: {}", canonical.display()));
+        }
+        self.session.directory = canonical.clone();
+        Ok(canonical)
+    }
+
+    pub(crate) async fn resolve_project_directory(
+        &self,
+        directory: &Path,
+        create_if_missing: bool,
+    ) -> Result<ProjectDto, String> {
+        let directory = directory
+            .to_str()
+            .ok_or_else(|| "project directory is not valid UTF-8".to_string())?;
+        let request =
+            ResolveProjectRequest { directory: directory.to_string(), create_if_missing };
+        self.client
+            .project_resolve(self.endpoint().tenant_scope(), &request)
+            .await
+            .map(|response| response.project)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn resolve_project_directory_blocking(
+        &self,
+        directory: &Path,
+        create_if_missing: bool,
+    ) -> Result<ProjectDto, String> {
+        block_on_gateway(self.resolve_project_directory(directory, create_if_missing))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn agent_scheduler_scope_blocking(&self) -> Result<AgentSchedulerScopeDto, String> {
+        let project = self.resolve_project_directory_blocking(self.directory(), false)?;
+        let project_scope = ProjectScope::new(self.endpoint().tenant_scope().clone(), project.id)
+            .map_err(|error| error.to_string())?;
+        Ok(AgentSchedulerScopeDto::new(project_scope))
+    }
+
     /// 将缺失 `session_id` 的流式请求补齐为当前 runtime 绑定的会话。
     pub(crate) fn prepare_stream_request(
         &self,
@@ -344,6 +393,20 @@ impl GatewayUiRuntime {
     /// 返回当前 runtime 应透传给 gateway 的目录查询值。
     pub(crate) fn directory_value(&self) -> Option<String> {
         runtime_directory_value(self.directory())
+    }
+
+    pub(crate) async fn enabled_acp_backend_keys(&self) -> Result<Vec<String>, String> {
+        let catalog = self
+            .client
+            .global_acp_config_get::<HashMap<String, AcpAgentConfig>>()
+            .await?;
+        let config = self.client.global_config_get().await?;
+        Ok(resolve_enabled_acp_backend_keys(&catalog, &config))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn enabled_acp_backend_keys_blocking(&self) -> Result<Vec<String>, String> {
+        block_on_gateway(self.enabled_acp_backend_keys())
     }
 
     /// 以异步方式发起聊天流，并把 gateway 事件规整为 `UiRuntimeEvent`。
@@ -444,6 +507,38 @@ impl GatewayUiRuntime {
             GATEWAY_STARTUP_TIMEOUT,
         ))
     }
+}
+
+const DEFAULT_ENABLED_ACP_BACKENDS: &[&str] =
+    &["claude", "gemini", "opencode", "codex", "openclaw", "copilot"];
+
+fn resolve_enabled_acp_backend_keys(
+    catalog: &HashMap<String, AcpAgentConfig>,
+    config: &serde_json::Value,
+) -> Vec<String> {
+    let configured = config
+        .get("acp")
+        .and_then(serde_json::Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter(|(_, value)| !value.is_null())
+                .map(|(key, _)| key.clone())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut keys = if configured.is_empty() {
+        DEFAULT_ENABLED_ACP_BACKENDS
+            .iter()
+            .filter(|key| catalog.contains_key(**key))
+            .map(|key| (*key).to_string())
+            .collect()
+    } else {
+        configured
+    };
+    keys.sort();
+    keys.dedup();
+    keys
 }
 
 #[cfg(not(target_arch = "wasm32"))]

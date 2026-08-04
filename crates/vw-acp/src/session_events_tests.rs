@@ -12,25 +12,37 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 struct EnvVarGuard {
     _lock: tokio::sync::MutexGuard<'static, ()>,
-    saved_home: Option<String>,
+    saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
 }
 
 impl EnvVarGuard {
     async fn set_home(home: &Path) -> Self {
         let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
-        let saved_home = std::env::var("HOME").ok();
+        let saved = save_home_env();
         unsafe { std::env::set_var("HOME", home) };
-        Self { _lock: lock, saved_home }
+        unsafe { std::env::set_var("USERPROFILE", home) };
+        unsafe { std::env::remove_var("HOMEDRIVE") };
+        unsafe { std::env::remove_var("HOMEPATH") };
+        Self { _lock: lock, saved }
     }
 }
 
 impl Drop for EnvVarGuard {
     fn drop(&mut self) {
-        match &self.saved_home {
-            Some(home) => unsafe { std::env::set_var("HOME", home) },
-            None => unsafe { std::env::remove_var("HOME") },
+        for (key, value) in self.saved.drain(..) {
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
         }
     }
+}
+
+fn save_home_env() -> Vec<(&'static str, Option<std::ffi::OsString>)> {
+    ["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
+        .into_iter()
+        .map(|key| (key, std::env::var_os(key)))
+        .collect()
 }
 
 fn temp_home(name: &str) -> PathBuf {

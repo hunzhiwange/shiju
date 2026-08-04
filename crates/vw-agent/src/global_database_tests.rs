@@ -236,7 +236,7 @@ fn global_database_configures_connection_and_secure_permissions() -> Result<()> 
     let connection = database.connect()?;
 
     assert_eq!(database.path(), database_path);
-    assert_eq!(sessions.path(), database.path());
+    assert_eq!(sessions.storage_path(), Some(database.path()));
     assert_eq!(scheduler.database_path(), database.path());
     assert_eq!(
         database.path(),

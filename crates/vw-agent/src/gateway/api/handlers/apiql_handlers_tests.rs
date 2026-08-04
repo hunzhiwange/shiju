@@ -225,18 +225,18 @@ async fn apiql_routes_dispatch_four_php_compatible_list_modes() {
     install_apiql_fixture(&db_path).await;
 
     let index = get_json(
-        "/apiQL/v1:product:product/?column%5B%5D=id&column%5B%5D=name&orderBy=id%20asc&limit=2",
+        "/apiQL/product:product/?column%5B%5D=id&column%5B%5D=name&orderBy=id%20asc&limit=2",
     )
     .await;
     let list_only =
-        get_json("/apiQL/v1:product:product/list-only/?column%5B%5D=id&orderBy=id%20asc&limit=1")
+        get_json("/apiQL/product:product/list-only/?column%5B%5D=id&orderBy=id%20asc&limit=1")
             .await;
-    let list_count = get_json("/apiQL/v1:product:product/list-count/?active=1").await;
+    let list_count = get_json("/apiQL/product:product/list-count/?active=1").await;
     let list_page = get_json(
-        "/apiQL/v1:product:product/list-page/?column%5B%5D=id&page=2&page_size=2&orderBy=id%20asc",
+        "/apiQL/product:product/list-page/?column%5B%5D=id&page=2&page_size=2&orderBy=id%20asc",
     )
     .await;
-    let bad_column = get_json("/apiQL/v1:product:product/?column%5B%5D=missing").await;
+    let bad_column = get_json("/apiQL/product:product/?column%5B%5D=missing").await;
     let direct_index = super::functions::api_ql(
         apiql_tenant(),
         "product:product",
@@ -320,13 +320,13 @@ async fn apiql_routes_accept_missing_trailing_slash() {
     install_apiql_fixture(&db_path).await;
 
     let index =
-        get_json("/apiQL/v1:product:product?column%5B%5D=id&orderBy=id%20asc&limit=1").await;
+        get_json("/apiQL/product:product?column%5B%5D=id&orderBy=id%20asc&limit=1").await;
     let list_only =
-        get_json("/apiQL/v1:product:product/list-only?column%5B%5D=id&orderBy=id%20asc&limit=1")
+        get_json("/apiQL/product:product/list-only?column%5B%5D=id&orderBy=id%20asc&limit=1")
             .await;
-    let list_count = get_json("/apiQL/v1:product:product/list-count?active=1").await;
+    let list_count = get_json("/apiQL/product:product/list-count?active=1").await;
     let list_page = get_json(
-        "/apiQL/v1:product:product/list-page?column%5B%5D=id&page=1&page_size=1&orderBy=id%20asc",
+        "/apiQL/product:product/list-page?column%5B%5D=id&page=1&page_size=1&orderBy=id%20asc",
     )
     .await;
 

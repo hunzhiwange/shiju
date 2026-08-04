@@ -229,27 +229,37 @@ fn handle_input_editor_edit(app: &mut App, edit: text_editor::Edit) -> Task<Mess
     sync_global_input_editor_if_needed(app);
 
     let text = app.current_session_runtime().input_editor.text().to_string();
-    let previous_query = app.file_search_query.clone();
+    let previous_file_query = app.file_search_query.clone();
+    let previous_slash_query = app.slash_palette_query.clone();
     let last_char = text.chars().last();
 
     if last_char.is_some_and(|c: char| c.is_whitespace()) {
         clear_file_search_state(app);
+        super::slash_palette::clear_slash_palette_state(app);
         return Task::none();
     }
 
+    if let Some(query) = super::slash_palette::active_slash_query(&text) {
+        return super::slash_palette::open_slash_palette(app, query);
+    }
+
     if let Some(query) = active_file_search_query(&text) {
+        super::slash_palette::clear_slash_palette_state(app);
         app.show_file_search = true;
         app.file_search_query = query.to_string();
         app.refresh_file_search_cache();
         app.file_search_selected_index = 0;
         let focus_task = focus_input_editor(app);
-        if app.file_search_query != previous_query {
+        if app.file_search_query != previous_file_query
+            || previous_slash_query != app.slash_palette_query
+        {
             return Task::batch(vec![focus_task, scroll_file_search_to_top(app)]);
         }
         return focus_task;
     }
 
     clear_file_search_state(app);
+    super::slash_palette::clear_slash_palette_state(app);
     Task::none()
 }
 

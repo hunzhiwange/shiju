@@ -16,8 +16,8 @@ use super::super::tools::{
     tool_status, tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };
 use super::super::utils::{
-    normalize_display_text, normalize_file_reference_to_path, strip_internal_tool_trace,
-    truncate_chars,
+    normalize_display_text, normalize_file_reference_to_path, single_line_preview,
+    strip_internal_tool_trace, truncate_chars,
 };
 use super::parse::{RenderBlock, borrowed_blocks, owned_blocks_from_raw};
 
@@ -33,8 +33,8 @@ fn bash_command_title(input: &str) -> String {
         input.trim().to_string()
     };
 
-    let trimmed = cmd_line.trim();
-    if trimmed.is_empty() { "运行命令".to_string() } else { truncate_chars(trimmed, 140) }
+    let title = single_line_preview(&cmd_line, 140);
+    if title.is_empty() { "运行命令".to_string() } else { title }
 }
 
 fn parse_read_summary_input(input: &str) -> Option<(String, usize, usize)> {

@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-dark",
+  "name": "太浩夜靛 Tahoe Dark",
+  "tagline": "紫靛深水，玻璃边缘微光。",
+  "palette": {
+    "background": "#0b0f2a",
+    "text": "#e8eefc",
+    "primary": "#6b7cff",
+    "success": "#7ec8ff",
+    "warning": "#c9a86c",
+    "danger": "#e06b7a"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#151b3d",
+    "input_bg": "#1a2150",
+    "button_bg": "#6b7cff",
+    "button_text": "#f8fafc",
+    "radius_px": 12,
+    "panel_alpha": 184
+  }
+}

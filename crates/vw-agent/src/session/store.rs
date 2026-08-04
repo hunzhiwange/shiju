@@ -7,10 +7,10 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ThinkTiming, TokenUsage,
+    ProcessingTiming, ThinkTiming, TokenUsage,
 };
 
-use crate::global_database::GlobalDatabase;
+use crate::global_database::{GlobalDatabase, run_sync_database};
 use crate::global_database::config::DatabaseProvider;
 
 mod postgres;
@@ -50,7 +50,12 @@ CREATE TABLE IF NOT EXISTS session_messages (
     role TEXT NOT NULL,
     message_id TEXT,
     content TEXT NOT NULL,
+    model TEXT,
     think_timing_json TEXT NOT NULL,
+    processing_started_ms INTEGER,
+    processing_completed_ms INTEGER,
+    processing_elapsed_ms INTEGER,
+    processing_llm_elapsed_ms INTEGER,
     PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
@@ -127,6 +132,24 @@ CREATE TABLE IF NOT EXISTS session_todos (
 CREATE INDEX IF NOT EXISTS idx_session_todos_project_order
 ON session_todos(platform_id, company_id, project_id, session_id, order_no, todo_id);
 
+CREATE TABLE IF NOT EXISTS session_step_llm_raw (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    step_index INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
+ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
+
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
@@ -173,6 +196,8 @@ impl SessionStore {
                     connection
                         .execute_batch(SESSION_SCHEMA)
                         .context("initialize SQLite session schema")?;
+                    ensure_sqlite_message_model_column(connection)?;
+                    ensure_sqlite_message_processing_timing_columns(connection)?;
                     Ok(())
                 })?;
                 SessionStoreProvider::Sqlite(database)
@@ -182,15 +207,6 @@ impl SessionStore {
             }
         };
         Ok(Self { provider })
-    }
-
-    pub fn path(&self) -> &Path {
-        match &self.provider {
-            SessionStoreProvider::Sqlite(database) => database.path(),
-            SessionStoreProvider::Postgres(_) => {
-                panic!("PostgreSQL session store does not expose a SQLite path")
-            }
-        }
     }
 
     pub fn storage_path(&self) -> Option<&Path> {
@@ -212,7 +228,9 @@ impl SessionStore {
                     Ok(())
                 })
             }
-            SessionStoreProvider::Postgres(store) => store.save_session(scope, session),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.save_session(scope, session))
+            }
         }
     }
 
@@ -227,7 +245,9 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 load_session_from_connection(&connection, scope, session_id)
             }
-            SessionStoreProvider::Postgres(store) => store.load_session(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_session(scope, session_id))
+            }
         }
     }
 
@@ -261,7 +281,9 @@ impl SessionStore {
                 let scope = ProjectScope::new(tenant.clone(), ProjectId::from(project_id))?;
                 load_session_from_connection(&connection, &scope, session_id)
             }
-            SessionStoreProvider::Postgres(store) => store.load_session_any(tenant, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_session_any(tenant, session_id))
+            }
         }
     }
 
@@ -290,7 +312,9 @@ impl SessionStore {
                 }
                 Ok(sessions)
             }
-            SessionStoreProvider::Postgres(store) => store.list_sessions(scope),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.list_sessions(scope))
+            }
         }
     }
 
@@ -333,7 +357,9 @@ impl SessionStore {
                 })
                 .transpose()
             }
-            SessionStoreProvider::Postgres(store) => store.load_session_meta(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_session_meta(scope, session_id))
+            }
         }
     }
 
@@ -380,7 +406,9 @@ impl SessionStore {
                     Ok(())
                 })
             }
-            SessionStoreProvider::Postgres(store) => store.replace_session_index(scope, sessions),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.replace_session_index(scope, sessions))
+            }
         }
     }
 
@@ -396,7 +424,9 @@ impl SessionStore {
                 )?;
                 Ok(changed == 1)
             }
-            SessionStoreProvider::Postgres(store) => store.delete_session(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.delete_session(scope, session_id))
+            }
         }
     }
 
@@ -446,7 +476,93 @@ impl SessionStore {
                 })
             }
             SessionStoreProvider::Postgres(store) => {
-                store.save_session_todos(scope, session_id, todos)
+                run_sync_database(|| store.save_session_todos(scope, session_id, todos))
+            }
+        }
+    }
+
+    pub fn save_session_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        step_index: u32,
+        payload: &serde_json::Value,
+    ) -> Result<()> {
+        validate_id("session id", session_id)?;
+        let payload_json =
+            serde_json::to_string(payload).context("serialize LLM raw session step payload")?;
+        let step_index_sqlite = to_i64(step_index as u64, "step index")?;
+
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.connect_sqlite()?.execute(
+                    "INSERT INTO session_step_llm_raw (
+                        platform_id, company_id, project_id, session_id, step_index, payload_json
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                    ON CONFLICT (platform_id, company_id, project_id, session_id, step_index)
+                        DO UPDATE SET payload_json = excluded.payload_json",
+                    params![
+                        scope.platform_id().as_ref(),
+                        scope.company_id().as_ref(),
+                        scope.project_id().as_ref(),
+                        session_id,
+                        step_index_sqlite,
+                        payload_json,
+                    ],
+                )?;
+                Ok(())
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| {
+                    store.save_session_step_llm_raw(scope, session_id, step_index, payload)
+                })
+            }
+        }
+    }
+
+    pub fn load_session_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        step_index: u32,
+    ) -> Result<Option<serde_json::Value>> {
+        validate_id("session id", session_id)?;
+        let step_index_sqlite = to_i64(step_index as u64, "step index")?;
+
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let payload_json = database
+                    .connect_sqlite()?
+                    .query_row(
+                        "SELECT payload_json
+                         FROM session_step_llm_raw
+                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                           AND session_id = ?4 AND step_index = ?5",
+                        params![
+                            scope.platform_id().as_ref(),
+                            scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),
+                            session_id,
+                            step_index_sqlite,
+                        ],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()?;
+                payload_json
+                    .map(|payload_json| {
+                        serde_json::from_str::<serde_json::Value>(&payload_json)
+                            .with_context(|| {
+                                format!(
+                                    "parse session llm raw step payload JSON: {session_id}/{step_index}"
+                                )
+                            })
+                    })
+                    .transpose()
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| {
+                    store.load_session_step_llm_raw(scope, session_id, step_index)
+                })
             }
         }
     }
@@ -479,7 +595,9 @@ impl SessionStore {
                     .collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(todos)
             }
-            SessionStoreProvider::Postgres(store) => store.load_session_todos(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_session_todos(scope, session_id))
+            }
         }
     }
 
@@ -513,7 +631,7 @@ impl SessionStore {
                 Ok(())
             }
             SessionStoreProvider::Postgres(store) => {
-                store.save_agent_session(scope, info, &info_json)
+                run_sync_database(|| store.save_agent_session(scope, info, &info_json))
             }
         }
     }
@@ -540,7 +658,9 @@ impl SessionStore {
                     .map(|json| parse_agent_info(&json, scope.project_id().as_ref(), session_id))
                     .transpose()
             }
-            SessionStoreProvider::Postgres(store) => store.load_agent_session(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_agent_session(scope, session_id))
+            }
         }
     }
 
@@ -566,7 +686,9 @@ impl SessionStore {
                 }
                 Ok(sessions)
             }
-            SessionStoreProvider::Postgres(store) => store.load_agent_sessions(scope),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_agent_sessions(scope))
+            }
         }
     }
 
@@ -593,7 +715,9 @@ impl SessionStore {
                 }
                 Ok(sessions)
             }
-            SessionStoreProvider::Postgres(store) => store.load_agent_sessions_all(tenant),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_agent_sessions_all(tenant))
+            }
         }
     }
 
@@ -626,7 +750,7 @@ impl SessionStore {
                 .transpose()
             }
             SessionStoreProvider::Postgres(store) => {
-                store.load_agent_session_any(tenant, session_id)
+                run_sync_database(|| store.load_agent_session_any(tenant, session_id))
             }
         }
     }
@@ -643,7 +767,9 @@ impl SessionStore {
                 )?;
                 Ok(changed == 1)
             }
-            SessionStoreProvider::Postgres(store) => store.delete_agent_session(scope, session_id),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.delete_agent_session(scope, session_id))
+            }
         }
     }
 }
@@ -694,11 +820,35 @@ fn replace_session_messages(
     for (seq_no, message) in session.messages.iter().enumerate() {
         let think_timing_json =
             serde_json::to_string(&message.think_timing).context("serialize think timing JSON")?;
+        let processing_started_ms = message
+            .processing_timing
+            .as_ref()
+            .map(|timing| to_i64(timing.started_ms, "message processing started_ms"))
+            .transpose()?;
+        let processing_completed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.completed_ms)
+            .map(|value| to_i64(value, "message processing completed_ms"))
+            .transpose()?;
+        let processing_llm_elapsed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.llm_elapsed_ms)
+            .map(|value| to_i64(value, "message processing llm_elapsed_ms"))
+            .transpose()?;
+        let processing_elapsed_ms = message
+            .processing_timing
+            .as_ref()
+            .and_then(|timing| timing.processing_elapsed_ms)
+            .map(|value| to_i64(value, "message processing elapsed_ms"))
+            .transpose()?;
         transaction.execute(
             "INSERT INTO session_messages (
                  platform_id, company_id, project_id, session_id, seq_no, role, message_id,
-                 content, think_timing_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                 content, model, think_timing_json, processing_started_ms, processing_completed_ms,
+                 processing_elapsed_ms, processing_llm_elapsed_ms
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
@@ -708,7 +858,12 @@ fn replace_session_messages(
                 role_to_db(message.role),
                 session.message_ids.get(seq_no).cloned().flatten(),
                 message.content,
+                message.model,
                 think_timing_json,
+                processing_started_ms,
+                processing_completed_ms,
+                processing_elapsed_ms,
+                processing_llm_elapsed_ms,
             ],
         )?;
     }
@@ -821,7 +976,10 @@ fn load_messages(
     session_id: &str,
 ) -> Result<(Vec<ChatMessage>, Vec<Option<String>>)> {
     let mut statement = connection.prepare(
-        "SELECT role, message_id, content, think_timing_json FROM session_messages
+        "SELECT role, message_id, content, think_timing_json, model,
+                processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                processing_llm_elapsed_ms
+         FROM session_messages
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
          ORDER BY seq_no",
     )?;
@@ -831,17 +989,97 @@ fn load_messages(
     while let Some(row) = rows.next()? {
         let role: String = row.get(0)?;
         let think_timing_json: String = row.get(3)?;
+        let processing_started_ms: Option<i64> = row.get(5)?;
+        let processing_completed_ms: Option<i64> = row.get(6)?;
+        let processing_elapsed_ms: Option<i64> = row.get(7)?;
+        let processing_llm_elapsed_ms: Option<i64> = row.get(8)?;
+        let processing_timing = match (processing_started_ms, processing_completed_ms) {
+            (None, None) => None,
+            (Some(started_ms), completed_ms) => Some(ProcessingTiming {
+                started_ms: from_i64(started_ms, "message processing started_ms")?,
+                completed_ms: completed_ms
+                    .map(|value| from_i64(value, "message processing completed_ms"))
+                    .transpose()?,
+                processing_elapsed_ms: processing_elapsed_ms
+                    .map(|value| from_i64(value, "message processing elapsed_ms"))
+                    .transpose()?,
+                llm_elapsed_ms: processing_llm_elapsed_ms
+                    .map(|value| from_i64(value, "message processing llm_elapsed_ms"))
+                    .transpose()?,
+            }),
+            (None, Some(_)) => bail!(
+                "session message processing completed_ms exists without started_ms: {session_id}"
+            ),
+        };
         message_ids.push(row.get(1)?);
         messages.push(ChatMessage {
             role: role_from_db(&role)?,
             content: row.get(2)?,
+            model: row.get(4)?,
             think_timing: serde_json::from_str::<Vec<ThinkTiming>>(&think_timing_json)
                 .with_context(|| {
                     format!("parse session message think timing JSON: {session_id}")
                 })?,
+            processing_timing,
         });
     }
     Ok((messages, message_ids))
+}
+
+fn ensure_sqlite_message_model_column(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA table_info(session_messages)")?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        if row.get::<_, String>(1)? == "model" {
+            return Ok(());
+        }
+    }
+
+    connection
+        .execute("ALTER TABLE session_messages ADD COLUMN model TEXT", [])
+        .context("add SQLite session message model column")?;
+    Ok(())
+}
+
+fn ensure_sqlite_message_processing_timing_columns(connection: &Connection) -> Result<()> {
+    let columns = {
+        let mut statement = connection.prepare("PRAGMA table_info(session_messages)")?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
+        rows.collect::<rusqlite::Result<HashSet<_>>>()?
+    };
+    if !columns.contains("processing_started_ms") {
+        connection
+            .execute(
+                "ALTER TABLE session_messages ADD COLUMN processing_started_ms INTEGER",
+                [],
+            )
+            .context("add SQLite session message processing started_ms column")?;
+    }
+    if !columns.contains("processing_completed_ms") {
+        connection
+            .execute(
+                "ALTER TABLE session_messages ADD COLUMN processing_completed_ms INTEGER",
+                [],
+            )
+            .context("add SQLite session message processing completed_ms column")?;
+    }
+    if !columns.contains("processing_elapsed_ms") {
+        connection
+            .execute(
+                "ALTER TABLE session_messages ADD COLUMN processing_elapsed_ms INTEGER",
+                [],
+            )
+            .context("add SQLite session message processing elapsed_ms column")?;
+    }
+    if !columns.contains("processing_llm_elapsed_ms") {
+        connection
+            .execute(
+                "ALTER TABLE session_messages ADD COLUMN processing_llm_elapsed_ms INTEGER",
+                [],
+            )
+            .context("add SQLite session message processing llm_elapsed_ms column")?;
+    }
+    Ok(())
 }
 
 fn load_calls(

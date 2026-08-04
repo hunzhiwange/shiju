@@ -1,0 +1,25 @@
+{
+  "id": "soft-moss",
+  "name": "柔苔 Soft Moss",
+  "tagline": "雨后石阶上的青苔色。",
+  "palette": {
+    "background": "#f2f4ef",
+    "text": "#333a2f",
+    "primary": "#7d9a6d",
+    "success": "#a3b894",
+    "warning": "#8a9a7d",
+    "danger": "#b8a68a"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#7d9a6d",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

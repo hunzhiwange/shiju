@@ -1,9 +1,13 @@
 use super::*;
+use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::thread;
+
+#[cfg(not(target_arch = "wasm32"))]
+static MODELS_STATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn provider_json(id: &str) -> String {
     format!(
@@ -87,6 +91,7 @@ fn refresh_test_path(name: &str) -> PathBuf {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn refresh_from_url_writes_successful_body_and_invalidates_cache() {
+    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
     let path = refresh_test_path("models-refresh-success");
     let body = provider_map_json("remote");
     let (url, handle) = spawn_http_response("200 OK", body.clone());
@@ -247,8 +252,69 @@ fn bundled_models_loads_included_metadata() {
     assert!(!bundled.is_empty());
 }
 
+#[test]
+fn bundled_models_include_shiju_static_catalog() {
+    let bundled = bundled_models("bundled_shiju");
+    let shiju = bundled.get("shiju").expect("bundled models should include shiju");
+    let expected = HashSet::from([
+        "qwen-coder-turbo",
+        "gte-rerank-v2",
+        "qwen3-max-preview",
+        "qwen-mt-turbo",
+        "qwen3-32b",
+        "qwen3-235b-a22b",
+        "qvq-max",
+        "deepseek-v3",
+        "glm-4.7",
+        "text-embedding-v3",
+        "qwen3-30b-a3b",
+        "MiniMax-M2.5",
+        "qwen-plus-latest",
+        "qwen-plus",
+        "glm-5.2",
+        "deepseek-v3.2",
+        "glm-5",
+        "qwen3-235b-a22b-instruct-2507",
+        "glm-5.1",
+        "qwen3.5-plus",
+        "deepseek-v4-pro",
+        "qwen-image-edit-max",
+        "qwen-math-plus",
+        "qwen3.7-text-embedding",
+        "deepseek-r1-distill-qwen-14b",
+        "qwen3.5-flash",
+        "deepseek-r1-distill-qwen-32b",
+        "qwen3-next-80b-a3b-thinking",
+        "text-embedding-v4",
+        "qwen-image-2.0",
+        "qwen-turbo",
+        "qwen3-235b-a22b-thinking-2507",
+        "qwen3-vl-flash",
+        "deepseek-v4-flash",
+    ]);
+    let actual = shiju.models.keys().map(String::as_str).collect::<HashSet<_>>();
+
+    assert_eq!(shiju.id, "shiju");
+    assert_eq!(shiju.name, "识矩");
+    assert_eq!(shiju.env, vec!["SHIJU_API_KEY"]);
+    assert_eq!(shiju.api.as_deref(), Some("https://router.shiju.cloud/v1"));
+    assert_eq!(shiju.adapter.as_deref(), Some("openai-compatible"));
+    assert_eq!(actual, expected);
+    assert_eq!(shiju.models.len(), 34);
+    assert!(shiju.models.contains_key("qwen-coder-turbo"));
+    assert!(shiju.models.contains_key("deepseek-v4-flash"));
+    let vision = &shiju.models["qwen3-vl-flash"];
+    assert!(vision.attachment);
+    assert_eq!(
+        vision.modalities.as_ref().map(|modalities| modalities.input.as_slice()),
+        Some(["text".to_string(), "image".to_string()].as_slice())
+    );
+    assert!(bundled.contains_key("openai"));
+}
+
 #[tokio::test]
 async fn get_returns_process_cache_until_invalidated() {
+    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
     let mut cached = HashMap::new();
     let provider = Provider {
         api: None,
@@ -277,6 +343,7 @@ async fn get_returns_process_cache_until_invalidated() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn get_loads_and_stores_data_when_process_cache_is_empty() {
+    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
     let path = active_models_path();
     let original = fs::read(&path).ok();
 
@@ -305,6 +372,7 @@ async fn get_loads_and_stores_data_when_process_cache_is_empty() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn load_reads_non_empty_cache_before_bundled_fallback() {
+    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
     let path = active_models_path();
     let original = fs::read(&path).ok();
 
@@ -315,6 +383,7 @@ async fn load_reads_non_empty_cache_before_bundled_fallback() {
 
     let data = load().await;
     assert_provider(&data, "disk");
+    assert!(data.contains_key("shiju"));
 
     match original {
         Some(bytes) => fs::write(&path, bytes).expect("cache file should be restored"),
@@ -327,6 +396,7 @@ async fn load_reads_non_empty_cache_before_bundled_fallback() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn load_falls_back_to_bundled_models_for_empty_or_invalid_cache() {
+    let _state_lock = MODELS_STATE_TEST_LOCK.lock().await;
     let path = active_models_path();
     let original = fs::read(&path).ok();
 

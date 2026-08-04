@@ -1,12 +1,78 @@
 use vw_gateway_client::GatewayChatUsage;
 
-use super::{apply_runtime_event, parse_tool_delta};
-use crate::cli::tui_v2::model::{UiMessage, UiToolCallState, UiTurnTerminal};
+use super::{apply_runtime_event, apply_runtime_event_at, parse_tool_delta};
+use crate::cli::tui_v2::model::{UiMessage, UiThinkingPhase, UiToolCallState, UiTurnTerminal};
 use crate::cli::tui_v2::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use crate::cli::tui_v2::state::TuiState;
 
 fn usage() -> GatewayChatUsage {
     GatewayChatUsage { input_tokens: 10, output_tokens: 20, cached_tokens: 3, reasoning_tokens: 4 }
+}
+
+#[test]
+fn tui_thinking_stream_transitions_match_reference() {
+    let mut state = TuiState::default();
+
+    apply_runtime_event_at(&mut state, UiRuntimeEvent::Delta("<think>inspect".to_string()), 1_000);
+    let (thinking_id, projection_before_delta) = match state.messages.as_slice() {
+        [UiMessage::Thinking(block)] => {
+            assert_eq!(block.phase, UiThinkingPhase::Streaming);
+            assert_eq!(block.timing[0].start_ms, 1_000);
+            assert_eq!(block.timing[0].last_update_ms, 1_000);
+            (block.base.id.clone(), state.transcript.clone())
+        }
+        messages => panic!("expected one streaming thinking block, got {messages:?}"),
+    };
+
+    apply_runtime_event_at(&mut state, UiRuntimeEvent::Delta(" reducer".to_string()), 1_250);
+    let UiMessage::Thinking(streaming) = &state.messages[0] else {
+        panic!("thinking identity must stay stable");
+    };
+    assert_eq!(streaming.base.id, thinking_id);
+    assert_eq!(streaming.content, "inspect reducer");
+    assert_eq!(streaming.timing[0].last_update_ms, 1_250);
+    assert_eq!(
+        state.transcript, projection_before_delta,
+        "a thinking tick/delta must not rebuild the transcript projection"
+    );
+
+    apply_runtime_event_at(
+        &mut state,
+        UiRuntimeEvent::Delta("</think>\nanswer".to_string()),
+        1_500,
+    );
+    let UiMessage::Thinking(closed) = &state.messages[0] else {
+        panic!("closed thinking block must keep its original identity");
+    };
+    assert_eq!(closed.base.id, thinking_id);
+    assert_eq!(closed.phase, UiThinkingPhase::Closed);
+    assert_eq!(closed.timing[0].end_ms, Some(1_500));
+    assert!(closed.collapsed);
+    assert!(matches!(
+        &state.messages[1],
+        UiMessage::Assistant(message) if message.text == "answer"
+    ));
+
+    apply_runtime_event_at(
+        &mut state,
+        UiRuntimeEvent::Delta(
+            "<redacted-thinking>never expose this payload</redacted-thinking>".to_string(),
+        ),
+        2_000,
+    );
+    let redacted = state
+        .messages
+        .iter()
+        .find_map(|message| match message {
+            UiMessage::Thinking(block) if block.phase == UiThinkingPhase::Redacted => Some(block),
+            _ => None,
+        })
+        .expect("redacted thinking placeholder");
+    assert!(redacted.content.is_empty());
+    assert!(
+        !format!("{:?}", state.messages).contains("never expose this payload"),
+        "redacted thinking payload must never enter UI state"
+    );
 }
 
 #[test]
@@ -105,13 +171,54 @@ fn tool_delta_creates_call_and_result_messages_for_success_and_failure() {
 }
 
 #[test]
+fn tool_input_json_deltas_append_without_duplicating_the_call() {
+    let mut state = TuiState::default();
+    for delta in [
+        r#"tool read
+{"status":"queued","title":"Read file"}"#,
+        r#"tool read
+{"status":"input_json_delta","input_json_delta":"{\"path\":"}"#,
+        r#"tool read
+{"status":"input_json_delta","input_json_delta":"\"README.md\"}"}"#,
+        r#"tool read
+{"status":"completed","output":"contents"}"#,
+    ] {
+        apply_runtime_event(&mut state, UiRuntimeEvent::Delta(delta.to_string()));
+    }
+
+    let calls = state
+        .messages
+        .iter()
+        .filter_map(|message| match message {
+            UiMessage::ToolCall(call) => Some(call),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].arguments.as_deref(), Some(r#"{"path":"README.md"}"#));
+    assert_eq!(calls[0].state, UiToolCallState::Complete);
+
+    apply_runtime_event(
+        &mut state,
+        UiRuntimeEvent::Delta(
+            r#"tool shell
+{"status":"cancelled","error":"interrupted by user"}"#
+                .to_string(),
+        ),
+    );
+    assert!(state.messages.iter().any(
+        |message| matches!(message, UiMessage::ToolCall(call) if call.state == UiToolCallState::Cancelled)
+    ));
+}
+
+#[test]
 fn tool_delta_parser_rejects_invalid_headers_payloads_and_statuses() {
     assert!(parse_tool_delta("tool grep").is_none());
     assert!(parse_tool_delta("grep\n{\"status\":\"running\"}").is_none());
     assert!(parse_tool_delta("tool \n{\"status\":\"running\"}").is_none());
     assert!(parse_tool_delta("tool grep\nnot json").is_none());
     assert!(parse_tool_delta("tool grep\n{\"status\":\"\"}").is_none());
-    assert!(parse_tool_delta("tool grep\n{\"status\":\"queued\"}").is_none());
+    assert!(parse_tool_delta("tool grep\n{\"status\":\"paused\"}").is_none());
 }
 
 #[test]
@@ -225,10 +332,29 @@ fn ignored_runtime_events_do_not_mutate_visible_state() {
         &mut state,
         UiRuntimeEvent::UsageUpdated { session_id: Some("session".to_string()), usage: usage() },
     );
+    apply_runtime_event(&mut state, UiRuntimeEvent::PostToolRound);
 
     assert_eq!(state.session.title, "Stable");
     assert!(state.messages.is_empty());
     assert_eq!(state.status.turn_terminal, UiTurnTerminal::Pending);
+}
+
+#[test]
+fn context_loaded_event_adds_informational_message() {
+    let mut state = TuiState::default();
+
+    apply_runtime_event(
+        &mut state,
+        UiRuntimeEvent::ContextLoaded {
+            paths: vec!["/work/AGENTS.md".to_string(), "/work/CONTEXT.md".to_string()],
+        },
+    );
+
+    assert!(state.messages.iter().any(|message| matches!(
+        message,
+        UiMessage::System(system)
+            if system.text == "已加载上下文文件：\n- /work/AGENTS.md\n- /work/CONTEXT.md"
+    )));
 }
 
 #[test]

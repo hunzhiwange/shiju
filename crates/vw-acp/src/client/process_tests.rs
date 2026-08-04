@@ -77,16 +77,16 @@ async fn spawn_child_trims_command_passes_args_and_merges_environment() {
 {
     printf 'arg=%s\n' "$2"
     printf 'config=%s\n' "$CONFIG_ONLY"
-    printf 'auth_raw=%s\n' "$(printenv openai-api-key)"
-    printf 'auth_normalized=%s\n' "$OPENAI_API_KEY"
-    printf 'auth_prefixed=%s\n' "$VWACP_AUTH_OPENAI_API_KEY"
+    printf 'auth_raw=%s\n' "$openai_api_key_raw"
+    printf 'auth_normalized=%s\n' "$OPENAI_API_KEY_RAW"
+    printf 'auth_prefixed=%s\n' "$VWACP_AUTH_OPENAI_API_KEY_RAW"
 } > "$1"
 "#;
     let mut env = HashMap::new();
     env.insert("CONFIG_ONLY".to_string(), "configured".to_string());
-    env.insert("OPENAI_API_KEY".to_string(), "config-wins".to_string());
+    env.insert("OPENAI_API_KEY_RAW".to_string(), "config-wins".to_string());
     let auth_credentials =
-        HashMap::from([("openai-api-key".to_string(), "auth-secret".to_string())]);
+        HashMap::from([("openai_api_key_raw".to_string(), "auth-secret".to_string())]);
     let client = client_with_config(AcpAgentConfig {
         command: " sh ".to_string(),
         args: shell_args(
@@ -106,7 +106,10 @@ async fn spawn_child_trims_command_passes_args_and_merges_environment() {
     assert_eq!(finalized.stderr_output, "");
     assert!(output.contains("arg=child-arg\n"));
     assert!(output.contains("config=configured\n"));
+    #[cfg(not(windows))]
     assert!(output.contains("auth_raw=auth-secret\n"));
+    #[cfg(windows)]
+    assert!(output.contains("auth_raw=config-wins\n"));
     assert!(output.contains("auth_normalized=config-wins\n"));
     assert!(output.contains("auth_prefixed=auth-secret\n"));
 }
@@ -163,6 +166,7 @@ async fn finalize_child_ignores_failed_stderr_task() {
     assert_eq!(finalized.stderr_output, "");
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn finalize_child_times_out_then_terminates_process_group() {
     let client = client_with_config(AcpAgentConfig {

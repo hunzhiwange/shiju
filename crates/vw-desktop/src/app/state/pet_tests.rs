@@ -12,7 +12,7 @@ fn app() -> App {
 }
 
 fn chat_message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn agent_request(id: u64, session: &str, query: &str, root: Option<&str>) -> AgentRequest {
@@ -28,12 +28,14 @@ fn agent_request(id: u64, session: &str, query: &str, root: Option<&str>) -> Age
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     }
 }
@@ -134,7 +136,9 @@ fn newest_open_thinking_text_ignores_visible_answer() {
     let messages = vec![ChatMessage {
         role: ChatRole::Assistant,
         content: "<think>分析实现路径".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let detail = newest_open_thinking_text(messages.iter());
@@ -147,7 +151,9 @@ fn newest_open_thinking_text_returns_none_without_open_think() {
     let messages = vec![ChatMessage {
         role: ChatRole::Assistant,
         content: "<think>分析完成</think>\n最终回答".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let detail = newest_open_thinking_text(messages.iter());
@@ -161,17 +167,23 @@ fn newest_open_thinking_text_skips_user_and_uses_newest_open_assistant() {
         ChatMessage {
             role: ChatRole::Assistant,
             content: "<think>older analysis".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::User,
             content: "<think>user text".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::Assistant,
             content: "<think>newest analysis".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 

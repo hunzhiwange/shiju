@@ -173,7 +173,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let user_agent_row = text_row(
         "User-Agent",
         "请求默认携带的 User-Agent。",
-        "VibeWindow/1.0",
+        vw_config_types::tools::DEFAULT_USER_AGENT,
         &s.user_agent,
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::UserAgentChanged(

@@ -18,7 +18,9 @@ fn chat_session() -> ChatSession {
         messages: vec![ChatMessage {
             role: ChatRole::User,
             content: "hello".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("m1".to_string())],
         calls: Vec::new(),
@@ -115,7 +117,7 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
 
     assert!(error.contains("gateway request failed: 500"));
     assert_eq!(server.take_request().path, "/v1/session/missing/ui?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/missing/step/0/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/missing/ui");
     assert_eq!(server.take_request().path, "/v1/session/failed/ui");
     server.join();
 }
@@ -196,7 +198,23 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
         ),
         (404, json!({"missing": true})),
         (404, json!({"missing": true})),
-        (200, json!({"messages": [{"role": "user", "content": "hello"}]})),
+        (
+            200,
+            json!({
+                "id": "s1",
+                "title": "Session",
+                "messages": [{"role": "user", "content": "hello"}],
+                "message_ids": ["m1"],
+                "calls": [],
+                "steps": [{
+                    "index": 2,
+                    "started_ms": 1,
+                    "llm_raw": {"messages": [{"role": "user", "content": "hello"}]}
+                }],
+                "created_ms": 0,
+                "updated_ms": 2
+            }),
+        ),
         (200, json!(["s-old"])),
         (200, json!(true)),
         (200, json!("global-scope")),
@@ -427,7 +445,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(server.take_request().path, "/v1/session/ui-previews?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/preview?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/path?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw?directory=%2Frepo");
+    assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/archived?directory=%2Frepo");
     let request = server.take_request();
     assert_eq!(request.method, "PUT");

@@ -19,6 +19,7 @@ impl AcpClient {
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
                 cwd: cwd.to_path_buf(),
                 permission_mode: self.permission_mode,
+                full_access: self.full_access,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation: on_operation.clone(),
                 confirm_write: None,

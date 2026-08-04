@@ -2,6 +2,7 @@ use crate::security::AutonomyLevel;
 use crate::tools::shell::security::{
     SecurityCategory, SecurityFinding, SecurityPipeline, SecurityReport, Severity,
 };
+use vw_config_types::security::BashValidatorChecksConfig;
 
 #[test]
 fn block_message_returns_none_without_blocking_findings() {
@@ -74,4 +75,14 @@ fn for_autonomy_is_strict_when_not_full_or_explicitly_disallowed() {
     assert!(supervised.validate_command("echo $(whoami)").blocked);
     assert!(!full_relaxed.validate_command("echo $(whoami)").blocked);
     assert!(full_strict.validate_command("echo $(whoami)").blocked);
+}
+
+#[test]
+fn configured_pipeline_removes_only_the_disabled_validator() {
+    let mut config = BashValidatorChecksConfig::default();
+    config.jq = false;
+    let pipeline = SecurityPipeline::new_with_config(true, &config);
+
+    assert!(!pipeline.validate_command("jq 'def x: .; x'").blocked);
+    assert!(pipeline.validate_command("echo {1..3}").blocked);
 }

@@ -1,24 +1,23 @@
 //! 文件搜索结果组件
 //!
-//! 该模块提供文件内容搜索功能的 UI 组件，包括搜索结果标签页和结果列表的构建。
+//! 该模块提供文件内容搜索功能的 UI 组件，包括搜索控件和结果列表。
 //! 用户可以在项目范围内搜索关键字，并查看所有匹配结果。
 //!
 //! 主要功能：
-//! - 多标签页支持：允许同时打开多个搜索会话
 //! - 高级搜索选项：区分大小写、全词匹配、正则表达式
 //! - 搜索结果预览：高亮显示匹配内容
 //! - 上下文菜单：右键点击结果项可打开文件菜单
 //!
 //! # 组件结构
 //!
-//! - [`build_find_results_tabs`]: 构建搜索标签页栏，显示所有打开的搜索会话
 //! - [`build_find_results_list`]: 构建搜索结果列表，包含搜索控件和匹配项列表
 
 use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
-    Space, button, checkbox, column, container, row, scrollable, text, text_editor,
+    Space, button, column, container, row, scrollable, text, text_editor, text_input,
 };
-use iced::{Background, Color, Element, Length, Theme};
+use iced::{Background, Color, Element, Font, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::file_tree::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
@@ -26,7 +25,8 @@ use crate::app::components::file_tree::menu::build_file_tree_menu;
 use crate::app::components::file_tree::widgets::RightClickArea;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::ProjectMessage;
-use crate::app::{App, Message, message};
+use crate::app::state::find_results_page_bounds;
+use crate::app::{App, Message};
 
 /// 搜索匹配高亮样式枚举
 ///
@@ -51,6 +51,20 @@ const FIND_MATCH_HIGHLIGHT_STYLE: FindMatchHighlightStyle = FindMatchHighlightSt
 ///
 /// 为避免性能问题，当搜索结果达到此数量时将停止继续搜索。
 const FIND_RESULTS_LIMIT: usize = 3000;
+pub(super) const FIND_RESULTS_SCROLLBAR_GUTTER: f32 = 10.0;
+
+#[cfg(target_os = "macos")]
+pub(super) const FIND_CASE_SHORTCUT: &str = "⌥⌘C";
+#[cfg(not(target_os = "macos"))]
+pub(super) const FIND_CASE_SHORTCUT: &str = "Ctrl+Alt+C";
+#[cfg(target_os = "macos")]
+pub(super) const FIND_WHOLE_WORD_SHORTCUT: &str = "⌥⌘W";
+#[cfg(not(target_os = "macos"))]
+pub(super) const FIND_WHOLE_WORD_SHORTCUT: &str = "Ctrl+Alt+W";
+#[cfg(target_os = "macos")]
+pub(super) const FIND_REGEX_SHORTCUT: &str = "⌥⌘X";
+#[cfg(not(target_os = "macos"))]
+pub(super) const FIND_REGEX_SHORTCUT: &str = "Ctrl+Alt+X";
 
 /// 将绝对路径转换为相对于项目根目录的相对路径
 ///
@@ -80,6 +94,20 @@ pub(super) fn to_relative_path(project_root: &str, path: &str) -> String {
         return relative.to_string();
     }
     normalized_path
+}
+
+pub(super) fn find_scope_input_value(project_root: &str, scope_path: &str) -> String {
+    let normalized_root = project_root.trim().replace('\\', "/").trim_end_matches('/').to_string();
+    let normalized_scope = scope_path.trim().replace('\\', "/").trim_end_matches('/').to_string();
+    if normalized_root.is_empty() || normalized_scope == normalized_root {
+        return String::new();
+    }
+
+    normalized_scope
+        .strip_prefix(&normalized_root)
+        .and_then(|relative| relative.strip_prefix('/'))
+        .unwrap_or_default()
+        .to_string()
 }
 
 /// 根据主题计算搜索匹配高亮的背景颜色
@@ -131,106 +159,161 @@ pub(super) fn find_match_highlight_bg(theme: &Theme) -> Color {
     }
 }
 
-/// 构建搜索结果标签页栏
-///
-/// 创建一个水平滚动的标签页栏，显示所有打开的搜索会话。每个标签页包含：
-/// - 搜索查询字符串和匹配数量
-/// - 点击切换到该搜索会话
-/// - 关闭按钮用于关闭该标签页
-///
-/// # 参数
-///
-/// - `app`: 应用状态引用，包含所有搜索标签页数据和当前活动标签页 ID
-///
-/// # 返回值
-///
-/// 返回包含所有标签页的可滚动 UI 元素
-///
-/// # UI 结构
-///
-/// ```text
-/// [标签1 (10)] [标签2 (5)] [标签3 (8)] ...
-/// ```
-///
-/// 每个标签包含：
-/// - 标题按钮：显示查询文本和匹配数量，点击切换活动标签
-/// - 关闭按钮：点击关闭该搜索会话
-pub fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
-    let mut tabs = row![].spacing(4).width(Length::Fill);
+fn find_tab_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    active: bool,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    let base_bg = theme.palette().background;
+    let is_dark = base_bg.r + base_bg.g + base_bg.b < 1.5;
+    let active_bg = if is_dark { p.primary.weak.color } else { p.primary.base.color };
+    let background = if active {
+        Some(active_bg)
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => Some(p.background.weak.color),
+            iced::widget::button::Status::Pressed => Some(p.background.strong.color),
+            _ => None,
+        }
+    };
 
-    for tab in &app.find_results_tabs {
-        // 判断当前标签页是否为活动状态
-        let active = app.active_find_results_tab_id.as_deref() == Some(tab.id.as_str());
-        let tab_id = tab.id.clone();
-        let close_id = tab.id.clone();
-        // 标题格式：查询文本 (匹配数量)
-        let title = format!("{} ({})", tab.query, tab.matches.len());
-
-        // 构建标题按钮
-        let title_btn = button(text(title).size(12))
-            .on_press(Message::Project(ProjectMessage::FileTreeFindTabSelected(tab_id)))
-            .padding([4, 8])
-            .style(move |theme: &Theme, status| {
-                let p = theme.extended_palette();
-                let base_bg = theme.palette().background;
-                // 通过 RGB 值简单判断是否为深色主题
-                let is_dark = base_bg.r + base_bg.g + base_bg.b < 1.5;
-                // 活动标签使用主色调，非活动标签使用背景色调
-                let active_bg = if is_dark { p.primary.weak.color } else { p.primary.base.color };
-                let bg = if active {
-                    Some(active_bg)
-                } else {
-                    match status {
-                        iced::widget::button::Status::Hovered => Some(p.background.weak.color),
-                        iced::widget::button::Status::Pressed => Some(p.background.strong.color),
-                        _ => None,
-                    }
-                };
-                iced::widget::button::Style {
-                    background: bg.map(Background::Color),
-                    text_color: if active {
-                        // 活动标签的文字颜色：深色主题用默认文字色，浅色主题用主色文字
-                        if is_dark { theme.palette().text } else { p.primary.base.text }
-                    } else {
-                        theme.palette().text
-                    },
-                    border: iced::Border { radius: 6.0.into(), ..Default::default() },
-                    ..Default::default()
-                }
-            });
-
-        // 构建关闭按钮
-        let close_btn =
-            button(themed_icon_svg(Icon::X).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)))
-                .on_press(Message::Project(ProjectMessage::FileTreeFindTabClosed(close_id)))
-                .padding([3, 4])
-                .style(|theme: &Theme, status| {
-                    let p = theme.extended_palette();
-                    let bg = match status {
-                        iced::widget::button::Status::Hovered => Some(p.background.weak.color),
-                        iced::widget::button::Status::Pressed => Some(p.background.strong.color),
-                        _ => None,
-                    };
-                    iced::widget::button::Style {
-                        background: bg.map(Background::Color),
-                        text_color: theme.palette().text,
-                        border: iced::Border { radius: 4.0.into(), ..Default::default() },
-                        ..Default::default()
-                    }
-                });
-
-        // 将标题按钮和关闭按钮组合成一个标签
-        tabs = tabs.push(
-            container(row![title_btn, close_btn].spacing(2).align_y(iced::Alignment::Center))
-                .padding([2, 2]),
-        );
+    iced::widget::button::Style {
+        background: background.map(Background::Color),
+        text_color: if active {
+            if is_dark { theme.palette().text } else { p.primary.base.text }
+        } else {
+            theme.palette().text
+        },
+        border: iced::Border { radius: 6.0.into(), ..Default::default() },
+        ..Default::default()
     }
+}
 
-    // 将标签页栏放入水平滚动容器
-    scrollable(container(tabs).width(Length::Fill).padding([0, 2]))
-        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fixed(34.0))
-        .into()
+fn find_page_button(
+    icon: Icon,
+    label: &'static str,
+    message: Option<Message>,
+) -> Element<'static, Message> {
+    let glyph = container(themed_icon_svg(icon))
+        .width(Length::Fixed(22.0))
+        .height(Length::Fixed(22.0))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
+    let trigger = button(glyph)
+        .on_press_maybe(message)
+        .padding(0)
+        .style(|theme, status| find_tab_button_style(theme, status, false));
+    let tip = container(text(label).size(12)).padding([6, 8]).style(find_option_tooltip_style);
+
+    Tooltip::new(trigger, tip, TooltipPosition::Bottom).gap(6).into()
+}
+
+pub(super) fn find_option_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    active: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let primary = theme.palette().primary;
+    let background = if active {
+        primary.scale_alpha(match status {
+            iced::widget::button::Status::Hovered => 0.28,
+            iced::widget::button::Status::Pressed => 0.34,
+            _ => 0.20,
+        })
+    } else {
+        match status {
+            iced::widget::button::Status::Hovered => palette.background.strong.color,
+            iced::widget::button::Status::Pressed => palette.background.weak.color,
+            _ => Color::TRANSPARENT,
+        }
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(background)),
+        text_color: if active { primary } else { palette.background.strong.text },
+        border: iced::Border {
+            width: 1.0,
+            color: if active { primary.scale_alpha(0.68) } else { palette.background.strong.color },
+            radius: 7.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn find_scope_input_style(
+    theme: &Theme,
+    status: iced::widget::text_input::Status,
+) -> iced::widget::text_input::Style {
+    let palette = theme.extended_palette();
+    let focused = matches!(status, iced::widget::text_input::Status::Focused { .. });
+    let hovered = matches!(status, iced::widget::text_input::Status::Hovered)
+        || matches!(status, iced::widget::text_input::Status::Focused { is_hovered: true });
+    let border_color = if focused {
+        palette.primary.base.color
+    } else if hovered {
+        palette.background.strong.color
+    } else {
+        palette.background.weak.color
+    };
+
+    iced::widget::text_input::Style {
+        background: Background::Color(palette.background.base.color),
+        border: iced::Border { width: 1.0, color: border_color, radius: 999.0.into() },
+        icon: palette.background.base.text.scale_alpha(0.65),
+        placeholder: palette.background.strong.text.scale_alpha(0.70),
+        value: palette.background.base.text,
+        selection: palette.primary.base.color.scale_alpha(0.30),
+    }
+}
+
+fn find_option_tooltip_style(_theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(Color::from_rgba8(12, 13, 15, 0.97))),
+        text_color: Some(Color::WHITE),
+        border: iced::Border {
+            width: 1.0,
+            color: Color::WHITE.scale_alpha(0.08),
+            radius: 10.0.into(),
+        },
+        shadow: iced::Shadow {
+            color: Color::BLACK.scale_alpha(0.32),
+            offset: iced::Vector::new(0.0, 6.0),
+            blur_radius: 20.0,
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn find_option_button(
+    glyph: &'static str,
+    label: &'static str,
+    shortcut: &'static str,
+    active: bool,
+    message: Message,
+) -> Element<'static, Message> {
+    let glyph = container(text(glyph).size(14).font(Font::MONOSPACE))
+        .width(Length::Fixed(34.0))
+        .height(Length::Fixed(32.0))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
+    let trigger = button(glyph)
+        .on_press(message)
+        .padding(0)
+        .style(move |theme, status| find_option_button_style(theme, status, active));
+    let tip = container(
+        row![
+            text(label).size(13),
+            Space::new().width(Length::Fixed(14.0)),
+            text(shortcut).size(12),
+        ]
+        .align_y(iced::Alignment::Center),
+    )
+    .padding([8, 10])
+    .style(find_option_tooltip_style);
+
+    Tooltip::new(trigger, tip, TooltipPosition::Bottom).gap(6).into()
 }
 
 /// 构建搜索结果列表面板
@@ -251,10 +334,13 @@ pub fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
 /// ┌────────────────────────────────────────┐
 /// │ [搜索输入框]                            │
 /// │ [替换输入框（可选）]                     │
-/// │ [区分大小写] [全词匹配] [使用正则] [搜索] │
+/// │ [Aa] [wd] [.*]                          │
+/// │ [                  搜索                  ] │
 /// │ [错误信息（如有）]                       │
 /// │ 搜索选项摘要                            │
 /// ├────────────────────────────────────────┤
+/// │ 3000 条 · 第 1/30 页               [‹][›] │
+/// │ 结果已达上限 3000 条，已停止搜索。         │
 /// │ [文件图标] 文件路径:相对路径    行号:列号 │
 /// │            匹配上下文预览（高亮显示）      │
 /// │ [文件图标] 文件路径:相对路径    行号:列号 │
@@ -370,57 +456,65 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
             }
         });
 
-    // 构建搜索选项复选框组
+    // 构建搜索选项图标按钮组
     let options = row![
-        checkbox(tab.case_sensitive)
-            .label("区分大小写")
-            .on_toggle({
-                let active_id = active_id.clone();
-                move |v| {
-                    Message::Project(ProjectMessage::FileTreeFindCaseSensitiveToggled(
-                        active_id.clone(),
-                        v,
-                    ))
-                }
-            })
-            .size(14)
-            .text_size(13),
-        checkbox(tab.whole_word)
-            .label("全词匹配")
-            .on_toggle({
-                let active_id = active_id.clone();
-                move |v| {
-                    Message::Project(ProjectMessage::FileTreeFindWholeWordToggled(
-                        active_id.clone(),
-                        v,
-                    ))
-                }
-            })
-            .size(14)
-            .text_size(13),
-        checkbox(tab.use_regex)
-            .label("使用正则")
-            .on_toggle({
-                let active_id = active_id.clone();
-                move |v| {
-                    Message::Project(ProjectMessage::FileTreeFindRegexToggled(active_id.clone(), v))
-                }
-            })
-            .size(14)
-            .text_size(13),
+        find_option_button(
+            "Aa",
+            "区分大小写",
+            FIND_CASE_SHORTCUT,
+            tab.case_sensitive,
+            Message::Project(ProjectMessage::FileTreeFindCaseSensitiveToggled(
+                active_id.clone(),
+                !tab.case_sensitive,
+            )),
+        ),
+        find_option_button(
+            "wd",
+            "全词匹配",
+            FIND_WHOLE_WORD_SHORTCUT,
+            tab.whole_word,
+            Message::Project(ProjectMessage::FileTreeFindWholeWordToggled(
+                active_id.clone(),
+                !tab.whole_word,
+            )),
+        ),
+        find_option_button(
+            ".*",
+            "使用正则",
+            FIND_REGEX_SHORTCUT,
+            tab.use_regex,
+            Message::Project(ProjectMessage::FileTreeFindRegexToggled(
+                active_id.clone(),
+                !tab.use_regex,
+            )),
+        ),
     ]
-    .spacing(12)
+    .spacing(4)
     .align_y(iced::Alignment::Center);
+
+    let scope_value = find_scope_input_value(root, &tab.scope_path);
+    let scope_input = text_input("作用域（相对路径，留空为项目根目录）", &scope_value)
+        .on_input({
+            let active_id = active_id.clone();
+            move |value| {
+                Message::Project(ProjectMessage::FileTreeFindScopeChanged(active_id.clone(), value))
+            }
+        })
+        .padding([7, 8])
+        .size(12)
+        .width(Length::Fill)
+        .style(find_scope_input_style);
 
     // 构建搜索按钮（搜索进行中时禁用）
     let run_btn =
-        button(if tab.running { text("搜索中...").size(12) } else { text("搜索").size(12) })
+        button(if tab.running { text("搜索中...").size(14) } else { text("搜索").size(14) })
             .on_press_maybe(
                 (!tab.running).then_some(Message::Project(ProjectMessage::FileTreeFindRun(
                     active_id.clone(),
                 ))),
             )
-            .padding([5, 12])
+            .padding([10, 16])
+            .width(Length::Fill)
             .style(|theme: &Theme, status| {
                 let p = theme.extended_palette();
                 let bg = match status {
@@ -436,20 +530,6 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
                 }
             });
 
-    // 格式化搜索选项摘要文本
-    let opts_text = format!(
-        "作用域: {}  |  大小写: {}  全词: {}  正则: {}  替换: {}",
-        to_relative_path(root, &tab.scope_path),
-        if tab.case_sensitive { "开" } else { "关" },
-        if tab.whole_word { "开" } else { "关" },
-        if tab.use_regex { "开" } else { "关" },
-        if tab.replace_text.trim().is_empty() {
-            "(空)".to_string()
-        } else {
-            tab.replace_text.replace('\n', " ")
-        }
-    );
-
     // 显示错误信息（如果存在）
     let error_line: Element<'_, Message> = if let Some(err) = &tab.error {
         text(err.clone()).size(12).color(Color::from_rgb(0.82, 0.2, 0.2)).into()
@@ -458,47 +538,86 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     };
 
     // 组合所有控件到控制面板
-    let controls = column![
-        query_input,
-        replace_input,
-        row![options, Space::new().width(Length::Fill), run_btn]
-            .spacing(6)
-            .align_y(iced::Alignment::Center),
-        error_line,
-        text(opts_text).size(11).color(Color::from_rgb(0.5, 0.5, 0.5))
-    ]
-    .spacing(4)
-    .width(Length::Fill);
+    let controls = column![query_input, replace_input, options, scope_input, run_btn, error_line]
+        .spacing(6)
+        .width(Length::Fill);
 
-    // 构建搜索结果列表
-    let mut results = column![].spacing(4).width(Length::Fill);
+    let (visible_range, current_page, page_count) =
+        find_results_page_bounds(tab.matches.len(), tab.results_page);
+    let previous = find_page_button(
+        Icon::ChevronLeft,
+        "上一页",
+        (current_page > 0).then_some(Message::Project(
+            ProjectMessage::FileTreeFindResultsPageChanged(
+                active_id.clone(),
+                current_page.saturating_sub(1),
+            ),
+        )),
+    );
+    let next = find_page_button(
+        Icon::ChevronRight,
+        "下一页",
+        (current_page < page_count.saturating_sub(1)).then_some(Message::Project(
+            ProjectMessage::FileTreeFindResultsPageChanged(
+                active_id.clone(),
+                current_page.saturating_add(1),
+            ),
+        )),
+    );
+    let page_summary = if page_count == 0 {
+        "0 条".to_string()
+    } else {
+        format!("{} 条 · {}/{}", tab.matches.len(), current_page + 1, page_count)
+    };
+    let results_header = container(
+        row![
+            text("搜索结果").size(13),
+            Space::new().width(Length::Fill),
+            text(page_summary).size(11),
+            previous,
+            next,
+        ]
+        .spacing(4)
+        .width(Length::Fill)
+        .align_y(iced::Alignment::Center),
+    )
+    .width(Length::Fill)
+    .padding(iced::Padding {
+        top: 0.0,
+        right: FIND_RESULTS_SCROLLBAR_GUTTER,
+        bottom: 0.0,
+        left: 0.0,
+    });
 
-    // 显示结果数量限制提示
+    // 结果状态保持在滚动列表上方，翻页或滚动时始终可见。
+    let mut results_status = column![results_header].spacing(4).width(Length::Fill);
     if tab.limit_reached {
-        results = results.push(
+        results_status = results_status.push(
             text(format!("结果已达上限 {} 条，已停止搜索。", FIND_RESULTS_LIMIT))
                 .size(12)
                 .color(Color::from_rgb(0.78, 0.48, 0.10)),
         );
     }
 
+    // 构建搜索结果列表
+    let mut results = column![].spacing(4).width(Length::Fill);
+
     if tab.matches.is_empty() {
         // 无匹配结果
         results = results.push(text("没有匹配项").size(13));
     } else {
-        // 遍历所有匹配项并构建 UI
-        for item in &tab.matches {
+        // 每次只构建当前页，避免大量复杂结果项阻塞 UI 主线程。
+        for item in &tab.matches[visible_range] {
             // 构建标题行：文件图标 + 相对路径 + 行号:列号
             let rel = to_relative_path(root, &item.path);
             let line_col = format!("{}:{}", item.line, item.column);
             let title = row![
                 container(static_icon_svg(file_icon_for(&rel))).width(Length::Fixed(16.0)),
-                text(rel).size(12),
-                Space::new().width(Length::Fill),
-                text(line_col).size(11).color(Color::from_rgb(0.5, 0.5, 0.5)),
-                Space::new().width(Length::Fixed(10.0))
+                text(rel).size(12).wrapping(text::Wrapping::None).width(Length::Fill),
+                text(line_col).size(11).color(Color::from_rgb(0.5, 0.5, 0.5))
             ]
             .spacing(6)
+            .width(Length::Fill)
             .align_y(iced::Alignment::Center);
 
             // 构建预览行：高亮显示匹配的文本片段
@@ -524,11 +643,16 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
                     text(after).size(12)
                 ]
                 .spacing(0)
+                .width(Length::Fill)
                 .align_y(iced::Alignment::Center)
                 .into()
             } else {
                 // 边界检查失败时显示完整预览
-                text(item.preview.clone()).size(12).into()
+                text(item.preview.clone())
+                    .size(12)
+                    .width(Length::Fill)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .into()
             };
 
             // 保存点击所需的数据
@@ -541,7 +665,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
             // 构建结果项按钮
             let btn = button(column![title, preview].spacing(2).width(Length::Fill))
                 .width(Length::Fill)
-                .padding([6, 10])
+                .padding([6, 8])
                 .style(|theme: &Theme, status| {
                     let p = theme.palette().primary;
                     // 悬停和按下时使用半透明主色作为背景
@@ -561,7 +685,11 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
                         ..Default::default()
                     }
                 })
-                .on_press(Message::Preview(message::PreviewMessage::Open(path)));
+                .on_press(Message::Project(ProjectMessage::FileTreeFindMatchSelected {
+                    path,
+                    line,
+                    column,
+                }));
 
             // 为右键菜单和拖拽功能准备数据
             let abs_for_right_click = item.path.clone();
@@ -606,9 +734,15 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     // 组合控制面板和结果列表到最终布局
     column![
         controls,
-        scrollable(container(results).width(Length::Fill).padding([4, 0]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
+        results_status,
+        scrollable(container(results).width(Length::Fill).padding(iced::Padding {
+            top: 4.0,
+            right: FIND_RESULTS_SCROLLBAR_GUTTER,
+            bottom: 4.0,
+            left: 0.0,
+        }))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
     ]
     .spacing(8)
     .padding([8, 12])

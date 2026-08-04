@@ -153,7 +153,7 @@ pub(crate) fn prefetch_allowed(permission: &str, target: &str) -> bool {
 /// 1. 验证根目录路径非空
 /// 2. 从目录读取项目信息
 /// 3. 返回项目的唯一标识符
-pub(crate) fn app_session_scope_from_root(root: Option<&str>) -> Option<String> {
+pub(crate) async fn app_session_scope_from_root_async(root: Option<&str>) -> Option<String> {
     // WASM 平台不支持文件系统访问
     #[cfg(target_arch = "wasm32")]
     return None;
@@ -170,11 +170,25 @@ pub(crate) fn app_session_scope_from_root(root: Option<&str>) -> Option<String> 
             return None;
         }
 
-        // 异步读取项目信息并提取项目 ID
-        block_on(async move {
-            let tenant = project::default_tenant_scope();
-            project::from_directory(&tenant, &root_path).await.ok().map(|(info, _)| info.id)
-        })
+        let tenant = project::default_tenant_scope();
+        project::from_directory(&tenant, &root_path).await.ok().map(|(info, _)| info.id)
+    }
+}
+
+/// 从项目根目录获取应用会话范围标识符
+///
+/// 与 `app_session_scope_from_root_async` 的行为一致，但提供同步入口，供
+/// 当前仍为同步上下文的调用方复用。调用方应优先在异步上下文提前计算并
+/// 透传到会话处理器，避免在 Tokio runtime worker 中创建/阻塞 runtime。
+pub(crate) fn app_session_scope_from_root(root: Option<&str>) -> Option<String> {
+    // WASM 平台不支持文件系统访问
+    #[cfg(target_arch = "wasm32")]
+    return None;
+
+    // 非 WASM 平台的实现
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        block_on(app_session_scope_from_root_async(root))
     }
 }
 

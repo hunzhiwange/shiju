@@ -525,7 +525,9 @@ fn isolation_session(label: &str) -> ChatSession {
         messages: vec![ChatMessage {
             role: ChatRole::User,
             content: format!("{label}-message"),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("shared-message".to_string())],
         calls: vec![json!({"scope": label})],

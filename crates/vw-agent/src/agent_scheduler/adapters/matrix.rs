@@ -54,6 +54,9 @@ async fn send_configured_matrix_message(request: MatrixDispatchRequest) -> Resul
     use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
 
     let config = Config::load_or_init().await.context("load Matrix dispatch configuration")?;
+    if !config.channels_config.matrix_enabled {
+        anyhow::bail!("Matrix outbox dispatch is disabled");
+    }
     let matrix = config
         .channels_config
         .matrix

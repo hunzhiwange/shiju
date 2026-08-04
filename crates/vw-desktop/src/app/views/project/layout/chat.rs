@@ -5,9 +5,10 @@
 
 use iced::border::Border;
 use iced::widget::{column, container};
-use iced::{Background, Color, Element, Length, Theme};
+use iced::{Background, Element, Length, Theme};
 
 use crate::app::components::{chat_panel, input_panel};
+use crate::app::theme_catalog::{resolve_chrome_style_from_skin, ChromeStyleOverrides};
 use crate::app::{App, Message};
 
 /// 构建聊天区域的完整布局
@@ -59,6 +60,7 @@ pub fn chat_area(
     let chat_view: Element<'_, Message> = chat_view_base.into();
 
     let radius = corner_radius + 4.0;
+    let chrome = resolve_chrome_style_from_skin(app.active_theme_skin.as_ref(), &app.app_theme);
 
     // 组装完整的聊天区域布局
     let chat_area = column![
@@ -77,27 +79,29 @@ pub fn chat_area(
     container(chat_area)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(move |theme: &Theme| chat_area_style(theme, radius))
+        .style(move |theme: &Theme| chat_area_style(theme, radius, Some(&chrome)))
         .into()
 }
 
-fn chat_area_style(theme: &Theme, radius: f32) -> container::Style {
+fn chat_area_style(
+    theme: &Theme,
+    radius: f32,
+    chrome: Option<&ChromeStyleOverrides>,
+) -> container::Style {
     let palette = theme.extended_palette();
     let is_dark =
         theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
             < 1.5;
+    let default_bg = crate::app::theme_catalog::panel_surface_color(theme, 0.985);
+    let background = chrome.and_then(|c| c.panel_bg).unwrap_or(default_bg);
     container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(17, 18, 22, 0.985)
-        } else {
-            Color::from_rgba8(255, 255, 255, 0.985)
-        })),
+        background: Some(Background::Color(background)),
         border: Border {
             width: 1.0,
             color: if is_dark {
                 palette.background.strong.color.scale_alpha(0.74)
             } else {
-                Color::from_rgba8(224, 228, 236, 0.98)
+                palette.background.strong.color.scale_alpha(0.55)
             },
             radius: iced::border::Radius {
                 top_left: radius,

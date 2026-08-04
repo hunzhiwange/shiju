@@ -60,14 +60,14 @@ fn plugin_manifest_path_rejects_missing_manifest() {
 fn plugin_manifest_path_accepts_manifest_file() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("plugin");
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(manifest_dir.join("plugin.json"), "{}").expect("plugin manifest");
     let canonical_root = canonical_plugin_root(&plugin_root).expect("canonical root");
 
     let manifest = plugin_manifest_path(&canonical_root).expect("manifest path");
 
-    assert!(manifest.ends_with(".codex-plugin/plugin.json"));
+    assert!(manifest.ends_with(".vibewindow-plugin/plugin.json"));
     assert!(manifest.is_file());
 }
 
@@ -75,7 +75,7 @@ fn plugin_manifest_path_accepts_manifest_file() {
 fn plugin_manifest_path_rejects_manifest_directory() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("plugin");
-    fs::create_dir_all(plugin_root.join(".codex-plugin/plugin.json")).expect("manifest dir");
+    fs::create_dir_all(plugin_root.join(".vibewindow-plugin/plugin.json")).expect("manifest dir");
     let canonical_root = canonical_plugin_root(&plugin_root).expect("canonical root");
 
     let err =
@@ -89,7 +89,7 @@ fn plugin_manifest_path_rejects_manifest_directory() {
 fn plugin_manifest_path_rejects_noncanonical_root_escape() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("plugin");
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(manifest_dir.join("plugin.json"), "{}").expect("plugin manifest");
     let noncanonical_root = plugin_root.join("..").join("plugin");

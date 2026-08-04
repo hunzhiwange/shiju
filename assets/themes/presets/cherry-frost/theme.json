@@ -1,0 +1,25 @@
+{
+  "id": "cherry-frost",
+  "name": "樱桃霜糖 Cherry Frost",
+  "tagline": "红白科幻，冷冽的甜。",
+  "palette": {
+    "background": "#faf6f5",
+    "text": "#3a2b2b",
+    "primary": "#c95f5f",
+    "success": "#e08a8a",
+    "warning": "#c9a08a",
+    "danger": "#9a7b7b"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#c95f5f",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

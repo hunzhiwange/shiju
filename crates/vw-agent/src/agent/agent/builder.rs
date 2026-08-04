@@ -9,6 +9,7 @@ use crate::app::agent::providers::Provider;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::Tool;
 use anyhow::Result;
+use chrono_tz::Tz;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -80,6 +81,7 @@ pub struct AgentBuilder {
     route_model_by_hint: Option<HashMap<String, String>>,
     research_config: Option<ResearchPhaseConfig>,
     multimodal_config: Option<crate::app::agent::config::MultimodalConfig>,
+    timezone: Option<Tz>,
 }
 
 impl AgentBuilder {
@@ -113,6 +115,7 @@ impl AgentBuilder {
             route_model_by_hint: None,
             research_config: None,
             multimodal_config: None,
+            timezone: None,
         }
     }
 
@@ -233,6 +236,11 @@ impl AgentBuilder {
         self
     }
 
+    pub fn timezone(mut self, timezone: Tz) -> Self {
+        self.timezone = Some(timezone);
+        self
+    }
+
     /// 构建代理实例
     ///
     /// 验证必需字段并创建 `Agent` 实例。如果必需字段未设置，将返回错误。
@@ -299,6 +307,7 @@ impl AgentBuilder {
             route_model_by_hint: self.route_model_by_hint.unwrap_or_default(),
             research_config: self.research_config.unwrap_or_default(),
             multimodal_config: self.multimodal_config.unwrap_or_default(),
+            timezone: self.timezone.unwrap_or(chrono_tz::Asia::Shanghai),
         })
     }
 }

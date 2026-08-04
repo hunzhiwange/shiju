@@ -224,7 +224,7 @@ fn overlay_returns_content_when_hover_is_absent_or_model_is_missing() {
 }
 
 #[test]
-fn overlay_builds_text_tooltip_with_side_and_point_anchor_modes() {
+fn overlay_builds_text_tooltip_before_and_after_pointer_position_is_known() {
     let mut app = test_app();
     app.model_popover_hover = Some(ModelPopoverHover::Text {
         text: "Use this model for coding".to_string(),

@@ -29,6 +29,12 @@ fn prompt_escapes_xml_and_compact_uses_relative_location() {
     assert!(prompt.contains("review&amp;fix"));
     assert!(prompt.contains("Use &lt;care&gt;"));
     assert!(prompt.contains("skills/review&amp;fix/SKILL.md"));
+    assert!(prompt.contains("read its complete instruction file"));
+    assert!(prompt.contains("explicitly asks for a specific skill"));
+    assert!(prompt.contains("variation applies only to the identified skill"));
+    assert!(prompt.contains("Do not infer an override from general preferences"));
+    assert!(prompt.contains("do not simplify, omit, substitute, short-circuit, or bypass"));
+    assert!(prompt.contains("report the exact blocker"));
     assert!(!prompt.contains("<instructions>"));
     assert!(!prompt.contains("Keep &quot;scope&quot; tight"));
     assert!(!prompt.contains("<tools>"));
@@ -81,6 +87,13 @@ fn full_prompt_includes_instructions_tools_and_absolute_location() {
 
     let prompt = skills_to_prompt(&[skill], workspace.path());
 
+    assert!(prompt.contains("explicitly asks for a specific skill"));
+    assert!(prompt.contains("that skill's instructions are mandatory"));
+    assert!(prompt.contains("variation applies only to the identified skill"));
+    assert!(prompt.contains("Do not infer an override from general preferences"));
+    assert!(prompt.contains("Follow its documented workflow exactly and completely"));
+    assert!(prompt.contains("do not simplify, omit, substitute, short-circuit, or bypass"));
+    assert!(prompt.contains("report the exact blocker"));
     assert!(prompt.contains("<instructions>"));
     assert!(prompt.contains("<tools>"));
     assert!(prompt.contains(location.to_string_lossy().as_ref()));

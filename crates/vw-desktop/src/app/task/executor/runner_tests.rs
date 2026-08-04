@@ -378,6 +378,7 @@ fn gateway_timeout_retry_sends_completion_check_in_same_session() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         Some(&sender),
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -412,6 +413,38 @@ fn gateway_timeout_retry_sends_completion_check_in_same_session() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn gateway_timeout_without_provider_history_replays_original_prompt() {
+    let mut calls = Vec::new();
+
+    let result = super::execute_prompt_with_continue_retry_on_timeout(
+        "task-board-T1",
+        "SUB-1",
+        "initial prompt",
+        false,
+        None,
+        |prompt, mode| {
+            calls.push((prompt.to_string(), mode));
+            if calls.len() == 1 {
+                Err("gateway stream idle timeout after 600s without response".to_string())
+            } else {
+                Ok("done".to_string())
+            }
+        },
+    );
+
+    assert_eq!(result.as_deref(), Ok("done"));
+    assert_eq!(calls.len(), 2);
+    assert_eq!(
+        calls[0],
+        ("initial prompt".to_string(), super::GatewayPromptSessionMode::Fresh)
+    );
+    assert_eq!(calls[1].1, super::GatewayPromptSessionMode::ContinueExisting);
+    assert!(calls[1].0.contains(super::TASK_GATEWAY_CONTINUE_PROMPT));
+    assert!(calls[1].0.contains("## 原始任务上下文\ninitial prompt"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn gateway_timeout_retry_continues_multiple_times_before_succeeding() {
     let mut calls = Vec::new();
 
@@ -419,6 +452,7 @@ fn gateway_timeout_retry_continues_multiple_times_before_succeeding() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -446,6 +480,7 @@ fn gateway_timeout_retry_exhausts_attempts_and_reports_last_error() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |_prompt, _mode| {
             calls = calls.saturating_add(1);
@@ -469,6 +504,7 @@ fn gateway_timeout_retry_stops_on_non_retryable_error_during_continue() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -495,6 +531,7 @@ fn timeout_wrapper_respects_initial_continue_existing_mode() {
         "subtask=SUB-2",
         "initial prompt",
         super::GatewayPromptSessionMode::ContinueExisting,
+        true,
         None,
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -526,6 +563,7 @@ fn non_timeout_error_does_not_retry_continue() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |_prompt, _mode| {
             calls = calls.saturating_add(1);
@@ -560,6 +598,7 @@ fn spawn_failure_restarts_with_fresh_session_and_original_prompt() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         Some(&sender),
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -597,6 +636,7 @@ fn spawn_failure_exhausts_attempts_and_reports_error() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |_prompt, _mode| {
             calls = calls.saturating_add(1);
@@ -619,6 +659,7 @@ fn spawn_failure_then_idle_timeout_falls_through_to_continue_retry() {
         "task-board-T1",
         "SUB-1",
         "initial prompt",
+        true,
         None,
         |prompt, mode| {
             calls.push((prompt.to_string(), mode));
@@ -1320,6 +1361,7 @@ fn gateway_task_stream_request_maps_delegate_route_and_auto_model() {
 #[test]
 fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
     let (tx, rx) = std::sync::mpsc::channel();
+    let mut visible_filter = super::GatewayVisibleOutputFilter::default();
     let mut output = String::new();
     let mut pending = String::new();
     let mut stream_error = None;
@@ -1327,6 +1369,7 @@ fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
 
     let keep_streaming = super::handle_gateway_stream_event(
         vw_gateway_client::GatewayChatStreamEvent::Delta("first\npartial".to_string()),
+        &mut visible_filter,
         &mut output,
         &mut pending,
         &mut stream_error,
@@ -1346,6 +1389,7 @@ fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
             message_id: None,
             parent_message_id: None,
         },
+        &mut visible_filter,
         &mut output,
         &mut pending,
         &mut stream_error,
@@ -1367,8 +1411,56 @@ fn gateway_stream_delta_and_done_update_state_and_emit_lines() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn gateway_stream_hides_reasoning_chunks_split_across_deltas() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut visible_filter = super::GatewayVisibleOutputFilter::default();
+    let mut output = String::new();
+    let mut pending = String::new();
+    let mut stream_error = None;
+    let mut done_seen = false;
+
+    for delta in ["<thi", "nk>reasoning effort 用户消息", "</thi", "nk>\nanswer"] {
+        assert!(super::handle_gateway_stream_event(
+            vw_gateway_client::GatewayChatStreamEvent::Delta(delta.to_string()),
+            &mut visible_filter,
+            &mut output,
+            &mut pending,
+            &mut stream_error,
+            &mut done_seen,
+            Some(&tx),
+        ));
+    }
+    assert!(super::handle_gateway_stream_event(
+        vw_gateway_client::GatewayChatStreamEvent::Done {
+            finish_reason: Some("stop".to_string()),
+            usage: None,
+            message_id: None,
+            parent_message_id: None,
+        },
+        &mut visible_filter,
+        &mut output,
+        &mut pending,
+        &mut stream_error,
+        &mut done_seen,
+        Some(&tx),
+    ));
+
+    assert_eq!(output.trim(), "answer");
+    let logs = rx.try_iter().collect::<Vec<_>>();
+    assert!(!logs.iter().any(|entry| matches!(
+        entry,
+        super::TaskLogStream::Stdout(line) if line.contains("reasoning effort")
+    )));
+    assert!(logs.iter().any(
+        |entry| matches!(entry, super::TaskLogStream::Stdout(line) if line == "answer")
+    ));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn gateway_stream_error_flushes_tail_and_stops_streaming() {
     let (tx, rx) = std::sync::mpsc::channel();
+    let mut visible_filter = super::GatewayVisibleOutputFilter::default();
     let mut output = "completed".to_string();
     let mut pending = "tail".to_string();
     let mut stream_error = None;
@@ -1376,6 +1468,7 @@ fn gateway_stream_error_flushes_tail_and_stops_streaming() {
 
     let keep_streaming = super::handle_gateway_stream_event(
         vw_gateway_client::GatewayChatStreamEvent::Error("backend failed".to_string()),
+        &mut visible_filter,
         &mut output,
         &mut pending,
         &mut stream_error,
@@ -1400,6 +1493,7 @@ fn gateway_stream_error_flushes_tail_and_stops_streaming() {
 #[test]
 fn gateway_stream_step_events_emit_indexes_and_ignore_unknown_payloads() {
     let (tx, rx) = std::sync::mpsc::channel();
+    let mut visible_filter = super::GatewayVisibleOutputFilter::default();
     let mut output = String::new();
     let mut pending = String::new();
     let mut stream_error = None;
@@ -1412,6 +1506,7 @@ fn gateway_stream_step_events_emit_indexes_and_ignore_unknown_payloads() {
     ] {
         assert!(super::handle_gateway_stream_event(
             vw_gateway_client::GatewayChatStreamEvent::Other(payload),
+            &mut visible_filter,
             &mut output,
             &mut pending,
             &mut stream_error,

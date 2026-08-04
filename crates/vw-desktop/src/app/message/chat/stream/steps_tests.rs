@@ -1,4 +1,4 @@
-use crate::app::models::{ChatSession, ChatSessionStep, TokenUsage};
+use crate::app::models::{ChatMessage, ChatRole, ChatSession, ChatSessionStep, TokenUsage};
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 
 fn empty_session() -> ChatSession {
@@ -31,12 +31,14 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     }
 }
@@ -61,6 +63,32 @@ fn upsert_step_start_inserts_steps_sorted_and_updates_session_time() {
     assert_eq!(session.steps[0].start_snapshot_path.as_deref(), Some("start.snap"));
     assert_eq!(session.steps[0].model.as_deref(), Some("model-a"));
     assert_eq!(session.updated_ms, 20);
+}
+
+#[test]
+fn upsert_step_start_snapshots_model_onto_step_messages() {
+    let mut session = empty_session();
+    session.messages = vec![
+        ChatMessage {
+            role: ChatRole::User,
+            content: "question".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "answer".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+
+    super::upsert_step_start(&mut session, 1, 10, Some("provider/model-a".to_string()), None);
+
+    assert_eq!(session.messages[0].model.as_deref(), Some("provider/model-a"));
+    assert_eq!(session.messages[1].model.as_deref(), Some("provider/model-a"));
 }
 
 #[test]
@@ -233,6 +261,37 @@ fn upsert_step_finish_maintains_sort_order_across_multiple_steps() {
 }
 
 // ============ handle_agent_step_start ============
+
+#[test]
+fn processing_timer_includes_gap_while_llm_timer_pauses_between_steps() {
+    let mut runtime =
+        crate::app::state::SessionRuntimeState::with_defaults("model".to_string(), false);
+    let start = web_time::Instant::now();
+
+    runtime.processing_timer.start_at(start);
+    super::start_llm_timer_at(&mut runtime, start);
+    super::pause_llm_timer_at(
+        &mut runtime,
+        start.checked_add(std::time::Duration::from_millis(1_250)).unwrap(),
+    );
+    let during_tools = start.checked_add(std::time::Duration::from_millis(9_000)).unwrap();
+    assert_eq!(runtime.processing_timer.elapsed_ms_at(during_tools), 9_000);
+    assert_eq!(runtime.llm_timer.elapsed_ms_at(during_tools), 1_250);
+
+    super::start_llm_timer_at(&mut runtime, during_tools);
+    assert_eq!(
+        runtime.llm_timer.elapsed_ms_at(
+            during_tools.checked_add(std::time::Duration::from_millis(750)).unwrap()
+        ),
+        2_000
+    );
+    assert_eq!(
+        runtime.processing_timer.elapsed_ms_at(
+            during_tools.checked_add(std::time::Duration::from_millis(750)).unwrap()
+        ),
+        9_750
+    );
+}
 
 #[test]
 fn handle_agent_step_start_returns_none_for_unknown_request_id() {

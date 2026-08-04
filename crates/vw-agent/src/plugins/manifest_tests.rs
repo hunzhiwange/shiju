@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 fn write_plugin_manifest(plugin_root: &Path, manifest: serde_json::Value) {
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(
         manifest_dir.join("plugin.json"),
@@ -14,7 +14,7 @@ fn write_plugin_manifest(plugin_root: &Path, manifest: serde_json::Value) {
 }
 
 #[test]
-fn plugin_manifest_accepts_codex_plugin_json() {
+fn plugin_manifest_accepts_vibewindow_plugin_json() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("my-plugin");
     fs::create_dir_all(plugin_root.join("skills/research")).expect("skills dir");
@@ -175,7 +175,7 @@ fn plugin_manifest_accepts_hook_array_in_order() {
 fn plugin_manifest_reports_json_parse_context() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("invalid-json-plugin");
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     let manifest_path = manifest_dir.join("plugin.json");
     fs::write(&manifest_path, r#"{"name": "invalid-json-plugin""#).expect("write manifest");

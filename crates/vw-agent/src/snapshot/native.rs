@@ -68,7 +68,7 @@ pub fn cleanup(worktree: impl AsRef<Path>) -> Result<(), Error> {
         return Ok(());
     }
 
-    LOGGER.info("cleanup", Some(extra([("prune", Value::String(PRUNE.to_string()))])));
+    LOGGER.debug("cleanup", Some(extra([("prune", Value::String(PRUNE.to_string()))])));
     Ok(())
 }
 

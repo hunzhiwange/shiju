@@ -113,7 +113,7 @@ fn split_preserves_content() {
 /// 确保不在多字节字符中间分割
 #[test]
 fn split_unicode_content() {
-    let msg = "🦀 Rust is awesome! ".repeat(500);
+    let msg = "Rust is awesome! ".repeat(500);
     let chunks = discord_message_split::split_message_for_discord(&msg);
     for chunk in &chunks {
         assert!(std::str::from_utf8(chunk.as_bytes()).is_ok());

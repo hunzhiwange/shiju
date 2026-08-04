@@ -1,5 +1,5 @@
 use iced::advanced::{Clipboard, Layout, Shell, layout, mouse, overlay, renderer, widget};
-use iced::{Element, Event, Point, Rectangle, Size};
+use iced::{Element, Event, Point, Rectangle, Size, Vector};
 
 pub(super) fn compute_above_position(
     position: Point,
@@ -69,6 +69,8 @@ pub(super) struct AboveOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     pub(super) tree: &'b mut widget::Tree,
     /// 关闭覆盖层时触发的消息
     pub(super) on_close: Option<Message>,
+    /// 是否阻止用户输入事件继续传递到底层界面
+    pub(super) block_background_events: bool,
 }
 
 /// 为 `AboveOverlayElement` 实现 `Overlay` trait
@@ -118,6 +120,30 @@ where
         node.move_to(position)
     }
 
+    /// 将 widget 操作转发给覆盖层内容，使 `scroll_to` / `snap_to` / `focus` 能命中内部控件。
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.overlay.as_widget_mut().operate(self.tree, layout, renderer, operation);
+    }
+
+    fn overlay<'a>(
+        &'a mut self,
+        layout: Layout<'a>,
+        renderer: &RendererT,
+    ) -> Option<overlay::Element<'a, Message, ThemeT, RendererT>> {
+        self.overlay.as_widget_mut().overlay(
+            self.tree,
+            layout,
+            renderer,
+            &self.viewport,
+            Vector::ZERO,
+        )
+    }
+
     /// 处理覆盖层的事件
     ///
     /// # 事件处理逻辑
@@ -137,8 +163,19 @@ where
     ) {
         let bounds = layout.bounds();
 
-        // 处理点击覆盖层外部区域关闭覆盖层
-        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
+        // 模态弹层等待鼠标释放后关闭，确保同一次点击不会落到底层控件。
+        let close_event = if self.block_background_events {
+            matches!(
+                event,
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
+            )
+        } else {
+            matches!(
+                event,
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+            )
+        };
+        if close_event
             && let Some(on_close) = &self.on_close
             && let Some(cursor_position) = cursor.position()
             && !bounds.contains(cursor_position)
@@ -152,8 +189,14 @@ where
             .as_widget_mut()
             .update(self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds);
 
-        // 如果鼠标事件发生在覆盖层内部，捕获事件
-        if matches!(event, Event::Mouse(_))
+        let user_input_event = matches!(
+            event,
+            Event::Mouse(_) | Event::Touch(_) | Event::Keyboard(_)
+        );
+        // 模态弹层捕获全部用户输入；普通弹层仅捕获内部鼠标事件。
+        if self.block_background_events && user_input_event {
+            shell.capture_event();
+        } else if matches!(event, Event::Mouse(_))
             && let Some(cursor_position) = cursor.position()
             && bounds.contains(cursor_position)
         {
@@ -269,6 +312,16 @@ where
         );
 
         node.move_to(position)
+    }
+
+    /// 将 widget 操作转发给覆盖层内容，使 `scroll_to` / `snap_to` / `focus` 能命中内部控件。
+    fn operate(
+        &mut self,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.overlay.as_widget_mut().operate(self.tree, layout, renderer, operation);
     }
 
     /// 处理覆盖层的事件

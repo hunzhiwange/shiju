@@ -210,6 +210,10 @@ fn matrix_task_pool_publish_config(
     channels_config: &ChannelsConfig,
     matrix_instance_id: Option<&str>,
 ) -> Result<MatrixConfig, ApiError> {
+    if !channels_config.matrix_enabled {
+        return Err(ApiError::not_implemented("Matrix task-pool events are disabled"));
+    }
+
     let matrix_instance_id = matrix_instance_id.map(str::trim).filter(|value| !value.is_empty());
 
     let matrix = match matrix_instance_id {

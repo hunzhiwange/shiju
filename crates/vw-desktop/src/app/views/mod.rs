@@ -26,6 +26,9 @@
 /// 提供应用程序的管理、配置和监控相关的视图组件。
 pub mod apps;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod expert_hub;
+
 /// 首页视图模块
 ///
 /// 应用的主页面视图，包含导航、快捷入口等核心界面元素。

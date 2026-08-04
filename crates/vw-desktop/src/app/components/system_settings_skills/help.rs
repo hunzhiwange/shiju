@@ -24,21 +24,26 @@ pub(super) fn help_text() -> &'static str {
 - 当前为占位页，暂不提供具体内容。
 
 3) 系统配置
-- 社区技能、仓库目录、注入模式三条配置继续保留。
+- 项目技能默认加载、社区技能、仓库目录、注入模式配置集中在这里。
 - 这些配置只影响社区仓库同步与提示注入，不会移除内置技能列表。
 
 三、字段含义
-1) open_skills_enabled
+1) auto_load_project_skills
+- 类型：布尔（true / false）
+- true（默认）：委托代理自动加载项目及父级 `skills`、`.agents/skills`。
+- false：委托代理仅加载自身 `allowed_skills` 明确选择的技能。
+
+2) open_skills_enabled
 - 类型：布尔（true / false）
 - true：启用并同步社区 open-skills 仓库（默认目录见下文）。
 - false：不启用社区仓库，仅使用内置技能。
 
-2) open_skills_dir
+3) open_skills_dir
 - 类型：字符串或 null
 - 含义：本地 open-skills 仓库路径。
 - 为空时，启用状态下默认使用 `$HOME/open-skills`。
 
-3) prompt_injection_mode
+4) prompt_injection_mode
 - 类型："compact" | "full"
 - compact（默认）：仅注入技能元信息，按需加载，节省上下文。
 - full：注入完整技能文本，兼容旧行为，但会增加上下文占用。
@@ -46,6 +51,7 @@ pub(super) fn help_text() -> &'static str {
 四、示例
 {
   "skills": {
+    "auto_load_project_skills": true,
     "open_skills_enabled": false,
     "open_skills_dir": null,
     "prompt_injection_mode": "compact"

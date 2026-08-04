@@ -118,6 +118,9 @@ pub(crate) struct Cli {
 /// 部分命令还包含二级子命令（通过嵌套的 `#[command(subcommand)]` 实现）。
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
+    /// 通过 stdin/stdout 运行本地 ACP Agent。
+    Acp,
+
     /// 启动 AI 代理循环
     ///
     /// 启动与配置的 AI 提供商的交互式聊天会话。使用 --message 参数可执行

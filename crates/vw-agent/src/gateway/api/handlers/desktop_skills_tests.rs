@@ -434,6 +434,44 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
 }
 
 #[test]
+fn installed_skills_preserve_market_source_metadata() {
+    let project = tempfile::tempdir().expect("project dir");
+    let skill_dir = project
+        .path()
+        .join(".vibewindow/skills/skillhub--public--safe-skill");
+    write_markdown_skill(&skill_dir, "Safe Skill", "Installed from market");
+    std::fs::write(
+        skill_dir.join("_meta.json"),
+        serde_json::json!({
+            "source": "skillhub",
+            "namespace": "public",
+            "slug": "safe-skill",
+            "version": "1.0.0",
+            "package_type": "skill",
+            "source_pack": "safe-suite"
+        })
+        .to_string(),
+    )
+    .expect("market metadata");
+
+    let catalog = super::collect_catalog_skills(
+        Some(project.path().to_str().expect("utf8 path")),
+        vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
+    )
+    .expect("catalog");
+    let installed = catalog
+        .iter()
+        .find(|item| item.id == "skillhub--public--safe-skill")
+        .expect("installed market skill");
+
+    assert_eq!(installed.source, "skillhub");
+    assert_eq!(installed.origin.as_deref(), Some("workspace"));
+    assert_eq!(installed.namespace.as_deref(), Some("public"));
+    assert_eq!(installed.package_type.as_deref(), Some("skill"));
+    assert_eq!(installed.source_pack.as_deref(), Some("safe-suite"));
+}
+
+#[test]
 fn install_built_in_skill_copies_nested_resources() {
     let project = tempfile::tempdir().expect("project dir");
 

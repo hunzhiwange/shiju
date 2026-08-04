@@ -59,6 +59,11 @@ pub use menus::build_menu_ui;
 /// 重新导出 settings::build_settings_overlay，让上层模块通过稳定路径访问。
 pub use settings::build_settings_overlay;
 
+fn show_fullscreen_controls(app: &App) -> bool {
+    matches!(app.screen, crate::app::Screen::Project)
+        && matches!(app.workspace_mode, crate::app::state::WorkspaceMode::Code)
+}
+
 /// 处理 view 对应的局部职责。
 ///
 /// # 参数
@@ -73,7 +78,7 @@ pub use settings::build_settings_overlay;
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn view(app: &App) -> Element<'_, Message> {
-    let show_fullscreen_controls = matches!(app.screen, crate::app::Screen::Project);
+    let show_fullscreen_controls = show_fullscreen_controls(app);
 
     let header_tabs = build_header_tabs(app);
 

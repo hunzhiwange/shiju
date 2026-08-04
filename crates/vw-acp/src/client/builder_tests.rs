@@ -31,6 +31,7 @@ fn new_sets_default_builder_state() {
     assert_eq!(client.client_version, env!("CARGO_PKG_VERSION"));
     assert!(client.mcp_servers.is_empty());
     assert_eq!(client.permission_mode, PermissionMode::ApproveAll);
+    assert!(!client.full_access);
     assert_eq!(client.non_interactive_permissions, None);
     assert!(client.auth_credentials.is_empty());
     assert_eq!(client.auth_policy, AuthPolicy::Skip);
@@ -63,6 +64,7 @@ fn builder_methods_replace_configurable_values() {
         .with_client_info("", "")
         .with_mcp_servers(mcp_servers.clone())
         .with_permission_mode(PermissionMode::DenyAll)
+        .with_full_access(true)
         .with_non_interactive_permissions(Some(NonInteractivePermissionPolicy::Fail))
         .with_session_options(Some(session_options.clone()))
         .with_auth_credentials(auth_credentials.clone())
@@ -74,6 +76,7 @@ fn builder_methods_replace_configurable_values() {
     assert_eq!(client.client_version, "");
     assert_eq!(client.mcp_servers, mcp_servers);
     assert_eq!(client.permission_mode, PermissionMode::DenyAll);
+    assert!(client.full_access);
     assert_eq!(client.non_interactive_permissions, Some(NonInteractivePermissionPolicy::Fail));
     assert_eq!(client.session_options, Some(session_options));
     assert_eq!(client.auth_credentials, auth_credentials);

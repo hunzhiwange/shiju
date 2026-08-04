@@ -135,6 +135,13 @@ pub(super) fn source_label(source: &str) -> &'static str {
     }
 }
 
+pub(super) fn catalog_item_button_style(
+    theme: &iced::Theme,
+    _status: button::Status,
+) -> button::Style {
+    button::Style { text_color: theme.palette().text, ..Default::default() }
+}
+
 pub(super) fn catalog_item(
     skill: CatalogSkillMeta,
     is_selected: bool,
@@ -257,7 +264,7 @@ pub(super) fn catalog_item(
         .width(Length::Fill)
         .padding(0)
         .on_press(Message::Settings(message::SettingsMessage::SkillsDetailRequested(skill.id)))
-        .style(|_theme: &iced::Theme, _status| iced::widget::button::Style::default())
+        .style(catalog_item_button_style)
         .into()
 }
 

@@ -55,7 +55,12 @@ fn assistant_info() -> AssistantInfo {
     AssistantInfo {
         id: "assistant-1".to_string(),
         session_id: "session-1".to_string(),
-        time: AssistantTime { created: 11, completed: Some(12) },
+        time: AssistantTime {
+            created: 11,
+            completed: Some(12),
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        },
         error: Some(AssistantError::APIError {
             message: "rate limited".to_string(),
             status_code: Some(429),
@@ -166,6 +171,8 @@ fn part_variants() -> Vec<Part> {
             base: base("patch-1"),
             hash: "hash-1".to_string(),
             files: vec!["src/lib.rs".to_string()],
+            additions: Some(5),
+            deletions: Some(2),
         }),
         Part::Agent(AgentPart {
             base: base("agent-1"),
@@ -180,6 +187,34 @@ fn part_variants() -> Vec<Part> {
         }),
         Part::Compaction(CompactionPart { base: base("compaction-1"), auto: true }),
     ]
+}
+
+#[test]
+fn patch_part_line_stats_are_optional_and_round_trip() {
+    let value = serde_json::to_value(PatchPart {
+        base: base("patch-stats"),
+        hash: "hash-stats".to_string(),
+        files: vec!["src/lib.rs".to_string()],
+        additions: Some(8),
+        deletions: Some(3),
+    })
+    .unwrap();
+    let parsed: PatchPart = serde_json::from_value(value.clone()).unwrap();
+    let legacy: PatchPart = serde_json::from_value(serde_json::json!({
+        "id": "patch-legacy",
+        "sessionID": "session-1",
+        "messageID": "message-1",
+        "hash": "hash-legacy",
+        "files": ["src/legacy.rs"]
+    }))
+    .unwrap();
+
+    assert_eq!(value["additions"], 8);
+    assert_eq!(value["deletions"], 3);
+    assert_eq!(parsed.additions, Some(8));
+    assert_eq!(parsed.deletions, Some(3));
+    assert_eq!(legacy.additions, None);
+    assert_eq!(legacy.deletions, None);
 }
 
 #[test]
@@ -218,7 +253,12 @@ fn info_assistant_serializes_error_tokens_and_path() {
 fn optional_info_fields_are_omitted_when_absent() {
     let user = UserInfo { summary: None, system: None, tools: None, variant: None, ..user_info() };
     let assistant = AssistantInfo {
-        time: AssistantTime { created: 1, completed: None },
+        time: AssistantTime {
+            created: 1,
+            completed: None,
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        },
         error: None,
         summary: None,
         tokens: TokenInfo { total: None, ..tokens() },
@@ -238,6 +278,29 @@ fn optional_info_fields_are_omitted_when_absent() {
     assert!(assistant_value.get("error").is_none());
     assert!(assistant_value["tokens"].get("total").is_none());
     assert!(assistant_value.get("finish").is_none());
+}
+
+#[test]
+fn assistant_time_elapsed_fields_are_optional_and_round_trip() {
+    let legacy: AssistantTime =
+        serde_json::from_str(r#"{"created":100,"completed":250}"#).unwrap();
+    assert_eq!(legacy.processing_elapsed_ms, None);
+    assert_eq!(legacy.llm_elapsed_ms, None);
+
+    let time = AssistantTime {
+        created: 100,
+        completed: Some(250),
+        processing_elapsed_ms: Some(140),
+        llm_elapsed_ms: Some(125),
+    };
+    let value = serde_json::to_value(&time).unwrap();
+    assert_eq!(value["processing_elapsed_ms"], 140);
+    assert_eq!(value["llm_elapsed_ms"], 125);
+    let round_trip = serde_json::from_value::<AssistantTime>(value).unwrap();
+    assert_eq!(round_trip.created, time.created);
+    assert_eq!(round_trip.completed, time.completed);
+    assert_eq!(round_trip.processing_elapsed_ms, time.processing_elapsed_ms);
+    assert_eq!(round_trip.llm_elapsed_ms, time.llm_elapsed_ms);
 }
 
 #[test]

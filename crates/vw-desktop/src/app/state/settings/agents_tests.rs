@@ -5,7 +5,10 @@ fn test_module_is_wired() {
     assert!(module.ends_with("agents_tests"));
 }
 
-use super::{AgentsSettingsState, DelegateAgentSettingsEntry, ordered_agent_keys};
+use super::{
+    AgentsSettingsState, DelegateAgentSettingsEntry, apply_default_allowed_tools,
+    ordered_agent_keys,
+};
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AgentSettingsEntryKind, MAIN_AGENT_KEY,
     WORKSPACE_IDENTITY_FILES,
@@ -36,9 +39,10 @@ fn delegate_agent_entry_uses_builtin_worker_defaults() {
     assert_eq!(entry.label, "Title");
     assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
     assert!(entry.enabled);
+    assert!(entry.allow_as_subagent);
     assert_eq!(entry.temperature, 0.5);
     assert_eq!(entry.max_depth, 3);
-    assert_eq!(entry.max_iterations, 10);
+    assert_eq!(entry.max_iterations, 50_000);
 }
 
 #[test]
@@ -49,11 +53,12 @@ fn delegate_agent_entry_uses_custom_defaults_when_config_is_missing() {
     assert_eq!(entry.label, "custom-agent");
     assert_eq!(entry.kind, AgentSettingsEntryKind::Custom);
     assert!(entry.enabled);
+    assert!(entry.allow_as_subagent);
     assert!((entry.temperature - 0.7).abs() < f32::EPSILON);
     assert_eq!(entry.system_prompt_editor.text(), "");
     assert_eq!(entry.api_key_input, "");
     assert_eq!(entry.max_depth, 3);
-    assert_eq!(entry.max_iterations, 10);
+    assert_eq!(entry.max_iterations, 50_000);
 }
 
 #[test]
@@ -63,6 +68,8 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
         max_depth: 0,
         max_iterations: 500,
         enabled: false,
+        allow_as_subagent: true,
+        max_parallel_subagents: 99,
         provider: "openai".to_string(),
         model: "gpt-4.1".to_string(),
         system_prompt: Some("  prompt  ".to_string()),
@@ -70,6 +77,7 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
         agentic: true,
         allowed_tools: vec!["read".to_string()],
         allowed_skills: vec!["skill-a".to_string()],
+        enabled_identity_files: vec!["SOUL.md".to_string(), "MEMORY.md".to_string()],
         ..Default::default()
     };
 
@@ -77,21 +85,38 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
 
     assert_eq!(entry.kind, AgentSettingsEntryKind::Custom);
     assert!(!entry.enabled);
+    assert!(entry.allow_as_subagent);
+    assert_eq!(entry.max_parallel_subagents, 32);
     assert_eq!(entry.provider, "openai");
     assert_eq!(entry.model, "gpt-4.1");
     assert_eq!(entry.temperature, 2.0);
     assert_eq!(entry.max_depth, 1);
-    assert_eq!(entry.max_iterations, 100);
+    assert_eq!(entry.max_iterations, 500);
     assert_eq!(entry.system_prompt_editor.text(), "  prompt  ");
     assert_eq!(entry.api_key_input, "test-api-key");
     assert!(entry.agentic);
     assert_eq!(entry.allowed_tools, vec!["read"]);
     assert_eq!(entry.allowed_skills, vec!["skill-a"]);
+    assert_eq!(entry.enabled_identity_files, vec!["SOUL.md", "MEMORY.md"]);
     assert!(!entry.compact_context);
-    assert_eq!(entry.max_tool_iterations, 20);
-    assert_eq!(entry.max_history_messages, 50);
+    assert_eq!(entry.max_tool_iterations, 50_000);
+    assert_eq!(entry.max_history_messages, 100);
     assert!(!entry.parallel_tools);
     assert_eq!(entry.tool_dispatcher, "auto");
+}
+
+#[test]
+fn delegate_agent_entry_copies_subagent_controls() {
+    let config = DelegateAgentConfig {
+        allow_as_subagent: true,
+        max_parallel_subagents: 3,
+        ..Default::default()
+    };
+
+    let entry = DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, Some(config));
+
+    assert!(entry.allow_as_subagent);
+    assert_eq!(entry.max_parallel_subagents, 3);
 }
 
 #[test]
@@ -158,6 +183,42 @@ fn ordered_agent_keys_does_not_duplicate_configured_builtin_keys() {
 }
 
 #[test]
+fn default_allowed_tools_selects_all_except_title_and_summary() {
+    let mut entries = builtin_agent_keys()
+        .into_iter()
+        .map(|key| DelegateAgentSettingsEntry::from_config(key, None))
+        .collect::<Vec<_>>();
+    let available_tools = vec!["bash".to_string(), "read".to_string()];
+
+    apply_default_allowed_tools(&mut entries, &available_tools);
+
+    for entry in entries {
+        if matches!(entry.key.as_str(), "title" | "summary") {
+            assert!(entry.allowed_tools.is_empty(), "{} must remain tool-free", entry.key);
+        } else {
+            assert_eq!(
+                entry.allowed_tools, available_tools,
+                "{} should default to all tools",
+                entry.key
+            );
+        }
+    }
+}
+
+#[test]
+fn default_allowed_tools_preserves_existing_selection() {
+    let mut entry = DelegateAgentSettingsEntry::from_config("coder", None);
+    entry.allowed_tools = vec!["read".to_string()];
+
+    apply_default_allowed_tools(
+        std::slice::from_mut(&mut entry),
+        &["bash".to_string(), "read".to_string()],
+    );
+
+    assert_eq!(entry.allowed_tools, vec!["read"]);
+}
+
+#[test]
 fn agents_settings_default_initializes_complete_idle_state() {
     let state = AgentsSettingsState::default();
 
@@ -171,6 +232,8 @@ fn agents_settings_default_initializes_complete_idle_state() {
     assert!(state.available_tools.is_empty());
     assert!(state.workspace_identity_root_path.is_none());
     assert!(state.save_error.is_none());
+    assert!(!state.save_in_flight);
+    assert!(!state.save_pending);
 
     let expected_keys = builtin_agent_keys();
     assert_eq!(state.entries.len(), expected_keys.len());

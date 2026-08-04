@@ -18,8 +18,9 @@ use crate::cli::session::GitWorkspaceStatus;
 use crate::cli::tui_v2::model::{
     PromptMode, PromptMotion, PromptSubmission, PromptSubmissionStatus, QueuedPromptCommand,
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiQuestionOverlay,
-    UiSearchOverlay, UiStep, UiStepState, UiThinkingBlock, UiThinkingTiming, UiTodoOverlay,
-    UiTokenUsage, UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiSearchOverlay, UiStep, UiStepState, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming,
+    UiTodoOverlay, UiTokenUsage, UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal,
+    UiUserMessage,
 };
 
 /// assistant turn 终态更新时附带的补充元数据。
@@ -37,6 +38,7 @@ pub(crate) struct TuiToolCallUpdate {
     pub(crate) tool_name: String,
     pub(crate) summary: Option<String>,
     pub(crate) arguments: Option<String>,
+    pub(crate) append_arguments: bool,
     pub(crate) state: UiToolCallState,
     pub(crate) result: Option<TuiToolResultUpdate>,
 }
@@ -162,6 +164,10 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
             state.status.last_error = error;
         }
         TuiAction::ScrollSet(scroll) => {
+            if state.scroll.follow_tail && !scroll.follow_tail {
+                state.unseen_baseline_id =
+                    state.messages.last().map(|message| message.base().id.clone());
+            }
             state.scroll = scroll;
             state.clamp_scroll();
         }
@@ -311,7 +317,7 @@ fn append_assistant_delta(state: &mut TuiState, delta: String) {
 }
 
 fn append_thinking_delta(state: &mut TuiState, delta: String) {
-    let updated_ms = now_ms();
+    let updated_ms = event_time_ms(state);
     if let Some((block_index, block)) =
         state.messages.iter_mut().enumerate().rev().find_map(|(index, message)| match message {
             UiMessage::Thinking(block)
@@ -345,6 +351,7 @@ fn append_thinking_delta(state: &mut TuiState, delta: String) {
             last_update_ms: updated_ms,
         }],
         collapsed: false,
+        phase: UiThinkingPhase::Streaming,
     }));
 
     if let Some(UiMessage::Thinking(block)) = state.messages.last_mut() {
@@ -359,7 +366,7 @@ fn append_thinking_delta(state: &mut TuiState, delta: String) {
 }
 
 fn close_thinking_block(state: &mut TuiState) {
-    let finished_ms = now_ms();
+    let finished_ms = event_time_ms(state);
     if let Some((block_index, block)) =
         state.messages.iter_mut().enumerate().rev().find_map(|(index, message)| match message {
             UiMessage::Thinking(block)
@@ -375,13 +382,22 @@ fn close_thinking_block(state: &mut TuiState) {
             timing.last_update_ms = finished_ms;
         }
         block.summary = thinking_summary(&block.content);
+        block.collapsed = true;
+        block.phase = UiThinkingPhase::Closed;
         state.refresh_search_index_for_message(block_index);
         state.refresh_transcript_layout_for_message(block_index);
     }
 }
 
 fn apply_tool_call_update(state: &mut TuiState, update: TuiToolCallUpdate) {
-    let TuiToolCallUpdate { tool_name, summary, arguments, state: next_state, result } = update;
+    let TuiToolCallUpdate {
+        tool_name,
+        summary,
+        arguments,
+        append_arguments,
+        state: next_state,
+        result,
+    } = update;
 
     let parent_id = current_turn_parent_id(state);
     let call_index = find_open_tool_call_index(&state.messages, tool_name.as_str());
@@ -394,7 +410,11 @@ fn apply_tool_call_update(state: &mut TuiState, update: TuiToolCallUpdate) {
             message.summary = Some(summary);
         }
         if let Some(arguments) = arguments.clone() {
-            message.arguments = Some(arguments);
+            if append_arguments {
+                message.arguments.get_or_insert_with(String::new).push_str(&arguments);
+            } else {
+                message.arguments = Some(arguments);
+            }
         }
         if message.base.parent_id.is_none() {
             message.base.parent_id = parent_id.clone();
@@ -788,6 +808,10 @@ fn contains_marker(value: Option<&str>, markers: &[&str]) -> bool {
 
     let normalized = value.to_ascii_lowercase();
     markers.iter().any(|marker| normalized.contains(marker))
+}
+
+fn event_time_ms(state: &TuiState) -> u64 {
+    state.runtime.event_time_ms.unwrap_or_else(now_ms)
 }
 
 fn now_ms() -> u64 {

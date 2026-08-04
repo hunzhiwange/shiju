@@ -1,7 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use super::types::AgentsLoaded;
-use crate::app::config::update_main_agent_overrides_from_delegate_agents;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::provider::provider as model_provider;
 use crate::app::{
@@ -91,6 +90,21 @@ fn refresh_task() -> Task<Message> {
             Ok((provider_summaries, provider_models, available_tools))
         },
         |res: AgentsLoaded| Message::Settings(SettingsMessage::Agents(AgentsMessage::Loaded(res))),
+    )
+}
+
+fn project_config_task(project_path: String) -> Task<Message> {
+    let response_project_path = project_path.clone();
+    Task::perform(
+        async move {
+            crate::app::config::load_project_agent_config_async(&project_path).await.map(Box::new)
+        },
+        move |result| {
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectConfigLoaded {
+                project_path: response_project_path.clone(),
+                result,
+            }))
+        },
     )
 }
 
@@ -397,60 +411,139 @@ fn save_workspace_identity_file_task(
     )
 }
 
-fn persist_agents_settings(app: &mut App) -> Task<Message> {
-    let entries = app.agents_settings.entries.clone();
-    let main = app.agents_settings.entries.iter().find(|entry| entry.key == "main").cloned();
-
-    let agents_task = crate::app::config::update_delegate_agents_config_async(move |agents| {
-        agents.clear();
-        for entry in &entries {
-            let provider = entry.provider.trim().to_string();
-            let model = entry.model.trim().to_string();
-            let system_prompt = entry.system_prompt_editor.text().trim().to_string();
-            let api_key = entry.api_key_input.trim().to_string();
-            let allowed_tools = entry
-                .allowed_tools
-                .iter()
-                .map(|tool| tool.trim().to_string())
-                .filter(|tool| !tool.is_empty())
-                .collect::<Vec<_>>();
-            let allowed_skills = entry
-                .allowed_skills
-                .iter()
-                .map(|skill| skill.trim().to_string())
-                .filter(|skill| !skill.is_empty())
-                .collect::<Vec<_>>();
-            agents.insert(
-                entry.key.clone(),
-                vw_config_types::agent::DelegateAgentConfig {
-                    label: Some(entry.label.clone()),
-                    description: None,
-                    builtin: entry.key != MAIN_AGENT_KEY
-                        && vw_config_types::agent::builtin_agent_spec(&entry.key).is_some(),
-                    mode: if entry.key == MAIN_AGENT_KEY {
-                        "primary".to_string()
-                    } else {
-                        "all".to_string()
-                    },
-                    enabled: if entry.key == MAIN_AGENT_KEY { true } else { entry.enabled },
-                    provider,
-                    model,
-                    system_prompt: (!system_prompt.is_empty()).then_some(system_prompt),
-                    api_key: (!api_key.is_empty()).then_some(api_key),
-                    temperature: Some(entry.temperature.clamp(0.0, 2.0) as f64),
-                    top_p: None,
-                    identity_format: Some("openclaw".to_string()),
-                    hidden: false,
-                    max_depth: entry.max_depth.clamp(1, 32),
-                    agentic: entry.agentic,
-                    allowed_tools,
-                    allowed_skills,
-                    options: std::collections::HashMap::new(),
-                    permission: serde_json::Value::Null,
-                    max_iterations: entry.max_iterations.clamp(1, 100) as usize,
-                    steps: None,
+fn build_agents_settings_patch(
+    entries: &[DelegateAgentSettingsEntry],
+) -> Result<serde_json::Value, String> {
+    let mut agents = std::collections::HashMap::with_capacity(entries.len());
+    for entry in entries {
+        let provider = entry.provider.trim().to_string();
+        let model = entry.model.trim().to_string();
+        let system_prompt = entry.system_prompt_editor.text().trim().to_string();
+        let api_key = entry.api_key_input.trim().to_string();
+        let allowed_tools = entry
+            .allowed_tools
+            .iter()
+            .map(|tool| tool.trim().to_string())
+            .filter(|tool| !tool.is_empty())
+            .collect::<Vec<_>>();
+        let allowed_skills = entry
+            .allowed_skills
+            .iter()
+            .map(|skill| skill.trim().to_string())
+            .filter(|skill| !skill.is_empty())
+            .collect::<Vec<_>>();
+        let mut enabled_identity_files = entry
+            .enabled_identity_files
+            .iter()
+            .map(|file_name| file_name.trim().to_string())
+            .filter(|file_name| !file_name.is_empty())
+            .collect::<Vec<_>>();
+        enabled_identity_files.sort();
+        enabled_identity_files.dedup();
+        agents.insert(
+            entry.key.clone(),
+            vw_config_types::agent::DelegateAgentConfig {
+                label: Some(entry.label.clone()),
+                description: None,
+                builtin: entry.key != MAIN_AGENT_KEY
+                    && vw_config_types::agent::builtin_agent_spec(&entry.key).is_some(),
+                mode: if entry.key == MAIN_AGENT_KEY {
+                    "primary".to_string()
+                } else {
+                    "all".to_string()
                 },
+                enabled: if entry.key == MAIN_AGENT_KEY { true } else { entry.enabled },
+                allow_as_subagent: entry.allow_as_subagent,
+                max_parallel_subagents: entry.max_parallel_subagents.clamp(1, 32) as usize,
+                provider,
+                model,
+                system_prompt: (!system_prompt.is_empty()).then_some(system_prompt),
+                api_key: (!api_key.is_empty()).then_some(api_key),
+                temperature: Some(entry.temperature.clamp(0.0, 2.0) as f64),
+                top_p: None,
+                identity_format: Some("openclaw".to_string()),
+                hidden: false,
+                max_depth: entry.max_depth.clamp(1, 32),
+                agentic: entry.agentic,
+                allowed_tools,
+                allowed_skills,
+                enabled_identity_files,
+                options: std::collections::HashMap::new(),
+                permission: serde_json::Value::Null,
+                max_iterations: entry.max_iterations.max(1) as usize,
+                steps: None,
+            },
+        );
+    }
+
+    let mut patch = serde_json::Map::new();
+    patch.insert(
+        "agents".to_string(),
+        serde_json::to_value(agents).map_err(|error| error.to_string())?,
+    );
+
+    if let Some(main) = entries.iter().find(|entry| entry.key == MAIN_AGENT_KEY) {
+        let provider = main.provider.trim();
+        let model = main.model.trim();
+        if !provider.is_empty() {
+            patch.insert(
+                "default_provider".to_string(),
+                serde_json::Value::String(provider.to_string()),
             );
+        }
+        if !provider.is_empty() && !model.is_empty() {
+            patch.insert(
+                "default_model".to_string(),
+                serde_json::Value::String(format!("{provider}/{model}")),
+            );
+        }
+        if let Some(temperature) =
+            serde_json::Number::from_f64(main.temperature.clamp(0.0, 2.0) as f64)
+        {
+            patch.insert("default_temperature".to_string(), serde_json::Value::Number(temperature));
+        }
+        patch.insert(
+            "identity".to_string(),
+            serde_json::json!({
+                "format": "openclaw",
+                "aieos_path": null,
+                "aieos_inline": null,
+            }),
+        );
+        let tool_dispatcher = main.tool_dispatcher.trim();
+        let tool_dispatcher = if tool_dispatcher.is_empty() { "auto" } else { tool_dispatcher };
+        patch.insert(
+            "agent".to_string(),
+            serde_json::json!({
+                "compact_context": main.compact_context,
+                "max_tool_iterations": main.max_tool_iterations.max(1),
+                "max_history_messages": main.max_history_messages.clamp(1, 1000),
+                "parallel_tools": main.parallel_tools,
+                "tool_dispatcher": tool_dispatcher,
+            }),
+        );
+    }
+
+    Ok(serde_json::Value::Object(patch))
+}
+
+fn persist_agents_settings(app: &mut App) -> Task<Message> {
+    if app.agents_settings.save_in_flight {
+        app.agents_settings.save_pending = true;
+        return Task::none();
+    }
+
+    app.agents_settings.save_in_flight = true;
+    app.agents_settings.save_pending = false;
+    let entries = app.agents_settings.entries.clone();
+    let project_path = app.agents_settings.project_path.clone();
+    let agents_task = crate::app::config::spawn_gateway_task("agent", async move {
+        let patch = build_agents_settings_patch(&entries)?;
+        match project_path {
+            Some(project_path) => {
+                crate::app::config::patch_project_agent_config_async(&project_path, patch).await
+            }
+            None => crate::app::config::patch_full_agent_config_async(patch).await,
         }
     });
 
@@ -458,26 +551,18 @@ fn persist_agents_settings(app: &mut App) -> Task<Message> {
         agents.clear();
     });
 
-    update_main_agent_overrides_from_delegate_agents();
+    Task::batch(vec![agents_task, compat_cleanup_task])
+}
 
-    let agent_task = if let Some(main) = main {
-        let tool_dispatcher = main.tool_dispatcher.trim().to_string();
-        crate::app::config::update_agent_runtime_config_async(move |agent| {
-            agent.compact_context = main.compact_context;
-            agent.max_tool_iterations = main.max_tool_iterations.clamp(1, 200) as usize;
-            agent.max_history_messages = main.max_history_messages.clamp(1, 1000) as usize;
-            agent.parallel_tools = main.parallel_tools;
-            agent.tool_dispatcher = if tool_dispatcher.is_empty() {
-                "auto".to_string()
-            } else {
-                tool_dispatcher.clone()
-            };
-        })
-    } else {
-        Task::none()
-    };
+pub(super) fn handle_agents_config_saved(
+    app: &mut App,
+    result: Result<(), String>,
+) -> Task<Message> {
+    app.agents_settings.save_in_flight = false;
+    app.agents_settings.save_error =
+        result.err().map(crate::app::config::server_config_unreachable_error);
 
-    Task::batch(vec![agents_task, compat_cleanup_task, agent_task])
+    if app.agents_settings.save_pending { persist_agents_settings(app) } else { Task::none() }
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -493,17 +578,74 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::Refresh => {
             app.agents_settings.loading = true;
             app.agents_settings.save_error = None;
-            refresh_task()
+            let mut tasks = vec![refresh_task()];
+            if let Some(project_path) = app.project_path.clone() {
+                app.agents_settings.project_path = Some(project_path.clone());
+                tasks.push(project_config_task(project_path));
+            }
+            Task::batch(tasks)
         }
         AgentsMessage::Loaded(res) => {
-            app.agents_settings.loading = false;
+            if app.agents_settings.project_path.is_none() {
+                app.agents_settings.loading = false;
+            }
             match res {
                 Ok((providers, provider_models, available_tools)) => {
                     app.agents_settings.providers = providers;
                     app.agents_settings.provider_models = provider_models;
+                    if app.agents_settings.available_tools.is_empty() && !available_tools.is_empty()
+                    {
+                        crate::app::state::apply_default_allowed_tools(
+                            &mut app.agents_settings.entries,
+                            &available_tools,
+                        );
+                    }
                     if !available_tools.is_empty() || app.agents_settings.available_tools.is_empty()
                     {
                         app.agents_settings.available_tools = available_tools;
+                    }
+                    app.agents_settings.save_error = None;
+                }
+                Err(error) => {
+                    app.agents_settings.save_error = Some(error);
+                }
+            }
+            Task::none()
+        }
+        AgentsMessage::ProjectSelected(project_path) => {
+            if app.project_path.as_deref() == Some(project_path.as_str()) {
+                return crate::app::projects::project_settings_refresh_task(project_path);
+            }
+            app.open_project_and_index(project_path)
+        }
+        AgentsMessage::ProjectChanged(project_path) => {
+            app.agents_settings.project_path = Some(project_path.clone());
+            app.agents_settings.loading = true;
+            app.agents_settings.save_error = None;
+            project_config_task(project_path)
+        }
+        AgentsMessage::ProjectConfigLoaded { project_path, result } => {
+            if app.agents_settings.project_path.as_deref() != Some(project_path.as_str()) {
+                return Task::none();
+            }
+
+            app.agents_settings.loading = false;
+            match result {
+                Ok(config) => {
+                    let mut entries =
+                        crate::app::state::agent_settings_entries_from_config(config.as_ref());
+                    crate::app::state::apply_default_allowed_tools(
+                        &mut entries,
+                        &app.agents_settings.available_tools,
+                    );
+                    app.agents_settings.entries = entries;
+                    if !app
+                        .agents_settings
+                        .entries
+                        .iter()
+                        .any(|entry| entry.key == app.agents_settings.selected_agent)
+                    {
+                        app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
                     }
                     app.agents_settings.save_error = None;
                 }
@@ -542,7 +684,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
 
-            app.agents_settings.entries.push(DelegateAgentSettingsEntry::from_config(&key, None));
+            let mut entry = DelegateAgentSettingsEntry::from_config(&key, None);
+            crate::app::state::apply_default_allowed_tools(
+                std::slice::from_mut(&mut entry),
+                &app.agents_settings.available_tools,
+            );
+            app.agents_settings.entries.push(entry);
             app.agents_settings.new_agent_key_input.clear();
             app.agents_settings.selected_agent = key;
             app.agents_settings.save_error = None;
@@ -603,6 +750,24 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.agents_settings.selected_agent.clone(),
                 file_name,
             )
+        }
+        AgentsMessage::WorkspaceIdentityEnabledToggled { agent_key, file_name, enabled } => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                if enabled {
+                    if !entry
+                        .enabled_identity_files
+                        .iter()
+                        .any(|enabled_file| enabled_file == &file_name)
+                    {
+                        entry.enabled_identity_files.push(file_name);
+                        entry.enabled_identity_files.sort();
+                    }
+                } else {
+                    entry.enabled_identity_files.retain(|enabled_file| enabled_file != &file_name);
+                }
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
         }
         AgentsMessage::WorkspaceIdentityDefaultRestored {
             agent_key,
@@ -687,6 +852,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
         }
+        AgentsMessage::AllowAsSubagentToggled(agent_key, allow_as_subagent) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.allow_as_subagent = allow_as_subagent;
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
+        AgentsMessage::MaxParallelSubagentsChanged(agent_key, max_parallel_subagents) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.max_parallel_subagents = max_parallel_subagents.clamp(1, 32);
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
         AgentsMessage::SystemPromptAction(agent_key, action) => {
             let should_persist = matches!(action, text_editor::Action::Edit(_));
             if let Some(entry) = find_entry_mut(app, &agent_key) {
@@ -721,7 +900,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::MaxToolIterationsChanged(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.max_tool_iterations = value.clamp(1, 200);
+                entry.max_tool_iterations = value.max(1);
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
@@ -874,7 +1053,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::MaxIterationsChanged(agent_key, max_iterations) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.max_iterations = max_iterations.clamp(1, 100);
+                entry.max_iterations = max_iterations.max(1);
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)

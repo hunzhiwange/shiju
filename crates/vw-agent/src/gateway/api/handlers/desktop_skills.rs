@@ -92,6 +92,19 @@ struct LocalCatalogSkillMeta {
     enabled: bool,
     source: String,
     source_path: Option<String>,
+    origin: Option<String>,
+    namespace: Option<String>,
+    package_type: Option<String>,
+    source_pack: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct LocalMarketMetadata {
+    origin: Option<String>,
+    source: Option<String>,
+    namespace: Option<String>,
+    package_type: Option<String>,
+    source_pack: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -388,6 +401,10 @@ fn collect_catalog_skills(
                     .map(|item| item.source.clone())
                     .unwrap_or_else(|| "bundled".to_string()),
                 source_path: local.and_then(|item| item.source_path.clone()),
+                origin: local.and_then(|item| item.origin.clone()),
+                namespace: local.and_then(|item| item.namespace.clone()),
+                package_type: local.and_then(|item| item.package_type.clone()),
+                source_pack: local.and_then(|item| item.source_pack.clone()),
             }
         })
         .collect::<Vec<_>>();
@@ -403,6 +420,10 @@ fn collect_catalog_skills(
             enabled: skill.enabled,
             source: skill.source,
             source_path: skill.source_path,
+            origin: skill.origin,
+            namespace: skill.namespace,
+            package_type: skill.package_type,
+            source_pack: skill.source_pack,
         },
     ));
 
@@ -516,20 +537,56 @@ fn discover_local_skills(
                 continue;
             };
 
+            let local_origin = local_skill_source_key(source_dir.kind);
+            let market = read_local_market_metadata(&entry.path());
+            let market_source = market
+                .source
+                .as_deref()
+                .map(str::trim)
+                .filter(|source| !source.is_empty())
+                .map(str::to_string);
             skills.push(LocalCatalogSkillMeta {
                 id: skill_id,
                 title,
                 description,
                 resource_count: count_skill_resources(&entry.path()),
                 enabled: !is_local_skill_disabled(&entry.path()),
-                source: local_skill_source_key(source_dir.kind).to_string(),
+                source: market_source
+                    .clone()
+                    .unwrap_or_else(|| local_origin.to_string()),
                 source_path: Some(entry.path().display().to_string()),
+                origin: market_source.map(|_| {
+                    market
+                        .origin
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|origin| !origin.is_empty())
+                        .unwrap_or(local_origin)
+                        .to_string()
+                }),
+                namespace: normalized_metadata_value(market.namespace),
+                package_type: normalized_metadata_value(market.package_type),
+                source_pack: normalized_metadata_value(market.source_pack),
             });
         }
     }
 
     skills.sort_by(|left, right| left.title.cmp(&right.title).then_with(|| left.id.cmp(&right.id)));
     Ok(skills)
+}
+
+fn read_local_market_metadata(skill_dir: &Path) -> LocalMarketMetadata {
+    let Ok(content) = std::fs::read_to_string(skill_dir.join("_meta.json")) else {
+        return LocalMarketMetadata::default();
+    };
+    serde_json::from_str(&content).unwrap_or_default()
+}
+
+fn normalized_metadata_value(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let value = value.trim();
+        (!value.is_empty()).then(|| value.to_string())
+    })
 }
 
 fn read_local_catalog_metadata(skill_dir: &Path, skill_id: &str) -> Option<(String, String)> {

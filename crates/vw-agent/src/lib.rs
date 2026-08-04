@@ -161,6 +161,7 @@ mod cli_commands_tests;
 
 // 核心编排与执行
 pub mod agent;
+pub mod acp;
 
 // 应用兼容层（为拆分期保留旧路径）
 pub(crate) mod app;
@@ -305,6 +306,10 @@ pub mod security;
 // 服务管理
 pub mod service;
 
+/// SHIJU upstream integrations.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod shiju;
+
 // 会话系统
 pub mod session;
 
@@ -334,6 +339,9 @@ pub mod task_worktree_pool;
 
 // 任务生命周期 workflow 领域服务
 pub mod task_lifecycle;
+
+// 聊天工作流执行（tasks.json 调度）
+pub mod task_plan_run;
 
 // 测试能力
 pub mod test_capabilities;
@@ -386,6 +394,7 @@ pub use cli_commands::{
     ChannelCommands, CronCommands, IntegrationCommands, MemoryCommands, MigrateCommands,
     PluginCommands, ServiceCommands, SkillCommands,
 };
+pub use health::initialize_runtime_build_id;
 /// 重导出配置类型，作为公共 API 的一部分
 pub use config::Config;
 

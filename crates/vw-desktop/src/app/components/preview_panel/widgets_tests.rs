@@ -69,6 +69,16 @@ impl<MessageT: Clone> Widget<MessageT, Theme, RecordingRenderer> for TestContent
         layout::Node::new(Size::new(self.width, self.height))
     }
 
+    fn operate(
+        &mut self,
+        _tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        _renderer: &RecordingRenderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        operation.container(None, layout.bounds());
+    }
+
     fn draw(
         &self,
         _tree: &widget::Tree,
@@ -193,6 +203,21 @@ impl iced::advanced::Renderer for RecordingRenderer {
         + 'static,
     ) {
         callback(Err(iced::advanced::image::Error::Unsupported));
+    }
+}
+
+#[derive(Debug, Default)]
+struct RecordingOperation {
+    containers: Vec<Rectangle>,
+}
+
+impl widget::Operation for RecordingOperation {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn widget::Operation)) {
+        operate(self);
+    }
+
+    fn container(&mut self, _id: Option<&widget::Id>, bounds: Rectangle) {
+        self.containers.push(bounds);
     }
 }
 
@@ -589,6 +614,25 @@ fn preview_overlay_host_diff_size_hint_layout_draw_and_interaction_delegate_to_c
     assert_eq!(node.size(), Size::new(120.0, 80.0));
     assert_eq!(renderer.fills, vec![Rectangle { x: 0.0, y: 0.0, width: 120.0, height: 80.0 }]);
     assert_eq!(interaction, mouse::Interaction::Pointer);
+}
+
+#[test]
+fn preview_overlay_host_operate_reaches_content() {
+    let mut host = preview_host(false);
+    let mut tree = tree_for_host(&host);
+    let renderer = RecordingRenderer::default();
+    let node = layout_for(Rectangle { x: 10.0, y: 20.0, width: 120.0, height: 80.0 });
+    let mut operation = RecordingOperation::default();
+
+    <TestPreviewOverlayHost<'_> as Widget<Message, Theme, RecordingRenderer>>::operate(
+        &mut host,
+        &mut tree,
+        Layout::new(&node),
+        &renderer,
+        &mut operation,
+    );
+
+    assert_eq!(operation.containers, vec![node.bounds()]);
 }
 
 #[test]

@@ -242,7 +242,10 @@ pub async fn stream(
         async { provider::get_provider(&input.model.provider_id).await },
         async { auth::get(&input.model.provider_id) },
     );
-    let _ = cfg; // 全局配置当前未使用，但保留以备将来扩展
+    #[cfg(not(target_arch = "wasm32"))]
+    let multimodal_config = cfg.multimodal.clone();
+    #[cfg(target_arch = "wasm32")]
+    let _ = cfg;
 
     // 确保提供商存在，否则返回错误
     let provider_info = resolve_stream_provider_info(
@@ -473,6 +476,23 @@ pub async fn stream(
     {
         // 构建完整的聊天消息列表（系统消息 + 用户/助手消息）
         let chat_messages = build_chat_messages(&system_msgs, &input.messages, &input.model);
+        // 将用户消息中的 `[IMAGE:...]` 本地/远程引用归一化为 data URI，供 aisdk 多模态转换使用。
+        let chat_messages =
+            match crate::app::agent::multimodal::prepare_openai_json_messages_for_provider(
+                chat_messages,
+                &multimodal_config,
+            )
+            .await
+            {
+                Ok(messages) => messages,
+                Err(error) => {
+                    let err = message::AssistantError::Unknown {
+                        message: format!("multimodal image preparation failed: {error}"),
+                    };
+                    on_event(StreamEvent::Error(err.clone()));
+                    return Err(Error::Api(err));
+                }
+            };
 
         // 发送完整消息事件，允许调用方查看实际发送给 API 的消息
         if let Value::Array(msgs) = chat_messages.clone() {

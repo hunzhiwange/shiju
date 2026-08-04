@@ -1,4 +1,6 @@
 use std::ffi::OsString;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -14,7 +16,7 @@ static TEST_ROOT: OnceLock<PathBuf> = OnceLock::new();
 struct ProviderTestEnv {
     _lock: MutexGuard<'static, ()>,
     config_dir: PathBuf,
-    saved_env: Vec<(&'static str, Option<OsString>)>,
+    saved_env: Vec<(String, Option<OsString>)>,
 }
 
 impl ProviderTestEnv {
@@ -25,7 +27,8 @@ impl ProviderTestEnv {
 
         std::fs::create_dir_all(&config_dir).expect("config dir should be created");
 
-        let saved_env = save_env(&[
+        let mut saved_env = save_env(&[
+            "VIBEWINDOW_TEST_HOME",
             "VIBEWINDOW_WORKSPACE",
             "TEST_PROVIDER_KEY",
             "SECOND_PROVIDER_KEY",
@@ -33,6 +36,7 @@ impl ProviderTestEnv {
         ]);
 
         unsafe {
+            std::env::set_var("VIBEWINDOW_TEST_HOME", &config_dir);
             std::env::set_var("VIBEWINDOW_WORKSPACE", &config_dir);
             std::env::remove_var("TEST_PROVIDER_KEY");
             std::env::remove_var("SECOND_PROVIDER_KEY");
@@ -40,6 +44,13 @@ impl ProviderTestEnv {
         }
 
         crate::models::invalidate_cache();
+        for name in crate::models::get().await.values().flat_map(|provider| provider.env.iter()) {
+            if saved_env.iter().any(|(saved, _)| saved == name) {
+                continue;
+            }
+            saved_env.push((name.clone(), std::env::var_os(name)));
+            unsafe { std::env::remove_var(name) };
+        }
         invalidate_cache().await;
 
         Self { _lock: lock, config_dir, saved_env }
@@ -70,8 +81,8 @@ impl Drop for ProviderTestEnv {
     }
 }
 
-fn save_env(keys: &[&'static str]) -> Vec<(&'static str, Option<OsString>)> {
-    keys.iter().map(|key| (*key, std::env::var_os(key))).collect()
+fn save_env(keys: &[&str]) -> Vec<(String, Option<OsString>)> {
+    keys.iter().map(|key| ((*key).to_string(), std::env::var_os(key))).collect()
 }
 
 fn test_root() -> PathBuf {
@@ -298,6 +309,28 @@ async fn custom_config_provider_uses_safe_defaults() {
     assert!(model.capabilities.toolcall);
     assert!(model.capabilities.input.text);
     assert_eq!(model.cost.output, 0.0);
+}
+
+#[tokio::test]
+async fn new_model_inherits_unique_builtin_provider_api() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "deepseek": {
+                "models": {
+                    "deepseek-future": {"status": "active"}
+                }
+            }
+        }),
+    ))
+    .await;
+
+    let model =
+        get_model("deepseek", "deepseek-future").await.expect("configured model should resolve");
+
+    assert_eq!(model.api.url, "https://api.deepseek.com");
+    assert_eq!(model.api.adapter, default_adapter());
 }
 
 #[tokio::test]
@@ -576,4 +609,94 @@ async fn init_preloads_model_cache_without_changing_query_results() {
     init();
 
     assert!(get_provider("zz-test-provider").await.is_some());
+}
+
+#[tokio::test]
+async fn remote_models_merge_preserves_explicit_status_and_static_metadata() {
+    let env = ProviderTestEnv::new().await;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("test listener should bind");
+    let address = listener.local_addr().expect("test listener should have an address");
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("test server should accept a request");
+        let mut request = [0_u8; 4096];
+        let read = stream.read(&mut request).expect("request should be readable");
+        let request = String::from_utf8_lossy(&request[..read]);
+        assert!(request.starts_with("GET /v1/models HTTP/1.1\r\n"));
+        assert!(
+            request
+                .lines()
+                .any(|line| line.eq_ignore_ascii_case("authorization: Bearer resolver-secret"))
+        );
+        let body = r#"{"data":[{"id":"gpt-5"},{"id":"remote-resolver-model"}]}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream.write_all(response.as_bytes()).expect("response should be written");
+    });
+    env.set_env("TEST_PROVIDER_KEY", "resolver-secret");
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "openai": {
+                "api": format!("http://{address}/v1/"),
+                "env": ["TEST_PROVIDER_KEY"],
+                "models": {
+                    "gpt-5": {"status": "disabled"}
+                }
+            }
+        }),
+    ))
+    .await;
+
+    let providers = list_for_settings().await;
+    let provider = providers.get("openai").expect("OpenAI provider should resolve");
+    let explicit = provider.models.get("gpt-5").expect("explicit model should remain");
+    let remote =
+        provider.models.get("remote-resolver-model").expect("remote model should be merged");
+
+    assert_eq!(explicit.status, "disabled");
+    assert_eq!(explicit.name, "GPT-5");
+    assert!(explicit.capabilities.reasoning);
+    assert_eq!(remote.status, "active");
+    assert_eq!(remote.api.url, format!("http://{address}/v1"));
+    server.join().expect("test server should stop");
+}
+
+#[tokio::test]
+async fn remote_models_http_failure_preserves_existing_models() {
+    let env = ProviderTestEnv::new().await;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("test listener should bind");
+    let address = listener.local_addr().expect("test listener should have an address");
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("test server should accept a request");
+        let mut request = [0_u8; 4096];
+        let read = stream.read(&mut request).expect("request should be readable");
+        assert!(String::from_utf8_lossy(&request[..read]).starts_with("GET /models HTTP/1.1\r\n"));
+        let response =
+            "HTTP/1.1 404 Not Found\r\nContent-Length: 7\r\nConnection: close\r\n\r\nmissing";
+        stream.write_all(response.as_bytes()).expect("response should be written");
+    });
+    env.set_env("TEST_PROVIDER_KEY", "resolver-secret");
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "failure-provider": {
+                "api": format!("http://{address}"),
+                "env": ["TEST_PROVIDER_KEY"],
+                "models": {
+                    "configured-model": {"status": "active"}
+                }
+            }
+        }),
+    ))
+    .await;
+
+    let providers = list().await;
+    let provider =
+        providers.get("failure-provider").expect("provider loading should degrade gracefully");
+
+    assert!(provider.models.contains_key("configured-model"));
+    assert_eq!(provider.models.len(), 1);
+    server.join().expect("test server should stop");
 }

@@ -64,11 +64,11 @@ pub fn apply_env_overrides(config: &mut Config) {
         }
     } else if let Ok(provider) = std::env::var("PROVIDER") {
         // 检查是否应该应用遗留的 PROVIDER 环境变量
-        // 仅当配置的 default_provider 为空或为 "openrouter"（默认值）时才应用
+        // 仅当配置的 default_provider 为空或为 "shiju"（默认值）时才应用
         let should_apply_legacy_provider = config
             .default_provider
             .as_deref()
-            .map_or(true, |configured| configured.trim().eq_ignore_ascii_case("openrouter"));
+            .map_or(true, |configured| configured.trim().eq_ignore_ascii_case("shiju"));
         if should_apply_legacy_provider && !provider.is_empty() {
             config.default_provider = Some(provider);
         }

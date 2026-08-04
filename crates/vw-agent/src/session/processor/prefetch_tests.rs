@@ -57,10 +57,7 @@ fn app_session_scope_from_root_rejects_missing_directory() {
     let workspace = tempfile::tempdir().expect("temp workspace should be created");
     let missing = workspace.path().join("missing-project");
 
-    assert_eq!(
-        super::app_session_scope_from_root(Some(missing.to_string_lossy().as_ref())),
-        None
-    );
+    assert_eq!(super::app_session_scope_from_root(Some(missing.to_string_lossy().as_ref())), None);
 }
 
 #[test]

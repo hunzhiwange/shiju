@@ -1,0 +1,25 @@
+{
+  "id": "clear-cyan",
+  "name": "清透青空 Clear Cyan",
+  "tagline": "像清晨窗户上的一层薄雾。",
+  "palette": {
+    "background": "#f4f7f8",
+    "text": "#2d3538",
+    "primary": "#5a9aa8",
+    "success": "#85bcc8",
+    "warning": "#a8c4cc",
+    "danger": "#8a9aa8"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#5a9aa8",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

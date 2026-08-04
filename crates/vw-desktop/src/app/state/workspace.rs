@@ -156,6 +156,19 @@ pub struct FindInFolderMatch {
     pub(crate) match_len: usize,
 }
 
+pub(crate) const FIND_RESULTS_PAGE_SIZE: usize = 100;
+
+pub(crate) fn find_results_page_bounds(
+    result_count: usize,
+    requested_page: usize,
+) -> (std::ops::Range<usize>, usize, usize) {
+    let page_count = result_count.div_ceil(FIND_RESULTS_PAGE_SIZE);
+    let page = requested_page.min(page_count.saturating_sub(1));
+    let start = page.saturating_mul(FIND_RESULTS_PAGE_SIZE).min(result_count);
+    let end = start.saturating_add(FIND_RESULTS_PAGE_SIZE).min(result_count);
+    (start..end, page, page_count)
+}
+
 /// 文件夹内查找标签页状态
 ///
 /// 管理单个"在文件夹中查找"标签页的完整状态，
@@ -194,6 +207,8 @@ pub(crate) struct FindInFolderTab {
     pub(crate) limit_reached: bool,
     /// 匹配结果列表
     pub(crate) matches: Vec<FindInFolderMatch>,
+    /// 当前显示的结果页，从 0 开始
+    pub(crate) results_page: usize,
 }
 
 /// Git 差异评论草稿
@@ -222,6 +237,17 @@ pub(crate) struct ChatTextDiff {
     pub(crate) before: String,
     /// 修改后的内容
     pub(crate) after: String,
+}
+
+/// 使用量步骤原始 LLM 载荷弹窗状态
+///
+/// 在步骤展开后点击“查看原始记录”时展示完整可复制内容。
+#[derive(Debug, Clone)]
+pub struct UsageStepRawModal {
+    /// 对应的步骤索引
+    pub step_index: u32,
+    /// 完整原始记录文本
+    pub content: String,
 }
 
 /// 使用量模型信息

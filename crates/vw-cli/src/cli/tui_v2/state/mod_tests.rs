@@ -19,7 +19,9 @@ fn session_with_step(finish_reason: Option<&str>, finished_ms: Option<u64>) -> C
         messages: vec![ChatMessage {
             role: ChatRole::Assistant,
             content: "answer".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("assistant-1".to_string())],
         calls: Vec::new(),
@@ -100,6 +102,11 @@ fn session_preview_conversions_and_refresh_cover_empty_session_id() {
 }
 
 #[test]
+fn tui_state_defaults_to_visible_execution_details() {
+    assert!(TuiState::default().status.verbose);
+}
+
+#[test]
 fn session_preview_from_chat_session_uses_last_message_and_snapshot_counts() {
     let session = ChatSession {
         id: "snapshot".to_string(),
@@ -107,7 +114,9 @@ fn session_preview_from_chat_session_uses_last_message_and_snapshot_counts() {
         messages: vec![ChatMessage {
             role: ChatRole::Assistant,
             content: "latest answer".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![None],
         calls: vec![json!({"call": 1}), json!({"call": 2})],
@@ -133,12 +142,16 @@ fn tool_snapshot_parsing_handles_json_error_and_plain_payloads() {
             ChatMessage {
                 role: ChatRole::Tool,
                 content: "tool write\n{\"status\":\"error\",\"error\":\"denied\"}".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             ChatMessage {
                 role: ChatRole::Tool,
                 content: "plain output".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
         ],
         message_ids: vec![None, None],
@@ -222,7 +235,9 @@ fn clear_messages_preserves_session_context_and_resets_runtime_surfaces() {
         messages: vec![ChatMessage {
             role: ChatRole::Assistant,
             content: "answer".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![None],
         calls: vec![json!({"call": 1})],

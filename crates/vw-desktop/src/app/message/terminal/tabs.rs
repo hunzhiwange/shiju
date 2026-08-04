@@ -7,6 +7,15 @@ use super::TerminalMessage;
 use crate::app::{App, FocusArea, Message};
 use iced::Task;
 
+/// Schedule dropping retired terminals after iced cancels their subscriptions.
+pub(crate) fn reap_retired_task(app: &App) -> Task<Message> {
+    if app.terminal.has_retired() {
+        Task::done(Message::Terminal(TerminalMessage::ReapRetired))
+    } else {
+        Task::none()
+    }
+}
+
 /// 执行 update 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -38,12 +47,13 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             if app.terminal.tabs.len() <= 1 {
                 return Task::none();
             }
-            if let Some(pos) = app.terminal.tabs.iter().position(|t| t.id == id) {
-                app.terminal.tabs.remove(pos);
-                if app.terminal.active_id == Some(id) {
-                    app.terminal.active_id = app.terminal.tabs.first().map(|t| t.id);
-                }
+            if app.terminal.close_terminal(id) {
+                return reap_retired_task(app);
             }
+            Task::none()
+        }
+        TerminalMessage::ReapRetired => {
+            app.terminal.reap_retired();
             Task::none()
         }
         TerminalMessage::TabContextOpen(id, x, y) => {

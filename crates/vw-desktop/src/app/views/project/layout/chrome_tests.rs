@@ -79,6 +79,38 @@ async fn right_column_chrome_draws_inner_and_outer_styles() {
     draw_element(&mut chrome, &mut renderer, &Theme::Dark);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn right_column_chrome_covers_its_bottom_border() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let content = iced::widget::text("right panel").into();
+    let mut chrome = super::right_column_chrome(content, 8.0);
+    let bounds = Size::new(320.0, 480.0);
+    let limits = layout::Limits::new(Size::ZERO, bounds);
+    let mut tree = Tree::new(chrome.as_widget());
+    let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let root = Layout::new(&node);
+    let stack = root.children().next().expect("chrome should contain its stack");
+    let mut layers = stack.children();
+    layers.next().expect("chrome stack should contain the right column");
+    let border_cover = layers.next().expect("chrome stack should contain the bottom border cover");
+    let cover_strip =
+        border_cover.children().next().expect("bottom border cover should contain its strip");
+
+    assert!(
+        (cover_strip.bounds().height - super::RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT).abs()
+            < 0.001
+    );
+    assert!(
+        (cover_strip.bounds().y + cover_strip.bounds().height
+            - (stack.bounds().y + stack.bounds().height))
+            .abs()
+            < 0.001
+    );
+}
+
 #[test]
 fn overlay_divider_builds_when_spacing_is_below_hit_width() {
     let divider = super::overlay_divider(2.0);

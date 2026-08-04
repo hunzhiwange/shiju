@@ -8,37 +8,62 @@
 //!
 //! 这些结构的目标是为后续 S2-2 的 reducer/store 与 S4-1 的事件标准化提供稳定承接面。
 
+pub(crate) mod agent_view;
+pub(crate) mod attachment;
+pub(crate) mod background_task;
+pub(crate) mod elicitation;
+pub(crate) mod integration;
+pub(crate) mod message_action;
+pub(crate) mod notification;
 pub(crate) mod overlay;
 #[cfg(test)]
 #[path = "overlay_tests.rs"]
 mod overlay_tests;
+pub(crate) mod permission;
 pub(crate) mod prompt;
 #[cfg(test)]
 #[path = "prompt_tests.rs"]
 mod prompt_tests;
+pub(crate) mod search;
+pub(crate) mod schedule_panel;
+pub(crate) mod session_mode;
+pub(crate) mod settings_panel;
+pub(crate) mod transcript_mode;
 pub(crate) mod ui_message;
+pub(crate) mod workflow_panel;
 #[cfg(test)]
 #[path = "ui_message_tests.rs"]
 mod ui_message_tests;
 
+pub(crate) use attachment::{UiAttachment, UiAttachmentKind};
+pub(crate) use message_action::{MessageActionIntent, MessageActionKind, MessageActionState};
 pub(crate) use overlay::{
-    McpServerTransport, OverlayFocus, OverlayState, UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay,
-    UiMcpServerInfo, UiMemoryEntry, UiMemoryOverlay, UiOverlay, UiOverlayKind, UiQuestionOverlay,
-    UiQuestionSurfaceKind, UiSearchMatch, UiSearchOverlay, UiTaskOverlay, UiTaskStepItem,
-    UiTodoOverlay,
+    McpServerTransport, OverlayFocus, OverlayState, UiConfirmIntent, UiConfirmOverlay,
+    UiErrorOverlay, UiMcpOverlay, UiMcpServerInfo, UiMemoryEntry, UiMemoryOverlay, UiOverlay,
+    UiOverlayKind, UiPermissionOverlay, UiQuestionOverlay, UiQuestionSurfaceKind, UiReportOverlay,
+    UiSearchMatch, UiSearchOverlay, UiTaskOverlay, UiTaskStepItem, UiTodoOverlay,
 };
 #[cfg(test)]
 pub(crate) use overlay::{UiQuestionOption, UiQuestionPrompt, UiQuestionToolContext, UiTodoItem};
+pub(crate) use permission::PermissionDecision;
 pub(crate) use prompt::{
     PromptMode, PromptMotion, PromptState, PromptSubmission, PromptSubmissionStatus,
-    QueuedPromptCommand, QueuedPromptCommandKind,
+    QueueDrainBoundary, QueuedPromptCommand, QueuedPromptCommandKind, QueuedPromptPriority,
+};
+pub(crate) use session_mode::{
+    AcpBackendOption, DelegateAgentOption, PermissionMode, PlanRunMode, ReasoningEffort,
+    SessionCapabilityMatrix, SessionOptions,
+};
+pub(crate) use transcript_mode::{
+    TranscriptEffectIntent, TranscriptModeState, TranscriptScrollRestore,
 };
 #[cfg(test)]
 pub(crate) use ui_message::UiMessageKind;
 pub(crate) use ui_message::{
-    UiAssistantMessage, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiStep, UiStepState,
-    UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingTiming, UiTokenUsage,
-    UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiAssistantMessage, UiCompactBoundary, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId,
+    UiMessageOrigin, UiProgressMessage, UiStep, UiStepState, UiSystemMessage, UiSystemMessageLevel,
+    UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCall, UiToolCallState,
+    UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
 
 #[cfg(test)]

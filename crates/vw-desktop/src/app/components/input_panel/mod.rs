@@ -32,6 +32,7 @@
 //! - `usage_button`: 使用量显示按钮
 
 // 子模块声明
+pub(crate) mod agent_sessions;
 pub(crate) mod attachment;
 pub(crate) mod drop_area;
 mod file_references;
@@ -40,14 +41,19 @@ pub mod icons;
 mod input_editor;
 mod model_popover;
 mod queue_panel;
+mod quick_messages;
 pub(crate) mod reasoning_selector;
 mod send_controls;
+mod slash_palette;
 pub(crate) mod styles;
 mod task_mode;
 pub(crate) mod todo_panel;
 pub(crate) mod usage;
 mod usage_button;
 
+#[cfg(test)]
+#[path = "agent_sessions_tests.rs"]
+mod agent_sessions_tests;
 #[cfg(test)]
 #[path = "drop_area_tests.rs"]
 mod drop_area_tests;
@@ -76,6 +82,9 @@ mod reasoning_selector_tests;
 #[path = "send_controls_tests.rs"]
 mod send_controls_tests;
 #[cfg(test)]
+#[path = "slash_palette_tests.rs"]
+mod slash_palette_tests;
+#[cfg(test)]
 #[path = "styles_tests.rs"]
 mod styles_tests;
 #[cfg(test)]
@@ -98,6 +107,7 @@ use crate::app::components::chat_panel::tool_selector::session_tool_selector_pop
 use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::state::{AcpHistoryReplayMode, tool_display_name};
+use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use drop_area::DropArea;
 use file_references::{extract_file_mentions, render_file_references};
@@ -108,7 +118,8 @@ use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
-    bottom_bar, cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
+    bottom_bar, cancel_button, full_access_button, goal_mode_button, pool_button, send_button,
+    subagent_mode_button, workflow_mode_button,
 };
 use task_mode::task_mode_form;
 
@@ -126,7 +137,7 @@ const ACP_SELECTOR_LIST_RIGHT_PADDING: f32 = 5.0;
 
 pub(super) fn bottom_bar_round_toggle<'a>(
     icon: Element<'a, Message>,
-    tooltip_label: &'static str,
+    tooltip_label: impl Into<String>,
     on_press: Message,
 ) -> Element<'a, Message> {
     let button_content = container(icon)
@@ -178,7 +189,7 @@ pub(super) fn acp_selector_button<'a>(
     let icon = acp_agent_icon(&label, styles::BOTTOM_BAR_ICON_SIZE);
     let toggle = bottom_bar_round_toggle(
         icon,
-        "切换 ACP 后端",
+        acp_selector_tooltip(&label),
         Message::View(message::ViewMessage::ToggleAcpPopover),
     );
 
@@ -270,9 +281,13 @@ pub(super) fn acp_selector_button<'a>(
     )
 }
 
-pub(super) fn dark_tooltip_content<'a>(label: &'a str) -> Element<'a, Message> {
+pub(super) fn acp_selector_tooltip(selected_acp_agent: &str) -> String {
+    format!("切换 ACP 后端：{selected_acp_agent}")
+}
+
+pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, Message> {
     container(
-        text(label)
+        text(label.into())
             .size(12)
             .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
     )
@@ -283,7 +298,7 @@ pub(super) fn dark_tooltip_content<'a>(label: &'a str) -> Element<'a, Message> {
 
 pub(super) fn with_dark_tooltip<'a>(
     content: Element<'a, Message>,
-    label: &'a str,
+    label: impl Into<String>,
 ) -> Element<'a, Message> {
     Tooltip::new(content, dark_tooltip_content(label), TooltipPosition::Top).gap(6.0).into()
 }
@@ -365,28 +380,7 @@ pub(super) fn summarize_names(names: &[String]) -> String {
 }
 
 pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Message>> {
-    let Some(runtime) = app.current_session_runtime_ref() else {
-        return None;
-    };
-
-    let selected_tools = runtime.tool_selector.selected_manual_tools();
-    let selected_skills = runtime.tool_selector.selected_manual_skills();
-    if selected_tools.is_empty() && selected_skills.is_empty() {
-        return None;
-    }
-
-    let tool_names =
-        selected_tools.iter().map(|tool_id| tool_display_name(tool_id)).collect::<Vec<_>>();
-    let skill_names =
-        selected_skills.iter().map(|skill_id| skill_title(app, skill_id)).collect::<Vec<_>>();
-
-    let mut lines = Vec::new();
-    if !tool_names.is_empty() {
-        lines.push(format!("工具 {}：{}", tool_names.len(), summarize_names(&tool_names)));
-    }
-    if !skill_names.is_empty() {
-        lines.push(format!("技能 {}：{}", skill_names.len(), summarize_names(&skill_names)));
-    }
+    let summary = selected_context_summary(app)?;
 
     let icon: Element<'_, Message> = icon_svg(Icon::Sliders, 14.0)
         .style(|theme: &Theme, _| iced::widget::svg::Style {
@@ -399,7 +393,7 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
             text("已选工具与技能").size(12).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.92)) }
             }),
-            text(lines.join("  /  "))
+            text(summary)
                 .size(11)
                 .width(Length::Fill)
                 .wrapping(iced::widget::text::Wrapping::Word)
@@ -429,6 +423,41 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
         .style(styles::manual_context_card_style)
         .into(),
     )
+}
+
+pub(super) fn selected_context_summary(app: &App) -> Option<String> {
+    let Some(runtime) = app.current_session_runtime_ref() else {
+        return None;
+    };
+
+    let selected_tools = runtime.tool_selector.selected_manual_tools();
+    let selected_skills = runtime.tool_selector.selected_manual_skills();
+    let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();
+    if selected_tools.is_empty() && selected_skills.is_empty() && selected_shiju_skills.is_empty() {
+        return None;
+    }
+
+    let tool_names =
+        selected_tools.iter().map(|tool_id| tool_display_name(tool_id)).collect::<Vec<_>>();
+    let skill_names =
+        selected_skills.iter().map(|skill_id| skill_title(app, skill_id)).collect::<Vec<_>>();
+
+    let mut lines = Vec::new();
+    if !tool_names.is_empty() {
+        lines.push(format!("工具 {}：{}", tool_names.len(), summarize_names(&tool_names)));
+    }
+    if !skill_names.is_empty() {
+        lines.push(format!("技能 {}：{}", skill_names.len(), summarize_names(&skill_names)));
+    }
+    if !selected_shiju_skills.is_empty() {
+        let names = selected_shiju_skills
+            .iter()
+            .map(|selection| selection.display_name().to_string())
+            .collect::<Vec<_>>();
+        lines.push(format!("识矩 {}：{}", names.len(), summarize_names(&names)));
+    }
+
+    Some(lines.join("  /  "))
 }
 
 /// 构建并渲染输入面板的完整UI视图
@@ -486,6 +515,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let acp_recent_count = runtime.map(|r| r.acp_recent_count).unwrap_or(app.acp_recent_count);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
+    let goal_mode_enabled = runtime.map(|r| r.goal_mode_enabled).unwrap_or(false);
+    let subagent_mode_enabled = runtime.map(|r| r.subagent_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
     let task_mode_enabled = runtime.map(|r| r.task_mode_enabled).unwrap_or(false);
@@ -532,6 +563,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
     let workflow_btn = workflow_mode_button(workflow_mode_enabled);
+    let goal_btn = goal_mode_button(goal_mode_enabled);
+    let subagent_btn = subagent_mode_button(subagent_mode_enabled);
 
     // ========== 计算按钮启用状态 ==========
     let input_text = input_editor.text().to_string();
@@ -572,6 +605,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         reasoning_btn,
         permission_btn,
         workflow_btn,
+        goal_btn,
+        subagent_btn,
         model_btn,
         usage_btn,
         attach_btn,
@@ -676,6 +711,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建文件搜索覆盖层
     let file_search_content: Element<'_, Message> = file_search::file_search_overlay(app);
+    let slash_palette_content: Element<'_, Message> = slash_palette::slash_palette_overlay(app);
 
     // 将文件搜索作为覆盖层添加到主内容上
     let content_with_file_search: Element<'_, Message> =
@@ -685,13 +721,21 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             .on_close(Message::Chat(message::ChatMessage::FileSearchInputChanged(String::new())))
             .into();
 
+    // Slash 面板与 @ 文件搜索互斥显示
+    let content_with_overlays: Element<'_, Message> =
+        AboveOverlay::new(content_with_file_search, slash_palette_content)
+            .show(app.show_slash_palette)
+            .gap(6.0)
+            .on_close(Message::Chat(message::ChatMessage::SlashPaletteClosed))
+            .into();
+
     // 检测是否有文件树项正在被拖拽
     let dragging_any_tree_item =
         !app.dragging_file_paths.is_empty() || !app.pending_drop_file_paths.is_empty();
 
     // 包装主内容为拖放区域，支持文件拖拽添加
     let drop_area: Element<'_, Message> = Element::new(DropArea::new(
-        content_with_file_search,
+        content_with_overlays,
         Message::Chat(message::ChatMessage::InputAreaDragDrop),
         Some((
             Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(true)),
@@ -702,11 +746,41 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 检测输入区域是否处于拖拽悬停状态
     let input_drop_hovered = app.input_drop_hovered && dragging_any_tree_item;
+    let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
+        app.active_theme_skin.as_ref(),
+        &app.app_theme,
+    );
 
     // 应用容器样式并返回最终UI元素
-    container(drop_area)
-        .style(move |theme: &iced::Theme| styles::input_card_style(theme, input_drop_hovered))
+    let card = container(drop_area)
+        .style(move |theme: &iced::Theme| {
+            styles::input_card_style(theme, input_drop_hovered, Some(&chrome))
+        })
         .padding(0)
-        .width(Length::Fill)
-        .into()
+        .width(Length::Fill);
+
+    let input_bg = app
+        .active_theme_skin
+        .as_ref()
+        .and_then(|skin| skin.chat_input_path.as_deref());
+    let fit = app
+        .active_theme_skin
+        .as_ref()
+        .map(|skin| {
+            crate::app::theme_catalog::PanelImageFit::parse(
+                skin.chrome.chat_input_image_fit.as_deref(),
+            )
+            .unwrap_or_default()
+        })
+        .unwrap_or_default();
+    let card = with_panel_background(card.into(), input_bg, fit);
+    let running_agent_sessions = agent_sessions::running_agent_sessions(app);
+    let mut panel = column![].spacing(6).width(Length::Fill);
+    if let Some(entry) = agent_sessions::agent_sessions_entry(app, &running_agent_sessions) {
+        panel = panel.push(entry);
+    }
+    if let Some(quick_messages) = quick_messages::view(app) {
+        panel = panel.push(quick_messages);
+    }
+    panel.push(card).into()
 }

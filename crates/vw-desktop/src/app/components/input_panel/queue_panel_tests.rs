@@ -1,6 +1,6 @@
 use super::queue_panel::{
     format_queue_time, is_dark_theme, queue_item_label, queue_item_meta_label, queue_item_style,
-    queue_panel, queue_panel_style,
+    queue_move_availability, queue_panel, queue_panel_style,
 };
 use crate::app::QueueItem;
 use crate::app::state::{AcpHistoryReplayMode, ChatSendBehavior};
@@ -26,6 +26,7 @@ fn queue_item(query: &str, created_ms: u64) -> QueueItem {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 3,
@@ -34,6 +35,7 @@ fn queue_item(query: &str, created_ms: u64) -> QueueItem {
         request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
     }
 }
 
@@ -79,10 +81,23 @@ fn queue_item_label_handles_empty_input_and_ascii_overflow() {
 
 #[test]
 fn queue_item_meta_label_marks_next_item_and_handles_invalid_time() {
-    assert_eq!(queue_item_meta_label(0, false), "1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(0, true), "下一条 · 1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(u64::MAX, false), "");
-    assert_eq!(queue_item_meta_label(u64::MAX, true), "下一条");
+    assert_eq!(queue_item_meta_label(0, false, false), "1970-01-01 00:00:00");
+    assert_eq!(queue_item_meta_label(0, true, false), "下一条 · 1970-01-01 00:00:00");
+    assert_eq!(queue_item_meta_label(0, true, true), "引导 · 下一条 · 1970-01-01 00:00:00");
+    assert_eq!(queue_item_meta_label(0, false, true), "引导 · 1970-01-01 00:00:00");
+    assert_eq!(queue_item_meta_label(u64::MAX, false, false), "");
+    assert_eq!(queue_item_meta_label(u64::MAX, true, false), "下一条");
+    assert_eq!(queue_item_meta_label(u64::MAX, false, true), "引导");
+}
+
+#[test]
+fn queue_move_availability_disables_only_boundary_directions() {
+    assert_eq!(queue_move_availability(0, 0), (false, false));
+    assert_eq!(queue_move_availability(0, 1), (false, false));
+    assert_eq!(queue_move_availability(0, 3), (false, true));
+    assert_eq!(queue_move_availability(1, 3), (true, true));
+    assert_eq!(queue_move_availability(2, 3), (true, false));
+    assert_eq!(queue_move_availability(9, 3), (false, false));
 }
 
 #[test]
@@ -143,7 +158,9 @@ fn queue_panel_renders_empty_short_and_long_queues() {
     let empty = queue_panel(Vec::new(), false);
     assert_eq!(empty.as_widget().size().width, Length::Fill);
 
-    let short = queue_panel(vec![queue_item("first line\nsecond line", 0)], true);
+    let mut guided = queue_item("first line\nsecond line", 0);
+    guided.send_behavior = ChatSendBehavior::Guide;
+    let short = queue_panel(vec![guided], true);
     assert_eq!(short.as_widget().size().width, Length::Fill);
 
     let long_label = "这是一条很长很长很长很长很长很长很长很长很长的任务标题";

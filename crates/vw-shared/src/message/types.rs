@@ -95,6 +95,11 @@ pub struct AssistantTime {
     pub created: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed: Option<u64>,
+    /// 整轮处理的单调时钟耗时；包含步骤间停顿，但不包含系统休眠。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processing_elapsed_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_elapsed_ms: Option<u64>,
 }
 
 /// 助手消息元数据。
@@ -245,6 +250,10 @@ pub struct PatchPart {
     pub base: PartBase,
     pub hash: String,
     pub files: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub additions: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletions: Option<i64>,
 }
 
 /// 文件来源中的文本片段范围。

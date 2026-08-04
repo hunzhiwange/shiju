@@ -12,7 +12,7 @@
 //! - [`stacked_bar`] - 堆叠条形图组件
 //! - [`legend_item`] - 图例项组件
 
-use iced::widget::{Space, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 
 use crate::app::message::view::ViewMessage;
@@ -22,6 +22,7 @@ use super::data::UsageData;
 use super::styles::card_style;
 use super::utils::{fmt_ms, icon_btn, kv};
 use crate::app::assets::Icon;
+use crate::app::components::system_settings_common::rounded_action_btn_style;
 
 /// 条形图分段类型枚举
 ///
@@ -246,18 +247,6 @@ pub fn legend_item<'a>(
     .into()
 }
 
-fn truncate_raw_text(value: &str, limit: usize) -> String {
-    let mut out = String::new();
-    for (index, ch) in value.chars().enumerate() {
-        if index >= limit {
-            out.push_str("\n... 已截断");
-            return out;
-        }
-        out.push(ch);
-    }
-    out
-}
-
 fn raw_payload_summary(value: &serde_json::Value) -> String {
     let message_count =
         value.get("messages").and_then(serde_json::Value::as_array).map_or(0, Vec::len);
@@ -269,36 +258,42 @@ fn raw_payload_summary(value: &serde_json::Value) -> String {
     format!("历史消息 {message_count} 条 · 工具调用 {tool_call_count} 条")
 }
 
-fn raw_payload_preview(value: &serde_json::Value) -> String {
-    let pretty = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
-    format!("{}\n{}", raw_payload_summary(value), truncate_raw_text(&pretty, 16_000))
-}
-
 fn vertical_scrollbar() -> iced::widget::scrollable::Direction {
     iced::widget::scrollable::Direction::Vertical(
         iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
     )
 }
 
-fn raw_payload_text(app: &App, session_id: &str, step_index: u32) -> String {
+fn raw_payload_status(app: &App, session_id: &str, step_index: u32) -> String {
     let key = (session_id.to_string(), step_index);
     if app.usage_step_raw_loading.contains(&key) {
-        return "原始 LLM：加载中...".to_string();
+        return "原始记录：加载中...".to_string();
     }
     match app.usage_step_raw_payloads.get(&key) {
-        Some(Ok(Some(value))) => raw_payload_preview(value),
-        Some(Ok(None)) => "原始 LLM：暂无记录".to_string(),
-        Some(Err(err)) => format!("原始 LLM：加载失败\n{err}"),
-        None => "原始 LLM：等待加载".to_string(),
+        Some(Ok(Some(value))) => format!("原始记录：{}", raw_payload_summary(value)),
+        Some(Ok(None)) => "原始记录：暂无记录".to_string(),
+        Some(Err(err)) => format!("原始记录：加载失败（{err}）"),
+        None => "原始记录：等待加载".to_string(),
     }
 }
 
 fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'static, Message> {
+    let key = (session_id.to_string(), step_index);
+    let status = text(raw_payload_status(app, session_id, step_index)).size(12);
+    let can_open = matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(Some(_))));
+    let mut open_btn = button(text("查看原始记录").size(12))
+        .padding([6, 12])
+        .style(rounded_action_btn_style);
+    if can_open {
+        open_btn =
+            open_btn.on_press(Message::View(ViewMessage::UsageStepRawOpen(step_index)));
+    }
+
     container(
-        scrollable(text(raw_payload_text(app, session_id, step_index)).size(11))
-            .direction(vertical_scrollbar()),
+        row![status.width(Length::Fill), open_btn]
+            .spacing(10)
+            .align_y(Alignment::Center),
     )
-    .height(Length::Fixed(220.0))
     .width(Length::Fill)
     .padding(10)
     .style(|theme: &Theme| {

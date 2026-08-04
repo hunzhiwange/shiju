@@ -25,8 +25,13 @@ use vw_shared::message::types as agent_message;
 
 pub mod context;
 pub mod input;
+mod processing_timing;
 pub mod session;
 pub mod stream;
+
+#[cfg(test)]
+#[path = "processing_timing_tests.rs"]
+mod processing_timing_tests;
 
 const STREAM_AUTOSCROLL_THROTTLE_MS: u64 = 120;
 const AUTOSCROLL_HOLD_MS: u64 = 280;
@@ -133,6 +138,29 @@ pub enum ChatMessage {
     /// 用户点击发送按钮或按下回车键时触发，开始处理用户消息
     SendPressed,
 
+    /// 点击输入框上方的快捷消息或动作
+    QuickMessageSelected(usize),
+
+    /// 点击切换或关闭输入框上方的快捷消息分组菜单
+    QuickMessageGroupChanged(Option<vw_config_types::ui::QuickMessageGroup>),
+
+    /// 切换输入框上方的识矩技能菜单
+    ToggleShijuSkillMenu,
+
+    /// 选择或取消当前会话的识矩技能
+    SelectShijuSkill(u64),
+
+    /// 请求当前会话生成摘要，并在完成后创建新会话继续处理
+    SummarizeAndCreateNewSession {
+        project_path: String,
+    },
+
+    /// 请求当前会话生成 Git 提交标题与摘要，完成后执行对应提交动作
+    GenerateGitCommitMessage {
+        project_path: String,
+        action: crate::app::state::QuickMessageGitCommitAction,
+    },
+
     /// 将输入追加到指定的已有会话
     SendToSession {
         session_id: String,
@@ -153,6 +181,25 @@ pub enum ChatMessage {
     SessionAgentSelected(Option<String>),
     AcpHistoryModeSelected(crate::app::state::AcpHistoryReplayMode),
     AcpHistoryRecentCountChanged(String),
+    /// 切换当前父会话的 AgentTool 子会话弹层。
+    ToggleAgentSessionsPopover,
+    /// 关闭当前父会话的 AgentTool 子会话弹层。
+    CloseAgentSessionsPopover,
+    /// 关闭弹层并打开真实持久化子会话。
+    OpenAgentSession {
+        project_path: String,
+        session_id: String,
+    },
+    /// 请求停止子会话所属的真实 plan-run。
+    StopPlanRun(String),
+    /// plan-run 停止请求完成；实时状态仍由 SSE cancelled 事件收敛。
+    StopPlanRunFinished {
+        task_id: String,
+        result: Result<
+            vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse,
+            String,
+        >,
+    },
 
     /// 模型被选择
     ///
@@ -209,6 +256,12 @@ pub enum ChatMessage {
     ///
     /// 启用后，本轮聊天会先生成临时 Dify 工作流，再通过 workflow 流式执行。
     WorkflowModeToggled(bool),
+
+    /// 目标模式开关切换；未通过独立验收时自动续轮。
+    GoalModeToggled(bool),
+
+    /// 子智能体模式开关切换；启用后顶层提示词要求优先使用 AgentTool。
+    SubagentModeToggled(bool),
 
     /// 任务优先级变化
     ///
@@ -278,6 +331,16 @@ pub enum ChatMessage {
     /// 删除待发送队列中指定索引的消息
     QueueRemove(usize),
 
+    /// 再次编辑队列消息
+    ///
+    /// 从待发送队列移除指定消息，并仅将文字回填到输入框
+    QueueEdit(usize),
+
+    /// 将队列消息提升为引导
+    ///
+    /// 把指定消息移至队首，并在当前请求的最近安全交接点优先应用
+    QueueGuide(usize),
+
     /// 队列消息上移
     ///
     /// 将待发送队列中的消息向上移动
@@ -298,10 +361,38 @@ pub enum ChatMessage {
     /// 接收 Agent 响应的增量文本内容
     AgentStreamDelta(u64, String),
 
+    /// 系统提示词实际加载的协议文件。
+    AgentContextLoaded(u64, Vec<String>),
+
     /// Workflow 节点卡片更新
     ///
     /// 接收 workflow 流式执行中的节点状态卡片。
     AgentWorkflowNodeUpdate(u64, String),
+
+    /// plan-run 已创建规划或执行子会话，桌面应在后台登记它。
+    PlanRunSessionStarted {
+        parent_request_id: u64,
+        parent_session_id: String,
+        session_id: String,
+        title: String,
+        directory: String,
+        query: String,
+    },
+
+    /// plan-run 规划或执行子会话的普通聊天增量。
+    PlanRunSessionDelta {
+        session_id: String,
+        delta: String,
+    },
+
+    /// plan-run 子会话正在等待递归后代完成，实时态应保持活跃。
+    PlanRunSessionWaiting(String),
+
+    /// plan-run 规划或执行子会话已结束实时输出。
+    PlanRunSessionFinished(String),
+
+    /// plan-run 规划或执行子会话已被取消。
+    PlanRunSessionCancelled(String),
 
     /// Agent 步骤开始
     ///
@@ -332,6 +423,9 @@ pub enum ChatMessage {
     ///
     /// Agent 的完整响应已接收完毕
     AgentStreamDone(u64, models::TokenUsage, Option<String>, Option<String>),
+
+    /// plan-run 的父请求已被取消，不应按成功或错误收尾。
+    AgentStreamCancelled(u64),
 
     /// Agent 流式响应错误
     ///
@@ -731,6 +825,27 @@ pub enum ChatMessage {
     /// 选择当前高亮的文件搜索结果
     FileSearchSelectCurrent,
 
+    /// Slash 面板关闭
+    SlashPaletteClosed,
+
+    /// Slash 面板向上导航
+    SlashPaletteNavigateUp,
+
+    /// Slash 面板向下导航
+    SlashPaletteNavigateDown,
+
+    /// Slash 面板选择当前高亮项
+    SlashPaletteSelectCurrent,
+
+    /// Slash 面板选择指定条目
+    SlashPaletteSelect {
+        kind: crate::app::state::SlashPaletteKind,
+        id: String,
+    },
+
+    /// Slash 面板展开某个类别
+    SlashPaletteExpandKind(crate::app::state::SlashPaletteKind),
+
     /// 输入区域拖放
     ///
     /// 文件被拖放到输入区域
@@ -805,6 +920,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     let mut task = match message {
         // 输入相关消息：文本编辑、悬停状态、滚动、文件搜索、任务模式输入等
         ChatMessage::InputChanged(_)
+        | ChatMessage::QuickMessageSelected(_)
+        | ChatMessage::QuickMessageGroupChanged(_)
+        | ChatMessage::ToggleShijuSkillMenu
+        | ChatMessage::SelectShijuSkill(_)
         | ChatMessage::InputEditorAction(_)
         | ChatMessage::WasmImeCommit(_)
         | ChatMessage::WasmImeFocus
@@ -856,6 +975,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::FileSearchNavigateUp
         | ChatMessage::FileSearchNavigateDown
         | ChatMessage::FileSearchSelectCurrent
+        | ChatMessage::SlashPaletteClosed
+        | ChatMessage::SlashPaletteNavigateUp
+        | ChatMessage::SlashPaletteNavigateDown
+        | ChatMessage::SlashPaletteSelectCurrent
+        | ChatMessage::SlashPaletteSelect { .. }
+        | ChatMessage::SlashPaletteExpandKind(_)
         | ChatMessage::InputAreaDragDrop
         | ChatMessage::InputAreaDragHoverChanged(_)
         | ChatMessage::ToolFilesFilterChanged(_)
@@ -874,6 +999,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::FileReferenceHoverChanged(_)
         | ChatMessage::TaskModeToggled(_)
         | ChatMessage::WorkflowModeToggled(_)
+        | ChatMessage::GoalModeToggled(_)
+        | ChatMessage::SubagentModeToggled(_)
         | ChatMessage::TaskModePriorityChanged(_)
         | ChatMessage::TaskModeExecutorChanged(_)
         | ChatMessage::TaskModeReasoningEffortChanged(_)
@@ -889,17 +1016,29 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::CloseForkSessionDialog
         | ChatMessage::ToggleResetMenu(_)
         | ChatMessage::CloseResetMenu
-        | ChatMessage::SetTodoPanelPlacement(_) => input::update(app, message),
+        | ChatMessage::SetTodoPanelPlacement(_)
+        | ChatMessage::ToggleAgentSessionsPopover
+        | ChatMessage::CloseAgentSessionsPopover
+        | ChatMessage::OpenAgentSession { .. }
+        | ChatMessage::StopPlanRun(_)
+        | ChatMessage::StopPlanRunFinished { .. } => input::update(app, message),
 
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)
+        | ChatMessage::AgentContextLoaded(_, _)
         | ChatMessage::AgentWorkflowNodeUpdate(_, _)
+        | ChatMessage::PlanRunSessionStarted { .. }
+        | ChatMessage::PlanRunSessionDelta { .. }
+        | ChatMessage::PlanRunSessionWaiting(_)
+        | ChatMessage::PlanRunSessionFinished(_)
+        | ChatMessage::PlanRunSessionCancelled(_)
         | ChatMessage::AgentStepStart(_, _, _, _, _)
         | ChatMessage::AgentStepFinish(_, _, _, _, _, _, _)
         | ChatMessage::AgentStepCostLoaded(_, _, _, _, _)
         | ChatMessage::AgentPostToolRound(_, _, _)
         | ChatMessage::SessionSaveAck
         | ChatMessage::AgentStreamDone(_, _, _, _)
+        | ChatMessage::AgentStreamCancelled(_)
         | ChatMessage::AgentStreamError(_, _)
         | ChatMessage::SessionTitleGenerated(_, _)
         | ChatMessage::QuestionPollTick
@@ -934,6 +1073,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         // 会话管理相关消息：发送、取消、模型选择、队列操作等
         ChatMessage::SendPressed
         | ChatMessage::SendToSession { .. }
+        | ChatMessage::SummarizeAndCreateNewSession { .. }
+        | ChatMessage::GenerateGitCommitMessage { .. }
         | ChatMessage::CancelPressed
         | ChatMessage::AutoModelToggled(_)
         | ChatMessage::ReasoningEffortSelected(_)
@@ -956,6 +1097,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::SessionSkillSelected(_)
         | ChatMessage::SessionToolSelectorReset
         | ChatMessage::QueueRemove(_)
+        | ChatMessage::QueueEdit(_)
+        | ChatMessage::QueueGuide(_)
         | ChatMessage::QueueUp(_)
         | ChatMessage::QueueDown(_)
         | ChatMessage::SubmitTick
@@ -966,6 +1109,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ResetSessionToMessage { .. }
         | ChatMessage::ResetSessionFinished { .. } => session::update(app, message),
     };
+
+    if app.show_agent_sessions_popover
+        && crate::app::components::input_panel::agent_sessions::running_agent_sessions(app)
+            .is_empty()
+    {
+        app.show_agent_sessions_popover = false;
+    }
 
     // 对流式增量消息执行特殊处理：同步思考块状态
     if is_stream_delta {

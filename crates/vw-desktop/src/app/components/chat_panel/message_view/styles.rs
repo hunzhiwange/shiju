@@ -14,6 +14,7 @@ use super::super::utils::chat_secondary_text_color;
 
 pub(super) const MESSAGE_TEXT_SIZE: f32 = 15.0;
 pub(super) const MESSAGE_META_TEXT_SIZE: f32 = 13.0;
+pub(super) const PROCESSING_DURATION_TEXT_SIZE: f32 = 14.0;
 pub(super) const THINK_STATUS_TEXT_SIZE: f32 = 13.0;
 pub(super) const THINK_META_TEXT_SIZE: f32 = 12.0;
 pub(super) const COMPACT_ACTION_BUTTON_RADIUS: f32 = 5.0;
@@ -86,4 +87,12 @@ pub(super) fn message_meta_text_color(theme: &Theme, is_user: bool) -> Color {
     } else {
         theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.46 } else { 0.48 })
     }
+}
+
+pub(super) fn processing_duration_text_color(theme: &Theme) -> Color {
+    theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.58 } else { 0.52 })
+}
+
+pub(super) fn processing_duration_separator_color(theme: &Theme) -> Color {
+    theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.14 } else { 0.12 })
 }

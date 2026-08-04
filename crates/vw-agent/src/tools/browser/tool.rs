@@ -327,7 +327,7 @@ impl BrowserTool {
                 .get("selector")
                 .and_then(Value::as_str)
                 .map(|selector| format!("Read text from {selector}"))
-                .unwrap_or_else(|| "Read page text".to_string()),
+                .unwrap_or_else(|| "Read element text".to_string()),
             "get_title" => payload
                 .get("title")
                 .and_then(Value::as_str)
@@ -394,7 +394,8 @@ impl Tool for BrowserTool {
             "对 open 操作强制执行 browser.allowed_domains。\n",
             "【重要防错指南】:\n",
             "1. 执行 'find' 操作时，必须提供 'value' 和 'find_action' 参数。\n",
-            "2. 执行 'type' 或 'fill' 操作时，必须提供 'selector' 参数（通常是 @e1 这样的引用）。\n",
+            "2. 执行 click/fill/type/get_text/hover/is_visible 时，必须提供非空字符串 'selector'（优先用 snapshot 返回的 @e1、@e2；也可 CSS 或 text=...）。",
+            "get_text 不会读取整页，缺少 selector 会直接失败。\n",
             "3. 如果执行操作（如 click/type）超时或报错元素被遮挡/不可交互，请务必先运行 'snapshot' 重新获取当前页面最新的 DOM 状态和元素引用，不要盲目重试。"
         )
     }
@@ -410,7 +411,11 @@ impl Tool for BrowserTool {
                              "hover", "scroll", "is_visible", "close", "find",
                              "mouse_move", "mouse_click", "mouse_drag", "key_type",
                              "key_press", "screen_capture"],
-                    "description": "要执行的浏览器操作（OS 级操作需要 backend=computer_use）"
+                    "description": concat!(
+                        "要执行的浏览器操作（OS 级操作需要 backend=computer_use）。",
+                        "click/fill/type/get_text/hover/is_visible 必须同时提供 selector；",
+                        "get_text 只读取指定元素文本，不能省略 selector。"
+                    )
                 },
                 "url": {
                     "type": "string",
@@ -418,7 +423,11 @@ impl Tool for BrowserTool {
                 },
                 "selector": {
                     "type": "string",
-                    "description": "元素选择器：@ref（例如 @e1）、CSS（#id、.class）或 text=... (注意：type、fill、click等操作必须提供此参数)"
+                    "description": concat!(
+                        "元素选择器：@ref（例如 @e1）、CSS（#id、.class）或 text=...。",
+                        "click、fill、type、get_text、hover、is_visible 必须提供此参数；",
+                        "get_text 缺少 selector 会报错，不会回退为整页文本。"
+                    )
                 },
                 "value": {
                     "type": "string",

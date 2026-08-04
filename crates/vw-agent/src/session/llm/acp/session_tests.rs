@@ -27,6 +27,7 @@ fn acp_config(command: &str) -> config::schema::AcpAgentConfig {
 fn parsed_options() -> ParsedAcpOptions {
     ParsedAcpOptions {
         permission_mode: Some(PermissionMode::DenyAll),
+        full_access: false,
         non_interactive_permissions: Some(NonInteractivePermissionPolicy::Fail),
         auth_policy: Some(AuthPolicy::Fail),
         session_mode: Some("plan".to_string()),
@@ -96,6 +97,7 @@ fn cache_key_is_stable_and_includes_behavioral_inputs() {
     assert_eq!(value["env"], json!([["A", "1"], ["B", "2"]]));
     assert_eq!(value["cwd"].as_str(), Some("/tmp/project"));
     assert_eq!(value["permissionMode"].as_str(), Some("deny-all"));
+    assert_eq!(value["fullAccess"].as_bool(), Some(false));
     assert_eq!(value["nonInteractivePermissions"].as_str(), Some("fail"));
     assert_eq!(value["authPolicy"].as_str(), Some("fail"));
     assert_eq!(value["sessionOptions"]["model"].as_str(), Some("gpt-5"));
@@ -131,6 +133,20 @@ fn cache_key_changes_when_session_behavior_changes() {
     let mut changed = parsed_options();
     changed.session_options.as_mut().expect("session options").max_turns = Some(8);
     assert_ne!(baseline_key, acp_client_cache_key("custom", &cfg, cwd, &changed));
+}
+
+#[test]
+fn acp_client_cache_key_separates_full_access_policy() {
+    let cfg = acp_config("agent");
+    let cwd = Path::new("/tmp/project");
+    let standard = parsed_options();
+    let mut full_access = standard.clone();
+    full_access.full_access = true;
+
+    assert_ne!(
+        acp_client_cache_key("custom", &cfg, cwd, &standard),
+        acp_client_cache_key("custom", &cfg, cwd, &full_access)
+    );
 }
 
 #[test]

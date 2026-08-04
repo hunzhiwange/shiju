@@ -1,0 +1,25 @@
+{
+  "id": "focus-capybara",
+  "name": "打工水豚 Focus Capybara",
+  "tagline": "先专注一下，然后准时下班。",
+  "palette": {
+    "background": "#1e2022",
+    "text": "#f5f3ef",
+    "primary": "#5d9eff",
+    "success": "#91c1ff",
+    "warning": "#c39a74",
+    "danger": "#f5ab7c"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#292c2f",
+    "input_bg": "#2b2f32",
+    "button_bg": "#5d9eff",
+    "button_text": "#f8fafc",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

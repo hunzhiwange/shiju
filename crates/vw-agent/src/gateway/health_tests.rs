@@ -77,6 +77,7 @@ async fn body_text(response: Response) -> String {
 #[tokio::test]
 async fn health_returns_status_auth_flags_and_runtime_snapshot() {
     crate::app::agent::health::mark_component_ok("gateway-health-test");
+    let build_id = crate::app::agent::health::initialize_runtime_build_id().unwrap();
     let state = state_with_pairing(PairingGuard::new(true, &[]));
 
     let response = handle_health(State(state)).await.into_response();
@@ -85,6 +86,7 @@ async fn health_returns_status_auth_flags_and_runtime_snapshot() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["status"], "ok");
+    assert_eq!(json["build_id"], build_id);
     assert_eq!(json["auth_enabled"], true);
     assert_eq!(json["active_skeys"], 0);
     assert!(json["runtime"]["pid"].as_u64().is_some());

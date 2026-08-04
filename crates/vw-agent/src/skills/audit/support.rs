@@ -1,8 +1,8 @@
 //! Skill 审计共享的路径、扩展名和 URL 文本辅助函数。
 //!
 //! 这些函数只做局部、确定性的判断，供 manifest、Markdown 和扫描器复用。
-//! 安全相关判断保持保守：遇到脚本后缀或 shell shebang 时直接标记为不支持，
-//! 避免安装后的 skill 获得隐式执行能力。
+//! 安全相关判断保持保守：遇到脚本后缀或 shell shebang 时标记为不支持，
+//! 是否产生 finding 由调用方的显式策略决定。
 
 use std::fs;
 use std::path::Path;
@@ -48,10 +48,8 @@ pub(super) fn is_toml_file(path: &Path) -> bool {
 
 /// 判断路径是否是当前 skill 安全策略不支持的脚本文件。
 ///
-/// # 安全说明
-///
 /// 检查同时覆盖脚本后缀和 shebang。后者用于捕获无扩展名但可执行的
-/// shell/powershell 脚本，避免绕过仅按扩展名过滤的策略。
+/// shell/powershell 脚本。
 pub(super) fn is_unsupported_script_file(path: &Path) -> bool {
     has_script_suffix(path.to_string_lossy().as_ref()) || has_shell_shebang(path)
 }
@@ -67,7 +65,7 @@ fn has_shell_shebang(path: &Path) -> bool {
     let Ok(content) = fs::read(path) else {
         return false;
     };
-    // 只读取前 128 字节即可覆盖 shebang，同时限制对任意文件的审计成本。
+    // 只检查前 128 字节；读取失败由实际加载路径报告，不转化为策略 finding。
     let prefix = &content[..content.len().min(128)];
     let shebang = String::from_utf8_lossy(prefix).to_ascii_lowercase();
     shebang.starts_with("#!")

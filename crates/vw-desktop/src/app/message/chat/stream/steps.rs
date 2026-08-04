@@ -14,6 +14,7 @@ fn upsert_step_start(
     model: Option<String>,
     start_snapshot_path: Option<String>,
 ) {
+    let message_model = model.clone();
     if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
         step.started_ms = created_ms;
         if model.is_some() {
@@ -35,6 +36,9 @@ fn upsert_step_start(
             model,
         });
     }
+    if let Some(model) = message_model.as_deref() {
+        crate::app::session::bind_message_model_to_step(&mut session.messages, step_index, model);
+    }
     session.updated_ms = session.updated_ms.max(created_ms);
     session.steps.sort_by_key(|s| s.index);
 }
@@ -47,6 +51,7 @@ fn upsert_step_finish(
     finish_reason: Option<String>,
     model: Option<String>,
 ) {
+    let message_model = model.clone();
     if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
         step.finished_ms = Some(finished_ms);
         step.usage = usage;
@@ -68,6 +73,9 @@ fn upsert_step_finish(
             finish_reason,
             model,
         });
+    }
+    if let Some(model) = message_model.as_deref() {
+        crate::app::session::bind_message_model_to_step(&mut session.messages, step_index, model);
     }
     session.updated_ms = session.updated_ms.max(finished_ms);
     session.steps.sort_by_key(|s| s.index);
@@ -172,6 +180,20 @@ async fn compute_step_cost(
 
 /// 模块内可见函数，执行 handle_agent_step_start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn start_llm_timer_at(
+    runtime: &mut crate::app::state::SessionRuntimeState,
+    now: web_time::Instant,
+) {
+    runtime.llm_timer.start_at(now);
+}
+
+pub(super) fn pause_llm_timer_at(
+    runtime: &mut crate::app::state::SessionRuntimeState,
+    now: web_time::Instant,
+) {
+    runtime.llm_timer.pause_at(now);
+}
+
 pub(super) fn handle_agent_step_start(
     app: &mut App,
     id: u64,
@@ -186,16 +208,34 @@ pub(super) fn handle_agent_step_start(
     if session_id.is_empty() {
         return Task::none();
     }
+    start_llm_timer_at(
+        app.get_session_runtime_mut(&session_id),
+        web_time::Instant::now(),
+    );
     let mut session = load_session_or_default(app, session_id.clone());
     upsert_step_start(&mut session, step_index, created_ms, model, None);
     let save_task =
         save_session_task(session.clone(), session_directory_for_save(app, &session_id));
     if app.active_session_id.as_ref() == Some(&session_id) {
+        if let Some(model) = session
+            .steps
+            .iter()
+            .find(|step| step.index == step_index)
+            .and_then(|step| step.model.as_deref())
+        {
+            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+        }
         app.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }
         app.rebuild_active_session_message_meta();
+    } else if !session.messages.is_empty() {
+        app.store_session_chat_snapshot(
+            session_id.clone(),
+            crate::app::session::shared_chat_messages(session.messages.clone()),
+            session.message_ids.clone(),
+        );
     }
     save_task
 }
@@ -218,6 +258,10 @@ pub(super) fn handle_agent_step_finish(
     if session_id.is_empty() {
         return Task::none();
     }
+    pause_llm_timer_at(
+        app.get_session_runtime_mut(&session_id),
+        web_time::Instant::now(),
+    );
 
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.usage.input_tokens += usage.input_tokens;
@@ -238,11 +282,25 @@ pub(super) fn handle_agent_step_finish(
     let save_task =
         save_session_task(session.clone(), session_directory_for_save(app, &session_id));
     if app.active_session_id.as_ref() == Some(&session_id) {
+        if let Some(model) = session
+            .steps
+            .iter()
+            .find(|step| step.index == step_index)
+            .and_then(|step| step.model.as_deref())
+        {
+            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+        }
         app.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }
         app.rebuild_active_session_message_meta();
+    } else if !session.messages.is_empty() {
+        app.store_session_chat_snapshot(
+            session_id.clone(),
+            crate::app::session::shared_chat_messages(session.messages.clone()),
+            session.message_ids.clone(),
+        );
     }
 
     Task::batch(vec![
@@ -272,6 +330,7 @@ pub(super) fn handle_agent_step_cost_loaded(
         return Task::none();
     }
     let mut session = load_session_or_default(app, session_id.clone());
+    let message_model = resolved_model.clone();
     if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
         if resolved_model.is_some() {
             step.model = resolved_model;
@@ -293,15 +352,27 @@ pub(super) fn handle_agent_step_cost_loaded(
         });
         session.steps.sort_by_key(|s| s.index);
     }
+    if let Some(model) = message_model.as_deref() {
+        crate::app::session::bind_message_model_to_step(&mut session.messages, step_index, model);
+    }
     session.updated_ms = session.updated_ms.max(now_ms());
     let save_task =
         save_session_task(session.clone(), session_directory_for_save(app, &session_id));
     if app.active_session_id.as_ref() == Some(&session_id) {
+        if let Some(model) = message_model.as_deref() {
+            crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
+        }
         app.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == step_index) {
             app.upsert_active_session_step(step.clone());
         }
         app.rebuild_active_session_message_meta();
+    } else if !session.messages.is_empty() {
+        app.store_session_chat_snapshot(
+            session_id.clone(),
+            crate::app::session::shared_chat_messages(session.messages.clone()),
+            session.message_ids.clone(),
+        );
     }
     save_task
 }

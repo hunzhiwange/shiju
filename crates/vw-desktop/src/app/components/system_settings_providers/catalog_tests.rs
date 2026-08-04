@@ -146,6 +146,16 @@ fn visible_catalog_providers_marks_connected_and_popular_independently() {
 }
 
 #[test]
+fn catalog_treats_shiju_as_pinned_popular_provider() {
+    let items = vec![catalog_entry("shiju", "识矩", "deepseek-v4-flash")];
+
+    let visible = super::catalog::visible_catalog_providers(&items, &[], &[], "");
+
+    assert_eq!(visible.len(), 1);
+    assert!(visible[0].in_popular);
+}
+
+#[test]
 fn model_count_label_formats_singular_and_plural_counts() {
     assert_eq!(super::catalog::model_count_label(1), "1 个模型");
     assert_eq!(super::catalog::model_count_label(0), "0 个模型");

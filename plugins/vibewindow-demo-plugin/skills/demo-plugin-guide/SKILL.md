@@ -11,7 +11,7 @@ This skill explains how the demo plugin is wired.
 
 | Surface | File | Purpose |
 | --- | --- | --- |
-| Manifest | `.codex-plugin/plugin.json` | Declares the plugin package and component paths. |
+| Manifest | `.vibewindow-plugin/plugin.json` | Declares the plugin package and component paths. |
 | Skill | `skills/demo-plugin-guide/SKILL.md` | Shows plugin-packaged skill discovery. |
 | MCP | `.mcp.json` | Registers a local stdio MCP server. |
 | Hooks | `hooks/hooks.json` | Declares lifecycle hooks that require trust before runtime use. |

@@ -147,12 +147,14 @@ fn toggle_enabled_disables_every_static_channel_without_collapsing_panels() {
 }
 
 #[test]
-fn toggle_enabled_preserves_named_legacy_configs_and_disable_clears_instances() {
+fn toggle_enabled_preserves_matrix_config_when_switch_is_disabled() {
     let mut app = app();
 
+    assert!(!app.channels_settings.matrix_enabled);
     toggle_enabled(&mut app, "matrix", true);
     toggle_enabled(&mut app, "feishu", true);
     toggle_enabled(&mut app, "dingtalk", true);
+    assert!(app.channels_settings.matrix_enabled);
     assert!(app.channels_settings.matrix.as_ref().expect("matrix").room_id.is_empty());
     assert_eq!(
         app.channels_settings.feishu.as_ref().expect("feishu").receive_mode,
@@ -182,8 +184,9 @@ fn toggle_enabled_preserves_named_legacy_configs_and_disable_clears_instances() 
     toggle_enabled(&mut app, "feishu", false);
     toggle_enabled(&mut app, "dingtalk", false);
 
-    assert!(app.channels_settings.matrix.is_none());
-    assert!(app.channels_settings.matrix_instances.is_empty());
+    assert!(!app.channels_settings.matrix_enabled);
+    assert_eq!(app.channels_settings.matrix.as_ref().expect("matrix").homeserver, "matrix.test");
+    assert_eq!(app.channels_settings.matrix_instances.len(), 1);
     assert!(app.channels_settings.feishu.is_none());
     assert!(app.channels_settings.feishu_instances.is_empty());
     assert!(app.channels_settings.dingtalk.is_none());

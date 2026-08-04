@@ -59,6 +59,7 @@ use super::{SecurityCategory, SecurityFinding, SecurityValidator, Severity};
 use crate::tools::shell::ast::{CommandInfo, ParsedCommand, RedirectKind};
 use regex::Regex;
 use std::sync::LazyLock;
+use vw_config_types::security::BashValidatorChecksConfig;
 
 /// 构建默认 shell 安全校验器集合。
 ///
@@ -67,30 +68,45 @@ use std::sync::LazyLock;
 ///
 /// 返回值：按执行顺序排列的 validator 列表。
 /// 错误处理：该函数不返回错误；正则初始化失败会在开发期通过 `expect` 暴露。
-pub(super) fn build_validators(strict: bool) -> Vec<Box<dyn SecurityValidator>> {
-    vec![
-        Box::new(empty_command::EmptyCommandValidator),
-        Box::new(heredoc::HeredocValidator),
-        Box::new(git_commit::GitCommitValidator),
-        Box::new(jq::JqValidator),
-        Box::new(metacharacters::MetacharactersValidator),
-        Box::new(dangerous_vars::DangerousVarsValidator),
-        Box::new(substitution::SubstitutionValidator::new(strict)),
-        Box::new(redirection::RedirectionValidator),
-        Box::new(newline_injection::NewlineInjectionValidator),
-        Box::new(ifs_injection::IfsInjectionValidator),
-        Box::new(proc_environ::ProcEnvironValidator),
-        Box::new(malformed::MalformedValidator),
-        Box::new(obfuscated_flags::ObfuscatedFlagsValidator),
-        Box::new(backslash::BackslashValidator),
-        Box::new(brace_expansion::BraceExpansionValidator),
-        Box::new(unicode_whitespace::UnicodeWhitespaceValidator),
-        Box::new(hash_comment::HashCommentValidator),
-        Box::new(comment_quote_desync::CommentQuoteDesyncValidator),
-        Box::new(quoted_newline::QuotedNewlineValidator),
-        Box::new(zsh_dangerous::ZshDangerousValidator),
-        Box::new(control_chars::ControlCharsValidator),
-    ]
+pub(super) fn build_validators(
+    strict: bool,
+    config: &BashValidatorChecksConfig,
+) -> Vec<Box<dyn SecurityValidator>> {
+    if !config.enabled {
+        return Vec::new();
+    }
+
+    let mut validators: Vec<Box<dyn SecurityValidator>> = Vec::new();
+    macro_rules! push_if {
+        ($enabled:expr, $validator:expr) => {
+            if $enabled {
+                validators.push(Box::new($validator));
+            }
+        };
+    }
+
+    push_if!(config.empty_command, empty_command::EmptyCommandValidator);
+    push_if!(config.heredoc, heredoc::HeredocValidator);
+    push_if!(config.git_commit, git_commit::GitCommitValidator);
+    push_if!(config.jq, jq::JqValidator);
+    push_if!(config.metacharacters, metacharacters::MetacharactersValidator);
+    push_if!(config.dangerous_vars, dangerous_vars::DangerousVarsValidator);
+    push_if!(config.substitution, substitution::SubstitutionValidator::new(strict));
+    push_if!(config.redirection, redirection::RedirectionValidator);
+    push_if!(config.newline_injection, newline_injection::NewlineInjectionValidator);
+    push_if!(config.ifs_injection, ifs_injection::IfsInjectionValidator);
+    push_if!(config.proc_environ, proc_environ::ProcEnvironValidator);
+    push_if!(config.malformed, malformed::MalformedValidator);
+    push_if!(config.obfuscated_flags, obfuscated_flags::ObfuscatedFlagsValidator);
+    push_if!(config.backslash, backslash::BackslashValidator);
+    push_if!(config.brace_expansion, brace_expansion::BraceExpansionValidator);
+    push_if!(config.unicode_whitespace, unicode_whitespace::UnicodeWhitespaceValidator);
+    push_if!(config.hash_comment, hash_comment::HashCommentValidator);
+    push_if!(config.comment_quote_desync, comment_quote_desync::CommentQuoteDesyncValidator);
+    push_if!(config.quoted_newline, quoted_newline::QuotedNewlineValidator);
+    push_if!(config.zsh_dangerous, zsh_dangerous::ZshDangerousValidator);
+    push_if!(config.control_chars, control_chars::ControlCharsValidator);
+    validators
 }
 
 pub(super) fn block(
@@ -234,7 +250,29 @@ pub(super) fn has_quoted_newline(command: &str) -> bool {
             '\\' => escaped = true,
             '\'' if !double => single = !single,
             '"' if !single => double = !double,
-            '\n' if single || double => return true,
+            '\n' | '\r' if single || double => return true,
+            _ => {}
+        }
+    }
+
+    false
+}
+
+pub(super) fn has_unquoted_newline(command: &str) -> bool {
+    let mut single = false;
+    let mut double = false;
+    let mut escaped = false;
+
+    for ch in command.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match ch {
+            '\\' if !single => escaped = true,
+            '\'' if !double => single = !single,
+            '"' if !single => double = !double,
+            '\n' | '\r' if !single && !double => return true,
             _ => {}
         }
     }

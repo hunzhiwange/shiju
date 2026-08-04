@@ -426,7 +426,12 @@ pub async fn process(
     let assistant = message::AssistantInfo {
         id: assistant_id.clone(),
         session_id: input.session_id.clone(),
-        time: message::AssistantTime { created: now_ms(), completed: None },
+        time: message::AssistantTime {
+            created: now_ms(),
+            completed: None,
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        },
         error: None,
         parent_id: input.parent_id.clone(),
         model_id: model.id.clone(),

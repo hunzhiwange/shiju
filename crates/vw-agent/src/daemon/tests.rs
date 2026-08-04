@@ -19,7 +19,8 @@ mod tests {
     use crate::agent_scheduler::store::AgentSchedulerStore;
     use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
     use crate::app::agent::config::schema::{
-        DiscordConfig, MattermostConfig, SlackConfig, WebhookConfig,
+        DiscordConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
+        MattermostConfig, MatrixConfig, SlackConfig, WebhookConfig,
     };
     use tempfile::TempDir;
     use vw_api_types::common::TimestampMs;
@@ -100,29 +101,30 @@ mod tests {
         assert_eq!(shutdown_hint(), "Ctrl+C to stop");
     }
 
-    /// 测试优雅关闭应等待已完成的句柄而不中止
+    /// 测试关闭时不应中止已完成的句柄
     ///
-    /// 验证 `shutdown_handles_with_grace` 函数在任务已完成时
-    /// 不会中止任何句柄，而是正常等待其完成
+    /// 验证 `shutdown_handles` 函数在任务已完成时不会中止任何句柄。
     #[tokio::test]
-    async fn graceful_shutdown_waits_for_completed_handles_without_abort() {
+    async fn shutdown_keeps_completed_handles_finished() {
         // 创建一个立即完成的任务
         let finished = tokio::spawn(async {});
-        // 给予 20ms 超时，任务应在此时间内自然完成
-        let aborted = shutdown_handles_with_grace(vec![finished], Duration::from_millis(20)).await;
+        while !finished.is_finished() {
+            tokio::task::yield_now().await;
+        }
+        let stopped = shutdown_handles(vec![finished]).await;
         // 不应中止任何句柄
-        assert_eq!(aborted, 0);
+        assert_eq!(stopped, 0);
     }
 
     #[tokio::test]
-    async fn graceful_shutdown_accepts_empty_handle_list() {
-        let aborted = shutdown_handles_with_grace(Vec::new(), Duration::from_millis(0)).await;
+    async fn shutdown_accepts_empty_handle_list() {
+        let stopped = shutdown_handles(Vec::new()).await;
 
-        assert_eq!(aborted, 0);
+        assert_eq!(stopped, 0);
     }
 
     #[tokio::test]
-    async fn graceful_shutdown_aborts_only_unfinished_handles() {
+    async fn shutdown_stops_only_unfinished_handles() {
         let finished = tokio::spawn(async {});
         while !finished.is_finished() {
             tokio::task::yield_now().await;
@@ -131,29 +133,25 @@ mod tests {
             std::future::pending::<()>().await;
         });
 
-        let aborted =
-            shutdown_handles_with_grace(vec![finished, unfinished], Duration::from_millis(0)).await;
+        let stopped = shutdown_handles(vec![finished, unfinished]).await;
 
-        assert_eq!(aborted, 1);
+        assert_eq!(stopped, 1);
     }
 
-    /// 测试优雅关闭应在超时后中止卡住的句柄
+    /// 测试关闭时应中止卡住的句柄
     ///
-    /// 验证 `shutdown_handles_with_grace` 函数在任务超时未完成时
-    /// 会强制中止句柄，防止无限期阻塞
+    /// 验证 `shutdown_handles` 函数会停止未完成句柄，防止无限期阻塞。
     #[tokio::test]
-    async fn graceful_shutdown_aborts_stuck_handles_after_timeout() {
+    async fn shutdown_stops_stuck_handles_without_delay() {
         // 创建一个永远不会完成的任务（需 30 秒）
         let never_finishes = tokio::spawn(async {
             tokio::time::sleep(Duration::from_secs(30)).await;
         });
         let started = tokio::time::Instant::now();
-        // 给予 20ms 超时，任务应被强制中止
-        let aborted =
-            shutdown_handles_with_grace(vec![never_finishes], Duration::from_millis(20)).await;
+        let stopped = shutdown_handles(vec![never_finishes]).await;
 
-        // 应中止 1 个句柄
-        assert_eq!(aborted, 1);
+        // 应停止 1 个句柄
+        assert_eq!(stopped, 1);
         // 验证关闭不应无限期阻塞（应在 2 秒内完成）
         assert!(
             started.elapsed() < Duration::from_secs(2),
@@ -229,9 +227,75 @@ mod tests {
     }
 
     #[test]
+    fn configured_matrix_is_not_supervised_until_enabled() {
+        let mut config = Config::default();
+        config.channels_config.matrix = Some(MatrixConfig {
+            homeserver: "https://matrix.example.test".to_string(),
+            access_token: "token".to_string(),
+            user_id: None,
+            device_id: None,
+            room_id: "!room:example.test".to_string(),
+            allowed_users: Vec::new(),
+            mention_only: false,
+        });
+
+        assert!(!has_supervised_channels(&config));
+        config.channels_config.matrix_enabled = true;
+        assert!(has_supervised_channels(&config));
+    }
+
+    #[test]
     fn configured_webhook_is_not_a_supervised_channel() {
         let mut config = Config::default();
         config.channels_config.webhook = Some(WebhookConfig { port: 8787, secret: None });
+
+        assert!(!has_supervised_channels(&config));
+    }
+
+    #[test]
+    fn blank_feishu_is_not_supervised() {
+        let mut config = Config::default();
+        config.channels_config.lark = Some(LarkConfig {
+            app_id: "legacy-app".to_string(),
+            app_secret: " ".to_string(),
+            encrypt_key: None,
+            verification_token: None,
+            allowed_users: Vec::new(),
+            mention_only: false,
+            group_reply: None,
+            use_feishu: true,
+            receive_mode: LarkReceiveMode::Websocket,
+            port: None,
+            draft_update_interval_ms: 3000,
+            max_draft_edits: 20,
+        });
+        config.channels_config.feishu = Some(FeishuConfig {
+            app_id: String::new(),
+            app_secret: "secret".to_string(),
+            encrypt_key: None,
+            verification_token: None,
+            allowed_users: Vec::new(),
+            group_reply: None,
+            receive_mode: LarkReceiveMode::Websocket,
+            port: None,
+            draft_update_interval_ms: 3000,
+            max_draft_edits: 20,
+        });
+        config.channels_config.feishu_instances.push(FeishuInstanceConfig {
+            id: "partial".to_string(),
+            config: FeishuConfig {
+                app_id: "instance-app".to_string(),
+                app_secret: "\t".to_string(),
+                encrypt_key: None,
+                verification_token: None,
+                allowed_users: Vec::new(),
+                group_reply: None,
+                receive_mode: LarkReceiveMode::Websocket,
+                port: None,
+                draft_update_interval_ms: 3000,
+                max_draft_edits: 20,
+            },
+        });
 
         assert!(!has_supervised_channels(&config));
     }
@@ -651,19 +715,20 @@ mod tests {
         assert_eq!(target, Some(("telegram".to_string(), "123456".to_string())));
     }
 
-    #[test]
-    fn daemon_starts_configured_matrix_worker_component() {
+    #[tokio::test]
+    async fn daemon_starts_configured_matrix_worker_component() {
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp);
         let store = AgentSchedulerStore::new();
+        let context = matrix_worker_scheduler_context(&config).await.unwrap();
         store
             .upsert_worker_snapshot(
-                &config.workspace_dir,
+                &context,
                 matrix_worker_snapshot("matrix-dev", Some("Running")),
             )
             .unwrap();
 
-        let components = configured_matrix_worker_components(&config).unwrap();
+        let components = configured_matrix_worker_components(&config).await.unwrap();
 
         assert_eq!(components.len(), 1);
         assert_eq!(components[0].worker_id.as_str(), "matrix-dev");
@@ -683,19 +748,20 @@ mod tests {
         assert_eq!(matrix_worker_component_name(&component), "matrix-worker:matrix-dev");
     }
 
-    #[test]
-    fn daemon_does_not_start_disabled_matrix_worker_component() {
+    #[tokio::test]
+    async fn daemon_does_not_start_disabled_matrix_worker_component() {
         let tmp = TempDir::new().unwrap();
         let config = test_config(&tmp);
         let store = AgentSchedulerStore::new();
+        let context = matrix_worker_scheduler_context(&config).await.unwrap();
         store
             .upsert_worker_snapshot(
-                &config.workspace_dir,
+                &context,
                 matrix_worker_snapshot("matrix-dev", Some("Stopped")),
             )
             .unwrap();
 
-        let components = configured_matrix_worker_components(&config).unwrap();
+        let components = configured_matrix_worker_components(&config).await.unwrap();
 
         assert!(components.is_empty());
     }

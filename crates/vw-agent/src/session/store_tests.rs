@@ -8,7 +8,7 @@ use vw_shared::session::info::{
 };
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ThinkTiming, TokenUsage,
+    ProcessingTiming, ThinkTiming, TokenUsage,
 };
 
 use super::store::SessionStore;
@@ -23,11 +23,12 @@ macro_rules! assert_json_eq {
     };
 }
 
-const SESSION_TABLES: [&str; 6] = [
+const SESSION_TABLES: [&str; 7] = [
     "session_agent_sessions",
     "session_calls",
     "session_index",
     "session_messages",
+    "session_step_llm_raw",
     "session_steps",
     "session_todos",
 ];
@@ -54,12 +55,14 @@ fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
             "idx_session_index_project_updated",
             "idx_session_index_tenant_updated",
             "idx_session_messages_project_seq",
+            "idx_session_step_llm_raw_project_step",
             "idx_session_steps_project_index",
             "idx_session_todos_project_order",
         ]
     );
     assert!(!sqlite_object_exists(&connection, "table", "agent_sessions")?);
     assert!(!sqlite_object_exists(&connection, "index", "idx_agent_sessions_project_updated")?);
+    assert!(sqlite_table_columns(&connection, "session_messages")?.contains(&"model".to_string()));
 
     for table in SESSION_TABLES {
         assert_scope_columns(&connection, table)?;
@@ -72,8 +75,123 @@ fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
 }
 
 #[test]
+fn session_store_migrates_legacy_message_model_column() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let database_path = temp_dir.path().join("database").join("_index.sqlite3");
+    let database = GlobalDatabase::new(&database_path)?;
+    ProjectStore::new(database.clone())?;
+    database.connect_sqlite()?.execute_batch(
+        "CREATE TABLE session_messages (
+            platform_id TEXT NOT NULL,
+            company_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            seq_no INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            message_id TEXT,
+            content TEXT NOT NULL,
+            think_timing_json TEXT NOT NULL,
+            PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no)
+        );",
+    )?;
+
+    SessionStore::new(database)?;
+
+    let connection = Connection::open(database_path)?;
+    assert!(sqlite_table_columns(&connection, "session_messages")?.contains(&"model".to_string()));
+    Ok(())
+}
+
+#[test]
+fn session_store_migrates_legacy_processing_timing_columns() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let database_path = temp_dir.path().join("database").join("_index.sqlite3");
+    let database = GlobalDatabase::new(&database_path)?;
+    ProjectStore::new(database.clone())?;
+    database.connect_sqlite()?.execute_batch(
+        "CREATE TABLE session_messages (
+            platform_id TEXT NOT NULL,
+            company_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            seq_no INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            message_id TEXT,
+            content TEXT NOT NULL,
+            model TEXT,
+            think_timing_json TEXT NOT NULL,
+            PRIMARY KEY (platform_id, company_id, project_id, session_id, seq_no)
+        );",
+    )?;
+
+    SessionStore::new(database)?;
+
+    let connection = Connection::open(database_path)?;
+    let columns = sqlite_table_columns(&connection, "session_messages")?;
+    assert!(columns.contains(&"processing_started_ms".to_string()));
+    assert!(columns.contains(&"processing_completed_ms".to_string()));
+    assert!(columns.contains(&"processing_elapsed_ms".to_string()));
+    assert!(columns.contains(&"processing_llm_elapsed_ms".to_string()));
+    Ok(())
+}
+
+#[test]
+fn session_store_processing_elapsed_round_trips() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "processing-elapsed")?;
+        let session = sample_session("processing-elapsed", "Processing elapsed", 200);
+
+        fixture.store.save_session(&scope, &session)?;
+        let loaded = fixture.store.load_session(&scope, &session.id)?.expect("stored session");
+
+        assert_eq!(
+            loaded.messages[1]
+                .processing_timing
+                .as_ref()
+                .and_then(|timing| timing.processing_elapsed_ms),
+            Some(90)
+        );
+        assert_eq!(
+            loaded.messages[1]
+                .processing_timing
+                .as_ref()
+                .and_then(|timing| timing.llm_elapsed_ms),
+            Some(75)
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
 fn session_store_projects_round_trip_without_cross_project_leaks() -> Result<()> {
     for_each_session_store_provider(session_store_projects_round_trip)?;
+    Ok(())
+}
+
+#[test]
+fn postgres_session_store_runs_from_tokio_worker_without_nested_runtime() -> Result<()> {
+    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = StoreFixture::new(postgres_fixture.database().clone())?;
+    let scope = fixture.create_project(&fixture.tenant_a, "tokio-runtime-project")?;
+    let store = fixture.store.clone();
+    let session = sample_session("tokio-runtime-session", "Tokio runtime session", 100);
+
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()?
+        .block_on(async move {
+            tokio::spawn(async move {
+                store.save_session(&scope, &session)?;
+                assert_json_eq!(store.load_session(&scope, &session.id)?, Some(session));
+                Ok::<(), anyhow::Error>(())
+            })
+            .await??;
+            Ok::<(), anyhow::Error>(())
+        })?;
+
+    postgres_fixture.cleanup()?;
     Ok(())
 }
 
@@ -427,16 +545,25 @@ fn sample_session(id: &str, title: &str, updated_ms: u64) -> ChatSession {
             ChatMessage {
                 role: ChatRole::User,
                 content: "question".to_owned(),
+                model: Some("provider/model-a".to_owned()),
                 think_timing: vec![ThinkTiming {
                     start_ms: 10,
                     end_ms: Some(20),
                     last_update_ms: 18,
                 }],
+                processing_timing: None,
             },
             ChatMessage {
                 role: ChatRole::Assistant,
                 content: "answer".to_owned(),
+                model: Some("provider/model-a".to_owned()),
                 think_timing: Vec::new(),
+                processing_timing: Some(ProcessingTiming {
+                    started_ms: 100,
+                    completed_ms: Some(175),
+                    processing_elapsed_ms: Some(90),
+                    llm_elapsed_ms: Some(75),
+                }),
             },
         ],
         message_ids: vec![Some("message-1".to_owned()), None],
@@ -593,6 +720,11 @@ fn foreign_key_mappings(
         .collect::<Vec<_>>();
     mappings.sort();
     Ok(mappings)
+}
+
+fn sqlite_table_columns(connection: &Connection, table: &str) -> Result<Vec<String>> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info('{table}')"))?;
+    Ok(statement.query_map([], |row| row.get(1))?.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 fn scoped_row_count(database: &GlobalDatabase, table: &str, scope: &ProjectScope) -> Result<i64> {

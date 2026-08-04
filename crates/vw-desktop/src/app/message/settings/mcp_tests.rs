@@ -429,6 +429,85 @@ fn add_server_message_persists_valid_form_and_keeps_invalid_form_for_correction(
 }
 
 #[test]
+fn server_edit_state_populates_form_from_existing_server() {
+    let editor = text_editor::Content::with_text(
+        r#"[{
+            "name":"remote",
+            "type":"http",
+            "url":"https://example.test/mcp",
+            "timeout":12,
+            "enabled":false,
+            "required":true
+        }]"#,
+    );
+
+    let state = server_edit_state(&editor, 0).expect("existing server should populate edit form");
+
+    assert_eq!(state.name_input, "remote");
+    assert_eq!(state.transport, McpNewServerTransport::Http);
+    assert_eq!(state.url_input, "https://example.test/mcp");
+    assert_eq!(state.timeout_input, "12");
+    assert!(!state.enabled);
+    assert!(state.required);
+}
+
+#[test]
+fn update_server_preserves_advanced_fields_for_unchanged_transport() {
+    let editor = text_editor::Content::with_text(
+        r#"[{
+            "name":"remote",
+            "type":"http",
+            "url":"https://old.test/mcp",
+            "headers":[{"name":"Authorization","value":"Bearer secret"}],
+            "allowedTools":["read"]
+        }]"#,
+    );
+    let input = McpNewServerState {
+        name_input: "renamed".to_string(),
+        transport: McpNewServerTransport::Http,
+        url_input: "https://new.test/mcp".to_string(),
+        timeout_input: String::new(),
+        ..McpNewServerState::default()
+    };
+
+    let (value, count) = update_server(&editor, 0, &input).expect("server edit should be valid");
+    let server = &value[0];
+
+    assert_eq!(count, 1);
+    assert_eq!(server["name"], "renamed");
+    assert_eq!(server["url"], "https://new.test/mcp");
+    assert_eq!(server["headers"], json!([{"name":"Authorization","value":"Bearer secret"}]));
+    assert_eq!(server["allowedTools"], json!(["read"]));
+    assert!(server.get("timeout").is_none());
+}
+
+#[test]
+fn edit_messages_open_save_and_cancel_single_server_form() {
+    let mut app = app();
+    app.mcp_settings.editor = text_editor::Content::with_text(
+        r#"[{"name":"local","type":"stdio","command":"npx","env":[{"name":"A","value":"B"}]}]"#,
+    );
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditRequested(0)));
+    assert_eq!(app.mcp_settings.editing_server_index, Some(0));
+    assert!(app.mcp_settings.new_server_expanded);
+    assert_eq!(app.mcp_settings.new_server.name_input, "local");
+
+    app.mcp_settings.new_server.name_input = "renamed".to_string();
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::SaveServerEdit));
+    assert!(app.mcp_settings.saving);
+    assert_eq!(app.mcp_settings.editing_server_index, None);
+    assert!(app.mcp_settings.editor.text().contains(r#""name": "renamed""#));
+    assert!(app.mcp_settings.editor.text().contains(r#""env""#));
+
+    app.mcp_settings.saving = false;
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditRequested(0)));
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditCanceled));
+    assert_eq!(app.mcp_settings.editing_server_index, None);
+    assert_eq!(app.mcp_settings.new_server.name_input, "");
+}
+
+#[test]
 fn saved_message_distinguishes_success_refresh_from_failure() {
     let mut app = app();
     app.mcp_settings.saving = true;

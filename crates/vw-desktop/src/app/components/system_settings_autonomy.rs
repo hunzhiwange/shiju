@@ -18,14 +18,22 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_segment_button_style,
+    settings_text_input_style,
 };
+use crate::app::components::number_input::NumberInput;
+use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
-use iced::widget::{button, checkbox, column, container, row, slider, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{
+    button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
+};
+use iced::{Alignment, Element, Length, Padding};
 use vw_config_types::security::NonCliNaturalLanguageApprovalMode;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
+
+const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
 
 /// 构建与可观测性配置一致的 Tab 风格按钮。
 ///
@@ -82,6 +90,108 @@ fn text_row<'a>(
     )
 }
 
+fn list_editor<'a>(
+    kind: AutonomyListKind,
+    label: &'static str,
+    description: &'static str,
+    items: &'a [String],
+    draft: &'a str,
+    available_tools: &'a [String],
+) -> Element<'a, Message> {
+    let draft_changed = move |value| {
+        Message::Settings(message::SettingsMessage::AutonomyListDraftChanged(kind, value))
+    };
+    let add_message = Message::Settings(message::SettingsMessage::AutonomyListAdd(kind));
+    let add_button = {
+        let button = button(text("添加"))
+            .padding([9, 14])
+            .style(|theme, status| settings_segment_button_style(theme, status, false));
+        if draft.trim().is_empty() { button } else { button.on_press(add_message.clone()) }
+    };
+    let control: Element<'a, Message> = if kind.is_tool_list() {
+        let mut options = available_tools.to_vec();
+        options.sort();
+        options.dedup();
+        let selected =
+            options.iter().find(|tool| tool.as_str() == draft).map(ToOwned::to_owned);
+        row![
+            pick_list(options, selected, draft_changed)
+                .placeholder("选择现有工具")
+                .padding([10, 14])
+                .text_size(13)
+                .style(settings_pick_list_style)
+                .menu_style(settings_pick_list_menu_style)
+                .width(Length::Fill),
+            add_button,
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into()
+    } else {
+        row![
+            text_input("输入单个列表项", draft)
+                .on_input(draft_changed)
+                .on_submit(add_message)
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            add_button,
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into()
+    };
+
+    let mut item_rows = column![].spacing(6);
+    for (index, item) in items.iter().enumerate() {
+        item_rows = item_rows.push(
+            container(
+                row![
+                    text(item).size(13).width(Length::Fill),
+                    button(text("删除").size(12))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::AutonomyListRemove(kind, index),
+                        ))
+                        .padding([6, 10])
+                        .style(|theme, status| {
+                            settings_segment_button_style(theme, status, false)
+                        }),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            )
+            .padding([6, 8])
+            .width(Length::Fill),
+        );
+    }
+
+    let item_list = container(
+        scrollable(container(item_rows).padding(Padding {
+            right: 12.0,
+            ..Padding::default()
+        }))
+        .height(Length::Shrink)
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+    )
+    .max_height(LIST_EDITOR_MAX_HEIGHT)
+    .width(Length::Fill);
+
+    column![
+        column![
+            text(label).size(13),
+            text(description).size(11).style(settings_muted_text_style),
+        ]
+        .spacing(4),
+        control,
+        item_list,
+    ]
+    .spacing(10)
+    .padding([14, 0])
+    .width(Length::Fill)
+    .into()
+}
+
 fn bool_row<'a>(
     label: &'static str,
     description: &'static str,
@@ -120,19 +230,20 @@ fn bool_row<'a>(
 /// 6. 每日成本上限滑块
 /// 7. 中风险审批开关
 /// 8. 高风险阻断开关
-/// 9. 重定向策略选择器
-/// 10. 自然语言审批模式选择器
-/// 11. 允许命令输入框
-/// 12. 禁止路径输入框
-/// 13. 环境变量透传输入框
-/// 14. 自动审批工具输入框
-/// 15. 始终询问工具输入框
-/// 16. 允许根目录输入框
-/// 17. 非 CLI 排除工具输入框
-/// 18. 审批人列表输入框
-/// 19. 按通道模式输入框
-/// 20. 输入格式提示
-/// 21. 错误信息（如有）
+/// 9. Shell 引号内换行阻断开关
+/// 10. 重定向策略选择器
+/// 11. 自然语言审批模式选择器
+/// 12. 允许命令输入框
+/// 13. 禁止路径输入框
+/// 14. 环境变量透传输入框
+/// 15. 自动审批工具输入框
+/// 16. 始终询问工具输入框
+/// 17. 允许根目录输入框
+/// 18. 非 CLI 排除工具输入框
+/// 19. 审批人列表输入框
+/// 20. 按通道模式输入框
+/// 21. 输入格式提示
+/// 22. 错误信息（如有）
 ///
 /// # 示例
 ///
@@ -142,10 +253,11 @@ fn bool_row<'a>(
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.autonomy_settings;
+    let available_tools = &app.agents_settings.available_tools;
     let help_btn =
         settings_help_button(Message::Settings(message::SettingsMessage::AutonomyHelpOpen));
 
-    let level_row = field_row(
+    let level_row = || field_row(
         "级别",
         "决定代理默认可执行的动作范围。",
         row![
@@ -175,7 +287,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Center),
     );
 
-    let workspace_only_row = bool_row(
+    let workspace_only_row = || bool_row(
         "工作区限制",
         "仅允许在工作区路径内操作，除非显式加入 allowed_roots。",
         s.workspace_only,
@@ -183,35 +295,41 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::AutonomyWorkspaceOnlyToggled(v)),
     );
 
-    let max_actions_row = field_row(
+    let max_actions_row = || field_row(
         "每小时动作上限",
         "限制自治过程中每小时可执行的动作数量。",
-        row![
-            slider(1.0..=10_000.0, s.max_actions_per_hour as f32, |v| Message::Settings(
-                message::SettingsMessage::AutonomyMaxActionsPerHourChanged(v.round() as u32)
-            ))
-            .width(Length::Fill),
-            settings_value_badge(s.max_actions_per_hour),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
+        NumberInput::new(
+            s.max_actions_per_hour as f32,
+            1.0,
+            1_000_000.0,
+            1.0,
+            0,
+            1.0,
+            |v| Message::Settings(
+                message::SettingsMessage::AutonomyMaxActionsPerHourChanged(v.round() as u32),
+            ),
+        )
+        .settings_style(),
     );
 
-    let max_cost_row = field_row(
+    let max_cost_row = || field_row(
         "每日成本上限(分)",
         "限制自治行为每天可消耗的成本预算。",
-        row![
-            slider(1.0..=1_000_000.0, s.max_cost_per_day_cents as f32, |v| Message::Settings(
-                message::SettingsMessage::AutonomyMaxCostPerDayCentsChanged(v.round() as u32)
-            ))
-            .width(Length::Fill),
-            settings_value_badge(s.max_cost_per_day_cents),
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
+        NumberInput::new(
+            s.max_cost_per_day_cents as f32,
+            1.0,
+            100_000_000.0,
+            1.0,
+            0,
+            1.0,
+            |v| Message::Settings(
+                message::SettingsMessage::AutonomyMaxCostPerDayCentsChanged(v.round() as u32),
+            ),
+        )
+        .settings_style(),
     );
 
-    let approve_medium_row = bool_row(
+    let approve_medium_row = || bool_row(
         "中风险审批",
         "对中风险动作触发审批，而不是直接执行。",
         s.require_approval_for_medium_risk,
@@ -223,7 +341,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let block_high_row = bool_row(
+    let block_high_row = || bool_row(
         "高风险阻断",
         "对高风险命令直接阻断，不进入执行链路。",
         s.block_high_risk_commands,
@@ -231,7 +349,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::AutonomyBlockHighRiskCommandsToggled(v)),
     );
 
-    let redirect_row = field_row(
+    let redirect_row = || field_row(
         "重定向策略",
         "控制 shell 命令中的输出重定向如何处理。",
         row![
@@ -249,12 +367,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ShellRedirectPolicy::Strip,
                 ),),
             ),
+            tab_button(
+                "直接执行",
+                s.shell_redirect_policy == ShellRedirectPolicy::Allow,
+                Message::Settings(message::SettingsMessage::AutonomyShellRedirectPolicyChanged(
+                    ShellRedirectPolicy::Allow,
+                ),),
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
     );
 
-    let mode_row = field_row(
+    let mode_row = || field_row(
         "自然语言审批",
         "控制非 CLI 场景下自然语言请求的执行方式。",
         row![
@@ -293,63 +418,70 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Center),
     );
 
-    let allowed_commands_row = text_row(
+    let allowed_commands_row = || list_editor(
+        AutonomyListKind::AllowedCommands,
         "允许命令",
-        "Shell 白名单，支持逗号或换行分隔。",
-        "git, npm, cargo",
-        &s.allowed_commands_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyAllowedCommandsChanged(v)),
+        "Shell 白名单，每次添加一个命令。",
+        &s.allowed_commands,
+        s.list_editor.draft(AutonomyListKind::AllowedCommands),
+        available_tools,
     );
 
-    let forbidden_paths_row = text_row(
+    let forbidden_paths_row = || list_editor(
+        AutonomyListKind::ForbiddenPaths,
         "禁止路径",
         "限制代理访问这些路径，即使在工作区外也保持拒绝。",
-        "/etc, /root, ...",
-        &s.forbidden_paths_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyForbiddenPathsChanged(v)),
+        &s.forbidden_paths,
+        s.list_editor.draft(AutonomyListKind::ForbiddenPaths),
+        available_tools,
     );
 
-    let shell_env_row = text_row(
+    let shell_env_row = || list_editor(
+        AutonomyListKind::ShellEnvPassthrough,
         "环境变量透传",
-        "允许透传到 shell 的环境变量名列表。",
-        "FOO, BAR",
-        &s.shell_env_passthrough_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyShellEnvPassthroughChanged(v)),
+        "允许透传到 shell 的环境变量名，每次添加一个。",
+        &s.shell_env_passthrough,
+        s.list_editor.draft(AutonomyListKind::ShellEnvPassthrough),
+        available_tools,
     );
 
-    let auto_approve_row = text_row(
+    let auto_approve_row = || list_editor(
+        AutonomyListKind::AutoApprove,
         "自动审批",
-        "无需额外审批即可执行的工具列表。",
-        "file_read, memory_recall",
-        &s.auto_approve_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyAutoApproveChanged(v)),
+        "从现有工具中选择无需额外审批即可执行的工具。",
+        &s.auto_approve,
+        s.list_editor.draft(AutonomyListKind::AutoApprove),
+        available_tools,
     );
 
-    let always_ask_row = text_row(
+    let always_ask_row = || list_editor(
+        AutonomyListKind::AlwaysAsk,
         "始终询问",
-        "无论风险等级如何，都要求确认的工具列表。",
-        "tool_a, tool_b",
-        &s.always_ask_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyAlwaysAskChanged(v)),
+        "从现有工具中选择始终要求确认的工具。",
+        &s.always_ask,
+        s.list_editor.draft(AutonomyListKind::AlwaysAsk),
+        available_tools,
     );
 
-    let roots_row = text_row(
+    let roots_row = || list_editor(
+        AutonomyListKind::AllowedRoots,
         "允许根目录",
-        "额外允许访问的目录列表。",
-        "/path/a, ~/path/b",
-        &s.allowed_roots_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyAllowedRootsChanged(v)),
+        "额外允许访问的目录，每次添加一个。",
+        &s.allowed_roots,
+        s.list_editor.draft(AutonomyListKind::AllowedRoots),
+        available_tools,
     );
 
-    let excluded_tools_row = text_row(
+    let excluded_tools_row = || list_editor(
+        AutonomyListKind::NonCliExcludedTools,
         "非 CLI 排除工具",
-        "在非 CLI 通道里默认禁用的工具列表。",
-        "shell, file_write, ...",
-        &s.non_cli_excluded_tools_input,
-        |v| Message::Settings(message::SettingsMessage::AutonomyNonCliExcludedToolsChanged(v)),
+        "从现有工具中选择在非 CLI 通道里默认禁用的工具。",
+        &s.non_cli_excluded_tools,
+        s.list_editor.draft(AutonomyListKind::NonCliExcludedTools),
+        available_tools,
     );
 
-    let approvers_row = text_row(
+    let approvers_row = || text_row(
         "审批人列表",
         "格式为 channel:user，支持逗号或换行分隔。",
         "telegram:alice, *:bob",
@@ -358,7 +490,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let mode_by_channel_row =
-        text_row(
+        || text_row(
             "按通道模式",
             "格式为 channel:mode；列表字段支持逗号或换行分隔。",
             "telegram:direct, discord:request_confirm",
@@ -370,6 +502,105 @@ pub fn view(app: &App) -> Element<'_, Message> {
             },
         );
 
+    let tabs = row![
+        tab_button(
+            "权限与审批",
+            s.active_tab == AutonomySettingsTab::Permissions,
+            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
+                AutonomySettingsTab::Permissions,
+            )),
+        ),
+        tab_button(
+            "预算",
+            s.active_tab == AutonomySettingsTab::Budget,
+            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
+                AutonomySettingsTab::Budget,
+            )),
+        ),
+        tab_button(
+            "工具与路径",
+            s.active_tab == AutonomySettingsTab::ToolsAndPaths,
+            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
+                AutonomySettingsTab::ToolsAndPaths,
+            )),
+        ),
+        tab_button(
+            "非 CLI",
+            s.active_tab == AutonomySettingsTab::NonCli,
+            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
+                AutonomySettingsTab::NonCli,
+            )),
+        ),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
+        AutonomySettingsTab::Permissions => (
+            settings_section_card("权限与审批", "核心执行级别、审批阈值与重定向策略。").into(),
+            settings_panel(
+                column![
+                    level_row(),
+                    settings_divider(),
+                    workspace_only_row(),
+                    settings_divider(),
+                    approve_medium_row(),
+                    settings_divider(),
+                    block_high_row(),
+                    settings_divider(),
+                    redirect_row(),
+                    settings_divider(),
+                    mode_row(),
+                ]
+                .spacing(0),
+            )
+            .into(),
+        ),
+        AutonomySettingsTab::Budget => (
+            settings_section_card("预算", "限制单位时间的动作量与成本。").into(),
+            settings_panel(
+                column![max_actions_row(), settings_divider(), max_cost_row()].spacing(0),
+            )
+            .into(),
+        ),
+        AutonomySettingsTab::ToolsAndPaths => (
+            settings_section_card("工具与路径", "为 shell 命令、路径访问和自动审批设置边界。")
+                .into(),
+            settings_panel(
+                column![
+                    allowed_commands_row(),
+                    settings_divider(),
+                    forbidden_paths_row(),
+                    settings_divider(),
+                    shell_env_row(),
+                    settings_divider(),
+                    auto_approve_row(),
+                    settings_divider(),
+                    always_ask_row(),
+                    settings_divider(),
+                    roots_row(),
+                ]
+                .spacing(0),
+            )
+            .into(),
+        ),
+        AutonomySettingsTab::NonCli => (
+            settings_section_card("非 CLI 暴露", "控制外部通道中的工具暴露与审批人。")
+                .into(),
+            settings_panel(
+                column![
+                    excluded_tools_row(),
+                    settings_divider(),
+                    approvers_row(),
+                    settings_divider(),
+                    mode_by_channel_row(),
+                ]
+                .spacing(0),
+            )
+            .into(),
+        ),
+    };
+
     let col = column![
         row![
             settings_page_intro("自治配置", "配置代理的权限边界、预算限制与审批规则。"),
@@ -377,53 +608,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn,
         ]
         .align_y(Alignment::Start),
-        settings_section_card("权限与审批", "核心执行级别、审批阈值与重定向策略。"),
-        settings_panel(
-            column![
-                level_row,
-                settings_divider(),
-                workspace_only_row,
-                settings_divider(),
-                approve_medium_row,
-                settings_divider(),
-                block_high_row,
-                settings_divider(),
-                redirect_row,
-                settings_divider(),
-                mode_row,
-            ]
-            .spacing(0)
-        ),
-        settings_section_card("预算", "限制单位时间的动作量与成本。"),
-        settings_panel(column![max_actions_row, settings_divider(), max_cost_row].spacing(0)),
-        settings_section_card("工具与路径", "为 shell 命令、路径访问和自动审批设置边界。"),
-        settings_panel(
-            column![
-                allowed_commands_row,
-                settings_divider(),
-                forbidden_paths_row,
-                settings_divider(),
-                shell_env_row,
-                settings_divider(),
-                auto_approve_row,
-                settings_divider(),
-                always_ask_row,
-                settings_divider(),
-                roots_row,
-            ]
-            .spacing(0)
-        ),
-        settings_section_card("非 CLI 暴露", "控制外部通道中的工具暴露与审批人。"),
-        settings_panel(
-            column![
-                excluded_tools_row,
-                settings_divider(),
-                approvers_row,
-                settings_divider(),
-                mode_by_channel_row,
-            ]
-            .spacing(0)
-        ),
+        tabs,
+        section,
+        panel,
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -459,17 +646,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 5) require_approval_for_medium_risk / block_high_risk_commands
 - 中风险需要审批；高风险命令可直接阻断。
 
-6) shell_redirect_policy
-- block（默认）或 strip。
+- 默认 false；开启后把 Shell 引号内的换行符视为注入并阻断。
 
-7) non_cli_*
+7) shell_redirect_policy
+- block、strip 或 allow（默认，原样直接执行）。
+
+8) non_cli_*
 - 控制非 CLI 工具暴露与审批人、自然语言审批模式。
 
 三、示例
 {
   "autonomy": {
-    "level": "supervised",
-    "workspace_only": true,
+    "level": "full",
+    "workspace_only": false,
     "allowed_commands": [
       "git",
       "npm",
@@ -505,11 +694,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
       "~/.aws",
       "~/.config"
     ],
-    "max_actions_per_hour": 20,
-    "max_cost_per_day_cents": 500,
-    "require_approval_for_medium_risk": true,
-    "block_high_risk_commands": true,
-    "shell_redirect_policy": "block",
+    "max_actions_per_hour": 2000,
+    "max_cost_per_day_cents": 50000,
+    "require_approval_for_medium_risk": false,
+    "block_high_risk_commands": false,
+    "shell_redirect_policy": "allow",
     "shell_env_passthrough": [],
     "auto_approve": [
       "file_read",
@@ -535,7 +724,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
       "model_routing_config",
       "pushover",
       "composio",
-    "AgentTool",
       "screenshot",
       "image_info"
     ],

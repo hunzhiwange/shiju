@@ -4,6 +4,7 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
+use crate::app::state::UsageStepRawModal;
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -17,18 +18,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.usage_model_info = info;
             Task::none()
         }
-        ViewMessage::UsageSessionFilePathLoaded(session_id, result) => {
-            if app.active_session_id.as_deref() != Some(session_id.as_str()) {
-                return Task::none();
-            }
-
-            app.usage_session_file_path =
-                result.ok().flatten().and_then(|path| path.to_str().map(str::to_owned));
-            Task::none()
-        }
         ViewMessage::UsageStepToggled(step_index) => {
             if app.usage_step_expanded.contains(&step_index) {
                 app.usage_step_expanded.remove(&step_index);
+                if app
+                    .usage_step_raw_modal
+                    .as_ref()
+                    .is_some_and(|modal| modal.step_index == step_index)
+                {
+                    app.usage_step_raw_modal = None;
+                }
                 return Task::none();
             }
             app.usage_step_expanded.insert(step_index);
@@ -62,6 +61,22 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.active_session_id.as_deref() == Some(session_id.as_str()) {
                 app.usage_step_raw_payloads.insert(key, result);
             }
+            Task::none()
+        }
+        ViewMessage::UsageStepRawOpen(step_index) => {
+            let Some(session_id) = app.active_session_id.as_deref() else {
+                return Task::none();
+            };
+            let key = (session_id.to_string(), step_index);
+            let Some(Ok(Some(value))) = app.usage_step_raw_payloads.get(&key) else {
+                return Task::none();
+            };
+            let content = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+            app.usage_step_raw_modal = Some(UsageStepRawModal { step_index, content });
+            Task::none()
+        }
+        ViewMessage::UsageStepRawClose => {
+            app.usage_step_raw_modal = None;
             Task::none()
         }
         _ => Task::none(),

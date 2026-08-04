@@ -1,7 +1,8 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use super::{
-    bundled_workspace_identity_content, bundled_workspace_identity_path, normalize_agent_key,
+    build_agents_settings_patch, bundled_workspace_identity_content,
+    bundled_workspace_identity_path, handle_agents_config_saved, normalize_agent_key,
     summarize_models, summarize_providers, tool_in_preset, tools_for_preset, update,
 };
 use crate::app::{
@@ -38,6 +39,182 @@ fn entry_mut<'a>(app: &'a mut App, key: &str) -> &'a mut DelegateAgentSettingsEn
         .iter_mut()
         .find(|entry| entry.key == key)
         .expect("missing agent settings entry")
+}
+
+fn config_with_main_skills(skills: &[&str]) -> Box<vw_config_types::config::Config> {
+    let mut config = vw_config_types::config::Config::default();
+    let main = config.agents.entry("main".to_string()).or_insert_with(|| {
+        vw_config_types::agent::builtin_agent_config("main").unwrap_or_default()
+    });
+    main.allowed_skills = skills.iter().map(|skill| (*skill).to_string()).collect();
+    Box::new(config)
+}
+
+#[test]
+fn project_config_loaded_applies_matching_project_skills() {
+    let mut app = test_app();
+    app.agents_settings.project_path = Some("/project-a".to_string());
+    app.agents_settings.loading = true;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProjectConfigLoaded {
+            project_path: "/project-a".to_string(),
+            result: Ok(config_with_main_skills(&["project-a-skill"])),
+        }),
+    );
+
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["project-a-skill"]);
+    assert!(!app.agents_settings.loading);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn project_config_loaded_ignores_stale_project_response() {
+    let mut app = test_app();
+    app.agents_settings.project_path = Some("/project-b".to_string());
+    entry_mut(&mut app, "main").allowed_skills = vec!["project-b-skill".to_string()];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProjectConfigLoaded {
+            project_path: "/project-a".to_string(),
+            result: Ok(config_with_main_skills(&["project-a-skill"])),
+        }),
+    );
+
+    assert_eq!(app.agents_settings.project_path.as_deref(), Some("/project-b"));
+    assert_eq!(entry(&app, "main").allowed_skills, vec!["project-b-skill"]);
+}
+
+#[test]
+fn project_changed_tracks_save_scope_before_loading() {
+    let mut app = test_app();
+    app.agents_settings.save_error = Some("stale error".to_string());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProjectChanged("/project-a".to_string())),
+    );
+
+    assert_eq!(app.agents_settings.project_path.as_deref(), Some("/project-a"));
+    assert!(app.agents_settings.loading);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
+    let mut app = test_app();
+    let main = entry_mut(&mut app, "main");
+    main.provider = " openrouter ".to_string();
+    main.model = " glm-5 ".to_string();
+    main.temperature = 0.2;
+    main.compact_context = true;
+    main.max_tool_iterations = 50_002;
+    main.max_history_messages = 456;
+    main.max_iterations = 50_001;
+    main.parallel_tools = true;
+    main.tool_dispatcher = " manual ".to_string();
+    main.allow_as_subagent = true;
+    main.max_parallel_subagents = 3;
+
+    let patch =
+        build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
+
+    assert_eq!(patch["agents"]["main"]["provider"], "openrouter");
+    assert_eq!(patch["agents"]["main"]["model"], "glm-5");
+    assert_eq!(patch["agents"]["main"]["allow_as_subagent"], true);
+    assert_eq!(patch["agents"]["main"]["max_parallel_subagents"], 3);
+    assert_eq!(patch["agents"]["main"]["max_iterations"], 50_001);
+    assert_eq!(patch["default_provider"], "openrouter");
+    assert_eq!(patch["default_model"], "openrouter/glm-5");
+    assert_eq!(patch["default_temperature"], 0.2);
+    assert_eq!(patch["identity"]["format"], "openclaw");
+    assert_eq!(patch["agent"]["compact_context"], true);
+    assert_eq!(patch["agent"]["max_tool_iterations"], 50_002);
+    assert_eq!(patch["agent"]["max_history_messages"], 456);
+    assert_eq!(patch["agent"]["parallel_tools"], true);
+    assert_eq!(patch["agent"]["tool_dispatcher"], "manual");
+}
+
+#[test]
+fn agents_settings_patch_normalizes_enabled_identity_files() {
+    let mut app = test_app();
+    entry_mut(&mut app, "main").enabled_identity_files = vec![
+        " SOUL.md ".to_string(),
+        String::new(),
+        "AGENTS.md".to_string(),
+        "SOUL.md".to_string(),
+        " \t ".to_string(),
+    ];
+
+    let patch =
+        build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
+
+    assert_eq!(
+        patch["agents"]["main"]["enabled_identity_files"],
+        serde_json::json!(["AGENTS.md", "SOUL.md"])
+    );
+}
+
+#[test]
+fn workspace_identity_enabled_toggle_adds_removes_deduplicates_and_isolates_agents() {
+    let mut app = test_app();
+
+    assert!(entry(&app, "main").enabled_identity_files.is_empty());
+    assert!(entry(&app, "coder").enabled_identity_files.is_empty());
+    app.agents_settings.selected_agent = "coder".to_string();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEnabledToggled {
+            agent_key: "main".to_string(),
+            file_name: "SOUL.md".to_string(),
+            enabled: true,
+        }),
+    );
+    assert!(app.agents_settings.save_in_flight);
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEnabledToggled {
+            agent_key: "main".to_string(),
+            file_name: "SOUL.md".to_string(),
+            enabled: true,
+        }),
+    );
+
+    assert_eq!(entry(&app, "main").enabled_identity_files, vec!["SOUL.md"]);
+    assert!(entry(&app, "coder").enabled_identity_files.is_empty());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEnabledToggled {
+            agent_key: "main".to_string(),
+            file_name: "SOUL.md".to_string(),
+            enabled: false,
+        }),
+    );
+
+    assert!(entry(&app, "main").enabled_identity_files.is_empty());
+    assert!(entry(&app, "coder").enabled_identity_files.is_empty());
+}
+
+#[test]
+fn agent_subagent_messages_update_and_clamp() {
+    let mut app = test_app();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowAsSubagentToggled("main".to_string(), true)),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::MaxParallelSubagentsChanged("main".to_string(), 99)),
+    );
+
+    let main = entry(&app, "main");
+    assert!(main.allow_as_subagent);
+    assert_eq!(main.max_parallel_subagents, 32);
 }
 
 fn skill_item(id: &str, source: &str, enabled: bool) -> SkillsCatalogItem {
@@ -743,7 +920,10 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged("main".to_string(), 0)),
+        SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged(
+            "main".to_string(),
+            50_002,
+        )),
     );
     let _ = update(
         &mut app,
@@ -758,7 +938,10 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged("main".to_string(), 0)),
+        SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged(
+            "main".to_string(),
+            50_001,
+        )),
     );
     let _ = update(
         &mut app,
@@ -791,10 +974,10 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     assert_eq!(main.model, "model-a");
     assert!(main.enabled);
     assert_eq!(main.temperature, 2.0);
-    assert_eq!(main.max_tool_iterations, 1);
+    assert_eq!(main.max_tool_iterations, 50_002);
     assert_eq!(main.max_history_messages, 1_000);
     assert_eq!(main.max_depth, 32);
-    assert_eq!(main.max_iterations, 1);
+    assert_eq!(main.max_iterations, 50_001);
     assert!(main.compact_context);
     assert!(main.parallel_tools);
     assert_eq!(main.tool_dispatcher, "manual");
@@ -861,6 +1044,55 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
         )),
     );
     assert_eq!(entry(&app, "main").allowed_tools, vec!["read", "web_search_tool"]);
+}
+
+#[test]
+fn agent_config_save_coalesces_changes_while_request_is_in_flight() {
+    let mut app = test_app();
+    app.agents_settings.available_tools = vec!["bash".to_string(), "read".to_string()];
+    entry_mut(&mut app, "main").allowed_tools.clear();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "read".to_string(),
+            true,
+        )),
+    );
+    assert!(app.agents_settings.save_in_flight);
+    assert!(!app.agents_settings.save_pending);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "bash".to_string(),
+            true,
+        )),
+    );
+    assert!(app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.save_pending);
+
+    let _ = handle_agents_config_saved(&mut app, Ok(()));
+    assert!(app.agents_settings.save_in_flight);
+    assert!(!app.agents_settings.save_pending);
+    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash", "read"]);
+
+    let _ = handle_agents_config_saved(&mut app, Ok(()));
+    assert!(!app.agents_settings.save_in_flight);
+    assert!(!app.agents_settings.save_pending);
+}
+
+#[test]
+fn add_agent_defaults_to_all_loaded_tools() {
+    let mut app = test_app();
+    app.agents_settings.available_tools = vec!["bash".to_string(), "read".to_string()];
+    app.agents_settings.new_agent_key_input = "worker_2".to_string();
+
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::AddAgentRequested));
+
+    assert_eq!(entry(&app, "worker_2").allowed_tools, vec!["bash", "read"]);
 }
 
 #[test]

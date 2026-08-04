@@ -10,12 +10,15 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, rounded_action_btn_style,
     settings_close_button, settings_error_banner, settings_modal_card, settings_modal_overlay,
-    settings_panel_style, settings_segment_button_style, settings_value_badge,
+    settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_segment_button_style, settings_value_badge,
 };
 use crate::app::state::{SkillsCatalogKind as CatalogSkillKind, SkillsDirectoryScope};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{
+    Space, button, column, container, pick_list, row, scrollable, text, text_input,
+};
 use iced::{Alignment, Background, Border, Element, Length};
 use vw_config_types::skills::SkillsDirectoryProvider;
 
@@ -24,6 +27,17 @@ pub(super) enum DetailActionStyle {
     Primary,
     Secondary,
     Danger,
+}
+
+pub(super) fn skill_project_options(app: &App) -> Vec<String> {
+    let mut options = Vec::new();
+    for path in app.project_path.iter().chain(app.recent_projects.iter()) {
+        let path = path.trim();
+        if !path.is_empty() && !options.iter().any(|option: &String| option.as_str() == path) {
+            options.push(path.to_string());
+        }
+    }
+    options
 }
 
 pub(super) fn search_bar_style(theme: &iced::Theme) -> iced::widget::container::Style {
@@ -146,10 +160,10 @@ pub(super) fn scope_title(scope: SkillsDirectoryScope) -> &'static str {
 
 pub(super) fn provider_project_paths(provider: SkillsDirectoryProvider) -> &'static str {
     match provider {
-        SkillsDirectoryProvider::Vibewindow => ".vibewindow/skills 与 skills",
-        SkillsDirectoryProvider::Codex => ".codex/skills 与 .agents/skills",
-        SkillsDirectoryProvider::Claude => ".claude/skills",
-        SkillsDirectoryProvider::Cursor => ".cursor/skills",
+        SkillsDirectoryProvider::Vibewindow => ".vibewindow/skills、skills 与 .agents/skills",
+        SkillsDirectoryProvider::Codex => ".codex/skills、.agents/skills 与 skills",
+        SkillsDirectoryProvider::Claude => ".claude/skills、skills 与 .agents/skills",
+        SkillsDirectoryProvider::Cursor => ".cursor/skills、skills 与 .agents/skills",
     }
 }
 
@@ -651,6 +665,30 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .size(13)
         .style(search_text_input_style)
         .width(Length::Fill);
+    let project_options = skill_project_options(app);
+    let project_switcher: Element<'_, Message> = if project_options.is_empty() {
+        text("尚未打开项目；当前仅显示全局与内置技能。")
+            .size(12)
+            .style(settings_muted_text_style)
+            .into()
+    } else {
+        row![
+            text("项目目录").size(13).width(Length::Fixed(84.0)),
+            pick_list(project_options, app.project_path.clone(), |path| {
+                Message::Settings(message::SettingsMessage::SkillsProjectSelected(path))
+            })
+            .placeholder("选择项目目录")
+            .padding([9, 12])
+            .text_size(12)
+            .width(Length::Fill)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style),
+            settings_value_badge(if s.loading { "切换中" } else { "技能作用域" }),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center)
+        .into()
+    };
 
     let header = container(
         column![
@@ -678,6 +716,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             .padding([0, 4])
             .width(Length::Fill)
             .style(search_bar_style),
+            project_switcher,
             row![
                 scope_button(
                     "项目目录",

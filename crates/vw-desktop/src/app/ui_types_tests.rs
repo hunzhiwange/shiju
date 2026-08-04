@@ -28,6 +28,9 @@ fn screen_variants_exclude_removed_apps() {
             super::Screen::WorkflowTool => "WorkflowTool",
             super::Screen::WorkflowManager => "WorkflowManager",
             super::Screen::TaskBoard => "TaskBoard",
+            super::Screen::ShijuApps => "ShijuApps",
+            super::Screen::ShijuSkills => "ShijuSkills",
+            super::Screen::ExpertHub => "ExpertHub",
         }
     }
 
@@ -41,6 +44,9 @@ fn screen_variants_exclude_removed_apps() {
         super::Screen::WorkflowTool,
         super::Screen::WorkflowManager,
         super::Screen::TaskBoard,
+        super::Screen::ShijuApps,
+        super::Screen::ShijuSkills,
+        super::Screen::ExpertHub,
     ];
 
     assert!(!screens.iter().map(|screen| screen_name(*screen)).any(|name| name == "Design"));

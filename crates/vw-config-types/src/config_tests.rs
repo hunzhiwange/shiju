@@ -1,5 +1,5 @@
 #[test]
-fn config_defaults_include_expected_paths_and_models() {
+fn config_defaults_promote_shiju_as_primary_provider() {
     let config = super::Config::default();
     assert!(
         config.workspace_dir.ends_with(
@@ -9,12 +9,25 @@ fn config_defaults_include_expected_paths_and_models() {
     assert!(config.config_path.ends_with(
         std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("vibewindow.json")
     ));
-    assert_eq!(config.default_provider.as_deref(), Some("openrouter"));
-    assert_eq!(config.default_model.as_deref(), Some("zhipuai-coding-plan/glm-5"));
+    assert_eq!(config.default_provider.as_deref(), Some("shiju"));
+    assert_eq!(config.default_model.as_deref(), Some("shiju/deepseek-v4-flash"));
     assert_eq!(config.default_temperature, 0.7);
     assert!(config.enabled_providers.is_empty());
-    assert!(config.popular_providers.is_empty());
-    assert!(config.providers.is_empty());
+    assert_eq!(config.popular_providers, ["shiju"]);
+    assert_eq!(
+        config.providers.get("shiju"),
+        Some(&serde_json::json!({
+            "api": "https://router.shiju.cloud/v1",
+            "env": ["SHIJU_API_KEY"],
+            "adapter": "openai-compatible",
+            "models": {
+                "deepseek-v4-flash": {
+                    "id": "deepseek-v4-flash",
+                    "status": "active"
+                }
+            }
+        }))
+    );
     assert!(config.model_providers.is_empty());
     assert!(config.agents.is_empty());
     assert!(config.model_routes.is_empty());
@@ -26,6 +39,18 @@ fn config_defaults_include_expected_paths_and_models() {
     assert!(config.api_url.is_none());
     assert!(config.provider_api.is_none());
     assert!(config.model_support_vision.is_none());
+}
+
+#[test]
+fn config_deserialization_preserves_explicit_provider_and_model() {
+    let config: super::Config = serde_json::from_value(serde_json::json!({
+        "default_provider": "openrouter",
+        "default_model": "openrouter/explicit-model"
+    }))
+    .unwrap();
+
+    assert_eq!(config.default_provider.as_deref(), Some("openrouter"));
+    assert_eq!(config.default_model.as_deref(), Some("openrouter/explicit-model"));
 }
 
 #[test]

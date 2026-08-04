@@ -18,11 +18,68 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     let definition = super::AgentDefinitionConfig::default();
     assert_eq!(definition.mode, "all");
     assert!(definition.enabled);
+    assert!(definition.allow_as_subagent);
+    assert_eq!(definition.max_parallel_subagents, 4);
     assert_eq!(definition.max_depth, 3);
-    assert_eq!(definition.max_iterations, 10);
+    assert_eq!(definition.max_iterations, 50_000);
 
     assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 11);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
+}
+
+#[test]
+fn agent_definition_defaults_include_subagent_controls() {
+    let definition: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test"
+    }))
+    .expect("legacy-shaped agent config should deserialize");
+
+    assert!(definition.allow_as_subagent);
+    assert_eq!(definition.max_parallel_subagents, 4);
+
+    let value = serde_json::to_value(&definition).expect("agent config should serialize");
+    assert_eq!(value["allow_as_subagent"], true);
+    assert_eq!(value["max_parallel_subagents"], 4);
+}
+
+#[test]
+fn agent_definition_identity_files_default_empty_and_round_trip() {
+    let legacy: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test"
+    }))
+    .expect("legacy-shaped agent config should deserialize");
+
+    assert!(legacy.enabled_identity_files.is_empty());
+
+    let definition = super::AgentDefinitionConfig {
+        provider: "openai".to_string(),
+        model: "gpt-test".to_string(),
+        enabled_identity_files: vec!["SOUL.md".to_string(), "AGENTS.md".to_string()],
+        ..Default::default()
+    };
+    let value = serde_json::to_value(&definition).expect("agent config should serialize");
+    assert_eq!(
+        value["enabled_identity_files"],
+        serde_json::json!(["SOUL.md", "AGENTS.md"])
+    );
+    let decoded: super::AgentDefinitionConfig =
+        serde_json::from_value(value).expect("agent config should deserialize");
+
+    assert_eq!(decoded.enabled_identity_files, vec!["SOUL.md", "AGENTS.md"]);
+}
+
+#[test]
+fn agent_definition_preserves_explicit_subagent_opt_out() {
+    let definition: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test",
+        "allow_as_subagent": false
+    }))
+    .expect("explicit subagent opt-out should deserialize");
+
+    assert!(!definition.allow_as_subagent);
 }
 
 #[test]

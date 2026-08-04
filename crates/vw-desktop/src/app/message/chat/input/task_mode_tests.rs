@@ -6,7 +6,7 @@ use super::{
     handle_task_mode_reasoning_effort_changed, handle_task_mode_remove_subtask,
     handle_task_mode_subtask_changed, handle_task_mode_subtask_editor_action,
     handle_task_mode_task_split_mode_changed, handle_task_mode_toggled,
-    handle_workflow_mode_toggled,
+    handle_goal_mode_toggled, handle_subagent_mode_toggled, handle_workflow_mode_toggled,
 };
 use crate::app::App;
 use crate::app::task::TaskSplitMode;
@@ -56,6 +56,39 @@ fn task_mode_scalar_settings_update_current_runtime() {
     assert_eq!(runtime.task_mode_model, "auto");
     assert_eq!(runtime.task_mode_executor, None);
     assert_eq!(runtime.task_mode_task_split_mode, TaskSplitMode::Disabled);
+}
+
+#[test]
+fn goal_mode_toggle_is_mutually_exclusive_with_workflow() {
+    let mut app = test_app();
+
+    handle_workflow_mode_toggled(&mut app, true);
+    assert!(app.current_session_runtime().workflow_mode_enabled);
+    assert!(!app.current_session_runtime().goal_mode_enabled);
+
+    handle_goal_mode_toggled(&mut app, true);
+    assert!(app.current_session_runtime().goal_mode_enabled);
+    assert!(!app.current_session_runtime().workflow_mode_enabled);
+
+    handle_workflow_mode_toggled(&mut app, true);
+    assert!(app.current_session_runtime().workflow_mode_enabled);
+    assert!(!app.current_session_runtime().goal_mode_enabled);
+}
+
+#[test]
+fn subagent_mode_toggle_is_independent_from_workflow_and_goal_modes() {
+    let mut app = test_app();
+
+    handle_goal_mode_toggled(&mut app, true);
+    handle_subagent_mode_toggled(&mut app, true);
+    let runtime = app.current_session_runtime();
+    assert!(runtime.goal_mode_enabled);
+    assert!(runtime.subagent_mode_enabled);
+
+    handle_subagent_mode_toggled(&mut app, false);
+    let runtime = app.current_session_runtime();
+    assert!(runtime.goal_mode_enabled);
+    assert!(!runtime.subagent_mode_enabled);
 }
 
 #[test]

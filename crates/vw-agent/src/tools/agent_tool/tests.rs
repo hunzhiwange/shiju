@@ -1,205 +1,137 @@
 use super::*;
-use crate::app::agent::config::{DelegateAgentConfig, MultimodalConfig};
-use crate::app::agent::providers::ProviderRuntimeOptions;
-use crate::app::agent::security::policy::AutonomyLevel;
-use crate::app::agent::tools::subagent_registry::{SubAgentSession, SubAgentStatus};
+use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::tools::traits::Tool;
-use chrono::{Duration, Utc};
 use serde_json::json;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use tokio::sync::oneshot;
 
-fn build_tool_with_registry(
-    registry: Arc<SubAgentRegistry>,
-    security: SecurityPolicy,
-) -> AgentTool {
+async fn create_parent(directory: String) -> crate::session::session::Info {
+    crate::app::agent::project::instance::provide(directory.clone(), None, move || {
+        Box::pin(async move {
+            crate::session::session::create_next(crate::session::session::CreateInput {
+                parent_id: None,
+                title: Some("AgentTool parent".to_string()),
+                directory,
+                permission: None,
+            })
+            .await
+        })
+    })
+    .await
+    .expect("project context should initialize")
+    .expect("parent session should persist")
+}
+
+async fn load_session(directory: String, session_id: String) -> crate::session::session::Info {
+    crate::app::agent::project::instance::provide(directory, None, move || {
+        Box::pin(async move { crate::session::session::get(&session_id).await })
+    })
+    .await
+    .expect("project context should initialize")
+    .expect("session should persist")
+}
+
+fn build_tool_with_agents(agents: HashMap<String, DelegateAgentConfig>) -> AgentTool {
+    AgentTool::new(agents, None, std::path::PathBuf::new())
+}
+
+fn build_tool() -> AgentTool {
+    build_tool_with_agents(HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]))
+}
+
+#[test]
+fn agent_tool_spec_allows_isolated_child_sessions_to_run_concurrently() {
+    let spec = build_tool().spec();
+
+    assert!(!spec.read_only);
+    assert!(spec.concurrency_safe);
+}
+
+fn build_persistent_tool<F>(
+    parent_session_id: String,
+    directory: String,
+    execute_stream: F,
+) -> AgentTool
+where
+    F: Fn(
+            vw_api_types::chat::GatewayChatStreamRequest,
+        ) -> futures_util::future::BoxFuture<
+            'static,
+            Result<
+                crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected,
+                crate::gateway::ApiError,
+            >,
+        > + Send
+        + Sync
+        + 'static,
+{
     let agents = HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]);
-    build_tool_with_agents(agents, registry, security)
-}
-
-fn build_tool_with_agents(
-    agents: HashMap<String, DelegateAgentConfig>,
-    registry: Arc<SubAgentRegistry>,
-    mut security: SecurityPolicy,
-) -> AgentTool {
-    security.max_actions_per_hour = 10;
-    let security = Arc::new(security);
-    let delegate_tool = Arc::new(DelegateTool::new(
-        agents.clone(),
-        Some("fallback-key".to_string()),
-        Arc::clone(&security),
-    ));
-    let background_tool = Arc::new(SubAgentSpawnTool::new(
-        agents.clone(),
-        Some("fallback-key".to_string()),
-        Arc::clone(&security),
-        ProviderRuntimeOptions::default(),
-        Arc::clone(&registry),
-        Arc::new(Vec::new()),
-        MultimodalConfig::default(),
-    ));
-
-    AgentTool::new(agents, delegate_tool, background_tool, registry, security)
-}
-
-fn build_tool() -> (AgentTool, Arc<SubAgentRegistry>) {
-    let registry = Arc::new(SubAgentRegistry::new());
-    (build_tool_with_registry(Arc::clone(&registry), SecurityPolicy::default()), registry)
-}
-
-fn insert_session(
-    registry: &SubAgentRegistry,
-    id: &str,
-    status: SubAgentStatus,
-    result: Option<ToolResult>,
-) {
-    let now = Utc::now();
-    registry.insert(SubAgentSession {
-        id: id.to_string(),
-        agent_name: "writer".to_string(),
-        title: Some("Draft".to_string()),
-        task: "write a careful summary".to_string(),
-        metadata: json!({"topic": "coverage"}),
-        status,
-        started_at: now - Duration::milliseconds(12),
-        updated_at: now,
-        completed_at: result.as_ref().map(|_| now),
-        result,
-        #[cfg(not(target_arch = "wasm32"))]
-        handle: None,
-    });
+    let execute_stream = Arc::new(execute_stream);
+    AgentTool::new(agents, Some(parent_session_id), directory.into())
+        .with_child_agent_stream_executor(execute_stream)
 }
 
 #[test]
-fn truncate_output_preserves_short_text_and_marks_truncation() {
-    assert_eq!(truncate_output("short", 10), "short");
-    assert_eq!(truncate_output("abcdef", 3), "abc... (truncated)");
+fn action_validation_accepts_launch_aliases_and_rejects_legacy_actions() {
+    let tool = build_tool();
+
+    for (args, expected) in [
+        (json!({}), AgentToolAction::Launch),
+        (json!({"action": "launch"}), AgentToolAction::Launch),
+        (json!({"action": "run"}), AgentToolAction::Run),
+        (json!({"action": " SPAWN "}), AgentToolAction::Launch),
+        (json!({"action": "status"}), AgentToolAction::Status),
+        (json!({"action": "wait"}), AgentToolAction::Wait),
+        (json!({"action": "stop"}), AgentToolAction::Stop),
+    ] {
+        assert_eq!(
+            tool.action_from_args(&args).expect("supported action should be accepted"),
+            expected
+        );
+    }
+
+    for action in ["list", "get", "kill", "message", "dance"] {
+        let err = tool
+            .action_from_args(&json!({"action": action}))
+            .expect_err("legacy or unknown action should fail");
+        assert!(err.to_string().contains("Unknown AgentTool action"));
+    }
 }
 
 #[test]
-fn truncate_output_respects_char_boundaries() {
-    assert_eq!(truncate_output("你好世界", 2), "你好... (truncated)");
-}
-
-#[test]
-fn truncate_output_handles_zero_and_exact_character_limits() {
-    assert_eq!(truncate_output("", 0), "");
-    assert_eq!(truncate_output("abc", 0), "... (truncated)");
-    assert_eq!(truncate_output("你好", 2), "你好");
-}
-
-#[test]
-fn action_resolution_accepts_aliases_and_legacy_inference() {
-    let (tool, _) = build_tool();
-
-    assert!(matches!(tool.resolve_action(&json!({"action": "run"})).unwrap(), AgentAction::Launch));
-    assert!(matches!(tool.resolve_action(&json!({"action": "status"})).unwrap(), AgentAction::Get));
-    assert!(matches!(tool.resolve_action(&json!({"action": "kill"})).unwrap(), AgentAction::Stop));
-    assert!(matches!(
-        tool.resolve_action(&json!({"status": "running"})).unwrap(),
-        AgentAction::List
-    ));
-    assert!(matches!(tool.resolve_action(&json!({"session_id": "s1"})).unwrap(), AgentAction::Get));
-    assert!(matches!(tool.resolve_action(&json!({})).unwrap(), AgentAction::Launch));
-
-    let message_err = match tool.resolve_action(&json!({"action": "message"})) {
-        Ok(_) => panic!("message action should fail"),
-        Err(err) => err,
-    };
-    assert!(message_err.to_string().contains("not implemented"));
-
-    let unknown_err = match tool.resolve_action(&json!({"action": "dance"})) {
-        Ok(_) => panic!("unknown action should fail"),
-        Err(err) => err,
-    };
-    assert!(unknown_err.to_string().contains("Unknown AgentTool action"));
-}
-
-#[test]
-fn action_resolution_normalizes_explicit_actions_and_preserves_precedence() {
-    let (tool, _) = build_tool();
-
-    assert!(matches!(
-        tool.resolve_action(&json!({"action": " SPAWN "})).unwrap(),
-        AgentAction::Launch
-    ));
-    assert!(matches!(tool.resolve_action(&json!({"action": "LIST"})).unwrap(), AgentAction::List));
-    assert!(matches!(tool.resolve_action(&json!({"action": " get "})).unwrap(), AgentAction::Get));
-    assert!(matches!(tool.resolve_action(&json!({"action": "STOP"})).unwrap(), AgentAction::Stop));
-
-    assert!(matches!(
-        tool.resolve_action(&json!({"action": " ", "status": "running"})).unwrap(),
-        AgentAction::List
-    ));
-    assert!(matches!(
-        tool.resolve_action(&json!({"status": "running", "agent": "writer"})).unwrap(),
-        AgentAction::Launch
-    ));
-    assert!(matches!(
-        tool.resolve_action(&json!({"status": "running", "session_id": "s1"})).unwrap(),
-        AgentAction::Get
-    ));
-    assert!(matches!(
-        tool.resolve_action(&json!({"action": "list", "session_id": "s1"})).unwrap(),
-        AgentAction::List
-    ));
-}
-
-#[test]
-fn argument_helpers_trim_and_validate_aliases() {
-    let (tool, _) = build_tool();
+fn argument_helpers_trim_and_validate_agent_alias() {
+    let tool = build_tool();
     let args = json!({
         "subagent_type": " writer ",
-        "task": " draft ",
-        "run_in_background": false,
-        "status": "all"
+        "prompt": " draft "
     });
 
     assert_eq!(tool.agent_name_from_args(&args), Some("writer"));
     assert_eq!(tool.prompt_from_args(&args), Some("draft"));
-    assert!(!tool.run_in_background(&args));
-    assert_eq!(tool.normalized_status_filter(&args).unwrap(), None);
-    assert_eq!(tool.session_id_from_args(&json!({"session_id": " s1 "})).unwrap(), "s1");
-
-    let err = tool.session_id_from_args(&json!({"session_id": " "})).unwrap_err();
-    assert!(err.to_string().contains("Missing 'session_id'"));
-
-    let err = tool.normalized_status_filter(&json!({"status": "paused"})).unwrap_err();
-    assert!(err.to_string().contains("Invalid status filter"));
 }
 
 #[test]
-fn argument_helpers_cover_primary_fields_types_and_status_boundaries() {
-    let (tool, _) = build_tool();
+fn argument_helpers_cover_primary_fields_and_types() {
+    let tool = build_tool();
     let primary = json!({
         "agent": " writer ",
         "subagent_type": "ignored",
-        "prompt": " draft ",
-        "task": "ignored"
+        "prompt": " draft "
     });
 
     assert_eq!(tool.agent_name_from_args(&primary), Some("writer"));
     assert_eq!(tool.prompt_from_args(&primary), Some("draft"));
     assert_eq!(tool.agent_name_from_args(&json!({"agent": 7})), None);
     assert_eq!(tool.prompt_from_args(&json!({"prompt": false})), None);
-    assert!(tool.run_in_background(&json!({"run_in_background": true})));
-    assert!(tool.run_in_background(&json!({"task": "background"})));
-    assert!(!tool.run_in_background(&json!({"prompt": "foreground"})));
-
-    for status in ["running", "completed", "failed", "killed"] {
-        let args = json!({"status": status});
-        assert_eq!(tool.normalized_status_filter(&args).unwrap(), Some(status));
-    }
-    assert_eq!(tool.normalized_status_filter(&json!({"status": "  "})).unwrap(), None);
-    assert_eq!(tool.normalized_status_filter(&json!({"status": 1})).unwrap(), None);
 }
 
 #[test]
-fn blank_primary_fields_do_not_fall_back_to_compatibility_aliases() {
-    let (tool, _) = build_tool();
+fn blank_primary_fields_do_not_fall_back_to_aliases() {
+    let tool = build_tool();
     let args = json!({
         "agent": "   ",
         "subagent_type": "writer",
-        "prompt": "\t",
-        "task": "draft"
+        "prompt": "\t"
     });
 
     assert_eq!(tool.agent_name_from_args(&args), None);
@@ -208,24 +140,55 @@ fn blank_primary_fields_do_not_fall_back_to_compatibility_aliases() {
     let typed_aliases = json!({
         "agent": 7,
         "subagent_type": " writer ",
-        "prompt": false,
-        "task": " draft "
+        "prompt": false
     });
     assert_eq!(tool.agent_name_from_args(&typed_aliases), Some("writer"));
-    assert_eq!(tool.prompt_from_args(&typed_aliases), Some("draft"));
+    assert_eq!(tool.prompt_from_args(&typed_aliases), None);
 }
 
 #[test]
 fn spec_and_schema_describe_configured_agents() {
-    let (tool, _) = build_tool();
+    let tool = build_tool_with_agents(HashMap::from([(
+        "writer".to_string(),
+        DelegateAgentConfig {
+            label: Some("Writer".to_string()),
+            description: Some("Draft and revise documents".to_string()),
+            ..DelegateAgentConfig::default()
+        },
+    )]));
 
     assert_eq!(tool.name(), "AgentTool");
-    assert!(tool.description().contains("AgentTool"));
+    let description = tool.description();
+    for expected in ["complex", "simple", "parallel", "synthesize"] {
+        assert!(
+            description.contains(expected),
+            "AgentTool description should explain {expected}: {description}"
+        );
+    }
+    for unsupported in ["action=list", "action=get"] {
+        assert!(
+            !description.contains(unsupported),
+            "AgentTool description must not advertise unsupported '{unsupported}': {description}"
+        );
+    }
+
+    let schema = tool.parameters_schema();
+    let agent_description = schema["properties"]["agent"]["description"]
+        .as_str()
+        .expect("agent description");
+    for expected in ["writer", "Writer", "Draft and revise documents"] {
+        assert!(
+            agent_description.contains(expected),
+            "agent description should contain {expected}: {agent_description}"
+        );
+    }
+    assert_eq!(schema["properties"]["agent"]["enum"], json!(["writer"]));
+    assert_eq!(schema["properties"]["subagent_type"]["enum"], json!(["writer"]));
     assert!(
-        tool.parameters_schema()["properties"]["agent"]["description"]
+        schema["properties"]["prompt"]["description"]
             .as_str()
-            .unwrap()
-            .contains("writer")
+            .expect("prompt description")
+            .contains("validation")
     );
 
     let spec = tool.spec();
@@ -233,19 +196,18 @@ fn spec_and_schema_describe_configured_agents() {
     assert!(spec.aliases.contains(&"agent".to_string()));
     assert!(!spec.read_only);
     assert!(!spec.destructive);
-    assert!(!spec.concurrency_safe);
+    assert!(spec.concurrency_safe);
     assert!(!spec.requires_user_interaction);
     assert!(spec.strict);
 }
 
 #[test]
 fn schema_is_closed_and_agent_description_is_stable() {
-    let registry = Arc::new(SubAgentRegistry::new());
     let agents = HashMap::from([
         ("zeta".to_string(), DelegateAgentConfig::default()),
         ("alpha".to_string(), DelegateAgentConfig::default()),
     ]);
-    let tool = build_tool_with_agents(agents, Arc::clone(&registry), SecurityPolicy::default());
+    let tool = build_tool_with_agents(agents);
 
     assert_eq!(tool.available_agents_description(), "alpha, zeta");
     let schema = tool.parameters_schema();
@@ -253,14 +215,16 @@ fn schema_is_closed_and_agent_description_is_stable() {
     assert_eq!(schema["additionalProperties"], false);
     assert_eq!(
         schema["properties"]["action"]["enum"],
-        json!(["launch", "run", "spawn", "list", "get", "stop", "kill"])
+        json!(["launch", "run", "spawn", "status", "wait", "stop"])
     );
-    assert_eq!(
-        schema["properties"]["status"]["enum"],
-        json!(["running", "completed", "failed", "killed", "all"])
-    );
+    for removed_property in ["task", "run_in_background", "session_id", "status"] {
+        assert!(
+            schema["properties"].get(removed_property).is_none(),
+            "legacy property '{removed_property}' must not be exposed"
+        );
+    }
 
-    let empty = build_tool_with_agents(HashMap::new(), registry, SecurityPolicy::default());
+    let empty = build_tool_with_agents(HashMap::new());
     assert_eq!(empty.available_agents_description(), "（未配置）");
     assert!(
         empty.parameters_schema()["properties"]["agent"]["description"]
@@ -272,7 +236,7 @@ fn schema_is_closed_and_agent_description_is_stable() {
 
 #[tokio::test]
 async fn execute_rejects_missing_required_parameters_before_delegation() {
-    let (tool, _) = build_tool();
+    let tool = build_tool();
 
     let missing_agent =
         tool.execute(json!({"action": "launch", "prompt": "draft"})).await.unwrap_err();
@@ -281,153 +245,492 @@ async fn execute_rejects_missing_required_parameters_before_delegation() {
     let missing_prompt =
         tool.execute(json!({"action": "launch", "agent": "writer"})).await.unwrap_err();
     assert!(missing_prompt.to_string().contains("Missing 'prompt' parameter"));
-
-    let missing_get_session = tool.execute(json!({"action": "get"})).await.unwrap_err();
-    assert!(missing_get_session.to_string().contains("Missing 'session_id' parameter"));
-
-    let missing_stop_session = tool.execute(json!({"action": "stop"})).await.unwrap_err();
-    assert!(missing_stop_session.to_string().contains("Missing 'session_id' parameter"));
 }
 
 #[tokio::test]
-async fn launch_forwards_unknown_agent_failures_without_creating_sessions() {
-    let (tool, registry) = build_tool();
+async fn launch_reports_unknown_agent() {
+    let callback_called = Arc::new(AtomicBool::new(false));
+    let callback_called_in_tool = callback_called.clone();
+    let tool = build_tool().with_child_session_created_callback(Arc::new(move |_created| {
+        callback_called_in_tool.store(true, Ordering::SeqCst);
+    }));
 
-    let foreground = tool
-        .execute(json!({
-            "action": "launch",
-            "agent": "missing",
-            "prompt": "draft",
-            "run_in_background": false
-        }))
+    let result = tool
+        .execute(json!({"action": "launch", "agent": "missing", "prompt": "draft"}))
         .await
         .unwrap();
-    assert!(!foreground.success);
-    assert!(foreground.error.unwrap().contains("Unknown agent 'missing'"));
+    assert!(!result.success);
+    assert!(result.error.unwrap().contains("Unknown agent 'missing'"));
+    assert!(!callback_called.load(Ordering::SeqCst));
+}
 
-    let background = tool
-        .execute(json!({"action": "launch", "agent": "missing", "task": "draft"}))
+#[tokio::test]
+async fn launch_without_parent_does_not_report_running_child() {
+    let callback_called = Arc::new(AtomicBool::new(false));
+    let callback_called_in_tool = callback_called.clone();
+    let tool = build_tool().with_child_session_created_callback(Arc::new(move |_created| {
+        callback_called_in_tool.store(true, Ordering::SeqCst);
+    }));
+
+    let error = tool
+        .execute(json!({"action": "launch", "agent": "writer", "prompt": "draft"}))
         .await
-        .unwrap();
-    assert!(!background.success);
-    assert!(background.error.unwrap().contains("Unknown agent 'missing'"));
-    assert!(registry.list(None).is_empty());
+        .expect_err("missing parent should fail");
+
+    assert!(error.to_string().contains("current parent session ID"));
+    assert!(!callback_called.load(Ordering::SeqCst));
 }
 
-#[tokio::test]
-async fn get_serializes_running_and_failed_session_shapes() {
-    let (tool, registry) = build_tool();
-    insert_session(&registry, "running", SubAgentStatus::Running, None);
-    insert_session(
-        &registry,
-        "failed",
-        SubAgentStatus::Failed,
-        Some(ToolResult {
-            success: false,
-            output: "partial output".to_string(),
-            error: Some("provider rejected request".to_string()),
-        }),
-    );
-
-    let running = tool.execute(json!({"action": "get", "session_id": "running"})).await.unwrap();
-    let running_body: serde_json::Value = serde_json::from_str(&running.output).unwrap();
-    assert_eq!(running_body["status"], "running");
-    assert_eq!(running_body["duration_ms"], serde_json::Value::Null);
-    assert!(running_body.get("completed_at").is_none());
-    assert!(running_body.get("result").is_none());
-    assert_eq!(running_body["title"], "Draft");
-    assert_eq!(running_body["metadata"], json!({"topic": "coverage"}));
-
-    let failed = tool.execute(json!({"action": "get", "session_id": "failed"})).await.unwrap();
-    let failed_body: serde_json::Value = serde_json::from_str(&failed.output).unwrap();
-    assert_eq!(failed_body["status"], "failed");
-    assert_eq!(failed_body["duration_ms"], 12);
-    assert!(failed_body.get("completed_at").is_some());
-    assert_eq!(failed_body["result"]["success"], false);
-    assert_eq!(failed_body["result"]["output"], "partial output");
-    assert_eq!(failed_body["result"]["error"], "provider rejected request");
-}
-
-#[tokio::test]
-async fn get_clamps_negative_session_duration_to_zero() {
-    let (tool, registry) = build_tool();
-    let started_at = Utc::now();
-    registry.insert(SubAgentSession {
-        id: "reversed-time".to_string(),
-        agent_name: "writer".to_string(),
-        title: None,
-        task: "inspect timestamps".to_string(),
-        metadata: serde_json::Value::Null,
-        status: SubAgentStatus::Completed,
-        started_at,
-        updated_at: started_at,
-        completed_at: Some(started_at - Duration::milliseconds(1)),
-        result: None,
-        #[cfg(not(target_arch = "wasm32"))]
-        handle: None,
+#[tokio::test(flavor = "current_thread")]
+async fn run_waits_for_persistent_child_session() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let completed = Arc::new(AtomicBool::new(false));
+    let completed_in_executor = completed.clone();
+    let release_rx = Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
+    let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
+    let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
+        let release_rx = release_rx.clone();
+        let started_tx = started_tx.clone();
+        let completed = completed_in_executor.clone();
+        Box::pin(async move {
+            started_tx
+                .lock()
+                .expect("started lock")
+                .take()
+                .expect("one child")
+                .send(())
+                .expect("executor should start");
+            release_rx
+                .lock()
+                .await
+                .take()
+                .expect("one child")
+                .await
+                .expect("release child executor");
+            completed.store(true, Ordering::SeqCst);
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "child completed".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
     });
 
-    let result =
-        tool.execute(json!({"action": "get", "session_id": "reversed-time"})).await.unwrap();
-    let body: serde_json::Value = serde_json::from_str(&result.output).unwrap();
-    assert_eq!(body["duration_ms"], 0);
-    assert_eq!(body["status"], "completed");
-    assert!(body.get("completed_at").is_some());
+    let task = tokio::spawn(async move {
+        tool.execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"})).await
+    });
+    started_rx.await.expect("AgentTool should start child stream");
+    assert!(!task.is_finished(), "AgentTool must wait for child completion");
+    release_tx.send(()).expect("release child executor");
+    let result = task.await.expect("launch task should join").expect("launch should return");
+    let body: serde_json::Value = serde_json::from_str(&result.output).expect("structured result");
+
+    assert!(completed.load(Ordering::SeqCst));
+    assert!(result.success);
+    assert_eq!(body["parent_session_id"], parent.id);
+    assert_ne!(body["child_session_id"], parent.id);
+    assert_eq!(body["terminal_state"], "succeeded");
+    assert_eq!(body["output"], "child completed");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn launch_returns_running_before_child_completes_and_wait_observes_completion() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let started_in_executor = started.clone();
+    let release_in_executor = release.clone();
+    let coordinator =
+        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let launcher = build_persistent_tool(parent.id.clone(), directory.clone(), move |_request| {
+        let started = started_in_executor.clone();
+        let release = release_in_executor.clone();
+        Box::pin(async move {
+            started.notify_one();
+            release.notified().await;
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "background complete".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    })
+    .with_coordinator(coordinator.clone());
+    let controller = AgentTool::new(
+        HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]),
+        Some(parent.id.clone()),
+        directory.into(),
+    )
+    .with_coordinator(coordinator);
+
+    let launch = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        launcher.execute(json!({
+            "action": "launch",
+            "agent": "writer",
+            "prompt": "inspect in background"
+        })),
+    )
+    .await
+    .expect("background launch should return before the child completes")
+    .expect("launch should succeed");
+    let launch_body: serde_json::Value =
+        serde_json::from_str(&launch.output).expect("structured launch result");
+    assert_eq!(launch_body["state"], "running");
+    let child_session_id = launch_body["child_session_id"]
+        .as_str()
+        .expect("child session ID")
+        .to_string();
+    tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
+        .await
+        .expect("background child should start");
+
+    release.notify_waiters();
+    let waited = controller
+        .execute(json!({
+            "action": "wait",
+            "child_session_ids": [child_session_id],
+            "condition": "all",
+            "timeout_ms": 1_000
+        }))
+        .await
+        .expect("wait should succeed");
+    let wait_body: serde_json::Value =
+        serde_json::from_str(&waited.output).expect("structured wait result");
+
+    assert_eq!(wait_body["timed_out"], false);
+    assert_eq!(wait_body["tasks"][0]["state"], "succeeded");
+    assert_eq!(wait_body["tasks"][0]["output"], "background complete");
 }
 
 #[tokio::test]
-async fn list_get_and_stop_cover_registry_paths() {
-    let (tool, registry) = build_tool();
-    insert_session(
-        &registry,
-        "done",
-        SubAgentStatus::Completed,
-        Some(ToolResult { success: true, output: "x".repeat(520), error: None }),
+async fn status_wait_timeout_and_stop_are_scoped_to_the_parent_session() {
+    let coordinator =
+        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let owned_cancellation = coordinator
+        .register("parent-1", "child-owned", "writer", "owned task")
+        .expect("owned task should register");
+    coordinator
+        .mark_running("parent-1", "child-owned")
+        .expect("owned task should start");
+    coordinator
+        .register("parent-2", "child-foreign", "writer", "foreign task")
+        .expect("foreign task should register");
+    let tool = AgentTool::new(
+        HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]),
+        Some("parent-1".to_string()),
+        std::path::PathBuf::new(),
+    )
+    .with_coordinator(coordinator);
+
+    let status = tool
+        .execute(json!({"action": "status"}))
+        .await
+        .expect("status should succeed");
+    let status_body: Value = serde_json::from_str(&status.output).expect("status result");
+    assert_eq!(status_body["tasks"].as_array().expect("tasks").len(), 1);
+    assert_eq!(status_body["tasks"][0]["child_session_id"], "child-owned");
+
+    let waited = tool
+        .execute(json!({
+            "action": "wait",
+            "child_session_id": "child-owned",
+            "timeout_ms": 1
+        }))
+        .await
+        .expect("wait should return a timeout snapshot");
+    let wait_body: Value = serde_json::from_str(&waited.output).expect("wait result");
+    assert_eq!(wait_body["timed_out"], true);
+    assert_eq!(wait_body["tasks"][0]["state"], "running");
+
+    let stopped = tool
+        .execute(json!({"action": "stop", "child_session_ids": ["child-owned"]}))
+        .await
+        .expect("stop should succeed");
+    let stop_body: Value = serde_json::from_str(&stopped.output).expect("stop result");
+    assert_eq!(stop_body["tasks"][0]["state"], "cancelled");
+    assert!(owned_cancellation.is_cancelled());
+
+    let foreign_error = tool
+        .execute(json!({"action": "status", "child_session_id": "child-foreign"}))
+        .await
+        .expect_err("another parent's child must not be visible");
+    assert!(foreign_error.to_string().contains("does not belong to parent"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn concurrent_runs_respect_configured_limit() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let active = Arc::new(AtomicUsize::new(0));
+    let max_active = Arc::new(AtomicUsize::new(0));
+    let active_in_executor = active.clone();
+    let max_active_in_executor = max_active.clone();
+    let tool = Arc::new(
+        build_persistent_tool(parent.id, directory, move |_request| {
+            let active = active_in_executor.clone();
+            let max_active = max_active_in_executor.clone();
+            Box::pin(async move {
+                let now = active.fetch_add(1, Ordering::SeqCst) + 1;
+                max_active.fetch_max(now, Ordering::SeqCst);
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                active.fetch_sub(1, Ordering::SeqCst);
+                Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                    output: "done".to_string(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            })
+        })
+        .with_max_parallel_subagents(2),
     );
-    insert_session(&registry, "running", SubAgentStatus::Running, None);
 
-    let list = tool.execute(json!({"action": "list", "status": "completed"})).await.unwrap();
-    assert!(list.success);
-    assert!(list.output.contains("\"session_id\": \"done\""));
-    assert!(!list.output.contains("\"session_id\": \"running\""));
+    let tasks = (0..5)
+        .map(|index| {
+            let tool = tool.clone();
+            tokio::spawn(async move {
+                tool.execute(json!({
+                    "action": "run",
+                    "agent": "writer",
+                    "prompt": format!("task {index}")
+                }))
+                .await
+            })
+        })
+        .collect::<Vec<_>>();
+    for task in tasks {
+        task.await.expect("launch task should join").expect("launch should return");
+    }
 
-    let get = tool.execute(json!({"action": "get", "session_id": "done"})).await.unwrap();
-    assert!(get.success);
-    let body: serde_json::Value = serde_json::from_str(&get.output).unwrap();
-    assert_eq!(body["session_id"], "done");
-    assert_eq!(body["result"]["success"], true);
-    assert!(body["result"]["output"].as_str().unwrap().ends_with("... (truncated)"));
-
-    let missing = tool.execute(json!({"action": "get", "session_id": "missing"})).await.unwrap();
-    assert!(!missing.success);
-    assert_eq!(missing.error.as_deref(), Some("Unknown session 'missing'"));
-
-    let stopped = tool.execute(json!({"action": "stop", "session_id": "running"})).await.unwrap();
-    assert!(stopped.success);
-    let stopped_body: serde_json::Value = serde_json::from_str(&stopped.output).unwrap();
-    assert_eq!(stopped_body["status"], "killed");
-
-    let stopped_again =
-        tool.execute(json!({"action": "stop", "session_id": "running"})).await.unwrap();
-    assert!(!stopped_again.success);
-    assert!(stopped_again.error.unwrap().contains("is not running"));
+    assert_eq!(max_active.load(Ordering::SeqCst), 2);
 }
 
-#[tokio::test]
-async fn stop_reports_unknown_or_read_only_sessions() {
-    let registry = Arc::new(SubAgentRegistry::new());
-    insert_session(&registry, "running", SubAgentStatus::Running, None);
+#[tokio::test(flavor = "current_thread")]
+async fn launch_rejects_session_depth_at_agent_limit() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let root = create_parent(directory.clone()).await;
+    let directory_for_chain = directory.clone();
+    let root_id = root.id.clone();
+    let grandchild =
+        crate::app::agent::project::instance::provide(directory.clone(), None, move || {
+            Box::pin(async move {
+                let child =
+                    crate::session::session::create_next(crate::session::session::CreateInput {
+                        parent_id: Some(root_id),
+                        title: Some("child".to_string()),
+                        directory: directory_for_chain.clone(),
+                        permission: None,
+                    })
+                    .await?;
+                crate::session::session::create_next(crate::session::session::CreateInput {
+                    parent_id: Some(child.id),
+                    title: Some("grandchild".to_string()),
+                    directory: directory_for_chain,
+                    permission: None,
+                })
+                .await
+            })
+        })
+        .await
+        .expect("project context should initialize")
+        .expect("session chain should persist");
+    let executor_called = Arc::new(AtomicBool::new(false));
+    let executor_called_in_tool = executor_called.clone();
+    let agents = HashMap::from([(
+        "main".to_string(),
+        DelegateAgentConfig { max_depth: 2, ..DelegateAgentConfig::default() },
+    )]);
+    let tool = AgentTool::new(agents, Some(grandchild.id), directory.into())
+        .with_child_agent_stream_executor(Arc::new(move |_request| {
+            executor_called_in_tool.store(true, Ordering::SeqCst);
+            Box::pin(async move {
+                Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                    output: "should not run".to_string(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            })
+        }));
 
-    let mut read_only = SecurityPolicy::default();
-    read_only.autonomy = AutonomyLevel::ReadOnly;
-    let tool = build_tool_with_registry(Arc::clone(&registry), read_only);
+    let result = tool
+        .execute(json!({"action": "launch", "agent": "main", "prompt": "recurse"}))
+        .await
+        .expect("depth rejection should return a tool result");
 
-    let denied = tool.execute(json!({"action": "stop", "session_id": "running"})).await.unwrap();
-    assert!(!denied.success);
-    assert!(denied.error.unwrap().contains("read-only mode"));
+    assert!(!result.success);
+    assert!(result.error.expect("depth error").contains("depth limit reached"));
+    assert!(!executor_called.load(Ordering::SeqCst));
+}
 
-    let (tool, _) = build_tool();
-    let unknown = tool.execute(json!({"action": "stop", "session_id": "missing"})).await.unwrap();
-    assert!(!unknown.success);
-    assert_eq!(unknown.error.as_deref(), Some("Unknown session 'missing'"));
+#[tokio::test(flavor = "current_thread")]
+async fn completed_launch_render_metadata_retains_child_session_id() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let tool = build_persistent_tool(parent.id.clone(), directory, |_request| {
+        Box::pin(async move {
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "child completed".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    });
+
+    let result = tool
+        .execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"}))
+        .await
+        .expect("launch should return");
+    let lifted = ToolCallResult::from_legacy_result(result);
+    let hint = tool.render_hint(&lifted).expect("AgentTool render metadata");
+    let output: Value =
+        serde_json::from_str(lifted.data["output"].as_str().expect("structured output"))
+            .expect("parse output");
+
+    assert_eq!(hint.metadata["parent_session_id"], parent.id);
+    assert_eq!(hint.metadata["child_session_id"], output["child_session_id"]);
+    assert_eq!(hint.metadata["agent"], "writer");
+    assert_eq!(hint.metadata["task"], "inspect");
+}
+
+#[test]
+fn single_task_status_render_metadata_retains_child_session_id() {
+    let tool = build_tool();
+    let lifted = ToolCallResult::from_legacy_result(ToolResult {
+        success: true,
+        output: json!({
+            "action": "status",
+            "tasks": [{
+                "parent_session_id": "parent",
+                "child_session_id": "child",
+                "agent": "writer",
+                "task": "inspect",
+                "state": "running",
+            }],
+        })
+        .to_string(),
+        error: None,
+    });
+    let hint = tool.render_hint(&lifted).expect("single task render metadata");
+
+    assert_eq!(hint.metadata["parent_session_id"], "parent");
+    assert_eq!(hint.metadata["child_session_id"], "child");
+    assert_eq!(hint.metadata["agent"], "writer");
+    assert_eq!(hint.summary.as_deref(), Some("inspect"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn agent_tool_running_event_exposes_persistent_child_before_completion() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let (started_tx, started_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let release_rx = Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
+    let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
+    let (created_tx, created_rx) = oneshot::channel();
+    let created_tx = Arc::new(std::sync::Mutex::new(Some(created_tx)));
+    let tool = build_persistent_tool(parent.id.clone(), directory.clone(), move |_request| {
+        let release_rx = release_rx.clone();
+        let started_tx = started_tx.clone();
+        Box::pin(async move {
+            started_tx
+                .lock()
+                .expect("started lock")
+                .take()
+                .expect("one child")
+                .send(())
+                .expect("executor should start");
+            release_rx
+                .lock()
+                .await
+                .take()
+                .expect("one child")
+                .await
+                .expect("release child executor");
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "child completed".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    })
+    .with_child_session_created_callback(Arc::new(move |created| {
+        created_tx
+            .lock()
+            .expect("created lock")
+            .take()
+            .expect("one child")
+            .send(created)
+            .expect("report child creation");
+    }));
+
+    let task = tokio::spawn(async move {
+        tool.execute(json!({
+            "action": "run",
+            "agent": "writer",
+            "prompt": "inspect the persistent child"
+        }))
+        .await
+    });
+    let created = created_rx.await.expect("running event should arrive");
+    assert!(!task.is_finished(), "running event must arrive before completion");
+    assert_eq!(created.parent_session_id, parent.id);
+    assert_eq!(created.agent, "writer");
+    assert_eq!(created.task, "inspect the persistent child");
+    let child = load_session(directory, created.child_session_id.clone()).await;
+    assert_eq!(child.parent_id.as_deref(), Some(parent.id.as_str()));
+
+    started_rx.await.expect("child executor should start");
+    release_tx.send(()).expect("release child executor");
+    let result = task.await.expect("launch task should join").expect("launch should return");
+    let body: Value = serde_json::from_str(&result.output).expect("structured result");
+    assert_eq!(body["child_session_id"], created.child_session_id);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn failed_launch_allows_new_child_session_attempt() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let created_ids = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let created_ids_in_tool = created_ids.clone();
+    let tool = build_persistent_tool(parent.id.clone(), directory, |_request| {
+        Box::pin(async move { Err(crate::gateway::ApiError::internal("provider unavailable")) })
+    })
+    .with_child_session_created_callback(Arc::new(move |created| {
+        created_ids_in_tool.lock().expect("created ids lock").push(created.child_session_id);
+    }));
+
+    let first = tool
+        .execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"}))
+        .await
+        .expect("failed child should produce a tool result");
+    let second = tool
+        .execute(json!({"action": "run", "agent": "writer", "prompt": "inspect again"}))
+        .await
+        .expect("new attempt should produce a tool result");
+    let first_body: serde_json::Value = serde_json::from_str(&first.output).expect("first result");
+    let second_body: serde_json::Value =
+        serde_json::from_str(&second.output).expect("second result");
+
+    assert!(!first.success);
+    assert!(!second.success);
+    assert_eq!(first_body["parent_session_id"], parent.id);
+    assert_eq!(first_body["terminal_state"], "failed");
+    assert!(
+        first_body["error"].as_str().is_some_and(|error| error.contains("provider unavailable"))
+    );
+    assert_ne!(first_body["child_session_id"], second_body["child_session_id"]);
+    let created_ids = created_ids.lock().expect("created ids lock");
+    assert_eq!(first_body["child_session_id"], created_ids[0]);
+    assert_eq!(second_body["child_session_id"], created_ids[1]);
 }

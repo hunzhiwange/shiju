@@ -29,13 +29,30 @@ pub struct ThinkTiming {
     pub last_update_ms: u64,
 }
 
+/// 一条助手消息对应的模型处理周期。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProcessingTiming {
+    pub started_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_ms: Option<u64>,
+    /// 整轮处理的单调时钟耗时；包含步骤间停顿，但不包含系统休眠。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processing_elapsed_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_elapsed_ms: Option<u64>,
+}
+
 /// UI 会话中展示的一条消息。
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: ChatRole,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub think_timing: Vec<ThinkTiming>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processing_timing: Option<ProcessingTiming>,
 }
 
 /// 会话列表展示所需的轻量元数据。

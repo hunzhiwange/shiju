@@ -294,7 +294,9 @@ fn test_session(id: &str) -> ChatSession {
         messages: vec![ChatMessage {
             role: ChatRole::User,
             content: "hello".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("msg-1".to_string())],
         calls: Vec::new(),
@@ -395,12 +397,17 @@ fn scoped_session_save_load_preview_append_and_delete_uses_global_database() -> 
 }
 
 #[test]
-fn native_session_writes_reject_missing_project_scope() -> Result<()> {
+fn native_session_operations_skip_missing_project_scope() -> Result<()> {
     let fixture = FacadeFixture::new("ui-store-missing-scope")?;
     let session = test_session("missing-scope");
 
-    assert!(save_session_scoped(&session, None).is_none());
-    assert!(save_session_todos_scoped(&session.id, &[], None).is_none());
+    for missing_scope in [None, Some(""), Some(" \t ")] {
+        assert!(save_session_scoped(&session, missing_scope).is_none());
+        assert!(save_session_todos_scoped(&session.id, &[], missing_scope).is_none());
+        assert!(load_session_scoped(&session.id, missing_scope).is_none());
+        assert!(load_session_todos_scoped(&session.id, missing_scope).is_empty());
+        assert!(load_sessions_scoped(missing_scope).is_empty());
+    }
     assert!(!fixture.data_dir.join("storage/session/index.sqlite3").exists());
     Ok(())
 }
@@ -521,11 +528,7 @@ fn current_scope_path_raw_todo_index_and_archive_wrappers_round_trip() -> Result
     let payload = serde_json::json!({"request": "raw", "stream_id": 41});
     let raw_path =
         persist_llm_raw_step(&session_id, 8, &payload, fixture.scope()).expect("raw path");
-    assert_eq!(session_step_llm_raw_file_path(&session_id, 8), Some(raw_path.clone()));
-    assert_eq!(
-        session_step_llm_raw_file_path_scoped(&session_id, 8, fixture.scope()),
-        Some(raw_path.clone())
-    );
+    assert_eq!(raw_path, fixture.database_path);
     assert_eq!(load_llm_raw_step_scoped(&session_id, 8, fixture.scope())?, Some(payload));
 
     save_session(&session).expect("session path");
@@ -558,7 +561,6 @@ fn current_scope_path_raw_todo_index_and_archive_wrappers_round_trip() -> Result
     assert_eq!(resolve_session_scope_id(None, Some("  ")), None);
 
     let _ = fs::remove_file(snapshot_path);
-    let _ = fs::remove_file(raw_path);
     Ok(())
 }
 
@@ -589,11 +591,13 @@ fn unscoped_archive_wrappers_use_default_archive_key() {
 
 #[test]
 fn postgres_session_store_round_trips_todos_and_agent_metadata() -> Result<()> {
+    let _global_state = GlobalStateGuard::new();
     let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
     let database = postgres_fixture.database().clone();
     let project_store = ProjectStore::new(database.clone())?;
     create_project(&project_store, Path::new("/work"), "postgres-session-project")?;
     let store = SessionStore::new(database)?;
+    let _store_override = override_session_store_for_test(store.clone());
     let scope =
         ProjectScope::new(TenantScope::default(), ProjectId::from("postgres-session-project"))?;
     let session = test_session("postgres-session");
@@ -609,6 +613,10 @@ fn postgres_session_store_round_trips_todos_and_agent_metadata() -> Result<()> {
     store.save_session_todos(&scope, &session.id, &todos)?;
     store.save_agent_session(&scope, &agent)?;
 
+    assert!(session_file_path(&session.id).is_none());
+    assert!(
+        save_session_todos_scoped(&session.id, &todos, Some("postgres-session-project")).is_some()
+    );
     assert_eq!(
         serde_json::to_value(store.load_session_todos(&scope, &session.id)?)?,
         serde_json::to_value(todos)?

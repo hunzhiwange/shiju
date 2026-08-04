@@ -411,9 +411,8 @@ pub fn create_provider_with_options(
     options: &ProviderRuntimeOptions,
 ) -> anyhow::Result<Box<dyn Provider>> {
     validate_provider_name(name)?;
-    // 参数暂未直接使用，由 session_llm 内部处理
-    let _ = (api_key, options);
-    Ok(Box::new(session_llm::SessionLlmProvider::new()))
+    let _ = api_key;
+    Ok(Box::new(session_llm::SessionLlmProvider::with_options(options)))
 }
 
 fn validate_provider_name(name: &str) -> anyhow::Result<()> {
@@ -434,7 +433,8 @@ fn validate_provider_name(name: &str) -> anyhow::Result<()> {
 
     let supported = matches!(
         normalized.as_str(),
-        "openrouter"
+        "shiju"
+            | "openrouter"
             | "openai"
             | "openai-codex"
             | "anthropic"
@@ -457,6 +457,7 @@ fn validate_provider_name(name: &str) -> anyhow::Result<()> {
             | "qwen"
             | "qwen-intl"
             | "dashscope"
+            | "alibaba-cn"
             | "glm"
             | "glm-cn"
             | "zai"

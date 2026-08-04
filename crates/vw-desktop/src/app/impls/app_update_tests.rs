@@ -140,6 +140,7 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
         "auto_model": true,
         "acp_agent": "codex",
         "show_settings": true,
+        "workspace_mode": "work",
         "show_file_manager": true,
         "file_manager_width": 9999.0,
         "open_external_app": "cursor",
@@ -150,11 +151,35 @@ fn bootstrap_app_config_updates_known_fields_and_clamps_file_manager_width() {
     assert!(app.auto_model);
     assert_eq!(app.acp_agent.as_deref(), Some("codex"));
     assert!(app.show_settings);
+    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
     assert!(app.show_file_manager);
     assert_eq!(app.file_manager_width, 600.0);
     assert_eq!(app.open_external_app, ExternalOpenApp::Cursor);
     assert_eq!(app.file_tree_expanded, ["src", "crates"]);
     assert!(app.file_tree_expanded_set.contains("src"));
+}
+
+#[test]
+fn workspace_mode_bootstrap_preserves_current_mode_for_invalid_values() {
+    let mut app = test_app();
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+
+    let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
+        "workspace_mode": "unsupported"
+    }))));
+
+    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
+}
+
+#[test]
+fn workspace_mode_bootstrap_accepts_work_mode() {
+    let mut app = test_app();
+
+    let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
+        "workspace_mode": "work"
+    }))));
+
+    assert_eq!(app.workspace_mode, crate::app::state::WorkspaceMode::Work);
 }
 
 #[test]
@@ -287,7 +312,7 @@ fn bootstrap_browser_config_accepts_remaining_supported_modes() {
 }
 
 #[test]
-fn bootstrap_system_settings_updates_runtime_and_normalizes_active_gateway() {
+fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gateway() {
     let mut app = test_app();
     let stale_health_key = "http://stale.example:99/v1/health".to_string();
     app.gateway_client_settings.health.insert(stale_health_key.clone(), true);
@@ -295,6 +320,7 @@ fn bootstrap_system_settings_updates_runtime_and_normalizes_active_gateway() {
     let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
     system.terminal_font_family = "Test Mono".to_string();
     system.terminal_font_size = 15.0;
+    system.timezone = "America/New_York".to_string();
     system.project_worktree_enabled =
         std::collections::HashMap::from([("/workspace/demo".to_string(), true)]);
     system.dialogue_flow_show_reasoning_summary = false;
@@ -323,6 +349,7 @@ fn bootstrap_system_settings_updates_runtime_and_normalizes_active_gateway() {
 
     assert_eq!(app.terminal.font_family, "Test Mono");
     assert_eq!(app.terminal.font_size, 15.0);
+    assert_eq!(app.chat_timezone, "America/New_York");
     assert_eq!(app.project_worktree_enabled.get("/workspace/demo"), Some(&true));
     assert!(!app.dialogue_flow_show_reasoning_summary);
     assert!(app.dialogue_flow_expand_shell_tool_section);
@@ -339,6 +366,30 @@ fn bootstrap_system_settings_updates_runtime_and_normalizes_active_gateway() {
     assert_eq!(app.gateway_client_settings.port, 1);
     assert_eq!(app.gateway_client_settings.skey_input, "placeholder-key");
     assert!(!app.gateway_client_settings.health.contains_key(&stale_health_key));
+}
+
+#[test]
+fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
+    let mut app = test_app();
+    let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
+    system.quick_messages = vec![vw_config_types::ui::QuickMessageConfig {
+        text: "提交当前分支".to_string(),
+        group: vw_config_types::ui::QuickMessageGroup::Git,
+        kind: vw_config_types::ui::QuickMessageKind::Message,
+    }];
+
+    let _ = app.update(Message::BootstrapSystemSettings(Ok(system.clone())));
+
+    assert_eq!(app.quick_messages.first(), system.quick_messages.first());
+    assert_eq!(
+        app.quick_messages[1..],
+        vw_config_types::ui::builtin_git_quick_messages()
+    );
+
+    system.quick_messages.clear();
+    let _ = app.update(Message::BootstrapSystemSettings(Ok(system)));
+
+    assert!(app.quick_messages.is_empty());
 }
 
 #[test]

@@ -23,7 +23,9 @@ fn save_and_load_session_preserves_tool_role() {
         messages: vec![ChatMessage {
             role: ChatRole::Tool,
             content: "tool shell\npwd\n/Users/demo\n".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("msg-tool".to_string())],
         calls: Vec::new(),

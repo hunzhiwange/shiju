@@ -92,9 +92,9 @@ fn build_public_cli_plan_adds_dynamic_agent_for_unknown_positional_token() {
     assert!(plan.agent_commands.iter().any(|agent| agent == "codex"));
 }
 
-/// 验证 resolve_dynamic_agent_command_rejects_top_level_verbs 覆盖的公共 CLI 行为保持稳定。
+/// 已注册代理与顶层动词都不能被重复注册为动态代理命令。
 #[test]
-fn resolve_dynamic_agent_command_rejects_top_level_verbs() {
+fn resolve_dynamic_agent_command_rejects_registered_agents_and_top_level_verbs() {
     let top_level_verbs = HashSet::from(["config".to_string()]);
     let agent_commands = vec!["codex".to_string(), "claude".to_string()];
 
@@ -113,7 +113,7 @@ fn resolve_dynamic_agent_command_rejects_top_level_verbs() {
             &agent_commands,
             &top_level_verbs,
         ),
-        Some("claude".to_string())
+        None
     );
 }
 

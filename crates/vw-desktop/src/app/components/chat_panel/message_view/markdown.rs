@@ -8,10 +8,11 @@
 use iced::widget::{Space, column, container, row, text, text_editor};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
+use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
 
 use super::super::tool_text_support::{
-    chat_text_font, chat_text_line_height, read_only_text_style,
+    READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
 };
 use super::styles::{MESSAGE_TEXT_SIZE, is_dark_theme, message_body_text_color};
 
@@ -348,6 +349,14 @@ fn block_text_size(kind: &MarkdownBlockKind) -> f32 {
     }
 }
 
+pub(crate) fn markdown_block_font(block: &MarkdownBlock) -> iced::Font {
+    if matches!(block.kind, MarkdownBlockKind::CodeBlock(_)) && block.text.is_ascii() {
+        iced::Font::MONOSPACE
+    } else {
+        chat_text_font()
+    }
+}
+
 /// 渲染单个 Markdown 块为可划选元素。
 fn markdown_block_view<'a>(
     app: &'a App,
@@ -359,25 +368,26 @@ fn markdown_block_view<'a>(
     let theme = app.theme();
     let key = markdown_block_key(msg_idx, text_idx, block_idx);
     let size = block_text_size(&block.kind);
-    let is_code = matches!(block.kind, MarkdownBlockKind::CodeBlock(_));
-    let font = if is_code { iced::Font::MONOSPACE } else { chat_text_font() };
+    let font = markdown_block_font(block);
     let body_color = message_body_text_color(&theme, false);
 
     let editor: Element<'a, Message> =
         if let Some(content) = app.chat_markdown_block_editors.get(&key) {
-            text_editor(content)
-                .on_action(move |action| {
-                    Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
-                        msg_idx, text_idx, block_idx, action,
-                    ))
-                })
-                .size(size)
-                .line_height(chat_text_line_height())
-                .padding(0)
-                .height(Length::Shrink)
-                .font(font)
-                .style(move |theme: &Theme, _status| read_only_text_style(theme, body_color))
-                .into()
+            pass_wheel_to_parent(
+                text_editor(content)
+                    .on_action(move |action| {
+                        Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
+                            msg_idx, text_idx, block_idx, action,
+                        ))
+                    })
+                    .size(size)
+                    .line_height(chat_text_line_height())
+                    .padding(0)
+                    .height(Length::Shrink)
+                    .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
+                    .font(font)
+                    .style(move |theme: &Theme, _status| read_only_text_style(theme, body_color)),
+            )
         } else {
             // 编辑器缺失时回退为静态文本，仍可被气泡复制按钮覆盖。
             text(block.text.clone())

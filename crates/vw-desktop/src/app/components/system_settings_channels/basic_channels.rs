@@ -426,7 +426,7 @@ pub(super) fn imessage_panel(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn matrix_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let enabled = s.matrix.is_some() || !s.matrix_instances.is_empty();
+    let enabled = s.matrix_enabled;
     let mut body = column![].spacing(12);
 
     if let Some(cfg) = s.matrix.as_ref() {

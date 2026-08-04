@@ -15,6 +15,31 @@ pub use vw_shared::util::truncate_middle;
 
 use time::{OffsetDateTime, UtcOffset};
 
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
+
+/// Parse an IANA timezone used by chat prompts and message timestamps.
+pub fn parse_timezone(value: &str) -> Result<Tz> {
+    value.parse::<Tz>().with_context(|| format!("invalid IANA timezone: {value}"))
+}
+
+/// Format the current UTC instant in the configured chat timezone.
+pub fn configured_datetime(timezone: Tz) -> String {
+    configured_datetime_at(Utc::now(), timezone)
+}
+
+/// Format a UTC instant with its numeric offset and unambiguous IANA timezone name.
+pub fn configured_datetime_at(datetime: DateTime<Utc>, timezone: Tz) -> String {
+    let local = datetime.with_timezone(&timezone);
+    format!(
+        "{} {} ({})",
+        local.format("%Y-%m-%d %H:%M:%S"),
+        local.format("%:z"),
+        timezone.name()
+    )
+}
+
 fn datetime_from_millis_utc(ms: i64) -> OffsetDateTime {
     let nanos = i128::from(ms) * 1_000_000;
     OffsetDateTime::from_unix_timestamp_nanos(nanos)

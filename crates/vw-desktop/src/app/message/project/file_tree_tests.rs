@@ -271,6 +271,57 @@ fn file_tree_action_without_menu_path_is_ignored() {
 }
 
 #[test]
+fn delete_action_removes_file_from_local_tree_before_gateway_completes() {
+    let mut app = app();
+    let target = "/tmp/project/src/main.rs";
+    app.project_path = Some("/tmp/project".to_string());
+    app.file_tree_menu_path = Some(target.to_string());
+    app.files =
+        vec![target.to_string(), "/tmp/project/src/lib.rs".to_string()];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Delete,
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.files, vec!["/tmp/project/src/lib.rs".to_string()]);
+}
+
+#[test]
+fn delete_action_removes_directory_subtree_from_local_tree_before_gateway_completes() {
+    let mut app = app();
+    let target = "/tmp/project/src";
+    app.project_path = Some("/tmp/project".to_string());
+    app.file_tree_menu_path = Some(target.to_string());
+    app.files = vec![
+        target.to_string(),
+        "/tmp/project/src/main.rs".to_string(),
+        "/tmp/project/src/nested/lib.rs".to_string(),
+        "/tmp/project/src-old/keep.rs".to_string(),
+        "/tmp/project/README.md".to_string(),
+    ];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeAction(
+            crate::app::message::project::FileTreeAction::Delete,
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(
+        app.files,
+        vec![
+            "/tmp/project/src-old/keep.rs".to_string(),
+            "/tmp/project/README.md".to_string(),
+        ]
+    );
+}
+
+#[test]
 fn copy_and_cut_actions_update_file_tree_clipboard() {
     let mut app = app();
     app.file_tree_menu_path = Some("/tmp/a.txt".to_string());

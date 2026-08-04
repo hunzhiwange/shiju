@@ -61,3 +61,23 @@ fn system_includes_environment_for_explicit_root() {
     assert!(prompt.contains("unknown/unknown"));
     assert!(prompt.contains("工作目录: prompt-test-root"));
 }
+
+#[test]
+fn system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist() {
+    let project = tempfile::tempdir().expect("project workspace");
+    let project_agents = project.path().join("AGENTS.md");
+    std::fs::write(&project_agents, "selected project protocol").expect("write project agents");
+
+    let prompt = super::system_with_agent_metadata(
+        None,
+        project.path().to_str(),
+        Some("reviewer"),
+        &[],
+    );
+    let project_path = crate::app::agent::util::filesystem::normalize_path(&project_agents)
+        .to_string_lossy()
+        .to_string();
+
+    assert!(prompt.content.contains("selected project protocol"));
+    assert_eq!(prompt.visible_instruction_paths, vec![project_path]);
+}

@@ -111,7 +111,12 @@ fn assistant_message(
         info: message::Info::Assistant(Box::new(message::AssistantInfo {
             id: id.to_string(),
             session_id: session_id.to_string(),
-            time: message::AssistantTime { created: 1, completed: None },
+            time: message::AssistantTime {
+                created: 1,
+                completed: None,
+                processing_elapsed_ms: None,
+                llm_elapsed_ms: None,
+            },
             error: None,
             parent_id: parent_id.to_string(),
             model_id: "model-fixture".to_string(),

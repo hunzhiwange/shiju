@@ -4,12 +4,16 @@ use super::{
     select_search_matches, select_status_summary, select_transcript_message_anchors,
     select_visible_grouped_transcript_window, select_visible_message_window,
 };
+use crate::cli::tui_v2::controller::{TuiController, TuiControllerEvent};
 use crate::cli::tui_v2::model::{
-    UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiSearchOverlay, UiStep,
-    UiStepState, UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingTiming,
-    UiTokenUsage, UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiProgressMessage,
+    UiSearchOverlay, UiStep, UiStepState, UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock,
+    UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCall, UiToolCallState, UiToolResult,
+    UiTurnTerminal, UiUserMessage,
 };
+use crate::cli::tui_v2::state::{TuiAction, reduce_tui_state};
 use crate::cli::tui_v2::state::{TuiScrollState, TuiState};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 
 fn base(seed: &str) -> UiMessageBase {
     UiMessageBase::new(UiMessageId::local(seed))
@@ -58,6 +62,83 @@ fn tool_result(seed: &str, name: &str, parent: Option<UiMessageId>, error: bool)
 }
 
 #[test]
+fn tui_transcript_groups_tools_progress_and_hooks_like_reference() {
+    let user_id = UiMessageId::local("group-user");
+    let read_id = UiMessageId::local("read-call");
+    let search_id = UiMessageId::local("search-call");
+    let mut state = TuiState::default();
+    state.messages = vec![
+        UiMessage::User(UiUserMessage {
+            base: UiMessageBase::new(user_id.clone()),
+            text: "inspect".to_string(),
+        }),
+        tool_call("read-call", "read", Some(user_id.clone())),
+        tool_result("read-result", "read", Some(read_id.clone()), false),
+        UiMessage::Progress(UiProgressMessage {
+            base: base("read-progress").with_parent_id(read_id.clone()),
+            label: "Read 20 lines".to_string(),
+            current: Some(20),
+            total: Some(20),
+            completed: true,
+        }),
+        UiMessage::System(UiSystemMessage {
+            base: base("read-hook").with_parent_id(read_id),
+            text: "hook: PostToolUse passed".to_string(),
+            level: UiSystemMessageLevel::Info,
+        }),
+        tool_call("search-call", "grep", Some(user_id.clone())),
+        tool_result("search-result", "grep", Some(search_id.clone()), false),
+        UiMessage::System(UiSystemMessage {
+            base: base("background").with_parent_id(search_id),
+            text: "background: search index ready".to_string(),
+            level: UiSystemMessageLevel::Info,
+        }),
+        assistant("group-assistant", Some(user_id), "done"),
+    ];
+    let original = state.messages.clone();
+    state.refresh_transcript_projection();
+
+    assert_eq!(state.messages, original, "projection never reorders persisted messages");
+    let transcript = select_grouped_transcript(&state);
+    let TuiTranscriptItem::AssistantTurn(turn) = &transcript[1] else {
+        panic!("assistant turn");
+    };
+    assert_eq!(turn.preface.len(), 1);
+    let TuiAssistantTurnEntry::CollapsedTools(group) = &turn.preface[0] else {
+        panic!("successful read/search run should collapse");
+    };
+    assert_eq!(group.calls.len(), 2);
+    assert_eq!(group.total_results, 2);
+    assert_eq!(group.total_progress, 1);
+    assert_eq!(group.notice_count, 2);
+    assert_eq!(group.calls[0].progress[0].label, "Read 20 lines");
+    assert_eq!(group.calls[0].notices[0].text, "hook: PostToolUse passed");
+    assert_eq!(group.calls[1].notices[0].text, "background: search index ready");
+
+    let keys = state.transcript.keys();
+    assert_eq!(keys.len(), 2);
+    assert!(keys[1].contains("local:read-call"));
+    assert!(keys[1].contains("local:search-call"));
+
+    let mut running = original;
+    let UiMessage::ToolCall(read) = &mut running[1] else {
+        panic!("read call");
+    };
+    read.state = UiToolCallState::Running;
+    running.remove(2);
+    let running_transcript = super::derive_grouped_transcript(&running);
+    let TuiTranscriptItem::AssistantTurn(turn) = &running_transcript[1] else {
+        panic!("running assistant turn");
+    };
+    assert!(
+        turn.preface.iter().any(
+            |entry| matches!(entry, TuiAssistantTurnEntry::Tool(group) if group.call.state == UiToolCallState::Running)
+        ),
+        "running tools stay expanded"
+    );
+}
+
+#[test]
 fn visible_message_window_handles_empty_zero_viewport_and_overscan() {
     let mut state = TuiState::default();
     assert!(select_visible_message_window(&state).is_empty());
@@ -77,6 +158,80 @@ fn visible_message_window_handles_empty_zero_viewport_and_overscan() {
 
     state.scroll.viewport_messages = 1;
     assert_eq!(select_visible_message_window(&state).len(), 3);
+}
+
+#[test]
+fn tui_sticky_prompt_and_unseen_divider_follow_reference_scroll_rules() {
+    let first_user = user("sticky-u1", "first prompt");
+    let first_user_id = first_user.id().clone();
+    let first_assistant = assistant("sticky-a1", Some(first_user_id.clone()), "first answer");
+    let mut state = TuiState::default();
+    state.session.session_id = Some("sticky-session".to_string());
+    state.messages = vec![first_user, first_assistant];
+    state.refresh_transcript_projection();
+    state.scroll.sync_viewport(6, 40);
+    state.clamp_scroll();
+    assert!(state.scroll.follow_tail);
+
+    let mut parked = state.scroll.clone();
+    parked.follow_tail = false;
+    parked.top_message = 1;
+    reduce_tui_state(&mut state, TuiAction::ScrollSet(parked));
+    let baseline = UiMessageId::local("sticky-a1");
+    assert_eq!(state.unseen_baseline_id.as_ref(), Some(&baseline));
+
+    let call_id = UiMessageId::local("sticky-tool");
+    state.append_message(tool_call("sticky-tool", "read", Some(first_user_id.clone())));
+    state.append_message(tool_result("sticky-result", "read", Some(call_id), false));
+    let tool_only = select_visible_grouped_transcript_window(&state)
+        .unseen_range()
+        .expect("tool-only stream still exposes unread activity");
+    assert_eq!(tool_only.unseen_message_count, 1);
+    assert_eq!(tool_only.pill_label(), "1 new message");
+    assert_eq!(
+        select_visible_grouped_transcript_window(&state)
+            .sticky_prompt()
+            .map(|prompt| prompt.message_index),
+        Some(0)
+    );
+
+    state.append_message(user("sticky-u2", "second prompt"));
+    state.append_message(assistant(
+        "sticky-a2",
+        Some(UiMessageId::local("sticky-u2")),
+        "second answer",
+    ));
+    let unread = select_visible_grouped_transcript_window(&state)
+        .unseen_range()
+        .expect("assistant turn increments semantic unread count");
+    assert_eq!(unread.unseen_message_count, 2);
+
+    state.prepend_messages_preserving_anchor(vec![user("sticky-old", "older history")]);
+    assert_eq!(state.unseen_baseline_id.as_ref(), Some(&baseline));
+    assert_eq!(
+        select_visible_grouped_transcript_window(&state)
+            .unseen_range()
+            .map(|range| range.unseen_message_count),
+        Some(2),
+        "prepend does not become unread activity"
+    );
+
+    let mut controller = TuiController::default();
+    let command = controller.handle_event(
+        &mut state,
+        TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(
+            KeyCode::Enter,
+            KeyModifiers::NONE,
+        ))),
+    );
+    assert!(matches!(command, crate::cli::tui_v2::controller::TuiControllerCommand::Continue));
+    assert!(state.scroll.follow_tail);
+    assert!(state.unseen_baseline_id.is_none());
+    assert!(select_visible_grouped_transcript_window(&state).unseen_range().is_none());
+
+    state.clear_messages();
+    assert!(state.unseen_baseline_id.is_none());
+    assert!(state.scroll.last_seen_message.is_none());
 }
 
 #[test]
@@ -200,6 +355,7 @@ fn visible_grouped_window_reports_summaries_sticky_prompt_and_unseen_range() {
             content: "thought".to_string(),
             timing: vec![UiThinkingTiming { start_ms: 1, end_ms: Some(2), last_update_ms: 2 }],
             collapsed: false,
+            phase: UiThinkingPhase::default(),
         }),
         assistant,
         user("u2", "new prompt"),
@@ -259,6 +415,24 @@ fn visible_items_exclude_leading_overscan_before_viewport_top() {
         visible.first(),
         Some(TuiTranscriptItem::Standalone(UiMessage::User(message))) if message.text == "two"
     ));
+}
+
+#[test]
+fn follow_tail_backfills_the_viewport_instead_of_hiding_previous_rows() {
+    let mut state = TuiState::default();
+    state.messages = vec![user("u1", "one"), user("u2", "two"), user("u3", "three")];
+    state.refresh_transcript_projection();
+    state.scroll.sync_viewport(3, 80);
+    state.refresh_transcript_layout_for_current_width();
+    state.clamp_scroll();
+
+    let window = select_visible_grouped_transcript_window(&state);
+
+    assert!(window.follow_tail);
+    assert!(
+        window.top_item_index < 2,
+        "tail view must include the rows immediately before the final message"
+    );
 }
 
 #[test]

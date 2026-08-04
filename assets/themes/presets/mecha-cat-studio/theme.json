@@ -1,0 +1,25 @@
+{
+  "id": "mecha-cat-studio",
+  "name": "机甲猫工作室 Mecha Cat Studio",
+  "tagline": "扳手就位，灵感启动。",
+  "palette": {
+    "background": "#102230",
+    "text": "#f5fbff",
+    "primary": "#ff9a3d",
+    "success": "#61ddc1",
+    "warning": "#f6c766",
+    "danger": "#6bc4f2"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#173242",
+    "input_bg": "#193747",
+    "button_bg": "#ff9a3d",
+    "button_text": "#f8fafc",
+    "radius_px": 18,
+    "panel_alpha": 184
+  }
+}

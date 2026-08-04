@@ -1,11 +1,12 @@
 use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
-    advanced_summary, format_browser_success_body, format_tool_search_body,
+    advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,
+    compact_browser_success_summary, format_browser_success_body, format_tool_search_body,
     format_verify_plan_execution_body, is_advanced_surface_tool, nested_string,
     result_data_message, tool_advanced_view,
 };
-use crate::app::App;
 use crate::app::state::explicit_advanced_tool_surface_spec;
+use crate::app::{App, Message, message};
 use serde_json::json;
 
 #[test]
@@ -300,6 +301,14 @@ fn format_browser_success_body_uses_single_title_or_url() {
 }
 
 #[test]
+fn compact_browser_success_summary_merges_multiline_snapshot_text() {
+    assert_eq!(
+        compact_browser_success_summary("Captured page snapshot\n\nsnapshot · browser\n  Get text"),
+        "Captured page snapshot snapshot · browser Get text"
+    );
+}
+
+#[test]
 fn format_verify_plan_execution_body_covers_blockers_and_empty_state() {
     assert_eq!(
         format_verify_plan_execution_body(
@@ -390,6 +399,16 @@ fn advanced_view_renders_agent_browser_tool_search_and_errors() {
             &app,
             4,
             2,
+            r#"tool browser
+{"result":{"data":{"result":{"text":"Captured page snapshot\n\nsnapshot · browser\nGet text"}}}}"#
+        )
+        .is_some()
+    );
+    assert!(
+        tool_advanced_view(
+            &app,
+            4,
+            2,
             r#"tool tool_search
 {"result":{"data":{"items":[{"display_name":"Browser","reason":"navigation"}]}}}"#
         )
@@ -470,4 +489,101 @@ fn advanced_view_renders_empty_body_context_menu_and_browser_open() {
         )
         .is_some()
     );
+}
+
+#[test]
+fn agent_tool_session_id_supports_running_and_completed_payloads() {
+    assert_eq!(
+        agent_tool_session_id(&json!({
+            "status": "running",
+            "metadata": {"child_session_id": " child-running "}
+        }))
+        .as_deref(),
+        Some("child-running")
+    );
+    assert_eq!(
+        agent_tool_session_id(&json!({
+            "status": "completed",
+            "result": {"data": {"session_id": " child-done "}}
+        }))
+        .as_deref(),
+        Some("child-done")
+    );
+    assert_eq!(agent_tool_session_id(&json!({})), None);
+}
+
+#[test]
+fn agent_tool_primary_click_opens_child_and_safely_falls_back_to_detail() {
+    let visible = "tool AgentTool\n{\"status\":\"running\"}";
+    let value = json!({
+        "status": "running",
+        "metadata": {"child_session_id": "child-1"}
+    });
+
+    let message = agent_tool_primary_message(Some("/work/project"), &value, 2, 3, visible);
+    assert!(matches!(
+        message,
+        Message::Chat(message::ChatMessage::OpenAgentSession {
+            ref project_path,
+            ref session_id,
+        }) if project_path == "/work/project" && session_id == "child-1"
+    ));
+
+    for project_path in [None, Some(""), Some("   ")] {
+        let message = agent_tool_primary_message(project_path, &value, 2, 3, visible);
+        assert!(matches!(
+            message,
+            Message::Chat(message::ChatMessage::OpenToolDetail(2, 3, ref raw))
+                if raw == visible
+        ));
+    }
+}
+
+#[test]
+fn agent_tool_right_click_opens_full_result_detail() {
+    let visible = "tool AgentTool\n{\"status\":\"completed\",\"output\":\"done\"}";
+    assert!(matches!(
+        agent_tool_detail_message(4, 5, visible),
+        Message::Chat(message::ChatMessage::OpenToolDetail(4, 5, ref raw))
+            if raw == visible
+    ));
+}
+
+#[test]
+fn advanced_view_renders_agent_tool_compact_cards_for_all_states() {
+    let mut app = App::new().0;
+    app.project_path = Some("/work/project".to_string());
+
+    for (index, raw) in [
+        (
+            0,
+            r#"tool AgentTool
+{"status":"running","input":"{\"agent\":\"coder\",\"task\":\"分析文件\"}","metadata":{"child_session_id":"child-running"}}"#,
+        ),
+        (
+            1,
+            r#"tool AgentTool
+{"status":"completed","input":"{\"agent\":\"coder\",\"task\":\"分析文件\"}","output":"完整返回结果","result":{"data":{"session_id":"child-done"}}}"#,
+        ),
+        (
+            2,
+            r#"tool AgentTool
+{"status":"error","input":"{\"agent\":\"coder\",\"task\":\"分析文件\"}","error":"执行失败","metadata":{"child_session_id":"child-failed"}}"#,
+        ),
+        (
+            3,
+            r#"tool AgentTool
+{"status":"waiting","input":"{\"agent\":\"coder\",\"task\":\"分析文件\"}","metadata":{"child_session_id":"child-waiting"}}"#,
+        ),
+        (
+            4,
+            r#"tool AgentTool
+{"status":"cancelled","input":"{\"agent\":\"coder\",\"task\":\"分析文件\"}","metadata":{"child_session_id":"child-cancelled"}}"#,
+        ),
+    ] {
+        assert!(
+            tool_advanced_view(&app, 8, index, raw).is_some(),
+            "expected compact AgentTool card for state {index}"
+        );
+    }
 }

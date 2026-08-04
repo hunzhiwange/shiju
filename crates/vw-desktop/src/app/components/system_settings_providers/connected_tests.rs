@@ -3,8 +3,9 @@ const SOURCE: &str = include_str!("connected.rs");
 
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use crate::app::{App, Message};
-use iced::Theme;
+use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
+use iced::{Color, Font, Pixels, Theme};
 
 fn test_app() -> App {
     App::new().0
@@ -16,6 +17,37 @@ fn keep_element(element: iced::Element<'_, Message>) {
 
 fn element_tree(element: iced::Element<'_, Message>) -> Tree {
     Tree::new(element.as_widget())
+}
+
+fn tree_node_count(tree: &Tree) -> usize {
+    1 + tree.children.iter().map(tree_node_count).sum::<usize>()
+}
+
+async fn assert_element_draws_in_dark_theme(mut element: iced::Element<'_, Message>) {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let mut tree = Tree::new(element.as_widget());
+    let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 1_200.0));
+    let node = element.as_widget_mut().layout(
+        &mut tree,
+        &renderer,
+        &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
+    );
+
+    element.as_widget().draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &iced::advanced::renderer::Style::default(),
+        iced::advanced::Layout::new(&node),
+        iced::mouse::Cursor::Unavailable,
+        &viewport,
+    );
+
+    let pixels = renderer.screenshot(iced::Size::new(960, 1_200), 1.0, Color::TRANSPARENT);
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
 }
 
 fn provider(id: &str, name: &str, connected: bool) -> ProviderSummary {
@@ -142,6 +174,50 @@ fn popular_provider_match_falls_back_to_existing_provider_or_missing_pattern() {
 }
 
 #[test]
+fn shiju_official_provider_is_always_first_and_not_removable() {
+    let official = super::connected::popular_provider_match("shiju", &[], &[]);
+    assert_eq!(official.display, "识矩");
+    assert_eq!(official.provider_id.as_deref(), Some("shiju"));
+    assert!(!official.is_connected);
+
+    let mut app = test_app();
+    app.provider_settings.providers = vec![provider("shiju", "识矩", true)];
+    app.provider_settings.popular_patterns = vec!["shiju".to_string(), "shiju".to_string()];
+    let connected =
+        super::connected::popular_provider_match("shiju", &[], &app.provider_settings.providers);
+    assert!(connected.is_connected);
+
+    let tree = element_tree(super::connected::view(&app));
+    assert_eq!(tree.children[4].children.len(), 1);
+}
+
+#[test]
+fn connected_shiju_appears_in_connected_provider_section() {
+    let app = test_app();
+    let disconnected_tree = element_tree(super::connected::view(&app));
+
+    let mut connected_app = test_app();
+    connected_app.provider_settings.providers = vec![provider("shiju", "识矩", true)];
+    let connected_tree = element_tree(super::connected::view(&connected_app));
+
+    assert!(
+        tree_node_count(&connected_tree.children[2])
+            > tree_node_count(&disconnected_tree.children[2])
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_official_card_draws_in_dark_theme_with_non_ascii_text() {
+    let mut app = test_app();
+    app.provider_settings.popular_patterns = vec!["shiju".to_string()];
+
+    assert_element_draws_in_dark_theme(super::connected::view(&app)).await;
+
+    app.provider_settings.providers = vec![provider("shiju", "识矩", true)];
+    assert_element_draws_in_dark_theme(super::connected::view(&app)).await;
+}
+
+#[test]
 fn view_builds_popular_pattern_matching_existing_provider_not_catalog() {
     let mut app = test_app();
     // providers without matching catalog entries
@@ -169,7 +245,7 @@ fn view_inserts_dividers_between_multiple_connected_and_popular_rows() {
 
     assert_eq!(tree.children.len(), 8);
     assert_eq!(tree.children[2].children.len(), 3);
-    assert_eq!(tree.children[4].children.len(), 3);
+    assert_eq!(tree.children[4].children.len(), 5);
 }
 
 #[test]

@@ -80,15 +80,14 @@ pub fn workspace_background_style(theme: &Theme) -> ContainerStyle {
 pub fn content_panel_style(theme: &Theme) -> ContainerStyle {
     let palette = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
-    let background = if is_dark {
-        Color::from_rgba8(17, 18, 22, 0.98)
-    } else {
-        Color::from_rgba8(255, 255, 255, 0.985)
-    };
+    let background = crate::app::theme_catalog::panel_surface_color(
+        theme,
+        if is_dark { 0.98 } else { 0.985 },
+    );
     let border_color = if is_dark {
         palette.background.strong.color.scale_alpha(0.70)
     } else {
-        Color::from_rgba8(225, 229, 236, 0.98)
+        palette.background.strong.color.scale_alpha(0.55)
     };
 
     ContainerStyle {
@@ -167,14 +166,15 @@ pub fn session_panel_style(theme: &Theme, corner_radius: f32) -> ContainerStyle 
     let palette = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
     let background = if is_dark {
-        blend_color(palette.background.base.color, Color::from_rgb8(13, 15, 19), 0.42)
+        blend_color(palette.background.base.color, palette.background.strong.color, 0.28)
+            .scale_alpha(0.99)
     } else {
-        Color::from_rgba8(252, 253, 255, 0.99)
+        crate::app::theme_catalog::panel_surface_color(theme, 0.99)
     };
     let border_color = if is_dark {
         palette.background.strong.color.scale_alpha(0.78)
     } else {
-        Color::from_rgba8(222, 226, 233, 0.98)
+        palette.background.strong.color.scale_alpha(0.55)
     };
     let radius = corner_radius + 4.0;
 
@@ -200,9 +200,10 @@ pub fn session_panel_style(theme: &Theme, corner_radius: f32) -> ContainerStyle 
 pub fn right_column_inner_style(theme: &Theme, corner_radius: f32) -> ContainerStyle {
     let palette = theme.extended_palette();
     let background = if is_dark_theme(theme) {
-        blend_color(palette.background.base.color, Color::from_rgb8(12, 13, 17), 0.34)
+        blend_color(palette.background.base.color, palette.background.strong.color, 0.22)
+            .scale_alpha(0.99)
     } else {
-        Color::from_rgba8(254, 254, 255, 0.99)
+        crate::app::theme_catalog::panel_surface_color(theme, 0.99)
     };
 
     ContainerStyle {

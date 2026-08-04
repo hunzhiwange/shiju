@@ -4,7 +4,7 @@ This plugin is a compact reference package for the plugin surfaces currently rea
 
 It includes:
 
-- `.codex-plugin/plugin.json` with required metadata and interface presentation fields.
+- `.vibewindow-plugin/plugin.json` with required metadata and interface presentation fields.
 - `skills/demo-plugin-guide/SKILL.md` for plugin-packaged skill discovery.
 - `.mcp.json` with a local stdio MCP server.
 - `scripts/demo_mcp_server.py` implementing `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, and `prompts/list`.

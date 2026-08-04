@@ -13,6 +13,25 @@
 
 use super::*;
 
+fn build_system_prompt(
+    workspace_dir: &std::path::Path,
+    model_name: &str,
+    tools: &[(&str, &str)],
+    skills: &[crate::app::agent::skills::Skill],
+    identity_config: Option<&crate::app::agent::config::IdentityConfig>,
+    bootstrap_max_chars: Option<usize>,
+) -> String {
+    crate::app::agent::channels::build_system_prompt(
+        workspace_dir,
+        model_name,
+        tools,
+        skills,
+        identity_config,
+        bootstrap_max_chars,
+        chrono_tz::Asia::Shanghai,
+    )
+}
+
 /// 测试系统提示是否包含所有必需的章节
 ///
 /// 验证系统提示中包含以下核心章节：
@@ -35,6 +54,23 @@ fn prompt_contains_all_sections() {
     assert!(prompt.contains("## Project Context"), "missing Project Context");
     assert!(prompt.contains("## Current Date & Time"), "missing Date/Time");
     assert!(prompt.contains("## Runtime"), "missing Runtime section");
+}
+
+#[test]
+fn channel_prompt_uses_configured_timezone() {
+    let ws = make_workspace();
+    let prompt = crate::app::agent::channels::build_system_prompt(
+        ws.path(),
+        "test-model",
+        &[],
+        &[],
+        None,
+        None,
+        chrono_tz::America::New_York,
+    );
+
+    assert!(prompt.contains("-04:00") || prompt.contains("-05:00"));
+    assert!(prompt.contains("(America/New_York)"));
 }
 
 /// 测试工具列表是否正确注入到系统提示中

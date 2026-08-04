@@ -75,7 +75,7 @@ mod tests {
     /// 返回完全配置好的 `WebFetchTool` 实例，具有以下默认值：
     /// - 最大响应大小：500,000 字节
     /// - 请求超时：30 秒
-    /// - User-Agent：VibeWindow/1.0
+    /// - User-Agent：默认桌面浏览器兼容值
     fn test_tool_with_provider(
         allowed_domains: Vec<&str>,
         blocked_domains: Vec<&str>,
@@ -96,7 +96,7 @@ mod tests {
             blocked_domains.into_iter().map(String::from).collect(),
             500_000,
             30,
-            "VibeWindow/1.0".to_string(),
+            vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
         )
     }
 
@@ -198,7 +198,7 @@ mod tests {
         let text = WebFetchTool::select_accept_header(Format::Text);
         let html = WebFetchTool::select_accept_header(Format::Html);
 
-        assert!(markdown.starts_with("text/markdown;q=1.0"));
+        assert!(markdown.starts_with("text/html,application/xhtml+xml"));
         assert!(text.starts_with("text/plain;q=1.0"));
         assert!(html.starts_with("text/html;q=1.0"));
         assert_ne!(markdown, text);

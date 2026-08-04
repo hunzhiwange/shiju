@@ -144,7 +144,7 @@ fn summarize_providers_maps_every_source_and_sorts_by_name_then_id() {
         actual,
         vec![
             ("api", "Alpha", "API 密钥", true),
-            ("config", "Same", "配置", true),
+            ("config", "Same", "配置", false),
             ("env", "Same", "环境变量", true),
             ("custom", "Zulu", "内置", false),
         ]

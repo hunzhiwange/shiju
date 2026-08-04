@@ -36,7 +36,7 @@ cargo run -p vw-cli --features channel-matrix --bin vibewindow -- \
 
 ```bash
 export PROJECT_PATH=/absolute/path/to/project
-export VIBEWINDOW_GATEWAY_URL=http://127.0.0.1:42617
+export VIBEWINDOW_GATEWAY_URL=http://127.0.0.1:14682
 ```
 
 ## 注册 Worker

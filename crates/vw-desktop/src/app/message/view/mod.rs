@@ -20,6 +20,8 @@ use crate::app::{
     App, Message,
     state::{
         ChatSendBehavior, ExternalOpenApp, ModelPopoverHover, TopBarGatewayTab, UsageModelInfo,
+        WorkResourceMode, WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime,
+        WorkSidebarTab, WorkspaceMode,
     },
 };
 use iced::{Task, Theme, Vector};
@@ -223,6 +225,70 @@ pub enum ViewMessage {
     ToggleModelPopover,
     /// 切换模式选择弹窗
     ToggleModePopover,
+    /// 切换代码/工作界面模式弹窗
+    ToggleWorkspaceModePopover,
+    /// 关闭代码/工作界面模式弹窗
+    CloseWorkspaceModePopover,
+    /// 选择代码/工作界面模式
+    WorkspaceModeSelected(WorkspaceMode),
+    /// 选择工作模式右侧资源区的呈现模式
+    WorkResourceModeSelected(WorkResourceMode),
+    /// 隐藏或展示工作模式右侧工作空间模块
+    WorkResourcesToggled,
+    /// 收起或展开工作模式左栏
+    WorkSidebarToggled,
+    /// 打开或关闭工作模式左栏过滤弹层
+    WorkSidebarFilterToggled,
+    /// 关闭工作模式左栏过滤弹层
+    WorkSidebarFilterClosed,
+    /// 打开或关闭工作模式左栏“更多”应用菜单
+    WorkSidebarMoreToggled,
+    /// 悬停时打开工作模式左栏“更多”应用菜单
+    WorkSidebarMoreOpened,
+    /// 关闭工作模式左栏“更多”应用菜单
+    WorkSidebarMoreClosed,
+    /// 选择工作模式左栏的项目范围过滤
+    WorkSidebarFilterScopeSelected(WorkSidebarFilterScope),
+    /// 选择工作模式左栏的会话运行状态过滤
+    WorkSidebarFilterStatusSelected(WorkSidebarFilterStatus),
+    /// 选择工作模式左栏的更新时间过滤
+    WorkSidebarFilterTimeSelected(WorkSidebarFilterTime),
+    /// 重置工作模式左栏过滤条件
+    WorkSidebarFilterReset,
+    /// 切换工作模式左栏的任务/空间标签
+    WorkSidebarTabSelected(WorkSidebarTab),
+    /// 为当前工作模式左栏标签加载更多项目
+    WorkSidebarLoadMorePressed,
+    /// 打开或关闭输入区空间选择器
+    WorkSpacePickerToggled,
+    /// 关闭输入区空间选择器
+    WorkSpacePickerClosed,
+    /// 更新工作模式对话区占可用内容宽度的比例
+    WorkSplitRatioChanged(f32),
+    /// 开始拖动工作模式左栏宽度
+    WorkSidebarDragStarted,
+    /// 开始拖动工作模式聊天/资源分割条
+    WorkSplitDragStarted,
+    /// 切换工作模式资源区全屏
+    WorkResourceFullscreenToggled,
+    /// 切换工作模式资源区半屏
+    WorkResourceHalfFullscreenToggled,
+    /// 按真实项目路径切换工作模式空间展开状态
+    WorkSpaceToggled(String),
+    /// 更新停靠浏览器地址输入
+    WorkBrowserAddressChanged(String),
+    /// 导航停靠浏览器到当前地址
+    WorkBrowserNavigate,
+    /// 停靠浏览器后退
+    WorkBrowserBack,
+    /// 停靠浏览器前进
+    WorkBrowserForward,
+    /// 刷新停靠浏览器
+    WorkBrowserReload,
+    /// 关闭当前停靠浏览并进入空白态
+    WorkBrowserClose,
+    /// 接收停靠 WebView 回传的最新导航地址
+    WorkBrowserRuntimeTick,
     /// 切换发送模式弹窗
     ToggleSendModePopover,
     /// 切换文件选择弹窗
@@ -317,6 +383,10 @@ pub enum ViewMessage {
     WindowResized(iced::window::Id, f32, f32),
     /// 窗口关闭完成
     WindowClosed(iced::window::Id),
+    /// 窗口获得焦点
+    WindowFocused(iced::window::Id),
+    /// 窗口失去焦点
+    WindowUnfocused(iced::window::Id),
     /// 全屏布局稳定完成
     FullscreenLayoutSettled,
     /// 窗口位置移动
@@ -475,12 +545,6 @@ pub enum ViewMessage {
     /// # 参数
     /// - 加载的模型信息，None 表示加载失败或无数据
     UsageModelInfoLoaded(Option<UsageModelInfo>),
-    /// 使用量会话文件路径加载完成
-    ///
-    /// # 参数
-    /// - 会话 ID
-    /// - 路径加载结果，成功时可能为空表示无记录文件
-    UsageSessionFilePathLoaded(String, Result<Option<std::path::PathBuf>, String>),
     /// 使用量步骤展开/折叠切换
     ///
     /// # 参数
@@ -493,6 +557,13 @@ pub enum ViewMessage {
     /// - 步骤索引
     /// - 原始载荷读取结果
     UsageStepRawLoaded(String, u32, Result<Option<serde_json::Value>, String>),
+    /// 打开使用量步骤原始记录弹窗
+    ///
+    /// # 参数
+    /// - 步骤索引
+    UsageStepRawOpen(u32),
+    /// 关闭使用量步骤原始记录弹窗
+    UsageStepRawClose,
     /// 在系统文件管理器中打开指定路径
     ///
     /// # 参数
@@ -553,7 +624,42 @@ pub enum ViewMessage {
 /// // task 可能包含需要在事件循环中执行的命令
 /// ```
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
-    match message {
+    let sync_work_browser = matches!(
+        &message,
+        ViewMessage::WorkspaceModeSelected(_)
+            | ViewMessage::WorkResourceModeSelected(_)
+            | ViewMessage::WorkResourcesToggled
+            | ViewMessage::WorkSidebarToggled
+            | ViewMessage::WorkSplitRatioChanged(_)
+            | ViewMessage::WorkResourceFullscreenToggled
+            | ViewMessage::WorkResourceHalfFullscreenToggled
+            | ViewMessage::ToggleSystemSettings
+            | ViewMessage::OpenSystemSettingsTab(_)
+            | ViewMessage::OpenSystemSettingsModelDetail(_, _)
+            | ViewMessage::GoHome
+            | ViewMessage::TabSelected(_)
+            | ViewMessage::TabClosed(_)
+            | ViewMessage::WindowResized(_, _, _)
+            | ViewMessage::WindowMoved(_, _, _)
+            | ViewMessage::WindowFocused(_)
+            | ViewMessage::WindowUnfocused(_)
+            | ViewMessage::FullscreenLayoutSettled
+            | ViewMessage::WorkBrowserRuntimeTick
+    ) || matches!(
+        &message,
+        ViewMessage::PointerMoved(_, _)
+            if app.dragging_work_sidebar || app.dragging_work_split
+    ) || matches!(
+        &message,
+        ViewMessage::GlobalMouseReleased
+            if app.dragging_work_sidebar || app.dragging_work_split
+    );
+    let close_work_browser = matches!(
+        &message,
+        ViewMessage::CloseRequested(window_id) if app.main_window_id == Some(*window_id)
+    );
+
+    let task = match message {
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
@@ -670,6 +776,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::MenuAction(_)
         | ViewMessage::ToggleModelPopover
         | ViewMessage::ToggleModePopover
+        | ViewMessage::ToggleWorkspaceModePopover
+        | ViewMessage::CloseWorkspaceModePopover
+        | ViewMessage::WorkspaceModeSelected(_)
         | ViewMessage::ToggleFilePopover
         | ViewMessage::ToggleAcpPopover
         | ViewMessage::ToggleReasoningEffortPopover
@@ -690,6 +799,33 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ModelPopoverHoverChanged(_)
         | ViewMessage::GoHome
         | ViewMessage::AutoMaxToggled(_)
+        | ViewMessage::WorkResourceModeSelected(_)
+        | ViewMessage::WorkResourcesToggled
+        | ViewMessage::WorkSidebarToggled
+        | ViewMessage::WorkSidebarFilterToggled
+        | ViewMessage::WorkSidebarFilterClosed
+        | ViewMessage::WorkSidebarMoreToggled
+        | ViewMessage::WorkSidebarMoreOpened
+        | ViewMessage::WorkSidebarMoreClosed
+        | ViewMessage::WorkSidebarFilterScopeSelected(_)
+        | ViewMessage::WorkSidebarFilterStatusSelected(_)
+        | ViewMessage::WorkSidebarFilterTimeSelected(_)
+        | ViewMessage::WorkSidebarFilterReset
+        | ViewMessage::WorkSidebarTabSelected(_)
+        | ViewMessage::WorkSidebarLoadMorePressed
+        | ViewMessage::WorkSpacePickerToggled
+        | ViewMessage::WorkSpacePickerClosed
+        | ViewMessage::WorkSplitRatioChanged(_)
+        | ViewMessage::WorkResourceFullscreenToggled
+        | ViewMessage::WorkResourceHalfFullscreenToggled
+        | ViewMessage::WorkSpaceToggled(_)
+        | ViewMessage::WorkBrowserAddressChanged(_)
+        | ViewMessage::WorkBrowserNavigate
+        | ViewMessage::WorkBrowserBack
+        | ViewMessage::WorkBrowserForward
+        | ViewMessage::WorkBrowserReload
+        | ViewMessage::WorkBrowserClose
+        | ViewMessage::WorkBrowserRuntimeTick
         | ViewMessage::SelectChatSendBehavior(_) => panel::update(app, message),
         ViewMessage::ToggleDiffPanel
         | ViewMessage::ToggleGitDiffSummary
@@ -715,9 +851,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenWebUrlWithTitleAndSize(_, _, _, _)
         | ViewMessage::OpenUrlExternal(_)
         | ViewMessage::UsageModelInfoLoaded(_)
-        | ViewMessage::UsageSessionFilePathLoaded(_, _)
         | ViewMessage::UsageStepToggled(_)
         | ViewMessage::UsageStepRawLoaded(_, _, _)
+        | ViewMessage::UsageStepRawOpen(_)
+        | ViewMessage::UsageStepRawClose
         | ViewMessage::OpenPathInFinder(_)
         | ViewMessage::OpenProjectInExternalPreferred
         | ViewMessage::OpenProjectInExternalWith(_)
@@ -750,11 +887,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::SettingsDragStarted
         | ViewMessage::FileManagerDragStarted
         | ViewMessage::SplitDragStarted
+        | ViewMessage::WorkSidebarDragStarted
+        | ViewMessage::WorkSplitDragStarted
         | ViewMessage::PointerMoved(_, _)
         | ViewMessage::HoveredFilePath(_)
         | ViewMessage::HoveredFilesLeft
         | ViewMessage::WindowResized(_, _, _)
         | ViewMessage::WindowClosed(_)
+        | ViewMessage::WindowFocused(_)
+        | ViewMessage::WindowUnfocused(_)
         | ViewMessage::FullscreenLayoutSettled
         | ViewMessage::WindowMoved(_, _, _)
         | ViewMessage::WindowDragPressed => layout::update(app, message),
@@ -762,7 +903,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         // 主题相关消息：包括主题选择和切换
         // 这些消息统一委托给 theme 子模块处理
         ViewMessage::AppThemeSelected(_) => theme::update(app, message),
+    };
+
+    if close_work_browser {
+        panel::close_work_browser(app);
     }
+    if sync_work_browser { Task::batch(vec![task, panel::sync_work_browser(app)]) } else { task }
 }
 
 fn handle_global_key(

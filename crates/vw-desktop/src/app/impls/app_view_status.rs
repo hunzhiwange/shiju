@@ -17,6 +17,8 @@ use iced::{Background, Color};
 
 use super::{App, Message};
 
+pub(crate) const STATUS_BAR_HEIGHT: f32 = 30.0;
+
 #[cfg(not(target_arch = "wasm32"))]
 fn is_dark_theme(theme: &Theme) -> bool {
     let palette = theme.palette();
@@ -28,7 +30,7 @@ fn is_dark_theme(theme: &Theme) -> bool {
 /// 该函数为非 WebAssembly 平台创建状态栏 UI 组件。状态栏包含以下元素：
 ///
 /// # 布局结构
-/// - 左侧：LSP 状态信息（包括进度指示器和状态文本）
+/// - 左侧：账户、LSP 状态信息（包括进度指示器和状态文本）
 /// - 中间：弹性空白填充
 /// - 右侧：通知按钮（显示图标和未读计数）
 ///
@@ -288,9 +290,11 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                 }
             })
     };
+    let account = crate::app::components::account_status::view(app);
 
     // 组装完整的状态栏布局
     let content = iced::widget::row![
+        account,
         lsp_content,
         iced::widget::Space::new().width(iced::Length::Fill),
         notification_btn
@@ -300,6 +304,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
 
     iced::widget::container(content)
         .width(iced::Length::Fill)
+        .height(iced::Length::Fixed(STATUS_BAR_HEIGHT))
         .padding([2, 8])
         .style(|theme: &iced::Theme| {
             let p = theme.extended_palette();

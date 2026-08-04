@@ -529,6 +529,24 @@ where
     ) -> layout::Node {
         self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
     }
+    /// 将 Iced widget operation 转发给内容树。
+    ///
+    /// 编辑器的 `scroll_to`、`snap_to` 和聚焦命令依赖 operation 遍历；
+    /// 自定义宿主如果不转发，命令会在这一层被截断。
+    fn operate(
+        &mut self,
+        tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content.as_widget_mut().operate(
+            &mut tree.children[0],
+            layout,
+            renderer,
+            operation,
+        );
+    }
     /// 处理 draw 对应的局部职责。
     ///
     /// # 参数

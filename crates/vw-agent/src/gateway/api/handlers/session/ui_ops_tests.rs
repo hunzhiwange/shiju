@@ -3,6 +3,7 @@ use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::session::ui_store;
 use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, HeaderValue};
+use rusqlite::{params, Connection};
 use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
@@ -53,7 +54,9 @@ fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_m
         messages: vec![ui_models::ChatMessage {
             role: ui_models::ChatRole::User,
             content: content.to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("message-1".to_string())],
         calls: vec![serde_json::json!({"tool": "noop"})],
@@ -116,7 +119,6 @@ fn ui_handlers_are_available() {
     let _ = session_archived_get;
     let _ = session_archived_put;
     let _ = session_path_get;
-    let _ = session_step_llm_raw_get;
     let _ = session_scope_get;
     let _ = session_scope_put;
     let _ = session_ui_get_any;
@@ -254,14 +256,21 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
         Some(&scope_a),
     )
     .expect("raw payload should persist");
-    let Json(raw_payload) = session_step_llm_raw_get(
-        Path((body_a.id.clone(), 0)),
+    let Json(with_raw) = session_ui_get(
+        Path(body_a.id.clone()),
         Query(query_for(project_a_path)),
         HeaderMap::new(),
     )
     .await
     .expect("raw payload should load");
-    assert_eq!(raw_payload.expect("raw payload")["messages"][0]["content"], "hello");
+    let steps = with_raw.expect("session with raw").steps;
+    assert_eq!(
+        steps[0]
+            .llm_raw
+            .as_ref()
+            .expect("step raw payload")["messages"][0]["content"],
+        "hello"
+    );
     ui_store::set_session_scope(Some(&scope_b));
 
     let Json(meta) =
@@ -377,15 +386,6 @@ async fn ui_snapshot_handlers_return_empty_results_for_unknown_session() {
         .expect("empty archived ids should be handled");
     assert!(archived.is_empty());
 
-    let Json(raw_payload) = session_step_llm_raw_get(
-        Path((session_id.clone(), u32::MAX)),
-        Query(query_for(project_path)),
-        HeaderMap::new(),
-    )
-    .await
-    .expect("missing raw payload should be handled");
-    assert!(raw_payload.is_none());
-
     let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
         .expect("project directory should resolve to a scope");
     ui_store::set_session_scope(Some(&scope));
@@ -433,7 +433,7 @@ async fn session_archived_put_empty_list_clears_scope() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn session_step_llm_raw_get_maps_invalid_json_to_internal_error() {
+async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
     ui_store::set_session_scope(None);
@@ -443,26 +443,52 @@ async fn session_step_llm_raw_get_maps_invalid_json_to_internal_error() {
     let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
         .expect("project directory should resolve to a scope");
     let session_id = format!("invalid-raw-session-{}", std::process::id());
-    let raw_path = ui_store::persist_llm_raw_step(
+    let _ = ui_store::persist_llm_raw_step(
         &session_id,
         7,
         &serde_json::json!({"valid": true}),
         Some(&scope),
     )
-    .expect("raw payload path should be available");
-    std::fs::write(&raw_path, "{ definitely not json")
+    .expect("raw payload should persist before injection");
+    let mut session = session("invalid-json-session", "Invalid JSON");
+    session.steps[0].index = 7;
+    let Json(saved) = session_ui_save(
+        Path(session_id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(session),
+    )
+    .await
+    .expect("session containing invalid raw step should save");
+    assert!(saved);
+    let tenant = ui_store::current_tenant_scope();
+    let connection = Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
+        .expect("open session store database");
+    connection
+        .execute(
+            "UPDATE session_step_llm_raw
+             SET payload_json = ?1
+             WHERE platform_id = ?2 AND company_id = ?3 AND project_id = ?4
+               AND session_id = ?5 AND step_index = ?6",
+            params![
+                "{definitely not json",
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+                &scope,
+                &session_id,
+                7i64,
+            ],
+        )
         .expect("raw payload should be corrupted for the error case");
 
-    let error = session_step_llm_raw_get(
-        Path((session_id, 7)),
+    let error = session_ui_get(
+        Path(session_id),
         Query(query_for(project_path)),
         HeaderMap::new(),
     )
     .await
     .expect_err("invalid raw payload should fail");
     assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
-
-    std::fs::remove_file(raw_path).expect("corrupted raw payload should be removed");
 }
 
 #[tokio::test(flavor = "multi_thread")]

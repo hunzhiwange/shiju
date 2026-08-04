@@ -1,8 +1,9 @@
 use super::{
-    active_user_question_idx, chat_panel_virtual_window, chat_todo_overlay,
-    compute_visible_message_window_for_chat, is_chat_message_idx_visible, jump_to_bottom_button,
-    live_message_meta_fallback, rough_message_heights, user_question_indices,
-    user_question_nav_overlay, user_question_preview, view,
+    active_user_question_idx, chat_message_column, chat_panel_virtual_window, chat_todo_overlay,
+    compute_visible_message_window_for_chat, is_chat_message_idx_visible,
+    is_waiting_for_quick_message_session, jump_to_bottom_button, live_message_meta_fallback,
+    rough_message_heights, user_question_indices, user_question_nav_overlay, user_question_preview,
+    view,
 };
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
@@ -10,7 +11,7 @@ use crate::app::{App, Message, TodoPanelPlacement};
 use vw_shared::todo::Todo;
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn todo(id: &str) -> Todo {
@@ -20,6 +21,13 @@ fn todo(id: &str) -> Todo {
         content: format!("task {id}"),
         priority: "medium".to_string(),
     }
+}
+
+#[test]
+fn chat_message_column_fills_available_width() {
+    let element: iced::Element<'_, Message> = chat_message_column().into();
+
+    assert_eq!(element.as_widget().size().width, iced::Length::Fill);
 }
 
 #[test]
@@ -134,15 +142,17 @@ fn rough_message_heights_grow_for_rich_messages() {
 }
 
 #[test]
-fn live_message_meta_fallback_applies_to_chat_roles_only() {
+fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     assert_eq!(
-        live_message_meta_fallback(ChatRole::Assistant, false, false, "gpt"),
+        live_message_meta_fallback(ChatRole::Assistant, true, true, "gpt"),
         Some("gpt · 刚刚".to_string())
     );
     assert_eq!(
-        live_message_meta_fallback(ChatRole::User, false, false, "gpt"),
+        live_message_meta_fallback(ChatRole::User, true, true, "gpt"),
         Some("gpt · 刚刚".to_string())
     );
+    assert_eq!(live_message_meta_fallback(ChatRole::Assistant, false, true, "new-model"), None);
+    assert_eq!(live_message_meta_fallback(ChatRole::User, true, false, "new-model"), None);
     assert_eq!(live_message_meta_fallback(ChatRole::System, true, true, "gpt"), None);
 }
 
@@ -221,6 +231,20 @@ fn chat_panel_view_builds_started_message_window() {
     app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 80.0]);
     app.chat_virtualizer.set_viewport_height(200.0);
 
+    keep_element(view(&app));
+}
+
+#[test]
+fn chat_panel_hides_completed_summary_while_new_session_is_created() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("source".to_string());
+    app.chat = vec![message(ChatRole::Assistant, &"x".repeat(100_000))];
+    app.quick_message_handoff =
+        Some(crate::app::state::QuickMessageHandoffState::WaitingForSession {
+            prompt: "handoff".to_string(),
+        });
+
+    assert!(is_waiting_for_quick_message_session(&app));
     keep_element(view(&app));
 }
 

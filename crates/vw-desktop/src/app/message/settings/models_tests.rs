@@ -234,7 +234,7 @@ fn model_query_changed_preserves_input_verbatim() {
 }
 
 #[test]
-fn model_toggle_starts_reload_and_clears_transient_state() {
+fn model_toggle_updates_locally_and_starts_save_without_reloading() {
     let mut app = app();
     app.auto_model = false;
     app.model = "another-model".to_string();
@@ -250,9 +250,12 @@ fn model_toggle_starts_reload_and_clears_transient_state() {
         SettingsMessage::ModelToggle("openai".to_string(), "gpt-5".to_string(), false),
     );
 
-    assert!(app.model_settings.loading);
+    assert!(!app.model_settings.loading);
+    assert!(app.model_settings.saving);
     assert!(app.model_settings.save_error.is_none());
     assert!(app.model_settings.detail_modal.is_none());
+    assert!(!app.model_settings.providers[0].models[0].enabled);
+    assert_eq!(app.model_settings.providers[0].models[0].detail["status"], "disabled");
     assert!(!app.auto_model);
 }
 
@@ -271,19 +274,234 @@ fn disabling_selected_model_switches_back_to_auto_model() {
 }
 
 #[test]
-fn enabling_model_schedules_reload_without_forcing_auto_model() {
+fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model() {
     let mut app = app();
     app.auto_model = false;
     app.model = "gpt-5".to_string();
+    let mut provider = provider_summary();
+    provider.models[0].enabled = false;
+    provider.models[0].detail["status"] = json!("disabled");
+    app.model_settings.providers = vec![provider];
 
     let task = update(
         &mut app,
         SettingsMessage::ModelToggle("openai".to_string(), "gpt-5".to_string(), true),
     );
 
-    assert!(app.model_settings.loading);
+    assert!(!app.model_settings.loading);
+    assert!(app.model_settings.saving);
+    assert!(app.model_settings.providers[0].models[0].enabled);
+    assert_eq!(app.model_settings.providers[0].models[0].detail["status"], "active");
     assert!(!app.auto_model);
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}
+
+#[test]
+fn model_status_patch_groups_all_changes_into_one_provider_patch() {
+    let changes = vec![
+        ModelStatusChange {
+            provider_id: "openai".to_string(),
+            model_id: "gpt-5".to_string(),
+            previous_enabled: true,
+            enabled: false,
+        },
+        ModelStatusChange {
+            provider_id: "openai".to_string(),
+            model_id: "gpt-4.1".to_string(),
+            previous_enabled: false,
+            enabled: true,
+        },
+        ModelStatusChange {
+            provider_id: "anthropic".to_string(),
+            model_id: "claude-sonnet".to_string(),
+            previous_enabled: true,
+            enabled: false,
+        },
+    ];
+
+    assert_eq!(
+        model_status_patch(&changes),
+        json!({
+            "providers": {
+                "openai": {
+                    "models": {
+                        "gpt-5": { "id": "gpt-5", "status": "disabled" },
+                        "gpt-4.1": { "id": "gpt-4.1", "status": "active" }
+                    }
+                },
+                "anthropic": {
+                    "models": {
+                        "claude-sonnet": {
+                            "id": "claude-sonnet",
+                            "status": "disabled"
+                        }
+                    }
+                }
+            }
+        })
+    );
+}
+
+#[test]
+fn provider_status_reset_patch_removes_only_explicit_status_fields() {
+    let mut config = vw_config_types::config::Config::default();
+    config.providers.insert(
+        "openai".to_string(),
+        json!({
+            "name": "OpenAI",
+            "models": {
+                "gpt-5": {
+                    "status": "active",
+                    "name": "GPT-5"
+                },
+                "gpt-4.1": {
+                    "status": "disabled"
+                },
+                "gpt-4o": {
+                    "name": "GPT-4o"
+                }
+            }
+        }),
+    );
+
+    assert_eq!(
+        provider_model_status_reset_patch(&config, "openai"),
+        Some(json!({
+            "providers": {
+                "openai": {
+                    "models": {
+                        "gpt-5": { "status": null },
+                        "gpt-4.1": { "status": null }
+                    }
+                }
+            }
+        }))
+    );
+    assert!(provider_model_status_reset_patch(&config, "missing").is_none());
+}
+
+#[test]
+fn provider_set_all_only_changes_models_in_selected_group() {
+    let mut app = app();
+    let mut anthropic = provider_summary();
+    anthropic.id = "anthropic".to_string();
+    anthropic.name = "Anthropic".to_string();
+    anthropic.models[0].id = "claude-sonnet".to_string();
+    anthropic.models[0].name = "Claude Sonnet".to_string();
+    app.model_settings.providers = vec![provider_summary(), anthropic];
+
+    let task = update(&mut app, SettingsMessage::ProviderModelsSetAll("openai".to_string(), false));
+
+    assert!(app.model_settings.saving);
+    assert!(!app.model_settings.providers[0].models[0].enabled);
+    assert!(app.model_settings.providers[1].models[0].enabled);
+    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}
+
+#[test]
+fn provider_reset_optimistically_disables_only_selected_group() {
+    let mut app = app();
+    let mut anthropic = provider_summary();
+    anthropic.id = "anthropic".to_string();
+    anthropic.models[0].id = "claude-sonnet".to_string();
+    app.model_settings.providers = vec![provider_summary(), anthropic];
+
+    let task = update(&mut app, SettingsMessage::ProviderModelsReset("openai".to_string()));
+
+    assert!(app.model_settings.saving);
+    assert!(!app.model_settings.providers[0].models[0].enabled);
+    assert!(app.model_settings.providers[1].models[0].enabled);
+    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}
+
+#[test]
+fn provider_model_groups_start_collapsed_and_toggle_independently() {
+    let mut app = app();
+    assert!(app.model_settings.expanded_provider_ids.is_empty());
+
+    let _ = update(&mut app, SettingsMessage::ProviderModelsExpansionToggled("openai".to_string()));
+    assert!(app.model_settings.expanded_provider_ids.contains("openai"));
+
+    let _ = update(&mut app, SettingsMessage::ProviderModelsExpansionToggled("openai".to_string()));
+    assert!(!app.model_settings.expanded_provider_ids.contains("openai"));
+}
+
+#[test]
+fn models_set_all_updates_every_connected_model_with_one_save() {
+    let mut app = app();
+    let mut provider = provider_summary();
+    provider.models.push(ModelSummary {
+        id: "gpt-4.1".to_string(),
+        name: "GPT-4.1".to_string(),
+        enabled: false,
+        toolcall: true,
+        attachment: false,
+        context_limit: 128_000,
+        detail: json!({ "id": "gpt-4.1", "status": "disabled" }),
+    });
+    app.model_settings.providers = vec![provider];
+
+    let task = update(&mut app, SettingsMessage::ModelsSetAll(false));
+
+    assert!(app.model_settings.saving);
+    assert!(app.model_settings.providers[0].models.iter().all(|model| !model.enabled));
+    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}
+
+#[test]
+fn model_status_save_error_rolls_back_local_changes() {
+    let mut app = app();
+    app.model_settings.providers = vec![provider_summary()];
+    let change = ModelStatusChange {
+        provider_id: "openai".to_string(),
+        model_id: "gpt-5".to_string(),
+        previous_enabled: true,
+        enabled: false,
+    };
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::ModelToggle(
+            change.provider_id.clone(),
+            change.model_id.clone(),
+            change.enabled,
+        ),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::ModelStatusesSaved(vec![change], Err("save failed".to_string())),
+    );
+
+    assert!(!app.model_settings.saving);
+    assert!(app.model_settings.providers[0].models[0].enabled);
+    assert_eq!(app.model_settings.providers[0].models[0].detail["status"], "active");
+    assert_eq!(app.model_settings.save_error.as_deref(), Some("save failed"));
+}
+
+#[test]
+fn model_status_save_success_keeps_optimistic_state() {
+    let mut app = app();
+    app.model_settings.providers = vec![provider_summary()];
+    let change = ModelStatusChange {
+        provider_id: "openai".to_string(),
+        model_id: "gpt-5".to_string(),
+        previous_enabled: true,
+        enabled: false,
+    };
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::ModelToggle(
+            change.provider_id.clone(),
+            change.model_id.clone(),
+            change.enabled,
+        ),
+    );
+    let _ = update(&mut app, SettingsMessage::ModelStatusesSaved(vec![change], Ok(())));
+
+    assert!(!app.model_settings.saving);
+    assert!(!app.model_settings.providers[0].models[0].enabled);
+    assert!(app.model_settings.save_error.is_none());
 }
 
 #[test]

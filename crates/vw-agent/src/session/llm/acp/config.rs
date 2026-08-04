@@ -159,6 +159,16 @@ fn parse_string_option(merged_options: &Value, key: &str) -> Result<Option<Strin
     Ok((!trimmed.is_empty()).then(|| trimmed.to_string()))
 }
 
+/// 解析布尔选项。
+///
+/// 缺失时返回 `false`，非布尔值返回错误。
+fn parse_bool_option(merged_options: &Value, key: &str) -> Result<bool, Error> {
+    let Some(value) = merged_options.get(key) else {
+        return Ok(false);
+    };
+    value.as_bool().ok_or_else(|| acp_option_error(format!("{key} must be a boolean")))
+}
+
 /// 解析字符串数组选项。
 ///
 /// 空数组或全部为空白字符串时返回 `None`；数组中出现非字符串元素会返回错误。
@@ -244,6 +254,7 @@ pub(crate) fn parse_acp_options(
 ) -> Result<ParsedAcpOptions, Error> {
     let permission_mode =
         parse_enum_option::<PermissionMode>(merged_options, "acp_permission_mode")?;
+    let full_access = parse_bool_option(merged_options, "full_access")?;
     let non_interactive_permissions = parse_enum_option::<NonInteractivePermissionPolicy>(
         merged_options,
         "acp_non_interactive_permissions",
@@ -309,6 +320,7 @@ pub(crate) fn parse_acp_options(
 
     Ok(ParsedAcpOptions {
         permission_mode,
+        full_access,
         non_interactive_permissions,
         auth_policy,
         session_mode,

@@ -1,7 +1,9 @@
 use super::toast::{
-    confirm_dialog, icon_svg, is_dark_theme, toast_card_style, toast_icon_badge_style,
-    toast_message_text_color, toast_palette, view,
+    cache_sync_retry_message, confirm_dialog, icon_svg, is_dark_theme, toast_card_style,
+    toast_icon_badge_style, toast_message_text_color, toast_palette, view,
 };
+use crate::app::message::SkillHubMessage;
+use crate::app::skill_hub::SkillCacheSyncState;
 use crate::app::assets::Icon;
 use crate::app::state::{Toast, ToastKind};
 use crate::app::{App, Message};
@@ -176,6 +178,24 @@ fn view_renders_active_toast_for_each_kind() {
 
         keep_element(view(&app));
     }
+}
+
+#[test]
+fn cache_sync_pending_retry_exposes_retry_action_in_toast() {
+    let mut app = test_app();
+    app.expert_hub.cache_sync =
+        SkillCacheSyncState::PendingRetry { skill_id: 7, refresh_detail: false };
+    app.active_toast = Some(Toast {
+        id: 7,
+        kind: ToastKind::Warning,
+        message: "服务端已更新，本地缓存待同步".to_string(),
+    });
+
+    assert!(matches!(
+        cache_sync_retry_message(&app),
+        Some(Message::SkillHub(SkillHubMessage::RetrySkillCacheSync))
+    ));
+    keep_element(view(&app));
 }
 
 #[test]

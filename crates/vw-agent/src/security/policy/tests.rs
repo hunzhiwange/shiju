@@ -182,6 +182,17 @@ fn shell_redirect_policy_strip_removes_supported_redirects_before_validation() {
 }
 
 #[test]
+fn shell_redirect_policy_allow_preserves_command() {
+    let policy = SecurityPolicy {
+        shell_redirect_policy: ShellRedirectPolicy::Allow,
+        ..SecurityPolicy::default()
+    };
+    let command = "printf '原样\\n' > output.txt 2>> errors.log";
+
+    assert_eq!(policy.apply_shell_redirect_policy(command), command);
+}
+
+#[test]
 fn from_config_resolves_relative_allowed_roots_against_workspace() {
     let config = crate::app::agent::config::AutonomyConfig {
         allowed_roots: vec!["shared".into(), "/abs".into()],
@@ -221,6 +232,158 @@ fn shell_permission_rejects_read_only_writes_and_variable_expansion() {
         SecurityPolicy { allowed_commands: vec!["echo".into()], ..SecurityPolicy::default() };
     let expansion = policy.check_shell_permission("echo $HOME", &context(&policy, true));
     assert!(matches!(expansion.permission, Some(Permission::Deny { .. })));
+}
+
+#[test]
+fn quoted_shell_newline_blocking_is_configurable() {
+    let command = "git commit -m \"title\n\nbody\"";
+    let relaxed = SecurityPolicy {
+        autonomy: AutonomyLevel::Full,
+        workspace_only: false,
+        allowed_commands: vec!["*".into()],
+        ..SecurityPolicy::default()
+    };
+    let mut strict = relaxed.clone();
+    strict.bash_security.validators.quoted_newline = true;
+
+    assert!(relaxed.validate_command_execution(command, true).is_ok());
+    assert!(strict.validate_command_execution(command, true).is_err());
+}
+
+#[test]
+fn policy_checks_follow_master_group_and_item_precedence() {
+    let mut policy = SecurityPolicy::default();
+    assert!(policy.policy_check_enabled(|config| config.read_only));
+
+    policy.bash_security.policy.read_only = false;
+    assert!(!policy.policy_check_enabled(|config| config.read_only));
+    assert!(policy.policy_check_enabled(|config| config.command_rules));
+
+    policy.bash_security.policy.enabled = false;
+    assert!(!policy.policy_check_enabled(|config| config.command_rules));
+
+    policy.bash_security.policy.enabled = true;
+    policy.bash_security_enabled = false;
+    assert!(!policy.policy_check_enabled(|config| config.command_rules));
+}
+
+#[test]
+fn policy_group_can_be_disabled_without_disabling_validators() {
+    let mut policy = SecurityPolicy {
+        autonomy: AutonomyLevel::Full,
+        workspace_only: false,
+        allowed_commands: vec!["*".into()],
+        ..SecurityPolicy::default()
+    };
+    policy.bash_security.policy.enabled = false;
+
+    let result = policy.check_shell_permission(
+        "for item in {one,two}; do echo \"$item\"; done",
+        &context(&policy, true),
+    );
+
+    assert!(matches!(result.permission, Some(Permission::Deny { .. })));
+}
+
+#[test]
+fn validator_group_can_be_disabled_without_disabling_command_rules() {
+    let mut policy =
+        SecurityPolicy { allowed_commands: vec!["echo".into()], ..SecurityPolicy::default() };
+    policy.bash_security.validators.enabled = false;
+
+    let allowed = policy.check_shell_permission("echo safe", &context(&policy, true));
+    let denied = policy.check_shell_permission("curl example.com", &context(&policy, true));
+
+    assert!(matches!(allowed.permission, Some(Permission::Allow)));
+    assert!(matches!(denied.permission, Some(Permission::Deny { .. })));
+}
+
+#[test]
+fn policy_items_gate_only_their_assigned_checks() {
+    let mut read_only = SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        allowed_commands: vec!["touch".into()],
+        ..SecurityPolicy::default()
+    };
+    read_only.bash_security.validators.enabled = false;
+    read_only.bash_security.policy.command_rules = false;
+    read_only.bash_security.policy.risk = false;
+    assert!(matches!(
+        read_only.check_shell_permission("touch file", &context(&read_only, true)).permission,
+        Some(Permission::Deny { .. })
+    ));
+    read_only.bash_security.policy.read_only = false;
+    assert!(matches!(
+        read_only.check_shell_permission("touch file", &context(&read_only, true)).permission,
+        Some(Permission::Allow)
+    ));
+
+    let mut unsafe_patterns =
+        SecurityPolicy { allowed_commands: vec!["echo".into()], ..SecurityPolicy::default() };
+    unsafe_patterns.bash_security.validators.enabled = false;
+    unsafe_patterns.bash_security.policy.command_rules = false;
+    assert!(matches!(
+        unsafe_patterns
+            .check_shell_permission("echo $HOME", &context(&unsafe_patterns, true))
+            .permission,
+        Some(Permission::Deny { .. })
+    ));
+    unsafe_patterns.bash_security.policy.unsafe_shell_patterns = false;
+    assert!(matches!(
+        unsafe_patterns
+            .check_shell_permission("echo $HOME", &context(&unsafe_patterns, true))
+            .permission,
+        Some(Permission::Allow)
+    ));
+
+    let mut command_rules = SecurityPolicy::default();
+    command_rules.bash_security.validators.enabled = false;
+    assert!(matches!(
+        command_rules
+            .check_shell_permission("curl example.com", &context(&command_rules, true))
+            .permission,
+        Some(Permission::Deny { .. })
+    ));
+    command_rules.bash_security.policy.command_rules = false;
+    assert!(matches!(
+        command_rules
+            .check_shell_permission("curl example.com", &context(&command_rules, true))
+            .permission,
+        Some(Permission::Allow)
+    ));
+
+    let mut workspace_paths = SecurityPolicy {
+        workspace_dir: PathBuf::from("/workspace"),
+        allowed_commands: vec!["cat".into()],
+        ..SecurityPolicy::default()
+    };
+    workspace_paths.bash_security.validators.enabled = false;
+    assert!(matches!(
+        workspace_paths
+            .check_shell_permission("cat /outside/file", &context(&workspace_paths, true))
+            .permission,
+        Some(Permission::Deny { .. })
+    ));
+    workspace_paths.bash_security.policy.workspace_paths = false;
+    assert!(matches!(
+        workspace_paths
+            .check_shell_permission("cat /outside/file", &context(&workspace_paths, true))
+            .permission,
+        Some(Permission::Allow)
+    ));
+
+    let mut risk =
+        SecurityPolicy { allowed_commands: vec!["rm".into()], ..SecurityPolicy::default() };
+    risk.bash_security.validators.enabled = false;
+    assert!(matches!(
+        risk.check_shell_permission("rm file", &context(&risk, true)).permission,
+        Some(Permission::Deny { .. })
+    ));
+    risk.bash_security.policy.risk = false;
+    assert!(matches!(
+        risk.check_shell_permission("rm file", &context(&risk, true)).permission,
+        Some(Permission::Allow)
+    ));
 }
 
 #[test]

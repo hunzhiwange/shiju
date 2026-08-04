@@ -56,12 +56,6 @@ where
         return operation();
     }
 
-    if tokio::runtime::Handle::current().runtime_flavor()
-        == tokio::runtime::RuntimeFlavor::MultiThread
-    {
-        return tokio::task::block_in_place(operation);
-    }
-
     std::thread::scope(|scope| {
         scope
             .spawn(operation)
@@ -248,12 +242,12 @@ impl GlobalDatabase {
     }
 
     pub(crate) fn connect_postgres(&self) -> Result<PostgresConnection> {
-        match self.backend.as_ref() {
+        crate::global_database::run_sync_database(|| match self.backend.as_ref() {
             GlobalDatabaseBackend::Sqlite { .. } => {
                 bail!("SQLite global database does not expose a PostgreSQL connection")
             }
             GlobalDatabaseBackend::Postgres(provider) => provider.connect(),
-        }
+        })
     }
 
     pub(crate) fn initialize_sqlite_schema(
@@ -278,14 +272,14 @@ impl GlobalDatabase {
 
     pub(crate) fn initialize_postgres_schema(
         &self,
-        initialize: impl FnOnce(&mut ::postgres::Transaction<'_>) -> Result<()>,
+        initialize: impl FnOnce(&mut ::postgres::Transaction<'_>) -> Result<()> + Send,
     ) -> Result<()> {
-        match self.backend.as_ref() {
+        run_sync_database(|| match self.backend.as_ref() {
             GlobalDatabaseBackend::Sqlite { .. } => {
                 bail!("SQLite global database has no PostgreSQL schema transaction")
             }
             GlobalDatabaseBackend::Postgres(provider) => provider.initialize_schema(initialize),
-        }
+        })
     }
 
     pub(crate) fn with_sqlite_transaction<T>(

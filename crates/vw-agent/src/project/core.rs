@@ -184,7 +184,7 @@ pub async fn from_directory(
 ) -> Result<(Info, String), Error> {
     let directory = directory.as_ref().to_path_buf();
     let local_project_id = local_project_id_from_path(&directory);
-    LOGGER.info(
+    LOGGER.debug(
         "from_directory",
         Some(extra([("directory", Value::String(directory.to_string_lossy().to_string()))])),
     );

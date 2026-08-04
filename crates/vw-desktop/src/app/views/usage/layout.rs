@@ -6,7 +6,6 @@
 //! - 会话细节：显示当前会话的详细信息和模型配置
 //! - 占比分析：显示不同类型消息的分布和 token 占比
 //! - 步骤列表：显示会话中各个步骤的详细 token 使用情况
-//! - 记录文件：显示会话 SQLite 文件的路径
 
 use iced::widget::{Space, column, container, row, scrollable, text};
 use iced::{Element, Length};
@@ -18,48 +17,7 @@ use super::data::UsageData;
 use super::session_menu::kv_with_menu;
 use super::steps::build_steps_panel;
 use super::styles::card_style;
-use super::utils::{fmt_ms, fmt_usd, kv, kv_path, section_title};
-
-fn truncate_chars(value: &str, limit: usize) -> String {
-    let mut out = String::new();
-    for (index, ch) in value.chars().enumerate() {
-        if index >= limit {
-            out.push_str("\n...");
-            return out;
-        }
-        out.push(ch);
-    }
-    out
-}
-
-fn raw_record_preview(index: usize, value: &serde_json::Value) -> String {
-    let pretty = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
-    format!("记录 {}\n{}", index, truncate_chars(&pretty, 3_000))
-}
-
-fn raw_records_preview(usage_data: &UsageData) -> String {
-    let Some(session) = usage_data.session.as_ref() else {
-        return "暂无原始记录".to_string();
-    };
-    if session.calls.is_empty() {
-        return "暂无原始记录".to_string();
-    }
-
-    let total = session.calls.len();
-    let mut records = session
-        .calls
-        .iter()
-        .enumerate()
-        .rev()
-        .take(3)
-        .map(|(index, value)| raw_record_preview(index + 1, value))
-        .collect::<Vec<_>>();
-    if total > records.len() {
-        let shown = records.len();
-        records.push(format!("共 {} 条，仅显示最近 {} 条", total, shown));
-    }
-    records.join("\n\n")
-}
+use super::utils::{fmt_ms, fmt_usd, kv, section_title};
 
 /// 构建用量视图的主界面
 ///
@@ -83,8 +41,6 @@ fn raw_records_preview(usage_data: &UsageData) -> String {
 /// 2. **会话细节卡片** - 显示模型配置、上下文限制、成本估算等详细信息
 /// 3. **占比卡片** - 显示消息类型分布和 token 类型占比的可视化
 /// 4. **步骤卡片** - 显示每个步骤的 token 使用详情
-/// 5. **记录卡片** - 显示会话 SQLite 文件的路径
-/// 6. **原始数据卡片** - 显示原始会话数据
 ///
 /// # 示例
 ///
@@ -94,10 +50,6 @@ fn raw_records_preview(usage_data: &UsageData) -> String {
 /// // view 可直接用于 iced 应用的渲染
 /// ```
 pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, Message> {
-    // 滚动区域的侧边内边距（像素）
-    #[allow(dead_code)]
-    const SCROLL_SIDE_PAD: u16 = 10;
-
     // ===== 概览卡片：左侧统计信息 =====
     // 显示会话的基本统计，包括标题、消息数、原始记录数和 token 总数
     let stats_left = column![
@@ -378,47 +330,6 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // 显示每个步骤的详细 token 使用情况
     let steps_card = build_steps_panel(app, usage_data);
 
-    // ===== 记录卡片 =====
-    // 显示会话 SQLite 文件的路径
-    let session_path = app.usage_session_file_path.clone();
-    let files_left = column![kv_path("会话 SQLite", session_path.clone())].spacing(10);
-
-    // 组装记录卡片
-    let files = container(
-        column![section_title("记录"), Space::new().height(Length::Fixed(8.0)), files_left]
-            .spacing(0),
-    )
-    .style(card_style)
-    .padding(16)
-    .width(Length::Fill);
-
-    let raw_records = container(
-        column![
-            section_title("原始记录"),
-            Space::new().height(Length::Fixed(8.0)),
-            container(scrollable(text(raw_records_preview(usage_data)).size(11)))
-                .height(Length::Fixed(260.0))
-                .width(Length::Fill)
-                .padding(10)
-                .style(|theme: &iced::Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::container::Style {
-                        background: Some(iced::Background::Color(p.background.base.color)),
-                        border: iced::Border {
-                            width: 1.0,
-                            color: p.background.strong.color,
-                            radius: 8.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
-        ]
-        .spacing(0),
-    )
-    .style(card_style)
-    .padding(16)
-    .width(Length::Fill);
-
     // ===== 组装完整视图 =====
     // 将所有卡片按垂直方向排列，并设置最大宽度
     let root = column![
@@ -431,10 +342,6 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
         breakdown,
         Space::new().height(Length::Fixed(12.0)),
         steps_card,
-        Space::new().height(Length::Fixed(12.0)),
-        raw_records,
-        Space::new().height(Length::Fixed(12.0)),
-        files
     ]
     .spacing(0)
     .max_width(920);

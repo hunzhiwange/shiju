@@ -18,6 +18,35 @@ fn missing_full_access_option_defaults_to_disabled() {
     assert!(!super::request_full_access_enabled(&options));
 }
 
+#[test]
+fn enabled_identity_files_follow_selected_agent_config_snapshot() {
+    let mut config = crate::config::Config::default();
+    config.agents.insert(
+        "main".to_string(),
+        crate::config::DelegateAgentConfig {
+            enabled_identity_files: vec!["AGENTS.md".to_string()],
+            ..Default::default()
+        },
+    );
+    config.agents.insert(
+        "reviewer".to_string(),
+        crate::config::DelegateAgentConfig {
+            enabled_identity_files: vec!["SOUL.md".to_string()],
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(
+        super::enabled_identity_files_for_agent(&config, None),
+        vec!["AGENTS.md"]
+    );
+    assert_eq!(
+        super::enabled_identity_files_for_agent(&config, Some("reviewer")),
+        vec!["SOUL.md"]
+    );
+    assert!(super::enabled_identity_files_for_agent(&config, Some("missing")).is_empty());
+}
+
 use crate::app::agent::session::llm;
 use crate::app::agent::tools::ToolRuntimeContext;
 use crate::session::ui_types as models;
@@ -45,6 +74,9 @@ fn request_with_session(session: &str) -> super::Request {
         assistant_message_id: None,
         history: Vec::new(),
         persist_app_session_artifacts: false,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: crate::session::runtime::SessionToolset::default(),
     }
 }
 
@@ -69,6 +101,9 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
         .iter()
         .filter_map(|event| match event {
             super::StreamEvent::Delta(text) => Some(format!("delta:{text}")),
+            super::StreamEvent::Tool(event) => {
+                Some(format!("tool:{}:{}", event.name, event.payload))
+            }
             super::StreamEvent::Error(text) => Some(format!("error:{text}")),
             super::StreamEvent::Done(_) => Some("done".to_string()),
             super::StreamEvent::PostToolRound { step_index } => {
@@ -79,6 +114,9 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
             }
             super::StreamEvent::StepFinish { step_index, .. } => {
                 Some(format!("step-finish:{step_index}"))
+            }
+            super::StreamEvent::ContextLoaded { paths } => {
+                Some(format!("context-loaded:{}", paths.join(",")))
             }
         })
         .collect()
@@ -328,6 +366,54 @@ fn run_routes_docs_request_without_starting_an_llm_step() {
 }
 
 #[test]
+fn required_agent_tool_rejects_unavailable_runtime() {
+    let workspace = tempfile::tempdir().expect("temp workspace should be created");
+    std::fs::create_dir(workspace.path().join("docs")).expect("docs dir should be created");
+    let mut req = request_with_session(&unique_session_id("required-agent-tool-unavailable"));
+    req.query = "请列出 docs 文件列表".to_string();
+    req.root = Some(workspace.path().to_string_lossy().to_string());
+    req.options = serde_json::json!({
+        "require_agent_tool": true,
+        "allowed_tools": ["shell"]
+    });
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorded_events = std::sync::Arc::clone(&events);
+
+    super::run(req, move |event| {
+        recorded_events.lock().expect("events lock should not be poisoned").push(event);
+        true
+    });
+
+    let events = events.lock().expect("events lock should not be poisoned");
+    let texts = event_texts(events.as_slice());
+    assert_eq!(texts.len(), 1);
+    assert!(texts[0].starts_with("error:"));
+    assert!(texts[0].contains("AgentTool"));
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::Done(_))));
+
+    let acp_error = super::required_agent_tool_runtime_error(
+        &serde_json::json!({
+            "require_agent_tool": true,
+            "acp_agent": "copilot"
+        }),
+        &HashSet::from(["AgentTool".to_string()]),
+    )
+    .expect("ACP should reject the local AgentTool requirement");
+    assert!(acp_error.contains("ACP"));
+}
+
+#[test]
+fn required_agent_tool_bypasses_docs_shortcut() {
+    let query = "请列出 docs 文件列表";
+
+    assert!(super::should_handle_docs_request_locally(query, &serde_json::json!({})));
+    assert!(!super::should_handle_docs_request_locally(
+        query,
+        &serde_json::json!({ "require_agent_tool": true })
+    ));
+}
+
+#[test]
 fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     let session_id = unique_session_id("structured-denied");
     let req = request_with_session(&session_id);
@@ -414,7 +500,13 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
     assert!(session.messages.is_empty());
     assert_eq!(tool_state.non_todo_tool_runs, 0);
     assert_eq!(llm_messages.len(), 2);
-    assert_eq!(llm_messages[1]["content"].as_str(), Some("tool denied: otherwise_allowed"));
+    assert_eq!(
+        llm_messages[1]["content"].as_str(),
+        Some(
+            "tool unavailable: maximum tool iteration budget reached; \
+             `otherwise_allowed` was not rejected by the permission policy"
+        )
+    );
 }
 
 #[test]
@@ -462,6 +554,109 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
     assert_eq!(session.messages[0].content, "final answer");
     assert_eq!(llm_messages.len(), 1);
     assert_eq!(llm_messages[0]["content"].as_str(), Some("final answer"));
+    assert_eq!(event_texts(&events), vec!["done"]);
+}
+
+#[test]
+fn required_agent_tool_retries_then_rejects_plain_final_text() {
+    let session_id = unique_session_id("required-agent-tool-plain-text");
+    let mut req = request_with_session(&session_id);
+    req.options = serde_json::json!({ "require_agent_tool": true });
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState::default();
+    let mut retries = 0usize;
+    let mut step = 0;
+    let mut tried_auto_complete_todos = false;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+
+    let outcomes = (1..=3)
+        .map(|step_index| {
+            let step_out = llm_step(&format!("plain answer {step_index}"));
+            super::handle_assistant_text_branch(
+                &req,
+                &mut session,
+                &ctx,
+                &mut llm_messages,
+                &mut total_usage,
+                &mut |event| {
+                    events.push(event);
+                    true
+                },
+                &mut tool_state,
+                &mut retries,
+                &mut step,
+                &mut tried_auto_complete_todos,
+                &step_out,
+                "plain answer",
+                &empty_tools,
+                false,
+                step_index,
+                None,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(outcomes, vec![true, true, false]);
+    assert_eq!(step, 2);
+    assert_eq!(
+        event_texts(&events)
+            .into_iter()
+            .filter(|event| event.starts_with("done"))
+            .count(),
+        0
+    );
+    let terminal = event_texts(&events).pop().expect("terminal error");
+    assert!(terminal.starts_with("error:"));
+    assert!(terminal.contains("AgentTool"));
+}
+
+#[test]
+fn successful_agent_delegation_allows_required_agent_tool_final_text() {
+    let session_id = unique_session_id("required-agent-tool-satisfied");
+    let mut req = request_with_session(&session_id);
+    req.options = serde_json::json!({ "require_agent_tool": true });
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState {
+        successful_agent_delegations: 1,
+        ..Default::default()
+    };
+    let mut retries = 0usize;
+    let mut step = 0;
+    let mut tried_auto_complete_todos = false;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+    let step_out = llm_step("delegated final answer");
+
+    let should_continue = super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &mut tried_auto_complete_todos,
+        &step_out,
+        "delegated final answer",
+        &empty_tools,
+        false,
+        1,
+        None,
+    );
+
+    assert!(!should_continue);
     assert_eq!(event_texts(&events), vec!["done"]);
 }
 

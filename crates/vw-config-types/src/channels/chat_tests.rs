@@ -36,6 +36,7 @@ fn dingtalk_instance(id: &str) -> serde_json::Value {
 fn channel_instance_profiles_resolve_legacy_and_named_instances() {
     let channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
         "cli": true,
+        "matrix_enabled": true,
         "matrix": {
             "homeserver": "https://matrix-default.example",
             "access_token": "matrix-default-token",
@@ -85,6 +86,7 @@ fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
             "empty",
             serde_json::json!({
                 "cli": true,
+                "matrix_enabled": true,
                 "matrix_instances": [matrix_instance("")]
             }),
             "must not be empty",
@@ -93,6 +95,7 @@ fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
             "colon",
             serde_json::json!({
                 "cli": true,
+                "matrix_enabled": true,
                 "matrix_instances": [matrix_instance("bad:id")]
             }),
             "must not contain",
@@ -117,6 +120,7 @@ fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
             "duplicate",
             serde_json::json!({
                 "cli": true,
+                "matrix_enabled": true,
                 "matrix": {
                     "homeserver": "https://matrix-default.example",
                     "access_token": "matrix-default-token",
@@ -134,4 +138,16 @@ fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
         let err = channels.resolve_channel_instance_profiles().unwrap_err().to_string();
         assert!(err.contains(expected), "{name}: expected {err:?} to contain {expected:?}");
     }
+}
+
+#[test]
+fn matrix_is_disabled_by_default_and_disabled_profiles_are_ignored() {
+    let channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "matrix_instances": [matrix_instance("bad:id")]
+    }))
+    .unwrap();
+
+    assert!(!channels.matrix_enabled);
+    assert!(channels.resolve_channel_instance_profiles().unwrap().is_empty());
 }

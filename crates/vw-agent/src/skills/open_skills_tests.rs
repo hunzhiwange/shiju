@@ -354,7 +354,11 @@ fn load_open_skills_supports_nested_and_flat_layouts() {
     std::fs::write(nested_skill.join("SKILL.md"), "# Nested\nNested skill\n").unwrap();
     std::fs::write(nested.path().join("flat.md"), "# Flat\nIgnored while nested exists\n").unwrap();
 
-    let nested_loaded = load_open_skills(nested.path(), SkillLoadMode::Full);
+    let nested_loaded = load_open_skills(
+        nested.path(),
+        SkillLoadMode::Full,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
+    );
     assert_eq!(nested_loaded.len(), 1);
     assert_eq!(nested_loaded[0].name, "nested");
     assert!(!nested_loaded[0].prompts.is_empty());
@@ -369,7 +373,21 @@ fn load_open_skills_supports_nested_and_flat_layouts() {
     .unwrap();
     std::fs::create_dir(flat.path().join("folder.md")).unwrap();
 
-    let flat_loaded = load_open_skills(flat.path(), SkillLoadMode::MetadataOnly);
+    let default_loaded = load_open_skills(
+        flat.path(),
+        SkillLoadMode::MetadataOnly,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
+    );
+    assert_eq!(default_loaded.len(), 2);
+    assert!(default_loaded.iter().any(|skill| skill.name == "unsafe"));
+
+    let reject_unsafe = vw_config_types::skills::SkillSecurityConfig {
+        detect_high_risk_content: true,
+        detect_shell_chaining: true,
+        ..Default::default()
+    };
+    let flat_loaded =
+        load_open_skills(flat.path(), SkillLoadMode::MetadataOnly, &reject_unsafe);
     assert_eq!(flat_loaded.len(), 1);
     assert_eq!(flat_loaded[0].name, "flat");
     assert!(flat_loaded[0].prompts.is_empty());
@@ -379,7 +397,14 @@ fn load_open_skills_supports_nested_and_flat_layouts() {
 fn load_open_skills_returns_empty_for_missing_repository() {
     let dir = tempfile::tempdir().unwrap();
 
-    assert!(load_open_skills(&dir.path().join("missing"), SkillLoadMode::Full).is_empty());
+    assert!(
+        load_open_skills(
+            &dir.path().join("missing"),
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -388,7 +413,14 @@ fn load_open_skills_nested_layout_takes_priority_even_when_empty() {
     std::fs::create_dir(repo.path().join("skills")).unwrap();
     std::fs::write(repo.path().join("flat.md"), "# Flat\nMust not be loaded\n").unwrap();
 
-    assert!(load_open_skills(repo.path(), SkillLoadMode::Full).is_empty());
+    assert!(
+        load_open_skills(
+            repo.path(),
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -398,7 +430,11 @@ fn load_open_skills_filters_markdown_and_readme_case_insensitively() {
     std::fs::write(repo.path().join("ReadMe.Md"), "# Repository documentation\n").unwrap();
     std::fs::write(repo.path().join("notes.txt"), "Not a skill\n").unwrap();
 
-    let loaded = load_open_skills(repo.path(), SkillLoadMode::MetadataOnly);
+    let loaded = load_open_skills(
+        repo.path(),
+        SkillLoadMode::MetadataOnly,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
+    );
 
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].name, "UPPER");
@@ -413,7 +449,14 @@ fn load_open_skills_skips_markdown_that_escapes_repository_root() {
     std::fs::write(&outside_skill, "# Escaped\nOutside repository\n").unwrap();
     std::os::unix::fs::symlink(outside_skill, repo.path().join("escaped.md")).unwrap();
 
-    assert!(load_open_skills(repo.path(), SkillLoadMode::Full).is_empty());
+    assert!(
+        load_open_skills(
+            repo.path(),
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -422,7 +465,11 @@ fn load_open_skills_skips_unauditable_markdown_and_keeps_safe_neighbors() {
     std::fs::write(repo.path().join("safe.md"), "# Safe\nSafe skill\n").unwrap();
     std::fs::write(repo.path().join("invalid.md"), [0xff, 0xfe]).unwrap();
 
-    let loaded = load_open_skills(repo.path(), SkillLoadMode::MetadataOnly);
+    let loaded = load_open_skills(
+        repo.path(),
+        SkillLoadMode::MetadataOnly,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
+    );
 
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].name, "safe");

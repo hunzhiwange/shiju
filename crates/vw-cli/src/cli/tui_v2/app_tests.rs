@@ -1,28 +1,352 @@
 //! 覆盖 `app.rs` 中的纯函数和枚举方法。
 //! 测试从函数签名出发验证枚举 match 分支、状态转换与格式输出。
 
+use std::cell::RefCell;
+use std::io::{self, Write};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
+use std::rc::Rc;
 
 use serde_json::json;
 
 use super::app::{
-    TodoSessionAccessAction, TuiRunMode, bootstrap_message_base, bootstrap_system_message,
+    TodoSessionAccessAction, TuiApp, TuiRunMode, bootstrap_message_base, bootstrap_system_message,
+    apply_settings_values_to_state,
     build_exit_confirm_body, comparable_terminal_from_runtime_terminal,
     comparable_usage_from_runtime_terminal, compare_shadow_results, default_session_title,
-    empty_session_snapshot, gateway_message_from_chat_message, gateway_role,
-    is_session_unavailable_error, latest_session_preview, mcp_server_entry_to_info,
+    delegate_agent_options, empty_session_snapshot, gateway_message_from_chat_message, gateway_role,
+    gateway_stream_request_from_state, is_session_unavailable_error, latest_session_preview,
+    mcp_server_entry_to_info,
     normalize_catalog_text, parse_mcp_servers_json, provider_name_from_model,
     runtime_event_fallback_overlay, select_restore_session_id, shadow_compare_success_message,
     snapshot_from_preview,
 };
-use super::model::PromptSubmission;
+use super::commands::settings::SettingsRuntime;
+use super::controller::build_prompt_submission;
+use super::editor::EditorSelection;
+use super::model::permission::PermissionRequest;
+use super::model::settings_panel::{SettingsPanel, SettingsValues};
+use super::model::{
+    PromptSubmission, QueueDrainBoundary, QueuedPromptCommand, QueuedPromptPriority, UiMessage,
+    UiOverlay, UiSystemMessageLevel,
+};
+use super::runtime::permission::FullAccessPermissionRuntime;
 use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
+use super::terminal_capabilities::{TerminalModePlan, TerminalModeSession};
 use crate::cli::processor::{SessionProcessorComparableResult, SessionProcessorComparableTerminal};
+use crate::app::agent::config::{Config, DelegateAgentConfig};
 use vw_gateway_client::GatewayChatUsage;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, TokenUsage,
 };
+
+#[derive(Clone, Default)]
+struct SharedRecordingWriter(Rc<RefCell<Vec<u8>>>);
+
+impl Write for SharedRecordingWriter {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.0.borrow_mut().extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+struct FailingClipboardWriter;
+
+impl Write for FailingClipboardWriter {
+    fn write(&mut self, _buffer: &[u8]) -> io::Result<usize> {
+        Err(io::Error::new(io::ErrorKind::BrokenPipe, "clipboard writer closed"))
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl SharedRecordingWriter {
+    fn output(&self) -> String {
+        String::from_utf8(self.0.borrow().clone()).expect("terminal control output is UTF-8")
+    }
+}
+
+#[derive(Default)]
+struct FullAccessWorkflowRuntime {
+    events: Vec<&'static str>,
+    pending_error: Option<String>,
+    save_error: Option<String>,
+}
+
+impl SettingsRuntime for FullAccessWorkflowRuntime {
+    fn save(&mut self, _values: &SettingsValues) -> Result<(), String> {
+        self.events.push("save");
+        match &self.save_error {
+            Some(error) => Err(error.clone()),
+            None => Ok(()),
+        }
+    }
+}
+
+impl FullAccessPermissionRuntime for FullAccessWorkflowRuntime {
+    fn pending_for_current_directory(&mut self) -> Result<Vec<PermissionRequest>, String> {
+        self.events.push("pending");
+        match &self.pending_error {
+            Some(error) => Err(error.clone()),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    fn approve(
+        &mut self,
+        _request_id: &str,
+        _reply: vw_gateway_client::PendingPermissionReplyDto,
+    ) -> Result<(), String> {
+        self.events.push("reply");
+        Ok(())
+    }
+}
+
+struct DropRestoredTerminal {
+    session: TerminalModeSession,
+    writer: SharedRecordingWriter,
+}
+
+impl Drop for DropRestoredTerminal {
+    fn drop(&mut self) {
+        self.session.leave(&mut self.writer).expect("panic drop restores terminal modes");
+    }
+}
+
+fn assert_fullscreen_mode_pairs(output: &str, pair_count: usize) {
+    for sequence in ["\u{1b}[?1049h", "\u{1b}[?1000h", "\u{1b}[?2004h", "\u{1b}[?1004h"] {
+        assert_eq!(
+            output.matches(sequence).count(),
+            pair_count,
+            "missing or duplicated enter sequence {sequence:?}"
+        );
+    }
+    for sequence in ["\u{1b}[?1004l", "\u{1b}[?2004l", "\u{1b}[?1000l", "\u{1b}[?1049l"] {
+        assert_eq!(
+            output.matches(sequence).count(),
+            pair_count,
+            "missing or duplicated leave sequence {sequence:?}"
+        );
+    }
+
+    let focus_off = output.rfind("\u{1b}[?1004l").expect("focus disabled");
+    let paste_off = output.rfind("\u{1b}[?2004l").expect("bracketed paste disabled");
+    let mouse_off = output.rfind("\u{1b}[?1000l").expect("mouse disabled");
+    let alternate_off = output.rfind("\u{1b}[?1049l").expect("alternate screen left");
+    assert!(focus_off < paste_off && paste_off < mouse_off && mouse_off < alternate_off);
+}
+
+#[test]
+fn full_access_commit_is_not_rolled_back_by_pending_service_failure() {
+    let mut panel = SettingsPanel::new(SettingsValues::default());
+    panel.pending.full_access_enabled = true;
+    let mut offline_runtime = FullAccessWorkflowRuntime {
+        pending_error: Some("permission service offline".to_string()),
+        ..FullAccessWorkflowRuntime::default()
+    };
+
+    let summary = TuiApp::commit_full_access_and_drain(&mut panel, &mut offline_runtime)
+        .expect("pending service failure is a recoverable drain warning");
+    assert!(panel.original.full_access_enabled, "committed full access remains enabled");
+    assert_eq!(summary.approved, 0);
+    assert_eq!(summary.failed, 0);
+    assert!(summary.warning.as_deref().is_some_and(|warning| warning.contains("offline")));
+    assert_eq!(offline_runtime.events, vec!["save", "pending"]);
+
+    let mut rejected_panel = SettingsPanel::new(SettingsValues::default());
+    rejected_panel.pending.full_access_enabled = true;
+    let mut rejected_runtime = FullAccessWorkflowRuntime {
+        save_error: Some("settings write failed".to_string()),
+        ..FullAccessWorkflowRuntime::default()
+    };
+    assert!(
+        TuiApp::commit_full_access_and_drain(&mut rejected_panel, &mut rejected_runtime).is_err()
+    );
+    assert!(!rejected_panel.original.full_access_enabled);
+    assert_eq!(
+        rejected_runtime.events,
+        vec!["save"],
+        "a failed settings commit must not approve pending requests"
+    );
+}
+
+#[test]
+fn delegate_agent_catalog_keeps_main_enabled_and_current_disabled_only() {
+    let mut config = Config::default();
+    config.agents.insert(
+        "reviewer".to_string(),
+        DelegateAgentConfig {
+            label: Some("Code Reviewer".to_string()),
+            enabled: true,
+            ..DelegateAgentConfig::default()
+        },
+    );
+    config.agents.insert(
+        "disabled".to_string(),
+        DelegateAgentConfig { enabled: false, ..DelegateAgentConfig::default() },
+    );
+    config.agents.insert(
+        "current-disabled".to_string(),
+        DelegateAgentConfig {
+            label: Some("Current Disabled".to_string()),
+            enabled: false,
+            ..DelegateAgentConfig::default()
+        },
+    );
+    config.agents.insert(
+        "hidden".to_string(),
+        DelegateAgentConfig {
+            enabled: true,
+            hidden: true,
+            ..DelegateAgentConfig::default()
+        },
+    );
+
+    let catalog = delegate_agent_options(&config, Some("current-disabled"));
+    assert_eq!(catalog[0].key, None);
+    assert_eq!(catalog[0].label, "main");
+    assert!(catalog.iter().any(|agent| agent.key.as_deref() == Some("reviewer")));
+    assert!(
+        catalog.iter().any(|agent| agent.key.as_deref() == Some("current-disabled"))
+    );
+    assert!(!catalog.iter().any(|agent| agent.key.as_deref() == Some("disabled")));
+    assert!(!catalog.iter().any(|agent| agent.key.as_deref() == Some("hidden")));
+}
+
+#[test]
+fn tui_terminal_lifecycle_restores_modes_on_all_exit_paths() {
+    let plan = TerminalModePlan::for_environment(true, Some("xterm-256color"), Some("WezTerm"));
+
+    let mut normal = Vec::new();
+    let mut normal_session = TerminalModeSession::new(plan);
+    normal_session.enter(&mut normal).expect("normal enter");
+    normal_session.leave(&mut normal).expect("normal leave");
+    normal_session.leave(&mut normal).expect("repeated leave is idempotent");
+    assert_fullscreen_mode_pairs(&String::from_utf8(normal).expect("normal output"), 1);
+
+    let mut error = Vec::new();
+    let mut error_session = TerminalModeSession::new(plan);
+    error_session.enter(&mut error).expect("error-path enter");
+    error_session.leave(&mut error).expect("business error still restores modes");
+    assert_fullscreen_mode_pairs(&String::from_utf8(error).expect("error output"), 1);
+
+    let panic_writer = SharedRecordingWriter::default();
+    let panic_capture = panic_writer.clone();
+    let panic_result = catch_unwind(AssertUnwindSafe(move || {
+        let mut lifecycle =
+            DropRestoredTerminal { session: TerminalModeSession::new(plan), writer: panic_writer };
+        lifecycle.session.enter(&mut lifecycle.writer).expect("panic-path enter");
+        panic!("simulated application panic");
+    }));
+    assert!(panic_result.is_err());
+    assert_fullscreen_mode_pairs(&panic_capture.output(), 1);
+
+    let mut suspend_resume = Vec::new();
+    let mut suspended_session = TerminalModeSession::new(plan);
+    suspended_session.enter(&mut suspend_resume).expect("initial enter");
+    suspended_session.suspend(&mut suspend_resume).expect("SIGTSTP restore");
+    suspended_session.resume(&mut suspend_resume).expect("SIGCONT re-enter");
+    suspended_session.leave(&mut suspend_resume).expect("final leave");
+    assert_fullscreen_mode_pairs(
+        &String::from_utf8(suspend_resume).expect("suspend/resume output"),
+        2,
+    );
+
+    for degraded_plan in [
+        TerminalModePlan::for_environment(false, Some("xterm-256color"), Some("WezTerm")),
+        TerminalModePlan::for_environment(true, Some("dumb"), Some("WezTerm")),
+    ] {
+        let mut output = Vec::new();
+        let mut session = TerminalModeSession::new(degraded_plan);
+        session.enter(&mut output).expect("scrollback enter");
+        session.leave(&mut output).expect("scrollback leave");
+        assert!(output.is_empty(), "non-TTY/dumb terminals must not receive fullscreen modes");
+    }
+}
+
+#[test]
+fn tui_terminal_lifecycle_enables_shift_enter_in_integrated_terminals() {
+    let plan =
+        TerminalModePlan::for_environment(true, Some("xterm-256color"), Some("unknown-terminal"));
+    let mut output = Vec::new();
+    let mut session = TerminalModeSession::new(plan);
+
+    session.enter(&mut output).expect("integrated terminal enter");
+    session.leave(&mut output).expect("integrated terminal leave");
+
+    let output = String::from_utf8(output).expect("integrated terminal output");
+    assert_eq!(output.matches("\u{1b}[>3u").count(), 1, "keyboard flags must be pushed once");
+    assert_eq!(output.matches("\u{1b}[<1u").count(), 1, "keyboard flags must be popped once");
+
+    for degraded_plan in [
+        TerminalModePlan::for_environment(false, Some("xterm-256color"), Some("vscode")),
+        TerminalModePlan::for_environment(true, Some("dumb"), Some("vscode")),
+    ] {
+        let mut degraded_output = Vec::new();
+        let mut degraded_session = TerminalModeSession::new(degraded_plan);
+        degraded_session.enter(&mut degraded_output).expect("degraded terminal enter");
+        degraded_session.leave(&mut degraded_output).expect("degraded terminal leave");
+        assert!(
+            degraded_output.is_empty(),
+            "non-TTY/dumb terminals must not receive control sequences"
+        );
+    }
+}
+
+#[test]
+fn prompt_selection_copy_feedback_preserves_draft_and_selection() {
+    let mut state = TuiState::default();
+    reduce_tui_state(
+        &mut state,
+        TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()),
+    );
+    state.prompt.editor.selection = Some(EditorSelection { anchor: 1, active: 6 });
+    let prompt_before = state.prompt.clone();
+    let mut output = Vec::new();
+
+    TuiApp::copy_prompt_selection_to_writer(&mut state, &mut output, "e\u{301}🙂\n下一");
+
+    assert_eq!(
+        output,
+        b"\x1b]52;c;ZcyB8J+ZggrkuIvkuIA=\x07"
+    );
+    assert_eq!(state.prompt, prompt_before);
+    assert!(matches!(
+        state.messages.last(),
+        Some(UiMessage::System(message))
+            if message.level == UiSystemMessageLevel::Success
+                && message.text == "已复制输入选区。"
+    ));
+
+    let mut failed_state = TuiState::default();
+    reduce_tui_state(
+        &mut failed_state,
+        TuiAction::PromptValueSet("保留草稿".to_string()),
+    );
+    failed_state.prompt.editor.selection = Some(EditorSelection { anchor: 0, active: 2 });
+    let failed_prompt_before = failed_state.prompt.clone();
+    TuiApp::copy_prompt_selection_to_writer(
+        &mut failed_state,
+        &mut FailingClipboardWriter,
+        "保留",
+    );
+
+    assert_eq!(failed_state.prompt, failed_prompt_before);
+    assert!(matches!(
+        failed_state.overlays.active(),
+        Some(UiOverlay::Error(error))
+            if error.recoverable
+                && error.title == "复制失败"
+                && error.message.contains("输入草稿和选区保持不变")
+    ));
+}
 
 // ── TuiRunMode ──────────────────────────────────────────────────────────
 
@@ -105,12 +429,16 @@ fn build_exit_confirm_body_with_messages() {
             ChatMessage {
                 role: ChatRole::User,
                 content: "问题".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             ChatMessage {
                 role: ChatRole::Assistant,
                 content: "回答".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
         ],
         message_ids: vec![Some("u1".to_string()), Some("a1".to_string())],
@@ -383,7 +711,9 @@ fn gateway_message_from_chat_message_user() {
     let msg = ChatMessage {
         role: ChatRole::User,
         content: "hello".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     };
     let value = gateway_message_from_chat_message(&msg);
     assert_eq!(value["role"], "user");
@@ -395,7 +725,9 @@ fn gateway_message_from_chat_message_assistant() {
     let msg = ChatMessage {
         role: ChatRole::Assistant,
         content: "response".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     };
     let value = gateway_message_from_chat_message(&msg);
     assert_eq!(value["role"], "assistant");
@@ -405,8 +737,13 @@ fn gateway_message_from_chat_message_assistant() {
 #[test]
 fn gateway_message_from_chat_message_maps_system_and_tool_content() {
     for (role, expected) in [(ChatRole::System, "system"), (ChatRole::Tool, "tool")] {
-        let message =
-            ChatMessage { role, content: "payload".to_string(), think_timing: Vec::new() };
+        let message = ChatMessage {
+            role,
+            content: "payload".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        };
 
         assert_eq!(
             gateway_message_from_chat_message(&message),
@@ -598,6 +935,13 @@ fn runtime_event_fallback_overlay_handles_generic_and_non_error_events() {
 
     assert!(runtime_event_fallback_overlay(&UiRuntimeEvent::Delta("chunk".to_string())).is_none());
     assert!(
+        runtime_event_fallback_overlay(&UiRuntimeEvent::ContextLoaded {
+            paths: vec!["/work/AGENTS.md".to_string()],
+        })
+        .is_none()
+    );
+    assert!(runtime_event_fallback_overlay(&UiRuntimeEvent::PostToolRound).is_none());
+    assert!(
         runtime_event_fallback_overlay(&UiRuntimeEvent::Terminal(
             UiRuntimeTerminalEvent::Cancelled {
                 reason: None,
@@ -767,4 +1111,131 @@ fn mcp_server_entry_to_info_unknown_transport_falls_back_to_stdio() {
 
     assert_eq!(info.transport.label(), "stdio");
     assert_eq!(info.address, "bridge");
+}
+
+#[test]
+fn tui_busy_queue_drains_priorities_and_preserves_editable_input() {
+    let mut prompt = super::model::PromptState::new("local draft");
+    assert!(prompt.stash_draft());
+    assert!(!prompt.stash_draft(), "an existing stash is never overwritten");
+
+    for (raw, priority, session_id) in [
+        ("turn", QueuedPromptPriority::EndTurn, "session-a"),
+        ("tool", QueuedPromptPriority::NextTool, "session-a"),
+        ("now", QueuedPromptPriority::Now, "session-a"),
+        ("foreign", QueuedPromptPriority::Now, "session-b"),
+    ] {
+        prompt.queue_command(QueuedPromptCommand {
+            raw: raw.to_string(),
+            priority,
+            session_id: Some(session_id.to_string()),
+            ..QueuedPromptCommand::default()
+        });
+    }
+
+    assert_eq!(
+        prompt
+            .drain_queued_for(QueueDrainBoundary::Immediate, Some("session-a"))
+            .map(|item| item.raw),
+        Some("now".to_string())
+    );
+    assert_eq!(
+        prompt
+            .drain_queued_for(QueueDrainBoundary::Tool, Some("session-a"))
+            .map(|item| item.raw),
+        Some("tool".to_string())
+    );
+    assert_eq!(
+        prompt
+            .drain_queued_for(QueueDrainBoundary::Turn, Some("session-a"))
+            .map(|item| item.raw),
+        Some("turn".to_string())
+    );
+    assert_eq!(prompt.queued_commands[0].raw, "foreign");
+
+    prompt.value.clear();
+    assert!(prompt.restore_stashed_draft());
+    assert_eq!(prompt.value, "local draft");
+    let reclaimed = prompt
+        .reclaim_latest_queued(Some("session-b"))
+        .expect("foreign session item remains editable");
+    assert_eq!(reclaimed.raw, "foreign");
+}
+
+#[test]
+fn subagent_mode_requires_agent_tool_for_snapshot_request() {
+    let mut state = TuiState::default();
+    state.session_options.permission_mode = super::model::PermissionMode::Plan;
+    state.session_options.set_subagent_mode(true);
+    let mut queued = QueuedPromptCommand {
+        raw: "delegate substantive work".to_string(),
+        execution: Box::new(state.session_options.execution_snapshot()),
+        ..QueuedPromptCommand::default()
+    };
+    state.session_options.set_subagent_mode(false);
+    let mut submission = PromptSubmission::new(queued.raw.clone());
+    submission.execution = std::mem::take(&mut queued.execution);
+    let request = gateway_stream_request_from_state(&state, &submission);
+
+    let tools = request.allowed_tools.as_ref().expect("subagent tool restriction");
+    assert_eq!(tools.iter().filter(|tool| *tool == "AgentTool").count(), 1);
+    assert!(tools.iter().any(|tool| tool == "todowrite"));
+    let options = request.options.as_ref().expect("subagent options");
+    assert_eq!(options["require_agent_tool"], true);
+    assert_eq!(
+        options["allowed_tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|tool| tool.as_str() == Some("AgentTool"))
+            .count(),
+        1
+    );
+    let system = request.system.as_ref().expect("subagent system constraint");
+    assert_eq!(system.len(), 1);
+    assert_eq!(system.iter().filter(|prompt| prompt.contains("AgentTool-First Mode")).count(), 1);
+
+    let normal = PromptSubmission {
+        execution: Box::new(state.session_options.execution_snapshot()),
+        ..PromptSubmission::new("normal request")
+    };
+    let normal_request = gateway_stream_request_from_state(&state, &normal);
+    assert_eq!(normal_request.allowed_tools, Some(vec!["todowrite".to_string()]));
+    assert_eq!(normal_request.system, None);
+    assert!(
+        normal_request
+            .options
+            .as_ref()
+            .is_none_or(|options| options.get("require_agent_tool").is_none())
+    );
+}
+
+#[test]
+fn model_and_acp_settings_update_state_and_next_request_snapshot() {
+    let mut state = TuiState::default();
+    state.project.workspace_root = Some("/tmp/tui-settings".into());
+    let values = SettingsValues {
+        model: Some("openai/gpt-5.6".to_string()),
+        acp_backend: Some("codex".to_string()),
+        full_access_enabled: state.session_options.full_access_enabled(),
+        ..SettingsValues::default()
+    };
+
+    apply_settings_values_to_state(&mut state, &values);
+
+    assert_eq!(state.session_options.model.as_deref(), Some("openai/gpt-5.6"));
+    assert_eq!(state.status.provider_name.as_deref(), Some("openai"));
+    assert_eq!(state.status.model_name.as_deref(), Some("openai/gpt-5.6"));
+    assert_eq!(state.session_options.acp_backend.as_deref(), Some("codex"));
+    assert!(state.session_options.acp_force_new_session());
+
+    let submission = build_prompt_submission(&state, "use the selected backend")
+        .expect("settings produce a prompt submission");
+    let request = gateway_stream_request_from_state(&state, &submission);
+    assert_eq!(request.model.as_deref(), Some("openai/gpt-5.6"));
+    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(
+        request.options.expect("ACP request options")["acp_force_new_session"],
+        true
+    );
 }

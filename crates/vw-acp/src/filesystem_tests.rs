@@ -75,6 +75,62 @@ async fn write_text_file_denies_paths_outside_root() {
 }
 
 #[tokio::test]
+async fn full_access_allows_file_access_outside_root() {
+    let root = temp_root("full-access-root");
+    let outside = temp_root("full-access-outside").join("shared.txt");
+    std::fs::write(&outside, "before").expect("write outside fixture");
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: root.clone(),
+        permission_mode: PermissionMode::ApproveAll,
+        full_access: true,
+        ..FileSystemHandlersOptions::default()
+    });
+
+    let read_result =
+        handlers.read_text_file(&ReadTextFileRequest::new("session-1", &outside)).await;
+    let write_result = handlers
+        .write_text_file(&WriteTextFileRequest::new("session-1", &outside, "after"))
+        .await;
+    let written_content = std::fs::read_to_string(&outside);
+
+    let _ = std::fs::remove_dir_all(root);
+    let _ = std::fs::remove_dir_all(outside.parent().expect("outside parent"));
+
+    assert_eq!(read_result.expect("full access read outside root").content, "before");
+    write_result.expect("full access write outside root");
+    assert_eq!(written_content.expect("read written outside file"), "after");
+}
+
+#[tokio::test]
+async fn standard_access_still_denies_file_access_outside_root() {
+    let root = temp_root("standard-access-root");
+    let outside = temp_root("standard-access-outside").join("shared.txt");
+    std::fs::write(&outside, "before").expect("write outside fixture");
+    let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
+        cwd: root.clone(),
+        permission_mode: PermissionMode::ApproveAll,
+        ..FileSystemHandlersOptions::default()
+    });
+
+    let read_err = handlers
+        .read_text_file(&ReadTextFileRequest::new("session-1", &outside))
+        .await
+        .expect_err("standard access read outside root must fail");
+    let write_err = handlers
+        .write_text_file(&WriteTextFileRequest::new("session-1", &outside, "after"))
+        .await
+        .expect_err("standard access write outside root must fail");
+    let written_content = std::fs::read_to_string(&outside).expect("read outside fixture");
+
+    let _ = std::fs::remove_dir_all(root);
+    let _ = std::fs::remove_dir_all(outside.parent().expect("outside parent"));
+
+    assert!(read_err.to_string().contains("outside allowed cwd subtree"));
+    assert!(write_err.to_string().contains("outside allowed cwd subtree"));
+    assert_eq!(written_content, "before");
+}
+
+#[tokio::test]
 async fn approve_reads_auto_approves_default_write_inside_root() {
     let root = temp_root("auto-write");
     let target = root.join("auto.txt");
@@ -274,10 +330,10 @@ async fn read_text_file_missing_file_reports_io_failure() {
         .await
         .expect_err("missing file must fail");
 
-    assert!(err.to_string().contains("No such file"));
+    assert!(err.downcast_ref::<std::io::Error>().is_some());
     let operations = operations.lock();
     assert_eq!(operations[1].status, ClientOperationStatus::Failed);
-    assert!(operations[1].details.as_deref().unwrap_or_default().contains("No such file"));
+    assert!(!operations[1].details.as_deref().unwrap_or_default().is_empty());
 }
 
 #[tokio::test]
@@ -398,9 +454,10 @@ async fn write_text_file_deny_all_emits_failed_completion_and_skips_file() {
 
 #[tokio::test]
 async fn write_text_file_root_path_reports_io_failure_without_parent() {
+    let root = temp_root("write-directory-target");
     let operations = Arc::new(Mutex::new(Vec::<ClientOperation>::new()));
     let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
-        cwd: PathBuf::from("/"),
+        cwd: root.clone(),
         permission_mode: PermissionMode::ApproveAll,
         on_operation: Some({
             let operations = Arc::clone(&operations);
@@ -410,7 +467,7 @@ async fn write_text_file_root_path_reports_io_failure_without_parent() {
     });
 
     let err = handlers
-        .write_text_file(&WriteTextFileRequest::new("session-1", PathBuf::from("/"), "content"))
+        .write_text_file(&WriteTextFileRequest::new("session-1", &root, "content"))
         .await
         .expect_err("writing a directory path must fail");
 

@@ -35,6 +35,7 @@ use crate::app::agent::skills::source::{
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use vw_config_types::skills::SkillSecurityConfig;
 
 /// 确保内置预加载技能已安装到指定路径
 ///
@@ -174,7 +175,11 @@ pub(crate) fn ensure_builtin_preloaded_skills(_skills_path: &Path) -> Result<()>
 /// )?;
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn install_skill_from_source(source: &str, skills_path: &Path) -> Result<InstallResult> {
+pub(crate) fn install_skill_from_source(
+    source: &str,
+    skills_path: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<InstallResult> {
     // 加载或初始化技能下载策略配置
     let mut download_policy = load_or_init_skill_download_policy(skills_path)?;
 
@@ -196,7 +201,7 @@ pub(crate) fn install_skill_from_source(source: &str, skills_path: &Path) -> Res
     // 检测是否为 skills.sh 来源
     if is_skills_sh_source(&resolved_source) {
         let (installed_dir, files_scanned) =
-            install_skills_sh_source(&resolved_source, skills_path)
+            install_skills_sh_source(&resolved_source, skills_path, security)
                 .with_context(|| format!("failed to install skills.sh skill: {resolved_source}"))?;
         return Ok(InstallResult::SkillsSh { installed_dir, files_scanned });
     }
@@ -204,15 +209,16 @@ pub(crate) fn install_skill_from_source(source: &str, skills_path: &Path) -> Res
     // 检测是否为 Git 来源
     if is_git_source(&resolved_source) {
         let (installed_dir, files_scanned) =
-            install_git_skill_source(&resolved_source, skills_path).with_context(|| {
+            install_git_skill_source(&resolved_source, skills_path, security).with_context(|| {
                 format!("failed to install git skill source: {resolved_source}")
             })?;
         return Ok(InstallResult::Git { installed_dir, files_scanned });
     }
 
     // 默认作为本地来源处理
-    let (installed_dir, files_scanned) = install_local_skill_source(&resolved_source, skills_path)
-        .with_context(|| format!("failed to install local skill source: {resolved_source}"))?;
+    let (installed_dir, files_scanned) =
+        install_local_skill_source(&resolved_source, skills_path, security)
+            .with_context(|| format!("failed to install local skill source: {resolved_source}"))?;
     Ok(InstallResult::Local { installed_dir, files_scanned })
 }
 
@@ -223,6 +229,7 @@ pub(crate) fn install_skill_from_source(source: &str, skills_path: &Path) -> Res
 pub(crate) fn install_skill_from_source(
     _source: &str,
     _skills_path: &Path,
+    _security: &SkillSecurityConfig,
 ) -> Result<InstallResult> {
     anyhow::bail!("Skill installation is not supported on Web/WASM");
 }
@@ -443,8 +450,11 @@ fn detect_newly_installed_directory(
 /// - `Ok(SkillAuditReport)` - 审计通过，返回审计报告
 /// - `Err(...)` - 审计未通过，包含详细的失败原因
 #[cfg(not(target_arch = "wasm32"))]
-fn enforce_skill_security_audit(skill_path: &Path) -> Result<audit::SkillAuditReport> {
-    let report = audit::audit_skill_directory(skill_path)?;
+fn enforce_skill_security_audit(
+    skill_path: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<audit::SkillAuditReport> {
+    let report = audit::audit_skill_directory_with_security(skill_path, security)?;
 
     // 如果审计结果干净，直接返回报告
     if report.is_clean() {
@@ -583,7 +593,11 @@ fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
 ///
 /// 如果复制过程中或安装后审计失败，会自动清理已创建的目标目录。
 #[cfg(not(target_arch = "wasm32"))]
-fn install_local_skill_source(source: &str, skills_path: &Path) -> Result<(PathBuf, usize)> {
+fn install_local_skill_source(
+    source: &str,
+    skills_path: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<(PathBuf, usize)> {
     let source_path = PathBuf::from(source);
 
     // 验证源路径存在
@@ -597,7 +611,7 @@ fn install_local_skill_source(source: &str, skills_path: &Path) -> Result<(PathB
         .with_context(|| format!("failed to canonicalize source path {source}"))?;
 
     // 安装前安全审计
-    let _ = enforce_skill_security_audit(&source_path)?;
+    let _ = enforce_skill_security_audit(&source_path, security)?;
 
     // 确定目标路径
     let name = source_path.file_name().context("Source path must include a directory name")?;
@@ -615,7 +629,7 @@ fn install_local_skill_source(source: &str, skills_path: &Path) -> Result<(PathB
     }
 
     // 安装后安全审计，失败时自动清理
-    match enforce_skill_security_audit(&dest) {
+    match enforce_skill_security_audit(&dest, security) {
         Ok(report) => Ok((dest, report.files_scanned)),
         Err(err) => {
             let _ = std::fs::remove_dir_all(&dest);
@@ -650,7 +664,11 @@ fn install_local_skill_source(source: &str, skills_path: &Path) -> Result<(PathB
 /// - Git 克隆失败：返回错误信息
 /// - 审计失败：自动清理已克隆的目录
 #[cfg(not(target_arch = "wasm32"))]
-fn install_git_skill_source(source: &str, skills_path: &Path) -> Result<(PathBuf, usize)> {
+fn install_git_skill_source(
+    source: &str,
+    skills_path: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<(PathBuf, usize)> {
     // 记录安装前的目录快照
     let before = snapshot_skill_children(skills_path)?;
 
@@ -673,7 +691,7 @@ fn install_git_skill_source(source: &str, skills_path: &Path) -> Result<(PathBuf
     remove_git_metadata(&installed_dir)?;
 
     // 执行安全审计
-    match enforce_skill_security_audit(&installed_dir) {
+    match enforce_skill_security_audit(&installed_dir, security) {
         Ok(report) => Ok((installed_dir, report.files_scanned)),
         Err(err) => {
             // 审计失败时清理目录
@@ -717,7 +735,11 @@ fn install_git_skill_source(source: &str, skills_path: &Path) -> Result<(PathBuf
 ///
 /// 任何步骤失败都会清理已创建的目录和临时文件。
 #[cfg(not(target_arch = "wasm32"))]
-fn install_skills_sh_source(source: &str, skills_path: &Path) -> Result<(PathBuf, usize)> {
+fn install_skills_sh_source(
+    source: &str,
+    skills_path: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<(PathBuf, usize)> {
     // 解析 skills.sh URL
     let parsed = parse_skills_sh_source(source).ok_or_else(|| {
         anyhow::anyhow!(
@@ -799,7 +821,7 @@ fn install_skills_sh_source(source: &str, skills_path: &Path) -> Result<(PathBuf
     }
 
     // 执行最终安全审计
-    match enforce_skill_security_audit(&dest) {
+    match enforce_skill_security_audit(&dest, security) {
         Ok(report) => Ok((dest, report.files_scanned)),
         Err(err) => {
             let _ = std::fs::remove_dir_all(&dest);

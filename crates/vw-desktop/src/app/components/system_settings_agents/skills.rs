@@ -79,8 +79,10 @@ pub(super) fn scope_source_matches(scope: SkillsDirectoryScope, source: &str) ->
 
 pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
     match scope {
-        SkillsDirectoryScope::Project => "当前项目 .vibewindow/skills 与 skills 目录。",
-        SkillsDirectoryScope::Ancestor => "从项目父级向上发现的 .vibewindow/skills。",
+        SkillsDirectoryScope::Project => "当前项目 skills、.agents/skills 与所选 provider 目录。",
+        SkillsDirectoryScope::Ancestor => {
+            "从项目父级向上发现的 skills、.agents/skills 与所选 provider 目录。"
+        }
         SkillsDirectoryScope::Global => {
             #[cfg(debug_assertions)]
             {
@@ -99,7 +101,7 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
 pub(super) fn discovery_order_text(app: &App) -> String {
     if let Some(project_path) = &app.project_path {
         format!(
-            "{project_path}/.vibewindow/skills -> {project_path}/skills -> 父级 .vibewindow/skills -> {}/skills -> 内置技能",
+            "{project_path}/skills -> {project_path}/.agents/skills -> 父级 skills、.agents/skills -> {}/skills -> 内置技能",
             vw_config_types::paths::tilde_config_path("")
         )
     } else {
@@ -268,7 +270,7 @@ pub(super) fn view<'a>(
     column![
         section_card(
             "允许的技能",
-            "限制该代理在委托运行时可见的技能；可按技能配置的加载顺序切换来源筛选。",
+            "项目与父级技能默认可用；这里选择额外技能，或在技能系统配置中关闭默认加载。",
         ),
         scope_filter,
         skills_list,

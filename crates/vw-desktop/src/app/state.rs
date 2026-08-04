@@ -36,6 +36,8 @@ use crate::app::{LspHoverPending, LspProgress};
 use vw_config_types::automation::ResearchTrigger;
 use vw_config_types::tools::HttpRequestConfig;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod account;
 mod agent;
 mod app_state;
 mod knowledge;
@@ -48,10 +50,18 @@ mod workspace;
 #[cfg(test)]
 mod runtime_tools_tests;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use account::{
+    AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, AccountState,
+};
 pub(crate) use agent::*;
-pub use app_state::{App, CookieConfig, RecentProjectMeta, TaskBoardViewMode, WebBookmark};
+pub use app_state::{
+    App, CookieConfig, QuickMessageGitCommitAction, RecentProjectMeta, TaskBoardViewMode,
+    WebBookmark,
+};
 pub(crate) use app_state::{
-    Notification, Toast, ToastKind, default_recent_project_session_auto_refresh,
+    Notification, QuickMessageHandoffState, Toast, ToastKind, WorkBrowserState,
+    default_recent_project_session_auto_refresh,
     default_recent_project_session_refresh_interval_seconds,
 };
 pub(crate) use knowledge::*;
@@ -59,6 +69,9 @@ pub(crate) use pet::*;
 pub use presentation::AppTab;
 pub(crate) use presentation::{
     ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform, TopBarGatewayTab,
+    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP, WorkResourceMode,
+    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
+    WorkspaceMode,
 };
 pub(crate) use runtime_tools::*;
 pub(crate) use settings::*;

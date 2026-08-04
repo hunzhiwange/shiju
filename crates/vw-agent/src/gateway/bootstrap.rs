@@ -95,7 +95,11 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     )?);
     let runtime: Arc<dyn agent_runtime::RuntimeAdapter> =
         Arc::from(agent_runtime::create_runtime(&config.runtime)?);
-    let security = Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+    let security = Arc::new(SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        &config.workspace_dir,
+    ));
 
     let (composio_key, composio_entity_id) = if config.composio.enabled {
         (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
@@ -267,47 +271,27 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         }
     }
 
-    println!("🦀 VibeWindow Gateway listening on http://{display_addr}");
+    println!("VibeWindow Gateway listening on http://{display_addr}");
     if let Some(ref url) = tunnel_url {
-        println!("  🌐 Public URL: {url}");
+        println!("  Public URL: {url}");
     }
-    println!("  POST /v1/webhook           — {{\"message\": \"your prompt\"}}");
-    println!(
-        "  POST /v1/agent             — tool-enabled agent chat {{\"message\": \"your prompt\"}}"
-    );
-    if whatsapp_channel.is_some() {
-        println!("  GET  /v1/whatsapp          — Meta webhook verification");
-        println!("  POST /v1/whatsapp          — WhatsApp message webhook");
+    for line in gateway_route_summary(GatewayRouteSummaryOptions {
+        whatsapp_enabled: whatsapp_channel.is_some(),
+        linq_enabled: linq_channel.is_some(),
+        wati_enabled: wati_channel.is_some(),
+        nextcloud_talk_enabled: nextcloud_talk_channel.is_some(),
+        qq_webhook_enabled,
+        node_control_enabled: config.gateway.node_control.enabled,
+    }) {
+        println!("{line}");
     }
-    if linq_channel.is_some() {
-        println!("  POST /v1/linq              — Linq message webhook (iMessage/RCS/SMS)");
-    }
-    if wati_channel.is_some() {
-        println!("  GET  /v1/wati              — WATI webhook verification");
-        println!("  POST /v1/wati              — WATI message webhook");
-    }
-    if nextcloud_talk_channel.is_some() {
-        println!("  POST /v1/nextcloud-talk    — Nextcloud Talk bot webhook");
-    }
-    if qq_webhook_enabled {
-        println!("  POST /v1/qq                — QQ Bot webhook (validation + events)");
-    }
-    if config.gateway.node_control.enabled {
-        println!("  POST /v1/node-control      — experimental node-control RPC scaffold");
-    }
-    println!("  POST /v1/chat/completions  — OpenAI-compatible chat");
-    println!("  GET  /v1/models            — list available models");
-    println!("  GET  /v1/*                 — REST API");
-    println!("  GET  /v1/ws/chat           — WebSocket agent chat");
-    println!("  GET  /v1/health            — health check");
-    println!("  GET  /v1/metrics           — Prometheus metrics");
     if pairing.auth_enabled() {
         println!(
             "  🔒 Gateway auth: ENABLED (Authorization: Bearer <skey> required, active skeys: {})",
             pairing.active_skey_count()
         );
     } else {
-        println!("  ⚠️  Gateway auth: DISABLED (all requests accepted)");
+        println!("  Gateway auth: DISABLED (all requests accepted)");
     }
     println!("  Press Ctrl+C to stop.\n");
 
@@ -374,17 +358,407 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     Ok(())
 }
 
-pub(super) fn apiql_compat_router(auth_state: AppState) -> Router<AppState> {
-    api::handlers::apiql::router::<AppState>()
-        // 认证（外层）-> 租户解析 -> ApiQL 业务。
-        .layer(from_fn(middleware::tenant_scope_middleware))
-        .layer(from_fn_with_state(auth_state, skey_auth_middleware))
+#[derive(Debug, Clone, Copy)]
+pub(super) struct GatewayRouteSummaryOptions {
+    pub(super) whatsapp_enabled: bool,
+    pub(super) linq_enabled: bool,
+    pub(super) wati_enabled: bool,
+    pub(super) nextcloud_talk_enabled: bool,
+    pub(super) qq_webhook_enabled: bool,
+    pub(super) node_control_enabled: bool,
+}
+
+pub(super) fn gateway_route_summary(options: GatewayRouteSummaryOptions) -> Vec<String> {
+    let routes = gateway_route_entries(options);
+    let mut lines = vec![format!("  Gateway routes: {} total", routes.len())];
+    lines.push("  Public probes and third-party webhooks (no tenant headers):".to_string());
+    lines.extend(
+        routes
+            .iter()
+            .filter(|route| !route.requires_tenant)
+            .map(GatewayRouteEntry::summary_line),
+    );
+    lines.push("  Client APIs (require X-Platform-ID and X-Company-ID):".to_string());
+    lines.extend(
+        routes
+            .iter()
+            .filter(|route| route.requires_tenant)
+            .map(GatewayRouteEntry::summary_line),
+    );
+    lines
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct GatewayRouteEntry {
+    pub(super) method: &'static str,
+    pub(super) path: &'static str,
+    pub(super) description: &'static str,
+    pub(super) requires_tenant: bool,
+}
+
+impl GatewayRouteEntry {
+    fn summary_line(&self) -> String {
+        format!("    {:<6} {:<58} — {}", self.method, self.path, self.description)
+    }
+}
+
+pub(super) fn gateway_route_entries(options: GatewayRouteSummaryOptions) -> Vec<GatewayRouteEntry> {
+    let mut routes = Vec::new();
+    routes.extend(public_route_entries());
+    if options.whatsapp_enabled {
+        routes.extend([
+            public_route("GET", "/v1/whatsapp", "Meta webhook verification"),
+            public_route("POST", "/v1/whatsapp", "WhatsApp message webhook"),
+        ]);
+    }
+    if options.linq_enabled {
+        routes.push(public_route("POST", "/v1/linq", "Linq message webhook"));
+    }
+    if options.wati_enabled {
+        routes.extend([
+            public_route("GET", "/v1/wati", "WATI webhook verification"),
+            public_route("POST", "/v1/wati", "WATI message webhook"),
+        ]);
+    }
+    if options.nextcloud_talk_enabled {
+        routes.push(public_route("POST", "/v1/nextcloud-talk", "Nextcloud Talk bot webhook"));
+    }
+    if options.qq_webhook_enabled {
+        routes.push(public_route("POST", "/v1/qq", "QQ Bot webhook"));
+    }
+    routes.extend(client_route_entries());
+    if options.node_control_enabled {
+        routes.push(client_route("POST", "/v1/node-control", "node-control RPC"));
+    }
+    routes
+}
+
+const fn public_route(
+    method: &'static str,
+    path: &'static str,
+    description: &'static str,
+) -> GatewayRouteEntry {
+    GatewayRouteEntry { method, path, description, requires_tenant: false }
+}
+
+const fn client_route(
+    method: &'static str,
+    path: &'static str,
+    description: &'static str,
+) -> GatewayRouteEntry {
+    GatewayRouteEntry { method, path, description, requires_tenant: true }
+}
+
+fn public_route_entries() -> Vec<GatewayRouteEntry> {
+    vec![
+        public_route("GET", "/v1/health", "health probe"),
+        public_route("POST", "/v1/webhook", "generic webhook prompt"),
+    ]
+}
+
+fn client_route_entries() -> Vec<GatewayRouteEntry> {
+    vec![
+        client_route("GET", "/v1/metrics", "Prometheus metrics"),
+        client_route("POST", "/v1/agent", "tool-enabled agent chat"),
+        client_route("POST", "/v1/chat/completions", "OpenAI-compatible chat"),
+        client_route("GET", "/v1/models", "list available models"),
+        client_route("GET", "/v1/ws/chat", "WebSocket agent chat"),
+        client_route("GET", "/v1/events", "gateway event stream"),
+        client_route("GET", "/v1/status", "runtime status"),
+        client_route("GET", "/v1/tools", "tool catalog"),
+        client_route("GET", "/v1/mcp/inspect", "MCP inspection"),
+        client_route("GET", "/v1/cron", "cron jobs"),
+        client_route("POST", "/v1/cron", "create cron job"),
+        client_route("GET", "/v1/cron/{id}/runs", "cron job runs"),
+        client_route("GET", "/v1/cron/runs/{id}", "cron run detail"),
+        client_route("PATCH", "/v1/cron/{id}", "update cron job"),
+        client_route("POST", "/v1/cron/{id}", "update cron job"),
+        client_route("PUT", "/v1/cron/{id}", "update cron job"),
+        client_route("DELETE", "/v1/cron/{id}", "delete cron job"),
+        client_route("GET", "/v1/integrations", "integrations"),
+        client_route("GET", "/v1/integrations/settings", "integration settings"),
+        client_route("PUT", "/v1/integrations/{id}/credentials", "update credentials"),
+        client_route("GET", "/v1/doctor", "diagnostics"),
+        client_route("POST", "/v1/doctor", "diagnostics"),
+        client_route("GET", "/v1/memory", "memory query"),
+        client_route("POST", "/v1/memory", "store memory"),
+        client_route("DELETE", "/v1/memory/{key}", "delete memory"),
+        client_route("GET", "/v1/cli-tools", "CLI tool discovery"),
+        client_route("GET", "/v1/api-health", "API health summary"),
+        client_route("GET", "/v1/dashboard/config", "dashboard config"),
+        client_route("PUT", "/v1/dashboard/config", "update dashboard config"),
+        client_route("PUT", "/v1/auth/{provider_id}", "set provider auth"),
+        client_route("DELETE", "/v1/auth/{provider_id}", "remove provider auth"),
+        client_route("GET", "/v1/config", "runtime config"),
+        client_route("PATCH", "/v1/config", "update runtime config"),
+        client_route("GET", "/v1/config/providers", "provider config catalog"),
+        client_route("GET", "/v1/global/health", "global health"),
+        client_route("GET", "/v1/global/event", "global event stream"),
+        client_route("GET", "/v1/global/config", "global config"),
+        client_route("PATCH", "/v1/global/config", "update global config"),
+        client_route("GET", "/v1/global/config/acp", "ACP config"),
+        client_route("POST", "/v1/global/dispose", "dispose global instance"),
+        client_route("GET", "/v1/path", "workspace path"),
+        client_route("GET", "/v1/vcs", "VCS status"),
+        client_route("GET", "/v1/event", "instance event stream"),
+        client_route("POST", "/v1/instance/dispose", "dispose instance"),
+        client_route("GET", "/v1/provider", "provider list"),
+        client_route("GET", "/v1/provider/auth", "provider auth methods"),
+        client_route("POST", "/v1/provider/{provider_id}/oauth/authorize", "start provider OAuth"),
+        client_route("POST", "/v1/provider/{provider_id}/oauth/callback", "finish provider OAuth"),
+        client_route("GET", "/v1/doc", "documentation placeholder"),
+        client_route("GET", "/v1/command", "command catalog"),
+        client_route("GET", "/v1/agent", "agent catalog"),
+        client_route("GET", "/v1/skill", "skill catalog"),
+        client_route("GET", "/v1/find", "find text"),
+        client_route("GET", "/v1/find/file", "find file"),
+        client_route("GET", "/v1/find/symbol", "find symbol placeholder"),
+        client_route("GET", "/v1/file", "file list"),
+        client_route("POST", "/v1/file/read", "read file"),
+        client_route("GET", "/v1/file/content", "read file content"),
+        client_route("POST", "/v1/file/write", "write file"),
+        client_route("GET", "/v1/file/status", "file status"),
+        client_route("POST", "/v1/files/move", "move file"),
+        client_route("POST", "/v1/files/copy", "copy file"),
+        client_route("POST", "/v1/files/delete", "delete files"),
+        client_route("POST", "/v1/git/commit", "git commit"),
+        client_route("POST", "/v1/git/command", "git command"),
+        client_route("POST", "/v1/git/merge", "git merge"),
+        client_route("GET", "/v1/permission", "permission requests"),
+        client_route("POST", "/v1/permission/{request_id}/reply", "approve permission request"),
+        client_route("GET", "/v1/question", "questions"),
+        client_route("POST", "/v1/question/{request_id}/reply", "answer question"),
+        client_route("POST", "/v1/question/{request_id}/reject", "reject question"),
+        client_route("GET", "/v1/pty", "PTY list"),
+        client_route("POST", "/v1/pty", "create PTY"),
+        client_route("GET", "/v1/pty/{pty_id}", "PTY detail"),
+        client_route("PUT", "/v1/pty/{pty_id}", "update PTY"),
+        client_route("DELETE", "/v1/pty/{pty_id}", "remove PTY"),
+        client_route("GET", "/v1/pty/{pty_id}/connect", "PTY WebSocket"),
+        client_route("GET", "/v1/projects", "project list"),
+        client_route("POST", "/v1/projects/resolve", "resolve project"),
+        client_route("GET", "/v1/projects/{project_id}", "project detail"),
+        client_route("PATCH", "/v1/projects/{project_id}", "update project"),
+        client_route("GET", "/v1/projects/{project_id}/change-records", "project change records"),
+        client_route("GET", "/v1/projects/{project_id}/worktrees", "project worktrees"),
+        client_route("POST", "/v1/projects/{project_id}/worktrees", "create worktree"),
+        client_route("GET", "/v1/projects/{project_id}/worktrees/{worktree_id}", "worktree detail"),
+        client_route("DELETE", "/v1/projects/{project_id}/worktrees/{worktree_id}", "delete worktree"),
+        client_route("POST", "/v1/projects/{project_id}/worktrees/{worktree_id}/reset", "reset worktree"),
+        client_route("GET", "/v1/knowledge/status", "knowledge status"),
+        client_route("GET", "/v1/knowledge/embedding/status", "embedding status"),
+        client_route("GET", "/v1/knowledge/embedding/presets", "embedding presets"),
+        client_route("POST", "/v1/knowledge/embedding/test", "test embedding"),
+        client_route("GET", "/v1/knowledge/datasets", "knowledge datasets"),
+        client_route("POST", "/v1/knowledge/datasets", "create knowledge dataset"),
+        client_route("GET", "/v1/knowledge/datasets/{dataset_id}", "knowledge dataset"),
+        client_route("DELETE", "/v1/knowledge/datasets/{dataset_id}", "delete knowledge dataset"),
+        client_route("GET", "/v1/knowledge/datasets/{dataset_id}/documents", "knowledge documents"),
+        client_route("POST", "/v1/knowledge/datasets/{dataset_id}/documents", "create knowledge document"),
+        client_route("POST", "/v1/knowledge/datasets/{dataset_id}/documents/import", "import document"),
+        client_route("POST", "/v1/knowledge/datasets/{dataset_id}/documents/import-async", "import document async"),
+        client_route("GET", "/v1/knowledge/index-jobs/{job_id}", "knowledge index job"),
+        client_route("POST", "/v1/knowledge/documents/batch", "batch update documents"),
+        client_route("PATCH", "/v1/knowledge/documents/{document_id}", "update document"),
+        client_route("DELETE", "/v1/knowledge/documents/{document_id}", "delete document"),
+        client_route("GET", "/v1/knowledge/documents/{document_id}/chunks", "document chunks"),
+        client_route("POST", "/v1/knowledge/documents/{document_id}/reindex", "reindex document"),
+        client_route("POST", "/v1/knowledge/retrieve", "knowledge retrieve"),
+        client_route("POST", "/v1/knowledge/retrieval-test", "knowledge retrieval test"),
+        client_route("POST", "/v1/task-pool/worktrees/snapshot", "worktree pool snapshot"),
+        client_route("POST", "/v1/task-pool/worktrees/maintain", "maintain worktree pool"),
+        client_route("POST", "/v1/task-pool/worktrees/acquire", "acquire worktree"),
+        client_route("POST", "/v1/task-pool/worktrees/release", "release worktree"),
+        client_route("POST", "/v1/task-pool/worktrees/recycle", "recycle worktree"),
+        client_route("POST", "/v1/task-pool/worktrees/slots/recycle", "recycle worktree slots"),
+        client_route("POST", "/v1/task-pool/worktrees/merge-lock", "lock worktree merge"),
+        client_route("POST", "/v1/task-pool/worktrees/merge-unlock", "unlock worktree merge"),
+        client_route("GET", "/v1/task-pool/matrix/events", "Matrix task-pool events"),
+        client_route("POST", "/v1/task-pool/matrix/events", "publish Matrix task-pool event"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/workflow", "scheduler workflow"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/tasks", "scheduler tasks"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/tasks", "create scheduler task"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/commands", "scheduler command"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/commands/bulk", "bulk scheduler commands"),
+        client_route("PATCH", "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata", "update task metadata"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/legacy-import", "legacy task import"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/workers", "scheduler workers"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/workers", "upsert scheduler worker"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/teams", "scheduler teams"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/teams", "upsert scheduler team"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/logs", "task logs"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/artifacts", "task artifacts"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/runs/{run_id}/worker-events", "worker run event"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/events", "scheduler events"),
+        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/events/stream", "scheduler event stream"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/wake", "wake scheduler project"),
+        client_route("POST", "/v1/agent-scheduler/projects/{project_id}/outbox/drain", "drain scheduler outbox"),
+        client_route("GET", "/v1/staff/stage-capabilities", "staff stage capabilities"),
+        client_route("GET", "/v1/staff/projects/{project_id}/capabilities", "staff project capabilities"),
+        client_route("PUT", "/v1/staff/projects/{project_id}/capabilities", "update staff project capabilities"),
+        client_route("GET", "/v1/staff/projects/{project_id}/orchestration", "staff project orchestration"),
+        client_route("PUT", "/v1/staff/projects/{project_id}/orchestration", "update staff project orchestration"),
+        client_route("GET", "/v1/staff/projects/{project_id}/workflows/{workflow_id}/capabilities", "staff workflow capabilities"),
+        client_route("PUT", "/v1/staff/projects/{project_id}/workflows/{workflow_id}/capabilities", "update staff workflow capabilities"),
+        client_route("GET", "/v1/staff/projects/{project_id}/workflows/{workflow_id}/orchestration", "staff workflow orchestration"),
+        client_route("PUT", "/v1/staff/projects/{project_id}/workflows/{workflow_id}/orchestration", "update staff workflow orchestration"),
+        client_route("GET", "/v1/staff/projects/{project_id}/projection", "staff projection"),
+        client_route("POST", "/v1/staff/projects/{project_id}/commands", "staff command"),
+        client_route("POST", "/v1/staff/projects/{project_id}/auto-schedule-plan", "staff auto-schedule plan"),
+        client_route("POST", "/v1/staff/ipc/messages", "staff IPC message"),
+        client_route("GET", "/v1/apiQL/{entity_class}", "APIQL list"),
+        client_route("GET", "/v1/apiQL/{entity_class}/", "APIQL list"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-only", "APIQL list rows"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-only/", "APIQL list rows"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-count", "APIQL list count"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-count/", "APIQL list count"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-page", "APIQL list page"),
+        client_route("GET", "/v1/apiQL/{entity_class}/list-page/", "APIQL list page"),
+        client_route("POST", "/v1/workflow/resume", "resume workflow"),
+        client_route("POST", "/v1/workflow/applications/chat-messages", "workflow chat"),
+        client_route("POST", "/v1/workflow/applications/{uuid}/chat-messages", "workflow application chat"),
+        client_route("GET", "/v1/workflow/applications", "workflow applications"),
+        client_route("POST", "/v1/workflow/applications", "create workflow application"),
+        client_route("GET", "/v1/workflow/applications/{uuid}", "workflow application"),
+        client_route("PUT", "/v1/workflow/applications/{uuid}", "update workflow application"),
+        client_route("DELETE", "/v1/workflow/applications/{uuid}", "delete workflow application"),
+        client_route("POST", "/v1/chat/stream", "session chat stream"),
+        client_route("POST", "/v1/task-plan-run/stream", "task plan-run stream"),
+        client_route("GET", "/v1/session", "sessions"),
+        client_route("POST", "/v1/session", "create session"),
+        client_route("GET", "/v1/session/status", "session status"),
+        client_route("GET", "/v1/session/{session_id}", "session"),
+        client_route("PATCH", "/v1/session/{session_id}", "update session"),
+        client_route("DELETE", "/v1/session/{session_id}", "delete session"),
+        client_route("GET", "/v1/session/{session_id}/children", "session children"),
+        client_route("GET", "/v1/session/{session_id}/todo", "session todo"),
+        client_route("PUT", "/v1/session/{session_id}/todo", "update session todo"),
+        client_route("POST", "/v1/session/{session_id}/fork", "fork session"),
+        client_route("POST", "/v1/session/{session_id}/reset", "reset session"),
+        client_route("GET", "/v1/session/{session_id}/diff", "session diff"),
+        client_route("POST", "/v1/session/{session_id}/summarize", "summarize session"),
+        client_route("GET", "/v1/session/{session_id}/message", "session messages"),
+        client_route("GET", "/v1/session/{session_id}/message/{message_id}", "session message"),
+        client_route("PATCH", "/v1/session/{session_id}/message/{message_id}/part/{part_id}", "update message part"),
+        client_route("DELETE", "/v1/session/{session_id}/message/{message_id}/part/{part_id}", "delete message part"),
+        client_route("GET", "/v1/session/ui-previews", "session UI previews"),
+        client_route("GET", "/v1/session/archived", "archived sessions"),
+        client_route("PUT", "/v1/session/archived", "update archived sessions"),
+        client_route("GET", "/v1/session/scope", "session scope"),
+        client_route("PUT", "/v1/session/scope", "update session scope"),
+        client_route("GET", "/v1/session/{session_id}/ui", "session UI"),
+        client_route("PUT", "/v1/session/{session_id}/ui", "save session UI"),
+        client_route("GET", "/v1/session/{session_id}/preview", "session preview"),
+        client_route("GET", "/v1/session/{session_id}/path", "session path"),
+        client_route("GET", "/v1/session/{session_id}/any", "session by any ID"),
+        client_route("POST", "/v1/session/{session_id}/title", "generate session title"),
+        client_route("GET", "/v1/data/settings", "data settings"),
+        client_route("PUT", "/v1/data/settings", "update data settings"),
+        client_route("GET", "/v1/data/connections", "data connections"),
+        client_route("POST", "/v1/data/connections", "create data connection"),
+        client_route("GET", "/v1/data/connections/{connection_id}", "data connection"),
+        client_route("PUT", "/v1/data/connections/{connection_id}", "update data connection"),
+        client_route("DELETE", "/v1/data/connections/{connection_id}", "delete data connection"),
+        client_route("POST", "/v1/data/connections/{connection_id}/activate", "activate data connection"),
+        client_route("POST", "/v1/data/connections/{connection_id}/test", "test data connection"),
+        client_route("GET", "/v1/data/connections/{connection_id}/catalog", "data connection catalog"),
+        client_route("GET", "/v1/data/reports", "data reports"),
+        client_route("POST", "/v1/data/reports", "create data report"),
+        client_route("GET", "/v1/data/reports/{report_id}", "data report"),
+        client_route("PUT", "/v1/data/reports/{report_id}", "update data report"),
+        client_route("DELETE", "/v1/data/reports/{report_id}", "delete data report"),
+        client_route("POST", "/v1/data/query", "data query"),
+        client_route("POST", "/v1/data/ai/query", "AI data query"),
+        client_route("GET", "/v1/task-lifecycle/workflows", "task lifecycle workflows"),
+        client_route("POST", "/v1/task-lifecycle/workflows", "create task lifecycle workflow"),
+        client_route("GET", "/v1/task-lifecycle/workflows/{id}", "task lifecycle workflow"),
+        client_route("PUT", "/v1/task-lifecycle/workflows/{id}", "update task lifecycle workflow"),
+        client_route("DELETE", "/v1/task-lifecycle/workflows/{id}", "delete task lifecycle workflow"),
+        client_route("POST", "/v1/task-lifecycle/workflows/{id}/reset", "reset task lifecycle workflow"),
+        client_route("POST", "/v1/shiju/account/login", "start SHIJU account login"),
+        client_route(
+            "POST",
+            "/v1/shiju/account/login/poll",
+            "poll SHIJU account login",
+        ),
+        client_route("GET", "/v1/shiju/account/profile", "SHIJU account profile"),
+        client_route("GET", "/v1/shiju/apps/catalog", "SHIJU application catalog"),
+        client_route("GET", "/v1/shiju/apps", "installed SHIJU applications"),
+        client_route(
+            "POST",
+            "/v1/shiju/apps/{installation_id}/launch",
+            "prepare SHIJU application launch",
+        ),
+        client_route("GET", "/v1/shiju/skills/search", "search SHIJU skills"),
+        client_route("GET", "/v1/shiju/skills/installed", "installed SHIJU skills"),
+        client_route("GET", "/v1/shiju/skills/system", "SHIJU system skills"),
+        client_route("GET", "/v1/shiju/skills/company", "SHIJU company skills"),
+        client_route("GET", "/v1/shiju/skills/maintained", "maintained SHIJU skills"),
+        client_route("GET", "/v1/shiju/skills/{skill_id}", "SHIJU skill detail"),
+        client_route(
+            "GET",
+            "/v1/shiju/skills/{skill_id}/versions",
+            "SHIJU skill versions",
+        ),
+        client_route(
+            "POST",
+            "/v1/shiju/skills/{skill_id}/install",
+            "install SHIJU skill",
+        ),
+        client_route(
+            "DELETE",
+            "/v1/shiju/skills/{skill_id}/install",
+            "uninstall SHIJU skill",
+        ),
+        client_route("GET", "/v1/skill-market/sources", "skill market sources"),
+        client_route(
+            "GET",
+            "/v1/skill-market/showcase/recommended",
+            "recommended market skills",
+        ),
+        client_route("GET", "/v1/skill-market/skills", "market skill catalog"),
+        client_route("GET", "/v1/skill-market/categories", "market skill categories"),
+        client_route("GET", "/v1/skill-market/skills/{slug}", "market skill detail"),
+        client_route("GET", "/v1/skill-market/skills/{slug}/file", "market skill file"),
+        client_route("GET", "/v1/skill-market/skillsets", "market skill-set catalog"),
+        client_route(
+            "GET",
+            "/v1/skill-market/skillsets/{slug}",
+            "market skill-set detail",
+        ),
+        client_route("GET", "/v1/skills", "skills catalog"),
+        client_route("GET", "/v1/skills/detail", "skill detail"),
+        client_route("POST", "/v1/skills/create", "create skill"),
+        client_route("POST", "/v1/skills/install-built-in", "install built-in skill"),
+        client_route("POST", "/v1/skills/set-enabled", "set skill enabled"),
+        client_route("POST", "/v1/skills/delete", "delete skill"),
+        client_route("GET", "/v1/plugins", "plugins catalog"),
+        client_route("GET", "/v1/plugins/detail", "plugin detail"),
+        client_route("POST", "/v1/plugins/set-enabled", "set plugin enabled"),
+        client_route("POST", "/v1/plugins/delete", "delete plugin"),
+        client_route("GET", "/v1/desktop/preferences", "desktop preferences"),
+        client_route("PATCH", "/v1/desktop/preferences", "update desktop preferences"),
+        client_route("GET", "/v1/desktop/tool-content/{tool_type}", "desktop tool content"),
+        client_route("PUT", "/v1/desktop/tool-content/{tool_type}", "update desktop tool content"),
+        client_route("GET", "/v1/desktop/skills", "desktop skills catalog"),
+        client_route("GET", "/v1/desktop/skills/detail", "desktop skill detail"),
+        client_route("POST", "/v1/desktop/skills/create", "create desktop skill"),
+        client_route("POST", "/v1/desktop/skills/install-built-in", "install desktop built-in skill"),
+        client_route("POST", "/v1/desktop/skills/set-enabled", "set desktop skill enabled"),
+        client_route("POST", "/v1/desktop/skills/delete", "delete desktop skill"),
+        client_route("GET", "/v1/desktop/external-apps", "external apps"),
+        client_route("POST", "/v1/desktop/external-apps/open", "open external app"),
+        client_route("POST", "/v1/desktop/external-path/reveal", "reveal external path"),
+        client_route("POST", "/v1/desktop/service/{command}", "desktop service command"),
+        client_route("GET", "/v1/desktop/project-preferences", "desktop project preferences"),
+        client_route("PUT", "/v1/desktop/project-preferences", "update desktop project preferences"),
+    ]
 }
 
 pub(super) fn external_router() -> Router<AppState> {
     Router::<AppState>::new()
-        // 根健康探针不属于客户端 API，不能要求租户 header。
-        .route("/health", get(health::handle_health))
+        // 健康探针不属于受管客户端 API，不能要求租户 header。
+        .route("/v1/health", get(health::handle_health))
         // 第三方 webhook 协议无法控制请求头，因此保持在租户 middleware 之外。
         .route("/v1/webhook", post(webhook::handle_webhook))
         .route("/v1/whatsapp", get(handlers::handle_whatsapp_verify))
@@ -407,7 +781,6 @@ pub(super) fn client_router(
         .layer(from_fn_with_state(state.clone(), skey_auth_middleware));
 
     let standalone_client_router = Router::<AppState>::new()
-        .route("/v1/health", get(health::handle_health))
         .route("/v1/metrics", get(health::handle_metrics))
         .route("/v1/agent", post(agent::handle_agent))
         .route("/v1/models", get(openai_compat::handle_v1_models))
@@ -445,7 +818,7 @@ pub(super) fn client_router(
         // 未使用 skey 的客户端入口也必须解析租户。
         .layer(from_fn(middleware::tenant_scope_middleware));
 
-    standalone_client_router.merge(apiql_compat_router(state)).nest("/v1", handler_router)
+    standalone_client_router.nest("/v1", handler_router)
 }
 
 pub(super) fn stateful_handler_router() -> Router<AppState> {
@@ -469,9 +842,14 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::agent_scheduler::router())
         .merge(api::handlers::apiql::router())
         .merge(api::handlers::task_lifecycle::router())
+        .merge(api::handlers::task_plan_run::router())
         .merge(api::handlers::workflow::router())
         .merge(api::handlers::session::router())
         .merge(api::handlers::config::stateful_router())
+        .merge(api::handlers::shiju_account::router())
+        .merge(api::handlers::shiju_apps::router())
+        .merge(api::handlers::shiju_skills::router())
+        .merge(api::handlers::skill_market::router())
         .merge(api::handlers::desktop_skills::router())
         .merge(api::handlers::plugins::router())
         .merge(api::handlers::desktop::router())

@@ -361,7 +361,7 @@ async fn load_state() -> State {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn log_external_scan(root: &Path, scope: &str) {
-    LOGGER.info(
+    LOGGER.debug(
         "scanned external skills",
         Some({
             let mut m = Map::new();

@@ -6,6 +6,13 @@
 use vw_shared::question;
 use vw_shared::todo::Todo;
 
+use super::permission::PermissionQueue;
+use super::settings_panel::{SettingsPanel, SettingsValues};
+use super::integration::{IntegrationKind, IntegrationPanel};
+use super::agent_view::AgentViewState;
+use super::background_task::BackgroundTaskPanel;
+use super::workflow_panel::WorkflowPanel;
+use super::schedule_panel::SchedulePanel;
 use super::ui_message::{UiMessageId, UiStepState, UiTokenUsage, UiTurnTerminal};
 
 /// 当前焦点位于 prompt 还是 overlay。
@@ -62,9 +69,17 @@ pub(crate) enum UiOverlayKind {
     Todo,
     Task,
     CommandPalette,
+    Report,
     Error,
     Mcp,
     Memory,
+    Settings,
+    Permissions,
+    Integration,
+    BackgroundTasks,
+    Agents,
+    Workflows,
+    Schedules,
 }
 
 /// 顶层 overlay 枚举。
@@ -76,9 +91,17 @@ pub(crate) enum UiOverlay {
     Todo(UiTodoOverlay),
     Task(UiTaskOverlay),
     CommandPalette(UiCommandPaletteOverlay),
+    Report(UiReportOverlay),
     Error(UiErrorOverlay),
     Mcp(UiMcpOverlay),
     Memory(UiMemoryOverlay),
+    Settings(SettingsPanel),
+    Permissions(UiPermissionOverlay),
+    Integration(IntegrationPanel),
+    BackgroundTasks(BackgroundTaskPanel),
+    Agents(AgentViewState),
+    Workflows(WorkflowPanel),
+    Schedules(SchedulePanel),
 }
 
 impl UiOverlay {
@@ -91,11 +114,50 @@ impl UiOverlay {
             Self::Todo(_) => UiOverlayKind::Todo,
             Self::Task(_) => UiOverlayKind::Task,
             Self::CommandPalette(_) => UiOverlayKind::CommandPalette,
+            Self::Report(_) => UiOverlayKind::Report,
             Self::Error(_) => UiOverlayKind::Error,
             Self::Mcp(_) => UiOverlayKind::Mcp,
             Self::Memory(_) => UiOverlayKind::Memory,
+            Self::Settings(_) => UiOverlayKind::Settings,
+            Self::Permissions(_) => UiOverlayKind::Permissions,
+            Self::Integration(_) => UiOverlayKind::Integration,
+            Self::BackgroundTasks(_) => UiOverlayKind::BackgroundTasks,
+            Self::Agents(_) => UiOverlayKind::Agents,
+            Self::Workflows(_) => UiOverlayKind::Workflows,
+            Self::Schedules(_) => UiOverlayKind::Schedules,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct UiPermissionOverlay {
+    pub(crate) queue: PermissionQueue,
+    pub(crate) notice: Option<String>,
+}
+
+/// 确认框携带的类型化意图。
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) enum UiConfirmIntent {
+    #[default]
+    Generic,
+    ExitTui,
+    ClearSession,
+    ResetSession {
+        message_id: String,
+    },
+    CompactSession {
+        message_id: String,
+    },
+    IntegrationDelete {
+        kind: IntegrationKind,
+        id: String,
+    },
+    ScheduleDelete {
+        id: String,
+    },
+    EnableFullAccess {
+        values: Box<SettingsValues>,
+    },
 }
 
 /// 确认对话框。
@@ -106,6 +168,7 @@ pub(crate) struct UiConfirmOverlay {
     pub(crate) confirm_label: String,
     pub(crate) cancel_label: String,
     pub(crate) destructive: bool,
+    pub(crate) intent: UiConfirmIntent,
 }
 
 /// 搜索命中的一条结果。
@@ -388,14 +451,44 @@ pub(crate) struct UiPaletteItem {
     pub(crate) id: String,
     pub(crate) label: String,
     pub(crate) detail: Option<String>,
+    pub(crate) source: String,
+    pub(crate) argument_hint: Option<String>,
+    pub(crate) available: bool,
+    pub(crate) unavailable_reason: Option<String>,
+    pub(crate) replacement: String,
 }
 
 /// 命令面板弹层。
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UiCommandPaletteOverlay {
     pub(crate) query: String,
     pub(crate) items: Vec<UiPaletteItem>,
     pub(crate) selected_index: Option<usize>,
+    pub(crate) first_visible_index: usize,
+    pub(crate) visible_rows: usize,
+    pub(crate) notice: Option<String>,
+}
+
+impl Default for UiCommandPaletteOverlay {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            items: Vec::new(),
+            selected_index: None,
+            first_visible_index: 0,
+            visible_rows: 8,
+            notice: None,
+        }
+    }
+}
+
+/// 只读命令报告弹层。
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct UiReportOverlay {
+    pub(crate) title: String,
+    pub(crate) lines: Vec<String>,
+    pub(crate) capability_notice: Option<String>,
+    pub(crate) scroll_offset: usize,
 }
 
 /// 错误弹层。

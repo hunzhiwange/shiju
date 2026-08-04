@@ -406,55 +406,65 @@ pub fn git_discard_hunk(
     idx: usize,
     shell: Shell,
 ) -> Result<(), String> {
+    let _ = shell;
     let (old_content, new_content) = get_file_content_pair(repo_path, file)
         .ok_or_else(|| "Failed to read file content".to_string())?;
+    let old_lines: Vec<&str> = old_content.lines().collect();
+    let new_lines: Vec<&str> = new_content.lines().collect();
 
     let diff = TextDiff::from_lines(&old_content, &new_content);
-    let hunks: Vec<String> = diff
-        .unified_diff()
-        .context_radius(DIFF_CONTEXT)
-        .iter_hunks()
-        .map(|hunk| hunk.to_string())
-        .collect();
+    let groups = diff.grouped_ops(DIFF_CONTEXT);
 
-    if idx >= hunks.len() {
+    if idx >= groups.len() {
         return Err("bad hunk index".to_string());
     }
 
-    let hunk = &hunks[idx];
-
-    // 构建 patch 文件内容
-    let mut patch = String::new();
-    patch.push_str(&format!("diff --git a/{} b/{}\n", file, file));
-
-    let is_new_file = old_content.is_empty() && !new_content.is_empty();
-    let is_deleted_file = !old_content.is_empty() && new_content.is_empty();
-
-    if is_new_file {
-        patch.push_str("new file mode 100644\n");
-        patch.push_str("index 0000000..0000000\n");
-        patch.push_str("--- /dev/null\n");
-        patch.push_str(&format!("+++ b/{}\n", file));
-    } else if is_deleted_file {
-        patch.push_str("deleted file mode 100644\n");
-        patch.push_str("index 0000000..0000000\n");
-        patch.push_str(&format!("--- a/{}\n", file));
-        patch.push_str("+++ /dev/null\n");
-    } else {
-        patch.push_str("index 0000000..0000000 100644\n");
-        patch.push_str(&format!("--- a/{}\n", file));
-        patch.push_str(&format!("+++ b/{}\n", file));
+    let mut restored_lines: Vec<String> =
+        new_lines.iter().map(|line| (*line).to_string()).collect();
+    let mut offset: isize = 0;
+    for op in groups[idx].clone() {
+        match op {
+            similar::DiffOp::Equal { .. } => {}
+            similar::DiffOp::Delete { old_index, old_len, new_index } => {
+                let start = (new_index as isize + offset) as usize;
+                let restored = old_lines[old_index..old_index + old_len]
+                    .iter()
+                    .map(|line| (*line).to_string());
+                restored_lines.splice(start..start, restored);
+                offset += old_len as isize;
+            }
+            similar::DiffOp::Insert { new_index, new_len, .. } => {
+                let start = (new_index as isize + offset) as usize;
+                restored_lines.drain(start..start + new_len);
+                offset -= new_len as isize;
+            }
+            similar::DiffOp::Replace { old_index, old_len, new_index, new_len } => {
+                let start = (new_index as isize + offset) as usize;
+                let restored = old_lines[old_index..old_index + old_len]
+                    .iter()
+                    .map(|line| (*line).to_string());
+                restored_lines.splice(start..start + new_len, restored);
+                offset += old_len as isize - new_len as isize;
+            }
+        }
     }
 
-    patch.push_str(hunk);
+    let full_path = std::path::Path::new(repo_path).join(file);
+    if restored_lines.is_empty() && old_content.is_empty() {
+        if full_path.exists() {
+            std::fs::remove_file(&full_path).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
 
-    // 写入临时 patch 文件并反向应用
-    let tmp = std::env::temp_dir().join(format!("vibe-hunk-{}.patch", idx));
-    std::fs::write(&tmp, patch).map_err(|e| e.to_string())?;
-
-    let cmd = format!("git apply -R {}", tmp.to_string_lossy());
-    let _ = run_shell_command(Some(repo_path.to_string()), cmd, shell);
-    let _ = std::fs::remove_file(&tmp);
+    if let Some(parent) = full_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let mut restored_content = restored_lines.join("\n");
+    if old_content.ends_with('\n') {
+        restored_content.push('\n');
+    }
+    std::fs::write(full_path, restored_content).map_err(|e| e.to_string())?;
     Ok(())
 }
 

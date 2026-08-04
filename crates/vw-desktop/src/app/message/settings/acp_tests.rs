@@ -1,5 +1,4 @@
-use super::sort_acp_agent_names;
-use super::update;
+use super::{new_agent_request, sort_acp_agent_names, update};
 use crate::app::config::AcpSettingsSnapshot;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use std::collections::BTreeMap;
@@ -224,6 +223,89 @@ fn set_enabled_completed_error_clears_saving_and_preserves_existing_state() {
     assert!(app.acp_settings.catalog.contains_key("codex"));
     assert!(app.acp_settings.enabled.contains("codex"));
     assert_eq!(app.acp_settings.status_message.as_deref(), Some("keep status"));
+}
+
+#[test]
+fn new_agent_input_messages_update_form_state() {
+    let (mut app, _) = crate::app::App::new();
+
+    for message in [
+        AcpMessage::NewAgentPanelToggled,
+        AcpMessage::NewAgentNameChanged(" local ".to_string()),
+        AcpMessage::NewAgentCommandChanged(" npx ".to_string()),
+        AcpMessage::NewAgentArgsChanged("-y, local-acp".to_string()),
+    ] {
+        let _ = update(&mut app, SettingsMessage::Acp(message));
+    }
+
+    assert!(app.acp_settings.new_agent_expanded);
+    assert_eq!(app.acp_settings.new_agent_name_input, " local ");
+    assert_eq!(app.acp_settings.new_agent_command_input, " npx ");
+    assert_eq!(app.acp_settings.new_agent_args_input, "-y, local-acp");
+}
+
+#[test]
+fn new_agent_request_validates_inputs_and_rejects_existing_names() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.catalog.insert("codex".to_string(), acp_config("codex"));
+
+    assert_eq!(new_agent_request(&app).expect_err("blank name should fail"), "ACP 名称不能为空");
+
+    app.acp_settings.new_agent_name_input = "codex".to_string();
+    app.acp_settings.new_agent_command_input = "codex-acp".to_string();
+    assert_eq!(
+        new_agent_request(&app).expect_err("existing name should fail"),
+        "ACP 名称已存在: codex"
+    );
+
+    app.acp_settings.new_agent_name_input = " local ".to_string();
+    app.acp_settings.new_agent_command_input = " npx ".to_string();
+    app.acp_settings.new_agent_args_input = "-y,\nlocal-acp".to_string();
+    let (name, spec) = new_agent_request(&app).expect("valid input should build a request");
+    assert_eq!(name, "local");
+    assert_eq!(spec.command, "npx");
+    assert_eq!(spec.args, vec!["-y", "local-acp"]);
+}
+
+#[test]
+fn add_agent_tracks_progress_and_success_resets_form() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.new_agent_expanded = true;
+    app.acp_settings.new_agent_name_input = "local".to_string();
+    app.acp_settings.new_agent_command_input = "local-acp".to_string();
+    app.acp_settings.new_agent_args_input = "--stdio".to_string();
+
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::AddAgent));
+    assert!(app.acp_settings.adding_agent);
+    assert!(app.acp_settings.save_error.is_none());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::AddAgentCompleted {
+            agent: "local".to_string(),
+            result: Ok(snapshot(&[("local", true)])),
+        }),
+    );
+
+    assert!(!app.acp_settings.adding_agent);
+    assert!(!app.acp_settings.new_agent_expanded);
+    assert!(app.acp_settings.new_agent_name_input.is_empty());
+    assert!(app.acp_settings.new_agent_command_input.is_empty());
+    assert!(app.acp_settings.new_agent_args_input.is_empty());
+    assert!(app.acp_settings.catalog.contains_key("local"));
+    assert_eq!(app.acp_settings.status_message.as_deref(), Some("local 已新增并启用"));
+}
+
+#[test]
+fn add_agent_validation_error_keeps_form_editable() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.new_agent_expanded = true;
+
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::AddAgent));
+
+    assert!(!app.acp_settings.adding_agent);
+    assert_eq!(app.acp_settings.save_error.as_deref(), Some("ACP 名称不能为空"));
+    assert!(app.acp_settings.new_agent_expanded);
 }
 
 #[test]

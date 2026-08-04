@@ -13,6 +13,27 @@ use vw_gateway_client::ExternalAppsStateDto;
 use vw_gateway_client::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
+use vw_gateway_client::SkillMarketCategoryDto;
+use vw_gateway_client::SkillMarketCoordinateDto;
+use vw_gateway_client::SkillMarketInstallSelectionDto;
+use vw_gateway_client::SkillMarketSkillDetailDto;
+use vw_gateway_client::SkillMarketSkillDto;
+use vw_gateway_client::SkillMarketSkillFileDto;
+use vw_gateway_client::SkillMarketSkillLocatorDto;
+use vw_gateway_client::SkillMarketSkillPageDto;
+use vw_gateway_client::SkillMarketSkillQuery;
+use vw_gateway_client::SkillMarketSkillSetDetailDto;
+use vw_gateway_client::SkillMarketSkillSetPageDto;
+use vw_gateway_client::SkillMarketSourceDto;
+use vw_gateway_client::{
+    ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
+    ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppCatalogDto,
+    ShijuAppLaunchDto, ShijuAppListDto, ShijuCompanySkillQuery, ShijuCredential,
+    ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto,
+    ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
+    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
+    ShijuTenantSkillDto,
+};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_gateway_client::vw_api_types::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
@@ -41,6 +62,174 @@ fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {
 
 pub(crate) fn active_tenant_scope() -> TenantScopeDto {
     config::gateway_client_endpoint().tenant_scope().clone()
+}
+
+pub(crate) async fn gateway_task_plan_run_stop_with_client(
+    client: &vw_gateway_client::GatewayClient,
+    task_id: &str,
+) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {
+    let task_id = task_id.trim();
+    if task_id.is_empty() {
+        return Err("plan-run task id 不能为空".to_string());
+    }
+    client.task_plan_run_stop(task_id).await
+}
+
+pub(crate) async fn gateway_task_plan_run_stop_async(
+    task_id: &str,
+) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {
+    let client = gateway_client()?;
+    gateway_task_plan_run_stop_with_client(&client, task_id).await
+}
+
+pub(crate) async fn gateway_shiju_account_login_async()
+-> Result<ShijuLoginChallengeDto, String> {
+    let client = gateway_client()?;
+    client.shiju_account_login().await
+}
+
+pub(crate) async fn gateway_shiju_account_login_poll_async(
+    state: &str,
+) -> Result<ShijuLoginPollDto, String> {
+    let client = gateway_client()?;
+    client.shiju_account_login_poll(state).await
+}
+
+pub(crate) async fn gateway_shiju_account_profile_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuAccountProfileDto, String> {
+    let client = gateway_client()?;
+    client.shiju_account_profile(credential).await
+}
+
+pub(crate) async fn gateway_shiju_account_me_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuAccountMeDto, String> {
+    let client = gateway_client()?;
+    client.shiju_account_me(credential).await
+}
+
+pub(crate) async fn gateway_shiju_account_update_async(
+    credential: &ShijuCredential,
+    request: &ShijuAccountUpdateRequest,
+) -> Result<ShijuAccountUpdateResponseDto, String> {
+    let client = gateway_client()?;
+    client.shiju_account_update(credential, request).await
+}
+
+pub(crate) async fn gateway_shiju_account_password_update_async(
+    credential: &ShijuCredential,
+    request: &ShijuAccountPasswordUpdateRequest,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.shiju_account_password_update(credential, request).await
+}
+
+pub(crate) async fn gateway_shiju_app_catalog_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuAppCatalogDto, String> {
+    let client = gateway_client()?;
+    client.shiju_app_catalog(credential).await
+}
+
+pub(crate) async fn gateway_shiju_apps_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuAppListDto, String> {
+    let client = gateway_client()?;
+    client.shiju_apps(credential).await
+}
+
+pub(crate) async fn gateway_shiju_app_prepare_launch_async(
+    credential: &ShijuCredential,
+    installation_id: &str,
+) -> Result<ShijuAppLaunchDto, String> {
+    let client = gateway_client()?;
+    client
+        .shiju_app_prepare_launch(credential, installation_id)
+        .await
+}
+
+pub(crate) async fn gateway_shiju_skill_search_async(
+    credential: &ShijuCredential,
+    query: &ShijuSkillSearchQuery,
+) -> Result<ShijuSkillCursorPageDto, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_search(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_skill_installed_async(
+    credential: &ShijuCredential,
+) -> Result<Vec<ShijuInstalledSkillDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_installed(credential).await
+}
+
+pub(crate) async fn gateway_shiju_system_skills_async(
+    credential: &ShijuCredential,
+    query: &ShijuSystemSkillQuery,
+) -> Result<ShijuSkillPageDto<ShijuSystemSkillDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_system_skills(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_company_skills_async(
+    credential: &ShijuCredential,
+    query: &ShijuCompanySkillQuery,
+) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_company_skills(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_maintained_skills_async(
+    credential: &ShijuCredential,
+    query: &ShijuMaintainedSkillQuery,
+) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_maintained_skills(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_skill_detail_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+) -> Result<ShijuSkillDetailDto, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_detail(credential, skill_id).await
+}
+
+pub(crate) async fn gateway_shiju_skill_versions_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+) -> Result<Vec<ShijuSkillVersionDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_versions(credential, skill_id).await
+}
+
+pub(crate) async fn gateway_shiju_skill_remote_install_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.shiju_skill_remote_install(credential, skill_id).await
+}
+
+#[allow(dead_code)]
+pub(crate) async fn gateway_shiju_skill_remote_install_version_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+    version_id: u64,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client
+        .shiju_skill_remote_install_version(credential, skill_id, version_id)
+        .await
+}
+
+pub(crate) async fn gateway_shiju_skill_remote_uninstall_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.shiju_skill_remote_uninstall(credential, skill_id).await
 }
 
 pub(crate) fn active_project_scope(project_id: ProjectId) -> Result<ProjectScopeDto, String> {
@@ -384,6 +573,102 @@ pub async fn gateway_skill_delete_async(
 ) -> Result<String, String> {
     let client = gateway_client()?;
     client.skill_delete(project_path, skill_id).await
+}
+
+/// Lists the skill-market sources registered by the active gateway.
+pub async fn gateway_skill_market_sources_async() -> Result<Vec<SkillMarketSourceDto>, String> {
+    let client = gateway_client()?;
+    client.skill_market_sources().await
+}
+
+/// Lists recommended skills from one registered market source.
+pub async fn gateway_skill_market_recommended_async(
+    source: &str,
+) -> Result<Vec<SkillMarketSkillDto>, String> {
+    let client = gateway_client()?;
+    client.skill_market_recommended(source).await
+}
+
+/// Queries skills from one registered market source.
+pub async fn gateway_skill_market_skills_async(
+    source: &str,
+    query: &SkillMarketSkillQuery,
+) -> Result<SkillMarketSkillPageDto, String> {
+    let client = gateway_client()?;
+    client.skill_market_skills(source, query).await
+}
+
+/// Lists categories from one registered market source.
+pub async fn gateway_skill_market_categories_async(
+    source: &str,
+) -> Result<Vec<SkillMarketCategoryDto>, String> {
+    let client = gateway_client()?;
+    client.skill_market_categories(source).await
+}
+
+/// Reads one source-aware market skill detail.
+pub async fn gateway_skill_market_skill_detail_async(
+    locator: &SkillMarketSkillLocatorDto,
+) -> Result<SkillMarketSkillDetailDto, String> {
+    let client = gateway_client()?;
+    client.skill_market_skill_detail(locator).await
+}
+
+/// Reads the canonical Markdown file for one source-aware market skill.
+pub async fn gateway_skill_market_skill_file_async(
+    locator: &SkillMarketSkillLocatorDto,
+) -> Result<SkillMarketSkillFileDto, String> {
+    let client = gateway_client()?;
+    client.skill_market_skill_file(locator).await
+}
+
+/// Installs one canonical market skill into the active project.
+pub async fn gateway_skill_market_install_async(
+    project_path: &str,
+    coordinate: &SkillMarketCoordinateDto,
+) -> Result<String, String> {
+    let client = gateway_client()?;
+    client.skill_market_install(project_path, coordinate).await
+}
+
+/// Installs one canonical market skill into explicit Agent targets.
+pub async fn gateway_skill_market_install_to_targets_async(
+    project_path: Option<&str>,
+    coordinate: &SkillMarketCoordinateDto,
+    installations: &[SkillMarketInstallSelectionDto],
+) -> Result<Vec<String>, String> {
+    let client = gateway_client()?;
+    client
+        .skill_market_install_to_targets(project_path, coordinate, installations)
+        .await
+}
+
+/// Queries skill sets from one registered market source.
+pub async fn gateway_skill_market_skill_sets_async(
+    source: &str,
+    query: &SkillMarketSkillQuery,
+) -> Result<SkillMarketSkillSetPageDto, String> {
+    let client = gateway_client()?;
+    client.skill_market_skill_sets(source, query).await
+}
+
+/// Reads one skill-set detail from a registered market source.
+pub async fn gateway_skill_market_skill_set_detail_async(
+    source: &str,
+    slug: &str,
+) -> Result<SkillMarketSkillSetDetailDto, String> {
+    let client = gateway_client()?;
+    client.skill_market_skill_set_detail(source, slug).await
+}
+
+/// Installs one market skill set into the active project atomically.
+pub async fn gateway_skill_market_skill_set_install_async(
+    project_path: &str,
+    source: &str,
+    slug: &str,
+) -> Result<Vec<String>, String> {
+    let client = gateway_client()?;
+    client.skill_market_skill_set_install(project_path, source, slug).await
 }
 
 /// 执行 gateway_plugins_async 对应的领域操作。

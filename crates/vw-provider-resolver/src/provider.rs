@@ -13,6 +13,8 @@ use crate::config;
 use crate::models;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::UNIX_EPOCH;
@@ -268,6 +270,15 @@ async fn load_state_via_gateway(apply_enabled_filter: bool) -> State {
     State { providers }
 }
 
+fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, String)> {
+    let mut api_candidates = models.values().filter_map(|model| {
+        let url = model.api.url.trim();
+        (!url.is_empty()).then(|| (url.to_string(), model.api.adapter.clone()))
+    });
+    let first = api_candidates.next()?;
+    api_candidates.all(|candidate| candidate == first).then_some(first)
+}
+
 /// 加载并合并内置模型数据、用户配置覆盖与运行时启用状态。
 ///
 /// 非 wasm 环境下的大致流程如下：
@@ -336,6 +347,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
 
             let mut provider_models =
                 existing.as_ref().map(|p| p.models.clone()).unwrap_or_default();
+            let inherited_api = unique_provider_api(&provider_models);
 
             if let Some(models_cfg) = provider.get("models").and_then(Value::as_object) {
                 for (model_id, model_cfg) in models_cfg {
@@ -345,11 +357,6 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                             .and_then(Value::as_str)
                             .and_then(|id| provider_models.get(id).cloned())
                     });
-
-                    if base.is_none() {
-                        let config_id = model_cfg.get("id").and_then(Value::as_str);
-                        tracing::info!(provider_id, model_id, config_id, "model_base_missing");
-                    }
 
                     let api_id = model_cfg
                         .get("id")
@@ -363,6 +370,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                         .and_then(Value::as_str)
                         .map(|s| s.to_string())
                         .or_else(|| base.as_ref().map(|m| m.api.url.clone()))
+                        .or_else(|| inherited_api.as_ref().map(|(url, _)| url.clone()))
                         .unwrap_or_default();
 
                     let api_adapter = model_cfg
@@ -374,6 +382,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                             provider.get("adapter").and_then(Value::as_str).map(|s| s.to_string())
                         })
                         .or_else(|| base.as_ref().map(|m| m.api.adapter.clone()))
+                        .or_else(|| inherited_api.as_ref().map(|(_, adapter)| adapter.clone()))
                         .unwrap_or_else(default_adapter);
                     let api_adapter = normalize_adapter(&api_adapter);
 
@@ -548,6 +557,53 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                 if p.key.as_deref().unwrap_or_default().trim().is_empty() {
                     p.key = next_key;
                 }
+            }
+        }
+
+        for (provider_id, provider) in database.iter_mut() {
+            let configured = config_providers
+                .iter()
+                .find(|(configured_id, _)| configured_id == provider_id)
+                .map(|(_, value)| value);
+            let configured_api = configured
+                .and_then(|value| value.get("api"))
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            let explicit_model_ids = configured
+                .and_then(|value| value.get("models"))
+                .and_then(Value::as_object)
+                .map(|models| models.keys().cloned().collect::<HashSet<_>>())
+                .unwrap_or_default();
+            let bearer = provider
+                .key
+                .as_deref()
+                .filter(|key| crate::remote_models::is_real_bearer(key))
+                .map(str::to_string)
+                .or_else(|| {
+                    provider
+                        .env
+                        .iter()
+                        .filter_map(|name| env_vars.get(name))
+                        .find(|key| crate::remote_models::is_real_bearer(key))
+                        .cloned()
+                });
+            let Some(bearer) = bearer else {
+                continue;
+            };
+
+            if let Err(error) = crate::remote_models::discover_and_merge_provider(
+                provider,
+                configured_api.as_deref(),
+                &explicit_model_ids,
+                &bearer,
+            )
+            .await
+            {
+                tracing::warn!(
+                    provider_id,
+                    category = error.category(),
+                    "remote_model_discovery_failed"
+                );
             }
         }
 

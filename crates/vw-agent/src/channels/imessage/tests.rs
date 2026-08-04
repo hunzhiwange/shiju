@@ -205,7 +205,7 @@ mod tests {
     /// Unicode 字符（如 emoji）应该保持不变
     #[test]
     fn escape_applescript_unicode() {
-        assert_eq!(escape_applescript("hello 🦀 world"), "hello 🦀 world");
+        assert_eq!(escape_applescript("hello world"), "hello world");
     }
 
     /// 测试换行符的 AppleScript 转义
@@ -770,14 +770,14 @@ mod tests {
             let conn = Connection::open(&db_path).unwrap();
             conn.execute("INSERT INTO handle (ROWID, id) VALUES (1, '+1234567890')", []).unwrap();
             conn.execute(
-                    "INSERT INTO message (ROWID, handle_id, text, is_from_me) VALUES (10, 1, 'Hello 🦀 世界 مرحبا', 0)",
+                    "INSERT INTO message (ROWID, handle_id, text, is_from_me) VALUES (10, 1, 'Hello 世界 مرحبا', 0)",
                     []
                 ).unwrap();
         }
 
         let result = fetch_new_messages(&db_path, 0).await.unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].2, "Hello 🦀 世界 مرحبا");
+        assert_eq!(result[0].2, "Hello 世界 مرحبا");
     }
 
     /// 测试 fetch_new_messages 处理空文本

@@ -100,6 +100,33 @@ fn tool_detail_from_raw_rejects_missing_tool_header_or_body() {
 }
 
 #[test]
+fn tool_detail_from_raw_formats_workflow_node_title_and_pretty_body() {
+    let raw = r#"tool workflow_node
+{"status":"completed","output":"{\"answer\":\"long node body\",\"usage\":{\"total_tokens\":3}}","metadata":{"title":"实现入口","node_type":"llm"}}"#;
+
+    let (title, content) = super::tool_detail_from_raw(raw).expect("workflow detail");
+
+    assert_eq!(title, "实现入口");
+    assert!(content.contains("long node body"));
+    assert!(content.contains('\n'));
+}
+
+#[test]
+fn tool_detail_from_raw_marks_workflow_node_running_and_failed_titles() {
+    let running = r#"tool workflow_node
+{"status":"running","output":"正在执行工作流节点","metadata":{"title":"规划任务"}}"#;
+    let failed = r#"tool workflow_node
+{"status":"error","error":"boom","metadata":{"title":"规划任务"}}"#;
+
+    let (running_title, _) = super::tool_detail_from_raw(running).expect("running");
+    let (failed_title, failed_content) = super::tool_detail_from_raw(failed).expect("failed");
+
+    assert_eq!(running_title, "规划任务 · 运行中");
+    assert_eq!(failed_title, "规划任务 · 失败");
+    assert_eq!(failed_content, "boom");
+}
+
+#[test]
 fn close_tool_detail_context_menu_clears_open_state_and_position() {
     let (mut app, _task) = crate::app::App::new();
     super::handle_open_tool_detail(&mut app, 2, 3, "tool shell\n{}".to_string());

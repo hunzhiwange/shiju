@@ -258,10 +258,33 @@ fn registered_agent_tool_flag_matches_registry_name_check() {
     let tools: Vec<Box<dyn Tool>> = vec![Box::new(AgentToolStub)];
     let agent_tool_registered = tools.iter().any(|tool| tool.name() == "AgentTool");
 
-    let names =
-        tool_names(&build_channel_tool_descriptions(&Config::default(), agent_tool_registered));
+    let descriptions = build_channel_tool_descriptions(&Config::default(), agent_tool_registered);
+    let names = tool_names(&descriptions);
 
     assert!(names.contains(&"AgentTool"));
+    let agent_tool = descriptions
+        .iter()
+        .find_map(|(name, description)| (*name == "AgentTool").then_some(*description))
+        .expect("AgentTool description");
+    for expected in [
+        "complex",
+        "simple",
+        "parallel",
+        "background",
+        "run",
+        "status",
+        "wait",
+        "stop",
+        "synthesize",
+    ] {
+        assert!(agent_tool.contains(expected), "missing '{expected}': {agent_tool}");
+    }
+    for unsupported in ["action=list", "action=get"] {
+        assert!(
+            !agent_tool.contains(unsupported),
+            "unsupported '{unsupported}' advertised: {agent_tool}"
+        );
+    }
 }
 
 #[test]

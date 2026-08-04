@@ -19,3 +19,10 @@ fn blocks_lf_and_cr() {
 fn allows_single_line_command() {
     assert!(NewlineInjectionValidator.validate(&parse_command("echo one")).is_empty());
 }
+
+#[test]
+fn allows_quoted_line_breaks() {
+    for command in ["printf 'one\ntwo'", "printf \"one\rtwo\""] {
+        assert!(NewlineInjectionValidator.validate(&parse_command(command)).is_empty());
+    }
+}

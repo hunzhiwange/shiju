@@ -7,7 +7,7 @@ use super::injection::has_blocking_injection;
 use super::obfuscation::has_blocking_obfuscation;
 
 fn pipeline() -> SecurityPipeline {
-    SecurityPipeline::new(true)
+    SecurityPipeline::new_with_quoted_newline_blocking(true, true)
 }
 
 #[test]
@@ -67,8 +67,15 @@ fn warns_on_regular_output_redirection() {
 
 #[test]
 fn blocks_newline_injection() {
-    let report = pipeline().validate_command("echo hi\nrm -rf /");
+    let report = SecurityPipeline::new(true).validate_command("echo hi\nrm -rf /");
     assert!(report.blocked);
+}
+
+#[test]
+fn allows_quoted_shell_newlines_when_quoted_newline_blocking_is_disabled() {
+    let report = SecurityPipeline::new(true).validate_command("git commit -m \"title\n\nbody\"");
+
+    assert!(!report.blocked);
 }
 
 #[test]

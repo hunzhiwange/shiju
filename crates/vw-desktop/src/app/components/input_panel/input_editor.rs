@@ -60,7 +60,31 @@ pub(super) fn binding_from_key_press(
     app: &App,
     kp: iced::widget::text_editor::KeyPress,
 ) -> Option<iced::widget::text_editor::Binding<Message>> {
-    if app.show_file_search {
+    if app.show_slash_palette {
+        match kp.key {
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteNavigateUp,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteNavigateDown,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteSelectCurrent,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteClosed,
+                )))
+            }
+            _ => iced::widget::text_editor::Binding::from_key_press(kp),
+        }
+    } else if app.show_file_search {
         match kp.key {
             iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
                 Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
@@ -108,7 +132,44 @@ pub(super) fn binding_from_key_press(
     app: &App,
     kp: iced::widget::text_editor::KeyPress,
 ) -> Option<iced::widget::text_editor::Binding<Message>> {
-    if app.show_file_search {
+    if app.show_slash_palette {
+        match kp.key {
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteNavigateUp,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowDown) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteNavigateDown,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Enter) => {
+                if !kp.modifiers.shift()
+                    && !kp.modifiers.control()
+                    && !kp.modifiers.alt()
+                    && !kp.modifiers.command()
+                {
+                    Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                        message::ChatMessage::SlashPaletteSelectCurrent,
+                    )))
+                } else {
+                    iced::widget::text_editor::Binding::from_key_press(kp)
+                }
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteSelectCurrent,
+                )))
+            }
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) => {
+                Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
+                    message::ChatMessage::SlashPaletteClosed,
+                )))
+            }
+            _ => iced::widget::text_editor::Binding::from_key_press(kp),
+        }
+    } else if app.show_file_search {
         match kp.key {
             iced::keyboard::Key::Named(iced::keyboard::key::Named::ArrowUp) => {
                 Some(iced::widget::text_editor::Binding::Custom(Message::Chat(
@@ -225,6 +286,10 @@ pub fn build_input_editor<'a>(
 
     // 计算编辑器总高度：行数 * 单行高度 + 上下内边距
     let editor_height = input_line_count * INPUT_LINE_HEIGHT + (INPUT_VERTICAL_PADDING * 2.0);
+    let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
+        app.active_theme_skin.as_ref(),
+        &app.app_theme,
+    );
 
     // 构建文本编辑器组件
     let editor = text_editor(input_editor)
@@ -242,7 +307,7 @@ pub fn build_input_editor<'a>(
         })
         .height(Length::Fixed(editor_height))
         // 应用编辑器样式：根据请求状态调整外观
-        .style(move |theme, status| editor_style(theme, status, requesting))
+        .style(move |theme, status| editor_style(theme, status, requesting, Some(&chrome)))
         // 启用 @ 提及高亮功能
         .highlight_with::<MentionHighlighter>(MentionHighlightSettings, mention_format);
 

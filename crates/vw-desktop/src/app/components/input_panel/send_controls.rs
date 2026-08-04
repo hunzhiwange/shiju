@@ -100,11 +100,10 @@ pub(super) fn prominent_action_foreground(theme: &Theme) -> Color {
 pub(super) fn utility_cluster_style(theme: &Theme) -> iced::widget::container::Style {
     let is_dark = is_dark_theme(theme);
     iced::widget::container::Style {
-        background: Some(Background::Color(if is_dark {
-            Color::from_rgba8(18, 19, 22, 0.88)
-        } else {
-            Color::from_rgba8(248, 249, 251, 1.0)
-        })),
+        background: Some(Background::Color(crate::app::theme_catalog::input_surface_color(
+            theme,
+            if is_dark { 0.88 } else { 1.0 },
+        ))),
         border: Border { radius: 999.0.into(), width: 0.0, color: Color::TRANSPARENT },
         shadow: iced::Shadow {
             color: Color::BLACK.scale_alpha(if is_dark { 0.12 } else { 0.035 }),
@@ -438,6 +437,72 @@ pub fn workflow_mode_button(active: bool) -> Element<'static, Message> {
     .into()
 }
 
+pub fn goal_mode_button(active: bool) -> Element<'static, Message> {
+    let goal_icon: Element<'_, Message> = icon_svg(Icon::Star, SECONDARY_ICON_SIZE)
+        .style(move |theme: &Theme, _| svg::Style {
+            color: Some(if active {
+                prominent_action_foreground(theme)
+            } else {
+                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
+            }),
+        })
+        .into();
+
+    let button_content = container(goal_icon)
+        .width(Length::Fixed(SECONDARY_BUTTON_SIZE))
+        .height(Length::Fixed(SECONDARY_BUTTON_SIZE))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
+
+    let button = button(button_content)
+        .padding(0)
+        .style(move |theme: &Theme, status| {
+            permission_access_button_style(theme, status, true, active)
+        })
+        .on_press(Message::Chat(message::ChatMessage::GoalModeToggled(!active)));
+
+    let tooltip_label = if active { "关闭目标模式" } else { "启用目标模式" };
+    tooltip(
+        button,
+        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
+        Position::Top,
+    )
+    .into()
+}
+
+pub fn subagent_mode_button(active: bool) -> Element<'static, Message> {
+    let subagent_icon: Element<'_, Message> = icon_svg(Icon::Robot, SECONDARY_ICON_SIZE)
+        .style(move |theme: &Theme, _| svg::Style {
+            color: Some(if active {
+                prominent_action_foreground(theme)
+            } else {
+                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
+            }),
+        })
+        .into();
+
+    let button_content = container(subagent_icon)
+        .width(Length::Fixed(SECONDARY_BUTTON_SIZE))
+        .height(Length::Fixed(SECONDARY_BUTTON_SIZE))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
+
+    let button = button(button_content)
+        .padding(0)
+        .style(move |theme: &Theme, status| {
+            permission_access_button_style(theme, status, true, active)
+        })
+        .on_press(Message::Chat(message::ChatMessage::SubagentModeToggled(!active)));
+
+    let tooltip_label = if active { "关闭子智能体模式" } else { "启用子智能体模式" };
+    tooltip(
+        button,
+        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
+        Position::Top,
+    )
+    .into()
+}
+
 /// 创建发送按钮
 ///
 /// 该按钮用于发送消息或队列任务。按钮的外观和行为会根据
@@ -656,6 +721,8 @@ pub fn bottom_bar<'a>(
     reasoning_btn: Option<Element<'a, Message>>,
     permission_btn: Option<Element<'a, Message>>,
     workflow_btn: Element<'a, Message>,
+    goal_btn: Element<'a, Message>,
+    subagent_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
     usage_btn: Element<'a, Message>,
     attach_btn: Element<'a, Message>,
@@ -672,6 +739,8 @@ pub fn bottom_bar<'a>(
     }
 
     bar = bar.push(workflow_btn);
+    bar = bar.push(goal_btn);
+    bar = bar.push(subagent_btn);
 
     if let Some(primary_btn) = primary_btn {
         bar = bar.push(primary_btn);

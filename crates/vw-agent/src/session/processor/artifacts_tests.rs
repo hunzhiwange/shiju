@@ -41,6 +41,9 @@ fn request(session_id: &str, stream: u64, persist: bool) -> Request {
         assistant_message_id: None,
         history: Vec::new(),
         persist_app_session_artifacts: persist,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: crate::session::runtime::SessionToolset::default(),
     }
 }
 
@@ -82,11 +85,6 @@ fn llm_step() -> LlmStep {
             json!({"role": "system", "content": 42}),
         ],
     }
-}
-
-fn read_json(path: &std::path::Path) -> Value {
-    let content = std::fs::read_to_string(path).expect("json file should read");
-    serde_json::from_str(&content).expect("json file should parse")
 }
 
 fn register_scope_project(scope: &str) -> tempfile::TempDir {
@@ -240,10 +238,9 @@ fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
 
     persist_llm_raw_step_payload(&req, &session_id, 3, &llm_messages, &step, Some(&scope));
 
-    let path = ui_store::session_step_llm_raw_file_path_scoped(&session_id, 3, Some(&scope))
-        .expect("raw step path should resolve");
-    assert!(path.is_file());
-    let payload = read_json(&path);
+    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 3, Some(&scope))
+        .expect("raw payload should load")
+        .expect("raw payload should exist");
     assert_eq!(payload["session_id"], session_id);
     assert_eq!(payload["step_index"], 3);
     assert_eq!(payload["model"], "test-model");
@@ -257,8 +254,6 @@ fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
     assert_eq!(payload["output"]["tool_calls"][0]["function"]["name"], "test_tool");
     assert_eq!(payload["output"]["tool_calls"][0]["function"]["arguments"], "{\"ok\":true}");
     assert_eq!(payload["output"]["usage"]["reasoning_tokens"], 40);
-
-    let _ = std::fs::remove_file(path);
 }
 
 #[test]
@@ -282,9 +277,9 @@ fn raw_llm_step_payload_serializes_empty_optional_output() {
 
     persist_llm_raw_step_payload(&req, &session_id, 6, &[], &step, Some(&scope));
 
-    let path = ui_store::session_step_llm_raw_file_path_scoped(&session_id, 6, Some(&scope))
-        .expect("raw step path should resolve");
-    let payload = read_json(&path);
+    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 6, Some(&scope))
+        .expect("raw payload should load")
+        .expect("raw payload should exist");
     assert_eq!(payload["model"], Value::Null);
     assert_eq!(payload["system"], json!([]));
     assert_eq!(payload["messages"], json!([]));
@@ -293,8 +288,6 @@ fn raw_llm_step_payload_serializes_empty_optional_output() {
     assert_eq!(payload["output"]["finish_reason"], Value::Null);
     assert_eq!(payload["output"]["tool_calls"], json!([]));
     assert_eq!(payload["output"]["usage"], json!(usage(0, 0, 0, 0)));
-
-    let _ = std::fs::remove_file(path);
 }
 
 #[test]
@@ -305,14 +298,17 @@ fn raw_llm_step_payload_respects_persistence_guards() {
     let no_persist = request(&session_id, 92, false);
 
     persist_llm_raw_step_payload(&no_persist, &session_id, 4, &[], &step, Some(&scope));
-    let skipped_path =
-        ui_store::session_step_llm_raw_file_path_scoped(&session_id, 4, Some(&scope))
-            .expect("skipped raw step path should resolve");
-    assert!(!skipped_path.exists());
+    assert!(
+        ui_store::load_llm_raw_step_scoped(&session_id, 4, Some(&scope))
+            .expect("raw payload load should be readable")
+            .is_none()
+    );
 
     let empty_session = request("", 93, true);
     persist_llm_raw_step_payload(&empty_session, "", 5, &[], &step, Some(&scope));
-    let empty_session_path = ui_store::session_step_llm_raw_file_path_scoped("", 5, Some(&scope))
-        .expect("empty session raw step path should resolve");
-    assert!(!empty_session_path.exists());
+    assert!(
+        ui_store::load_llm_raw_step_scoped("", 5, Some(&scope))
+            .expect("raw payload load should be readable")
+            .is_none()
+    );
 }

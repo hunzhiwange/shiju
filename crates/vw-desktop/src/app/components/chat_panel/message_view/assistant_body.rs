@@ -239,12 +239,11 @@ fn push_explore_summary<'a>(
 }
 
 fn push_special_text_block<'a>(
-    mut body: Column<'a, Message>,
+    body: Column<'a, Message>,
     app: &'a App,
     idx: usize,
     text_idx: usize,
     text: String,
-    use_editor: bool,
     prefer_markdown: bool,
 ) -> Column<'a, Message> {
     if let Some(view) = assistant_api_error_view(app, idx, Some(text_idx), &text) {
@@ -253,28 +252,8 @@ fn push_special_text_block<'a>(
 
     let special_text_key = ((idx as u64) << 32) | (text_idx as u64);
 
-    if prefer_markdown
-        && let Some(blocks) = app.chat_markdown_blocks.get(&special_text_key)
-        && !blocks.is_empty()
-    {
-        return body.push(super::markdown::markdown_body_view(app, idx, text_idx, blocks));
-    }
-
-    let editor_content = app.chat_special_text_editors.get(&special_text_key);
-
-    if use_editor && editor_content.is_some() && !should_segment_text_block(&text) {
-        if let Some(view) = tool_text_editor(
-            app,
-            ToolTextTarget::SpecialMessageText { msg_idx: idx, text_idx },
-            chat_text_font_name(),
-            MESSAGE_TEXT_SIZE,
-            false,
-            false,
-        ) {
-            body = body.push(view);
-            return body;
-        }
-    } else if let Some(view) = tool_text_editor(
+    // 单一编辑器允许选区跨越换行、段落与列表，避免 Markdown 分块打断复制。
+    if let Some(view) = tool_text_editor(
         app,
         ToolTextTarget::SpecialMessageText { msg_idx: idx, text_idx },
         chat_text_font_name(),
@@ -282,8 +261,14 @@ fn push_special_text_block<'a>(
         false,
         false,
     ) {
-        body = body.push(view);
-        return body;
+        return body.push(view);
+    }
+
+    if prefer_markdown
+        && let Some(blocks) = app.chat_markdown_blocks.get(&special_text_key)
+        && !blocks.is_empty()
+    {
+        return body.push(super::markdown::markdown_body_view(app, idx, text_idx, blocks));
     }
 
     body.push(message_text_body(text, false))
@@ -537,7 +522,6 @@ pub(super) fn render_assistant_body<'a>(
                         idx,
                         current_text_idx,
                         text,
-                        use_editor,
                         !is_streaming_assistant,
                     );
                 }
@@ -561,7 +545,6 @@ pub(super) fn render_assistant_body<'a>(
                 idx,
                 deferred_idx,
                 deferred_text,
-                use_editor,
                 !is_streaming_assistant,
             );
         }
@@ -572,16 +555,17 @@ pub(super) fn render_assistant_body<'a>(
         let markdown_key = (idx as u64) << 32;
         if let Some(view) = assistant_api_error_view(app, idx, None, &text) {
             body = body.push(view);
+        } else if use_editor {
+            // 单一编辑器让选择范围可以跨越 Markdown 段落、列表等块级边界。
+            if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
+                body = body.push(view);
+            }
         } else if !is_streaming_assistant
             && let Some(blocks) = app.chat_markdown_blocks.get(&markdown_key)
             && !blocks.is_empty()
         {
-            // 助手正文按块级 Markdown 渲染，每块用可划选只读编辑器承载。
+            // 编辑器不可用时保留块级 Markdown 与消息复制按钮作为回退。
             body = body.push(super::markdown::markdown_body_view(app, idx, 0, blocks));
-        } else if use_editor {
-            if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
-                body = body.push(view);
-            }
         } else if !text.is_empty() {
             body = body.push(message_text_body(text, false));
         }

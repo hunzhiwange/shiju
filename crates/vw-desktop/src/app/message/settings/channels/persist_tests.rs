@@ -174,6 +174,7 @@ mod channel_instance_settings {
     fn persist_channels_settings_preserves_named_instances() {
         let mut app = app();
         app.channels_settings.cli = false;
+        app.channels_settings.matrix_enabled = true;
         app.channels_settings.matrix_instances.push(MatrixInstanceConfig {
             id: "planner".to_string(),
             config: MatrixConfig {
@@ -227,6 +228,7 @@ mod channel_instance_settings {
     #[test]
     fn invalid_named_instance_id_blocks_build_and_persist_with_clear_error() {
         let mut app = app();
+        app.channels_settings.matrix_enabled = true;
         app.channels_settings.matrix_instances.push(MatrixInstanceConfig {
             id: "unsafe:id".to_string(),
             config: MatrixConfig {

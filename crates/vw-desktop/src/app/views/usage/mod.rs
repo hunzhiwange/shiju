@@ -20,6 +20,7 @@ use crate::app::{App, Message};
 mod components;
 mod data;
 mod layout;
+mod raw_modal;
 mod session_menu;
 mod steps;
 mod styles;
@@ -50,5 +51,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 从应用状态中提取使用数据
     let usage_data = data::UsageData::from_app(app);
     // 使用提取的数据构建完整的使用统计视图布局
-    layout::build_usage_view(app, &usage_data)
+    let content = layout::build_usage_view(app, &usage_data);
+    if let Some(modal) = raw_modal::view(app) {
+        iced::widget::stack![content, modal].into()
+    } else {
+        content
+    }
 }

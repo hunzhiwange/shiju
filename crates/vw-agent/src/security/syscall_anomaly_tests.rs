@@ -13,6 +13,14 @@ fn detector_with(mut config: SyscallAnomalyConfig) -> (TempDir, SyscallAnomalyDe
     (tmp, detector)
 }
 
+fn enabled_config() -> SyscallAnomalyConfig {
+    SyscallAnomalyConfig {
+        enabled: true,
+        alert_on_unknown_syscall: true,
+        ..SyscallAnomalyConfig::default()
+    }
+}
+
 fn alert(kind: SyscallAnomalyKind, syscall: Option<&str>, command: &str) -> SyscallAnomalyAlert {
     SyscallAnomalyAlert {
         timestamp: Utc::now(),
@@ -57,7 +65,7 @@ fn disabled_detector_and_empty_output_emit_no_alerts() {
             .is_empty()
     );
 
-    let (_tmp, enabled) = detector_with(SyscallAnomalyConfig::default());
+    let (_tmp, enabled) = detector_with(enabled_config());
     assert!(enabled.inspect_command_output("ls -la", "plain output", "", Some(0)).is_empty());
 }
 
@@ -68,7 +76,7 @@ fn inspect_command_output_emits_unknown_and_denied_alerts_and_writes_jsonl() {
         baseline_syscalls: vec!["read".into(), "write".into()],
         max_alerts_per_minute: 20,
         alert_cooldown_secs: 1,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output(
@@ -95,7 +103,7 @@ fn inspect_command_output_deduplicates_identical_alerts_from_same_batch() {
         baseline_syscalls: vec!["read".into()],
         max_alerts_per_minute: 20,
         alert_cooldown_secs: 1,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output(
@@ -121,7 +129,7 @@ fn inspect_command_output_can_suppress_unknown_syscalls() {
         alert_on_unknown_syscall: false,
         strict_mode: false,
         baseline_syscalls: vec!["read".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts =
@@ -135,7 +143,7 @@ fn inspect_command_output_ignores_known_allowed_syscall() {
     let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
         strict_mode: false,
         baseline_syscalls: vec!["openat".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output("reader", "audit: syscall=OPENAT", "", Some(0));
@@ -150,7 +158,7 @@ fn inspect_command_output_reports_denied_signal_without_syscall_name() {
         strict_mode: true,
         alert_on_unknown_syscall: false,
         max_alerts_per_minute: 10,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output("worker", "", "SIGSYS killed process", None);
@@ -172,7 +180,7 @@ fn inspect_command_output_reports_denied_and_total_rate_spikes() {
         max_total_events_per_minute: 1,
         max_alerts_per_minute: 20,
         alert_cooldown_secs: 1,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output(
@@ -196,7 +204,7 @@ fn inspect_command_output_reports_total_rate_for_allowed_events() {
         max_denied_events_per_minute: u32::MAX,
         max_total_events_per_minute: 1,
         max_alerts_per_minute: 10,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
 
     let alerts = detector.inspect_command_output(
@@ -221,7 +229,7 @@ fn inspect_command_output_uses_empty_sample_for_prior_denied_rate_event() {
         max_denied_events_per_minute: 0,
         max_total_events_per_minute: u32::MAX,
         max_alerts_per_minute: 10,
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     });
     detector.state.lock().events.push_back(ObservedEvent { at: Instant::now(), denied: true });
 
@@ -437,7 +445,7 @@ fn inspect_command_output_returns_alert_when_log_path_is_directory() {
         SyscallAnomalyConfig {
             baseline_syscalls: vec!["read".into()],
             log_path: tmp.path().to_string_lossy().to_string(),
-            ..SyscallAnomalyConfig::default()
+            ..enabled_config()
         },
         tmp.path(),
         AuditConfig { enabled: false, ..AuditConfig::default() },

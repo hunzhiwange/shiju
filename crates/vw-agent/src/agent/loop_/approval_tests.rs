@@ -17,6 +17,10 @@ fn non_cli_approval_context_keeps_sender_and_reply_target() {
             request_id: "req-1".to_string(),
             tool_name: "shell".to_string(),
             arguments: serde_json::json!({"command": "pwd"}),
+            call_id: Some("call-1".to_string()),
+            sender: "alice".to_string(),
+            channel: "acp".to_string(),
+            reply_target: "thread-1".to_string(),
         })
         .unwrap();
 
@@ -26,6 +30,7 @@ fn non_cli_approval_context_keeps_sender_and_reply_target() {
     assert_eq!(prompt.request_id, "req-1");
     assert_eq!(prompt.tool_name, "shell");
     assert_eq!(prompt.arguments["command"], "pwd");
+    assert_eq!(prompt.call_id.as_deref(), Some("call-1"));
 }
 
 fn approval_manager_with_request() -> (ApprovalManager, String) {
@@ -110,7 +115,7 @@ async fn await_non_cli_approval_decision_denies_cancelled_request() {
     .await;
 
     assert_eq!(decision, ApprovalResponse::No);
-    assert!(manager.has_non_cli_pending_request(&request_id));
+    assert!(!manager.has_non_cli_pending_request(&request_id));
 }
 
 #[tokio::test(start_paused = true)]

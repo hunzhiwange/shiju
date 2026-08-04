@@ -145,6 +145,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 执行身份段构建
@@ -195,6 +196,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 使用默认配置构建提示词
@@ -255,6 +257,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 构建技能段
@@ -317,6 +320,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Compact,
             identity_config: None,
             dispatcher_instructions: "",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 构建技能段
@@ -361,6 +365,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "instr",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 构建日期时间段
@@ -378,6 +383,26 @@ mod tests {
         // 验证包含时区信息（括号包围）
         assert!(payload.contains(" ("));
         assert!(payload.ends_with(')'));
+    }
+
+    #[test]
+    fn datetime_section_uses_configured_timezone() {
+        let tools: Vec<Box<dyn Tool>> = vec![];
+        let ctx = PromptContext {
+            workspace_dir: Path::new("/tmp"),
+            model_name: "test-model",
+            tools: &tools,
+            skills: &[],
+            skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
+            identity_config: None,
+            dispatcher_instructions: "",
+            timezone: chrono_tz::America::New_York,
+        };
+
+        let rendered = DateTimeSection.build(&ctx).unwrap();
+
+        assert!(rendered.contains("-04:00") || rendered.contains("-05:00"));
+        assert!(rendered.contains("(America/New_York)"));
     }
 
     /// 测试提示词构建器对技能内容的内联和 XML 转义处理
@@ -438,6 +463,7 @@ mod tests {
             skills_prompt_mode: crate::app::agent::config::SkillsPromptInjectionMode::Full,
             identity_config: None,
             dispatcher_instructions: "",
+            timezone: chrono_tz::Asia::Shanghai,
         };
 
         // 构建完整的系统提示词

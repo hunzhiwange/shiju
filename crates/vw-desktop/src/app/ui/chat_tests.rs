@@ -142,6 +142,37 @@ fn split_think_reports_empty_unclosed_block_without_empty_chunk() {
 }
 
 #[test]
+fn split_think_removes_orphan_close_tag_before_visible_text() {
+    let (thinks, visible, open) = super::split_think("</think>");
+    assert!(thinks.is_empty());
+    assert!(visible.is_empty());
+    assert!(!open);
+
+    let (thinks, visible, open) = super::split_think("</think>answer");
+    assert!(thinks.is_empty());
+    assert_eq!(visible, "answer");
+    assert!(!open);
+}
+
+#[test]
+fn split_think_removes_orphan_close_tag_before_later_think_block() {
+    let raw = "before</think>middle<think>secret</think>after";
+    let (thinks, visible, open) = super::split_think(raw);
+    assert_eq!(thinks, vec!["secret".to_string()]);
+    assert_eq!(visible, "beforemiddleafter");
+    assert!(!open);
+}
+
+#[test]
+fn split_think_preserves_non_tag_close_text() {
+    let raw = "before </thinking> after";
+    let (thinks, visible, open) = super::split_think(raw);
+    assert!(thinks.is_empty());
+    assert_eq!(visible, raw);
+    assert!(!open);
+}
+
+#[test]
 fn split_think_normalizes_crlf_and_whitespace_only_blank_lines() {
     let raw = "first  \r\n \r\n\t\r\nsecond\t\r\n";
     let (thinks, visible, open) = super::split_think(raw);

@@ -35,7 +35,7 @@ directories = "5"
 glob = "0.3"
 hex = "0.4"
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio", "highlighter", "markdown"] }
-iced-code-editor = { version = "0.3.8", features = ["lsp-process"] }
+iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.3.11", features = ["lsp-process"] }
 iced_highlighter = "0.14"
 image = "0.25.9"
 include_dir = "0.7"
@@ -63,6 +63,7 @@ unicode-width = "0.1"
 urlencoding = "2.1"
 walkdir = "2"
 web-time = "1.1.0"
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.4.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.4.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.4.0" }
@@ -71,7 +72,7 @@ vw-shared = { path = "../vw-shared", version = "0.4.0" }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = "3.4"
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
-iced_term = "0.7"
+iced_term = { git = "https://github.com/Harzu/iced_term", branch = "master" }
 open = "5"
 portable-pty = "0.9"
 reqwest = { version = "0.12", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "rustls-tls-webpki-roots"] }

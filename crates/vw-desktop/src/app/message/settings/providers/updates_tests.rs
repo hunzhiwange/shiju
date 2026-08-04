@@ -373,6 +373,78 @@ fn custom_model_modal_adds_edits_closes_and_removes_models() {
 }
 
 #[test]
+fn custom_model_discovery_tracks_busy_state_and_merges_results() {
+    let mut app = app();
+    app.provider_settings.custom_provider_modal_open = true;
+    app.provider_settings.custom_editing_provider_id = Some("custom".to_string());
+    app.provider_settings.custom.models = vec![CustomProviderModelDraft {
+        model_id: "model-b".to_string(),
+        display_name: "保留名称".to_string(),
+    }];
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelsDiscover);
+    assert!(app.provider_settings.custom_models_discovering);
+    assert!(app.provider_settings.save_error.is_none());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelsDiscovered {
+            provider_id: "custom".to_string(),
+            result: Ok(vec!["model-a".to_string(), "model-b".to_string()]),
+        },
+    );
+    assert!(!app.provider_settings.custom_models_discovering);
+    assert_eq!(
+        app.provider_settings
+            .custom
+            .models
+            .iter()
+            .map(|model| model.model_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["model-a", "model-b"]
+    );
+    assert_eq!(app.provider_settings.custom.models[1].display_name, "保留名称");
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelsDiscovered {
+            provider_id: "custom".to_string(),
+            result: Err("发现失败".to_string()),
+        },
+    );
+    assert!(!app.provider_settings.custom_models_discovering);
+    assert_eq!(app.provider_settings.save_error.as_deref(), Some("发现失败"));
+}
+
+#[test]
+fn custom_model_discovery_only_starts_while_editing() {
+    let mut app = app();
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelsDiscover);
+
+    assert!(!app.provider_settings.custom_models_discovering);
+}
+
+#[test]
+fn custom_model_discovery_ignores_stale_provider_results() {
+    let mut app = app();
+    app.provider_settings.custom_provider_modal_open = true;
+    app.provider_settings.custom_editing_provider_id = Some("provider-b".to_string());
+    app.provider_settings.custom_models_discovering = true;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelsDiscovered {
+            provider_id: "provider-a".to_string(),
+            result: Ok(vec!["stale-model".to_string()]),
+        },
+    );
+
+    assert!(app.provider_settings.custom_models_discovering);
+    assert!(app.provider_settings.custom.models[0].model_id.is_empty());
+}
+
+#[test]
 fn custom_provider_save_validates_each_boundary_and_handles_results() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CustomProviderSave);
@@ -484,4 +556,28 @@ fn catalog_and_popular_provider_messages_cover_success_error_and_bounds() {
 
     let _ = update(&mut app, SettingsMessage::ProviderCatalogClose);
     assert!(!app.provider_settings.catalog_open);
+}
+
+#[test]
+fn shiju_official_provider_messages_are_idempotent() {
+    let mut app = app();
+    app.provider_settings.popular_patterns.clear();
+
+    let _ = update(&mut app, SettingsMessage::ProviderCatalogAddToPopular("shiju".to_string()));
+    assert!(app.provider_settings.popular_patterns.is_empty());
+
+    app.provider_settings.popular_patterns = vec!["shiju".to_string(), "openai".to_string()];
+    let _ = update(&mut app, SettingsMessage::PopularProviderRemove(0));
+    assert_eq!(app.provider_settings.popular_patterns, ["shiju", "openai"]);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::ProvidersRefreshed(loaded(vec!["shiju", "openai"], true, Vec::new())),
+    );
+    assert_eq!(app.provider_settings.popular_patterns, ["openai"]);
+
+    let _ = update(&mut app, SettingsMessage::ProviderConnectOpen("shiju".to_string()));
+    let modal = app.provider_settings.connect_modal.as_ref().unwrap();
+    assert_eq!(modal.provider_id, "shiju");
+    assert_eq!(modal.provider_name, "识矩");
 }

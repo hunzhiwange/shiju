@@ -7,23 +7,57 @@ fn task_632_test_module_is_wired() {
 #[test]
 fn multimodal_config_defaults_and_effective_limits_are_safe() {
     let config = super::MultimodalConfig::default();
-    assert_eq!(config.max_images, 4);
+    assert_eq!(config.max_images, 10);
     assert_eq!(config.max_image_size_mb, 5);
-    assert!(!config.allow_remote_fetch);
-    assert_eq!(config.effective_limits(), (4, 5));
+    assert!(config.allow_remote_fetch);
+    assert_eq!(config.effective_limits(), (10, 5));
 
     let parsed: super::MultimodalConfig = serde_json::from_str("{}").unwrap();
-    assert_eq!(parsed.max_images, 4);
+    assert_eq!(parsed.max_images, 10);
     assert_eq!(parsed.max_image_size_mb, 5);
-    assert!(!parsed.allow_remote_fetch);
+    assert!(parsed.allow_remote_fetch);
 
-    let too_small =
-        super::MultimodalConfig { max_images: 0, max_image_size_mb: 0, allow_remote_fetch: false };
+    let too_small = super::MultimodalConfig {
+        max_images: 0,
+        max_image_size_mb: 0,
+        allow_remote_fetch: false,
+        ocr: super::MultimodalOcrConfig::default(),
+    };
     assert_eq!(too_small.effective_limits(), (1, 1));
 
-    let too_large =
-        super::MultimodalConfig { max_images: 99, max_image_size_mb: 99, allow_remote_fetch: true };
+    let too_large = super::MultimodalConfig {
+        max_images: 99,
+        max_image_size_mb: 99,
+        allow_remote_fetch: true,
+        ocr: super::MultimodalOcrConfig::default(),
+    };
     assert_eq!(too_large.effective_limits(), (16, 20));
+}
+
+#[test]
+fn multimodal_ocr_config_defaults_disabled_and_round_trips_model_selection() {
+    let config = super::MultimodalConfig::default();
+    assert!(!config.ocr.enabled);
+    assert_eq!(config.ocr.model, None);
+
+    let parsed: super::MultimodalConfig = serde_json::from_str("{}").unwrap();
+    assert!(!parsed.ocr.enabled);
+    assert_eq!(parsed.ocr.model, None);
+
+    let selected: super::MultimodalConfig = serde_json::from_value(serde_json::json!({
+        "ocr": {
+            "enabled": true,
+            "model": "openai/gpt-4.1-mini"
+        }
+    }))
+    .unwrap();
+    assert!(selected.ocr.enabled);
+    assert_eq!(selected.ocr.model.as_deref(), Some("openai/gpt-4.1-mini"));
+
+    let round_tripped: super::MultimodalConfig =
+        serde_json::from_value(serde_json::to_value(selected).unwrap()).unwrap();
+    assert!(round_tripped.ocr.enabled);
+    assert_eq!(round_tripped.ocr.model.as_deref(), Some("openai/gpt-4.1-mini"));
 }
 
 #[test]
@@ -138,14 +172,14 @@ fn http_request_config_defaults_and_overrides_deserialize() {
     assert!(config.allowed_domains.is_empty());
     assert_eq!(config.max_response_size, 1_000_000);
     assert_eq!(config.timeout_secs, 30);
-    assert_eq!(config.user_agent, "VibeWindow/1.0");
+    assert_eq!(config.user_agent, super::DEFAULT_USER_AGENT);
 
     let parsed: super::HttpRequestConfig = serde_json::from_str("{}").unwrap();
     assert!(!parsed.enabled);
     assert!(parsed.allowed_domains.is_empty());
     assert_eq!(parsed.max_response_size, 1_000_000);
     assert_eq!(parsed.timeout_secs, 30);
-    assert_eq!(parsed.user_agent, "VibeWindow/1.0");
+    assert_eq!(parsed.user_agent, super::DEFAULT_USER_AGENT);
 
     let custom: super::HttpRequestConfig = serde_json::from_value(serde_json::json!({
         "enabled": true,
@@ -163,6 +197,13 @@ fn http_request_config_defaults_and_overrides_deserialize() {
 }
 
 #[test]
+fn user_agent_resolution_upgrades_legacy_default_and_preserves_override() {
+    assert_eq!(super::resolve_user_agent(""), super::DEFAULT_USER_AGENT);
+    assert_eq!(super::resolve_user_agent(" VibeWindow/1.0 "), super::DEFAULT_USER_AGENT);
+    assert_eq!(super::resolve_user_agent(" CustomAgent/2.0 "), "CustomAgent/2.0");
+}
+
+#[test]
 fn web_fetch_config_default_impl_differs_from_field_level_deserialize_defaults() {
     let config = super::WebFetchConfig::default();
     assert!(!config.enabled);
@@ -173,7 +214,7 @@ fn web_fetch_config_default_impl_differs_from_field_level_deserialize_defaults()
     assert!(config.blocked_domains.is_empty());
     assert_eq!(config.max_response_size, 500_000);
     assert_eq!(config.timeout_secs, 30);
-    assert_eq!(config.user_agent, "VibeWindow/1.0");
+    assert_eq!(config.user_agent, super::DEFAULT_USER_AGENT);
 
     let parsed: super::WebFetchConfig = serde_json::from_str("{}").unwrap();
     assert!(!parsed.enabled);
@@ -182,7 +223,7 @@ fn web_fetch_config_default_impl_differs_from_field_level_deserialize_defaults()
     assert!(parsed.blocked_domains.is_empty());
     assert_eq!(parsed.max_response_size, 500_000);
     assert_eq!(parsed.timeout_secs, 30);
-    assert_eq!(parsed.user_agent, "VibeWindow/1.0");
+    assert_eq!(parsed.user_agent, super::DEFAULT_USER_AGENT);
 
     let custom: super::WebFetchConfig = serde_json::from_value(serde_json::json!({
         "enabled": true,
@@ -217,14 +258,14 @@ fn web_search_config_defaults_and_overrides_deserialize() {
     assert_eq!(config.brave_api_key, None);
     assert_eq!(config.max_results, 5);
     assert_eq!(config.timeout_secs, 15);
-    assert_eq!(config.user_agent, "VibeWindow/1.0");
+    assert_eq!(config.user_agent, super::DEFAULT_USER_AGENT);
 
     let parsed: super::WebSearchConfig = serde_json::from_str("{}").unwrap();
     assert!(!parsed.enabled);
     assert_eq!(parsed.provider, "duckduckgo");
     assert_eq!(parsed.max_results, 5);
     assert_eq!(parsed.timeout_secs, 15);
-    assert_eq!(parsed.user_agent, "VibeWindow/1.0");
+    assert_eq!(parsed.user_agent, super::DEFAULT_USER_AGENT);
 
     let custom: super::WebSearchConfig = serde_json::from_value(serde_json::json!({
         "enabled": true,

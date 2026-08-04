@@ -6,9 +6,10 @@ mod external;
 mod gateway;
 mod menus;
 mod widgets;
+mod workspace_mode;
 
 use crate::app::{App, Message};
-use iced::widget::{container, row};
+use iced::widget::{Row, container};
 use iced::{Element, Length, Theme};
 use widgets::color_with_alpha;
 
@@ -28,23 +29,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let project_view_tools = controls::project_view_tools(app);
     let traffic_light_spacer = drag::traffic_light_spacer();
     let drag_spacer = drag::drag_spacer();
+    let workspace_mode = workspace_mode::selector(app);
 
-    container(
-        row![
-            traffic_light_spacer,
-            file_menu,
-            edit_menu,
-            view_menu,
-            help_menu,
-            drag_spacer,
-            open_external_module,
-            gateway_services,
-            project_view_tools,
-            settings
-        ]
-        .spacing(2)
-        .align_y(iced::Alignment::Center),
-    )
+    let bar = Row::new()
+        .push(traffic_light_spacer)
+        .push(workspace_mode)
+        .push(file_menu)
+        .push(edit_menu)
+        .push(view_menu)
+        .push(help_menu)
+        .push(drag_spacer)
+        .push(open_external_module)
+        .push(gateway_services)
+        .push(project_view_tools)
+        .push(settings);
+
+    container(bar.spacing(2).align_y(iced::Alignment::Center))
     .padding([0, 6])
     .height(Length::Fixed(TOP_BAR_HEIGHT))
     .style(top_bar_style)
@@ -80,3 +80,6 @@ mod menus_tests;
 #[cfg(test)]
 #[path = "widgets_tests.rs"]
 mod widgets_tests;
+#[cfg(test)]
+#[path = "top_bar/workspace_mode_tests.rs"]
+mod workspace_mode_tests;

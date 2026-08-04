@@ -8,6 +8,7 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_modal_card, settings_modal_overlay,
     settings_muted_text_style, settings_panel_style,
 };
+use crate::app::message::SkillHubMessage;
 use crate::app::state::ToastKind;
 use crate::app::{App, Message};
 use iced::widget::svg::{self, Svg};
@@ -111,6 +112,13 @@ pub(super) fn toast_card_style(
     style
 }
 
+pub(super) fn cache_sync_retry_message(app: &App) -> Option<Message> {
+    app.expert_hub
+        .cache_sync
+        .pending_retry_skill_id()
+        .map(|_| Message::SkillHub(SkillHubMessage::RetrySkillCacheSync))
+}
+
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -140,7 +148,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(iced::alignment::Vertical::Center)
         .style(move |theme: &Theme| toast_icon_badge_style(theme, accent));
 
-    let content = row![
+    let mut content = row![
         icon_badge,
         column![
             text(palette.title)
@@ -154,6 +162,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(10)
     .align_y(Alignment::Center);
+    if let Some(message) = cache_sync_retry_message(app) {
+        content = content.push(
+            button(text("重试").size(12))
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
+                .on_press(message),
+        );
+    }
 
     container(content)
         .padding([12, 14])

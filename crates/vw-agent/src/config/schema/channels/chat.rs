@@ -59,7 +59,8 @@ impl ChannelsConfigExt for ChannelsConfig {
             ),
             (
                 Box::new(ConfigWrapper::new(self.matrix.as_ref())),
-                self.matrix.is_some(),
+                self.matrix_enabled
+                    && (self.matrix.is_some() || !self.matrix_instances.is_empty()),
             ),
             (
                 Box::new(ConfigWrapper::new(self.signal.as_ref())),
@@ -92,11 +93,21 @@ impl ChannelsConfigExt for ChannelsConfig {
             ),
             (
                 Box::new(ConfigWrapper::new(self.lark.as_ref())),
-                self.lark.is_some(),
+                self.lark.as_ref().is_some_and(|lark| !lark.use_feishu),
             ),
             (
                 Box::new(ConfigWrapper::new(self.feishu.as_ref())),
-                self.feishu.is_some(),
+                self.feishu
+                    .as_ref()
+                    .is_some_and(|feishu| feishu.has_required_credentials())
+                    || self
+                        .feishu_instances
+                        .iter()
+                        .any(|instance| instance.config.has_required_credentials())
+                    || (self.feishu.is_none()
+                        && self.lark.as_ref().is_some_and(|lark| {
+                            lark.use_feishu && lark.has_required_credentials()
+                        })),
             ),
             (
                 Box::new(ConfigWrapper::new(self.dingtalk.as_ref())),

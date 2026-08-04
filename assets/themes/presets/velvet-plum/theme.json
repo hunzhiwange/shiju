@@ -1,0 +1,25 @@
+{
+  "id": "velvet-plum",
+  "name": "丝绒梅紫 Velvet Plum",
+  "tagline": "紫夜限定，一盏台灯的温柔。",
+  "palette": {
+    "background": "#f4f0f5",
+    "text": "#352d38",
+    "primary": "#8e6a9e",
+    "success": "#b08fbd",
+    "warning": "#a99cc4",
+    "danger": "#6d7eb0"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#8e6a9e",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

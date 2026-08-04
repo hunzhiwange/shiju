@@ -3,6 +3,7 @@ use super::ViewMessage;
 use crate::app::FocusArea;
 use crate::app::message::settings::McpMessage;
 use crate::app::message::{ProjectMessage, SettingsMessage};
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, SettingsTab, set_config_field};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,6 +47,9 @@ pub(crate) fn close_requested_windows(
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::ToggleSettingsPanel => {
+            if app.workspace_mode == WorkspaceMode::Work {
+                return Task::done(Message::View(ViewMessage::WorkSidebarToggled));
+            }
             app.show_settings = !app.show_settings;
             set_config_field("show_settings", serde_json::Value::Bool(app.show_settings));
             if app.show_settings
@@ -326,6 +330,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleDiffPanel => {
+            if app.workspace_mode == WorkspaceMode::Work {
+                return Task::none();
+            }
             app.show_diff = !app.show_diff;
             Task::none()
         }
@@ -338,17 +345,20 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::ToggleTerminalPanel => {
+            if app.workspace_mode == WorkspaceMode::Work {
+                return Task::none();
+            }
             app.terminal.is_visible = !app.terminal.is_visible;
             if app.terminal.is_visible && app.terminal.height < 160.0 {
                 app.terminal.height = 200.0;
             }
             if app.terminal.is_visible {
                 #[cfg(not(target_arch = "wasm32"))]
-                if app.terminal.tabs.is_empty()
-                    && app
-                        .terminal
-                        .add_terminal(app.project_path.as_ref().map(std::path::PathBuf::from))
-                {
+                if app.terminal.ensure_default_terminal(
+                    app.project_path.as_ref().map(std::path::PathBuf::from),
+                ) {
+                    app.focus_area = FocusArea::Terminal;
+                } else if !app.terminal.tabs.is_empty() {
                     app.focus_area = FocusArea::Terminal;
                 }
 

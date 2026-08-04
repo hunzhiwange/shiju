@@ -6,11 +6,11 @@ use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
 
 fn assistant(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::Assistant, content: content.to_string(), think_timing: vec![] }
+    ChatMessage { role: ChatRole::Assistant, content: content.to_string(), model: None, think_timing: vec![], processing_timing: None }
 }
 
 fn user(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: content.to_string(), think_timing: vec![] }
+    ChatMessage { role: ChatRole::User, content: content.to_string(), model: None, think_timing: vec![], processing_timing: None }
 }
 
 #[test]
@@ -110,6 +110,9 @@ fn tokens_label_summarizes_total_usage() {
 
     let small = TokenUsage { input_tokens: 120, output_tokens: 80, ..Default::default() };
     assert_eq!(tokens_label(&small).as_deref(), Some("200 tokens"));
+
+    let boundary = TokenUsage { input_tokens: 1000, ..Default::default() };
+    assert_eq!(tokens_label(&boundary).as_deref(), Some("1.0k tokens"));
 
     let large = TokenUsage {
         input_tokens: 3000,

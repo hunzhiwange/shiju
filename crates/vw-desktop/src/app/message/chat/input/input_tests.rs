@@ -5,7 +5,9 @@ fn chat_entry(idx: usize) -> ChatEntry {
     ChatEntry {
         role: ChatRole::Assistant,
         content: format!("message {idx}"),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }
 }
 

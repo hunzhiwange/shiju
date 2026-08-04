@@ -2,7 +2,7 @@ mod app_aux;
 
 pub use app_aux::{CookieConfig, RecentProjectMeta, WebBookmark};
 pub(crate) use app_aux::{
-    Notification, Toast, ToastKind, default_recent_project_session_auto_refresh,
+    Notification, Toast, ToastKind, WorkBrowserState, default_recent_project_session_auto_refresh,
     default_recent_project_session_refresh_interval_seconds,
 };
 
@@ -15,6 +15,30 @@ pub enum TaskBoardViewMode {
     Staff,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QuickMessageGitCommitAction {
+    StageAllAndCommit,
+    CommitSelected,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum QuickMessageHandoffState {
+    WaitingForSummary {
+        request_id: u64,
+        source_session_id: String,
+        project_path: String,
+    },
+    WaitingForSession {
+        prompt: String,
+    },
+    WaitingForGitCommitMessage {
+        request_id: u64,
+        source_session_id: String,
+        project_path: String,
+        action: QuickMessageGitCommitAction,
+    },
+}
+
 pub(crate) type UsageStepRawKey = (String, u32);
 pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, String>;
 
@@ -22,6 +46,65 @@ pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, St
 pub struct App {
     /// 当前显示的屏幕
     pub(crate) screen: Screen,
+    /// 当前项目工作区的界面呈现模式
+    pub(crate) workspace_mode: WorkspaceMode,
+    /// 工作模式右侧资源区的呈现模式
+    pub(crate) work_resource_mode: WorkResourceMode,
+    /// 是否展示工作模式右侧工作空间模块
+    pub(crate) work_resources_visible: bool,
+    /// 工作模式对话区占可用内容宽度的比例
+    pub(crate) work_split_ratio: f32,
+    /// 工作模式左栏宽度
+    pub(crate) work_sidebar_width: f32,
+    /// 工作模式左栏展开时恢复的宽度
+    pub(crate) work_sidebar_expanded_width: f32,
+    /// 工作模式左栏是否收起为紧凑工具栏
+    pub(crate) work_sidebar_collapsed: bool,
+    /// 工作模式左栏过滤弹层是否打开
+    pub(crate) work_sidebar_filter_open: bool,
+    /// 工作模式左栏“更多”应用菜单是否打开
+    pub(crate) work_sidebar_more_open: bool,
+    /// 工作模式左栏项目范围过滤
+    pub(crate) work_sidebar_filter_scope: WorkSidebarFilterScope,
+    /// 工作模式左栏会话运行状态过滤
+    pub(crate) work_sidebar_filter_status: WorkSidebarFilterStatus,
+    /// 工作模式左栏更新时间过滤
+    pub(crate) work_sidebar_filter_time: WorkSidebarFilterTime,
+    /// 工作模式左栏当前任务/空间标签
+    pub(crate) work_sidebar_tab: WorkSidebarTab,
+    /// 工作模式左栏当前可见任务数量
+    pub(crate) work_sidebar_visible_tasks: usize,
+    /// 工作模式左栏当前可见空间数量
+    pub(crate) work_sidebar_visible_spaces: usize,
+    /// 工作模式输入区空间选择器是否打开
+    pub(crate) work_space_picker_open: bool,
+    /// 是否正在拖动工作模式左栏
+    pub(crate) dragging_work_sidebar: bool,
+    /// 工作模式左栏拖动起始 X 坐标
+    pub(crate) work_sidebar_drag_anchor_x: Option<f32>,
+    /// 工作模式左栏拖动起始宽度
+    pub(crate) work_sidebar_drag_start_width: f32,
+    /// 是否正在拖动工作模式聊天/资源分割条
+    pub(crate) dragging_work_split: bool,
+    /// 工作模式聊天/资源分割条拖动起始 X 坐标
+    pub(crate) work_split_drag_anchor_x: Option<f32>,
+    /// 工作模式聊天/资源分割条拖动起始比例
+    pub(crate) work_split_drag_start_ratio: f32,
+    /// 工作模式资源区是否全屏
+    pub(crate) work_resource_fullscreen: bool,
+    /// 工作模式资源区是否保留左栏并独占右侧
+    pub(crate) work_resource_half_fullscreen: bool,
+    /// 工作模式聊天区是否独占整个工作内容
+    pub(crate) work_chat_fullscreen: bool,
+    /// 工作模式聊天区是否保留左栏并独占右侧
+    pub(crate) work_chat_half_fullscreen: bool,
+    /// 工作模式停靠浏览器的输入、错误与焦点状态
+    pub(crate) work_browser: WorkBrowserState,
+    /// 工作模式停靠浏览器的受控子进程
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) work_browser_controller: crate::app::webview_runtime::WorkBrowserController,
+    /// 工作模式左栏中按真实项目路径展开的空间
+    pub(crate) work_expanded_spaces: HashSet<String>,
     /// 当前项目路径
     pub(crate) project_path: Option<String>,
     /// 当前项目唯一标识符
@@ -139,14 +222,14 @@ pub struct App {
     pub(crate) active_session_view_state: ActiveSessionViewState,
     /// 当前模型的使用信息
     pub(crate) usage_model_info: Option<UsageModelInfo>,
-    /// 使用量面板当前会话对应的 SQLite 文件路径
-    pub(crate) usage_session_file_path: Option<String>,
     /// 展开的使用量步骤索引集合
     pub(crate) usage_step_expanded: HashSet<u32>,
     /// 使用量步骤原始 LLM 载荷缓存
     pub(crate) usage_step_raw_payloads: HashMap<UsageStepRawKey, UsageStepRawPayloadResult>,
     /// 正在加载原始 LLM 载荷的使用量步骤
     pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
+    /// 使用量步骤原始记录弹窗
+    pub(crate) usage_step_raw_modal: Option<UsageStepRawModal>,
     /// 是否显示合并视图
     pub(crate) merge_view: bool,
     /// 展开的文件路径列表
@@ -285,6 +368,8 @@ pub struct App {
     pub(crate) show_model_popover: bool,
     /// 是否显示模式选择弹出框
     pub(crate) show_mode_popover: bool,
+    /// 是否显示代码/工作界面模式弹出框
+    pub(crate) show_workspace_mode_popover: bool,
     /// 是否显示文件选择弹出框
     pub(crate) show_send_mode_popover: bool,
     pub(crate) show_file_popover: bool,
@@ -296,6 +381,8 @@ pub struct App {
     pub(crate) show_usage_popover: bool,
     /// 是否显示会话工具选择弹出框
     pub(crate) show_session_tool_selector_popover: bool,
+    /// 是否显示当前父会话的 AgentTool 子会话弹层（不持久化）
+    pub(crate) show_agent_sessions_popover: bool,
     /// 是否显示会话操作弹出框
     pub(crate) show_session_actions_popover: bool,
     /// 是否显示执行器选择弹出框
@@ -357,6 +444,8 @@ pub struct App {
     pub(crate) project_sessions: HashMap<String, Vec<vw_shared::session::info::Info>>,
     /// 项目会话加载计数（用于分页）
     pub(crate) project_session_load_counts: HashMap<String, usize>,
+    /// 左侧普通会话树的展开会话 ID 集合（不持久化）
+    pub(crate) session_tree_expanded: HashSet<String>,
     /// 正在加载会话的项目路径集合
     pub(crate) project_sessions_loading: HashSet<String>,
     /// 各项目会话列表是否显示纵向滚动条
@@ -453,6 +542,12 @@ pub struct App {
     pub(crate) diff_theme: DiffTheme,
     /// 应用主题
     pub(crate) app_theme: Theme,
+    /// 用于模型聊天时间上下文的 IANA 时区
+    pub(crate) chat_timezone: String,
+    /// 当前应用的自定义主题 id（配置键 `custom:<id>`）；内置主题时为 `None`
+    pub(crate) active_custom_theme_id: Option<String>,
+    /// 活动自定义主题的皮肤快照（背景路径与 chrome）；内置主题时为 `None`
+    pub(crate) active_theme_skin: Option<crate::app::theme_catalog::ActiveThemeSkin>,
     /// 编辑器是否跟随系统主题
     pub(crate) editor_follow_system_theme: bool,
     /// 编辑器主题
@@ -621,6 +716,8 @@ pub struct App {
     pub(crate) input_editor_id: Id,
     /// 文件搜索滚动容器 ID
     pub(crate) file_search_scroll_id: Id,
+    /// Slash 面板滚动容器 ID
+    pub(crate) slash_palette_scroll_id: Id,
     /// 预览滚动容器 ID
     pub(crate) preview_scroll_id: Id,
     /// 预览标签页滚动容器 ID
@@ -713,6 +810,8 @@ pub struct App {
     pub(crate) proxy_settings: ProxySettingsState,
     /// 隧道设置状态
     pub(crate) tunnel_settings: TunnelSettingsState,
+    /// 主题设置状态
+    pub(crate) themes_settings: ThemesSettingsState,
     /// Composio 设置状态
     pub(crate) composio_settings: ComposioSettingsState,
     /// 转录设置状态
@@ -726,6 +825,10 @@ pub struct App {
     pub(crate) dialogue_flow_show_reasoning_summary: bool,
     pub(crate) dialogue_flow_expand_shell_tool_section: bool,
     pub(crate) dialogue_flow_expand_edit_tool_section: bool,
+    pub(crate) quick_messages: Vec<vw_config_types::ui::QuickMessageConfig>,
+    pub(crate) quick_message_open_group: Option<vw_config_types::ui::QuickMessageGroup>,
+    pub(crate) show_shiju_skill_menu: bool,
+    pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,
     /// 对话流设置保存消息
     pub(crate) dialogue_flow_settings_save_message: Option<String>,
     /// 最近项目元数据列表
@@ -764,6 +867,15 @@ pub struct App {
     pub(crate) file_search_anchor: Option<(f32, f32)>,
     /// 文件搜索结果中选中的索引
     pub(crate) file_search_selected_index: usize,
+    /// Slash 面板查询文本（不含前导 `/`）
+    pub(crate) slash_palette_query: String,
+    /// 是否显示 Slash 快捷选择面板
+    pub(crate) show_slash_palette: bool,
+    /// Slash 面板可见条目中的选中索引
+    pub(crate) slash_palette_selected_index: usize,
+    /// Slash 面板已展开的类别
+    pub(crate) slash_palette_expanded_kinds:
+        std::collections::BTreeSet<crate::app::state::SlashPaletteKind>,
     /// 在文件夹中查找的结果标签页列表
     pub(crate) find_results_tabs: Vec<FindInFolderTab>,
     /// 当前活跃的查找结果标签页 ID
@@ -919,6 +1031,11 @@ pub struct App {
     pub(crate) active_toast: Option<Toast>,
     /// 下一个轻量提示 ID
     pub(crate) next_toast_id: usize,
+    /// Shiju 本地多账户与登录状态。
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) account: AccountState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) expert_hub: crate::app::skill_hub::ExpertHubState,
     /// 工作流管理面板状态
     pub workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState,
     /// 是否显示任务看板

@@ -27,6 +27,7 @@ fn find_tab(id: &str) -> crate::app::state::FindInFolderTab {
         error: None,
         limit_reached: false,
         matches: Vec::new(),
+        results_page: 0,
     }
 }
 
@@ -184,6 +185,66 @@ fn option_toggles_for_missing_tab_leave_existing_options_unchanged() {
 }
 
 #[test]
+fn option_shortcuts_toggle_active_tab_only() {
+    let mut app = app();
+    app.find_results_tabs.push(find_tab("a"));
+    app.find_results_tabs.push(find_tab("b"));
+    app.active_find_results_tab_id = Some("a".to_string());
+
+    for message in [
+        crate::app::message::project::ProjectMessage::FileTreeFindCaseSensitiveShortcut,
+        crate::app::message::project::ProjectMessage::FileTreeFindWholeWordShortcut,
+        crate::app::message::project::ProjectMessage::FileTreeFindRegexShortcut,
+    ] {
+        let _ = super::handle(&mut app, message);
+    }
+
+    assert!(app.find_results_tabs[0].case_sensitive);
+    assert!(app.find_results_tabs[0].whole_word);
+    assert!(app.find_results_tabs[0].use_regex);
+    assert!(!app.find_results_tabs[1].case_sensitive);
+    assert!(!app.find_results_tabs[1].whole_word);
+    assert!(!app.find_results_tabs[1].use_regex);
+}
+
+#[test]
+fn option_shortcuts_without_active_tab_leave_options_unchanged() {
+    let mut app = app();
+    app.find_results_tabs.push(find_tab("a"));
+
+    for message in [
+        crate::app::message::project::ProjectMessage::FileTreeFindCaseSensitiveShortcut,
+        crate::app::message::project::ProjectMessage::FileTreeFindWholeWordShortcut,
+        crate::app::message::project::ProjectMessage::FileTreeFindRegexShortcut,
+    ] {
+        let _ = super::handle(&mut app, message);
+    }
+
+    let tab = &app.find_results_tabs[0];
+    assert!(!tab.case_sensitive);
+    assert!(!tab.whole_word);
+    assert!(!tab.use_regex);
+}
+
+#[test]
+fn results_page_change_clamps_to_available_matches() {
+    let mut app = app();
+    let mut tab = find_tab("a");
+    tab.matches = (0..205).map(|index| find_match(&format!("match {index}"))).collect();
+    app.find_results_tabs.push(tab);
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeFindResultsPageChanged(
+            "a".to_string(),
+            usize::MAX,
+        ),
+    );
+
+    assert_eq!(app.find_results_tabs[0].results_page, 2);
+}
+
+#[test]
 fn find_run_with_empty_query_sets_error_without_running() {
     let mut app = app();
     let mut tab = find_tab("a");
@@ -329,6 +390,44 @@ fn find_in_project_creates_active_find_tab_and_open_tab() {
     assert!(app.show_file_manager);
     assert!(app.active_tab_id.as_deref().is_some_and(|id| id.starts_with("find:")));
     assert!(matches!(app.screen, crate::app::Screen::Project));
+}
+
+#[test]
+fn find_scope_changed_resolves_project_relative_input_and_rejects_escape() {
+    let mut app = app();
+    app.project_path = Some("/tmp/project".to_string());
+    app.find_results_tabs.push(find_tab("a"));
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeFindScopeChanged(
+            "a".to_string(),
+            "src/nested".to_string(),
+        ),
+    );
+    assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project/src/nested");
+    assert!(app.find_results_tabs[0].error.is_none());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeFindScopeChanged(
+            "a".to_string(),
+            String::new(),
+        ),
+    );
+    assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project");
+
+    for invalid in ["/tmp/outside", "../outside", "src/../../outside"] {
+        let _ = super::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::FileTreeFindScopeChanged(
+                "a".to_string(),
+                invalid.to_string(),
+            ),
+        );
+        assert_eq!(app.find_results_tabs[0].scope_path, "/tmp/project");
+        assert_eq!(app.find_results_tabs[0].error.as_deref(), Some("作用域必须是项目内的相对路径"));
+    }
 }
 
 #[test]
@@ -491,6 +590,39 @@ fn tab_selected_empty_clears_active_find_tab() {
     );
 
     assert!(app.active_find_results_tab_id.is_none());
+}
+
+#[test]
+fn match_selected_prepares_zero_based_editor_target_and_opens_file() {
+    let mut app = app();
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeFindMatchSelected {
+            path: "/tmp/project/src/main.rs".to_string(),
+            line: 8,
+            column: 4,
+        },
+    );
+
+    assert_eq!(app.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 7, 3)));
+    assert!(task.is_some_and(|task| task.units() > 0));
+}
+
+#[test]
+fn match_selected_clamps_invalid_one_based_position_to_editor_origin() {
+    let mut app = app();
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileTreeFindMatchSelected {
+            path: "/tmp/project/src/main.rs".to_string(),
+            line: 0,
+            column: 0,
+        },
+    );
+
+    assert_eq!(app.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 0, 0)));
 }
 
 #[test]

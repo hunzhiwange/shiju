@@ -2,6 +2,8 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
+use std::collections::HashSet;
+
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Point, Theme};
 
@@ -209,6 +211,33 @@ fn running_status_color(breathe: f32) -> Color {
 
 fn queued_status_color(breathe: f32) -> Color {
     mix_color(Color::from_rgb8(245, 158, 11), Color::from_rgb8(239, 68, 68), breathe * 0.75)
+}
+
+pub(in crate::app::views::project) fn session_status_icon(
+    session_id: &str,
+    is_running: bool,
+    queued: usize,
+    has_unseen_success: bool,
+    now_s: f64,
+) -> Element<'static, Message> {
+    let session_phase = session_id
+        .bytes()
+        .fold(0u32, |acc, byte| acc.wrapping_mul(16777619).wrapping_add(byte as u32));
+    let phase = ((now_s / 1.8) + (session_phase as f64 / u32::MAX as f64)) * std::f64::consts::TAU;
+    let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
+    let icon = if is_running {
+        let running_color = running_status_color(breathe);
+        text("●").size(12.0).style(move |_: &Theme| status_text_style(running_color))
+    } else if queued > 0 {
+        let queued_color = queued_status_color(breathe);
+        text("●").size(8.5).style(move |_: &Theme| status_text_style(queued_color))
+    } else if has_unseen_success {
+        text("●").size(11).style(|_: &Theme| status_text_style(Color::from_rgb8(46, 184, 114)))
+    } else {
+        text("–").size(11).style(muted_status_icon_style)
+    };
+
+    container(icon).width(Length::Fixed(14.0)).align_x(iced::alignment::Horizontal::Center).into()
 }
 
 fn status_badge_style(color: Color) -> container::Style {
@@ -485,6 +514,202 @@ pub fn project_sessions_header<'a>(
     .into()
 }
 
+#[derive(Debug)]
+struct SessionTreeRow<'a> {
+    session: &'a session::Info,
+}
+
+#[derive(Debug)]
+struct SessionTreeProjection<'a> {
+    rows: Vec<SessionTreeRow<'a>>,
+    total_roots: usize,
+}
+
+fn compare_session_recency(
+    left: &&session::Info,
+    right: &&session::Info,
+) -> std::cmp::Ordering {
+    right
+        .time
+        .updated
+        .cmp(&left.time.updated)
+        .then_with(|| right.time.created.cmp(&left.time.created))
+        .then_with(|| left.id.cmp(&right.id))
+}
+
+fn session_tree_projection<'a>(
+    sessions: &'a [session::Info],
+    load_count: usize,
+) -> SessionTreeProjection<'a> {
+    let mut seen_ids = HashSet::new();
+    let mut roots = sessions
+        .iter()
+        .filter(|session| {
+            session.time.archived.is_none()
+                && !session.is_plan_run()
+                && session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
+                && seen_ids.insert(session.id.as_str())
+        })
+        .collect::<Vec<_>>();
+    roots.sort_by(compare_session_recency);
+    let total_roots = roots.len();
+    let rows = roots
+        .into_iter()
+        .take(load_count)
+        .map(|session| SessionTreeRow { session })
+        .collect();
+
+    SessionTreeProjection { rows, total_roots }
+}
+
+fn session_tree_row<'a>(
+    app: &'a crate::app::App,
+    path: &str,
+    tree_row: SessionTreeRow<'a>,
+    title_max_chars: usize,
+    now_s: f64,
+) -> Element<'a, Message> {
+    let s = tree_row.session;
+    let id = s.id.clone();
+    let session_title = s.title.clone();
+    let active = app.active_session_id.as_ref() == Some(&id);
+    let runtime = app.session_runtime_states.get(&id);
+    let is_running = runtime.map(|r| r.is_requesting).unwrap_or(false);
+    let queued = runtime.map(|r| r.queue.len()).unwrap_or(0);
+    let has_unseen_success = runtime.map(|r| r.has_unseen_success).unwrap_or(false);
+    let status_icon = session_status_icon(&id, is_running, queued, has_unseen_success, now_s);
+
+    let (adds, dels) =
+        if let Some(sum) = &s.summary { (sum.additions, sum.deletions) } else { (0, 0) };
+
+    let mut status_badges = row![].spacing(4);
+    if is_running {
+        let running_badge_color = Color::from_rgb8(239, 68, 68);
+        status_badges = status_badges.push(
+            container(
+                row![
+                    container(
+                        text(spinner_frame(app.status_animation_frame))
+                            .size(11)
+                            .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                            .style(move |_: &Theme| status_text_style(running_badge_color)),
+                    )
+                    .height(Length::Fixed(13.0))
+                    .align_y(iced::alignment::Vertical::Center),
+                    container(
+                        text("运行中")
+                            .size(11)
+                            .line_height(iced::widget::text::LineHeight::Relative(1.0)),
+                    )
+                    .height(Length::Fixed(13.0))
+                    .align_y(iced::alignment::Vertical::Center)
+                ]
+                .spacing(4)
+                .align_y(iced::alignment::Vertical::Center),
+            )
+            .padding([1, 6])
+            .style(move |_: &Theme| status_badge_style(running_badge_color)),
+        );
+    }
+    if queued > 0 {
+        status_badges = status_badges.push(
+            container(text(format!("排队 {}", queued)).size(11))
+                .padding([1, 6])
+                .style(|_: &Theme| status_badge_style(Color::from_rgb8(245, 158, 11))),
+        );
+    }
+    if has_unseen_success && !is_running && queued == 0 {
+        status_badges = status_badges.push(
+            container(text("有更新").size(11))
+                .padding([1, 6])
+                .style(|_: &Theme| status_badge_style(Color::from_rgb8(46, 184, 114))),
+        );
+    }
+    let dynamic_title_max_chars = title_max_chars.saturating_add(6).max(14);
+
+    let workspace_label = session_workspace_label(&s.directory, path);
+    let workspace_meta = truncate_display_width(&workspace_label, dynamic_title_max_chars / 2 + 8);
+    let change_stats = row![
+        text(format!("+{}", adds)).size(11).style(additions_text_style),
+        text(format!("-{}", dels)).size(11).style(deletions_text_style),
+    ]
+    .spacing(4)
+    .align_y(iced::alignment::Vertical::Center);
+
+    let header_row = row![
+        status_icon,
+        text(truncate_display_width(&session_title, dynamic_title_max_chars))
+            .size(13)
+            .font(iced::Font {
+                weight: if active {
+                    iced::font::Weight::Bold
+                } else {
+                    iced::font::Weight::Medium
+                },
+                ..Default::default()
+            })
+            .wrapping(iced::widget::text::Wrapping::None)
+            .width(Length::Fill),
+    ]
+    .spacing(6)
+    .align_y(iced::alignment::Vertical::Center)
+    .width(Length::Fill);
+
+    let mut footer_row = row![
+        text(workspace_meta).size(11).style(settings_muted_text_style),
+        text("·").size(11).style(settings_muted_text_style),
+        change_stats,
+    ]
+    .align_y(iced::alignment::Vertical::Center)
+    .spacing(5);
+    if is_running || queued > 0 || has_unseen_success {
+        footer_row = footer_row.push(status_badges);
+    }
+
+    let row_content = column![header_row, footer_row]
+        .spacing(3)
+        .align_x(iced::alignment::Horizontal::Left)
+        .width(Length::Fill);
+
+    let hover_tip = session_title.clone();
+    let session_directory = s.directory.clone();
+    let session_button = button(container(row_content).padding([3, 6]))
+        .on_press(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
+            session_directory,
+            id.clone(),
+        )))
+        .width(Length::Fill)
+        .style(move |theme: &Theme, status| session_row_button_style(theme, active, status));
+    let session_button: Element<'a, Message> = iced::widget::tooltip::Tooltip::new(
+        session_button,
+        tooltip_bubble(hover_tip),
+        iced::widget::tooltip::Position::Top,
+    )
+    .gap(8)
+    .into();
+    let id_for_right_click = std::rc::Rc::new(id.clone());
+    let right_click = Element::new(RightClickArea::new(
+        session_button,
+        Box::new(move |pos| {
+            Message::Project(message::ProjectMessage::SessionRightClicked(
+                (*id_for_right_click).clone(),
+                pos.x,
+                pos.y,
+            ))
+        }),
+    ));
+
+    if app.session_menu_id == Some(id.clone()) {
+        PointBelowOverlay::new(right_click, build_session_menu(id))
+            .show(true)
+            .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+            .on_close(Message::Project(message::ProjectMessage::SessionMenuClose))
+            .into()
+    } else {
+        right_click
+    }
+}
+
 /// 执行本模块的界面辅助逻辑。
 ///
 /// # 参数
@@ -501,9 +726,9 @@ pub fn project_sessions_header<'a>(
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn session_items_list<'a>(
-    app: &crate::app::App,
+    app: &'a crate::app::App,
     path: &str,
-    sessions: Option<&Vec<session::Info>>,
+    sessions: Option<&'a Vec<session::Info>>,
     title_max_chars: usize,
     load_count: usize,
     is_loading: bool,
@@ -515,183 +740,11 @@ pub fn session_items_list<'a>(
         session_items = session_items
             .push(container(text("加载中...").size(12)).padding([8, 4]).width(Length::Fill));
     } else if let Some(sessions) = sessions {
-        let mut visible = sessions.iter().filter(|s| s.time.archived.is_none()).collect::<Vec<_>>();
-        let total_visible = visible.len();
-        visible.truncate(load_count);
-
-        for s in visible {
-            let id = s.id.clone();
-            let session_title = s.title.clone();
-            let active = app.active_session_id.as_ref() == Some(&id);
-            let runtime = app.session_runtime_states.get(&id);
-            let is_running = runtime.map(|r| r.is_requesting).unwrap_or(false);
-            let queued = runtime.map(|r| r.queue.len()).unwrap_or(0);
-            let has_unseen_success = runtime.map(|r| r.has_unseen_success).unwrap_or(false);
-            let session_phase =
-                id.bytes().fold(0u32, |acc, b| acc.wrapping_mul(16777619).wrapping_add(b as u32));
-            let phase =
-                ((now_s / 1.8) + (session_phase as f64 / u32::MAX as f64)) * std::f64::consts::TAU;
-            let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
-            let running_color = running_status_color(breathe);
-
-            let status_icon = {
-                let icon = if is_running {
-                    text("●").size(12.0).style(move |_: &Theme| status_text_style(running_color))
-                } else if queued > 0 {
-                    let queued_color = queued_status_color(breathe);
-                    text("●").size(8.5).style(move |_: &Theme| status_text_style(queued_color))
-                } else if has_unseen_success {
-                    text("●")
-                        .size(11)
-                        .style(|_: &Theme| status_text_style(Color::from_rgb8(46, 184, 114)))
-                } else {
-                    text("–").size(11).style(muted_status_icon_style)
-                };
-
-                container(icon)
-                    .width(Length::Fixed(14.0))
-                    .align_x(iced::alignment::Horizontal::Center)
-            };
-
-            let (adds, dels) =
-                if let Some(sum) = &s.summary { (sum.additions, sum.deletions) } else { (0, 0) };
-
-            let mut status_badges = row![].spacing(4);
-            if is_running {
-                let running_badge_color = Color::from_rgb8(239, 68, 68);
-                status_badges = status_badges.push(
-                    container(
-                        row![
-                            container(
-                                text(spinner_frame(app.status_animation_frame))
-                                    .size(11)
-                                    .line_height(iced::widget::text::LineHeight::Relative(1.0))
-                                    .style(move |_: &Theme| status_text_style(running_badge_color)),
-                            )
-                            .height(Length::Fixed(13.0))
-                            .align_y(iced::alignment::Vertical::Center),
-                            container(
-                                text("运行中")
-                                    .size(11)
-                                    .line_height(iced::widget::text::LineHeight::Relative(1.0)),
-                            )
-                            .height(Length::Fixed(13.0))
-                            .align_y(iced::alignment::Vertical::Center)
-                        ]
-                        .spacing(4)
-                        .align_y(iced::alignment::Vertical::Center),
-                    )
-                    .padding([1, 6])
-                    .style(move |_: &Theme| status_badge_style(running_badge_color)),
-                );
-            }
-            if queued > 0 {
-                status_badges = status_badges.push(
-                    container(text(format!("排队 {}", queued)).size(11))
-                        .padding([1, 6])
-                        .style(|_: &Theme| status_badge_style(Color::from_rgb8(245, 158, 11))),
-                );
-            }
-            if has_unseen_success && !is_running && queued == 0 {
-                status_badges = status_badges.push(
-                    container(text("有更新").size(11))
-                        .padding([1, 6])
-                        .style(|_: &Theme| status_badge_style(Color::from_rgb8(46, 184, 114))),
-                );
-            }
-            let dynamic_title_max_chars = title_max_chars.saturating_add(6).max(14);
-
-            let workspace_label = session_workspace_label(&s.directory, path);
-            let workspace_meta =
-                truncate_display_width(&workspace_label, dynamic_title_max_chars / 2 + 8);
-            let change_stats = row![
-                text(format!("+{}", adds)).size(11).style(additions_text_style),
-                text(format!("-{}", dels)).size(11).style(deletions_text_style),
-            ]
-            .spacing(4)
-            .align_y(iced::alignment::Vertical::Center);
-
-            let header_row = row![
-                status_icon,
-                text(truncate_display_width(&session_title, dynamic_title_max_chars))
-                    .size(13)
-                    .font(iced::Font {
-                        weight: if active {
-                            iced::font::Weight::Bold
-                        } else {
-                            iced::font::Weight::Medium
-                        },
-                        ..Default::default()
-                    })
-                    .wrapping(iced::widget::text::Wrapping::None)
-                    .width(Length::Fill),
-            ]
-            .spacing(6)
-            .align_y(iced::alignment::Vertical::Center)
-            .width(Length::Fill);
-
-            let mut footer_row = row![
-                text(workspace_meta).size(11).style(settings_muted_text_style),
-                text("·").size(11).style(settings_muted_text_style),
-                change_stats,
-            ]
-            .align_y(iced::alignment::Vertical::Center)
-            .spacing(5);
-            if is_running || queued > 0 || has_unseen_success {
-                footer_row = footer_row.push(status_badges);
-            }
-
-            let row_content = column![header_row, footer_row]
-                .spacing(3)
-                .align_x(iced::alignment::Horizontal::Left)
-                .width(Length::Fill);
-
-            let hover_tip = session_title.clone();
-            let session_directory = s.directory.clone();
-
-            let btn = button(container(row_content).padding([3, 6]))
-                .on_press(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
-                    session_directory,
-                    id.clone(),
-                )))
-                .width(Length::Fill)
-                .style(move |theme: &Theme, status| {
-                    session_row_button_style(theme, active, status)
-                });
-
-            let btn = iced::widget::tooltip::Tooltip::new(
-                btn,
-                tooltip_bubble(hover_tip),
-                iced::widget::tooltip::Position::Top,
-            )
-            .gap(8)
-            .into();
-
-            let id_for_right_click = std::rc::Rc::new(id.clone());
-            let right_click = Element::new(RightClickArea::new(
-                btn,
-                Box::new(move |pos| {
-                    Message::Project(message::ProjectMessage::SessionRightClicked(
-                        (*id_for_right_click).clone(),
-                        pos.x,
-                        pos.y,
-                    ))
-                }),
-            ));
-
-            let item = if app.session_menu_id == Some(id.clone()) {
-                PointBelowOverlay::new(right_click, build_session_menu(id))
-                    .show(true)
-                    .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-                    .snap_within_viewport(false)
-                    .snap_within_target_bounds(true)
-                    .on_close(Message::Project(message::ProjectMessage::SessionMenuClose))
-                    .into()
-            } else {
-                right_click
-            };
-
-            session_items = session_items.push(item);
+        let projection = session_tree_projection(sessions, load_count);
+        let total_visible = projection.total_roots;
+        for tree_row in projection.rows {
+            session_items =
+                session_items.push(session_tree_row(app, path, tree_row, title_max_chars, now_s));
         }
 
         if total_visible == 0 {

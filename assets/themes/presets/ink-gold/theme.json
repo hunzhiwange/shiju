@@ -1,0 +1,25 @@
+{
+  "id": "ink-gold",
+  "name": "墨金舞台 Ink Gold",
+  "tagline": "聚光灯下的黑金时刻。",
+  "palette": {
+    "background": "#f7f5f0",
+    "text": "#2d2923",
+    "primary": "#b8975a",
+    "success": "#d4b87a",
+    "warning": "#8c826f",
+    "danger": "#5c564d"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#b8975a",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

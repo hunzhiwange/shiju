@@ -7,6 +7,13 @@ fn has_tool(descriptions: &[(&str, &str)], name: &str) -> bool {
     descriptions.iter().any(|(tool_name, _)| *tool_name == name)
 }
 
+fn tool_description<'a>(descriptions: &'a [(&str, &str)], name: &str) -> &'a str {
+    descriptions
+        .iter()
+        .find_map(|(tool_name, description)| (*tool_name == name).then_some(*description))
+        .expect("tool description should exist")
+}
+
 #[test]
 fn resolve_setup_name_prefers_override() {
     let name = resolve_setup_name(Some("override"), Some("configured"), "fallback");
@@ -81,6 +88,26 @@ fn tool_descriptions_include_enabled_optional_tools() {
     assert!(has_tool(&descriptions, "browser_open"));
     assert!(has_tool(&descriptions, "composio"));
     assert!(has_tool(&descriptions, "AgentTool"));
+    let agent_tool = tool_description(&descriptions, "AgentTool");
+    for expected in [
+        "complex",
+        "simple",
+        "parallel",
+        "background",
+        "run",
+        "status",
+        "wait",
+        "stop",
+        "synthesize",
+    ] {
+        assert!(agent_tool.contains(expected), "missing '{expected}': {agent_tool}");
+    }
+    for unsupported in ["action=list", "action=get"] {
+        assert!(
+            !agent_tool.contains(unsupported),
+            "unsupported '{unsupported}' advertised: {agent_tool}"
+        );
+    }
 }
 
 #[test]

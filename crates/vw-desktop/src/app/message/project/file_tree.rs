@@ -46,6 +46,13 @@ fn is_directory_path(path: &str, files: &[String]) -> bool {
     !files.iter().any(|item| item == path)
 }
 
+fn remove_local_file_tree_path(files: &mut Vec<String>, path: &str, recursive: bool) {
+    let descendant_prefix = format!("{path}/");
+    files.retain(|item| {
+        item != path && (!recursive || !item.starts_with(&descendant_prefix))
+    });
+}
+
 #[cfg(test)]
 #[path = "file_tree_tests.rs"]
 mod file_tree_tests;
@@ -366,6 +373,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         error: None,
                         limit_reached: false,
                         matches: Vec::new(),
+                        results_page: 0,
                     });
 
                     // 设置为活动查找标签页
@@ -472,6 +480,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     let Some(project_path) = app.project_path.clone() else {
                         return Some(iced::Task::none());
                     };
+                    remove_local_file_tree_path(&mut app.files, &path, recursive);
                     return Some(iced::Task::perform(
                         async move { gateway_delete_path(&project_path, &path, recursive).await },
                         |result| Message::Project(ProjectMessage::FileTreeDeleteCompleted(result)),

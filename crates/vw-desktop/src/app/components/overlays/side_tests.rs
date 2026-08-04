@@ -1,5 +1,6 @@
 use super::{
-    SideOverlay, SideOverlayElement, compute_side_overlay_position, side_overlay_max_width,
+    SideOverlay, SideOverlayElement, compute_side_overlay_position, side_overlay_hover_contains,
+    side_overlay_max_width,
 };
 use iced::advanced::{
     Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, overlay, renderer, widget,
@@ -146,6 +147,7 @@ fn update_overlay_once(
     event: Event,
     cursor: mouse::Cursor,
     on_close: Option<TestMessage>,
+    on_mouse_exit: Option<TestMessage>,
 ) -> (Vec<TestMessage>, bool) {
     let mut overlay_content = content(Size::new(80.0, 50.0));
     let mut tree = widget::Tree::new(&overlay_content);
@@ -166,6 +168,7 @@ fn update_overlay_once(
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close,
+        on_mouse_exit,
     };
 
     overlay::Overlay::update(
@@ -194,6 +197,7 @@ fn new_sets_hidden_defaults() {
     assert!(overlay.snap_within_viewport);
     assert!(!overlay.align_y_start);
     assert!(overlay.on_close.is_none());
+    assert!(overlay.on_mouse_exit.is_none());
 }
 
 #[test]
@@ -205,7 +209,8 @@ fn builder_updates_all_flags() {
         .min_y(16.0)
         .align_y_start(true)
         .snap_within_viewport(false)
-        .on_close(TestMessage::Close);
+        .on_close(TestMessage::Close)
+        .on_mouse_exit(TestMessage::Close);
 
     assert!(overlay.show);
     assert_eq!(overlay.gap, 8.0);
@@ -214,6 +219,7 @@ fn builder_updates_all_flags() {
     assert!(overlay.align_y_start);
     assert!(!overlay.snap_within_viewport);
     assert_eq!(overlay.on_close, Some(TestMessage::Close));
+    assert_eq!(overlay.on_mouse_exit, Some(TestMessage::Close));
 }
 
 #[test]
@@ -225,7 +231,8 @@ fn builder_converts_to_element_with_all_options() {
         .min_y(16.0)
         .align_y_start(true)
         .snap_within_viewport(false)
-        .on_close(TestMessage::Close);
+        .on_close(TestMessage::Close)
+        .on_mouse_exit(TestMessage::Close);
 
     let element: Element<'_, TestMessage, Theme, RecordingRenderer> = overlay.into();
 
@@ -429,6 +436,7 @@ fn overlay_element_layout_positions_content() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: None,
+        on_mouse_exit: None,
     };
 
     let node = overlay::Overlay::layout(&mut overlay, &renderer, Size::new(240.0, 180.0));
@@ -453,6 +461,7 @@ fn overlay_element_layout_uses_left_side_when_right_is_tight() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: None,
+        on_mouse_exit: None,
     };
 
     let node = overlay::Overlay::layout(&mut overlay, &renderer, Size::new(320.0, 220.0));
@@ -481,6 +490,7 @@ fn overlay_element_click_outside_publishes_close_and_captures() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
+        on_mouse_exit: None,
     };
 
     overlay::Overlay::update(
@@ -519,6 +529,7 @@ fn overlay_element_click_inside_target_does_not_close() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
+        on_mouse_exit: None,
     };
 
     overlay::Overlay::update(
@@ -557,6 +568,7 @@ fn overlay_element_mouse_inside_overlay_captures_without_close() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: Some(TestMessage::Close),
+        on_mouse_exit: None,
     };
 
     overlay::Overlay::update(
@@ -580,6 +592,7 @@ fn overlay_element_right_click_outside_does_not_close_or_capture() {
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
         mouse::Cursor::Available(Point::new(5.0, 5.0)),
         Some(TestMessage::Close),
+        None,
     );
 
     assert_eq!(messages, vec![TestMessage::ChildUpdated]);
@@ -591,6 +604,7 @@ fn overlay_element_left_click_without_close_message_is_forwarded() {
     let (messages, event_captured) = update_overlay_once(
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         mouse::Cursor::Available(Point::new(5.0, 5.0)),
+        None,
         None,
     );
 
@@ -604,6 +618,7 @@ fn overlay_element_left_click_with_unavailable_cursor_is_forwarded() {
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         mouse::Cursor::Unavailable,
         Some(TestMessage::Close),
+        None,
     );
 
     assert_eq!(messages, vec![TestMessage::ChildUpdated]);
@@ -616,10 +631,64 @@ fn overlay_element_left_click_inside_overlay_does_not_close_but_captures() {
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         mouse::Cursor::Available(Point::new(100.0, 40.0)),
         Some(TestMessage::Close),
+        None,
     );
 
     assert_eq!(messages, vec![TestMessage::ChildUpdated]);
     assert!(event_captured);
+}
+
+#[test]
+fn overlay_element_mouse_exit_closes_outside_hover_region() {
+    for position in [Point::new(5.0, 5.0), Point::new(85.0, 70.0)] {
+        let (messages, event_captured) = update_overlay_once(
+            Event::Mouse(mouse::Event::CursorMoved { position }),
+            mouse::Cursor::Available(position),
+            Some(TestMessage::Close),
+            Some(TestMessage::Close),
+        );
+
+        assert_eq!(messages, vec![TestMessage::Close, TestMessage::ChildUpdated]);
+        assert!(!event_captured);
+    }
+}
+
+#[test]
+fn overlay_element_mouse_exit_keeps_target_gap_and_overlay_interactive() {
+    for position in [Point::new(30.0, 40.0), Point::new(85.0, 40.0), Point::new(100.0, 40.0)] {
+        let (messages, _event_captured) = update_overlay_once(
+            Event::Mouse(mouse::Event::CursorMoved { position }),
+            mouse::Cursor::Available(position),
+            Some(TestMessage::Close),
+            Some(TestMessage::Close),
+        );
+
+        assert_eq!(messages, vec![TestMessage::ChildUpdated], "position: {position:?}");
+    }
+}
+
+#[test]
+fn overlay_element_mouse_exit_closes_when_cursor_leaves_window() {
+    let (messages, event_captured) = update_overlay_once(
+        Event::Mouse(mouse::Event::CursorLeft),
+        mouse::Cursor::Unavailable,
+        Some(TestMessage::Close),
+        Some(TestMessage::Close),
+    );
+
+    assert_eq!(messages, vec![TestMessage::Close, TestMessage::ChildUpdated]);
+    assert!(!event_captured);
+}
+
+#[test]
+fn hover_region_supports_left_and_right_side_gap_traversal() {
+    let target = Rectangle { x: 100.0, y: 40.0, width: 40.0, height: 24.0 };
+    let right = Rectangle { x: 148.0, y: 40.0, width: 80.0, height: 80.0 };
+    let left = Rectangle { x: 12.0, y: 40.0, width: 80.0, height: 80.0 };
+
+    assert!(side_overlay_hover_contains(target, right, Point::new(144.0, 50.0)));
+    assert!(side_overlay_hover_contains(target, left, Point::new(96.0, 50.0)));
+    assert!(!side_overlay_hover_contains(target, right, Point::new(144.0, 90.0)));
 }
 
 #[test]
@@ -642,6 +711,7 @@ fn overlay_element_interaction_and_draw_delegate_to_content() {
         overlay: &mut overlay_content,
         tree: &mut tree,
         on_close: None,
+        on_mouse_exit: None,
     };
 
     let interaction = overlay::Overlay::mouse_interaction(

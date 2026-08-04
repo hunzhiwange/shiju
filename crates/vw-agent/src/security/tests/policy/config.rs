@@ -27,9 +27,52 @@ fn from_config_maps_all_fields() {
     assert_eq!(policy.max_cost_per_day_cents, 1000);
     assert!(!policy.require_approval_for_medium_risk);
     assert!(!policy.block_high_risk_commands);
+    assert!(policy.bash_security.enabled);
+    assert!(policy.bash_security.policy.enabled);
+    assert!(policy.bash_security.validators.enabled);
+    assert!(!policy.bash_security.validators.quoted_newline);
     assert_eq!(policy.shell_redirect_policy, ShellRedirectPolicy::Strip);
     assert_eq!(policy.shell_env_passthrough, vec!["DATABASE_URL"]);
     assert_eq!(policy.workspace_dir, PathBuf::from("/tmp/test-workspace"));
+}
+
+#[test]
+fn from_configs_uses_bash_security_master_switch() {
+    let autonomy_config = AutonomyConfig::default();
+    let workspace = PathBuf::from("/tmp/test-workspace");
+    let mut security_config = vw_config_types::security::SecurityConfig::default();
+
+    let disabled = SecurityPolicy::from_configs(&autonomy_config, &security_config, &workspace);
+    assert!(!disabled.bash_security_enabled);
+    assert!(
+        disabled
+            .validate_command_execution("for item in {one,two}; do echo \"$item\"; done", false)
+            .is_ok()
+    );
+
+    security_config.bash.enabled = true;
+    security_config.bash.policy.command_rules = false;
+    security_config.bash.validators.jq = false;
+    let enabled = SecurityPolicy::from_configs(&autonomy_config, &security_config, &workspace);
+    assert!(enabled.bash_security_enabled);
+    assert!(!enabled.bash_security.policy.command_rules);
+    assert!(!enabled.bash_security.validators.jq);
+    assert!(
+        enabled
+            .validate_command_execution("for item in {one,two}; do echo \"$item\"; done", false)
+            .is_err()
+    );
+}
+
+#[test]
+fn from_default_config_maps_redirect_policy_to_allow() {
+    let autonomy_config = AutonomyConfig::default();
+    let policy = SecurityPolicy::from_config(
+        &autonomy_config,
+        std::path::Path::new("/tmp/test-workspace"),
+    );
+
+    assert_eq!(policy.shell_redirect_policy, ShellRedirectPolicy::Allow);
 }
 
 // 测试从配置创建策略时正确规范化允许的根目录
@@ -73,6 +116,10 @@ fn default_policy_has_sane_values() {
     assert!(p.max_cost_per_day_cents > 0);
     assert!(p.require_approval_for_medium_risk);
     assert!(p.block_high_risk_commands);
+    assert!(p.bash_security.enabled);
+    assert!(p.bash_security.policy.enabled);
+    assert!(p.bash_security.validators.enabled);
+    assert!(!p.bash_security.validators.quoted_newline);
     assert_eq!(p.shell_redirect_policy, ShellRedirectPolicy::Block);
     assert!(p.shell_env_passthrough.is_empty());
 }

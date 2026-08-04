@@ -59,6 +59,24 @@ fn close_preserves_only_terminal_and_clears_context_menu() {
     assert_eq!(app.terminal.tab_context_menu_pos, None);
 }
 
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn close_with_multiple_tabs_schedules_reap_after_retiring() {
+    let mut app = test_app_with_blank_terminal();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    assert!(app.terminal.add_terminal(Some(tmp.path().to_path_buf())));
+    assert!(app.terminal.add_terminal(Some(tmp.path().to_path_buf())));
+    let closed_id = app.terminal.tabs[0].id;
+
+    let _task = update(&mut app, TerminalMessage::Close(closed_id));
+
+    assert!(app.terminal.tabs.iter().all(|tab| tab.id != closed_id));
+    assert!(app.terminal.has_retired());
+
+    let _ = update(&mut app, TerminalMessage::ReapRetired);
+    assert!(!app.terminal.has_retired());
+}
+
 #[test]
 fn tab_context_open_selects_terminal_and_records_anchor() {
     let mut app = test_app_with_blank_terminal();

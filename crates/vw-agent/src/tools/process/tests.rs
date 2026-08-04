@@ -72,6 +72,8 @@ mod tests {
     fn test_syscall_detector(tmp: &TempDir) -> Arc<SyscallAnomalyDetector> {
         let log_path = tmp.path().join("process-syscall-anomalies.log");
         let cfg = SyscallAnomalyConfig {
+            enabled: true,
+            alert_on_unknown_syscall: true,
             baseline_syscalls: vec!["read".into(), "write".into()],
             log_path: log_path.to_string_lossy().to_string(),
             alert_cooldown_secs: 1,

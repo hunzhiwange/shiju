@@ -65,6 +65,10 @@ fn make_global_flags(cwd: impl Into<String>) -> GlobalFlags {
     }
 }
 
+fn absolute_test_path(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("vw-acp-flags-{name}"))
+}
+
 fn custom_agent(command: &str) -> AgentCommandSpec {
     AgentCommandSpec {
         display_name: "Custom".to_string(),
@@ -439,7 +443,8 @@ fn resolve_agent_invocation_uses_config_command_but_no_config_for_blank_override
     let mut config = make_config(0);
     config.default_agent = "custom".to_string();
     config.agents.insert("custom".to_string(), custom_agent("custom-acp"));
-    let mut flags = make_global_flags("/abs/workspace");
+    let workspace = absolute_test_path("workspace");
+    let mut flags = make_global_flags(workspace.to_string_lossy());
     flags.agent = Some(" \t ".to_string());
 
     let invocation = resolve_agent_invocation(None, &flags, &config).expect("agent invocation");
@@ -447,7 +452,7 @@ fn resolve_agent_invocation_uses_config_command_but_no_config_for_blank_override
     assert_eq!(invocation.agent_name, "custom");
     assert_eq!(invocation.agent_command, "custom-acp --stdio");
     assert!(invocation.agent_config.is_none());
-    assert_eq!(invocation.cwd, "/abs/workspace");
+    assert_eq!(invocation.cwd, workspace.to_string_lossy());
 }
 
 #[test]
@@ -473,14 +478,17 @@ fn resolve_agent_invocation_uses_positional_agent_and_relative_cwd() {
 
 #[test]
 fn resolve_agent_invocation_normalizes_current_and_parent_dirs_in_absolute_cwd() {
+    let base = absolute_test_path("abs");
+    let input = base.join(".").join("workspace").join("..").join("other");
+    let expected = base.join("other");
     let invocation = resolve_agent_invocation(
         Some("local-acp"),
-        &make_global_flags("/abs/./workspace/../other"),
+        &make_global_flags(input.to_string_lossy()),
         &make_config(0),
     )
     .expect("agent invocation");
 
-    assert_eq!(invocation.cwd, "/abs/other");
+    assert_eq!(invocation.cwd, expected.to_string_lossy());
 }
 
 #[test]
@@ -517,18 +525,23 @@ fn resolve_agent_invocation_uses_trimmed_config_default_or_builtin_default_agent
     let mut config = make_config(0);
     config.default_agent = " custom ".to_string();
     config.agents.insert("custom".to_string(), custom_agent("custom-acp"));
+    let workspace = absolute_test_path("workspace");
 
-    let invocation = resolve_agent_invocation(None, &make_global_flags("/abs/workspace"), &config)
-        .expect("agent invocation");
+    let invocation =
+        resolve_agent_invocation(None, &make_global_flags(workspace.to_string_lossy()), &config)
+            .expect("agent invocation");
 
     assert_eq!(invocation.agent_name, "custom");
     assert_eq!(invocation.agent_command, "custom-acp --stdio");
-    assert_eq!(invocation.cwd, "/abs/workspace");
+    assert_eq!(invocation.cwd, workspace.to_string_lossy());
 
     config.default_agent = " ".to_string();
-    let default_invocation =
-        resolve_agent_invocation(None, &make_global_flags("/abs/workspace"), &config)
-            .expect("agent invocation");
+    let default_invocation = resolve_agent_invocation(
+        None,
+        &make_global_flags(workspace.to_string_lossy()),
+        &config,
+    )
+    .expect("agent invocation");
     assert_eq!(default_invocation.agent_name, "codex");
 }
 

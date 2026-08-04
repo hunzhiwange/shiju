@@ -3,6 +3,51 @@ use crate::app::state::{CustomProviderModelDraft, ProviderHeaderDraft};
 use serde_json::json;
 
 #[test]
+fn discovered_models_replace_blank_placeholder_and_preserve_existing_names() {
+    let mut existing = vec![
+        CustomProviderModelDraft::default(),
+        CustomProviderModelDraft {
+            model_id: "model-b".to_string(),
+            display_name: "自定义名称".to_string(),
+        },
+    ];
+
+    merge_discovered_model_drafts(
+        &mut existing,
+        vec!["model-c".to_string(), "model-a".to_string(), "model-b".to_string()],
+    );
+
+    assert_eq!(
+        existing.iter().map(|model| model.model_id.as_str()).collect::<Vec<_>>(),
+        vec!["model-a", "model-b", "model-c"]
+    );
+    assert_eq!(existing[1].display_name, "自定义名称");
+}
+
+#[test]
+fn discovered_models_ignore_blank_and_duplicate_ids() {
+    let mut existing = vec![CustomProviderModelDraft {
+        model_id: "model-a".to_string(),
+        display_name: String::new(),
+    }];
+
+    merge_discovered_model_drafts(
+        &mut existing,
+        vec![
+            " ".to_string(),
+            "model-a".to_string(),
+            " model-b ".to_string(),
+            "model-b".to_string(),
+        ],
+    );
+
+    assert_eq!(
+        existing.iter().map(|model| model.model_id.as_str()).collect::<Vec<_>>(),
+        vec!["model-a", "model-b"]
+    );
+}
+
+#[test]
 fn custom_provider_draft_rejects_non_object_configs() {
     for raw in [json!(null), json!(false), json!(42), json!("provider"), json!([])] {
         assert_eq!(

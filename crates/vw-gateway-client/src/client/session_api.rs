@@ -7,7 +7,8 @@
 //! - todo、scope、archived 状态维护
 //! - UI 会话快照与预览元数据读写
 
-use serde::de::DeserializeOwned;
+use serde::{Deserialize, de::DeserializeOwned};
+use serde_json::Value;
 
 use super::GatewayClient;
 use crate::http::directory_query;
@@ -17,8 +18,63 @@ use crate::session::{
     GatewaySessionScopeBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
     GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody,
 };
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
+use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, ChatSessionStep};
 use vw_shared::todo::Todo;
+
+#[derive(Debug, Clone, Deserialize)]
+struct SessionStepWithRaw {
+    #[serde(flatten)]
+    step: ChatSessionStep,
+    #[serde(default)]
+    llm_raw: Option<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ChatSessionWithRaw {
+    pub id: String,
+    pub title: String,
+    #[serde(default)]
+    pub messages: Vec<vw_shared::session::ui_types::ChatMessage>,
+    #[serde(default)]
+    pub message_ids: Vec<Option<String>>,
+    #[serde(default)]
+    pub calls: Vec<Value>,
+    #[serde(default)]
+    pub steps: Vec<SessionStepWithRaw>,
+    #[serde(default)]
+    pub created_ms: u64,
+    #[serde(default)]
+    pub updated_ms: u64,
+}
+
+impl From<ChatSessionWithRaw> for ChatSession {
+    fn from(value: ChatSessionWithRaw) -> Self {
+        Self {
+            id: value.id,
+            title: value.title,
+            messages: value.messages,
+            message_ids: value.message_ids,
+            calls: value.calls,
+            steps: value.steps.into_iter().map(|step| step.step).collect(),
+            created_ms: value.created_ms,
+            updated_ms: value.updated_ms,
+        }
+    }
+}
+
+impl GatewayClient {
+    async fn session_ui_get_with_raw(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<Option<ChatSessionWithRaw>, String> {
+        self.get_json_with_404::<ChatSessionWithRaw>(
+            &format!("/v1/session/{session_id}/ui"),
+            &directory_query(directory),
+        )
+        .await
+    }
+}
 
 impl GatewayClient {
     /// 列出目录上下文下的会话集合。
@@ -196,8 +252,8 @@ impl GatewayClient {
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Option<ChatSession>, String> {
-        self.get_json_with_404(&format!("/v1/session/{session_id}/ui"), &directory_query(directory))
-            .await
+        let with_raw = self.session_ui_get_with_raw(session_id, directory).await?;
+        Ok(with_raw.map(ChatSession::from))
     }
 
     /// 无目录限制地读取会话 UI 持久化数据。
@@ -260,11 +316,15 @@ impl GatewayClient {
         step_index: u32,
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
-        self.get_json_with_404(
-            &format!("/v1/session/{session_id}/step/{step_index}/llm-raw"),
-            &directory_query(directory),
-        )
-        .await
+        let raw = self.session_ui_get_with_raw(session_id, directory).await?;
+        let payload = raw.and_then(|session| {
+            session
+                .steps
+                .into_iter()
+                .find(|step| step.step.index == step_index)
+                .and_then(|step| step.llm_raw)
+        });
+        Ok(payload)
     }
 
     /// 获取当前目录下被归档的会话 ID 列表。

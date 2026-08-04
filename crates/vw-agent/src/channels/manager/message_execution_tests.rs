@@ -79,6 +79,18 @@ fn setup() -> (TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
     (workspace, ctx, msg)
 }
 
+#[test]
+fn channel_session_options_enable_full_access() {
+    let options = channel_session_options();
+
+    assert_eq!(
+        options
+            .get("full_access")
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+}
+
 async fn cleanup_sender_session(ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage) {
     let scope = resolve_channel_project_scope_id(ctx).await;
     let key = format!("{scope}::{}", sender_session_key(msg));

@@ -15,6 +15,8 @@ pub mod rename;
 /// tabs 子模块，拆分当前领域的局部职责。
 pub mod tabs;
 
+pub(crate) use tabs::reap_retired_task;
+
 #[derive(Debug, Clone)]
 /// 描述 TerminalMessage 支持的离散状态或消息分支。
 pub enum TerminalMessage {
@@ -25,6 +27,8 @@ pub enum TerminalMessage {
     Add,
     Select(u64),
     Close(u64),
+    /// Drop terminals retired after iced cancelled their subscriptions.
+    ReapRetired,
     #[cfg(not(target_arch = "wasm32"))]
     Event(iced_term::Event),
     #[cfg(target_arch = "wasm32")]
@@ -47,6 +51,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         TerminalMessage::Add
         | TerminalMessage::Select(_)
         | TerminalMessage::Close(_)
+        | TerminalMessage::ReapRetired
         | TerminalMessage::TabContextOpen(_, _, _)
         | TerminalMessage::TabContextClose => tabs::update(app, message),
 

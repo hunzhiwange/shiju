@@ -1,12 +1,15 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// 本机网关与客户端共同使用的默认监听端口。
+pub const DEFAULT_GATEWAY_PORT: u16 = 14_682;
+
 /// 网关服务配置（`[gateway]` 配置段）。
 ///
 /// 用于控制 webhook、REST API 与可选 skey 鉴权所使用的 HTTP 网关。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayConfig {
-    /// 网关监听端口，默认值为 `42617`。
+    /// 网关监听端口，默认值为 `14682`。
     #[serde(default = "default_gateway_port")]
     pub port: u16,
     /// 网关监听主机，默认值为 `127.0.0.1`。
@@ -109,7 +112,7 @@ pub struct NodeControlConfig {
 }
 
 fn default_gateway_port() -> u16 {
-    42617
+    DEFAULT_GATEWAY_PORT
 }
 
 fn default_gateway_host() -> String {

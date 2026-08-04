@@ -32,8 +32,12 @@ use crate::app::agent::project::instance;
 use crate::app::agent::util::log;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, LazyLock, Mutex};
+#[cfg(not(target_arch = "wasm32"))]
+use vw_provider_resolver::remote_models::{discover_and_merge_provider, is_real_bearer};
 
 pub use vw_shared::provider::state::{
     State, as_string_map, builtin_model_limit, from_models_dev_model, from_models_dev_provider,
@@ -350,6 +354,15 @@ async fn load_provider_overrides() -> Vec<(String, Value)> {
         .collect()
 }
 
+fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, String)> {
+    let mut api_candidates = models.values().filter_map(|model| {
+        let url = model.api.url.trim();
+        (!url.is_empty()).then(|| (url.to_string(), model.api.adapter.clone()))
+    });
+    let first = api_candidates.next()?;
+    api_candidates.all(|candidate| candidate == first).then_some(first)
+}
+
 async fn load_state_impl(apply_enabled_filter: bool) -> State {
     // 初始化模型基线数据源
     super::models::init();
@@ -414,6 +427,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
 
         // 获取基础模型集合
         let mut models = existing.as_ref().map(|p| p.models.clone()).unwrap_or_default();
+        let inherited_api = unique_provider_api(&models);
 
         // 处理模型级别配置
         if let Some(models_cfg) = provider.get("models").and_then(Value::as_object) {
@@ -425,26 +439,6 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                         .and_then(Value::as_str)
                         .and_then(|id| models.get(id).cloned())
                 });
-
-                // 记录基础模型缺失的情况
-                if base.is_none() {
-                    let config_id = model_cfg.get("id").and_then(Value::as_str);
-                    LOGGER.info(
-                        "model_base_missing",
-                        Some({
-                            let mut m = Map::new();
-                            m.insert(
-                                "providerID".to_string(),
-                                Value::String(provider_id.to_string()),
-                            );
-                            m.insert("modelID".to_string(), Value::String(model_id.to_string()));
-                            if let Some(id) = config_id {
-                                m.insert("configID".to_string(), Value::String(id.to_string()));
-                            }
-                            m
-                        }),
-                    );
-                }
 
                 // 解析 API ID（优先级：配置 > 基础模型 > 模型 ID）
                 let api_id = model_cfg
@@ -460,6 +454,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                     .and_then(Value::as_str)
                     .map(|s| s.to_string())
                     .or_else(|| base.as_ref().map(|m| m.api.url.clone()))
+                    .or_else(|| inherited_api.as_ref().map(|(url, _)| url.clone()))
                     .unwrap_or_default();
 
                 // 解析适配器类型（优先级：模型配置 > 提供商配置 > 基础模型）
@@ -472,6 +467,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                         provider.get("adapter").and_then(Value::as_str).map(|s| s.to_string())
                     })
                     .or_else(|| base.as_ref().map(|m| m.api.adapter.clone()))
+                    .or_else(|| inherited_api.as_ref().map(|(_, adapter)| adapter.clone()))
                     .unwrap_or_else(default_adapter);
                 let api_adapter = normalize_adapter(&api_adapter);
 
@@ -659,6 +655,59 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    for (provider_id, provider) in database.iter_mut() {
+        let configured = config_providers
+            .iter()
+            .find(|(configured_id, _)| configured_id == provider_id)
+            .map(|(_, value)| value);
+        let configured_api = configured
+            .and_then(|value| value.get("api"))
+            .and_then(Value::as_str)
+            .map(str::to_string);
+        let explicit_model_ids = configured
+            .and_then(|value| value.get("models"))
+            .and_then(Value::as_object)
+            .map(|models| models.keys().cloned().collect::<HashSet<_>>())
+            .unwrap_or_default();
+        let bearer =
+            provider.key.as_deref().filter(|key| is_real_bearer(key)).map(str::to_string).or_else(
+                || {
+                    provider
+                        .env
+                        .iter()
+                        .filter_map(|name| env_vars.get(name))
+                        .find(|key| is_real_bearer(key))
+                        .cloned()
+                },
+            );
+        let Some(bearer) = bearer else {
+            continue;
+        };
+
+        if let Err(error) = discover_and_merge_provider(
+            provider,
+            configured_api.as_deref(),
+            &explicit_model_ids,
+            &bearer,
+        )
+        .await
+        {
+            LOGGER.warn(
+                "remote_model_discovery_failed",
+                Some({
+                    let mut fields = Map::new();
+                    fields.insert("providerID".to_string(), Value::String(provider_id.clone()));
+                    fields.insert(
+                        "category".to_string(),
+                        Value::String(error.category().to_string()),
+                    );
+                    fields
+                }),
+            );
+        }
+    }
+
     // 构建最终提供商列表，应用过滤器
     for (provider_id, provider) in database.into_iter() {
         let mut provider = provider;
@@ -673,17 +722,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             continue;
         }
 
-        providers.insert(provider_id.clone(), provider);
-
-        // 记录找到的提供商
-        LOGGER.info(
-            "found",
-            Some({
-                let mut m = Map::new();
-                m.insert("providerID".to_string(), Value::String(provider_id));
-                m
-            }),
-        );
+        providers.insert(provider_id, provider);
     }
 
     State { providers }

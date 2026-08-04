@@ -11,9 +11,14 @@
 
 use serde::Deserialize;
 use std::path::PathBuf;
-use vw_gateway_client::GatewaySessionCreateBody;
+use vw_gateway_client::{
+    GatewaySessionCreateBody, GatewaySessionForkBody, GatewaySessionPatchBody,
+    GatewaySessionResetBody, GatewaySessionSummarizeBody,
+};
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
+use super::super::commands::session::{SessionCommand, SessionCommandRuntime, SessionReplacement};
+use super::super::state::TuiState;
 #[cfg(not(target_arch = "wasm32"))]
 use super::gateway::block_on_gateway;
 use super::gateway::{
@@ -24,6 +29,120 @@ use super::gateway::{
 pub(crate) struct UiSessionCreateInfo {
     pub(crate) id: String,
     pub(crate) title: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) struct GatewaySessionCommandRuntime<'a> {
+    runtime: &'a mut GatewayUiRuntime,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<'a> GatewaySessionCommandRuntime<'a> {
+    pub(crate) fn new(runtime: &'a mut GatewayUiRuntime) -> Self {
+        Self { runtime }
+    }
+
+    fn replacement_from_snapshot(
+        snapshot: ChatSession,
+        scope: Option<String>,
+    ) -> SessionReplacement {
+        let restored = TuiState::from_chat_session(&snapshot);
+        SessionReplacement {
+            session_id: snapshot.id,
+            title: snapshot.title,
+            messages: restored.messages,
+            scope,
+        }
+    }
+
+    fn load_required(
+        &self,
+        session_id: &str,
+        scope: Option<String>,
+    ) -> Result<SessionReplacement, String> {
+        let snapshot = self
+            .runtime
+            .session_ui_load_any_blocking(Some(session_id))?
+            .ok_or_else(|| format!("session {session_id} has no UI snapshot"))?;
+        Ok(Self::replacement_from_snapshot(snapshot, scope))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl SessionCommandRuntime for GatewaySessionCommandRuntime<'_> {
+    fn persist_current(&mut self, state: &TuiState) -> Result<(), String> {
+        let snapshot = state.to_chat_session();
+        if snapshot.id.trim().is_empty() {
+            return Err("active session id is required before persistence".to_string());
+        }
+        self.runtime.session_ui_save_blocking(&snapshot)
+    }
+
+    fn apply(
+        &mut self,
+        command: &SessionCommand,
+        state: &TuiState,
+    ) -> Result<SessionReplacement, String> {
+        let current_session_id = state.session.session_id.as_deref();
+        let scope = state.session.scope.clone();
+        match command {
+            SessionCommand::Resume { session_id } => self.load_required(session_id.as_str(), scope),
+            SessionCommand::Rename { title } => {
+                let info = self
+                    .runtime
+                    .session_update_title_blocking(current_session_id, title.as_str())?;
+                Ok(SessionReplacement {
+                    session_id: info.id,
+                    title: info.title,
+                    messages: state.messages.clone(),
+                    scope,
+                })
+            }
+            SessionCommand::Fork { message_id } => {
+                let info = self
+                    .runtime
+                    .session_fork_from_blocking(current_session_id, message_id.as_deref())?;
+                match self.runtime.session_ui_load_any_blocking(Some(info.id.as_str()))? {
+                    Some(snapshot) => Ok(Self::replacement_from_snapshot(snapshot, scope)),
+                    None => Ok(SessionReplacement {
+                        session_id: info.id,
+                        title: info.title,
+                        messages: state.messages.clone(),
+                        scope,
+                    }),
+                }
+            }
+            SessionCommand::Reset { message_id } => {
+                let info = self.runtime.session_reset_to_blocking(
+                    current_session_id,
+                    message_id.as_str(),
+                    true,
+                )?;
+                self.load_required(info.id.as_str(), scope)
+            }
+            SessionCommand::Compact { message_id } => {
+                if !self
+                    .runtime
+                    .session_summarize_from_blocking(current_session_id, message_id.as_str())?
+                {
+                    return Err("gateway did not confirm session summarization".to_string());
+                }
+                let session_id = current_session_id
+                    .ok_or_else(|| "active session id is required".to_string())?;
+                self.load_required(session_id, scope)
+            }
+            SessionCommand::Clear => {
+                let created =
+                    self.runtime.session_create_blocking(Some(state.session.title.as_str()))?;
+                Ok(SessionReplacement {
+                    session_id: created.id,
+                    title: created.title,
+                    messages: Vec::new(),
+                    scope,
+                })
+            }
+        }
+    }
 }
 
 impl GatewayUiRuntime {
@@ -43,6 +162,80 @@ impl GatewayUiRuntime {
             .session_create(directory.as_str(), &body)
             .await
             .map_err(|err| annotate_gateway_transport_error(err, self.endpoint()))
+    }
+
+    pub(crate) async fn session_update_title(
+        &self,
+        session_id: Option<&str>,
+        title: &str,
+    ) -> Result<UiSessionCreateInfo, String> {
+        let session_id = self.resolve_session_id(session_id)?;
+        let title = normalize_optional_str_ref(Some(title))
+            .ok_or_else(|| "session rename requires a non-empty title".to_string())?;
+        let directory = self.directory_value();
+        self.client()
+            .session_update(
+                session_id,
+                directory.as_deref(),
+                &GatewaySessionPatchBody { title: Some(title.to_string()), time: None },
+            )
+            .await
+            .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
+    }
+
+    pub(crate) async fn session_fork_from(
+        &self,
+        session_id: Option<&str>,
+        message_id: Option<&str>,
+    ) -> Result<UiSessionCreateInfo, String> {
+        let session_id = self.resolve_session_id(session_id)?;
+        let directory = self.directory_value();
+        let body = Some(GatewaySessionForkBody {
+            message_id: normalize_optional_str_ref(message_id).map(str::to_string),
+        });
+        self.client()
+            .session_fork(session_id, directory.as_deref(), &body)
+            .await
+            .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
+    }
+
+    pub(crate) async fn session_reset_to(
+        &self,
+        session_id: Option<&str>,
+        message_id: &str,
+        revert_code: bool,
+    ) -> Result<UiSessionCreateInfo, String> {
+        let session_id = self.resolve_session_id(session_id)?;
+        let message_id = normalize_optional_str_ref(Some(message_id))
+            .ok_or_else(|| "session reset requires a non-empty message id".to_string())?;
+        let directory = self.directory_value();
+        self.client()
+            .session_reset(
+                session_id,
+                directory.as_deref(),
+                &GatewaySessionResetBody { message_id: message_id.to_string(), revert_code },
+            )
+            .await
+            .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
+    }
+
+    pub(crate) async fn session_summarize_from(
+        &self,
+        session_id: Option<&str>,
+        message_id: &str,
+    ) -> Result<bool, String> {
+        let session_id = self.resolve_session_id(session_id)?;
+        let message_id = normalize_optional_str_ref(Some(message_id))
+            .ok_or_else(|| "session summarize requires a non-empty message id".to_string())?;
+        let directory = self.directory_value();
+        self.client()
+            .session_summarize(
+                session_id,
+                directory.as_deref(),
+                &GatewaySessionSummarizeBody { message_id: message_id.to_string() },
+            )
+            .await
+            .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
     }
 
     /// 读取当前 runtime 作用域下的 session_ui 快照。
@@ -122,6 +315,43 @@ impl GatewayUiRuntime {
         title: Option<&str>,
     ) -> Result<UiSessionCreateInfo, String> {
         block_on_gateway(self.session_create(title))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn session_update_title_blocking(
+        &self,
+        session_id: Option<&str>,
+        title: &str,
+    ) -> Result<UiSessionCreateInfo, String> {
+        block_on_gateway(self.session_update_title(session_id, title))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn session_fork_from_blocking(
+        &self,
+        session_id: Option<&str>,
+        message_id: Option<&str>,
+    ) -> Result<UiSessionCreateInfo, String> {
+        block_on_gateway(self.session_fork_from(session_id, message_id))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn session_reset_to_blocking(
+        &self,
+        session_id: Option<&str>,
+        message_id: &str,
+        revert_code: bool,
+    ) -> Result<UiSessionCreateInfo, String> {
+        block_on_gateway(self.session_reset_to(session_id, message_id, revert_code))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn session_summarize_from_blocking(
+        &self,
+        session_id: Option<&str>,
+        message_id: &str,
+    ) -> Result<bool, String> {
+        block_on_gateway(self.session_summarize_from(session_id, message_id))
     }
 
     #[cfg(not(target_arch = "wasm32"))]

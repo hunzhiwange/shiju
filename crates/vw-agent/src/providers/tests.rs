@@ -33,8 +33,14 @@ fn runtime_options_default_is_secure_and_unset() {
 fn provider_name_validation_accepts_supported_aliases_and_custom_urls() {
     assert!(create_provider(" openai ", None).is_ok());
     assert!(create_provider("KIMI-K2", None).is_ok());
+    assert!(create_provider("alibaba-cn", None).is_ok());
     assert!(create_provider("custom:https://llm.example.test/v1", None).is_ok());
     assert!(create_provider("acme-custom:http://localhost:11434/v1", None).is_ok());
+}
+
+#[test]
+fn provider_factory_accepts_shiju() {
+    assert!(create_provider("shiju", None).is_ok());
 }
 
 #[test]

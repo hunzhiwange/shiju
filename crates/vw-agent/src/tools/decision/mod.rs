@@ -202,11 +202,26 @@ async fn request_interactive_approval(
             context.message_id().map(ToOwned::to_owned),
             context.tool_call_id().map(ToOwned::to_owned),
         );
-        let _ = non_cli.prompt_tx.send(NonCliApprovalPrompt {
+        let sent = non_cli.prompt_tx.send(NonCliApprovalPrompt {
             request_id: pending_request.request_id.clone(),
             tool_name: tool_name.to_string(),
             arguments: updated_input.clone(),
+            call_id: context.tool_call_id().map(ToOwned::to_owned),
+            sender: non_cli.sender.clone(),
+            channel: channel_name.to_string(),
+            reply_target: non_cli.reply_target.clone(),
         });
+        if sent.is_err() {
+            let _ = manager.reject_non_cli_pending_request(
+                &pending_request.request_id,
+                &non_cli.sender,
+                channel_name,
+                &non_cli.reply_target,
+            );
+            return PermissionDecision::deny("Approval request delivery failed.")
+                .with_warning(pending.warning().map(ToOwned::to_owned))
+                .with_updated_input(updated_input);
+        }
 
         await_non_cli_approval_decision(
             manager,

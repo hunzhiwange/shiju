@@ -1,8 +1,9 @@
 //! 渲染高级工具结果视图。
 //! 该视图把复杂工具输出折叠成摘要、元数据和可展开正文，保持聊天流可扫描。
 
-use iced::widget::{Space, button, column, container, row, scrollable, text};
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, text};
+use iced::{Alignment, Background, Border, Element, Length, Padding, Theme};
 use serde_json::{Map, Value};
 
 use crate::app::assets::Icon;
@@ -24,8 +25,9 @@ use super::{
 };
 use crate::app::components::chat_panel::utils::{
     chat_context_menu, chat_context_target_key, chat_scroll_direction,
-    chat_secondary_muted_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
+    eye_icon_svg_style, icon_svg, simplified_block_style, simplified_code_block_style,
+    truncate_chars, truncate_lines_middle,
 };
 
 pub(super) fn is_advanced_surface_tool(tool_name: &str) -> bool {
@@ -39,6 +41,124 @@ fn string_from_map(map: Option<&Map<String, Value>>, key: &str) -> Option<String
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToString::to_string)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AgentToolCardState {
+    Running,
+    Waiting,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+fn agent_tool_card_state(status: &str) -> AgentToolCardState {
+    match status {
+        "running" => AgentToolCardState::Running,
+        "waiting" => AgentToolCardState::Waiting,
+        "error" | "failed" | "denied" => AgentToolCardState::Failed,
+        "cancelled" => AgentToolCardState::Cancelled,
+        _ => AgentToolCardState::Completed,
+    }
+}
+
+fn agent_tool_status_label(state: AgentToolCardState) -> &'static str {
+    match state {
+        AgentToolCardState::Running => "运行中",
+        AgentToolCardState::Waiting => "等待中",
+        AgentToolCardState::Completed => "完成",
+        AgentToolCardState::Failed => "失败",
+        AgentToolCardState::Cancelled => "已取消",
+    }
+}
+
+fn agent_tool_status_badge_style(
+    theme: &Theme,
+    state: AgentToolCardState,
+) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let color = match state {
+        AgentToolCardState::Running => palette.primary.base.color,
+        AgentToolCardState::Waiting => palette.secondary.base.color,
+        AgentToolCardState::Completed => palette.success.base.color,
+        AgentToolCardState::Failed => palette.danger.base.color,
+        AgentToolCardState::Cancelled => palette.secondary.base.color,
+    };
+    iced::widget::container::Style {
+        background: Some(Background::Color(color.scale_alpha(0.10))),
+        border: Border { width: 1.0, color: color.scale_alpha(0.24), radius: 999.0.into() },
+        text_color: Some(color),
+        ..Default::default()
+    }
+}
+
+fn session_id_from_object(object: Option<&Map<String, Value>>) -> Option<String> {
+    object.and_then(|object| {
+        ["child_session_id", "session_id"]
+            .into_iter()
+            .find_map(|key| string_from_map(Some(object), key))
+    })
+}
+
+pub(super) fn agent_tool_session_id(value: &Value) -> Option<String> {
+    if let Some(session_id) =
+        session_id_from_object(value.get("metadata").and_then(Value::as_object))
+            .or_else(|| session_id_from_object(tool_render_hint_metadata(value)))
+            .or_else(|| session_id_from_object(tool_result_data(value).and_then(Value::as_object)))
+    {
+        return Some(session_id);
+    }
+
+    [
+        value.get("output").and_then(Value::as_str),
+        tool_result_data(value).and_then(|data| data.get("output")).and_then(Value::as_str),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(|raw| serde_json::from_str::<Value>(raw.trim()).ok())
+    .find_map(|payload| session_id_from_object(payload.as_object()))
+}
+
+pub(super) fn agent_tool_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
+    Message::Chat(message::ChatMessage::OpenToolDetail(msg_idx, tool_idx, visible.to_string()))
+}
+
+pub(super) fn agent_tool_primary_message(
+    project_path: Option<&str>,
+    value: &Value,
+    msg_idx: usize,
+    tool_idx: usize,
+    visible: &str,
+) -> Message {
+    if let Some(project_path) =
+        project_path.map(str::trim).filter(|project_path| !project_path.is_empty())
+        && let Some(session_id) = agent_tool_session_id(value)
+    {
+        return Message::Chat(message::ChatMessage::OpenAgentSession {
+            project_path: project_path.to_string(),
+            session_id,
+        });
+    }
+
+    agent_tool_detail_message(msg_idx, tool_idx, visible)
+}
+
+fn agent_tool_icon_button<'a>(
+    icon: Icon,
+    label: &'static str,
+    message: Message,
+) -> Element<'a, Message> {
+    let button = button(
+        icon_svg(icon)
+            .width(Length::Fixed(11.0))
+            .height(Length::Fixed(11.0))
+            .style(eye_icon_svg_style),
+    )
+    .padding([2, 4])
+    .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
+    .on_press(message);
+
+    Tooltip::new(button, copy_tooltip_content(label), TooltipPosition::Top).gap(6).into()
 }
 
 pub(super) fn nested_string<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
@@ -353,6 +473,11 @@ pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Opt
     serde_json::to_string_pretty(result).ok()
 }
 
+pub(super) fn compact_browser_success_summary(text: &str) -> String {
+    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    truncate_chars(&compact, 120).to_string()
+}
+
 /// 执行 tool_advanced_view 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
@@ -371,14 +496,16 @@ pub fn tool_advanced_view<'a>(
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let explicit_spec = explicit_advanced_tool_surface_spec(tool_name);
     let status = tool_status(&value);
-    let is_error = matches!(status, "error" | "denied");
-    let is_running = status == "running";
+    let is_error = matches!(status, "error" | "failed" | "denied");
+    let is_running = matches!(status, "running" | "waiting");
     let output = tool_output_text(&value).unwrap_or_default();
     let output = output.trim();
     let body_text = if is_error {
         tool_permission_error_text(tool_name, &value)
             .or_else(|| tool_error_text(&value))
             .unwrap_or_default()
+    } else if matches!(tool_name, "browser" | "browser_open" | "open_browser_page") {
+        advanced_success_body(tool_name, output, &value)
     } else if !output.is_empty() {
         advanced_success_body(tool_name, output, &value)
     } else {
@@ -397,21 +524,27 @@ pub fn tool_advanced_view<'a>(
     } else {
         base_title.clone()
     };
-    let summary = advanced_summary(tool_name, &value);
+    let mut summary = advanced_summary(tool_name, &value);
     let metadata_text = advanced_metadata_text(tool_name, &value, explicit_spec);
+    let collapse_success_body =
+        matches!(tool_name, "browser" | "browser_open" | "open_browser_page")
+            && !is_running
+            && !is_error;
+    if collapse_success_body && summary.trim().is_empty() && !body_text.is_empty() {
+        summary = compact_browser_success_summary(&body_text);
+    }
+    if collapse_success_body && summary.trim().is_empty() {
+        summary = if metadata_text.trim().is_empty() {
+            "查看详情".to_string()
+        } else {
+            truncate_chars(metadata_text.trim(), 80).to_string()
+        };
+    }
 
     if !is_running && summary.trim().is_empty() && body_text.is_empty() && metadata_text.is_empty()
     {
         return None;
     }
-
-    let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
-    let is_hovered = app.chat_tool_hovered_idx == Some(key);
-    let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
-    let context_menu_open = app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
-    let context_text = selected_chat_text_for_target(app, context_key)
-        .unwrap_or_else(|| if body_text.is_empty() { summary.clone() } else { body_text.clone() });
 
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
@@ -426,6 +559,116 @@ pub fn tool_advanced_view<'a>(
         tool_idx,
         visible.to_string(),
     )));
+
+    if matches!(tool_name, "AgentTool" | "Agent") {
+        let state = agent_tool_card_state(status);
+        let agent_is_error = matches!(state, AgentToolCardState::Failed);
+        if summary.trim().is_empty() && !body_text.is_empty() {
+            summary = truncate_chars(body_text.as_str(), 80).to_string();
+        }
+        if summary.trim().is_empty() {
+            summary = match state {
+                AgentToolCardState::Running => "子代理正在执行".to_string(),
+                AgentToolCardState::Waiting => "正在等待子代理".to_string(),
+                AgentToolCardState::Completed => "子代理执行完成".to_string(),
+                AgentToolCardState::Failed => "子代理执行失败".to_string(),
+                AgentToolCardState::Cancelled => "子代理已取消".to_string(),
+            };
+        }
+
+        let primary_message = agent_tool_primary_message(
+            app.project_path.as_deref(),
+            &value,
+            msg_idx,
+            tool_idx,
+            visible,
+        );
+        let detail_message = agent_tool_detail_message(msg_idx, tool_idx, visible);
+        let open_session_button = matches!(
+            &primary_message,
+            Message::Chat(message::ChatMessage::OpenAgentSession { .. })
+        )
+        .then(|| agent_tool_icon_button(Icon::ChatTextFill, "打开子会话", primary_message.clone()));
+
+        let mut actions = row![].spacing(4).align_y(Alignment::Center);
+        if let Some(open_session_button) = open_session_button {
+            actions = actions.push(open_session_button);
+        }
+        actions = actions.push(detail_btn);
+
+        let card: Element<'a, Message> = mouse_area(
+            container(
+                row![
+                    tool_header_title(tool_name, base_title, agent_is_error),
+                    container(text(agent_tool_status_label(state)).size(12))
+                        .padding([2, 8])
+                        .style(move |theme: &Theme| agent_tool_status_badge_style(theme, state)),
+                    text(summary).size(13).style(move |theme: &Theme| {
+                        iced::widget::text::Style {
+                            color: Some(if agent_is_error {
+                                theme.extended_palette().danger.base.color
+                            } else {
+                                chat_secondary_muted_text_color(theme)
+                            }),
+                        }
+                    }),
+                    container(Space::new()).width(Length::Fill),
+                    actions,
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+            )
+            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+            .width(Length::Fill),
+        )
+        .on_press(primary_message)
+        .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
+        .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+        .into();
+
+        return Some(
+            RightClickArea::new(card, Box::new(move |_| detail_message.clone()))
+                .preserve_on_right_click()
+                .into(),
+        );
+    }
+
+    // 浏览器成功态：单行摘要 + 右侧详情入口，完整结果进弹窗（对齐 skill/mcp/tool_search）。
+    if collapse_success_body {
+        let summary_text = text(truncate_chars(summary.trim(), 80)).size(13).style(
+            |theme: &Theme| iced::widget::text::Style {
+                color: Some(chat_secondary_muted_text_color(theme)),
+            },
+        );
+        return Some(
+            mouse_area(
+                container(
+                    row![
+                        tool_header_title(tool_name, title, is_error),
+                        summary_text,
+                        container(Space::new()).width(Length::Fill),
+                        detail_btn,
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+                .width(Length::Fill),
+            )
+            .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
+            .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+            .into(),
+        );
+    }
+
+    let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
+    let is_hovered = app.chat_tool_hovered_idx == Some(key);
+    let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
+    let context_menu_open = app.chat_context_menu_target == Some(context_key);
+    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
+    let context_text = selected_chat_text_for_target(app, context_key)
+        .unwrap_or_else(|| if body_text.is_empty() { summary.clone() } else { body_text.clone() });
+
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
 

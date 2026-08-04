@@ -247,6 +247,56 @@ fn commit_selected_rejects_blank_message_without_starting_commit() {
 }
 
 #[test]
+fn commit_all_reuses_commit_validation() {
+    let (mut app, _task) = crate::app::App::new();
+    app.git_commit_message = "   ".to_string();
+    app.git_commit_description.clear();
+    app.git_commit_type = None;
+
+    let _task = super::stage_commit::update(&mut app, GitMessage::CommitAll);
+
+    assert!(!app.git_commit_in_progress);
+    assert_eq!(app.error_message.as_deref(), Some("提交消息不能为空"));
+}
+
+#[test]
+fn stage_all_requires_project_context_and_reports_finished_states() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = None;
+    app.active_session_id = None;
+    app.selected_git_worktree_directory = None;
+
+    let _task = super::stage_commit::update(&mut app, GitMessage::StageAll);
+    assert!(!app.git_commit_in_progress);
+    assert_eq!(app.error_message.as_deref(), Some("未找到项目路径，无法通过网关暂存"));
+
+    app.project_path = Some("/repo".to_string());
+    app.error_message = None;
+    let task = super::stage_commit::update(&mut app, GitMessage::StageAll);
+    assert!(app.git_commit_in_progress);
+    assert!(task.units() > 0);
+
+    let _task = super::stage_commit::update(&mut app, GitMessage::StageAllFinished(Ok(())));
+    assert!(!app.git_commit_in_progress);
+    assert_eq!(
+        app.notifications.last().map(|notification| notification.message.as_str()),
+        Some("暂存完成")
+    );
+
+    app.git_commit_in_progress = true;
+    let _task = super::stage_commit::update(
+        &mut app,
+        GitMessage::StageAllFinished(Err("failed".to_string())),
+    );
+    assert!(!app.git_commit_in_progress);
+    assert_eq!(app.error_message.as_deref(), Some("failed"));
+    assert_eq!(
+        app.notifications.last().map(|notification| notification.message.as_str()),
+        Some("暂存失败: failed")
+    );
+}
+
+#[test]
 fn commit_selected_while_in_progress_preserves_existing_state() {
     let (mut app, _task) = crate::app::App::new();
     app.git_commit_in_progress = true;

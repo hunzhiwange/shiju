@@ -457,10 +457,11 @@ fn mark_open_skills_synced(repo_dir: &Path) -> anyhow::Result<()> {
 pub(crate) fn load_open_skills(
     repo_dir: &Path,
     load_mode: SkillLoadMode,
+    security: &vw_config_types::skills::SkillSecurityConfig,
 ) -> Vec<crate::app::agent::skills::types::Skill> {
     let nested_skills_dir = repo_dir.join("skills");
     if nested_skills_dir.is_dir() {
-        return load_skills_from_directory(&nested_skills_dir, load_mode);
+        return load_skills_from_directory(&nested_skills_dir, load_mode, security);
     }
 
     let mut skills = Vec::new();
@@ -491,7 +492,9 @@ pub(crate) fn load_open_skills(
             continue;
         }
 
-        match crate::app::agent::skills::audit::audit_open_skill_markdown(&path, repo_dir) {
+        match crate::app::agent::skills::audit::audit_open_skill_markdown_with_security(
+            &path, repo_dir, security,
+        ) {
             Ok(report) if report.is_clean() => {}
             Ok(report) => {
                 tracing::warn!(

@@ -6,6 +6,7 @@
 use super::widgets::{menu_btn, menu_container, menu_item_btn, menu_separator};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::message::view::MenuType;
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::{App, Message, Screen, message};
 use iced::Element;
 use iced::widget::Column;
@@ -139,9 +140,41 @@ pub(super) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
 }
 
 pub(super) fn view_menu_entries(
+    workspace_mode: WorkspaceMode,
     show_file_manager: bool,
     file_manager_show_changes: bool,
 ) -> Vec<MenuEntry> {
+    if workspace_mode == WorkspaceMode::Work {
+        return vec![
+            MenuEntry::item(
+                "切换工作侧栏",
+                None,
+                Message::View(message::ViewMessage::WorkSidebarToggled),
+            ),
+            MenuEntry::item(
+                "概览",
+                None,
+                Message::View(message::ViewMessage::WorkResourceModeSelected(
+                    WorkResourceMode::Overview,
+                )),
+            ),
+            MenuEntry::item(
+                "工作空间文件",
+                None,
+                Message::View(message::ViewMessage::WorkResourceModeSelected(
+                    WorkResourceMode::WorkspaceFiles,
+                )),
+            ),
+            MenuEntry::item(
+                "浏览器",
+                None,
+                Message::View(message::ViewMessage::WorkResourceModeSelected(
+                    WorkResourceMode::Browser,
+                )),
+            ),
+        ];
+    }
+
     let file_manager_panel_toggle_label =
         if show_file_manager { "隐藏右侧面板" } else { "显示右侧面板" };
     let file_manager_mode_toggle_label =
@@ -258,6 +291,7 @@ pub(super) fn edit_menu(app: &App) -> Element<'_, Message> {
 pub(super) fn view_menu(app: &App) -> Element<'_, Message> {
     let view_btn = menu_btn("视图", MenuType::View, app.active_menu);
     let view_content = menu_container(menu_entries(view_menu_entries(
+        app.workspace_mode,
         app.show_file_manager,
         app.file_manager_show_changes,
     )));

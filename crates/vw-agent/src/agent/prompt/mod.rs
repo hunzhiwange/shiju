@@ -42,15 +42,18 @@
 //!     skills_prompt_mode: SkillsPromptInjectionMode::Full,
 //!     identity_config: None,
 //!     dispatcher_instructions: "",
+//!     timezone: chrono_tz::Asia::Shanghai,
 //! };
 //! let prompt = builder.build(&ctx)?;
 //! ```
+
+pub(crate) mod multi_agent;
 
 use crate::app::agent::config::IdentityConfig;
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::Tool;
 use anyhow::Result;
-use chrono::Local;
+use chrono_tz::Tz;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -114,6 +117,8 @@ pub struct PromptContext<'a> {
     pub identity_config: Option<&'a IdentityConfig>,
     /// 分发器指令（非空时启用分发器模式）
     pub dispatcher_instructions: &'a str,
+    /// 已验证的聊天 IANA 时区
+    pub timezone: Tz,
 }
 
 /// 提示词片段 trait
@@ -401,19 +406,28 @@ impl PromptSection for ActionSection {
         // 根据是否使用分发器选择不同的行为指导
         let native_tools = ctx.dispatcher_instructions.is_empty();
 
-        if native_tools {
+        let mut prompt = if native_tools {
             // 原生工具模式：代理直接使用工具，响应更自然
-            Ok("## Your Task\n\n\
+            "## Your Task\n\n\
              When the user sends a message, respond naturally. Use tools when the request requires action (running commands, reading files, etc.).\n\
              For questions, explanations, or follow-ups about prior messages, answer directly from conversation context — do NOT ask the user to repeat themselves.\n\
-             Do NOT: summarize this configuration, describe your capabilities, or output step-by-step meta-commentary.".into())
+             Do NOT: summarize this configuration, describe your capabilities, or output step-by-step meta-commentary."
+                .to_string()
         } else {
             // 分发器模式：代理需要显式发出动作标签
-            Ok("## Your Task\n\n\
+            "## Your Task\n\n\
              When the user sends a message, ACT on it. Use the tools to fulfill their request.\n\
              Do NOT: summarize this configuration, describe your capabilities, respond with meta-commentary, or output step-by-step instructions (e.g. \"1. First... 2. Next...\").\n\
-             Instead: emit actual <tool_call> tags when you need to act. Just do what they ask.".into())
+             Instead: emit actual <tool_call> tags when you need to act. Just do what they ask."
+                .to_string()
+        };
+
+        if ctx.tools.iter().any(|tool| tool.name().eq_ignore_ascii_case("AgentTool")) {
+            prompt.push_str("\n\n");
+            prompt.push_str(multi_agent::recursive_orchestration_policy());
         }
+
+        Ok(prompt)
     }
 }
 
@@ -546,16 +560,9 @@ impl PromptSection for DateTimeSection {
         "datetime"
     }
 
-    fn build(&self, _ctx: &PromptContext<'_>) -> Result<String> {
-        // 获取当前本地时间
-        let now = Local::now();
-
-        // 格式化：日期时间（时区）
-        Ok(format!(
-            "## Current Date & Time\n\n{} ({})",
-            now.format("%Y-%m-%d %H:%M:%S"),
-            now.format("%Z")
-        ))
+    fn build(&self, ctx: &PromptContext<'_>) -> Result<String> {
+        let now = crate::app::agent::util::locale::configured_datetime(ctx.timezone);
+        Ok(format!("## Current Date & Time\n\n{now}"))
     }
 }
 

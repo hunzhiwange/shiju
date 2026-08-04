@@ -166,6 +166,7 @@ where
                 overlay: &mut self.overlay,
                 tree: children.next().unwrap(),
                 on_close: self.on_close.clone(),
+                block_background_events: self.block_background_events,
             })))
         } else {
             None

@@ -1,11 +1,13 @@
 use ratatui::text::Line;
 
 use super::TuiTheme;
-use super::message_row::render_transcript_item_lines;
+use super::message_row::{
+    render_transcript_item_lines, render_transcript_item_lines_with_options,
+};
 use crate::cli::tui_v2::model::{
     UiAssistantMessage, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiStep, UiStepState,
-    UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiTokenUsage, UiToolCall,
-    UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiTokenUsage,
+    UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
 };
 use crate::cli::tui_v2::state::selectors::{
     TuiAssistantTurnGroup, TuiCollapsedExploreResults, TuiCollapsedToolCount, TuiExploreToolKind,
@@ -24,7 +26,7 @@ fn render_standalone_user_system_tool_result_and_error_messages() {
             })),
             theme,
         )),
-        vec!["你 hello", "   world"]
+        vec!["❯ hello", "  world"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -35,7 +37,7 @@ fn render_standalone_user_system_tool_result_and_error_messages() {
             })),
             theme,
         )),
-        vec!["系统 warn"]
+        vec!["● warn"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -59,7 +61,7 @@ fn render_standalone_user_system_tool_result_and_error_messages() {
             })),
             theme,
         )),
-        vec!["错误 boom"]
+        vec!["● boom"]
     );
 }
 
@@ -78,7 +80,7 @@ fn render_standalone_assistant_tool_call_step_and_thinking_messages() {
             })),
             theme,
         )),
-        vec!["助手 answer", "   输出中 · 2 步"]
+        vec!["● answer"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -92,7 +94,7 @@ fn render_standalone_assistant_tool_call_step_and_thinking_messages() {
             })),
             theme,
         )),
-        vec!["工具 search · Complete", "   found matches"]
+        vec!["✓ search (found matches) · completed"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -118,10 +120,11 @@ fn render_standalone_assistant_tool_call_step_and_thinking_messages() {
                 content: "internal".to_string(),
                 timing: Vec::new(),
                 collapsed: true,
+                phase: UiThinkingPhase::Closed,
             })),
             theme,
         )),
-        vec!["思考 internal"]
+        vec!["∴ Thinking (Ctrl+O to expand)"]
     );
 }
 
@@ -141,6 +144,7 @@ fn render_assistant_turn_includes_preface_and_children_with_blank_separators() {
         content: "hidden".to_string(),
         timing: Vec::new(),
         collapsed: false,
+        phase: UiThinkingPhase::Closed,
     };
     let step = UiStep {
         base: base("step"),
@@ -171,14 +175,13 @@ fn render_assistant_turn_includes_preface_and_children_with_blank_separators() {
     assert_eq!(
         line_texts(render_transcript_item_lines(&item, TuiTheme::default())),
         vec![
-            "前置思考 summary",
+            "∴ Thinking (Ctrl+O to expand)",
             "",
             "子项步骤 #1 Running · 进行中",
             "",
             "子项结果 stderr",
             "",
-            "助手 final",
-            "   完成 · 1 步",
+            "● final",
         ]
     );
 }
@@ -195,7 +198,7 @@ fn render_standalone_messages_cover_empty_text_levels_and_filtered_tool_summary(
             })),
             theme,
         )),
-        vec!["你 "]
+        Vec::<String>::new()
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -206,7 +209,7 @@ fn render_standalone_messages_cover_empty_text_levels_and_filtered_tool_summary(
             })),
             theme,
         )),
-        vec!["系统 info"]
+        Vec::<String>::new()
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -217,7 +220,7 @@ fn render_standalone_messages_cover_empty_text_levels_and_filtered_tool_summary(
             })),
             theme,
         )),
-        vec!["系统 ok"]
+        vec!["✓ ok"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -231,7 +234,7 @@ fn render_standalone_messages_cover_empty_text_levels_and_filtered_tool_summary(
             })),
             theme,
         )),
-        vec!["工具 grep · Running"]
+        vec!["◐ Search · running"]
     );
     assert_eq!(
         line_texts(render_transcript_item_lines(
@@ -241,15 +244,16 @@ fn render_standalone_messages_cover_empty_text_levels_and_filtered_tool_summary(
                 content: "hidden".to_string(),
                 timing: Vec::new(),
                 collapsed: false,
+                phase: UiThinkingPhase::Closed,
             })),
             theme,
         )),
-        vec!["思考 visible"]
+        vec!["∴ Thinking (Ctrl+O to expand)"]
     );
 }
 
 #[test]
-fn render_assistant_terminal_labels_cover_all_states_without_step_suffix() {
+fn render_assistant_terminal_labels_only_appear_in_verbose_mode() {
     let cases = [
         (UiTurnTerminal::Pending, "待命"),
         (UiTurnTerminal::Cancelled { reason: Some("user".to_string()) }, "已取消"),
@@ -259,7 +263,7 @@ fn render_assistant_terminal_labels_cover_all_states_without_step_suffix() {
 
     for (terminal, label) in cases {
         assert_eq!(
-            line_texts(render_transcript_item_lines(
+            line_texts(render_transcript_item_lines_with_options(
                 &TuiTranscriptItem::Standalone(&UiMessage::Assistant(UiAssistantMessage {
                     base: base(label),
                     text: "answer".to_string(),
@@ -269,8 +273,10 @@ fn render_assistant_terminal_labels_cover_all_states_without_step_suffix() {
                     model: None,
                 })),
                 TuiTheme::default(),
+                80,
+                true,
             )),
-            vec!["助手 answer".to_string(), format!("   {label}")]
+            vec!["● answer".to_string(), format!("  {label}")]
         );
     }
 }
@@ -300,7 +306,12 @@ fn render_assistant_turn_tool_and_collapsed_entries() {
         content: "file".to_string(),
         is_error: false,
     };
-    let tool_group = TuiToolCallGroup { call: &call, results: vec![&result] };
+    let tool_group = TuiToolCallGroup {
+        call: &call,
+        results: vec![&result],
+        progress: Vec::new(),
+        notices: Vec::new(),
+    };
     let collapsed = TuiCollapsedExploreResults {
         summary: "explore results: read x1, grep x1".to_string(),
         tool_counts: vec![
@@ -309,6 +320,8 @@ fn render_assistant_turn_tool_and_collapsed_entries() {
         ],
         calls: Vec::new(),
         total_results: 2,
+        total_progress: 0,
+        notice_count: 0,
     };
     let item = TuiTranscriptItem::AssistantTurn(TuiAssistantTurnGroup {
         assistant: &assistant,
@@ -322,12 +335,11 @@ fn render_assistant_turn_tool_and_collapsed_entries() {
     assert_eq!(
         line_texts(render_transcript_item_lines(&item, TuiTheme::default())),
         vec![
-            "子项工具 read · Complete · 1 条结果",
+            "✓ Read · completed",
             "",
             "子项工具组 explore results: read x1, grep x1 · 2 条结果",
             "",
-            "助手 done",
-            "   待命",
+            "● done",
         ]
     );
 }
@@ -350,7 +362,7 @@ fn render_assistant_turn_without_entries_has_no_leading_separator() {
 
     assert_eq!(
         line_texts(render_transcript_item_lines(&item, TuiTheme::default())),
-        vec!["助手 solo", "   完成"]
+        vec!["● solo"]
     );
 }
 

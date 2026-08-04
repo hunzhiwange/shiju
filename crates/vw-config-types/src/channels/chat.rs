@@ -119,6 +119,9 @@ pub struct ChannelsConfig {
     pub imessage: Option<IMessageConfig>,
     /// Matrix 通道配置。
     pub matrix: Option<MatrixConfig>,
+    /// 是否启用 Matrix 通道及其命名实例。
+    #[serde(default)]
+    pub matrix_enabled: bool,
     /// 命名 Matrix 通道实例配置。
     #[serde(default)]
     pub matrix_instances: Vec<MatrixInstanceConfig>,
@@ -173,6 +176,7 @@ impl Default for ChannelsConfig {
             webhook: None,
             imessage: None,
             matrix: None,
+            matrix_enabled: false,
             matrix_instances: Vec::new(),
             signal: None,
             whatsapp: None,
@@ -203,12 +207,14 @@ impl ChannelsConfig {
     ) -> Result<Vec<ChannelInstanceProfile>, ChannelInstanceProfileError> {
         let mut profiles = Vec::new();
 
-        push_instance_profiles(
-            &mut profiles,
-            "matrix",
-            self.matrix.is_some(),
-            self.matrix_instances.iter().map(|instance| instance.id.as_str()),
-        )?;
+        if self.matrix_enabled {
+            push_instance_profiles(
+                &mut profiles,
+                "matrix",
+                self.matrix.is_some(),
+                self.matrix_instances.iter().map(|instance| instance.id.as_str()),
+            )?;
+        }
         push_instance_profiles(
             &mut profiles,
             "feishu",

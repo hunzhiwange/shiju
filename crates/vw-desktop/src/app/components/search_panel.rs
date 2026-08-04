@@ -20,7 +20,9 @@
 //! let search_ui = search_panel::view(&app);
 //! ```
 
-use iced::widget::{Space, button, column, container, mouse_area, opaque, row, scrollable, stack};
+use iced::widget::{
+    Id, Space, button, column, container, mouse_area, opaque, row, scrollable, stack,
+};
 use iced::widget::{text, text_input};
 use iced::{Background, Color, Element, Length, Theme};
 
@@ -28,6 +30,10 @@ use crate::app::{App, Message, message};
 
 const SEARCH_PANEL_SCROLLBAR_WIDTH: f32 = 4.0;
 const SEARCH_PANEL_SCROLLBAR_GUTTER: f32 = 12.0;
+
+pub(crate) fn input_id() -> Id {
+    Id::new("global_search_input")
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct SessionSearchMatch {
@@ -111,6 +117,7 @@ pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatc
 pub fn overlay(app: &App) -> Element<'_, Message> {
     let close = Message::Search(message::SearchMessage::Toggle(false));
     let input = text_input("搜索文件 / 项目 / 历史会话", &app.search_text)
+        .id(input_id())
         .on_input(|value| Message::Search(message::SearchMessage::InputChanged(value)))
         .padding([8, 10])
         .size(14)

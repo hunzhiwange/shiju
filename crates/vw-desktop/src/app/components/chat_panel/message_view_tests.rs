@@ -712,6 +712,7 @@ fn message_view_builds_user_message_with_metadata_and_attachment() {
         ChatRole::User,
         content,
         &[],
+        None,
         Some(Cow::Borrowed("You · now")),
         &cache,
         true,
@@ -726,7 +727,17 @@ fn message_view_builds_assistant_special_blocks_without_metadata() {
     let content = "<think>inspect</think>\ntool read\n{\"status\":\"completed\",\"input\":\"{\\\"filePath\\\":\\\"src/lib.rs\\\"}\"}\nanswer";
     let cache = ChatRenderCacheEntry::default();
 
-    let view = message_view(&app, 0, ChatRole::Assistant, content, &[], None, &cache, false);
+    let view = message_view(
+        &app,
+        0,
+        ChatRole::Assistant,
+        content,
+        &[],
+        None,
+        None,
+        &cache,
+        false,
+    );
 
     std::hint::black_box(view);
 }
@@ -743,6 +754,7 @@ fn message_view_builds_tool_role_with_metadata() {
         ChatRole::Tool,
         content,
         &[],
+        None,
         Some(Cow::Borrowed("Tool")),
         &cache,
         true,

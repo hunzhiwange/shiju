@@ -10,6 +10,16 @@ fn extension_helpers_are_case_insensitive() {
 }
 
 #[test]
+fn unsupported_script_detects_shell_shebang() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let script = dir.path().join("run");
+    fs::write(&script, "#!/bin/sh\necho hi\n").unwrap();
+
+    assert!(is_unsupported_script_file(&script));
+    assert!(!is_unsupported_script_file(&dir.path().join("missing")));
+}
+
+#[test]
 fn link_text_helpers_strip_and_classify_targets() {
     assert_eq!(strip_query_and_fragment("docs/readme.md?x=1#top"), "docs/readme.md");
     assert_eq!(url_scheme("https://example.com"), Some("https"));
@@ -22,18 +32,6 @@ fn link_text_helpers_strip_and_classify_targets() {
     assert!(!looks_like_absolute_path("docs/readme.md"));
     assert!(has_markdown_suffix("README.Markdown"));
     assert!(!has_markdown_suffix("README.txt"));
-}
-
-#[test]
-fn unsupported_script_detects_shell_shebang() {
-    let dir = std::env::temp_dir().join(format!("vw-audit-support-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).unwrap();
-    let script = dir.join("run");
-    fs::write(&script, "#!/bin/sh\necho hi\n").unwrap();
-    assert!(is_unsupported_script_file(&script));
-    assert!(!is_unsupported_script_file(&dir.join("missing")));
-    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]

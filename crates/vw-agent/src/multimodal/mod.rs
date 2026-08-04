@@ -10,6 +10,8 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::Client;
 use std::path::Path;
 
+pub mod ocr;
+
 const IMAGE_MARKER_PREFIX: &str = "[IMAGE:";
 const ALLOWED_IMAGE_MIME_TYPES: &[&str] =
     &["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp"];
@@ -64,6 +66,26 @@ pub enum MultimodalError {
     /// 本地图片读取失败。
     #[error("failed to read local image '{input}': {reason}")]
     LocalReadFailed { input: String, reason: String },
+
+    /// OCR 模型引用缺失或不是完整的 `provider/model`。
+    #[error("OCR model reference must use a non-empty provider/model value")]
+    InvalidOcrModelReference,
+
+    /// OCR 模型目录查询失败。
+    #[error("OCR model is unavailable: '{model}'")]
+    OcrModelUnavailable { model: String },
+
+    /// OCR 模型不支持图片输入。
+    #[error("OCR model does not support image input: '{model}'")]
+    OcrModelDoesNotSupportImages { model: String },
+
+    /// OCR 模型返回了空文本。
+    #[error("OCR model returned empty text: '{model}'")]
+    EmptyOcrOutput { model: String },
+
+    /// OCR 模型调用失败。上游错误不进入消息，避免泄露图片或 OCR 原文。
+    #[error("OCR extraction failed for model: '{model}'")]
+    OcrExtractionFailed { model: String },
 }
 
 /// 从消息正文中提取图片标记并返回清理后的文本。
@@ -224,6 +246,58 @@ pub async fn prepare_messages_for_provider(
     }
 
     Ok(PreparedMessages { messages: normalized_messages, contains_images: true })
+}
+
+/// 归一化 OpenAI 兼容 JSON 消息数组中的用户图片标记。
+///
+/// 仅处理 `role=user` 且 `content` 为字符串、并包含 `[IMAGE:...]` 的消息：把本地路径、
+/// 远程 URL 或 data URI 统一为受限 data URI。数组形态的多模态 content、以及非用户消息
+/// 保持原样，避免破坏 tool_calls / image_url parts 等已结构化字段。
+pub async fn prepare_openai_json_messages_for_provider(
+    messages: serde_json::Value,
+    config: &MultimodalConfig,
+) -> anyhow::Result<serde_json::Value> {
+    let serde_json::Value::Array(mut arr) = messages else {
+        return Ok(messages);
+    };
+
+    let mut chat = Vec::new();
+    let mut mapped_indices = Vec::new();
+    for (index, message) in arr.iter().enumerate() {
+        let Some(obj) = message.as_object() else {
+            continue;
+        };
+        if obj.get("role").and_then(serde_json::Value::as_str) != Some("user") {
+            continue;
+        }
+        let Some(content) = obj.get("content").and_then(serde_json::Value::as_str) else {
+            continue;
+        };
+        if parse_image_markers(content).1.is_empty() {
+            continue;
+        }
+        chat.push(ChatMessage::user(content));
+        mapped_indices.push(index);
+    }
+
+    if chat.is_empty() {
+        return Ok(serde_json::Value::Array(arr));
+    }
+
+    let prepared = prepare_messages_for_provider(&chat, config).await?;
+    for (chat_index, &message_index) in mapped_indices.iter().enumerate() {
+        let Some(prepared_message) = prepared.messages.get(chat_index) else {
+            continue;
+        };
+        if let Some(obj) = arr.get_mut(message_index).and_then(serde_json::Value::as_object_mut) {
+            obj.insert(
+                "content".to_string(),
+                serde_json::Value::String(prepared_message.content.clone()),
+            );
+        }
+    }
+
+    Ok(serde_json::Value::Array(arr))
 }
 
 fn compose_multimodal_message(text: &str, data_uris: &[String]) -> String {
@@ -475,6 +549,10 @@ fn mime_from_magic(bytes: &[u8]) -> Option<&'static str> {
 
     None
 }
+
+#[cfg(test)]
+#[path = "ocr_tests.rs"]
+mod ocr_tests;
 
 #[cfg(test)]
 #[path = "tests.rs"]

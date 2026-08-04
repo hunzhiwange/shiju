@@ -180,6 +180,8 @@ pub(crate) struct PluginCatalogItem {
 pub(crate) struct SkillsSettingsState {
     /// 是否启用开放技能
     pub(crate) open_skills_enabled: bool,
+    /// 是否让委托代理默认加载项目及父级技能
+    pub(crate) auto_load_project_skills: bool,
     /// 技能目录提供方
     pub(crate) directory_provider: vw_config_types::skills::SkillsDirectoryProvider,
     /// 开放技能目录路径输入
@@ -228,6 +230,7 @@ impl Default for SkillsSettingsState {
     fn default() -> Self {
         Self {
             open_skills_enabled: false,
+            auto_load_project_skills: true,
             directory_provider: vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
             open_skills_dir_input: String::new(),
             prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode::Compact,
@@ -319,7 +322,7 @@ impl Default for WebSearchSettingsState {
             brave_api_key_input: String::new(),
             max_results_input: "5".to_string(),
             timeout_secs_input: "15".to_string(),
-            user_agent: "VibeWindow/1.0".to_string(),
+            user_agent: vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
             show_help_modal: false,
             save_error: None,
         }
@@ -411,7 +414,7 @@ impl Default for GatewaySettingsState {
     fn default() -> Self {
         Self {
             active_tab: GatewaySettingsTab::Config,
-            port: 42617,
+            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
             host_input: "127.0.0.1".to_string(),
             auth_enabled: false,
             skeys: Vec::new(),
@@ -509,7 +512,7 @@ impl Default for GatewayClientSettingsState {
             selected_server_id: server.id.clone(),
             name_input: server.name.clone(),
             host_input: "127.0.0.1".to_string(),
-            port: 42617,
+            port: vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
             platform_id_input: server.platform_id.clone(),
             company_id_input: server.company_id.clone(),
             servers: vec![server],

@@ -100,6 +100,7 @@ async fn write_matrix_config(config_dir: &std::path::Path, room_id: &str) {
     let mut config = Config::default();
     config.config_path = config_dir.join("vibewindow.json");
     config.workspace_dir = config_dir.join("workspace");
+    config.channels_config.matrix_enabled = true;
     config.channels_config.matrix = Some(MatrixConfig {
         homeserver: "https://matrix.example.test".to_string(),
         access_token: "matrix-token".to_string(),

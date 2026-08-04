@@ -1,5 +1,6 @@
 use super::*;
 use crate::hooks::{HookHandler, HookRunner};
+use crate::multimodal::ocr::ImageTextExtractor;
 use crate::observability::traits::ObserverMetric;
 use crate::providers::traits::{ChatResponse, ProviderCapabilities, TokenUsage};
 use async_trait::async_trait;
@@ -227,6 +228,49 @@ async fn run_llm_round_rejects_image_markers_for_non_vision_provider() {
 }
 
 #[tokio::test]
+async fn run_llm_round_uses_ocr_before_non_vision_provider() {
+    let provider = TestProvider::with_response(ChatResponse {
+        text: Some("ocr accepted".to_string()),
+        tool_calls: Vec::new(),
+        usage: None,
+        reasoning_content: None,
+    });
+    let extractor = StubImageTextExtractor::default();
+    let observer = RecordingObserver::default();
+    let history = vec![ChatMessage::user("inspect [IMAGE:data:image/png;base64,iVBORw0KGgo=]")];
+    let mut config = crate::app::agent::config::MultimodalConfig::default();
+    config.ocr.enabled = true;
+    config.ocr.model = Some("vision/reader".to_string());
+
+    let result = run_llm_round_with_extractor(
+        &provider,
+        &history,
+        &observer,
+        "testcov-provider",
+        "testcov-model",
+        0.2,
+        "testcov-channel",
+        &config,
+        None,
+        None,
+        &[],
+        false,
+        "turn-testcov-0088",
+        0,
+        &extractor,
+    )
+    .await
+    .expect("OCR should prepare text before the non-vision provider call");
+
+    assert_eq!(result.response_text, "ocr accepted");
+    assert_eq!(extractor.calls(), 1);
+    assert_eq!(provider.calls(), 1);
+    let messages = provider.last_messages();
+    assert!(messages.iter().all(|message| !message.content.contains("[IMAGE:")));
+    assert!(messages[0].content.contains("visible OCR text"));
+}
+
+#[tokio::test]
 async fn run_llm_round_fires_llm_input_hook() {
     let provider = TestProvider::with_response(ChatResponse {
         text: Some("hooked response".to_string()),
@@ -362,12 +406,36 @@ struct TestProvider {
     capabilities: ProviderCapabilities,
     calls: Mutex<usize>,
     last_tools_len: Mutex<Option<usize>>,
+    last_messages: Mutex<Vec<ChatMessage>>,
     delay: Option<Duration>,
 }
 
 struct RecordingLlmInputHook {
     calls: Arc<AtomicUsize>,
     models: Arc<Mutex<Vec<String>>>,
+}
+
+#[derive(Default)]
+struct StubImageTextExtractor {
+    calls: AtomicUsize,
+}
+
+impl StubImageTextExtractor {
+    fn calls(&self) -> usize {
+        self.calls.load(Ordering::SeqCst)
+    }
+}
+
+#[async_trait]
+impl ImageTextExtractor for StubImageTextExtractor {
+    async fn supports_image_input(&self, _model_ref: &str) -> Result<bool> {
+        Ok(true)
+    }
+
+    async fn extract_text(&self, _model_ref: &str, _image_data_uri: &str) -> Result<String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok("visible OCR text".to_string())
+    }
 }
 
 #[async_trait]
@@ -406,6 +474,7 @@ impl TestProvider {
             capabilities,
             calls: Mutex::new(0),
             last_tools_len: Mutex::new(None),
+            last_messages: Mutex::new(Vec::new()),
             delay,
         }
     }
@@ -416,6 +485,10 @@ impl TestProvider {
 
     fn last_tools_len(&self) -> Option<usize> {
         *self.last_tools_len.lock().expect("tools lock should not be poisoned")
+    }
+
+    fn last_messages(&self) -> Vec<ChatMessage> {
+        self.last_messages.lock().expect("messages lock should not be poisoned").clone()
     }
 }
 
@@ -448,6 +521,8 @@ impl Provider for TestProvider {
         *self.calls.lock().expect("calls lock should not be poisoned") += 1;
         *self.last_tools_len.lock().expect("tools lock should not be poisoned") =
             request.tools.map(|tools| tools.len());
+        *self.last_messages.lock().expect("messages lock should not be poisoned") =
+            request.messages.to_vec();
 
         self.result
             .lock()

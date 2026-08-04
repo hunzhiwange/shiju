@@ -7,8 +7,9 @@ use crate::app::agent::provider::provider;
 use super::{
     StreamingToolCallState, assistant_text_with_reasoning, merge_tool_call_delta,
     normalize_strict_object_required, openai_message_content_to_text,
-    openai_messages_to_aisdk_messages, should_abort, stop_sequences_from_value,
-    take_next_sse_event, token_usage_from_aisdk_usage, token_usage_from_openai_usage,
+    openai_messages_to_aisdk_messages, openai_user_content_to_aisdk_message, should_abort,
+    stop_sequences_from_value, take_next_sse_event, token_usage_from_aisdk_usage,
+    token_usage_from_openai_usage,
 };
 
 fn test_model(provider_id: &str, model_id: &str, name: &str) -> provider::Model {
@@ -79,6 +80,20 @@ fn user_text(message: &Message) -> Option<String> {
                 .join(""),
         ),
         _ => None,
+    }
+}
+
+fn user_image_urls(message: &Message) -> Vec<String> {
+    match message {
+        Message::User(user) => user
+            .content
+            .iter()
+            .filter_map(|part| match part {
+                UserContentPart::Image(image) => Some(image.image_url.clone()),
+                UserContentPart::Text(_) => None,
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -154,6 +169,73 @@ fn openai_message_content_to_text_accepts_strings_and_text_parts_only() {
 }
 
 #[test]
+fn openai_user_content_to_aisdk_message_keeps_image_markers_and_image_url_parts() {
+    let from_markers = openai_user_content_to_aisdk_message(Some(&json!(
+        "look\n\n[IMAGE:data:image/png;base64,abc]\n[IMAGE:https://example.com/a.png]"
+    )))
+    .expect("markers should convert");
+    assert_eq!(
+        from_markers
+            .content
+            .iter()
+            .filter_map(|part| match part {
+                UserContentPart::Text(text) => Some(text.as_str()),
+                UserContentPart::Image(_) => None,
+            })
+            .collect::<Vec<_>>(),
+        vec!["look"]
+    );
+    assert_eq!(
+        from_markers
+            .content
+            .iter()
+            .filter_map(|part| match part {
+                UserContentPart::Image(image) => Some(image.image_url.as_str()),
+                UserContentPart::Text(_) => None,
+            })
+            .collect::<Vec<_>>(),
+        vec!["data:image/png;base64,abc", "https://example.com/a.png"]
+    );
+
+    let from_parts = openai_user_content_to_aisdk_message(Some(&json!([
+        { "type": "text", "text": "hello" },
+        { "type": "image_url", "image_url": { "url": "https://example.com/a.png" } },
+        { "type": "image", "url": "data:image/jpeg;base64,xyz" }
+    ])))
+    .expect("parts should convert");
+    assert_eq!(user_text(&Message::User(from_parts.clone())).as_deref(), Some("hello"));
+    assert_eq!(
+        user_image_urls(&Message::User(from_parts)),
+        vec!["https://example.com/a.png".to_string(), "data:image/jpeg;base64,xyz".to_string()]
+    );
+}
+
+#[test]
+fn openai_messages_to_aisdk_messages_preserves_user_images() {
+    let model = test_model("openai", "gpt-test", "GPT Test");
+    let messages = json!([
+        {
+            "role": "user",
+            "content": [
+                { "type": "text", "text": "describe" },
+                { "type": "image_url", "image_url": { "url": "https://example.com/a.png" } }
+            ]
+        },
+        {
+            "role": "user",
+            "content": "caption\n\n[IMAGE:data:image/png;base64,abc]"
+        }
+    ]);
+
+    let converted = openai_messages_to_aisdk_messages(&messages, &model).expect("convert");
+    assert_eq!(converted.len(), 2);
+    assert_eq!(user_text(&converted[0]).as_deref(), Some("describe"));
+    assert_eq!(user_image_urls(&converted[0]), vec!["https://example.com/a.png".to_string()]);
+    assert_eq!(user_text(&converted[1]).as_deref(), Some("caption"));
+    assert_eq!(user_image_urls(&converted[1]), vec!["data:image/png;base64,abc".to_string()]);
+}
+
+#[test]
 fn assistant_text_with_reasoning_combines_content_and_reasoning_labels() {
     let empty = serde_json::Map::new();
     assert_eq!(assistant_text_with_reasoning(&empty), "");
@@ -215,11 +297,16 @@ fn openai_messages_to_aisdk_messages_converts_roles_and_tool_chain() {
 
     let converted = openai_messages_to_aisdk_messages(&messages, &model).expect("convert");
 
-    assert_eq!(converted.len(), 7);
+    assert_eq!(converted.len(), 6);
     assert!(matches!(&converted[0], Message::System(system) if system.content == "system text"));
     assert_eq!(user_text(&converted[1]).as_deref(), Some("hello there"));
     assert!(matches!(
         &converted[2],
+        Message::Assistant(assistant)
+            if matches!(&assistant.content, LanguageModelResponseContentType::Text(text) if text == "assistant text")
+    ));
+    assert!(matches!(
+        &converted[3],
         Message::Assistant(assistant)
             if matches!(
                 &assistant.content,
@@ -230,29 +317,85 @@ fn openai_messages_to_aisdk_messages_converts_roles_and_tool_chain() {
             )
     ));
     assert!(matches!(
-        &converted[3],
-        Message::Assistant(assistant)
-            if matches!(
-                &assistant.content,
-                LanguageModelResponseContentType::ToolCall(info)
-                    if info.tool.id.is_empty()
-                        && info.tool.name.is_empty()
-                        && info.input == json!({})
-            )
-    ));
-    assert!(matches!(
         &converted[4],
-        Message::Assistant(assistant)
-            if matches!(&assistant.content, LanguageModelResponseContentType::Text(text) if text == "assistant text")
-    ));
-    assert!(matches!(
-        &converted[5],
         Message::Tool(result)
             if result.tool.id == "call-1"
                 && result.tool.name == "lookup"
                 && result.output.as_ref().ok() == Some(&json!({ "ok": true }))
     ));
-    assert!(matches!(&converted[6], Message::Developer(text) if text == "developer text"));
+    assert!(matches!(&converted[5], Message::Developer(text) if text == "developer text"));
+}
+
+#[test]
+fn openai_messages_to_aisdk_messages_interleaves_tool_results_for_strict_providers() {
+    let model = test_model("moonshotai-cn", "kimi-k3", "Kimi K3");
+    let messages = json!([
+        {
+            "role": "assistant",
+            "content": "先检查再修改",
+            "tool_calls": [
+                {
+                    "id": "bash:0",
+                    "type": "function",
+                    "function": {
+                        "name": "bash",
+                        "arguments": "{\"command\":\"pwd\"}"
+                    }
+                },
+                {
+                    "id": "write:1",
+                    "type": "function",
+                    "function": {
+                        "name": "write",
+                        "arguments": "{\"path\":\"tasks.json\"}"
+                    }
+                }
+            ]
+        },
+        { "role": "tool", "tool_call_id": "bash:0", "content": "{\"ok\":true}" },
+        { "role": "tool", "tool_call_id": "write:1", "content": "{\"ok\":true}" }
+    ]);
+
+    let converted = openai_messages_to_aisdk_messages(&messages, &model).expect("convert");
+
+    assert_eq!(converted.len(), 5);
+    assert!(matches!(
+        &converted[0],
+        Message::Assistant(assistant)
+            if matches!(
+                &assistant.content,
+                LanguageModelResponseContentType::Text(text)
+                    if text == "先检查再修改"
+            )
+    ));
+    assert!(matches!(
+        &converted[1],
+        Message::Assistant(assistant)
+            if matches!(
+                &assistant.content,
+                LanguageModelResponseContentType::ToolCall(info)
+                    if info.tool.id == "bash:0" && info.tool.name == "bash"
+            )
+    ));
+    assert!(matches!(
+        &converted[2],
+        Message::Tool(result)
+            if result.tool.id == "bash:0" && result.tool.name == "bash"
+    ));
+    assert!(matches!(
+        &converted[3],
+        Message::Assistant(assistant)
+            if matches!(
+                &assistant.content,
+                LanguageModelResponseContentType::ToolCall(info)
+                    if info.tool.id == "write:1" && info.tool.name == "write"
+            )
+    ));
+    assert!(matches!(
+        &converted[4],
+        Message::Tool(result)
+            if result.tool.id == "write:1" && result.tool.name == "write"
+    ));
 }
 
 #[test]

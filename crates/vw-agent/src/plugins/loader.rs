@@ -162,7 +162,7 @@ fn plugin_roots(source_dir: &Path) -> Result<Vec<PathBuf>> {
                 format!("failed to inspect plugin source entry: {}", entry.path().display())
             })?
             .is_dir()
-            && entry.path().join(".codex-plugin/plugin.json").is_file()
+            && entry.path().join(".vibewindow-plugin/plugin.json").is_file()
         {
             roots.push(entry.path());
         }

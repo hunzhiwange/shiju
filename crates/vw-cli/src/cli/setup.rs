@@ -211,7 +211,7 @@ pub(super) fn build_tool_descriptions(
     if has_agent_tool {
         tool_descs.push((
             "AgentTool",
-            "Launch a specialized agent through a single unified interface. Use it for synchronous sub-agent execution or background agent sessions, and use action=list/get/stop to inspect or control running sessions.",
+            "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Continue useful parent work after launch, then verify and synthesize required results before answering.",
         ));
     }
 
@@ -312,7 +312,11 @@ pub(crate) fn setup_cli(
         Arc::from(runtime::create_runtime(&config.runtime)?);
 
     // 从配置构建安全策略，定义代理的行为边界
-    let security = Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+    let security = Arc::new(SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        &config.workspace_dir,
+    ));
 
     // ========================================
     // 第二步：初始化内存系统
@@ -428,6 +432,8 @@ pub(crate) fn setup_cli(
 
     // 检查 Provider 是否支持原生工具调用
     let native_tools = provider.supports_native_tools();
+    let timezone =
+        vw_agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
 
     // 构建基础系统提示词
     let mut system_prompt = crate::app::agent::channels::build_system_prompt_with_mode(
@@ -439,6 +445,7 @@ pub(crate) fn setup_cli(
         bootstrap_max_chars,
         native_tools,
         config.skills.prompt_injection_mode,
+        timezone,
     );
 
     // 如果 Provider 不支持原生工具，添加工具使用说明

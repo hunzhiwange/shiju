@@ -94,7 +94,7 @@ pub(crate) async fn load_config_from_toml_path(
         resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
         apply_env_overrides(&mut config);
         validate_config(&config)?;
-        tracing::info!(
+        tracing::debug!(
             path = %config.config_path.display(),
             workspace = %config.workspace_dir.display(),
             source = resolution_source.as_str(),
@@ -144,7 +144,7 @@ fn log_loaded_config(
     resolution_source: ConfigResolutionSource,
     initialized: bool,
 ) {
-    tracing::info!(
+    tracing::debug!(
         path = %config.config_path.display(),
         workspace = %config.workspace_dir.display(),
         source = resolution_source.as_str(),

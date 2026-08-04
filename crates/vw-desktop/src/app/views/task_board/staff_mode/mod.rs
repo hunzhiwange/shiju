@@ -26,6 +26,7 @@ pub(super) fn build_staff_mode_view(app: &App) -> Element<'_, Message> {
             projection,
             &app.task_board_staff_config,
             load_error,
+            &app.task_board_staff_task_status_filter,
             Length::Fill,
             Length::Fixed(220.0),
         );
@@ -53,6 +54,7 @@ pub(super) fn build_staff_mode_view(app: &App) -> Element<'_, Message> {
             projection,
             &app.task_board_staff_config,
             load_error,
+            &app.task_board_staff_task_status_filter,
             Length::Fixed(LANE_WIDTH),
             Length::Fixed(360.0),
         );
@@ -85,6 +87,7 @@ pub(super) fn build_staff_mode_view(app: &App) -> Element<'_, Message> {
         projection,
         &app.task_board_staff_config,
         load_error,
+        &app.task_board_staff_task_status_filter,
         Length::Fixed(LANE_WIDTH),
         Length::Fill,
     );

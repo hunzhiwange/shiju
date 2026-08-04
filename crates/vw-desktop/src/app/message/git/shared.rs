@@ -67,7 +67,10 @@ pub(super) fn git_context_path_for_app(app: &App) -> Option<String> {
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
-pub(super) fn build_selected_commit_request(app: &App) -> Result<SelectedCommitRequest, String> {
+fn build_commit_request(
+    app: &App,
+    stage_all: bool,
+) -> Result<SelectedCommitRequest, String> {
     let summary = app.git_commit_message.trim().to_string();
     let body = app.git_commit_description.trim().to_string();
     let subject = if let Some(commit_type) = app.git_commit_type {
@@ -92,11 +95,20 @@ pub(super) fn build_selected_commit_request(app: &App) -> Result<SelectedCommitR
 
     Ok(SelectedCommitRequest {
         message,
+        stage_all,
         selected_files: app.staged_files_selected.clone(),
         selected_hunks: app.staged_hunks_selected.clone(),
         selected_lines: app.staged_lines_selected.clone(),
         selected_old_lines: app.staged_old_lines_selected.clone(),
     })
+}
+
+pub(super) fn build_selected_commit_request(app: &App) -> Result<SelectedCommitRequest, String> {
+    build_commit_request(app, false)
+}
+
+pub(super) fn build_all_commit_request(app: &App) -> Result<SelectedCommitRequest, String> {
+    build_commit_request(app, true)
 }
 
 /// reset_commit_form_state 处理当前模块对应的消息或状态转换。
@@ -134,7 +146,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
             project_id: context.project_id,
             worktree_id: context.worktree_id,
             message: request.message,
-            stage_all: false,
+            stage_all: request.stage_all,
             selected_files: request.selected_files,
             selected_hunks: request
                 .selected_hunks
@@ -169,6 +181,26 @@ pub(super) async fn execute_selected_commit_via_gateway(
         return Err("网关返回的提交结果缺少 SHA".to_string());
     }
     Ok(())
+}
+
+pub(super) async fn execute_stage_all_via_gateway(directory: String) -> Result<(), String> {
+    let response = crate::app::gateway_client()?
+        .git_command(&vw_gateway_client::vw_api_types::git::GitCommandRequest {
+            directory,
+            args: vec!["add".to_string(), "--all".to_string()],
+            timeout_secs: Some(30),
+        })
+        .await?;
+    if response.success {
+        Ok(())
+    } else {
+        let error = response.stderr.trim();
+        Err(if error.is_empty() {
+            "网关未确认 Git 暂存成功".to_string()
+        } else {
+            error.to_string()
+        })
+    }
 }
 
 /// text_too_large_for_code_editor 处理当前模块对应的消息或状态转换。
@@ -238,6 +270,9 @@ pub(super) async fn load_git_worktree_options(
     let client = crate::app::gateway_client()?;
     let project =
         crate::app::message::project::helpers::resolve_gateway_project(&project_path).await?;
+    if !project.git.is_repo {
+        return Ok(Vec::new());
+    }
     let mut options = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let project_directory = normalize_path(&project.directory);

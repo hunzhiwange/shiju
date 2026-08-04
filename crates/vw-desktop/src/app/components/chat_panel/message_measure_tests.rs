@@ -117,7 +117,9 @@ fn chat_message(content: &str) -> ChatMessage {
     ChatMessage {
         role: ChatRole::Assistant,
         content: content.to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }
 }
 
@@ -190,6 +192,59 @@ fn chat_message_measure_operation_accumulates_multiple_widgets_in_order() {
             ChatMessageMeasurement { message_idx: 5, y: 48.0, height: 36.0 },
         ]
     );
+}
+
+#[test]
+fn chat_message_draw_skips_non_finite_viewport() {
+    let mut measured =
+        MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
+    let mut tree = widget::Tree::empty();
+    tree.children.push(widget::Tree::empty());
+    let renderer = RecordingRenderer::default();
+    let node =
+        measured.layout(&mut tree, &renderer, &layout::Limits::NONE);
+    let mut renderer = RecordingRenderer::default();
+
+    measured.draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle {
+            y: f32::INFINITY,
+            ..Rectangle::with_size(Size::new(800.0, 600.0))
+        },
+    );
+
+    assert!(renderer.fills.is_empty());
+}
+
+#[test]
+fn chat_message_draw_skips_finite_viewport_outside_text_coordinate_range() {
+    let mut measured =
+        MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
+    let mut tree = widget::Tree::empty();
+    tree.children.push(widget::Tree::empty());
+    let renderer = RecordingRenderer::default();
+    let node = measured.layout(&mut tree, &renderer, &layout::Limits::NONE);
+    let mut renderer = RecordingRenderer::default();
+
+    measured.draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle {
+            y: f32::MAX,
+            ..Rectangle::with_size(Size::new(800.0, 600.0))
+        },
+    );
+
+    assert!(renderer.fills.is_empty());
 }
 
 #[test]

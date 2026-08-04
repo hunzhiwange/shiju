@@ -3,7 +3,7 @@ use super::*;
 use crate::app::models::{ChatMessage, ChatRole};
 
 fn chat_message(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role: ChatRole::User, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn app() -> App {
@@ -46,9 +46,24 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+async fn task_contains_widget_action(task: Task<Message>) -> bool {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task) else {
+        return false;
+    };
+    while let Some(action) = stream.next().await {
+        if matches!(action, iced_runtime::Action::Widget(_)) {
+            return true;
+        }
+    }
+    false
+}
+
 #[test]
-fn input_changed_updates_text_overlay_and_refreshes_cache() {
+fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
     let mut app = app();
+    app.show_search_overlay = true;
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/query.rs".to_string(), "src/other.rs".to_string()]);
 
@@ -60,13 +75,13 @@ fn input_changed_updates_text_overlay_and_refreshes_cache() {
 
     update(&mut app, SearchMessage::InputChanged("   ".to_string()));
     assert_eq!(app.search_text, "   ");
-    assert!(!app.show_search_overlay);
+    assert!(app.show_search_overlay);
     assert!(app.search_panel_file_cache_query.is_empty());
     assert_eq!(app.cached_search_panel_file_results(), ["src/query.rs", "src/other.rs"]);
 }
 
-#[test]
-fn open_clears_previous_query_and_shows_overlay() {
+#[tokio::test(flavor = "multi_thread")]
+async fn open_clears_previous_query_shows_overlay_and_focuses_input() {
     let mut app = app();
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/lib.rs".to_string()]);
@@ -74,11 +89,12 @@ fn open_clears_previous_query_and_shows_overlay() {
     app.refresh_search_panel_file_cache();
     assert!(app.cached_search_panel_file_results().is_empty());
 
-    update(&mut app, SearchMessage::Open);
+    let task = update(&mut app, SearchMessage::Open);
 
     assert!(app.search_text.is_empty());
     assert!(app.show_search_overlay);
     assert_eq!(app.cached_search_panel_file_results(), ["src/lib.rs"]);
+    assert!(task_contains_widget_action(task).await);
 }
 
 #[test]

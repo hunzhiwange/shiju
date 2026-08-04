@@ -2,7 +2,7 @@ use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,
     send_behavior_icon, send_behavior_popover, send_button, utility_cluster_style,
-    workflow_mode_button,
+    goal_mode_button, subagent_mode_button, workflow_mode_button,
 };
 use super::styles::square_icon_button_style;
 use crate::app::Message;
@@ -290,8 +290,14 @@ fn utility_cluster_style_sets_theme_specific_pill_surface() {
     let dark = utility_cluster_style(&Theme::Dark);
     let light = utility_cluster_style(&Theme::Light);
 
-    assert_eq!(container_background(&dark), Color::from_rgba8(18, 19, 22, 0.88));
-    assert_eq!(container_background(&light), Color::from_rgba8(248, 249, 251, 1.0));
+    assert_eq!(
+        container_background(&dark),
+        crate::app::theme_catalog::input_surface_color(&Theme::Dark, 0.88)
+    );
+    assert_eq!(
+        container_background(&light),
+        crate::app::theme_catalog::input_surface_color(&Theme::Light, 1.0)
+    );
     assert_eq!(dark.border.width, 0.0);
     assert_eq!(light.border.width, 0.0);
     assert_eq!(dark.shadow.color, Color::BLACK.scale_alpha(0.12));
@@ -371,6 +377,27 @@ fn workflow_mode_button_constructs_inactive_and_active_variants() {
 }
 
 #[test]
+fn goal_mode_button_follows_workflow_button() {
+    for element in [goal_mode_button(false), goal_mode_button(true)] {
+        assert_eq!(element.as_widget().children().len(), 2);
+    }
+
+    let source = include_str!("mod.rs");
+    let workflow = source.find("let workflow_btn =").expect("workflow button");
+    let goal = source.find("let goal_btn =").expect("goal button");
+    let subagent = source.find("let subagent_btn =").expect("subagent button");
+    assert!(workflow < goal && goal < subagent);
+    assert!(source.contains("workflow_btn,\n        goal_btn,\n        subagent_btn,"));
+}
+
+#[test]
+fn subagent_mode_button_constructs_inactive_and_active_variants() {
+    for element in [subagent_mode_button(false), subagent_mode_button(true)] {
+        assert_eq!(element.as_widget().children().len(), 2);
+    }
+}
+
+#[test]
 fn cancel_button_constructs_every_animation_phase() {
     for submit_anim in [0, 2, 4, u8::MAX] {
         let element = cancel_button(submit_anim);
@@ -426,6 +453,8 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
         Some(spacer()),
         Some(spacer()),
         spacer(),
+        spacer(),
+        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -437,9 +466,9 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
     let children = normal.as_widget().children();
 
     assert_eq!(normal.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 9);
-    assert_eq!(children[7].children.len(), 2);
-    assert_eq!(children[8].children.len(), 3);
+    assert_eq!(children.len(), 11);
+    assert_eq!(children[9].children.len(), 2);
+    assert_eq!(children[10].children.len(), 3);
 }
 
 #[test]
@@ -449,6 +478,8 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
         None,
         None,
         None,
+        spacer(),
+        spacer(),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
@@ -460,9 +491,9 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
     );
     let children = normal.as_widget().children();
 
-    assert_eq!(children.len(), 5);
-    assert_eq!(children[3].children[0].children.len(), 1);
-    assert_eq!(children[4].children.len(), 1);
+    assert_eq!(children.len(), 7);
+    assert_eq!(children[5].children[0].children.len(), 1);
+    assert_eq!(children[6].children.len(), 1);
 }
 
 #[test]
@@ -472,6 +503,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
         None,
         None,
         None,
+        spacer(),
+        spacer(),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
@@ -484,8 +517,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
     let children = task_mode.as_widget().children();
 
     assert_eq!(task_mode.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 4);
-    assert_eq!(children[3].children.len(), 3);
+    assert_eq!(children.len(), 6);
+    assert_eq!(children[5].children.len(), 3);
 }
 
 #[test]
@@ -495,6 +528,8 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
         None,
         None,
         None,
+        spacer(),
+        spacer(),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
@@ -506,6 +541,6 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
     );
     let children = task_mode.as_widget().children();
 
-    assert_eq!(children.len(), 4);
-    assert!(!children[3].children.is_empty());
+    assert_eq!(children.len(), 6);
+    assert!(!children[5].children.is_empty());
 }

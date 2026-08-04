@@ -1,6 +1,6 @@
 use super::identity::{
-    default_workspace_identity_root, format_file_size, view, workspace_identity_hint,
-    workspace_identity_meta_line,
+    default_workspace_identity_root, format_file_size, identity_file_is_enabled, view,
+    workspace_identity_hint, workspace_identity_meta_line,
 };
 
 #[test]
@@ -62,6 +62,24 @@ fn workspace_identity_meta_line_handles_single_and_missing_values() {
     assert_eq!(workspace_identity_meta_line(Some(512), None), Some("512 B".to_string()));
     assert_eq!(workspace_identity_meta_line(None, Some(0)), Some("刚刚".to_string()));
     assert_eq!(workspace_identity_meta_line(None, None), None);
+}
+
+#[test]
+fn identity_file_is_enabled_defaults_to_false_and_reflects_whitelist() {
+    let (mut app, _) = crate::app::App::new();
+    let entry = app
+        .agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == app.agents_settings.selected_agent)
+        .expect("selected agent should exist");
+
+    assert!(!identity_file_is_enabled(entry, "AGENTS.md"));
+
+    entry.enabled_identity_files.push("AGENTS.md".to_string());
+
+    assert!(identity_file_is_enabled(entry, "AGENTS.md"));
+    assert!(!identity_file_is_enabled(entry, "SOUL.md"));
 }
 
 #[test]

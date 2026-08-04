@@ -148,12 +148,27 @@ where
     Theme: 'a,
     Renderer: iced::advanced::Renderer + 'a,
 {
-    Element::new(WheelInterceptor { content: content.into(), on_scroll: Box::new(on_scroll) })
+    Element::new(WheelInterceptor {
+        content: content.into(),
+        on_scroll: Some(Box::new(on_scroll)),
+    })
+}
+
+/// 阻止嵌套控件消费鼠标滚轮或触摸板事件，让外层滚动区域继续处理。
+pub(crate) fn pass_wheel_to_parent<'a, Message, Theme, Renderer>(
+    content: impl Into<Element<'a, Message, Theme, Renderer>>,
+) -> Element<'a, Message, Theme, Renderer>
+where
+    Message: 'a,
+    Theme: 'a,
+    Renderer: iced::advanced::Renderer + 'a,
+{
+    Element::new(WheelInterceptor { content: content.into(), on_scroll: None })
 }
 
 struct WheelInterceptor<'a, Message, Theme, Renderer> {
     content: Element<'a, Message, Theme, Renderer>,
-    on_scroll: Box<dyn Fn(mouse::ScrollDelta) -> Message + 'a>,
+    on_scroll: Option<Box<dyn Fn(mouse::ScrollDelta) -> Message + 'a>>,
 }
 
 impl<Message, Theme, Renderer> Widget<Message, Theme, Renderer>
@@ -206,8 +221,10 @@ where
         if cursor.is_over(layout.bounds())
             && let Event::Mouse(mouse::Event::WheelScrolled { delta }) = event
         {
-            shell.publish((self.on_scroll)(*delta));
-            shell.capture_event();
+            if let Some(on_scroll) = &self.on_scroll {
+                shell.publish(on_scroll(*delta));
+                shell.capture_event();
+            }
             return;
         }
 

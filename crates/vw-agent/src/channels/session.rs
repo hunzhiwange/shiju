@@ -355,6 +355,13 @@ pub(crate) async fn run_session_processor_for_channel(
     req: crate::app::agent::session::processor::Request,
     delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
 ) -> anyhow::Result<String> {
+    let mut req = req;
+    if req.persist_app_session_artifacts && req.app_session_scope.is_none() {
+        req.app_session_scope =
+            crate::app::agent::session::processor::app_session_scope_from_root_async(req.root.as_deref())
+                .await;
+    }
+
     // 创建无界通道用于事件传递
     let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel::<
         crate::app::agent::session::processor::StreamEvent,
@@ -375,13 +382,21 @@ pub(crate) async fn run_session_processor_for_channel(
                     let _ = tx.send(delta).await;
                 }
             }
+            crate::app::agent::session::processor::StreamEvent::Tool(event) => {
+                let delta = format!("tool {}\n{}\n", event.name, event.payload);
+                output.push_str(&delta);
+                if let Some(tx) = delta_tx.as_ref() {
+                    let _ = tx.send(delta).await;
+                }
+            }
             crate::app::agent::session::processor::StreamEvent::Done(_) => return Ok(output),
             crate::app::agent::session::processor::StreamEvent::Error(err) => {
                 anyhow::bail!(err)
             }
             crate::app::agent::session::processor::StreamEvent::StepStart { .. }
             | crate::app::agent::session::processor::StreamEvent::StepFinish { .. }
-            | crate::app::agent::session::processor::StreamEvent::PostToolRound { .. } => {}
+            | crate::app::agent::session::processor::StreamEvent::PostToolRound { .. }
+            | crate::app::agent::session::processor::StreamEvent::ContextLoaded { .. } => {}
         }
     }
 
@@ -430,7 +445,9 @@ pub(crate) fn to_session_history(
             Some(crate::session::ui_types::ChatMessage {
                 role,
                 content: turn.content.clone(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             })
         })
         .collect()

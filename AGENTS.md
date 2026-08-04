@@ -38,6 +38,7 @@ VibeWindow 是 Rust 优先的自主代理运行时，目标是高性能、高效
 - 测试按行为与结果命名：`<subject>_<expected_behavior>`；fixture 名称保持中性。
 - Rust 文件尽量单一职责，超过约 500 行时考虑拆分。
 - 单元测试文件必须独立放置，不和业务逻辑混在同一文件。
+- 如果上层应用层遇到bug，优先看看是否是底层的问题，而不是靠上层直接绕过。
 
 ## 验证规则
 
@@ -60,6 +61,9 @@ cargo clippy --all-targets --all-features -- -D warnings
 - UI 相关功能必须适配暗黑主题，避免文字、图标、背景颜色对比不足。
 - 容器注意水平与垂直居中。
 - 所有滚动条宽度为 4px。
+- 禁止对中文或其它非 ASCII 文本使用 `Font::MONOSPACE`，否则可能触发 `cosmic-text` 字形缓存溢出并导致主线程 panic。
+- 路径、代码等需要等宽字体时，必须将中文标签与纯 ASCII 内容拆成独立 `text` 控件；中文使用默认字体，仅纯 ASCII 内容使用 `Font::MONOSPACE`。
+- 字体相关 UI 变更不能只依赖构建 `Element` 的测试；涉及非 ASCII、弹窗或动态文本时，必须检查实际渲染路径，确认不会在字形整形阶段 panic。
 - 反馈消息使用 `./crates/vw-desktop/src/app/components/toast.rs` 组件。
 
 ## 禁止事项

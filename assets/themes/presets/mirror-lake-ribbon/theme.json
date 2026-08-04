@@ -1,0 +1,26 @@
+{
+  "id": "mirror-lake-ribbon",
+  "name": "七秀镜湖 Mirror Lake Ribbon",
+  "tagline": "一卷湖光，写尽风华。",
+  "palette": {
+    "background": "#261c22",
+    "text": "#faeee8",
+    "primary": "#e9939d",
+    "success": "#f0b8be",
+    "warning": "#d8bd83",
+    "danger": "#78c3b5"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp",
+    "chat_header": "chat_header.webp"
+  },
+  "appearance": {
+    "panel_bg": "#33242b",
+    "input_bg": "#3b2a32",
+    "button_bg": "#e9939d",
+    "button_text": "#f8fafc",
+    "radius_px": 18,
+    "panel_alpha": 184
+  }
+}

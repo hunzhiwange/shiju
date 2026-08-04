@@ -17,7 +17,9 @@ fn snapshot(id: &str) -> ChatSession {
         messages: vec![ChatMessage {
             role: ChatRole::Assistant,
             content: "hello".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("assistant-1".to_string())],
         calls: Vec::new(),
@@ -46,6 +48,7 @@ fn prompt_actions_cover_editing_history_mode_selection_and_queue() {
             raw: "/model".to_string(),
             kind: QueuedPromptCommandKind::SlashCommand,
             enqueued_ms: Some(5),
+            ..QueuedPromptCommand::default()
         }),
     );
     state.prompt.history.push("older");
@@ -76,6 +79,7 @@ fn submission_tool_terminal_overlay_and_scroll_actions_are_reduced() {
             tool_name: "grep".to_string(),
             summary: Some("Search".to_string()),
             arguments: Some("needle".to_string()),
+            append_arguments: false,
             state: UiToolCallState::Running,
             result: None,
         }),
@@ -86,6 +90,7 @@ fn submission_tool_terminal_overlay_and_scroll_actions_are_reduced() {
             tool_name: "grep".to_string(),
             summary: Some("Search done".to_string()),
             arguments: None,
+            append_arguments: false,
             state: UiToolCallState::Complete,
             result: Some(TuiToolResultUpdate { content: "match".to_string(), is_error: false }),
         }),

@@ -84,6 +84,9 @@ fn processor_request(root: &std::path::Path) -> crate::app::agent::session::proc
         assistant_message_id: None,
         history: Vec::new(),
         persist_app_session_artifacts: false,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: crate::session::runtime::SessionToolset::default(),
     }
 }
 

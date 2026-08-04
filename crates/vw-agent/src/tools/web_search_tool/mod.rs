@@ -98,7 +98,7 @@ impl WebSearchTool {
     ///     None,
     ///     5,
     ///     30,
-    ///     "VibeWindow/1.0".to_string(),
+    ///     vw_config_types::tools::DEFAULT_USER_AGENT.to_string(),
     /// );
     /// ```
     pub fn new(
@@ -125,7 +125,7 @@ impl WebSearchTool {
             api_url,
             max_results: max_results.clamp(1, 10),
             timeout_secs: timeout_secs.max(1),
-            user_agent,
+            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
             key_index: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -268,7 +268,9 @@ impl WebSearchTool {
         #[cfg(not(target_arch = "wasm32"))]
         let builder = builder.timeout(Duration::from_secs(self.timeout_secs));
 
-        let builder = builder.user_agent(self.user_agent.as_str());
+        let builder = builder
+            .user_agent(self.user_agent.as_str())
+            .default_headers(super::http_headers::default_headers());
 
         builder.build().map_err(|e| anyhow::anyhow!(e.to_string()))
     }
@@ -294,7 +296,15 @@ impl WebSearchTool {
         let client = self.build_client()?;
 
         let response =
-            client.get(&search_url).send().await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            client
+                .get(&search_url)
+                .header(
+                    reqwest::header::ACCEPT,
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                )
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
         if !response.status().is_success() {
             anyhow::bail!("DuckDuckGo search failed with status: {}", response.status());
@@ -469,6 +479,7 @@ impl WebSearchTool {
         let response = client
             .post(&endpoint)
             .header("X-API-KEY", api_key)
+            .header(reqwest::header::ACCEPT, "application/json, text/plain, */*")
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .json(&json!({
                 "q": query,
@@ -578,6 +589,7 @@ impl WebSearchTool {
 
         let response = client
             .post(endpoint)
+            .header(reqwest::header::ACCEPT, "application/json, text/plain, */*")
             .header(reqwest::header::AUTHORIZATION, format!("Bearer {auth_token}"))
             .json(&json!({
                 "query": query,
@@ -681,6 +693,7 @@ impl WebSearchTool {
 
         let response = client
             .post(&endpoint)
+            .header(reqwest::header::ACCEPT, "application/json, text/plain, */*")
             .json(&json!({
                 "api_key": api_key,
                 "query": query,

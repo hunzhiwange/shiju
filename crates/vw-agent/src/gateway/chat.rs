@@ -8,7 +8,9 @@
 //!
 //! 模块还提供了响应净化和消息日志记录等辅助功能，确保网关通信的安全性和可观测性。
 
-use crate::app::agent::providers::ChatMessage;
+use crate::app::agent::multimodal;
+use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
+use crate::app::agent::providers::{ChatMessage, ProviderCapabilityError};
 use crate::app::agent::tools::Tool;
 use crate::app::agent::util::truncate_with_ellipsis;
 use std::sync::Arc;
@@ -109,6 +111,15 @@ pub(crate) async fn fork_session_query_engine(
 /// }
 /// ```
 pub async fn run_gateway_chat_simple(state: &AppState, message: &str) -> anyhow::Result<String> {
+    let extractor = SessionImageTextExtractor::new();
+    run_gateway_chat_simple_with_extractor(state, message, &extractor).await
+}
+
+async fn run_gateway_chat_simple_with_extractor(
+    state: &AppState,
+    message: &str,
+    extractor: &dyn ImageTextExtractor,
+) -> anyhow::Result<String> {
     // 构造用户消息列表
     let user_messages = vec![ChatMessage::user(message)];
 
@@ -116,6 +127,9 @@ pub async fn run_gateway_chat_simple(state: &AppState, message: &str) -> anyhow:
     // 通过注入工作空间感知的系统上下文，保持 webhook/gateway 提示词与通道行为一致
     let system_prompt = {
         let config_guard = state.config.lock();
+        let timezone = crate::app::agent::util::locale::parse_timezone(
+            &config_guard.app_ui.system_settings.timezone,
+        )?;
         crate::app::agent::channels::build_system_prompt(
             &config_guard.workspace_dir,
             &state.model,
@@ -123,6 +137,7 @@ pub async fn run_gateway_chat_simple(state: &AppState, message: &str) -> anyhow:
             &[], // skills - 简单聊天不启用技能
             Some(&config_guard.identity),
             None, // bootstrap_max_chars - 使用默认值
+            timezone,
         )
     };
 
@@ -133,9 +148,23 @@ pub async fn run_gateway_chat_simple(state: &AppState, message: &str) -> anyhow:
 
     // 获取多模态配置并准备消息格式
     let multimodal_config = state.config.lock().multimodal.clone();
-    let prepared =
-        crate::app::agent::multimodal::prepare_messages_for_provider(&messages, &multimodal_config)
-            .await?;
+    let image_marker_count = multimodal::count_image_markers(&messages);
+    let prepared = if image_marker_count == 0 {
+        multimodal::prepare_messages_for_provider(&messages, &multimodal_config).await?
+    } else if multimodal_config.ocr.enabled {
+        multimodal::ocr::prepare_messages_with_ocr(&messages, &multimodal_config, extractor).await?
+    } else if state.provider.supports_vision() {
+        multimodal::prepare_messages_for_provider(&messages, &multimodal_config).await?
+    } else {
+        return Err(ProviderCapabilityError {
+            provider: "gateway".to_string(),
+            capability: "vision".to_string(),
+            message: format!(
+                "received {image_marker_count} image marker(s), but this provider does not support vision input"
+            ),
+        }
+        .into());
+    };
 
     // 调用 Provider 执行对话生成
     state.provider.chat_with_history(&prepared.messages, &state.model, state.temperature).await

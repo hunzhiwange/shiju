@@ -29,17 +29,17 @@ header 是 APIQL 的唯一租户来源。URL、query、请求体和连接名称�
 - header 不是有效 UTF-8；
 - header 为空或仅含空白。
 
-`OPTIONS` 预检豁免租户 header。第三方 webhook 和根 `/health` 不属于 APIQL 受管客户端路由，也豁免；`/v1/health` 仍要求租户 header。
+`OPTIONS` 预检豁免租户 header。第三方 webhook 和 `/v1/health` 不属于 APIQL 受管客户端路由，也豁免。
 
 ## 核心功能
 
 ### 请求处理
 
 ```http
-GET /apiQL/v1:{entity_class}
-GET /apiQL/v1:{entity_class}/list-only
-GET /apiQL/v1:{entity_class}/list-count
-GET /apiQL/v1:{entity_class}/list-page
+GET /v1/apiQL/{entity_class}
+GET /v1/apiQL/{entity_class}/list-only
+GET /v1/apiQL/{entity_class}/list-count
+GET /v1/apiQL/{entity_class}/list-page
 ```
 
 请求先经过认证和租户 middleware。middleware 构造 `TenantScope` 并注入 Axum request extension；APIQL handler 消费 extension，再用该 scope 打开租户化 Store。相同连接或实体 ID 在不同租户中互不覆盖。
@@ -49,4 +49,4 @@ GET /apiQL/v1:{entity_class}/list-page
 1. 认证与租户校验在进入 handler 前完成。
 2. 非法租户明确返回 `400`，不做默认值兜底。
 3. 日志只记录 scope ID 和请求元数据，不记录密钥或原始令牌。
-4. 根 `/health` 与第三方 webhook 的豁免不能扩展到 APIQL 路由。
+4. `/v1/health` 与第三方 webhook 的豁免不能扩展到 APIQL 路由。

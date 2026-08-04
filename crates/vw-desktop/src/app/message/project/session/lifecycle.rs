@@ -7,7 +7,10 @@ use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
     find_session_project_path, now_ms, prepare_session_ui_chunks_task, prepare_session_ui_task,
 };
-use crate::app::{App, Message, models, state::ActiveSessionViewState};
+use crate::app::{
+    App, Message, models,
+    state::{ActiveSessionViewState, QuickMessageHandoffState},
+};
 use serde_json::{Map, Value};
 use vw_shared::message::types as agent_message;
 
@@ -16,15 +19,39 @@ fn push_loaded_chat_message(
     message_ids: &mut Vec<Option<String>>,
     role: models::ChatRole,
     content: String,
+    model: Option<String>,
     think_timing: Vec<models::ThinkTiming>,
     message_id: Option<String>,
+    processing_timing: &mut Option<vw_shared::session::ui_types::ProcessingTiming>,
 ) {
     if content.trim().is_empty() && think_timing.is_empty() {
         return;
     }
 
-    chat.push(models::ChatMessage { role, content, think_timing });
+    chat.push(models::ChatMessage {
+        role,
+        content,
+        model,
+        think_timing,
+        processing_timing: processing_timing.take(),
+    });
     message_ids.push(message_id);
+}
+
+pub(super) fn take_quick_message_handoff_task(
+    app: &mut App,
+    session_id: String,
+) -> iced::Task<Message> {
+    let Some(QuickMessageHandoffState::WaitingForSession { prompt }) =
+        app.quick_message_handoff.clone()
+    else {
+        return iced::Task::none();
+    };
+    app.quick_message_handoff = None;
+    iced::Task::done(Message::Chat(crate::app::message::ChatMessage::SendToSession {
+        session_id,
+        input: prompt,
+    }))
 }
 
 fn flush_loaded_text_message(
@@ -32,16 +59,20 @@ fn flush_loaded_text_message(
     message_ids: &mut Vec<Option<String>>,
     role: models::ChatRole,
     content: &mut String,
+    model: Option<String>,
     think_timing: &mut Vec<models::ThinkTiming>,
     message_id: &Option<String>,
+    processing_timing: &mut Option<vw_shared::session::ui_types::ProcessingTiming>,
 ) {
     push_loaded_chat_message(
         chat,
         message_ids,
         role,
         std::mem::take(content),
+        model,
         std::mem::take(think_timing),
         message_id.clone(),
+        processing_timing,
     );
 }
 
@@ -225,6 +256,51 @@ fn assistant_model_label(info: &agent_message::AssistantInfo) -> Option<String> 
     }
 }
 
+fn message_model_label(info: &agent_message::Info) -> Option<String> {
+    match info {
+        agent_message::Info::User(info) => {
+            let provider_id = info.model.provider_id.trim();
+            let model_id = info.model.model_id.trim();
+            if model_id.is_empty() {
+                None
+            } else if provider_id.is_empty() {
+                Some(model_id.to_string())
+            } else {
+                Some(format!("{provider_id}/{model_id}"))
+            }
+        }
+        agent_message::Info::Assistant(info) => assistant_model_label(info),
+    }
+}
+
+fn message_processing_timing(
+    info: &agent_message::Info,
+) -> Option<vw_shared::session::ui_types::ProcessingTiming> {
+    let agent_message::Info::Assistant(info) = info else {
+        return None;
+    };
+    let completed_ms = info.time.completed?;
+    Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: info.time.created,
+        completed_ms: Some(completed_ms),
+        processing_elapsed_ms: info.time.processing_elapsed_ms,
+        llm_elapsed_ms: info.time.llm_elapsed_ms,
+    })
+}
+
+fn latest_assistant_model_label(msgs: &[agent_message::WithParts]) -> Option<String> {
+    msgs.iter()
+        .filter_map(assistant_info)
+        .filter_map(|info| {
+            assistant_model_label(info).map(|model| {
+                let timestamp = info.time.completed.unwrap_or(info.time.created);
+                (timestamp, model)
+            })
+        })
+        .max_by_key(|(timestamp, _)| *timestamp)
+        .map(|(_, model)| model)
+}
+
 fn upsert_loaded_step_start(
     steps: &mut Vec<models::ChatSessionStep>,
     index: u32,
@@ -400,7 +476,45 @@ pub(crate) fn loaded_chat_from_gateway_messages(
     let mut chat = Vec::new();
     let mut message_ids = Vec::new();
 
-    msgs.sort_by_key(|message| gateway_message_created_ms(&message.info));
+    let user_created_by_id = msgs
+        .iter()
+        .filter_map(|message| match &message.info {
+            agent_message::Info::User(info) => Some((info.id.clone(), info.time.created)),
+            agent_message::Info::Assistant(_) => None,
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut assistant_created_by_parent = std::collections::HashMap::<String, u64>::new();
+    for message in &msgs {
+        let agent_message::Info::Assistant(info) = &message.info else {
+            continue;
+        };
+        if info.parent_id.trim().is_empty() {
+            continue;
+        }
+        assistant_created_by_parent
+            .entry(info.parent_id.clone())
+            .and_modify(|created| *created = (*created).min(info.time.created))
+            .or_insert(info.time.created);
+    }
+    msgs.sort_by_key(|message| match &message.info {
+        agent_message::Info::User(info) => {
+            let anchor = assistant_created_by_parent
+                .get(&info.id)
+                .copied()
+                .map_or(info.time.created, |created| created.min(info.time.created));
+            (anchor, info.id.clone(), 0_u8, info.time.created)
+        }
+        agent_message::Info::Assistant(info) => {
+            let has_parent = !info.parent_id.trim().is_empty();
+            let parent_created =
+                has_parent.then(|| user_created_by_id.get(&info.parent_id).copied()).flatten();
+            let anchor =
+                parent_created.map_or(info.time.created, |created| created.min(info.time.created));
+            let turn_id =
+                if has_parent { info.parent_id.clone() } else { info.id.clone() };
+            (anchor, turn_id, 1_u8, info.time.created)
+        }
+    });
 
     for message in msgs {
         let role = match &message.info {
@@ -408,6 +522,8 @@ pub(crate) fn loaded_chat_from_gateway_messages(
             agent_message::Info::Assistant(_) => models::ChatRole::Assistant,
         };
         let message_id = Some(message.info.id().to_string());
+        let model = message_model_label(&message.info);
+        let mut processing_timing = message_processing_timing(&message.info);
         let mut content = String::new();
         let mut think_timing = Vec::new();
 
@@ -432,16 +548,20 @@ pub(crate) fn loaded_chat_from_gateway_messages(
                         &mut message_ids,
                         role.clone(),
                         &mut content,
+                        model.clone(),
                         &mut think_timing,
                         &message_id,
+                        &mut processing_timing,
                     );
                     push_loaded_chat_message(
                         &mut chat,
                         &mut message_ids,
                         models::ChatRole::Tool,
                         tool_part_message_content(&part),
+                        None,
                         Vec::new(),
                         message_id.clone(),
+                        &mut processing_timing,
                     );
                 }
                 agent_message::Part::File(part) => {
@@ -456,19 +576,14 @@ pub(crate) fn loaded_chat_from_gateway_messages(
             &mut message_ids,
             role,
             &mut content,
+            model,
             &mut think_timing,
             &message_id,
+            &mut processing_timing,
         );
     }
 
     (chat, message_ids)
-}
-
-fn gateway_message_created_ms(info: &agent_message::Info) -> u64 {
-    match info {
-        agent_message::Info::User(info) => info.time.created,
-        agent_message::Info::Assistant(info) => info.time.created,
-    }
 }
 
 pub(super) fn reset_boundary_loaded_end(
@@ -535,6 +650,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::SessionMenuClose => {
             app.session_menu_id = None;
             app.session_menu_anchor = None;
+            Some(iced::Task::none())
+        }
+        ProjectMessage::SessionTreeToggled(id) => {
+            if !app.session_tree_expanded.remove(&id) {
+                app.session_tree_expanded.insert(id);
+            }
             Some(iced::Task::none())
         }
         ProjectMessage::SessionTitleClicked(id) => {
@@ -644,6 +765,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     .map(|s| s.id.clone());
 
                 if let Some(next_id) = next {
+                    app.prepare_historical_session_model(&next_id);
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
@@ -739,6 +861,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.sessions.iter().find(|s| s.time.archived.is_none()).map(|s| s.id.clone());
 
                 if let Some(next_id) = next {
+                    app.prepare_historical_session_model(&next_id);
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
@@ -829,11 +952,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::SessionCreated(info) => {
-            app.new_session_last_directory = Some(info.directory.clone());
-            let save_last_directory_task = save_config_field_task(
-                "new_session_last_directory",
-                serde_json::Value::String(info.directory.clone()),
-            );
+            let is_discovered_child =
+                info.parent_id.as_deref().is_some_and(|parent_id| !parent_id.trim().is_empty());
             app.cache_active_session_chat();
             if !app.sessions.iter().any(|s| s.id == info.id) {
                 app.sessions.insert(0, info.clone());
@@ -846,7 +966,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             } else {
                 app.project_sessions.insert(sessions_key, vec![info.clone()]);
             }
+            if is_discovered_child {
+                return Some(iced::Task::none());
+            }
+
+            app.new_session_last_directory = Some(info.directory.clone());
+            let save_last_directory_task = save_config_field_task(
+                "new_session_last_directory",
+                serde_json::Value::String(info.directory.clone()),
+            );
             app.active_session_id = Some(info.id.clone());
+            app.chat_scroll_id = iced::widget::Id::unique();
             app.mark_active_session_viewed();
             app.chat.clear();
             app.chat_message_ids.clear();
@@ -859,11 +989,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_session_view_state = ActiveSessionViewState::default();
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
-            Some(save_last_directory_task)
+            let send_handoff_task = take_quick_message_handoff_task(app, info.id);
+            Some(save_last_directory_task.chain(send_handoff_task))
         }
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {
                 Ok((id, msgs, usage)) => {
+                    let loaded_session_model = latest_assistant_model_label(&msgs);
                     let loaded_steps = steps_from_gateway_messages(&msgs);
                     tracing::info!(
                         target: "vw_desktop",
@@ -873,6 +1005,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         "received session messages load result"
                     );
                     if app.active_session_id.as_ref() == Some(&id) {
+                        let restored_session_model =
+                            loaded_session_model.as_deref().is_some_and(|model| {
+                                app.restore_session_model_from_history(&id, model)
+                            });
                         let local_messages = app
                             .cached_chat_messages(&id)
                             .map(|chat| chat.iter().cloned().collect::<Vec<_>>());
@@ -921,6 +1057,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         };
 
                         let shared_chat = crate::app::session::shared_chat_messages(next_chat);
+                        app.chat_scroll_id = iced::widget::Id::unique();
                         app.chat = shared_chat.iter().cloned().collect();
                         app.chat_message_ids = if app.chat.len() == next_ids.len() {
                             next_ids
@@ -941,6 +1078,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.clear_active_session_steps();
                         app.replace_active_session_steps(next_steps);
                         app.replace_active_session_calls(existing_calls);
+                        if restored_session_model {
+                            app.sync_active_session_preferences();
+                        }
                         app.invalidate_chat_ui_state();
                         if app.chat.is_empty() {
                             tracing::warn!(

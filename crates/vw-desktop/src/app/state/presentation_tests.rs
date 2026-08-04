@@ -7,7 +7,7 @@ fn test_module_is_wired() {
 
 use super::{
     AppTab, ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform,
-    TopBarGatewayTab,
+    TopBarGatewayTab, WorkResourceMode, WorkspaceMode,
 };
 use crate::app::Screen;
 use crate::app::components::model_hover_tooltip::HoverAnchor;
@@ -15,6 +15,23 @@ use crate::app::components::model_hover_tooltip::HoverAnchor;
 #[test]
 fn top_bar_gateway_tab_defaults_to_gateway() {
     assert_eq!(TopBarGatewayTab::default(), TopBarGatewayTab::Gateway);
+}
+
+#[test]
+fn workspace_mode_defaults_and_round_trips_config_values() {
+    assert_eq!(WorkspaceMode::default(), WorkspaceMode::Code);
+    assert_eq!(WorkspaceMode::Code.as_str(), "code");
+    assert_eq!(WorkspaceMode::Work.as_str(), "work");
+    assert_eq!(WorkspaceMode::from_config(Some("code")), WorkspaceMode::Code);
+    assert_eq!(WorkspaceMode::from_config(Some("work")), WorkspaceMode::Work);
+    assert_eq!(WorkspaceMode::from_config(Some(" WORK ")), WorkspaceMode::Work);
+    assert_eq!(WorkspaceMode::from_config(Some("unknown")), WorkspaceMode::Code);
+    assert_eq!(WorkspaceMode::from_config(None), WorkspaceMode::Code);
+}
+
+#[test]
+fn work_workspace_resource_mode_defaults_to_overview() {
+    assert_eq!(WorkResourceMode::default(), WorkResourceMode::Overview);
 }
 
 #[test]

@@ -53,16 +53,34 @@ struct EnvVarGuard {
 impl EnvVarGuard {
     fn new(keys: &[&'static str]) -> Self {
         let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.blocking_lock();
+        let mut keys = keys.to_vec();
+        if keys.contains(&"HOME") {
+            for key in ["USERPROFILE", "HOMEDRIVE", "HOMEPATH"] {
+                if !keys.contains(&key) {
+                    keys.push(key);
+                }
+            }
+        }
         let saved = keys.iter().map(|key| (*key, std::env::var(key).ok())).collect();
         Self { _lock: lock, saved }
     }
 
     fn set(&self, key: &str, value: &Path) {
         unsafe { std::env::set_var(key, value) };
+        if key == "HOME" {
+            unsafe { std::env::set_var("USERPROFILE", value) };
+            unsafe { std::env::remove_var("HOMEDRIVE") };
+            unsafe { std::env::remove_var("HOMEPATH") };
+        }
     }
 
     fn clear(&self, key: &str) {
         unsafe { std::env::remove_var(key) };
+        if key == "HOME" {
+            unsafe { std::env::remove_var("USERPROFILE") };
+            unsafe { std::env::remove_var("HOMEDRIVE") };
+            unsafe { std::env::remove_var("HOMEPATH") };
+        }
     }
 }
 
@@ -373,6 +391,10 @@ fn project_config_override_path_falls_back_for_parentless_path() {
 
 #[test]
 fn path_wrappers_report_current_dir_errors() {
+    if cfg!(windows) {
+        return;
+    }
+
     if std::env::var_os("VW_ACP_CONFIG_CWD_ERROR_CHILD").is_none() {
         let status = std::process::Command::new(std::env::current_exe().expect("current exe"))
             .arg("--exact")

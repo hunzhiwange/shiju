@@ -78,6 +78,7 @@ fn native_tools_system_prompt_contains_zero_xml() {
         None,
         true,
         crate::app::agent::config::SkillsPromptInjectionMode::Full,
+        chrono_tz::Asia::Shanghai,
     );
 
     assert!(!system_prompt.contains("<tool_call>"), "Native prompt must not contain <tool_call>");

@@ -30,6 +30,72 @@ fn bottom_bar_constants_keep_compact_control_dimensions() {
 }
 
 #[test]
+fn quick_message_button_style_keeps_light_and_dark_actions_distinguishable() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let message =
+            quick_message_button_style(&theme, button::Status::Active, false);
+        let action = quick_message_button_style(&theme, button::Status::Active, true);
+
+        assert_ne!(message.background, action.background);
+        assert_ne!(message.border.color, action.border.color);
+        assert_eq!(message.border.radius.top_left, 999.0);
+        assert_eq!(action.border.width, 1.0);
+    }
+}
+
+#[test]
+fn quick_message_group_menu_and_action_badge_support_dark_theme() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let inactive =
+            quick_message_group_button_style(&theme, button::Status::Active, false);
+        let active =
+            quick_message_group_button_style(&theme, button::Status::Active, true);
+        assert_ne!(inactive.background, active.background);
+
+        let menu = quick_message_menu_style(&theme);
+        assert!(menu.background.is_some());
+        assert_eq!(menu.border.width, 1.0);
+
+        let badge = quick_message_action_badge_style(&theme);
+        assert!(badge.background.is_some());
+        assert!(badge.text_color.is_some());
+    }
+}
+
+#[test]
+fn shiju_menu_styles_support_light_and_dark_themes() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let idle = shiju_skill_button_style(&theme, button::Status::Active, false);
+        let selected = shiju_skill_button_style(&theme, button::Status::Active, true);
+        let hovered = shiju_skill_button_style(&theme, button::Status::Hovered, false);
+
+        assert_ne!(idle.background, selected.background);
+        assert_ne!(idle.background, hovered.background);
+        assert_eq!(selected.border.width, 1.0);
+        assert_ne!(selected.border.color, Color::TRANSPARENT);
+        assert!(selected.text_color.a >= 0.88);
+
+        let menu = quick_message_menu_style(&theme);
+        assert!(menu.background.is_some());
+        assert_eq!(menu.border.width, 1.0);
+
+        let upgrade =
+            shiju_upgrade_button_style(&theme, button::Status::Active, true);
+        let upgrade_hovered =
+            shiju_upgrade_button_style(&theme, button::Status::Hovered, true);
+        let upgrade_disabled =
+            shiju_upgrade_button_style(&theme, button::Status::Disabled, false);
+        assert!(upgrade.background.is_some());
+        assert_ne!(upgrade.background, upgrade_hovered.background);
+        assert_eq!(upgrade.border.width, 1.0);
+        assert!(upgrade.text_color.a >= 0.94);
+        assert!(upgrade_disabled.background.is_none());
+        assert_eq!(upgrade_disabled.border.width, 0.0);
+        assert!(upgrade_disabled.text_color.a <= 0.42);
+    }
+}
+
+#[test]
 fn tooltip_dark_style_is_theme_independent() {
     for theme in [Theme::Light, Theme::Dark] {
         let style = tooltip_dark_style(&theme);
@@ -304,15 +370,14 @@ fn popover_style_maps_dark_and_light_surfaces() {
 #[test]
 fn input_card_style_blends_primary_color_only_during_drop_hover() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
-        let base = if is_dark {
-            Color::from_rgba8(18, 19, 22, 0.96)
-        } else {
-            Color::from_rgba8(252, 252, 253, 1.0)
-        };
+        let base = crate::app::theme_catalog::input_surface_color(
+            &theme,
+            if is_dark { 0.96 } else { 1.0 },
+        );
         let normal_border = if is_dark {
-            Color::from_rgba8(43, 45, 51, 0.98)
+            theme.extended_palette().background.strong.color.scale_alpha(0.98)
         } else {
-            Color::from_rgba8(228, 232, 238, 1.0)
+            theme.extended_palette().background.strong.color.scale_alpha(0.70)
         };
         let primary = theme.palette().primary;
         let blended = Color::from_rgba(
@@ -322,11 +387,11 @@ fn input_card_style_blends_primary_color_only_during_drop_hover() {
             base.a,
         );
 
-        let normal = input_card_style(&theme, false);
+        let normal = input_card_style(&theme, false, None);
         assert_color(background_color(&normal.background), base);
         assert_color(normal.border.color, normal_border);
 
-        let hovered = input_card_style(&theme, true);
+        let hovered = input_card_style(&theme, true, None);
         assert_color(background_color(&hovered.background), blended);
         assert_color(hovered.border.color, primary.scale_alpha(0.82));
 
@@ -393,7 +458,7 @@ fn manual_context_card_button_style_highlights_only_pointer_states() {
 #[test]
 fn editor_style_maps_requesting_and_theme_colors() {
     for (theme, is_dark) in [(Theme::Light, false), (Theme::Dark, true)] {
-        let idle = editor_style(&theme, text_editor::Status::Active, false);
+        let idle = editor_style(&theme, text_editor::Status::Active, false, None);
         assert_eq!(idle.background, Background::Color(Color::TRANSPARENT));
         assert_eq!(idle.border.width, 0.0);
         assert_eq!(idle.border.color, Color::TRANSPARENT);
@@ -413,7 +478,7 @@ fn editor_style_maps_requesting_and_theme_colors() {
         assert_color(idle.placeholder, expected_placeholder);
 
         let requesting =
-            editor_style(&theme, text_editor::Status::Focused { is_hovered: true }, true);
+            editor_style(&theme, text_editor::Status::Focused { is_hovered: true }, true, None);
         assert_color(requesting.value, theme.palette().text.scale_alpha(0.92));
         assert_color(requesting.selection, idle.selection);
         assert_color(requesting.placeholder, idle.placeholder);
@@ -457,4 +522,119 @@ fn subtask_editor_style_maps_dark_and_light_fields() {
             assert_color(style.placeholder, expected_placeholder);
         }
     }
+}
+
+#[test]
+fn input_panel_style_falls_back_without_active_chrome() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let with_none = input_card_style(&theme, false, None);
+        let with_empty = input_card_style(
+            &theme,
+            false,
+            Some(&crate::app::theme_catalog::ChromeStyleOverrides::default()),
+        );
+        assert_color(
+            background_color(&with_none.background),
+            background_color(&with_empty.background),
+        );
+        assert_color(with_none.border.color, with_empty.border.color);
+        assert_eq!(with_none.border.radius, with_empty.border.radius);
+
+        let editor_none = editor_style(&theme, text_editor::Status::Active, false, None);
+        let editor_empty = editor_style(
+            &theme,
+            text_editor::Status::Active,
+            false,
+            Some(&crate::app::theme_catalog::ChromeStyleOverrides::default()),
+        );
+        assert_color(editor_none.value, editor_empty.value);
+    }
+}
+
+#[test]
+fn input_card_style_applies_chrome_input_background() {
+    let theme = Theme::Dark;
+    let chrome = crate::app::theme_catalog::resolve_chrome_style(
+        &crate::app::theme_catalog::ThemeChrome {
+            input_bg: Some("#112233".to_string()),
+            input_border: Some("#445566".to_string()),
+            radius_px: Some(12),
+            panel_alpha: Some(255),
+            ..crate::app::theme_catalog::ThemeChrome::default()
+        },
+        &theme.palette(),
+    );
+    let style = input_card_style(&theme, false, Some(&chrome));
+    assert_color(
+        background_color(&style.background),
+        Color::from_rgb8(0x11, 0x22, 0x33),
+    );
+    assert_color(style.border.color, Color::from_rgb8(0x44, 0x55, 0x66));
+    assert_eq!(style.border.radius, 12.0.into());
+}
+
+#[test]
+fn input_card_style_more_transparent_with_wallpaper_chrome() {
+    use std::path::PathBuf;
+
+    use crate::app::theme_catalog::{
+        resolve_chrome_style_from_skin, ActiveThemeSkin, ThemeChrome,
+    };
+
+    let theme = Theme::Dark;
+    let baseline = input_card_style(&theme, false, None);
+    let baseline_alpha = background_color(&baseline.background).a;
+    assert!(baseline_alpha > 0.9, "baseline input card should stay near-opaque");
+
+    let with_wallpaper = ActiveThemeSkin {
+        theme_id: "wallpaper-theme".to_string(),
+        background_path: Some(PathBuf::from("/tmp/vibe-window-wallpaper.png")),
+        cover_path: None,
+        chat_header_path: None,
+        chat_body_path: None,
+        chat_input_path: None,
+        chrome: ThemeChrome::default(),
+    };
+    let chrome = resolve_chrome_style_from_skin(Some(&with_wallpaper), &theme);
+    let wallpaper_style = input_card_style(&theme, false, Some(&chrome));
+    let wallpaper_alpha = background_color(&wallpaper_style.background).a;
+    assert!(
+        wallpaper_alpha < 1.0 && wallpaper_alpha < baseline_alpha,
+        "wallpaper chrome should make input card more transparent: baseline={baseline_alpha}, wallpaper={wallpaper_alpha}"
+    );
+
+    let no_wallpaper = ActiveThemeSkin {
+        theme_id: "plain-theme".to_string(),
+        background_path: None,
+        cover_path: None,
+        chat_header_path: None,
+        chat_body_path: None,
+        chat_input_path: None,
+        chrome: ThemeChrome::default(),
+    };
+    let plain_chrome = resolve_chrome_style_from_skin(Some(&no_wallpaper), &theme);
+    let plain_style = input_card_style(&theme, false, Some(&plain_chrome));
+    assert_color(
+        background_color(&plain_style.background),
+        background_color(&baseline.background),
+    );
+
+    let explicit = ActiveThemeSkin {
+        theme_id: "wallpaper-theme".to_string(),
+        background_path: Some(PathBuf::from("/tmp/vibe-window-wallpaper.png")),
+        cover_path: None,
+        chat_header_path: None,
+        chat_body_path: None,
+        chat_input_path: None,
+        chrome: ThemeChrome {
+            panel_alpha: Some(90),
+            ..ThemeChrome::default()
+        },
+    };
+    let explicit_chrome = resolve_chrome_style_from_skin(Some(&explicit), &theme);
+    let explicit_style = input_card_style(&theme, false, Some(&explicit_chrome));
+    assert!(
+        (background_color(&explicit_style.background).a - 90.0 / 255.0).abs() < 1.0e-5,
+        "explicit panel_alpha should win"
+    );
 }

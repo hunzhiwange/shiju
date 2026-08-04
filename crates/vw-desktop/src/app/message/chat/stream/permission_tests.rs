@@ -23,7 +23,7 @@ fn chat_message(
     role: crate::app::models::ChatRole,
     content: &str,
 ) -> crate::app::models::ChatMessage {
-    crate::app::models::ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    crate::app::models::ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {

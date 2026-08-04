@@ -13,7 +13,10 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_section_card, settings_value_badge,
 };
-use crate::app::state::{ModelCatalogEntry, ProviderSummary};
+use crate::app::state::{
+    ModelCatalogEntry, ProviderSummary, SHIJU_OFFICIAL_PROVIDER_ID, SHIJU_OFFICIAL_PROVIDER_NAME,
+    is_shiju_official_provider_id,
+};
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, progress_bar, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
@@ -85,6 +88,16 @@ pub(super) fn popular_provider_match(
     catalog_items: &[ModelCatalogEntry],
     providers: &[ProviderSummary],
 ) -> PopularProviderMatch {
+    if is_shiju_official_provider_id(pattern) {
+        return PopularProviderMatch {
+            display: SHIJU_OFFICIAL_PROVIDER_NAME.to_string(),
+            provider_id: Some(SHIJU_OFFICIAL_PROVIDER_ID.to_string()),
+            is_connected: providers
+                .iter()
+                .any(|provider| is_shiju_official_provider_id(&provider.id) && provider.connected),
+        };
+    }
+
     let pat_lower = pattern.to_ascii_lowercase();
     let found_catalog = catalog_items.iter().find(|p| {
         let id_lower = p.provider_id.to_ascii_lowercase();
@@ -198,7 +211,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "查看当前可用的 provider，并管理密钥、编辑与断开连接。",
     ));
 
-    let connected = s.providers.iter().filter(|p| p.connected).collect::<Vec<_>>();
+    let connected = s.providers.iter().filter(|provider| provider.connected).collect::<Vec<_>>();
     if connected.is_empty() {
         root = root.push(settings_panel(
             text("暂无已连接的提供商。").size(13).style(settings_muted_text_style),
@@ -276,53 +289,75 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "根据热门模式匹配目录中的 provider，快速建立常用连接。",
     ));
 
-    let mut popular_panel = column![];
-    if s.popular_patterns.is_empty() {
-        popular_panel =
-            popular_panel.push(text("暂无热门提供商。").size(13).style(settings_muted_text_style));
+    let official =
+        popular_provider_match(SHIJU_OFFICIAL_PROVIDER_ID, &s.catalog_items, &s.providers);
+    let mut official_controls =
+        row![settings_value_badge("官方推荐")].spacing(8).align_y(Alignment::Center);
+    if official.is_connected {
+        official_controls = official_controls.push(settings_value_badge("已连接"));
     } else {
-        for (i, pat) in s.popular_patterns.iter().enumerate() {
-            let PopularProviderMatch { display, provider_id, is_connected } =
-                popular_provider_match(pat, &s.catalog_items, &s.providers);
+        official_controls = official_controls.push(
+            button(text("连接"))
+                .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
+                    SHIJU_OFFICIAL_PROVIDER_ID.to_string(),
+                )))
+                .padding([7, 12])
+                .style(primary_action_btn_style),
+        );
+    }
+    let mut popular_panel = column![provider_item_row(
+        SHIJU_OFFICIAL_PROVIDER_ID,
+        official.display,
+        "识矩官方模型服务，连接后可自动发现可用模型。",
+        official_controls,
+    )];
 
-            let logo_id = provider_id.clone().unwrap_or_else(|| "agent".to_owned());
-            let mut controls = row![].spacing(8).align_y(Alignment::Center);
+    for (original_index, pat) in s
+        .popular_patterns
+        .iter()
+        .enumerate()
+        .filter(|(_, pattern)| !is_shiju_official_provider_id(pattern))
+    {
+        let PopularProviderMatch { display, provider_id, is_connected } =
+            popular_provider_match(pat, &s.catalog_items, &s.providers);
 
-            if is_connected {
-                controls = controls.push(settings_value_badge("已连接"));
-            } else if provider_id.is_none() {
-                controls = controls.push(settings_value_badge("未发现"));
-            }
+        let logo_id = provider_id.clone().unwrap_or_else(|| "agent".to_owned());
+        let mut controls = row![].spacing(8).align_y(Alignment::Center);
 
-            if let Some(pid) = provider_id.clone().filter(|_| !is_connected) {
-                controls = controls.push(
-                    button(text("连接"))
-                        .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
-                            pid,
-                        )))
-                        .padding([7, 12])
-                        .style(primary_action_btn_style),
-                );
-            }
-
-            controls = controls.push(
-                button(text("移除"))
-                    .on_press(Message::Settings(message::SettingsMessage::PopularProviderRemove(i)))
-                    .padding([7, 12])
-                    .style(rounded_action_btn_style),
-            );
-
-            let description = provider_id
-                .map(|pid| format!("provider id: {}", pid))
-                .unwrap_or_else(|| format!("匹配模式：{}", pat));
-
-            popular_panel =
-                popular_panel.push(provider_item_row(logo_id, display, description, controls));
-
-            if i + 1 != s.popular_patterns.len() {
-                popular_panel = popular_panel.push(settings_divider());
-            }
+        if is_connected {
+            controls = controls.push(settings_value_badge("已连接"));
+        } else if provider_id.is_none() {
+            controls = controls.push(settings_value_badge("未发现"));
         }
+
+        if let Some(pid) = provider_id.clone().filter(|_| !is_connected) {
+            controls = controls.push(
+                button(text("连接"))
+                    .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(pid)))
+                    .padding([7, 12])
+                    .style(primary_action_btn_style),
+            );
+        }
+
+        controls = controls.push(
+            button(text("移除"))
+                .on_press(Message::Settings(message::SettingsMessage::PopularProviderRemove(
+                    original_index,
+                )))
+                .padding([7, 12])
+                .style(rounded_action_btn_style),
+        );
+
+        let description = provider_id
+            .map(|pid| format!("provider id: {}", pid))
+            .unwrap_or_else(|| format!("匹配模式：{}", pat));
+
+        popular_panel = popular_panel.push(settings_divider()).push(provider_item_row(
+            logo_id,
+            display,
+            description,
+            controls,
+        ));
     }
 
     let popular_action = container(

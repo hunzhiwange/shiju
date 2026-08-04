@@ -5,6 +5,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 use super::backend_output::{TASK_AUTOMATION_TOOL_GUARDRAIL, build_model_prompt};
 #[cfg(not(target_arch = "wasm32"))]
+use super::gateway_output::GatewayVisibleOutputFilter;
+#[cfg(not(target_arch = "wasm32"))]
 use super::process_utils::{emit_stderr_log, emit_stdout_log};
 use super::state::TaskLogStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -111,6 +113,7 @@ fn task_gateway_idle_timeout() -> Duration {
 #[cfg(not(target_arch = "wasm32"))]
 fn handle_gateway_stream_event(
     event: vw_gateway_client::GatewayChatStreamEvent,
+    visible_filter: &mut GatewayVisibleOutputFilter,
     output: &mut String,
     pending: &mut String,
     stream_error: &mut Option<String>,
@@ -119,13 +122,17 @@ fn handle_gateway_stream_event(
 ) -> bool {
     match event {
         vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-            output.push_str(&delta);
-            pending.push_str(&delta);
+            let visible_delta = visible_filter.push(&delta);
+            output.push_str(&visible_delta);
+            pending.push_str(&visible_delta);
             flush_gateway_output_lines(pending, sender, false);
             true
         }
         vw_gateway_client::GatewayChatStreamEvent::Done { finish_reason, .. } => {
             *done_seen = true;
+            let visible_tail = visible_filter.finish();
+            output.push_str(&visible_tail);
+            pending.push_str(&visible_tail);
             flush_gateway_output_lines(pending, sender, true);
             emit_stdout_log(
                 sender,
@@ -137,6 +144,9 @@ fn handle_gateway_stream_event(
             true
         }
         vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+            let visible_tail = visible_filter.finish();
+            output.push_str(&visible_tail);
+            pending.push_str(&visible_tail);
             flush_gateway_output_lines(pending, sender, true);
             emit_stderr_log(sender, format!("[GATEWAY] error {}", error));
             *stream_error = Some(error);
@@ -274,6 +284,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
 
     let mut output = String::new();
     let mut pending = String::new();
+    let mut visible_filter = GatewayVisibleOutputFilter::default();
     let mut stream_error: Option<String> = None;
     let mut done_seen = false;
     let request = gateway_task_stream_request(
@@ -296,6 +307,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
             |event| {
                 handle_gateway_stream_event(
                     event,
+                    &mut visible_filter,
                     &mut output,
                     &mut pending,
                     &mut stream_error,
@@ -312,6 +324,7 @@ fn execute_gateway_prompt_with_streaming_in_mode(
             |event| {
                 handle_gateway_stream_event(
                     event,
+                    &mut visible_filter,
                     &mut output,
                     &mut pending,
                     &mut stream_error,
@@ -321,6 +334,10 @@ fn execute_gateway_prompt_with_streaming_in_mode(
             },
         )
     };
+
+    let visible_tail = visible_filter.finish();
+    output.push_str(&visible_tail);
+    pending.push_str(&visible_tail);
 
     if let Err(error) = result {
         return fail_gateway_stream(&mut pending, sender, format!("gateway 调度失败: {}", error));
@@ -421,6 +438,7 @@ fn execute_task_with_selected_backend(
         &session_id,
         "task",
         prompt,
+        resolve_task_execution_acp_agent(task).is_some(),
         sender,
         |retry_prompt, session_mode| {
             execute_task_with_selected_backend_in_session(
@@ -494,6 +512,7 @@ fn execute_prompt_with_continue_retry_on_timeout(
     session_id: &str,
     retry_scope: &str,
     initial_prompt: &str,
+    provider_retains_session_history: bool,
     sender: Option<&Sender<TaskLogStream>>,
     execute: impl FnMut(&str, GatewayPromptSessionMode) -> Result<String, String>,
 ) -> Result<String, String> {
@@ -502,6 +521,7 @@ fn execute_prompt_with_continue_retry_on_timeout(
         retry_scope,
         initial_prompt,
         GatewayPromptSessionMode::Fresh,
+        provider_retains_session_history,
         sender,
         execute,
     )
@@ -513,6 +533,7 @@ fn execute_prompt_with_continue_retry_on_timeout_in_mode(
     retry_scope: &str,
     initial_prompt: &str,
     initial_session_mode: GatewayPromptSessionMode,
+    provider_retains_session_history: bool,
     sender: Option<&Sender<TaskLogStream>>,
     mut execute: impl FnMut(&str, GatewayPromptSessionMode) -> Result<String, String>,
 ) -> Result<String, String> {
@@ -543,6 +564,15 @@ fn execute_prompt_with_continue_retry_on_timeout_in_mode(
     }
 
     let mut continue_attempts = 0usize;
+    let continue_prompt = if provider_retains_session_history {
+        TASK_GATEWAY_CONTINUE_PROMPT.to_string()
+    } else {
+        format!(
+            "{}\n\n## 原始任务上下文\n{}",
+            TASK_GATEWAY_CONTINUE_PROMPT,
+            initial_prompt.trim()
+        )
+    };
     let mut last_error = match &result {
         Ok(_) => return result,
         Err(error) if is_gateway_continue_retry_error(error) => error.clone(),
@@ -562,7 +592,7 @@ fn execute_prompt_with_continue_retry_on_timeout_in_mode(
                 TASK_GATEWAY_CONTINUE_RETRY_MAX_ATTEMPTS
             ),
         );
-        result = execute(TASK_GATEWAY_CONTINUE_PROMPT, GatewayPromptSessionMode::ContinueExisting);
+        result = execute(&continue_prompt, GatewayPromptSessionMode::ContinueExisting);
         match &result {
             Ok(_) => return result,
             Err(error) if is_gateway_continue_retry_error(error) => last_error = error.clone(),
@@ -1096,6 +1126,7 @@ fn execute_task_plan_blocking(
         &session_id,
         "plan",
         &prompt,
+        resolve_task_execution_acp_agent(&task).is_some(),
         sender_ref,
         |retry_prompt, session_mode| {
             execute_gateway_prompt_with_streaming_in_mode(
@@ -1530,6 +1561,7 @@ fn execute_single_subtask(
         &retry_scope,
         &model_prompt,
         initial_session_mode,
+        resolve_task_execution_acp_agent(task).is_some(),
         sender,
         |prompt, session_mode| {
             execute_task_with_selected_backend_in_session(

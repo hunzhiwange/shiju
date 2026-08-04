@@ -2,8 +2,8 @@
 const SOURCE: &str = include_str!("catalog.rs");
 
 use super::catalog::{
-    catalog_group_section, catalog_item, catalog_matches_query, catalog_skill_initials,
-    section_card_style, section_copy, skill_badge, source_label,
+    catalog_group_section, catalog_item, catalog_item_button_style, catalog_matches_query,
+    catalog_skill_initials, section_card_style, section_copy, skill_badge, source_label,
 };
 use crate::app::state::{
     SkillsCatalogItem as CatalogSkillMeta, SkillsCatalogKind as CatalogSkillKind,
@@ -174,6 +174,15 @@ fn skill_badge_emphasized_creates_styled_container() {
 }
 
 #[test]
+fn catalog_item_button_style_uses_theme_text_color() {
+    for theme in [iced::Theme::Light, iced::Theme::Dark] {
+        let style = catalog_item_button_style(&theme, iced::widget::button::Status::Active);
+        assert_eq!(style.text_color, theme.palette().text);
+        assert_eq!(style.background, None);
+    }
+}
+
+#[test]
 fn catalog_skill_initials_handles_hyphen_and_single_word() {
     let hyphen = skill("id", "agent-builder", "", "global", None);
     assert_eq!(catalog_skill_initials(&hyphen), "AB");
@@ -271,6 +280,7 @@ fn catalog_tests_keeps_planned_coverage_targets() {
         "catalog_skill_initials",
         "section_copy",
         "source_label",
+        "catalog_item_button_style",
         "catalog_item",
         "catalog_group_section",
     ] {

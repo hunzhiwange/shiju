@@ -55,6 +55,12 @@ pub struct AgentDefinitionConfig {
     /// 该代理是否启用注册与使用。
     #[serde(default = "default_delegate_agent_enabled")]
     pub enabled: bool,
+    /// 是否允许该代理被其他 Agent 作为子智能体启动。
+    #[serde(default = "default_allow_as_subagent")]
+    pub allow_as_subagent: bool,
+    /// 该代理每轮最多同时启动的子智能体数量。
+    #[serde(default = "default_max_parallel_subagents")]
+    pub max_parallel_subagents: usize,
     /// Provider 名称，例如 `ollama`、`openrouter`、`anthropic`。
     pub provider: String,
     /// 模型名称。
@@ -89,6 +95,9 @@ pub struct AgentDefinitionConfig {
     /// 委托代理可见的技能白名单。
     #[serde(default, alias = "skills")]
     pub allowed_skills: Vec<String>,
+    /// 允许加载到提示词中的工作区身份文件白名单。
+    #[serde(default)]
+    pub enabled_identity_files: Vec<String>,
     /// 额外模型选项。
     #[serde(default)]
     pub options: HashMap<String, Value>,
@@ -118,8 +127,16 @@ fn default_delegate_agent_enabled() -> bool {
     true
 }
 
+fn default_allow_as_subagent() -> bool {
+    true
+}
+
+fn default_max_parallel_subagents() -> usize {
+    4
+}
+
 fn default_max_tool_iterations() -> usize {
-    10
+    50_000
 }
 
 impl Default for AgentDefinitionConfig {
@@ -130,6 +147,8 @@ impl Default for AgentDefinitionConfig {
             builtin: false,
             mode: default_delegate_agent_mode(),
             enabled: default_delegate_agent_enabled(),
+            allow_as_subagent: default_allow_as_subagent(),
+            max_parallel_subagents: default_max_parallel_subagents(),
             provider: String::new(),
             model: String::new(),
             system_prompt: None,
@@ -142,6 +161,7 @@ impl Default for AgentDefinitionConfig {
             agentic: false,
             allowed_tools: Vec::new(),
             allowed_skills: Vec::new(),
+            enabled_identity_files: Vec::new(),
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: default_max_tool_iterations(),
@@ -158,6 +178,8 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("builtin", &self.builtin)
             .field("mode", &self.mode)
             .field("enabled", &self.enabled)
+            .field("allow_as_subagent", &self.allow_as_subagent)
+            .field("max_parallel_subagents", &self.max_parallel_subagents)
             .field("provider", &self.provider)
             .field("model", &self.model)
             .field("system_prompt", &self.system_prompt)
@@ -170,6 +192,7 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("agentic", &self.agentic)
             .field("allowed_tools", &self.allowed_tools)
             .field("allowed_skills", &self.allowed_skills)
+            .field("enabled_identity_files", &self.enabled_identity_files)
             .field("options", &self.options)
             .field("permission", &self.permission)
             .field("max_iterations", &self.max_iterations)
@@ -491,11 +514,11 @@ pub struct AgentConfig {
     /// 适合 13B 或更小规模的模型。
     #[serde(default)]
     pub compact_context: bool,
-    /// 每条用户消息允许的最大工具调用循环轮数。默认值为 `20`。
-    /// 设置为 `0` 时会回退到安全默认值 `20`。
+    /// 每条用户消息允许的最大工具调用循环轮数。默认值为 `50000`。
+    /// 设置为 `0` 时会回退到默认值 `50000`。
     #[serde(default = "default_agent_max_tool_iterations")]
     pub max_tool_iterations: usize,
-    /// 每个会话保留的历史消息上限。默认值为 `50`。
+    /// 每个会话保留的历史消息上限。默认值为 `100`。
     #[serde(default = "default_agent_max_history_messages")]
     pub max_history_messages: usize,
     /// 是否在单次迭代内启用并行工具执行。默认值为 `false`。
@@ -507,11 +530,11 @@ pub struct AgentConfig {
 }
 
 fn default_agent_max_tool_iterations() -> usize {
-    20
+    50_000
 }
 
 fn default_agent_max_history_messages() -> usize {
-    50
+    100
 }
 
 fn default_agent_tool_dispatcher() -> String {

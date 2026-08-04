@@ -4,7 +4,6 @@
 //! 主要功能包括：
 //! - 节标题和键值对显示组件
 //! - 图标按钮及其工具提示
-//! - 路径格式化显示
 //! - 时间戳和金额格式化
 
 use iced::widget::svg;
@@ -16,7 +15,6 @@ use iced::{Alignment, Color, Length, Theme};
 
 use crate::app::Message;
 use crate::app::assets::{self, Icon};
-use crate::app::message::view::ViewMessage;
 
 fn muted_label_text_style(theme: &Theme) -> iced::widget::text::Style {
     iced::widget::text::Style {
@@ -175,93 +173,6 @@ pub fn icon_btn<'a>(icon: Icon, tip: &'a str, msg: Message) -> iced::Element<'a,
     let tip_content =
         container(text(tip.to_string()).size(12)).padding([6, 10]).style(tooltip_container_style);
     Tooltip::new(btn, tip_content, TooltipPosition::Bottom).gap(8).into()
-}
-
-/// 格式化显示路径为简短形式
-///
-/// 将完整路径转换为更简洁的显示形式，仅保留父目录名和文件名。
-/// 格式为："…/父目录/文件名"，如果路径没有父目录则仅显示文件名。
-///
-/// # 参数
-///
-/// * `path` - 完整文件路径字符串
-///
-/// # 返回值
-///
-/// 返回简化后的路径字符串，格式如 "…/config/settings.json" 或 "file.txt"
-///
-/// # 示例
-///
-/// ```ignore
-/// let short = display_path("/home/user/project/config/settings.json");
-/// // 返回 "…/config/settings.json"
-///
-/// let short = display_path("README.md");
-/// // 返回 "README.md"
-/// ```
-pub fn display_path(path: &str) -> String {
-    let p = std::path::Path::new(path);
-    // 获取文件名（路径最后一部分）
-    let file = p.file_name().and_then(|s| s.to_str()).unwrap_or(path);
-    // 获取父目录名（路径倒数第二部分）
-    let parent = p.parent().and_then(|p| p.file_name()).and_then(|s| s.to_str());
-    match parent {
-        Some(dir) => format!("…/{}/{}", dir, file),
-        None => file.to_string(),
-    }
-}
-
-/// 创建键值对路径显示行（带操作按钮）
-///
-/// 生成一行布局，左侧显示标签，右侧显示简化的路径，
-/// 如果路径存在，还会添加"复制路径"和"打开"两个操作按钮。
-///
-/// # 参数
-///
-/// * `label` - 左侧标签文本
-/// * `path` - 可选的文件路径，None 时显示"暂无"
-///
-/// # 返回值
-///
-/// 返回一个 iced Element，包含标签、路径显示和可选的操作按钮
-///
-/// # 功能特性
-///
-/// - 路径自动简化显示（仅显示父目录和文件名）
-/// - 路径不存在时显示"暂无"
-/// - 路径存在时显示：
-///   - 复制按钮：点击复制完整路径到剪贴板
-///   - 打开按钮：在文件管理器中打开路径
-///
-/// # 示例
-///
-/// ```ignore
-/// let row = kv_path("配置文件", Some("/path/to/config.json".to_string()));
-/// let row = kv_path("日志文件", None); // 显示"暂无"
-/// ```
-pub fn kv_path<'a>(label: &'a str, path: Option<String>) -> iced::Element<'a, Message> {
-    // 格式化路径显示，无路径时显示"暂无"
-    let value = path.as_deref().map(display_path).unwrap_or_else(|| "暂无".to_string());
-    // 创建基础键值对行布局
-    let mut r = row![
-        text(label).size(12).style(muted_label_text_style),
-        Space::new().width(Length::Fill),
-        text(value).size(12).style(primary_text_style),
-    ]
-    .align_y(Alignment::Center)
-    .spacing(10);
-
-    // 如果路径存在，添加复制和打开按钮
-    if let Some(p) = path {
-        r = r.push(icon_btn(Icon::Copy, "复制路径", Message::CopyCode(p.clone())));
-        r = r.push(icon_btn(
-            Icon::FolderOpen,
-            "打开",
-            Message::View(ViewMessage::OpenPathInFinder(p)),
-        ));
-    }
-
-    r.into()
 }
 
 /// 将毫秒时间戳格式化为可读的日期时间字符串

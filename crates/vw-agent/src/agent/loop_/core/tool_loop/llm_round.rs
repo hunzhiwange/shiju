@@ -4,6 +4,7 @@
 //! 以及构造后续历史所需的助手消息内容。
 
 use crate::app::agent::multimodal;
+use crate::app::agent::multimodal::ocr::{ImageTextExtractor, SessionImageTextExtractor};
 use crate::app::agent::observability::{Observer, ObserverEvent, runtime_trace};
 use crate::app::agent::providers::{
     ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall, sanitize_api_error,
@@ -63,8 +64,53 @@ pub(super) async fn run_llm_round(
     turn_id: &str,
     iteration: usize,
 ) -> Result<LlmRoundResult> {
+    let extractor = SessionImageTextExtractor::new();
+    run_llm_round_with_extractor(
+        provider,
+        history,
+        observer,
+        provider_name,
+        model,
+        temperature,
+        channel_name,
+        multimodal_config,
+        cancellation_token,
+        hooks,
+        tool_specs,
+        use_native_tools,
+        turn_id,
+        iteration,
+        &extractor,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_llm_round_with_extractor(
+    provider: &dyn Provider,
+    history: &[ChatMessage],
+    observer: &dyn Observer,
+    provider_name: &str,
+    model: &str,
+    temperature: f64,
+    channel_name: &str,
+    multimodal_config: &crate::app::agent::config::MultimodalConfig,
+    cancellation_token: Option<&CancellationToken>,
+    hooks: Option<&crate::app::agent::hooks::HookRunner>,
+    tool_specs: &[ToolSpec],
+    use_native_tools: bool,
+    turn_id: &str,
+    iteration: usize,
+    extractor: &dyn ImageTextExtractor,
+) -> Result<LlmRoundResult> {
     let image_marker_count = multimodal::count_image_markers(history);
-    if image_marker_count > 0 && !provider.supports_vision() {
+    let prepared_messages = if image_marker_count == 0 {
+        multimodal::prepare_messages_for_provider(history, multimodal_config).await?
+    } else if multimodal_config.ocr.enabled {
+        multimodal::ocr::prepare_messages_with_ocr(history, multimodal_config, extractor).await?
+    } else if provider.supports_vision() {
+        multimodal::prepare_messages_for_provider(history, multimodal_config).await?
+    } else {
         // 视觉能力必须在请求前显式拒绝，避免把含图片标记的历史发送给不支持
         // 该能力的 provider，造成不可预测的远端错误或内容丢失。
         return Err(ProviderCapabilityError {
@@ -75,10 +121,7 @@ pub(super) async fn run_llm_round(
             ),
         }
         .into());
-    }
-
-    let prepared_messages =
-        multimodal::prepare_messages_for_provider(history, multimodal_config).await?;
+    };
 
     observer.record_event(&ObserverEvent::LlmRequest {
         provider: provider_name.to_string(),

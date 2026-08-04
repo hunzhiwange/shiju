@@ -43,6 +43,12 @@ pub fn truncate_chars(s: &str, max_chars: usize) -> String {
     out
 }
 
+/// 将文本压缩为单行摘要，并按字符数截断。
+pub fn single_line_preview(s: &str, max_chars: usize) -> String {
+    let compact = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    truncate_chars(&compact, max_chars)
+}
+
 /// 处理 truncate lines middle 对应的局部职责。
 ///
 /// # 参数

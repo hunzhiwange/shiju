@@ -20,7 +20,6 @@ pub fn is_provider_connected(provider: &vw_shared::provider::types::Info) -> boo
             provider.source,
             vw_shared::provider::types::ProviderSource::Api
                 | vw_shared::provider::types::ProviderSource::Env
-                | vw_shared::provider::types::ProviderSource::Config
         )
 }
 

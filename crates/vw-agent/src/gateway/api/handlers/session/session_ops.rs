@@ -18,8 +18,8 @@ use vw_api_types::session::{
 };
 
 use super::shared::{
-    UiSessionCreateBody, UiSessionListQuery, has_explicit_directory, session_api_error,
-    with_tenant_instance,
+    UiSessionCreateBody, UiSessionListQuery, has_explicit_directory, lifecycle_api_error,
+    session_api_error, with_tenant_instance,
 };
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::AppState;
@@ -28,9 +28,9 @@ use crate::app::agent::gateway::chat::{
 };
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::gateway::instance::resolve_directory;
-use crate::app::agent::project::instance;
 use crate::app::agent::session as agent_session;
 use crate::app::agent::snapshot;
+use crate::session::runtime::{CreateSessionInput, SessionScope, create_session, load_session};
 use crate::session::ui_store;
 
 fn task_session_summary_needs_refresh(session: &agent_session::session::Info) -> bool {
@@ -153,13 +153,9 @@ pub(super) async fn ui_session_get(
     let tenant = ui_store::current_tenant_scope();
     if has_explicit_directory(&query, &headers) {
         let dir = resolve_directory(&query, &headers);
-        let result = with_tenant_instance(tenant, dir, move || {
-            Box::pin(async move {
-                agent_session::session::get(&session_id).await.map_err(session_api_error)
-            })
-        })
-        .await?;
-        return Ok(Json(result));
+        let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
+        let snapshot = load_session(scope, &session_id).await.map_err(lifecycle_api_error)?;
+        return Ok(Json(snapshot.info));
     }
 
     let session = ui_store::with_tenant_scope(tenant, agent_session::session::get_any(&session_id))
@@ -191,20 +187,12 @@ pub(super) async fn ui_session_create(
     let UiSessionCreateBody { session, permission } = body;
     let vw_api_types::session::GatewaySessionCreateBody { parent_id, title } = session;
 
-    let created = with_tenant_instance(tenant, dir, move || {
-        Box::pin(async move {
-            agent_session::session::create_next(agent_session::session::CreateInput {
-                parent_id,
-                title,
-                directory: instance::directory(),
-                permission,
-            })
+    let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
+    let created =
+        create_session(CreateSessionInput { scope, parent_id, title, permission })
             .await
-            .map_err(session_api_error)
-        })
-    })
-    .await?;
-    Ok(Json(created))
+            .map_err(lifecycle_api_error)?;
+    Ok(Json(created.info))
 }
 
 /// 更新会话标题或归档时间。

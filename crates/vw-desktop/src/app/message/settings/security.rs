@@ -21,13 +21,12 @@
 //! - 默认采用安全优先策略
 
 use crate::app::config::update_security_config_async;
-use crate::app::state::SecuritySettingsState;
+use crate::app::state::{SecurityListKind, SecuritySettingsState};
 use crate::app::{App, Message};
 use iced::Task;
 use vw_config_types::security::SecurityConfig;
 
 use super::messages::SettingsMessage;
-use super::util::parse_comma_or_newline_list;
 
 /// 规范化沙箱启用状态输入
 ///
@@ -36,7 +35,7 @@ use super::util::parse_comma_or_newline_list;
 /// - `"true"`：强制启用沙箱
 /// - `"false"`：强制禁用沙箱
 ///
-/// 任何无效输入都会被转换为 `"auto"`，确保安全默认值。
+/// 任何无效输入都会被转换为 `"false"`，确保默认禁用沙箱。
 ///
 /// # 参数
 ///
@@ -51,13 +50,13 @@ use super::util::parse_comma_or_newline_list;
 /// ```ignore
 /// assert_eq!(normalize_security_sandbox_enabled("  AUTO  "), "auto");
 /// assert_eq!(normalize_security_sandbox_enabled("True"), "true");
-/// assert_eq!(normalize_security_sandbox_enabled("invalid"), "auto");
+/// assert_eq!(normalize_security_sandbox_enabled("invalid"), "false");
 /// ```
 fn normalize_security_sandbox_enabled(raw: &str) -> String {
     let v = raw.trim().to_ascii_lowercase();
     match v.as_str() {
         "auto" | "true" | "false" => v,
-        _ => "auto".to_string(),
+        _ => "false".to_string(),
     }
 }
 
@@ -71,7 +70,7 @@ fn normalize_security_sandbox_enabled(raw: &str) -> String {
 /// - `"docker"`：Docker 容器
 /// - `"none"`：不使用沙箱
 ///
-/// 任何无效输入都会被转换为 `"auto"`。
+/// 任何无效输入都会被转换为 `"none"`。
 ///
 /// # 参数
 ///
@@ -86,13 +85,13 @@ fn normalize_security_sandbox_enabled(raw: &str) -> String {
 /// ```ignore
 /// assert_eq!(normalize_security_sandbox_backend("  LANDLOCK  "), "landlock");
 /// assert_eq!(normalize_security_sandbox_backend("Firejail"), "firejail");
-/// assert_eq!(normalize_security_sandbox_backend("unknown"), "auto");
+/// assert_eq!(normalize_security_sandbox_backend("unknown"), "none");
 /// ```
 fn normalize_security_sandbox_backend(raw: &str) -> String {
     let v = raw.trim().to_ascii_lowercase();
     match v.as_str() {
         "auto" | "landlock" | "firejail" | "bubblewrap" | "docker" | "none" => v,
-        _ => "auto".to_string(),
+        _ => "none".to_string(),
     }
 }
 
@@ -205,6 +204,7 @@ fn normalize_security_otp_method(raw: &str) -> String {
 ///
 /// 该函数会调用 `crate::app::update_security_config_async` 将配置异步写入磁盘
 fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &SecuritySettingsState) {
+    let bash = s.bash.clone();
     let resources_max_memory_mb = s.resources_max_memory_mb.clamp(32, 65_536);
     let resources_max_cpu_time_seconds = s.resources_max_cpu_time_seconds.clamp(1, 86_400);
     let resources_max_subprocesses = s.resources_max_subprocesses.clamp(1, 10_000);
@@ -215,10 +215,9 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     let otp_enabled = s.otp_enabled;
     let otp_token_ttl_secs = s.otp_token_ttl_secs.clamp(1, 600);
     let otp_cache_valid_secs = s.otp_cache_valid_secs.clamp(1, 86_400);
-    let otp_gated_actions = parse_comma_or_newline_list(&s.otp_gated_actions_input);
-    let otp_gated_domains = parse_comma_or_newline_list(&s.otp_gated_domains_input);
-    let otp_gated_domain_categories =
-        parse_comma_or_newline_list(&s.otp_gated_domain_categories_input);
+    let otp_gated_actions = s.otp_gated_actions.clone();
+    let otp_gated_domains = s.otp_gated_domains.clone();
+    let otp_gated_domain_categories = s.otp_gated_domain_categories.clone();
     let estop_enabled = s.estop_enabled;
     let estop_require_otp_to_resume = s.estop_require_otp_to_resume;
     let syscall_anomaly_enabled = s.syscall_anomaly_enabled;
@@ -231,8 +230,7 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     let syscall_anomaly_max_alerts_per_minute =
         s.syscall_anomaly_max_alerts_per_minute.clamp(1, 10_000);
     let syscall_anomaly_alert_cooldown_secs = s.syscall_anomaly_alert_cooldown_secs.clamp(1, 3600);
-    let syscall_anomaly_baseline_syscalls =
-        parse_comma_or_newline_list(&s.syscall_anomaly_baseline_syscalls_input);
+    let syscall_anomaly_baseline_syscalls = s.syscall_anomaly_baseline_syscalls.clone();
     let canary_tokens = s.canary_tokens;
     let semantic_guard = s.semantic_guard;
     let semantic_guard_threshold = s.semantic_guard_threshold.clamp(0.0, 1.0);
@@ -241,7 +239,7 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     let sandbox_enabled = normalize_security_sandbox_enabled(&s.sandbox_enabled_input);
     let sandbox_backend =
         normalize_security_sandbox_backend_for_enabled(&s.sandbox_backend_input, &sandbox_enabled);
-    let sandbox_firejail_args = parse_comma_or_newline_list(&s.sandbox_firejail_args_input);
+    let sandbox_firejail_args = s.sandbox_firejail_args.clone();
 
     // 提取并清理路径配置
     let audit_log_path = s.audit_log_path.trim().to_string();
@@ -249,6 +247,9 @@ fn apply_security_settings_to_config(security: &mut SecurityConfig, s: &Security
     let estop_state_file = s.estop_state_file.trim().to_string();
     let syscall_anomaly_log_path = s.syscall_anomaly_log_path.trim().to_string();
     let semantic_guard_collection = s.semantic_guard_collection.trim().to_string();
+
+    // 配置 Bash 命令执行前安全检查
+    security.bash = bash;
 
     // 配置沙箱启用状态
     // 将字符串转换为 Option<bool>，"auto" 对应 None
@@ -369,6 +370,31 @@ fn save_security_settings(app: &mut App) -> Task<Message> {
     persist_security_settings(app)
 }
 
+fn add_list_item(app: &mut App, kind: SecurityListKind) -> Task<Message> {
+    let value = app.security_settings.list_editor.draft(kind).trim().to_string();
+    if value.is_empty() {
+        app.security_settings.save_error = Some("列表项不能为空".to_string());
+        return Task::none();
+    }
+    if app.security_settings.list(kind).iter().any(|item| item == &value) {
+        app.security_settings.save_error = Some(format!("列表项已存在：{value}"));
+        return Task::none();
+    }
+
+    app.security_settings.list_mut(kind).push(value);
+    app.security_settings.list_editor.set_draft(kind, String::new());
+    save_security_settings(app)
+}
+
+fn remove_list_item(app: &mut App, kind: SecurityListKind, index: usize) -> Task<Message> {
+    if index >= app.security_settings.list(kind).len() {
+        app.security_settings.save_error = Some("要删除的列表项不存在".to_string());
+        return Task::none();
+    }
+    app.security_settings.list_mut(kind).remove(index);
+    save_security_settings(app)
+}
+
 /// 处理安全设置相关的消息
 ///
 /// 该函数是安全设置 UI 交互的主要入口点，负责处理所有安全配置相关的用户操作。
@@ -390,7 +416,7 @@ fn save_security_settings(app: &mut App) -> Task<Message> {
 /// ## 沙箱配置
 /// - `SecuritySandboxEnabledChanged`：沙箱启用状态变更
 /// - `SecuritySandboxBackendChanged`：沙箱后端类型变更
-/// - `SecuritySandboxFirejailArgsChanged`：Firejail 参数变更
+/// - `SecurityListDraftChanged/Add/Remove`：Firejail、OTP 与系统调用列表变更
 ///
 /// ## 资源限制
 /// - `SecurityResourcesMaxMemoryMbChanged`：内存限制变更
@@ -409,9 +435,6 @@ fn save_security_settings(app: &mut App) -> Task<Message> {
 /// - `SecurityOtpMethodChanged`：OTP 方法变更
 /// - `SecurityOtpTokenTtlSecsChanged`：令牌有效期变更
 /// - `SecurityOtpCacheValidSecsChanged`：缓存有效期变更
-/// - `SecurityOtpGatedActionsChanged`：受保护操作列表变更
-/// - `SecurityOtpGatedDomainsChanged`：受保护域名列表变更
-/// - `SecurityOtpGatedDomainCategoriesChanged`：受保护域名分类列表变更
 ///
 /// ## 紧急停止
 /// - `SecurityEstopEnabledToggled`：紧急停止启用开关变更
@@ -427,7 +450,6 @@ fn save_security_settings(app: &mut App) -> Task<Message> {
 /// - `SecuritySyscallAnomalyMaxAlertsPerMinuteChanged`：告警限流变更
 /// - `SecuritySyscallAnomalyAlertCooldownSecsChanged`：告警冷却时间变更
 /// - `SecuritySyscallAnomalyLogPathChanged`：异常日志路径变更
-/// - `SecuritySyscallAnomalyBaselineSyscallsChanged`：基线系统调用列表变更
 ///
 /// ## 安全令牌和语义防护
 /// - `SecurityCanaryTokensToggled`：Canary tokens 开关变更
@@ -454,6 +476,71 @@ fn save_security_settings(app: &mut App) -> Task<Message> {
 /// ```
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        // Bash 命令执行前安全检查开关变更
+        SettingsMessage::SecurityBashSecurityEnabledToggled(v) => {
+            app.security_settings.bash.enabled = v;
+            save_security_settings(app)
+        }
+        SettingsMessage::SecurityBashPolicyCheckToggled(check, v) => {
+            use super::messages::BashPolicyCheck;
+            let policy = &mut app.security_settings.bash.policy;
+            match check {
+                BashPolicyCheck::Enabled => policy.enabled = v,
+                BashPolicyCheck::ReadOnly => policy.read_only = v,
+                BashPolicyCheck::UnsafeShellPatterns => policy.unsafe_shell_patterns = v,
+                BashPolicyCheck::CommandRules => policy.command_rules = v,
+                BashPolicyCheck::WorkspacePaths => policy.workspace_paths = v,
+                BashPolicyCheck::ForbiddenPaths => policy.forbidden_paths = v,
+                BashPolicyCheck::Risk => policy.risk = v,
+                BashPolicyCheck::Redirects => policy.redirects = v,
+            }
+            save_security_settings(app)
+        }
+        SettingsMessage::SecurityBashValidatorCheckToggled(check, v) => {
+            use super::messages::BashValidatorCheck;
+            let validators = &mut app.security_settings.bash.validators;
+            match check {
+                BashValidatorCheck::Enabled => validators.enabled = v,
+                BashValidatorCheck::EmptyCommand => validators.empty_command = v,
+                BashValidatorCheck::Heredoc => validators.heredoc = v,
+                BashValidatorCheck::GitCommit => validators.git_commit = v,
+                BashValidatorCheck::Jq => validators.jq = v,
+                BashValidatorCheck::Metacharacters => validators.metacharacters = v,
+                BashValidatorCheck::DangerousVars => validators.dangerous_vars = v,
+                BashValidatorCheck::Substitution => validators.substitution = v,
+                BashValidatorCheck::Redirection => validators.redirection = v,
+                BashValidatorCheck::NewlineInjection => validators.newline_injection = v,
+                BashValidatorCheck::IfsInjection => validators.ifs_injection = v,
+                BashValidatorCheck::ProcEnviron => validators.proc_environ = v,
+                BashValidatorCheck::Malformed => validators.malformed = v,
+                BashValidatorCheck::ObfuscatedFlags => validators.obfuscated_flags = v,
+                BashValidatorCheck::Backslash => validators.backslash = v,
+                BashValidatorCheck::BraceExpansion => validators.brace_expansion = v,
+                BashValidatorCheck::UnicodeWhitespace => validators.unicode_whitespace = v,
+                BashValidatorCheck::HashComment => validators.hash_comment = v,
+                BashValidatorCheck::CommentQuoteDesync => validators.comment_quote_desync = v,
+                BashValidatorCheck::QuotedNewline => validators.quoted_newline = v,
+                BashValidatorCheck::ZshDangerous => validators.zsh_dangerous = v,
+                BashValidatorCheck::ControlChars => validators.control_chars = v,
+            }
+            save_security_settings(app)
+        }
+
+        SettingsMessage::SecurityTabSelected(tab) => {
+            app.security_settings.active_tab = tab;
+            Task::none()
+        }
+
+        SettingsMessage::SecurityListDraftChanged(kind, value) => {
+            app.security_settings.list_editor.set_draft(kind, value);
+            app.security_settings.save_error = None;
+            Task::none()
+        }
+
+        SettingsMessage::SecurityListAdd(kind) => add_list_item(app, kind),
+
+        SettingsMessage::SecurityListRemove(kind, index) => remove_list_item(app, kind, index),
+
         // 沙箱启用状态变更
         SettingsMessage::SecuritySandboxEnabledChanged(v) => {
             app.security_settings.sandbox_enabled_input = normalize_security_sandbox_enabled(&v);
@@ -472,12 +559,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     &v,
                     &app.security_settings.sandbox_enabled_input,
                 );
-            save_security_settings(app)
-        }
-
-        // Firejail 自定义参数变更
-        SettingsMessage::SecuritySandboxFirejailArgsChanged(v) => {
-            app.security_settings.sandbox_firejail_args_input = v;
             save_security_settings(app)
         }
 
@@ -553,24 +634,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             save_security_settings(app)
         }
 
-        // 受 OTP 保护的 操作列表变更
-        SettingsMessage::SecurityOtpGatedActionsChanged(v) => {
-            app.security_settings.otp_gated_actions_input = v;
-            save_security_settings(app)
-        }
-
-        // 受 OTP 保护的域名列表变更
-        SettingsMessage::SecurityOtpGatedDomainsChanged(v) => {
-            app.security_settings.otp_gated_domains_input = v;
-            save_security_settings(app)
-        }
-
-        // 受 OTP 保护的域名分类列表变更
-        SettingsMessage::SecurityOtpGatedDomainCategoriesChanged(v) => {
-            app.security_settings.otp_gated_domain_categories_input = v;
-            save_security_settings(app)
-        }
-
         // 紧急停止启用开关变更
         SettingsMessage::SecurityEstopEnabledToggled(v) => {
             app.security_settings.estop_enabled = v;
@@ -634,12 +697,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         // 系统调用异常日志路径变更
         SettingsMessage::SecuritySyscallAnomalyLogPathChanged(v) => {
             app.security_settings.syscall_anomaly_log_path = v;
-            save_security_settings(app)
-        }
-
-        // 基线系统调用列表变更
-        SettingsMessage::SecuritySyscallAnomalyBaselineSyscallsChanged(v) => {
-            app.security_settings.syscall_anomaly_baseline_syscalls_input = v;
             save_security_settings(app)
         }
 

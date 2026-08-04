@@ -58,6 +58,19 @@ fn session_title_falls_back_when_active_session_is_missing() {
 }
 
 #[test]
+fn session_title_uses_project_session_when_active_session_is_not_in_recent_list() {
+    let mut app = App::new().0;
+    app.active_session_id = Some("plan-child".to_string());
+    app.sessions = vec![session_info("plan-child", "   ")];
+    app.project_sessions.insert(
+        "/tmp/project".to_string(),
+        vec![session_info("plan-child", "规划 · task-1")],
+    );
+
+    assert_eq!(get_session_title(&app), "规划 · task-1");
+}
+
+#[test]
 fn is_recent_copy_requires_matching_hash_and_fresh_timestamp() {
     let mut app = App::new().0;
     app.last_copied_code_hash = Some(42);

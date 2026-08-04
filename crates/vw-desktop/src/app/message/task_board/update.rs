@@ -3440,6 +3440,11 @@ pub fn update(
             app.task_board_staff_task_status_filter.clear();
             iced::Task::none()
         }
+        TaskBoardMessage::SelectStaffTaskStatusTab(status) => {
+            app.task_board_staff_task_status_filter.clear();
+            app.task_board_staff_task_status_filter.push(status);
+            iced::Task::none()
+        }
         TaskBoardMessage::ToggleStaffTaskStatusFilter(status) => {
             toggle_staff_task_status_filter(&mut app.task_board_staff_task_status_filter, status);
             iced::Task::none()

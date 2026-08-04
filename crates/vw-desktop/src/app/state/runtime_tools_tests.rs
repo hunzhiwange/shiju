@@ -5,7 +5,7 @@
 
 use super::{
     AdvancedToolSurfaceState, SessionToolBucket, SessionToolGroup, SessionToolInventory,
-    SessionToolSelectorState, SessionToolSelectorTab, SkillsDirectoryScope,
+    SessionToolSelectorState, SessionToolSelectorTab, ShijuSkillSelection, SkillsDirectoryScope,
     explicit_advanced_tool_surface_spec, tool_bucket, tool_display_name, tool_group,
 };
 
@@ -104,6 +104,33 @@ fn tool_selector_tracks_manual_context_selections() {
 
     selector.reset();
     assert!(!selector.has_manual_context_selection());
+}
+
+#[test]
+fn tool_selector_tracks_multiple_shiju_functions_and_reset() {
+    let mut selector = SessionToolSelectorState::default();
+    let first =
+        ShijuSkillSelection::new(7, "document-review".to_string(), "文档审查".to_string());
+    let second =
+        ShijuSkillSelection::new(9, "meeting-notes".to_string(), "会议纪要".to_string());
+
+    selector.toggle_shiju_skill(first.clone());
+    assert!(selector.is_shiju_skill_selected(first.skill_id()));
+
+    selector.toggle_shiju_skill(second.clone());
+    assert_eq!(selector.selected_shiju_skills(), vec![first.clone(), second.clone()]);
+
+    selector.toggle_shiju_skill(second);
+    assert_eq!(selector.selected_shiju_skills(), vec![first.clone()]);
+
+    selector.toggle_manual_skill("local-skill");
+    selector.toggle_shiju_skill(first.clone());
+    assert_eq!(selector.selected_manual_skills(), vec!["local-skill".to_string()]);
+    assert!(!selector.is_shiju_skill_selected(first.skill_id()));
+
+    selector.reset();
+    assert!(selector.selected_shiju_skills().is_empty());
+    assert!(selector.selected_manual_skills().is_empty());
 }
 
 #[test]

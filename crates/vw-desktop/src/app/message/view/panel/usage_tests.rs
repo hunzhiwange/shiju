@@ -51,76 +51,6 @@ fn usage_model_info_loaded_none_clears_existing_info() {
 }
 
 #[test]
-fn session_file_path_loaded_for_active_session_stores_utf8_path() {
-    let mut app = test_app();
-    app.active_session_id = Some("active-session".to_string());
-
-    let _task = super::update(
-        &mut app,
-        ViewMessage::UsageSessionFilePathLoaded(
-            "active-session".to_string(),
-            Ok(Some("/tmp/session.sqlite".into())),
-        ),
-    );
-
-    assert_eq!(app.usage_session_file_path.as_deref(), Some("/tmp/session.sqlite"));
-}
-
-#[test]
-fn session_file_path_loaded_for_stale_session_preserves_current_path() {
-    let mut app = test_app();
-    app.active_session_id = Some("active-session".to_string());
-    app.usage_session_file_path = Some("/tmp/current.sqlite".to_string());
-
-    let _task = super::update(
-        &mut app,
-        ViewMessage::UsageSessionFilePathLoaded(
-            "stale-session".to_string(),
-            Ok(Some("/tmp/stale.sqlite".into())),
-        ),
-    );
-
-    assert_eq!(app.usage_session_file_path.as_deref(), Some("/tmp/current.sqlite"));
-}
-
-#[test]
-fn session_file_path_loaded_empty_or_error_clears_active_path() {
-    for result in [Ok(None), Err("database unavailable".to_string())] {
-        let mut app = test_app();
-        app.active_session_id = Some("active-session".to_string());
-        app.usage_session_file_path = Some("/tmp/current.sqlite".to_string());
-
-        let _task = super::update(
-            &mut app,
-            ViewMessage::UsageSessionFilePathLoaded("active-session".to_string(), result),
-        );
-
-        assert!(app.usage_session_file_path.is_none());
-    }
-}
-
-#[cfg(unix)]
-#[test]
-fn session_file_path_loaded_non_utf8_path_clears_active_path() {
-    use std::os::unix::ffi::OsStringExt;
-
-    let mut app = test_app();
-    app.active_session_id = Some("active-session".to_string());
-    app.usage_session_file_path = Some("/tmp/current.sqlite".to_string());
-    let non_utf8_path = std::ffi::OsString::from_vec(vec![b'/', 0xff]).into();
-
-    let _task = super::update(
-        &mut app,
-        ViewMessage::UsageSessionFilePathLoaded(
-            "active-session".to_string(),
-            Ok(Some(non_utf8_path)),
-        ),
-    );
-
-    assert!(app.usage_session_file_path.is_none());
-}
-
-#[test]
 fn usage_step_toggled_collapses_expanded_step_without_loading() {
     let mut app = test_app();
     app.active_session_id = Some("active-session".to_string());
@@ -130,6 +60,19 @@ fn usage_step_toggled_collapses_expanded_step_without_loading() {
 
     assert!(!app.usage_step_expanded.contains(&7));
     assert!(app.usage_step_raw_loading.is_empty());
+}
+
+#[test]
+fn usage_step_toggled_collapses_matching_raw_modal() {
+    let mut app = test_app();
+    app.active_session_id = Some("active-session".to_string());
+    app.usage_step_expanded.insert(7);
+    app.usage_step_raw_modal =
+        Some(crate::app::state::UsageStepRawModal { step_index: 7, content: "{}".to_string() });
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(7));
+
+    assert!(app.usage_step_raw_modal.is_none());
 }
 
 #[test]
@@ -246,17 +189,60 @@ fn usage_step_raw_loaded_for_stale_session_discards_result_and_clears_loading() 
 }
 
 #[test]
+fn usage_step_raw_open_builds_modal_from_cached_payload() {
+    let mut app = test_app();
+    let key = ("active-session".to_string(), 4);
+    app.active_session_id = Some(key.0.clone());
+    app.usage_step_raw_payloads.insert(
+        key.clone(),
+        Ok(Some(serde_json::json!({
+            "messages": [{"role": "user"}]
+        }))),
+    );
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(key.1));
+
+    let modal = app.usage_step_raw_modal.as_ref().expect("modal should open");
+    assert_eq!(modal.step_index, 4);
+    assert!(modal.content.contains("\"role\": \"user\""));
+}
+
+#[test]
+fn usage_step_raw_open_ignores_missing_or_empty_payload() {
+    let mut app = test_app();
+    app.active_session_id = Some("active-session".to_string());
+    app.usage_step_raw_payloads.insert(("active-session".to_string(), 8), Ok(None));
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(8));
+    assert!(app.usage_step_raw_modal.is_none());
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(9));
+    assert!(app.usage_step_raw_modal.is_none());
+}
+
+#[test]
+fn usage_step_raw_close_clears_modal() {
+    let mut app = test_app();
+    app.usage_step_raw_modal =
+        Some(crate::app::state::UsageStepRawModal { step_index: 1, content: "{}".to_string() });
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawClose);
+    assert!(app.usage_step_raw_modal.is_none());
+}
+
+#[test]
 fn unrelated_message_preserves_usage_panel_state() {
     let mut app = test_app();
     let key = ("active-session".to_string(), 17);
     app.active_session_id = Some(key.0.clone());
-    app.usage_session_file_path = Some("/tmp/current.sqlite".to_string());
     app.usage_step_expanded.insert(key.1);
     app.usage_step_raw_loading.insert(key.clone());
+    app.usage_step_raw_modal =
+        Some(crate::app::state::UsageStepRawModal { step_index: key.1, content: "{}".to_string() });
 
     let _task = super::update(&mut app, ViewMessage::OpenUsage);
 
-    assert_eq!(app.usage_session_file_path.as_deref(), Some("/tmp/current.sqlite"));
     assert!(app.usage_step_expanded.contains(&key.1));
     assert!(app.usage_step_raw_loading.contains(&key));
+    assert!(app.usage_step_raw_modal.is_some());
 }

@@ -11,7 +11,7 @@
 //!
 //! # 安全策略
 //!
-//! 审计模块执行以下安全检查：
+//! 审计模块可按配置执行以下安全检查，所有检查默认关闭：
 //!
 //! - 禁止符号链接（防止路径遍历攻击）
 //! - 禁止脚本文件（.sh、.bat、.ps1 等）
@@ -39,6 +39,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::Path;
+use vw_config_types::skills::SkillSecurityConfig;
 
 mod manifest;
 mod markdown;
@@ -60,8 +61,8 @@ pub(crate) const MAX_TEXT_FILE_BYTES: u64 = 512 * 1024;
 
 /// 审计技能目录
 ///
-/// 对技能目录执行全面的安全审计，包括清单文件检查、文件类型验证、
-/// 路径遍历检测和内容模式匹配。
+/// 使用默认关闭策略扫描技能目录。需要启用规则时，调用
+/// [`audit_skill_directory_with_security`]。
 ///
 /// # 参数
 ///
@@ -79,14 +80,10 @@ pub(crate) const MAX_TEXT_FILE_BYTES: u64 = 512 * 1024;
 /// - 无法获取规范路径（权限问题或路径无效）
 /// - 无法读取目录内容
 ///
-/// # 审计规则
+/// # 可配置审计规则
 ///
-/// 1. **清单文件检查**：技能根目录必须包含 `SKILL.md` 或 `SKILL.toml`
-/// 2. **符号链接检测**：禁止任何符号链接文件
-/// 3. **脚本文件阻止**：禁止 .sh、.bat、.ps1 等脚本文件
-/// 4. **文件大小限制**：Markdown 和 TOML 文件不能超过 512 KB
-/// 5. **内容模式检测**：检查高风险命令模式和提示注入
-/// 6. **链接验证**：验证 Markdown 中的本地链接和远程链接
+/// 清单、符号链接、脚本、文件大小、内容、命令串联和链接规则均由
+/// `SkillSecurityConfig` 独立控制。
 ///
 /// # 示例
 ///
@@ -109,6 +106,14 @@ pub(crate) const MAX_TEXT_FILE_BYTES: u64 = 512 * 1024;
 /// }
 /// ```
 pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
+    audit_skill_directory_with_security(skill_dir, &SkillSecurityConfig::default())
+}
+
+/// 使用显式安全策略审计技能目录。
+pub fn audit_skill_directory_with_security(
+    skill_dir: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<SkillAuditReport> {
     if !skill_dir.exists() {
         bail!("Skill source does not exist: {}", skill_dir.display());
     }
@@ -123,7 +128,7 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 
     let has_manifest =
         canonical_root.join("SKILL.md").is_file() || canonical_root.join("SKILL.toml").is_file();
-    if !has_manifest {
+    if security.require_manifest && !has_manifest {
         report.findings.push(
             "Skill root must include SKILL.md or SKILL.toml for deterministic auditing."
                 .to_string(),
@@ -132,7 +137,7 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 
     for path in collect_paths_depth_first(&canonical_root)? {
         report.files_scanned += 1;
-        audit_path(&canonical_root, &path, &mut report)?;
+        audit_path(&canonical_root, &path, security, &mut report)?;
     }
 
     Ok(report)
@@ -140,8 +145,8 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 
 /// 审计开放式技能 Markdown 文件
 ///
-/// 对仓库中的单个 Markdown 技能文件执行安全审计。
-/// 主要用于检查以 Markdown 格式定义的开放式技能。
+/// 使用默认关闭策略审计仓库中的单个 Markdown 技能文件。
+/// 需要启用规则时，调用 [`audit_open_skill_markdown_with_security`]。
 ///
 /// # 参数
 ///
@@ -179,6 +184,15 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 /// }
 /// ```
 pub fn audit_open_skill_markdown(path: &Path, repo_root: &Path) -> Result<SkillAuditReport> {
+    audit_open_skill_markdown_with_security(path, repo_root, &SkillSecurityConfig::default())
+}
+
+/// 使用显式安全策略审计开放式技能 Markdown 文件。
+pub fn audit_open_skill_markdown_with_security(
+    path: &Path,
+    repo_root: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<SkillAuditReport> {
     if !path.exists() {
         bail!("Open-skill markdown not found: {}", path.display());
     }
@@ -193,7 +207,7 @@ pub fn audit_open_skill_markdown(path: &Path, repo_root: &Path) -> Result<SkillA
     }
 
     let mut report = SkillAuditReport { files_scanned: 1, findings: Vec::new() };
-    audit_markdown_file(&canonical_repo, &canonical_path, &mut report)?;
+    audit_markdown_file(&canonical_repo, &canonical_path, security, &mut report)?;
     Ok(report)
 }
 

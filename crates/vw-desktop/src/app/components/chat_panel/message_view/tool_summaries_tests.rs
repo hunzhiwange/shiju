@@ -138,6 +138,16 @@ fn tool_card_texts_cover_bash_and_read_summaries() {
 }
 
 #[test]
+fn bash_tool_card_summary_stays_on_one_line() {
+    let command = "cat > /tmp/a.json <<'EOF'\n{\n  \"key\": \"value\"\n}\nEOF";
+
+    assert_eq!(
+        tool_card("bash", serde_json::json!({"input": command})),
+        vec!["cat > /tmp/a.json <<'EOF' { \"key\": \"value\" } EOF".to_string()]
+    );
+}
+
+#[test]
 fn read_summaries_describe_single_sided_ranges() {
     assert_eq!(
         tool_card("read", serde_json::json!({"input":"{\"path\":\"src/main.rs\",\"offset\":4}"})),

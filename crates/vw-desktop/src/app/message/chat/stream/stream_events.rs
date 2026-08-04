@@ -7,10 +7,11 @@ use super::{
 use crate::app::message::ProjectMessage;
 use crate::app::message::chat::scroll_chat_to_bottom_task;
 use crate::app::message::chat::session as chat_session;
-use crate::app::state::ChatSendBehavior;
+use crate::app::state::{ChatSendBehavior, QuickMessageGitCommitAction, QuickMessageHandoffState};
 use crate::app::ui::chat;
 use crate::app::{App, Message, QueueItem, models};
 use iced::Task;
+use serde::Deserialize;
 use tracing::info;
 use vw_shared::message::types as message;
 use vw_shared::session::info as session_info;
@@ -94,6 +95,108 @@ fn apply_stream_done_message_ids(
 fn message_ids_tail(message_ids: &[Option<String>]) -> Vec<Option<String>> {
     let tail_len = message_ids.len().min(4);
     message_ids[message_ids.len().saturating_sub(tail_len)..].to_vec()
+}
+
+fn completed_handoff_prompt(chat: &[models::ChatMessage]) -> Option<String> {
+    chat.iter()
+        .rev()
+        .find(|message| matches!(message.role, models::ChatRole::Assistant))
+        .map(|message| chat::split_think(&message.content).1)
+        .map(|content| content.trim().to_string())
+        .filter(|content| !content.is_empty())
+}
+
+#[derive(Deserialize)]
+struct GeneratedGitCommitMessage {
+    #[serde(alias = "subject")]
+    title: String,
+    #[serde(alias = "description", alias = "body")]
+    summary: String,
+}
+
+fn parse_generated_git_commit_message(content: &str) -> Option<GeneratedGitCommitMessage> {
+    let start = content.find('{')?;
+    let end = content.rfind('}')?;
+    if end < start {
+        return None;
+    }
+    let generated: GeneratedGitCommitMessage = serde_json::from_str(&content[start..=end]).ok()?;
+    if generated.title.trim().is_empty() || generated.summary.trim().is_empty() {
+        return None;
+    }
+    Some(generated)
+}
+
+fn complete_quick_message_handoff(
+    app: &mut App,
+    request_id: u64,
+    session_id: &str,
+    chat: &[models::ChatMessage],
+) -> Option<Task<Message>> {
+    match app.quick_message_handoff.clone()? {
+        QuickMessageHandoffState::WaitingForSummary {
+            request_id: pending_request_id,
+            source_session_id,
+            project_path,
+        } => {
+            if pending_request_id != request_id || source_session_id != session_id {
+                return None;
+            }
+            let Some(prompt) = completed_handoff_prompt(chat) else {
+                app.quick_message_handoff = None;
+                return Some(app.show_warning_toast("AI 未生成可用摘要，未创建新会话"));
+            };
+
+            app.quick_message_handoff =
+                Some(QuickMessageHandoffState::WaitingForSession { prompt });
+            Some(Task::done(Message::Project(ProjectMessage::ProjectCreateSession(project_path))))
+        }
+        QuickMessageHandoffState::WaitingForGitCommitMessage {
+            request_id: pending_request_id,
+            source_session_id,
+            project_path,
+            action,
+        } => {
+            if pending_request_id != request_id || source_session_id != session_id {
+                return None;
+            }
+            let generated = completed_handoff_prompt(chat)
+                .as_deref()
+                .and_then(parse_generated_git_commit_message);
+            let Some(generated) = generated else {
+                app.quick_message_handoff = None;
+                app.git_commit_in_progress = false;
+                return Some(app.show_warning_toast("AI 未生成有效的提交标题和摘要，未执行提交"));
+            };
+            let current_project_path =
+                crate::app::components::git_panel::git_repo_path_for_app(app)
+                    .or_else(|| app.project_path.clone());
+            if current_project_path.as_deref() != Some(project_path.as_str()) {
+                app.quick_message_handoff = None;
+                app.git_commit_in_progress = false;
+                return Some(app.show_warning_toast("Git 工作树已切换，未执行提交"));
+            }
+
+            app.git_commit_type = None;
+            app.git_commit_scope.clear();
+            app.git_commit_message = generated.title.trim().to_string();
+            app.git_commit_description = generated.summary.trim().to_string();
+            app.git_commit_description_editor =
+                iced::widget::text_editor::Content::with_text(&app.git_commit_description);
+            app.quick_message_handoff = None;
+            app.git_commit_in_progress = false;
+            let message = match action {
+                QuickMessageGitCommitAction::StageAllAndCommit => {
+                    crate::app::message::GitMessage::CommitAll
+                }
+                QuickMessageGitCommitAction::CommitSelected => {
+                    crate::app::message::GitMessage::CommitSelected
+                }
+            };
+            Some(Task::done(Message::Git(message)))
+        }
+        QuickMessageHandoffState::WaitingForSession { .. } => None,
+    }
 }
 
 fn parse_tool_block_len(s: &str) -> Option<usize> {
@@ -208,6 +311,9 @@ fn append_stream_delta_to_tail(
     {
         let last = &mut chat[last_idx];
         update_think_timing_from_delta(last, &delta, now);
+        if !last.content.is_empty() && !last.content.ends_with('\n') && delta.starts_with("tool ") {
+            last.content.push('\n');
+        }
         last.content.push_str(&delta);
         return last_idx;
     }
@@ -218,7 +324,9 @@ fn append_stream_delta_to_tail(
     chat.push(models::ChatMessage {
         role: models::ChatRole::Assistant,
         content: delta.clone(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     message_ids.push(None);
     let last_idx = chat.len() - 1;
@@ -246,7 +354,9 @@ fn upsert_workflow_tool_to_tail(
     chat.push(models::ChatMessage {
         role: models::ChatRole::Assistant,
         content,
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     message_ids.push(None);
     chat.len() - 1
@@ -309,6 +419,14 @@ pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -
         return Task::none();
     };
 
+    handle_agent_session_delta(app, session_id, delta)
+}
+
+pub(super) fn handle_agent_session_delta(
+    app: &mut App,
+    session_id: String,
+    delta: String,
+) -> Task<Message> {
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
     if is_active {
@@ -345,6 +463,104 @@ pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -
     save_session_task(session, session_directory_for_save(app, &session_id))
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_plan_run_session_started(
+    app: &mut App,
+    parent_request_id: u64,
+    parent_session_id: String,
+    session_id: String,
+    title: String,
+    directory: String,
+    query: String,
+) -> Task<Message> {
+    let parent_session_id = parent_session_id.trim();
+    let session_id = session_id.trim();
+    let directory = directory.trim();
+    if parent_session_id.is_empty()
+        || session_id.is_empty()
+        || directory.is_empty()
+        || app.find_session_by_request_id(parent_request_id).as_deref() != Some(parent_session_id)
+    {
+        return Task::none();
+    }
+
+    let parent_info = app
+        .sessions
+        .iter()
+        .find(|session| session.id == parent_session_id)
+        .or_else(|| {
+            app.project_sessions
+                .values()
+                .flat_map(|sessions| sessions.iter())
+                .find(|session| session.id == parent_session_id)
+        })
+        .cloned();
+    let Some(mut child_info) = parent_info else {
+        return Task::none();
+    };
+
+    let now = now_ms();
+    child_info.id = session_id.to_string();
+    child_info.slug = session_info::Info::plan_run_slug(session_id);
+    child_info.directory = directory.to_string();
+    child_info.parent_id = Some(parent_session_id.to_string());
+    child_info.title = if title.trim().is_empty() {
+        format!("子会话 · {session_id}")
+    } else {
+        title.trim().to_string()
+    };
+    child_info.time.created = now;
+    child_info.time.updated = now;
+    child_info.time.compacting = None;
+    child_info.time.archived = None;
+
+    if let Some(existing) = app.sessions.iter_mut().find(|session| session.id == session_id) {
+        *existing = child_info.clone();
+    } else {
+        app.sessions.insert(0, child_info.clone());
+    }
+    let project_sessions = app.project_sessions.entry(directory.to_string()).or_default();
+    if let Some(existing) = project_sessions.iter_mut().find(|session| session.id == session_id) {
+        *existing = child_info;
+    } else {
+        project_sessions.insert(0, child_info);
+    }
+
+    if !app.session_chat_cache.contains_key(session_id) {
+        let initial_chat = if query.trim().is_empty() {
+            Vec::new()
+        } else {
+            vec![models::ChatMessage {
+                role: models::ChatRole::User,
+                content: query,
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            }]
+        };
+        app.store_session_chat_snapshot(
+            session_id.to_string(),
+            crate::app::session::shared_chat_messages(initial_chat.clone()),
+            vec![None; initial_chat.len()],
+        );
+    }
+    app.get_session_runtime_mut(session_id).is_requesting = true;
+    app.sync_task_pet_from_runtime();
+    Task::none()
+}
+
+pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String) -> Task<Message> {
+    if session_id.trim().is_empty() {
+        return Task::none();
+    }
+    app.get_session_runtime_mut(&session_id).is_requesting = false;
+    app.sync_task_pet_from_runtime();
+    if app.active_session_id.as_ref() == Some(&session_id) {
+        app.sync_active_session_from_chat();
+    }
+    Task::none()
+}
+
 /// 模块内可见函数，执行 handle_agent_workflow_node_update 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_agent_workflow_node_update(
@@ -352,6 +568,17 @@ pub(super) fn handle_agent_workflow_node_update(
     id: u64,
     raw_tool_block: String,
 ) -> Task<Message> {
+    handle_agent_tool_blocks_update(app, id, vec![raw_tool_block])
+}
+
+fn handle_agent_tool_blocks_update(
+    app: &mut App,
+    id: u64,
+    raw_tool_blocks: Vec<String>,
+) -> Task<Message> {
+    if raw_tool_blocks.is_empty() {
+        return Task::none();
+    }
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
@@ -359,8 +586,14 @@ pub(super) fn handle_agent_workflow_node_update(
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
     if is_active {
-        let changed_idx =
-            upsert_workflow_tool_to_tail(&mut app.chat, &mut app.chat_message_ids, raw_tool_block);
+        let mut changed_idx = app.chat.len().saturating_sub(1);
+        for raw_tool_block in raw_tool_blocks {
+            changed_idx = upsert_workflow_tool_to_tail(
+                &mut app.chat,
+                &mut app.chat_message_ids,
+                raw_tool_block,
+            );
+        }
         return finish_active_stream_tail_update(app, session_id, changed_idx, now);
     }
 
@@ -376,7 +609,9 @@ pub(super) fn handle_agent_workflow_node_update(
         .cloned()
         .unwrap_or_else(|| vec![None; live_chat.len()]);
 
-    upsert_workflow_tool_to_tail(&mut live_chat, &mut live_ids, raw_tool_block);
+    for raw_tool_block in raw_tool_blocks {
+        upsert_workflow_tool_to_tail(&mut live_chat, &mut live_ids, raw_tool_block);
+    }
 
     app.store_session_chat_snapshot(
         session_id.clone(),
@@ -390,6 +625,35 @@ pub(super) fn handle_agent_workflow_node_update(
     session.updated_ms = now;
     app.sync_task_pet_from_runtime();
     save_session_task(session, session_directory_for_save(app, &session_id))
+}
+
+fn instruction_read_tool_block(path: &str) -> String {
+    let input = serde_json::json!({ "filePath": path }).to_string();
+    let payload = serde_json::json!({
+        "status": "completed",
+        "input": input,
+        "tool_call_id": format!("system-instruction:{path}"),
+        "metadata": {
+            "system_instruction": true
+        }
+    });
+    format!("tool read\n{payload}")
+}
+
+/// 将系统提示词实际读取的协议文件显示为持久工具卡。
+pub(super) fn handle_agent_context_loaded(
+    app: &mut App,
+    id: u64,
+    paths: Vec<String>,
+) -> Task<Message> {
+    let mut seen = std::collections::HashSet::new();
+    let raw_tool_blocks = paths
+        .into_iter()
+        .filter(|path| !path.trim().is_empty())
+        .filter(|path| seen.insert(path.clone()))
+        .map(|path| instruction_read_tool_block(&path))
+        .collect::<Vec<_>>();
+    handle_agent_tool_blocks_update(app, id, raw_tool_blocks)
 }
 
 /// 模块内可见函数，执行 handle_agent_stream_done 对应的应用流程。
@@ -406,6 +670,7 @@ pub(super) fn handle_agent_stream_done(
     };
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    let completed_ms = now_ms();
     let has_pending_queue = !app.get_session_runtime(&session_id).queue.is_empty();
     let resume_history_only = app
         .get_session_runtime(&session_id)
@@ -413,14 +678,25 @@ pub(super) fn handle_agent_stream_done(
         .as_ref()
         .map(|request| request.resume_history_only)
         .unwrap_or(false);
+    let elapsed = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        crate::app::message::chat::processing_timing::pause_runtime_processing_timers(runtime)
+    };
 
-    let persisted_chat: Vec<models::ChatMessage> = if is_active_session {
+    let mut persisted_chat: Vec<models::ChatMessage> = if is_active_session {
         app.chat.clone()
     } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
         load_session_or_default(app, session_id.clone()).messages
     };
+    crate::app::message::chat::processing_timing::complete_tail_assistant_processing(
+        &mut persisted_chat,
+        completed_ms,
+        elapsed.processing_ms,
+        elapsed.llm_ms,
+    );
+    let handoff_task = complete_quick_message_handoff(app, id, &session_id, &persisted_chat);
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()
     } else {
@@ -447,6 +723,7 @@ pub(super) fn handle_agent_stream_done(
     );
 
     if is_active_session {
+        app.chat = persisted_chat.clone();
         app.chat_message_ids = persisted_ids.clone();
         app.usage = usage;
         app.last_call_log_path = None;
@@ -455,7 +732,7 @@ pub(super) fn handle_agent_stream_done(
     let mut local_session = load_session_or_default(app, session_id.clone());
     local_session.messages = persisted_chat.clone();
     local_session.message_ids = persisted_ids.clone();
-    local_session.updated_ms = now_ms();
+    local_session.updated_ms = completed_ms;
     let save_task = save_session_task(local_session, session_directory_for_save(app, &session_id));
     app.store_session_chat_snapshot(
         session_id.clone(),
@@ -487,7 +764,7 @@ pub(super) fn handle_agent_stream_done(
         app.sync_active_session_from_chat();
     }
 
-    let next = start_next(app, &session_id);
+    let next = if handoff_task.is_some() { Task::none() } else { start_next(app, &session_id) };
     let refresh_message_ids = if is_active_session && !has_pending_queue && !resume_history_only {
         app.sessions
             .iter()
@@ -551,6 +828,7 @@ pub(super) fn handle_agent_stream_done(
     .chain(refresh_message_ids)
     .chain(save_task)
     .chain(next)
+    .chain(handoff_task.unwrap_or_else(Task::none))
 }
 
 /// 模块内可见函数，执行 handle_agent_post_tool_round 对应的应用流程。
@@ -572,8 +850,36 @@ pub(super) fn handle_agent_post_tool_round(
     let Some(active_request) = runtime.active_agent_request.clone() else {
         return Task::none();
     };
+    let subagent_mode_enabled = runtime.subagent_mode_enabled;
     let insert_idx = leading_guide_count(&runtime.queue);
+    let completed_ms = now_ms();
+    let elapsed = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        crate::app::message::chat::processing_timing::pause_runtime_processing_timers(runtime)
+    };
+    crate::app::message::chat::processing_timing::complete_tail_assistant_processing(
+        &mut app.chat,
+        completed_ms,
+        elapsed.processing_ms,
+        elapsed.llm_ms,
+    );
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(app.chat.clone()),
+        app.chat_message_ids.clone(),
+    );
+    let mut session = load_session_or_default(app, session_id.clone());
+    session.messages = app.chat.clone();
+    session.message_ids = app.chat_message_ids.clone();
+    session.updated_ms = completed_ms;
+    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
+
     let resume_history = app.chat.clone();
+    let continuation_history = if subagent_mode_enabled {
+        chat_session::history_with_subagent_mode_system_prompt(&resume_history)
+    } else {
+        resume_history.clone()
+    };
     let continuation = QueueItem {
         created_ms: now_ms(),
         query: continuation_label_from_history(&resume_history),
@@ -586,14 +892,16 @@ pub(super) fn handle_agent_post_tool_round(
         acp_allowed_tools: active_request.acp_allowed_tools.clone(),
         agent: active_request.agent.clone(),
         allowed_tools: active_request.allowed_tools.clone(),
+        require_agent_tool: active_request.require_agent_tool,
         acp_force_new_session: false,
         acp_history_mode: active_request.acp_history_mode,
         acp_recent_count: active_request.acp_recent_count,
         full_access_enabled: active_request.full_access_enabled,
         send_behavior: ChatSendBehavior::Queue,
-        request_history_override: Some(resume_history),
+        request_history_override: Some(continuation_history),
         resume_history_only: true,
         workflow_mode_enabled: active_request.workflow_mode_enabled,
+        goal_mode_enabled: active_request.goal_mode_enabled,
     };
     let next_item = {
         let runtime = app.get_session_runtime_mut(&session_id);
@@ -617,57 +925,133 @@ pub(super) fn handle_agent_post_tool_round(
         "desktop yielded active request after tool round to prioritize guided queue item"
     );
 
-    chat_session::start(app, next_item, true)
+    save_task.chain(chat_session::start(app, next_item, true))
+}
+
+fn is_payload_too_large_stream_error(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    err.contains("413")
+        || lower.contains("payload too large")
+        || lower.contains("length limit exceeded")
+        || err.contains("请求内容过大")
 }
 
 /// 模块内可见函数，执行 handle_agent_stream_error 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> Task<Message> {
+    if matches!(
+        app.quick_message_handoff,
+        Some(
+            QuickMessageHandoffState::WaitingForSummary {
+                request_id: pending_id,
+                ..
+            }
+            | QuickMessageHandoffState::WaitingForGitCommitMessage {
+                request_id: pending_id,
+                ..
+            }
+        ) if pending_id == id
+    ) {
+        if matches!(
+            app.quick_message_handoff,
+            Some(QuickMessageHandoffState::WaitingForGitCommitMessage { .. })
+        ) {
+            app.git_commit_in_progress = false;
+        }
+        app.quick_message_handoff = None;
+    }
+    let display_err = if is_payload_too_large_stream_error(&err) {
+        "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试"
+            .to_string()
+    } else {
+        err
+    };
+
     let Some(session_id) = app.find_session_by_request_id(id) else {
-        return Task::none();
+        // 请求态可能已因取消/切会话被清掉；仍用 toast 暴露错误，避免界面“假死”。
+        crate::app::state::clear_pending_guide_handoff(id);
+        if let Some(active_id) = app.active_session_id.clone() {
+            let runtime = app.get_session_runtime_mut(&active_id);
+            if runtime.is_requesting {
+                runtime.is_requesting = false;
+                runtime.has_unseen_success = false;
+                runtime.active_agent_request = None;
+                app.sync_task_pet_from_runtime();
+            }
+        }
+        return app.show_error_toast(display_err);
     };
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    let completed_ms = now_ms();
 
-    {
+    let elapsed = {
         let runtime = app.get_session_runtime_mut(&session_id);
+        let elapsed =
+            crate::app::message::chat::processing_timing::pause_runtime_processing_timers(runtime);
         runtime.is_requesting = false;
         runtime.has_unseen_success = false;
         runtime.active_agent_request = None;
-    }
+        elapsed
+    };
     app.sync_task_pet_from_runtime();
     app.show_send_mode_popover = false;
 
-    let save_task = if is_active_session {
-        app.chat.push(models::ChatMessage {
-            role: models::ChatRole::System,
-            content: err,
-            think_timing: Vec::new(),
-        });
-        app.chat_message_ids.push(None);
-        app.store_session_chat_snapshot(
-            session_id.clone(),
-            crate::app::session::shared_chat_messages(app.chat.clone()),
-            app.chat_message_ids.clone(),
-        );
-        app.session_chat_message_id_cache.insert(session_id.clone(), app.chat_message_ids.clone());
-        app.sync_active_session_from_chat();
+    let toast_task = app.show_error_toast(display_err.clone());
 
-        let mut session = load_session_or_default(app, session_id.clone());
-        session.messages = app.chat.clone();
-        session.message_ids = app.chat_message_ids.clone();
-        session.updated_ms = now_ms();
-        save_session_task(session, session_directory_for_save(app, &session_id))
+    let mut persisted_chat = if is_active_session {
+        app.chat.clone()
+    } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
+        cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
-        Task::none()
+        load_session_or_default(app, session_id.clone()).messages
     };
+    let mut persisted_ids = if is_active_session {
+        app.chat_message_ids.clone()
+    } else {
+        app.session_chat_message_id_cache
+            .get(&session_id)
+            .cloned()
+            .unwrap_or_else(|| vec![None; persisted_chat.len()])
+    };
+    crate::app::message::chat::processing_timing::complete_tail_assistant_processing(
+        &mut persisted_chat,
+        completed_ms,
+        elapsed.processing_ms,
+        elapsed.llm_ms,
+    );
+    persisted_chat.push(models::ChatMessage {
+        role: models::ChatRole::System,
+        content: display_err,
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    persisted_ids.push(None);
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(persisted_chat.clone()),
+        persisted_ids.clone(),
+    );
+
+    if is_active_session {
+        app.chat = persisted_chat.clone();
+        app.chat_message_ids = persisted_ids.clone();
+        app.sync_active_session_from_chat();
+    }
+
+    let mut session = load_session_or_default(app, session_id.clone());
+    session.messages = persisted_chat;
+    session.message_ids = persisted_ids;
+    session.updated_ms = completed_ms;
+    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
 
     let next = start_next(app, &session_id);
 
     if is_active_session && app.chat_auto_scroll {
-        scroll_chat_to_bottom_task(app).chain(save_task).chain(next)
+        toast_task.chain(scroll_chat_to_bottom_task(app)).chain(save_task).chain(next)
     } else {
-        save_task.chain(next)
+        toast_task.chain(save_task).chain(next)
     }
 }
 #[cfg(test)]

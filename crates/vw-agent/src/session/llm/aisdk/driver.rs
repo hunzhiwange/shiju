@@ -1,7 +1,9 @@
 #[cfg(not(target_arch = "wasm32"))]
 use aisdk::core::DynamicModel;
 #[cfg(not(target_arch = "wasm32"))]
-use aisdk::providers::{AlibabaCn, OpenAICompatible};
+use aisdk::providers::{
+    OpenAICompatible, OpenAICompatibleResolveOptions, resolve_openai_compatible_model,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use serde_json::Value;
 #[cfg(not(target_arch = "wasm32"))]
@@ -24,21 +26,20 @@ use super::error::{aisdk_assistant_error_log_fields, assistant_error_from_aisdk}
 use super::stream::do_stream_request_aisdk_with_model;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DriverKind {
-    AlibabaCn,
-    OpenAICompatible,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn resolve_driver_kind(provider_id: &str, adapter: &str) -> DriverKind {
-    if provider_id.eq_ignore_ascii_case("alibaba-cn")
-        && adapter.trim().eq_ignore_ascii_case("openai-compatible")
-    {
-        DriverKind::AlibabaCn
-    } else {
-        DriverKind::OpenAICompatible
-    }
+fn resolve_model(
+    provider_id: &str,
+    model: &provider::Model,
+    bearer: &str,
+    request_info: &AisdkRequestInfo,
+) -> aisdk::Result<OpenAICompatible<DynamicModel>> {
+    resolve_openai_compatible_model(
+        &format!("{provider_id}/{}", model.api.id),
+        OpenAICompatibleResolveOptions {
+            api_key: Some(bearer.to_string()),
+            base_url: Some(request_info.base_url.clone()),
+            path: request_info.path_override.clone(),
+        },
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -75,72 +76,25 @@ pub(crate) async fn dispatch_stream_request(
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
     on_event: &mut (impl FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
-    match resolve_driver_kind(provider_id, &model.api.adapter) {
-        DriverKind::AlibabaCn => {
-            let mut builder = AlibabaCn::<DynamicModel>::builder()
-                .provider_name(provider_id.to_string())
-                .api_key(bearer.to_string())
-                .model_name(model.api.id.clone())
-                .base_url(request_info.base_url.clone());
+    let lm = resolve_model(provider_id, model, bearer, &request_info)
+        .map_err(|error| log_build_failed(provider_id, model, &request_info.request_url, error))?;
 
-            if let Some(path) = request_info.path_override.clone() {
-                builder = builder.path(path);
-            }
-
-            let lm = builder.build().map_err(|error| {
-                log_build_failed(provider_id, model, &request_info.request_url, error)
-            })?;
-
-            do_stream_request_aisdk_with_model(
-                provider_id.to_string(),
-                lm,
-                request_info.request_url,
-                request_info.enforce_strict_tool_schema,
-                request_info.messages,
-                tools,
-                temperature,
-                top_p,
-                max_output_tokens,
-                merged_options,
-                retries,
-                abort,
-                on_event,
-            )
-            .await
-        }
-        DriverKind::OpenAICompatible => {
-            let mut builder = OpenAICompatible::<DynamicModel>::builder()
-                .provider_name(provider_id.to_string())
-                .api_key(bearer.to_string())
-                .model_name(model.api.id.clone())
-                .base_url(request_info.base_url.clone());
-
-            if let Some(path) = request_info.path_override.clone() {
-                builder = builder.path(path);
-            }
-
-            let lm = builder.build().map_err(|error| {
-                log_build_failed(provider_id, model, &request_info.request_url, error)
-            })?;
-
-            do_stream_request_aisdk_with_model(
-                provider_id.to_string(),
-                lm,
-                request_info.request_url,
-                request_info.enforce_strict_tool_schema,
-                request_info.messages,
-                tools,
-                temperature,
-                top_p,
-                max_output_tokens,
-                merged_options,
-                retries,
-                abort,
-                on_event,
-            )
-            .await
-        }
-    }
+    do_stream_request_aisdk_with_model(
+        provider_id.to_string(),
+        lm,
+        request_info.request_url,
+        request_info.enforce_strict_tool_schema,
+        request_info.messages,
+        tools,
+        temperature,
+        top_p,
+        max_output_tokens,
+        merged_options,
+        retries,
+        abort,
+        on_event,
+    )
+    .await
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

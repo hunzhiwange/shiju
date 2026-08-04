@@ -152,8 +152,8 @@ fn build_fills_defaults_when_optional_fields_are_absent() {
     assert_eq!(agent.tool_specs[0].id, "first_tool");
     assert_eq!(agent.memory.name(), "none");
     assert_eq!(agent.observer.name(), "noop");
-    assert_eq!(agent.config.max_tool_iterations, 20);
-    assert_eq!(agent.config.max_history_messages, 50);
+    assert_eq!(agent.config.max_tool_iterations, 50_000);
+    assert_eq!(agent.config.max_history_messages, 100);
     assert!(!agent.config.parallel_tools);
     assert_eq!(agent.config.tool_dispatcher, "auto");
     assert_eq!(agent.model_name, "anthropic/claude-sonnet-4-20250514");
@@ -171,9 +171,10 @@ fn build_fills_defaults_when_optional_fields_are_absent() {
     assert!(agent.route_model_by_hint.is_empty());
     assert!(!agent.research_config.enabled);
     assert_eq!(agent.research_config.max_iterations, 5);
-    assert_eq!(agent.multimodal_config.max_images, 4);
+    assert_eq!(agent.multimodal_config.max_images, 10);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 5);
-    assert!(!agent.multimodal_config.allow_remote_fetch);
+    assert!(agent.multimodal_config.allow_remote_fetch);
+    assert_eq!(agent.timezone, chrono_tz::Asia::Shanghai);
 }
 
 #[test]
@@ -213,8 +214,12 @@ fn build_uses_configured_optional_fields() {
         aieos_inline: Some("inline identity".into()),
     };
     let research_config = ResearchPhaseConfig { enabled: true, ..ResearchPhaseConfig::default() };
-    let multimodal_config =
-        MultimodalConfig { max_images: 2, max_image_size_mb: 3, allow_remote_fetch: true };
+    let multimodal_config = MultimodalConfig {
+        max_images: 2,
+        max_image_size_mb: 3,
+        allow_remote_fetch: true,
+        ocr: Default::default(),
+    };
 
     let agent = required_builder()
         .security(Arc::new(SecurityPolicy::default()))
@@ -234,6 +239,7 @@ fn build_uses_configured_optional_fields() {
         .route_model_by_hint(routes)
         .research_config(research_config)
         .multimodal_config(multimodal_config)
+        .timezone(chrono_tz::America::New_York)
         .build()
         .unwrap();
 
@@ -255,6 +261,7 @@ fn build_uses_configured_optional_fields() {
     assert_eq!(agent.multimodal_config.max_images, 2);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 3);
     assert!(agent.multimodal_config.allow_remote_fetch);
+    assert_eq!(agent.timezone, chrono_tz::America::New_York);
 }
 
 #[tokio::test]

@@ -4,7 +4,33 @@
 //! 不改变任何运行时行为。
 
 use super::SkillsDirectoryScope;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Slash 面板条目类别，顺序固定为 Skills → Tools → MCP → Models → ACP。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SlashPaletteKind {
+    Skill,
+    Tool,
+    Mcp,
+    Model,
+    Acp,
+}
+
+impl SlashPaletteKind {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Skill => "Skills",
+            Self::Tool => "Tools",
+            Self::Mcp => "MCP",
+            Self::Model => "Models",
+            Self::Acp => "ACP",
+        }
+    }
+
+    pub(crate) fn all() -> [Self; 5] {
+        [Self::Skill, Self::Tool, Self::Mcp, Self::Model, Self::Acp]
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// 描述 SessionToolBucket 支持的离散状态或消息分支。
@@ -180,6 +206,7 @@ pub(crate) struct SessionToolSelectorState {
     explicit_allowed_tools: Option<BTreeSet<String>>,
     manual_tools: BTreeSet<String>,
     manual_skills: BTreeSet<String>,
+    selected_shiju_skills: BTreeMap<u64, ShijuSkillSelection>,
     collapsed_groups: BTreeSet<SessionToolGroup>,
     active_tab: SessionToolSelectorTab,
     query: String,
@@ -193,6 +220,7 @@ impl Default for SessionToolSelectorState {
             explicit_allowed_tools: None,
             manual_tools: BTreeSet::new(),
             manual_skills: BTreeSet::new(),
+            selected_shiju_skills: BTreeMap::new(),
             collapsed_groups: BTreeSet::new(),
             active_tab: SessionToolSelectorTab::Agent,
             query: String::new(),
@@ -267,6 +295,7 @@ impl SessionToolSelectorState {
         self.explicit_allowed_tools = None;
         self.manual_tools.clear();
         self.manual_skills.clear();
+        self.selected_shiju_skills.clear();
         self.query.clear();
     }
 
@@ -305,7 +334,15 @@ impl SessionToolSelectorState {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn has_manual_context_selection(&self) -> bool {
-        !self.manual_tools.is_empty() || !self.manual_skills.is_empty()
+        !self.manual_tools.is_empty()
+            || !self.manual_skills.is_empty()
+            || !self.selected_shiju_skills.is_empty()
+    }
+
+    pub(crate) fn clear_manual_context_selection(&mut self) {
+        self.manual_tools.clear();
+        self.manual_skills.clear();
+        self.selected_shiju_skills.clear();
     }
 
     /// 执行 toggle_manual_tool 对应的领域操作。
@@ -366,6 +403,21 @@ impl SessionToolSelectorState {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn selected_manual_skills(&self) -> Vec<String> {
         self.manual_skills.iter().cloned().collect()
+    }
+
+    pub(crate) fn toggle_shiju_skill(&mut self, selection: ShijuSkillSelection) {
+        let skill_id = selection.skill_id();
+        if self.selected_shiju_skills.remove(&skill_id).is_none() {
+            self.selected_shiju_skills.insert(skill_id, selection);
+        }
+    }
+
+    pub(crate) fn is_shiju_skill_selected(&self, skill_id: u64) -> bool {
+        self.selected_shiju_skills.contains_key(&skill_id)
+    }
+
+    pub(crate) fn selected_shiju_skills(&self) -> Vec<ShijuSkillSelection> {
+        self.selected_shiju_skills.values().cloned().collect()
     }
 
     /// 执行 select_all_tools 对应的领域操作。
@@ -559,6 +611,31 @@ impl SessionToolSelectorState {
         } else {
             filtered
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ShijuSkillSelection {
+    skill_id: u64,
+    slug: String,
+    display_name: String,
+}
+
+impl ShijuSkillSelection {
+    pub(crate) fn new(skill_id: u64, slug: String, display_name: String) -> Self {
+        Self { skill_id, slug, display_name }
+    }
+
+    pub(crate) fn skill_id(&self) -> u64 {
+        self.skill_id
+    }
+
+    pub(crate) fn slug(&self) -> &str {
+        &self.slug
+    }
+
+    pub(crate) fn display_name(&self) -> &str {
+        &self.display_name
     }
 }
 

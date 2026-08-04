@@ -42,14 +42,14 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
-        .route("/apiQL/v1:{entity_class}", get(handlers::apiql_index))
-        .route("/apiQL/v1:{entity_class}/", get(handlers::apiql_index))
-        .route("/apiQL/v1:{entity_class}/list-only", get(handlers::apiql_index_only))
-        .route("/apiQL/v1:{entity_class}/list-only/", get(handlers::apiql_index_only))
-        .route("/apiQL/v1:{entity_class}/list-count", get(handlers::apiql_index_count))
-        .route("/apiQL/v1:{entity_class}/list-count/", get(handlers::apiql_index_count))
-        .route("/apiQL/v1:{entity_class}/list-page", get(handlers::apiql_index_page))
-        .route("/apiQL/v1:{entity_class}/list-page/", get(handlers::apiql_index_page))
+        .route("/apiQL/{entity_class}", get(handlers::apiql_index))
+        .route("/apiQL/{entity_class}/", get(handlers::apiql_index))
+        .route("/apiQL/{entity_class}/list-only", get(handlers::apiql_index_only))
+        .route("/apiQL/{entity_class}/list-only/", get(handlers::apiql_index_only))
+        .route("/apiQL/{entity_class}/list-count", get(handlers::apiql_index_count))
+        .route("/apiQL/{entity_class}/list-count/", get(handlers::apiql_index_count))
+        .route("/apiQL/{entity_class}/list-page", get(handlers::apiql_index_page))
+        .route("/apiQL/{entity_class}/list-page/", get(handlers::apiql_index_page))
 }
 
 #[cfg(test)]

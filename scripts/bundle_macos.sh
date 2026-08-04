@@ -6,6 +6,11 @@ MODE="${MODE:-app}"
 PROFILE="${PROFILE:-release}"
 OUT_DIR="${OUT_DIR:-dist/macos}"
 TARGET="${TARGET:-}"
+if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
+  export VIBEWINDOW_RELEASE_BUILD=1
+else
+  export VIBEWINDOW_RELEASE_BUILD=0
+fi
 CLI_BIN_NAME="vibewindow"
 CLI_COMPAT_BIN_NAME="vibe-agent"
 ACP_BIN_NAME="acp"

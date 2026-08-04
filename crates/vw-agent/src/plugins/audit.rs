@@ -23,7 +23,7 @@ pub(super) fn canonical_plugin_root(plugin_root: &Path) -> Result<PathBuf> {
 }
 
 pub(super) fn plugin_manifest_path(canonical_root: &Path) -> Result<PathBuf> {
-    let relative = Path::new(".codex-plugin").join("plugin.json");
+    let relative = Path::new(".vibewindow-plugin").join("plugin.json");
     ensure_no_symlink_components(canonical_root, &relative, "plugin.json")?;
     let path = canonical_root.join(&relative);
     let canonical_path = path

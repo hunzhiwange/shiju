@@ -315,6 +315,91 @@ async fn system_skips_global_candidate_that_cannot_be_read_as_a_file() {
 }
 
 #[tokio::test]
+async fn project_agents_reads_only_selected_project_root() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let other = tempfile::tempdir().expect("other project");
+    let selected_agents = selected.path().join("AGENTS.md");
+    std::fs::write(&selected_agents, "selected project rules").expect("write selected agents");
+    std::fs::write(other.path().join("AGENTS.md"), "other project rules")
+        .expect("write other agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let resolved = project_agents(selected.path().to_str()).await.expect("selected agents");
+
+    assert_eq!(resolved.filepath, normalize_str(selected_agents));
+    assert!(resolved.content.contains("selected project rules"));
+    assert!(!resolved.content.contains("other project rules"));
+}
+
+#[tokio::test]
+async fn agent_workspace_identity_reads_only_enabled_non_empty_known_files() {
+    let _guard = ENV_LOCK.lock().await;
+    let base = tempfile::tempdir().expect("agent workspace base");
+    let base_path = base.path().join("workspace").to_string_lossy().into_owned();
+    let reviewer_root = PathBuf::from(format!("{base_path}-reviewer"));
+    std::fs::create_dir_all(&reviewer_root).expect("reviewer workspace");
+    std::fs::write(reviewer_root.join("AGENTS.md"), "reviewer agents").expect("write agents");
+    std::fs::write(reviewer_root.join("SOUL.md"), "reviewer soul").expect("write soul");
+    std::fs::write(reviewer_root.join("TOOLS.md"), "  \n").expect("write empty tools");
+    std::fs::write(reviewer_root.join("UNKNOWN.md"), "unknown identity")
+        .expect("write unknown identity");
+    let project = tempfile::tempdir().expect("selected project");
+    let project_agents = project.path().join("AGENTS.md");
+    std::fs::write(&project_agents, "selected project protocol").expect("write project agents");
+    let _workspace = EnvGuard::set("VIBEWINDOW_WORKSPACE", &base_path);
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+    let enabled = vec![
+        "SOUL.md".to_string(),
+        "TOOLS.md".to_string(),
+        "UNKNOWN.md".to_string(),
+    ];
+
+    let resolved = agent_workspace_identity(Some("reviewer"), &enabled);
+    let paths = resolved.iter().map(|entry| entry.filepath.as_str()).collect::<HashSet<_>>();
+
+    assert_eq!(resolved.len(), 1);
+    assert!(paths.contains(normalize_str(reviewer_root.join("SOUL.md")).as_str()));
+    assert!(!paths.contains(normalize_str(reviewer_root.join("AGENTS.md")).as_str()));
+    assert!(!paths.contains(normalize_str(reviewer_root.join("TOOLS.md")).as_str()));
+    assert!(!paths.contains(normalize_str(reviewer_root.join("UNKNOWN.md")).as_str()));
+
+    let prompt = crate::session::prompt::system_with_agent_metadata(
+        None,
+        project.path().to_str(),
+        Some("reviewer"),
+        &enabled,
+    );
+    assert!(prompt.content.contains("selected project protocol"));
+    assert!(prompt.content.contains("reviewer soul"));
+    assert!(!prompt.content.contains("reviewer agents"));
+    assert!(!prompt.content.contains("unknown identity"));
+    assert_eq!(
+        prompt.visible_instruction_paths,
+        vec![
+            normalize_str(project_agents),
+            normalize_str(reviewer_root.join("SOUL.md")),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn agent_workspace_identity_empty_whitelist_loads_nothing() {
+    let _guard = ENV_LOCK.lock().await;
+    let base = tempfile::tempdir().expect("agent workspace base");
+    let base_path = base.path().join("workspace").to_string_lossy().into_owned();
+    let reviewer_root = PathBuf::from(format!("{base_path}-reviewer"));
+    std::fs::create_dir_all(&reviewer_root).expect("reviewer workspace");
+    std::fs::write(reviewer_root.join("AGENTS.md"), "reviewer agents").expect("write agents");
+    std::fs::write(reviewer_root.join("SOUL.md"), "reviewer soul").expect("write soul");
+    let _workspace = EnvGuard::set("VIBEWINDOW_WORKSPACE", &base_path);
+
+    let resolved = agent_workspace_identity(Some("reviewer"), &[]);
+
+    assert!(resolved.is_empty());
+}
+
+#[tokio::test]
 async fn fetch_url_reads_successful_response_and_returns_empty_for_http_errors() {
     let ok_url = serve_once("200 OK", "remote instructions");
     let missing_url = serve_once("404 Not Found", "nope");

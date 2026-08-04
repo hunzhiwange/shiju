@@ -13,21 +13,27 @@ fn child_count(element: &iced::Element<'_, crate::app::Message>) -> usize {
 fn usage_data_counts_tool_messages_separately() {
     let (mut app, _task) = App::new();
     app.chat = vec![
-        ChatMessage { role: ChatRole::User, content: "user".to_string(), think_timing: Vec::new() },
+        ChatMessage { role: ChatRole::User, content: "user".to_string(), model: None, think_timing: Vec::new(), processing_timing: None },
         ChatMessage {
             role: ChatRole::Assistant,
             content: "assistant".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::Tool,
             content: "tool grep\n{\"status\":\"completed\",\"output\":\"2 matches\"}\n".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::System,
             content: "system".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 
@@ -46,7 +52,9 @@ fn usage_view_constructs_from_app_state() {
     app.chat = vec![ChatMessage {
         role: ChatRole::User,
         content: "统计一下".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let element = super::view(&app);

@@ -47,7 +47,7 @@ pub mod sed;
 use super::traits::{Tool, ToolResult, ToolSpec};
 use crate::app::agent::runtime::RuntimeAdapter;
 use crate::app::agent::security::SyscallAnomalyDetector;
-use crate::app::agent::security::{SecurityPolicy, ShellRedirectPolicy};
+use crate::app::agent::security::{AutonomyLevel, SecurityPolicy, ShellRedirectPolicy};
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::compound::semantics::{ExitInterpretation, ExitSemantics};
 use crate::tools::shell::permissions::{Permission, PermissionContext, PermissionMode};
@@ -129,6 +129,14 @@ struct ShellExecutionPlan {
 }
 
 impl ShellTool {
+    fn sandbox_config_for_security(security: &SecurityPolicy) -> SandboxConfig {
+        let mut sandbox_config = SandboxConfig::for_workspace(security.workspace_dir.clone());
+        if security.autonomy == AutonomyLevel::Full && !security.workspace_only {
+            sandbox_config.enabled = false;
+        }
+        sandbox_config
+    }
+
     /// 创建新的 Shell 工具实例
     ///
     /// 使用默认配置（不启用系统调用检测）创建 Shell 工具实例。
@@ -148,7 +156,7 @@ impl ShellTool {
     /// let shell_tool = ShellTool::new(security_policy, runtime_adapter);
     /// ```
     pub fn new(security: Arc<SecurityPolicy>, runtime: Arc<dyn RuntimeAdapter>) -> Self {
-        let sandbox_config = SandboxConfig::for_workspace(security.workspace_dir.clone());
+        let sandbox_config = Self::sandbox_config_for_security(&security);
         Self::new_with_options(security, runtime, None, sandbox_config)
     }
 
@@ -188,7 +196,7 @@ impl ShellTool {
         runtime: Arc<dyn RuntimeAdapter>,
         syscall_detector: Option<Arc<SyscallAnomalyDetector>>,
     ) -> Self {
-        let sandbox_config = SandboxConfig::for_workspace(security.workspace_dir.clone());
+        let sandbox_config = Self::sandbox_config_for_security(&security);
         Self::new_with_options(security, runtime, syscall_detector, sandbox_config)
     }
 
@@ -277,11 +285,14 @@ impl ShellTool {
             None => anyhow::bail!("Shell permission check returned no decision"),
         }
 
-        if let Some(path) = self.security.forbidden_path_argument(&effective_command) {
+        if self.security.bash_forbidden_paths_enabled()
+            && let Some(path) = self.security.forbidden_path_argument(&effective_command)
+        {
             anyhow::bail!("Path blocked by security policy: {path}");
         }
 
-        if self.security.shell_redirect_policy == ShellRedirectPolicy::Strip
+        if self.security.bash_redirects_enabled()
+            && self.security.shell_redirect_policy == ShellRedirectPolicy::Strip
             && parsed.info().is_some_and(|info| {
                 info.redirects
                     .iter()
@@ -502,7 +513,7 @@ fn resolve_workdir(raw: Option<&str>, security: &SecurityPolicy) -> anyhow::Resu
     };
 
     let resolved = candidate.canonicalize().unwrap_or(candidate);
-    if security.is_resolved_path_allowed(&resolved) {
+    if !security.bash_security_enabled || security.is_resolved_path_allowed(&resolved) {
         Ok(resolved)
     } else {
         anyhow::bail!(security.resolved_path_violation_message(&resolved));

@@ -130,6 +130,7 @@ fn parse_acp_options_maps_cli_style_runtime_overrides() {
         parsed,
         ParsedAcpOptions {
             permission_mode: Some(PermissionMode::ApproveReads),
+            full_access: false,
             non_interactive_permissions: Some(NonInteractivePermissionPolicy::Fail),
             auth_policy: Some(AuthPolicy::Fail),
             session_mode: Some("plan".to_string()),

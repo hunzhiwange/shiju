@@ -27,6 +27,8 @@ fn patch_part(message_id: &str, part_id: &str, hash: &str) -> message::Part {
         base: part_base(message_id, part_id),
         hash: hash.to_string(),
         files: vec![format!("{hash}.rs")],
+        additions: None,
+        deletions: None,
     })
 }
 
@@ -55,7 +57,12 @@ fn assistant_message(id: &str, parent_id: &str, parts: Vec<message::Part>) -> me
         info: message::Info::Assistant(Box::new(message::AssistantInfo {
             id: id.to_string(),
             session_id: "session-1".to_string(),
-            time: message::AssistantTime { created: 2, completed: Some(3) },
+            time: message::AssistantTime {
+                created: 2,
+                completed: Some(3),
+                processing_elapsed_ms: None,
+                llm_elapsed_ms: None,
+            },
             error: None,
             parent_id: parent_id.to_string(),
             model_id: "model".to_string(),

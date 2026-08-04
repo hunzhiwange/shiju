@@ -35,7 +35,7 @@ fn step(index: u32, usage: TokenUsage) -> ChatSessionStep {
 }
 
 fn message(role: ChatRole) -> ChatMessage {
-    ChatMessage { role, content: "content".to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: "content".to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 #[test]

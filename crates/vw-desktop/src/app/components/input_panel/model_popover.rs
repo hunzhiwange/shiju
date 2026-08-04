@@ -15,11 +15,9 @@
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::{
-    Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input,
-    toggler,
-    tooltip::{Position as TooltipPosition, Tooltip},
+    Space, button, column, container, mouse_area, row, scrollable, stack, text, text_input, toggler,
 };
-use iced::{Alignment, Color, Element, Length, Theme};
+use iced::{Alignment, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::{
@@ -28,7 +26,7 @@ use crate::app::components::input_panel::icons::{
 use crate::app::components::input_panel::styles::{
     BOTTOM_BAR_CHEVRON_ICON_SIZE, BOTTOM_BAR_ICON_SIZE, BOTTOM_BAR_LABEL_SIZE, popover_style,
     selectable_list_button_style, selector_chevron_color, selector_label_font,
-    selector_pill_button_style, selector_text_color, square_icon_button_style, tooltip_dark_style,
+    selector_pill_button_style, selector_text_color, square_icon_button_style,
 };
 use crate::app::components::system_settings_common::settings_text_input_style;
 use crate::app::state::ProviderModelsSummary;
@@ -336,38 +334,7 @@ pub fn model_popover_content<'a>(
                         .padding([0, 6])
                 ];
 
-                let model_tip = container(
-                    column![
-                        text(m.name.clone()).size(12).style(|_t: &Theme| {
-                            iced::widget::text::Style { color: Some(Color::WHITE) }
-                        }),
-                        text(format!("{} / {}", p.name, p.id))
-                            .size(11)
-                            .wrapping(iced::widget::text::Wrapping::Word)
-                            .style(|_t: &Theme| iced::widget::text::Style {
-                                color: Some(Color::WHITE.scale_alpha(0.72)),
-                            }),
-                        text(format!(
-                            "工具 {} · 附件 {} · 上下文限制 {}",
-                            if m.toolcall { "✓" } else { "✕" },
-                            if m.attachment { "✓" } else { "✕" },
-                            m.context_limit
-                        ))
-                        .size(11)
-                        .wrapping(iced::widget::text::Wrapping::Word)
-                        .style(|_t: &Theme| iced::widget::text::Style {
-                            color: Some(Color::from_rgb8(255, 225, 80)),
-                        }),
-                    ]
-                    .spacing(2),
-                )
-                .style(tooltip_dark_style)
-                .padding([6, 8])
-                .width(Length::Fixed(240.0));
-
-                let item = Tooltip::new(select_btn, model_tip, TooltipPosition::Right).gap(8);
-
-                model_list = model_list.push(item);
+                model_list = model_list.push(select_btn);
                 any_models = true;
             }
         }
@@ -397,8 +364,7 @@ pub fn model_popover_content<'a>(
         .on_press(Message::View(message::ViewMessage::OpenSystemSettingsTab(
             crate::app::components::system_settings::SystemTab::Models,
         )));
-        let tip = container(text("管理模型").size(12)).style(tooltip_dark_style).padding([6, 8]);
-        Tooltip::new(btn, tip, TooltipPosition::Right).gap(8).into()
+        btn.into()
     };
 
     // "连接供应商" 按钮
@@ -415,8 +381,7 @@ pub fn model_popover_content<'a>(
         .on_press(Message::View(message::ViewMessage::OpenSystemSettingsTab(
             crate::app::components::system_settings::SystemTab::Providers,
         )));
-        let tip = container(text("连接供应商").size(12)).style(tooltip_dark_style).padding([6, 8]);
-        Tooltip::new(btn, tip, TooltipPosition::Right).gap(8).into()
+        btn.into()
     };
 
     // 主内容区域：模式切换 + 模型列表
@@ -426,14 +391,7 @@ pub fn model_popover_content<'a>(
             column![
                 // 自动模型开关
                 row![
-                    Tooltip::new(
-                        themed_svg_handle(auto_icon(), 18.0),
-                        container(text("自动模型 Vibe window 基于效果选择最佳模型").size(12))
-                            .style(tooltip_dark_style)
-                            .padding([6, 8]),
-                        TooltipPosition::Right,
-                    )
-                    .gap(8),
+                    themed_svg_handle(auto_icon(), 18.0),
                     text("自动模型"),
                     container(text("")).width(Length::Fill),
                     toggler(auto_model)
@@ -442,16 +400,7 @@ pub fn model_popover_content<'a>(
                 .spacing(8),
                 // 任务模式开关
                 row![
-                    Tooltip::new(
-                        icon_svg(Icon::Grid1x2, 18.0),
-                        container(
-                            text("任务模式开启后可直接加入任务池并填写优先级和子任务").size(12)
-                        )
-                        .style(tooltip_dark_style)
-                        .padding([6, 8]),
-                        TooltipPosition::Right,
-                    )
-                    .gap(8),
+                    icon_svg(Icon::Grid1x2, 18.0),
                     text("任务模式"),
                     container(text("")).width(Length::Fill),
                     toggler(task_mode_enabled)
@@ -514,9 +463,8 @@ pub fn model_popover_content<'a>(
     ]
     .spacing(6);
 
-    container(boxed_content)
-        .style(popover_style)
-        .padding(4)
-        .width(Length::Fixed(popup_width))
-        .into()
+    let content =
+        container(boxed_content).style(popover_style).padding(4).width(Length::Fixed(popup_width));
+
+    content.into()
 }

@@ -20,6 +20,9 @@
 use super::PreviewMessage;
 #[cfg(not(target_arch = "wasm32"))]
 use super::lsp;
+use crate::app::components::editor::{
+    APP_CONTEXT_MENU_INSERT_SELECTION, APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS,
+};
 use crate::app::{App, FocusArea, Message, PreviewAutoSaveMode};
 use iced::Task;
 use unicode_width::UnicodeWidthChar;
@@ -33,6 +36,7 @@ fn editor_message_may_change_content(message: &iced_code_editor::Message) -> boo
             | iced_code_editor::Message::Enter
             | iced_code_editor::Message::Tab
             | iced_code_editor::Message::Paste(_)
+            | iced_code_editor::Message::Cut
             | iced_code_editor::Message::DeleteSelection
             | iced_code_editor::Message::Undo
             | iced_code_editor::Message::Redo
@@ -195,6 +199,22 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
                 app.preview_context_target = Some((path, line, col, line, col));
             }
         }
+        iced_code_editor::Message::ContextMenuRequested(point) => {
+            let Some((line, col)) = cursor_from_point(&tab.editor.inner, *point) else {
+                return;
+            };
+            let clicked_inside_active_selection = matches!(
+                app.preview_context_target,
+                Some((ref target_path, start_line, start_col, end_line, end_col))
+                    if *target_path == path
+                        && (start_line, start_col) != (end_line, end_col)
+                        && (start_line, start_col) <= (line, col)
+                        && (line, col) <= (end_line, end_col)
+            );
+            if !clicked_inside_active_selection {
+                app.preview_context_target = Some((path, line, col, line, col));
+            }
+        }
         iced_code_editor::Message::MouseDrag(point) => {
             // 鼠标拖拽：更新选择范围
             let Some((line, col)) = cursor_from_point(&tab.editor.inner, *point) else {
@@ -216,6 +236,42 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
         }
         _ => {}
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn reveal_in_file_manager(path: &str) -> Result<(), String> {
+    let path = std::path::Path::new(path);
+    if !path.is_file() {
+        return Err(format!("无法在文件管理器中显示：文件不存在 {}", path.display()));
+    }
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = std::process::Command::new("open");
+        command.arg("-R").arg(path);
+        command
+    };
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = std::process::Command::new("explorer.exe");
+        command.arg("/select,").arg(path);
+        command
+    };
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let mut command = {
+        let directory =
+            path.parent().ok_or_else(|| format!("无法确定文件所在目录：{}", path.display()))?;
+        let mut command = std::process::Command::new("xdg-open");
+        command.arg(directory);
+        command
+    };
+
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("无法在文件管理器中显示 {}：{error}", path.display()))
 }
 
 /// 处理预览编辑器的消息更新
@@ -263,12 +319,50 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
         PreviewMessage::EditorEvent(evt) => {
+            match &evt {
+                iced_code_editor::Message::CustomContextMenuAction(id) => {
+                    return match id.as_str() {
+                        APP_CONTEXT_MENU_INSERT_SELECTION => Task::done(Message::Chat(
+                            crate::app::message::ChatMessage::InsertSelected,
+                        )),
+                        APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS => Task::done(Message::Chat(
+                            crate::app::message::ChatMessage::InsertSelectionPositions,
+                        )),
+                        unknown => {
+                            tracing::warn!(
+                                action_id = unknown,
+                                "忽略未知的编辑器自定义右键菜单动作"
+                            );
+                            Task::none()
+                        }
+                    };
+                }
+                iced_code_editor::Message::RevealInFileManager => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        let Some(path) = app.active_preview_path.as_deref() else {
+                            return app.show_error_toast("无法在文件管理器中显示：没有活动文件");
+                        };
+                        if let Err(error) = reveal_in_file_manager(path) {
+                            return app.show_error_toast(error);
+                        }
+                    }
+                    return Task::none();
+                }
+                _ => {}
+            }
+
             // 更新上下文选择目标（用于右键菜单操作选中文本）
             update_context_target_from_editor_event(app, &evt);
 
             // ===== LSP 代码补全交互处理（非 WASM 平台） =====
             #[cfg(not(target_arch = "wasm32"))]
             {
+                if matches!(&evt, iced_code_editor::Message::ContextMenuRequested(_)) {
+                    lsp::clear_lsp_hover(app);
+                    lsp::clear_lsp_completion(app, true);
+                }
+
                 // 关闭搜索框时，如果补全列表可见，则清除补全
                 if matches!(&evt, iced_code_editor::Message::CloseSearch)
                     && app.lsp_overlay.completion_visible
@@ -321,30 +415,31 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
             {
                 let was_dirty = tab.is_dirty;
-                let content_before = if editor_message_may_change_content(&evt) {
-                    Some(tab.editor.content())
-                } else {
-                    None
-                };
+                let may_change_content = editor_message_may_change_content(&evt);
+                let was_modified = may_change_content && tab.editor.inner.is_modified();
                 let task = tab
                     .editor
                     .inner
                     .update(&evt)
                     .map(|e| Message::Preview(PreviewMessage::EditorEvent(e)));
-                let content_changed = if let Some(content_before) = content_before.as_ref() {
-                    let content_after = tab.editor.content();
-                    tab.is_dirty = content_after != tab.content;
-                    content_after != *content_before
+                let edit_attempted = if may_change_content {
+                    let is_modified = tab.editor.inner.is_modified();
+                    tab.is_dirty = is_modified;
+                    was_modified || is_modified
                 } else {
                     tab.is_dirty = was_dirty;
                     false
                 };
-                let auto_save_task = if content_changed
+                if edit_attempted {
+                    tab.auto_save_revision = tab.auto_save_revision.saturating_add(1);
+                }
+                let auto_save_task = if edit_attempted
+                    && tab.is_dirty
                     && matches!(
                         app.preview_auto_save_mode,
                         PreviewAutoSaveMode::AfterDelay | PreviewAutoSaveMode::OnFocusChange
-                    ) {
-                    tab.auto_save_revision = tab.auto_save_revision.saturating_add(1);
+                    )
+                {
                     let revision = tab.auto_save_revision;
                     let auto_save_path = path.to_string();
                     Some(crate::app::message::after(

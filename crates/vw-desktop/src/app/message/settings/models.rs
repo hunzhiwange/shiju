@@ -12,6 +12,7 @@ use vw_shared::provider::types as provider_types;
 use vw_shared::provider::types::Info;
 
 use super::messages::SettingsMessage;
+use super::types::ModelStatusChange;
 use super::util::is_provider_connected;
 
 fn summarize_models(
@@ -56,6 +57,201 @@ async fn load_models_for_settings() -> Result<Vec<ProviderModelsSummary>, String
     Ok(summarize_models(providers))
 }
 
+fn collect_model_status_changes(
+    providers: &[ProviderModelsSummary],
+    enabled: bool,
+) -> Vec<ModelStatusChange> {
+    providers
+        .iter()
+        .flat_map(|provider| {
+            provider.models.iter().filter(move |model| model.enabled != enabled).map(move |model| {
+                ModelStatusChange {
+                    provider_id: provider.id.clone(),
+                    model_id: model.id.clone(),
+                    previous_enabled: model.enabled,
+                    enabled,
+                }
+            })
+        })
+        .collect()
+}
+
+fn collect_provider_model_status_changes(
+    providers: &[ProviderModelsSummary],
+    provider_id: &str,
+    enabled: bool,
+    include_unchanged: bool,
+) -> Vec<ModelStatusChange> {
+    providers
+        .iter()
+        .find(|provider| provider.id == provider_id)
+        .into_iter()
+        .flat_map(|provider| {
+            provider
+                .models
+                .iter()
+                .filter(move |model| include_unchanged || model.enabled != enabled)
+                .map(move |model| ModelStatusChange {
+                    provider_id: provider.id.clone(),
+                    model_id: model.id.clone(),
+                    previous_enabled: model.enabled,
+                    enabled,
+                })
+        })
+        .collect()
+}
+
+fn model_status_patch(changes: &[ModelStatusChange]) -> Value {
+    let mut grouped = std::collections::BTreeMap::<String, Map<String, Value>>::new();
+    for change in changes {
+        let status = if change.enabled { "active" } else { "disabled" };
+        grouped.entry(change.provider_id.clone()).or_default().insert(
+            change.model_id.clone(),
+            serde_json::json!({
+                "id": change.model_id,
+                "status": status,
+            }),
+        );
+    }
+
+    let providers = grouped
+        .into_iter()
+        .map(|(provider_id, models)| {
+            let mut provider = Map::new();
+            provider.insert("models".to_string(), Value::Object(models));
+            (provider_id, Value::Object(provider))
+        })
+        .collect::<Map<_, _>>();
+
+    let mut root = Map::new();
+    root.insert("providers".to_string(), Value::Object(providers));
+    Value::Object(root)
+}
+
+fn provider_model_status_reset_patch(
+    config: &vw_config_types::config::Config,
+    provider_id: &str,
+) -> Option<Value> {
+    let configured_models =
+        config.providers.get(provider_id)?.get("models").and_then(Value::as_object)?;
+    let models = configured_models
+        .iter()
+        .filter(|(_, model)| model.get("status").is_some())
+        .map(|(model_id, _)| {
+            let mut model = Map::new();
+            model.insert("status".to_string(), Value::Null);
+            (model_id.clone(), Value::Object(model))
+        })
+        .collect::<Map<_, _>>();
+    if models.is_empty() {
+        return None;
+    }
+
+    let mut provider = Map::new();
+    provider.insert("models".to_string(), Value::Object(models));
+    let mut providers = Map::new();
+    providers.insert(provider_id.to_string(), Value::Object(provider));
+    let mut root = Map::new();
+    root.insert("providers".to_string(), Value::Object(providers));
+    Some(Value::Object(root))
+}
+
+fn set_local_model_status(
+    providers: &mut [ProviderModelsSummary],
+    change: &ModelStatusChange,
+    enabled: bool,
+) {
+    let Some(model) = providers
+        .iter_mut()
+        .find(|provider| provider.id == change.provider_id)
+        .and_then(|provider| provider.models.iter_mut().find(|model| model.id == change.model_id))
+    else {
+        return;
+    };
+
+    model.enabled = enabled;
+    if let Some(detail) = model.detail.as_object_mut() {
+        let status = if enabled { "active" } else { "disabled" };
+        detail.insert("status".to_string(), Value::String(status.to_string()));
+    }
+}
+
+fn changes_disable_selected_model(app: &App, changes: &[ModelStatusChange]) -> bool {
+    changes.iter().any(|change| {
+        if change.enabled {
+            return false;
+        }
+        let full = format!("{}/{}", change.provider_id, change.model_id);
+        if app.model.contains('/') { app.model == full } else { app.model == change.model_id }
+    })
+}
+
+fn begin_model_status_save(app: &mut App, changes: &[ModelStatusChange]) -> bool {
+    if changes.is_empty() || app.model_settings.loading || app.model_settings.saving {
+        return false;
+    }
+
+    if !app.auto_model && changes_disable_selected_model(app, changes) {
+        app.auto_model = true;
+        crate::app::set_config_field("auto_model", Value::Bool(true));
+    }
+
+    for change in changes {
+        set_local_model_status(&mut app.model_settings.providers, change, change.enabled);
+    }
+    app.model_settings.saving = true;
+    app.model_settings.save_error = None;
+    app.model_settings.detail_modal = None;
+    true
+}
+
+fn save_model_statuses(app: &mut App, changes: Vec<ModelStatusChange>) -> Task<Message> {
+    if !begin_model_status_save(app, &changes) {
+        return Task::none();
+    }
+    Task::perform(
+        async move {
+            let patch = model_status_patch(&changes);
+            let result = config::patch_full_agent_config_async(patch)
+                .await
+                .map_err(server_config_unreachable_error);
+            (changes, result)
+        },
+        |(changes, result)| Message::Settings(SettingsMessage::ModelStatusesSaved(changes, result)),
+    )
+}
+
+fn reset_provider_model_statuses(
+    app: &mut App,
+    provider_id: String,
+    changes: Vec<ModelStatusChange>,
+) -> Task<Message> {
+    if !begin_model_status_save(app, &changes) {
+        return Task::none();
+    }
+
+    Task::perform(
+        async move {
+            let result = async {
+                let full_config = config::load_full_agent_config_async()
+                    .await
+                    .map_err(server_config_unreachable_error)?;
+                if let Some(patch) = provider_model_status_reset_patch(&full_config, &provider_id) {
+                    config::patch_full_agent_config_async(patch)
+                        .await
+                        .map_err(server_config_unreachable_error)?;
+                }
+                load_models_for_settings().await.map_err(server_config_unreachable_error)
+            }
+            .await;
+            (changes, result)
+        },
+        |(changes, result)| {
+            Message::Settings(SettingsMessage::ProviderModelsResetCompleted(changes, result))
+        },
+    )
+}
+
 #[cfg(test)]
 #[path = "models_tests.rs"]
 mod models_tests;
@@ -78,6 +274,9 @@ pub fn models_refresh_task() -> Task<Message> {
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::ModelsRefresh => {
+            if app.model_settings.saving {
+                return Task::none();
+            }
             app.model_settings.loading = true;
             app.model_settings.save_error = None;
             app.model_settings.detail_modal = None;
@@ -102,40 +301,81 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::ModelToggle(provider_id, model_id, enabled) => {
-            if !enabled && !app.auto_model {
-                let full = format!("{}/{}", &provider_id, &model_id);
-                let is_selected =
-                    if app.model.contains('/') { app.model == full } else { app.model == model_id };
-                if is_selected {
-                    app.auto_model = true;
-                    crate::app::set_config_field("auto_model", serde_json::Value::Bool(true));
+            let change = app
+                .model_settings
+                .providers
+                .iter()
+                .find(|provider| provider.id == provider_id)
+                .and_then(|provider| provider.models.iter().find(|model| model.id == model_id))
+                .filter(|model| model.enabled != enabled)
+                .map(|model| ModelStatusChange {
+                    provider_id,
+                    model_id,
+                    previous_enabled: model.enabled,
+                    enabled,
+                });
+            save_model_statuses(app, change.into_iter().collect())
+        }
+        SettingsMessage::ModelsSetAll(enabled) => {
+            let changes = collect_model_status_changes(&app.model_settings.providers, enabled);
+            save_model_statuses(app, changes)
+        }
+        SettingsMessage::ProviderModelsSetAll(provider_id, enabled) => {
+            let changes = collect_provider_model_status_changes(
+                &app.model_settings.providers,
+                &provider_id,
+                enabled,
+                false,
+            );
+            save_model_statuses(app, changes)
+        }
+        SettingsMessage::ProviderModelsReset(provider_id) => {
+            let changes = collect_provider_model_status_changes(
+                &app.model_settings.providers,
+                &provider_id,
+                false,
+                true,
+            );
+            reset_provider_model_statuses(app, provider_id, changes)
+        }
+        SettingsMessage::ProviderModelsResetCompleted(changes, result) => {
+            app.model_settings.saving = false;
+            match result {
+                Ok(providers) => {
+                    app.model_settings.providers = providers;
+                }
+                Err(error) => {
+                    for change in &changes {
+                        set_local_model_status(
+                            &mut app.model_settings.providers,
+                            change,
+                            change.previous_enabled,
+                        );
+                    }
+                    app.model_settings.save_error = Some(error);
                 }
             }
-            app.model_settings.loading = true;
-            app.model_settings.save_error = None;
-            app.model_settings.detail_modal = None;
-            Task::perform(
-                async move {
-                    let status =
-                        if enabled { "active".to_string() } else { "disabled".to_string() };
-                    let mut model_cfg = Map::new();
-                    model_cfg.insert("id".to_string(), Value::String(model_id.clone()));
-                    model_cfg.insert("status".to_string(), Value::String(status));
-                    let mut models_obj = Map::new();
-                    models_obj.insert(model_id, Value::Object(model_cfg));
-                    let mut provider_cfg = Map::new();
-                    provider_cfg.insert("models".to_string(), Value::Object(models_obj));
-                    let mut provider_obj = Map::new();
-                    provider_obj.insert(provider_id.clone(), Value::Object(provider_cfg));
-                    let mut root = Map::new();
-                    root.insert("providers".to_string(), Value::Object(provider_obj));
-                    config::patch_full_agent_config_async(Value::Object(root))
-                        .await
-                        .map_err(server_config_unreachable_error)?;
-                    load_models_for_settings().await.map_err(server_config_unreachable_error)
-                },
-                |res| Message::Settings(SettingsMessage::ModelsRefreshed(res)),
-            )
+            Task::none()
+        }
+        SettingsMessage::ProviderModelsExpansionToggled(provider_id) => {
+            if !app.model_settings.expanded_provider_ids.insert(provider_id.clone()) {
+                app.model_settings.expanded_provider_ids.remove(&provider_id);
+            }
+            Task::none()
+        }
+        SettingsMessage::ModelStatusesSaved(changes, result) => {
+            app.model_settings.saving = false;
+            if let Err(error) = result {
+                for change in &changes {
+                    set_local_model_status(
+                        &mut app.model_settings.providers,
+                        change,
+                        change.previous_enabled,
+                    );
+                }
+                app.model_settings.save_error = Some(error);
+            }
+            Task::none()
         }
         SettingsMessage::ModelDetailOpen(provider_id, model_id) => {
             let provider = app.model_settings.providers.iter().find(|p| p.id == provider_id);

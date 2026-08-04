@@ -148,6 +148,17 @@ fn strip_policy_normalizes_common_redirect_patterns() {
     assert_eq!(quoted, "echo '2>&1' \"|&\" '2>/dev/null'");
 }
 
+#[test]
+fn redirect_policy_item_controls_only_redirect_rewriting() {
+    let mut policy =
+        SecurityPolicy { shell_redirect_policy: ShellRedirectPolicy::Strip, ..default_policy() };
+    assert_eq!(policy.apply_shell_redirect_policy("echo hello 2>&1"), "echo hello");
+
+    policy.bash_security.policy.redirects = false;
+    assert_eq!(policy.apply_shell_redirect_policy("echo hello 2>&1"), "echo hello 2>&1");
+    assert!(!policy.is_command_allowed("curl example.com"));
+}
+
 // 测试 Strip 策略允许规范化后的标准错误重定向
 #[test]
 fn strip_policy_allows_normalized_stderr_redirects() {
@@ -240,6 +251,20 @@ fn command_env_var_prefix_with_allowed_cmd() {
 fn forbidden_path_argument_detects_absolute_path() {
     let p = default_policy();
     assert_eq!(p.forbidden_path_argument("cat /etc/passwd"), Some("/etc/passwd".into()));
+}
+
+#[test]
+fn forbidden_path_item_controls_only_forbidden_path_scanning() {
+    let mut policy = SecurityPolicy {
+        workspace_only: false,
+        forbidden_paths: vec!["/secret".into()],
+        ..default_policy()
+    };
+    assert_eq!(policy.forbidden_path_argument("cat /secret/token"), Some("/secret/token".into()));
+
+    policy.bash_security.policy.forbidden_paths = false;
+    assert_eq!(policy.forbidden_path_argument("cat /secret/token"), None);
+    assert!(!policy.is_command_allowed("curl example.com"));
 }
 
 // 测试命令执行验证拒绝禁止路径

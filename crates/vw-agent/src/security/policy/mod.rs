@@ -17,6 +17,8 @@ pub use types::{AutonomyLevel, CommandRiskLevel, QuoteState, ShellRedirectPolicy
 
 use std::path::{Path, PathBuf};
 
+use vw_config_types::security::{BashPolicyChecksConfig, BashSecurityConfig};
+
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::compound::CompoundCommandAnalyzer;
 use crate::tools::shell::path::{PathCheckResult, check_path_constraints};
@@ -40,6 +42,10 @@ use shell_redirect::strip_supported_redirects;
 /// 显式，便于配置层、测试和调用方清楚看到每个安全边界。
 #[derive(Debug, Clone)]
 pub struct SecurityPolicy {
+    /// 是否启用 Bash 命令执行前安全检查。
+    pub bash_security_enabled: bool,
+    /// Bash 命令执行前安全检查的完整分层配置。
+    pub bash_security: BashSecurityConfig,
     /// 当前自治级别，决定是否允许主动行动以及是否需要人工批准。
     pub autonomy: AutonomyLevel,
     /// 当前工作区根目录。
@@ -72,7 +78,10 @@ pub struct SecurityPolicy {
 
 impl Default for SecurityPolicy {
     fn default() -> Self {
+        let bash_security = BashSecurityConfig { enabled: true, ..BashSecurityConfig::default() };
         Self {
+            bash_security_enabled: true,
+            bash_security,
             autonomy: AutonomyLevel::Supervised,
             workspace_dir: PathBuf::from("."),
             workspace_only: true,
@@ -125,12 +134,36 @@ impl Default for SecurityPolicy {
 }
 
 impl SecurityPolicy {
+    fn bash_checks_enabled(&self) -> bool {
+        self.bash_security_enabled && self.bash_security.enabled
+    }
+
+    fn policy_check_enabled(&self, check: impl FnOnce(&BashPolicyChecksConfig) -> bool) -> bool {
+        self.bash_checks_enabled()
+            && self.bash_security.policy.enabled
+            && check(&self.bash_security.policy)
+    }
+
+    /// 是否启用 Bash 禁止路径检查。
+    pub fn bash_forbidden_paths_enabled(&self) -> bool {
+        self.policy_check_enabled(|policy| policy.forbidden_paths)
+    }
+
+    /// 是否启用 Bash 重定向检查。
+    pub fn bash_redirects_enabled(&self) -> bool {
+        self.policy_check_enabled(|policy| policy.redirects)
+    }
+
     /// 按策略处理 shell 重定向。
     ///
     /// 参数 `command` 是原始命令。返回值可能是原命令，也可能是移除受支持重定向
     /// 后的命令；本函数不返回错误，不支持的危险重定向仍会交给后续权限检查拒绝。
     pub fn apply_shell_redirect_policy(&self, command: &str) -> String {
+        if !self.bash_redirects_enabled() {
+            return command.to_string();
+        }
         match self.shell_redirect_policy {
+            ShellRedirectPolicy::Allow => command.to_string(),
             ShellRedirectPolicy::Block => command.to_string(),
             ShellRedirectPolicy::Strip => strip_supported_redirects(command),
         }
@@ -191,15 +224,21 @@ impl SecurityPolicy {
         command: &str,
         context: &PermissionContext,
     ) -> PermissionResult {
+        if !self.bash_checks_enabled() {
+            return PermissionResult::allow();
+        }
         let parsed = parse_command(command);
-        if self.autonomy == AutonomyLevel::ReadOnly
+        if self.policy_check_enabled(|policy| policy.read_only)
+            && self.autonomy == AutonomyLevel::ReadOnly
             && !check_readonly_constraints(&parsed).is_readonly()
         {
             return PermissionResult::deny(format!(
                 "Command not allowed by security policy: {command}"
             ));
         }
-        if !self.allow_unsafe_shell_patterns && contains_unquoted_shell_variable_expansion(command)
+        if self.policy_check_enabled(|policy| policy.unsafe_shell_patterns)
+            && !self.allow_unsafe_shell_patterns
+            && contains_unquoted_shell_variable_expansion(command)
         {
             return PermissionResult::deny(format!(
                 "Command not allowed by security policy: {command}"
@@ -214,19 +253,21 @@ impl SecurityPolicy {
             _ => return result,
         }
 
-        if let PathCheckResult::Blocked { path, reason } =
-            check_path_constraints(&parsed, &context.workspace_dir, &context.allowed_roots)
-        {
-            return PermissionResult::deny(format!(
-                "Path blocked by security policy: {} ({reason})",
-                path.display()
-            ));
+        if self.policy_check_enabled(|policy| policy.workspace_paths) && self.workspace_only {
+            if let PathCheckResult::Blocked { path, reason } =
+                check_path_constraints(&parsed, &context.workspace_dir, &context.allowed_roots)
+            {
+                return PermissionResult::deny(format!(
+                    "Path blocked by security policy: {} ({reason})",
+                    path.display()
+                ));
+            }
         }
 
         // 风险检查放在 allowlist 和路径检查之后，确保“已允许的命令”仍会因为破坏性
         // 行为被二次拦截。
         let risk = self.command_risk_level(command);
-        if risk == CommandRiskLevel::High {
+        if self.policy_check_enabled(|policy| policy.risk) && risk == CommandRiskLevel::High {
             if self.block_high_risk_commands {
                 return PermissionResult::deny(
                     "Command blocked: high-risk command is disallowed by policy",
@@ -240,7 +281,8 @@ impl SecurityPolicy {
             }
         }
 
-        if risk == CommandRiskLevel::Medium
+        if self.policy_check_enabled(|policy| policy.risk)
+            && risk == CommandRiskLevel::Medium
             && context.autonomy == AutonomyLevel::Supervised
             && self.require_approval_for_medium_risk
             && !context.approved
@@ -260,8 +302,12 @@ impl SecurityPolicy {
     /// 不支持的不安全 shell 模式默认以严格模式处理，只有完全自治且显式允许时才放宽。
     fn build_rule_engine(&self) -> RuleEngine {
         let strict = !self.allow_unsafe_shell_patterns || self.autonomy != AutonomyLevel::Full;
-        let mut engine =
-            RuleEngine::new(strict).with_legacy_allowlist(self.allowed_commands.clone());
+        let mut engine = RuleEngine::new_with_config(
+            strict,
+            self.policy_check_enabled(|policy| policy.command_rules),
+            &self.bash_security.validators,
+        )
+        .with_legacy_allowlist(self.allowed_commands.clone());
 
         for entry in &self.allowed_commands {
             let entry = strip_wrapping_quotes(entry).trim();
@@ -282,7 +328,10 @@ impl SecurityPolicy {
             });
         }
 
-        if self.autonomy == AutonomyLevel::Supervised && self.require_approval_for_medium_risk {
+        if self.policy_check_enabled(|policy| policy.risk)
+            && self.autonomy == AutonomyLevel::Supervised
+            && self.require_approval_for_medium_risk
+        {
             for command in ["touch", "mkdir", "cp", "mv", "chmod", "chown"] {
                 engine.push_rule(PermissionRule {
                     action: RuleAction::Ask,
@@ -303,6 +352,9 @@ impl SecurityPolicy {
     /// 参数 `command` 是原始 shell 命令。返回 `true` 表示命令在旧策略层面可执行；
     /// 返回 `false` 表示命令被只读约束、危险 shell 语法、allowlist 或参数安全检查拒绝。
     pub fn is_command_allowed(&self, command: &str) -> bool {
+        if !self.bash_checks_enabled() {
+            return true;
+        }
         tracing::info!(
             command = %command,
             allow_unsafe_shell_patterns = self.allow_unsafe_shell_patterns,
@@ -310,7 +362,8 @@ impl SecurityPolicy {
             "is_command_allowed: checking"
         );
 
-        if self.autonomy == AutonomyLevel::ReadOnly
+        if self.policy_check_enabled(|policy| policy.read_only)
+            && self.autonomy == AutonomyLevel::ReadOnly
             && !check_readonly_constraints(&parse_command(command)).is_readonly()
         {
             tracing::warn!(
@@ -321,7 +374,9 @@ impl SecurityPolicy {
             return false;
         }
 
-        if !self.allow_unsafe_shell_patterns {
+        if self.policy_check_enabled(|policy| policy.unsafe_shell_patterns)
+            && !self.allow_unsafe_shell_patterns
+        {
             // 未显式启用危险模式时，先拒绝容易绕过静态解析的 shell 结构，防止
             // 子命令、变量展开或重定向把实际执行面扩大到 allowlist 之外。
             if command.contains('`')
@@ -340,16 +395,6 @@ impl SecurityPolicy {
                 return false;
             }
 
-            if contains_unquoted_char(command, '>') || contains_unquoted_char(command, '<') {
-                tracing::warn!(
-                    command = %command,
-                    has_gt = contains_unquoted_char(command, '>'),
-                    has_lt = contains_unquoted_char(command, '<'),
-                    "is_command_allowed: blocked by redirect operators"
-                );
-                return false;
-            }
-
             if command.split_whitespace().any(|w| w == "tee" || w.ends_with("/tee")) {
                 tracing::warn!(command = %command, "is_command_allowed: blocked by tee command");
                 return false;
@@ -359,8 +404,25 @@ impl SecurityPolicy {
                 tracing::warn!(command = %command, "is_command_allowed: blocked by single ampersand");
                 return false;
             }
-        } else {
+        } else if self.policy_check_enabled(|policy| policy.unsafe_shell_patterns) {
             tracing::debug!(command = %command, "is_command_allowed: unsafe patterns allowed, skipping hardcoded checks");
+        }
+
+        if self.policy_check_enabled(|policy| policy.redirects)
+            && !self.allow_unsafe_shell_patterns
+            && (contains_unquoted_char(command, '>') || contains_unquoted_char(command, '<'))
+        {
+            tracing::warn!(
+                command = %command,
+                has_gt = contains_unquoted_char(command, '>'),
+                has_lt = contains_unquoted_char(command, '<'),
+                "is_command_allowed: blocked by redirect operators"
+            );
+            return false;
+        }
+
+        if !self.policy_check_enabled(|policy| policy.command_rules) {
+            return true;
         }
 
         let segments = split_unquoted_segments(command);
@@ -443,11 +505,30 @@ impl SecurityPolicy {
     /// 参数 `command` 是待检查命令。返回 `Some(path)` 表示解析后的命令访问了工作区
     /// 或允许根目录之外的路径；返回 `None` 表示未发现路径违规。
     pub fn forbidden_path_argument(&self, command: &str) -> Option<String> {
-        let parsed = parse_command(command);
-        match check_path_constraints(&parsed, &self.workspace_dir, &self.allowed_roots) {
-            PathCheckResult::Allowed => None,
-            PathCheckResult::Blocked { path, .. } => Some(path.display().to_string()),
+        let workspace_paths_enabled =
+            self.policy_check_enabled(|policy| policy.workspace_paths) && self.workspace_only;
+        if !workspace_paths_enabled && !self.bash_forbidden_paths_enabled() {
+            return None;
         }
+        if workspace_paths_enabled {
+            let parsed = parse_command(command);
+            if let PathCheckResult::Blocked { path, .. } =
+                check_path_constraints(&parsed, &self.workspace_dir, &self.allowed_roots)
+            {
+                return Some(path.display().to_string());
+            }
+        }
+        if !self.bash_forbidden_paths_enabled() {
+            return None;
+        }
+        allowlist::find_forbidden_path_argument(command, |path| {
+            let expanded = normalize_path(&expand_user_path(path));
+            !self
+                .forbidden_paths
+                .iter()
+                .map(|forbidden| normalize_path(&expand_user_path(forbidden)))
+                .any(|forbidden| expanded.starts_with(forbidden))
+        })
     }
 
     /// 判断未解析路径字符串是否允许访问。
@@ -602,7 +683,30 @@ impl SecurityPolicy {
         autonomy_config: &crate::app::agent::config::AutonomyConfig,
         workspace_dir: &Path,
     ) -> Self {
+        let bash_security = BashSecurityConfig { enabled: true, ..BashSecurityConfig::default() };
+        Self::from_autonomy_config(autonomy_config, workspace_dir, bash_security)
+    }
+
+    /// 从完整安全配置构造策略。
+    ///
+    /// Bash 检查默认遵循 `security.bash.enabled`；调用方如果提供完全访问上下文，
+    /// 应在会话策略组装阶段显式关闭 `bash_security_enabled`。
+    pub fn from_configs(
+        autonomy_config: &crate::app::agent::config::AutonomyConfig,
+        security_config: &vw_config_types::security::SecurityConfig,
+        workspace_dir: &Path,
+    ) -> Self {
+        Self::from_autonomy_config(autonomy_config, workspace_dir, security_config.bash.clone())
+    }
+
+    fn from_autonomy_config(
+        autonomy_config: &crate::app::agent::config::AutonomyConfig,
+        workspace_dir: &Path,
+        bash_security: BashSecurityConfig,
+    ) -> Self {
         Self {
+            bash_security_enabled: bash_security.enabled,
+            bash_security,
             autonomy: autonomy_config.level,
             workspace_dir: workspace_dir.to_path_buf(),
             workspace_only: autonomy_config.workspace_only,

@@ -140,7 +140,11 @@ impl ChatSendBehavior {
 ///
 /// 表示一个正在处理或待处理的 Agent 请求，
 /// 包含请求的唯一标识、会话信息、查询内容和历史消息。
-#[derive(Debug, Clone, Hash)]
+///
+/// `Hash` 只使用 `id`：iced `Subscription::run_with` 靠哈希保活流；
+/// 若把 `history` 等字段纳入哈希，状态抖动会取消 SSE，表现为刚显示
+/// 「正在规划」就报「未收到网关完成信号」。
+#[derive(Debug, Clone)]
 pub(crate) struct AgentRequest {
     /// 请求的唯一标识符
     pub(crate) id: u64,
@@ -158,15 +162,31 @@ pub(crate) struct AgentRequest {
     pub(crate) acp_allowed_tools: Option<Vec<String>>,
     pub(crate) agent: Option<String>,
     pub(crate) allowed_tools: Option<Vec<String>>,
+    pub(crate) require_agent_tool: bool,
     pub(crate) acp_force_new_session: bool,
     pub(crate) acp_history_mode: AcpHistoryReplayMode,
     pub(crate) acp_recent_count: usize,
     pub(crate) full_access_enabled: bool,
     pub(crate) resume_history_only: bool,
     pub(crate) workflow_mode_enabled: bool,
+    pub(crate) goal_mode_enabled: bool,
     /// 对话历史消息列表
     pub(crate) history: Vec<ChatMessage>,
 }
+
+impl std::hash::Hash for AgentRequest {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for AgentRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for AgentRequest {}
 
 /// 请求队列项
 ///
@@ -190,6 +210,7 @@ pub(crate) struct QueueItem {
     pub(crate) acp_allowed_tools: Option<Vec<String>>,
     pub(crate) agent: Option<String>,
     pub(crate) allowed_tools: Option<Vec<String>>,
+    pub(crate) require_agent_tool: bool,
     pub(crate) acp_force_new_session: bool,
     pub(crate) acp_history_mode: AcpHistoryReplayMode,
     pub(crate) acp_recent_count: usize,
@@ -198,6 +219,7 @@ pub(crate) struct QueueItem {
     pub(crate) request_history_override: Option<Vec<ChatMessage>>,
     pub(crate) resume_history_only: bool,
     pub(crate) workflow_mode_enabled: bool,
+    pub(crate) goal_mode_enabled: bool,
 }
 
 /// 会话运行时状态
@@ -210,6 +232,10 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) is_requesting: bool,
     /// 本轮请求开始的毫秒时间戳，用于状态栏展示运行时长；0 表示未在请求中
     pub(crate) request_started_ms: u64,
+    /// 请求开始到结束的单调时钟耗时；持续计入步骤间停顿。
+    pub(crate) processing_timer: vw_shared::time::ActiveTimer,
+    /// 仅累计 LLM StepStart 到 StepFinish 的单调时钟耗时
+    pub(crate) llm_timer: vw_shared::time::ActiveTimer,
     /// 提交动画计数器
     pub(crate) submit_anim: u8,
     /// 是否有未查看的成功响应
@@ -224,12 +250,18 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) model: String,
     /// 是否自动选择模型
     pub(crate) auto_model: bool,
+    /// 是否等待从历史步骤恢复该会话自己的模型。
+    pub(crate) restore_model_from_history: bool,
     pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
     pub(crate) tool_selector: SessionToolSelectorState,
     /// 是否启用任务模式
     pub(crate) task_mode_enabled: bool,
     /// 是否将本轮聊天包装为临时工作流执行
     pub(crate) workflow_mode_enabled: bool,
+    /// 是否持续执行并独立验收，直到达到目标
+    pub(crate) goal_mode_enabled: bool,
+    /// 是否要求顶层智能体优先通过 AgentTool 委托实质工作
+    pub(crate) subagent_mode_enabled: bool,
     /// 任务模式的优先级
     pub(crate) task_mode_priority: String,
     /// 任务模式的模型标识符
@@ -338,6 +370,8 @@ impl SessionRuntimeState {
         Self {
             is_requesting: false,
             request_started_ms: 0,
+            processing_timer: vw_shared::time::ActiveTimer::default(),
+            llm_timer: vw_shared::time::ActiveTimer::default(),
             submit_anim: 0,
             has_unseen_success: false,
             active_agent_request: None,
@@ -345,10 +379,13 @@ impl SessionRuntimeState {
             input_editor: text_editor::Content::new(),
             model,
             auto_model,
+            restore_model_from_history: false,
             reasoning_effort: None,
             tool_selector: SessionToolSelectorState::default(),
             task_mode_enabled: false,
             workflow_mode_enabled: false,
+            goal_mode_enabled: false,
+            subagent_mode_enabled: false,
             task_mode_priority: "999".to_string(),
             task_mode_model,
             task_mode_executor: None,

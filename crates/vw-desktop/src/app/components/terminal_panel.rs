@@ -17,30 +17,12 @@ use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::point_below::PointBelowOverlay;
+use crate::app::components::system_settings_common::{
+    primary_action_btn_style, rounded_action_btn_style, settings_modal_backdrop_style,
+    settings_modal_card, settings_muted_text_style, settings_text_input_style,
+};
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
-
-pub(super) fn available_terminal_width(
-    window_width: f32,
-    show_settings: bool,
-    settings_panel_width: f32,
-) -> f32 {
-    let window_width = window_width.max(1.0);
-    let left_rail_width = 56.0;
-    let settings_panel_width = if settings_panel_width.is_finite() {
-        settings_panel_width.clamp(200.0, 800.0)
-    } else {
-        370.0
-    };
-    let left_group_width = if show_settings {
-        left_rail_width + ((settings_panel_width - left_rail_width) * 0.6).max(0.0)
-    } else {
-        left_rail_width
-    };
-    let settings_handle_width = if show_settings { 8.0 } else { 0.0 };
-
-    (window_width - left_group_width - settings_handle_width).max(0.0)
-}
 
 pub(super) fn terminal_tab_width(title: &str) -> f32 {
     (title.chars().count() as f32 * 8.4 + 62.0).clamp(92.0, 260.0)
@@ -66,6 +48,18 @@ pub(super) fn active_terminal_tab_index(
     }
 
     first_index
+}
+
+pub(super) fn terminal_surface_style(theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(Background::Color(theme.extended_palette().background.base.color)),
+        ..Default::default()
+    }
+}
+
+pub(super) fn terminal_content_padding(tab_id: u64) -> iced::Padding {
+    let left_offset = (tab_id % 2) as f32 * 0.01;
+    iced::Padding { top: 8.0, right: 8.0, bottom: 4.0, left: 8.0 + left_offset }
 }
 
 /// 渲染终端面板视图
@@ -97,12 +91,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if !app.terminal.is_visible {
         return container(column![]).into();
     }
-
-    // ==================== 布局计算 ====================
-
-    // 计算终端面板可用宽度 = 窗口宽度 - 左侧组宽度 - 手柄宽度
-    let terminal_width =
-        available_terminal_width(app.window_size.0, app.show_settings, app.settings_panel_width);
 
     // ==================== 尺寸常量 ====================
 
@@ -426,11 +414,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // ==================== 构建添加标签按钮 ====================
 
     let add_btn = button(
-        container(text("+").size(14))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
+        container(
+            svg::Svg::new(assets::get_icon(Icon::Plus))
+                .width(Length::Fixed(12.0))
+                .height(Length::Fixed(12.0))
+                .style(|theme: &Theme, _| iced::widget::svg::Style {
+                    color: Some(theme.palette().text),
+                }),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center),
     )
     .on_press(Message::Terminal(message::TerminalMessage::Add))
     .height(Length::Fixed(24.0))
@@ -509,7 +504,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
         ))
         .height(Length::Fixed(tab_header_height))
-        .width(Length::Fixed(terminal_width));
+        .width(Length::Fill);
 
     // ==================== 获取当前激活的标签页 ====================
 
@@ -527,15 +522,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let term = &_tab.term;
-            // 使用标签 ID 生成微小的左内边距偏移，避免多个标签内容完全相同
-            let pad = (_tab.id % 2) as f32 * 0.01;
             container(
                 iced_term::TerminalView::show(term)
                     .map(|e| Message::Terminal(message::TerminalMessage::Event(e))),
             )
             .width(Length::Fill)
             .height(Length::Fill)
-            .padding(iced::Padding { top: 8.0, right: 8.0, bottom: 8.0, left: 8.0 + pad })
+            .padding(terminal_content_padding(_tab.id))
             .into()
         }
         // WASM 平台：显示不支持提示
@@ -543,7 +536,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         {
             container(text("Terminal not supported on Web"))
                 .padding([10, 12])
-                .width(Length::Fixed(terminal_width))
+                .width(Length::Fill)
                 .height(Length::Fill)
                 .into()
         }
@@ -551,55 +544,46 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // 无标签页时显示空白内容
         container(text("").font(Font::DEFAULT))
             .padding([10, 12])
-            .width(Length::Fixed(terminal_width))
+            .width(Length::Fill)
             .height(Length::Fill)
             .into()
     };
 
     // 包装终端内容区域，应用边框样式
     let out =
-        container(out).width(Length::Fixed(terminal_width)).height(Length::Fill).padding(0).style(
-            move |_theme| iced::widget::container::Style {
-                background: None,
-                border: Border {
-                    radius: iced::border::Radius {
-                        top_left: 0.0,
-                        top_right: 0.0,
-                        bottom_right: 0.0,
-                        bottom_left: 0.0,
-                    },
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
+        container(out).width(Length::Fill).height(Length::Fill).padding(0).style(move |theme| {
+            let mut style = terminal_surface_style(theme);
+            style.border = Border {
+                radius: iced::border::Radius {
+                    top_left: 0.0,
+                    top_right: 0.0,
+                    bottom_right: 0.0,
+                    bottom_left: 0.0,
                 },
-                ..Default::default()
-            },
-        );
+                width: 0.0,
+                color: Color::TRANSPARENT,
+            };
+            style
+        });
 
     // ==================== 组装标签页栏容器 ====================
 
-    let tabs_container =
-        container(tabs_scroll).width(Length::Fixed(terminal_width)).padding([0, 0]);
+    let tabs_container = container(tabs_scroll).width(Length::Fill).padding([0, 0]);
 
     // 构建头部容器，包含标签页栏，使用背景色
     let header = container(row![tabs_container].height(Length::Fixed(tab_header_height)))
-        .width(Length::Fixed(terminal_width))
+        .width(Length::Fill)
         .padding([0, 0])
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                background: Some(Background::Color(palette.background.base.color)),
-                ..Default::default()
-            }
-        });
+        .style(terminal_surface_style);
 
     // ==================== 组装主内容区域 ====================
 
     // 主内容 = 标签栏 + 终端内容区
-    let main_content = container(
-        column![header, out].spacing(0).height(Length::Fill).width(Length::Fixed(terminal_width)),
-    )
-    .width(Length::Fixed(terminal_width))
-    .height(Length::Fill);
+    let main_content =
+        container(column![header, out].spacing(0).height(Length::Fill).width(Length::Fill))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(terminal_surface_style);
 
     // ==================== 重命名模态框 ====================
 
@@ -608,73 +592,55 @@ pub fn view(app: &App) -> Element<'_, Message> {
         && let Some(t) = app.terminal.tabs.iter().find(|t| t.id == active_id)
         && let Some(edit_title) = &t.edit_title
     {
-        // 构建模态框内容
+        let rename_input = text_input("输入新名称", edit_title)
+            .on_input(move |v| {
+                Message::Terminal(message::TerminalMessage::RenameChanged(active_id, v))
+            })
+            .on_submit(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
+            .padding([10, 12])
+            .size(14)
+            .width(Length::Fill)
+            .style(settings_text_input_style);
+
+        let actions = row![
+            Space::new().width(Length::Fill),
+            button(text("取消").size(14))
+                .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)))
+                .padding([8, 18])
+                .height(Length::Fixed(38.0))
+                .style(rounded_action_btn_style),
+            button(text("确定").size(14))
+                .on_press(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
+                .padding([8, 18])
+                .height(Length::Fixed(38.0))
+                .style(primary_action_btn_style),
+        ]
+        .spacing(10)
+        .align_y(iced::Alignment::Center);
+
+        // 与系统设置弹窗共用主题卡片、输入框和按钮样式。
         let modal = center(
-            container(
+            settings_modal_card(
                 column![
-                    text("重命名终端").size(24),
-                    // 标题输入框
-                    text_input("输入新名称", edit_title)
-                        .on_input(move |v| Message::Terminal(
-                            message::TerminalMessage::RenameChanged(active_id, v)
-                        ))
-                        .on_submit(Message::Terminal(message::TerminalMessage::RenameSave(
-                            active_id
-                        )))
-                        .padding(10)
-                        .width(Length::Fixed(300.0)),
-                    // 操作按钮行
-                    row![
-                        button("取消")
-                            .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(
-                                active_id
-                            )))
-                            .style(|theme: &Theme, _status| {
-                                let _palette = theme.extended_palette();
-                                iced::widget::button::Style {
-                                    background: None,
-                                    border: Border {
-                                        width: 0.0,
-                                        color: Color::TRANSPARENT,
-                                        radius: 6.0.into(),
-                                    },
-                                    text_color: theme.palette().text.scale_alpha(0.6),
-                                    ..Default::default()
-                                }
-                            }),
-                        button("确定").on_press(Message::Terminal(
-                            message::TerminalMessage::RenameSave(active_id)
-                        ))
-                    ]
-                    .spacing(10)
+                    text("重命名终端")
+                        .size(18)
+                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT }),
+                    text("输入一个便于识别的新名称").size(12).style(settings_muted_text_style),
+                    rename_input,
+                    actions,
                 ]
-                .spacing(20)
-                .padding(20)
-                .align_x(iced::Alignment::Center),
+                .spacing(14)
+                .width(Length::Fill),
             )
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::container::Style {
-                    background: Some(Background::Color(palette.background.weak.color)),
-                    border: Border {
-                        color: palette.primary.base.color,
-                        width: 1.0,
-                        radius: 10.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }),
+            .width(Length::Fixed(420.0)),
         );
 
         // 构建半透明遮罩层，点击可取消重命名
-        let overlay =
-            mouse_area(container(Space::new().width(Length::Fill).height(Length::Fill)).style(
-                |_| iced::widget::container::Style {
-                    background: Some(Background::Color(Color::from_rgba(0.0, 0.0, 0.0, 0.5))),
-                    ..Default::default()
-                },
-            ))
-            .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)));
+        let overlay = mouse_area(
+            container(Space::new().width(Length::Fill).height(Length::Fill))
+                .style(settings_modal_backdrop_style),
+        )
+        .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)));
 
         // 使用 stack 叠加：主内容 + 遮罩 + 模态框
         return stack![main_content, overlay, modal].into();

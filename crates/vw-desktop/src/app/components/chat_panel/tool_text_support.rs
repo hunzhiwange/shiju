@@ -5,6 +5,7 @@ use iced::widget::text::Wrapping;
 use iced::widget::{container, text, text_editor};
 use iced::{Background, Border, Color, Element, Length, Theme, highlighter};
 
+use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
 
 use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
@@ -66,6 +67,19 @@ pub fn chat_text_font_name() -> &'static str {
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn chat_text_font() -> iced::Font {
     iced::Font::with_name(chat_text_font_name())
+}
+
+/// 为动态文本选择不会把非 ASCII 字符强制交给等宽字体的字体。
+///
+/// 工具输出、路径和代码在纯 ASCII 时保留调用方指定的等宽字体；只要内容包含
+/// 中文或其它非 ASCII 字符，就整体回退到聊天正文字体，避免字体回退与字形缓存
+/// 在历史消息恢复时处理不安全的混合字体运行。
+pub(crate) fn content_safe_font(content: &str, preferred_font_name: &'static str) -> iced::Font {
+    if content.is_ascii() {
+        iced::Font::with_name(preferred_font_name)
+    } else {
+        chat_text_font()
+    }
 }
 
 /// 执行 chat_text_selection_color 对应的模块功能。
@@ -174,6 +188,7 @@ pub fn tool_text_style_with_danger(
 
 const SAFE_EDITOR_MAX_CHARS: usize = 20_000;
 const SAFE_EDITOR_MAX_LINE_CHARS: usize = 2_000;
+pub(crate) const READ_ONLY_EDITOR_MAX_HEIGHT: f32 = 1_000_000.0;
 const PREVIEW_MAX_LINES: usize = 120;
 const PREVIEW_MAX_LINE_CHARS: usize = 500;
 
@@ -196,11 +211,12 @@ fn preview_text<'a>(
     color: Color,
 ) -> Element<'a, Message> {
     let preview = truncate_lines_middle(content, PREVIEW_MAX_LINES, PREVIEW_MAX_LINE_CHARS);
+    let font = content_safe_font(&preview, font_name);
 
     container(
         text(preview)
             .size(size)
-            .font(iced::Font::with_name(font_name))
+            .font(font)
             .line_height(chat_text_line_height())
             .wrapping(Wrapping::Word)
             .style(move |_theme| iced::widget::text::Style { color: Some(color) }),
@@ -226,6 +242,7 @@ pub fn tool_text_editor<'a>(
                 .chat_special_text_editors
                 .get(&(((msg_idx as u64) << 32) | (text_idx as u64)))?;
             let content_text = editor_content.text();
+            let font = content_safe_font(&content_text, font_name);
 
             if selectable_text_policy(&content_text, false)
                 == SelectableTextPolicy::PreviewWithCopyFallback
@@ -249,7 +266,8 @@ pub fn tool_text_editor<'a>(
                 .line_height(chat_text_line_height())
                 .padding(0)
                 .height(Length::Shrink)
-                .font(iced::Font::with_name(font_name))
+                .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
+                .font(font)
                 .style(move |theme, status| tool_text_style_with_danger(theme, status, danger));
 
             Some(if enable_highlight {
@@ -258,15 +276,18 @@ pub fn tool_text_editor<'a>(
                 } else {
                     highlighter::Theme::InspiredGitHub
                 };
-                container(editor.highlight("markdown", highlight_theme)).width(Length::Fill).into()
+                container(pass_wheel_to_parent(editor.highlight("markdown", highlight_theme)))
+                    .width(Length::Fill)
+                    .into()
             } else {
-                container(editor).width(Length::Fill).into()
+                container(pass_wheel_to_parent(editor)).width(Length::Fill).into()
             })
         }
         ToolTextTarget::ToolCardText { msg_idx, tool_idx, text_idx } => {
             let editor_content =
                 app.chat_tool_text_editors.get(&tool_text_key(msg_idx, tool_idx, text_idx))?;
             let content_text = editor_content.text();
+            let font = content_safe_font(&content_text, font_name);
 
             if selectable_text_policy(&content_text, false)
                 == SelectableTextPolicy::PreviewWithCopyFallback
@@ -290,7 +311,8 @@ pub fn tool_text_editor<'a>(
                 .line_height(chat_text_line_height())
                 .padding(0)
                 .height(Length::Shrink)
-                .font(iced::Font::with_name(font_name))
+                .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
+                .font(font)
                 .style(move |theme, status| tool_text_style_with_danger(theme, status, danger));
 
             Some(if enable_highlight {
@@ -299,9 +321,11 @@ pub fn tool_text_editor<'a>(
                 } else {
                     highlighter::Theme::InspiredGitHub
                 };
-                container(editor.highlight("markdown", highlight_theme)).width(Length::Fill).into()
+                container(pass_wheel_to_parent(editor.highlight("markdown", highlight_theme)))
+                    .width(Length::Fill)
+                    .into()
             } else {
-                container(editor).width(Length::Fill).into()
+                container(pass_wheel_to_parent(editor)).width(Length::Fill).into()
             })
         }
     }
@@ -334,7 +358,7 @@ where
                 return Some(preview_text(&content_text, font_name, size, color_fn(&theme)));
             }
 
-            let font = iced::Font::with_name(font_name);
+            let font = content_safe_font(&content_text, font_name);
             let inline_text = text(content_text)
                 .size(size)
                 .font(font)
@@ -355,7 +379,7 @@ where
                 return Some(preview_text(&content_text, font_name, size, color_fn(&theme)));
             }
 
-            let font = iced::Font::with_name(font_name);
+            let font = content_safe_font(&content_text, font_name);
             let inline_text = text(content_text)
                 .size(size)
                 .font(font)

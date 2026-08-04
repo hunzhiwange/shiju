@@ -21,9 +21,11 @@
 //! ```
 
 use iced::widget::image::Handle as ImageHandle;
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Image, Space, button, column, container, mouse_area, scrollable, text};
 use iced::{Background, Color, ContentFit, Element, Length, Theme};
 
+use crate::app::components::input_panel::styles::tooltip_dark_style;
 use crate::app::{Message, message};
 use vw_shared::session::info as session;
 
@@ -334,10 +336,10 @@ pub fn project_badge_button<'a>(
         .into()
 }
 
-/// 创建"打开新项目"按钮元素
+/// 创建侧栏导航徽章按钮元素。
 ///
-/// 渲染一个带有 "+" 符号的按钮，用于触发打开文件夹选择器以添加新项目。
-/// 该按钮始终显示在项目列表的最底部。
+/// 渲染一个带文字标识和提示文案的按钮，用于触发代码模式侧栏导航。
+/// 导航按钮显示在最近项目列表之后。
 ///
 /// # 返回值
 ///
@@ -347,20 +349,25 @@ pub fn project_badge_button<'a>(
 ///
 /// - 徽章尺寸：32×32 像素（内容），按钮总尺寸 36×36 像素
 /// - 圆角半径：13 像素
-/// - 显示 "+" 符号，字体大小 20，粗体
+/// - 显示单字符标识，字体大小 20，粗体
 /// - 悬停时背景变亮，边框使用主题色（深色模式）或背景强调色（浅色模式）
+/// - 悬停时在右侧显示导航目标
 ///
 /// # 交互行为
 ///
-/// 点击按钮会触发 `Message::Project(message::ProjectMessage::OpenFolderPressed)` 消息
-pub fn open_project_badge_button<'a>() -> Element<'a, Message> {
+/// 点击按钮会触发调用方提供的导航消息
+fn navigation_badge_button<'a>(
+    label: &'static str,
+    tooltip: &'static str,
+    message: Message,
+) -> Element<'a, Message> {
     // 定义徽章和按钮的尺寸常量
     let badge_size = 36.0;
     let button_size = 42.0;
 
-    // 构建徽章容器，显示 "+" 符号
+    // 构建徽章容器，显示单字符导航标识
     let badge = container(
-        text("+")
+        text(label)
             .size(20)
             .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
     )
@@ -370,8 +377,8 @@ pub fn open_project_badge_button<'a>() -> Element<'a, Message> {
     .align_y(iced::alignment::Vertical::Center);
 
     // 包装为按钮，应用样式和点击事件
-    button(badge)
-        .on_press(Message::Project(message::ProjectMessage::OpenFolderPressed))
+    let button = button(badge)
+        .on_press(message)
         .padding(0)
         .width(Length::Fixed(button_size))
         .height(Length::Fixed(button_size))
@@ -431,8 +438,73 @@ pub fn open_project_badge_button<'a>() -> Element<'a, Message> {
                 },
                 ..Default::default()
             }
-        })
-        .into()
+        });
+    let tooltip_content =
+        container(text(tooltip).size(12)).padding([6, 10]).style(tooltip_dark_style);
+
+    Tooltip::new(button, tooltip_content, TooltipPosition::Right).gap(8.0).into()
+}
+
+pub fn open_project_badge_button<'a>() -> Element<'a, Message> {
+    navigation_badge_button(
+        "+",
+        "打开项目",
+        Message::Project(message::ProjectMessage::OpenFolderPressed),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn expert_hub_badge_button<'a>() -> Element<'a, Message> {
+    navigation_badge_button(
+        "技",
+        "专家 · 技能 · 连接器",
+        Message::SkillHub(crate::app::message::SkillHubMessage::Open),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn shiju_skills_badge_button<'a>() -> Element<'a, Message> {
+    navigation_badge_button(
+        "识",
+        "识矩技能",
+        Message::SkillHub(crate::app::message::SkillHubMessage::OpenShijuSkills),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn shiju_apps_badge_button<'a>() -> Element<'a, Message> {
+    navigation_badge_button(
+        "应",
+        "识矩应用",
+        Message::ShijuApps(crate::app::message::ShijuAppsMessage::Open),
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectListAction {
+    OpenProject,
+    ExpertHub,
+    ShijuSkills,
+    ShijuApps,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+const PROJECT_LIST_ACTIONS: [ProjectListAction; 4] = [
+    ProjectListAction::OpenProject,
+    ProjectListAction::ExpertHub,
+    ProjectListAction::ShijuSkills,
+    ProjectListAction::ShijuApps,
+];
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) fn project_list_action_order() -> [&'static str; 4] {
+    PROJECT_LIST_ACTIONS.map(|action| match action {
+        ProjectListAction::OpenProject => "open_project",
+        ProjectListAction::ExpertHub => "expert_hub",
+        ProjectListAction::ShijuSkills => "shiju_skills",
+        ProjectListAction::ShijuApps => "shiju_apps",
+    })
 }
 
 /// 渲染完整的项目列表组件
@@ -552,8 +624,19 @@ pub fn projects_list<'a>(
         }
     }
 
-    // 在列表末尾添加"打开新项目"按钮
-    projects_col = projects_col.push(open_project_badge_button());
+    #[cfg(not(target_arch = "wasm32"))]
+    for action in PROJECT_LIST_ACTIONS {
+        projects_col = projects_col.push(match action {
+            ProjectListAction::OpenProject => open_project_badge_button(),
+            ProjectListAction::ExpertHub => expert_hub_badge_button(),
+            ProjectListAction::ShijuSkills => shiju_skills_badge_button(),
+            ProjectListAction::ShijuApps => shiju_apps_badge_button(),
+        });
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        projects_col = projects_col.push(open_project_badge_button());
+    }
 
     // 包装为可滚动容器，填充可用空间
     scrollable(

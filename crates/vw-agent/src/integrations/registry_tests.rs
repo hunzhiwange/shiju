@@ -225,6 +225,7 @@ fn imessage_available_when_not_configured() {
 #[test]
 fn matrix_active_when_configured() {
     let mut config = Config::default();
+    config.channels_config.matrix_enabled = true;
     config.channels_config.matrix = Some(MatrixConfig {
         homeserver: "https://m.org".into(),
         access_token: "tok".into(),

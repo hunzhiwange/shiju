@@ -18,8 +18,10 @@ use crate::app::agent::tools::Tool;
 use crate::observability::traits::ObserverMetric;
 use crate::session::ui_types as ui_models;
 use anyhow::Result;
+use chrono_tz::Tz;
 use std::any::Any;
 use std::sync::{Arc, Mutex};
+use vw_config_types::agent::merged_agent_configs;
 
 use super::context::build_context;
 use super::core::agent_turn;
@@ -91,6 +93,7 @@ pub(crate) struct QueryEngine {
     max_history_messages: usize,
     min_memory_relevance_score: f64,
     turn_count: usize,
+    timezone: Tz,
 }
 
 #[derive(Debug, Default)]
@@ -181,6 +184,9 @@ impl QueryEngine {
         session_id: &str,
         provider_override: Option<Arc<dyn Provider>>,
     ) -> Result<Self> {
+        let timezone = crate::app::agent::util::locale::parse_timezone(
+            &config.app_ui.system_settings.timezone,
+        )?;
         let base_observer: Arc<dyn Observer> =
             Arc::from(observability::create_observer(&config.observability));
         let observer = Arc::new(RecordingObserver::new(base_observer));
@@ -189,7 +195,11 @@ impl QueryEngine {
             Arc::from(runtime::create_runtime(&config.runtime)?);
 
         let security =
-            Arc::new(SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir));
+            Arc::new(SecurityPolicy::from_configs(
+                &config.autonomy,
+                &config.security,
+                &config.workspace_dir,
+            ));
 
         let memory: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
             &config.memory,
@@ -268,6 +278,7 @@ impl QueryEngine {
             bootstrap_max_chars,
             native_tools,
             config.skills.prompt_injection_mode,
+            timezone,
         );
 
         if !native_tools {
@@ -291,6 +302,7 @@ impl QueryEngine {
             max_history_messages: config.agent.max_history_messages,
             min_memory_relevance_score: config.memory.min_relevance_score,
             turn_count: 0,
+            timezone,
         })
     }
 
@@ -300,7 +312,7 @@ impl QueryEngine {
         let memory_context =
             build_context(self.memory.as_ref(), message, self.min_memory_relevance_score).await;
 
-        let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %Z");
+        let now = crate::app::agent::util::locale::configured_datetime(self.timezone);
         let enriched = if memory_context.is_empty() {
             format!("[{now}] {message}")
         } else {
@@ -443,6 +455,15 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
 
     if config.composio.enabled {
         tool_descs.push(("composio", "Execute actions on 1000+ apps via Composio."));
+    }
+
+    let has_agent_tool =
+        merged_agent_configs(&config.agents).values().any(|agent| agent.enabled && agent.allow_as_subagent);
+    if has_agent_tool {
+        tool_descs.push((
+            "AgentTool",
+            "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Continue useful parent work after launch, then verify and synthesize required results before answering.",
+        ));
     }
 
     tool_descs

@@ -118,13 +118,21 @@ fn workflow_chat_messages_path_rejects_empty_or_partial_matches() {
 }
 
 #[test]
-fn timeout_for_path_uses_extended_window_only_for_workflow_chat_messages() {
+fn timeout_for_path_uses_extended_window_for_long_running_sse() {
     assert_eq!(
         request_timeout_for_path("/v1/workflow/applications/chat-messages"),
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
     );
     assert_eq!(
         request_timeout_for_path("/v1/workflow/applications/demo/chat-messages"),
+        Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    );
+    assert_eq!(
+        request_timeout_for_path("/v1/chat/stream"),
+        Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    );
+    assert_eq!(
+        request_timeout_for_path("/v1/task-plan-run/stream"),
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
     );
     assert_eq!(
@@ -160,10 +168,10 @@ async fn bootstrap_router_registers_v1_agent_scheduler_project_routes() {
 }
 
 #[tokio::test]
-async fn bootstrap_router_registers_apiql_compat_routes() {
+async fn bootstrap_router_registers_apiql_routes_under_v1() {
     let app = bootstrap_rest_app(auth_state(false, &[]));
 
-    for path in ["/apiQL/v1:product:product/", "/v1/apiQL/v1:product:product/"] {
+    for path in ["/v1/apiQL/product:product/", "/v1/apiQL/product:product/list-page/"] {
         let response = app
             .clone()
             .oneshot(
@@ -181,16 +189,16 @@ async fn bootstrap_router_registers_apiql_compat_routes() {
 }
 
 #[tokio::test]
-async fn bootstrap_apiql_root_route_requires_skey_auth() {
+async fn bootstrap_apiql_root_compat_route_is_not_registered() {
     let token = String::from("paired-token");
     let app = bootstrap_rest_app(auth_state(true, &[token]));
 
     let response = app
-        .oneshot(Request::get("/apiQL/v1:product:product/").body(Body::empty()).unwrap())
+        .oneshot(tenant_request("/apiQL/v1:product:product/"))
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -204,11 +212,11 @@ async fn bootstrap_router_rejects_client_routes_without_tenant_headers() {
 }
 
 #[tokio::test]
-async fn bootstrap_router_keeps_root_health_and_webhook_outside_tenant_middleware() {
+async fn bootstrap_router_keeps_v1_health_and_webhook_outside_tenant_middleware() {
     let app = bootstrap_rest_app(auth_state(false, &[]));
 
     let health_response =
-        app.clone().oneshot(Request::get("/health").body(Body::empty()).unwrap()).await.unwrap();
+        app.clone().oneshot(Request::get("/v1/health").body(Body::empty()).unwrap()).await.unwrap();
     let webhook_response =
         app.oneshot(Request::get("/v1/webhook").body(Body::empty()).unwrap()).await.unwrap();
 

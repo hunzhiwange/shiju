@@ -2,6 +2,7 @@ use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
+use crate::app::agent::multimodal::ocr::ImageTextExtractor;
 use crate::app::agent::providers::Provider;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::ToolResult;
@@ -29,6 +30,59 @@ impl Provider for StaticProvider {
 }
 
 struct FailingProvider;
+
+#[derive(Default)]
+struct RecordingProvider {
+    calls: std::sync::atomic::AtomicUsize,
+    messages: std::sync::Mutex<Vec<ChatMessage>>,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for RecordingProvider {
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        Ok("unused".to_string())
+    }
+
+    async fn chat_with_history(
+        &self,
+        messages: &[ChatMessage],
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        *self.messages.lock().expect("messages mutex should not be poisoned") = messages.to_vec();
+        Ok("gateway OCR accepted".to_string())
+    }
+}
+
+#[derive(Default)]
+struct StubImageTextExtractor {
+    calls: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl ImageTextExtractor for StubImageTextExtractor {
+    async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+        Ok(true)
+    }
+
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
+        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok("gateway visible OCR text".to_string())
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
@@ -119,6 +173,31 @@ async fn run_gateway_chat_simple_propagates_provider_error() {
     let error = run_gateway_chat_simple(&state, "hello gateway").await.unwrap_err();
 
     assert_eq!(error.to_string(), "provider unavailable");
+}
+
+#[tokio::test]
+async fn run_gateway_chat_simple_uses_ocr_text_for_non_vision_provider() {
+    let mut state = state();
+    let provider = Arc::new(RecordingProvider::default());
+    state.provider = provider.clone();
+    state.config.lock().multimodal.ocr.enabled = true;
+    state.config.lock().multimodal.ocr.model = Some("vision/reader".to_string());
+    let extractor = StubImageTextExtractor::default();
+
+    let response = run_gateway_chat_simple_with_extractor(
+        &state,
+        "inspect [IMAGE:data:image/png;base64,iVBORw0KGgo=]",
+        &extractor,
+    )
+    .await
+    .expect("gateway OCR should prepare text for a non-vision provider");
+
+    assert_eq!(response, "gateway OCR accepted");
+    assert_eq!(extractor.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(provider.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let messages = provider.messages.lock().expect("messages mutex should not be poisoned");
+    assert!(messages.iter().all(|message| !message.content.contains("[IMAGE:")));
+    assert!(messages.iter().any(|message| message.content.contains("gateway visible OCR text")));
 }
 
 #[tokio::test]

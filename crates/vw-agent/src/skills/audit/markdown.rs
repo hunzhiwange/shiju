@@ -5,6 +5,7 @@ use regex::Regex;
 use std::fs;
 use std::path::{Component, Path};
 use std::sync::OnceLock;
+use vw_config_types::skills::SkillSecurityConfig;
 
 use super::report::SkillAuditReport;
 use super::risk::detect_high_risk_snippet;
@@ -17,9 +18,10 @@ use super::support::{
 pub(super) fn audit_markdown_file(
     root: &Path,
     path: &Path,
+    security: &SkillSecurityConfig,
     report: &mut SkillAuditReport,
 ) -> Result<()> {
-    audit_markdown_content(root, path, report, true)
+    audit_markdown_content(root, path, security, report, true)
 }
 
 /// 审计附加 Markdown 资源。
@@ -29,14 +31,16 @@ pub(super) fn audit_markdown_file(
 pub(super) fn audit_markdown_resource_file(
     root: &Path,
     path: &Path,
+    security: &SkillSecurityConfig,
     report: &mut SkillAuditReport,
 ) -> Result<()> {
-    audit_markdown_content(root, path, report, false)
+    audit_markdown_content(root, path, security, report, false)
 }
 
 fn audit_markdown_content(
     root: &Path,
     path: &Path,
+    security: &SkillSecurityConfig,
     report: &mut SkillAuditReport,
     audit_links: bool,
 ) -> Result<()> {
@@ -44,13 +48,15 @@ fn audit_markdown_content(
         .with_context(|| format!("failed to read markdown file {}", path.display()))?;
     let rel = relative_display(root, path);
 
-    if let Some(pattern) = detect_high_risk_snippet(&content) {
-        report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
+    if security.detect_high_risk_content {
+        if let Some(pattern) = detect_high_risk_snippet(&content) {
+            report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
+        }
     }
 
-    if audit_links {
+    if audit_links && (security.reject_script_files || security.validate_markdown_links) {
         for raw_target in extract_markdown_links(&content) {
-            audit_markdown_link_target(root, path, &raw_target, report);
+            audit_markdown_link_target(root, path, &raw_target, security, report);
         }
     }
 
@@ -61,6 +67,7 @@ fn audit_markdown_link_target(
     root: &Path,
     source: &Path,
     raw: &str,
+    security: &SkillSecurityConfig,
     report: &mut SkillAuditReport,
 ) {
     let normalized = normalize_markdown_target(raw);
@@ -72,7 +79,7 @@ fn audit_markdown_link_target(
 
     if let Some(scheme) = url_scheme(normalized) {
         if matches!(scheme, "http" | "https" | "mailto") {
-            if has_markdown_suffix(normalized) {
+            if security.validate_markdown_links && has_markdown_suffix(normalized) {
                 report.findings.push(format!(
                     "{rel}: remote markdown links are blocked by skill security audit ({normalized})."
                 ));
@@ -80,9 +87,11 @@ fn audit_markdown_link_target(
             return;
         }
 
-        report
-            .findings
-            .push(format!("{rel}: unsupported URL scheme in markdown link ({normalized})."));
+        if security.validate_markdown_links {
+            report
+                .findings
+                .push(format!("{rel}: unsupported URL scheme in markdown link ({normalized})."));
+        }
         return;
     }
 
@@ -92,19 +101,21 @@ fn audit_markdown_link_target(
     }
 
     if looks_like_absolute_path(stripped) {
-        report
-            .findings
-            .push(format!("{rel}: absolute markdown link paths are not allowed ({normalized})."));
+        if security.validate_markdown_links {
+            report
+                .findings
+                .push(format!("{rel}: absolute markdown link paths are not allowed ({normalized})."));
+        }
         return;
     }
 
-    if has_script_suffix(stripped) {
+    if security.reject_script_files && has_script_suffix(stripped) {
         report
             .findings
             .push(format!("{rel}: markdown links to script files are blocked ({normalized})."));
     }
 
-    if !has_markdown_suffix(stripped) {
+    if !security.validate_markdown_links || !has_markdown_suffix(stripped) {
         return;
     }
 

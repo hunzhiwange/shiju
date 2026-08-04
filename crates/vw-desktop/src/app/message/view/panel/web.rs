@@ -16,22 +16,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenWebUrl(_url) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let exe = std::env::current_exe().ok();
-                let mut candidates: Vec<std::path::PathBuf> = Vec::new();
-                if let Some(p) = exe.as_ref().and_then(|p| p.parent().map(|d| d.join("vw-webview")))
-                {
-                    candidates.push(p);
-                }
-                if let Some(p) = exe.as_ref()
-                    && let Some(target_dir) = p
-                        .ancestors()
-                        .find(|a| a.file_name().map(|n| n == "target").unwrap_or(false))
-                    && let Some(root) = target_dir.parent()
-                {
-                    candidates.push(root.join("target/release/vw-webview"));
-                    candidates.push(root.join("target/debug/vw-webview"));
-                }
-                candidates.push(std::path::PathBuf::from("vw-webview"));
+                let candidates = crate::app::webview_runtime::webview_helper_candidates();
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();
@@ -63,22 +48,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenWebUrlWithTitle(_url, _title) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let exe = std::env::current_exe().ok();
-                let mut candidates: Vec<std::path::PathBuf> = Vec::new();
-                if let Some(p) = exe.as_ref().and_then(|p| p.parent().map(|d| d.join("vw-webview")))
-                {
-                    candidates.push(p);
-                }
-                if let Some(p) = exe.as_ref()
-                    && let Some(target_dir) = p
-                        .ancestors()
-                        .find(|a| a.file_name().map(|n| n == "target").unwrap_or(false))
-                    && let Some(root) = target_dir.parent()
-                {
-                    candidates.push(root.join("target/release/vw-webview"));
-                    candidates.push(root.join("target/debug/vw-webview"));
-                }
-                candidates.push(std::path::PathBuf::from("vw-webview"));
+                let candidates = crate::app::webview_runtime::webview_helper_candidates();
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();
@@ -112,23 +82,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let url = _url.trim().trim_matches('`').trim().to_string();
-                let helper_name = if cfg!(windows) { "vw-webview.exe" } else { "vw-webview" };
-                let exe = std::env::current_exe().ok();
-                let mut candidates: Vec<std::path::PathBuf> = Vec::new();
-                if let Some(p) = exe.as_ref().and_then(|p| p.parent().map(|d| d.join(helper_name)))
-                {
-                    candidates.push(p);
-                }
-                if let Some(p) = exe.as_ref()
-                    && let Some(target_dir) = p
-                        .ancestors()
-                        .find(|a| a.file_name().map(|n| n == "target").unwrap_or(false))
-                    && let Some(root) = target_dir.parent()
-                {
-                    candidates.push(root.join("target").join("release").join(helper_name));
-                    candidates.push(root.join("target").join("debug").join(helper_name));
-                }
-                candidates.push(std::path::PathBuf::from(helper_name));
+                let candidates = crate::app::webview_runtime::webview_helper_candidates();
 
                 // Only use bookmark-specific cookie configs
                 let mut configs = Vec::new();

@@ -1,0 +1,25 @@
+{
+  "id": "hacker-zero",
+  "name": "零号骇客 Hacker Zero",
+  "tagline": "保持静默，保持在线。",
+  "palette": {
+    "background": "#010302",
+    "text": "#e4ffec",
+    "primary": "#21ff78",
+    "success": "#47dcff",
+    "warning": "#c4ff42",
+    "danger": "#c064ff"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#030705",
+    "input_bg": "#040a07",
+    "button_bg": "#21ff78",
+    "button_text": "#f8fafc",
+    "radius_px": 0,
+    "panel_alpha": 184
+  }
+}

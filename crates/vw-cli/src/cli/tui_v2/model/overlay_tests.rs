@@ -2,10 +2,11 @@ use vw_shared::question;
 use vw_shared::todo::Todo;
 
 use super::overlay::{
-    McpServerTransport, OverlayFocus, OverlayState, UiCommandPaletteOverlay, UiConfirmOverlay,
-    UiErrorOverlay, UiMcpOverlay, UiMcpServerInfo, UiMemoryEntry, UiMemoryOverlay, UiOverlay,
-    UiOverlayKind, UiPaletteItem, UiQuestionOverlay, UiQuestionSurfaceKind, UiSearchMatch,
-    UiSearchOverlay, UiTaskOverlay, UiTaskStepItem, UiTodoOverlay,
+    McpServerTransport, OverlayFocus, OverlayState, UiCommandPaletteOverlay, UiConfirmIntent,
+    UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay, UiMcpServerInfo, UiMemoryEntry,
+    UiMemoryOverlay, UiOverlay, UiOverlayKind, UiPaletteItem, UiQuestionOverlay,
+    UiQuestionSurfaceKind, UiReportOverlay, UiSearchMatch, UiSearchOverlay, UiTaskOverlay,
+    UiTaskStepItem, UiTodoOverlay,
 };
 use super::ui_message::{UiMessageId, UiStepState, UiTokenUsage, UiTurnTerminal};
 
@@ -21,6 +22,7 @@ fn overlay_state_push_pop_and_clear_manage_focus() {
         confirm_label: "Yes".to_string(),
         cancel_label: "No".to_string(),
         destructive: false,
+        intent: UiConfirmIntent::Generic,
     }));
     assert_eq!(state.focus, OverlayFocus::Overlay);
     assert_eq!(state.active().map(UiOverlay::kind), Some(UiOverlayKind::Confirm));
@@ -51,12 +53,14 @@ fn ui_overlay_kind_covers_core_variants() {
             confirm_label: String::new(),
             cancel_label: String::new(),
             destructive: false,
+            intent: UiConfirmIntent::Generic,
         }),
         UiOverlay::Search(UiSearchOverlay::default()),
         UiOverlay::Question(question_overlay(None, "Need input?", "Choose")),
         UiOverlay::Todo(UiTodoOverlay::default()),
         UiOverlay::Task(UiTaskOverlay::default()),
         UiOverlay::CommandPalette(UiCommandPaletteOverlay::default()),
+        UiOverlay::Report(UiReportOverlay::default()),
         UiOverlay::Error(UiErrorOverlay {
             title: "Error".to_string(),
             message: "boom".to_string(),
@@ -72,6 +76,7 @@ fn ui_overlay_kind_covers_core_variants() {
         UiOverlayKind::Todo,
         UiOverlayKind::Task,
         UiOverlayKind::CommandPalette,
+        UiOverlayKind::Report,
         UiOverlayKind::Error,
         UiOverlayKind::Mcp,
         UiOverlayKind::Memory,
@@ -253,8 +258,16 @@ fn search_palette_task_mcp_and_memory_models_preserve_fields() {
             id: "open".to_string(),
             label: "Open".to_string(),
             detail: Some("Open a file".to_string()),
+            source: "Builtin".to_string(),
+            argument_hint: Some("<path>".to_string()),
+            available: true,
+            unavailable_reason: None,
+            replacement: "/open ".to_string(),
         }],
         selected_index: Some(0),
+        first_visible_index: 0,
+        visible_rows: 8,
+        notice: None,
     };
     assert_eq!(palette.items[0].detail.as_deref(), Some("Open a file"));
 

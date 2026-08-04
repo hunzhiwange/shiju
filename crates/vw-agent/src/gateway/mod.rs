@@ -3,7 +3,7 @@
 //! This module replaces the raw TCP implementation with axum for:
 //! - Proper HTTP/1.1 parsing and compliance
 //! - Content-Length validation (handled by hyper)
-//! - Request body size limits (64KB max)
+//! - Request body size limits (32MiB max; covers multimodal / knowledge base64 payloads)
 //! - Request timeouts (30s) to prevent slow-loris attacks
 //! - Header sanitization (handled by axum/hyper)
 
@@ -70,11 +70,15 @@ use axum::{
 };
 use std::time::Duration;
 
-/// Maximum request body size (5MB) — prevents memory exhaustion
-pub const MAX_BODY_SIZE: usize = 5_242_880;
+/// Maximum request body size (32MiB).
+///
+/// Sized to fit multimodal / knowledge uploads after base64 expansion:
+/// desktop and knowledge paths allow up to 20MiB raw files (~27MiB base64),
+/// with headroom for JSON wrappers and short chat history.
+pub const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
 /// Request timeout (30s) — prevents slow-loris attacks
 pub const REQUEST_TIMEOUT_SECS: u64 = 30;
-/// Workflow streaming timeout (1h) — allows long-running SSE workflow runs.
+/// Long-running SSE timeout (1h) — chat / workflow / task-plan-run streams.
 pub const WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS: u64 = 3_600;
 
 async fn request_timeout_middleware(req: Request<Body>, next: Next) -> Response {
@@ -86,11 +90,17 @@ async fn request_timeout_middleware(req: Request<Body>, next: Next) -> Response 
 }
 
 fn request_timeout_for_path(path: &str) -> Duration {
-    if is_workflow_chat_messages_path(path) {
+    if is_long_running_sse_path(path) {
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
     } else {
         Duration::from_secs(REQUEST_TIMEOUT_SECS)
     }
+}
+
+fn is_long_running_sse_path(path: &str) -> bool {
+    is_workflow_chat_messages_path(path)
+        || path == "/v1/chat/stream"
+        || path == "/v1/task-plan-run/stream"
 }
 
 fn is_workflow_chat_messages_path(path: &str) -> bool {

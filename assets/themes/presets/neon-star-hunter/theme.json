@@ -1,0 +1,25 @@
+{
+  "id": "neon-star-hunter",
+  "name": "霓虹猎星者 Neon Star Hunter",
+  "tagline": "追逐星光，也追逐下一个答案。",
+  "palette": {
+    "background": "#030617",
+    "text": "#f8f8ff",
+    "primary": "#875cff",
+    "success": "#31ddff",
+    "warning": "#e8c375",
+    "danger": "#f36bff"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#080e26",
+    "input_bg": "#0b1430",
+    "button_bg": "#875cff",
+    "button_text": "#f8fafc",
+    "radius_px": 10,
+    "panel_alpha": 184
+  }
+}

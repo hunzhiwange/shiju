@@ -37,6 +37,13 @@ fn template_routes_contain_complete_provider_defaults() {
     assert_eq!(doubao.model, "doubao-embedding-vision-250615");
     assert!(doubao.dimensions.is_empty());
     assert!(doubao.api_key_input.is_empty());
+
+    let shiju = shiju_template_route();
+    assert_eq!(shiju.pattern, "semantic");
+    assert_eq!(shiju.provider, "custom:https://router.shiju.cloud/v1");
+    assert_eq!(shiju.model, "text-embedding-v4");
+    assert_eq!(shiju.dimensions, "1024");
+    assert!(shiju.api_key_input.is_empty());
 }
 
 #[test]
@@ -68,6 +75,19 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
         SettingsMessage::EmbeddingRoutes(EmbeddingRoutesMessage::InsertDoubaoTemplate),
     );
     assert_eq!(app.embedding_routes_settings.routes[2].pattern, "multimodal");
+    assert!(app.embedding_routes_settings.save_error.is_none());
+    assert!(!app.embedding_routes_settings.save_success);
+
+    app.embedding_routes_settings.save_error = Some("final error".to_string());
+    app.embedding_routes_settings.save_success = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::EmbeddingRoutes(EmbeddingRoutesMessage::InsertShijuTemplate),
+    );
+    assert_eq!(
+        app.embedding_routes_settings.routes[3].provider,
+        "custom:https://router.shiju.cloud/v1"
+    );
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 }

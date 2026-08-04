@@ -24,6 +24,7 @@ use vw_shared::shell::{resolve_executable, shell_profile_env_var, std_command};
 
 mod backend_output;
 mod command_exec;
+mod gateway_output;
 mod git;
 mod process_utils;
 mod programs;

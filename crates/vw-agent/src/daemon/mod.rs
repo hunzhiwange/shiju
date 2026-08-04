@@ -22,6 +22,7 @@
 //! 3. 给予各组件宽限期完成清理
 //! 4. 超时后强制中止未完成的任务
 
+use crate::agent_scheduler::domain::AgentSchedulerContext;
 use crate::agent_scheduler::runner::matrix::{
     ConfiguredMatrixWorkerComponent, MATRIX_WORKER_RUNTIME, configured_matrix_worker_from_stored,
     matrix_worker_desired_state_is_running,
@@ -37,6 +38,8 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
+use vw_api_types::agent_scheduler::AgentSchedulerScope;
+use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 
 /// 状态文件刷新间隔（秒）
 ///
@@ -44,11 +47,6 @@ use tokio::time::Duration;
 /// 用于持久化组件健康状态和时间戳信息。
 const STATUS_FLUSH_SECONDS: u64 = 5;
 
-/// 关闭宽限期（秒）
-///
-/// 当守护进程接收到关闭信号后，等待各组件在此时间内优雅退出。
-/// 超过此时间后，未完成的任务将被强制中止。
-const SHUTDOWN_GRACE_SECONDS: u64 = 5;
 const GATEWAY_PROBE_TIMEOUT_MILLIS: u64 = 500;
 
 /// 关闭信号类型枚举
@@ -233,15 +231,23 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     {
         if has_supervised_channels(&config) {
             let channels_cfg = config.clone();
-            handles.push(spawn_component_supervisor(
-                "channels",
-                initial_backoff,
-                max_backoff,
-                move || {
-                    let cfg = channels_cfg.clone();
-                    async move { crate::app::agent::channels::start_channels(cfg).await }
-                },
-            ));
+            handles.push(tokio::spawn(async move {
+                match crate::app::agent::channels::start_channels(channels_cfg).await {
+                    Ok(()) => {
+                        crate::app::agent::health::mark_component_ok("channels");
+                        tracing::info!("Optional channels component stopped");
+                    }
+                    Err(error) => {
+                        crate::app::agent::health::mark_component_error(
+                            "channels",
+                            error.to_string(),
+                        );
+                        tracing::warn!(
+                            "Optional channels component is unavailable and will remain disabled: {error}"
+                        );
+                    }
+                }
+            }));
         } else {
             // 没有配置实时通道，标记为健康状态并记录日志
             crate::app::agent::health::mark_component_ok("channels");
@@ -281,7 +287,7 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
         tracing::info!("Cron disabled; scheduler supervisor not started");
     }
 
-    let matrix_worker_components = configured_matrix_worker_components(&config)?;
+    let matrix_worker_components = configured_matrix_worker_components(&config).await?;
     if matrix_worker_components.is_empty() {
         crate::app::agent::health::mark_component_ok("matrix-workers");
         tracing::info!(
@@ -326,26 +332,26 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     let signal = wait_for_shutdown_signal().await?;
     crate::app::agent::health::mark_component_error("daemon", shutdown_reason(signal));
 
-    // 优雅关闭所有组件
-    let aborted =
-        shutdown_handles_with_grace(handles, Duration::from_secs(SHUTDOWN_GRACE_SECONDS)).await;
-    if aborted > 0 {
-        tracing::warn!(
-            aborted,
-            grace_seconds = SHUTDOWN_GRACE_SECONDS,
-            "Forced shutdown for daemon tasks that exceeded graceful drain window"
-        );
+    // 组件没有共享关闭令牌，收到进程级停止信号后应立即终止后台任务。
+    let stopped = shutdown_handles(handles).await;
+    if stopped > 0 {
+        tracing::info!(stopped, "Stopped daemon background tasks");
     }
 
     Ok(())
 }
 
-fn configured_matrix_worker_components(
+async fn configured_matrix_worker_components(
     config: &Config,
 ) -> Result<Vec<ConfiguredMatrixWorkerComponent>> {
+    if !config.channels_config.matrix_enabled {
+        return Ok(Vec::new());
+    }
+
     let store = AgentSchedulerStore::new();
+    let context = matrix_worker_scheduler_context(config).await?;
     let workers = store.list_workers(
-        &config.workspace_dir,
+        &context,
         AgentWorkerFilter {
             runtime: Some(MATRIX_WORKER_RUNTIME.to_string()),
             ..AgentWorkerFilter::default()
@@ -356,6 +362,22 @@ fn configured_matrix_worker_components(
         .filter(matrix_worker_desired_state_is_running)
         .map(|worker| configured_matrix_worker_from_stored(&config.workspace_dir, worker))
         .collect()
+}
+
+async fn matrix_worker_scheduler_context(config: &Config) -> Result<AgentSchedulerContext> {
+    let tenant_scope = TenantScope::default();
+    let project = crate::app::agent::project::from_directory(
+        &tenant_scope,
+        &config.workspace_dir,
+    )
+    .await?
+    .0;
+    let project_scope =
+        ProjectScope::new(tenant_scope, ProjectId::from(project.id.as_str()))?;
+    AgentSchedulerContext::new(
+        AgentSchedulerScope::new(project_scope),
+        config.workspace_dir.clone(),
+    )
 }
 
 fn matrix_worker_component_name(component: &ConfiguredMatrixWorkerComponent) -> String {
@@ -420,47 +442,27 @@ fn gateway_base_url(host: &str, port: u16) -> String {
     format!("http://{host_part}:{port}")
 }
 
-/// 带宽限期地关闭所有任务句柄
-///
-/// 给予任务一定的宽限期来完成清理工作，超时后强制中止未完成的任务。
+/// 停止所有后台任务句柄。
 ///
 /// # 参数
 ///
 /// - `handles`: 需要关闭的任务句柄列表
-/// - `grace`: 宽限期时长
-///
 /// # 返回值
 ///
-/// 返回被强制中止的任务数量
-///
-/// # 关闭流程
-///
-/// 1. 设置截止时间（当前时间 + 宽限期）
-/// 2. 轮询检查任务是否完成，每 50ms 检查一次
-/// 3. 超过截止时间后，对所有未完成的任务调用 abort()
-/// 4. 等待所有任务完成（包括已中止的任务）
-async fn shutdown_handles_with_grace(handles: Vec<JoinHandle<()>>, grace: Duration) -> usize {
-    let deadline = tokio::time::Instant::now() + grace;
-
-    // 在宽限期内轮询检查任务是否完成
-    while !handles.iter().all(JoinHandle::is_finished) && tokio::time::Instant::now() < deadline {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-
-    // 强制中止所有未完成的任务
-    let mut aborted = 0usize;
+/// 返回被停止的任务数量。
+async fn shutdown_handles(handles: Vec<JoinHandle<()>>) -> usize {
+    let mut stopped = 0usize;
     for handle in &handles {
         if !handle.is_finished() {
             handle.abort();
-            aborted += 1;
+            stopped += 1;
         }
     }
 
-    // 等待所有任务完成
     for handle in handles {
         let _ = handle.await;
     }
-    aborted
+    stopped
 }
 
 /// 获取守护进程状态文件的路径

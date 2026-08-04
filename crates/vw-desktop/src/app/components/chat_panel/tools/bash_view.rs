@@ -20,7 +20,7 @@ use super::{
 };
 use crate::app::components::chat_panel::utils::{
     bold_font, chat_secondary_muted_text_color, chat_secondary_text_color, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, simplified_block_style, truncate_chars,
+    eye_icon_svg_style, icon_svg, simplified_block_style, single_line_preview,
 };
 
 fn bash_block_style(theme: &Theme) -> iced::widget::container::Style {
@@ -93,8 +93,8 @@ pub fn tool_bash_view<'a>(
 
     // 生成命令标题，空命令显示"运行命令"，否则截断显示
     let cmd_title = {
-        let t = cmd_line.trim();
-        if t.is_empty() { "运行命令".to_string() } else { truncate_chars(t, 140) }
+        let title = single_line_preview(&cmd_line, 140);
+        if title.is_empty() { "运行命令".to_string() } else { title }
     };
     let image_info_title = tool_inline_summary(tool_name, &input)
         .filter(|summary| !summary.trim().is_empty())

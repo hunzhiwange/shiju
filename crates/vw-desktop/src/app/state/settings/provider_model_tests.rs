@@ -61,8 +61,12 @@ fn provider_settings_default_populates_popular_patterns_and_modal_state() {
     assert!(state.disconnect_confirm_provider_id.is_none());
     assert!(!state.custom_provider_modal_open);
     assert!(state.custom_editing_provider_id.is_none());
+    assert!(!state.custom_models_discovering);
     assert!(state.custom_model_modal.is_none());
     assert!(state.save_error.is_none());
+    assert!(state.popular_patterns.iter().all(|pattern| !is_shiju_official_provider_id(pattern)));
+    assert_eq!(SHIJU_OFFICIAL_PROVIDER_ID, "shiju");
+    assert_eq!(SHIJU_OFFICIAL_PROVIDER_NAME, "识矩");
 }
 
 #[test]

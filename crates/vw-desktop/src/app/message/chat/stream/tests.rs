@@ -1,7 +1,7 @@
 use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
 
 fn chat_message(role: ChatRole, content: &str) -> ModelChatMessage {
-    ModelChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ModelChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
@@ -24,6 +24,74 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
         permission: None,
         revert: None,
     }
+}
+
+fn agent_request(id: u64, session_id: &str) -> crate::app::state::AgentRequest {
+    crate::app::state::AgentRequest {
+        id,
+        session: session_id.to_string(),
+        query: "query".to_string(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: false,
+        resume_history_only: false,
+        workflow_mode_enabled: true,
+        goal_mode_enabled: false,
+        history: Vec::new(),
+    }
+}
+
+#[test]
+fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consistent_in_chat_stream()
+{
+    let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("main-session".to_string());
+    app.sessions = vec![
+        session_info("main-session", "Main", "/project"),
+        session_info("task-2-sub-9", "Child", "/project"),
+    ];
+    app.chat = vec![chat_message(ChatRole::User, "run workflow")];
+    {
+        let parent = app.get_session_runtime_mut("main-session");
+        parent.is_requesting = true;
+        parent.active_agent_request = Some(agent_request(42, "main-session"));
+    }
+    app.get_session_runtime_mut("task-2-sub-9").is_requesting = true;
+
+    let _waiting = super::update(
+        &mut app,
+        super::ChatMessage::PlanRunSessionWaiting("task-2-sub-9".to_string()),
+    );
+
+    assert!(app.get_session_runtime("task-2-sub-9").is_requesting);
+    assert!(app.get_session_runtime("main-session").is_requesting);
+
+    let _child_cancelled = super::update(
+        &mut app,
+        super::ChatMessage::PlanRunSessionCancelled("task-2-sub-9".to_string()),
+    );
+
+    assert!(!app.get_session_runtime("task-2-sub-9").is_requesting);
+    assert!(app.get_session_runtime("main-session").is_requesting);
+
+    let _parent_cancelled =
+        super::update(&mut app, super::ChatMessage::AgentStreamCancelled(42));
+
+    let parent = app.get_session_runtime("main-session");
+    assert!(!parent.is_requesting);
+    assert!(parent.active_agent_request.is_none());
+    assert!(!parent.has_unseen_success);
+    assert!(app.chat.iter().all(|message| message.role != ChatRole::System));
 }
 
 #[test]

@@ -15,6 +15,7 @@ impl AcpClient {
             client_version: env!("CARGO_PKG_VERSION").to_string(),
             mcp_servers: Vec::new(),
             permission_mode: PermissionMode::ApproveAll,
+            full_access: false,
             non_interactive_permissions: None,
             auth_credentials: HashMap::new(),
             auth_policy: AuthPolicy::Skip,
@@ -55,6 +56,12 @@ impl AcpClient {
     /// 设置文件系统和终端能力的权限模式。
     pub fn with_permission_mode(mut self, permission_mode: PermissionMode) -> Self {
         self.permission_mode = permission_mode;
+        self
+    }
+
+    /// 设置是否允许文件系统请求访问会话 cwd 子树之外的绝对路径。
+    pub fn with_full_access(mut self, full_access: bool) -> Self {
+        self.full_access = full_access;
         self
     }
 

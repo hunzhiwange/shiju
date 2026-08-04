@@ -1173,7 +1173,7 @@ run_docker_bootstrap() {
     if [[ -f "$docker_data_dir/.vibewindow/config.toml" ]]; then
       config_gateway_port_value="$(config_gateway_port "$docker_data_dir/.vibewindow/config.toml" || true)"
     fi
-    docker_daemon_port="${config_gateway_port_value:-42617}"
+    docker_daemon_port="${config_gateway_port_value:-14682}"
     if [[ -z "$docker_daemon_host_port" ]]; then
       docker_daemon_host_port="$docker_daemon_port"
     fi

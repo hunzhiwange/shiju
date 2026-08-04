@@ -4,6 +4,36 @@ use iced::Task;
 use iced::Theme;
 use std::collections::{HashMap, HashSet};
 
+fn build_multimodal_settings(
+    full_agent_cfg: &vw_config_types::config::Config,
+) -> super::state::MultimodalSettingsState {
+    let multimodal_cfg = &full_agent_cfg.multimodal;
+
+    super::state::MultimodalSettingsState {
+        max_images: multimodal_cfg.max_images.clamp(1, 16) as u32,
+        max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
+        allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
+        ocr_enabled: multimodal_cfg.ocr.enabled,
+        ocr_model: multimodal_cfg
+            .ocr
+            .model
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or_default()
+            .to_string(),
+        save_error: None,
+    }
+}
+
+#[cfg(test)]
+#[path = "new/settings_tests.rs"]
+mod settings_tests;
+
+#[cfg(test)]
+fn build_task_board_settings(_cfg: &serde_json::Value) -> crate::app::task::TaskBoardSettings {
+    crate::app::task::TaskBoardSettings::new()
+}
+
 impl App {
     /// 创建并初始化应用程序实例
     ///
@@ -38,9 +68,18 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let cfg = serde_json::json!({});
         #[cfg(not(target_arch = "wasm32"))]
-        let system_settings_cfg = config::load_system_settings_config();
+        let mut system_settings_cfg = config::load_system_settings_config();
         #[cfg(target_arch = "wasm32")]
-        let system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
+        let mut system_settings_cfg = vw_config_types::ui::AppSystemSettingsConfig::default();
+        vw_config_types::ui::upgrade_legacy_quick_message_actions(
+            &mut system_settings_cfg.quick_messages,
+        );
+        vw_config_types::ui::append_missing_builtin_general_quick_messages(
+            &mut system_settings_cfg.quick_messages,
+        );
+        vw_config_types::ui::append_missing_builtin_git_quick_messages(
+            &mut system_settings_cfg.quick_messages,
+        );
         let init_ms = {
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -89,6 +128,9 @@ impl App {
             .and_then(|v: &serde_json::Value| v.as_str())
             .map(crate::app::state::ChatSendBehavior::from_str)
             .unwrap_or(crate::app::state::ChatSendBehavior::Queue);
+        let cfg_workspace_mode = crate::app::state::WorkspaceMode::from_config(
+            cfg.get("workspace_mode").and_then(|value| value.as_str()),
+        );
         // 是否启用自动最大化模式
         let cfg_auto_max_mode =
             cfg.get("auto_max_mode").and_then(|v: &serde_json::Value| v.as_bool()).unwrap_or(false);
@@ -119,19 +161,38 @@ impl App {
         // 终端字体配置
         let cfg_term_font_family = system_settings_cfg.terminal_font_family.clone();
         let cfg_term_font_size = system_settings_cfg.terminal_font_size;
-        // 应用程序主题
-        let cfg_app_theme = Theme::ALL
-            .iter()
-            .find(|t| t.to_string() == system_settings_cfg.app_theme)
-            .cloned()
-            .unwrap_or(Theme::Light);
+        // 应用程序主题（启动时轻量种子内置预设，失败仅 warn）
+        if let Some(root) = crate::app::theme_catalog::current_themes_root() {
+            if let Err(err) = crate::app::theme_catalog::ensure_bundled_presets(&root) {
+                tracing::warn!(
+                    target: "vw_desktop",
+                    error = %err,
+                    "failed to seed bundled theme presets on startup"
+                );
+            }
+        }
+        let theme_store = crate::app::theme_catalog::theme_store_from_home();
+        let (cfg_app_theme, cfg_active_custom_theme_id) =
+            match crate::app::theme_catalog::resolve_app_theme_name(
+                &system_settings_cfg.app_theme,
+                theme_store.as_ref(),
+            ) {
+                Some(theme) => {
+                    let custom_id = crate::app::theme_catalog::custom_theme_id_from_config(
+                        &system_settings_cfg.app_theme,
+                    )
+                    .map(str::to_string);
+                    (theme, custom_id)
+                }
+                None => (Theme::Light, None),
+            };
         // 编辑器主题配置
         let cfg_editor_follow_system_theme = system_settings_cfg.editor_follow_system_theme;
-        let cfg_editor_theme = Theme::ALL
-            .iter()
-            .find(|t| t.to_string() == system_settings_cfg.editor_theme)
-            .cloned()
-            .unwrap_or_else(|| cfg_app_theme.clone());
+        let cfg_editor_theme = crate::app::theme_catalog::resolve_app_theme_name(
+            &system_settings_cfg.editor_theme,
+            theme_store.as_ref(),
+        )
+        .unwrap_or_else(|| cfg_app_theme.clone());
 
         // 文件管理器配置
         let cfg_file_manager_width = cfg
@@ -194,7 +255,6 @@ impl App {
         let autonomy_cfg = full_agent_cfg.autonomy.clone();
         let memory_cfg = full_agent_cfg.memory.clone();
         let reliability_cfg = full_agent_cfg.reliability.clone();
-        let multimodal_cfg = full_agent_cfg.multimodal.clone();
         let identity_cfg = full_agent_cfg.identity.clone();
         let default_provider_cfg = full_agent_cfg.default_provider.clone();
         let default_model_cfg = full_agent_cfg.default_model.clone();
@@ -269,11 +329,44 @@ impl App {
             crate::app::components::chat_panel::height_index::ChatHeightIndex::from_heights(
                 &chat_message_estimated_heights,
             );
+        let editor_language = iced_code_editor::i18n::Language::ChineseSimplified;
+        let mut git_copy_modal_code_editor = iced_code_editor::CodeEditor::new("", "diff");
+        git_copy_modal_code_editor.set_language(editor_language);
 
         // 创建应用程序实例并初始化所有状态字段
         let mut app = Self {
             // ========== 基础状态 ==========
             screen: Screen::Home,
+            workspace_mode: cfg_workspace_mode,
+            work_resource_mode: state::WorkResourceMode::default(),
+            work_resources_visible: false,
+            work_split_ratio: 0.6,
+            work_sidebar_width: 292.0,
+            work_sidebar_expanded_width: 292.0,
+            work_sidebar_collapsed: false,
+            work_sidebar_filter_open: false,
+            work_sidebar_more_open: false,
+            work_sidebar_filter_scope: state::WorkSidebarFilterScope::default(),
+            work_sidebar_filter_status: state::WorkSidebarFilterStatus::default(),
+            work_sidebar_filter_time: state::WorkSidebarFilterTime::default(),
+            work_sidebar_tab: state::WorkSidebarTab::default(),
+            work_sidebar_visible_tasks: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
+            work_sidebar_visible_spaces: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
+            work_space_picker_open: false,
+            dragging_work_sidebar: false,
+            work_sidebar_drag_anchor_x: None,
+            work_sidebar_drag_start_width: 292.0,
+            dragging_work_split: false,
+            work_split_drag_anchor_x: None,
+            work_split_drag_start_ratio: 0.6,
+            work_resource_fullscreen: false,
+            work_resource_half_fullscreen: false,
+            work_chat_fullscreen: false,
+            work_chat_half_fullscreen: false,
+            work_browser: state::WorkBrowserState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
+            work_expanded_spaces: HashSet::new(),
             project_path: None,
             project_id: None,
             project_path_input: String::new(),
@@ -340,10 +433,10 @@ impl App {
             usage,
             active_session_view_state: crate::app::state::ActiveSessionViewState::default(),
             usage_model_info: None,
-            usage_session_file_path: None,
             usage_step_expanded: std::collections::HashSet::new(),
             usage_step_raw_payloads: std::collections::HashMap::new(),
             usage_step_raw_loading: std::collections::HashSet::new(),
+            usage_step_raw_modal: None,
             merge_view: true,
 
             // ========== 文件和分支管理 ==========
@@ -423,12 +516,14 @@ impl App {
             // ========== 弹出菜单和Popover ==========
             show_model_popover: false,
             show_mode_popover: false,
+            show_workspace_mode_popover: false,
             show_send_mode_popover: false,
             show_file_popover: false,
             show_acp_popover: false,
             show_reasoning_effort_popover: false,
             show_usage_popover: false,
             show_session_tool_selector_popover: false,
+            show_agent_sessions_popover: false,
             show_session_actions_popover: false,
             show_executor_popover: false,
             session_title_last_click: None,
@@ -484,6 +579,7 @@ impl App {
             show_chat_fullscreen_overlay: false,
             input_editor_id: iced::widget::Id::new("input_editor"),
             file_search_scroll_id: iced::widget::Id::new("file_search"),
+            slash_palette_scroll_id: iced::widget::Id::new("slash_palette"),
             preview_scroll_id: iced::widget::Id::new("preview"),
             preview_tabs_scroll_id: iced::widget::Id::new("preview_tabs"),
             git_diff_scroll_id: iced::widget::Id::new("git_diff"),
@@ -513,6 +609,10 @@ impl App {
                 .dialogue_flow_expand_shell_tool_section,
             dialogue_flow_expand_edit_tool_section: system_settings_cfg
                 .dialogue_flow_expand_edit_tool_section,
+            quick_messages: system_settings_cfg.quick_messages.clone(),
+            quick_message_open_group: None,
+            show_shiju_skill_menu: false,
+            quick_message_handoff: None,
             chat_send_behavior: cfg_chat_send_behavior,
             dialogue_flow_settings_save_message: None,
             recent_projects_meta: recent_meta,
@@ -533,6 +633,7 @@ impl App {
             )]),
             project_sessions: std::collections::HashMap::new(),
             project_session_load_counts: std::collections::HashMap::new(),
+            session_tree_expanded: std::collections::HashSet::new(),
             project_sessions_loading: std::collections::HashSet::new(),
             project_session_has_vertical_scrollbar: std::collections::HashMap::new(),
             project_sessions_last_refresh_at: std::collections::HashMap::new(),
@@ -595,6 +696,9 @@ impl App {
             terminals_by_project: HashMap::new(),
             diff_theme: DiffTheme::GitHub,
             app_theme: effective_app_theme,
+            chat_timezone: system_settings_cfg.timezone.clone(),
+            active_custom_theme_id: cfg_active_custom_theme_id,
+            active_theme_skin: None,
             editor_follow_system_theme: cfg_editor_follow_system_theme,
             editor_theme: cfg_editor_theme,
 
@@ -624,7 +728,7 @@ impl App {
             show_git_copy_modal: false,
             git_copy_modal_editor: iced::widget::text_editor::Content::new(),
             git_copy_modal_use_color: true,
-            git_copy_modal_code_editor: iced_code_editor::CodeEditor::new("", "diff"),
+            git_copy_modal_code_editor,
             show_git_custom_diff_modal: false,
             git_custom_diff_hide_inputs: false,
             git_custom_diff_title: String::new(),
@@ -893,6 +997,7 @@ impl App {
             // ========== 技能设置 ==========
             skills_settings: super::state::SkillsSettingsState {
                 open_skills_enabled: skills_cfg.open_skills_enabled,
+                auto_load_project_skills: skills_cfg.auto_load_project_skills,
                 directory_provider: skills_cfg.directory_provider,
                 open_skills_dir_input: skills_cfg.open_skills_dir.unwrap_or_default(),
                 prompt_injection_mode: skills_cfg.prompt_injection_mode,
@@ -945,7 +1050,7 @@ impl App {
                 max_results_input: web_search_cfg.max_results.clamp(1, 10).to_string(),
                 timeout_secs_input: web_search_cfg.timeout_secs.max(1).to_string(),
                 user_agent: if web_search_cfg.user_agent.trim().is_empty() {
-                    "VibeWindow/1.0".to_string()
+                    vw_config_types::tools::DEFAULT_USER_AGENT.to_string()
                 } else {
                     web_search_cfg.user_agent
                 },
@@ -1087,7 +1192,7 @@ impl App {
             agents_settings: {
                 let ordered_keys = super::state::ordered_agent_keys(&delegate_agents_cfg);
 
-                let entries = ordered_keys
+                let mut entries = ordered_keys
                     .into_iter()
                     .map(|key| {
                         let config = delegate_agents_cfg.get(&key).cloned();
@@ -1102,6 +1207,8 @@ impl App {
                                 builtin: config.builtin,
                                 mode: "primary".to_string(),
                                 enabled: true,
+                                allow_as_subagent: config.allow_as_subagent,
+                                max_parallel_subagents: config.max_parallel_subagents,
                                 provider: if config.provider.trim().is_empty() {
                                     default_provider_cfg.clone().unwrap_or_default()
                                 } else {
@@ -1131,6 +1238,7 @@ impl App {
                                 agentic: config.agentic,
                                 allowed_tools: config.allowed_tools,
                                 allowed_skills: config.allowed_skills,
+                                enabled_identity_files: config.enabled_identity_files,
                                 options: config.options,
                                 permission: config.permission,
                                 max_iterations: config.max_iterations,
@@ -1143,7 +1251,9 @@ impl App {
                                 );
                             ui_entry.compact_context = agent_cfg.compact_context;
                             ui_entry.max_tool_iterations =
-                                agent_cfg.max_tool_iterations.clamp(1, 200) as u32;
+                                u32::try_from(agent_cfg.max_tool_iterations)
+                                    .unwrap_or(u32::MAX)
+                                    .max(1);
                             ui_entry.max_history_messages =
                                 agent_cfg.max_history_messages.clamp(1, 1000) as u32;
                             ui_entry.parallel_tools = agent_cfg.parallel_tools;
@@ -1157,8 +1267,11 @@ impl App {
                         }
                     })
                     .collect::<Vec<_>>();
+                let available_tools = config::load_tools_list_via_gateway();
+                super::state::apply_default_allowed_tools(&mut entries, &available_tools);
                 super::state::AgentsSettingsState {
                     loading: false,
+                    project_path: None,
                     providers: Vec::new(),
                     provider_models: Vec::new(),
                     entries,
@@ -1177,8 +1290,10 @@ impl App {
                         })
                         .collect(),
                     workspace_identity_root_path: None,
-                    available_tools: config::load_tools_list_via_gateway(),
+                    available_tools,
                     save_error: None,
+                    save_in_flight: false,
+                    save_pending: false,
                 }
             },
             staff_settings: settings_builders::build_staff_settings(&full_agent_cfg),
@@ -1260,15 +1375,13 @@ impl App {
                 save_error: None,
             },
 
-            multimodal_settings: super::state::MultimodalSettingsState {
-                max_images: multimodal_cfg.max_images.clamp(1, 16) as u32,
-                max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
-                allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
-                save_error: None,
-            },
+            multimodal_settings: build_multimodal_settings(&full_agent_cfg),
 
             // ========== 安全设置 ==========
             security_settings: super::state::SecuritySettingsState {
+                active_tab: super::state::SecuritySettingsTab::Bash,
+                // Bash 命令执行前安全检查
+                bash: security_cfg.bash.clone(),
                 // 沙箱配置
                 sandbox_enabled_input: match security_cfg.sandbox.enabled {
                     None => "auto".to_string(),
@@ -1283,7 +1396,7 @@ impl App {
                     vw_config_types::security::SandboxBackend::Docker => "docker".to_string(),
                     vw_config_types::security::SandboxBackend::None => "none".to_string(),
                 },
-                sandbox_firejail_args_input: security_cfg.sandbox.firejail_args.join(", "),
+                sandbox_firejail_args: security_cfg.sandbox.firejail_args.clone(),
                 // 资源限制配置
                 resources_max_memory_mb: security_cfg.resources.max_memory_mb.clamp(32, 65_536),
                 resources_max_cpu_time_seconds: security_cfg.resources.max_cpu_time_seconds.clamp(1, 86_400),
@@ -1306,9 +1419,9 @@ impl App {
                 },
                 otp_token_ttl_secs: security_cfg.otp.token_ttl_secs.clamp(1, 600),
                 otp_cache_valid_secs: security_cfg.otp.cache_valid_secs.clamp(1, 86_400),
-                otp_gated_actions_input: security_cfg.otp.gated_actions.join(", "),
-                otp_gated_domains_input: security_cfg.otp.gated_domains.join(", "),
-                otp_gated_domain_categories_input: security_cfg.otp.gated_domain_categories.join(", "),
+                otp_gated_actions: security_cfg.otp.gated_actions.clone(),
+                otp_gated_domains: security_cfg.otp.gated_domains.clone(),
+                otp_gated_domain_categories: security_cfg.otp.gated_domain_categories.clone(),
                 // 紧急停止配置
                 estop_enabled: security_cfg.estop.enabled,
                 estop_state_file: {
@@ -1340,7 +1453,11 @@ impl App {
                     let v = security_cfg.syscall_anomaly.log_path.trim().to_string();
                     if v.is_empty() { "syscall-anomalies.log".to_string() } else { v }
                 },
-                syscall_anomaly_baseline_syscalls_input: security_cfg.syscall_anomaly.baseline_syscalls.join(", "),
+                syscall_anomaly_baseline_syscalls: security_cfg
+                    .syscall_anomaly
+                    .baseline_syscalls
+                    .clone(),
+                list_editor: super::state::SecurityListEditorState::default(),
                 // Canary令牌和语义保护
                 canary_tokens: security_cfg.canary_tokens,
                 semantic_guard: security_cfg.semantic_guard,
@@ -1354,39 +1471,7 @@ impl App {
             },
 
             // ========== 自主性设置 ==========
-            autonomy_settings: super::state::AutonomySettingsState {
-                level: autonomy_cfg.level,
-                workspace_only: autonomy_cfg.workspace_only,
-                allowed_commands_input: autonomy_cfg.allowed_commands.join(", "),
-                forbidden_paths_input: autonomy_cfg.forbidden_paths.join(", "),
-                max_actions_per_hour: autonomy_cfg.max_actions_per_hour,
-                max_cost_per_day_cents: autonomy_cfg.max_cost_per_day_cents,
-                require_approval_for_medium_risk: autonomy_cfg.require_approval_for_medium_risk,
-                block_high_risk_commands: autonomy_cfg.block_high_risk_commands,
-                shell_redirect_policy: autonomy_cfg.shell_redirect_policy,
-                shell_env_passthrough_input: autonomy_cfg.shell_env_passthrough.join(", "),
-                auto_approve_input: autonomy_cfg.auto_approve.join(", "),
-                always_ask_input: autonomy_cfg.always_ask.join(", "),
-                allowed_roots_input: autonomy_cfg.allowed_roots.join(", "),
-                non_cli_excluded_tools_input: autonomy_cfg.non_cli_excluded_tools.join(", "),
-                non_cli_approval_approvers_input: autonomy_cfg.non_cli_approval_approvers.join(", "),
-                non_cli_natural_language_approval_mode: autonomy_cfg.non_cli_natural_language_approval_mode,
-                non_cli_natural_language_approval_mode_by_channel_input: autonomy_cfg
-                    .non_cli_natural_language_approval_mode_by_channel
-                    .into_iter()
-                    .map(|(channel, mode)| {
-                        let mode = match mode {
-                            vw_config_types::security::NonCliNaturalLanguageApprovalMode::Disabled => "disabled",
-                            vw_config_types::security::NonCliNaturalLanguageApprovalMode::RequestConfirm => "request_confirm",
-                            vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct => "direct",
-                        };
-                        format!("{channel}:{mode}")
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                show_help_modal: false,
-                save_error: None,
-            },
+            autonomy_settings: super::state::AutonomySettingsState::from_config(&autonomy_cfg),
 
             // ========== 可观测性设置 ==========
             observability_settings: super::state::ObservabilitySettingsState {
@@ -1496,6 +1581,9 @@ impl App {
                 save_error: None,
             },
 
+            // ========== 主题设置 ==========
+            themes_settings: super::state::ThemesSettingsState::default(),
+
             // ========== Composio 设置 ==========
             composio_settings: super::state::ComposioSettingsState {
                 enabled: composio_cfg.enabled,
@@ -1538,6 +1626,12 @@ impl App {
             show_file_search: false,
             file_search_anchor: None,
             file_search_selected_index: 0,
+
+            // ========== Slash 快捷选择 ==========
+            slash_palette_query: String::new(),
+            show_slash_palette: false,
+            slash_palette_selected_index: 0,
+            slash_palette_expanded_kinds: std::collections::BTreeSet::new(),
 
             // ========== 查找结果标签页 ==========
             find_results_tabs: Vec::new(),
@@ -1600,7 +1694,7 @@ impl App {
             current_line_height: system_settings_cfg.editor_line_height.max(1.0),
             auto_adjust_line_height: system_settings_cfg.editor_auto_line_height,
             preview_auto_save_mode: system_settings_cfg.preview_auto_save,
-            current_language: iced_code_editor::i18n::Language::default(),
+            current_language: editor_language,
             knowledge: super::state::KnowledgeUiState::default(),
             workflow_state: crate::apps::workflow::state::WorkflowState::default(),
             // ========== 标签页管理 ==========
@@ -1638,6 +1732,26 @@ impl App {
             copied_notification_id: None,
             active_toast: None,
             next_toast_id: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            account: crate::app::state::AccountState::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            expert_hub: {
+                let local_version = crate::app::skill_hub::shiju_installation()
+                    .ok()
+                    .flatten()
+                    .and_then(|installation| installation.version);
+                let cached = crate::app::skill_hub::package_version_cache_path()
+                    .ok()
+                    .and_then(|path| {
+                        crate::app::skill_hub::load_package_version_cache(&path)
+                            .ok()
+                            .flatten()
+                    });
+                let mut state = crate::app::skill_hub::ExpertHubState::default();
+                state.package_status =
+                    crate::app::skill_hub::ShijuPackageStatus::from_sources(local_version, cached);
+                state
+            },
             workflow_manager: crate::app::views::workflow_manager::WorkflowManagerState::default(),
 
             // ========== 任务板基础状态 ==========
@@ -1796,6 +1910,8 @@ impl App {
         if let Some(runtime) = app.session_runtime_states.get_mut("__empty__") {
             runtime.acp_agent = app.acp_agent.clone();
         }
+
+        crate::app::theme_catalog::sync_active_theme_skin(&mut app);
 
         // 对终端应用主题（仅非WASM平台）
         #[cfg(not(target_arch = "wasm32"))]

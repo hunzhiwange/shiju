@@ -33,6 +33,7 @@ async fn read_text_file_honors_line_and_limit() {
     let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
         cwd: dir.clone(),
         permission_mode: PermissionMode::ApproveReads,
+        full_access: false,
         non_interactive_permissions: None,
         on_operation: None,
         confirm_write: None,
@@ -63,6 +64,7 @@ async fn write_text_file_uses_confirmation_callback() {
     let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
         cwd: dir.clone(),
         permission_mode: PermissionMode::ApproveReads,
+        full_access: false,
         non_interactive_permissions: Some(NonInteractivePermissionPolicy::Deny),
         on_operation: None,
         confirm_write: Some(Arc::new(|_path, preview| {
@@ -96,6 +98,7 @@ async fn write_text_file_rejects_path_outside_root() {
     let handlers = FileSystemHandlers::new(FileSystemHandlersOptions {
         cwd: dir.clone(),
         permission_mode: PermissionMode::ApproveAll,
+        full_access: false,
         non_interactive_permissions: None,
         on_operation: None,
         confirm_write: None,

@@ -18,42 +18,40 @@ fn compute_fullscreen_layout_returns_default_for_empty_area() {
 fn compute_fullscreen_layout_places_sections_and_modal() {
     let slots = compute_fullscreen_layout(Rect::new(2, 4, 120, 40), true, true, 2);
 
-    assert_eq!(slots.header, Rect::new(2, 4, 120, 3));
-    assert_eq!(slots.bottom_float, Some(Rect::new(2, 32, 120, 3)));
-    assert_eq!(slots.bottom, Rect::new(2, 35, 120, 9));
-    assert_eq!(slots.scrollable.y, 7);
-    assert_eq!(slots.scrollable.height, 25);
+    assert_eq!(slots.header, Rect::new(2, 4, 120, 0));
+    assert_eq!(slots.bottom_float, None);
+    assert_eq!(slots.bottom, Rect::new(2, 34, 120, 10));
+    assert_eq!(slots.scrollable, Rect::new(2, 4, 120, 30));
+    assert_eq!(slots.scrollable_body, Rect::new(2, 4, 119, 30));
+    assert_eq!(slots.scrollbar_track, Some(Rect::new(121, 4, 1, 30)));
     assert!(slots.modal.is_some());
-    assert_eq!(slots.message_viewport_capacity(), 23);
+    assert_eq!(slots.message_viewport_capacity(), 30);
 }
 
 #[test]
 fn compute_fullscreen_layout_omits_bottom_float_on_compact_height() {
     let slots = compute_fullscreen_layout(Rect::new(0, 0, 80, 12), true, false, 8);
 
-    assert_eq!(slots.header.height, 2);
-    assert_eq!(slots.scrollable.height, 1);
-    assert_eq!(slots.bottom.height, 9);
+    assert_eq!(slots.header.height, 0);
+    assert_eq!(slots.scrollable.height, 6);
+    assert_eq!(slots.bottom.height, 6);
     assert_eq!(slots.bottom_float, None);
     assert_eq!(slots.modal, None);
-    assert_eq!(slots.message_viewport_capacity(), 0);
+    assert_eq!(slots.message_viewport_capacity(), 6);
 }
 
 #[test]
-fn compute_fullscreen_layout_splits_wide_scrollable_area_into_sidebars() {
+fn compute_fullscreen_layout_keeps_wide_transcript_full_width() {
     let slots = compute_fullscreen_layout(Rect::new(0, 0, 140, 50), false, false, 0);
 
-    let project = slots.project_context.expect("wide layouts should include project context");
-    let modified = slots.modified_files.expect("wide layouts should include modified files");
-    assert_eq!(project.x, slots.scrollable.x + slots.scrollable.width);
-    assert_eq!(project.width, modified.width);
-    assert_eq!(project.height, 16);
-    assert_eq!(modified.y, project.y + project.height);
-    assert_eq!(project.height + modified.height, slots.scrollable.height);
+    assert_eq!(slots.scrollable, Rect::new(0, 0, 140, 42));
+    assert_eq!(slots.scrollable_body, Rect::new(0, 0, 139, 42));
+    assert!(slots.project_context.is_none());
+    assert!(slots.modified_files.is_none());
 }
 
 #[test]
-fn compute_fullscreen_layout_skips_sidebars_when_width_or_height_is_too_small() {
+fn compute_fullscreen_layout_never_allocates_main_screen_sidebars() {
     let narrow = compute_fullscreen_layout(Rect::new(0, 0, 87, 40), false, false, 0);
     assert!(narrow.project_context.is_none());
     assert!(narrow.modified_files.is_none());
@@ -67,10 +65,12 @@ fn compute_fullscreen_layout_skips_sidebars_when_width_or_height_is_too_small() 
 fn compute_fullscreen_layout_preserves_minimum_slots_in_two_row_area() {
     let slots = compute_fullscreen_layout(Rect::new(10, 10, 1, 2), true, true, 0);
 
-    assert_eq!(slots.header, Rect::new(10, 10, 1, 1));
-    assert_eq!(slots.scrollable, Rect::new(10, 11, 1, 1));
-    assert_eq!(slots.bottom, Rect::new(10, 12, 1, 1));
+    assert_eq!(slots.header, Rect::new(10, 10, 1, 0));
+    assert_eq!(slots.scrollable, Rect::new(10, 10, 1, 1));
+    assert_eq!(slots.scrollable_body, Rect::new(10, 10, 1, 1));
+    assert_eq!(slots.scrollbar_track, None);
+    assert_eq!(slots.bottom, Rect::new(10, 11, 1, 1));
     assert_eq!(slots.bottom_float, None);
     assert_eq!(slots.modal, Some(Rect::new(10, 10, 1, 1)));
-    assert_eq!(slots.message_viewport_capacity(), 0);
+    assert_eq!(slots.message_viewport_capacity(), 1);
 }

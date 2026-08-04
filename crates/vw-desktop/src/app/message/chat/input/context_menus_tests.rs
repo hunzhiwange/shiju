@@ -180,6 +180,16 @@ fn message_context_menu_copy_append_and_search_trim_text() {
 }
 
 #[test]
+fn message_context_menu_open_keeps_multiline_fallback_text() {
+    let mut app = test_app();
+    let fallback = "line1\nline2\nline3".to_string();
+
+    handle_open_message_context_menu(&mut app, 42, 1.0, 2.0, fallback.clone());
+
+    assert_eq!(app.chat_context_menu_text, fallback);
+}
+
+#[test]
 fn message_context_menu_prefers_active_text_selection_over_fallback_text() {
     let mut app = test_app();
     app.chat_message_editors.push(selected_editor("selected message"));

@@ -640,7 +640,7 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     if s.imessage.is_some() {
         items.push("iMessage");
     }
-    if s.matrix.is_some() || !s.matrix_instances.is_empty() {
+    if s.matrix_enabled {
         items.push("Matrix");
     }
     if s.signal.is_some() {

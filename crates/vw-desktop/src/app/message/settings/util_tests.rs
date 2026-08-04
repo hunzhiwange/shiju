@@ -28,10 +28,12 @@ fn parse_list_discards_empty_and_whitespace_only_values() {
 }
 
 #[test]
-fn provider_with_builtin_connection_source_is_connected_without_key() {
-    for source in [ProviderSource::Api, ProviderSource::Env, ProviderSource::Config] {
+fn provider_connection_requires_credentials_not_only_configuration() {
+    for source in [ProviderSource::Api, ProviderSource::Env] {
         assert!(is_provider_connected(&provider(source, None)));
     }
+    assert!(!is_provider_connected(&provider(ProviderSource::Config, None)));
+    assert!(is_provider_connected(&provider(ProviderSource::Config, Some(" secret "))));
 }
 
 #[test]

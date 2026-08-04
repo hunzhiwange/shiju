@@ -156,6 +156,7 @@ pub(crate) use tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
 pub use tool_search_view::tool_search_view;
 pub use web_view::tool_web_view;
 pub use workflow_view::tool_workflow_view;
+pub(crate) use workflow_view::workflow_node_detail_body;
 
 // 工具解析功能重导出
 pub use super::tool_names::canonical_tool_name;
@@ -167,6 +168,7 @@ pub use tool_parse::{
     tool_call_id_from_raw, tool_identity_from_raw, tool_name_from_raw,
 };
 pub(crate) use tool_parse::{
+    AgentToolSessionPayload, AgentToolSessionStatus, agent_tool_session_payloads_from_content,
     explore_item_dedupe_key, tool_error_text, tool_input, tool_output_text, tool_status,
     tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };

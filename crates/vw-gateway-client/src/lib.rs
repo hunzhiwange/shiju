@@ -54,6 +54,36 @@ pub use client::{
     GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome, GatewayWorkflowStreamError,
     GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
+/// SHIJU account gateway transport contract.
+pub use client::{
+    SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
+    ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountRoleDto,
+    ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential,
+    ShijuLoginChallengeDto, ShijuLoginPollDto,
+};
+/// SHIJU application gateway transport contract.
+pub use client::{
+    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCatalogAppDto,
+    ShijuInstalledAppDto,
+};
+/// SHIJU private-skill gateway transport contract.
+pub use client::{
+    ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
+    ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto, ShijuSkillVersionContentDto,
+    ShijuSkillVersionDto, ShijuSkillVisibilityDto, ShijuSkillVisibilityScopeDto,
+    ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+};
+/// Unified skill-market transport contract.
+pub use client::{
+    SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketEnvelope,
+    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto,
+    SkillMarketInstallTargetDto, SkillMarketSecurityDto, SkillMarketSkillDetailDto,
+    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSort,
+    SkillMarketSourceDto,
+};
 /// 网关认证参数与基础端点配置。
 ///
 /// 用于描述请求应发送到哪个网关实例，以及需要附加哪些认证信息。
@@ -91,8 +121,9 @@ pub use stream::{ChatStreamEvent, ChatStreamRequest};
 /// 对应网关 `/v1/chat/stream` 接口的请求体与事件枚举。
 pub use stream::{
     GatewayChatStepFinishEvent, GatewayChatStepStartEvent, GatewayChatStreamEvent,
-    GatewayChatStreamRequest, GatewayChatUsage, GatewayTypedChatStreamEvent,
-    normalize_chat_stream_event,
+    GatewayChatStreamRequest, GatewayChatUsage, GatewayStreamAttemptResult, GatewayStreamEvent,
+    GatewayStreamResume, GatewayTypedChatStreamEvent, LAST_EVENT_ID_HEADER,
+    STREAM_REQUEST_ID_HEADER, normalize_chat_stream_event,
 };
 /// 对外透出共享的 API 类型定义。
 ///

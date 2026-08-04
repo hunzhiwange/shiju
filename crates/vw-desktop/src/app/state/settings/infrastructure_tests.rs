@@ -10,9 +10,11 @@ fn test_module_is_wired() {
 #[test]
 fn multimodal_and_http_request_defaults_match_config_ui() {
     let multimodal = MultimodalSettingsState::default();
-    assert_eq!(multimodal.max_images, 4);
+    assert_eq!(multimodal.max_images, 10);
     assert_eq!(multimodal.max_image_size_mb, 5);
-    assert!(!multimodal.allow_remote_fetch);
+    assert!(multimodal.allow_remote_fetch);
+    assert!(!multimodal.ocr_enabled);
+    assert!(multimodal.ocr_model.is_empty());
     assert!(multimodal.save_error.is_none());
 
     let http = HttpRequestSettingsState::default();
@@ -37,9 +39,12 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(acp.status_message.is_none());
 
     let security = SecuritySettingsState::default();
-    assert_eq!(security.sandbox_enabled_input, "auto");
-    assert_eq!(security.sandbox_backend_input, "auto");
-    assert!(security.sandbox_firejail_args_input.is_empty());
+    assert!(!security.bash.enabled);
+    assert!(security.bash.policy.enabled);
+    assert!(security.bash.validators.enabled);
+    assert_eq!(security.sandbox_enabled_input, "false");
+    assert_eq!(security.sandbox_backend_input, "none");
+    assert!(security.sandbox_firejail_args.is_empty());
     assert_eq!(security.resources_max_memory_mb, 512);
     assert_eq!(security.resources_max_cpu_time_seconds, 60);
     assert_eq!(security.resources_max_subprocesses, 10);
@@ -52,21 +57,21 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert_eq!(security.otp_method_input, "totp");
     assert_eq!(security.otp_token_ttl_secs, 30);
     assert_eq!(security.otp_cache_valid_secs, 300);
-    assert!(security.otp_gated_actions_input.contains("shell"));
-    assert!(security.otp_gated_domains_input.is_empty());
-    assert!(security.otp_gated_domain_categories_input.is_empty());
+    assert!(security.otp_gated_actions.iter().any(|action| action == "shell"));
+    assert!(security.otp_gated_domains.is_empty());
+    assert!(security.otp_gated_domain_categories.is_empty());
     assert!(!security.estop_enabled);
     assert_eq!(security.estop_state_file, vw_config_types::paths::ESTOP_STATE_FILE_PATH);
     assert!(security.estop_require_otp_to_resume);
-    assert!(security.syscall_anomaly_enabled);
+    assert!(!security.syscall_anomaly_enabled);
     assert!(!security.syscall_anomaly_strict_mode);
-    assert!(security.syscall_anomaly_alert_on_unknown_syscall);
+    assert!(!security.syscall_anomaly_alert_on_unknown_syscall);
     assert_eq!(security.syscall_anomaly_max_denied_events_per_minute, 5);
     assert_eq!(security.syscall_anomaly_max_total_events_per_minute, 120);
     assert_eq!(security.syscall_anomaly_max_alerts_per_minute, 30);
     assert_eq!(security.syscall_anomaly_alert_cooldown_secs, 20);
     assert_eq!(security.syscall_anomaly_log_path, "syscall-anomalies.log");
-    assert!(security.syscall_anomaly_baseline_syscalls_input.is_empty());
+    assert!(security.syscall_anomaly_baseline_syscalls.is_empty());
     assert!(security.canary_tokens);
     assert!(!security.semantic_guard);
     assert_eq!(security.semantic_guard_collection, "semantic_guard");
@@ -75,23 +80,27 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(security.save_error.is_none());
 
     let autonomy = AutonomySettingsState::default();
-    assert_eq!(autonomy.level, vw_config_types::security::AutonomyLevel::Supervised);
-    assert!(autonomy.workspace_only);
-    assert!(autonomy.allowed_commands_input.contains("cargo"));
-    assert!(autonomy.forbidden_paths_input.contains("/etc"));
-    assert_eq!(autonomy.max_actions_per_hour, 20);
-    assert_eq!(autonomy.max_cost_per_day_cents, 500);
-    assert!(autonomy.require_approval_for_medium_risk);
-    assert!(autonomy.block_high_risk_commands);
+    assert_eq!(autonomy.active_tab, AutonomySettingsTab::Permissions);
+    assert_eq!(autonomy.level, vw_config_types::security::AutonomyLevel::Full);
+    assert!(!autonomy.workspace_only);
+    assert!(autonomy.allowed_commands.contains(&"cargo".to_string()));
+    assert!(autonomy.forbidden_paths.contains(&"/etc".to_string()));
+    assert_eq!(autonomy.max_actions_per_hour, 2_000);
+    assert_eq!(autonomy.max_cost_per_day_cents, 50_000);
+    assert!(!autonomy.require_approval_for_medium_risk);
+    assert!(!autonomy.block_high_risk_commands);
     assert_eq!(
         autonomy.shell_redirect_policy,
-        vw_config_types::security::ShellRedirectPolicy::Block
+        vw_config_types::security::ShellRedirectPolicy::Allow
     );
-    assert!(autonomy.shell_env_passthrough_input.is_empty());
-    assert!(autonomy.auto_approve_input.contains("file_read"));
-    assert!(autonomy.always_ask_input.is_empty());
-    assert!(autonomy.allowed_roots_input.is_empty());
-    assert!(autonomy.non_cli_excluded_tools_input.contains("shell"));
+    assert!(autonomy.shell_env_passthrough.is_empty());
+    assert!(autonomy.auto_approve.contains(&"file_read".to_string()));
+    assert!(autonomy.always_ask.is_empty());
+    assert!(autonomy.allowed_roots.is_empty());
+    assert!(autonomy.non_cli_excluded_tools.contains(&"shell".to_string()));
+    for kind in AutonomyListKind::ALL {
+        assert!(autonomy.list_editor.draft(kind).is_empty());
+    }
     assert!(autonomy.non_cli_approval_approvers_input.is_empty());
     assert_eq!(
         autonomy.non_cli_natural_language_approval_mode,
@@ -100,6 +109,27 @@ fn acp_security_and_autonomy_defaults_are_populated() {
     assert!(autonomy.non_cli_natural_language_approval_mode_by_channel_input.is_empty());
     assert!(!autonomy.show_help_modal);
     assert!(autonomy.save_error.is_none());
+}
+
+#[test]
+fn autonomy_settings_defaults_keep_agent_tool_available() {
+    let autonomy = AutonomySettingsState::default();
+
+    assert!(!autonomy.non_cli_excluded_tools.iter().any(|tool| tool == "AgentTool"));
+}
+
+#[test]
+fn autonomy_settings_from_config_preserves_unknown_saved_tools() {
+    let mut config = vw_config_types::security::AutonomyConfig::default();
+    config.auto_approve = vec!["known_tool".to_string(), "retired_tool".to_string()];
+    config.always_ask = vec!["missing_tool".to_string()];
+    config.non_cli_excluded_tools = vec!["legacy_tool".to_string()];
+
+    let autonomy = AutonomySettingsState::from_config(&config);
+
+    assert_eq!(autonomy.auto_approve, config.auto_approve);
+    assert_eq!(autonomy.always_ask, config.always_ask);
+    assert_eq!(autonomy.non_cli_excluded_tools, config.non_cli_excluded_tools);
 }
 
 #[test]
@@ -207,4 +237,16 @@ fn composio_and_transcription_defaults_are_ready_for_empty_config() {
     assert_eq!(transcription.max_duration_secs, 120);
     assert!(!transcription.show_help_modal);
     assert!(transcription.save_error.is_none());
+}
+
+#[test]
+fn themes_settings_default_opens_list_with_basics_editor_tab() {
+    let state = ThemesSettingsState::default();
+    assert_eq!(state.mode, ThemesSettingsMode::List);
+    assert_eq!(state.editor_tab, ThemeEditorTab::Basics);
+    assert!(state.entries.is_empty());
+    assert_eq!(state.page_index, 0);
+    assert!(state.draft.is_none());
+    assert!(state.error.is_none());
+    assert!(state.color_picker_target.is_none());
 }

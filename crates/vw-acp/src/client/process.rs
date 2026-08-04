@@ -18,7 +18,7 @@ impl AcpClient {
 
         let mut env = self.config.env.clone();
         for (key, value) in build_agent_environment(&self.auth_credentials) {
-            env.entry(key).or_insert(value);
+            insert_auth_env_if_missing(&mut env, key, value);
         }
 
         let mut cmd = build_spawn_command(self.config.command.trim(), &env);
@@ -157,4 +157,26 @@ impl AcpClient {
         );
         FinalizedChild { summary, stderr_output }
     }
+}
+
+#[cfg(not(windows))]
+fn insert_auth_env_if_missing(
+    env: &mut std::collections::HashMap<String, String>,
+    key: String,
+    value: String,
+) {
+    env.entry(key).or_insert(value);
+}
+
+#[cfg(windows)]
+fn insert_auth_env_if_missing(
+    env: &mut std::collections::HashMap<String, String>,
+    key: String,
+    value: String,
+) {
+    if env.keys().any(|existing| existing.eq_ignore_ascii_case(&key)) {
+        return;
+    }
+
+    env.insert(key, value);
 }

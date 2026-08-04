@@ -172,6 +172,14 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
         None
     }
 
+    fn append_visible_without_orphan_close_tags(out: &mut String, mut s: &str) {
+        while let Some((start, tag_len)) = find_think_close_tag(s) {
+            out.push_str(&s[..start]);
+            s = &s[start + tag_len..];
+        }
+        out.push_str(s);
+    }
+
     fn find_tool_start(s: &str) -> Option<usize> {
         if s.starts_with("tool ") {
             return Some(0);
@@ -200,10 +208,10 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
 
     loop {
         let Some((start, open_tag_len)) = find_think_open_tag(rest) else {
-            visible.push_str(rest);
+            append_visible_without_orphan_close_tags(&mut visible, rest);
             break;
         };
-        visible.push_str(&rest[..start]);
+        append_visible_without_orphan_close_tags(&mut visible, &rest[..start]);
         rest = &rest[start + open_tag_len..];
         let Some((end, close_tag_len)) = find_think_close_tag(rest) else {
             if let Some(tool_start) = find_tool_start(rest) {

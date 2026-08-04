@@ -106,14 +106,14 @@
     pub(crate) active_session_view_state: ActiveSessionViewState,
     /// 当前模型的使用信息
     pub(crate) usage_model_info: Option<UsageModelInfo>,
-    /// 使用量面板当前会话对应的 SQLite 文件路径
-    pub(crate) usage_session_file_path: Option<String>,
     /// 展开的使用量步骤索引集合
     pub(crate) usage_step_expanded: HashSet<u32>,
     /// 使用量步骤原始 LLM 载荷缓存
     pub(crate) usage_step_raw_payloads: HashMap<UsageStepRawKey, UsageStepRawPayloadResult>,
     /// 正在加载原始 LLM 载荷的使用量步骤
     pub(crate) usage_step_raw_loading: HashSet<UsageStepRawKey>,
+    /// 使用量步骤原始记录弹窗
+    pub(crate) usage_step_raw_modal: Option<UsageStepRawModal>,
     /// 是否显示合并视图
     pub(crate) merge_view: bool,
     /// 展开的文件路径列表

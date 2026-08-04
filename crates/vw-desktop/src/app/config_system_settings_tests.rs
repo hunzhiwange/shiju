@@ -555,6 +555,45 @@ fn update_system_settings_config_result_async_normalizes_and_patches_settings() 
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
+fn update_system_settings_config_result_async_patches_quick_messages() {
+    use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup, QuickMessageKind};
+
+    let (_lock, _home, _guard) = temp_home();
+    let body = serde_json::json!({
+        "app_ui": {"system_settings": AppSystemSettingsConfig::default()}
+    })
+    .to_string();
+    let (port, requests, join) =
+        serve_global_config(vec![(200, body), (200, serde_json::json!({}).to_string())]);
+    let bootstrap = gateway_config("127.0.0.1", port);
+    super::save_gateway_client_bootstrap_config(&bootstrap);
+
+    test_runtime()
+        .block_on(super::update_system_settings_config_result_async(|config| {
+            config.quick_messages = vec![QuickMessageConfig {
+                text: "创建新会话".to_string(),
+                group: QuickMessageGroup::Git,
+                kind: QuickMessageKind::CreateNewSession,
+            }];
+        }))
+        .expect("quick messages patch should succeed");
+    let _get_request = requests.recv().expect("GET request should be captured");
+    let patch_request = requests.recv().expect("PATCH request should be captured");
+    join.join().expect("stub should stop");
+    let patch = request_json_body(&patch_request);
+
+    assert_eq!(
+        patch["app_ui"]["system_settings"]["quick_messages"],
+        serde_json::json!([{
+            "text": "创建新会话",
+            "group": "git",
+            "kind": "createNewSession"
+        }])
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn update_system_settings_config_result_async_does_not_cache_gateway_after_patch_error() {
     let (_lock, _home, _guard) = temp_home();
     let body = serde_json::json!({

@@ -7,9 +7,23 @@ use std::time::Duration;
 use super::state::ExternalOpenApp;
 use super::{App, Screen};
 use crate::app::message::NotificationMessage;
-use crate::app::state::{Toast, ToastKind};
+use crate::app::state::{Toast, ToastKind, WorkspaceMode};
 
 impl App {
+    pub(crate) fn is_chat_fullscreen(&self) -> bool {
+        match self.workspace_mode {
+            WorkspaceMode::Code => self.chat_panel_fullscreen,
+            WorkspaceMode::Work => self.work_chat_fullscreen,
+        }
+    }
+
+    pub(crate) fn is_chat_half_fullscreen(&self) -> bool {
+        match self.workspace_mode {
+            WorkspaceMode::Code => self.chat_panel_half_fullscreen,
+            WorkspaceMode::Work => self.work_chat_half_fullscreen,
+        }
+    }
+
     fn normalize_file_search_query(query: &str) -> String {
         query.trim().replace('\\', "/").to_ascii_lowercase()
     }
@@ -106,6 +120,12 @@ impl App {
             Screen::WorkflowTool => "Vibe Window 氛围视窗 - 工作流".to_string(),
             Screen::WorkflowManager => "Vibe Window 氛围视窗 - 任务编排".to_string(),
             Screen::TaskBoard => "Vibe Window 氛围视窗 - 任务看板".to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ShijuApps => "Vibe Window 氛围视窗 - 识矩应用".to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ShijuSkills => "Vibe Window 氛围视窗 - 识矩技能".to_string(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ExpertHub => "Vibe Window 氛围视窗 - 专家·技能·连接器".to_string(),
         }
     }
 

@@ -14,6 +14,8 @@ pub use crate::session::ui_types::{
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::HashSet;
+#[cfg(not(target_arch = "wasm32"))]
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -188,15 +190,16 @@ fn run_project_operation<T>(
     scope: Option<&str>,
     callback: impl FnOnce(&SessionStore, &ProjectScope) -> Result<T>,
 ) -> Option<T> {
+    let scope = scope.map(str::trim).filter(|value| !value.is_empty())?;
     let result = (|| {
-        let project_scope = project_scope(tenant, scope)?;
+        let project_scope = project_scope(tenant, Some(scope))?;
         let store = runtime_session_store()?;
         callback(&store, &project_scope)
     })();
     match result {
         Ok(value) => Some(value),
         Err(error) => {
-            log_session_store_error(operation, tenant, scope, &error);
+            log_session_store_error(operation, tenant, Some(scope), &error);
             None
         }
     }
@@ -226,7 +229,7 @@ fn resolve_session_data_dir() -> PathBuf {
     let session_data_dir = vw_config_types::paths::home_config_dir(&paths.home);
     let _ = std::fs::create_dir_all(session_data_dir.join("storage").join("session"));
     backfill_scope_project_metadata(&session_data_dir, &paths.data.join("storage").join("project"));
-    tracing::info!(
+    tracing::debug!(
         target: "vw_agent",
         session_data_dir = %session_data_dir.display(),
         "session ui data directory ready"
@@ -294,7 +297,7 @@ fn backfill_scope_project_metadata(session_data_dir: &Path, project_storage_dir:
         }
     }
     if written > 0 {
-        tracing::info!(
+        tracing::debug!(
             target: "vw_agent",
             written,
             project_storage_dir = %project_storage_dir.display(),
@@ -321,7 +324,7 @@ pub fn session_file_path(id: &str) -> Option<PathBuf> {
                 return None;
             }
         };
-        Some(store.path().to_path_buf())
+        store.storage_path().map(Path::to_path_buf)
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -370,6 +373,23 @@ pub fn load_llm_raw_step_scoped(
     step_index: u32,
     scope: Option<&str>,
 ) -> std::io::Result<Option<serde_json::Value>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let default_scope = session_scope();
+        let Some(scope) = scope.or_else(|| default_scope.as_deref()) else {
+            return Ok(None);
+        };
+        let tenant = current_tenant_scope();
+        let project_scope = project_scope(&tenant, Some(scope))
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
+        let store = runtime_session_store()
+            .map_err(|error| io::Error::new(io::ErrorKind::Other, error.to_string()))?;
+        store
+            .load_session_step_llm_raw(&project_scope, session_id, step_index)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+    };
+
+    #[cfg(target_arch = "wasm32")]
     ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
 }
 
@@ -395,6 +415,26 @@ pub fn persist_llm_raw_step(
     payload: &serde_json::Value,
     scope: Option<&str>,
 ) -> Option<PathBuf> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let default_scope = session_scope();
+        let Some(scope) = scope.or_else(|| default_scope.as_deref()) else {
+            return None;
+        };
+        let tenant = current_tenant_scope();
+        let project_scope = match project_scope(&tenant, Some(scope)) {
+            Ok(project_scope) => project_scope,
+            Err(_) => return None,
+        };
+        let store = match runtime_session_store() {
+            Ok(store) => store,
+            Err(_) => return None,
+        };
+        store.save_session_step_llm_raw(&project_scope, session_id, step_index, payload).ok()?;
+        Some(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+    };
+
+    #[cfg(target_arch = "wasm32")]
     ui_store::persist_llm_raw_step(data_dir(), session_id, step_index, payload, scope)
 }
 
@@ -490,7 +530,9 @@ pub fn save_session_todos_scoped(
             scope,
             |store, project_scope| {
                 store.save_session_todos(project_scope, session_id, todos)?;
-                Ok(store.path().to_path_buf())
+                Ok(store
+                    .storage_path()
+                    .map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
             },
         )
     }

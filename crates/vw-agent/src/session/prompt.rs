@@ -55,14 +55,13 @@ fn environment(model: Option<&str>, root: Option<&str>) -> Vec<String> {
 ///
 /// - 在 WebAssembly 环境中调用时会 panic
 /// - 创建 Tokio 运行时失败时会 panic
-fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
+pub(super) fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
     #[cfg(target_arch = "wasm32")]
     panic!("Cannot block_on in wasm async context");
 
     #[cfg(not(target_arch = "wasm32"))]
     match tokio::runtime::Handle::try_current() {
-        // 如果已在 Tokio 运行时中，直接使用当前运行时阻塞执行
-        Ok(h) => h.block_on(fut),
+        Ok(h) => tokio::task::block_in_place(|| h.block_on(fut)),
         // 否则创建新的单线程运行时执行
         Err(_) => tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -80,8 +79,19 @@ fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
 /// # 返回
 ///
 /// 返回系统指令字符串向量，每个元素代表一条独立的指令
-fn instruction_system() -> Vec<String> {
-    block_on(super::instruction::system())
+fn instruction_system() -> Vec<super::instruction::Resolved> {
+    block_on(super::instruction::system_resolved())
+}
+
+fn project_agents(root: Option<&str>) -> Option<super::instruction::Resolved> {
+    block_on(super::instruction::project_agents(root))
+}
+
+fn agent_workspace_identity(
+    agent_key: Option<&str>,
+    enabled_identity_files: &[String],
+) -> Vec<super::instruction::Resolved> {
+    super::instruction::agent_workspace_identity(agent_key, enabled_identity_files)
 }
 
 /// 获取最大步骤约束文本
@@ -128,17 +138,57 @@ fn join_non_empty_parts(parts: Vec<String>) -> String {
 /// let prompt = system(Some("gpt-4"), Some("/path/to/project"));
 /// println!("系统提示词:\n{}", prompt);
 /// ```
-pub fn system(model: Option<&str>, root: Option<&str>) -> String {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SystemPrompt {
+    /// 发送给模型的完整系统提示词。
+    pub content: String,
+    /// 当前所选项目及委托代理工作区实际读取、需要在界面展示的文件路径。
+    pub visible_instruction_paths: Vec<String>,
+}
+
+/// 构建系统提示词，并单独保留所选项目的协议文件路径供界面展示。
+pub fn system_with_metadata(model: Option<&str>, root: Option<&str>) -> SystemPrompt {
+    system_with_agent_metadata(model, root, None, &[])
+}
+
+/// 构建系统提示词，并加载当前委托代理工作区的身份文件。
+pub fn system_with_agent_metadata(
+    model: Option<&str>,
+    root: Option<&str>,
+    agent_key: Option<&str>,
+    enabled_identity_files: &[String],
+) -> SystemPrompt {
     let mut parts = Vec::<String>::new();
 
     // 添加环境配置信息
     parts.extend(environment(model, root));
 
     // 添加系统指令
-    parts.extend(instruction_system());
+    let mut instructions = instruction_system();
+    let mut visible_instruction_paths = Vec::new();
+    if let Some(project_agents) = project_agents(root) {
+        instructions.retain(|resolved| resolved.filepath != project_agents.filepath);
+        visible_instruction_paths.push(project_agents.filepath.clone());
+        instructions.insert(0, project_agents);
+    }
+    for agent_identity in agent_workspace_identity(agent_key, enabled_identity_files) {
+        if instructions.iter().any(|resolved| resolved.filepath == agent_identity.filepath) {
+            continue;
+        }
+        visible_instruction_paths.push(agent_identity.filepath.clone());
+        instructions.push(agent_identity);
+    }
+    parts.extend(instructions.into_iter().map(|resolved| resolved.content));
 
     // 过滤空白内容并用双换行符连接各部分
-    join_non_empty_parts(parts)
+    SystemPrompt {
+        content: join_non_empty_parts(parts),
+        visible_instruction_paths,
+    }
+}
+
+pub fn system(model: Option<&str>, root: Option<&str>) -> String {
+    system_with_metadata(model, root).content
 }
 #[cfg(test)]
 #[path = "prompt_tests.rs"]

@@ -6,11 +6,26 @@ use super::lifecycle::{
     loaded_chat_from_gateway_messages, reset_boundary_loaded_end, steps_from_gateway_messages,
 };
 use crate::app::models::ChatRole;
+use crate::app::{Message, state::QuickMessageHandoffState};
 use serde_json::{Map, Value, json};
 use vw_shared::message::types as agent_message;
 
 fn app() -> crate::app::App {
     crate::app::App::new().0
+}
+
+async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
+        return Vec::new();
+    };
+    while let Some(action) = stream.next().await {
+        if let iced_runtime::Action::Output(messages) = action {
+            return messages;
+        }
+    }
+    Vec::new()
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
@@ -56,7 +71,12 @@ fn assistant_info(id: &str) -> agent_message::Info {
     agent_message::Info::Assistant(Box::new(agent_message::AssistantInfo {
         id: id.to_string(),
         session_id: "session-1".to_string(),
-        time: agent_message::AssistantTime { created: 10, completed: Some(20) },
+        time: agent_message::AssistantTime {
+            created: 10,
+            completed: Some(20),
+            processing_elapsed_ms: Some(8),
+            llm_elapsed_ms: None,
+        },
         error: None,
         parent_id: "user-1".to_string(),
         model_id: "model-a".to_string(),
@@ -91,6 +111,18 @@ fn assistant_info_at(id: &str, created: u64) -> agent_message::Info {
     if let agent_message::Info::Assistant(assistant) = &mut info {
         assistant.time.created = created;
         assistant.time.completed = Some(created.saturating_add(5));
+    }
+    info
+}
+
+fn assistant_info_at_with_parent(
+    id: &str,
+    parent_id: &str,
+    created: u64,
+) -> agent_message::Info {
+    let mut info = assistant_info_at(id, created);
+    if let agent_message::Info::Assistant(assistant) = &mut info {
+        assistant.parent_id = parent_id.to_string();
     }
     info
 }
@@ -159,9 +191,15 @@ fn text_message(info: agent_message::Info, text: &str) -> agent_message::WithPar
 #[test]
 fn loaded_chat_from_gateway_messages_orders_newest_first_gateway_results_chronologically() {
     let messages = vec![
-        text_message(assistant_info_at("assistant-2", 40), "second answer"),
+        text_message(
+            assistant_info_at_with_parent("assistant-2", "user-2", 40),
+            "second answer",
+        ),
         text_message(user_info_at("user-2", 30), "follow up"),
-        text_message(assistant_info_at("assistant-1", 20), "first answer"),
+        text_message(
+            assistant_info_at_with_parent("assistant-1", "user-1", 20),
+            "first answer",
+        ),
         text_message(user_info_at("user-1", 10), "first question"),
     ];
 
@@ -177,6 +215,70 @@ fn loaded_chat_from_gateway_messages_orders_newest_first_gateway_results_chronol
             Some("user-2".to_string()),
             Some("assistant-2".to_string()),
         ]
+    );
+    assert!(chat.iter().all(|message| message.model.as_deref() == Some("provider-a/model-a")));
+}
+
+#[test]
+fn loaded_chat_orders_parent_user_before_assistant_when_timestamps_conflict() {
+    let messages = vec![
+        text_message(
+            assistant_info_at_with_parent("assistant-2", "user-2", 600),
+            "second answer",
+        ),
+        text_message(user_info_at("user-2", 600), "follow up"),
+        text_message(
+            assistant_info_at_with_parent("assistant-1", "user-1", 100),
+            "first answer",
+        ),
+        text_message(user_info_at("user-1", 500), "first question"),
+    ];
+
+    let (chat, message_ids) = loaded_chat_from_gateway_messages(messages);
+
+    assert_eq!(
+        chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+        vec!["first question", "first answer", "follow up", "second answer"]
+    );
+    assert_eq!(
+        message_ids,
+        vec![
+            Some("user-1".to_string()),
+            Some("assistant-1".to_string()),
+            Some("user-2".to_string()),
+            Some("assistant-2".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
+    let mut app = app();
+    app.active_session_id = Some("session-1".to_string());
+    let messages = vec![
+        text_message(
+            assistant_info_at_with_parent("assistant-1", "user-1", 1_000),
+            "answer",
+        ),
+        text_message(user_info_at("user-1", 9_000), "question"),
+    ];
+
+    let _ = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+            "session-1".to_string(),
+            messages,
+            crate::app::models::TokenUsage::default(),
+        ))),
+    );
+
+    assert_eq!(
+        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+        vec!["question", "answer"]
+    );
+    assert_eq!(
+        app.chat_message_ids,
+        vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
     );
 }
 
@@ -244,6 +346,7 @@ fn loaded_chat_from_gateway_messages_splits_tool_parts_into_tool_rows() {
     assert_eq!(chat[0].think_timing[0].end_ms, Some(140));
 
     assert_eq!(chat[1].role, ChatRole::Tool);
+    assert_eq!(chat[1].model, None);
     let payload = tool_payload(&chat[1].content);
     assert_eq!(payload.get("status"), Some(&json!("completed")));
     assert_eq!(payload.get("output"), Some(&json!("2 matches")));
@@ -260,6 +363,66 @@ fn loaded_chat_from_gateway_messages_splits_tool_parts_into_tool_rows() {
             Some("assistant-1".to_string()),
         ]
     );
+}
+
+#[test]
+fn processing_timing_history_split_attaches_assistant_time_to_first_visible_row_only() {
+    let messages = vec![agent_message::WithParts {
+        info: assistant_info("assistant-timed"),
+        parts: vec![
+            agent_message::Part::Tool(agent_message::ToolPart {
+                base: part_base("part-tool-timed", "assistant-timed"),
+                call_id: "call-timed".to_string(),
+                tool: "shell".to_string(),
+                state: agent_message::ToolState::Completed(
+                    agent_message::ToolStateCompleted {
+                        input: Map::new(),
+                        output: "done".to_string(),
+                        title: "run".to_string(),
+                        metadata: Map::new(),
+                        time: agent_message::ToolStateCompletedTime {
+                            start: 12,
+                            end: 18,
+                            compacted: None,
+                        },
+                        attachments: None,
+                    },
+                ),
+                metadata: None,
+            }),
+            agent_message::Part::Text(agent_message::TextPart {
+                base: part_base("part-text-timed", "assistant-timed"),
+                text: "answer".to_string(),
+                synthetic: None,
+                ignored: None,
+                time: None,
+                metadata: None,
+            }),
+        ],
+    }];
+
+    let (chat, _) = loaded_chat_from_gateway_messages(messages);
+
+    assert_eq!(chat.len(), 2);
+    assert_eq!(
+        chat[0].processing_timing,
+        Some(vw_shared::session::ui_types::ProcessingTiming {
+            started_ms: 10,
+            completed_ms: Some(20),
+            processing_elapsed_ms: Some(8),
+            llm_elapsed_ms: None,
+        })
+    );
+    assert_eq!(chat[1].processing_timing, None);
+
+    let mut untimed_info = assistant_info("assistant-untimed");
+    if let agent_message::Info::Assistant(info) = &mut untimed_info {
+        info.time.completed = None;
+    }
+    let (untimed_chat, _) =
+        loaded_chat_from_gateway_messages(vec![text_message(untimed_info, "legacy answer")]);
+    assert_eq!(untimed_chat.len(), 1);
+    assert_eq!(untimed_chat[0].processing_timing, None);
 }
 
 #[test]
@@ -525,6 +688,26 @@ fn session_context_menu_and_rename_state_are_updated_synchronously() {
 }
 
 #[test]
+fn session_tree_toggle_updates_non_persistent_expansion_state() {
+    let mut app = app();
+    assert!(app.session_tree_expanded.is_empty());
+
+    let first = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionTreeToggled("parent".to_string()),
+    );
+    assert!(first.is_some());
+    assert!(app.session_tree_expanded.contains("parent"));
+
+    let second = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionTreeToggled("parent".to_string()),
+    );
+    assert!(second.is_some());
+    assert!(!app.session_tree_expanded.contains("parent"));
+}
+
+#[test]
 fn session_rename_save_ignores_missing_or_empty_title_and_updates_local_titles() {
     let mut app = app();
     app.sessions = vec![session_info("s1", "First", "/tmp/project")];
@@ -568,7 +751,9 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     app.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "old".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     app.chat_message_ids = vec![Some("old".to_string())];
 
@@ -585,6 +770,27 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     assert!(app.chat.is_empty());
     assert!(app.chat_message_ids.is_empty());
     assert_eq!(app.usage, crate::app::models::TokenUsage::default());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_created_sends_pending_summary_prompt_into_new_session() {
+    let mut app = app();
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForSession {
+        prompt: "继续完成剩余任务".to_string(),
+    });
+
+    let task =
+        super::lifecycle::take_quick_message_handoff_task(&mut app, "new-session".to_string());
+    let messages = collect_task_messages(task).await;
+
+    assert!(app.quick_message_handoff.is_none());
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::Chat(crate::app::message::ChatMessage::SendToSession {
+            session_id,
+            input,
+        }) if session_id == "new-session" && input == "继续完成剩余任务"
+    )));
 }
 
 #[test]
@@ -606,6 +812,43 @@ fn session_created_without_project_path_uses_session_directory_bucket() {
 }
 
 #[test]
+fn discovered_child_session_does_not_replace_active_parent() {
+    let mut app = app();
+    let parent = session_info("parent", "Parent", "/tmp/project");
+    let mut child = session_info("child", "Child", "/tmp/project");
+    child.parent_id = Some(parent.id.clone());
+    app.project_path = Some("/tmp/project".to_string());
+    app.active_session_id = Some(parent.id.clone());
+    app.sessions = vec![parent];
+    app.chat.push(crate::app::models::ChatMessage {
+        role: ChatRole::User,
+        content: "parent chat".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    app.chat_message_ids = vec![Some("parent-message".to_string())];
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionCreated(child),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.active_session_id.as_deref(), Some("parent"));
+    assert_eq!(app.chat[0].content, "parent chat");
+    assert_eq!(app.chat_message_ids, vec![Some("parent-message".to_string())]);
+    assert!(app.sessions.iter().any(|session| session.id == "child"));
+    assert!(
+        app.project_sessions
+            .get("/tmp/project")
+            .expect("project session bucket")
+            .iter()
+            .any(|session| session.id == "child")
+    );
+}
+
+#[test]
 fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_tail() {
     let mut app = app();
     app.active_session_id = Some("session-1".to_string());
@@ -614,17 +857,23 @@ fn session_messages_loaded_keeps_reset_local_history_when_gateway_returns_stale_
         crate::app::models::ChatMessage {
             role: ChatRole::User,
             content: "keep".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: ChatRole::User,
             content: "new question".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         crate::app::models::ChatMessage {
             role: ChatRole::Assistant,
             content: "new answer".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
     app.chat_message_ids = vec![
@@ -821,7 +1070,9 @@ fn session_archive_active_without_replacement_clears_active_view() {
     app.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "old".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
 
     let task = super::lifecycle::handle(
@@ -902,7 +1153,9 @@ fn session_delete_active_without_replacement_clears_chat_usage_and_runtime_state
     app.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::Assistant,
         content: "old answer".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     app.usage.output_tokens = 42;
     app.active_session_view_state.updated_ms = 99;
@@ -956,13 +1209,64 @@ fn session_messages_loaded_empty_history_marks_base_ready_without_ui_task() {
 }
 
 #[test]
+fn session_messages_loaded_restores_the_historical_session_model() {
+    let mut app = app();
+    let previous_scroll_id = app.chat_scroll_id.clone();
+    app.model = "provider/current-model".to_string();
+    app.auto_model = false;
+    app.prepare_historical_session_model("session-1");
+    app.active_session_id = Some("session-1".to_string());
+    app.sync_active_session_preferences();
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+            "session-1".to_string(),
+            vec![text_message(assistant_info_with_usage("assistant-history"), "answer")],
+            crate::app::models::TokenUsage::default(),
+        ))),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.model, "provider/current-model");
+    assert!(!app.auto_model);
+    assert_eq!(app.get_session_runtime("session-1").model, "provider-a/model-a");
+    assert_ne!(app.chat_scroll_id, previous_scroll_id);
+}
+
+#[test]
+fn session_messages_loaded_restores_model_without_usage_or_step_parts() {
+    let mut app = app();
+    app.model = "provider/global-model".to_string();
+    app.auto_model = false;
+    app.prepare_historical_session_model("session-1");
+    app.active_session_id = Some("session-1".to_string());
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+            "session-1".to_string(),
+            vec![text_message(assistant_info("assistant-history"), "answer")],
+            crate::app::models::TokenUsage::default(),
+        ))),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.model, "provider/global-model");
+    assert!(!app.auto_model);
+    assert_eq!(app.get_session_runtime("session-1").model, "provider-a/model-a");
+}
+
+#[test]
 fn session_messages_loaded_empty_gateway_history_restores_cached_chat() {
     let mut app = app();
     app.active_session_id = Some("session-1".to_string());
     let cached = vec![crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "cached question".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
     app.store_session_chat_snapshot(
         "session-1".to_string(),
@@ -1013,7 +1317,9 @@ fn session_messages_loaded_error_restores_cached_history_when_available() {
     let cached = vec![crate::app::models::ChatMessage {
         role: ChatRole::Assistant,
         content: "cached answer".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
     app.store_session_chat_snapshot(
         "session-1".to_string(),
@@ -1044,7 +1350,9 @@ fn session_messages_loaded_for_inactive_session_preserves_active_state() {
     app.chat.push(crate::app::models::ChatMessage {
         role: ChatRole::User,
         content: "keep".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     app.usage.input_tokens = 7;
 

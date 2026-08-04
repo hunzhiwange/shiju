@@ -24,7 +24,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use anyhow::{Result, bail};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use super::condition::evaluate_condition;
 use super::load_sops;
@@ -106,7 +106,7 @@ impl SopEngine {
             self.config.sops_dir.as_deref(),
             self.config.default_execution_mode,
         );
-        info!("SOP engine loaded {} SOPs", self.sops.len());
+        debug!("SOP engine loaded {} SOPs", self.sops.len());
     }
 
     /// 获取所有已加载的 SOP 定义

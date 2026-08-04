@@ -1,12 +1,32 @@
-use crate::app::agent::session::processor::StreamEvent;
+use crate::app::agent::session::processor::{
+    StreamEvent, ToolCallStatus, ToolEventKind,
+};
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::{ToolCallError, ToolRuntimeContext, ToolUseContext, todo};
 use crate::app::agent::tools::{ToolCallResult, ToolCallTelemetry, ToolRenderHint};
 use serde_json::{Value, json};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(0);
+
+#[test]
+fn typed_tool_event_keeps_call_id_status_and_sanitized_payload() {
+    let event = super::tool_stream_event(
+        "call-1".to_string(),
+        "shell",
+        super::running_tool_payload("{\"token\":\"[REDACTED]\"}", "shell"),
+    );
+
+    let StreamEvent::Tool(event) = event else {
+        panic!("expected typed tool event");
+    };
+    assert_eq!(event.call_id, "call-1");
+    assert_eq!(event.kind, ToolEventKind::Start);
+    assert_eq!(event.status, ToolCallStatus::Running);
+    assert_eq!(event.payload["input"], "{\"token\":\"[REDACTED]\"}");
+}
 
 struct EnabledTraceSubscriber;
 
@@ -48,11 +68,14 @@ fn new_state() -> super::super::ToolSessionState {
     super::super::ToolSessionState::default()
 }
 
-fn delta_texts(events: &[StreamEvent]) -> Vec<&str> {
+fn delta_texts(events: &[StreamEvent]) -> Vec<String> {
     events
         .iter()
         .filter_map(|event| match event {
-            StreamEvent::Delta(text) => Some(text.as_str()),
+            StreamEvent::Delta(text) => Some(text.clone()),
+            StreamEvent::Tool(event) => {
+                Some(format!("tool {}\n{}\n", event.name, event.payload))
+            }
             _ => None,
         })
         .collect()
@@ -164,11 +187,241 @@ fn completed_tool_payload_for_ui_keeps_structured_patch_content() {
     );
 }
 
+#[test]
+fn agent_tool_running_event_exposes_persistent_child_before_completion() {
+    let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+        parent_session_id: "parent-session".to_string(),
+        child_session_id: "child-session".to_string(),
+        agent: "writer".to_string(),
+        task: "inspect".to_string(),
+    };
+    let payload = super::agent_tool_running_payload(
+        r#"{"action":"launch","agent":"writer","prompt":"inspect"}"#,
+        &created,
+    );
+
+    assert_eq!(payload["status"], "running");
+    assert_eq!(payload["metadata"]["parent_session_id"], "parent-session");
+    assert_eq!(payload["metadata"]["child_session_id"], "child-session");
+    assert_eq!(payload["metadata"]["agent"], "writer");
+    assert_eq!(payload["metadata"]["task"], "inspect");
+
+    let terminal = super::error_tool_payload_with_agent(
+        Some("sanitized input"),
+        "provider unavailable",
+        Some(&created),
+    );
+    assert_eq!(terminal["status"], "error");
+    assert_eq!(terminal["metadata"]["child_session_id"], "child-session");
+}
+
+#[test]
+fn background_agent_launch_preserves_running_lifecycle_in_session_output() {
+    let planned = super::AgentToolPlannedCall::new(
+        "AgentTool",
+        r#"{"action":"launch","agent":"writer","prompt":"inspect"}"#,
+        ctx("parent-session"),
+    );
+    let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+        parent_session_id: "parent-session".to_string(),
+        child_session_id: "child-session".to_string(),
+        agent: "writer".to_string(),
+        task: "inspect".to_string(),
+    };
+    let result = ToolCallResult::from_legacy_result(crate::app::agent::tools::ToolResult {
+        success: true,
+        output: serde_json::json!({
+            "action": "launch",
+            "state": "running",
+            "parent_session_id": "parent-session",
+            "child_session_id": "child-session",
+            "agent": "writer",
+            "task": "inspect",
+        })
+        .to_string(),
+        error: None,
+    });
+
+    let computed = super::compute_agent_tool_result(
+        &planned,
+        super::ToolExecutionWithAgentLifecycle { result: Ok(result), created: Some(created) },
+    );
+    let ui_payload = computed.ui_payload.clone();
+    let session_payload: Value = serde_json::from_str(
+        computed.session_message.strip_prefix("tool AgentTool\n").expect("tool prefix").trim(),
+    )
+    .expect("session payload");
+
+    assert_eq!(ui_payload["status"], "running");
+    assert_eq!(session_payload["status"], "running");
+    assert_eq!(ui_payload["metadata"]["child_session_id"], "child-session");
+    assert_eq!(session_payload["metadata"]["child_session_id"], "child-session");
+}
+
+#[test]
+fn agent_tool_lifecycle_status_covers_wait_failure_and_cancellation() {
+    for (output, expected) in [
+        (r#"{"action":"status","tasks":[{"state":"running"}]}"#, "running"),
+        (r#"{"action":"wait","timed_out":true,"tasks":[{"state":"running"}]}"#, "waiting"),
+        (r#"{"action":"wait","tasks":[{"state":"failed"}]}"#, "failed"),
+        (r#"{"action":"stop","tasks":[{"state":"cancelled"}]}"#, "cancelled"),
+        (r#"{"action":"wait","tasks":[{"state":"succeeded"}]}"#, "completed"),
+    ] {
+        assert_eq!(super::agent_tool_lifecycle_status(output), expected, "{output}");
+    }
+}
+
+#[test]
+fn successful_child_creation_satisfies_agent_tool_requirement() {
+    let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+        parent_session_id: "parent-session".to_string(),
+        child_session_id: "child-session".to_string(),
+        agent: "writer".to_string(),
+        task: "inspect".to_string(),
+    };
+    let mut state = new_state();
+
+    super::track_background_agent_child(
+        &mut state,
+        r#"{"action":"launch","agent":"writer","prompt":"inspect"}"#,
+        &created,
+    );
+
+    assert_eq!(state.agent_background_children, vec!["child-session"]);
+    assert_eq!(state.successful_agent_delegations, 1);
+}
+
+#[test]
+fn agent_tool_management_actions_do_not_satisfy_agent_tool_requirement() {
+    let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+        parent_session_id: "parent-session".to_string(),
+        child_session_id: "child-session".to_string(),
+        agent: "writer".to_string(),
+        task: "inspect".to_string(),
+    };
+    let failed_state = new_state();
+    assert_eq!(failed_state.successful_agent_delegations, 0);
+
+    for action in ["status", "wait", "stop"] {
+        let mut state = new_state();
+        super::track_background_agent_child(
+            &mut state,
+            &format!(r#"{{"action":"{action}","task_ids":["child-session"]}}"#),
+            &created,
+        );
+        assert!(state.agent_background_children.is_empty(), "{action}");
+        assert_eq!(state.successful_agent_delegations, 0, "{action}");
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn three_agent_tool_executions_start_in_parallel_and_keep_result_order() {
+    let active = Arc::new(AtomicUsize::new(0));
+    let max_active = Arc::new(AtomicUsize::new(0));
+    let planned = (0..3)
+        .map(|index| {
+            super::AgentToolPlannedCall::new(
+                "AgentTool",
+                format!(r#"{{"agent":"worker","prompt":"task-{index}"}}"#),
+                ctx(&format!("parent-{index}")),
+            )
+        })
+        .collect::<Vec<_>>();
+    let created = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let created_events = Arc::clone(&created);
+
+    let outcomes = super::execute_agent_tools_parallel_with(
+        &planned,
+        4,
+        &mut move |index, child| {
+            created_events
+                .lock()
+                .expect("created event lock should not be poisoned")
+                .push((index, child.child_session_id));
+        },
+        &|_name, input, runtime_ctx, callback| {
+            let now_active = active.fetch_add(1, Ordering::SeqCst) + 1;
+            max_active.fetch_max(now_active, Ordering::SeqCst);
+            let prompt = serde_json::from_str::<Value>(input).expect("valid input")["prompt"]
+                .as_str()
+                .expect("prompt")
+                .to_string();
+            callback(crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+                parent_session_id: runtime_ctx.session.clone(),
+                child_session_id: format!("child-{prompt}"),
+                agent: "worker".to_string(),
+                task: prompt.clone(),
+            });
+            std::thread::sleep(std::time::Duration::from_millis(80));
+            active.fetch_sub(1, Ordering::SeqCst);
+            Ok(ToolCallResult {
+                data: json!({ "output": format!("done-{prompt}") }),
+                ..ToolCallResult::default()
+            })
+        },
+    );
+
+    assert_eq!(max_active.load(Ordering::SeqCst), 3);
+    assert_eq!(outcomes.len(), 3);
+    assert_eq!(
+        outcomes
+            .iter()
+            .map(|outcome| outcome.result.as_ref().expect("success").data["output"].as_str())
+            .collect::<Vec<_>>(),
+        vec![Some("done-task-0"), Some("done-task-1"), Some("done-task-2")]
+    );
+    assert_eq!(created.lock().expect("created lock").len(), 3);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn configured_agent_tool_limit_caps_parallel_execution() {
+    let active = Arc::new(AtomicUsize::new(0));
+    let max_active = Arc::new(AtomicUsize::new(0));
+    let planned = (0..5)
+        .map(|index| {
+            super::AgentToolPlannedCall::new(
+                "AgentTool",
+                format!(r#"{{"prompt":"task-{index}"}}"#),
+                ctx(&format!("parent-{index}")),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let outcomes = super::execute_agent_tools_parallel_with(
+        &planned,
+        2,
+        &mut |_, _| {},
+        &|_name, input, _runtime_ctx, _callback| {
+            let now_active = active.fetch_add(1, Ordering::SeqCst) + 1;
+            max_active.fetch_max(now_active, Ordering::SeqCst);
+            let prompt = serde_json::from_str::<Value>(input).expect("valid input")["prompt"]
+                .as_str()
+                .expect("prompt")
+                .to_string();
+            std::thread::sleep(std::time::Duration::from_millis(40));
+            active.fetch_sub(1, Ordering::SeqCst);
+            Ok(ToolCallResult { data: json!({ "output": prompt }), ..ToolCallResult::default() })
+        },
+    );
+
+    assert_eq!(max_active.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        outcomes
+            .iter()
+            .map(|outcome| outcome.result.as_ref().expect("success").data["output"].as_str())
+            .collect::<Vec<_>>(),
+        vec![Some("task-0"), Some("task-1"), Some("task-2"), Some("task-3"), Some("task-4"),]
+    );
+}
+
 fn computed_success(tool: &str, output: Option<&str>) -> super::BatchComputed {
     super::BatchComputed {
+        call_id: format!("call-{tool}"),
         tool: tool.to_string(),
         input_sanitized: "{}".to_string(),
-        ui_message: format!("tool {tool}\n{{}}\n"),
+        ui_payload: json!({}),
         session_message: format!("tool {tool}\n{{}}\n"),
         is_non_todo: true,
         success: true,
@@ -179,9 +432,10 @@ fn computed_success(tool: &str, output: Option<&str>) -> super::BatchComputed {
 
 fn computed_error(tool: &str, error: Option<&str>) -> super::BatchComputed {
     super::BatchComputed {
+        call_id: format!("call-{tool}"),
         tool: tool.to_string(),
         input_sanitized: "{}".to_string(),
-        ui_message: format!("tool {tool}\n{{}}\n"),
+        ui_payload: json!({}),
         session_message: format!("tool {tool}\n{{}}\n"),
         is_non_todo: true,
         success: false,
@@ -198,8 +452,8 @@ fn batch_join_error_computed_formats_error_payload_for_ui_session_and_model() {
     assert!(!computed.success);
     assert!(!computed.is_non_todo);
     assert!(computed.input_sanitized.is_empty());
-    assert!(computed.ui_message.contains("\"status\":\"error\""));
-    assert!(computed.ui_message.contains("\"input\":\"\""));
+    assert_eq!(computed.ui_payload["status"], "error");
+    assert_eq!(computed.ui_payload["input"], "");
     assert!(computed.session_message.contains("\"status\":\"error\""));
     assert_eq!(
         computed.error_for_model.as_deref(),
@@ -1148,4 +1402,89 @@ async fn run_batch_tool_and_record_uses_existing_tokio_runtime_for_parallel_call
     assert!(output.contains("全部 2 个工具均执行成功"));
     assert_eq!(session.messages.len(), 2);
     assert_eq!(state.non_todo_tool_runs, 0);
+}
+
+#[test]
+fn agent_tool_finalization_tracks_only_background_launches() {
+    let mut state = new_state();
+    let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
+        parent_session_id: "parent".to_string(),
+        child_session_id: "child-launch".to_string(),
+        agent: "researcher".to_string(),
+        task: "search".to_string(),
+    };
+
+    super::track_background_agent_child(
+        &mut state,
+        r#"{"action":"launch","agent":"researcher","prompt":"search"}"#,
+        &created,
+    );
+    super::track_background_agent_child(
+        &mut state,
+        r#"{"action":"spawn","agent":"researcher","prompt":"search"}"#,
+        &created,
+    );
+    let mut sync_created = created.clone();
+    sync_created.child_session_id = "child-run".to_string();
+    super::track_background_agent_child(
+        &mut state,
+        r#"{"action":"run","agent":"researcher","prompt":"search"}"#,
+        &sync_created,
+    );
+
+    assert_eq!(state.agent_background_children, vec!["child-launch"]);
+    assert!(!super::agent_tool_launches_background(
+        r#"{"action":"wait","child_session_id":"child-launch"}"#
+    ));
+}
+
+#[test]
+fn agent_tool_finalization_emits_terminal_payloads_before_done() {
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    coordinator
+        .register("parent", "child", "researcher", "collect evidence")
+        .expect("child should register");
+    coordinator.mark_running("parent", "child").expect("child should start");
+
+    let finishing = coordinator.clone();
+    let worker = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        finishing
+            .mark_succeeded("parent", "child", "findings with source")
+            .expect("child should finish");
+    });
+
+    let mut session = Session::new("parent".to_string());
+    let mut events = Vec::new();
+    assert!(super::finalize_agent_tool_children_with(
+        &coordinator,
+        "parent",
+        &mut session,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &["child".to_string()],
+    ));
+    events.push(StreamEvent::Done(Default::default()));
+    worker.join().expect("worker should join");
+
+    let texts = events
+        .iter()
+        .map(|event| match event {
+            StreamEvent::Delta(text) => format!("delta:{text}"),
+            StreamEvent::Tool(event) => {
+                format!("delta:tool {}\n{}\n", event.name, event.payload)
+            }
+            StreamEvent::Done(_) => "done".to_string(),
+            _ => "other".to_string(),
+        })
+        .collect::<Vec<_>>();
+    assert!(texts[0].contains(r#""status":"completed""#));
+    assert!(texts[0].contains(r#""child_session_id":"child""#));
+    assert!(texts[0].contains("findings with source"));
+    assert_eq!(texts.last().map(String::as_str), Some("done"));
+    assert_eq!(session.messages.len(), 1);
+    assert_eq!(session.messages[0].role, Role::Tool);
+    assert!(session.messages[0].content.contains(r#""status":"completed""#));
 }

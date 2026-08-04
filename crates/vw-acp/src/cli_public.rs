@@ -142,7 +142,7 @@ pub fn build_public_cli_plan(
 
 pub fn resolve_dynamic_agent_command(
     scan: &AgentTokenScan,
-    _agent_commands: &[String],
+    agent_commands: &[String],
     top_level_verbs: &HashSet<String>,
 ) -> Option<String> {
     if scan.has_agent_override {
@@ -150,7 +150,7 @@ pub fn resolve_dynamic_agent_command(
     }
 
     let token = scan.token.as_deref()?;
-    if top_level_verbs.contains(token) {
+    if top_level_verbs.contains(token) || agent_commands.iter().any(|agent| agent == token) {
         return None;
     }
     Some(token.to_string())

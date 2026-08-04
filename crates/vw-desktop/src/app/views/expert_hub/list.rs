@@ -1,0 +1,659 @@
+use super::styles;
+use crate::app::components::system_settings_common::{
+    settings_pick_list_menu_style, settings_pick_list_style,
+};
+use crate::app::message::{AccountMessage, SkillHubMessage};
+use crate::app::skill_hub::{
+    InstalledSkill, LoadState, MarketplaceSkill, Page, SkillTab, SkillVersionAction,
+    SkillVersionDirection, SystemSkill, TenantSkill,
+};
+use crate::app::{App, Message};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{
+    Space, button, column, container, pick_list, responsive, row, scrollable, text, text_input,
+};
+use iced::{Alignment, Background, Border, Color, Element, Font, Length, Theme};
+use std::collections::BTreeMap;
+use std::fmt;
+
+pub(super) const SCROLLBAR_WIDTH: u32 = 4;
+pub(super) const SCROLLBAR_GUTTER: u32 = 12;
+const DESCRIPTION_PREVIEW_CHARS: usize = 72;
+const MIN_CARD_WIDTH: f32 = 300.0;
+const CARD_GAP: f32 = 12.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TagFilterOption {
+    id: Option<u64>,
+    label: String,
+}
+
+impl fmt::Display for TagFilterOption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.label)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StatusFilterOption {
+    value: Option<&'static str>,
+    label: &'static str,
+}
+
+impl fmt::Display for StatusFilterOption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.label)
+    }
+}
+
+const COMPANY_STATUS_OPTIONS: [StatusFilterOption; 5] = [
+    StatusFilterOption { value: None, label: "全部状态" },
+    StatusFilterOption { value: Some("draft"), label: "草稿" },
+    StatusFilterOption { value: Some("pending_review"), label: "待审核" },
+    StatusFilterOption { value: Some("published"), label: "已发布" },
+    StatusFilterOption { value: Some("unpublished"), label: "已下架" },
+];
+
+pub(super) fn market_search_messages(value: String) -> (Message, Message) {
+    (
+        Message::SkillHub(SkillHubMessage::SearchDraftChanged(value)),
+        Message::SkillHub(SkillHubMessage::SearchSubmitted),
+    )
+}
+
+pub(super) fn pagination_messages<T>(page: &Page<T>) -> (Option<Message>, Option<Message>) {
+    let previous = (page.page > 1).then_some(Message::SkillHub(SkillHubMessage::PreviousPage));
+    let next = (u64::from(page.page).saturating_mul(u64::from(page.page_size)) < page.total)
+        .then_some(Message::SkillHub(SkillHubMessage::NextPage));
+    (previous, next)
+}
+
+pub(super) fn access_action_message() -> Message {
+    Message::Account(AccountMessage::StartBrowserLogin)
+}
+
+pub(super) fn detail_action_message(skill_id: u64) -> Message {
+    Message::SkillHub(SkillHubMessage::OpenSkillDetail(skill_id))
+}
+
+pub(super) fn install_action_message(skill_id: u64, installed: bool) -> Message {
+    Message::SkillHub(if installed {
+        SkillHubMessage::UninstallSkill(skill_id)
+    } else {
+        SkillHubMessage::InstallSkill(skill_id)
+    })
+}
+
+pub(super) fn marketplace_quick_upgrade_action(
+    skill: &MarketplaceSkill,
+    installed: &[InstalledSkill],
+) -> Option<SkillVersionAction> {
+    let installed =
+        installed.iter().find(|item| item.skill_id == skill.id && item.upgrade_available)?;
+    Some(SkillVersionAction {
+        skill_id: skill.id,
+        version_id: skill.current_version_id,
+        target_version: installed.current_version.clone(),
+        direction: SkillVersionDirection::Upgrade,
+    })
+}
+
+pub(super) fn installed_quick_upgrade_message(skill: &InstalledSkill) -> Option<Message> {
+    skill
+        .upgrade_available
+        .then_some(Message::SkillHub(SkillHubMessage::UpgradeSkill(skill.skill_id)))
+}
+
+pub(super) fn description_preview(description: &str) -> String {
+    let mut chars = description.chars();
+    let preview = chars.by_ref().take(DESCRIPTION_PREVIEW_CHARS).collect::<String>();
+    if chars.next().is_some() { format!("{preview}…") } else { preview }
+}
+
+pub(super) fn description_tooltip(description: String) -> Element<'static, Message> {
+    container(text(description).size(12).width(Length::Fixed(320.0)))
+        .padding([8, 10])
+        .style(|_theme: &Theme| container::Style {
+            text_color: Some(Color::WHITE),
+            background: Some(Background::Color(Color::from_rgba8(18, 18, 20, 0.96))),
+            border: Border { radius: 8.0.into(), ..Default::default() },
+            ..Default::default()
+        })
+        .into()
+}
+
+fn tab_button(label: &'static str, tab: SkillTab, selected: bool) -> Element<'static, Message> {
+    button(text(label).size(14))
+        .on_press(Message::SkillHub(SkillHubMessage::SelectSkillTab(tab)))
+        .padding([8, 12])
+        .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
+        .into()
+}
+
+pub(super) fn skill_tab_specs() -> &'static [(&'static str, SkillTab)] {
+    &[
+        ("技能市场", SkillTab::Marketplace),
+        ("已安装技能", SkillTab::Installed),
+        ("系统技能", SkillTab::System),
+        ("公司技能", SkillTab::Company),
+        ("我的技能", SkillTab::Mine),
+        ("安装识矩技能", SkillTab::Install),
+    ]
+}
+
+fn tag_summary(tags: &[crate::app::skill_hub::SkillTag]) -> String {
+    if tags.is_empty() {
+        String::new()
+    } else {
+        tags.iter().map(|tag| tag.name.as_str()).collect::<Vec<_>>().join(" · ")
+    }
+}
+
+fn skill_card(
+    skill_id: u64,
+    name: String,
+    description: String,
+    metadata: Vec<String>,
+    tags: String,
+    actions: Vec<(&'static str, Message, bool)>,
+) -> Element<'static, Message> {
+    let preview = description_preview(&description);
+    let description_view = Tooltip::new(
+        container(text(preview).size(13).width(Length::Fill))
+            .width(Length::Fill)
+            .height(Length::Fixed(42.0)),
+        description_tooltip(description),
+        TooltipPosition::Top,
+    )
+    .gap(8);
+    let initial = name.chars().next().unwrap_or('技').to_string();
+    let badge = container(
+        text(initial).size(15).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+    )
+    .width(Length::Fixed(38.0))
+    .height(Length::Fixed(38.0))
+    .center_x(Length::Fixed(38.0))
+    .center_y(Length::Fixed(38.0))
+    .style(styles::skill_badge_style);
+    let title = text(name)
+        .size(16)
+        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
+        .width(Length::Fill);
+    let detail_button = button(text("详情").size(12))
+        .padding([6, 10])
+        .style(styles::quiet_button_style)
+        .on_press(detail_action_message(skill_id));
+    let mut action_row = row![detail_button].spacing(6).align_y(Alignment::Center);
+    for (label, message, pending) in actions {
+        let mut action_button = button(text(if pending { "处理中…" } else { label }).size(12))
+            .padding([6, 10])
+            .style(styles::quiet_button_style);
+        if !pending {
+            action_button = action_button.on_press(message);
+        }
+        action_row = action_row.push(action_button);
+    }
+    let actions: Element<'static, Message> = action_row.into();
+    let metadata = description_preview(&metadata.join(" · "));
+    let mut content = column![
+        row![badge, title, actions].spacing(10).align_y(Alignment::Center),
+        description_view,
+        text(metadata).size(11).style(styles::muted_text_style),
+    ]
+    .spacing(9);
+    if !tags.is_empty() {
+        content = content.push(
+            text(format!("标签  {}", description_preview(&tags)))
+                .size(11)
+                .style(styles::muted_text_style),
+        );
+    }
+    let card = container(content)
+        .padding(16)
+        .width(Length::Fill)
+        .height(Length::Fixed(178.0))
+        .style(styles::card_style);
+    card.into()
+}
+
+fn marketplace_card(
+    skill: &MarketplaceSkill,
+    installed: &[InstalledSkill],
+    pending_skill_id: Option<u64>,
+) -> Element<'static, Message> {
+    let action = marketplace_quick_upgrade_action(skill, installed).map_or_else(
+        || {
+            (
+                if skill.is_installed { "卸载" } else { "安装" },
+                install_action_message(skill.id, skill.is_installed),
+            )
+        },
+        |target| ("升级", Message::SkillHub(SkillHubMessage::ChangeSkillVersion(target))),
+    );
+    skill_card(
+        skill.id,
+        skill.name.clone(),
+        skill.description.clone(),
+        vec![format!("{} · {}", skill.slug, skill.format), format!("状态：{}", skill.status)],
+        tag_summary(&skill.tags),
+        vec![(action.0, action.1, pending_skill_id == Some(skill.id))],
+    )
+}
+
+fn installed_card(
+    skill: &InstalledSkill,
+    pending_skill_id: Option<u64>,
+) -> Element<'static, Message> {
+    let upgrade = if skill.upgrade_available { " · 可升级" } else { "" };
+    let mut actions = Vec::with_capacity(2);
+    if let Some(message) = installed_quick_upgrade_message(skill) {
+        actions.push(("升级", message, pending_skill_id == Some(skill.skill_id)));
+    }
+    actions.push((
+        "卸载",
+        install_action_message(skill.skill_id, true),
+        pending_skill_id == Some(skill.skill_id),
+    ));
+    skill_card(
+        skill.skill_id,
+        skill.name.clone(),
+        skill.description.clone(),
+        vec![
+            format!("{} · {}", skill.slug, skill.format),
+            format!("已安装 {} · 当前 {}{upgrade}", skill.installed_version, skill.current_version),
+        ],
+        String::new(),
+        actions,
+    )
+}
+
+fn system_card(skill: &SystemSkill) -> Element<'static, Message> {
+    skill_card(
+        skill.id,
+        skill.name.clone(),
+        skill.description.clone(),
+        vec![format!("slug：{}", skill.slug)],
+        tag_summary(&skill.tags),
+        Vec::new(),
+    )
+}
+
+fn tenant_card(skill: &TenantSkill) -> Element<'static, Message> {
+    let review = if skill.has_pending_review { " · 待审核" } else { "" };
+    skill_card(
+        skill.id,
+        skill.name.clone(),
+        skill.description.clone(),
+        vec![format!("slug：{}", skill.slug), format!("状态：{}{review}", skill.status)],
+        tag_summary(&skill.tags),
+        Vec::new(),
+    )
+}
+
+fn loading_view() -> Element<'static, Message> {
+    let skeleton = || {
+        container(Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(92.0))
+            .style(styles::card_style)
+    };
+    column![skeleton(), skeleton(), skeleton()].spacing(12).into()
+}
+
+fn empty_view(label: &'static str) -> Element<'static, Message> {
+    container(text(label).size(15))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .into()
+}
+
+fn error_view(error: &str) -> Element<'static, Message> {
+    container(
+        column![
+            text("加载失败").size(17),
+            text(error.to_string()).size(13),
+            button(text("重试"))
+                .on_press(Message::SkillHub(SkillHubMessage::Retry))
+                .padding([8, 14])
+                .style(styles::action_button_style),
+        ]
+        .align_x(iced::Alignment::Center)
+        .spacing(10),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .center_x(Length::Fill)
+    .center_y(Length::Fill)
+    .into()
+}
+
+fn needs_login_view() -> Element<'static, Message> {
+    container(
+        column![
+            text("登录识矩账户后浏览技能").size(17),
+            button(text("登录识矩"))
+                .on_press(access_action_message())
+                .padding([8, 14])
+                .style(styles::action_button_style),
+        ]
+        .align_x(iced::Alignment::Center)
+        .spacing(10),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .center_x(Length::Fill)
+    .center_y(Length::Fill)
+    .into()
+}
+
+fn pagination<T>(page: &Page<T>) -> Element<'static, Message> {
+    let (previous, next) = pagination_messages(page);
+    let mut previous_button =
+        button(text("上一页")).padding([7, 12]).style(styles::action_button_style);
+    if let Some(message) = previous {
+        previous_button = previous_button.on_press(message);
+    }
+    let mut next_button =
+        button(text("下一页")).padding([7, 12]).style(styles::action_button_style);
+    if let Some(message) = next {
+        next_button = next_button.on_press(message);
+    }
+    row![previous_button, text(format!("第 {} 页", page.page)).size(13), next_button,]
+        .align_y(iced::Alignment::Center)
+        .spacing(10)
+        .into()
+}
+
+fn scrolling(content: Element<'static, Message>) -> Element<'static, Message> {
+    scrollable(content)
+        .direction(Direction::Vertical(
+            Scrollbar::new()
+                .width(SCROLLBAR_WIDTH)
+                .scroller_width(SCROLLBAR_WIDTH)
+                .spacing(SCROLLBAR_GUTTER - SCROLLBAR_WIDTH),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+pub(super) fn grid_column_count(width: f32) -> usize {
+    (((width + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)).floor() as usize).max(1)
+}
+
+fn card_grid<T, F>(items: Vec<T>, card: F) -> Element<'static, Message>
+where
+    T: 'static,
+    F: Fn(&T) -> Element<'static, Message> + 'static,
+{
+    responsive(move |size| {
+        let columns = grid_column_count(size.width);
+        let mut grid = column![].spacing(CARD_GAP);
+        for chunk in items.chunks(columns) {
+            let mut cards = row![].spacing(CARD_GAP);
+            for item in chunk {
+                cards = cards.push(card(item));
+            }
+            for _ in chunk.len()..columns {
+                cards = cards.push(Space::new().width(Length::FillPortion(1)));
+            }
+            grid = grid.push(cards);
+        }
+        scrolling(grid.into())
+    })
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
+}
+
+fn marketplace_content(app: &App) -> Element<'static, Message> {
+    match &app.expert_hub.marketplace {
+        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
+        LoadState::NeedsLogin => needs_login_view(),
+        LoadState::Error(error) => error_view(error),
+        LoadState::Loaded(page) if page.items.is_empty() => empty_view("未找到匹配的技能"),
+        LoadState::Loaded(page) => {
+            let pending = app
+                .expert_hub
+                .action
+                .as_ref()
+                .map(|action| action.skill_id)
+                .or_else(|| {
+                    app.expert_hub
+                        .version_confirmation
+                        .as_ref()
+                        .map(|action| action.skill_id)
+                });
+            let installed = match &app.expert_hub.installed {
+                LoadState::Loaded(items) => items.clone(),
+                _ => Vec::new(),
+            };
+            card_grid(page.items.clone(), move |skill| marketplace_card(skill, &installed, pending))
+        }
+    }
+}
+
+fn installed_content(app: &App) -> Element<'static, Message> {
+    match &app.expert_hub.installed {
+        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
+        LoadState::NeedsLogin => needs_login_view(),
+        LoadState::Error(error) => error_view(error),
+        LoadState::Loaded(items) if items.is_empty() => empty_view("尚未安装技能"),
+        LoadState::Loaded(items) => {
+            let pending = app
+                .expert_hub
+                .action
+                .as_ref()
+                .map(|action| action.skill_id)
+                .or_else(|| {
+                    app.expert_hub
+                        .version_confirmation
+                        .as_ref()
+                        .map(|action| action.skill_id)
+                });
+            card_grid(items.clone(), move |skill| installed_card(skill, pending))
+        }
+    }
+}
+
+fn system_content(app: &App) -> Element<'static, Message> {
+    page_content(&app.expert_hub.system, "暂无系统技能", system_card)
+}
+
+fn tenant_content(
+    state: &LoadState<Page<TenantSkill>>,
+    empty_label: &'static str,
+) -> Element<'static, Message> {
+    page_content(state, empty_label, tenant_card)
+}
+
+fn page_content<T: Clone + 'static>(
+    state: &LoadState<Page<T>>,
+    empty_label: &'static str,
+    card: fn(&T) -> Element<'static, Message>,
+) -> Element<'static, Message> {
+    match state {
+        LoadState::Idle | LoadState::Loading { .. } => loading_view(),
+        LoadState::NeedsLogin => needs_login_view(),
+        LoadState::Error(error) => error_view(error),
+        LoadState::Loaded(page) if page.items.is_empty() => empty_view(empty_label),
+        LoadState::Loaded(page) => {
+            column![card_grid(page.items.clone(), card), pagination(page),].spacing(10).into()
+        }
+    }
+}
+
+fn tag_filter_options<'a>(
+    tags: impl Iterator<Item = &'a crate::app::skill_hub::SkillTag>,
+    selected_id: Option<u64>,
+) -> Vec<TagFilterOption> {
+    let mut labels = BTreeMap::new();
+    for tag in tags {
+        labels.entry(tag.id).or_insert_with(|| tag.name.clone());
+    }
+    if let Some(selected_id) = selected_id {
+        labels.entry(selected_id).or_insert_with(|| format!("标签 {selected_id}"));
+    }
+    std::iter::once(TagFilterOption { id: None, label: "全部标签".to_string() })
+        .chain(labels.into_iter().map(|(id, label)| TagFilterOption { id: Some(id), label }))
+        .collect()
+}
+
+fn current_tag_options(app: &App, selected_id: Option<u64>) -> Vec<TagFilterOption> {
+    match app.expert_hub.skill_tab {
+        SkillTab::System => match &app.expert_hub.system {
+            LoadState::Loaded(page) => tag_filter_options(
+                page.items.iter().flat_map(|skill| skill.tags.iter()),
+                selected_id,
+            ),
+            _ => tag_filter_options(std::iter::empty(), selected_id),
+        },
+        SkillTab::Company => match &app.expert_hub.company {
+            LoadState::Loaded(page) => tag_filter_options(
+                page.items.iter().flat_map(|skill| skill.tags.iter()),
+                selected_id,
+            ),
+            _ => tag_filter_options(std::iter::empty(), selected_id),
+        },
+        SkillTab::Mine => match &app.expert_hub.mine {
+            LoadState::Loaded(page) => tag_filter_options(
+                page.items.iter().flat_map(|skill| skill.tags.iter()),
+                selected_id,
+            ),
+            _ => tag_filter_options(std::iter::empty(), selected_id),
+        },
+        SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {
+            tag_filter_options(std::iter::empty(), selected_id)
+        }
+    }
+}
+
+fn list_search_input<'a>(value: &'a str) -> iced::widget::TextInput<'a, Message> {
+    text_input("搜索技能名称或描述", value)
+        .on_input(|value| Message::SkillHub(SkillHubMessage::FilterKeywordChanged(value)))
+        .on_submit(Message::SkillHub(SkillHubMessage::FiltersSubmitted))
+        .padding([10, 14])
+        .style(styles::search_input_style)
+        .width(Length::Fixed(360.0))
+}
+
+fn filter_buttons() -> Element<'static, Message> {
+    row![
+        button(text("搜索").size(12))
+            .on_press(Message::SkillHub(SkillHubMessage::FiltersSubmitted))
+            .padding([9, 16])
+            .style(styles::action_button_style),
+        button(text("重置").size(12))
+            .on_press(Message::SkillHub(SkillHubMessage::FiltersReset))
+            .padding([9, 16])
+            .style(styles::quiet_button_style),
+    ]
+    .spacing(8)
+    .into()
+}
+
+fn search_controls(app: &App) -> Element<'_, Message> {
+    match app.expert_hub.skill_tab {
+        SkillTab::Marketplace => {
+            let (_, submitted) = market_search_messages(app.expert_hub.search_draft.clone());
+            row![
+                text_input("搜索技能名称或描述", &app.expert_hub.search_draft)
+                    .on_input(|value| market_search_messages(value).0)
+                    .on_submit(submitted)
+                    .padding([10, 14])
+                    .style(styles::search_input_style)
+                    .width(Length::Fixed(360.0)),
+                button(text("搜索").size(12))
+                    .on_press(Message::SkillHub(SkillHubMessage::SearchSubmitted))
+                    .padding([9, 16])
+                    .style(styles::action_button_style),
+                button(text("重置").size(12))
+                    .on_press(Message::SkillHub(SkillHubMessage::FiltersReset))
+                    .padding([9, 16])
+                    .style(styles::quiet_button_style),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap()
+            .into()
+        }
+        SkillTab::Installed | SkillTab::Install => Space::new().height(Length::Shrink).into(),
+        SkillTab::System | SkillTab::Company | SkillTab::Mine => {
+            let filter = match app.expert_hub.skill_tab {
+                SkillTab::System => &app.expert_hub.system_filter,
+                SkillTab::Company => &app.expert_hub.company_filter,
+                SkillTab::Mine => &app.expert_hub.mine_filter,
+                SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => unreachable!(),
+            };
+            let options = current_tag_options(app, filter.tag_id_draft);
+            let selected = options.iter().find(|option| option.id == filter.tag_id_draft).cloned();
+            let tag_picker = pick_list(options, selected, |option| {
+                Message::SkillHub(SkillHubMessage::FilterTagChanged(option.id))
+            })
+            .placeholder("全部标签")
+            .padding([9, 12])
+            .text_size(13)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fixed(150.0));
+            let mut controls = row![list_search_input(&filter.keyword_draft), tag_picker]
+                .spacing(8)
+                .align_y(Alignment::Center);
+            if app.expert_hub.skill_tab == SkillTab::Company {
+                let selected_status = COMPANY_STATUS_OPTIONS
+                    .iter()
+                    .copied()
+                    .find(|option| option.value == app.expert_hub.company_status_draft.as_deref());
+                controls = controls.push(
+                    pick_list(COMPANY_STATUS_OPTIONS, selected_status, |option| {
+                        Message::SkillHub(SkillHubMessage::CompanyStatusChanged(
+                            option.value.map(str::to_string),
+                        ))
+                    })
+                    .padding([9, 12])
+                    .text_size(13)
+                    .style(settings_pick_list_style)
+                    .menu_style(settings_pick_list_menu_style)
+                    .width(Length::Fixed(140.0)),
+                );
+            }
+            controls.push(filter_buttons()).wrap().into()
+        }
+    }
+}
+
+pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let tabs = row(skill_tab_specs()
+        .iter()
+        .map(|(label, tab)| tab_button(label, *tab, app.expert_hub.skill_tab == *tab))
+        .collect::<Vec<_>>())
+    .spacing(6)
+    .wrap();
+
+    let search_controls = search_controls(app);
+
+    let content = match app.expert_hub.skill_tab {
+        SkillTab::Marketplace => marketplace_content(app),
+        SkillTab::Installed => installed_content(app),
+        SkillTab::System => system_content(app),
+        SkillTab::Company => tenant_content(&app.expert_hub.company, "暂无公司技能"),
+        SkillTab::Mine => tenant_content(&app.expert_hub.mine, "暂无我的技能"),
+        SkillTab::Install => super::install_guide::view(app),
+    };
+
+    column![
+        text("识矩技能")
+            .size(24)
+            .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+        text("发现、安装和管理识矩技能").size(13).style(styles::muted_text_style),
+        tabs,
+        search_controls,
+        content,
+    ]
+    .spacing(14)
+    .height(Length::Fill)
+    .into()
+}

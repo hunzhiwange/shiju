@@ -1,5 +1,102 @@
 use super::*;
 
+/// 项目工作区的界面呈现模式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkspaceMode {
+    /// 完整代码工作区。
+    #[default]
+    Code,
+    /// 聚焦会话的简洁工作区。
+    Work,
+}
+
+/// 工作模式右侧资源区的呈现模式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkResourceMode {
+    /// 展示当前项目与会话摘要。
+    #[default]
+    Overview,
+    /// 展示当前项目的工作空间文件。
+    WorkspaceFiles,
+    /// 展示内置浏览器承载面。
+    Browser,
+}
+
+/// 工作模式左栏的项目范围过滤。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkSidebarFilterScope {
+    /// 显示所有最近项目中的会话。
+    #[default]
+    All,
+    /// 只显示当前打开项目中的会话。
+    CurrentProject,
+}
+
+/// 工作模式左栏的会话运行状态过滤。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkSidebarFilterStatus {
+    /// 不限制运行状态。
+    #[default]
+    All,
+    /// 当前正在处理请求。
+    InProgress,
+    /// 没有运行中请求和待处理队列。
+    Completed,
+    /// 当前未运行、但队列中仍有待处理请求。
+    Pending,
+}
+
+/// 工作模式左栏的更新时间过滤。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkSidebarFilterTime {
+    /// 不限制更新时间。
+    #[default]
+    All,
+    /// 最近 24 小时内更新。
+    LastDay,
+    /// 最近 7 天内更新。
+    LastSevenDays,
+    /// 最近 30 天内更新。
+    LastThirtyDays,
+}
+
+pub const WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS: usize = 10;
+pub const WORK_SIDEBAR_LOAD_MORE_STEP: usize = 5;
+
+/// 工作模式左栏当前展示的列表。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WorkSidebarTab {
+    /// 最近任务。
+    #[default]
+    Tasks,
+    /// 最近空间。
+    Spaces,
+}
+
+impl WorkspaceMode {
+    /// 返回持久化到应用配置中的稳定标识。
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Code => "code",
+            Self::Work => "work",
+        }
+    }
+
+    /// 解析单个配置值，非法值保持显式失败。
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "code" => Some(Self::Code),
+            "work" => Some(Self::Work),
+            _ => None,
+        }
+    }
+
+    /// 从可选配置读取模式；缺失或非法值使用安全的代码模式。
+    pub fn from_config(value: Option<&str>) -> Self {
+        value.and_then(Self::parse).unwrap_or_default()
+    }
+}
+
 /// 模型弹出窗口悬停状态
 ///
 /// 表示在模型选择弹出窗口中的悬停项，

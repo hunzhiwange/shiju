@@ -1,9 +1,11 @@
 //! 员工模式左侧工作流阶段列表。
 
-use iced::widget::{column, container, row, scrollable, text};
+use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
+use crate::app::message::TaskBoardMessage;
 use crate::app::Message;
+use crate::app::task::TaskStatus;
 use crate::app::task::staff::{TaskBoardStaffConfig, TaskBoardStaffLane, TaskBoardStaffProjection};
 
 use super::styles;
@@ -12,6 +14,7 @@ pub(super) fn build_lanes_panel<'a>(
     projection: &'a TaskBoardStaffProjection,
     config: &'a TaskBoardStaffConfig,
     load_error: Option<&'a str>,
+    status_filters: &'a [TaskStatus],
     width: Length,
     height: Length,
 ) -> Element<'a, Message> {
@@ -40,7 +43,11 @@ pub(super) fn build_lanes_panel<'a>(
 
     let mut stage_list = column![].spacing(8).width(Length::Fill);
     for lane in &projection.lanes {
-        stage_list = stage_list.push(build_lane_item(lane, config));
+        stage_list = stage_list.push(build_lane_item(
+            lane,
+            config,
+            status_filters == [lane.status],
+        ));
     }
 
     body = body.push(
@@ -56,6 +63,7 @@ pub(super) fn build_lanes_panel<'a>(
 fn build_lane_item<'a>(
     lane: &'a TaskBoardStaffLane,
     config: &'a TaskBoardStaffConfig,
+    selected: bool,
 ) -> Element<'a, Message> {
     let accent = lane.role.map(styles::role_color).unwrap_or_else(styles::display_only_color);
     let role_label = lane.role.map(styles::role_label).unwrap_or("展示");
@@ -113,10 +121,20 @@ fn build_lane_item<'a>(
         content = content.push(ownership).push(dispatch);
     }
 
-    container(content)
+    let card = container(content)
         .padding([10, 11])
         .width(Length::Fill)
-        .style(move |theme| styles::lane_card_style(theme, accent, lane.task_count > 0))
+        .style(move |theme| {
+            styles::lane_card_style(theme, accent, selected || lane.task_count > 0)
+        });
+
+    button(card)
+        .padding(0)
+        .width(Length::Fill)
+        .on_press(Message::TaskBoard(TaskBoardMessage::SelectStaffTaskStatusTab(
+            lane.status,
+        )))
+        .style(move |theme, status| styles::tab_button_style(theme, status, selected))
         .into()
 }
 

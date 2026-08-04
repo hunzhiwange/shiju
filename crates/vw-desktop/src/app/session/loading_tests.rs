@@ -3,7 +3,7 @@ use crate::app::models::{
 };
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 fn session_meta(id: &str, last_content: Option<&str>) -> ChatSessionMeta {

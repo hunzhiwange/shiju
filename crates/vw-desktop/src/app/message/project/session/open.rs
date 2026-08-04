@@ -12,7 +12,7 @@ use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{
     App, Message, models,
     state::{
-        default_recent_project_session_auto_refresh,
+        QuickMessageHandoffState, default_recent_project_session_auto_refresh,
         default_recent_project_session_refresh_interval_seconds,
     },
 };
@@ -48,7 +48,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             reset_new_session_picker_state(app);
             Some(app.open_project_and_index(path))
         }
+        ProjectMessage::SwitchWorkSpacePressed(path) => {
+            app.hovered_recent_project = None;
+            app.session_menu_id = None;
+            app.session_menu_anchor = None;
+            reset_new_session_picker_state(app);
+            Some(app.switch_work_space_preserving_chat(path))
+        }
         ProjectMessage::OpenProjectSessionPressed(path, id) => {
+            app.show_agent_sessions_popover = false;
             let resolved_path = app
                 .known_session_directory(&id)
                 .filter(|directory| !directory.trim().is_empty())
@@ -80,7 +88,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 app.open_project(resolved_path.clone())
             };
 
+            app.prepare_historical_session_model(&id);
             app.active_session_id = Some(id.clone());
+            app.chat_scroll_id = iced::widget::Id::unique();
             app.mark_active_session_viewed();
             app.restore_chat_for_session(&id);
             app.usage = models::TokenUsage::default();
@@ -89,6 +99,24 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_session_view_state.ui_preparing = true;
             app.active_session_view_state.base_ready = false;
             app.invalidate_chat_ui_state();
+            // plan-run 子会话进入后关闭 workflow_mode，避免续聊误触发 plan-run。
+            let is_plan_run_child = app
+                .sessions
+                .iter()
+                .find(|session| session.id == id)
+                .and_then(|session| session.parent_id.as_deref())
+                .or_else(|| {
+                    app.project_sessions
+                        .values()
+                        .flat_map(|sessions| sessions.iter())
+                        .find(|session| session.id == id)
+                        .and_then(|session| session.parent_id.as_deref())
+                })
+                .is_some_and(|parent_id| !parent_id.trim().is_empty());
+            if is_plan_run_child {
+                app.get_session_runtime_mut(&id).workflow_mode_enabled = false;
+                app.get_session_runtime_mut(&id).goal_mode_enabled = false;
+            }
             app.sync_active_session_preferences();
             tracing::info!(
                 target: "vw_desktop",
@@ -102,10 +130,33 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let mut loaded_from_ui_store_has_missing_message_ids = false;
             #[cfg(not(target_arch = "wasm32"))]
             let loaded_from_ui_store = if app.chat.is_empty() && !app.session_is_requesting(&id) {
-                if let Some(session) = crate::app::session_gateway::gateway_load_session_any(&id) {
+                if let Some(mut session) =
+                    crate::app::session_gateway::gateway_load_session_any(&id)
+                {
                     if session.messages.is_empty() {
                         false
                     } else {
+                        let missing_message_model_count = session
+                            .messages
+                            .iter()
+                            .filter(|message| message.model.is_none())
+                            .count();
+                        crate::app::session::backfill_message_models_from_steps(
+                            &mut session.messages,
+                            &session.steps,
+                        );
+                        let backfilled_message_model = session
+                            .messages
+                            .iter()
+                            .filter(|message| message.model.is_none())
+                            .count()
+                            < missing_message_model_count;
+                        if backfilled_message_model {
+                            let _ = crate::app::session_gateway::gateway_save_session(
+                                &session,
+                                Some(&resolved_path),
+                            );
+                        }
                         let usage = session.steps.iter().fold(
                             models::TokenUsage::default(),
                             |mut acc, step| {
@@ -135,6 +186,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.active_session_view_state.updated_ms = session.updated_ms;
                         app.replace_active_session_steps(session.steps.clone());
                         app.replace_active_session_calls(session.calls.clone());
+                        if !loaded_from_ui_store_has_missing_message_ids
+                            && app.restore_session_model_from_steps(&id, &session.steps)
+                        {
+                            app.sync_active_session_preferences();
+                        }
                         true
                     }
                 } else {
@@ -329,36 +385,56 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSession(project_path) => {
+            let project_switch_task =
+                if app.project_path.as_deref() == Some(project_path.as_str()) {
+                    iced::Task::none()
+                } else {
+                    app.open_project_and_index(project_path.clone())
+                };
             let project_worktree_enabled =
                 app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
             if !project_worktree_enabled {
                 reset_new_session_picker_state(app);
                 let project_path_clone = project_path.clone();
-                return Some(iced::Task::perform(
-                    async move { create_gateway_session_in_directory(project_path_clone).await },
-                    |res| match res {
-                        Ok(info) => Message::Project(ProjectMessage::SessionCreated(info)),
-                        Err(e) => {
-                            eprintln!("Create session failed: {}", e);
-                            Message::None
-                        }
-                    },
-                ));
+                return Some(iced::Task::batch(vec![
+                    project_switch_task,
+                    iced::Task::perform(
+                        async move { create_gateway_session_in_directory(project_path_clone).await },
+                        |res| match res {
+                            Ok(info) => Message::Project(ProjectMessage::SessionCreated(info)),
+                            Err(error) => {
+                                Message::Project(ProjectMessage::SessionCreateFailed(error))
+                            }
+                        },
+                    ),
+                ]));
             }
             app.new_session_picker_project = Some(project_path.clone());
             app.new_session_picker_options.clear();
             app.new_session_worktree_name.clear();
             clear_new_session_picker_messages(app);
             let project_path_clone = project_path.clone();
-            Some(iced::Task::perform(
-                async move { load_project_worktree_picker_options(&project_path_clone).await },
-                move |res| {
-                    Message::Project(ProjectMessage::ProjectCreateSessionPickerLoaded {
-                        project_path,
-                        options: res,
-                    })
-                },
-            ))
+            Some(iced::Task::batch(vec![
+                project_switch_task,
+                iced::Task::perform(
+                    async move { load_project_worktree_picker_options(&project_path_clone).await },
+                    move |res| {
+                        Message::Project(ProjectMessage::ProjectCreateSessionPickerLoaded {
+                            project_path,
+                            options: res,
+                        })
+                    },
+                ),
+            ]))
+        }
+        ProjectMessage::SessionCreateFailed(error) => {
+            if matches!(
+                app.quick_message_handoff,
+                Some(QuickMessageHandoffState::WaitingForSession { .. })
+            ) {
+                app.quick_message_handoff = None;
+            }
+            Some(app.show_error_toast(format!("创建新会话失败：{error}")))
         }
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {
             if app.project_path.as_deref() != Some(project_path.as_str()) {

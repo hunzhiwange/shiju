@@ -244,7 +244,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 text_row(
                     "User-Agent",
                     "搜索请求携带的 User-Agent。",
-                    "VibeWindow/1.0",
+                    vw_config_types::tools::DEFAULT_USER_AGENT,
                     &s.user_agent,
                     |value| {
                         Message::Settings(SettingsMessage::WebSearch(
@@ -320,7 +320,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
 8) user_agent
 - 搜索请求携带的 User-Agent。
-- 留空时回退默认值 VibeWindow/1.0。
+- 留空时回退为桌面浏览器兼容的默认值。
 
 三、示例
 {
@@ -332,7 +332,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     "brave_api_key": null,
     "max_results": 5,
     "timeout_secs": 15,
-    "user_agent": "VibeWindow/1.0"
+    "user_agent": "Mozilla/5.0 (...) Chrome/148.0.0.0 Safari/537.36"
   }
 }
 "#;

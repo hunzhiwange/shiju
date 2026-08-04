@@ -29,11 +29,7 @@ fn session(id: &str, title: &str, directory: &str) -> vw_shared::session::info::
 
 fn search_view_content_len(app: &App) -> usize {
     let search_view = view(app);
-    search_view
-        .as_widget()
-        .children()
-        .first()
-        .map_or(0, |content| content.children.len())
+    search_view.as_widget().children().first().map_or(0, |content| content.children.len())
 }
 
 fn session_label_line_count(app: &App) -> usize {

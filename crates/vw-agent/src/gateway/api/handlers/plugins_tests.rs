@@ -9,11 +9,11 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 
 fn write_plugin(plugin_root: &Path, name: &str) {
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("manifest dir");
+    fs::create_dir_all(plugin_root.join(".vibewindow-plugin")).expect("manifest dir");
     fs::create_dir_all(plugin_root.join("skills")).expect("skills dir");
     fs::write(plugin_root.join(".mcp.json"), json!({ "mcpServers": [] }).to_string()).expect("mcp");
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".vibewindow-plugin/plugin.json"),
         json!({
             "name": name,
             "version": "0.2.0",

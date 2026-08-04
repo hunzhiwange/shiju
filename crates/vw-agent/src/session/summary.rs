@@ -15,6 +15,7 @@ use crate::app::agent::storage;
 use crate::app::agent::util::log;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
+use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::LazyLock;
@@ -182,7 +183,8 @@ async fn summarize_session(
 ) -> Result<(), Error> {
     // 计算文件差异
     let diffs = compute_diff_inner(messages)?;
-    persist_session_diff_summary(session_id, diffs).await?;
+    let summary = summary_from_persisted_patch_stats(messages);
+    persist_session_diff_summary(session_id, diffs, summary).await?;
     Ok(())
 }
 
@@ -195,11 +197,46 @@ fn summary_from_diffs(diffs: &[snapshot::FileDiff]) -> super::session::Summary {
     }
 }
 
+fn summary_from_persisted_patch_stats(
+    messages: &[super::message::WithParts],
+) -> Option<super::session::Summary> {
+    let mut additions = 0_i64;
+    let mut deletions = 0_i64;
+    let mut files = HashSet::<&str>::new();
+    let mut has_complete_stats = false;
+
+    for item in messages {
+        for part in &item.parts {
+            let super::message::Part::Patch(patch) = part else {
+                continue;
+            };
+            let (Some(patch_additions), Some(patch_deletions)) =
+                (patch.additions, patch.deletions)
+            else {
+                continue;
+            };
+
+            has_complete_stats = true;
+            additions = additions.saturating_add(patch_additions);
+            deletions = deletions.saturating_add(patch_deletions);
+            files.extend(patch.files.iter().map(String::as_str));
+        }
+    }
+
+    has_complete_stats.then_some(super::session::Summary {
+        additions,
+        deletions,
+        files: files.len() as i64,
+        diffs: None,
+    })
+}
+
 async fn persist_session_diff_summary(
     session_id: &str,
     diffs: Vec<snapshot::FileDiff>,
+    summary: Option<super::session::Summary>,
 ) -> Result<super::session::Summary, Error> {
-    let summary = summary_from_diffs(&diffs);
+    let summary = summary.unwrap_or_else(|| summary_from_diffs(&diffs));
 
     let summary_for_session = summary.clone();
     let _ = super::session::update(session_id, |draft| {
@@ -223,7 +260,8 @@ pub async fn refresh_session_diff_summary(
     let mut all = super::message::messages(session_id, None).await?;
     all.sort_by(|a, b| a.info.id().cmp(b.info.id()));
     let diffs = compute_diff_inner(&all)?;
-    persist_session_diff_summary(session_id, diffs).await
+    let summary = summary_from_persisted_patch_stats(&all);
+    persist_session_diff_summary(session_id, diffs, summary).await
 }
 
 /// 生成消息级摘要

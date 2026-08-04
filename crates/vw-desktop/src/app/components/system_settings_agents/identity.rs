@@ -6,14 +6,15 @@
 use super::shared::{editor_style, section_card};
 use crate::app::components::chat_panel::utils::relative_time_label;
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_segment_button_style,
+    rounded_action_btn_style, settings_checkbox_style, settings_muted_text_style,
+    settings_segment_button_style,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_PROMPT_SYSTEM_TAB, DelegateAgentSettingsEntry, WORKSPACE_IDENTITY_FILES,
 };
 use crate::app::{App, Message};
-use iced::widget::{button, column, container, row, text, text_editor};
+use iced::widget::{button, checkbox, column, container, row, text, text_editor};
 use iced::{Alignment, Element, Length, Theme};
 
 pub(super) fn default_workspace_identity_root(agent_key: &str) -> String {
@@ -61,6 +62,13 @@ pub(super) fn workspace_identity_meta_line(
         (None, Some(modified_at_ms)) => Some(relative_time_label(modified_at_ms)),
         (None, None) => None,
     }
+}
+
+pub(super) fn identity_file_is_enabled(
+    entry: &DelegateAgentSettingsEntry,
+    file_name: &str,
+) -> bool {
+    entry.enabled_identity_files.iter().any(|enabled| enabled == file_name)
 }
 
 fn prompt_tab_button<'a>(
@@ -161,6 +169,23 @@ pub(super) fn view<'a>(
             );
             let workspace_meta =
                 workspace_identity_meta_line(file_state.size_bytes, file_state.modified_at_ms);
+            let identity_load_checkbox =
+                checkbox(identity_file_is_enabled(entry, &file_state.file_name))
+                    .label("启用后加载到提示词")
+                    .on_toggle({
+                        let agent_key = entry.key.clone();
+                        let file_name = file_state.file_name.clone();
+                        move |enabled| {
+                            Message::Settings(SettingsMessage::Agents(
+                                AgentsMessage::WorkspaceIdentityEnabledToggled {
+                                    agent_key: agent_key.clone(),
+                                    file_name: file_name.clone(),
+                                    enabled,
+                                },
+                            ))
+                        }
+                    })
+                    .style(settings_checkbox_style);
             let restore_default_button = button(text("恢复默认").size(12))
                 .padding([6, 10])
                 .on_press(Message::Settings(SettingsMessage::Agents(
@@ -171,9 +196,13 @@ pub(super) fn view<'a>(
                 .style(rounded_action_btn_style);
 
             column![
-                row![text(file_state.file_name.clone()), restore_default_button]
-                    .spacing(10)
-                    .align_y(Alignment::Center),
+                row![
+                    text(file_state.file_name.clone()),
+                    identity_load_checkbox,
+                    restore_default_button
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
                 text(file_state.label.clone()).size(12).style(settings_muted_text_style),
                 workspace_meta.map(|meta| text(meta).size(12).style(settings_muted_text_style)),
                 text(workspace_hint).size(12).style(settings_muted_text_style),

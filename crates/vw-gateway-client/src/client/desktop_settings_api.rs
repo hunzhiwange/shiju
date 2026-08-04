@@ -15,6 +15,14 @@ pub struct DesktopSkillCatalogEntryDto {
     pub enabled: bool,
     pub source: String,
     pub source_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub namespace: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_pack: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -411,7 +419,11 @@ impl GatewayClient {
         project_path: &str,
     ) -> Result<Option<(String, bool, Option<String>)>, String> {
         let query = vec![("project_path".to_string(), project_path.to_string())];
-        let value: Value = self.get_json("/v1/desktop/project-preferences", &query).await?;
+        let Some(value) =
+            self.get_json_with_404::<Value>("/v1/desktop/project-preferences", &query).await?
+        else {
+            return Ok(None);
+        };
         let model = value.get("model").and_then(Value::as_str).unwrap_or_default().to_string();
         let auto_model = value.get("auto_model").and_then(Value::as_bool).unwrap_or(false);
         let acp_agent = value.get("acp_agent").and_then(Value::as_str).map(ToString::to_string);

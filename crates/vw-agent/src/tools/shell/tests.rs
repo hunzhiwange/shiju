@@ -37,6 +37,27 @@ mod tests {
         })
     }
 
+    #[test]
+    fn shell_full_access_disables_workspace_sandbox() {
+        let security = Arc::new(SecurityPolicy {
+            autonomy: AutonomyLevel::Full,
+            workspace_only: false,
+            workspace_dir: std::env::temp_dir(),
+            ..SecurityPolicy::default()
+        });
+
+        let tool = ShellTool::new(security, test_runtime());
+
+        assert!(!tool.sandbox_config.enabled);
+    }
+
+    #[test]
+    fn shell_workspace_scoped_full_autonomy_keeps_sandbox() {
+        let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
+
+        assert!(tool.sandbox_config.enabled);
+    }
+
     /// 创建带有自定义重定向策略的测试安全策略
     ///
     /// # 参数
@@ -80,6 +101,8 @@ mod tests {
     fn test_syscall_detector(tmp: &TempDir) -> Arc<SyscallAnomalyDetector> {
         let log_path = tmp.path().join("shell-syscall-anomalies.log");
         let cfg = SyscallAnomalyConfig {
+            enabled: true,
+            alert_on_unknown_syscall: true,
             baseline_syscalls: vec!["read".into(), "write".into()],
             log_path: log_path.to_string_lossy().to_string(),
             alert_cooldown_secs: 1,
@@ -541,6 +564,33 @@ mod tests {
             .expect("unsupported redirect should still be blocked");
         assert!(!result.success);
         assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+    }
+
+    #[tokio::test]
+    async fn shell_allow_policy_executes_file_redirect() {
+        let tmp = TempDir::new().unwrap();
+        let output_path = tmp.path().join("allow-output.txt");
+        let security = Arc::new(SecurityPolicy {
+            autonomy: AutonomyLevel::Full,
+            workspace_dir: tmp.path().to_path_buf(),
+            allowed_commands: vec!["printf".into()],
+            forbidden_paths: Vec::new(),
+            require_approval_for_medium_risk: false,
+            block_high_risk_commands: false,
+            allow_unsafe_shell_patterns: true,
+            shell_redirect_policy: ShellRedirectPolicy::Allow,
+            ..SecurityPolicy::default()
+        });
+        let tool = ShellTool::new(security, test_runtime());
+        let command = format!("printf redirected > {}", output_path.display());
+
+        let result = tool
+            .execute(json!({"command": command}))
+            .await
+            .expect("allow redirect command should execute");
+
+        assert!(result.success, "{result:?}");
+        assert_eq!(std::fs::read_to_string(output_path).unwrap(), "redirected");
     }
 
     /// 创建允许 env 和 echo 命令的测试安全策略

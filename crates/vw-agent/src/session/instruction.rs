@@ -26,6 +26,16 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
 });
 
 const FILES: [&str; 3] = ["AGENTS.md", "CLAUDE.md", "CONTEXT.md"];
+const WORKSPACE_IDENTITY_FILES: [&str; 8] = [
+    "AGENTS.md",
+    "SOUL.md",
+    "TOOLS.md",
+    "IDENTITY.md",
+    "USER.md",
+    "HEARTBEAT.md",
+    "BOOTSTRAP.md",
+    "MEMORY.md",
+];
 
 /// 单个项目实例内的指令加载状态。
 #[derive(Debug, Default)]
@@ -182,11 +192,11 @@ async fn fetch_url(url: &str) -> String {
     .unwrap_or_default()
 }
 
-/// 读取系统级指令内容。
+/// 读取系统级指令内容及其来源路径。
 ///
-/// 返回每个指令文件的可注入文本，空文件会被跳过。读取失败按空内容处理，使缺失或
-/// 临时不可读的指令文件不会中断会话创建。
-pub async fn system() -> Vec<String> {
+/// 返回每个非空指令文件的路径与可注入文本。读取失败按空内容处理，使缺失或临时
+/// 不可读的指令文件不会中断会话创建。
+pub async fn system_resolved() -> Vec<Resolved> {
     let _cfg = config::get().await;
     let paths = system_paths().await;
 
@@ -196,10 +206,96 @@ pub async fn system() -> Vec<String> {
         if content.trim().is_empty() {
             continue;
         }
-        out.push(format!("Instructions from: {}\n{}", p, content));
+        out.push(Resolved {
+            filepath: p.clone(),
+            content: format!("Instructions from: {}\n{}", p, content),
+        });
     }
 
     out
+}
+
+/// 读取系统级指令内容。
+///
+/// 返回每个指令文件的可注入文本，空文件会被跳过。
+pub async fn system() -> Vec<String> {
+    system_resolved().await.into_iter().map(|resolved| resolved.content).collect()
+}
+
+/// 读取当前请求所选项目根目录下的 `AGENTS.md`。
+///
+/// 该来源独立于系统/全局指令发现：调用方可将项目协议追加到系统提示词，同时只把
+/// 此路径暴露给界面。项目配置被禁用、根目录为空、文件缺失或内容为空时返回 `None`。
+pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
+    if flag::vibewindow_disable_project_config() {
+        return None;
+    }
+    let root = root.map(str::trim).filter(|root| !root.is_empty())?;
+    let filepath = PathBuf::from(root).join("AGENTS.md");
+    if !filesystem::exists(&filepath) {
+        return None;
+    }
+    let filepath = normalize_str(filepath);
+    let content = std::fs::read_to_string(&filepath).unwrap_or_default();
+    if content.trim().is_empty() {
+        return None;
+    }
+    Some(Resolved {
+        filepath: filepath.clone(),
+        content: format!("Instructions from: {}\n{}", filepath, content),
+    })
+}
+
+/// 返回指定委托代理的身份工作区根目录。
+pub fn agent_workspace_root(agent_key: Option<&str>) -> Option<PathBuf> {
+    let agent_key = agent_key.unwrap_or("main").trim();
+    let suffix = if agent_key.is_empty() || agent_key == "main" {
+        String::new()
+    } else {
+        format!("-{agent_key}")
+    };
+
+    if let Ok(workspace) = std::env::var("VIBEWINDOW_WORKSPACE") {
+        let workspace = workspace.trim();
+        if !workspace.is_empty() {
+            return Some(PathBuf::from(format!("{workspace}{suffix}")));
+        }
+    }
+
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .map(|home| vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}")))
+}
+
+/// 读取指定委托代理工作区中已启用、实际存在且非空的身份文件。
+pub fn agent_workspace_identity(
+    agent_key: Option<&str>,
+    enabled_identity_files: &[String],
+) -> Vec<Resolved> {
+    let Some(root) = agent_workspace_root(agent_key) else {
+        return Vec::new();
+    };
+
+    WORKSPACE_IDENTITY_FILES
+        .into_iter()
+        .filter(|filename| enabled_identity_files.iter().any(|enabled| enabled == filename))
+        .filter_map(|filename| {
+            let filepath = root.join(filename);
+            if !filesystem::exists(&filepath) {
+                return None;
+            }
+            let filepath = normalize_str(filepath);
+            let content = std::fs::read_to_string(&filepath).unwrap_or_default();
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(Resolved {
+                filepath: filepath.clone(),
+                content: format!("Instructions from: {}\n{}", filepath, content),
+            })
+        })
+        .collect()
 }
 
 /// 从历史消息中提取已经加载过的指令路径。

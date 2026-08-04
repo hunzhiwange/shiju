@@ -1,5 +1,9 @@
 use super::*;
 use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
+use crate::app::theme_catalog::{
+    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore,
+    set_test_themes_root,
+};
 use iced::widget::text;
 
 fn test_app() -> App {
@@ -71,6 +75,16 @@ fn auto_save_helper_preserves_every_supported_mode() {
 }
 
 #[test]
+fn timezone_helper_preserves_supported_iana_timezone() {
+    match timezone_selected("America/New_York".to_string()) {
+        Message::Settings(message::SettingsMessage::General(
+            message::GeneralSettingsMessage::TimezoneSelected(timezone),
+        )) => assert_eq!(timezone, "America/New_York"),
+        other => panic!("unexpected timezone message: {other:?}"),
+    }
+}
+
+#[test]
 fn font_size_helper_preserves_slider_boundaries_and_fraction() {
     for font_size in [10.0, 13.5, 18.0] {
         match terminal_font_size_changed(font_size) {
@@ -88,6 +102,10 @@ fn view_builds_supported_general_setting_combinations() {
     keep_element(view(&app));
 
     app.app_theme = iced::Theme::Dark;
+    for timezone in ["Asia/Shanghai", "America/New_York"] {
+        app.chat_timezone = timezone.to_string();
+        keep_element(view(&app));
+    }
     for shell in Shell::all() {
         app.terminal.shell = shell;
         for (font_family, font_size, auto_save_mode) in [
@@ -102,4 +120,33 @@ fn view_builds_supported_general_setting_combinations() {
             keep_element(view(&app));
         }
     }
+}
+
+#[test]
+fn app_theme_options_include_local_custom_themes() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let store = ThemeStore::new(temp.path());
+    store
+        .save(&ThemeDefinition {
+            id: "mint-night".to_string(),
+            name: "Mint Night".to_string(),
+            tagline: None,
+            palette: ThemePaletteHex {
+                background: "#0b1220".to_string(),
+                text: "#e2e8f0".to_string(),
+                primary: "#34d399".to_string(),
+                success: "#22c55e".to_string(),
+                warning: "#f59e0b".to_string(),
+                danger: "#ef4444".to_string(),
+            },
+            assets: ThemeAssets::default(),
+            chrome: ThemeChrome::default(),
+        })
+        .expect("save custom theme");
+    set_test_themes_root(Some(temp.path().to_path_buf()));
+
+    let themes = app_theme_options(&test_app());
+    assert!(themes.iter().any(|theme| theme.to_string() == "Mint Night"));
+
+    set_test_themes_root(None);
 }

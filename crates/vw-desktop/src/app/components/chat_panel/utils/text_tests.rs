@@ -1,5 +1,6 @@
 use super::text::{
-    normalize_display_text, strip_internal_tool_trace, truncate_chars, truncate_lines_middle,
+    normalize_display_text, single_line_preview, strip_internal_tool_trace, truncate_chars,
+    truncate_lines_middle,
 };
 use std::borrow::Cow;
 
@@ -13,6 +14,12 @@ fn truncate_chars_and_lines_keep_boundaries() {
 fn truncate_chars_counts_unicode_scalars_and_handles_zero_limit() {
     assert_eq!(truncate_chars("你好世界", 2), "你好…");
     assert_eq!(truncate_chars("内容", 0), "…");
+}
+
+#[test]
+fn single_line_preview_collapses_whitespace_before_truncating() {
+    assert_eq!(single_line_preview("  curl \\\n  -H\t'x: y'  ", 80), "curl \\ -H 'x: y'");
+    assert_eq!(single_line_preview("一 二 三", 3), "一 二…");
 }
 
 #[test]

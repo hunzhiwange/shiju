@@ -221,7 +221,7 @@ fn apply_env_overrides_uses_generic_fallback_values() {
 }
 
 #[test]
-fn legacy_provider_only_replaces_missing_or_openrouter_configuration() {
+fn legacy_provider_replaces_builtin_shiju_default() {
     let env = ConfigEnvGuard::new();
     env.set("PROVIDER", "legacy-provider");
 
@@ -231,14 +231,13 @@ fn legacy_provider_only_replaces_missing_or_openrouter_configuration() {
     assert_eq!(missing.default_provider.as_deref(), Some("legacy-provider"));
 
     let mut default_provider = Config::default();
-    default_provider.default_provider = Some(" OpenRouter ".to_string());
     apply_env_overrides(&mut default_provider);
     assert_eq!(default_provider.default_provider.as_deref(), Some("legacy-provider"));
 
     let mut explicit = Config::default();
-    explicit.default_provider = Some("configured-provider".to_string());
+    explicit.default_provider = Some("openrouter".to_string());
     apply_env_overrides(&mut explicit);
-    assert_eq!(explicit.default_provider.as_deref(), Some("configured-provider"));
+    assert_eq!(explicit.default_provider.as_deref(), Some("openrouter"));
 }
 
 #[test]

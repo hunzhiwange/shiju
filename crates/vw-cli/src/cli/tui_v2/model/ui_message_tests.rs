@@ -1,10 +1,133 @@
 use vw_shared::session::ui_types as session_ui;
+use vw_gateway_client::GatewayChatStreamEvent;
 
+use super::attachment::{UiAttachment, UiAttachmentKind};
 use super::ui_message::{
-    UiAssistantMessage, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiMessageKind,
-    UiStep, UiStepState, UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingTiming,
-    UiTokenUsage, UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiAssistantMessage, UiCompactBoundary, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId,
+    UiMessageKind, UiMessageOrigin, UiProgressMessage, UiStep, UiStepState, UiSystemMessage,
+    UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCall,
+    UiToolCallState, UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
+use crate::cli::tui_v2::runtime::stream_adapter::adapt_gateway_stream_event;
+use crate::cli::tui_v2::state::{TuiState, apply_runtime_event};
+
+#[test]
+fn tui_message_model_roundtrips_reference_content_kinds() {
+    let mut state = TuiState::default();
+    state.session.session_id = Some("session-content".to_string());
+
+    let events = [
+        GatewayChatStreamEvent::Other(serde_json::json!({
+            "type": "chat.content",
+            "message_id": "attachment-1",
+            "parent_message_id": "assistant-1",
+            "created_ms": 10,
+            "content": {
+                "type": "attachment",
+                "kind": "image",
+                "name": "diagram.png",
+                "media_type": "image/png",
+                "uri": "file:///tmp/diagram.png",
+                "alt_text": "architecture diagram"
+            }
+        })),
+        GatewayChatStreamEvent::Other(serde_json::json!({
+            "type": "chat.content",
+            "message_id": "progress-1",
+            "parent_message_id": "assistant-1",
+            "created_ms": 20,
+            "content": {
+                "type": "progress",
+                "label": "Indexing",
+                "current": 3,
+                "total": 8,
+                "completed": false
+            }
+        })),
+        GatewayChatStreamEvent::Other(serde_json::json!({
+            "type": "chat.content",
+            "message_id": "compact-1",
+            "parent_message_id": "assistant-1",
+            "created_ms": 30,
+            "origin": {"type": "command", "name": "compact"},
+            "content": {
+                "type": "compact_boundary",
+                "summary": "Earlier context compacted",
+                "compacted_messages": 12
+            }
+        })),
+        GatewayChatStreamEvent::Other(serde_json::json!({
+            "type": "chat.content",
+            "message_id": "unknown-1",
+            "parent_message_id": "assistant-1",
+            "created_ms": 40,
+            "content": {
+                "type": "future_secret_block",
+                "api_token": "must-not-be-persisted"
+            }
+        })),
+    ];
+
+    for event in events {
+        apply_runtime_event(&mut state, adapt_gateway_stream_event(event));
+    }
+
+    assert!(matches!(
+        &state.messages[0],
+        UiMessage::Attachment(UiAttachment {
+            kind: UiAttachmentKind::Image,
+            name,
+            media_type: Some(media_type),
+            uri,
+            alt_text: Some(alt_text),
+            ..
+        }) if name == "diagram.png"
+            && media_type == "image/png"
+            && uri == "file:///tmp/diagram.png"
+            && alt_text == "architecture diagram"
+    ));
+    assert!(matches!(
+        &state.messages[1],
+        UiMessage::Progress(UiProgressMessage {
+            label,
+            current: Some(3),
+            total: Some(8),
+            completed: false,
+            ..
+        }) if label == "Indexing"
+    ));
+    assert!(matches!(
+        &state.messages[2],
+        UiMessage::CompactBoundary(UiCompactBoundary {
+            summary,
+            compacted_messages: 12,
+            ..
+        }) if summary == "Earlier context compacted"
+    ));
+    assert!(matches!(
+        state.messages[2].base().origin.as_ref(),
+        Some(UiMessageOrigin::Command { name }) if name == "compact"
+    ));
+    assert!(matches!(
+        &state.messages[3],
+        UiMessage::Unknown(UiUnknownMessage { external_kind, summary, .. })
+            if external_kind == "future_secret_block"
+                && summary.contains("Unsupported content block")
+    ));
+
+    let snapshot = state.to_chat_session();
+    assert_eq!(snapshot.messages.len(), 4);
+    assert!(
+        snapshot
+            .messages
+            .iter()
+            .all(|message| !message.content.contains("must-not-be-persisted"))
+    );
+
+    let restored = TuiState::from_chat_session(&snapshot);
+    assert_eq!(restored.messages, state.messages);
+    assert!(restored.search_index.is_aligned(restored.messages.len()));
+}
 
 #[test]
 fn ui_message_id_constructors_preserve_namespaces_and_raw_values() {
@@ -98,6 +221,7 @@ fn ui_message_kind_and_base_cover_every_variant() {
                 content: "details".to_string(),
                 timing: Vec::new(),
                 collapsed: false,
+                phase: UiThinkingPhase::default(),
             }),
             UiMessageKind::Thinking,
         ),
@@ -295,6 +419,7 @@ fn ui_message_kind_matches_each_variant_individually() {
         content: String::new(),
         timing: vec![],
         collapsed: false,
+        phase: UiThinkingPhase::default(),
     });
     assert_eq!(thinking.kind(), UiMessageKind::Thinking);
 

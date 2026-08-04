@@ -52,16 +52,11 @@ pub(crate) const STREAM_CHUNK_MIN_CHARS: usize = 5;
 
 /// Default maximum agentic tool-use iterations per user message.
 ///
-/// This acts as a safeguard to prevent infinite or runaway tool-use loops.
-/// When an agent repeatedly calls tools without reaching a final answer,
-/// this limit terminates the loop to prevent resource exhaustion.
+/// This fallback is used when no positive limit is configured.
 ///
 /// # Value
 ///
-/// Set to `20` iterations, which provides sufficient depth for:
-/// - Multi-step tool chains (e.g., research → analysis → formatting)
-/// - Error recovery and retry scenarios
-/// - Complex task decomposition
+/// Set to `50000` iterations.
 ///
 /// # Configuration
 ///
@@ -73,13 +68,13 @@ pub(crate) const STREAM_CHUNK_MIN_CHARS: usize = 5;
 ///
 /// ```toml
 /// [agent]
-/// max_tool_iterations = 30
+/// max_tool_iterations = 50000
 /// ```
 ///
 /// # See Also
 ///
 /// - [`crate::app::agent::config::schema::AgentConfig::max_tool_iterations`]
-pub(crate) const DEFAULT_MAX_TOOL_ITERATIONS: usize = 20;
+pub(crate) const DEFAULT_MAX_TOOL_ITERATIONS: usize = 50_000;
 
 /// Default maximum number of messages to retain in conversation history.
 ///
@@ -89,7 +84,7 @@ pub(crate) const DEFAULT_MAX_TOOL_ITERATIONS: usize = 20;
 ///
 /// # Value
 ///
-/// Set to `50` messages, providing:
+/// Set to `100` messages, providing:
 /// - Sufficient context for multi-turn conversations
 /// - Protection against memory bloat
 /// - Reasonable context window for most LLM providers
@@ -106,7 +101,7 @@ pub(crate) const DEFAULT_MAX_TOOL_ITERATIONS: usize = 20;
 ///     history.drain(..history.len() - DEFAULT_MAX_HISTORY_MESSAGES);
 /// }
 /// ```
-pub(crate) const DEFAULT_MAX_HISTORY_MESSAGES: usize = 50;
+pub(crate) const DEFAULT_MAX_HISTORY_MESSAGES: usize = 100;
 
 /// Minimum timeout duration (in seconds) for channel message operations.
 ///
@@ -210,6 +205,9 @@ pub const AUTOSAVE_MIN_MESSAGE_CHARS: usize = 20;
 /// }
 /// ```
 pub(crate) const MISSING_TOOL_CALL_RETRY_PROMPT: &str = "Internal correction: your last reply implied a follow-up action or claimed action completion, but no valid tool call was emitted. If a tool is needed, emit it now using the required format. If no tool is needed, provide the complete final answer now and do not defer action.";
+
+/// Prompt appended when a model returns neither tool calls nor final text.
+pub(crate) const EMPTY_FINAL_RESPONSE_RETRY_PROMPT: &str = "Internal correction: your last reply returned no final result. Continue working from the existing context. Use tools if more work is required; otherwise provide a non-empty final answer with the result now.";
 
 #[cfg(test)]
 #[path = "constants_tests.rs"]

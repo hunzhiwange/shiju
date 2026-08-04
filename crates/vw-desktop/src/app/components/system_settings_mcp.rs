@@ -412,6 +412,9 @@ fn configured_server_panel<'a>(
     let preview_toggle_message = Some(Message::Settings(SettingsMessage::Mcp(
         McpMessage::PreviewExpandedToggled(preview_key),
     )));
+    let edit_message = controls_enabled.then(|| {
+        Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditRequested(server_index)))
+    });
 
     let mut content = column![
         row![
@@ -425,6 +428,7 @@ fn configured_server_panel<'a>(
             .spacing(4)
             .width(Length::Fill),
             badges,
+            toolbar_button("编辑", edit_message),
             toolbar_button(preview_label, preview_action_message(preview_enabled)),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
@@ -443,17 +447,18 @@ fn configured_server_panel<'a>(
     settings_panel(content).into()
 }
 
-fn new_server_panel_header(expanded: bool) -> Element<'static, Message> {
+fn new_server_panel_header(expanded: bool, editing: bool) -> Element<'static, Message> {
     let toggle_label = if expanded { "收起" } else { "展开" };
+    let title = if editing { "编辑 MCP 服务器" } else { "新增 MCP 服务器" };
+    let description = if editing {
+        "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。"
+    } else {
+        "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。"
+    };
     row![
-        column![
-            text("新增 MCP 服务器").size(14),
-            text("按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。")
-                .size(11)
-                .style(settings_muted_text_style),
-        ]
-        .spacing(4)
-        .width(Length::Fill),
+        column![text(title).size(14), text(description).size(11).style(settings_muted_text_style),]
+            .spacing(4)
+            .width(Length::Fill),
         settings_value_badge("全局配置"),
         toolbar_button(
             toggle_label,
@@ -466,8 +471,9 @@ fn new_server_panel_header(expanded: bool) -> Element<'static, Message> {
 }
 
 fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_, Message> {
+    let editing = s.editing_server_index.is_some();
     if !s.new_server_expanded {
-        return settings_panel(column![new_server_panel_header(false)].spacing(12)).into();
+        return settings_panel(column![new_server_panel_header(false, editing)].spacing(12)).into();
     }
 
     let input_style = |placeholder, value: &String, on_input: fn(String) -> McpMessage| {
@@ -523,16 +529,45 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
         }
     };
 
+    let submit_label = if editing { "保存修改" } else { "新增服务器" };
+    let submit_message = if editing { McpMessage::SaveServerEdit } else { McpMessage::AddServer };
     let mut add_button =
-        button(text("新增服务器").size(13)).padding([8, 16]).style(primary_action_btn_style);
+        button(text(submit_label).size(13)).padding([8, 16]).style(primary_action_btn_style);
     if controls_enabled {
-        add_button =
-            add_button.on_press(Message::Settings(SettingsMessage::Mcp(McpMessage::AddServer)));
+        add_button = add_button.on_press(Message::Settings(SettingsMessage::Mcp(submit_message)));
+    }
+    let cancel_button = editing.then(|| {
+        toolbar_button(
+            "取消编辑",
+            controls_enabled
+                .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))),
+        )
+    });
+
+    let mut actions = row![
+        checkbox(s.new_server.enabled)
+            .label("启用")
+            .on_toggle(|value| {
+                Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerEnabledToggled(value)))
+            })
+            .style(settings_checkbox_style),
+        checkbox(s.new_server.required)
+            .label("必需")
+            .on_toggle(|value| {
+                Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerRequiredToggled(value)))
+            })
+            .style(settings_checkbox_style),
+        add_button,
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+    if let Some(cancel_button) = cancel_button {
+        actions = actions.push(cancel_button);
     }
 
     settings_panel(
         column![
-            new_server_panel_header(true),
+            new_server_panel_header(true, editing),
             settings_divider(),
             row![
                 container(form_field("名称", name_input)).width(Length::FillPortion(2)),
@@ -541,27 +576,7 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
             ]
             .spacing(12),
             detail_fields,
-            row![
-                checkbox(s.new_server.enabled)
-                    .label("启用")
-                    .on_toggle(|value| {
-                        Message::Settings(SettingsMessage::Mcp(
-                            McpMessage::NewServerEnabledToggled(value),
-                        ))
-                    })
-                    .style(settings_checkbox_style),
-                checkbox(s.new_server.required)
-                    .label("必需")
-                    .on_toggle(|value| {
-                        Message::Settings(SettingsMessage::Mcp(
-                            McpMessage::NewServerRequiredToggled(value),
-                        ))
-                    })
-                    .style(settings_checkbox_style),
-                add_button,
-            ]
-            .spacing(16)
-            .align_y(Alignment::Center),
+            actions,
         ]
         .spacing(12),
     )

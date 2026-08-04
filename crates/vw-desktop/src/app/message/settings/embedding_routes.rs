@@ -27,6 +27,16 @@ fn doubao_template_route() -> EmbeddingRouteDraft {
     }
 }
 
+fn shiju_template_route() -> EmbeddingRouteDraft {
+    EmbeddingRouteDraft {
+        pattern: "semantic".to_string(),
+        provider: "custom:https://router.shiju.cloud/v1".to_string(),
+        model: "text-embedding-v4".to_string(),
+        dimensions: "1024".to_string(),
+        api_key_input: String::new(),
+    }
+}
+
 fn persist_embedding_routes_settings(app: &mut App) -> Option<Task<Message>> {
     let mut routes = Vec::with_capacity(app.embedding_routes_settings.routes.len());
 
@@ -108,6 +118,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 EmbeddingRoutesMessage::InsertDoubaoTemplate => {
                     app.embedding_routes_settings.routes.push(doubao_template_route());
+                    app.embedding_routes_settings.save_error = None;
+                    app.embedding_routes_settings.save_success = false;
+                }
+                EmbeddingRoutesMessage::InsertShijuTemplate => {
+                    app.embedding_routes_settings.routes.push(shiju_template_route());
                     app.embedding_routes_settings.save_error = None;
                     app.embedding_routes_settings.save_success = false;
                 }

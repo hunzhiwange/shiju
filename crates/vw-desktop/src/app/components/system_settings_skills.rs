@@ -83,6 +83,17 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
         provider_pick,
     );
 
+    let project_auto_load_row = field_row(
+        "Project skills",
+        "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。",
+        checkbox(s.auto_load_project_skills)
+            .label("默认加载项目技能")
+            .on_toggle(|v| {
+                Message::Settings(message::SettingsMessage::SkillsProjectAutoLoadToggled(v))
+            })
+            .style(settings_checkbox_style),
+    );
+
     let open_enabled_row = field_row(
         "Community sync",
         "控制是否启用 open-skills 仓库同步。",
@@ -124,9 +135,18 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
     let config_card = column![
         settings_section_card(
             "系统配置",
-            "这里保留社区同步与 prompt injection 配置，目录发现顺序单独放在顺序页。",
+            "这里配置项目技能默认加载、社区同步与 prompt injection；目录顺序单独展示。",
         ),
-        settings_panel(column![provider_row, open_enabled_row, open_dir_row, mode_row].spacing(0)),
+        settings_panel(
+            column![
+                provider_row,
+                project_auto_load_row,
+                open_enabled_row,
+                open_dir_row,
+                mode_row
+            ]
+            .spacing(0),
+        ),
     ]
     .spacing(16)
     .width(Length::Fill);

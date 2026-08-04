@@ -10,10 +10,27 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use super::{
-    GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatUsage, GatewayTypedChatStreamEvent,
+    GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatUsage, GatewayStreamAttemptResult,
+    GatewayStreamEvent, GatewayStreamResume, GatewayTypedChatStreamEvent,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
+
+#[test]
+fn stream_http_failure_message_humanizes_payload_too_large() {
+    let message = super::stream_http_failure_message(
+        "413 Payload Too Large",
+        "Failed to buffer the request body: length limit exceeded",
+    );
+    assert!(message.contains("请求内容过大"));
+    assert!(!message.contains("length limit exceeded"));
+}
+
+#[test]
+fn stream_http_failure_message_keeps_other_http_errors() {
+    let message = super::stream_http_failure_message("500 Internal Server Error", "down");
+    assert_eq!(message, "gateway stream failed: 500 Internal Server Error down");
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 struct EnabledStreamTraceSubscriber;
@@ -136,13 +153,15 @@ impl Drop for StreamServer {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn assert_raw_tenant_headers(request: &str, platform_id: &str, company_id: &str) {
-    let header = |name: &str| {
-        request.lines().filter_map(|line| line.split_once(':')).find_map(|(header, value)| {
-            header.eq_ignore_ascii_case(name).then(|| value.trim().to_string())
-        })
-    };
-    assert_eq!(header(PLATFORM_ID_HEADER).as_deref(), Some(platform_id));
-    assert_eq!(header(COMPANY_ID_HEADER).as_deref(), Some(company_id));
+    assert_eq!(raw_header(request, PLATFORM_ID_HEADER).as_deref(), Some(platform_id));
+    assert_eq!(raw_header(request, COMPANY_ID_HEADER).as_deref(), Some(company_id));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn raw_header(request: &str, name: &str) -> Option<String> {
+    request.lines().filter_map(|line| line.split_once(':')).find_map(|(header, value)| {
+        header.eq_ignore_ascii_case(name).then(|| value.trim().to_string())
+    })
 }
 
 #[test]
@@ -348,6 +367,15 @@ fn normalize_chat_stream_event_maps_structured_other_events() {
 
 #[test]
 fn normalize_chat_stream_event_maps_session_side_effect_events() {
+    assert_eq!(
+        super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.context_loaded",
+            "paths": ["/work/AGENTS.md", "  ", 42, "/work/CONTEXT.md"]
+        }))),
+        GatewayTypedChatStreamEvent::ContextLoaded {
+            paths: vec!["/work/AGENTS.md".to_string(), "/work/CONTEXT.md".to_string()],
+        }
+    );
     assert_eq!(
         super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({
             "type": "chat.todo_updated",
@@ -645,6 +673,103 @@ async fn stream_chat_completes_when_server_closes_stream() {
     let _ = server.join();
 
     assert_eq!(events, vec![GatewayChatStreamEvent::Delta("a".to_string())]);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn resumable_stream_reports_incomplete_eof_and_sends_resume_headers() {
+    let mut server = StreamServer::respond(
+        "200 OK",
+        "id: 42\ndata: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n",
+    );
+    let endpoint = server.endpoint();
+    let resume = GatewayStreamResume {
+        request_id: "chat-request-1".to_string(),
+        last_event_id: Some(41),
+    };
+    let mut events = Vec::new();
+
+    let result =
+        super::stream_chat_resumable(&endpoint, None, &GatewayChatStreamRequest::default(), &resume, |event| {
+            events.push(event);
+            true
+        })
+        .await
+        .expect("resumable stream attempt");
+    let request = server.join();
+
+    assert_eq!(result, GatewayStreamAttemptResult::Incomplete);
+    assert_eq!(
+        events,
+        vec![GatewayStreamEvent {
+            id: 42,
+            event: GatewayChatStreamEvent::Delta("a".to_string()),
+        }]
+    );
+    assert_eq!(
+        raw_header(&request, "x-vw-stream-request-id").as_deref(),
+        Some("chat-request-1")
+    );
+    assert_eq!(raw_header(&request, "last-event-id").as_deref(), Some("41"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn resumable_stream_distinguishes_terminal_event_and_caller_stop() {
+    let mut terminal_server = StreamServer::respond(
+        "200 OK",
+        "id: 7\ndata: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
+    );
+    let terminal_resume = GatewayStreamResume {
+        request_id: "chat-request-terminal".to_string(),
+        last_event_id: None,
+    };
+    let mut terminal_events = Vec::new();
+
+    let terminal = super::stream_chat_resumable(
+        &terminal_server.endpoint(),
+        None,
+        &GatewayChatStreamRequest::default(),
+        &terminal_resume,
+        |event| {
+            terminal_events.push(event);
+            true
+        },
+    )
+    .await
+    .expect("terminal resumable stream");
+    let terminal_request = terminal_server.join();
+
+    assert_eq!(terminal, GatewayStreamAttemptResult::Terminated);
+    assert_eq!(terminal_events.len(), 1);
+    assert_eq!(terminal_events[0].id, 7);
+    assert_eq!(
+        raw_header(&terminal_request, "x-vw-stream-request-id").as_deref(),
+        Some("chat-request-terminal")
+    );
+    assert_eq!(raw_header(&terminal_request, "last-event-id"), None);
+
+    let mut stopped_server = StreamServer::respond(
+        "200 OK",
+        "id: 8\ndata: {\"type\":\"chat.delta\",\"delta\":\"ignored\"}\n\n",
+    );
+    let stopped_resume = GatewayStreamResume {
+        request_id: "chat-request-stopped".to_string(),
+        last_event_id: Some(7),
+    };
+
+    let stopped = super::stream_chat_resumable(
+        &stopped_server.endpoint(),
+        None,
+        &GatewayChatStreamRequest::default(),
+        &stopped_resume,
+        |_| false,
+    )
+    .await
+    .expect("caller-stopped resumable stream");
+    let _ = stopped_server.join();
+
+    assert_eq!(stopped, GatewayStreamAttemptResult::CallerStopped);
 }
 
 #[cfg(not(target_arch = "wasm32"))]

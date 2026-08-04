@@ -5,6 +5,8 @@
 
 /// assets 子模块，拆分当前领域的局部职责。
 pub mod assets;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod account;
 /// components 子模块，拆分当前领域的局部职责。
 pub mod components;
 /// config 子模块，拆分当前领域的局部职责。
@@ -32,10 +34,17 @@ pub mod provider;
 pub mod session;
 /// session_gateway 子模块，拆分当前领域的局部职责。
 pub mod session_gateway;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod shiju_apps;
+#[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code, unused_imports)]
+pub(crate) mod skill_hub;
 /// state 子模块，拆分当前领域的局部职责。
 pub mod state;
 /// task 子模块，拆分当前领域的局部职责。
 pub mod task;
+/// theme_catalog 子模块，拆分当前领域的局部职责。
+pub mod theme_catalog;
 /// terminal 子模块，拆分当前领域的局部职责。
 pub mod terminal;
 /// ui 子模块，拆分当前领域的局部职责。
@@ -43,9 +52,15 @@ pub mod ui;
 mod ui_types;
 /// views 子模块，拆分当前领域的局部职责。
 pub mod views;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod webview_runtime;
 #[cfg(target_arch = "wasm32")]
 #[path = "impls/wasm_ime.rs"]
 pub(crate) mod wasm_ime;
+
+#[cfg(test)]
+pub(crate) static TEST_PROCESS_STATE_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
 /// 执行 project_dirs 对应的领域操作。
 ///
@@ -124,7 +139,7 @@ pub use self::message::{after, spawn_blocking_opt};
 #[cfg(not(target_arch = "wasm32"))]
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use self::preview::{
-    LspHoverPending, LspProgress, lsp_root_uri_for_path, path_to_file_uri,
+    LspHoverPending, LspProgress, path_to_file_uri,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::preview::{PreviewTab, preview_open_error, safe_preview};

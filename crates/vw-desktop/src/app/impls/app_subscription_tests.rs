@@ -76,12 +76,14 @@ fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     }
 }
@@ -180,7 +182,17 @@ fn map_global_event_maps_mouse_and_window_events() {
         iced::event::Status::Ignored,
         id,
     );
-    assert!(matches!(unfocused, Some(Message::Preview(message::PreviewMessage::WindowUnfocused))));
+    let Some(Message::Batch(unfocused_messages)) = unfocused else {
+        panic!("window unfocus should hide docked surfaces and notify preview");
+    };
+    assert!(unfocused_messages.iter().any(|message| matches!(
+        message,
+        Message::View(message::ViewMessage::WindowUnfocused(window_id)) if *window_id == id
+    )));
+    assert!(unfocused_messages.iter().any(|message| matches!(
+        message,
+        Message::Preview(message::PreviewMessage::WindowUnfocused)
+    )));
 }
 
 #[test]
@@ -230,6 +242,29 @@ fn map_global_event_maps_keyboard_shortcuts() {
         id,
     );
     assert!(matches!(replace, Some(Message::Editor(message::EditorMessage::OpenReplace))));
+
+    let find_modifiers = Modifiers::COMMAND | Modifiers::ALT;
+    for (key, expected) in [
+        ("c", message::ProjectMessage::FileTreeFindCaseSensitiveShortcut),
+        ("W", message::ProjectMessage::FileTreeFindWholeWordShortcut),
+        ("x", message::ProjectMessage::FileTreeFindRegexShortcut),
+    ] {
+        let shortcut = map_global_event(
+            key_pressed(keyboard::Key::Character(key.into()), find_modifiers),
+            iced::event::Status::Captured,
+            id,
+        );
+        assert!(
+            matches!(shortcut, Some(Message::Project(message)) if std::mem::discriminant(&message) == std::mem::discriminant(&expected))
+        );
+    }
+
+    let shifted = map_global_event(
+        key_pressed(keyboard::Key::Character("c".into()), find_modifiers | Modifiers::SHIFT),
+        iced::event::Status::Captured,
+        id,
+    );
+    assert!(shifted.is_none());
 }
 
 #[test]

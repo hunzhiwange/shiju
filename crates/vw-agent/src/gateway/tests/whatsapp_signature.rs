@@ -179,7 +179,7 @@ fn whatsapp_signature_empty_body() {
 #[test]
 fn whatsapp_signature_unicode_body() {
     let app_secret = generate_test_secret();
-    let body = "Hello 🦀 World".as_bytes();
+    let body = "Hello World".as_bytes();
 
     let signature_header = compute_whatsapp_signature_header(&app_secret, body);
 

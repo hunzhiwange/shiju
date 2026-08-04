@@ -34,6 +34,7 @@ pub type FileSystemOperationCallback = Arc<dyn Fn(ClientOperation) + Send + Sync
 pub struct FileSystemHandlersOptions {
     pub cwd: PathBuf,
     pub permission_mode: PermissionMode,
+    pub full_access: bool,
     pub non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
     pub on_operation: Option<FileSystemOperationCallback>,
     pub confirm_write: Option<FileSystemConfirmWriteFn>,
@@ -43,6 +44,7 @@ pub struct FileSystemHandlersOptions {
 pub struct FileSystemHandlers {
     root_dir: PathBuf,
     permission_mode: PermissionMode,
+    full_access: bool,
     on_operation: Option<FileSystemOperationCallback>,
     confirm_write: Option<FileSystemConfirmWriteFn>,
 }
@@ -53,6 +55,7 @@ impl FileSystemHandlers {
         Self {
             root_dir,
             permission_mode: options.permission_mode,
+            full_access: options.full_access,
             on_operation: options.on_operation,
             confirm_write: options.confirm_write,
         }
@@ -164,7 +167,7 @@ impl FileSystemHandlers {
         }
 
         let resolved = normalize_absolute_path(raw_path);
-        if !is_within_root(&self.root_dir, &resolved) {
+        if !self.full_access && !is_within_root(&self.root_dir, &resolved) {
             return Err(
                 format!("Path is outside allowed cwd subtree: {}", resolved.display()).into()
             );

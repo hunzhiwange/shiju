@@ -8,6 +8,7 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use vw_config_types::skills::SkillSecurityConfig;
 
 use super::MAX_TEXT_FILE_BYTES;
 use super::manifest::audit_manifest_file;
@@ -75,15 +76,20 @@ pub(super) fn collect_paths_depth_first(root: &Path) -> Result<Vec<PathBuf>> {
 /// # 错误
 ///
 /// 元数据读取失败、Markdown/TOML 解析审计失败时返回错误。
-pub(super) fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result<()> {
+pub(super) fn audit_path(
+    root: &Path,
+    path: &Path,
+    security: &SkillSecurityConfig,
+    report: &mut SkillAuditReport,
+) -> Result<()> {
     let metadata = fs::symlink_metadata(path)
         .with_context(|| format!("failed to read metadata for {}", path.display()))?;
     let rel = relative_display(root, path);
 
     if metadata.file_type().is_symlink() {
-        // Skill 安装目录默认拒绝符号链接，避免审计时看到的是安全文件、
-        // 运行时却通过链接访问工作区外或系统敏感位置。
-        report.findings.push(format!("{rel}: symlinks are not allowed in installed skills."));
+        if security.reject_symlinks {
+            report.findings.push(format!("{rel}: symlinks are not allowed in installed skills."));
+        }
         return Ok(());
     }
 
@@ -91,13 +97,16 @@ pub(super) fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport
         return Ok(());
     }
 
-    if is_unsupported_script_file(path) {
+    if security.reject_script_files && is_unsupported_script_file(path) {
         report
             .findings
             .push(format!("{rel}: script-like files are blocked by skill security policy."));
     }
 
-    if metadata.len() > MAX_TEXT_FILE_BYTES && (is_markdown_file(path) || is_toml_file(path)) {
+    if security.reject_oversized_text_files
+        && metadata.len() > MAX_TEXT_FILE_BYTES
+        && (is_markdown_file(path) || is_toml_file(path))
+    {
         // 只对需要静态解析的文本清单限制大小，避免恶意 skill 用超大文件
         // 消耗内存或拖慢审计；其他文件类型此处不读取内容。
         report.findings.push(format!(
@@ -107,11 +116,11 @@ pub(super) fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport
     }
 
     if is_skill_entry_markdown(path) {
-        audit_markdown_file(root, path, report)?;
+        audit_markdown_file(root, path, security, report)?;
     } else if is_markdown_file(path) {
-        audit_markdown_resource_file(root, path, report)?;
+        audit_markdown_resource_file(root, path, security, report)?;
     } else if is_toml_file(path) {
-        audit_manifest_file(root, path, report)?;
+        audit_manifest_file(root, path, security, report)?;
     }
 
     Ok(())

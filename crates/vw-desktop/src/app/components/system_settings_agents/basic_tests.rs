@@ -12,11 +12,13 @@ fn view_tree(
 }
 
 fn assert_common_field_structure(tree: &Tree) {
-    assert_eq!(tree.children.len(), 10);
-    for row_index in 2..=8 {
+    assert_eq!(tree.children.len(), 11);
+    for row_index in 3..=9 {
         assert_eq!(tree.children[row_index].children.len(), 2);
     }
-    assert_eq!(tree.children[5].children[1].children.len(), 2);
+    assert_eq!(tree.children[6].children[1].children.len(), 2);
+    assert_eq!(tree.children[2].children.len(), 2);
+    assert_eq!(tree.children[2].children[1].children.len(), 2);
 }
 
 #[test]
@@ -33,7 +35,7 @@ fn basic_view_main_hides_availability_and_shows_runtime_controls() {
 
     assert_common_field_structure(&tree);
     assert!(tree.children[1].children.is_empty());
-    assert_eq!(tree.children[9].children.len(), 6);
+    assert_eq!(tree.children[10].children.len(), 6);
 }
 
 #[test]
@@ -74,7 +76,7 @@ fn basic_view_worker_shows_availability_and_hides_main_runtime_controls() {
     assert_eq!(tree.children[1].children.len(), 2);
     assert_eq!(tree.children[1].children[1].children.len(), 1);
     assert_eq!(tree.children[1].children[1].children[0].children.len(), 2);
-    assert!(tree.children[9].children.is_empty());
+    assert!(tree.children[10].children.is_empty());
 }
 
 #[test]
@@ -103,7 +105,7 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
     entry.model = "\t".to_string();
 
     for (temperature, max_depth, max_iterations, max_tool_iterations, max_history_messages) in
-        [(0.0, 1, 1, 1, 1), (2.0, 32, 100, 200, 1000)]
+        [(0.0, 1, 1, 1, 1), (2.0, 32, 50_001, 50_002, 1000)]
     {
         entry.temperature = temperature;
         entry.max_depth = max_depth;
@@ -115,7 +117,7 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
 
         assert_common_field_structure(&tree);
         assert!(tree.children[1].children.is_empty());
-        assert_eq!(tree.children[9].children.len(), 6);
+        assert_eq!(tree.children[10].children.len(), 6);
     }
 }
 
@@ -139,5 +141,5 @@ fn basic_view_renders_main_runtime_boolean_and_text_variants() {
 
     assert_common_field_structure(&tree);
     assert!(tree.children[1].children.is_empty());
-    assert_eq!(tree.children[9].children.len(), 6);
+    assert_eq!(tree.children[10].children.len(), 6);
 }

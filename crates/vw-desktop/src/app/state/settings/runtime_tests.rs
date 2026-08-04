@@ -87,6 +87,7 @@ fn skills_enums_and_default_state_are_stable() {
 
     let state = SkillsSettingsState::default();
     assert!(!state.open_skills_enabled);
+    assert!(state.auto_load_project_skills);
     assert_eq!(
         state.directory_provider,
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow
@@ -180,7 +181,7 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
     assert!(web.brave_api_key_input.is_empty());
     assert_eq!(web.max_results_input, "5");
     assert_eq!(web.timeout_secs_input, "15");
-    assert_eq!(web.user_agent, "VibeWindow/1.0");
+    assert_eq!(web.user_agent, vw_config_types::tools::DEFAULT_USER_AGENT);
     assert!(!web.show_help_modal);
     assert!(web.save_error.is_none());
 
@@ -205,7 +206,7 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
 
     let gateway = GatewaySettingsState::default();
     assert_eq!(gateway.active_tab, GatewaySettingsTab::Config);
-    assert_eq!(gateway.port, 42617);
+    assert_eq!(gateway.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(gateway.host_input, "127.0.0.1");
     assert!(!gateway.auth_enabled);
     assert!(!gateway.allow_public_bind);
@@ -319,7 +320,7 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert_eq!(client.name_input, client.servers[0].name);
     assert!(client.health.is_empty());
     assert_eq!(client.host_input, "127.0.0.1");
-    assert_eq!(client.port, 42617);
+    assert_eq!(client.port, vw_config_types::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(client.platform_id_input, "10000");
     assert_eq!(client.company_id_input, "100000000");
     assert!(client.skey_input.is_empty());

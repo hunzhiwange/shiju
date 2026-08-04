@@ -4,7 +4,7 @@
 use super::ChatMessage;
 use crate::app::components::chat_panel::tools::{
     format_mcp_detail_content, is_mcp_tool_raw, tool_error_text, tool_header_label,
-    tool_output_text, tool_status,
+    tool_output_text, tool_status, workflow_node_detail_body,
 };
 use crate::app::components::text_editor_context_menu::{
     focus_editor_task, paste_action, paste_task, selection_copy_task, selection_cut_task,
@@ -203,24 +203,65 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
     let (first, rest) = raw.split_once('\n')?;
     let raw_tool_name = first.trim().strip_prefix("tool ")?.trim();
     let is_mcp = is_mcp_tool_raw(raw);
-    let tool_name = if is_mcp { "MCP" } else { raw_tool_name };
+    let tool_name = if is_mcp {
+        "MCP"
+    } else {
+        crate::app::components::chat_panel::tools::canonical_tool_name(raw_tool_name)
+    };
     let fallback_title = tool_header_label(tool_name).to_string();
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok();
-    let title = value
-        .as_ref()
-        .map(tool_status)
-        .map(|status| match status {
-            "error" | "denied" => format!("{fallback_title} 失败"),
-            "running" => format!("{fallback_title} 运行中"),
-            _ => fallback_title.clone(),
-        })
-        .unwrap_or(fallback_title);
-    let content = value
-        .as_ref()
-        .and_then(tool_output_text)
-        .or_else(|| value.as_ref().and_then(tool_error_text))
-        .unwrap_or_else(|| rest.trim().to_string());
-    let content = if is_mcp { format_mcp_detail_content(&content) } else { content };
+    let title = if tool_name == "workflow_node" {
+        value
+            .as_ref()
+            .and_then(|payload| payload.get("metadata"))
+            .and_then(|metadata| metadata.get("title"))
+            .and_then(|title| title.as_str())
+            .map(str::trim)
+            .filter(|title| !title.is_empty())
+            .map(|title| {
+                let status = value.as_ref().map(tool_status).unwrap_or("");
+                match status {
+                    "error" | "denied" | "failed" => format!("{title} · 失败"),
+                    "running" => format!("{title} · 运行中"),
+                    _ => title.to_string(),
+                }
+            })
+            .unwrap_or_else(|| {
+                value
+                    .as_ref()
+                    .map(tool_status)
+                    .map(|status| match status {
+                        "error" | "denied" | "failed" => format!("{fallback_title} 失败"),
+                        "running" => format!("{fallback_title} 运行中"),
+                        _ => fallback_title.clone(),
+                    })
+                    .unwrap_or(fallback_title)
+            })
+    } else {
+        value
+            .as_ref()
+            .map(tool_status)
+            .map(|status| match status {
+                "error" | "denied" => format!("{fallback_title} 失败"),
+                "running" => format!("{fallback_title} 运行中"),
+                _ => fallback_title.clone(),
+            })
+            .unwrap_or(fallback_title)
+    };
+    let content = if tool_name == "workflow_node" {
+        value
+            .as_ref()
+            .map(workflow_node_detail_body)
+            .filter(|content| !content.trim().is_empty())
+            .unwrap_or_else(|| rest.trim().to_string())
+    } else {
+        let content = value
+            .as_ref()
+            .and_then(tool_output_text)
+            .or_else(|| value.as_ref().and_then(tool_error_text))
+            .unwrap_or_else(|| rest.trim().to_string());
+        if is_mcp { format_mcp_detail_content(&content) } else { content }
+    };
     Some((title, content))
 }
 

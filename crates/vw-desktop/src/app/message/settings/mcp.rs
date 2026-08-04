@@ -282,6 +282,91 @@ fn append_new_server(
     Ok((value, count))
 }
 
+fn server_edit_state(
+    editor: &text_editor::Content,
+    index: usize,
+) -> Result<McpNewServerState, String> {
+    let (value, _) = editor_value(editor)?;
+    let server = value
+        .as_array()
+        .and_then(|servers| servers.get(index))
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid(&format!("mcpServers[{index}] in global config"), "object"))?;
+    let transport = match server.get("type").and_then(Value::as_str).unwrap_or("stdio") {
+        "stdio" => McpNewServerTransport::Stdio,
+        "http" => McpNewServerTransport::Http,
+        "sse" => McpNewServerTransport::Sse,
+        value => return Err(invalid("MCP server type", &format!("known transport, got {value}"))),
+    };
+    let args_input = server
+        .get("args")
+        .and_then(Value::as_array)
+        .map(|args| args.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default();
+    let timeout_input = server
+        .get("timeout")
+        .filter(|value| !value.is_null())
+        .map(Value::to_string)
+        .unwrap_or_default();
+
+    Ok(McpNewServerState {
+        name_input: server.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
+        transport,
+        command_input: server
+            .get("command")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        args_input,
+        url_input: server.get("url").and_then(Value::as_str).unwrap_or_default().to_string(),
+        timeout_input,
+        enabled: server.get("enabled").and_then(Value::as_bool).unwrap_or(true),
+        required: server.get("required").and_then(Value::as_bool).unwrap_or(false),
+    })
+}
+
+fn update_server(
+    editor: &text_editor::Content,
+    index: usize,
+    input: &McpNewServerState,
+) -> Result<(Value, usize), String> {
+    let (mut value, _) = editor_value(editor)?;
+    let edited = new_server_value(input)?;
+    let edited = edited.as_object().ok_or_else(|| invalid("edited MCP server", "object"))?;
+    let server = value
+        .as_array_mut()
+        .and_then(|servers| servers.get_mut(index))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| invalid(&format!("mcpServers[{index}] in global config"), "object"))?;
+
+    let previous_transport = server.get("type").and_then(Value::as_str).unwrap_or("stdio");
+    let next_transport = edited.get("type").and_then(Value::as_str).unwrap_or("stdio");
+    if previous_transport != next_transport {
+        for key in ["command", "args", "env", "url", "headers"] {
+            server.remove(key);
+        }
+    }
+
+    for key in ["name", "type", "enabled", "required"] {
+        if let Some(next) = edited.get(key) {
+            server.insert(key.to_string(), next.clone());
+        }
+    }
+    for key in ["timeout", "command", "args", "url"] {
+        match edited.get(key) {
+            Some(next) => {
+                server.insert(key.to_string(), next.clone());
+            }
+            None => {
+                server.remove(key);
+            }
+        }
+    }
+
+    let count = validate_mcp_servers(&value)?;
+    Ok((value, count))
+}
+
 fn set_server_enabled(
     editor: &text_editor::Content,
     index: usize,
@@ -374,6 +459,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(global_config) => {
                     app.mcp_settings.runtime_overrides =
                         loaded_mcp_server_overrides(&global_config);
+                    app.mcp_settings.new_server = McpNewServerState::default();
+                    app.mcp_settings.editing_server_index = None;
                     let value = loaded_mcp_servers(global_config);
                     if let Ok(text) = pretty(&value) {
                         app.mcp_settings.editor = text_editor::Content::with_text(&text);
@@ -485,6 +572,48 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         app.mcp_settings.editor = text_editor::Content::with_text(&text);
                     }
                     app.mcp_settings.new_server = McpNewServerState::default();
+                    app.mcp_settings.editing_server_index = None;
+                    app.mcp_settings.server_count = count;
+                    app.mcp_settings.saving = true;
+                    clear_edit_feedback(app);
+                    save_task(value)
+                }
+                Err(err) => {
+                    app.mcp_settings.save_error = Some(err);
+                    Task::none()
+                }
+            }
+        }
+        McpMessage::ServerEditRequested(index) => {
+            match server_edit_state(&app.mcp_settings.editor, index) {
+                Ok(state) => {
+                    app.mcp_settings.new_server = state;
+                    app.mcp_settings.editing_server_index = Some(index);
+                    app.mcp_settings.new_server_expanded = true;
+                    clear_edit_feedback(app);
+                }
+                Err(err) => app.mcp_settings.save_error = Some(err),
+            }
+            Task::none()
+        }
+        McpMessage::ServerEditCanceled => {
+            app.mcp_settings.new_server = McpNewServerState::default();
+            app.mcp_settings.editing_server_index = None;
+            clear_edit_feedback(app);
+            Task::none()
+        }
+        McpMessage::SaveServerEdit => {
+            let Some(index) = app.mcp_settings.editing_server_index else {
+                app.mcp_settings.save_error = Some("没有正在编辑的 MCP 服务器".to_string());
+                return Task::none();
+            };
+            match update_server(&app.mcp_settings.editor, index, &app.mcp_settings.new_server) {
+                Ok((value, count)) => {
+                    if let Ok(text) = pretty(&value) {
+                        app.mcp_settings.editor = text_editor::Content::with_text(&text);
+                    }
+                    app.mcp_settings.new_server = McpNewServerState::default();
+                    app.mcp_settings.editing_server_index = None;
                     app.mcp_settings.server_count = count;
                     app.mcp_settings.saving = true;
                     clear_edit_feedback(app);

@@ -8,15 +8,69 @@ fn task_631_test_module_is_wired() {
 fn skills_config_defaults_to_vibewindow_directory_provider() {
     let config = super::SkillsConfig::default();
     assert_eq!(config.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
+    assert!(config.auto_load_project_skills);
     assert!(!config.open_skills_enabled);
     assert_eq!(config.open_skills_dir, None);
     assert_eq!(config.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 
     let parsed: super::SkillsConfig = serde_json::from_str("{}").unwrap();
     assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
+    assert!(parsed.auto_load_project_skills);
     assert!(!parsed.open_skills_enabled);
     assert_eq!(parsed.open_skills_dir, None);
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
+}
+
+#[test]
+fn skill_security_defaults_off_and_round_trips_independently() {
+    fn assert_all_disabled(security: &super::SkillSecurityConfig) {
+        assert!(!security.require_manifest);
+        assert!(!security.reject_symlinks);
+        assert!(!security.reject_script_files);
+        assert!(!security.reject_oversized_text_files);
+        assert!(!security.detect_high_risk_content);
+        assert!(!security.detect_shell_chaining);
+        assert!(!security.validate_manifest);
+        assert!(!security.validate_markdown_links);
+    }
+
+    assert_all_disabled(&super::SkillSecurityConfig::default());
+
+    let legacy: super::SkillsConfig = serde_json::from_str("{}").unwrap();
+    assert_all_disabled(&legacy.security);
+
+    let configured: super::SkillsConfig = serde_json::from_value(serde_json::json!({
+        "security": {
+            "detect_shell_chaining": true
+        }
+    }))
+    .unwrap();
+    assert!(!configured.security.require_manifest);
+    assert!(!configured.security.reject_symlinks);
+    assert!(!configured.security.reject_script_files);
+    assert!(!configured.security.reject_oversized_text_files);
+    assert!(!configured.security.detect_high_risk_content);
+    assert!(configured.security.detect_shell_chaining);
+    assert!(!configured.security.validate_manifest);
+    assert!(!configured.security.validate_markdown_links);
+
+    let serialized = serde_json::to_value(&configured).unwrap();
+    assert_eq!(
+        serialized["security"],
+        serde_json::json!({
+            "require_manifest": false,
+            "reject_symlinks": false,
+            "reject_script_files": false,
+            "reject_oversized_text_files": false,
+            "detect_high_risk_content": false,
+            "detect_shell_chaining": true,
+            "validate_manifest": false,
+            "validate_markdown_links": false
+        })
+    );
+
+    let round_tripped: super::SkillsConfig = serde_json::from_value(serialized).unwrap();
+    assert_eq!(round_tripped.security, configured.security);
 }
 
 #[test]
@@ -119,6 +173,7 @@ fn skills_prompt_injection_mode_round_trips_as_snake_case() {
 fn skills_config_deserializes_open_skills_and_prompt_mode_overrides() {
     let parsed: super::SkillsConfig = serde_json::from_value(serde_json::json!({
         "directory_provider": "cursor",
+        "auto_load_project_skills": false,
         "open_skills_enabled": true,
         "open_skills_dir": "/tmp/skills",
         "prompt_injection_mode": "full"
@@ -126,6 +181,7 @@ fn skills_config_deserializes_open_skills_and_prompt_mode_overrides() {
     .unwrap();
 
     assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Cursor);
+    assert!(!parsed.auto_load_project_skills);
     assert!(parsed.open_skills_enabled);
     assert_eq!(parsed.open_skills_dir.as_deref(), Some("/tmp/skills"));
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Full);

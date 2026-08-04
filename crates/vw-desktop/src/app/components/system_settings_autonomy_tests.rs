@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::{App, Message};
+use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::{text, text_input};
@@ -71,7 +72,11 @@ fn view_builds_each_autonomy_level() {
 fn view_builds_each_redirect_and_natural_language_mode_combination() {
     let mut app = test_app();
 
-    for redirect_policy in [ShellRedirectPolicy::Block, ShellRedirectPolicy::Strip] {
+    for redirect_policy in [
+        ShellRedirectPolicy::Block,
+        ShellRedirectPolicy::Strip,
+        ShellRedirectPolicy::Allow,
+    ] {
         for approval_mode in [
             NonCliNaturalLanguageApprovalMode::Disabled,
             NonCliNaturalLanguageApprovalMode::RequestConfirm,
@@ -101,10 +106,10 @@ fn view_builds_each_boolean_policy_combination() {
 }
 
 #[test]
-fn view_builds_budget_slider_boundaries() {
+fn view_builds_budget_input_boundaries() {
     let mut app = test_app();
 
-    for (max_actions, max_cost) in [(1, 1), (10_000, 1_000_000)] {
+    for (max_actions, max_cost) in [(1, 1), (1_000_000, 100_000_000)] {
         app.autonomy_settings.max_actions_per_hour = max_actions;
         app.autonomy_settings.max_cost_per_day_cents = max_cost;
         keep_element(view(&app));
@@ -112,47 +117,45 @@ fn view_builds_budget_slider_boundaries() {
 }
 
 #[test]
-fn view_builds_empty_multiline_and_unicode_text_inputs() {
+fn view_builds_empty_and_unicode_list_items() {
     let mut app = test_app();
-    let input_sets = [
-        ["", "", "", "", "", "", "", "", ""],
-        [
-            "git\ncargo",
-            "/etc\n/root",
-            "RUST_LOG\nPATH",
-            "file_read\nmemory_recall",
-            "shell\nfile_write",
-            "/workspace\n/safe-root",
-            "browser\nhttp_request",
-            "telegram:alice\ndiscord:bob",
-            "telegram:direct\ndiscord:request_confirm",
-        ],
-        [
-            "命令-α",
-            "/工作区/私密",
-            "环境_变量",
-            "自动审批工具",
-            "始终询问工具",
-            "/允许/根目录",
-            "非命令行工具",
-            "频道:审批人",
-            "频道:disabled",
-        ],
-    ];
-
-    for inputs in input_sets {
-        app.autonomy_settings.allowed_commands_input = inputs[0].to_string();
-        app.autonomy_settings.forbidden_paths_input = inputs[1].to_string();
-        app.autonomy_settings.shell_env_passthrough_input = inputs[2].to_string();
-        app.autonomy_settings.auto_approve_input = inputs[3].to_string();
-        app.autonomy_settings.always_ask_input = inputs[4].to_string();
-        app.autonomy_settings.allowed_roots_input = inputs[5].to_string();
-        app.autonomy_settings.non_cli_excluded_tools_input = inputs[6].to_string();
-        app.autonomy_settings.non_cli_approval_approvers_input = inputs[7].to_string();
-        app.autonomy_settings.non_cli_natural_language_approval_mode_by_channel_input =
-            inputs[8].to_string();
-        keep_element(view(&app));
+    for kind in AutonomyListKind::ALL {
+        app.autonomy_settings.list_mut(kind).clear();
     }
+    app.autonomy_settings.allowed_commands = vec!["cargo test".to_string()];
+    app.autonomy_settings.forbidden_paths = vec!["/工作区/私密 目录".to_string()];
+    app.autonomy_settings.auto_approve = vec!["retired_tool".to_string()];
+    app.autonomy_settings.active_tab = AutonomySettingsTab::ToolsAndPaths;
+    keep_element(view(&app));
+
+    app.autonomy_settings.non_cli_excluded_tools = vec!["未知工具".to_string()];
+    app.autonomy_settings.active_tab = AutonomySettingsTab::NonCli;
+    keep_element(view(&app));
+}
+
+#[test]
+fn list_editor_renders_one_row_per_saved_item() {
+    let items = vec!["cargo".to_string(), "git status".to_string(), "未知工具".to_string()];
+    let element = list_editor(
+        AutonomyListKind::AllowedCommands,
+        "允许命令",
+        "说明",
+        &items,
+        "",
+        &[],
+    );
+    let tree = Tree::new(element.as_widget());
+
+    assert_eq!(tree.children.len(), 3);
+    let saved_item_rows = &tree.children[2].children[0];
+    assert_eq!(saved_item_rows.children.len(), items.len());
+    let source = include_str!("system_settings_autonomy.rs");
+    assert!(source.contains("LIST_EDITOR_MAX_HEIGHT"));
+    assert!(source.contains("Scrollbar::new().width(4).scroller_width(4)"));
+    assert!(source.contains("settings_pick_list_style"));
+    assert!(source.contains("settings_pick_list_menu_style"));
+    assert!(source.contains("right: 12.0"));
+    assert!(!source.contains("Font::MONOSPACE"));
 }
 
 #[test]
@@ -169,14 +172,27 @@ fn overlays_return_dialog_or_build_help_modal() {
 }
 
 #[test]
-fn view_keeps_all_policy_budget_path_and_non_cli_rows() {
-    let app = test_app();
-    let element = view(&app);
-    let tree = Tree::new(element.as_widget());
+fn autonomy_help_example_keeps_agent_tool_available() {
+    let source = include_str!("system_settings_autonomy.rs");
 
-    assert_eq!(tree.children.len(), 9);
-    assert_eq!(tree.children[2].children.len(), 11);
-    assert_eq!(tree.children[4].children.len(), 3);
-    assert_eq!(tree.children[6].children.len(), 11);
-    assert_eq!(tree.children[8].children.len(), 5);
+    assert!(!source.contains("\"AgentTool\","));
+}
+
+#[test]
+fn view_renders_only_selected_autonomy_tab() {
+    let mut app = test_app();
+
+    for (tab, panel_children) in [
+        (AutonomySettingsTab::Permissions, 11),
+        (AutonomySettingsTab::Budget, 3),
+        (AutonomySettingsTab::ToolsAndPaths, 11),
+        (AutonomySettingsTab::NonCli, 5),
+    ] {
+        app.autonomy_settings.active_tab = tab;
+        let element = view(&app);
+        let tree = Tree::new(element.as_widget());
+
+        assert_eq!(tree.children.len(), 4);
+        assert_eq!(tree.children[3].children.len(), panel_children);
+    }
 }

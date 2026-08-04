@@ -25,6 +25,7 @@ use crate::app::agent::skills::types::{
 use anyhow::Result;
 use serde::Deserialize;
 use std::path::Path;
+use vw_config_types::skills::SkillSecurityConfig;
 
 #[derive(Debug, Default, Deserialize)]
 struct MarkdownSkillFrontmatter {
@@ -143,6 +144,7 @@ fn extract_description_from_body(content: &str) -> Option<String> {
 pub(crate) fn load_skills_from_directory(
     skills_dir: &Path,
     load_mode: SkillLoadMode,
+    security: &SkillSecurityConfig,
 ) -> Vec<Skill> {
     // 目录不存在时返回空列表，不视为错误
     if !skills_dir.exists() {
@@ -170,7 +172,9 @@ pub(crate) fn load_skills_from_directory(
         }
 
         // 对技能目录进行安全审计，确保不包含危险文件或符号链接
-        match crate::app::agent::skills::audit::audit_skill_directory(&path) {
+        match crate::app::agent::skills::audit::audit_skill_directory_with_security(
+            &path, security,
+        ) {
             // 审计通过，继续加载
             Ok(report) if report.is_clean() => {}
             // 审计发现问题，跳过该技能并记录警告

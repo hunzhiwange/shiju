@@ -61,7 +61,7 @@ async fn external_router_registers_only_declared_webhook_methods() {
     let app = external_router().with_state(state());
 
     for (method, path) in [
-        ("POST", "/health"),
+        ("POST", "/v1/health"),
         ("GET", "/v1/webhook"),
         ("PUT", "/v1/whatsapp"),
         ("GET", "/v1/linq"),
@@ -79,4 +79,119 @@ async fn external_router_registers_only_declared_webhook_methods() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
+    let lines = gateway_route_summary(GatewayRouteSummaryOptions {
+        whatsapp_enabled: true,
+        linq_enabled: true,
+        wati_enabled: true,
+        nextcloud_talk_enabled: true,
+        qq_webhook_enabled: true,
+        node_control_enabled: true,
+    });
+    let text = lines.join("\n");
+
+    assert!(text.contains("Public probes and third-party webhooks (no tenant headers):"));
+    assert!(text.contains("Gateway routes: "));
+    assert!(text.contains("Client APIs (require X-Platform-ID and X-Company-ID):"));
+    for route in [
+        "/v1/webhook",
+        "/v1/whatsapp",
+        "/v1/linq",
+        "/v1/wati",
+        "/v1/nextcloud-talk",
+        "/v1/qq",
+        "/v1/health",
+        "/v1/metrics",
+        "/v1/agent",
+        "/v1/chat/completions",
+        "/v1/models",
+        "/v1/ws/chat",
+        "/v1/events",
+        "/v1/status",
+        "/v1/tools",
+        "/v1/mcp/inspect",
+        "/v1/cron",
+        "/v1/cron/{id}",
+        "/v1/integrations",
+        "/v1/integrations/settings",
+        "/v1/integrations/{id}/credentials",
+        "/v1/doctor",
+        "/v1/memory",
+        "/v1/memory/{key}",
+        "/v1/cli-tools",
+        "/v1/api-health",
+        "/v1/dashboard/config",
+        "/v1/node-control",
+        "/v1/shiju/account/login",
+        "/v1/shiju/account/login/poll",
+        "/v1/shiju/account/profile",
+        "/v1/shiju/apps/catalog",
+        "/v1/shiju/apps",
+        "/v1/shiju/apps/{installation_id}/launch",
+        "/v1/shiju/skills/search",
+        "/v1/shiju/skills/installed",
+        "/v1/shiju/skills/system",
+        "/v1/shiju/skills/company",
+        "/v1/shiju/skills/maintained",
+        "/v1/shiju/skills/{skill_id}",
+        "/v1/shiju/skills/{skill_id}/versions",
+        "/v1/shiju/skills/{skill_id}/install",
+        "/v1/apiQL/{entity_class}/list-page",
+        "/v1/agent-scheduler/projects/{project_id}/tasks",
+        "/v1/staff/projects/{project_id}/projection",
+        "/v1/session/{session_id}/message/{message_id}/part/{part_id}",
+        "/v1/data/connections/{connection_id}/catalog",
+        "/v1/workflow/applications/{uuid}/chat-messages",
+        "/v1/knowledge/datasets/{dataset_id}/documents/import-async",
+    ] {
+        assert!(text.contains(route), "missing route summary entry: {route}");
+    }
+}
+
+#[tokio::test]
+async fn stateful_handler_router_registers_shiju_gateway_routes() {
+    let app = Router::new().nest("/v1", stateful_handler_router()).with_state(state());
+
+    for (method, path) in [
+        ("GET", "/v1/shiju/account/login"),
+        ("POST", "/v1/shiju/account/profile"),
+        ("POST", "/v1/shiju/apps/catalog"),
+        ("POST", "/v1/shiju/apps"),
+        ("GET", "/v1/shiju/apps/01K1APP0000000000000000001/launch"),
+        ("POST", "/v1/shiju/skills/installed"),
+        ("POST", "/v1/shiju/skills/42/versions"),
+    ] {
+        let request = Request::builder().method(method).uri(path).body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
+    }
+}
+
+#[test]
+fn gateway_route_summary_hides_disabled_optional_routes() {
+    let lines = gateway_route_summary(GatewayRouteSummaryOptions {
+        whatsapp_enabled: false,
+        linq_enabled: false,
+        wati_enabled: false,
+        nextcloud_talk_enabled: false,
+        qq_webhook_enabled: false,
+        node_control_enabled: false,
+    });
+    let text = lines.join("\n");
+
+    assert!(!text.contains("GET    /health"), "root health route should not be shown");
+
+    for route in [
+        "/v1/whatsapp",
+        "/v1/linq",
+        "/v1/wati",
+        "/v1/nextcloud-talk",
+        "/v1/qq",
+        "/v1/node-control",
+    ] {
+        assert!(!text.contains(route), "disabled route should not be shown: {route}");
+    }
 }

@@ -5,12 +5,21 @@ pub(crate) struct MultimodalSettingsState {
     pub(crate) max_images: u32,
     pub(crate) max_image_size_mb: u32,
     pub(crate) allow_remote_fetch: bool,
+    pub(crate) ocr_enabled: bool,
+    pub(crate) ocr_model: String,
     pub(crate) save_error: Option<String>,
 }
 
 impl Default for MultimodalSettingsState {
     fn default() -> Self {
-        Self { max_images: 4, max_image_size_mb: 5, allow_remote_fetch: false, save_error: None }
+        Self {
+            max_images: 10,
+            max_image_size_mb: 5,
+            allow_remote_fetch: true,
+            ocr_enabled: false,
+            ocr_model: String::new(),
+            save_error: None,
+        }
     }
 }
 
@@ -43,7 +52,12 @@ impl Default for HttpRequestSettingsState {
 pub(crate) struct AcpSettingsState {
     pub(crate) catalog: std::collections::BTreeMap<String, vw_config_types::config::AcpAgentConfig>,
     pub(crate) enabled: std::collections::BTreeSet<String>,
+    pub(crate) new_agent_expanded: bool,
+    pub(crate) new_agent_name_input: String,
+    pub(crate) new_agent_command_input: String,
+    pub(crate) new_agent_args_input: String,
     pub(crate) loading: bool,
+    pub(crate) adding_agent: bool,
     pub(crate) saving_agent: Option<String>,
     pub(crate) copied_agent: Option<String>,
     pub(crate) save_error: Option<String>,
@@ -55,7 +69,12 @@ impl Default for AcpSettingsState {
         Self {
             catalog: std::collections::BTreeMap::new(),
             enabled: std::collections::BTreeSet::new(),
+            new_agent_expanded: false,
+            new_agent_name_input: String::new(),
+            new_agent_command_input: String::new(),
+            new_agent_args_input: String::new(),
             loading: false,
+            adding_agent: false,
             saving_agent: None,
             copied_agent: None,
             save_error: None,
@@ -122,6 +141,7 @@ pub(crate) struct McpSettingsState {
     pub(crate) editor: text_editor::Content,
     pub(crate) runtime_overrides: Vec<serde_json::Value>,
     pub(crate) new_server_expanded: bool,
+    pub(crate) editing_server_index: Option<usize>,
     pub(crate) expanded_previews: std::collections::BTreeSet<String>,
     pub(crate) new_server: McpNewServerState,
     pub(crate) loading: bool,
@@ -148,6 +168,7 @@ impl Default for McpSettingsState {
             editor: text_editor::Content::with_text("[]"),
             runtime_overrides: Vec::new(),
             new_server_expanded: false,
+            editing_server_index: None,
             expanded_previews: std::collections::BTreeSet::new(),
             new_server: McpNewServerState::default(),
             loading: false,
@@ -166,14 +187,73 @@ impl Default for McpSettingsState {
 ///
 /// 管理系统安全性的配置，包括沙箱、审计、
 /// OTP、紧急停止和系统调用异常检测等。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecurityListKind {
+    SandboxFirejailArgs,
+    OtpGatedActions,
+    OtpGatedDomains,
+    OtpGatedDomainCategories,
+    SyscallAnomalyBaselineSyscalls,
+}
+
+impl SecurityListKind {
+    #[cfg(test)]
+    pub(crate) const ALL: [Self; 5] = [
+        Self::SandboxFirejailArgs,
+        Self::OtpGatedActions,
+        Self::OtpGatedDomains,
+        Self::OtpGatedDomainCategories,
+        Self::SyscallAnomalyBaselineSyscalls,
+    ];
+
+    pub(crate) const fn index(self) -> usize {
+        match self {
+            Self::SandboxFirejailArgs => 0,
+            Self::OtpGatedActions => 1,
+            Self::OtpGatedDomains => 2,
+            Self::OtpGatedDomainCategories => 3,
+            Self::SyscallAnomalyBaselineSyscalls => 4,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SecurityListEditorState {
+    drafts: [String; 5],
+}
+
+impl SecurityListEditorState {
+    pub(crate) fn draft(&self, kind: SecurityListKind) -> &str {
+        &self.drafts[kind.index()]
+    }
+
+    pub(crate) fn set_draft(&mut self, kind: SecurityListKind, value: String) {
+        self.drafts[kind.index()] = value;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecuritySettingsTab {
+    Bash,
+    SandboxAndResources,
+    Audit,
+    OtpAndEstop,
+    Syscall,
+    Guard,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct SecuritySettingsState {
+    /// 当前显示的安全配置页签
+    pub(crate) active_tab: SecuritySettingsTab,
+    /// Bash 命令执行前安全检查的完整分层配置
+    pub(crate) bash: vw_config_types::security::BashSecurityConfig,
     /// 沙箱启用状态输入
     pub(crate) sandbox_enabled_input: String,
     /// 沙箱后端输入
     pub(crate) sandbox_backend_input: String,
-    /// Firejail 参数输入
-    pub(crate) sandbox_firejail_args_input: String,
+    /// Firejail 参数列表
+    pub(crate) sandbox_firejail_args: Vec<String>,
     /// 最大内存限制（MB）
     pub(crate) resources_max_memory_mb: u32,
     /// 最大 CPU 时间（秒）
@@ -198,12 +278,12 @@ pub(crate) struct SecuritySettingsState {
     pub(crate) otp_token_ttl_secs: u64,
     /// OTP 缓存有效期（秒）
     pub(crate) otp_cache_valid_secs: u64,
-    /// OTP 门控操作输入
-    pub(crate) otp_gated_actions_input: String,
-    /// OTP 门控域输入
-    pub(crate) otp_gated_domains_input: String,
-    /// OTP 门控域类别输入
-    pub(crate) otp_gated_domain_categories_input: String,
+    /// OTP 门控操作列表
+    pub(crate) otp_gated_actions: Vec<String>,
+    /// OTP 门控域列表
+    pub(crate) otp_gated_domains: Vec<String>,
+    /// OTP 门控域类别列表
+    pub(crate) otp_gated_domain_categories: Vec<String>,
     /// 是否启用紧急停止
     pub(crate) estop_enabled: bool,
     /// 紧急停止状态文件路径
@@ -226,8 +306,10 @@ pub(crate) struct SecuritySettingsState {
     pub(crate) syscall_anomaly_alert_cooldown_secs: u64,
     /// 系统调用异常日志路径
     pub(crate) syscall_anomaly_log_path: String,
-    /// 基线系统调用输入
-    pub(crate) syscall_anomaly_baseline_syscalls_input: String,
+    /// 基线系统调用列表
+    pub(crate) syscall_anomaly_baseline_syscalls: Vec<String>,
+    /// 五个逐项列表的草稿输入
+    pub(crate) list_editor: SecurityListEditorState,
     /// 是否启用金丝雀令牌
     pub(crate) canary_tokens: bool,
     /// 是否启用语义防护
@@ -245,9 +327,11 @@ pub(crate) struct SecuritySettingsState {
 impl Default for SecuritySettingsState {
     fn default() -> Self {
         Self {
-            sandbox_enabled_input: "auto".to_string(),
-            sandbox_backend_input: "auto".to_string(),
-            sandbox_firejail_args_input: String::new(),
+            active_tab: SecuritySettingsTab::Bash,
+            bash: vw_config_types::security::BashSecurityConfig::default(),
+            sandbox_enabled_input: "false".to_string(),
+            sandbox_backend_input: "none".to_string(),
+            sandbox_firejail_args: Vec::new(),
             resources_max_memory_mb: 512,
             resources_max_cpu_time_seconds: 60,
             resources_max_subprocesses: 10,
@@ -260,22 +344,28 @@ impl Default for SecuritySettingsState {
             otp_method_input: "totp".to_string(),
             otp_token_ttl_secs: 30,
             otp_cache_valid_secs: 300,
-            otp_gated_actions_input: "shell, file_write, browser_open, browser, memory_forget"
-                .to_string(),
-            otp_gated_domains_input: String::new(),
-            otp_gated_domain_categories_input: String::new(),
+            otp_gated_actions: vec![
+                "shell".to_string(),
+                "file_write".to_string(),
+                "browser_open".to_string(),
+                "browser".to_string(),
+                "memory_forget".to_string(),
+            ],
+            otp_gated_domains: Vec::new(),
+            otp_gated_domain_categories: Vec::new(),
             estop_enabled: false,
             estop_state_file: vw_config_types::paths::estop_state_file_path(),
             estop_require_otp_to_resume: true,
-            syscall_anomaly_enabled: true,
+            syscall_anomaly_enabled: false,
             syscall_anomaly_strict_mode: false,
-            syscall_anomaly_alert_on_unknown_syscall: true,
+            syscall_anomaly_alert_on_unknown_syscall: false,
             syscall_anomaly_max_denied_events_per_minute: 5,
             syscall_anomaly_max_total_events_per_minute: 120,
             syscall_anomaly_max_alerts_per_minute: 30,
             syscall_anomaly_alert_cooldown_secs: 20,
             syscall_anomaly_log_path: "syscall-anomalies.log".to_string(),
-            syscall_anomaly_baseline_syscalls_input: String::new(),
+            syscall_anomaly_baseline_syscalls: Vec::new(),
+            list_editor: SecurityListEditorState::default(),
             canary_tokens: true,
             semantic_guard: false,
             semantic_guard_collection: "semantic_guard".to_string(),
@@ -286,20 +376,103 @@ impl Default for SecuritySettingsState {
     }
 }
 
+impl SecuritySettingsState {
+    pub(crate) fn list(&self, kind: SecurityListKind) -> &[String] {
+        match kind {
+            SecurityListKind::SandboxFirejailArgs => &self.sandbox_firejail_args,
+            SecurityListKind::OtpGatedActions => &self.otp_gated_actions,
+            SecurityListKind::OtpGatedDomains => &self.otp_gated_domains,
+            SecurityListKind::OtpGatedDomainCategories => &self.otp_gated_domain_categories,
+            SecurityListKind::SyscallAnomalyBaselineSyscalls => {
+                &self.syscall_anomaly_baseline_syscalls
+            }
+        }
+    }
+
+    pub(crate) fn list_mut(&mut self, kind: SecurityListKind) -> &mut Vec<String> {
+        match kind {
+            SecurityListKind::SandboxFirejailArgs => &mut self.sandbox_firejail_args,
+            SecurityListKind::OtpGatedActions => &mut self.otp_gated_actions,
+            SecurityListKind::OtpGatedDomains => &mut self.otp_gated_domains,
+            SecurityListKind::OtpGatedDomainCategories => &mut self.otp_gated_domain_categories,
+            SecurityListKind::SyscallAnomalyBaselineSyscalls => {
+                &mut self.syscall_anomaly_baseline_syscalls
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutonomyListKind {
+    AllowedCommands,
+    ForbiddenPaths,
+    ShellEnvPassthrough,
+    AutoApprove,
+    AlwaysAsk,
+    AllowedRoots,
+    NonCliExcludedTools,
+}
+
+impl AutonomyListKind {
+    #[cfg(test)]
+    pub(crate) const ALL: [Self; 7] = [
+        Self::AllowedCommands,
+        Self::ForbiddenPaths,
+        Self::ShellEnvPassthrough,
+        Self::AutoApprove,
+        Self::AlwaysAsk,
+        Self::AllowedRoots,
+        Self::NonCliExcludedTools,
+    ];
+
+    pub(crate) const fn index(self) -> usize {
+        match self {
+            Self::AllowedCommands => 0,
+            Self::ForbiddenPaths => 1,
+            Self::ShellEnvPassthrough => 2,
+            Self::AutoApprove => 3,
+            Self::AlwaysAsk => 4,
+            Self::AllowedRoots => 5,
+            Self::NonCliExcludedTools => 6,
+        }
+    }
+
+    pub(crate) const fn is_tool_list(self) -> bool {
+        matches!(self, Self::AutoApprove | Self::AlwaysAsk | Self::NonCliExcludedTools)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct AutonomyListEditorState {
+    drafts: [String; 7],
+}
+
+impl AutonomyListEditorState {
+    pub(crate) fn draft(&self, kind: AutonomyListKind) -> &str {
+        &self.drafts[kind.index()]
+    }
+
+    pub(crate) fn set_draft(&mut self, kind: AutonomyListKind, value: String) {
+        self.drafts[kind.index()] = value;
+    }
+}
+
 /// 自主性设置面板状态
 ///
 /// 管理 Agent 自主性级别的配置，包括权限控制、
 /// 风险管理和审批策略等。
 #[derive(Debug, Clone)]
 pub(crate) struct AutonomySettingsState {
+    /// 当前显示的自治配置页签
+    pub(crate) active_tab: AutonomySettingsTab,
     /// 自主性级别
     pub(crate) level: vw_config_types::security::AutonomyLevel,
     /// 是否限制在工作区
     pub(crate) workspace_only: bool,
-    /// 允许的命令列表输入
-    pub(crate) allowed_commands_input: String,
-    /// 禁止的路径列表输入
-    pub(crate) forbidden_paths_input: String,
+    /// 允许的命令列表
+    pub(crate) allowed_commands: Vec<String>,
+    /// 禁止的路径列表
+    pub(crate) forbidden_paths: Vec<String>,
     /// 每小时最大操作数
     pub(crate) max_actions_per_hour: u32,
     /// 每天最大成本（美分）
@@ -310,16 +483,18 @@ pub(crate) struct AutonomySettingsState {
     pub(crate) block_high_risk_commands: bool,
     /// Shell 重定向策略
     pub(crate) shell_redirect_policy: vw_config_types::security::ShellRedirectPolicy,
-    /// Shell 环境变量透传输入
-    pub(crate) shell_env_passthrough_input: String,
-    /// 自动审批的操作输入
-    pub(crate) auto_approve_input: String,
-    /// 始终询问的操作输入
-    pub(crate) always_ask_input: String,
-    /// 允许的根目录输入
-    pub(crate) allowed_roots_input: String,
-    /// 非 CLI 排除的工具输入
-    pub(crate) non_cli_excluded_tools_input: String,
+    /// Shell 环境变量透传
+    pub(crate) shell_env_passthrough: Vec<String>,
+    /// 自动审批的操作
+    pub(crate) auto_approve: Vec<String>,
+    /// 始终询问的操作
+    pub(crate) always_ask: Vec<String>,
+    /// 允许的根目录
+    pub(crate) allowed_roots: Vec<String>,
+    /// 非 CLI 排除的工具
+    pub(crate) non_cli_excluded_tools: Vec<String>,
+    /// 七个逐项列表的草稿输入
+    pub(crate) list_editor: AutonomyListEditorState,
     /// 非 CLI 审批人输入
     pub(crate) non_cli_approval_approvers_input: String,
     /// 非 CLI 自然语言审批模式
@@ -333,31 +508,86 @@ pub(crate) struct AutonomySettingsState {
     pub(crate) save_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutonomySettingsTab {
+    Permissions,
+    Budget,
+    ToolsAndPaths,
+    NonCli,
+}
+
 impl Default for AutonomySettingsState {
     fn default() -> Self {
+        Self::from_config(&vw_config_types::security::AutonomyConfig::default())
+    }
+}
+
+impl AutonomySettingsState {
+    pub(crate) fn from_config(config: &vw_config_types::security::AutonomyConfig) -> Self {
         Self {
-            level: vw_config_types::security::AutonomyLevel::Supervised,
-            workspace_only: true,
-            allowed_commands_input:
-                "git, npm, cargo, ls, cat, grep, find, echo, pwd, wc, head, tail, date"
-                    .to_string(),
-            forbidden_paths_input: "/etc, /root, /home, /usr, /bin, /sbin, /lib, /opt, /boot, /dev, /proc, /sys, /var, /tmp, ~/.ssh, ~/.gnupg, ~/.aws, ~/.config".to_string(),
-            max_actions_per_hour: 20,
-            max_cost_per_day_cents: 500,
-            require_approval_for_medium_risk: true,
-            block_high_risk_commands: true,
-            shell_redirect_policy: vw_config_types::security::ShellRedirectPolicy::Block,
-            shell_env_passthrough_input: String::new(),
-            auto_approve_input: "file_read, memory_recall".to_string(),
-            always_ask_input: String::new(),
-            allowed_roots_input: String::new(),
-            non_cli_excluded_tools_input: "shell, file_write, git_operations, browser, browser_open, http_request, schedule, cron_add, cron_remove, cron_update, cron_run, memory_store, memory_forget, proxy_config, model_routing_config, pushover, composio, AgentTool, screenshot, image_info".to_string(),
-            non_cli_approval_approvers_input: String::new(),
-            non_cli_natural_language_approval_mode:
-                vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct,
-            non_cli_natural_language_approval_mode_by_channel_input: String::new(),
+            active_tab: AutonomySettingsTab::Permissions,
+            level: config.level,
+            workspace_only: config.workspace_only,
+            allowed_commands: config.allowed_commands.clone(),
+            forbidden_paths: config.forbidden_paths.clone(),
+            max_actions_per_hour: config.max_actions_per_hour,
+            max_cost_per_day_cents: config.max_cost_per_day_cents,
+            require_approval_for_medium_risk: config.require_approval_for_medium_risk,
+            block_high_risk_commands: config.block_high_risk_commands,
+            shell_redirect_policy: config.shell_redirect_policy,
+            shell_env_passthrough: config.shell_env_passthrough.clone(),
+            auto_approve: config.auto_approve.clone(),
+            always_ask: config.always_ask.clone(),
+            allowed_roots: config.allowed_roots.clone(),
+            non_cli_excluded_tools: config.non_cli_excluded_tools.clone(),
+            list_editor: AutonomyListEditorState::default(),
+            non_cli_approval_approvers_input: config.non_cli_approval_approvers.join(", "),
+            non_cli_natural_language_approval_mode: config.non_cli_natural_language_approval_mode,
+            non_cli_natural_language_approval_mode_by_channel_input: config
+                .non_cli_natural_language_approval_mode_by_channel
+                .iter()
+                .map(|(channel, mode)| {
+                    let mode = match mode {
+                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::Disabled => {
+                            "disabled"
+                        }
+                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::RequestConfirm => {
+                            "request_confirm"
+                        }
+                        vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct => {
+                            "direct"
+                        }
+                    };
+                    format!("{channel}:{mode}")
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
             show_help_modal: false,
             save_error: None,
+        }
+    }
+
+    pub(crate) fn list(&self, kind: AutonomyListKind) -> &[String] {
+        match kind {
+            AutonomyListKind::AllowedCommands => &self.allowed_commands,
+            AutonomyListKind::ForbiddenPaths => &self.forbidden_paths,
+            AutonomyListKind::ShellEnvPassthrough => &self.shell_env_passthrough,
+            AutonomyListKind::AutoApprove => &self.auto_approve,
+            AutonomyListKind::AlwaysAsk => &self.always_ask,
+            AutonomyListKind::AllowedRoots => &self.allowed_roots,
+            AutonomyListKind::NonCliExcludedTools => &self.non_cli_excluded_tools,
+        }
+    }
+
+    pub(crate) fn list_mut(&mut self, kind: AutonomyListKind) -> &mut Vec<String> {
+        match kind {
+            AutonomyListKind::AllowedCommands => &mut self.allowed_commands,
+            AutonomyListKind::ForbiddenPaths => &mut self.forbidden_paths,
+            AutonomyListKind::ShellEnvPassthrough => &mut self.shell_env_passthrough,
+            AutonomyListKind::AutoApprove => &mut self.auto_approve,
+            AutonomyListKind::AlwaysAsk => &mut self.always_ask,
+            AutonomyListKind::AllowedRoots => &mut self.allowed_roots,
+            AutonomyListKind::NonCliExcludedTools => &mut self.non_cli_excluded_tools,
         }
     }
 }
@@ -516,6 +746,161 @@ impl Default for TunnelSettingsState {
             custom_health_url: String::new(),
             custom_url_pattern: String::new(),
             save_error: None,
+        }
+    }
+}
+
+/// 主题设置页视图模式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum ThemesSettingsMode {
+    #[default]
+    List,
+    Edit,
+}
+
+/// 主题编辑器内部分段 Tab（降低单页高度）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ThemeEditorTab {
+    #[default]
+    Basics,
+    Palette,
+    Assets,
+    Chrome,
+    Preview,
+}
+
+/// 主题编辑器草稿：命名 + 六色 hex + 资源路径 + chrome。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ThemeEditorDraft {
+    pub(crate) id: String,
+    /// 编辑已有主题时锁定 id。
+    pub(crate) id_readonly: bool,
+    /// 非空时表示正在编辑内置主题覆盖层（值为内置显示名）。
+    pub(crate) builtin_base: Option<String>,
+    pub(crate) name: String,
+    pub(crate) tagline: String,
+    pub(crate) background: String,
+    pub(crate) text: String,
+    pub(crate) primary: String,
+    pub(crate) success: String,
+    pub(crate) warning: String,
+    pub(crate) danger: String,
+    /// 已入库的封面相对文件名（如 `cover.png`）。
+    pub(crate) cover_relative: Option<String>,
+    /// 已入库的背景相对文件名（如 `background.jpg`）。
+    pub(crate) background_relative: Option<String>,
+    /// 已入库的聊头分区相对文件名。
+    pub(crate) chat_header_relative: Option<String>,
+    /// 已入库的消息区分区相对文件名。
+    pub(crate) chat_body_relative: Option<String>,
+    /// 已入库的输入区分区相对文件名。
+    pub(crate) chat_input_relative: Option<String>,
+    /// 待保存时复制的封面外部源路径。
+    pub(crate) cover_source: Option<String>,
+    /// 待保存时复制的背景外部源路径。
+    pub(crate) background_source: Option<String>,
+    /// 待保存时复制的聊头分区外部源路径。
+    pub(crate) chat_header_source: Option<String>,
+    /// 待保存时复制的消息区分区外部源路径。
+    pub(crate) chat_body_source: Option<String>,
+    /// 待保存时复制的输入区分区外部源路径。
+    pub(crate) chat_input_source: Option<String>,
+    pub(crate) chrome_input_bg: String,
+    pub(crate) chrome_input_border: String,
+    pub(crate) chrome_input_text: String,
+    pub(crate) chrome_panel_bg: String,
+    pub(crate) chrome_panel_border: String,
+    pub(crate) chrome_button_bg: String,
+    pub(crate) chrome_button_text: String,
+    pub(crate) chrome_radius_px: String,
+    pub(crate) chrome_panel_alpha: String,
+    pub(crate) chrome_chat_header_alpha: String,
+    pub(crate) chrome_chat_body_alpha: String,
+    pub(crate) chrome_chat_input_alpha: String,
+    /// 聊头背景图缩放：cover/contain/fill/scale_down/none；空表示默认 cover。
+    pub(crate) chrome_chat_header_image_fit: String,
+    /// 消息区背景图缩放。
+    pub(crate) chrome_chat_body_image_fit: String,
+    /// 输入区背景图缩放。
+    pub(crate) chrome_chat_input_image_fit: String,
+}
+
+impl Default for ThemeEditorDraft {
+    fn default() -> Self {
+        Self {
+            id: "theme".to_string(),
+            id_readonly: false,
+            builtin_base: None,
+            name: String::new(),
+            tagline: String::new(),
+            background: "#0f172a".to_string(),
+            text: "#e2e8f0".to_string(),
+            primary: "#38bdf8".to_string(),
+            success: "#22c55e".to_string(),
+            warning: "#f59e0b".to_string(),
+            danger: "#ef4444".to_string(),
+            cover_relative: None,
+            background_relative: None,
+            chat_header_relative: None,
+            chat_body_relative: None,
+            chat_input_relative: None,
+            cover_source: None,
+            background_source: None,
+            chat_header_source: None,
+            chat_body_source: None,
+            chat_input_source: None,
+            chrome_input_bg: String::new(),
+            chrome_input_border: String::new(),
+            chrome_input_text: String::new(),
+            chrome_panel_bg: String::new(),
+            chrome_panel_border: String::new(),
+            chrome_button_bg: String::new(),
+            chrome_button_text: String::new(),
+            chrome_radius_px: String::new(),
+            chrome_panel_alpha: String::new(),
+            chrome_chat_header_alpha: String::new(),
+            chrome_chat_body_alpha: String::new(),
+            chrome_chat_input_alpha: String::new(),
+            chrome_chat_header_image_fit: String::new(),
+            chrome_chat_body_image_fit: String::new(),
+            chrome_chat_input_image_fit: String::new(),
+        }
+    }
+}
+
+/// 主题设置面板状态。
+#[derive(Debug, Clone)]
+pub(crate) struct ThemesSettingsState {
+    /// 画廊条目（内置 + 自定义）。
+    pub(crate) entries:
+        Vec<crate::app::components::system_settings_themes::gallery::ThemeGalleryEntry>,
+    /// 画廊当前页码（从 0 起）。
+    pub(crate) page_index: usize,
+    /// 最近一次刷新/操作/校验错误。
+    pub(crate) error: Option<String>,
+    /// 列表或编辑模式。
+    pub(crate) mode: ThemesSettingsMode,
+    /// 编辑器当前分段 Tab（仅 Edit 模式使用）。
+    pub(crate) editor_tab: ThemeEditorTab,
+    /// 编辑器草稿（仅 Edit 模式使用）。
+    pub(crate) draft: Option<ThemeEditorDraft>,
+    /// 当前打开的颜色选择器目标；`None` 表示关闭。
+    pub(crate) color_picker_target: Option<crate::app::message::settings::ThemeColorPickerTarget>,
+    /// 颜色选择器显示格式。
+    pub(crate) color_picker_format: crate::app::components::color_picker::ColorFormat,
+}
+
+impl Default for ThemesSettingsState {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+            page_index: 0,
+            error: None,
+            mode: ThemesSettingsMode::List,
+            editor_tab: ThemeEditorTab::Basics,
+            draft: None,
+            color_picker_target: None,
+            color_picker_format: crate::app::components::color_picker::ColorFormat::Hex,
         }
     }
 }

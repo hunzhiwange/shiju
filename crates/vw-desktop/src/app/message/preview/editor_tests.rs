@@ -5,9 +5,12 @@ use super::{
     update_context_target_from_editor_event,
 };
 use crate::app::components::editor::Editor;
+use crate::app::components::editor::{
+    APP_CONTEXT_MENU_INSERT_SELECTION, APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS,
+};
 use crate::app::message::preview::{PreviewMessage, update};
 use crate::app::preview::PreviewTab;
-use crate::app::{App, FocusArea, PreviewAutoSaveMode};
+use crate::app::{App, FocusArea, Message, PreviewAutoSaveMode, message};
 use iced::widget::Id;
 
 fn test_app() -> App {
@@ -66,6 +69,7 @@ fn content_change_classifier_covers_all_remaining_editing_events() {
         iced_code_editor::Message::Delete,
         iced_code_editor::Message::Enter,
         iced_code_editor::Message::Tab,
+        iced_code_editor::Message::Cut,
         iced_code_editor::Message::DeleteSelection,
         iced_code_editor::Message::Redo,
         iced_code_editor::Message::ReplaceNext,
@@ -312,6 +316,98 @@ fn context_menu_edit_commands_close_menu_and_clear_transient_completion() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn preview_context_menu_custom_actions_route_before_editor_update() {
+    let mut app = test_app();
+
+    let insert_selection = iced::futures::executor::block_on(collect_task_messages(update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::CustomContextMenuAction(
+            APP_CONTEXT_MENU_INSERT_SELECTION.to_string(),
+        )),
+    )));
+    assert!(matches!(
+        insert_selection.as_slice(),
+        [Message::Chat(message::ChatMessage::InsertSelected)]
+    ));
+
+    let insert_positions = iced::futures::executor::block_on(collect_task_messages(update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::CustomContextMenuAction(
+            APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS.to_string(),
+        )),
+    )));
+    assert!(matches!(
+        insert_positions.as_slice(),
+        [Message::Chat(message::ChatMessage::InsertSelectionPositions)]
+    ));
+
+    let unknown = iced::futures::executor::block_on(collect_task_messages(update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::CustomContextMenuAction(
+            "app.unknown".to_string(),
+        )),
+    )));
+    assert!(unknown.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
+    let mut app = test_app();
+    let path = "/tmp/main.rs".to_string();
+    app.active_preview_path = Some(path.clone());
+    app.preview_tabs = vec![tab(&path, "first\nsecond")];
+    app.preview_context_target = Some((path.clone(), 1, 1, 2, 3));
+    app.lsp_overlay_path = Some(path.clone());
+    app.lsp_overlay.show_hover("hover".to_string());
+    app.lsp_overlay.set_completions(
+        vec!["completion".to_string()],
+        iced::Point::new(55.0, 1.0),
+    );
+
+    let _ = update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::ContextMenuRequested(
+            iced::Point::new(55.0, 1.0),
+        )),
+    );
+
+    assert_eq!(app.preview_context_target, Some((path, 1, 1, 2, 3)));
+    assert!(!app.lsp_overlay.hover_visible);
+    assert!(!app.lsp_overlay.completion_visible);
+
+    let second_line_y = app.preview_tabs[0].editor.inner.line_height() + 1.0;
+    let _ = update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::ContextMenuRequested(
+            iced::Point::new(10_000.0, second_line_y),
+        )),
+    );
+    let Some((_, start_line, start_col, end_line, end_col)) =
+        app.preview_context_target.as_ref()
+    else {
+        panic!("right-click outside the selection should move the context target");
+    };
+    assert_eq!((*start_line, *start_col), (*end_line, *end_col));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn preview_context_menu_reveal_rejects_missing_file_without_spawning() {
+    let missing = std::env::temp_dir().join(format!(
+        "vibe-window-missing-reveal-{}",
+        std::process::id()
+    ));
+
+    let error = super::reveal_in_file_manager(&missing.to_string_lossy())
+        .expect_err("missing paths must not be sent to the file manager");
+
+    assert!(error.contains("文件不存在"));
+    assert!(error.contains(&missing.to_string_lossy().to_string()));
+}
+
 #[test]
 fn update_editor_event_sets_focus_dirty_and_autosave_revision() {
     let mut app = test_app();
@@ -332,6 +428,24 @@ fn update_editor_event_sets_focus_dirty_and_autosave_revision() {
 
     let _ = update(&mut app, PreviewMessage::EditorEvent(iced_code_editor::Message::MouseRelease));
     assert_eq!(app.preview_tabs[0].auto_save_revision, 0);
+}
+
+#[test]
+fn enter_uses_editor_modified_state_for_dirty_and_autosave() {
+    let mut app = test_app();
+    let path = "/tmp/main.rs".to_string();
+    app.active_preview_path = Some(path.clone());
+    app.preview_tabs = vec![tab(&path, "first")];
+    app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
+
+    let _ = update(
+        &mut app,
+        PreviewMessage::EditorEvent(iced_code_editor::Message::Enter),
+    );
+
+    assert!(app.preview_tabs[0].editor.inner.is_modified());
+    assert!(app.preview_tabs[0].is_dirty);
+    assert_eq!(app.preview_tabs[0].auto_save_revision, 1);
 }
 
 #[test]

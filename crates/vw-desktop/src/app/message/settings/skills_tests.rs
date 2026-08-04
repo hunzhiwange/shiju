@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::App;
+use crate::app::message::settings::AgentsMessage;
 use crate::app::state::{SkillsDirectoryScope, SkillsSettingsTab};
 use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 use vw_gateway_client::{
@@ -21,6 +22,10 @@ fn catalog_item(id: &str, kind: &str) -> DesktopSkillCatalogEntryDto {
         enabled: true,
         source: "builtin".to_string(),
         source_path: Some("/tmp/skill".to_string()),
+        origin: None,
+        namespace: None,
+        package_type: None,
+        source_pack: None,
     }
 }
 
@@ -117,6 +122,38 @@ async fn copy_install_command_emits_the_documented_template() {
         messages.as_slice(),
         [Message::CopyCode(command)] if command == INSTALL_COMMAND_TEMPLATE
     ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn skills_project_selection_refreshes_current_and_opens_other_project() {
+    let mut app = app();
+    app.project_path = Some("/repo/current".to_string());
+
+    let messages = collect_task_messages(update(
+        &mut app,
+        SettingsMessage::SkillsProjectSelected("/repo/current".to_string()),
+    ))
+    .await;
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectChanged(project_path)))
+            if project_path == "/repo/current"
+    )));
+    assert!(
+        messages
+            .iter()
+            .any(|message| matches!(message, Message::Settings(SettingsMessage::SkillsRefresh)))
+    );
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::SkillsProjectSelected("/repo/other".to_string()),
+    );
+
+    assert_eq!(app.project_path.as_deref(), Some("/repo/other"));
+    assert_eq!(app.agents_settings.project_path.as_deref(), Some("/repo/other"));
+    assert!(app.agents_settings.loading);
 }
 
 #[test]
@@ -591,6 +628,8 @@ fn skill_mapping_loading_detail_and_config_paths() {
     );
     assert_eq!(app.skills_settings.directory_provider, SkillsDirectoryProvider::Codex);
     assert!(app.skills_settings.save_error.is_none());
+    let _ = update(&mut app, SettingsMessage::SkillsProjectAutoLoadToggled(false));
+    assert!(!app.skills_settings.auto_load_project_skills);
     let _ = update(&mut app, SettingsMessage::SkillsOpenEnabledToggled(true));
     let _ = update(&mut app, SettingsMessage::SkillsOpenDirChanged(" /tmp/skills ".to_string()));
     let _ = update(

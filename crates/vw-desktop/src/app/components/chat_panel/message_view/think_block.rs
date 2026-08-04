@@ -6,12 +6,13 @@ use iced::{Alignment, Border, Color, Element, Length, Theme};
 use std::collections::HashSet;
 
 use crate::app::assets::Icon;
+use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::models;
 use crate::app::{App, Message, message};
 
 use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::{
-    chat_text_font, chat_text_line_height, read_only_text_style,
+    READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
 };
 use super::super::utils::{
     bold_font, chat_secondary_muted_text_color, chat_secondary_subtle_text_color, icon_svg,
@@ -168,14 +169,16 @@ pub(super) fn think_block_view<'a>(
                         .line_height(chat_text_line_height())
                         .padding(0)
                         .height(Length::Shrink)
+                        .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
                         .font(chat_text_font())
                         .style(move |theme: &Theme, _status: text_editor::Status| {
                             let value = think_block_text_color(theme);
                             read_only_text_style(theme, value)
                         });
 
-                    let body = container(editor).width(Length::Fill).style(|_theme: &Theme| {
-                        iced::widget::container::Style {
+                    let body = container(pass_wheel_to_parent(editor))
+                        .width(Length::Fill)
+                        .style(|_theme: &Theme| iced::widget::container::Style {
                             background: None,
                             border: Border {
                                 width: 0.0,
@@ -183,8 +186,7 @@ pub(super) fn think_block_view<'a>(
                                 radius: 10.0.into(),
                             },
                             ..Default::default()
-                        }
-                    });
+                        });
                     think_col = think_col.push(body);
                 } else {
                     let body = container(

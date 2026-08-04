@@ -4,7 +4,7 @@
 //!
 //! # 主要功能
 //!
-//! - **健康检查端点** (`/health`): 返回服务运行状态、skey 鉴权状态和运行时健康快照
+//! - **健康检查端点** (`/v1/health`): 返回服务运行状态、skey 鉴权状态和运行时健康快照
 //! - **指标端点** (`/metrics`): 暴露 Prometheus 格式的系统指标数据
 //!
 //! # 安全设计
@@ -18,7 +18,7 @@
 //!
 //! ```bash
 //! # 健康检查
-//! curl http://localhost:8080/health
+//! curl http://localhost:8080/v1/health
 //!
 //! # 获取指标（skey 鉴权）
 //! curl -H "Authorization: Bearer <skey>" http://localhost:8080/metrics
@@ -42,7 +42,7 @@ use std::net::SocketAddr;
 ///
 /// # 端点
 ///
-/// `GET /health`
+/// `GET /v1/health`
 ///
 /// # 参数
 ///
@@ -52,6 +52,7 @@ use std::net::SocketAddr;
 ///
 /// 返回 JSON 格式的健康状态对象，包含以下字段：
 /// - `status`: 服务状态，固定为 `"ok"`
+/// - `build_id`: 进程启动时记录的可执行文件 SHA-256
 /// - `auth_enabled`: 是否启用 skey 鉴权
 /// - `active_skeys`: 当前有效 skey 数量
 /// - `runtime`: 运行时健康快照（内存、线程数等）
@@ -61,6 +62,7 @@ use std::net::SocketAddr;
 /// ```json
 /// {
 ///     "status": "ok",
+///     "build_id": "9f86d081884c...",
 ///     "auth_enabled": true,
 ///     "active_skeys": 1,
 ///     "runtime": {
@@ -72,6 +74,7 @@ use std::net::SocketAddr;
 pub async fn handle_health(State(state): State<AppState>) -> impl IntoResponse {
     let body = serde_json::json!({
         "status": "ok",
+        "build_id": crate::app::agent::health::runtime_build_id(),
         "auth_enabled": state.pairing.auth_enabled(),
         "active_skeys": state.pairing.active_skey_count(),
         "runtime": crate::app::agent::health::snapshot_json(),

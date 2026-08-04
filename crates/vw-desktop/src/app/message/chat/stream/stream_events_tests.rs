@@ -3,17 +3,33 @@ fn stream_events_tests_module_is_wired() {
     assert!(module_path!().ends_with("stream_events_tests"));
 }
 
-use crate::app::QueueItem;
 use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtualizer};
 use crate::app::models::{ChatMessage, ChatRole, ThinkTiming};
-use crate::app::state::{AcpHistoryReplayMode, AgentRequest, ChatSendBehavior};
+use crate::app::state::{
+    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState,
+};
+use crate::app::{Message, QueueItem};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+}
+
+async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
+        return Vec::new();
+    };
+    while let Some(action) = stream.next().await {
+        if let iced_runtime::Action::Output(messages) = action {
+            return messages;
+        }
+    }
+    Vec::new()
 }
 
 fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
@@ -29,6 +45,7 @@ fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
@@ -37,6 +54,7 @@ fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
         request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
     }
 }
 
@@ -53,14 +71,275 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
         full_access_enabled: false,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
         history: Vec::new(),
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn completed_summary_handoff_creates_session_with_visible_ai_result() {
+    let (mut app, _) = crate::app::App::new();
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForSummary {
+        request_id: 42,
+        source_session_id: "session-1".to_string(),
+        project_path: "/workspace/project".to_string(),
+    });
+    let chat = vec![message(ChatRole::Assistant, "<think>internal</think>\n继续任务的完整提示词")];
+
+    let task = super::complete_quick_message_handoff(&mut app, 42, "session-1", &chat)
+        .expect("handoff should complete");
+
+    assert_eq!(
+        app.quick_message_handoff,
+        Some(QuickMessageHandoffState::WaitingForSession {
+            prompt: "继续任务的完整提示词".to_string(),
+        })
+    );
+    assert!(matches!(
+        collect_task_messages(task).await.as_slice(),
+        [Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path))]
+            if path == "/workspace/project"
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn generated_git_commit_message_fills_form_then_dispatches_commit_action() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/workspace/project".to_string());
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+        request_id: 43,
+        source_session_id: "session-1".to_string(),
+        project_path: "/workspace/project".to_string(),
+        action: crate::app::state::QuickMessageGitCommitAction::StageAllAndCommit,
+    });
+    let chat = vec![message(
+        ChatRole::Assistant,
+        "```json\n{\"title\":\"feat(chat): add quick actions\",\"summary\":\"Generate commit metadata with AI before submitting changes.\"}\n```",
+    )];
+
+    let task = super::complete_quick_message_handoff(&mut app, 43, "session-1", &chat)
+        .expect("git commit handoff should complete");
+
+    assert!(app.quick_message_handoff.is_none());
+    assert_eq!(app.git_commit_type, None);
+    assert_eq!(app.git_commit_scope, "");
+    assert_eq!(app.git_commit_message, "feat(chat): add quick actions");
+    assert_eq!(
+        app.git_commit_description,
+        "Generate commit metadata with AI before submitting changes."
+    );
+    assert_eq!(app.git_commit_description_editor.text(), app.git_commit_description);
+    assert!(matches!(
+        collect_task_messages(task).await.as_slice(),
+        [Message::Git(crate::app::message::GitMessage::CommitAll)]
+    ));
+
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+        request_id: 45,
+        source_session_id: "session-1".to_string(),
+        project_path: "/workspace/project".to_string(),
+        action: crate::app::state::QuickMessageGitCommitAction::CommitSelected,
+    });
+    let task = super::complete_quick_message_handoff(&mut app, 45, "session-1", &chat)
+        .expect("selected commit handoff should complete");
+    assert!(matches!(
+        collect_task_messages(task).await.as_slice(),
+        [Message::Git(crate::app::message::GitMessage::CommitSelected)]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn invalid_generated_git_commit_message_does_not_dispatch_commit() {
+    let (mut app, _) = crate::app::App::new();
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+        request_id: 44,
+        source_session_id: "session-1".to_string(),
+        project_path: "/workspace/project".to_string(),
+        action: crate::app::state::QuickMessageGitCommitAction::CommitSelected,
+    });
+    let chat = vec![message(ChatRole::Assistant, "{\"title\":\"\",\"summary\":\"\"}")];
+
+    let task = super::complete_quick_message_handoff(&mut app, 44, "session-1", &chat)
+        .expect("invalid result should produce warning task");
+    let messages = collect_task_messages(task).await;
+
+    assert!(app.quick_message_handoff.is_none());
+    assert!(!app.git_commit_in_progress);
+    assert!(messages.iter().all(|message| !matches!(message, Message::Git(_))));
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("未执行提交")));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn generated_git_commit_message_rejects_a_switched_worktree() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/workspace/other".to_string());
+    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+        request_id: 46,
+        source_session_id: "session-1".to_string(),
+        project_path: "/workspace/project".to_string(),
+        action: crate::app::state::QuickMessageGitCommitAction::StageAllAndCommit,
+    });
+    let chat = vec![message(
+        ChatRole::Assistant,
+        "{\"title\":\"feat: safe commit\",\"summary\":\"Keep the generated commit scoped.\"}",
+    )];
+
+    let task = super::complete_quick_message_handoff(&mut app, 46, "session-1", &chat)
+        .expect("worktree mismatch should produce warning task");
+    let messages = collect_task_messages(task).await;
+
+    assert!(app.quick_message_handoff.is_none());
+    assert!(!app.git_commit_in_progress);
+    assert!(messages.iter().all(|message| !matches!(message, Message::Git(_))));
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("工作树已切换")));
+}
+
+fn session_info(
+    id: &str,
+    directory: &str,
+    parent_id: Option<&str>,
+) -> vw_shared::session::info::Info {
+    vw_shared::session::info::Info {
+        id: id.to_string(),
+        slug: id.to_string(),
+        project_id: "project".to_string(),
+        directory: directory.to_string(),
+        parent_id: parent_id.map(str::to_string),
+        summary: None,
+        share: None,
+        title: id.to_string(),
+        version: "1".to_string(),
+        time: vw_shared::session::info::TimeInfo {
+            created: 1,
+            updated: 1,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
+    }
+}
+
+#[test]
+fn plan_run_session_started_registers_without_leaving_parent() {
+    let (mut app, _) = crate::app::App::new();
+    let directory = "/workspace/demo";
+    app.project_path = Some(directory.to_string());
+    app.active_session_id = Some("main-session".to_string());
+    app.sessions = vec![session_info("main-session", directory, None)];
+    app.chat = vec![message(ChatRole::User, "主会话任务")];
+    app.chat_message_ids = vec![None];
+    let parent_runtime = app.get_session_runtime_mut("main-session");
+    parent_runtime.is_requesting = true;
+    parent_runtime.active_agent_request = Some(agent_request(42, "main-session"));
+
+    let _register_task = super::handle_plan_run_session_started(
+        &mut app,
+        42,
+        "main-session".to_string(),
+        "task-1-plan".to_string(),
+        "规划 · task-1".to_string(),
+        directory.to_string(),
+        "实现需求".to_string(),
+    );
+
+    assert_eq!(app.active_session_id.as_deref(), Some("main-session"));
+    let child = app
+        .sessions
+        .iter()
+        .find(|session| session.id == "task-1-plan")
+        .expect("planning child should be listed");
+    assert_eq!(child.parent_id.as_deref(), Some("main-session"));
+    assert_eq!(child.title, "规划 · task-1");
+    assert!(child.is_plan_run());
+    assert!(app.get_session_runtime("task-1-plan").is_requesting);
+    assert_eq!(app.chat, vec![message(ChatRole::User, "主会话任务")]);
+    assert_eq!(
+        app.cached_chat_messages("task-1-plan")
+            .expect("planning chat should be cached")
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![message(ChatRole::User, "实现需求")]
+    );
+
+    let _delta_task = super::handle_agent_session_delta(
+        &mut app,
+        "task-1-plan".to_string(),
+        "<think>规划中</think>开始拆分".to_string(),
+    );
+
+    assert_eq!(app.chat, vec![message(ChatRole::User, "主会话任务")]);
+    let planning_chat = app
+        .cached_chat_messages("task-1-plan")
+        .expect("planning delta should stay in the child cache");
+    assert_eq!(planning_chat.len(), 2);
+    assert_eq!(planning_chat[1].role, ChatRole::Assistant);
+    assert!(planning_chat[1].content.contains("开始拆分"));
+
+    let _finish_task = super::handle_plan_run_session_finished(&mut app, "task-1-plan".to_string());
+    assert!(!app.get_session_runtime("task-1-plan").is_requesting);
+    assert!(
+        app.get_session_runtime("main-session").active_agent_request.is_some(),
+        "registering the child must not detach the main plan-run request"
+    );
+}
+
+#[test]
+fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
+    let (mut app, _) = crate::app::App::new();
+    let directory = "/workspace/demo";
+    app.project_path = Some(directory.to_string());
+    app.active_session_id = Some("main-session".to_string());
+    app.sessions = vec![session_info("main-session", directory, None)];
+    app.chat = vec![message(ChatRole::User, "主会话任务")];
+    app.chat_message_ids = vec![None];
+    let parent_runtime = app.get_session_runtime_mut("main-session");
+    parent_runtime.is_requesting = true;
+    parent_runtime.active_agent_request = Some(agent_request(42, "main-session"));
+
+    let _register_task = super::handle_plan_run_session_started(
+        &mut app,
+        42,
+        "main-session".to_string(),
+        "task-1-sub-1".to_string(),
+        "实现入口".to_string(),
+        directory.to_string(),
+        "实现入口".to_string(),
+    );
+    let _delta_task = super::handle_agent_session_delta(
+        &mut app,
+        "task-1-sub-1".to_string(),
+        "正在实现".to_string(),
+    );
+
+    assert_eq!(app.active_session_id.as_deref(), Some("main-session"));
+    assert_eq!(app.chat, vec![message(ChatRole::User, "主会话任务")]);
+    let child = app
+        .project_sessions
+        .get(directory)
+        .and_then(|sessions| sessions.iter().find(|session| session.id == "task-1-sub-1"))
+        .expect("execution child should be registered");
+    assert_eq!(child.title, "实现入口");
+    assert_eq!(child.parent_id.as_deref(), Some("main-session"));
+    assert!(app.get_session_runtime("task-1-sub-1").is_requesting);
+    let child_chat =
+        app.cached_chat_messages("task-1-sub-1").expect("execution child chat should be cached");
+    assert_eq!(child_chat.len(), 2);
+    assert_eq!(child_chat[1].content, "正在实现");
+
+    let _finish_task =
+        super::handle_plan_run_session_finished(&mut app, "task-1-sub-1".to_string());
+
+    assert!(!app.get_session_runtime("task-1-sub-1").is_requesting);
+    assert!(app.get_session_runtime("main-session").active_agent_request.is_some());
 }
 
 #[test]
@@ -636,6 +915,67 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
 }
 
 #[test]
+fn processing_timing_stream_done_closes_active_and_background_cycles() {
+    let (mut app, _) = crate::app::App::new();
+    let active_id = "active-session".to_string();
+    app.active_session_id = Some(active_id.clone());
+    let mut active_assistant = message(ChatRole::Assistant, "answer");
+    active_assistant.processing_timing =
+        Some(vw_shared::session::ui_types::ProcessingTiming {
+            started_ms: 100,
+            completed_ms: None,
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        });
+    app.chat = vec![active_assistant];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&active_id).active_agent_request =
+        Some(agent_request(41, &active_id));
+
+    let _ = super::handle_agent_stream_done(
+        &mut app,
+        41,
+        crate::app::models::TokenUsage::default(),
+        None,
+        None,
+    );
+    assert!(app.chat[0].processing_timing.as_ref().unwrap().completed_ms.is_some());
+
+    let background_id = "background-session".to_string();
+    let mut background_assistant = message(ChatRole::Assistant, "background answer");
+    background_assistant.processing_timing =
+        Some(vw_shared::session::ui_types::ProcessingTiming {
+            started_ms: 200,
+            completed_ms: None,
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        });
+    app.store_session_chat_snapshot(
+        background_id.clone(),
+        crate::app::session::shared_chat_messages(vec![background_assistant]),
+        vec![None],
+    );
+    app.get_session_runtime_mut(&background_id).active_agent_request =
+        Some(agent_request(42, &background_id));
+
+    let _ = super::handle_agent_stream_done(
+        &mut app,
+        42,
+        crate::app::models::TokenUsage::default(),
+        None,
+        None,
+    );
+    assert!(
+        app.cached_chat_messages(&background_id).unwrap()[0]
+            .processing_timing
+            .as_ref()
+            .unwrap()
+            .completed_ms
+            .is_some()
+    );
+}
+
+#[test]
 fn inactive_stream_done_updates_cached_ids_and_marks_unseen_success() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "background-session".to_string();
@@ -692,9 +1032,144 @@ fn active_stream_error_appends_system_message_and_clears_request_state() {
     assert_eq!(app.chat.last().map(|entry| entry.content.as_str()), Some("gateway failed"));
     assert_eq!(app.chat_message_ids, vec![Some("user-id".to_string()), None]);
     assert!(!app.show_send_mode_popover);
+    assert!(app.active_toast.is_some());
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.is_requesting);
     assert!(runtime.active_agent_request.is_none());
+}
+
+#[test]
+fn processing_timing_stream_error_closes_and_saves_background_cycle() {
+    let (mut app, _) = crate::app::App::new();
+    let active_id = "active-session".to_string();
+    app.active_session_id = Some(active_id.clone());
+    let mut active_assistant = message(ChatRole::Assistant, "active partial");
+    active_assistant.processing_timing =
+        Some(vw_shared::session::ui_types::ProcessingTiming {
+            started_ms: 250,
+            completed_ms: None,
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        });
+    app.chat = vec![active_assistant];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&active_id).active_agent_request =
+        Some(agent_request(42, &active_id));
+
+    let _ = super::handle_agent_stream_error(&mut app, 42, "active failed".to_string());
+
+    assert!(app.chat[0].processing_timing.as_ref().unwrap().completed_ms.is_some());
+    assert_eq!(app.chat[1].role, ChatRole::System);
+
+    let session_id = "background-session".to_string();
+    let mut assistant = message(ChatRole::Assistant, "partial");
+    assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: 300,
+        completed_ms: None,
+        processing_elapsed_ms: None,
+        llm_elapsed_ms: None,
+    });
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(vec![assistant]),
+        vec![None],
+    );
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(43, &session_id));
+
+    let _ = super::handle_agent_stream_error(&mut app, 43, "failed".to_string());
+
+    let cached = app.cached_chat_messages(&session_id).expect("background cache should be saved");
+    assert_eq!(cached.len(), 2);
+    assert!(cached[0].processing_timing.as_ref().unwrap().completed_ms.is_some());
+    assert_eq!(cached[1].role, ChatRole::System);
+    assert_eq!(cached[1].content, "failed");
+}
+
+#[test]
+fn processing_timing_post_tool_round_closes_old_cycle_and_starts_new_cycle() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.project_path = Some("/repo".to_string());
+    let mut assistant = message(ChatRole::Assistant, "tool round");
+    assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: 400,
+        completed_ms: None,
+        processing_elapsed_ms: None,
+        llm_elapsed_ms: None,
+    });
+    app.chat = vec![message(ChatRole::User, "question"), assistant];
+    app.chat_message_ids = vec![None, None];
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(agent_request(44, &session_id));
+
+    let _ = super::handle_agent_post_tool_round(&mut app, 44, session_id.clone(), 1);
+
+    let timings = app
+        .chat
+        .iter()
+        .filter_map(|message| message.processing_timing.as_ref())
+        .collect::<Vec<_>>();
+    assert_eq!(timings.len(), 2);
+    assert_eq!(timings[0].started_ms, 400);
+    assert!(timings[0].completed_ms.is_some());
+    assert!(timings[1].completed_ms.is_none());
+    assert_eq!(app.get_session_runtime(&session_id).request_started_ms, timings[1].started_ms);
+}
+
+#[test]
+fn active_stream_error_humanizes_payload_too_large_and_shows_toast() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![Some("user-id".to_string())];
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(agent_request(42, &session_id));
+
+    let _task = super::handle_agent_stream_error(
+        &mut app,
+        42,
+        "gateway stream failed: 413 Payload Too Large Failed to buffer the request body: length limit exceeded"
+            .to_string(),
+    );
+
+    let expected =
+        "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试";
+    assert_eq!(app.chat.last().map(|entry| entry.content.as_str()), Some(expected));
+    let toast = app.active_toast.as_ref().expect("toast should show");
+    assert_eq!(toast.message, expected);
+    assert_eq!(toast.kind, crate::app::state::ToastKind::Error);
+    let runtime = app.get_session_runtime(&session_id);
+    assert!(!runtime.is_requesting);
+    assert!(runtime.active_agent_request.is_none());
+}
+
+#[test]
+fn missing_request_stream_error_clears_active_requesting_and_shows_toast() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = None;
+
+    let _task = super::handle_agent_stream_error(
+        &mut app,
+        99,
+        "gateway stream failed: 413 Payload Too Large".to_string(),
+    );
+
+    let expected =
+        "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试";
+    let toast = app.active_toast.as_ref().expect("toast should show");
+    assert_eq!(toast.message, expected);
+    let runtime = app.get_session_runtime(&session_id);
+    assert!(!runtime.is_requesting);
+    assert!(app.chat.is_empty());
 }
 
 #[test]
@@ -711,4 +1186,35 @@ fn post_tool_round_rejects_mismatched_or_inactive_session() {
 
     assert!(app.get_session_runtime("request-session").active_agent_request.is_some());
     assert!(app.get_session_runtime("request-session").queue.is_empty());
+}
+
+#[test]
+fn context_loaded_adds_visible_agents_read_card() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![
+        message(ChatRole::User, "question"),
+        message(ChatRole::Assistant, ""),
+    ];
+    app.chat_message_ids = vec![Some("user-id".to_string()), None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _task = super::handle_agent_context_loaded(
+        &mut app,
+        42,
+        vec![
+            "/workspace/AGENTS.md".to_string(),
+            "/workspace/AGENTS.md".to_string(),
+            "/agent-workspace/SOUL.md".to_string(),
+        ],
+    );
+
+    let content = &app.chat.last().expect("assistant message").content;
+    assert!(content.starts_with("tool read\n"));
+    assert!(content.contains(r#"\"filePath\":\"/workspace/AGENTS.md\""#));
+    assert!(content.contains(r#"\"filePath\":\"/agent-workspace/SOUL.md\""#));
+    assert!(content.contains(r#""status":"completed""#));
+    assert_eq!(content.matches("tool read\n").count(), 2);
 }

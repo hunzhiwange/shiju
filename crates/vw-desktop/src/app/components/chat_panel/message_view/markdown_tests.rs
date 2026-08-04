@@ -5,7 +5,7 @@
 
 use super::markdown::{
     MarkdownBlock, MarkdownBlockKind, link_click_message, markdown_block_key, markdown_body_view,
-    parse_markdown_blocks, strip_inline_markdown,
+    markdown_block_font, parse_markdown_blocks, strip_inline_markdown,
 };
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -34,6 +34,22 @@ fn parse_blocks_keeps_code_block_verbatim() {
     assert_eq!(blocks.len(), 2);
     assert_eq!(blocks[1].kind, MarkdownBlockKind::CodeBlock(Some("rust".to_string())));
     assert_eq!(blocks[1].text, "fn main() {}");
+}
+
+#[test]
+fn code_block_font_uses_monospace_only_for_ascii_content() {
+    let ascii =
+        MarkdownBlock { kind: MarkdownBlockKind::CodeBlock(None), text: "let x = 1;".to_string() };
+    let mixed = MarkdownBlock {
+        kind: MarkdownBlockKind::CodeBlock(None),
+        text: "// 中文注释\nlet x = 1;".to_string(),
+    };
+
+    assert_eq!(markdown_block_font(&ascii), iced::Font::MONOSPACE);
+    assert_eq!(
+        markdown_block_font(&mixed),
+        super::super::tool_text_support::chat_text_font()
+    );
 }
 
 #[test]

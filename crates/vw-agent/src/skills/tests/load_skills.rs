@@ -298,6 +298,19 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::create_dir_all(&parent_skill).unwrap();
     fs::write(parent_skill.join("SKILL.md"), "# Parent\nParent skill\n").unwrap();
 
+    let parent_plain_skill = repo_root.join("skills").join("parent-plain-skill");
+    fs::create_dir_all(&parent_plain_skill).unwrap();
+    fs::write(parent_plain_skill.join("SKILL.md"), "# Parent Plain\nParent plain skill\n").unwrap();
+
+    let parent_agents_skill =
+        repo_root.join(".agents").join("skills").join("parent-agents-skill");
+    fs::create_dir_all(&parent_agents_skill).unwrap();
+    fs::write(
+        parent_agents_skill.join("SKILL.md"),
+        "# Parent Agents\nParent agents skill\n",
+    )
+    .unwrap();
+
     let hidden_skill = project_dir.join(".vibewindow").join("skills").join("hidden-skill");
     fs::create_dir_all(&hidden_skill).unwrap();
     fs::write(hidden_skill.join("SKILL.md"), "# Hidden\nHidden skill\n").unwrap();
@@ -305,6 +318,10 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     let legacy_skill = project_dir.join("skills").join("legacy-skill");
     fs::create_dir_all(&legacy_skill).unwrap();
     fs::write(legacy_skill.join("SKILL.md"), "# Legacy\nLegacy skill\n").unwrap();
+
+    let agents_skill = project_dir.join(".agents").join("skills").join("agents-skill");
+    fs::create_dir_all(&agents_skill).unwrap();
+    fs::write(agents_skill.join("SKILL.md"), "# Agents\nAgents skill\n").unwrap();
 
     let global_shared = home_config_dir(home.path()).join("skills").join("shared-skill");
     fs::create_dir_all(&global_shared).unwrap();
@@ -323,9 +340,12 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     assert_eq!(
         names,
         vec![
+            "agents-skill",
             "global-skill",
             "hidden-skill",
             "legacy-skill",
+            "parent-agents-skill",
+            "parent-plain-skill",
             "parent-skill",
             "plain-global-skill",
             "shared-skill",
@@ -334,6 +354,34 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
 
     let shared = skills.iter().find(|skill| skill.name == "shared-skill").unwrap();
     assert_eq!(shared.description, "Workspace wins");
+}
+
+#[test]
+fn common_project_skill_roots_load_without_selecting_codex_provider() {
+    let _lock = open_skills_env_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
+
+    let project_dir = home.path().join("project");
+    fs::create_dir_all(project_dir.join(".git")).unwrap();
+    for (relative_root, skill_name) in
+        [("skills", "plain-skill"), (".agents/skills", "agents-skill")]
+    {
+        let skill_dir = project_dir.join(relative_root).join(skill_name);
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(skill_dir.join("SKILL.md"), format!("# {skill_name}\n")).unwrap();
+    }
+
+    let mut config = Config::default();
+    config.skills.directory_provider = SkillsDirectoryProvider::Claude;
+    config.skills.open_skills_enabled = false;
+
+    let names = load_skills_with_config(&project_dir, &config)
+        .into_iter()
+        .map(|skill| skill.name)
+        .collect::<Vec<_>>();
+
+    assert_eq!(names, vec!["plain-skill", "agents-skill"]);
 }
 
 #[test]

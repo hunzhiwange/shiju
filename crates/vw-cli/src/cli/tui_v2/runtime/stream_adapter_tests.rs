@@ -118,6 +118,13 @@ fn structured_gateway_events_map_to_runtime_events() {
 fn task_metadata_usage_and_unknown_events_are_explicit() {
     assert_eq!(
         adapt_gateway_stream_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.context_loaded",
+            "paths": ["/work/AGENTS.md"]
+        }))),
+        UiRuntimeEvent::ContextLoaded { paths: vec!["/work/AGENTS.md".to_string()] }
+    );
+    assert_eq!(
+        adapt_gateway_stream_event(GatewayChatStreamEvent::Other(json!({
             "type": "chat.todo_updated",
             "session_id": "s1"
         }))),
@@ -230,12 +237,13 @@ fn title_updated_normalizes_blank_title() {
 }
 
 #[test]
-fn post_tool_round_event_maps_to_unknown() {
+fn post_tool_round_event_maps_to_runtime_lifecycle_event() {
     assert_eq!(
         adapt_gateway_stream_event(GatewayChatStreamEvent::Other(json!({
-            "type": "chat.post_tool_round"
+            "type": "chat.post_tool_round",
+            "step_index": 3
         }))),
-        UiRuntimeEvent::Unknown { event_type: Some("chat.post_tool_round".to_string()) }
+        UiRuntimeEvent::PostToolRound
     );
 }
 

@@ -23,6 +23,7 @@
 use iced::Element;
 
 use super::components;
+use super::state::WorkspaceMode;
 use super::views;
 use super::{App, Message, Screen};
 use super::{app_view_modals, app_view_status};
@@ -81,6 +82,12 @@ impl App {
             Screen::WorkflowTool => crate::apps::workflow::view(self),
             Screen::WorkflowManager => views::workflow_manager::view(self),
             Screen::TaskBoard => views::task_board::view(self),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ShijuApps => views::expert_hub::shiju_apps::view(self),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ShijuSkills => views::expert_hub::shiju_skills_view(self),
+            #[cfg(not(target_arch = "wasm32"))]
+            Screen::ExpertHub => views::expert_hub::view(self),
         };
 
         // 将内容视图包装在容器中，使其填充整个可用空间
@@ -98,9 +105,14 @@ impl App {
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)
                 .into()
-        } else {
+        } else if show_tab_bar(self.screen, self.workspace_mode) {
             // 组装主视图：垂直排列顶部栏、标签栏、内容区域和状态栏
             iced::widget::column![top, tab_bar, content, status_bar]
+                .width(iced::Length::Fill)
+                .height(iced::Length::Fill)
+                .into()
+        } else {
+            iced::widget::column![top, content, status_bar]
                 .width(iced::Length::Fill)
                 .height(iced::Length::Fill)
                 .into()
@@ -138,6 +150,11 @@ impl App {
                         button(text("知道了").size(14))
                             .on_press(Message::CloseError)
                             .padding([8, 12])
+                            .style(|theme, status| {
+                                let mut style = button::primary(theme, status);
+                                style.border.radius = 8.0.into();
+                                style
+                            })
                     ]
                     .align_y(iced::Alignment::Center)
                 ]
@@ -220,6 +237,7 @@ impl App {
         // 项目编辑模态框
         let root_content = app_view_modals::with_project_edit(self, root_content);
         let root_content = app_view_modals::with_git_diff_overlays(self, root_content);
+        let root_content = app_view_modals::with_account_details(self, root_content);
         let root_content = app_view_modals::with_chat_reset_dialog(self, root_content);
         let root_content = app_view_modals::with_chat_fork_dialog(self, root_content);
         // 确认对话框（问题模态框）
@@ -231,7 +249,7 @@ impl App {
             root_content
         };
 
-        if self.active_toast.is_some() {
+        let root_content: Element<'_, Message> = if self.active_toast.is_some() {
             let toast_layer: Element<'_, Message> = iced::widget::column![
                 iced::widget::Space::new().height(iced::Length::Fill),
                 iced::widget::container(
@@ -252,9 +270,39 @@ impl App {
             iced::widget::stack![root_content, toast_layer].into()
         } else {
             root_content
+        };
+
+        // 自定义主题背景图：置于最底层；无背景时保持原视图。
+        if let Some(path) = self
+            .active_theme_skin
+            .as_ref()
+            .and_then(|skin| skin.background_path.as_ref())
+        {
+            use iced::widget::image::Handle as ImageHandle;
+            use iced::widget::Image;
+            use iced::{ContentFit, Length};
+
+            let wallpaper: Element<'_, Message> = iced::widget::container(
+                Image::new(ImageHandle::from_path(path.clone()))
+                    .content_fit(ContentFit::Cover)
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+
+            iced::widget::stack![wallpaper, root_content].into()
+        } else {
+            root_content
         }
     }
 }
+
+fn show_tab_bar(_screen: Screen, _workspace_mode: WorkspaceMode) -> bool {
+    true
+}
+
 #[cfg(test)]
 #[path = "app_view_tests.rs"]
 mod app_view_tests;

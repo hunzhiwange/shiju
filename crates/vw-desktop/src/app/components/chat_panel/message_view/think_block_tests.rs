@@ -157,7 +157,9 @@ fn think_block_view_builds_running_body() {
     app.chat.push(ChatMessage {
         role: ChatRole::Assistant,
         content: "answer".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     });
     app.chat_think_expanded.insert(0);
     let running = ThinkTiming { start_ms: 1, end_ms: None, last_update_ms: 1 };

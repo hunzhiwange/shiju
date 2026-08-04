@@ -182,6 +182,7 @@ mod channel_instance_settings {
     #[test]
     fn channels_settings_builds_named_channel_instances() {
         let mut config = ChannelsConfig::default();
+        config.matrix_enabled = true;
         config.matrix_instances.push(MatrixInstanceConfig {
             id: "planner".to_string(),
             config: MatrixConfig {
@@ -293,6 +294,7 @@ fn populated_channels_config() -> ChannelsConfig {
             allowed_users: vec!["@alice:matrix.test".to_string()],
             mention_only: false,
         }),
+        matrix_enabled: true,
         matrix_instances: Vec::new(),
         signal: Some(SignalConfig {
             http_url: "http://signal.test".to_string(),

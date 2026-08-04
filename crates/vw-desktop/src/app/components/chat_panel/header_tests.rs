@@ -56,6 +56,7 @@ fn queue_item(query: &str) -> QueueItem {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 3,
@@ -64,6 +65,7 @@ fn queue_item(query: &str) -> QueueItem {
         request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
     }
 }
 
@@ -72,6 +74,16 @@ fn task_475_test_module_is_wired() {
     let path = std::path::Path::new(file!());
 
     assert!(path.ends_with("header_tests.rs"));
+}
+
+#[test]
+fn half_fullscreen_control_is_available_in_code_and_work_modes() {
+    assert!(show_half_fullscreen_control(
+        crate::app::state::WorkspaceMode::Code
+    ));
+    assert!(show_half_fullscreen_control(
+        crate::app::state::WorkspaceMode::Work
+    ));
 }
 
 #[test]
@@ -145,6 +157,17 @@ fn workspace_badge_styles_cover_theme_and_primary_variants() {
 }
 
 #[test]
+fn return_to_parent_button_style_uses_readable_dark_theme_text() {
+    let active = return_to_parent_button_style(&Theme::Dark, button::Status::Active);
+    let hovered = return_to_parent_button_style(&Theme::Dark, button::Status::Hovered);
+    let pressed = return_to_parent_button_style(&Theme::Dark, button::Status::Pressed);
+
+    assert_eq!(active.text_color, Theme::Dark.palette().text.scale_alpha(0.92));
+    assert_eq!(hovered.text_color, Theme::Dark.palette().text.scale_alpha(0.96));
+    assert_eq!(pressed.text_color, Theme::Dark.palette().text.scale_alpha(0.96));
+}
+
+#[test]
 fn session_status_defaults_when_no_active_session() {
     let app = test_app();
     let (is_running, queued, has_unseen_success, breathe, color) = get_session_status(&app);
@@ -206,7 +229,7 @@ fn status_badge_styles_use_expected_surfaces() {
 
 #[test]
 fn header_surface_style_is_transparent() {
-    let style = header_surface_style(&Theme::Dark);
+    let style = header_surface_style(&Theme::Dark, None);
 
     assert!(style.background.is_none());
     assert_eq!(style.border.width, 0.0);
@@ -326,4 +349,82 @@ fn chat_header_view_keeps_container_shape_across_fullscreen_modes() {
     app.show_session_actions_popover = true;
     let fullscreen = chat_header_view(&app);
     assert!(!fullscreen.as_widget().children().is_empty());
+}
+
+#[test]
+fn return_to_parent_session_pressed_is_none_without_parent() {
+    let app = active_header_app();
+    assert!(return_to_parent_session_pressed(&app).is_none());
+
+    let mut app = test_app();
+    app.active_session_id = Some("orphan".to_string());
+    assert!(return_to_parent_session_pressed(&app).is_none());
+}
+
+#[test]
+fn return_to_parent_session_pressed_emits_open_parent_when_parent_id_present() {
+    let mut app = test_app();
+    let parent = session("parent-session", "/workspace/main");
+    let mut child = session("child", "/workspace/main");
+    child.parent_id = Some(parent.id.clone());
+    app.project_path = Some("/workspace/main".to_string());
+    app.active_session_id = Some(parent.id.clone());
+    app.sessions = vec![parent, child];
+
+    let _open_task = crate::app::message::project::update(
+        &mut app,
+        message::ProjectMessage::OpenProjectSessionPressed(
+            "/workspace/main".to_string(),
+            "child".to_string(),
+        ),
+    );
+    assert_eq!(app.active_session_id.as_deref(), Some("child"));
+
+    match return_to_parent_session_pressed(&app) {
+        Some(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id))) => {
+            assert_eq!(path, "/workspace/main");
+            assert_eq!(id, "parent-session");
+        }
+        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
+    }
+}
+
+#[test]
+fn return_to_parent_session_pressed_uses_project_sessions_cache_when_needed() {
+    let mut app = test_app();
+    app.project_path = Some("/workspace/main".to_string());
+    app.active_session_id = Some("child".to_string());
+    let mut child = session("child", "/workspace/child");
+    child.parent_id = Some("parent-session".to_string());
+    app.project_sessions.insert("/workspace/main".to_string(), vec![child]);
+
+    match return_to_parent_session_pressed(&app) {
+        Some(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id))) => {
+            assert_eq!(path, "/workspace/main");
+            assert_eq!(id, "parent-session");
+        }
+        other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
+    }
+}
+
+#[test]
+fn return_to_parent_session_pressed_ignores_blank_parent_id() {
+    let mut app = active_header_app();
+    let mut child = session("child", "/workspace/main");
+    child.parent_id = Some("   ".to_string());
+    app.active_session_id = Some("child".to_string());
+    app.sessions.push(child);
+
+    assert!(return_to_parent_session_pressed(&app).is_none());
+}
+
+#[test]
+fn chat_header_view_builds_with_return_to_parent_control() {
+    let mut app = active_header_app();
+    let mut child = session("child", "/workspace/main");
+    child.parent_id = Some("parent-session".to_string());
+    app.active_session_id = Some("child".to_string());
+    app.sessions.push(child);
+
+    keep_element(chat_header_view(&app));
 }

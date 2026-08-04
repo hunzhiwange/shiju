@@ -4,8 +4,10 @@
 //! 负责初始化上下文、驱动 LLM 循环、处理工具调用并在结束时发出终态事件。
 
 use super::artifacts;
+use super::context_governance;
 use super::helpers::{
-    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
+    allowed_tool_ids_for_request_from_specs, is_acp_request, require_agent_tool_enabled,
+    response_preview, tool_call_preview,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -13,9 +15,11 @@ use super::prefetch;
 use super::todo_updates;
 use super::todos;
 use super::tools_exec;
+use super::turn_policy::ChatTurnPolicy;
 use super::types::{Request, StreamEvent, ToolSessionState};
 use super::utils;
 use crate::app::agent::tools::{ToolRuntimeContext, ToolUseContext};
+use crate::app::agent::config;
 use crate::session::prompt;
 use crate::session::session::{Message, Role, Session};
 use crate::session::ui_types as models;
@@ -26,9 +30,23 @@ const EMPTY_RESPONSE_ERR: &str = "模型未返回内容";
 const EMPTY_RESPONSE_RETRY_PROMPT: &str =
     "上一步模型输出为空，已自动重试。请继续当前任务并返回非空答复。";
 const EMPTY_RESPONSE_RETRY_LIMIT: usize = 4;
+const REQUIRED_AGENT_TOOL_RETRY_LIMIT: usize = 2;
+const REQUIRED_AGENT_TOOL_RETRY_PROMPT: &str = "子智能体模式要求至少通过 AgentTool 成功创建一个子会话。你尚未完成有效委派，请立即调用 AgentTool 创建子会话后再继续；status、wait、stop 或失败调用不计入。";
 
 fn request_full_access_enabled(options: &Value) -> bool {
     options.get("full_access").and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn enabled_identity_files_for_agent(
+    config: &crate::config::Config,
+    agent_key: Option<&str>,
+) -> Vec<String> {
+    let agent_key = agent_key.map(str::trim).filter(|key| !key.is_empty()).unwrap_or("main");
+    config
+        .agents
+        .get(agent_key)
+        .map(|agent| agent.enabled_identity_files.clone())
+        .unwrap_or_default()
 }
 
 /// 执行会话处理主循环。
@@ -38,11 +56,7 @@ fn request_full_access_enabled(options: &Value) -> bool {
 pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
     let mut session = Session::new(req.session.clone());
     let is_acp = is_acp_request(&req.options);
-    let app_session_scope = if req.persist_app_session_artifacts {
-        prefetch::app_session_scope_from_root(req.root.as_deref())
-    } else {
-        None
-    };
+    let app_session_scope = req.app_session_scope.as_deref();
 
     session.messages = req
         .history
@@ -71,22 +85,62 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     if let Some(message_id) = req.assistant_message_id.clone() {
         tool_use_context = tool_use_context.with_message_id(message_id);
     }
+    if let Some(abort_token) = req.abort_token.clone() {
+        tool_use_context = tool_use_context.with_abort_token(abort_token);
+    }
     let full_access_enabled = request_full_access_enabled(&req.options);
     tool_use_context = tool_use_context.with_full_access_enabled(full_access_enabled);
     if full_access_enabled {
         tool_use_context = tool_use_context.with_bypass_non_cli_approval_for_turn(true);
     }
     let ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
-        .with_tool_use_context(tool_use_context);
+        .with_tool_use_context(tool_use_context)
+        .with_session_tools(req.session_tools.clone());
     let mut tool_state = ToolSessionState::default();
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
     let allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
 
-    if utils::is_docs_request(&req.query) {
+    if let Some(message) = required_agent_tool_runtime_error(&req.options, &allowed_tools) {
+        session.push(Role::System, message.clone());
+        on_event(StreamEvent::Error(message));
+        return;
+    }
+
+    if should_handle_docs_request_locally(&req.query, &req.options) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
     }
+
+    let agent_key = req.options.get("agent").and_then(Value::as_str);
+    let config = prompt::block_on(config::get());
+    let turn_policy = ChatTurnPolicy::from_config(&config, agent_key);
+    let trimmed_history_messages =
+        context_governance::trim_session_history(&mut session, turn_policy.max_history_messages);
+    if trimmed_history_messages > 0 {
+        tracing::info!(
+            target: "vw_agent",
+            session_id = %req.session,
+            trimmed_history_messages,
+            max_history_messages = turn_policy.max_history_messages,
+            "session processor trimmed old chat history"
+        );
+    }
+    let enabled_identity_files = enabled_identity_files_for_agent(&config, agent_key);
+    let base_system = prompt::system_with_agent_metadata(
+        req.model.as_deref(),
+        req.root.as_deref(),
+        agent_key,
+        &enabled_identity_files,
+    );
+    if !base_system.visible_instruction_paths.is_empty()
+        && !on_event(StreamEvent::ContextLoaded {
+            paths: base_system.visible_instruction_paths,
+        })
+    {
+        return;
+    }
+    let base_system = base_system.content;
 
     prefetch::prefetch_seed_context(
         &mut session,
@@ -104,7 +158,6 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         &mut tool_state,
     );
 
-    let base_system = prompt::system(req.model.as_deref(), req.root.as_deref());
     let primary_system_prompt = req
         .options
         .get("chat_system_prompt")
@@ -114,14 +167,14 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         .map(ToOwned::to_owned);
     let mut llm_messages = llm_messages::session_messages_to_llm_messages(&session);
 
-    let mut step = 0;
+    let mut step = 0usize;
     let mut step_index: u32 = 0;
     let mut total_usage = models::TokenUsage::default();
     let mut tried_auto_complete_todos = false;
     let mut empty_response_retries = 0usize;
 
     loop {
-        let is_last_step = step >= 100;
+        let is_last_step = step >= turn_policy.max_tool_iterations;
         let empty_tools = HashSet::<String>::new();
         let mut system = vec![base_system.clone()];
         if let Some(prompt) = primary_system_prompt.as_ref() {
@@ -145,9 +198,25 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             step_index = step_index.saturating_add(1),
             retry_budget,
             is_acp,
+            max_tool_iterations = turn_policy.max_tool_iterations,
             "session processor selected retry budget"
         );
         step_index = step_index.saturating_add(1);
+
+        let cleared_tool_results = context_governance::clear_stale_tool_results(
+            &mut llm_messages,
+            context_governance::RECENT_TOOL_RESULTS_TO_KEEP,
+        );
+        if cleared_tool_results > 0 {
+            tracing::info!(
+                target: "vw_agent",
+                session_id = %req.session,
+                step_index,
+                cleared_tool_results,
+                retained_tool_results = context_governance::RECENT_TOOL_RESULTS_TO_KEEP,
+                "session processor cleared stale tool result content"
+            );
+        }
 
         if !on_event(StreamEvent::StepStart {
             step_index,
@@ -297,6 +366,32 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     }
 }
 
+fn required_agent_tool_runtime_error(
+    options: &Value,
+    allowed_tools: &HashSet<String>,
+) -> Option<String> {
+    if !require_agent_tool_enabled(options) {
+        return None;
+    }
+    if !super::should_execute_structured_tool_calls_locally(options) {
+        return Some(
+            "子智能体模式要求本地执行 AgentTool，但 ACP 路径不支持本地 AgentTool 执行"
+                .to_string(),
+        );
+    }
+    if !allowed_tools.iter().any(|tool| tools_exec::is_agent_tool(tool)) {
+        return Some(
+            "子智能体模式要求 AgentTool，但当前运行时未注册或请求未允许 AgentTool"
+                .to_string(),
+        );
+    }
+    None
+}
+
+fn should_handle_docs_request_locally(query: &str, options: &Value) -> bool {
+    utils::is_docs_request(query) && !require_agent_tool_enabled(options)
+}
+
 fn handle_docs_request(
     session: &mut Session,
     ctx: &ToolRuntimeContext,
@@ -331,7 +426,7 @@ fn handle_step_error(
     session: &mut Session,
     llm_messages: &mut Vec<Value>,
     empty_response_retries: &mut usize,
-    step: &mut i32,
+    step: &mut usize,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     message: String,
 ) -> bool {
@@ -395,28 +490,82 @@ fn handle_structured_tool_calls(
         .iter()
         .any(|call| crate::app::agent::tools::is_todo_write_tool_id(&call.name));
     let non_todo_runs_before = tool_state.non_todo_tool_runs;
-    for call in &step_out.tool_calls {
-        let tool_ctx = if let Some(message_id) = req.assistant_message_id.as_deref() {
+    let tool_context = |tool_call_id: &str| {
+        if let Some(message_id) = req.assistant_message_id.as_deref() {
             ctx.clone().with_tool_use_context(
                 ctx.tool_use_context()
                     .as_ref()
                     .clone()
                     .with_message_id(message_id.to_string())
-                    .with_tool_call_id(call.id.clone()),
+                    .with_tool_call_id(tool_call_id.to_string()),
             )
         } else {
             ctx.clone().with_tool_use_context(
-                ctx.tool_use_context().as_ref().clone().with_tool_call_id(call.id.clone()),
+                ctx.tool_use_context().as_ref().clone().with_tool_call_id(tool_call_id.to_string()),
             )
-        };
-        let content = if is_last_step || !allowed_tools.contains(call.name.as_str()) {
+        }
+    };
+
+    let mut call_index = 0;
+    while call_index < step_out.tool_calls.len() {
+        let call = &step_out.tool_calls[call_index];
+        let content = if is_last_step {
+            format!(
+                "tool unavailable: maximum tool iteration budget reached; \
+                 `{}` was not rejected by the permission policy",
+                call.name
+            )
+        } else if !allowed_tools.contains(call.name.as_str()) {
             format!("tool denied: {}", call.name)
+        } else if tools_exec::is_agent_tool(&call.name) {
+            let group_start = call_index;
+            while call_index < step_out.tool_calls.len() {
+                let grouped_call = &step_out.tool_calls[call_index];
+                if !tools_exec::is_agent_tool(&grouped_call.name)
+                    || !allowed_tools.contains(grouped_call.name.as_str())
+                {
+                    break;
+                }
+                call_index += 1;
+            }
+            let grouped_calls = &step_out.tool_calls[group_start..call_index];
+            let planned = grouped_calls
+                .iter()
+                .map(|grouped_call| {
+                    tools_exec::AgentToolPlannedCall::new(
+                        &grouped_call.name,
+                        &grouped_call.arguments,
+                        tool_context(&grouped_call.id),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let current_agent = req
+                .options
+                .get("agent")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("main");
+            let max_parallel =
+                crate::app::agent::tools::agent_tool_parallel_limit_for_context(ctx, current_agent);
+            let contents = tools_exec::run_agent_tools_and_record(
+                session,
+                &planned,
+                max_parallel,
+                true,
+                on_event,
+                tool_state,
+            );
+            for (grouped_call, content) in grouped_calls.iter().zip(contents) {
+                llm_messages.push(utils::tool_result_to_message(&grouped_call.id, &content));
+            }
+            continue;
         } else {
             tools_exec::run_tool_and_record(
                 session,
                 &call.name,
                 &call.arguments,
-                &tool_ctx,
+                &tool_context(&call.id),
                 true,
                 on_event,
                 tool_state,
@@ -424,6 +573,7 @@ fn handle_structured_tool_calls(
             .unwrap_or_default()
         };
         llm_messages.push(utils::tool_result_to_message(&call.id, &content));
+        call_index += 1;
     }
 
     let non_todo_runs_after = tool_state.non_todo_tool_runs;
@@ -465,7 +615,7 @@ fn handle_assistant_text_branch(
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     tool_state: &mut ToolSessionState,
     empty_response_retries: &mut usize,
-    step: &mut i32,
+    step: &mut usize,
     tried_auto_complete_todos: &mut bool,
     step_out: &llm_runner::LlmStep,
     step_text_preview: &str,
@@ -546,6 +696,31 @@ fn handle_assistant_text_branch(
     session.push(Role::Assistant, text.to_string());
     llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
 
+    if require_agent_tool_enabled(&req.options) && tool_state.successful_agent_delegations == 0 {
+        if tool_state.required_agent_tool_retries < REQUIRED_AGENT_TOOL_RETRY_LIMIT {
+            tool_state.required_agent_tool_retries =
+                tool_state.required_agent_tool_retries.saturating_add(1);
+            let retry_message = format!(
+                "{}（{}/{}）",
+                REQUIRED_AGENT_TOOL_RETRY_PROMPT,
+                tool_state.required_agent_tool_retries,
+                REQUIRED_AGENT_TOOL_RETRY_LIMIT
+            );
+            session.push(Role::System, retry_message.clone());
+            llm_messages.push(json!({ "role": "system", "content": retry_message }));
+            *step += 1;
+            return true;
+        }
+
+        let final_message = format!(
+            "子智能体模式要求至少一次有效 AgentTool 委派；模型在 {} 次纠偏后仍未成功创建子会话，任务终止",
+            REQUIRED_AGENT_TOOL_RETRY_LIMIT
+        );
+        session.push(Role::System, final_message.clone());
+        on_event(StreamEvent::Error(final_message));
+        return false;
+    }
+
     if is_last_step {
         tracing::info!(
             target: "vw_agent",
@@ -555,6 +730,9 @@ fn handle_assistant_text_branch(
             final_text_preview = %response_preview(text),
             "session processor accepted final-step assistant response and completed turn"
         );
+        if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
+            return false;
+        }
         artifacts::persist_final_ai_call_payload(
             req,
             session,
@@ -612,6 +790,9 @@ fn handle_assistant_text_branch(
         final_text_preview = %response_preview(text),
         "session processor completed turn with assistant response"
     );
+    if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
+        return false;
+    }
     artifacts::persist_final_ai_call_payload(
         req,
         session,
@@ -630,7 +811,7 @@ fn handle_empty_assistant_text(
     llm_messages: &mut Vec<Value>,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     empty_response_retries: &mut usize,
-    step: &mut i32,
+    step: &mut usize,
     reasoning_content: &str,
     is_last_step: bool,
     step_index: u32,

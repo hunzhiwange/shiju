@@ -30,7 +30,13 @@ fn session(id: &str) -> Info {
 }
 
 fn chat_message(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage {
+        role: ChatRole::User,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 #[test]
@@ -76,8 +82,8 @@ fn session_delete_active_session_switches_to_first_remaining_and_syncs_preferenc
     assert_eq!(app.active_session_id.as_deref(), Some("next"));
     assert!(!app.session_runtime_states.contains_key("deleted"));
     assert!(!app.get_session_runtime("next").has_unseen_success);
-    assert_eq!(app.model, "next-model");
-    assert!(!app.auto_model);
+    assert_eq!(app.model, "old-model");
+    assert!(app.auto_model);
     assert_eq!(app.chat[0].content, "preserved until load completes");
     assert_eq!(app.usage.input_tokens, 9);
 }
@@ -142,8 +148,8 @@ fn session_delete_missing_active_session_switches_to_first_available_session() {
     );
     assert_eq!(app.active_session_id.as_deref(), Some("next"));
     assert!(!app.get_session_runtime("next").has_unseen_success);
-    assert_eq!(app.model, "next-model");
-    assert!(!app.auto_model);
+    assert_eq!(app.model, "old-model");
+    assert!(app.auto_model);
 }
 
 #[test]

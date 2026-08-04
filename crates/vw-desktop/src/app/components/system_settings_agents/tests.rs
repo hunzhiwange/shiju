@@ -9,11 +9,11 @@ fn root_child_count(app: &App) -> usize {
 fn agents_view_loading_state_adds_status_row() {
     let (mut app, _) = App::new();
 
-    assert_eq!(root_child_count(&app), 3);
+    assert_eq!(root_child_count(&app), 4);
 
     app.agents_settings.loading = true;
 
-    assert_eq!(root_child_count(&app), 4);
+    assert_eq!(root_child_count(&app), 5);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn agents_view_builds_sidebar_for_main_enabled_disabled_and_model_variants() {
     app.agents_settings.entries = vec![main, enabled_worker, disabled_custom];
     app.agents_settings.selected_agent = "custom-disabled".to_string();
 
-    assert_eq!(root_child_count(&app), 3);
+    assert_eq!(root_child_count(&app), 4);
 }
 
 #[test]
@@ -73,5 +73,5 @@ fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
     let selected = super::shared::selected_entry(&app)
         .expect("a missing selection should fall back to the first entry");
     assert_eq!(selected.key, first_key);
-    assert_eq!(root_child_count(&app), 3);
+    assert_eq!(root_child_count(&app), 4);
 }

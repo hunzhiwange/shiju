@@ -3,6 +3,7 @@ use super::menus::{
     help_menu_entries, view_menu, view_menu_entries,
 };
 use crate::app::message::view::MenuType;
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::{App, Message, Screen, message};
 
 fn test_app(screen: Screen) -> App {
@@ -123,7 +124,7 @@ fn non_project_edit_menu_entries_are_empty() {
 
 #[test]
 fn view_menu_entries_request_visible_panel_and_changed_files() {
-    let entries = view_menu_entries(false, false);
+    let entries = view_menu_entries(WorkspaceMode::Code, false, false);
 
     assert_eq!(entries.len(), 5);
     assert_eq!(item(&entries[0]).0, "切换左侧面板");
@@ -152,7 +153,7 @@ fn view_menu_entries_request_visible_panel_and_changed_files() {
 
 #[test]
 fn view_menu_entries_request_hidden_panel_and_all_files() {
-    let entries = view_menu_entries(true, true);
+    let entries = view_menu_entries(WorkspaceMode::Code, true, true);
 
     assert_eq!(entries.len(), 5);
     assert_eq!(item(&entries[1]).0, "隐藏右侧面板");
@@ -165,6 +166,41 @@ fn view_menu_entries_request_hidden_panel_and_all_files() {
         item(&entries[2]).2,
         Message::Project(message::ProjectMessage::FileManagerShowChanges(false))
     ));
+}
+
+#[test]
+fn work_view_menu_exposes_only_work_mode_surfaces() {
+    let entries = view_menu_entries(WorkspaceMode::Work, true, true);
+
+    assert_eq!(entries.len(), 4);
+    assert_eq!(item(&entries[0]).0, "切换工作侧栏");
+    assert!(matches!(
+        item(&entries[0]).2,
+        Message::View(message::ViewMessage::WorkSidebarToggled)
+    ));
+    for (entry, expected_mode) in entries[1..].iter().zip([
+        WorkResourceMode::Overview,
+        WorkResourceMode::WorkspaceFiles,
+        WorkResourceMode::Browser,
+    ]) {
+        assert!(matches!(
+            item(entry).2,
+            Message::View(message::ViewMessage::WorkResourceModeSelected(mode))
+                if *mode == expected_mode
+        ));
+    }
+    assert!(
+        entries.iter().all(|entry| {
+            !matches!(
+                item(entry).2,
+                Message::View(
+                    message::ViewMessage::ToggleTerminalPanel
+                        | message::ViewMessage::ToggleDiffPanel
+                )
+            )
+        }),
+        "work mode must not expose terminal or review actions"
+    );
 }
 
 #[test]

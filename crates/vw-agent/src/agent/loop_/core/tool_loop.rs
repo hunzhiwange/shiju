@@ -31,7 +31,9 @@ use uuid::Uuid;
 use super::super::approval::TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT;
 use super::super::utils::scrub_credentials;
 use super::TOOL_LOOP_REPLY_TARGET;
-use super::constants::{DEFAULT_MAX_TOOL_ITERATIONS, MISSING_TOOL_CALL_RETRY_PROMPT};
+use super::constants::{
+    DEFAULT_MAX_TOOL_ITERATIONS, EMPTY_FINAL_RESPONSE_RETRY_PROMPT, MISSING_TOOL_CALL_RETRY_PROMPT,
+};
 use super::errors::ToolLoopCancelled;
 use llm_round::run_llm_round;
 use output::{
@@ -157,6 +159,29 @@ pub async fn run_tool_call_loop(
             .await;
 
         if round.tool_calls.is_empty() {
+            if round.display_text.trim().is_empty() {
+                runtime_trace::record_event(
+                    "empty_final_response_retry",
+                    Some(channel_name),
+                    Some(provider_name),
+                    Some(model),
+                    Some(&turn_id),
+                    Some(false),
+                    Some("model returned no tool calls or final text"),
+                    serde_json::json!({
+                        "iteration": iteration + 1,
+                        "will_retry": iteration + 1 < max_iterations,
+                    }),
+                );
+                if iteration + 1 < max_iterations {
+                    history.push(ChatMessage::user(EMPTY_FINAL_RESPONSE_RETRY_PROMPT));
+                    continue;
+                }
+                anyhow::bail!(
+                    "Agent did not produce a non-empty final response within {max_iterations} iterations"
+                );
+            }
+
             let completion_claim_signal =
                 looks_like_unverified_action_completion_without_tool_call(&round.display_text);
             let missing_tool_call_signal = round.parse_issue_detected || completion_claim_signal;

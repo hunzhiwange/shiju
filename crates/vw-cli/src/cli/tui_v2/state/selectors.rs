@@ -5,14 +5,16 @@
 //! 最小计算逻辑。
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
 
 use super::TuiState;
 use crate::cli::tui_v2::model::{
-    UiAssistantMessage, UiMessage, UiMessageId, UiOverlay, UiSearchMatch, UiStep, UiThinkingBlock,
-    UiTokenUsage, UiToolCall, UiToolResult, UiTurnTerminal, UiUserMessage,
+    UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiProgressMessage,
+    UiSearchMatch, UiStep, UiSystemMessage, UiThinkingBlock, UiTokenUsage, UiToolCall,
+    UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
 };
+use serde_json::Value;
 use unicode_width::UnicodeWidthChar;
 
 /// 状态线可直接消费的汇总结果。
@@ -63,8 +65,99 @@ pub(crate) enum TuiAssistantTurnEntry<'a> {
 pub(crate) struct TuiToolCallGroup<'a> {
     pub(crate) call: &'a UiToolCall,
     pub(crate) results: Vec<&'a UiToolResult>,
+    pub(crate) progress: Vec<&'a UiProgressMessage>,
+    pub(crate) notices: Vec<&'a UiSystemMessage>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TuiToolRowView {
+    pub(crate) tool_name: String,
+    pub(crate) display_name: String,
+    pub(crate) summary: Option<String>,
+    pub(crate) state: UiToolCallState,
+    pub(crate) result_count: usize,
+    pub(crate) has_error: bool,
+    pub(crate) safe_arguments: Option<String>,
+    pub(crate) safe_results: Vec<String>,
+    pub(crate) progress_labels: Vec<String>,
+    pub(crate) notice_labels: Vec<String>,
+}
+
+pub(crate) fn select_tool_row_view(group: &TuiToolCallGroup<'_>) -> TuiToolRowView {
+    TuiToolRowView {
+        tool_name: group.call.tool_name.clone(),
+        display_name: tool_display_name(group.call.tool_name.as_str()),
+        summary: group
+            .call
+            .summary
+            .as_deref()
+            .map(str::trim)
+            .filter(|summary| !summary.is_empty())
+            .map(ToOwned::to_owned),
+        state: group.call.state.clone(),
+        result_count: group.results.len(),
+        has_error: group.results.iter().any(|result| result.is_error),
+        safe_arguments: group.call.arguments.as_deref().map(redact_tool_payload),
+        safe_results: group
+            .results
+            .iter()
+            .map(|result| redact_tool_payload(result.content.as_str()))
+            .collect(),
+        progress_labels: group
+            .progress
+            .iter()
+            .map(|progress| match (progress.current, progress.total) {
+                (Some(current), Some(total)) => {
+                    format!("{} {current}/{total}", progress.label)
+                }
+                _ => progress.label.clone(),
+            })
+            .collect(),
+        notice_labels: group.notices.iter().map(|notice| notice.text.clone()).collect(),
+    }
+}
+
+fn tool_display_name(tool_name: &str) -> String {
+    match tool_name.trim().to_ascii_lowercase().as_str() {
+        "read" => "Read".to_string(),
+        "grep" | "glob" | "semantic_search" => "Search".to_string(),
+        "bash" | "shell" => "Bash".to_string(),
+        "write" | "edit" | "apply_patch" => "Update".to_string(),
+        _ => tool_name.trim().to_string(),
+    }
+}
+
+fn redact_tool_payload(payload: &str) -> String {
+    let Ok(mut value) = serde_json::from_str::<Value>(payload) else {
+        return payload.to_string();
+    };
+    redact_sensitive_json(&mut value);
+    serde_json::to_string(&value).unwrap_or_else(|_| "[unavailable]".to_string())
+}
+
+fn redact_sensitive_json(value: &mut Value) {
+    match value {
+        Value::Object(entries) => {
+            for (key, value) in entries {
+                let normalized = key.to_ascii_lowercase();
+                if ["token", "secret", "password", "authorization", "cookie", "api_key"]
+                    .iter()
+                    .any(|sensitive| normalized.contains(sensitive))
+                {
+                    *value = Value::String("[redacted]".to_string());
+                } else {
+                    redact_sensitive_json(value);
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                redact_sensitive_json(value);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
 /// 当前最小折叠模型覆盖的 explore 工具类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TuiExploreToolKind {
@@ -99,6 +192,8 @@ pub(crate) struct TuiCollapsedExploreResults<'a> {
     pub(crate) tool_counts: Vec<TuiCollapsedToolCount>,
     pub(crate) calls: Vec<TuiToolCallGroup<'a>>,
     pub(crate) total_results: usize,
+    pub(crate) total_progress: usize,
+    pub(crate) notice_count: usize,
 }
 
 /// renderer 与 footer 可共同消费的可见 transcript 窗口。
@@ -112,6 +207,7 @@ pub(crate) struct TuiCollapsedExploreResults<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TuiVisibleTranscriptWindow<'a> {
     pub(crate) items: Vec<TuiTranscriptItem<'a>>,
+    item_keys: Vec<String>,
     pub(crate) viewport_rows: u16,
     pub(crate) viewport_message_capacity: usize,
     pub(crate) top_message: usize,
@@ -125,6 +221,21 @@ pub(crate) struct TuiVisibleTranscriptWindow<'a> {
     pub(crate) end_item_index: usize,
     pub(crate) covered_message_start: usize,
     pub(crate) covered_message_end: usize,
+    pub(crate) top_spacer_rows: usize,
+    pub(crate) bottom_spacer_rows: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TuiTranscriptMeasurement {
+    pub(crate) key: String,
+    pub(crate) height: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct TuiTranscriptMeasurements {
+    pub(crate) content_width: u16,
+    pub(crate) verbose: bool,
+    pub(crate) items: Vec<TuiTranscriptMeasurement>,
 }
 
 /// 当前 viewport 能力的稳定摘要。
@@ -284,12 +395,38 @@ impl TuiSearchTextCache {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TuiTranscriptLayoutCacheBucket {
     pub(crate) content_width: u16,
+    verbose: bool,
+    item_keys: Vec<String>,
     item_heights: Vec<usize>,
+    measured_keys: BTreeSet<String>,
+    prefix_rows: Vec<usize>,
 }
 
 impl TuiTranscriptLayoutCacheBucket {
     fn item_heights(&self) -> &[usize] {
         &self.item_heights
+    }
+
+    fn rows_before(&self, item_index: usize) -> usize {
+        self.prefix_rows.get(item_index).copied().unwrap_or_default()
+    }
+
+    fn total_rows(&self) -> usize {
+        self.prefix_rows.last().copied().unwrap_or_default()
+    }
+
+    fn rebuild_prefix_from(&mut self, start: usize) {
+        if self.prefix_rows.len() != self.item_heights.len().saturating_add(1) {
+            self.prefix_rows = vec![0; self.item_heights.len().saturating_add(1)];
+        }
+        let start = start.min(self.item_heights.len());
+        if start == 0 {
+            self.prefix_rows[0] = 0;
+        }
+        for index in start..self.item_heights.len() {
+            self.prefix_rows[index + 1] =
+                self.prefix_rows[index].saturating_add(self.item_heights[index].max(1));
+        }
     }
 }
 
@@ -299,16 +436,22 @@ impl TuiTranscriptLayoutCacheBucket {
 /// 让 scroll/visible window 在相同宽度下复用估算结果，而不是每次重新 wrap 全段文本。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct TuiTranscriptLayoutCache {
-    buckets: BTreeMap<u16, TuiTranscriptLayoutCacheBucket>,
+    buckets: BTreeMap<(u16, bool), TuiTranscriptLayoutCacheBucket>,
 }
+
+const MAX_TRANSCRIPT_LAYOUT_BUCKETS: usize = 16;
 
 impl TuiTranscriptLayoutCache {
     pub(crate) fn clear(&mut self) {
         self.buckets.clear();
     }
 
-    pub(crate) fn bucket(&self, content_width: u16) -> Option<&TuiTranscriptLayoutCacheBucket> {
-        self.buckets.get(&content_width)
+    pub(crate) fn bucket(
+        &self,
+        content_width: u16,
+        verbose: bool,
+    ) -> Option<&TuiTranscriptLayoutCacheBucket> {
+        self.buckets.get(&(content_width, verbose))
     }
 
     pub(crate) fn rebuild_width(
@@ -316,15 +459,95 @@ impl TuiTranscriptLayoutCache {
         messages: &[UiMessage],
         projection: &TuiTranscriptProjectionCache,
         content_width: u16,
+        verbose: bool,
     ) {
         if content_width == 0 {
             return;
         }
 
-        self.buckets.insert(
-            content_width,
-            derive_transcript_layout_cache_bucket(messages, projection, content_width),
-        );
+        let key = (content_width, verbose);
+        if !self.buckets.contains_key(&key)
+            && self.buckets.len() >= MAX_TRANSCRIPT_LAYOUT_BUCKETS
+            && let Some(oldest_key) = self.buckets.keys().next().copied()
+        {
+            self.buckets.remove(&oldest_key);
+        }
+        self.buckets.entry((content_width, verbose)).or_insert_with(|| {
+            derive_transcript_layout_cache_bucket(messages, projection, content_width, verbose)
+        });
+    }
+
+    pub(crate) fn reconcile_projection(
+        &mut self,
+        messages: &[UiMessage],
+        projection: &TuiTranscriptProjectionCache,
+    ) {
+        for bucket in self.buckets.values_mut() {
+            let old_heights = bucket
+                .item_keys
+                .iter()
+                .cloned()
+                .zip(bucket.item_heights.iter().copied())
+                .collect::<BTreeMap<_, _>>();
+            bucket.item_keys = projection.keys().to_vec();
+            bucket.item_heights = projection
+                .items()
+                .iter()
+                .zip(projection.keys())
+                .map(|(item, key)| {
+                    old_heights.get(key).copied().unwrap_or_else(|| {
+                        estimate_transcript_projection_item_height(
+                            messages,
+                            item,
+                            bucket.content_width,
+                            bucket.verbose,
+                        )
+                    })
+                })
+                .collect();
+            bucket.measured_keys.retain(|key| projection.keys().contains(key));
+            bucket.prefix_rows = vec![0; bucket.item_heights.len().saturating_add(1)];
+            bucket.rebuild_prefix_from(0);
+        }
+    }
+
+    pub(crate) fn apply_measurements(&mut self, measurements: &TuiTranscriptMeasurements) {
+        let Some(bucket) =
+            self.buckets.get_mut(&(measurements.content_width, measurements.verbose))
+        else {
+            return;
+        };
+        let indices = bucket
+            .item_keys
+            .iter()
+            .enumerate()
+            .map(|(index, key)| (key.clone(), index))
+            .collect::<BTreeMap<_, _>>();
+        let mut first_changed = None;
+        for measurement in &measurements.items {
+            let Some(index) = indices.get(&measurement.key).copied() else {
+                continue;
+            };
+            let height = measurement.height.max(1);
+            if bucket.item_heights[index] != height {
+                bucket.item_heights[index] = height;
+                first_changed = Some(first_changed.map_or(index, |start: usize| start.min(index)));
+            }
+            bucket.measured_keys.insert(measurement.key.clone());
+        }
+        if let Some(start) = first_changed {
+            bucket.rebuild_prefix_from(start);
+        }
+    }
+
+    pub(crate) fn measured_item_count(&self, content_width: u16, verbose: bool) -> usize {
+        self.bucket(content_width, verbose)
+            .map(|bucket| bucket.measured_keys.len())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn bucket_count(&self) -> usize {
+        self.buckets.len()
     }
 
     pub(crate) fn refresh_message(
@@ -337,18 +560,28 @@ impl TuiTranscriptLayoutCache {
             return;
         };
 
-        for (content_width, bucket) in &mut self.buckets {
+        for bucket in self.buckets.values_mut() {
             if bucket.item_heights.len() != projection.len() {
-                *bucket =
-                    derive_transcript_layout_cache_bucket(messages, projection, *content_width);
+                *bucket = derive_transcript_layout_cache_bucket(
+                    messages,
+                    projection,
+                    bucket.content_width,
+                    bucket.verbose,
+                );
                 continue;
             }
 
             let Some(item) = projection.item(item_index) else {
                 continue;
             };
-            bucket.item_heights[item_index] =
-                estimate_transcript_projection_item_height(messages, item, *content_width);
+            bucket.item_heights[item_index] = estimate_transcript_projection_item_height(
+                messages,
+                item,
+                bucket.content_width,
+                bucket.verbose,
+            );
+            bucket.measured_keys.remove(&bucket.item_keys[item_index]);
+            bucket.rebuild_prefix_from(item_index);
         }
     }
 }
@@ -357,6 +590,7 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
     fn empty(state: &TuiState) -> Self {
         Self {
             items: Vec::new(),
+            item_keys: Vec::new(),
             viewport_rows: state.scroll.viewport_height,
             viewport_message_capacity: 0,
             top_message: state.scroll.top_message,
@@ -370,6 +604,8 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
             end_item_index: 0,
             covered_message_start: 0,
             covered_message_end: 0,
+            top_spacer_rows: 0,
+            bottom_spacer_rows: 0,
         }
     }
 
@@ -384,6 +620,11 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
     pub(crate) fn visible_items(&self) -> &[TuiTranscriptItem<'a>] {
         let top_offset = self.top_item_index.saturating_sub(self.start_item_index);
         &self.items[top_offset.min(self.items.len())..]
+    }
+
+    pub(crate) fn visible_keys(&self) -> &[String] {
+        let top_offset = self.top_item_index.saturating_sub(self.start_item_index);
+        &self.item_keys[top_offset.min(self.item_keys.len())..]
     }
 
     pub(crate) fn viewport_summary(&self) -> TuiViewportSummary {
@@ -425,6 +666,7 @@ impl<'a> TuiVisibleTranscriptWindow<'a> {
 pub(crate) struct TuiTranscriptProjectionCache {
     items: Vec<TuiTranscriptProjectionItem>,
     anchors: Vec<usize>,
+    keys: Vec<String>,
 }
 
 impl TuiTranscriptProjectionCache {
@@ -442,6 +684,10 @@ impl TuiTranscriptProjectionCache {
 
     pub(crate) fn anchors(&self) -> &[usize] {
         &self.anchors
+    }
+
+    pub(crate) fn keys(&self) -> &[String] {
+        &self.keys
     }
 
     pub(crate) fn item(&self, item_index: usize) -> Option<&TuiTranscriptProjectionItem> {
@@ -583,35 +829,8 @@ pub(crate) fn select_visible_grouped_transcript_window(
     let top_item_index = transcript_item_index_for_message(projection.items(), top_message);
     let sticky_prompt = derive_sticky_prompt_summary(&state.messages, projection, top_item_index);
 
-    if state.scroll.viewport_height == 0 {
-        let covered_message_start =
-            projection.items().first().map(|item| item.span().start).unwrap_or_default();
-        let covered_message_end =
-            projection.items().last().map(|item| item.span().end).unwrap_or_default();
-        let unseen_range = derive_unseen_range_summary(
-            &state.messages,
-            projection,
-            top_item_index,
-            total_items,
-            state.scroll.last_seen_message,
-            state.scroll.follow_tail,
-        );
-        return TuiVisibleTranscriptWindow {
-            items: materialize_transcript_items(&state.messages, projection.items()),
-            viewport_rows: state.scroll.viewport_height,
-            viewport_message_capacity: total_items.saturating_sub(top_item_index),
-            top_message,
-            sticky_message: state.scroll.sticky_message,
-            sticky_prompt,
-            unseen_range,
-            follow_tail: state.scroll.follow_tail,
-            total_items,
-            top_item_index,
-            start_item_index: 0,
-            end_item_index: total_items,
-            covered_message_start,
-            covered_message_end,
-        };
+    if state.scroll.viewport_height == 0 || state.scroll.viewport_width == 0 {
+        return TuiVisibleTranscriptWindow::empty(state);
     }
 
     let start_item_index = top_item_index.saturating_sub(state.scroll.overscan);
@@ -622,6 +841,7 @@ pub(crate) fn select_visible_grouped_transcript_window(
         top_item_index,
         state.scroll.viewport_width,
         state.scroll.viewport_height as usize,
+        state.status.verbose,
     );
     let end_item_index =
         visible_end_index.saturating_add(state.scroll.overscan).min(projection.len());
@@ -629,6 +849,18 @@ pub(crate) fn select_visible_grouped_transcript_window(
         .iter()
         .map(|item| item.materialize(&state.messages))
         .collect::<Vec<_>>();
+    let item_keys = projection.keys()[start_item_index..end_item_index].to_vec();
+    let (top_spacer_rows, bottom_spacer_rows) = state
+        .transcript_layout
+        .bucket(state.scroll.viewport_width, state.status.verbose)
+        .filter(|bucket| bucket.item_heights().len() == projection.len())
+        .map(|bucket| {
+            (
+                bucket.rows_before(start_item_index),
+                bucket.total_rows().saturating_sub(bucket.rows_before(end_item_index)),
+            )
+        })
+        .unwrap_or_default();
     let covered_message_start = projection.items()[start_item_index].span().start;
     let covered_message_end = projection.items()[end_item_index.saturating_sub(1)].span().end;
     let unseen_range = derive_unseen_range_summary(
@@ -637,11 +869,13 @@ pub(crate) fn select_visible_grouped_transcript_window(
         top_item_index,
         end_item_index,
         state.scroll.last_seen_message,
+        state.unseen_baseline_id.as_ref(),
         state.scroll.follow_tail,
     );
 
     TuiVisibleTranscriptWindow {
         items,
+        item_keys,
         viewport_rows: state.scroll.viewport_height,
         viewport_message_capacity: visible_end_index.saturating_sub(top_item_index),
         top_message,
@@ -655,6 +889,8 @@ pub(crate) fn select_visible_grouped_transcript_window(
         end_item_index,
         covered_message_start,
         covered_message_end,
+        top_spacer_rows,
+        bottom_spacer_rows,
     }
 }
 
@@ -705,7 +941,8 @@ pub(crate) fn derive_transcript_projection_cache(
             UiMessage::Thinking(_)
             | UiMessage::Step(_)
             | UiMessage::ToolCall(_)
-            | UiMessage::ToolResult(_) => {
+            | UiMessage::ToolResult(_)
+            | UiMessage::Progress(_) => {
                 if let Some(TranscriptBuilderItem::AssistantTurn(turn)) = items.last_mut()
                     && assistant_turn_accepts_message(turn, message)
                 {
@@ -722,7 +959,26 @@ pub(crate) fn derive_transcript_projection_cache(
                 items.push(TranscriptBuilderItem::Standalone(indexed_message));
                 pending_user_id = None;
             }
-            UiMessage::System(_) | UiMessage::Error(_) => {
+            UiMessage::System(system) if is_tool_notice(system) => {
+                if let Some(TranscriptBuilderItem::AssistantTurn(turn)) = items.last_mut()
+                    && assistant_turn_accepts_message(turn, message)
+                {
+                    turn.child_messages.push(indexed_message);
+                    continue;
+                }
+                if can_stage_preface_message(message, pending_user_id, &pending_preface) {
+                    pending_preface.push(indexed_message);
+                    continue;
+                }
+                flush_pending_preface(&mut items, &mut pending_preface);
+                items.push(TranscriptBuilderItem::Standalone(indexed_message));
+                pending_user_id = None;
+            }
+            UiMessage::System(_)
+            | UiMessage::Error(_)
+            | UiMessage::Attachment(_)
+            | UiMessage::CompactBoundary(_)
+            | UiMessage::Unknown(_) => {
                 flush_pending_preface(&mut items, &mut pending_preface);
                 items.push(TranscriptBuilderItem::Standalone(indexed_message));
                 pending_user_id = None;
@@ -734,7 +990,8 @@ pub(crate) fn derive_transcript_projection_cache(
 
     let items = items.into_iter().map(finalize_transcript_projection_item).collect::<Vec<_>>();
     let anchors = items.iter().map(|item| item.span().start).collect();
-    TuiTranscriptProjectionCache { items, anchors }
+    let keys = items.iter().map(|item| transcript_projection_key(messages, item)).collect();
+    TuiTranscriptProjectionCache { items, anchors, keys }
 }
 
 /// 汇总当前状态线关心的统计信息。
@@ -914,6 +1171,19 @@ fn finalize_transcript_projection_item(
     }
 }
 
+fn transcript_projection_key(messages: &[UiMessage], item: &TuiTranscriptProjectionItem) -> String {
+    let span = item.span();
+    let member_ids = messages[span.start.min(messages.len())..span.end.min(messages.len())]
+        .iter()
+        .map(|message| message.id().as_str())
+        .collect::<Vec<_>>()
+        .join("|");
+    match item {
+        TuiTranscriptProjectionItem::Standalone { .. } => member_ids,
+        TuiTranscriptProjectionItem::AssistantTurn { .. } => format!("group:{member_ids}"),
+    }
+}
+
 fn derive_sticky_prompt_summary(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
@@ -945,13 +1215,17 @@ fn derive_unseen_range_summary(
     top_item_index: usize,
     end_item_index: usize,
     last_seen_message: Option<usize>,
+    baseline_id: Option<&UiMessageId>,
     follow_tail: bool,
 ) -> Option<TuiUnseenRangeSummary> {
     if follow_tail {
         return None;
     }
 
-    let last_seen_message = last_seen_message?;
+    let stable_baseline = baseline_id.and_then(|baseline_id| {
+        messages.iter().position(|message| &message.base().id == baseline_id)
+    });
+    let last_seen_message = stable_baseline.or(last_seen_message)?;
     if messages.is_empty() || last_seen_message >= messages.len().saturating_sub(1) {
         return None;
     }
@@ -960,10 +1234,20 @@ fn derive_unseen_range_summary(
     let first_unseen_item_index =
         projection.items().iter().position(|item| item.span().end > first_unseen_message)?;
 
+    let semantic_count = if stable_baseline.is_some() {
+        projection.items()[first_unseen_item_index..]
+            .iter()
+            .filter(|item| matches!(item, TuiTranscriptProjectionItem::AssistantTurn { .. }))
+            .count()
+            .max(1)
+    } else {
+        messages.len().saturating_sub(first_unseen_message)
+    };
+
     Some(TuiUnseenRangeSummary {
         first_unseen_message,
         first_unseen_item_index,
-        unseen_message_count: messages.len().saturating_sub(first_unseen_message),
+        unseen_message_count: semantic_count,
         unseen_item_count: projection.len().saturating_sub(first_unseen_item_index),
         boundary_in_window: first_unseen_item_index >= top_item_index
             && first_unseen_item_index < end_item_index,
@@ -1048,16 +1332,51 @@ fn derive_turn_entries(messages: Vec<IndexedUiMessage<'_>>) -> Vec<TuiAssistantT
                 entries.push(TuiAssistantTurnEntry::Thinking(thinking));
             }
             UiMessage::Step(step) => entries.push(TuiAssistantTurnEntry::Step(step)),
-            UiMessage::ToolCall(call) => entries
-                .push(TuiAssistantTurnEntry::Tool(TuiToolCallGroup { call, results: Vec::new() })),
+            UiMessage::ToolCall(call) => {
+                entries.push(TuiAssistantTurnEntry::Tool(TuiToolCallGroup {
+                    call,
+                    results: Vec::new(),
+                    progress: Vec::new(),
+                    notices: Vec::new(),
+                }));
+            }
             UiMessage::ToolResult(result) => {
-                if let Some(TuiAssistantTurnEntry::Tool(tool_group)) = entries.last_mut()
-                    && tool_result_matches_call(tool_group.call, result)
-                {
+                if let Some(tool_group) = entries.iter_mut().rev().find_map(|entry| match entry {
+                    TuiAssistantTurnEntry::Tool(tool_group)
+                        if tool_result_matches_call(tool_group.call, result) =>
+                    {
+                        Some(tool_group)
+                    }
+                    _ => None,
+                }) {
                     tool_group.results.push(result);
                     continue;
                 }
                 entries.push(TuiAssistantTurnEntry::ToolResult(result));
+            }
+            UiMessage::Progress(progress) => {
+                if let Some(tool_group) = entries.iter_mut().rev().find_map(|entry| match entry {
+                    TuiAssistantTurnEntry::Tool(tool_group)
+                        if tool_aux_matches_call(&progress.base, tool_group.call) =>
+                    {
+                        Some(tool_group)
+                    }
+                    _ => None,
+                }) {
+                    tool_group.progress.push(progress);
+                }
+            }
+            UiMessage::System(notice) if is_tool_notice(notice) => {
+                if let Some(tool_group) = entries.iter_mut().rev().find_map(|entry| match entry {
+                    TuiAssistantTurnEntry::Tool(tool_group)
+                        if tool_aux_matches_call(&notice.base, tool_group.call) =>
+                    {
+                        Some(tool_group)
+                    }
+                    _ => None,
+                }) {
+                    tool_group.notices.push(notice);
+                }
             }
             _ => {}
         }
@@ -1111,6 +1430,8 @@ fn build_collapsed_explore_results(
 ) -> TuiCollapsedExploreResults<'_> {
     let mut tool_counts: Vec<TuiCollapsedToolCount> = Vec::new();
     let mut total_results = 0usize;
+    let mut total_progress = 0usize;
+    let mut notice_count = 0usize;
 
     for call in &calls {
         let Some(kind) = collapse_kind_for_tool_group(call) else {
@@ -1118,6 +1439,8 @@ fn build_collapsed_explore_results(
         };
 
         total_results = total_results.saturating_add(call.results.len());
+        total_progress = total_progress.saturating_add(call.progress.len());
+        notice_count = notice_count.saturating_add(call.notices.len());
         if let Some(existing) = tool_counts.iter_mut().find(|count| count.kind == kind) {
             existing.count = existing.count.saturating_add(1);
         } else {
@@ -1136,6 +1459,8 @@ fn build_collapsed_explore_results(
         tool_counts,
         calls,
         total_results,
+        total_progress,
+        notice_count,
     }
 }
 
@@ -1145,6 +1470,14 @@ fn assistant_turn_accepts_message(turn: &AssistantTurnBuilder<'_>, message: &UiM
         UiMessage::ToolResult(result) => {
             tool_result_matches_messages(result, &turn.child_messages)
                 || tool_result_matches_messages(result, &turn.preface_messages)
+        }
+        UiMessage::Progress(progress) => {
+            tool_aux_matches_messages(&progress.base, &turn.child_messages)
+                || tool_aux_matches_messages(&progress.base, &turn.preface_messages)
+        }
+        UiMessage::System(notice) if is_tool_notice(notice) => {
+            tool_aux_matches_messages(&notice.base, &turn.child_messages)
+                || tool_aux_matches_messages(&notice.base, &turn.preface_messages)
         }
         _ => false,
     }
@@ -1164,8 +1497,33 @@ fn can_stage_preface_message(
             message.base().parent_id.as_ref().is_some_and(|parent_id| parent_id == user_id)
         }
         UiMessage::ToolResult(result) => tool_result_matches_messages(result, pending_preface),
+        UiMessage::Progress(progress) => tool_aux_matches_messages(&progress.base, pending_preface),
+        UiMessage::System(notice) if is_tool_notice(notice) => {
+            tool_aux_matches_messages(&notice.base, pending_preface)
+        }
         _ => false,
     }
+}
+
+fn tool_aux_matches_messages(base: &UiMessageBase, messages: &[IndexedUiMessage<'_>]) -> bool {
+    messages.iter().rev().any(|message| match message {
+        IndexedUiMessage { message: UiMessage::ToolCall(call), .. } => {
+            tool_aux_matches_call(base, call)
+        }
+        _ => false,
+    })
+}
+
+fn tool_aux_matches_call(base: &UiMessageBase, call: &UiToolCall) -> bool {
+    base.parent_id.as_ref().is_some_and(|parent_id| parent_id == &call.base.id)
+}
+
+fn is_tool_notice(message: &UiSystemMessage) -> bool {
+    let text = message.text.trim_start().to_ascii_lowercase();
+    message.base.parent_id.is_some()
+        && ["hook:", "background:", "teammate shutdown:"]
+            .iter()
+            .any(|prefix| text.starts_with(prefix))
 }
 
 fn tool_result_matches_messages(result: &UiToolResult, messages: &[IndexedUiMessage<'_>]) -> bool {
@@ -1235,9 +1593,10 @@ fn transcript_window_end_index_for_viewport(
     top_item_index: usize,
     content_width: u16,
     viewport_rows: usize,
+    verbose: bool,
 ) -> usize {
     if let Some(bucket) = layout_cache
-        .bucket(content_width)
+        .bucket(content_width, verbose)
         .filter(|bucket| bucket.item_heights().len() == projection.len())
     {
         return transcript_window_end_index_by_rows(
@@ -1253,6 +1612,7 @@ fn transcript_window_end_index_for_viewport(
         top_item_index,
         content_width,
         viewport_rows,
+        verbose,
     )
 }
 
@@ -1262,6 +1622,7 @@ fn transcript_window_end_index_by_estimated_rows(
     top_item_index: usize,
     content_width: u16,
     viewport_rows: usize,
+    verbose: bool,
 ) -> usize {
     let target_rows = viewport_rows.max(1);
     let mut covered_rows = 0usize;
@@ -1272,6 +1633,7 @@ fn transcript_window_end_index_by_estimated_rows(
             messages,
             &items[end_index],
             content_width,
+            verbose,
         ));
         end_index = end_index.saturating_add(1);
         if covered_rows >= target_rows {
@@ -1337,6 +1699,18 @@ fn searchable_text(message: &UiMessage) -> Cow<'_, str> {
         )),
         UiMessage::System(message) => Cow::Borrowed(message.text.as_str()),
         UiMessage::Error(message) => Cow::Borrowed(message.message.as_str()),
+        UiMessage::Attachment(message) => Cow::Owned(format!(
+            "{} {} {} {}",
+            message.name,
+            message.media_type.as_deref().unwrap_or(""),
+            message.uri,
+            message.alt_text.as_deref().unwrap_or("")
+        )),
+        UiMessage::Progress(message) => Cow::Borrowed(message.label.as_str()),
+        UiMessage::CompactBoundary(message) => Cow::Borrowed(message.summary.as_str()),
+        UiMessage::Unknown(message) => {
+            Cow::Owned(format!("{} {}", message.external_kind, message.summary))
+        }
     }
 }
 
@@ -1350,45 +1724,77 @@ fn derive_transcript_layout_cache_bucket(
     messages: &[UiMessage],
     projection: &TuiTranscriptProjectionCache,
     content_width: u16,
+    verbose: bool,
 ) -> TuiTranscriptLayoutCacheBucket {
     let item_heights = projection
         .items()
         .iter()
-        .map(|item| estimate_transcript_projection_item_height(messages, item, content_width))
+        .map(|item| {
+            estimate_transcript_projection_item_height(messages, item, content_width, verbose)
+        })
         .collect();
-
-    TuiTranscriptLayoutCacheBucket { content_width, item_heights }
+    let mut bucket = TuiTranscriptLayoutCacheBucket {
+        content_width,
+        verbose,
+        item_keys: projection.keys().to_vec(),
+        item_heights,
+        measured_keys: BTreeSet::new(),
+        prefix_rows: vec![0; projection.len().saturating_add(1)],
+    };
+    bucket.rebuild_prefix_from(0);
+    bucket
 }
 
 fn estimate_transcript_projection_item_height(
     messages: &[UiMessage],
     item: &TuiTranscriptProjectionItem,
     content_width: u16,
+    verbose: bool,
 ) -> usize {
     let item = item.materialize(messages);
-    estimate_transcript_item_height(&item, content_width)
+    estimate_transcript_item_height(&item, content_width, verbose)
 }
 
-fn estimate_transcript_item_height(item: &TuiTranscriptItem<'_>, content_width: u16) -> usize {
-    transcript_item_line_texts(item)
+fn estimate_transcript_item_height(
+    item: &TuiTranscriptItem<'_>,
+    content_width: u16,
+    verbose: bool,
+) -> usize {
+    transcript_item_line_texts(item, verbose)
         .into_iter()
         .map(|line| wrapped_line_count(line.as_str(), content_width))
         .sum::<usize>()
         .saturating_add(1)
 }
 
-fn transcript_item_line_texts(item: &TuiTranscriptItem<'_>) -> Vec<String> {
+fn transcript_item_line_texts(item: &TuiTranscriptItem<'_>, verbose: bool) -> Vec<String> {
     match item {
+        TuiTranscriptItem::Standalone(UiMessage::System(message))
+            if message.level == crate::cli::tui_v2::model::UiSystemMessageLevel::Info =>
+        {
+            Vec::new()
+        }
+        TuiTranscriptItem::Standalone(UiMessage::Assistant(message))
+            if message.text.trim().is_empty() =>
+        {
+            Vec::new()
+        }
         TuiTranscriptItem::Standalone(message) => vec![message_line_text(message)],
         TuiTranscriptItem::AssistantTurn(turn) => {
             let mut lines = Vec::new();
             lines.extend(
-                turn.preface.iter().map(|entry| assistant_turn_entry_line_text(entry, true)),
+                turn.preface
+                    .iter()
+                    .flat_map(|entry| assistant_turn_entry_line_texts(entry, true, verbose)),
             );
             lines.extend(
-                turn.children.iter().map(|entry| assistant_turn_entry_line_text(entry, false)),
+                turn.children
+                    .iter()
+                    .flat_map(|entry| assistant_turn_entry_line_texts(entry, false, verbose)),
             );
-            lines.push(assistant_line_text(turn.assistant));
+            if !turn.assistant.text.trim().is_empty() {
+                lines.push(assistant_line_text(turn.assistant));
+            }
             lines
         }
     }
@@ -1396,7 +1802,7 @@ fn transcript_item_line_texts(item: &TuiTranscriptItem<'_>) -> Vec<String> {
 
 fn message_line_text(message: &UiMessage) -> String {
     match message {
-        UiMessage::User(message) => format!("USER   {}", message.text),
+        UiMessage::User(message) => format!("❯ {}", message.text),
         UiMessage::Assistant(message) => assistant_line_text(message),
         UiMessage::Step(step) => format!(
             "STEP   #{} {:?} {}",
@@ -1404,23 +1810,33 @@ fn message_line_text(message: &UiMessage) -> String {
             step.state,
             step.finish_reason.as_deref().unwrap_or("running")
         ),
-        UiMessage::System(message) => format!("SYSTEM {}", message.text),
+        UiMessage::System(message) => format!("● {}", message.text),
         UiMessage::ToolCall(message) => format!("TOOL   {} {:?}", message.tool_name, message.state),
         UiMessage::ToolResult(message) => format!("RESULT {}", message.content),
         UiMessage::Thinking(message) => {
             format!("THINK  {}", message.summary.as_deref().unwrap_or(message.content.as_str()))
         }
-        UiMessage::Error(message) => format!("ERROR  {}", message.message),
+        UiMessage::Error(message) => format!("● {}", message.message),
+        UiMessage::Attachment(message) => format!("ATTACH {}", message.name),
+        UiMessage::Progress(message) => format!("PROGRESS {}", message.label),
+        UiMessage::CompactBoundary(_) => {
+            "✻ Conversation compacted (Ctrl+O for history)".to_string()
+        }
+        UiMessage::Unknown(message) => format!("● {}", message.summary),
     }
 }
 
 fn assistant_line_text(message: &UiAssistantMessage) -> String {
-    format!("ASSIST {} [{}]", message.text, terminal_label_text(&message.terminal))
+    format!("● {}", message.text)
 }
 
-fn assistant_turn_entry_line_text(entry: &TuiAssistantTurnEntry<'_>, is_preface: bool) -> String {
+fn assistant_turn_entry_line_texts(
+    entry: &TuiAssistantTurnEntry<'_>,
+    is_preface: bool,
+    verbose: bool,
+) -> Vec<String> {
     let phase = if is_preface { "PRE" } else { "SUB" };
-    match entry {
+    let summary = match entry {
         TuiAssistantTurnEntry::Thinking(message) => format!(
             "{phase} THINK {}",
             message.summary.as_deref().unwrap_or(message.content.as_str())
@@ -1447,6 +1863,18 @@ fn assistant_turn_entry_line_text(entry: &TuiAssistantTurnEntry<'_>, is_preface:
             batch.total_results,
             if batch.total_results == 1 { "" } else { "s" }
         ),
+    };
+    if verbose && let TuiAssistantTurnEntry::CollapsedTools(batch) = entry {
+        let mut lines = vec![summary];
+        for call in &batch.calls {
+            lines.push(format!("{phase} TOOL {}", call.call.tool_name));
+            lines.extend(call.results.iter().map(|result| result.content.clone()));
+            lines.extend(call.progress.iter().map(|progress| progress.label.clone()));
+            lines.extend(call.notices.iter().map(|notice| notice.text.clone()));
+        }
+        lines
+    } else {
+        vec![summary]
     }
 }
 
@@ -1460,17 +1888,6 @@ fn wrapped_line_count(text: &str, content_width: u16) -> usize {
     }
 
     total_rows.max(1)
-}
-
-fn terminal_label_text(terminal: &UiTurnTerminal) -> &'static str {
-    match terminal {
-        UiTurnTerminal::Pending => "pending",
-        UiTurnTerminal::Streaming => "streaming",
-        UiTurnTerminal::Done { .. } => "done",
-        UiTurnTerminal::Cancelled { .. } => "cancelled",
-        UiTurnTerminal::TimedOut { .. } => "timeout",
-        UiTurnTerminal::Error { .. } => "error",
-    }
 }
 
 fn excerpt_around(text: &str, start: usize, end: usize) -> String {

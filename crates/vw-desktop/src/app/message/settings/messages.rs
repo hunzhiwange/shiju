@@ -1,17 +1,19 @@
 //! 定义系统设置页面的消息枚举，作为 UI 事件与状态更新之间的显式契约。
 
 use crate::app::state::{
-    CronAddJobType, CronAddScheduleKind, CronSettingsTab, GatewaySettingsTab,
-    McpNewServerTransport, McpSettingsTab, ModelCatalogEntry,
+    AutonomyListKind, AutonomySettingsTab, CronAddJobType, CronAddScheduleKind, CronSettingsTab,
+    GatewaySettingsTab, McpNewServerTransport, McpSettingsTab, ModelCatalogEntry, SecurityListKind,
+    SecuritySettingsTab, ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
 use vw_config_types::automation::ResearchTrigger;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
+use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
-    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, ModelsLoaded,
-    PluginsLoaded, ProvidersLoaded, SkillsLoaded, StaffLoaded,
+    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, ModelStatusChange,
+    ModelsLoaded, PluginsLoaded, ProvidersLoaded, SkillsLoaded, StaffLoaded,
 };
 
 /// Embedding 路由设置页消息。
@@ -20,6 +22,7 @@ pub enum EmbeddingRoutesMessage {
     AddRoute,
     InsertAlibabaTemplate,
     InsertDoubaoTemplate,
+    InsertShijuTemplate,
     RemoveRoute(usize),
     PatternChanged(usize, String),
     ProviderChanged(usize, String),
@@ -27,6 +30,44 @@ pub enum EmbeddingRoutesMessage {
     DimensionsChanged(usize, String),
     ApiKeyChanged(usize, String),
     Save,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BashPolicyCheck {
+    Enabled,
+    ReadOnly,
+    UnsafeShellPatterns,
+    CommandRules,
+    WorkspacePaths,
+    ForbiddenPaths,
+    Risk,
+    Redirects,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BashValidatorCheck {
+    Enabled,
+    EmptyCommand,
+    Heredoc,
+    GitCommit,
+    Jq,
+    Metacharacters,
+    DangerousVars,
+    Substitution,
+    Redirection,
+    NewlineInjection,
+    IfsInjection,
+    ProcEnviron,
+    Malformed,
+    ObfuscatedFlags,
+    Backslash,
+    BraceExpansion,
+    UnicodeWhitespace,
+    HashComment,
+    CommentQuoteDesync,
+    QuotedNewline,
+    ZshDangerous,
+    ControlChars,
 }
 
 #[cfg(test)]
@@ -191,6 +232,8 @@ pub enum MultimodalMessage {
     MaxImagesChanged(u32),
     MaxImageSizeMbChanged(u32),
     AllowRemoteFetchToggled(bool),
+    OcrEnabledToggled(bool),
+    OcrModelChanged(String),
 }
 
 /// HTTP 请求工具设置页消息。
@@ -293,6 +336,15 @@ pub enum GatewayClientMessage {
 pub enum AcpMessage {
     Refresh,
     Loaded(Result<crate::app::config::AcpSettingsSnapshot, String>),
+    NewAgentPanelToggled,
+    NewAgentNameChanged(String),
+    NewAgentCommandChanged(String),
+    NewAgentArgsChanged(String),
+    AddAgent,
+    AddAgentCompleted {
+        agent: String,
+        result: Result<crate::app::config::AcpSettingsSnapshot, String>,
+    },
     CopyCommand {
         agent: String,
         command: String,
@@ -330,6 +382,9 @@ pub enum McpMessage {
     NewServerEnabledToggled(bool),
     NewServerRequiredToggled(bool),
     AddServer,
+    ServerEditRequested(usize),
+    ServerEditCanceled,
+    SaveServerEdit,
     ServerEnabledToggled(usize, bool),
     RuntimeServerEnabledToggled(String, bool),
     PreviewExpandedToggled(String),
@@ -351,12 +406,113 @@ pub enum TunnelMessage {
     CustomUrlPatternChanged(String),
 }
 
+/// 主题编辑器调色板字段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThemePaletteField {
+    Background,
+    Text,
+    Primary,
+    Success,
+    Warning,
+    Danger,
+}
+
+/// 主题编辑器控件皮肤字段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThemeChromeField {
+    InputBg,
+    InputBorder,
+    InputText,
+    PanelBg,
+    PanelBorder,
+    ButtonBg,
+    ButtonText,
+    RadiusPx,
+    PanelAlpha,
+    ChatHeaderAlpha,
+    ChatBodyAlpha,
+    ChatInputAlpha,
+    /// 聊头背景图缩放策略。
+    ChatHeaderImageFit,
+    /// 消息区背景图缩放策略。
+    ChatBodyImageFit,
+    /// 输入区背景图缩放策略。
+    ChatInputImageFit,
+}
+
+/// 主题编辑器当前打开的颜色选择器目标（同时只开一个）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThemeColorPickerTarget {
+    Palette(ThemePaletteField),
+    Chrome(ThemeChromeField),
+}
+
+/// 主题设置页消息。
+#[derive(Debug, Clone)]
+pub enum ThemesMessage {
+    Refresh,
+    /// 画廊上一页（已在首页时由 UI 禁用）。
+    GalleryPrevPage,
+    /// 画廊下一页（已在末页时由 UI 禁用）。
+    GalleryNextPage,
+    ImportPack,
+    ImportPackPicked(Option<String>),
+    ExportPack(String),
+    ExportPackPicked {
+        theme_id: String,
+        path: Option<String>,
+    },
+    ApplyBuiltin(String),
+    ApplyCustom(String),
+    DeleteCustom(String),
+    NewThemeRequested,
+    EditCustom(String),
+    EditBuiltin(String),
+    RestoreBuiltinDefault(String),
+    RestorePresetDefault(String),
+    CancelEdit,
+    /// 切换主题编辑器分段 Tab。
+    EditorTabSelected(ThemeEditorTab),
+    DraftNameChanged(String),
+    DraftTaglineChanged(String),
+    DraftPaletteChanged(ThemePaletteField, String),
+    PickCover,
+    CoverPicked(Option<String>),
+    ClearCover,
+    PickBackground,
+    BackgroundPicked(Option<String>),
+    ClearBackground,
+    PickChatHeader,
+    ChatHeaderPicked(Option<String>),
+    ClearChatHeader,
+    PickChatBody,
+    ChatBodyPicked(Option<String>),
+    ClearChatBody,
+    PickChatInput,
+    ChatInputPicked(Option<String>),
+    ClearChatInput,
+    DraftChromeChanged(ThemeChromeField, String),
+    /// 打开或切换到指定色字段的颜色对话框；同一目标再次触发则关闭。
+    ColorPickerToggled(ThemeColorPickerTarget),
+    ColorPickerClosed,
+    /// 选择器提交的颜色字符串（由 UI 规范化为 `#rrggbb`）。
+    ColorPickerColorChanged(String),
+    ColorPickerFormatChanged(crate::app::components::color_picker::ColorFormat),
+    SaveDraft,
+}
+
 /// Agent 设置页消息。
 #[derive(Debug, Clone)]
 #[allow(private_interfaces)]
 pub enum AgentsMessage {
     Refresh,
     Loaded(AgentsLoaded),
+    ProjectSelected(String),
+    ProjectChanged(String),
+    ProjectConfigLoaded {
+        project_path: String,
+        result: Result<Box<vw_config_types::config::Config>, String>,
+    },
     SelectAgent(String),
     AddAgentKeyChanged(String),
     AddAgentRequested,
@@ -364,6 +520,8 @@ pub enum AgentsMessage {
     ProviderChanged(String, String),
     ModelChanged(String, String),
     EnabledToggled(String, bool),
+    AllowAsSubagentToggled(String, bool),
+    MaxParallelSubagentsChanged(String, u32),
     SystemPromptAction(String, text_editor::Action),
     PromptTabSelected(String),
     WorkspaceIdentityLoaded {
@@ -373,6 +531,11 @@ pub enum AgentsMessage {
         result: Result<(String, Option<u64>, Option<u64>), String>,
     },
     WorkspaceIdentityRestoreDefaultRequested(String),
+    WorkspaceIdentityEnabledToggled {
+        agent_key: String,
+        file_name: String,
+        enabled: bool,
+    },
     WorkspaceIdentityDefaultRestored {
         agent_key: String,
         file_name: String,
@@ -512,6 +675,26 @@ pub enum SopMessage {
     ApprovalTimeoutSecsChanged(u32),
 }
 
+/// 聊天快捷消息设置消息。
+#[derive(Debug, Clone)]
+pub enum QuickMessagesMessage {
+    Add,
+    Remove(usize),
+    TextChanged(usize, String),
+    GroupChanged(usize, QuickMessageGroup),
+    KindChanged(usize, QuickMessageKind),
+    MoveUp(usize),
+    MoveDown(usize),
+    Save,
+    Saved(Result<(), String>),
+}
+
+/// 系统设置页顶层消息。
+#[derive(Debug, Clone)]
+pub enum GeneralSettingsMessage {
+    TimezoneSelected(String),
+}
+
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
@@ -521,6 +704,7 @@ pub enum SettingsMessage {
     SystemHelpOpen(SystemTab),
     SystemHelpClose,
     ToggleSettingsSidebar,
+    General(GeneralSettingsMessage),
     EmbeddingRoutes(EmbeddingRoutesMessage),
     Hooks(HooksMessage),
     Storage(StorageMessage),
@@ -539,8 +723,10 @@ pub enum SettingsMessage {
     Gateway(GatewayMessage),
     GatewayClient(GatewayClientMessage),
     Tunnel(TunnelMessage),
+    Themes(ThemesMessage),
     Agents(AgentsMessage),
     Staff(StaffMessage),
+    QuickMessages(QuickMessagesMessage),
     AgentConfigSaved {
         tag: &'static str,
         result: Result<(), String>,
@@ -553,6 +739,13 @@ pub enum SettingsMessage {
     ProviderModelsSyncDone(ProvidersLoaded),
     ModelsRefresh,
     ModelsRefreshed(ModelsLoaded),
+    ModelsSetAll(bool),
+    ProviderModelsSetAll(String, bool),
+    ProviderModelsReset(String),
+    ProviderModelsResetCompleted(Vec<ModelStatusChange>, ModelsLoaded),
+    ProviderModelsExpansionToggled(String),
+    ModelStatusesSaved(Vec<ModelStatusChange>, Result<(), String>),
+    SkillsProjectSelected(String),
     SkillsRefresh,
     SkillsLoaded(SkillsLoaded),
     PluginsRefresh,
@@ -605,6 +798,11 @@ pub enum SettingsMessage {
     CustomProviderModelModalNameChanged(String),
     CustomProviderModelModalSave,
     CustomProviderModelRemove(usize),
+    CustomProviderModelsDiscover,
+    CustomProviderModelsDiscovered {
+        provider_id: String,
+        result: Result<Vec<String>, String>,
+    },
     CustomProviderSave,
     CustomProviderSaveDone(ProvidersLoaded),
     PopularProviderRemove(usize),
@@ -742,9 +940,15 @@ pub enum SettingsMessage {
     ReliabilitySave,
     ReliabilityHelpOpen,
     ReliabilityHelpClose,
+    SecurityBashSecurityEnabledToggled(bool),
+    SecurityBashPolicyCheckToggled(BashPolicyCheck, bool),
+    SecurityBashValidatorCheckToggled(BashValidatorCheck, bool),
+    SecurityTabSelected(SecuritySettingsTab),
+    SecurityListDraftChanged(SecurityListKind, String),
+    SecurityListAdd(SecurityListKind),
+    SecurityListRemove(SecurityListKind, usize),
     SecuritySandboxEnabledChanged(String),
     SecuritySandboxBackendChanged(String),
-    SecuritySandboxFirejailArgsChanged(String),
     SecurityResourcesMaxMemoryMbChanged(u32),
     SecurityResourcesMaxCpuTimeSecondsChanged(u64),
     SecurityResourcesMaxSubprocessesChanged(u32),
@@ -757,9 +961,6 @@ pub enum SettingsMessage {
     SecurityOtpMethodChanged(String),
     SecurityOtpTokenTtlSecsChanged(u64),
     SecurityOtpCacheValidSecsChanged(u64),
-    SecurityOtpGatedActionsChanged(String),
-    SecurityOtpGatedDomainsChanged(String),
-    SecurityOtpGatedDomainCategoriesChanged(String),
     SecurityEstopEnabledToggled(bool),
     SecurityEstopStateFileChanged(String),
     SecurityEstopRequireOtpToResumeToggled(bool),
@@ -771,7 +972,6 @@ pub enum SettingsMessage {
     SecuritySyscallAnomalyMaxAlertsPerMinuteChanged(u32),
     SecuritySyscallAnomalyAlertCooldownSecsChanged(u64),
     SecuritySyscallAnomalyLogPathChanged(String),
-    SecuritySyscallAnomalyBaselineSyscallsChanged(String),
     SecurityCanaryTokensToggled(bool),
     SecuritySemanticGuardToggled(bool),
     SecuritySemanticGuardCollectionChanged(String),
@@ -779,20 +979,17 @@ pub enum SettingsMessage {
     SecuritySave,
     SecurityHelpOpen,
     SecurityHelpClose,
+    AutonomyTabSelected(AutonomySettingsTab),
     AutonomyLevelChanged(AutonomyLevel),
     AutonomyWorkspaceOnlyToggled(bool),
-    AutonomyAllowedCommandsChanged(String),
-    AutonomyForbiddenPathsChanged(String),
+    AutonomyListDraftChanged(AutonomyListKind, String),
+    AutonomyListAdd(AutonomyListKind),
+    AutonomyListRemove(AutonomyListKind, usize),
     AutonomyMaxActionsPerHourChanged(u32),
     AutonomyMaxCostPerDayCentsChanged(u32),
     AutonomyRequireApprovalForMediumRiskToggled(bool),
     AutonomyBlockHighRiskCommandsToggled(bool),
     AutonomyShellRedirectPolicyChanged(ShellRedirectPolicy),
-    AutonomyShellEnvPassthroughChanged(String),
-    AutonomyAutoApproveChanged(String),
-    AutonomyAlwaysAskChanged(String),
-    AutonomyAllowedRootsChanged(String),
-    AutonomyNonCliExcludedToolsChanged(String),
     AutonomyNonCliApprovalApproversChanged(String),
     AutonomyNonCliNaturalLanguageApprovalModeChanged(
         vw_config_types::security::NonCliNaturalLanguageApprovalMode,
@@ -850,6 +1047,7 @@ pub enum SettingsMessage {
         result: Result<String, String>,
     },
     SkillsDirectoryProviderChanged(vw_config_types::skills::SkillsDirectoryProvider),
+    SkillsProjectAutoLoadToggled(bool),
     SkillsOpenEnabledToggled(bool),
     SkillsOpenDirChanged(String),
     SkillsPromptInjectionModeChanged(vw_config_types::skills::SkillsPromptInjectionMode),

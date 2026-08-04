@@ -249,6 +249,7 @@ fn parse_launch_options_reads_known_flags() {
     let args = vec![
         "--mode=embedded".to_string(),
         "--cookies=[{\"name\":\"sid\"}]".to_string(),
+        "--shiju-app-set-cookie-stdin".to_string(),
         "--width=1024".to_string(),
         "--height=768".to_string(),
         "--x=-10".to_string(),
@@ -266,6 +267,7 @@ fn parse_launch_options_reads_known_flags() {
             pos_x: Some(-10),
             pos_y: Some(25),
             cookies_json: "[{\"name\":\"sid\"}]".to_string(),
+            shiju_app_set_cookie_stdin: true,
         }
     );
 }
@@ -292,6 +294,161 @@ fn parse_stdin_event_rejects_invalid_commands() {
 }
 
 #[test]
+fn work_browser_protocol_parses_navigation_history_visibility_and_close() {
+    assert_eq!(
+        parse_stdin_event("navigate https://example.com/path?q=1"),
+        Some(UserEvent::OpenUrl("https://example.com/path?q=1".to_string()))
+    );
+    assert_eq!(parse_stdin_event("back"), Some(UserEvent::Back));
+    assert_eq!(parse_stdin_event("forward"), Some(UserEvent::Forward));
+    assert_eq!(parse_stdin_event("reload"), Some(UserEvent::Reload));
+    assert_eq!(parse_stdin_event("raise"), Some(UserEvent::SetAlwaysOnTop(true)));
+    assert_eq!(parse_stdin_event("lower"), Some(UserEvent::SetAlwaysOnTop(false)));
+    assert_eq!(parse_stdin_event("show"), Some(UserEvent::Show));
+    assert_eq!(parse_stdin_event("hide"), Some(UserEvent::Hide));
+    assert_eq!(parse_stdin_event("close"), Some(UserEvent::Close));
+    assert_eq!(parse_stdin_event("back unexpected"), None);
+    assert_eq!(parse_stdin_event("navigate"), None);
+}
+
+#[test]
+fn work_browser_protocol_rejects_unsafe_navigation_scheme() {
+    assert_eq!(parse_stdin_event("navigate javascript:alert(1)"), None);
+    assert_eq!(parse_stdin_event("navigate file:///tmp/private"), None);
+    assert_eq!(parse_stdin_event("navigate data:text/html,unsafe"), None);
+    assert_eq!(parse_stdin_event("navigate https://"), None);
+    assert_eq!(
+        parse_stdin_event("navigate HTTP://example.com"),
+        Some(UserEvent::OpenUrl("HTTP://example.com".to_string()))
+    );
+}
+
+#[test]
+fn work_browser_navigation_event_encodes_safe_url_for_parent() {
+    assert_eq!(
+        navigation_event_line("https://example.com/path?q=a%20b#part").as_deref(),
+        Some(r#"navigation "https://example.com/path?q=a%20b#part""#)
+    );
+    assert_eq!(navigation_event_line("javascript:alert(1)"), None);
+    assert_eq!(navigation_event_line("file:///tmp/private"), None);
+}
+
+#[test]
+fn work_browser_navigation_ipc_accepts_only_safe_navigation_messages() {
+    assert_eq!(
+        parse_navigation_ipc_message(
+            r#"{"type":"navigation","url":"https://example.com/client-route"}"#
+        )
+        .as_deref(),
+        Some("https://example.com/client-route")
+    );
+    assert_eq!(
+        parse_navigation_ipc_message(r#"{"type":"navigation","url":"javascript:alert(1)"}"#),
+        None
+    );
+    assert_eq!(
+        parse_navigation_ipc_message(r#"{"type":"other","url":"https://example.com"}"#),
+        None
+    );
+    assert_eq!(parse_navigation_ipc_message("not-json"), None);
+}
+
+#[test]
+fn work_browser_protocol_redacts_cookie_arguments() {
+    let options = LaunchOptions {
+        mode: "embedded".to_string(),
+        window_title: "Sensitive title".to_string(),
+        width: Some(1024),
+        height: Some(768),
+        pos_x: Some(10),
+        pos_y: Some(20),
+        cookies_json: r#"[{"name":"sid","value":"cookie-secret"}]"#.to_string(),
+        shiju_app_set_cookie_stdin: true,
+    };
+
+    let summary =
+        launch_log_summary("https://user:password@example.com/path?token=url-secret", &options);
+
+    assert!(summary.contains("target=https://example.com"));
+    assert!(summary.contains("width=1024"));
+    assert!(summary.contains("height=768"));
+    assert!(!summary.contains("cookie-secret"));
+    assert!(!summary.contains("url-secret"));
+    assert!(!summary.contains("password"));
+    assert!(!summary.contains("Sensitive title"));
+}
+
+#[test]
+fn shiju_app_set_cookie_mode_rejects_untrusted_targets() {
+    assert!(is_trusted_shiju_app_target("https://app.shiju.cloud/app/ABC123/"));
+    for target in [
+        "http://app.shiju.cloud/app/ABC123/",
+        "https://evil.example/app/ABC123/",
+        "https://app.shiju.cloud.evil.example/app/ABC123/",
+        "https://app.shiju.cloud/app/abc123/",
+        "https://app.shiju.cloud/app/ABC-123/",
+        "https://app.shiju.cloud/app/ABC123",
+        "https://app.shiju.cloud/app/ABC123/?next=evil",
+    ] {
+        assert!(!is_trusted_shiju_app_target(target), "accepted untrusted target: {target}");
+        let error =
+            read_shiju_app_set_cookie_for_target(target, &mut "do-not-read\n".as_bytes())
+                .unwrap_err();
+        assert!(!error.to_string().contains("do-not-read"));
+    }
+}
+
+#[test]
+fn shiju_app_set_cookie_input_is_bounded_and_redacted() {
+    let set_cookie =
+        "app_runtime_session=shiju-secret-token; Path=/; HttpOnly; Secure; SameSite=None";
+    assert_eq!(
+        read_shiju_app_set_cookie_for_target(
+            "https://app.shiju.cloud/app/ABC123/",
+            &mut format!("{set_cookie}\n").as_bytes(),
+        )
+        .unwrap(),
+        set_cookie
+    );
+
+    for input in [
+        format!("{}\n", "x".repeat(MAX_SHIJU_APP_SET_COOKIE_BYTES + 1)),
+        "secret\u{0}token\n".to_string(),
+        "secret\ttoken\n".to_string(),
+        "\n".to_string(),
+    ] {
+        let error = read_shiju_app_set_cookie_for_target(
+            "https://app.shiju.cloud/app/ABC123/",
+            &mut input.as_bytes(),
+        )
+        .unwrap_err();
+        assert!(!error.to_string().contains(&input));
+        assert!(!error.to_string().contains("secret"));
+    }
+}
+
+#[test]
+fn shiju_app_runtime_cookie_preserves_response_security_attributes() {
+    let cookie = runtime_cookie(
+        "app_runtime_session=fixture-session-secret; Path=/; Max-Age=3600; HttpOnly; Secure; SameSite=None",
+    )
+    .unwrap();
+    let headers = runtime_cookie_headers(&cookie).unwrap();
+
+    assert_eq!(cookie.name(), "app_runtime_session");
+    assert_eq!(cookie.value(), "fixture-session-secret");
+    assert_eq!(cookie.domain(), Some("app.shiju.cloud"));
+    assert_eq!(cookie.path(), Some("/"));
+    assert_eq!(cookie.http_only(), Some(true));
+    assert_eq!(cookie.secure(), Some(true));
+    assert_eq!(cookie.same_site(), Some(wry::cookie::SameSite::None));
+    assert_eq!(
+        headers["Cookie"],
+        "app_runtime_session=fixture-session-secret"
+    );
+}
+
+#[test]
 fn append_log_creates_parent_and_appends_lines() {
     let dir = TestDir::new("log");
     let log_path = dir.path().join("logs/vw-webview.log");
@@ -315,11 +472,15 @@ fn build_init_script_escapes_json_values_and_embeds_cookie_config() {
     assert!(script.contains(r#"const userAgent = "Agent \"A\"";"#));
     assert!(script.contains(r#"const cookieConfigs = [{"name":"sid","domain":"example.com"}];"#));
     assert!(script.contains("function initSessionSync()"));
+    assert!(script.contains("history.pushState = function"));
+    assert!(script.contains("history.replaceState = function"));
+    assert!(script.contains("window.addEventListener('popstate', reportNavigation)"));
+    assert!(script.contains("window.ipc.postMessage"));
 }
 
 #[test]
 fn constants_keep_expected_defaults() {
-    assert_eq!(DEFAULT_TARGET, "https://example.com/");
+    assert_eq!(DEFAULT_TARGET, "about:blank");
     assert_eq!(DEFAULT_TITLE, "Vibe Window WebView");
     assert!(SAFARI_USER_AGENT.contains("Safari/605.1.15"));
 }

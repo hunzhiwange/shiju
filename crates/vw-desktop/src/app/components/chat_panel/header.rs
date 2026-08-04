@@ -33,18 +33,43 @@ use crate::app::components::input_panel::usage::{
 };
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::status_animation::spinner_frame;
+use crate::app::state::WorkspaceMode;
+use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, message};
 
-fn header_surface_style(_theme: &Theme) -> iced::widget::container::Style {
+fn header_surface_style(
+    _theme: &Theme,
+    chrome: Option<&crate::app::theme_catalog::ChromeStyleOverrides>,
+) -> iced::widget::container::Style {
+    // 默认透明；显式/合成的 chat_header_bg 提供分区透明度色层。
     iced::widget::container::Style {
-        background: None,
+        background: chrome
+            .and_then(|c| c.chat_header_bg)
+            .map(Background::Color),
         border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
         ..Default::default()
     }
 }
 
+pub(super) fn show_half_fullscreen_control(_workspace_mode: WorkspaceMode) -> bool {
+    true
+}
+
 fn theme_is_dark(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
+}
+
+/// 在已加载会话与项目会话缓存中查找会话 Info。
+fn known_session_info<'a>(
+    app: &'a App,
+    session_id: &str,
+) -> Option<&'a vw_shared::session::info::Info> {
+    app.sessions.iter().find(|session| session.id == session_id).or_else(|| {
+        app.project_sessions
+            .values()
+            .flat_map(|sessions| sessions.iter())
+            .find(|session| session.id == session_id)
+    })
 }
 
 /// 获取当前活跃会话的工作目录
@@ -58,7 +83,102 @@ fn theme_is_dark(theme: &Theme) -> bool {
 /// 返回当前活跃会话的工作目录路径，如果没有活跃会话则返回 `None`
 fn active_session_directory(app: &App) -> Option<String> {
     let session_id = app.active_session_id.as_ref()?;
-    app.sessions.iter().find(|s| &s.id == session_id).map(|s| s.directory.clone())
+    known_session_info(app, session_id).map(|session| session.directory.clone())
+}
+
+/// 当前活动会话若存在 `parent_id`，返回打开父会话的消息。
+pub(super) fn return_to_parent_session_pressed(app: &App) -> Option<Message> {
+    let session_id = app.active_session_id.as_deref()?;
+    let session = known_session_info(app, session_id)?;
+    let parent_id = session.parent_id.as_deref()?.trim();
+    if parent_id.is_empty() {
+        return None;
+    }
+    let path = app
+        .project_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            known_session_info(app, parent_id)
+                .map(|parent| parent.directory.clone())
+                .filter(|directory| !directory.trim().is_empty())
+        })
+        .or_else(|| {
+            let directory = session.directory.trim();
+            (!directory.is_empty()).then(|| directory.to_string())
+        })?;
+    Some(Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
+        path,
+        parent_id.to_string(),
+    )))
+}
+
+fn return_to_parent_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let is_dark = theme_is_dark(theme);
+    let p = theme.extended_palette();
+    let (bg, border, fg) = match status {
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+            if is_dark {
+                (
+                    p.primary.base.color.scale_alpha(0.22),
+                    p.primary.base.color.scale_alpha(0.40),
+                    theme.palette().text.scale_alpha(0.96),
+                )
+            } else {
+                (
+                    p.primary.base.color.scale_alpha(0.14),
+                    p.primary.base.color.scale_alpha(0.28),
+                    p.primary.base.color.scale_alpha(0.90),
+                )
+            }
+        }
+        _ => {
+            if is_dark {
+                (
+                    p.primary.base.color.scale_alpha(0.14),
+                    p.primary.base.color.scale_alpha(0.28),
+                    theme.palette().text.scale_alpha(0.92),
+                )
+            } else {
+                (
+                    p.primary.base.color.scale_alpha(0.08),
+                    p.primary.base.color.scale_alpha(0.18),
+                    p.primary.base.color.scale_alpha(0.82),
+                )
+            }
+        }
+    };
+    iced::widget::button::Style {
+        background: Some(Background::Color(bg)),
+        border: Border { width: 1.0, color: border, radius: 999.0.into() },
+        text_color: fg,
+        ..Default::default()
+    }
+}
+
+fn return_to_parent_button<'a>(msg: Message) -> Element<'a, Message> {
+    button(
+        row![
+            icon_svg(Icon::Back)
+                .width(Length::Fixed(11.0))
+                .height(Length::Fixed(11.0))
+                .style(|theme: &Theme, _status| svg::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.88)),
+                }),
+            text("返回主会话").size(10),
+        ]
+        .spacing(4)
+        .align_y(Alignment::Center),
+    )
+    .padding([3, 8])
+    .style(return_to_parent_button_style)
+    .on_press(msg)
+    .into()
 }
 
 fn session_workspace_badge_state(app: &App) -> Option<(String, bool)> {
@@ -339,20 +459,23 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
         })
         .into();
 
-    let half_fullscreen_button = header_icon_button(
-        Icon::LayoutTextWindow,
-        "半屏",
-        Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
-    );
-
     let fullscreen_icon =
-        if app.chat_panel_fullscreen { Icon::FullscreenExit } else { Icon::Fullscreen };
-    let fullscreen_label = if app.chat_panel_fullscreen { "退出全屏" } else { "全屏" };
+        if app.is_chat_fullscreen() { Icon::FullscreenExit } else { Icon::Fullscreen };
+    let fullscreen_label = if app.is_chat_fullscreen() { "退出全屏" } else { "全屏" };
     let fullscreen_button = header_icon_button(
         fullscreen_icon,
         fullscreen_label,
         Message::Chat(message::ChatMessage::ToggleFullscreen),
     );
+    let mut fullscreen_controls = row![].spacing(6).align_y(Alignment::Center);
+    if show_half_fullscreen_control(app.workspace_mode) {
+        fullscreen_controls = fullscreen_controls.push(header_icon_button(
+            Icon::LayoutTextWindow,
+            if app.is_chat_half_fullscreen() { "退出半屏" } else { "半屏" },
+            Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
+        ));
+    }
+    let fullscreen_controls = fullscreen_controls.push(fullscreen_button);
 
     let usage_ring = canvas(UsageRing { percent: usage_percent })
         .width(Length::Fixed(20.0))
@@ -420,24 +543,45 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     if let Some(tag) = session_workspace_badge(app) {
         left = left.push(tag);
     }
+    if let Some(return_msg) = return_to_parent_session_pressed(app) {
+        left = left.push(return_to_parent_button(return_msg));
+    }
     left = left.push(status_badges);
 
-    container(
+    let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
+        app.active_theme_skin.as_ref(),
+        &app.app_theme,
+    );
+    let header = container(
         row![
             left,
             Space::new().width(Length::Fill),
             usage_rate_btn,
             session_menu_btn,
-            half_fullscreen_button,
-            fullscreen_button
+            fullscreen_controls
         ]
         .spacing(10)
         .align_y(Alignment::Center),
     )
     .width(Length::Fill)
     .padding(iced::Padding { top: 6.0, right: 10.0, bottom: 6.0, left: 10.0 })
-    .style(header_surface_style)
-    .into()
+    .style(move |theme: &Theme| header_surface_style(theme, Some(&chrome)));
+
+    let header_bg = app
+        .active_theme_skin
+        .as_ref()
+        .and_then(|skin| skin.chat_header_path.as_deref());
+    let fit = app
+        .active_theme_skin
+        .as_ref()
+        .map(|skin| {
+            crate::app::theme_catalog::PanelImageFit::parse(
+                skin.chrome.chat_header_image_fit.as_deref(),
+            )
+            .unwrap_or_default()
+        })
+        .unwrap_or_default();
+    with_panel_background(header.into(), header_bg, fit)
 }
 
 /// 构建会话操作弹出菜单

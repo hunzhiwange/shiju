@@ -1,0 +1,25 @@
+{
+  "id": "potion-workshop",
+  "name": "魔法药水铺 Potion Workshop",
+  "tagline": "把今天的灵感调成一瓶好药。",
+  "palette": {
+    "background": "#2d1c12",
+    "text": "#fff0cd",
+    "primary": "#dc8248",
+    "success": "#62b9a7",
+    "warning": "#a9b76c",
+    "danger": "#e79a7c"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#43291a",
+    "input_bg": "#49301e",
+    "button_bg": "#dc8248",
+    "button_text": "#f8fafc",
+    "radius_px": 6,
+    "panel_alpha": 184
+  }
+}

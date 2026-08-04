@@ -1,7 +1,8 @@
 use super::{
-    acp_history_controls, acp_selector_button, bottom_bar_round_toggle, dark_tooltip_content,
-    popover_item_style, reasoning_effort_selector, selected_context_card, session_control_button,
-    skill_title, summarize_names, view, with_dark_tooltip,
+    acp_history_controls, acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle,
+    dark_tooltip_content, popover_item_style, reasoning_effort_selector, selected_context_card,
+    selected_context_summary, session_control_button, skill_title, summarize_names, view,
+    with_dark_tooltip,
 };
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
@@ -40,6 +41,7 @@ fn queue_item(query: &str) -> QueueItem {
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: None,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 3,
@@ -48,6 +50,7 @@ fn queue_item(query: &str) -> QueueItem {
         request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled: false,
+        goal_mode_enabled: false,
     }
 }
 
@@ -104,6 +107,12 @@ fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
     );
 
     assert_eq!(element.as_widget().children().len(), 2);
+}
+
+#[test]
+fn acp_selector_tooltip_includes_selected_backend() {
+    assert_eq!(acp_selector_tooltip("Codex"), "切换 ACP 后端：Codex");
+    assert_eq!(acp_selector_tooltip("ACP 智能体"), "切换 ACP 后端：ACP 智能体");
 }
 
 #[test]
@@ -176,6 +185,28 @@ fn selected_context_card_renders_each_manual_selection_shape() {
 }
 
 #[test]
+fn selected_context_card_includes_multiple_shiju_functions() {
+    let mut app = crate::app::App::new().0;
+    app.current_session_runtime_mut().tool_selector.toggle_shiju_skill(
+        crate::app::state::ShijuSkillSelection::new(
+            43,
+            "meeting-notes".to_string(),
+            "会议纪要".to_string(),
+        ),
+    );
+    app.current_session_runtime_mut().tool_selector.toggle_shiju_skill(
+        crate::app::state::ShijuSkillSelection::new(
+            42,
+            "document-review".to_string(),
+            "文档审查".to_string(),
+        ),
+    );
+
+    assert_eq!(selected_context_summary(&app).as_deref(), Some("识矩 2：文档审查、会议纪要"));
+    assert!(selected_context_card(&app).is_some());
+}
+
+#[test]
 fn input_panel_view_renders_default_task_queue_and_overlay_states() {
     let mut app = crate::app::App::new().0;
     let default = view(&app);
@@ -241,6 +272,30 @@ fn input_panel_view_renders_nonempty_queue_while_requesting() {
 }
 
 #[test]
+fn input_panel_quick_message_strip_renders_in_standard_queue_and_todo_layouts() {
+    let mut app = crate::app::App::new().0;
+    let with_quick_messages = view(&app);
+    assert_eq!(with_quick_messages.as_widget().size().width, Length::Fill);
+    assert_eq!(with_quick_messages.as_widget().children().len(), 2);
+    drop(with_quick_messages);
+
+    app.quick_messages.clear();
+    let without_quick_messages = view(&app);
+    assert_eq!(without_quick_messages.as_widget().children().len(), 1);
+    drop(without_quick_messages);
+    app.quick_messages = vw_config_types::ui::AppSystemSettingsConfig::default().quick_messages;
+
+    app.current_session_runtime_mut().queue = vec![queue_item("queued request")];
+    assert_eq!(view(&app).as_widget().size().width, Length::Fill);
+
+    app.active_session_id = Some("session".to_string());
+    app.chat_todo_session_id = Some("session".to_string());
+    app.chat_todo_items = vec![todo("1", "pending", "next")];
+    app.chat_todo_placement = TodoPanelPlacement::InputBottom;
+    assert_eq!(view(&app).as_widget().size().width, Length::Fill);
+}
+
+#[test]
 fn input_panel_view_renders_task_mode_instead_of_nonempty_queue() {
     let mut app = crate::app::App::new().0;
     {
@@ -272,4 +327,30 @@ fn input_panel_view_renders_matching_todos_at_input_bottom() {
     let element = view(&app);
 
     assert_eq!(element.as_widget().size().width, Length::Fill);
+}
+
+#[test]
+fn input_panel_view_renders_agent_sessions_entry_only_for_running_children() {
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("parent".to_string());
+    app.project_path = Some("/workspace/project".to_string());
+
+    let empty = view(&app);
+    assert_eq!(empty.as_widget().size().width, Length::Fill);
+    drop(empty);
+
+    app.chat = vec![crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::Assistant,
+        content: r#"tool AgentTool
+{"status":"running","metadata":{"parent_session_id":"parent","child_session_id":"child","agent":"writer","task":"build badge"}}"#
+            .to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }];
+    app.show_agent_sessions_popover = true;
+
+    let with_running_child = view(&app);
+    assert_eq!(with_running_child.as_widget().size().width, Length::Fill);
+    assert!(!with_running_child.as_widget().children().is_empty());
 }

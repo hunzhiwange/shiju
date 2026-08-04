@@ -162,7 +162,10 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             description: "Matrix protocol (Element)",
             category: IntegrationCategory::Chat,
             status_fn: |c| {
-                if c.channels_config.matrix.is_some() {
+                if c.channels_config.matrix_enabled
+                    && (c.channels_config.matrix.is_some()
+                        || !c.channels_config.matrix_instances.is_empty())
+                {
                     IntegrationStatus::Active
                 } else {
                     IntegrationStatus::Available

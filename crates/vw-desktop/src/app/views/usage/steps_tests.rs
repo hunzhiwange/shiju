@@ -139,7 +139,7 @@ fn build_steps_panel_handles_expanded_step_without_optional_fields() {
 }
 
 #[test]
-fn raw_payload_text_reports_loaded_loading_error_and_missing_states() {
+fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(
         ("session-1".to_string(), 1),
@@ -152,36 +152,29 @@ fn raw_payload_text_reports_loaded_loading_error_and_missing_states() {
         .insert(("session-1".to_string(), 2), Err("gateway request failed".to_string()));
     app.usage_step_raw_loading.insert(("session-1".to_string(), 3));
 
-    assert!(super::raw_payload_text(&app, "session-1", 1).contains("历史消息 1 条"));
-    assert!(super::raw_payload_text(&app, "session-1", 2).contains("加载失败"));
-    assert!(super::raw_payload_text(&app, "session-1", 3).contains("加载中"));
-    assert!(super::raw_payload_text(&app, "session-1", 4).contains("等待加载"));
+    assert!(super::raw_payload_status(&app, "session-1", 1).contains("历史消息 1 条"));
+    assert!(super::raw_payload_status(&app, "session-1", 2).contains("加载失败"));
+    assert!(super::raw_payload_status(&app, "session-1", 3).contains("加载中"));
+    assert!(super::raw_payload_status(&app, "session-1", 4).contains("等待加载"));
 }
 
 #[test]
-fn raw_payload_text_reports_absent_record_state() {
+fn raw_payload_status_reports_absent_record_state() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(("session-1".to_string(), 5), Ok(None));
 
-    assert!(super::raw_payload_text(&app, "session-1", 5).contains("暂无记录"));
+    assert!(super::raw_payload_status(&app, "session-1", 5).contains("暂无记录"));
 }
 
 #[test]
-fn raw_payload_text_prefers_loading_state_over_cached_payload() {
+fn raw_payload_status_prefers_loading_state_over_cached_payload() {
     let (mut app, _task) = App::new();
     let key = ("session-1".to_string(), 6);
     app.usage_step_raw_payloads
         .insert(key.clone(), Ok(Some(serde_json::json!({"messages": [{"role": "user"}]}))));
     app.usage_step_raw_loading.insert(key);
 
-    assert_eq!(super::raw_payload_text(&app, "session-1", 6), "原始 LLM：加载中...");
-}
-
-#[test]
-fn truncate_raw_text_preserves_short_values_and_truncates_long_values() {
-    assert_eq!(super::truncate_raw_text("hello", 10), "hello");
-    assert_eq!(super::truncate_raw_text("abcdef", 3), "abc\n... 已截断");
-    assert_eq!(super::truncate_raw_text("abcdef", 0), "\n... 已截断");
+    assert_eq!(super::raw_payload_status(&app, "session-1", 6), "原始记录：加载中...");
 }
 
 #[test]
@@ -197,19 +190,7 @@ fn raw_payload_summary_counts_missing_and_present_fields() {
 }
 
 #[test]
-fn raw_payload_preview_includes_summary_and_truncation_marker() {
-    let preview = super::raw_payload_preview(&serde_json::json!({
-        "messages": [{"role": "user", "content": "hello"}],
-        "output": {"tool_calls": [{"id": "call-1"}]},
-        "long": "x".repeat(17_000),
-    }));
-
-    assert!(preview.contains("历史消息 1 条 · 工具调用 1 条"));
-    assert!(preview.contains("... 已截断"));
-}
-
-#[test]
-fn raw_payload_panel_builds_for_loaded_payload() {
+fn raw_payload_panel_builds_for_loaded_and_missing_payload() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(
         ("session-1".to_string(), 1),
@@ -219,7 +200,8 @@ fn raw_payload_panel_builds_for_loaded_payload() {
         }))),
     );
 
-    let _panel = super::raw_payload_panel(&app, "session-1", 1);
+    let _loaded = super::raw_payload_panel(&app, "session-1", 1);
+    let _missing = super::raw_payload_panel(&app, "session-1", 2);
 }
 
 #[tokio::test(flavor = "multi_thread")]

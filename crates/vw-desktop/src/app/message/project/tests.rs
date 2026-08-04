@@ -19,6 +19,7 @@ fn find_tab(id: &str) -> FindInFolderTab {
         error: None,
         limit_reached: false,
         matches: Vec::new(),
+        results_page: 0,
     }
 }
 

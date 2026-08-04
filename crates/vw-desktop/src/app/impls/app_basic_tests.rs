@@ -139,6 +139,12 @@ fn title_covers_each_screen_and_pet_window_override() {
         (Screen::WorkflowTool, "Vibe Window 氛围视窗 - 工作流"),
         (Screen::WorkflowManager, "Vibe Window 氛围视窗 - 任务编排"),
         (Screen::TaskBoard, "Vibe Window 氛围视窗 - 任务看板"),
+        (Screen::ShijuApps, "Vibe Window 氛围视窗 - 识矩应用"),
+        (Screen::ShijuSkills, "Vibe Window 氛围视窗 - 识矩技能"),
+        (
+            Screen::ExpertHub,
+            "Vibe Window 氛围视窗 - 专家·技能·连接器",
+        ),
     ];
 
     for (screen, title) in expected {

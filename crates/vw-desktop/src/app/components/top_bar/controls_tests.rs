@@ -1,4 +1,5 @@
 use super::controls;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, Screen};
 use iced::{Element, Length, Size};
 
@@ -6,6 +7,10 @@ use iced::{Element, Length, Size};
 const PROJECT_CONTROL_COUNT: usize = 6;
 #[cfg(target_arch = "wasm32")]
 const PROJECT_CONTROL_COUNT: usize = 5;
+#[cfg(not(target_arch = "wasm32"))]
+const WORK_PROJECT_CONTROL_COUNT: usize = 4;
+#[cfg(target_arch = "wasm32")]
+const WORK_PROJECT_CONTROL_COUNT: usize = 3;
 
 fn test_app() -> App {
     let (app, _task) = App::new();
@@ -17,6 +22,14 @@ fn assert_project_toolbar_shape(element: &Element<'_, Message>) {
 
     let controls = element.as_widget().children();
     assert_eq!(controls.len(), PROJECT_CONTROL_COUNT);
+    assert!(controls.iter().all(|control| control.children.len() == 2));
+}
+
+fn assert_work_project_toolbar_shape(element: &Element<'_, Message>) {
+    assert_eq!(element.as_widget().size(), Size::new(Length::Shrink, Length::Shrink));
+
+    let controls = element.as_widget().children();
+    assert_eq!(controls.len(), WORK_PROJECT_CONTROL_COUNT);
     assert!(controls.iter().all(|control| control.children.len() == 2));
 }
 
@@ -81,4 +94,17 @@ fn project_view_tools_builds_project_controls_when_panels_are_visible() {
     let element = controls::project_view_tools(&app);
 
     assert_project_toolbar_shape(&element);
+}
+
+#[test]
+fn work_project_tools_hide_code_only_terminal_and_review_controls() {
+    let mut app = test_app();
+    app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Work;
+    app.terminal.is_visible = true;
+    app.show_diff = true;
+
+    let element = controls::project_view_tools(&app);
+
+    assert_work_project_toolbar_shape(&element);
 }

@@ -120,7 +120,10 @@ fn current_wasm_gateway_endpoint() -> GatewayEndpoint {
 /// 其他情况下默认使用 `80`。
 fn browser_location_gateway_endpoint() -> GatewayEndpoint {
     let Some(window) = web_sys::window() else {
-        return GatewayEndpoint::new("127.0.0.1", 42617);
+        return GatewayEndpoint::new(
+            "127.0.0.1",
+            vw_config_types::gateway::DEFAULT_GATEWAY_PORT,
+        );
     };
     let location = window.location();
     let host = location.hostname().ok().filter(|value| !value.trim().is_empty());

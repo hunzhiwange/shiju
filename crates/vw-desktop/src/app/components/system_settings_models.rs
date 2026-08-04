@@ -66,6 +66,13 @@ use iced::{Alignment, Element, Length};
 pub fn main_view(app: &App) -> Element<'_, Message> {
     let s = &app.model_settings;
     let q = s.query.trim().to_ascii_lowercase();
+    let enabled_model_count = s
+        .providers
+        .iter()
+        .flat_map(|provider| &provider.models)
+        .filter(|model| model.enabled)
+        .count();
+    let total_model_count = s.providers.iter().map(|provider| provider.models.len()).sum::<usize>();
     let mut list = column![].spacing(14).width(Length::Fill);
     let mut any = false;
     let mut matched_provider_count = 0usize;
@@ -98,95 +105,155 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         matched_provider_count += 1;
         matched_model_count += models.len();
 
+        let expanded = s.expanded_provider_ids.contains(&p.id);
+        let provider_enabled_count = p.models.iter().filter(|model| model.enabled).count();
+        let provider_model_count = p.models.len();
+        let busy = s.loading || s.saving;
+        let mut enable_provider_btn =
+            button(text("全部启用").size(12)).padding([6, 10]).style(rounded_action_btn_style);
+        if !busy && provider_enabled_count < provider_model_count {
+            enable_provider_btn = enable_provider_btn.on_press(Message::Settings(
+                message::SettingsMessage::ProviderModelsSetAll(p.id.clone(), true),
+            ));
+        }
+        let mut disable_provider_btn =
+            button(text("全部禁用").size(12)).padding([6, 10]).style(rounded_action_btn_style);
+        if !busy && provider_enabled_count > 0 {
+            disable_provider_btn = disable_provider_btn.on_press(Message::Settings(
+                message::SettingsMessage::ProviderModelsSetAll(p.id.clone(), false),
+            ));
+        }
+        let mut reset_provider_btn =
+            button(text("恢复默认").size(12)).padding([6, 10]).style(rounded_action_btn_style);
+        if !busy && provider_model_count > 0 {
+            reset_provider_btn = reset_provider_btn.on_press(Message::Settings(
+                message::SettingsMessage::ProviderModelsReset(p.id.clone()),
+            ));
+        }
+        let expand_provider_btn = button(text(if expanded { "收起" } else { "展开" }).size(12))
+            .on_press(Message::Settings(message::SettingsMessage::ProviderModelsExpansionToggled(
+                p.id.clone(),
+            )))
+            .padding([6, 10])
+            .style(rounded_action_btn_style);
+
         let mut card_col = column![
             row![
-                container(provider_logo_svg(&p.id, 16.0))
-                    .center_x(Length::Fixed(18.0))
-                    .center_y(Length::Fixed(18.0)),
-                column![
-                    text(&p.name).size(14),
-                    text(&p.id).size(12).style(settings_muted_text_style)
+                row![
+                    container(provider_logo_svg(&p.id, 16.0))
+                        .center_x(Length::Fixed(18.0))
+                        .center_y(Length::Fixed(18.0)),
+                    column![
+                        text(&p.name).size(14),
+                        text(&p.id).size(12).style(settings_muted_text_style)
+                    ]
+                    .spacing(2),
                 ]
-                .spacing(2)
+                .spacing(10)
+                .align_y(Alignment::Center)
                 .width(Length::Fill),
-                settings_value_badge(format!("{} 个模型", models.len())),
+                settings_value_badge(format!(
+                    "{} / {} 已启用",
+                    provider_enabled_count, provider_model_count
+                )),
+                row![
+                    enable_provider_btn,
+                    disable_provider_btn,
+                    reset_provider_btn,
+                    expand_provider_btn,
+                ]
+                .spacing(6)
+                .wrap(),
             ]
-            .spacing(10)
+            .spacing(12)
             .align_y(Alignment::Center)
+            .wrap()
         ]
         .spacing(12);
 
-        let mut first_model = true;
-        for m in models {
-            let provider_id = p.id.clone();
-            let model_id = m.id.clone();
-            let model_name = m.name.clone();
-            let enabled = m.enabled;
-            let title_color_alpha = if enabled { 1.0 } else { 0.65 };
-            let id_color_alpha = if enabled { 0.65 } else { 0.5 };
-            let meta_alpha = if enabled { 0.65 } else { 0.5 };
-            let meta_text = format!(
-                "工具: {} · 附件: {} · 上下文限制: {}",
-                bool_support_label(m.toolcall),
-                bool_support_label(m.attachment),
-                format_context_limit(m.context_limit)
-            );
-            let provider_id_toggle = provider_id.clone();
-            let model_id_toggle = model_id.clone();
+        if expanded {
+            let mut first_model = true;
+            for m in models {
+                let provider_id = p.id.clone();
+                let model_id = m.id.clone();
+                let model_name = m.name.clone();
+                let enabled = m.enabled;
+                let title_color_alpha = if enabled { 1.0 } else { 0.65 };
+                let id_color_alpha = if enabled { 0.65 } else { 0.5 };
+                let meta_alpha = if enabled { 0.65 } else { 0.5 };
+                let meta_text = format!(
+                    "工具: {} · 附件: {} · 上下文限制: {}",
+                    bool_support_label(m.toolcall),
+                    bool_support_label(m.attachment),
+                    format_context_limit(m.context_limit)
+                );
+                let provider_id_toggle = provider_id.clone();
+                let model_id_toggle = model_id.clone();
 
-            let item = container(
-                row![
-                    column![
-                        row![
-                            text(model_name).size(14).style(move |t: &iced::Theme| {
-                                text::Style {
-                                    color: Some(t.palette().text.scale_alpha(title_color_alpha)),
-                                }
-                            }),
-                            text(model_id.clone()).size(12).style(move |t: &iced::Theme| {
-                                text::Style {
-                                    color: Some(t.palette().text.scale_alpha(id_color_alpha)),
-                                }
-                            }),
-                        ]
-                        .spacing(8)
-                        .align_y(Alignment::Center)
-                        .wrap(),
-                        text(meta_text).size(12).style(move |t: &iced::Theme| {
-                            text::Style { color: Some(t.palette().text.scale_alpha(meta_alpha)) }
-                        }),
-                    ]
-                    .spacing(2)
-                    .width(Length::Fill),
-                    // 打开模型详情弹窗的按钮
-                    icon_btn(
-                        Icon::QuestionCircle,
-                        "更多",
-                        Some(Message::Settings(message::SettingsMessage::ModelDetailOpen(
-                            provider_id.clone(),
-                            model_id.clone(),
-                        ))),
-                    ),
+                let model_toggle = if s.loading || s.saving {
+                    toggler(enabled)
+                } else {
                     toggler(enabled).on_toggle(move |b| {
                         Message::Settings(message::SettingsMessage::ModelToggle(
                             provider_id_toggle.clone(),
                             model_id_toggle.clone(),
                             b,
                         ))
-                    }),
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-            )
-            .padding([10, 0])
-            .width(Length::Fill);
+                    })
+                };
 
-            if !first_model {
-                card_col = card_col.push(settings_divider());
+                let item = container(
+                    row![
+                        column![
+                            row![
+                                text(model_name).size(14).style(move |t: &iced::Theme| {
+                                    text::Style {
+                                        color: Some(
+                                            t.palette().text.scale_alpha(title_color_alpha),
+                                        ),
+                                    }
+                                }),
+                                text(model_id.clone()).size(12).style(move |t: &iced::Theme| {
+                                    text::Style {
+                                        color: Some(t.palette().text.scale_alpha(id_color_alpha)),
+                                    }
+                                }),
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center)
+                            .wrap(),
+                            text(meta_text).size(12).style(move |t: &iced::Theme| {
+                                text::Style {
+                                    color: Some(t.palette().text.scale_alpha(meta_alpha)),
+                                }
+                            }),
+                        ]
+                        .spacing(2)
+                        .width(Length::Fill),
+                        // 打开模型详情弹窗的按钮
+                        icon_btn(
+                            Icon::QuestionCircle,
+                            "更多",
+                            Some(Message::Settings(message::SettingsMessage::ModelDetailOpen(
+                                provider_id.clone(),
+                                model_id.clone(),
+                            ))),
+                        ),
+                        model_toggle,
+                    ]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                )
+                .padding([10, 0])
+                .width(Length::Fill);
+
+                if !first_model {
+                    card_col = card_col.push(settings_divider());
+                }
+                first_model = false;
+
+                card_col = card_col.push(item);
             }
-            first_model = false;
-
-            card_col = card_col.push(item);
         }
 
         let card = container(card_col).padding(16).width(Length::Fill).style(settings_panel_style);
@@ -224,8 +291,14 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
 
     let refresh_btn = icon_btn(
         Icon::ArrowCounterClockwise,
-        if s.loading { "刷新中…" } else { "刷新" },
         if s.loading {
+            "刷新中…"
+        } else if s.saving {
+            "保存中…"
+        } else {
+            "刷新"
+        },
+        if s.loading || s.saving {
             None
         } else {
             Some(Message::Settings(message::SettingsMessage::ModelsRefresh))
@@ -265,10 +338,35 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    content = content.push(settings_section_card(
-        "已连接模型",
-        "按 provider 分组展示可用模型，可直接查看详情或切换启用状态。",
-    ));
+    let mut enable_all_btn =
+        button(text("全部启用").size(12)).padding([7, 12]).style(rounded_action_btn_style);
+    if !s.loading && !s.saving && enabled_model_count < total_model_count {
+        enable_all_btn = enable_all_btn
+            .on_press(Message::Settings(message::SettingsMessage::ModelsSetAll(true)));
+    }
+
+    let mut disable_all_btn =
+        button(text("全部禁用").size(12)).padding([7, 12]).style(rounded_action_btn_style);
+    if !s.loading && !s.saving && enabled_model_count > 0 {
+        disable_all_btn = disable_all_btn
+            .on_press(Message::Settings(message::SettingsMessage::ModelsSetAll(false)));
+    }
+
+    content = content.push(
+        row![
+            settings_section_card(
+                "已连接模型",
+                if s.saving {
+                    "正在保存模型状态，完成后即可继续操作。"
+                } else {
+                    "按 provider 分组展示可用模型，可单独或一次性切换启用状态。"
+                }
+            ),
+            row![enable_all_btn, disable_all_btn].spacing(8).align_y(Alignment::Center),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
+    );
 
     content = content.push(list);
 

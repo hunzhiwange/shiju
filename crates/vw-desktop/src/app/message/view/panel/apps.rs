@@ -63,7 +63,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::OpenUsage => {
             let id = "usage".to_string();
-            let active_session_id: Option<String> = app.active_session_id.as_ref().cloned();
             let insert_at =
                 if app.open_tabs.first().map(|t| t.id.as_str()) == Some("home") { 1 } else { 0 };
             if let Some(pos) = app.open_tabs.iter().position(|t| t.id == id) {
@@ -85,12 +84,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.active_tab_id = Some(id);
             app.screen = Screen::Usage;
             app.usage_model_info = None;
-            app.usage_session_file_path = None;
             app.usage_step_raw_payloads.clear();
             app.usage_step_raw_loading.clear();
+            app.usage_step_raw_modal = None;
             let runtime = app.current_session_runtime();
             let model = if runtime.auto_model { None } else { Some(runtime.model) };
-            let model_task = Task::perform(
+            Task::perform(
                 async move {
                     use crate::app::provider::provider;
 
@@ -157,28 +156,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     })
                 },
                 |info| Message::View(ViewMessage::UsageModelInfoLoaded(info)),
-            );
-            let file_path_task = if let Some(session_id) = active_session_id {
-                Task::perform(
-                    {
-                        let session_id = session_id.as_str().to_owned();
-                        async move {
-                            let result =
-                                crate::app::session_gateway::gateway_session_file_path_async(
-                                    &session_id,
-                                )
-                                .await;
-                            (session_id, result)
-                        }
-                    },
-                    |(session_id, result)| {
-                        Message::View(ViewMessage::UsageSessionFilePathLoaded(session_id, result))
-                    },
-                )
-            } else {
-                Task::none()
-            };
-            Task::batch(vec![model_task, file_path_task])
+            )
         }
         ViewMessage::OpenKnowledge => {
             let id = "knowledge".to_string();

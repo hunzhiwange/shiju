@@ -425,6 +425,23 @@ async fn run_job_command_strip_policy_normalizes_common_stderr_redirects() {
     assert!(output.contains("scheduler-strip"));
 }
 
+#[tokio::test]
+async fn run_job_command_allow_policy_executes_file_redirect() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.autonomy.allowed_commands = vec!["printf".into()];
+    config.autonomy.allow_unsafe_shell_patterns = true;
+    config.autonomy.shell_redirect_policy = ShellRedirectPolicy::Allow;
+    let output_path = config.workspace_dir.join("cron-allow-output.txt");
+    let job = test_job("printf redirected > cron-allow-output.txt");
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+
+    let (success, output) = run_job_command(&config, &security, &job).await;
+
+    assert!(success, "{output}");
+    assert_eq!(tokio::fs::read_to_string(output_path).await.unwrap(), "redirected");
+}
+
 /// 测试只读模式阻止命令执行
 ///
 /// 验证 AutonomyLevel::ReadOnly 安全级别：

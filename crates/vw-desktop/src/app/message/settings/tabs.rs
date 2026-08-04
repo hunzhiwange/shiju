@@ -25,7 +25,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SystemTabSelected(tab) => {
             app.system_settings_tab = tab;
             app.system_settings_help_tab = None;
-            if tab == SystemTab::DialogueFlow {
+            if tab == SystemTab::Themes {
+                Task::done(Message::Settings(SettingsMessage::Themes(
+                    super::messages::ThemesMessage::Refresh,
+                )))
+            } else if tab == SystemTab::DialogueFlow {
                 Task::done(Message::Settings(SettingsMessage::DialogueFlowPermissionRefresh))
             } else if tab == SystemTab::Providers {
                 app.provider_settings.loading = true;
@@ -105,7 +109,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::done(Message::Settings(SettingsMessage::Channels(ChannelsMessage::Refresh)))
             } else if tab == SystemTab::Multimodal {
                 app.multimodal_settings.save_error = None;
-                Task::none()
+                app.model_settings.loading = true;
+                app.model_settings.save_error = None;
+                models_refresh_task()
             } else if tab == SystemTab::Acp {
                 app.acp_settings.loading = true;
                 app.acp_settings.save_error = None;
@@ -123,6 +129,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else if tab == SystemTab::Sop {
                 app.sop_settings.save_error = None;
                 Task::none()
+            } else if tab == SystemTab::Themes {
+                app.themes_settings.error = None;
+                Task::done(Message::Settings(SettingsMessage::Themes(
+                    super::messages::ThemesMessage::Refresh,
+                )))
             } else {
                 Task::none()
             }

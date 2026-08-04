@@ -1,3 +1,47 @@
+#[cfg(not(target_arch = "wasm32"))]
+async fn stop_stub(
+    status: &'static str,
+    body: &'static str,
+    tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+) -> (
+    vw_gateway_client::GatewayClient,
+    tokio::task::JoinHandle<String>,
+) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener =
+        tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("stop stub should bind");
+    let port = listener.local_addr().expect("stop stub address").port();
+    let handle = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("stop request should connect");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = stream.read(&mut buffer).await.expect("stop request should be readable");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&buffer[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let response = format!(
+            "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .await
+            .expect("stop response should be written");
+        String::from_utf8(request).expect("stop request should be utf8")
+    });
+    let endpoint =
+        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant);
+    let client = vw_gateway_client::GatewayClient::new(endpoint).expect("stop client should build");
+    (client, handle)
+}
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -22,6 +66,75 @@ fn desktop_project_calls_use_active_tenant_scope() {
     let endpoint = crate::app::config::gateway_client_endpoint();
 
     assert_eq!(&scope, endpoint.tenant_scope());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
+    use vw_gateway_client::vw_api_types::id::{
+        COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope,
+    };
+
+    let tenant = TenantScope::new("platform-nested", "company-nested").expect("tenant scope");
+    let (client, request) = stop_stub(
+        "200 OK",
+        r#"{"task_id":"task-nested","status":"cancelled","current_session_id":"task-nested-1"}"#,
+        tenant,
+    )
+    .await;
+
+    let status = super::gateway_task_plan_run_stop_with_client(&client, " task-nested ")
+        .await
+        .expect("stop response");
+    let request = request.await.expect("stop stub should finish");
+    let request_lower = request.to_ascii_lowercase();
+
+    assert_eq!(status.task_id, "task-nested");
+    assert_eq!(
+        status.status,
+        vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled
+    );
+    assert!(request.starts_with("POST /v1/task-plan-run/task-nested/stop HTTP/1.1"));
+    assert!(request_lower.contains(&format!(
+        "{}: platform-nested",
+        PLATFORM_ID_HEADER.to_ascii_lowercase()
+    )));
+    assert!(request_lower.contains(&format!(
+        "{}: company-nested",
+        COMPANY_ID_HEADER.to_ascii_lowercase()
+    )));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn task_plan_run_stop_gateway_boundary_surfaces_unknown_and_cross_tenant_errors() {
+    use vw_gateway_client::vw_api_types::id::TenantScope;
+
+    for (status, body) in [
+        ("404 Not Found", r#"{"error":"task-plan-run 不存在"}"#),
+        ("403 Forbidden", r#"{"error":"当前租户不可见"}"#),
+    ] {
+        let tenant = TenantScope::new("platform-nested", "company-nested").expect("tenant scope");
+        let (client, request) = stop_stub(status, body, tenant).await;
+        let result =
+            super::gateway_task_plan_run_stop_with_client(&client, "task-nested").await;
+        request.await.expect("error stop stub should finish");
+        assert!(result.is_err(), "{status} must remain an explicit gateway error");
+    }
+
+    let unused_listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("unused stop port should bind");
+    let unused_port = unused_listener.local_addr().expect("unused stop address").port();
+    drop(unused_listener);
+    let client = vw_gateway_client::GatewayClient::new(
+        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", unused_port),
+    )
+    .expect("unreachable client should build");
+    assert!(
+        super::gateway_task_plan_run_stop_with_client(&client, "task-request-failure")
+            .await
+            .is_err()
+    );
 }
 
 #[test]
@@ -114,6 +227,7 @@ fn desktop_session_persistence_surface_is_gateway_backed() {
     let _ = super::gateway_save_agent_session_scoped_async;
     let _ = super::gateway_session_file_path_async;
     let _ = super::gateway_session_todo_list_async;
+    let _ = super::gateway_task_plan_run_stop_async;
 }
 
 #[test]
@@ -143,6 +257,29 @@ fn desktop_gateway_async_surfaces_are_exposed_without_network_access() {
     let _ = super::gateway_plugin_set_enabled_async;
     let _ = super::gateway_plugin_delete_async;
     let _ = super::gateway_project_change_records_async;
+    let _ = super::gateway_skill_market_sources_async;
+    let _ = super::gateway_skill_market_recommended_async;
+    let _ = super::gateway_skill_market_skills_async;
+    let _ = super::gateway_skill_market_categories_async;
+    let _ = super::gateway_skill_market_skill_detail_async;
+    let _ = super::gateway_skill_market_skill_file_async;
+    let _ = super::gateway_skill_market_skill_sets_async;
+    let _ = super::gateway_skill_market_skill_set_detail_async;
+    let _ = super::gateway_shiju_account_login_async;
+    let _ = super::gateway_shiju_account_login_poll_async;
+    let _ = super::gateway_shiju_account_profile_async;
+    let _ = super::gateway_shiju_app_catalog_async;
+    let _ = super::gateway_shiju_apps_async;
+    let _ = super::gateway_shiju_app_prepare_launch_async;
+    let _ = super::gateway_shiju_skill_search_async;
+    let _ = super::gateway_shiju_skill_installed_async;
+    let _ = super::gateway_shiju_system_skills_async;
+    let _ = super::gateway_shiju_company_skills_async;
+    let _ = super::gateway_shiju_maintained_skills_async;
+    let _ = super::gateway_shiju_skill_detail_async;
+    let _ = super::gateway_shiju_skill_versions_async;
+    let _ = super::gateway_shiju_skill_remote_install_async;
+    let _ = super::gateway_shiju_skill_remote_uninstall_async;
 }
 
 #[cfg(not(target_arch = "wasm32"))]

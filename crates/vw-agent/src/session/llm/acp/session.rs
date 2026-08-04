@@ -73,6 +73,7 @@ fn acp_client_cache_key(
         "env": env.into_iter().map(|(key, value)| json!([key, value])).collect::<Vec<_>>(),
         "cwd": cwd,
         "permissionMode": parsed_options.permission_mode,
+        "fullAccess": parsed_options.full_access,
         "nonInteractivePermissions": parsed_options.non_interactive_permissions,
         "authPolicy": parsed_options.auth_policy,
         "sessionOptions": parsed_options.session_options,
@@ -112,6 +113,7 @@ fn build_cached_acp_client(
         },
     )
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(PermissionMode::ApproveAll))
+    .with_full_access(parsed_options.full_access)
     .with_non_interactive_permissions(parsed_options.non_interactive_permissions.clone())
     .with_auth_policy(parsed_options.auth_policy.unwrap_or(AuthPolicy::Skip))
     .with_session_options(parsed_options.session_options.clone())

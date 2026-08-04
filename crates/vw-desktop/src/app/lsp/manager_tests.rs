@@ -506,6 +506,19 @@ fn manager_initializes_empty_and_rejects_unsupported_server_without_spawning() {
 }
 
 #[test]
+fn lsp_service_key_scopes_server_to_workspace_root() {
+    let first = super::LspServiceKey::new("rust-analyzer", "file:///workspace/one");
+    let same = super::LspServiceKey::new("rust-analyzer", "file:///workspace/one");
+    let other_root = super::LspServiceKey::new("rust-analyzer", "file:///workspace/two");
+    let other_server =
+        super::LspServiceKey::new("typescript-language-server", "file:///workspace/one");
+
+    assert_eq!(first, same);
+    assert_ne!(first, other_root);
+    assert_ne!(first, other_server);
+}
+
+#[test]
 fn manager_shutdown_all_is_idempotent_without_services() {
     let (tx, rx) = mpsc::channel();
     let mut manager = super::LspServiceManager::new(tx);

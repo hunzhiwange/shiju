@@ -40,25 +40,37 @@ impl Drop for TempDir {
 
 struct EnvGuard {
     _lock: tokio::sync::MutexGuard<'static, ()>,
-    saved_home: Option<String>,
+    saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
 }
 
 impl EnvGuard {
     async fn set_home(path: &Path) -> Self {
         let lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;
-        let saved_home = std::env::var("HOME").ok();
+        let saved = save_home_env();
         unsafe { std::env::set_var("HOME", path) };
-        Self { _lock: lock, saved_home }
+        unsafe { std::env::set_var("USERPROFILE", path) };
+        unsafe { std::env::remove_var("HOMEDRIVE") };
+        unsafe { std::env::remove_var("HOMEPATH") };
+        Self { _lock: lock, saved }
     }
 }
 
 impl Drop for EnvGuard {
     fn drop(&mut self) {
-        match &self.saved_home {
-            Some(value) => unsafe { std::env::set_var("HOME", value) },
-            None => unsafe { std::env::remove_var("HOME") },
+        for (key, value) in self.saved.drain(..) {
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
         }
     }
+}
+
+fn save_home_env() -> Vec<(&'static str, Option<std::ffi::OsString>)> {
+    ["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
+        .into_iter()
+        .map(|key| (key, std::env::var_os(key)))
+        .collect()
 }
 
 struct MockAgent {

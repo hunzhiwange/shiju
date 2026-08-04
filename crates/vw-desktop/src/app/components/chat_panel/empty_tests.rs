@@ -1,44 +1,20 @@
 use super::{
-    empty_session_placeholder, is_dark_theme, placeholder_card_style, placeholder_chip_style,
+    empty_session_placeholder, empty_session_title, is_dark_theme, placeholder_chip_style,
     session_loading_placeholder,
 };
-use crate::app::App;
+use crate::app::{App, state::WorkspaceMode};
 use iced::{Background, Color, Theme, theme::Palette};
+
+#[test]
+fn empty_session_title_matches_workspace_mode() {
+    assert_eq!(empty_session_title(WorkspaceMode::Code), "氛围视窗软件智能体");
+    assert_eq!(empty_session_title(WorkspaceMode::Work), "您的专属 AI 工作助理");
+}
 
 #[test]
 fn is_dark_theme_detects_dark_mode() {
     assert!(is_dark_theme(&Theme::Dark));
     assert!(!is_dark_theme(&Theme::Light));
-}
-
-#[test]
-fn placeholder_card_style_light_theme_has_expected_structure() {
-    let style = placeholder_card_style(&Theme::Light);
-    assert!(style.background.is_some());
-    assert_eq!(style.border.width, 1.0);
-}
-
-#[test]
-fn placeholder_card_style_dark_theme_has_expected_structure() {
-    let style = placeholder_card_style(&Theme::Dark);
-    assert!(style.background.is_some());
-    assert_eq!(style.border.width, 1.0);
-}
-
-#[test]
-fn placeholder_card_style_preserves_theme_specific_surface_and_shadow() {
-    let light = placeholder_card_style(&Theme::Light);
-    let dark = placeholder_card_style(&Theme::Dark);
-
-    assert_eq!(light.background, Some(Background::Color(Color::from_rgba8(252, 252, 253, 1.0))));
-    assert_eq!(dark.background, Some(Background::Color(Color::from_rgba8(20, 21, 24, 0.96))));
-    assert_eq!(light.border.radius, 22.0.into());
-    assert_eq!(dark.border.radius, 22.0.into());
-    assert_eq!(light.shadow.offset, iced::Vector::new(0.0, 12.0));
-    assert_eq!(dark.shadow.offset, iced::Vector::new(0.0, 12.0));
-    assert_eq!(light.shadow.blur_radius, 28.0);
-    assert_eq!(dark.shadow.blur_radius, 28.0);
-    assert!(dark.shadow.color.a > light.shadow.color.a);
 }
 
 #[test]

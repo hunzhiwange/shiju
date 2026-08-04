@@ -16,6 +16,8 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) label: String,
     pub(crate) kind: AgentSettingsEntryKind,
     pub(crate) enabled: bool,
+    pub(crate) allow_as_subagent: bool,
+    pub(crate) max_parallel_subagents: u32,
     pub(crate) provider: String,
     pub(crate) model: String,
     pub(crate) system_prompt_editor: text_editor::Content,
@@ -30,6 +32,7 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) agentic: bool,
     pub(crate) allowed_tools: Vec<String>,
     pub(crate) allowed_skills: Vec<String>,
+    pub(crate) enabled_identity_files: Vec<String>,
     pub(crate) max_iterations: u32,
 }
 
@@ -56,6 +59,8 @@ impl DelegateAgentSettingsEntry {
             label: default_agent_label(key, &config),
             kind,
             enabled: if key == MAIN_AGENT_KEY { true } else { config.enabled },
+            allow_as_subagent: config.allow_as_subagent,
+            max_parallel_subagents: config.max_parallel_subagents.clamp(1, 32) as u32,
             provider: config.provider,
             model: config.model,
             system_prompt_editor: text_editor::Content::with_text(
@@ -72,15 +77,16 @@ impl DelegateAgentSettingsEntry {
                 .unwrap_or(0.7)
                 .clamp(0.0, 2.0) as f32,
             compact_context: false,
-            max_tool_iterations: 20,
-            max_history_messages: 50,
+            max_tool_iterations: 50_000,
+            max_history_messages: 100,
             parallel_tools: false,
             tool_dispatcher: "auto".to_string(),
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
             allowed_tools: config.allowed_tools,
             allowed_skills: config.allowed_skills,
-            max_iterations: config.max_iterations.clamp(1, 100) as u32,
+            enabled_identity_files: config.enabled_identity_files,
+            max_iterations: u32::try_from(config.max_iterations).unwrap_or(u32::MAX).max(1),
         }
     }
 }
@@ -115,10 +121,98 @@ pub(crate) fn ordered_agent_keys(
     builtin_agent_keys().into_iter().map(str::to_string).chain(custom_agent_keys).collect()
 }
 
+pub(crate) fn apply_default_allowed_tools(
+    entries: &mut [DelegateAgentSettingsEntry],
+    available_tools: &[String],
+) {
+    if available_tools.is_empty() {
+        return;
+    }
+
+    for entry in entries {
+        if entry.allowed_tools.is_empty() && !matches!(entry.key.as_str(), "title" | "summary") {
+            entry.allowed_tools = available_tools.to_vec();
+        }
+    }
+}
+
+pub(crate) fn agent_settings_entries_from_config(
+    full_agent_cfg: &vw_config_types::config::Config,
+) -> Vec<DelegateAgentSettingsEntry> {
+    let delegate_agents_cfg = &full_agent_cfg.agents;
+    let agent_cfg = &full_agent_cfg.agent;
+    let default_provider_cfg = full_agent_cfg.default_provider.clone();
+    let default_model_cfg = full_agent_cfg.default_model.clone();
+    let default_temperature_cfg = full_agent_cfg.default_temperature;
+
+    ordered_agent_keys(delegate_agents_cfg)
+        .into_iter()
+        .map(|key| {
+            let config = delegate_agents_cfg.get(&key).cloned();
+            if key != MAIN_AGENT_KEY {
+                return DelegateAgentSettingsEntry::from_config(&key, config);
+            }
+
+            let config =
+                config.unwrap_or_else(|| builtin_agent_config(MAIN_AGENT_KEY).unwrap_or_default());
+            let entry = DelegateAgentConfig {
+                label: config.label,
+                description: config.description,
+                builtin: config.builtin,
+                mode: "primary".to_string(),
+                enabled: true,
+                allow_as_subagent: config.allow_as_subagent,
+                max_parallel_subagents: config.max_parallel_subagents,
+                provider: if config.provider.trim().is_empty() {
+                    default_provider_cfg.clone().unwrap_or_default()
+                } else {
+                    config.provider
+                },
+                model: if config.model.trim().is_empty() {
+                    default_model_cfg
+                        .as_deref()
+                        .and_then(|value| value.split('/').next_back())
+                        .unwrap_or_default()
+                        .to_string()
+                } else {
+                    config.model
+                },
+                system_prompt: config.system_prompt,
+                api_key: config.api_key,
+                temperature: Some(config.temperature.unwrap_or(default_temperature_cfg)),
+                top_p: config.top_p,
+                identity_format: Some("openclaw".to_string()),
+                hidden: config.hidden,
+                max_depth: config.max_depth,
+                agentic: config.agentic,
+                allowed_tools: config.allowed_tools,
+                allowed_skills: config.allowed_skills,
+                enabled_identity_files: config.enabled_identity_files,
+                options: config.options,
+                permission: config.permission,
+                max_iterations: config.max_iterations,
+                steps: config.steps,
+            };
+            let mut ui_entry = DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, Some(entry));
+            ui_entry.compact_context = agent_cfg.compact_context;
+            ui_entry.max_tool_iterations =
+                u32::try_from(agent_cfg.max_tool_iterations).unwrap_or(u32::MAX).max(1);
+            ui_entry.max_history_messages = agent_cfg.max_history_messages.clamp(1, 1000) as u32;
+            ui_entry.parallel_tools = agent_cfg.parallel_tools;
+            ui_entry.tool_dispatcher = {
+                let value = agent_cfg.tool_dispatcher.trim().to_string();
+                if value.is_empty() { "auto".to_string() } else { value }
+            };
+            ui_entry
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone)]
 /// 表示 AgentsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct AgentsSettingsState {
     pub(crate) loading: bool,
+    pub(crate) project_path: Option<String>,
     pub(crate) providers: Vec<ProviderSummary>,
     pub(crate) provider_models: Vec<ProviderModelsSummary>,
     pub(crate) entries: Vec<DelegateAgentSettingsEntry>,
@@ -130,12 +224,15 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) workspace_identity_root_path: Option<String>,
     pub(crate) available_tools: Vec<String>,
     pub(crate) save_error: Option<String>,
+    pub(crate) save_in_flight: bool,
+    pub(crate) save_pending: bool,
 }
 
 impl Default for AgentsSettingsState {
     fn default() -> Self {
         Self {
             loading: false,
+            project_path: None,
             providers: Vec::new(),
             provider_models: Vec::new(),
             entries: builtin_agent_keys()
@@ -164,6 +261,8 @@ impl Default for AgentsSettingsState {
             workspace_identity_root_path: None,
             available_tools: Vec::new(),
             save_error: None,
+            save_in_flight: false,
+            save_pending: false,
         }
     }
 }

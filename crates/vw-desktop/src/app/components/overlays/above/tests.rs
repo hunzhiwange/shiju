@@ -20,6 +20,7 @@ fn above_overlay_new_sets_hidden_defaults() {
     assert_eq!(overlay.gap, 0.0);
     assert!(overlay.snap_within_viewport);
     assert!(overlay.on_close.is_none());
+    assert!(!overlay.block_background_events);
 }
 
 #[test]
@@ -28,11 +29,13 @@ fn above_overlay_builder_updates_all_runtime_flags() {
         .show(true)
         .gap(7.5)
         .snap_within_viewport(false)
+        .block_background_events(true)
         .on_close(TestMessage::Close);
 
     assert!(overlay.show);
     assert_eq!(overlay.gap, 7.5);
     assert!(!overlay.snap_within_viewport);
+    assert!(overlay.block_background_events);
     assert_eq!(overlay.on_close, Some(TestMessage::Close));
 }
 

@@ -8,8 +8,8 @@ use vw_config_types::{
 };
 
 use super::{
-    build_acp_agent_enabled_patch, build_main_agent_overrides_patch, default_enabled_acp_config,
-    resolve_enabled_acp_config,
+    build_acp_agent_create_patch, build_acp_agent_enabled_patch, build_main_agent_overrides_patch,
+    default_enabled_acp_config, resolve_enabled_acp_config,
 };
 
 const SOURCE: &str = include_str!("config_agent.rs");
@@ -77,7 +77,9 @@ fn config_agent_tests_keeps_planned_coverage_targets() {
         "load_enabled_acp_config_result",
         "load_enabled_acp_config_async",
         "load_acp_settings_snapshot_async",
+        "add_global_acp_agent_async",
         "set_global_acp_agent_enabled_async",
+        "build_acp_agent_create_patch",
         "build_acp_agent_enabled_patch",
         "build_main_agent_overrides_patch",
         "DEFAULT_ENABLED_ACP_AGENTS",
@@ -291,6 +293,45 @@ fn build_acp_agent_enabled_patch_disables_explicit_unknown_agent_with_null_marke
     assert_eq!(acp_patch.len(), 7);
     assert!(acp_patch["local"].is_null());
     assert_eq!(acp_patch["claude"]["command"], "claude");
+}
+
+#[test]
+fn build_acp_agent_create_patch_rejects_existing_name_and_blank_command() {
+    let existing = build_acp_agent_create_patch(
+        " codex ",
+        acp("custom-codex"),
+        &catalog(),
+        HashMap::new(),
+    )
+    .expect_err("existing names must not be overwritten");
+    assert_eq!(existing, "acp agent already exists: codex");
+
+    let blank_command = build_acp_agent_create_patch(
+        "local",
+        acp("  "),
+        &catalog(),
+        HashMap::new(),
+    )
+    .expect_err("blank commands must fail");
+    assert_eq!(blank_command, "acp agent command must not be empty");
+}
+
+#[test]
+fn build_acp_agent_create_patch_normalizes_spec_and_preserves_default_enabled_agents() {
+    let spec = AcpAgentConfig {
+        command: " local-agent ".to_string(),
+        args: vec![" --stdio ".to_string(), String::new(), "  ".to_string()],
+        ..AcpAgentConfig::default()
+    };
+
+    let patch =
+        build_acp_agent_create_patch(" local ", spec, &catalog(), HashMap::new())
+            .expect("new ACP patch should build");
+
+    assert_eq!(patch["acp"]["local"]["command"], "local-agent");
+    assert_eq!(patch["acp"]["local"]["args"], json!(["--stdio"]));
+    assert_eq!(patch["acp"]["codex"]["command"], "codex");
+    assert_eq!(patch["acp"]["claude"]["command"], "claude");
 }
 
 fn config_with_main_agent(provider: &str, model: &str, temperature: Option<f64>) -> super::Config {

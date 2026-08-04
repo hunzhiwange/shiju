@@ -13,6 +13,7 @@ mod dialogue_flow;
 mod embedding_routes;
 mod gateway;
 mod gateway_client;
+mod general;
 mod goal_loop;
 mod heartbeat;
 mod hooks;
@@ -28,6 +29,7 @@ mod projects;
 mod providers;
 mod proxy;
 mod query_classification;
+mod quick_messages;
 mod reliability;
 mod research;
 mod runtime;
@@ -39,6 +41,7 @@ mod sop;
 mod staff;
 mod storage;
 mod tabs;
+mod themes;
 mod transcription;
 mod tunnel;
 mod types;
@@ -50,11 +53,14 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) use messages::{
-    AcpMessage, AgentsMessage, BrowserMessage, ChannelsMessage, EmbeddingRoutesMessage,
+    AcpMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
+    ChannelsMessage, EmbeddingRoutesMessage,
+    GeneralSettingsMessage,
     GatewayClientMessage, GatewayMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage,
     McpMessage, MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    RuntimeMessage, SettingsMessage, SopMessage, StaffMessage, StaffResourceMessage,
-    StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField, StorageMessage,
+    QuickMessagesMessage, RuntimeMessage, SettingsMessage, SopMessage, StaffMessage,
+    StaffResourceMessage, StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField,
+    StorageMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
     TunnelMessage, WebSearchMessage,
 };
 
@@ -83,7 +89,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "composio" => app.composio_settings.save_error = save_error,
         "skills" => app.skills_settings.save_error = save_error,
         "research" => app.research_settings.save_error = save_error,
-        "agent" => app.agents_settings.save_error = save_error,
         "staff" => {
             let result = match save_error {
                 Some(error) => Err(error),
@@ -118,6 +123,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SystemHelpOpen(_)
         | SettingsMessage::SystemHelpClose
         | SettingsMessage::ToggleSettingsSidebar => tabs::update(app, message),
+        SettingsMessage::General(_) => general::update(app, message),
         SettingsMessage::EmbeddingRoutes(_) => embedding_routes::update(app, message),
         SettingsMessage::Hooks(_) => hooks::update(app, message),
         SettingsMessage::Storage(_) => storage::update(app, message),
@@ -136,11 +142,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::GatewayClient(_) => gateway_client::update(app, message),
         SettingsMessage::Gateway(_) => gateway::update(app, message),
         SettingsMessage::Tunnel(_) => tunnel::update(app, message),
+        SettingsMessage::Themes(_) => themes::update(app, message),
         SettingsMessage::Agents(_) => agents::update(app, message),
         SettingsMessage::Staff(_) => staff::update(app, message),
+        SettingsMessage::QuickMessages(_) => quick_messages::update(app, message),
         SettingsMessage::AgentConfigSaved { tag, result } => {
-            apply_agent_config_saved(app, tag, result);
-            Task::none()
+            if tag == "agent" {
+                agents::handle_agents_config_saved(app, result)
+            } else {
+                apply_agent_config_saved(app, tag, result);
+                Task::none()
+            }
         }
         SettingsMessage::Sop(_) => sop::update(app, message),
         SettingsMessage::ProvidersRefresh
@@ -176,6 +188,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CustomProviderModelModalNameChanged(_)
         | SettingsMessage::CustomProviderModelModalSave
         | SettingsMessage::CustomProviderModelRemove(_)
+        | SettingsMessage::CustomProviderModelsDiscover
+        | SettingsMessage::CustomProviderModelsDiscovered { .. }
         | SettingsMessage::CustomProviderSave
         | SettingsMessage::CustomProviderSaveDone(_)
         | SettingsMessage::PopularProviderRemove(_)
@@ -187,12 +201,19 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ProviderCatalogAddToPopular(_) => providers::update(app, message),
         SettingsMessage::ModelsRefresh
         | SettingsMessage::ModelsRefreshed(_)
+        | SettingsMessage::ModelsSetAll(_)
+        | SettingsMessage::ProviderModelsSetAll(_, _)
+        | SettingsMessage::ProviderModelsReset(_)
+        | SettingsMessage::ProviderModelsResetCompleted(_, _)
+        | SettingsMessage::ProviderModelsExpansionToggled(_)
+        | SettingsMessage::ModelStatusesSaved(_, _)
         | SettingsMessage::ModelQueryChanged(_)
         | SettingsMessage::ModelToggle(_, _, _)
         | SettingsMessage::ModelDetailOpen(_, _)
         | SettingsMessage::ModelDetailClose
         | SettingsMessage::ModelDetailToggleRaw => models::update(app, message),
-        SettingsMessage::SkillsRefresh
+        SettingsMessage::SkillsProjectSelected(_)
+        | SettingsMessage::SkillsRefresh
         | SettingsMessage::SkillsLoaded(_)
         | SettingsMessage::PluginsRefresh
         | SettingsMessage::PluginsLoaded(_)
@@ -217,6 +238,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SkillsDeleteRequested(_)
         | SettingsMessage::SkillsDeleteCompleted { .. }
         | SettingsMessage::SkillsDirectoryProviderChanged(_)
+        | SettingsMessage::SkillsProjectAutoLoadToggled(_)
         | SettingsMessage::SkillsOpenEnabledToggled(_)
         | SettingsMessage::SkillsOpenDirChanged(_)
         | SettingsMessage::SkillsPromptInjectionModeChanged(_)
@@ -354,9 +376,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ReliabilitySave
         | SettingsMessage::ReliabilityHelpOpen
         | SettingsMessage::ReliabilityHelpClose => reliability::update(app, message),
-        SettingsMessage::SecuritySandboxEnabledChanged(_)
+        SettingsMessage::SecurityBashSecurityEnabledToggled(_)
+        | SettingsMessage::SecurityBashPolicyCheckToggled(_, _)
+        | SettingsMessage::SecurityBashValidatorCheckToggled(_, _)
+        | SettingsMessage::SecurityTabSelected(_)
+        | SettingsMessage::SecurityListDraftChanged(_, _)
+        | SettingsMessage::SecurityListAdd(_)
+        | SettingsMessage::SecurityListRemove(_, _)
+        | SettingsMessage::SecuritySandboxEnabledChanged(_)
         | SettingsMessage::SecuritySandboxBackendChanged(_)
-        | SettingsMessage::SecuritySandboxFirejailArgsChanged(_)
         | SettingsMessage::SecurityResourcesMaxMemoryMbChanged(_)
         | SettingsMessage::SecurityResourcesMaxCpuTimeSecondsChanged(_)
         | SettingsMessage::SecurityResourcesMaxSubprocessesChanged(_)
@@ -369,9 +397,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SecurityOtpMethodChanged(_)
         | SettingsMessage::SecurityOtpTokenTtlSecsChanged(_)
         | SettingsMessage::SecurityOtpCacheValidSecsChanged(_)
-        | SettingsMessage::SecurityOtpGatedActionsChanged(_)
-        | SettingsMessage::SecurityOtpGatedDomainsChanged(_)
-        | SettingsMessage::SecurityOtpGatedDomainCategoriesChanged(_)
         | SettingsMessage::SecurityEstopEnabledToggled(_)
         | SettingsMessage::SecurityEstopStateFileChanged(_)
         | SettingsMessage::SecurityEstopRequireOtpToResumeToggled(_)
@@ -383,7 +408,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SecuritySyscallAnomalyMaxAlertsPerMinuteChanged(_)
         | SettingsMessage::SecuritySyscallAnomalyAlertCooldownSecsChanged(_)
         | SettingsMessage::SecuritySyscallAnomalyLogPathChanged(_)
-        | SettingsMessage::SecuritySyscallAnomalyBaselineSyscallsChanged(_)
         | SettingsMessage::SecurityCanaryTokensToggled(_)
         | SettingsMessage::SecuritySemanticGuardToggled(_)
         | SettingsMessage::SecuritySemanticGuardCollectionChanged(_)
@@ -391,20 +415,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SecuritySave
         | SettingsMessage::SecurityHelpOpen
         | SettingsMessage::SecurityHelpClose => security::update(app, message),
-        SettingsMessage::AutonomyLevelChanged(_)
+        SettingsMessage::AutonomyTabSelected(_)
+        | SettingsMessage::AutonomyLevelChanged(_)
         | SettingsMessage::AutonomyWorkspaceOnlyToggled(_)
-        | SettingsMessage::AutonomyAllowedCommandsChanged(_)
-        | SettingsMessage::AutonomyForbiddenPathsChanged(_)
+        | SettingsMessage::AutonomyListDraftChanged(_, _)
+        | SettingsMessage::AutonomyListAdd(_)
+        | SettingsMessage::AutonomyListRemove(_, _)
         | SettingsMessage::AutonomyMaxActionsPerHourChanged(_)
         | SettingsMessage::AutonomyMaxCostPerDayCentsChanged(_)
         | SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(_)
         | SettingsMessage::AutonomyBlockHighRiskCommandsToggled(_)
         | SettingsMessage::AutonomyShellRedirectPolicyChanged(_)
-        | SettingsMessage::AutonomyShellEnvPassthroughChanged(_)
-        | SettingsMessage::AutonomyAutoApproveChanged(_)
-        | SettingsMessage::AutonomyAlwaysAskChanged(_)
-        | SettingsMessage::AutonomyAllowedRootsChanged(_)
-        | SettingsMessage::AutonomyNonCliExcludedToolsChanged(_)
         | SettingsMessage::AutonomyNonCliApprovalApproversChanged(_)
         | SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeChanged(_)
         | SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(_)

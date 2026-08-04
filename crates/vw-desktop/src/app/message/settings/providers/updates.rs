@@ -4,7 +4,8 @@ use crate::app::{
     App, Message,
     state::{
         CustomProviderDraft, CustomProviderModelDraft, CustomProviderModelModalState,
-        ProviderConnectState, ProviderHeaderDraft,
+        ProviderConnectState, ProviderHeaderDraft, SHIJU_OFFICIAL_PROVIDER_NAME,
+        is_shiju_official_provider_id,
     },
 };
 use iced::Task;
@@ -12,7 +13,8 @@ use iced::Task;
 use super::super::messages::SettingsMessage;
 use super::helpers::{is_valid_provider_id, summarize_providers};
 use super::models::{
-    connect_provider, current_provider_api_key, disconnect_provider, load_custom_provider_draft,
+    connect_provider, current_provider_api_key, disconnect_provider,
+    discover_custom_provider_models, load_custom_provider_draft, merge_discovered_model_drafts,
     save_custom_provider,
 };
 use super::tasks::{
@@ -23,6 +25,11 @@ fn reset_models_sync_state(app: &mut App) {
     app.provider_settings.models_syncing = false;
     app.provider_settings.models_sync_progress = 0.0;
     app.provider_settings.models_sync_label.clear();
+}
+
+fn replace_popular_patterns(app: &mut App, patterns: Vec<String>) {
+    app.provider_settings.popular_patterns =
+        patterns.into_iter().filter(|pattern| !is_shiju_official_provider_id(pattern)).collect();
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -69,7 +76,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
-                    app.provider_settings.popular_patterns = patterns;
+                    replace_popular_patterns(app, patterns);
                 }
                 if !catalog.is_empty() {
                     app.provider_settings.catalog_items = catalog;
@@ -90,7 +97,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.loading = false;
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
-                    app.provider_settings.popular_patterns = patterns;
+                    replace_popular_patterns(app, patterns);
                 }
                 if !catalog.is_empty() {
                     app.provider_settings.catalog_items = catalog;
@@ -119,7 +126,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         .find(|p| p.id == provider_id)
                         .map(|p| p.name.clone())
                 })
-                .unwrap_or_else(|| provider_id.clone());
+                .unwrap_or_else(|| {
+                    if is_shiju_official_provider_id(&provider_id) {
+                        SHIJU_OFFICIAL_PROVIDER_NAME.to_string()
+                    } else {
+                        provider_id.clone()
+                    }
+                });
             let api_key = current_provider_api_key(&provider_id).unwrap_or_default();
             app.provider_settings.connect_modal =
                 Some(ProviderConnectState { provider_id, provider_name, api_key });
@@ -161,7 +174,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.loading = false;
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
-                    app.provider_settings.popular_patterns = patterns;
+                    replace_popular_patterns(app, patterns);
                 }
                 if !catalog.is_empty() {
                     app.provider_settings.catalog_items = catalog;
@@ -205,7 +218,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.loading = false;
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
-                    app.provider_settings.popular_patterns = patterns;
+                    replace_popular_patterns(app, patterns);
                 }
                 if !catalog.is_empty() {
                     app.provider_settings.catalog_items = catalog;
@@ -223,6 +236,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CustomProviderOpen => {
             app.provider_settings.custom_provider_modal_open = true;
             app.provider_settings.custom_editing_provider_id = None;
+            app.provider_settings.custom_models_discovering = false;
             app.provider_settings.custom = CustomProviderDraft::default();
             app.provider_settings.save_error = None;
             app.provider_settings.connect_modal = None;
@@ -234,6 +248,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CustomProviderEditOpen(provider_id) => {
             app.provider_settings.loading = true;
+            app.provider_settings.custom_models_discovering = false;
             app.provider_settings.save_error = None;
             app.provider_settings.connect_modal = None;
             app.provider_settings.connect_error = None;
@@ -248,6 +263,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CustomProviderEditLoaded(res) => match res {
             Ok(draft) => {
                 app.provider_settings.loading = false;
+                app.provider_settings.custom_models_discovering = false;
                 app.provider_settings.custom_editing_provider_id = Some(draft.provider_id.clone());
                 app.provider_settings.custom = draft;
                 app.provider_settings.custom_provider_modal_open = true;
@@ -255,6 +271,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.loading = false;
+                app.provider_settings.custom_models_discovering = false;
                 app.provider_settings.save_error = Some(e);
                 Task::none()
             }
@@ -262,6 +279,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CustomProviderClose => {
             app.provider_settings.custom_provider_modal_open = false;
             app.provider_settings.custom_editing_provider_id = None;
+            app.provider_settings.custom_models_discovering = false;
             app.provider_settings.save_error = None;
             Task::none()
         }
@@ -361,7 +379,49 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Task::none()
         }
+        SettingsMessage::CustomProviderModelsDiscover => {
+            if !app.provider_settings.custom_provider_modal_open
+                || app.provider_settings.custom_editing_provider_id.is_none()
+                || app.provider_settings.custom_models_discovering
+            {
+                return Task::none();
+            }
+            app.provider_settings.custom_models_discovering = true;
+            app.provider_settings.save_error = None;
+            let draft = app.provider_settings.custom.clone();
+            let provider_id = draft.provider_id.clone();
+            Task::perform(discover_custom_provider_models(draft), move |result| {
+                Message::Settings(SettingsMessage::CustomProviderModelsDiscovered {
+                    provider_id: provider_id.clone(),
+                    result,
+                })
+            })
+        }
+        SettingsMessage::CustomProviderModelsDiscovered { provider_id, result } => {
+            if app.provider_settings.custom_editing_provider_id.as_deref()
+                != Some(provider_id.as_str())
+            {
+                return Task::none();
+            }
+            app.provider_settings.custom_models_discovering = false;
+            if !app.provider_settings.custom_provider_modal_open {
+                return Task::none();
+            }
+            match result {
+                Ok(models) => {
+                    merge_discovered_model_drafts(&mut app.provider_settings.custom.models, models);
+                    app.provider_settings.save_error = None;
+                }
+                Err(error) => {
+                    app.provider_settings.save_error = Some(error);
+                }
+            }
+            Task::none()
+        }
         SettingsMessage::CustomProviderSave => {
+            if app.provider_settings.custom_models_discovering {
+                return Task::none();
+            }
             let draft = app.provider_settings.custom.clone();
             let provider_id = draft.provider_id.trim().to_string();
             if !is_valid_provider_id(&provider_id) {
@@ -390,9 +450,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CustomProviderSaveDone(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.loading = false;
+                app.provider_settings.custom_models_discovering = false;
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
-                    app.provider_settings.popular_patterns = patterns;
+                    replace_popular_patterns(app, patterns);
                 }
                 if !catalog.is_empty() {
                     app.provider_settings.catalog_items = catalog;
@@ -405,11 +466,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.loading = false;
+                app.provider_settings.custom_models_discovering = false;
                 app.provider_settings.save_error = Some(e);
                 Task::none()
             }
         },
         SettingsMessage::PopularProviderRemove(idx) => {
+            if app
+                .provider_settings
+                .popular_patterns
+                .get(idx)
+                .is_some_and(|pattern| is_shiju_official_provider_id(pattern))
+            {
+                return Task::none();
+            }
             if idx < app.provider_settings.popular_patterns.len() {
                 app.provider_settings.popular_patterns.remove(idx);
             }
@@ -453,6 +523,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         },
         SettingsMessage::ProviderCatalogAddToPopular(provider_id) => {
+            if is_shiju_official_provider_id(&provider_id) {
+                return Task::none();
+            }
             if !app.provider_settings.popular_patterns.iter().any(|s| s == &provider_id) {
                 app.provider_settings.popular_patterns.push(provider_id);
             }

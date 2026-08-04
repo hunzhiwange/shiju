@@ -5,9 +5,10 @@
 //!
 //! # 主要功能
 //!
-//! - 渲染任务队列列表，每个任务项包含状态图标、标题和时间戳
+//! - 渲染任务队列列表，每个任务项包含状态图标、标题、时间戳和图标操作
 //! - 自动截断过长的查询文本（超过42个字符时显示省略号）
 //! - 区分正在执行和等待中的任务，使用不同的图标和颜色
+//! - 支持引导、再次编辑、上下移动和删除队列项
 //! - 支持滚动浏览，限制最大显示高度以保持界面整洁
 //!
 //! # 组件结构
@@ -21,14 +22,19 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
-use iced::widget::{column, container, row, scrollable, text};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use once_cell::sync::Lazy;
 use time::format_description::FormatItem;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
-use crate::app::state::QueueItem;
+use crate::app::state::{ChatSendBehavior, QueueItem};
+use crate::app::{Message, message};
+
+use super::dark_tooltip_content;
+use super::styles::square_icon_button_style;
 
 const MAX_QUEUE_PANEL_HEIGHT: f32 = 132.0;
 const QUEUE_SCROLLBAR_WIDTH: u32 = 4;
@@ -154,18 +160,54 @@ pub(super) fn queue_item_label(query: &str) -> String {
     }
 }
 
-pub(super) fn queue_item_meta_label(created_ms: u64, is_next: bool) -> String {
+pub(super) fn queue_item_meta_label(
+    created_ms: u64,
+    is_next: bool,
+    is_guide: bool,
+) -> String {
     let time_label = format_queue_time(created_ms);
+    let mut parts = Vec::with_capacity(3);
 
-    if is_next {
-        if time_label.is_empty() {
-            "下一条".to_string()
-        } else {
-            format!("下一条 · {}", time_label)
-        }
-    } else {
-        time_label
+    if is_guide {
+        parts.push("引导".to_string());
     }
+    if is_next {
+        parts.push("下一条".to_string());
+    }
+    if !time_label.is_empty() {
+        parts.push(time_label);
+    }
+
+    parts.join(" · ")
+}
+
+pub(super) fn queue_move_availability(index: usize, queue_len: usize) -> (bool, bool) {
+    if index >= queue_len {
+        return (false, false);
+    }
+    (index > 0, index + 1 < queue_len)
+}
+
+fn queue_action_button(
+    icon: Icon,
+    tooltip_label: &'static str,
+    action: Option<message::ChatMessage>,
+) -> Element<'static, Message> {
+    let enabled = action.is_some();
+    let mut action_button = button(icon_svg(icon, 12.0))
+        .padding(5)
+        .style(move |theme: &Theme, status| square_icon_button_style(theme, status, enabled));
+    if let Some(action) = action {
+        action_button = action_button.on_press(Message::Chat(action));
+    }
+
+    Tooltip::new(
+        action_button,
+        dark_tooltip_content(tooltip_label),
+        TooltipPosition::Top,
+    )
+    .gap(4.0)
+    .into()
 }
 
 /// 构建并渲染任务队列面板
@@ -225,9 +267,10 @@ pub fn queue_panel(
         let label = queue_item_label(&item.query);
 
         let is_next = is_requesting && i == 0;
+        let is_guide = item.send_behavior == ChatSendBehavior::Guide;
 
         // 格式化创建时间并构建时间文本组件
-        let meta_label = queue_item_meta_label(item.created_ms, is_next);
+        let meta_label = queue_item_meta_label(item.created_ms, is_next, is_guide);
         let time_text =
             text(meta_label).size(11).style(|theme: &Theme| iced::widget::text::Style {
                 // 使用次要颜色的 75% 透明度，使时间文本不那么突出
@@ -235,8 +278,14 @@ pub fn queue_panel(
             });
 
         // 队列不包含当前执行中的请求，仅高亮队首项表示“下一条”
-        let status_icon = if is_next { Icon::ChevronUp } else { Icon::Circle };
-        let status_color = if is_next {
+        let status_icon = if is_guide {
+            Icon::ChatTextFill
+        } else if is_next {
+            Icon::ChevronUp
+        } else {
+            Icon::Circle
+        };
+        let status_color = if is_guide || is_next {
             // 队首项使用蓝色，表示当前请求结束后会优先发送
             Color::from_rgba8(32, 118, 255, 1.0)
         } else {
@@ -251,8 +300,45 @@ pub fn queue_panel(
         // 构建标题文本，格式为 "序号. 查询内容"
         let title = text(format!("{}. {}", i + 1, label)).size(12);
 
-        // 构建行布局：状态图标 + 标题（填充剩余宽度）+ 时间
-        let row = row![status, container(title).width(Length::Fill), time_text]
+        let info = column![title, time_text].spacing(1).width(Length::Fill);
+        let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());
+        let guide_button = queue_action_button(
+            Icon::ChatTextFill,
+            "立即引导",
+            Some(message::ChatMessage::QueueGuide(i)),
+        );
+        let edit_button = queue_action_button(
+            Icon::Pencil,
+            "再次编辑文字",
+            Some(message::ChatMessage::QueueEdit(i)),
+        );
+        let move_up_button = queue_action_button(
+            Icon::ArrowUp,
+            "上移",
+            can_move_up.then_some(message::ChatMessage::QueueUp(i)),
+        );
+        let move_down_button = queue_action_button(
+            Icon::ArrowDown,
+            "下移",
+            can_move_down.then_some(message::ChatMessage::QueueDown(i)),
+        );
+        let remove_button = queue_action_button(
+            Icon::Trash,
+            "删除",
+            Some(message::ChatMessage::QueueRemove(i)),
+        );
+        let actions = row![
+            guide_button,
+            edit_button,
+            move_up_button,
+            move_down_button,
+            remove_button
+        ]
+        .spacing(3)
+        .align_y(Alignment::Center);
+
+        // 构建行布局：状态图标 + 标题和时间（填充剩余宽度）+ 图标操作
+        let row = row![status, info, actions]
             .spacing(8)
             .align_y(Alignment::Center);
 

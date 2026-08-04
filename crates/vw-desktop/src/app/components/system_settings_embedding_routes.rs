@@ -146,6 +146,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     "custom:Volcengine Ark / doubao-embedding-vision-250615",
                     EmbeddingRoutesMessage::InsertDoubaoTemplate,
                 ),
+                template_button(
+                    "识矩",
+                    "custom:router.shiju.cloud/v1 / text-embedding-v4 / 1024",
+                    EmbeddingRoutesMessage::InsertShijuTemplate,
+                ),
             ]
             .spacing(8)
             .align_y(Alignment::Center),

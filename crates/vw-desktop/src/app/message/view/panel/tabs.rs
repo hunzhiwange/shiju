@@ -23,7 +23,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.preview_tab_menu_pos = None;
             app.switch_project_terminal(previous_project_path, None);
             app.project_id = None;
-            app.reload_sessions_for_project(None)
+            Task::batch(vec![
+                crate::app::message::terminal::reap_retired_task(app),
+                app.reload_sessions_for_project(None),
+            ])
         }
         ViewMessage::HomeAppsBarScrollChanged(x) => {
             app.home_apps_bar_scroll_x = x;
@@ -80,6 +83,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.preview_tab_menu_pos = None;
             }
             app.switch_project_terminal(previous_project_path.clone(), app.project_path.clone());
+            let reap_task = crate::app::message::terminal::reap_retired_task(app);
             if previous_project_path != app.project_path {
                 if let Some(path) = app.project_path.clone() {
                     let reload_task = app.reload_sessions_for_project(app.project_path.clone());
@@ -87,7 +91,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         crate::app::message::GitMessage::RefreshGitPanelData,
                     ));
                     if app.has_file_index(&path) {
-                        let mut tasks = vec![reload_task, git_task];
+                        let mut tasks = vec![reap_task, reload_task, git_task];
                         let needs_refresh =
                             app.file_index_cache.get(&path).is_some_and(|files| files.is_empty());
                         if needs_refresh {
@@ -108,18 +112,27 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                             },
                             |result| Message::Project(ProjectMessage::FileIndexLoaded(result)),
                         );
-                        return Task::batch(vec![reload_task, index_task, git_task]);
+                        return Task::batch(vec![reap_task, reload_task, index_task, git_task]);
                     }
                 }
-                return app.reload_sessions_for_project(app.project_path.clone());
+                return Task::batch(vec![
+                    reap_task,
+                    app.reload_sessions_for_project(app.project_path.clone()),
+                ]);
             }
             if id == crate::apps::workflow::WORKFLOW_TOOL_TAB_ID {
-                return crate::apps::workflow::ensure_initialized(app);
+                return Task::batch(vec![
+                    reap_task,
+                    crate::apps::workflow::ensure_initialized(app),
+                ]);
             }
             if id == "knowledge" {
-                return crate::app::message::knowledge_tool::ensure_loaded(app);
+                return Task::batch(vec![
+                    reap_task,
+                    crate::app::message::knowledge_tool::ensure_loaded(app),
+                ]);
             }
-            Task::none()
+            reap_task
         }
         ViewMessage::TabClosed(id) => {
             let previous_project_path = app.project_path.as_deref().map(str::to_owned);
@@ -175,11 +188,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
             }
             app.switch_project_terminal(previous_project_path.clone(), app.project_path.clone());
+            tasks.push(crate::app::message::terminal::reap_retired_task(app));
             if previous_project_path != app.project_path {
                 app.reset_task_board_project_state();
                 tasks.push(app.reload_sessions_for_project(app.project_path.clone()));
             }
-            if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }
+            Task::batch(tasks)
         }
         ViewMessage::TabHovered(id) => {
             app.hovered_tab_id = id;

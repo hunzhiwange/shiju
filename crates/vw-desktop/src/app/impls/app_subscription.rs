@@ -46,8 +46,14 @@ fn map_global_event(
         iced::Event::Window(iced::window::Event::Closed) => {
             Some(Message::View(message::ViewMessage::WindowClosed(id)))
         }
+        iced::Event::Window(iced::window::Event::Focused) => {
+            Some(Message::View(message::ViewMessage::WindowFocused(id)))
+        }
         iced::Event::Window(iced::window::Event::Unfocused) => {
-            Some(Message::Preview(message::PreviewMessage::WindowUnfocused))
+            Some(Message::Batch(vec![
+                Message::View(message::ViewMessage::WindowUnfocused(id)),
+                Message::Preview(message::PreviewMessage::WindowUnfocused),
+            ]))
         }
         iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) => {
             if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape)) {
@@ -68,6 +74,24 @@ fn map_global_event(
                 #[cfg(not(target_arch = "wasm32"))]
                 messages.push(Message::Preview(message::PreviewMessage::LspCompletionClosed));
                 return Some(Message::Batch(messages));
+            }
+
+            if modifiers.command() && modifiers.alt() && !modifiers.shift() {
+                let shortcut = match &key {
+                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
+                        Some(message::ProjectMessage::FileTreeFindCaseSensitiveShortcut)
+                    }
+                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("w") => {
+                        Some(message::ProjectMessage::FileTreeFindWholeWordShortcut)
+                    }
+                    iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("x") => {
+                        Some(message::ProjectMessage::FileTreeFindRegexShortcut)
+                    }
+                    _ => None,
+                };
+                if let Some(shortcut) = shortcut {
+                    return Some(Message::Project(shortcut));
+                }
             }
 
             if modifiers.command()
@@ -127,26 +151,20 @@ impl App {
 
         let events = iced::event::listen_with(map_global_event);
 
-        let terminal_subs = if self.terminal.is_visible {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let mut subs: Vec<Subscription<Message>> = Vec::new();
-                for t in &self.terminal.tabs {
-                    subs.push(
-                        t.term
-                            .subscription()
-                            .map(|e| Message::Terminal(message::TerminalMessage::Event(e))),
-                    );
-                }
-                Subscription::batch(subs)
+        #[cfg(not(target_arch = "wasm32"))]
+        let terminal_subs = {
+            let mut subs: Vec<Subscription<Message>> = Vec::new();
+            for t in &self.terminal.tabs {
+                subs.push(
+                    t.term
+                        .subscription()
+                        .map(|e| Message::Terminal(message::TerminalMessage::Event(e))),
+                );
             }
-            #[cfg(target_arch = "wasm32")]
-            {
-                Subscription::none()
-            }
-        } else {
-            Subscription::none()
+            Subscription::batch(subs)
         };
+        #[cfg(target_arch = "wasm32")]
+        let terminal_subs = { Subscription::none() };
 
         let question_poll =
             if self.any_session_requesting() || self.question_modal_request_id.is_some() {
@@ -249,6 +267,20 @@ impl App {
             Subscription::none()
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let work_browser_runtime_tick = if self.screen == Screen::Project
+            && self.workspace_mode == crate::app::state::WorkspaceMode::Work
+            && self.work_resources_visible
+            && self.work_resource_mode == crate::app::state::WorkResourceMode::Browser
+        {
+            iced::time::every(std::time::Duration::from_millis(100))
+                .map(|_| Message::View(message::ViewMessage::WorkBrowserRuntimeTick))
+        } else {
+            Subscription::none()
+        };
+        #[cfg(target_arch = "wasm32")]
+        let work_browser_runtime_tick = Subscription::none();
+
         let gateway_health_tick = iced::time::every(std::time::Duration::from_secs(60))
             .map(|_| Message::GatewayHealthTick);
 
@@ -269,6 +301,7 @@ impl App {
             design_generation_stream_tick,
             provider_models_sync_tick,
             app_update_progress_tick,
+            work_browser_runtime_tick,
             workflow_run,
             gateway_health_tick,
         ])

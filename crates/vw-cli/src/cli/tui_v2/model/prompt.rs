@@ -6,12 +6,21 @@
 //! - 忙碌期间的 queued commands
 //! - 一次提交请求的最小生命周期模型
 
+use crate::cli::tui_v2::editor::{
+    EditorCommand, EditorState, apply_editor_command, grapheme_count,
+};
+use crate::cli::tui_v2::paste::PromptAttachment;
+use crate::cli::tui_v2::vim::VimMode;
+
+use super::session_mode::SessionExecutionSnapshot;
+
 /// 输入框当前所处的模式。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) enum PromptMode {
     #[default]
     Compose,
     SlashCommand,
+    Bash,
     Search,
     QuestionReply,
     TodoEdit,
@@ -29,7 +38,7 @@ pub(crate) struct PromptCursor {
 impl PromptCursor {
     /// 把 cursor 放到给定文本末尾。
     pub(crate) fn at_end(value: &str) -> Self {
-        Self { char_index: value.chars().count(), preferred_column: None }
+        Self { char_index: grapheme_count(value), preferred_column: None }
     }
 }
 
@@ -52,10 +61,13 @@ impl PromptHistoryState {
             self.reset_navigation();
             return;
         }
-
-        if self.entries.last().map(String::as_str) != Some(normalized) {
-            self.entries.push(normalized.to_string());
+        if is_sensitive_history_entry(normalized) {
+            self.reset_navigation();
+            return;
         }
+
+        self.entries.retain(|entry| entry != normalized);
+        self.entries.push(normalized.to_string());
         self.reset_navigation();
     }
 
@@ -93,6 +105,23 @@ impl PromptHistoryState {
     }
 }
 
+fn is_sensitive_history_entry(entry: &str) -> bool {
+    let normalized = entry.to_ascii_lowercase();
+    [
+        "api_key",
+        "api-key",
+        "password",
+        "passwd",
+        "secret=",
+        "token=",
+        "authorization:",
+        "/deny ",
+        "拒绝原因",
+    ]
+    .iter()
+    .any(|marker| normalized.contains(marker))
+}
+
 /// prompt 光标移动方向。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PromptMotion {
@@ -105,18 +134,46 @@ pub(crate) enum PromptMotion {
 }
 
 /// 忙碌期间排队等待重放的命令类型。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) enum QueuedPromptCommandKind {
+    #[default]
     Submit,
     SlashCommand,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub(crate) enum QueuedPromptPriority {
+    Now,
+    NextTool,
+    #[default]
+    EndTurn,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum QueuedPromptSource {
+    #[default]
+    User,
+    Recovered,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum QueueDrainBoundary {
+    Immediate,
+    Tool,
+    Turn,
+}
+
 /// 忙碌期间缓存的一条待执行命令。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct QueuedPromptCommand {
     pub(crate) raw: String,
     pub(crate) kind: QueuedPromptCommandKind,
     pub(crate) enqueued_ms: Option<u64>,
+    pub(crate) priority: QueuedPromptPriority,
+    pub(crate) source: QueuedPromptSource,
+    pub(crate) session_id: Option<String>,
+    pub(crate) attachments: Vec<PromptAttachment>,
+    pub(crate) execution: Box<SessionExecutionSnapshot>,
 }
 
 /// 一次 prompt 提交请求的内部模型。
@@ -130,6 +187,7 @@ pub(crate) struct PromptSubmission {
     pub(crate) text: String,
     pub(crate) root: Option<String>,
     pub(crate) model: Option<String>,
+    pub(crate) execution: Box<SessionExecutionSnapshot>,
     pub(crate) history_len: usize,
     pub(crate) status: PromptSubmissionStatus,
 }
@@ -143,6 +201,7 @@ impl PromptSubmission {
             text: text.into(),
             root: None,
             model: None,
+            execution: Box::new(SessionExecutionSnapshot::default()),
             history_len: 0,
             status: PromptSubmissionStatus::Pending,
         }
@@ -210,6 +269,13 @@ pub(crate) struct PromptState {
     pub(crate) mode: PromptMode,
     pub(crate) active_submission: Option<PromptSubmission>,
     pub(crate) last_submission: Option<PromptSubmission>,
+    pub(crate) editor: EditorState,
+    pub(crate) completion_hidden: bool,
+    pub(crate) attachments: Vec<PromptAttachment>,
+    pub(crate) focused_attachment: Option<usize>,
+    pub(crate) next_attachment_id: usize,
+    pub(crate) vim_mode: VimMode,
+    pub(crate) stashed_draft: Option<String>,
 }
 
 impl PromptState {
@@ -223,6 +289,8 @@ impl PromptState {
     pub(crate) fn set_value(&mut self, value: impl Into<String>) {
         self.value = value.into();
         self.cursor = PromptCursor::at_end(&self.value);
+        self.editor = EditorState::default();
+        self.completion_hidden = false;
         self.selected_suggestion_index = None;
         self.history.reset_navigation();
         self.refresh_mode_from_value();
@@ -230,41 +298,25 @@ impl PromptState {
 
     pub(crate) fn insert_text(&mut self, text: &str) {
         self.selected_suggestion_index = None;
+        self.completion_hidden = false;
         self.history.reset_navigation();
-        let byte_index = byte_index_for_char_index(&self.value, self.cursor.char_index);
-        self.value.insert_str(byte_index, text);
-        self.cursor.char_index = self.cursor.char_index.saturating_add(text.chars().count());
-        self.cursor.preferred_column = None;
+        apply_editor_command(self, EditorCommand::Insert(text.to_string()));
         self.refresh_mode_from_value();
     }
 
     pub(crate) fn backspace(&mut self) {
-        if self.cursor.char_index == 0 {
-            return;
-        }
-
         self.selected_suggestion_index = None;
+        self.completion_hidden = false;
         self.history.reset_navigation();
-        let end = byte_index_for_char_index(&self.value, self.cursor.char_index);
-        let start =
-            byte_index_for_char_index(&self.value, self.cursor.char_index.saturating_sub(1));
-        self.value.replace_range(start..end, "");
-        self.cursor.char_index = self.cursor.char_index.saturating_sub(1);
-        self.cursor.preferred_column = None;
+        apply_editor_command(self, EditorCommand::Backspace);
         self.refresh_mode_from_value();
     }
 
     pub(crate) fn delete(&mut self) {
-        let start = byte_index_for_char_index(&self.value, self.cursor.char_index);
-        let end = byte_index_for_char_index(&self.value, self.cursor.char_index.saturating_add(1));
-        if start == end {
-            return;
-        }
-
         self.selected_suggestion_index = None;
+        self.completion_hidden = false;
         self.history.reset_navigation();
-        self.value.replace_range(start..end, "");
-        self.cursor.preferred_column = None;
+        apply_editor_command(self, EditorCommand::Delete);
         self.refresh_mode_from_value();
     }
 
@@ -274,51 +326,12 @@ impl PromptState {
     }
 
     pub(crate) fn move_cursor(&mut self, motion: PromptMotion) -> bool {
-        let next_index = match motion {
-            PromptMotion::Left => {
-                self.cursor.preferred_column = None;
-                self.cursor.char_index.saturating_sub(1)
-            }
-            PromptMotion::Right => {
-                self.cursor.preferred_column = None;
-                self.cursor.char_index.saturating_add(1).min(self.value.chars().count())
-            }
-            PromptMotion::Home => {
-                self.cursor.preferred_column = None;
-                line_start_char_index(&self.value, self.cursor.char_index)
-            }
-            PromptMotion::End => {
-                self.cursor.preferred_column = None;
-                line_end_char_index(&self.value, self.cursor.char_index)
-            }
-            PromptMotion::Up => return self.move_cursor_vertical(-1),
-            PromptMotion::Down => return self.move_cursor_vertical(1),
-        };
-
-        if next_index == self.cursor.char_index {
-            return false;
-        }
-
-        self.cursor.char_index = next_index;
-        true
+        apply_editor_command(self, EditorCommand::Move { motion, select: false })
     }
 
     pub(crate) fn can_move_cursor(&self, motion: PromptMotion) -> bool {
-        match motion {
-            PromptMotion::Left => self.cursor.char_index > 0,
-            PromptMotion::Right => self.cursor.char_index < self.value.chars().count(),
-            PromptMotion::Home => {
-                self.cursor.char_index > line_start_char_index(&self.value, self.cursor.char_index)
-            }
-            PromptMotion::End => {
-                self.cursor.char_index < line_end_char_index(&self.value, self.cursor.char_index)
-            }
-            PromptMotion::Up => current_line_index(&self.value, self.cursor.char_index) > 0,
-            PromptMotion::Down => {
-                current_line_index(&self.value, self.cursor.char_index) + 1
-                    < line_count(&self.value)
-            }
-        }
+        let mut clone = self.clone();
+        apply_editor_command(&mut clone, EditorCommand::Move { motion, select: false })
     }
 
     pub(crate) fn select_previous_history(&mut self) -> bool {
@@ -367,12 +380,65 @@ impl PromptState {
 
     /// 将一条命令放入 busy 队列。
     pub(crate) fn queue_command(&mut self, command: QueuedPromptCommand) {
-        self.queued_commands.push(command);
+        let insert_at = self
+            .queued_commands
+            .iter()
+            .position(|queued| queued.priority > command.priority)
+            .unwrap_or(self.queued_commands.len());
+        self.queued_commands.insert(insert_at, command);
     }
 
     /// 取出下一条待执行命令。
     pub(crate) fn pop_queued_command(&mut self) -> Option<QueuedPromptCommand> {
         if self.queued_commands.is_empty() { None } else { Some(self.queued_commands.remove(0)) }
+    }
+
+    pub(crate) fn drain_queued_for(
+        &mut self,
+        boundary: QueueDrainBoundary,
+        session_id: Option<&str>,
+    ) -> Option<QueuedPromptCommand> {
+        let max_priority = match boundary {
+            QueueDrainBoundary::Immediate => QueuedPromptPriority::Now,
+            QueueDrainBoundary::Tool => QueuedPromptPriority::NextTool,
+            QueueDrainBoundary::Turn => QueuedPromptPriority::EndTurn,
+        };
+        let index = self.queued_commands.iter().position(|command| {
+            command.priority <= max_priority
+                && command.session_id.as_deref() == session_id
+        })?;
+        Some(self.queued_commands.remove(index))
+    }
+
+    pub(crate) fn reclaim_latest_queued(
+        &mut self,
+        session_id: Option<&str>,
+    ) -> Option<QueuedPromptCommand> {
+        let index = self
+            .queued_commands
+            .iter()
+            .rposition(|command| command.session_id.as_deref() == session_id)?;
+        self.queued_commands.remove(index).into()
+    }
+
+    pub(crate) fn stash_draft(&mut self) -> bool {
+        if self.stashed_draft.is_some() || self.value.is_empty() {
+            return false;
+        }
+        self.stashed_draft = Some(std::mem::take(&mut self.value));
+        self.cursor = PromptCursor::default();
+        true
+    }
+
+    pub(crate) fn restore_stashed_draft(&mut self) -> bool {
+        if !self.value.is_empty() {
+            return false;
+        }
+        let Some(draft) = self.stashed_draft.take() else {
+            return false;
+        };
+        self.set_value(draft);
+        true
     }
 
     /// 当前 prompt 是否处于 busy 状态。
@@ -383,35 +449,17 @@ impl PromptState {
     fn replace_value_from_history(&mut self, value: String) {
         self.value = value;
         self.cursor = PromptCursor::at_end(&self.value);
+        self.editor = EditorState::default();
         self.selected_suggestion_index = None;
         self.refresh_mode_from_value();
     }
 
-    fn move_cursor_vertical(&mut self, delta: isize) -> bool {
-        let (line_index, column) = cursor_line_column(&self.value, self.cursor.char_index);
-        let preferred_column = self.cursor.preferred_column.unwrap_or(column);
-        let target_line = if delta.is_negative() {
-            line_index.saturating_sub(delta.unsigned_abs())
-        } else {
-            line_index
-                .saturating_add(delta.cast_unsigned())
-                .min(line_count(&self.value).saturating_sub(1))
-        };
-
-        if target_line == line_index {
-            return false;
-        }
-
-        self.cursor.char_index =
-            char_index_for_line_column(&self.value, target_line, preferred_column);
-        self.cursor.preferred_column = Some(preferred_column);
-        true
-    }
-
     fn refresh_mode_from_value(&mut self) {
         match self.mode {
-            PromptMode::Compose | PromptMode::SlashCommand => {
-                self.mode = if self.value.trim_start().starts_with('/') {
+            PromptMode::Compose | PromptMode::SlashCommand | PromptMode::Bash => {
+                self.mode = if self.value.starts_with('!') {
+                    PromptMode::Bash
+                } else if self.value.trim_start().starts_with('/') {
                     PromptMode::SlashCommand
                 } else {
                     PromptMode::Compose
@@ -424,90 +472,4 @@ impl PromptState {
             | PromptMode::CommandPalette => {}
         }
     }
-}
-
-fn byte_index_for_char_index(value: &str, char_index: usize) -> usize {
-    value.char_indices().nth(char_index).map(|(index, _)| index).unwrap_or_else(|| value.len())
-}
-
-fn line_count(value: &str) -> usize {
-    value.chars().filter(|ch| *ch == '\n').count().saturating_add(1)
-}
-
-fn current_line_index(value: &str, char_index: usize) -> usize {
-    let mut current_line: usize = 0;
-    for (index, ch) in value.chars().enumerate() {
-        if index >= char_index {
-            break;
-        }
-        if ch == '\n' {
-            current_line = current_line.saturating_add(1);
-        }
-    }
-    current_line
-}
-
-fn cursor_line_column(value: &str, char_index: usize) -> (usize, usize) {
-    let mut current_line: usize = 0;
-    let mut current_column: usize = 0;
-
-    for (index, ch) in value.chars().enumerate() {
-        if index >= char_index {
-            break;
-        }
-
-        if ch == '\n' {
-            current_line = current_line.saturating_add(1);
-            current_column = 0;
-        } else {
-            current_column = current_column.saturating_add(1);
-        }
-    }
-
-    (current_line, current_column)
-}
-
-fn line_start_char_index(value: &str, char_index: usize) -> usize {
-    let mut start = 0;
-    for (index, ch) in value.chars().enumerate() {
-        if index >= char_index {
-            break;
-        }
-        if ch == '\n' {
-            start = index.saturating_add(1);
-        }
-    }
-    start
-}
-
-fn line_end_char_index(value: &str, char_index: usize) -> usize {
-    for (index, ch) in value.chars().enumerate().skip(char_index) {
-        if ch == '\n' {
-            return index;
-        }
-    }
-    value.chars().count()
-}
-
-fn char_index_for_line_column(value: &str, target_line: usize, target_column: usize) -> usize {
-    let mut current_line = 0;
-    let mut current_column = 0;
-
-    for (index, ch) in value.chars().enumerate() {
-        if current_line == target_line && current_column == target_column {
-            return index;
-        }
-
-        if ch == '\n' {
-            if current_line == target_line {
-                return index;
-            }
-            current_line = current_line.saturating_add(1);
-            current_column = 0;
-        } else if current_line == target_line {
-            current_column = current_column.saturating_add(1);
-        }
-    }
-
-    value.chars().count()
 }

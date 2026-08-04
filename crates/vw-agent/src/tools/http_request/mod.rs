@@ -68,7 +68,7 @@ impl HttpRequestTool {
             allowed_domains: normalize_allowed_domains(allowed_domains),
             max_response_size,
             timeout_secs,
-            user_agent,
+            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
         }
     }
 
@@ -228,7 +228,9 @@ impl HttpRequestTool {
             .connect_timeout(Duration::from_secs(10));
 
         // 设置 User-Agent
-        let builder = builder.user_agent(self.user_agent.as_str());
+        let builder = builder
+            .user_agent(self.user_agent.as_str())
+            .default_headers(super::http_headers::default_headers());
 
         // 在非 WASM 目标上禁用自动重定向（安全考虑）
         #[cfg(not(target_arch = "wasm32"))]

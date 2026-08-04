@@ -667,18 +667,32 @@ async fn knowledge_document_import_async_enqueues_and_worker_completes() {
     assert_eq!(queued.mime_type.as_deref(), Some("text/markdown"));
     assert_eq!(queued.source_bytes, content.len() as u64);
 
-    let mut completed = None;
-    for _ in 0..50 {
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    let mut last_job = None;
+    while tokio::time::Instant::now() < deadline {
         let Json(job) = knowledge_index_job_get(tenant_extension(), Path(queued.job.id.clone()))
             .await
             .expect("job query should succeed");
         if job.status == KnowledgeIndexJobStatus::Completed {
-            completed = Some(job);
+            last_job = Some(job);
             break;
         }
+        assert_ne!(
+            job.status,
+            KnowledgeIndexJobStatus::Failed,
+            "background worker failed queued import: {}",
+            job.error_message
+        );
+        last_job = Some(job);
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
-    let job = completed.expect("background worker should complete queued import");
+    let job = last_job.expect("background worker should report queued import status");
+    assert_eq!(
+        job.status,
+        KnowledgeIndexJobStatus::Completed,
+        "background worker should complete queued import, last status was {:?}",
+        job.status
+    );
     assert_eq!(job.document_id, queued.document.id);
     assert!(job.started_at_ms.is_some());
     assert!(job.finished_at_ms.is_some());

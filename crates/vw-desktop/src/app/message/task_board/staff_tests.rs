@@ -2166,6 +2166,15 @@ fn staff_feed_tab_and_task_status_filter_update_independent_staff_view_state() {
     );
     assert_eq!(app.task_board_staff_task_status_filter, vec![TaskStatus::Pool]);
 
+    let _task = super::update(
+        &mut app,
+        super::TaskBoardMessage::SelectStaffTaskStatusTab(TaskStatus::CodeReview),
+    );
+    assert_eq!(
+        app.task_board_staff_task_status_filter,
+        vec![TaskStatus::CodeReview]
+    );
+
     let _task = super::update(&mut app, super::TaskBoardMessage::SelectAllStaffTaskStatuses);
     assert!(app.task_board_staff_task_status_filter.is_empty());
 }

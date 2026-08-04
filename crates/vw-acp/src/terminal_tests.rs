@@ -146,7 +146,7 @@ fn to_command_line_omits_empty_arguments() {
 
 #[test]
 fn terminal_cwd_uses_default_when_request_has_no_cwd() {
-    let default_cwd = PathBuf::from("/tmp/vw-acp-terminal-default");
+    let default_cwd = std::env::temp_dir().join("vw-acp-terminal-default");
     let record = Map::new();
 
     let cwd = terminal_cwd(&record, &default_cwd).expect("default cwd should be accepted");
@@ -159,27 +159,31 @@ fn terminal_cwd_rejects_relative_request_cwd() {
     let mut record = Map::new();
     record.insert("cwd".to_string(), json!("relative"));
 
-    let err = terminal_cwd(&record, Path::new("/tmp")).expect_err("relative cwd should fail");
+    let temp = std::env::temp_dir();
+    let err = terminal_cwd(&record, &temp).expect_err("relative cwd should fail");
 
     assert!(err.to_string().contains("cwd must be absolute"));
 }
 
 #[test]
 fn normalize_absolute_path_removes_dot_and_parent_components() {
+    let base = std::env::temp_dir().join("vw-acp");
     assert_eq!(
-        normalize_absolute_path(Path::new("/tmp/vw-acp/./child/../root")),
-        PathBuf::from("/tmp/vw-acp/root")
+        normalize_absolute_path(&base.join(".").join("child").join("..").join("root")),
+        base.join("root")
     );
     assert_eq!(normalize_absolute_path(Path::new("./child")), PathBuf::from("child"));
 }
 
 #[test]
 fn is_within_root_accepts_root_and_descendant_only() {
-    let root = Path::new("/tmp/vw-acp-root");
+    let root = std::env::temp_dir().join("vw-acp-root");
+    let child = root.join("child");
+    let sibling = std::env::temp_dir().join("vw-acp-root-sibling");
 
-    assert!(is_within_root(root, Path::new("/tmp/vw-acp-root")));
-    assert!(is_within_root(root, Path::new("/tmp/vw-acp-root/child")));
-    assert!(!is_within_root(root, Path::new("/tmp/vw-acp-root-sibling")));
+    assert!(is_within_root(&root, &root));
+    assert!(is_within_root(&root, &child));
+    assert!(!is_within_root(&root, &sibling));
 }
 
 #[test]

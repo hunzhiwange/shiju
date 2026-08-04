@@ -98,8 +98,8 @@ fn postgres_fixture_cleanup_refuses_non_test_schema() {
 fn postgres_pool_settings_default_to_bounded_non_debug_profile() {
     let settings = PostgresPoolSettings::default();
 
-    assert_eq!(settings.max_size, 10);
-    assert_eq!(settings.max_lifetime, Some(Duration::from_secs(30 * 60)));
+    assert_eq!(settings.max_size, LOCAL_MAX_OPEN_CONNECTIONS);
+    assert_eq!(settings.max_lifetime, Some(LOCAL_MAX_LIFETIME));
     assert!(!settings.debug_logging);
 }
 

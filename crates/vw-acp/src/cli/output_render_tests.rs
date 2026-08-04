@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::io::{self, Write};
-use std::path::MAIN_SEPARATOR;
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 use serde_json::{Value, json};
 use vw_api_types::tools::{RenderHintDto, ToolResultDto};
@@ -122,6 +122,17 @@ fn sample_record() -> SessionRecord {
 
 fn rendered_output(output: Vec<u8>) -> String {
     String::from_utf8(output).unwrap()
+}
+
+fn expected_display_path(value: &str) -> String {
+    let path = Path::new(value);
+    let resolved = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join(path)
+    };
+
+    resolved.display().to_string()
 }
 
 struct FailingWriter;
@@ -579,13 +590,17 @@ fn write_session_history_by_format_handles_zero_limit() {
 #[test]
 fn format_prompt_session_banner_line_renders_status_and_routing() {
     let record = sample_record();
+    let project_path = expected_display_path("/tmp/project");
 
     let same = format_prompt_session_banner_line(
         &record,
         "/tmp/project",
         SessionConnectionStatus::Connected,
     );
-    assert_eq!(same, "[vwacp] session workspace (record-1) · /tmp/project · agent connected");
+    assert_eq!(
+        same,
+        format!("[vwacp] session workspace (record-1) · {project_path} · agent connected")
+    );
 
     let nested = format_prompt_session_banner_line(
         &record,
@@ -595,7 +610,7 @@ fn format_prompt_session_banner_line_renders_status_and_routing() {
     assert_eq!(
         nested,
         format!(
-            "[vwacp] session workspace (record-1) · /tmp/project (routed from .{MAIN_SEPARATOR}src) · agent needs reconnect"
+            "[vwacp] session workspace (record-1) · {project_path} (routed from .{MAIN_SEPARATOR}src) · agent needs reconnect"
         )
     );
 
@@ -609,7 +624,7 @@ fn format_prompt_session_banner_line_renders_status_and_routing() {
     assert_eq!(
         sibling,
         format!(
-            "[vwacp] session cwd (record-1) · /tmp/project (routed from ..{MAIN_SEPARATOR}other) · agent connected"
+            "[vwacp] session cwd (record-1) · {project_path} (routed from ..{MAIN_SEPARATOR}other) · agent connected"
         )
     );
 }

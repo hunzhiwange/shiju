@@ -1,6 +1,8 @@
 use super::PreviewMessage;
+use crate::app::message::ViewMessage;
 use crate::app::{
     App, AppTab, FocusArea, Message, PreviewAutoSaveMode, PreviewTab, Screen, set_config_field,
+    state::{WorkResourceMode, WorkspaceMode},
 };
 use iced::Task;
 use iced::{Font, widget};
@@ -162,6 +164,18 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
         PreviewMessage::Open(path) => {
             let path_clone = path.clone();
+            let reveal_work_resources = matches!(app.screen, Screen::Project)
+                && app.workspace_mode == WorkspaceMode::Work
+                && (!app.work_resources_visible
+                    || app.work_resource_mode != WorkResourceMode::WorkspaceFiles
+                    || app.work_chat_fullscreen
+                    || app.work_chat_half_fullscreen);
+            if reveal_work_resources {
+                app.work_resources_visible = true;
+                app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
+                app.work_chat_fullscreen = false;
+                app.work_chat_half_fullscreen = false;
+            }
             if let Some((pending_path, line, col)) = app.pending_preview_goto.clone()
                 && pending_path == path_clone
             {
@@ -191,9 +205,6 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                     app.pending_preview_goto = None;
                     app.preview_trace_navigating = false;
                     let goto_task = goto_with_retry(line, col);
-                    if matches!(app.screen, Screen::Project) {
-                        return goto_task;
-                    }
                     load_task = goto_task;
                 }
             } else {
@@ -244,6 +255,10 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
                 editor.set_ui_language(app.current_language);
                 editor.set_search_replace_enabled(true);
+                editor.configure_preview_context_menu(
+                    app.current_language,
+                    cfg!(not(target_arch = "wasm32")),
+                );
 
                 app.preview_tabs.push(PreviewTab {
                     path: path_clone.clone(),
@@ -286,7 +301,16 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 }
             }
             if matches!(app.screen, Screen::Project) {
-                return load_task;
+                return if reveal_work_resources {
+                    Task::batch(vec![
+                        load_task,
+                        Task::done(Message::View(ViewMessage::WorkResourceModeSelected(
+                            WorkResourceMode::WorkspaceFiles,
+                        ))),
+                    ])
+                } else {
+                    load_task
+                };
             }
             // Add a top-level Preview tab for this file and select it
             let title = std::path::Path::new(&path_clone)
@@ -331,6 +355,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_line_height(line_height.clamp(10.0, 60.0));
                 editor.set_ui_language(language);
                 editor.set_search_replace_enabled(true);
+                editor.configure_preview_context_menu(language, cfg!(not(target_arch = "wasm32")));
                 tab.editor = editor;
                 #[cfg(not(target_arch = "wasm32"))]
                 {
@@ -414,8 +439,14 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         PreviewMessage::SaveFileFinished { path, content, notify, result } => match result {
             Ok(()) => {
                 if let Some(tab) = app.preview_tabs.iter_mut().find(|tab| tab.path == path) {
+                    let editor_matches_saved_content = tab.editor.content() == content;
                     tab.content = content;
-                    tab.is_dirty = false;
+                    if editor_matches_saved_content {
+                        tab.editor.inner.mark_saved();
+                        tab.is_dirty = false;
+                    } else {
+                        tab.is_dirty = true;
+                    }
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         tab.editor.lsp_did_save();

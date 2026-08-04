@@ -725,26 +725,7 @@ fn resolve_directory_or_agent_root(
 }
 
 fn resolve_agent_workspace_root(agent_key: Option<&str>) -> Option<String> {
-    let normalized_agent_key = agent_key.unwrap_or("main").trim();
-    let suffix = if normalized_agent_key.is_empty() || normalized_agent_key == "main" {
-        String::new()
-    } else {
-        format!("-{normalized_agent_key}")
-    };
-
-    if let Ok(workspace) = std::env::var("VIBEWINDOW_WORKSPACE") {
-        let workspace = workspace.trim();
-        if !workspace.is_empty() {
-            return Some(format!("{workspace}{suffix}"));
-        }
-    }
-
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .map(|home| {
-            vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}"))
-        })
+    crate::app::agent::session::instruction::agent_workspace_root(agent_key)
         .map(|path| path.to_string_lossy().into_owned())
 }
 

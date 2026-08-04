@@ -34,6 +34,10 @@ fn write_clean_skill(dir: &Path, title: &str) {
     std::fs::write(dir.join("SKILL.md"), format!("# {title}\n\nSafe instructions.")).unwrap();
 }
 
+fn default_security() -> SkillSecurityConfig {
+    SkillSecurityConfig::default()
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn run_git(repo: &Path, args: &[&str]) {
     let output = git_std_command().args(args).current_dir(repo).output().expect("run git");
@@ -219,11 +223,14 @@ fn local_install_copies_clean_skill_and_rejects_existing_destination() {
     write_clean_skill(&source, "Source");
 
     let (dest, scanned) =
-        install_local_skill_source(source.to_str().unwrap(), &skills_path).unwrap();
+        install_local_skill_source(source.to_str().unwrap(), &skills_path, &default_security())
+            .unwrap();
     assert!(dest.join("SKILL.md").is_file());
     assert!(scanned >= 2);
 
-    let err = install_local_skill_source(source.to_str().unwrap(), &skills_path).unwrap_err();
+    let err =
+        install_local_skill_source(source.to_str().unwrap(), &skills_path, &default_security())
+            .unwrap_err();
     assert!(err.to_string().contains("Destination skill already exists"));
 }
 
@@ -234,7 +241,8 @@ fn local_install_rejects_missing_file_source_and_bad_destination_copy() {
     let skills_path = dir.path().join("skills");
     std::fs::create_dir_all(&skills_path).unwrap();
 
-    let missing = install_local_skill_source("does-not-exist", &skills_path).unwrap_err();
+    let missing =
+        install_local_skill_source("does-not-exist", &skills_path, &default_security()).unwrap_err();
     assert!(missing.to_string().contains("Source path does not exist"));
 
     let source_file = dir.path().join("not-a-directory");
@@ -265,7 +273,11 @@ fn local_install_rejects_failed_security_audit_without_creating_destination() {
     std::fs::create_dir_all(&skills_path).unwrap();
     std::fs::write(source.join("README.md"), "missing required skill manifest").unwrap();
 
-    let err = install_local_skill_source(source.to_str().unwrap(), &skills_path).unwrap_err();
+    let require_manifest =
+        SkillSecurityConfig { require_manifest: true, ..Default::default() };
+    let err =
+        install_local_skill_source(source.to_str().unwrap(), &skills_path, &require_manifest)
+            .unwrap_err();
 
     assert!(err.to_string().contains("Skill security audit failed"));
     assert!(!skills_path.join("unsafe-skill").exists());
@@ -364,7 +376,8 @@ fn git_install_clones_local_repo_removes_metadata_and_audits() {
     run_git(&repo, &["commit", "-m", "init"]);
 
     let (installed, scanned) =
-        install_git_skill_source(repo.to_str().unwrap(), &skills_path).unwrap();
+        install_git_skill_source(repo.to_str().unwrap(), &skills_path, &default_security())
+            .unwrap();
 
     assert_eq!(installed.file_name().and_then(|name| name.to_str()), Some("repo-skill"));
     assert!(installed.join("SKILL.md").is_file());
@@ -377,7 +390,12 @@ fn git_install_clones_local_repo_removes_metadata_and_audits() {
 fn skills_sh_install_rejects_malformed_source_before_checkout() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let err = install_skills_sh_source("https://skills.sh/owner/repo", dir.path()).unwrap_err();
+    let err = install_skills_sh_source(
+        "https://skills.sh/owner/repo",
+        dir.path(),
+        &default_security(),
+    )
+    .unwrap_err();
 
     assert!(err.to_string().contains("invalid skills.sh source"));
     assert!(dir.path().read_dir().unwrap().next().is_none());
@@ -415,7 +433,7 @@ fn handle_command_covers_list_audit_and_remove_paths() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn handle_command_audit_rejects_installed_skill_without_manifest() {
+fn handle_command_audit_uses_default_disabled_security_policy() {
     let dir = tempfile::tempdir().expect("temp dir");
     let config =
         SkillRuntimeConfig { workspace_dir: dir.path().to_path_buf(), skills: Default::default() };
@@ -424,10 +442,7 @@ fn handle_command_audit_rejects_installed_skill_without_manifest() {
     std::fs::create_dir_all(&unsafe_skill).unwrap();
     std::fs::write(unsafe_skill.join("README.md"), "missing manifest").unwrap();
 
-    let err =
-        handle_command(SkillCommands::Audit { source: name.to_string() }, &config).unwrap_err();
-
-    assert_eq!(err.to_string(), "Skill audit failed.");
+    handle_command(SkillCommands::Audit { source: name.to_string() }, &config).unwrap();
     assert!(unsafe_skill.exists());
 }
 

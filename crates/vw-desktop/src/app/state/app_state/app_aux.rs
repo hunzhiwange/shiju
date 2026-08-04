@@ -28,6 +28,20 @@ pub struct Toast {
     pub message: String,
 }
 
+#[derive(Debug)]
+pub(crate) struct WorkBrowserState {
+    pub(crate) address: String,
+    pub(crate) error: Option<String>,
+    pub(crate) window_focused: bool,
+    pub(crate) closed: bool,
+}
+
+impl Default for WorkBrowserState {
+    fn default() -> Self {
+        Self { address: String::new(), error: None, window_focused: true, closed: true }
+    }
+}
+
 /// 最近项目元数据
 ///
 /// 存储最近打开项目的元信息，

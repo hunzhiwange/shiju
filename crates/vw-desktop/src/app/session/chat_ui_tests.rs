@@ -12,12 +12,16 @@ fn chat_virtualizer_state_initializes_from_chat() {
         super::ChatMessage {
             role: super::ChatRole::User,
             content: "hello".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         super::ChatMessage {
             role: super::ChatRole::Assistant,
             content: "hi there".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 
@@ -35,12 +39,16 @@ fn chat_virtualizer_state_resyncs_after_prepared_chunk() {
         super::ChatMessage {
             role: super::ChatRole::User,
             content: "one".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         super::ChatMessage {
             role: super::ChatRole::Assistant,
             content: "two".repeat(120),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
     app.sync_chat_message_estimated_heights_len();
@@ -78,7 +86,9 @@ fn stale_prepared_chunk_clears_preparing_state() {
     app.chat = vec![super::ChatMessage {
         role: super::ChatRole::Assistant,
         content: "draft".to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
     let phase = super::prepare_chat_ui_chunk_phase(&app.chat, 0, false, false);
     app.mark_chat_ui_chunks_preparing(&[0]);
@@ -93,7 +103,7 @@ fn stale_prepared_chunk_clears_preparing_state() {
 }
 
 fn message(role: super::ChatRole, content: &str) -> super::ChatMessage {
-    super::ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    super::ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
 }
 
 #[test]

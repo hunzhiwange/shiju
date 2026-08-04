@@ -1,0 +1,26 @@
+{
+  "id": "shanhai-nexus",
+  "name": "山海灵境 Shanhai Nexus",
+  "tagline": "在云海与星图之间，写下下一段传奇。",
+  "palette": {
+    "background": "#07131a",
+    "text": "#e9e0c9",
+    "primary": "#2cb7a4",
+    "success": "#8fe8e0",
+    "warning": "#c6a15b",
+    "danger": "#d85b48"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp",
+    "chat_header": "chat_header.webp"
+  },
+  "appearance": {
+    "panel_bg": "#0b1c22",
+    "input_bg": "#091820",
+    "button_bg": "#2cb7a4",
+    "button_text": "#f8fafc",
+    "radius_px": 6,
+    "panel_alpha": 184
+  }
+}

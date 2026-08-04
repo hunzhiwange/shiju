@@ -7,6 +7,18 @@ use super::loading::{SharedChatMessages, shared_chat_messages};
 use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
 use serde_json::Value;
 
+fn message_meta_text(model: Option<&str>, time_ms: Option<u64>) -> Option<String> {
+    let model = model?.trim();
+    if model.is_empty() {
+        return None;
+    }
+    let Some(time_ms) = time_ms else {
+        return Some(model.to_string());
+    };
+    let time_label = crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
+    Some(format!("{model} · {time_label}"))
+}
+
 fn build_message_meta_labels(
     chat: &[ChatMessage],
     step_index_map: &HashMap<u32, StepUiMeta>,
@@ -18,23 +30,13 @@ fn build_message_meta_labels(
         let label = match message.role {
             ChatRole::Assistant => {
                 assistant_count += 1;
-                step_index_map.get(&assistant_count).and_then(|step| {
-                    let model_label = step.model.as_deref()?;
-                    let time_ms = step.display_time_ms;
-                    let time_label =
-                        crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
-                    Some(format!("{model_label} · {time_label}"))
-                })
+                let time_ms = step_index_map.get(&assistant_count).map(|step| step.display_time_ms);
+                message_meta_text(message.model.as_deref(), time_ms)
             }
             ChatRole::User => {
                 let step_index = assistant_count + 1;
-                step_index_map.get(&step_index).and_then(|step| {
-                    let model_label = step.model.as_deref()?;
-                    let time_ms = step.started_ms;
-                    let time_label =
-                        crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
-                    Some(format!("{model_label} · {time_label}"))
-                })
+                let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
+                message_meta_text(message.model.as_deref(), time_ms)
             }
             ChatRole::System | ChatRole::Tool => None,
         };
@@ -52,23 +54,13 @@ fn build_message_meta_label(
     match message.role {
         ChatRole::Assistant => {
             *assistant_count += 1;
-            step_index_map.get(assistant_count).and_then(|step| {
-                let model_label = step.model.as_deref()?;
-                let time_ms = step.display_time_ms;
-                let time_label =
-                    crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
-                Some(format!("{model_label} · {time_label}"))
-            })
+            let time_ms = step_index_map.get(assistant_count).map(|step| step.display_time_ms);
+            message_meta_text(message.model.as_deref(), time_ms)
         }
         ChatRole::User => {
             let step_index = *assistant_count + 1;
-            step_index_map.get(&step_index).and_then(|step| {
-                let model_label = step.model.as_deref()?;
-                let time_ms = step.started_ms;
-                let time_label =
-                    crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
-                Some(format!("{model_label} · {time_label}"))
-            })
+            let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
+            message_meta_text(message.model.as_deref(), time_ms)
         }
         ChatRole::System | ChatRole::Tool => None,
     }

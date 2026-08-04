@@ -11,13 +11,13 @@
 use super::*;
 use std::time::Duration;
 
-/// 验证请求体大小限制为 5MB
+/// 验证请求体大小限制为 32MiB
 ///
-/// 此测试确保 `MAX_BODY_SIZE` 常量被设置为 5,242,880 字节（5MB），
-/// 这是防止大请求攻击的重要安全措施。
+/// 此测试确保 `MAX_BODY_SIZE` 常量被设置为 33,554,432 字节（32MiB），
+/// 以覆盖多模态图片与知识库 base64 上传，同时仍限制异常大请求。
 #[test]
-fn security_body_limit_is_5mb() {
-    assert_eq!(MAX_BODY_SIZE, 5_242_880);
+fn security_body_limit_is_32mib() {
+    assert_eq!(MAX_BODY_SIZE, 32 * 1024 * 1024);
 }
 
 /// 验证请求超时时间为 30 秒
@@ -38,6 +38,14 @@ fn workflow_chat_messages_timeout_is_one_hour() {
     );
     assert_eq!(
         request_timeout_for_path("/v1/workflow/applications/demo/chat-messages"),
+        Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    );
+    assert_eq!(
+        request_timeout_for_path("/v1/chat/stream"),
+        Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    );
+    assert_eq!(
+        request_timeout_for_path("/v1/task-plan-run/stream"),
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
     );
     assert_eq!(

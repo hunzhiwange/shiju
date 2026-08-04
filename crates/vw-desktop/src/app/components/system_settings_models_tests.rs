@@ -82,6 +82,41 @@ fn main_view_with_multiple_providers() {
     let mut app = test_app();
     app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
     keep_element(main_view(&app));
+
+    app.model_settings.expanded_provider_ids.insert("openai".to_string());
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_builds_batch_actions_for_mixed_enabled_and_disabled_models() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
+    keep_element(main_view(&app));
+
+    for provider in &mut app.model_settings.providers {
+        for model in &mut provider.models {
+            model.enabled = true;
+        }
+    }
+    keep_element(main_view(&app));
+
+    for provider in &mut app.model_settings.providers {
+        for model in &mut provider.models {
+            model.enabled = false;
+        }
+    }
+    keep_element(main_view(&app));
+}
+
+#[test]
+fn main_view_builds_saving_state_with_expanded_model_togglers() {
+    let mut app = test_app();
+    app.model_settings.providers = vec![provider_summary(), provider_anthropic_summary()];
+    app.model_settings.expanded_provider_ids =
+        ["openai".to_string(), "anthropic".to_string()].into_iter().collect();
+    app.model_settings.saving = true;
+
+    keep_element(main_view(&app));
 }
 
 #[test]
@@ -133,6 +168,10 @@ fn main_view_builds_empty_loading_error_and_filtered_states() {
     app.model_settings.loading = false;
     app.model_settings.providers = vec![provider_summary()];
     keep_element(main_view(&app));
+
+    app.model_settings.saving = true;
+    keep_element(main_view(&app));
+    app.model_settings.saving = false;
 
     app.model_settings.query = "openai".to_string();
     keep_element(main_view(&app));

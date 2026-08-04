@@ -38,6 +38,7 @@ fn lanes_panel_builds_empty_projection_with_load_error() {
         &projection,
         &config,
         Some("invalid staff config"),
+        &[],
         Length::Fixed(280.0),
         Length::Fill,
     );
@@ -58,7 +59,14 @@ fn lanes_panel_builds_stage_list_without_load_error() {
         ..TaskBoardStaffProjection::default()
     };
     let config = TaskBoardStaffConfig::default();
-    let panel = build_lanes_panel(&projection, &config, None, Length::Fixed(320.0), Length::Fill);
+    let panel = build_lanes_panel(
+        &projection,
+        &config,
+        None,
+        &[TaskStatus::Running],
+        Length::Fixed(320.0),
+        Length::Fill,
+    );
 
     assert_eq!(panel.as_widget().size().width, Length::Fixed(320.0));
     keep_element(panel);
@@ -69,7 +77,7 @@ fn lane_item_builds_display_only_lane_without_blocked_chip() {
     let lane = lane(TaskStatus::Archived, None, true, 0, 0);
     let config = TaskBoardStaffConfig::default();
 
-    keep_element(build_lane_item(&lane, &config));
+    keep_element(build_lane_item(&lane, &config, false));
 }
 
 #[test]
@@ -77,7 +85,7 @@ fn lane_item_builds_blocked_role_lane_without_stage_assignment() {
     let lane = lane(TaskStatus::Running, Some(TaskBoardStaffRole::Executor), false, 3, 2);
     let config = TaskBoardStaffConfig::default();
 
-    keep_element(build_lane_item(&lane, &config));
+    keep_element(build_lane_item(&lane, &config, false));
 }
 
 #[test]
@@ -94,7 +102,7 @@ fn lane_item_builds_manual_assignment_with_primary_backup_and_manager_counts() {
         ..TaskBoardStaffConfig::default()
     };
 
-    keep_element(build_lane_item(&lane, &config));
+    keep_element(build_lane_item(&lane, &config, true));
 }
 
 #[test]
@@ -111,5 +119,5 @@ fn lane_item_builds_autonomous_assignment_without_primary_or_managers() {
         ..TaskBoardStaffConfig::default()
     };
 
-    keep_element(build_lane_item(&lane, &config));
+    keep_element(build_lane_item(&lane, &config, false));
 }

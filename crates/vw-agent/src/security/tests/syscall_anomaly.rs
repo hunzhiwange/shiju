@@ -11,6 +11,14 @@ fn detector_with(config: SyscallAnomalyConfig) -> SyscallAnomalyDetector {
     SyscallAnomalyDetector::new(config, tmp.path(), audit)
 }
 
+fn enabled_config() -> SyscallAnomalyConfig {
+    SyscallAnomalyConfig {
+        enabled: true,
+        alert_on_unknown_syscall: true,
+        ..SyscallAnomalyConfig::default()
+    }
+}
+
 // 测试从audit日志中提取数字形式的系统调用号并转换为名称
 #[test]
 fn parse_syscall_signal_extracts_numeric_audit_syscall() {
@@ -62,7 +70,7 @@ fn parse_syscall_signal_extracts_hex_syscall_number() {
 fn detector_alerts_on_unknown_syscall() {
     let config = SyscallAnomalyConfig {
         baseline_syscalls: vec!["read".into(), "write".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     };
     let detector = detector_with(config);
     let alerts = detector.inspect_command_output(
@@ -81,7 +89,7 @@ fn detector_alerts_on_denied_rate_spike() {
         strict_mode: false,
         max_denied_events_per_minute: 1,
         baseline_syscalls: vec!["openat".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     };
     let detector = detector_with(config);
     let alerts = detector.inspect_command_output(
@@ -111,7 +119,7 @@ fn detector_applies_alert_cooldown() {
         max_alerts_per_minute: 100,
         alert_cooldown_secs: 120,
         baseline_syscalls: vec!["openat".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     };
     let detector = detector_with(config);
 
@@ -142,7 +150,7 @@ fn detector_limits_alerts_per_minute() {
         max_alerts_per_minute: 1,
         alert_cooldown_secs: 1,
         baseline_syscalls: vec!["read".into(), "write".into()],
-        ..SyscallAnomalyConfig::default()
+        ..enabled_config()
     };
     let detector = detector_with(config);
     let alerts = detector.inspect_command_output(

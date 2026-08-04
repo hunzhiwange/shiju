@@ -1,0 +1,26 @@
+{
+  "id": "blue-window-messenger",
+  "name": "蓝窗信使 Blue Window",
+  "tagline": "把 2007 年的蓝色信使窗口，变成今天的 Codex 工作台。",
+  "palette": {
+    "background": "#eaf6ff",
+    "text": "#173b61",
+    "primary": "#2876c8",
+    "success": "#73b9ed",
+    "warning": "#f3b735",
+    "danger": "#4e9be0"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp",
+    "chat_header": "chat_header.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#2876c8",
+    "button_text": "#0f172a",
+    "radius_px": 0,
+    "panel_alpha": 184
+  }
+}

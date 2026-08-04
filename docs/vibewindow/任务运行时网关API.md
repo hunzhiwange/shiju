@@ -18,7 +18,7 @@ X-Company-ID: 100000000
 - Desktop 选择网关或修改该网关的 platform/company 后，新创建的普通、阻塞和流式请求立即使用当前网关保存的租户。
 - 非 `OPTIONS` 请求缺少、重复、非 UTF-8 或仅含空白的任一租户 header 时返回 `400 Bad Request`，服务端不会回退到默认租户。
 - `OPTIONS` 预检不要求租户 header。第三方 webhook（`/v1/webhook`、WhatsApp、Linq、WATI、Nextcloud Talk、QQ）无法控制协议 header，因此豁免。
-- 根 `/health` 是外部探针并豁免；客户端 `/v1/health` 仍属于受管路由，必须携带两个租户 header。
+- `/v1/health` 是外部探针并豁免，不要求租户 header。
 
 `project_id` 等资源 ID 只标识租户内资源。相同资源 ID 可存在于不同租户，handler 从请求 extension 获取租户并传入 Store，不能从路径、请求体或默认值重建租户。
 

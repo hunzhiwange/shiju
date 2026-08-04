@@ -65,13 +65,21 @@ pub fn skills_to_prompt_with_mode(
         SkillsPromptInjectionMode::Full => String::from(
             "## Available Skills\n\n\
              Skill instructions and tool metadata are preloaded below.\n\
-             Follow these instructions directly; do not read skill files at runtime unless the user asks.\n\n\
+             Follow these instructions directly; do not read skill files at runtime unless the user asks.\n\
+             Unless the user explicitly asks for a specific skill to be executed in a different way, that skill's instructions are mandatory. Follow its documented workflow exactly and completely, including every required sequence, tool, check, and output.\n\
+             A user-requested variation applies only to the identified skill and the specifically requested parts; every other instruction remains mandatory. Do not infer an override from general preferences, goals, or suggested shortcuts.\n\
+             Without such an explicit request, do not simplify, omit, substitute, short-circuit, or bypass any required step, even if another approach seems faster or equivalent.\n\
+             If a required step cannot be executed, stop the skill workflow and report the exact blocker; do not silently improvise around it.\n\n\
              <available_skills>\n",
         ),
         SkillsPromptInjectionMode::Compact => String::from(
             "## Available Skills\n\n\
              Skill summaries are preloaded below to keep context compact.\n\
-             Skill instructions are loaded on demand: read the skill file in `location` only when needed.\n\n\
+             Before taking task actions for a skill that applies or is invoked, read its complete instruction file from `location`.\n\
+             Unless the user explicitly asks for a specific skill to be executed in a different way, that skill's loaded instructions are mandatory. Follow the documented workflow exactly and completely, including every required sequence, tool, check, and output.\n\
+             A user-requested variation applies only to the identified skill and the specifically requested parts; every other instruction remains mandatory. Do not infer an override from general preferences, goals, or suggested shortcuts.\n\
+             Without such an explicit request, do not simplify, omit, substitute, short-circuit, or bypass any required step, even if another approach seems faster or equivalent.\n\
+             If a required step cannot be executed, stop the skill workflow and report the exact blocker; do not silently improvise around it.\n\n\
              <available_skills>\n",
         ),
     };

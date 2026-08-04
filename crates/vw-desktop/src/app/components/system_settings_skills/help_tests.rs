@@ -23,6 +23,7 @@ fn help_text_documents_configuration_fields_and_defaults() {
     let text = help_text();
 
     for expected in [
+        "auto_load_project_skills",
         "open_skills_enabled",
         "open_skills_dir",
         "prompt_injection_mode",
@@ -34,7 +35,8 @@ fn help_text_documents_configuration_fields_and_defaults() {
     }
 
     assert!(text.contains(
-        r#""open_skills_enabled": false,
+        r#""auto_load_project_skills": true,
+    "open_skills_enabled": false,
     "open_skills_dir": null,
     "prompt_injection_mode": "compact""#
     ));

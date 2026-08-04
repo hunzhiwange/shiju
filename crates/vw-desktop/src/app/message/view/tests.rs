@@ -229,3 +229,98 @@ fn global_key_update_routes_to_global_command_outside_workflow_screen() {
         ViewMessage::GlobalKeyPressed(Key::Character("x".into()), Modifiers::COMMAND),
     );
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct WorkBrowserProtocolProbe {
+    protocol: Vec<u8>,
+    running: bool,
+    terminations: usize,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct WorkBrowserMemoryProcess {
+    probe: std::sync::Arc<std::sync::Mutex<WorkBrowserProtocolProbe>>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl crate::app::webview_runtime::BrowserProcess for WorkBrowserMemoryProcess {
+    fn write_protocol(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        self.probe.lock().expect("work browser probe lock").protocol.extend_from_slice(bytes);
+        Ok(())
+    }
+
+    fn take_events(&mut self) -> Vec<crate::app::webview_runtime::WorkBrowserEvent> {
+        Vec::new()
+    }
+
+    fn is_running(&mut self) -> std::io::Result<bool> {
+        Ok(self.probe.lock().expect("work browser probe lock").running)
+    }
+
+    fn terminate(&mut self) -> std::io::Result<()> {
+        let mut probe = self.probe.lock().expect("work browser probe lock");
+        probe.running = false;
+        probe.terminations += 1;
+        Ok(())
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn system_settings_messages_hide_and_restore_running_work_browser() {
+    use crate::app::Screen;
+    use crate::app::components::system_settings::SystemTab;
+    use crate::app::message::view::ViewMessage;
+    use crate::app::state::{WorkResourceMode, WorkspaceMode};
+    use crate::app::webview_runtime::WebviewBounds;
+
+    let mut app = crate::app::App::new().0;
+    app.screen = Screen::Project;
+    app.workspace_mode = WorkspaceMode::Work;
+    app.work_resource_mode = WorkResourceMode::Browser;
+    app.window_size = (1_400.0, 900.0);
+    let probe = std::sync::Arc::new(std::sync::Mutex::new(WorkBrowserProtocolProbe {
+        running: true,
+        ..WorkBrowserProtocolProbe::default()
+    }));
+    let mut spawn_count = 0;
+    app.work_browser_controller
+        .ensure_started_with(
+            "https://example.com/",
+            WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
+            |_| {
+                spawn_count += 1;
+                Ok(Box::new(WorkBrowserMemoryProcess { probe: std::sync::Arc::clone(&probe) }))
+            },
+        )
+        .expect("controlled work browser should start");
+    app.work_browser_controller.set_visible(true).expect("work browser should be visible");
+
+    for open_message in [
+        ViewMessage::ToggleSystemSettings,
+        ViewMessage::OpenSystemSettingsTab(SystemTab::Browser),
+        ViewMessage::OpenSystemSettingsModelDetail("provider".into(), "model".into()),
+    ] {
+        probe.lock().expect("work browser probe lock").protocol.clear();
+
+        let _ = super::update(&mut app, open_message);
+        assert!(app.show_system_settings);
+        assert_eq!(
+            String::from_utf8_lossy(&probe.lock().expect("work browser probe lock").protocol),
+            "hide\n"
+        );
+
+        let _ = super::update(&mut app, ViewMessage::ToggleSystemSettings);
+        assert!(!app.show_system_settings);
+        assert!(
+            String::from_utf8_lossy(&probe.lock().expect("work browser probe lock").protocol)
+                .ends_with("show\n")
+        );
+    }
+
+    let probe = probe.lock().expect("work browser probe lock");
+    assert_eq!(spawn_count, 1);
+    assert_eq!(probe.terminations, 0);
+    assert!(!String::from_utf8_lossy(&probe.protocol).contains("close\n"));
+}

@@ -36,6 +36,7 @@ fn system_settings_tests_keeps_planned_coverage_targets() {
 #[test]
 fn system_settings_search_matches_child_items() {
     assert!(system_tab_matches_query(SystemTab::General, "语言"));
+    assert!(system_tab_matches_query(SystemTab::QuickMessages, "创建新会话"));
     assert!(system_tab_matches_query(SystemTab::Agents, "API 密钥"));
     assert!(system_tab_matches_query(SystemTab::Scheduler, "最大并发"));
     assert!(system_tab_matches_query(SystemTab::Acp, "初始化"));
@@ -48,13 +49,16 @@ fn system_settings_search_matches_child_items() {
 fn system_tab_all_contains_every_display_label_once_in_order() {
     let tabs = SystemTab::all();
 
-    assert_eq!(tabs.len(), 41);
+    assert_eq!(tabs.len(), 43);
     assert_eq!(tabs.first(), Some(&SystemTab::General));
+    assert_eq!(tabs.get(1), Some(&SystemTab::Themes));
     assert_eq!(tabs.last(), Some(&SystemTab::Transcription));
     assert_eq!(tabs.iter().filter(|tab| **tab == SystemTab::HttpRequest).count(), 1);
 
     let labels = tabs.iter().map(ToString::to_string).collect::<Vec<_>>();
     assert!(labels.contains(&"常规设置".to_string()));
+    assert!(labels.contains(&"主题".to_string()));
+    assert!(labels.contains(&"快捷消息".to_string()));
     assert!(labels.contains(&"ACP 配置".to_string()));
     assert!(labels.contains(&"MCP 配置".to_string()));
     assert!(labels.contains(&"委托代理配置".to_string()));
@@ -74,7 +78,9 @@ fn system_tab_search_is_trimmed_case_insensitive_and_empty_matches_all() {
 fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
     let expected = [
         "常规设置",
+        "主题",
         "对话流",
+        "快捷消息",
         "编辑器",
         "项目",
         "提供商",
@@ -125,7 +131,9 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
 fn system_tab_search_metadata_covers_every_tab() {
     let cases = [
         (SystemTab::General, "auto save"),
+        (SystemTab::Themes, "gallery"),
         (SystemTab::DialogueFlow, "reasoning summary"),
+        (SystemTab::QuickMessages, "quick messages"),
         (SystemTab::Editor, "code"),
         (SystemTab::Projects, "workspace"),
         (SystemTab::Providers, "catalog"),
@@ -260,6 +268,7 @@ fn active_tab_help_modal_does_not_open_static_tabs_from_tab_specific_flags() {
     for tab in [
         SystemTab::General,
         SystemTab::DialogueFlow,
+        SystemTab::QuickMessages,
         SystemTab::Editor,
         SystemTab::Projects,
         SystemTab::Providers,
@@ -329,8 +338,13 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(Multimodal, multimodal_settings);
     assert_error_route!(Transcription, transcription_settings);
 
-    for tab in [SystemTab::General, SystemTab::DialogueFlow, SystemTab::Editor, SystemTab::Projects]
-    {
+    for tab in [
+        SystemTab::General,
+        SystemTab::DialogueFlow,
+        SystemTab::QuickMessages,
+        SystemTab::Editor,
+        SystemTab::Projects,
+    ] {
         assert_eq!(active_tab_save_error(&app, tab), None);
     }
     assert_eq!(active_tab_save_error(&app, SystemTab::Providers), None);

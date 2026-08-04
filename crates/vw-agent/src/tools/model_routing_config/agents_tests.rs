@@ -52,6 +52,8 @@ async fn upsert_agent_sets_optional_fields_and_allowlists() {
     assert_eq!(agent["agentic"], true);
     assert_eq!(agent["allowed_tools"], json!(["web_search", "file_read"]));
     assert_eq!(agent["allowed_skills"], json!(["research", "summarize"]));
+    let stored = config::get_project_blocking(tmp.path()).unwrap();
+    assert!(stored.agents["researcher"].allow_as_subagent);
 }
 
 #[tokio::test]

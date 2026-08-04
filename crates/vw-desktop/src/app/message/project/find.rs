@@ -22,13 +22,47 @@
 //! - `FileTreeFindRefreshActive`：刷新当前活动查找
 //! - `FileTreeFindInProject`/`FileTreeReplaceInProject`：在项目中查找/替换
 //! - `FileTreeFindCompleted`：查找完成回调
+//! - `FileTreeFindMatchSelected`：打开文件并定位到匹配位置
 //! - `FileTreeFindTabSelected`：选择查找标签页
 //! - `FileTreeFindTabClosed`：关闭查找标签页
 
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{now_ms, run_find_task};
-use crate::app::{App, AppTab, Message, Screen, set_config_field, state::FindInFolderTab};
+use crate::app::{
+    App, AppTab, Message, Screen, set_config_field,
+    state::{FindInFolderTab, find_results_page_bounds},
+};
 use iced::widget::text_editor;
+use std::path::{Component, Path, PathBuf};
+
+const FIND_SCOPE_ERROR: &str = "作用域必须是项目内的相对路径";
+
+fn resolve_find_scope_path(project_root: &str, input: &str) -> Result<String, &'static str> {
+    let normalized = input.trim().replace('\\', "/");
+    if normalized.is_empty() {
+        return Ok(project_root.to_string());
+    }
+
+    let path = Path::new(&normalized);
+    let looks_like_windows_absolute =
+        normalized.as_bytes().get(1) == Some(&b':') && normalized.as_bytes().get(2) == Some(&b'/');
+    if path.is_absolute() || looks_like_windows_absolute {
+        return Err(FIND_SCOPE_ERROR);
+    }
+
+    let mut relative = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(part) => relative.push(part),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(FIND_SCOPE_ERROR);
+            }
+        }
+    }
+
+    Ok(Path::new(project_root).join(relative).to_string_lossy().into_owned())
+}
 
 /// 处理项目文件查找相关的消息
 ///
@@ -58,6 +92,7 @@ use iced::widget::text_editor;
 /// - `FileTreeFindCaseSensitiveToggled`：启用/禁用大小写敏感搜索
 /// - `FileTreeFindWholeWordToggled`：启用/禁用全词匹配
 /// - `FileTreeFindRegexToggled`：启用/禁用正则表达式模式
+/// - `FileTreeFind*Shortcut`：通过快捷键切换活动搜索标签页的对应选项
 ///
 /// ## 查找执行消息
 ///
@@ -68,6 +103,7 @@ use iced::widget::text_editor;
 ///
 /// - `FileTreeFindInProject`/`FileTreeReplaceInProject`：创建新的查找标签页
 /// - `FileTreeFindCompleted`：处理查找任务完成后的结果
+/// - `FileTreeFindMatchSelected`：打开文件并定位到匹配位置
 /// - `FileTreeFindTabSelected`：切换活动的查找标签页
 /// - `FileTreeFindTabClosed`：关闭指定的查找标签页
 ///
@@ -81,6 +117,23 @@ use iced::widget::text_editor;
 /// ```
 pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
     match message {
+        ProjectMessage::FileTreeFindScopeChanged(tab_id, value) => {
+            let Some(project_root) = app.project_path.clone() else {
+                return Some(iced::Task::none());
+            };
+            let resolved = resolve_find_scope_path(&project_root, &value);
+            if let Some(tab) = app.find_results_tabs.iter_mut().find(|tab| tab.id == tab_id) {
+                match resolved {
+                    Ok(scope_path) => {
+                        tab.scope_path = scope_path;
+                        tab.error = None;
+                    }
+                    Err(error) => tab.error = Some(error.to_string()),
+                }
+            }
+            Some(iced::Task::none())
+        }
+
         // 处理查找查询编辑器的动作（如输入、删除、粘贴等）
         ProjectMessage::FileTreeFindQueryEditorAction(tab_id, action) => {
             // 在查找结果标签页列表中查找指定 ID 的标签页
@@ -130,6 +183,41 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id) {
                 // 设置正则表达式模式标志
                 tab.use_regex = v;
+            }
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindCaseSensitiveShortcut => {
+            if let Some(tab_id) = app.active_find_results_tab_id.as_deref()
+                && let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id)
+            {
+                tab.case_sensitive = !tab.case_sensitive;
+            }
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindWholeWordShortcut => {
+            if let Some(tab_id) = app.active_find_results_tab_id.as_deref()
+                && let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id)
+            {
+                tab.whole_word = !tab.whole_word;
+            }
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindRegexShortcut => {
+            if let Some(tab_id) = app.active_find_results_tab_id.as_deref()
+                && let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id)
+            {
+                tab.use_regex = !tab.use_regex;
+            }
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindResultsPageChanged(tab_id, requested_page) => {
+            if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id) {
+                let (_, page, _) = find_results_page_bounds(tab.matches.len(), requested_page);
+                tab.results_page = page;
             }
             Some(iced::Task::none())
         }
@@ -256,6 +344,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 error: None,                                 // 无错误
                 limit_reached: false,                        // 未达到限制
                 matches: Vec::new(),                         // 匹配结果列表
+                results_page: 0,                             // 从首屏开始展示结果
             });
 
             // 设置为活动标签页
@@ -315,6 +404,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 tab.running = false; // 标记为已完成
                 tab.error = error;
                 tab.limit_reached = limit_reached;
+                tab.results_page = 0;
 
                 // 只有在没有错误时才更新匹配结果
                 if tab.error.is_none() {
@@ -340,6 +430,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     error,
                     limit_reached,
                     matches,
+                    results_page: 0,
                 });
             }
 
@@ -365,6 +456,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.screen = Screen::Project;
 
             Some(iced::Task::none())
+        }
+
+        // 打开匹配文件并定位到对应位置
+        ProjectMessage::FileTreeFindMatchSelected { path, line, column } => {
+            app.pending_preview_goto =
+                Some((path.clone(), line.saturating_sub(1), column.saturating_sub(1)));
+            Some(iced::Task::done(Message::Preview(
+                crate::app::message::preview::PreviewMessage::Open(path),
+            )))
         }
 
         // 选择查找标签页

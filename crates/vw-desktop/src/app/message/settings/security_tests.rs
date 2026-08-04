@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::App;
+use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use vw_config_types::security::{OtpMethod, SandboxBackend, SecurityConfig};
 
 fn app() -> App {
@@ -10,14 +11,19 @@ fn apply(app: &mut App, message: SettingsMessage) {
     drop(update(app, message));
 }
 
+fn add_security_list_value(app: &mut App, kind: SecurityListKind, value: &str) {
+    apply(app, SettingsMessage::SecurityListDraftChanged(kind, value.to_string()));
+    apply(app, SettingsMessage::SecurityListAdd(kind));
+}
+
 #[test]
 fn sandbox_enabled_normalization_accepts_known_values_and_defaults_unknown_values() {
     for (input, expected) in [
         (" AUTO ", "auto"),
         ("True", "true"),
         (" FALSE ", "false"),
-        ("enabled", "auto"),
-        ("", "auto"),
+        ("enabled", "false"),
+        ("", "false"),
     ] {
         assert_eq!(normalize_security_sandbox_enabled(input), expected);
     }
@@ -32,7 +38,7 @@ fn sandbox_backend_normalization_accepts_known_values_and_defaults_unknown_value
         (" BUBBLEWRAP ", "bubblewrap"),
         ("Docker", "docker"),
         (" NONE ", "none"),
-        ("podman", "auto"),
+        ("podman", "none"),
     ] {
         assert_eq!(normalize_security_sandbox_backend(input), expected);
     }
@@ -44,7 +50,7 @@ fn sandbox_backend_normalization_enforces_enabled_state() {
     assert_eq!(normalize_security_sandbox_backend_for_enabled("none", "true"), "auto");
     assert_eq!(normalize_security_sandbox_backend_for_enabled("docker", "true"), "docker");
     assert_eq!(normalize_security_sandbox_backend_for_enabled("none", "auto"), "none");
-    assert_eq!(normalize_security_sandbox_backend_for_enabled("unknown", "auto"), "auto");
+    assert_eq!(normalize_security_sandbox_backend_for_enabled("unknown", "auto"), "none");
 }
 
 #[test]
@@ -60,7 +66,7 @@ fn otp_method_normalization_accepts_known_values_and_defaults_unknown_values() {
 }
 
 #[test]
-fn sandbox_messages_normalize_state_and_preserve_freeform_arguments() {
+fn sandbox_messages_normalize_state() {
     let mut app = app();
     app.security_settings.save_error = Some("old error".to_string());
     app.security_settings.sandbox_backend_input = "docker".to_string();
@@ -74,11 +80,6 @@ fn sandbox_messages_normalize_state_and_preserve_freeform_arguments() {
     apply(&mut app, SettingsMessage::SecuritySandboxBackendChanged("none".to_string()));
     assert_eq!(app.security_settings.sandbox_backend_input, "auto");
 
-    apply(
-        &mut app,
-        SettingsMessage::SecuritySandboxFirejailArgsChanged(" --private, --net=none ".to_string()),
-    );
-    assert_eq!(app.security_settings.sandbox_firejail_args_input, " --private, --net=none ");
 }
 
 #[test]
@@ -105,6 +106,47 @@ fn resource_messages_clamp_both_bounds_and_toggle_monitoring() {
 }
 
 #[test]
+fn bash_security_message_updates_disabled_by_default_switch() {
+    let mut app = app();
+    assert!(!app.security_settings.bash.enabled);
+
+    apply(&mut app, SettingsMessage::SecurityBashSecurityEnabledToggled(true));
+
+    assert!(app.security_settings.bash.enabled);
+}
+
+#[test]
+fn bash_nested_messages_only_update_target_fields_and_persistence_preserves_siblings() {
+    use crate::app::message::settings::{BashPolicyCheck, BashValidatorCheck};
+
+    let mut app = app();
+    let original_command_rules = app.security_settings.bash.policy.command_rules;
+    let original_heredoc = app.security_settings.bash.validators.heredoc;
+
+    apply(
+        &mut app,
+        SettingsMessage::SecurityBashPolicyCheckToggled(BashPolicyCheck::ReadOnly, false),
+    );
+    apply(
+        &mut app,
+        SettingsMessage::SecurityBashValidatorCheckToggled(BashValidatorCheck::QuotedNewline, true),
+    );
+
+    assert!(!app.security_settings.bash.policy.read_only);
+    assert_eq!(app.security_settings.bash.policy.command_rules, original_command_rules);
+    assert!(app.security_settings.bash.validators.quoted_newline);
+    assert_eq!(app.security_settings.bash.validators.heredoc, original_heredoc);
+
+    let mut config = SecurityConfig::default();
+    config.bash.policy.redirects = false;
+    apply_security_settings_to_config(&mut config, &app.security_settings);
+    assert!(!config.bash.policy.read_only);
+    assert!(config.bash.policy.command_rules);
+    assert!(config.bash.validators.quoted_newline);
+    assert!(config.bash.validators.heredoc);
+}
+
+#[test]
 fn audit_messages_update_values_and_clamp_size() {
     let mut app = app();
 
@@ -122,7 +164,7 @@ fn audit_messages_update_values_and_clamp_size() {
 }
 
 #[test]
-fn otp_messages_normalize_method_clamp_ttls_and_preserve_lists() {
+fn otp_messages_normalize_method_and_clamp_ttls() {
     let mut app = app();
 
     apply(&mut app, SettingsMessage::SecurityOtpEnabledToggled(true));
@@ -133,26 +175,52 @@ fn otp_messages_normalize_method_clamp_ttls_and_preserve_lists() {
     apply(&mut app, SettingsMessage::SecurityOtpCacheValidSecsChanged(0));
     assert_eq!(app.security_settings.otp_cache_valid_secs, 1);
     apply(&mut app, SettingsMessage::SecurityOtpCacheValidSecsChanged(u64::MAX));
-    apply(
-        &mut app,
-        SettingsMessage::SecurityOtpGatedActionsChanged("delete, deploy\nrestart".to_string()),
-    );
-    apply(
-        &mut app,
-        SettingsMessage::SecurityOtpGatedDomainsChanged("admin.example, ops.example".to_string()),
-    );
-    apply(
-        &mut app,
-        SettingsMessage::SecurityOtpGatedDomainCategoriesChanged("production\nfinance".to_string()),
-    );
-
     assert!(app.security_settings.otp_enabled);
     assert_eq!(app.security_settings.otp_method_input, "pairing");
     assert_eq!(app.security_settings.otp_token_ttl_secs, 600);
     assert_eq!(app.security_settings.otp_cache_valid_secs, 86_400);
-    assert_eq!(app.security_settings.otp_gated_actions_input, "delete, deploy\nrestart");
-    assert_eq!(app.security_settings.otp_gated_domains_input, "admin.example, ops.example");
-    assert_eq!(app.security_settings.otp_gated_domain_categories_input, "production\nfinance");
+}
+
+#[test]
+fn security_lists_add_trimmed_values_remove_items_and_reject_duplicates() {
+    let cases = [
+        (SecurityListKind::SandboxFirejailArgs, "  --private  "),
+        (SecurityListKind::OtpGatedActions, "  deploy  "),
+        (SecurityListKind::OtpGatedDomains, "  admin.example  "),
+        (SecurityListKind::OtpGatedDomainCategories, "  production  "),
+        (SecurityListKind::SyscallAnomalyBaselineSyscalls, "  openat  "),
+    ];
+    assert_eq!(cases.map(|(kind, _)| kind), SecurityListKind::ALL);
+
+    for (kind, value) in cases {
+        let mut app = app();
+        app.security_settings.list_mut(kind).clear();
+
+        add_security_list_value(&mut app, kind, value);
+        assert_eq!(app.security_settings.list(kind), &[value.trim().to_string()]);
+        assert!(app.security_settings.list_editor.draft(kind).is_empty());
+
+        add_security_list_value(&mut app, kind, value);
+        assert_eq!(app.security_settings.list(kind).len(), 1);
+        assert!(app.security_settings.save_error.is_some());
+
+        apply(&mut app, SettingsMessage::SecurityListRemove(kind, 0));
+        assert!(app.security_settings.list(kind).is_empty());
+    }
+}
+
+#[test]
+fn security_tab_switch_does_not_clear_save_error() {
+    let mut app = app();
+    app.security_settings.save_error = Some("keep".to_string());
+
+    apply(
+        &mut app,
+        SettingsMessage::SecurityTabSelected(SecuritySettingsTab::Syscall),
+    );
+
+    assert_eq!(app.security_settings.active_tab, SecuritySettingsTab::Syscall);
+    assert_eq!(app.security_settings.save_error.as_deref(), Some("keep"));
 }
 
 #[test]
@@ -202,13 +270,6 @@ fn syscall_anomaly_messages_update_flags_paths_and_clamp_both_bounds() {
         &mut app,
         SettingsMessage::SecuritySyscallAnomalyLogPathChanged(" syscall.log ".to_string()),
     );
-    apply(
-        &mut app,
-        SettingsMessage::SecuritySyscallAnomalyBaselineSyscallsChanged(
-            "read, write\nclose".to_string(),
-        ),
-    );
-
     assert!(app.security_settings.syscall_anomaly_enabled);
     assert!(app.security_settings.syscall_anomaly_strict_mode);
     assert!(app.security_settings.syscall_anomaly_alert_on_unknown_syscall);
@@ -217,7 +278,6 @@ fn syscall_anomaly_messages_update_flags_paths_and_clamp_both_bounds() {
     assert_eq!(app.security_settings.syscall_anomaly_max_alerts_per_minute, 10_000);
     assert_eq!(app.security_settings.syscall_anomaly_alert_cooldown_secs, 3600);
     assert_eq!(app.security_settings.syscall_anomaly_log_path, " syscall.log ");
-    assert_eq!(app.security_settings.syscall_anomaly_baseline_syscalls_input, "read, write\nclose");
 }
 
 #[test]
@@ -259,9 +319,11 @@ fn security_save_normalizes_dependent_inputs_and_clears_previous_error() {
 #[test]
 fn apply_security_settings_to_config_maps_defaults_lists_and_clamped_values() {
     let mut app = app();
+    app.security_settings.bash.enabled = true;
     app.security_settings.sandbox_enabled_input = "false".to_string();
     app.security_settings.sandbox_backend_input = "docker".to_string();
-    app.security_settings.sandbox_firejail_args_input = "--private, --net=none".to_string();
+    app.security_settings.sandbox_firejail_args =
+        vec!["--private".to_string(), "--net=none".to_string()];
     app.security_settings.resources_max_memory_mb = 1;
     app.security_settings.resources_max_cpu_time_seconds = 0;
     app.security_settings.resources_max_subprocesses = 0;
@@ -274,9 +336,12 @@ fn apply_security_settings_to_config_maps_defaults_lists_and_clamped_values() {
     app.security_settings.otp_method_input = "cli-prompt".to_string();
     app.security_settings.otp_token_ttl_secs = 0;
     app.security_settings.otp_cache_valid_secs = u64::MAX;
-    app.security_settings.otp_gated_actions_input = "shell, write\nread".to_string();
-    app.security_settings.otp_gated_domains_input = "admin.example, ops.example".to_string();
-    app.security_settings.otp_gated_domain_categories_input = "finance\nprod".to_string();
+    app.security_settings.otp_gated_actions =
+        vec!["shell".to_string(), "write".to_string(), "read".to_string()];
+    app.security_settings.otp_gated_domains =
+        vec!["admin.example".to_string(), "ops.example".to_string()];
+    app.security_settings.otp_gated_domain_categories =
+        vec!["finance".to_string(), "prod".to_string()];
     app.security_settings.estop_enabled = true;
     app.security_settings.estop_state_file = " ".to_string();
     app.security_settings.estop_require_otp_to_resume = true;
@@ -288,7 +353,8 @@ fn apply_security_settings_to_config_maps_defaults_lists_and_clamped_values() {
     app.security_settings.syscall_anomaly_max_alerts_per_minute = 0;
     app.security_settings.syscall_anomaly_alert_cooldown_secs = u64::MAX;
     app.security_settings.syscall_anomaly_log_path = " ".to_string();
-    app.security_settings.syscall_anomaly_baseline_syscalls_input = "open, read\nwrite".to_string();
+    app.security_settings.syscall_anomaly_baseline_syscalls =
+        vec!["open".to_string(), "read".to_string(), "write".to_string()];
     app.security_settings.canary_tokens = false;
     app.security_settings.semantic_guard = true;
     app.security_settings.semantic_guard_collection = " ".to_string();
@@ -297,6 +363,7 @@ fn apply_security_settings_to_config_maps_defaults_lists_and_clamped_values() {
 
     apply_security_settings_to_config(&mut config, &app.security_settings);
 
+    assert!(config.bash.enabled);
     assert_eq!(config.sandbox.enabled, Some(false));
     assert_eq!(config.sandbox.backend, SandboxBackend::None);
     assert_eq!(config.sandbox.firejail_args, vec!["--private", "--net=none"]);

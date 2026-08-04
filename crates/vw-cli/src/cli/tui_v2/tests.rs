@@ -36,22 +36,30 @@ fn seeded_transcript_state(session_id: &str) -> TuiState {
             vw_shared::session::ui_types::ChatMessage {
                 role: vw_shared::session::ui_types::ChatRole::User,
                 content: "历史用户 1".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             vw_shared::session::ui_types::ChatMessage {
                 role: vw_shared::session::ui_types::ChatRole::Assistant,
                 content: "历史助手 1".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             vw_shared::session::ui_types::ChatMessage {
                 role: vw_shared::session::ui_types::ChatRole::User,
                 content: "历史用户 2".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
             vw_shared::session::ui_types::ChatMessage {
                 role: vw_shared::session::ui_types::ChatRole::Assistant,
                 content: "历史助手 2".to_string(),
+                model: None,
                 think_timing: Vec::new(),
+                processing_timing: None,
             },
         ],
         message_ids: vec![
@@ -103,7 +111,7 @@ fn fullscreen_layout_slots_stay_inside_standard_and_narrow_areas() {
     for area in [Rect::new(0, 0, 120, 32), Rect::new(0, 0, 42, 10)] {
         let slots = compute_fullscreen_layout(area, true, true, 0);
 
-        assert!(slots.header.height >= 1);
+        assert_eq!(slots.header.height, 0);
         assert!(slots.scrollable.height >= 1);
         assert!(slots.bottom.height >= 1);
         assert!(slots.header.y >= area.y);
@@ -114,14 +122,7 @@ fn fullscreen_layout_slots_stay_inside_standard_and_narrow_areas() {
                 <= area.y.saturating_add(area.height)
         );
 
-        if area.height <= 24 {
-            assert!(slots.bottom_float.is_none());
-        } else {
-            let bottom_float =
-                slots.bottom_float.expect("roomy layout should keep the floating status footer");
-            assert!(bottom_float.y >= slots.scrollable.y.saturating_add(slots.scrollable.height));
-            assert!(bottom_float.y.saturating_add(bottom_float.height) <= slots.bottom.y);
-        }
+        assert!(slots.bottom_float.is_none());
 
         let modal = slots.modal.expect("modal slot should be available when requested");
         assert!(modal.width <= area.width);
@@ -129,36 +130,24 @@ fn fullscreen_layout_slots_stay_inside_standard_and_narrow_areas() {
         assert!(modal.x >= area.x);
         assert!(modal.y >= area.y);
 
-        if area.width >= 88 {
-            let project_context =
-                slots.project_context.expect("wide layout should expose a project context sidebar");
-            let modified_files =
-                slots.modified_files.expect("wide layout should expose a modified files sidebar");
-            assert!(project_context.width > 0);
-            assert!(modified_files.width > 0);
-            assert!(project_context.x >= slots.scrollable.x.saturating_add(slots.scrollable.width));
-            assert!(modified_files.y >= project_context.y.saturating_add(project_context.height));
-        } else {
-            assert!(slots.project_context.is_none());
-            assert!(slots.modified_files.is_none());
-        }
+        assert!(slots.project_context.is_none());
+        assert!(slots.modified_files.is_none());
     }
 }
 
 #[test]
 fn fullscreen_layout_prefers_taller_prompt_host_on_compact_terminals() {
     let compact = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
-    assert_eq!(compact.header.height, 2);
-    assert_eq!(compact.bottom.height, 8);
+    assert_eq!(compact.header.height, 0);
+    assert_eq!(compact.bottom.height, 4);
     assert!(compact.bottom_float.is_none());
-    assert_eq!(compact.scrollable.height, 14);
+    assert_eq!(compact.scrollable.height, 20);
 
     let roomy = compute_fullscreen_layout(Rect::new(0, 0, 80, 40), true, false, 0);
-    let bottom_float =
-        roomy.bottom_float.expect("roomy layout should keep the floating status footer");
-    assert_eq!(roomy.header.height, 3);
-    assert_eq!(roomy.bottom.height, 7);
-    assert_eq!(bottom_float.height, 3);
+    assert_eq!(roomy.header.height, 0);
+    assert_eq!(roomy.bottom.height, 4);
+    assert_eq!(roomy.scrollable.height, 36);
+    assert!(roomy.bottom_float.is_none());
 }
 
 #[test]
@@ -168,15 +157,15 @@ fn fullscreen_layout_hides_sidebars_when_height_is_too_short() {
     assert!(compact_wide.modified_files.is_none());
 
     let roomy_wide = compute_fullscreen_layout(Rect::new(0, 0, 120, 32), true, false, 0);
-    assert!(roomy_wide.project_context.is_some());
-    assert!(roomy_wide.modified_files.is_some());
+    assert!(roomy_wide.project_context.is_none());
+    assert!(roomy_wide.modified_files.is_none());
 }
 
 #[test]
 fn fullscreen_layout_expands_prompt_host_for_visible_suggestion_panel() {
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 2);
-    assert_eq!(layout.bottom.height, 10);
-    assert_eq!(layout.scrollable.height, 12);
+    assert_eq!(layout.bottom.height, 6);
+    assert_eq!(layout.scrollable.height, 18);
 }
 
 #[test]
@@ -184,7 +173,8 @@ fn controller_returns_submit_command_for_entered_prompt() {
     let mut controller = TuiController::default();
     let mut state = TuiState::default();
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
-    let feedback = super::render::TuiRenderFeedback { layout, cursor: None };
+    let feedback =
+        super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
 
     controller.sync_layout(&mut state, &feedback);
     reduce_tui_state(&mut state, TuiAction::StatusModelSet(Some("gpt-test".to_string())));
@@ -508,6 +498,7 @@ fn queued_command_replay_restores_deferred_draft_after_queue_drains() {
         raw: "queued follow-up".to_string(),
         kind: super::model::QueuedPromptCommandKind::Submit,
         enqueued_ms: Some(100),
+        ..super::model::QueuedPromptCommand::default()
     });
     reduce_tui_state(&mut state, TuiAction::PromptValueSet("draft kept locally".to_string()));
 
@@ -535,6 +526,7 @@ fn queued_slash_command_replay_routes_back_through_slash_executor() {
         raw: "/model gpt-5.4".to_string(),
         kind: super::model::QueuedPromptCommandKind::SlashCommand,
         enqueued_ms: Some(101),
+        ..super::model::QueuedPromptCommand::default()
     });
 
     let command = dequeue_queued_prompt_command(&mut state, &mut deferred_prompt_draft)
@@ -939,7 +931,8 @@ fn controller_sync_layout_records_viewport_height_and_sticky_anchor() {
     state.scroll.follow_tail = false;
 
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
-    let feedback = super::render::TuiRenderFeedback { layout, cursor: None };
+    let feedback =
+        super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
     controller.sync_layout(&mut state, &feedback);
 
     assert_eq!(state.scroll.viewport_height, feedback.layout.scrollable.height.saturating_sub(2));
@@ -1021,11 +1014,13 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
         raw: "/status".to_string(),
         kind: super::model::QueuedPromptCommandKind::SlashCommand,
         enqueued_ms: Some(1),
+        ..super::model::QueuedPromptCommand::default()
     });
     state.prompt.queue_command(super::model::QueuedPromptCommand {
         raw: "ship it".to_string(),
         kind: super::model::QueuedPromptCommandKind::Submit,
         enqueued_ms: Some(2),
+        ..super::model::QueuedPromptCommand::default()
     });
     state.overlays.push(super::model::UiOverlay::Confirm(super::model::UiConfirmOverlay {
         title: "Confirm Send".to_string(),
@@ -1033,6 +1028,7 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
         confirm_label: "Send".to_string(),
         cancel_label: "Cancel".to_string(),
         destructive: false,
+        intent: super::model::UiConfirmIntent::Generic,
     }));
     state.overlays.push(super::model::UiOverlay::Error(super::model::UiErrorOverlay {
         title: "Recoverable Error".to_string(),
@@ -1060,11 +1056,14 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
             .as_deref()
             .is_some_and(|detail| detail.contains("Enter 发送") && detail.contains("Shift+Enter"))
     );
-    assert!(prompt.queued_commands.iter().any(|pill| pill.label.contains("/status")));
-    assert_eq!(prompt.footer_pills.len(), 1);
+    assert_eq!(prompt.queued_commands.len(), 2);
+    assert!(prompt.queued_commands.iter().any(|pill| pill.label.starts_with("命令")));
+    assert!(prompt.queued_commands.iter().any(|pill| pill.label.starts_with("发送")));
+    assert!(!prompt.queued_commands.iter().any(|pill| pill.label.contains("/status")));
+    assert!(!prompt.footer_pills.is_empty());
     assert!(prompt.footer_pills.iter().any(|pill| pill.label.contains("模型 gpt-5.4")));
+    assert!(prompt.footer_pills.iter().all(|pill| !pill.label.starts_with("目录 ")));
     assert!(prompt.helper_text.contains("Enter 发送"));
-    assert_eq!(prompt.path_label, "/tmp/tui-v2-worktree");
     assert!(project_context.pills.iter().any(|pill| pill.label == "git 脏区 2"));
     assert!(
         project_context
@@ -1305,7 +1304,7 @@ fn status_footer_surfaces_new_message_pill_from_unseen_range() {
 }
 
 #[test]
-fn status_footer_surfaces_token_and_step_pills() {
+fn status_footer_surfaces_token_without_duplicate_step_pill() {
     let mut state = TuiState::default();
     reduce_tui_state(&mut state, TuiAction::SessionScopeSet(Some("workspace".to_string())));
     reduce_tui_state(
@@ -1341,7 +1340,7 @@ fn status_footer_surfaces_token_and_step_pills() {
 
     assert_eq!(header.scope, "workspace");
     assert!(footer.pills.iter().any(|pill| pill.label == "令牌 5/13"));
-    assert!(footer.pills.iter().any(|pill| pill.label == "步骤 1"));
+    assert!(!footer.pills.iter().any(|pill| pill.label.starts_with("步骤 ")));
 }
 
 #[test]

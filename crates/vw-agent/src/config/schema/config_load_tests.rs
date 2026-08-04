@@ -428,7 +428,7 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
     )
     .await
     .unwrap();
-    assert_eq!(initialized.default_provider.as_deref(), Some("openrouter"));
+    assert_eq!(initialized.default_provider.as_deref(), Some("shiju"));
     let initialized_payload: serde_json::Value =
         serde_json::from_str(&store.get(&new_tenant).unwrap().unwrap()).unwrap();
     assert!(initialized_payload.is_object());

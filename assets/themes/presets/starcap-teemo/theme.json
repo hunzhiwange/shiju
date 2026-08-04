@@ -1,0 +1,26 @@
+{
+  "id": "starcap-teemo",
+  "name": "星愿提莫 Starcap Teemo",
+  "tagline": "踩着晨光，把灵感种成星星。",
+  "palette": {
+    "background": "#172a26",
+    "text": "#f4f7e9",
+    "primary": "#79d6a1",
+    "success": "#9ce8cf",
+    "warning": "#f6cf63",
+    "danger": "#f27b62"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp",
+    "chat_header": "chat_header.webp"
+  },
+  "appearance": {
+    "panel_bg": "#203830",
+    "input_bg": "#274239",
+    "button_bg": "#79d6a1",
+    "button_text": "#f8fafc",
+    "radius_px": 18,
+    "panel_alpha": 184
+  }
+}

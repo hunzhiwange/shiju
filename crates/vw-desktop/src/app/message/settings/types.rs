@@ -5,6 +5,15 @@ use vw_shared::provider::types as model_provider;
 use crate::app::state::{ModelCatalogEntry, ProviderModelsSummary, ProviderSummary};
 use vw_config_types::staff::StaffConfig;
 
+/// 一项待持久化的模型启用状态变更。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelStatusChange {
+    pub provider_id: String,
+    pub model_id: String,
+    pub previous_enabled: bool,
+    pub enabled: bool,
+}
+
 /// `ProvidersLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。

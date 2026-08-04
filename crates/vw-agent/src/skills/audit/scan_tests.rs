@@ -1,4 +1,5 @@
 use super::*;
+use vw_config_types::skills::SkillSecurityConfig;
 
 #[test]
 fn depth_first_collection_is_deterministic() {
@@ -28,14 +29,20 @@ fn audit_path_flags_script_symlink_and_oversized_text_without_reading() {
 
     #[cfg(unix)]
     {
-        std::os::unix::fs::symlink(&script, dir.path().join("link")).unwrap();
+        std::os::unix::fs::symlink(&large, dir.path().join("link")).unwrap();
     }
 
     let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
-    audit_path(dir.path(), &script, &mut report).unwrap();
-    audit_path(dir.path(), &large, &mut report).unwrap();
+    let security = SkillSecurityConfig {
+        reject_symlinks: true,
+        reject_script_files: true,
+        reject_oversized_text_files: true,
+        ..Default::default()
+    };
+    audit_path(dir.path(), &script, &security, &mut report).unwrap();
+    audit_path(dir.path(), &large, &security, &mut report).unwrap();
     #[cfg(unix)]
-    audit_path(dir.path(), &dir.path().join("link"), &mut report).unwrap();
+    audit_path(dir.path(), &dir.path().join("link"), &security, &mut report).unwrap();
 
     let summary = report.summary();
     assert!(summary.contains("script-like files are blocked"));
@@ -53,8 +60,10 @@ fn audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown() {
     std::fs::write(&resource, "[also missing](docs/also-missing.md)\n").unwrap();
 
     let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
-    audit_path(dir.path(), &skill, &mut report).unwrap();
-    audit_path(dir.path(), &resource, &mut report).unwrap();
+    let security =
+        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    audit_path(dir.path(), &skill, &security, &mut report).unwrap();
+    audit_path(dir.path(), &resource, &security, &mut report).unwrap();
 
     assert_eq!(report.summary().matches("missing file").count(), 1);
     assert!(is_skill_entry_markdown(&std::path::PathBuf::from("skill.MD")));
@@ -66,7 +75,13 @@ fn audit_path_reports_missing_path_metadata_error() {
     let missing = dir.path().join("missing.md");
     let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
 
-    let error = audit_path(dir.path(), &missing, &mut report).unwrap_err();
+    let error = audit_path(
+        dir.path(),
+        &missing,
+        &SkillSecurityConfig::default(),
+        &mut report,
+    )
+    .unwrap_err();
 
     assert!(error.to_string().contains("failed to read metadata"));
     assert!(error.to_string().contains("missing.md"));

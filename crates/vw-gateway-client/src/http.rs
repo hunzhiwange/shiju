@@ -196,8 +196,7 @@ pub fn transport_error(
 ) -> String {
     let msg = err.to_string();
     #[cfg(not(target_arch = "wasm32"))]
-    let is_unavailable =
-        err.is_connect() || err.is_timeout() || is_gateway_unavailable_error(&msg);
+    let is_unavailable = err.is_connect() || err.is_timeout() || is_gateway_unavailable_error(&msg);
     #[cfg(target_arch = "wasm32")]
     let is_unavailable = err.is_timeout() || is_gateway_unavailable_error(&msg);
     if is_unavailable {

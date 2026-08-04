@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-light",
+  "name": "太浩清波 Tahoe Light",
+  "tagline": "Liquid Glass 下的一弯湖光。",
+  "palette": {
+    "background": "#eef5fb",
+    "text": "#1c2a3a",
+    "primary": "#2f6fed",
+    "success": "#4aa3d8",
+    "warning": "#e0c27a",
+    "danger": "#e07070"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#f7fbff",
+    "button_bg": "#2f6fed",
+    "button_text": "#f8fafc",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

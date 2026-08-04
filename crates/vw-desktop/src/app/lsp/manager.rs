@@ -2,7 +2,8 @@
 //! 本模块把编辑器可见的诊断、补全和后台 LSP 生命周期分离。
 
 use crate::app::lsp::config::{
-    ensure_rust_analyzer_config, lsp_language_for_path, lsp_server_config, resolve_lsp_command,
+    LspCommand, LspServerConfig, ensure_rust_analyzer_config, lsp_language_for_path,
+    lsp_server_config, resolve_lsp_command,
 };
 use iced_code_editor::{LspClient, LspDocument, LspEvent, LspPosition, LspRange, LspTextChange};
 use serde_json::json;
@@ -24,8 +25,20 @@ const PROJECT_SCAN_FILE_LIMIT: usize = 2048;
 /// 字段保持与相邻业务流程和序列化格式一致。
 pub(crate) struct LspServiceManager {
     event_sender: mpsc::Sender<LspEvent>,
-    services: HashMap<String, LspServiceEntry>,
+    services: HashMap<LspServiceKey, LspServiceEntry>,
     prestarted_projects: HashSet<String>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct LspServiceKey {
+    server_key: String,
+    root_uri: String,
+}
+
+impl LspServiceKey {
+    fn new(server_key: &str, root_uri: &str) -> Self {
+        Self { server_key: server_key.to_string(), root_uri: root_uri.to_string() }
+    }
 }
 
 struct LspServiceEntry {
@@ -79,14 +92,15 @@ impl LspServiceManager {
         server_key: &str,
         root_uri: &str,
     ) -> Result<Box<dyn LspClient>, String> {
-        if !self.services.contains_key(server_key) {
+        let service_key = LspServiceKey::new(server_key, root_uri);
+        if !self.services.contains_key(&service_key) {
             let entry = LspServiceEntry::spawn(server_key, root_uri, self.event_sender.clone())?;
-            self.services.insert(server_key.to_string(), entry);
+            self.services.insert(service_key.clone(), entry);
         }
 
         let service = self
             .services
-            .get(server_key)
+            .get(&service_key)
             .map(|entry| entry.service.clone())
             .ok_or_else(|| format!("LSP service unavailable: {}", server_key))?;
 
@@ -102,12 +116,13 @@ impl LspServiceManager {
 
         let root_uri = crate::app::path_to_file_uri(Path::new(project_path));
         for server_key in detect_project_servers(project_path) {
-            if self.services.contains_key(&server_key) {
+            let service_key = LspServiceKey::new(&server_key, &root_uri);
+            if self.services.contains_key(&service_key) {
                 continue;
             }
             match LspServiceEntry::spawn(&server_key, &root_uri, self.event_sender.clone()) {
                 Ok(entry) => {
-                    self.services.insert(server_key, entry);
+                    self.services.insert(service_key, entry);
                 }
                 Err(err) => {
                     let _ = self.event_sender.send(LspEvent::Log {
@@ -139,8 +154,10 @@ impl LspServiceEntry {
             ensure_rust_analyzer_config();
         }
 
-        let command = resolve_lsp_command(config)?;
-        let mut child = Command::new(&command.program)
+        let command = resolve_lsp_launch_command(config)?;
+        let mut process = Command::new(&command.program);
+        vw_shared::shell::apply_augmented_path_std_command(&mut process);
+        let mut child = process
             .args(&command.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -283,6 +300,54 @@ impl LspServiceEntry {
 
         Ok(Self { service, child, writer_thread, reader_thread, stderr_thread })
     }
+}
+
+fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, String> {
+    let mut command = match resolve_lsp_command(config) {
+        Ok(command) => command,
+        Err(original_error) => {
+            let configured_program = config
+                .env_vars
+                .iter()
+                .find_map(|name| std::env::var(name).ok().filter(|value| !value.trim().is_empty()));
+            let program = configured_program
+                .and_then(|program| vw_shared::shell::resolve_executable(&program))
+                .or_else(|| {
+                    config
+                        .default_command
+                        .first()
+                        .and_then(|program| vw_shared::shell::resolve_executable(program))
+                })
+                .ok_or(original_error)?;
+            LspCommand {
+                program: program.to_string_lossy().into_owned(),
+                args: config.default_command.iter().skip(1).map(|arg| (*arg).to_string()).collect(),
+            }
+        }
+    };
+
+    let resolved = vw_shared::shell::resolve_executable(&command.program)
+        .ok_or_else(|| format!("LSP server program {} not found", command.program))?;
+    command.program = resolved.to_string_lossy().into_owned();
+
+    if config.key == "rust-analyzer" {
+        let mut probe = Command::new(&command.program);
+        vw_shared::shell::apply_augmented_path_std_command(&mut probe);
+        let output = probe
+            .arg("--version")
+            .output()
+            .map_err(|error| format!("无法验证 rust-analyzer: {error}"))?;
+        if !output.status.success() {
+            let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(if detail.is_empty() {
+                "rust-analyzer 无法启动，请安装 rust-analyzer 组件".to_string()
+            } else {
+                format!("rust-analyzer 无法启动: {detail}")
+            });
+        }
+    }
+
+    Ok(command)
 }
 
 impl Drop for LspServiceEntry {

@@ -95,7 +95,7 @@ impl Agent {
             None
         };
 
-        let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %Z");
+        let now = crate::app::agent::util::locale::configured_datetime(self.timezone);
         let stamped_user_message = format!("[{now}] {user_message}");
 
         let enriched = match (&context, &research_context) {
@@ -229,7 +229,7 @@ impl Agent {
             None
         };
 
-        let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %Z");
+        let now = crate::app::agent::util::locale::configured_datetime(self.timezone);
         let stamped_user_message = format!("[{now}] {user_message}");
 
         let enriched = match (&context, &research_context) {

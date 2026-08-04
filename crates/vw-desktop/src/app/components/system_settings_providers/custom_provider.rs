@@ -232,22 +232,40 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             headers_controls,
         );
 
+        let mut model_actions = row![
+            settings_value_badge(format!("{} 个模型", s.custom.models.len())),
+            container(text(" ")).width(Length::Fill),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center);
+        if is_editing {
+            model_actions = model_actions.push(
+                button(text(if s.custom_models_discovering {
+                    "发现中…"
+                } else {
+                    "自动发现模型"
+                }))
+                .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
+                    message::SettingsMessage::CustomProviderModelsDiscover,
+                )))
+                .padding([7, 12])
+                .style(if s.custom_models_discovering {
+                    rounded_action_btn_style
+                } else {
+                    primary_action_btn_style
+                }),
+            );
+        }
+        model_actions = model_actions.push(icon_btn(
+            Icon::Plus,
+            "添加模型",
+            Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(None))),
+        ));
+
         let mut models_panel = column![field_row(
             "模型",
             "维护该 provider 可用的模型列表；展示名称可留空。",
-            row![
-                settings_value_badge(format!("{} 个模型", s.custom.models.len())),
-                container(text(" ")).width(Length::Fill),
-                icon_btn(
-                    Icon::Plus,
-                    "添加模型",
-                    Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(
-                        None
-                    )))
-                ),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
+            model_actions,
         )]
         .spacing(0);
 
@@ -325,20 +343,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16)
         .width(Length::Fill);
 
-        let footer_row = row![
-            button(text("取消"))
-                .on_press(close_message.clone())
-                .padding([8, 14])
-                .style(rounded_action_btn_style),
-            container(text(" ")).width(Length::Fill),
-            button(text("保存"))
-                .on_press(Message::Settings(message::SettingsMessage::CustomProviderSave))
-                .padding([8, 14])
-                .style(primary_action_btn_style),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center)
-        .width(Length::Fill);
+        let footer_row =
+            row![
+                button(text("取消"))
+                    .on_press(close_message.clone())
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style),
+                container(text(" ")).width(Length::Fill),
+                button(text("保存"))
+                    .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
+                        message::SettingsMessage::CustomProviderSave,
+                    )))
+                    .padding([8, 14])
+                    .style(primary_action_btn_style),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center)
+            .width(Length::Fill);
 
         let scroll_body = scrollable(container(body_col).padding([0, 2]))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

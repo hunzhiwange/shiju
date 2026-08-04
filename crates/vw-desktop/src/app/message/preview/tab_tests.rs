@@ -218,6 +218,7 @@ fn navigate_trace_without_current_location_opens_target_without_recording_opposi
 #[test]
 fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
     let mut app = app();
+    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.preview_tabs.push(preview_tab("/tmp/a.txt", "a"));
     app.show_file_manager = true;
     app.file_manager_show_changes = false;
@@ -255,6 +256,7 @@ fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
 #[test]
 fn open_new_instant_preview_creates_tab_without_loading_task() {
     let mut app = app();
+    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.screen = Screen::Project;
     app.show_file_manager = false;
     app.file_manager_show_changes = true;
@@ -284,6 +286,35 @@ fn open_new_text_preview_sets_loading_content_and_schedules_gateway_read() {
     assert!(!app.preview_tabs[0].truncated);
     assert_eq!(app.active_preview_path.as_deref(), Some("src/lib.rs"));
     assert!(has_scheduled_action(task));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_file_in_work_mode_reveals_workspace_files() {
+    let mut app = app();
+    app.screen = Screen::Project;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.work_resources_visible = false;
+    app.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
+    app.work_chat_fullscreen = true;
+    app.work_chat_half_fullscreen = true;
+
+    let task = update(&mut app, PreviewMessage::Open("/tmp/image.png".to_string()));
+
+    assert!(app.work_resources_visible);
+    assert_eq!(
+        app.work_resource_mode,
+        crate::app::state::WorkResourceMode::WorkspaceFiles
+    );
+    assert!(!app.work_chat_fullscreen);
+    assert!(!app.work_chat_half_fullscreen);
+    assert!(collect_task_messages(task).await.iter().any(|message| {
+        matches!(
+            message,
+            Message::View(ViewMessage::WorkResourceModeSelected(
+                WorkResourceMode::WorkspaceFiles
+            ))
+        )
+    }));
 }
 
 #[test]
@@ -457,6 +488,7 @@ fn save_file_path_dirty_tab_schedules_persist_and_closes_context_menu() {
 fn save_file_finished_success_updates_matching_tab() {
     let mut app = app();
     let mut tab = preview_tab("/tmp/a.txt", "old");
+    tab.editor = crate::app::components::editor::Editor::new("saved", "text");
     tab.is_dirty = true;
     app.preview_tabs.push(tab);
 
@@ -472,8 +504,31 @@ fn save_file_finished_success_updates_matching_tab() {
 
     assert_eq!(app.preview_tabs[0].content, "saved");
     assert!(!app.preview_tabs[0].is_dirty);
+    assert!(!app.preview_tabs[0].editor.inner.is_modified());
     assert!(app.active_toast.is_none());
     assert!(!has_scheduled_action(task));
+}
+
+#[test]
+fn save_file_finished_keeps_newer_editor_content_dirty() {
+    let mut app = app();
+    let mut tab = preview_tab("/tmp/a.txt", "old");
+    let _ = tab.editor.inner.update(&iced_code_editor::Message::Enter);
+    tab.is_dirty = true;
+    app.preview_tabs.push(tab);
+
+    let _ = update(
+        &mut app,
+        PreviewMessage::SaveFileFinished {
+            path: "/tmp/a.txt".to_string(),
+            content: "old".to_string(),
+            notify: false,
+            result: Ok(()),
+        },
+    );
+
+    assert!(app.preview_tabs[0].is_dirty);
+    assert!(app.preview_tabs[0].editor.inner.is_modified());
 }
 
 #[test]

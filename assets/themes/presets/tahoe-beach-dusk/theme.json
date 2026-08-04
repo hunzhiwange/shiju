@@ -1,0 +1,25 @@
+{
+  "id": "tahoe-beach-dusk",
+  "name": "太浩暮湾 Tahoe Dusk",
+  "tagline": "暮云压湖，蓝色刚刚落定。",
+  "palette": {
+    "background": "#12182a",
+    "text": "#e6eef8",
+    "primary": "#6f8fd6",
+    "success": "#7eb6c9",
+    "warning": "#c9a06a",
+    "danger": "#d27878"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#1a2238",
+    "input_bg": "#222c48",
+    "button_bg": "#6f8fd6",
+    "button_text": "#f8fafc",
+    "radius_px": 12,
+    "panel_alpha": 184
+  }
+}

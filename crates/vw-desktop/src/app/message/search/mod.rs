@@ -5,14 +5,14 @@
 //!
 //! ## 主要功能
 //!
-//! - **输入变更处理**：响应搜索框输入变化，动态显示/隐藏搜索遮罩层
+//! - **输入变更处理**：响应搜索框输入变化并刷新搜索结果
 //! - **搜索遮罩切换**：控制搜索遮罩层的显示状态
 //! - **项目选择**：根据搜索结果打开并索引指定项目
 //! - **文件选择**：将选中的文件路径填入输入框
 //! - **会话选择**：加载历史会话并恢复相关状态
 
-use crate::app::{App, Message};
-use iced::Task;
+use crate::app::{App, Message, components::search_panel};
+use iced::{Task, widget::operation};
 
 /// 搜索相关的 UI 消息枚举
 ///
@@ -28,7 +28,7 @@ pub enum SearchMessage {
     /// 搜索输入框内容变更
     ///
     /// 当用户在搜索框中输入或修改文本时触发。
-    /// 会自动根据输入内容是否为空来控制搜索遮罩层的显示。
+    /// 输入内容不控制搜索遮罩层，清空查询时弹窗仍保持打开。
     InputChanged(String),
 
     /// 切换搜索遮罩层的显示状态
@@ -84,15 +84,12 @@ pub fn update(app: &mut App, message: SearchMessage) -> Task<Message> {
             app.search_text.clear();
             app.show_search_overlay = true;
             app.refresh_search_panel_file_cache();
-            Task::none()
+            operation::focus(search_panel::input_id())
         }
 
-        // 处理搜索输入变更
-        // 更新搜索文本并根据内容是否为空决定是否显示搜索遮罩层
+        // 处理搜索输入变更；弹窗仅由打开、关闭或结果选择操作控制。
         SearchMessage::InputChanged(v) => {
             app.search_text = v;
-            // 仅当输入内容非空时显示搜索遮罩层
-            app.show_search_overlay = !app.search_text.trim().is_empty();
             app.refresh_search_panel_file_cache();
             Task::none()
         }
@@ -134,6 +131,7 @@ pub fn update(app: &mut App, message: SearchMessage) -> Task<Message> {
                 ))
             } else {
                 app.cache_active_session_chat();
+                app.prepare_historical_session_model(&id);
                 app.active_session_id = Some(id.clone());
                 app.mark_active_session_viewed();
                 app.restore_chat_for_session(&id);

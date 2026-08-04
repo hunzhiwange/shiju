@@ -15,11 +15,26 @@ mod drag;
 mod main;
 mod sessions_panel;
 mod sidebar;
+mod work;
+mod work_resources;
+#[cfg(test)]
+#[path = "layout/work_resources_tests.rs"]
+mod work_resources_tests;
+mod work_sidebar;
+#[cfg(test)]
+#[path = "layout/work_sidebar_tests.rs"]
+mod work_sidebar_tests;
+#[cfg(test)]
+#[path = "layout/work_tests.rs"]
+mod work_tests;
 
 use bottom::bottom_panel;
 use chrome::right_column_chrome;
 use main::main_area;
 use sidebar::{hover_overlay_layout, sidebar_group};
+pub use work::build_work_layout;
+
+const WORKSPACE_BOTTOM_GAP: f32 = 6.0;
 
 /// 构建对应界面片段。
 ///
@@ -66,20 +81,14 @@ pub fn build_base_layout(
     .width(Length::Fill)
     .height(Length::Fill);
 
-    let right_column_base: Element<'_, Message> =
-        if app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible {
-            column![main].height(Length::Fill)
-        } else {
-            column![main, bottom_panel(app)].spacing(0).height(Length::Fill)
-        }
-        .into();
+    let right_column_base: Element<'_, Message> = column![main].height(Length::Fill).into();
     let right_overlay: Element<'_, Message> = chat_panel::tool_dialog_overlay(app)
         .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into());
     let right_column: Element<'_, Message> =
         stack![right_column_base, right_overlay].width(Length::Fill).height(Length::Fill).into();
     let right_column = right_column_chrome(right_column, corner_radius);
 
-    if let Some(handle) = left_resize_handle {
+    let workspace: Element<'_, Message> = if let Some(handle) = left_resize_handle {
         iced::widget::row![left_sidebar, handle, right_column].spacing(spacing).into()
     } else {
         hover_overlay_layout(
@@ -92,6 +101,22 @@ pub fn build_base_layout(
             corner_radius,
             spacing,
         )
+    };
+
+    if app.chat_panel_fullscreen || app.git_diff_fullscreen || !app.terminal.is_visible {
+        workspace
+    } else {
+        column![
+            iced::widget::container(workspace)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(iced::Padding::default().bottom(WORKSPACE_BOTTOM_GAP)),
+            bottom_panel(app)
+        ]
+        .spacing(0)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 }
 

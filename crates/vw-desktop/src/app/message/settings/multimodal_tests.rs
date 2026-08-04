@@ -6,6 +6,58 @@ fn app() -> App {
 }
 
 #[test]
+fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
+    let mut app = app();
+    app.multimodal_settings.ocr_enabled = false;
+    app.multimodal_settings.ocr_model.clear();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
+    );
+    assert!(!app.multimodal_settings.ocr_enabled);
+    assert_eq!(
+        app.multimodal_settings.save_error.as_deref(),
+        Some("启用图片 OCR 前请选择有效的 provider/model 模型")
+    );
+
+    for invalid in ["/model", "provider/", "provider"] {
+        app.multimodal_settings.ocr_enabled = false;
+        let _ = update(
+            &mut app,
+            SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(invalid.to_string())),
+        );
+        let _ = update(
+            &mut app,
+            SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
+        );
+        assert!(!app.multimodal_settings.ocr_enabled, "{invalid} must be rejected");
+        let config = multimodal_config_from_state(&app.multimodal_settings)
+            .expect("disabled OCR may keep an incomplete draft");
+        assert!(!config.ocr.enabled);
+        assert!(config.ocr.model.is_none());
+    }
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(
+            " vision-provider/vision-model ".to_string(),
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
+    );
+
+    assert!(app.multimodal_settings.ocr_enabled);
+    assert!(app.multimodal_settings.save_error.is_none());
+    let config =
+        multimodal_config_from_state(&app.multimodal_settings).expect("valid OCR settings map");
+    assert!(config.ocr.enabled);
+    assert_eq!(config.ocr.model.as_deref(), Some("vision-provider/vision-model"));
+}
+
+#[test]
 fn max_images_changed_clamps_out_of_range_and_preserves_in_range_values() {
     let mut app = app();
     app.multimodal_settings.save_error = Some("old".to_string());
@@ -84,6 +136,8 @@ fn multimodal_changes_schedule_persistence_tasks() {
         MultimodalMessage::MaxImagesChanged(4),
         MultimodalMessage::MaxImageSizeMbChanged(8),
         MultimodalMessage::AllowRemoteFetchToggled(true),
+        MultimodalMessage::OcrModelChanged("provider/model".to_string()),
+        MultimodalMessage::OcrEnabledToggled(true),
     ] {
         let task = update(&mut app, SettingsMessage::Multimodal(message));
         assert!(iced_runtime::task::into_stream(task.collect()).is_some());

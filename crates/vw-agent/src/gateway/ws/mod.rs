@@ -419,6 +419,16 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     // 为此 WebSocket 会话维护对话历史
     let mut history: Vec<ChatMessage> = Vec::new();
 
+    let timezone_name = state.config.lock().app_ui.system_settings.timezone.clone();
+    let timezone = match crate::app::agent::util::locale::parse_timezone(&timezone_name) {
+        Ok(timezone) => timezone,
+        Err(error) => {
+            let message = serde_json::json!({"type": "error", "message": error.to_string()});
+            let _ = socket.send(Message::Text(message.to_string().into())).await;
+            return;
+        }
+    };
+
     // 为会话构建一次系统提示
     let system_prompt = {
         let config_guard = state.config.lock();
@@ -429,6 +439,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             &[],
             Some(&config_guard.identity),
             None,
+            timezone,
         )
     };
 
@@ -440,8 +451,9 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
         let config_guard = state.config.lock();
         (
             Arc::new(ApprovalManager::from_config(&config_guard.autonomy)),
-            Arc::new(SecurityPolicy::from_config(
+            Arc::new(SecurityPolicy::from_configs(
                 &config_guard.autonomy,
+                &config_guard.security,
                 &config_guard.workspace_dir,
             )),
         )

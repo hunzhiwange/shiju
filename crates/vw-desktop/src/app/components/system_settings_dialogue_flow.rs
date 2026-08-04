@@ -147,7 +147,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 expand_edit_row,
             ]
             .spacing(0),
-        )
+        ),
     ]
     .spacing(16)
     .width(Length::Fill);

@@ -45,7 +45,7 @@ use super::url_validation::{
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
 use pulldown_cmark::{Event, Parser};
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE};
+use reqwest::header::ACCEPT;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -220,7 +220,7 @@ impl WebFetchTool {
             blocked_domains: normalize_allowed_domains(blocked_domains),
             max_response_size,
             timeout_secs,
-            user_agent,
+            user_agent: vw_config_types::tools::resolve_user_agent(&user_agent),
             // 初始化 API 密钥轮询索引为 0
             key_index: Arc::new(AtomicUsize::new(0)),
         }
@@ -396,7 +396,9 @@ impl WebFetchTool {
             .redirect(reqwest::redirect::Policy::none()); // 禁用自动重定向，手动处理
 
         // 设置 User-Agent
-        let builder = builder.user_agent(self.user_agent.as_str());
+        let builder = builder
+            .user_agent(self.user_agent.as_str())
+            .default_headers(super::http_headers::default_headers());
 
         // 应用运行时代理配置（如果有）
         let builder =
@@ -417,9 +419,9 @@ impl WebFetchTool {
     /// 返回适合的 Accept 头字符串
     fn select_accept_header(format: Format) -> &'static str {
         match format {
-            // Markdown 格式：优先接受 Markdown，其次是纯文本和 HTML
+            // Markdown 输出仍优先请求浏览器常见的 HTML，再在本地转换
             Format::Markdown => {
-                "text/markdown;q=1.0, text/x-markdown;q=0.9, text/plain;q=0.8, text/html;q=0.7, */*;q=0.1"
+                "text/html,application/xhtml+xml,application/xml;q=0.9,text/markdown;q=0.8,text/plain;q=0.7,*/*;q=0.5"
             }
             // 纯文本格式：优先接受纯文本
             Format::Text => "text/plain;q=1.0, text/markdown;q=0.9, text/html;q=0.8, */*;q=0.1",
@@ -531,7 +533,6 @@ impl WebFetchTool {
         let response = client
             .get(url)
             .header(ACCEPT, Self::select_accept_header(format))
-            .header(ACCEPT_LANGUAGE, "en-US,en;q=0.9")
             .send()
             .await?;
 

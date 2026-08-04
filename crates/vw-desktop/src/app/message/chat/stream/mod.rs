@@ -180,8 +180,39 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(id, delta) => {
             stream_events::handle_agent_stream_delta(app, id, delta)
         }
+        ChatMessage::AgentContextLoaded(id, paths) => {
+            stream_events::handle_agent_context_loaded(app, id, paths)
+        }
         ChatMessage::AgentWorkflowNodeUpdate(id, raw_tool_block) => {
             stream_events::handle_agent_workflow_node_update(app, id, raw_tool_block)
+        }
+        ChatMessage::PlanRunSessionStarted {
+            parent_request_id,
+            parent_session_id,
+            session_id,
+            title,
+            directory,
+            query,
+        } => stream_events::handle_plan_run_session_started(
+            app,
+            parent_request_id,
+            parent_session_id,
+            session_id,
+            title,
+            directory,
+            query,
+        ),
+        ChatMessage::PlanRunSessionDelta { session_id, delta } => {
+            stream_events::handle_agent_session_delta(app, session_id, delta)
+        }
+        ChatMessage::PlanRunSessionWaiting(session_id) => {
+            handle_plan_run_session_waiting(app, session_id)
+        }
+        ChatMessage::PlanRunSessionFinished(session_id) => {
+            stream_events::handle_plan_run_session_finished(app, session_id)
+        }
+        ChatMessage::PlanRunSessionCancelled(session_id) => {
+            stream_events::handle_plan_run_session_finished(app, session_id)
         }
         ChatMessage::AgentStepStart(id, session_id, step_index, created_ms, model) => {
             steps::handle_agent_step_start(app, id, session_id, step_index, created_ms, model)
@@ -220,6 +251,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 parent_message_id,
             )
         }
+        ChatMessage::AgentStreamCancelled(id) => handle_agent_stream_cancelled(app, id),
         ChatMessage::AgentStreamError(id, err) => {
             stream_events::handle_agent_stream_error(app, id, err)
         }
@@ -293,6 +325,40 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         _ => Task::none(),
     }
+}
+
+fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Message> {
+    let session_id = session_id.trim();
+    if session_id.is_empty()
+        || !app.sessions.iter().any(|session| session.id == session_id)
+    {
+        return Task::none();
+    }
+
+    app.get_session_runtime_mut(session_id).is_requesting = true;
+    app.sync_task_pet_from_runtime();
+    Task::none()
+}
+
+fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    crate::app::state::clear_pending_guide_handoff(id);
+    let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+    {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.is_requesting = false;
+        runtime.submit_anim = 0;
+        runtime.has_unseen_success = false;
+        runtime.active_agent_request = None;
+    }
+    app.sync_task_pet_from_runtime();
+    app.show_send_mode_popover = false;
+    if is_active_session {
+        app.sync_active_session_from_chat();
+    }
+    start_next(app, &session_id)
 }
 
 /// 模块内可见函数，执行 maybe_generate_session_title 对应的应用流程。

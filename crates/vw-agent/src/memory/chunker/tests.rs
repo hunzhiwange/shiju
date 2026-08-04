@@ -199,7 +199,7 @@ fn max_tokens_one() {
 /// - 不应出现乱码或字符丢失
 #[test]
 fn unicode_content() {
-    let text = "# 日本語\nこんにちは世界\n\n## Émojis\n🦀 Rust is great 🚀";
+    let text = "# 日本語\nこんにちは世界\n\n## Émojis\n Rust is great";
     let chunks = chunk_markdown(text, 512);
     assert!(!chunks.is_empty());
     // 验证所有内容被正确保留

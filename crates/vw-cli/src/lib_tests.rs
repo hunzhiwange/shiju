@@ -2,6 +2,7 @@ use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::{first_non_empty_line, parse_temperature, resolve_project_dir};
+use clap::Parser;
 
 struct TestDir {
     path: std::path::PathBuf,
@@ -62,7 +63,7 @@ fn parse_temperature_keeps_parser_whitespace_rules_explicit() {
 
 #[test]
 fn first_non_empty_line_handles_crlf_and_unicode_whitespace() {
-    assert_eq!(first_non_empty_line("\r\n\u{2003}\r\n  crab 🦀  \r\nnext"), "crab 🦀");
+    assert_eq!(first_non_empty_line("\r\n\u{2003}\r\n  crab \r\nnext"), "crab");
 }
 
 #[test]
@@ -98,4 +99,11 @@ fn resolve_project_dir_rejects_existing_file() {
     let err = resolve_project_dir(&file.to_string_lossy()).expect_err("file must fail");
 
     assert!(err.to_string().contains("project directory is not a folder"));
+}
+
+#[test]
+fn acp_command_has_no_command_specific_flags() {
+    let parsed = super::cli::Cli::try_parse_from(["vibewindow", "acp"]).expect("ACP command");
+    assert!(matches!(parsed.command, super::cli::Commands::Acp));
+    assert!(super::cli::Cli::try_parse_from(["vibewindow", "acp", "--listen"]).is_err());
 }

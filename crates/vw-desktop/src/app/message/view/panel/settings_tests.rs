@@ -254,6 +254,23 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
 }
 
 #[test]
+fn work_mode_ignores_code_only_terminal_and_review_toggles() {
+    use crate::app::message::view::ViewMessage;
+    use crate::app::state::WorkspaceMode;
+
+    let mut app = crate::app::App::new().0;
+    app.workspace_mode = WorkspaceMode::Work;
+    app.show_diff = false;
+    app.terminal.is_visible = false;
+
+    let _ = super::update(&mut app, ViewMessage::ToggleDiffPanel);
+    let _ = super::update(&mut app, ViewMessage::ToggleTerminalPanel);
+
+    assert!(!app.show_diff);
+    assert!(!app.terminal.is_visible);
+}
+
+#[test]
 fn about_modal_toggle_round_trips_visibility() {
     use crate::app::message::view::ViewMessage;
 

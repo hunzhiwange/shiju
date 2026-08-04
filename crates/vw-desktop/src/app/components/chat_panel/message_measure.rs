@@ -123,6 +123,15 @@ where
         cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
+        // Session switches can briefly retain an invalid scroll translation.
+        // cosmic-text converts glyph coordinates to i32 subpixel bins, so very large
+        // finite values are just as unsafe as NaN and infinity.
+        if !rectangle_has_safe_text_coordinates(layout.bounds())
+            || !rectangle_has_safe_text_coordinates(*viewport)
+        {
+            return;
+        }
+
         self.content.as_widget().draw(
             &tree.children[0],
             renderer,
@@ -167,6 +176,21 @@ where
             translation,
         )
     }
+}
+
+const TEXT_COORDINATE_LIMIT: f32 = i32::MAX as f32 / 2.0;
+
+fn text_coordinate_is_safe(value: f32) -> bool {
+    value.is_finite() && value.abs() <= TEXT_COORDINATE_LIMIT
+}
+
+fn rectangle_has_safe_text_coordinates(bounds: Rectangle) -> bool {
+    bounds.width >= 0.0
+        && bounds.height >= 0.0
+        && text_coordinate_is_safe(bounds.x)
+        && text_coordinate_is_safe(bounds.y)
+        && text_coordinate_is_safe(bounds.x + bounds.width)
+        && text_coordinate_is_safe(bounds.y + bounds.height)
 }
 
 #[derive(Debug, Default)]

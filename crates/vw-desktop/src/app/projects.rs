@@ -81,6 +81,15 @@ fn project_chat_preferences_task(path: String) -> Task<Message> {
     }
 }
 
+pub(crate) fn project_settings_refresh_task(project_path: String) -> Task<Message> {
+    Task::batch(vec![
+        Task::done(Message::Settings(message::settings::SettingsMessage::Agents(
+            message::settings::AgentsMessage::ProjectChanged(project_path),
+        ))),
+        Task::done(Message::Settings(message::settings::SettingsMessage::SkillsRefresh)),
+    ])
+}
+
 /// 返回最近项目列表存储路径
 ///
 /// 该路径基于平台数据目录（`data_local_dir`）下的 `recent_projects.json` 文件。
@@ -363,27 +372,38 @@ impl App {
         if let Some(path) = new_project_path {
             // 尝试恢复已有终端状态
             if let Some(state) = self.terminals_by_project.remove(&path) {
-                self.terminal = state;
+                let old = std::mem::replace(&mut self.terminal, state);
+                self.terminal.absorb_replaced(old);
+                if self.terminal.is_visible {
+                    let _ = self
+                        .terminal
+                        .ensure_default_terminal(Some(std::path::PathBuf::from(&path)));
+                }
                 #[cfg(not(target_arch = "wasm32"))]
                 self.terminal.apply_app_theme(&self.app_theme);
                 false
             } else {
-                // 没有缓存状态，创建以该项目目录为工作目录的新终端
-                self.terminal = crate::app::TerminalState::new(
+                // 没有缓存状态：先占位，仅在面板可见时懒创建 PTY
+                let mut created = crate::app::TerminalState::blank_with_settings(
                     terminal_is_visible,
                     terminal_shell,
                     terminal_theme,
                     terminal_font_family,
                     terminal_font_size,
-                    Some(std::path::PathBuf::from(path)),
+                    terminal_height,
                 );
+                if created.is_visible {
+                    let _ = created.ensure_default_terminal(Some(std::path::PathBuf::from(&path)));
+                }
+                let old = std::mem::replace(&mut self.terminal, created);
+                self.terminal.absorb_replaced(old);
                 #[cfg(not(target_arch = "wasm32"))]
                 self.terminal.apply_app_theme(&self.app_theme);
                 true
             }
         } else {
             // 没有新项目路径，创建空白终端（保持设置）
-            self.terminal = crate::app::TerminalState::blank_with_settings(
+            let blank = crate::app::TerminalState::blank_with_settings(
                 false,
                 terminal_shell,
                 terminal_theme,
@@ -391,6 +411,8 @@ impl App {
                 terminal_font_size,
                 terminal_height,
             );
+            let old = std::mem::replace(&mut self.terminal, blank);
+            self.terminal.absorb_replaced(old);
             false
         }
     }
@@ -510,6 +532,39 @@ impl App {
         }
     }
 
+    /// 切换工作模式空间，并把当前聊天作为新空间中的未提交会话继续保留。
+    pub fn switch_work_space_preserving_chat(&mut self, path: String) -> Task<Message> {
+        if self.project_path.as_deref() == Some(path.as_str()) {
+            return Task::none();
+        }
+
+        self.cache_active_session_chat();
+        let carried_chat = self.chat.clone();
+        let carried_usage = self.usage.clone();
+        let carried_view_state = self.active_session_view_state.clone();
+        let mut carried_runtime = self.current_session_runtime();
+
+        let task = self.open_project_and_index(path);
+
+        carried_runtime.is_requesting = false;
+        carried_runtime.request_started_ms = 0;
+        carried_runtime.submit_anim = 0;
+        carried_runtime.has_unseen_success = false;
+        carried_runtime.active_agent_request = None;
+        carried_runtime.queue.clear();
+        carried_runtime.restore_model_from_history = false;
+        self.active_session_id = None;
+        *self.current_session_runtime_mut() = carried_runtime;
+        self.chat = carried_chat;
+        self.chat_message_ids = vec![None; self.chat.len()];
+        self.usage = carried_usage;
+        self.active_session_view_state = carried_view_state;
+        self.active_session_view_state.updated_ms = 0;
+        self.invalidate_chat_ui_state();
+
+        task
+    }
+
     /// 打开指定路径的项目
     ///
     /// 执行完整的项目切换流程：
@@ -562,6 +617,8 @@ impl App {
         }
         self.project_path = Some(path.clone());
         if project_changed {
+            self.agents_settings.project_path = Some(path.clone());
+            self.agents_settings.loading = true;
             self.reset_task_board_project_state();
         }
 
@@ -601,6 +658,7 @@ impl App {
         }
         // 切换到该项目的终端状态
         self.switch_project_terminal(previous_project_path, self.project_path.clone());
+        let reap_task = crate::app::message::terminal::reap_retired_task(self);
         self.project_id = None;
         let reload_task = self.reload_sessions_for_project(Some(path.clone()));
 
@@ -646,8 +704,15 @@ impl App {
             Task::done(Message::Project(message::ProjectMessage::StartDeferredTasks {
                 project_path: deferred_path,
             }));
+        let settings_refresh_task = project_settings_refresh_task(path.clone());
         let preferences_task = project_chat_preferences_task(path);
-        Task::batch(vec![reload_task, deferred_task, preferences_task])
+        Task::batch(vec![
+            reap_task,
+            reload_task,
+            deferred_task,
+            preferences_task,
+            settings_refresh_task,
+        ])
     }
 
     /// 刷新当前项目的 Git 分支信息

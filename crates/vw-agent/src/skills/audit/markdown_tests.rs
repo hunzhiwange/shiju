@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
+use vw_config_types::skills::SkillSecurityConfig;
 
 #[test]
 fn markdown_audit_flags_unsafe_links() {
@@ -12,7 +13,12 @@ fn markdown_audit_flags_unsafe_links() {
     .unwrap();
     let mut report = SkillAuditReport::default();
 
-    audit_markdown_file(dir.path(), &markdown, &mut report).unwrap();
+    let security = SkillSecurityConfig {
+        reject_script_files: true,
+        validate_markdown_links: true,
+        ..Default::default()
+    };
+    audit_markdown_file(dir.path(), &markdown, &security, &mut report).unwrap();
     let summary = report.summary();
     assert!(summary.contains("absolute markdown link"));
     assert!(summary.contains("script files"));
@@ -50,7 +56,9 @@ fn markdown_audit_covers_link_edge_cases() {
     .unwrap();
     let mut report = SkillAuditReport::default();
 
-    audit_markdown_file(dir.path(), &markdown, &mut report).unwrap();
+    let security =
+        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    audit_markdown_file(dir.path(), &markdown, &security, &mut report).unwrap();
     let summary = report.summary();
 
     assert!(summary.contains("unsupported URL scheme"));
@@ -69,7 +77,9 @@ fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
     .unwrap();
     let mut report = SkillAuditReport::default();
 
-    audit_markdown_resource_file(dir.path(), &markdown, &mut report).unwrap();
+    let security =
+        SkillSecurityConfig { detect_high_risk_content: true, ..Default::default() };
+    audit_markdown_resource_file(dir.path(), &markdown, &security, &mut report).unwrap();
     let summary = report.summary();
 
     assert!(summary.contains("curl-pipe-shell"));
@@ -80,7 +90,15 @@ fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
 fn markdown_link_without_parent_reports_resolution_error() {
     let mut report = SkillAuditReport::default();
 
-    audit_markdown_link_target(Path::new("."), Path::new(""), "docs/guide.md", &mut report);
+    let security =
+        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    audit_markdown_link_target(
+        Path::new("."),
+        Path::new(""),
+        "docs/guide.md",
+        &security,
+        &mut report,
+    );
 
     assert_eq!(report.findings.len(), 1);
     assert!(report.findings[0].contains("failed to resolve parent directory"));

@@ -198,6 +198,7 @@ fn task_pool_matrix_instance_publish_uses_named_matrix_instance() {
     use vw_config_types::channels::{ChannelsConfig, MatrixInstanceConfig};
 
     let mut channels_config = ChannelsConfig {
+        matrix_enabled: true,
         matrix: Some(matrix_config(
             Some("@legacy:matrix.example.test"),
             "legacy-token",
@@ -234,9 +235,13 @@ fn task_pool_matrix_instance_publish_uses_named_matrix_instance() {
     assert_eq!(missing.status, StatusCode::BAD_REQUEST);
     assert!(missing.to_string().contains("missing"));
 
-    let default_missing =
-        matrix_task_pool_publish_config(&ChannelsConfig::default(), Some("default"))
-            .expect_err("missing default");
+    let default_missing_config =
+        ChannelsConfig { matrix_enabled: true, ..ChannelsConfig::default() };
+    let default_missing = matrix_task_pool_publish_config(
+        &default_missing_config,
+        Some("default"),
+    )
+    .expect_err("missing default");
     assert_eq!(default_missing.status, StatusCode::BAD_REQUEST);
     assert!(default_missing.to_string().contains("'default'"));
 

@@ -82,8 +82,8 @@ use vw_agent::cron;
 use vw_agent::integrations;
 use vw_agent::provider::provider;
 use vw_agent::{
-    channels, config, daemon, doctor, gateway, memory, observability, plugins, security, service,
-    skills,
+    channels, config, daemon, doctor, gateway, initialize_runtime_build_id, memory, observability,
+    plugins, security, service, skills,
 };
 use vw_shared::task::{SubTask, Task, TaskExecutorBackend, TaskSplitMode, TaskStatus};
 
@@ -91,6 +91,7 @@ use config::Config;
 use config::schema::ChannelsConfigExt;
 use config::schema::ConfigExt;
 
+mod acp;
 #[path = "cli.rs"]
 mod cli;
 #[cfg(test)]
@@ -324,6 +325,9 @@ pub async fn run() -> Result<()> {
 
     // 解析命令行参数
     let cli = Cli::parse();
+    if matches!(&cli.command, Commands::Gateway { .. } | Commands::Daemon { .. }) {
+        initialize_runtime_build_id().map_err(anyhow::Error::msg)?;
+    }
 
     // 设置自定义配置目录（如果通过 --config-dir 指定）
     if let Some(config_dir) = &cli.config_dir {
@@ -347,13 +351,18 @@ pub async fn run() -> Result<()> {
     }
 
     // 检测是否为交互式代理模式（全屏 TUI 模式）
+    let acp_mode = matches!(&cli.command, Commands::Acp);
     let interactive_agent_mode = matches!(&cli.command, Commands::Agent { message: None, .. });
 
-    init_tracing(interactive_agent_mode);
+    init_tracing(interactive_agent_mode, acp_mode);
 
     // 加载配置（所有其他命令都需要先加载配置）
     let mut config = Box::pin(Config::load_or_init()).await?;
     config.apply_env_overrides();
+
+    if acp_mode {
+        return acp::run_stdio().await;
+    }
 
     // 从配置初始化运行时追踪
     observability::runtime_trace::init_from_config(&config.observability, &config.workspace_dir);
@@ -375,6 +384,7 @@ pub async fn run() -> Result<()> {
     // 根据命令类型路由到相应的处理器
     match cli.command {
         /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
+        Commands::Acp => unreachable!("ACP mode is routed before interactive initialization"),
 
         // 处理 Agent 命令：启动 AI 代理
         Commands::Agent {
@@ -436,9 +446,9 @@ pub async fn run() -> Result<()> {
             let host = host.unwrap_or_else(|| config.gateway.host.clone());
             // 显示启动信息
             if port == 0 {
-                info!("🚀 Starting VibeWindow Gateway on {host} (random port)");
+                info!(" Starting VibeWindow Gateway on {host} (random port)");
             } else {
-                info!("🚀 Starting VibeWindow Gateway on {host}:{port}");
+                info!(" Starting VibeWindow Gateway on {host}:{port}");
             }
             // 启动网关服务
             gateway::run_gateway(&host, port, config).await
@@ -461,7 +471,7 @@ pub async fn run() -> Result<()> {
 
         // 处理 Status 命令：显示系统状态
         Commands::Status => {
-            println!("🦀 VibeWindow Status");
+            println!("VibeWindow Status");
             println!();
             println!("Version:     {}", env!("CARGO_PKG_VERSION"));
             println!("Workspace:   {}", config.workspace_dir.display());
@@ -496,7 +506,7 @@ pub async fn run() -> Result<()> {
                 }
             );
             println!(
-                "💡 Memory:         {} (auto-save: {})",
+                "Memory:         {} (auto-save: {})",
                 effective_memory_backend,
                 if config.memory.auto_save { "on" } else { "off" }
             );
@@ -851,7 +861,7 @@ pub async fn run() -> Result<()> {
     }
 }
 
-fn init_tracing(interactive_agent_mode: bool) {
+fn init_tracing(interactive_agent_mode: bool, acp_mode: bool) {
     let terminal_filter = default_tracing_filter();
     let file_filter = default_tracing_filter();
     let runtime_log_dir = vw_shared::runtime_log::default_runtime_log_dir();
@@ -863,6 +873,19 @@ fn init_tracing(interactive_agent_mode: bool) {
         let terminal_layer = fmt::layer()
             .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
             .with_writer(std::io::sink)
+            .with_filter(terminal_filter);
+        let file_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_ansi(false)
+            .with_writer(vw_shared::runtime_log::RuntimeLogMakeWriter::new(runtime_log_dir))
+            .with_filter(file_filter);
+        let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    } else if acp_mode {
+        let terminal_layer = fmt::layer()
+            .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
+            .with_writer(std::io::stderr)
             .with_filter(terminal_filter);
         let file_layer = fmt::layer()
             .with_timer(tracing_subscriber::fmt::time::ChronoLocal::rfc_3339())
@@ -888,7 +911,7 @@ fn init_tracing(interactive_agent_mode: bool) {
 }
 
 fn default_tracing_filter() -> EnvFilter {
-    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,rmcp=warn"))
 }
 #[cfg(test)]
 #[path = "lib_tests.rs"]

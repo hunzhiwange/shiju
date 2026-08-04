@@ -5,6 +5,53 @@ fn test_module_is_wired() {
     assert!(module.ends_with("projects_tests"));
 }
 
+async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
+        return Vec::new();
+    };
+    while let Some(action) = stream.next().await {
+        if let iced_runtime::Action::Output(messages) = action {
+            return messages;
+        }
+    }
+    Vec::new()
+}
+
+#[tokio::test]
+async fn project_settings_refresh_task_reloads_agents_and_skills_for_project() {
+    let messages =
+        collect_task_messages(super::project_settings_refresh_task("/repo/alpha".to_string()))
+            .await;
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        crate::app::Message::Settings(crate::app::message::settings::SettingsMessage::Agents(
+            crate::app::message::settings::AgentsMessage::ProjectChanged(project_path)
+        )) if project_path == "/repo/alpha"
+    )));
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        crate::app::Message::Settings(
+            crate::app::message::settings::SettingsMessage::SkillsRefresh
+        )
+    )));
+}
+
+#[test]
+fn open_project_immediately_moves_agent_settings_to_new_project_scope() {
+    let (mut app, _) = crate::app::App::new();
+    app.agents_settings.project_path = Some("/repo/old".to_string());
+    app.agents_settings.loading = false;
+
+    let _ = app.open_project("/repo/new".to_string());
+
+    assert_eq!(app.project_path.as_deref(), Some("/repo/new"));
+    assert_eq!(app.agents_settings.project_path.as_deref(), Some("/repo/new"));
+    assert!(app.agents_settings.loading);
+}
+
 fn recent_meta(path: &str) -> super::RecentProjectMeta {
     super::RecentProjectMeta {
         path: path.to_string(),
@@ -270,6 +317,19 @@ fn refresh_branches_leaves_snapshot_unchanged_without_project() {
     assert_eq!(app.selected_branch.as_deref(), Some("main"));
     assert_eq!(app.branches, vec!["main".to_string()]);
     assert_eq!(app.project_updated_at_ms, Some(456));
+}
+
+#[test]
+fn switch_project_terminal_keeps_hidden_project_without_pty() {
+    let (mut app, _task) = crate::app::App::new();
+    assert!(app.terminal.tabs.is_empty());
+    app.terminal.is_visible = false;
+
+    assert!(app.switch_project_terminal(None, Some("/repo/lazy".to_string())));
+
+    assert!(!app.terminal.is_visible);
+    assert!(app.terminal.tabs.is_empty());
+    assert_eq!(app.terminal.active_id, None);
 }
 
 #[test]

@@ -7,7 +7,7 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, provider_logo_svg, rounded_action_btn_style, settings_modal_card,
     settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
 };
-use crate::app::state::{ModelCatalogEntry, ProviderSummary};
+use crate::app::state::{ModelCatalogEntry, ProviderSummary, is_shiju_official_provider_id};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
@@ -52,7 +52,8 @@ pub(super) fn visible_catalog_providers(
                 is_connected: configured_providers
                     .iter()
                     .any(|provider| provider.id == provider_id && provider.connected),
-                in_popular: popular_patterns.iter().any(|pattern| pattern == &provider_id),
+                in_popular: is_shiju_official_provider_id(&provider_id)
+                    || popular_patterns.iter().any(|pattern| pattern == &provider_id),
                 provider_id,
                 provider_name,
                 model_count,

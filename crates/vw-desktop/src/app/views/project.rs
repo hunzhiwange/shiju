@@ -21,14 +21,17 @@ use iced::Element;
 use iced::Length;
 use iced::widget::{container, stack};
 
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message};
 
 mod components;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) use components::project_list_action_order;
 mod handles;
 use components::new_session_picker_layer;
 mod layout;
 mod styles;
-use layout::{build_base_layout, drag_badge_layer};
+use layout::{build_base_layout, build_work_layout, drag_badge_layer};
 use styles::workspace_background_style;
 pub mod utils;
 pub use utils::truncate_display_width;
@@ -83,16 +86,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     // 构建基础布局：包含左侧导航栏、会话面板和设置面板的主布局结构
-    let base_layout = build_base_layout(
-        app,
-        settings_panel_width,
-        left_rail_width,
-        session_panel_width_scale,
-        corner_radius,
-        spacing,
-        content_pad,
-        chat_content_pad,
-    );
+    let base_layout = if uses_work_layout(app) {
+        build_work_layout(
+            app,
+            settings_panel_width,
+            left_rail_width,
+            session_panel_width_scale,
+            corner_radius,
+            spacing,
+            chat_content_pad,
+        )
+    } else {
+        build_base_layout(
+            app,
+            settings_panel_width,
+            left_rail_width,
+            session_panel_width_scale,
+            corner_radius,
+            spacing,
+            content_pad,
+            chat_content_pad,
+        )
+    };
 
     // 构建拖拽徽章层：显示当前拖拽操作状态的浮动层
     let drag_badge_layer = drag_badge_layer(app);
@@ -107,6 +122,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .height(Length::Fill) // 容器高度填满可用空间
         .style(workspace_background_style)
         .into() // 将容器转换为 Element
+}
+
+fn uses_work_layout(app: &App) -> bool {
+    app.workspace_mode == WorkspaceMode::Work
 }
 #[cfg(test)]
 #[path = "project_tests.rs"]

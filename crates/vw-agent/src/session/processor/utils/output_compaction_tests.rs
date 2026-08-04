@@ -129,6 +129,68 @@ fn compact_tool_output_keeps_short_bash_output_unchanged() {
 }
 
 #[test]
+fn agent_tool_result_budget_preserves_single_research_report_head_and_tail() {
+    let report = format!(
+        "Conclusion: stale lifecycle state.\nSource: https://example.test/source\n{}\nUncertainty: reconnect needs validation.",
+        "evidence ".repeat(4_000)
+    );
+    let output = json!({
+        "action": "run",
+        "state": "succeeded",
+        "child_session_id": "research-child",
+        "output": report,
+    })
+    .to_string();
+
+    let compacted = super::compact_tool_output("AgentTool", &output);
+    let parsed: serde_json::Value = serde_json::from_str(&compacted).expect("valid compacted json");
+    let report = parsed["output"].as_str().expect("report");
+    assert!(report.starts_with("Conclusion:"));
+    assert!(report.contains("https://example.test/source"));
+    assert!(report.contains("<middle truncated>"));
+    assert!(report.ends_with("Uncertainty: reconnect needs validation."));
+    assert_eq!(parsed["child_session_id"], "research-child");
+}
+
+#[test]
+fn agent_tool_result_budget_preserves_every_multi_task_summary() {
+    let tasks = (0..12)
+        .map(|index| {
+            json!({
+                "parent_session_id": "parent",
+                "child_session_id": format!("child-{index}"),
+                "state": "succeeded",
+                "output": format!(
+                    "Task {index} result.\n{}\nTask {index} validation passed.",
+                    "details ".repeat(500)
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    let output = json!({"action":"wait","timed_out":false,"tasks":tasks}).to_string();
+
+    let compacted = super::compact_tool_output("agent_tool", &output);
+    let parsed: serde_json::Value = serde_json::from_str(&compacted).expect("valid compacted json");
+    let tasks = parsed["tasks"].as_array().expect("tasks");
+    assert_eq!(tasks.len(), 12);
+    for (index, task) in tasks.iter().enumerate() {
+        let report = task["output"].as_str().expect("task report");
+        assert!(report.starts_with(&format!("Task {index} result.")));
+        assert!(report.ends_with(&format!("Task {index} validation passed.")));
+        assert_eq!(task["child_session_id"], format!("child-{index}"));
+    }
+}
+
+#[test]
+fn agent_tool_result_budget_invalid_json_uses_generic_fallback() {
+    let invalid = format!("not-json {}", "x".repeat(4 * 1024));
+    let compacted = super::compact_tool_output("agent", &invalid);
+
+    assert!(compacted.ends_with("…<truncated>"));
+    assert!(compacted.len() < invalid.len());
+}
+
+#[test]
 fn compact_tool_output_for_ui_has_read_specific_rules() {
     let file = format!("<file>{}</file>", "a".repeat(17 * 1024));
     let compact_file = super::compact_tool_output_for_ui("read", &file);

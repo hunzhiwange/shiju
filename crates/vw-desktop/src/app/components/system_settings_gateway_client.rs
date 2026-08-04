@@ -7,8 +7,7 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, settings_value_badge,
-    with_settings_help_modal,
+    settings_section_card, settings_text_input_style, with_settings_help_modal,
 };
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -83,23 +82,16 @@ fn number_row<'a>(
     value: u32,
     min: u32,
     max: u32,
-    suffix: &'static str,
+    _suffix: &'static str,
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
-    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
-
     field_row(
         label,
         description,
-        row![
-            NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
-                on_change(raw.round() as u32)
-            })
-            .settings_style(),
-            settings_value_badge(display),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
+        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
+            on_change(raw.round() as u32)
+        })
+        .settings_style(),
     )
 }
 
@@ -436,7 +428,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 - 目标 Gateway 主机地址，默认 127.0.0.1。
 
 2) port
-- 目标 Gateway 端口，默认 42617。
+- 目标 Gateway 端口，默认 14682。
 
 3) platform_id / company_id
 - 平台与公司租户 ID，默认 10000 / 100000000；不能为空。
@@ -453,14 +445,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         "id": "local",
         "name": "本地网关",
         "host": "127.0.0.1",
-        "port": 42617,
+        "port": 14682,
         "platform_id": "10000",
         "company_id": "100000000",
         "skey": ""
       }
     ],
     "host": "127.0.0.1",
-    "port": 42617,
+    "port": 14682,
     "platform_id": "10000",
     "company_id": "100000000",
     "skey": ""

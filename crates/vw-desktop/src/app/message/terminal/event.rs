@@ -77,14 +77,14 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                 if tab.term.handle(iced_term::Command::ProxyToBackend(cmd))
                     == iced_term::actions::Action::Shutdown
                 {
-                    // 关闭该终端标签页
+                    // 关闭该终端标签页（延迟 drop，避免订阅流 panic）
                     app.terminal.close_terminal(id);
 
                     // 如果所有终端标签页都已关闭，隐藏终端面板
                     if app.terminal.tabs.is_empty() {
                         app.terminal.is_visible = false;
                     }
-                    return Task::none();
+                    return super::tabs::reap_retired_task(app);
                 }
             }
             Task::none()

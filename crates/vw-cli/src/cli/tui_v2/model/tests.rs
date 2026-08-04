@@ -59,11 +59,13 @@ fn prompt_state_queue_command_preserves_fifo_order() {
         raw: "/model gpt-5.4".to_string(),
         kind: QueuedPromptCommandKind::SlashCommand,
         enqueued_ms: Some(10),
+        ..QueuedPromptCommand::default()
     });
     state.queue_command(QueuedPromptCommand {
         raw: "继续".to_string(),
         kind: QueuedPromptCommandKind::Submit,
         enqueued_ms: Some(12),
+        ..QueuedPromptCommand::default()
     });
 
     assert_eq!(

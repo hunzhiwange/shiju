@@ -9,9 +9,10 @@ fn name_is_stable() {
 
 #[test]
 fn blocks_newline_inside_quotes() {
-    let findings = QuotedNewlineValidator.validate(&parse_command("printf 'a\nb'"));
-
-    assert_eq!(findings[0].category, SecurityCategory::Injection);
+    for command in ["printf 'a\nb'", "printf \"a\rb\""] {
+        let findings = QuotedNewlineValidator.validate(&parse_command(command));
+        assert_eq!(findings[0].category, SecurityCategory::Injection);
+    }
 }
 
 #[test]

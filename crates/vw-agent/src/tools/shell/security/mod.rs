@@ -5,6 +5,7 @@
 
 use super::ast::{ParsedCommand, parse_command};
 use crate::security::AutonomyLevel;
+use vw_config_types::security::BashValidatorChecksConfig;
 
 pub mod injection;
 pub mod obfuscation;
@@ -101,7 +102,22 @@ impl SecurityPipeline {
     /// 返回值：包含当前默认 validator 集合的流水线。
     /// 错误处理：该函数不返回错误。
     pub fn new(strict: bool) -> Self {
-        Self { validators: validators::build_validators(strict) }
+        Self::new_with_quoted_newline_blocking(strict, false)
+    }
+
+    /// 创建安全流水线，并显式控制是否阻断 Shell 引号内的换行符。
+    pub fn new_with_quoted_newline_blocking(
+        strict: bool,
+        block_quoted_shell_newlines: bool,
+    ) -> Self {
+        let mut validators = BashValidatorChecksConfig::default();
+        validators.quoted_newline = block_quoted_shell_newlines;
+        Self::new_with_config(strict, &validators)
+    }
+
+    /// 根据分组与单项配置创建安全流水线。
+    pub fn new_with_config(strict: bool, config: &BashValidatorChecksConfig) -> Self {
+        Self { validators: validators::build_validators(strict, config) }
     }
 
     /// 根据自治等级与显式配置创建流水线。

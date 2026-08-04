@@ -57,10 +57,11 @@ fn open_usage_inserts_after_home_and_clears_stale_usage_state() {
         cost_cache_read_per_million: 0.0,
         cost_cache_write_per_million: 0.0,
     });
-    app.usage_session_file_path = Some("stale.sqlite".to_string());
     app.usage_step_raw_payloads
         .insert(("session".to_string(), 1), Ok(Some(serde_json::json!({"stale": true}))));
     app.usage_step_raw_loading.insert(("session".to_string(), 2));
+    app.usage_step_raw_modal =
+        Some(crate::app::state::UsageStepRawModal { step_index: 1, content: "{}".to_string() });
 
     let _ = super::update(&mut app, crate::app::message::ViewMessage::OpenUsage);
 
@@ -68,9 +69,9 @@ fn open_usage_inserts_after_home_and_clears_stale_usage_state() {
     assert_eq!(app.active_tab_id.as_deref(), Some("usage"));
     assert_eq!(app.screen, crate::app::Screen::Usage);
     assert!(app.usage_model_info.is_none());
-    assert!(app.usage_session_file_path.is_none());
     assert!(app.usage_step_raw_payloads.is_empty());
     assert!(app.usage_step_raw_loading.is_empty());
+    assert!(app.usage_step_raw_modal.is_none());
 }
 
 #[test]

@@ -10,6 +10,9 @@ use std::collections::HashMap;
 
 const REGISTERED_UI_ICONS: &[Icon] = &[
     Icon::QuestionCircle,
+    Icon::ArrowLeft,
+    Icon::ArrowRight,
+    Icon::Globe,
     Icon::Back,
     Icon::Home,
     Icon::GitBranch,
@@ -29,6 +32,7 @@ const REGISTERED_UI_ICONS: &[Icon] = &[
     Icon::Code,
     Icon::LayoutSidebar,
     Icon::LayoutSidebarReverse,
+    Icon::Funnel,
     Icon::Eye,
     Icon::EyeSlash,
 ];

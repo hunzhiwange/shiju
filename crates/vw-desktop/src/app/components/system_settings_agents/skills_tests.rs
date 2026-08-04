@@ -67,13 +67,15 @@ fn discovery_order_text_distinguishes_open_project_and_global_context() {
     let global_order = discovery_order_text(&app);
 
     assert!(global_order.ends_with(" -> 内置技能"));
-    assert!(!global_order.contains("父级 .vibewindow/skills"));
+    assert!(!global_order.contains("父级 skills、.agents/skills"));
 
     app.project_path = Some("/workspace/demo".to_string());
     let project_order = discovery_order_text(&app);
 
-    assert!(project_order.starts_with("/workspace/demo/.vibewindow/skills"));
-    assert!(project_order.contains("/workspace/demo/skills -> 父级 .vibewindow/skills"));
+    assert!(project_order.starts_with("/workspace/demo/skills"));
+    assert!(
+        project_order.contains("/workspace/demo/.agents/skills -> 父级 skills、.agents/skills")
+    );
 }
 
 #[test]

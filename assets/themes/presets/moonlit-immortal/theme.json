@@ -1,0 +1,25 @@
+{
+  "id": "moonlit-immortal",
+  "name": "曜月谪仙 Moonlit Immortal",
+  "tagline": "月华为剑，云海作卷。",
+  "palette": {
+    "background": "#061a3d",
+    "text": "#f2f7ff",
+    "primary": "#5b9ff4",
+    "success": "#8cddff",
+    "warning": "#dfb866",
+    "danger": "#e06459"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#0d2b58",
+    "input_bg": "#0f315f",
+    "button_bg": "#5b9ff4",
+    "button_text": "#f8fafc",
+    "radius_px": 10,
+    "panel_alpha": 184
+  }
+}

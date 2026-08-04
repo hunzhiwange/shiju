@@ -8,6 +8,9 @@ use serde_json::Value;
 use std::fmt;
 
 use crate::app::assets::Icon;
+use crate::app::components::system_settings_common::{
+    settings_pick_list_menu_style, settings_pick_list_style,
+};
 use crate::app::message::TaskBoardMessage;
 use crate::app::state::{TaskBoardStaffAssignmentTab, TaskBoardStaffOrchestrationTab};
 use crate::app::task::staff::models::TaskBoardStageAction;
@@ -364,7 +367,9 @@ fn stage_action_control(
                 capability_id: option.capability_id,
             })
         })
-        .width(Length::Fill);
+        .width(Length::Fill)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style);
 
     let mut controls =
         column![text("阶段能力").size(12).font(styles::bold_font()), capability_picker].spacing(6);
@@ -381,7 +386,9 @@ fn stage_action_control(
                 workflow_uuid: option.uuid,
             })
         })
-        .width(Length::Fill);
+        .width(Length::Fill)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style);
         let workflow_row = row![
             picker,
             button(text("新建 Workflow").size(11))

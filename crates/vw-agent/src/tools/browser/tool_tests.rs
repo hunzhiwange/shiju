@@ -318,7 +318,7 @@ fn summarize_action_covers_specific_and_fallback_messages() {
         ("type", serde_json::json!({"selector": "#query"}), "Typed into #query"),
         ("type", serde_json::json!({}), "Typed text"),
         ("get_text", serde_json::json!({"selector": ".message"}), "Read text from .message"),
-        ("get_text", serde_json::json!({}), "Read page text"),
+        ("get_text", serde_json::json!({}), "Read element text"),
         ("get_title", serde_json::json!({"title": "Dashboard"}), "Read title: Dashboard"),
         ("get_title", serde_json::json!({}), "Read page title"),
         (
@@ -369,6 +369,11 @@ fn tool_contract_exposes_browser_schema_and_safety_flags() {
 
     assert_eq!(tool.name(), "browser");
     assert!(tool.description().contains("browser.allowed_domains"));
+    assert!(tool.description().contains("get_text"));
+    assert!(tool.description().contains("必须提供非空字符串 'selector'"));
+    assert!(
+        schema["properties"]["selector"]["description"].as_str().unwrap_or("").contains("get_text")
+    );
     assert_eq!(schema["type"], "object");
     assert_eq!(schema["required"], serde_json::json!(["action"]));
     assert_eq!(

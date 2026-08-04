@@ -68,6 +68,27 @@ async fn build_router_registers_v1_desktop_service_route() {
 }
 
 #[tokio::test]
+async fn build_router_registers_v1_shiju_app_routes() {
+    for path in [
+        "/v1/shiju/apps/catalog",
+        "/v1/shiju/apps",
+        "/v1/shiju/apps/01K1APP0000000000000000001/launch",
+    ] {
+        let request = Request::post(path)
+            .header(PLATFORM_ID_HEADER, "platform-test")
+            .header(COMPANY_ID_HEADER, "company-test")
+            .body(Body::empty())
+            .unwrap();
+        let response = build_router(Vec::new()).oneshot(request).await.unwrap();
+        if path.ends_with("/launch") {
+            assert_ne!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        } else {
+            assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");
+        }
+    }
+}
+
+#[tokio::test]
 async fn build_router_allows_whitelisted_cors_origin() {
     let origin = "https://ui.example.test";
     let request = Request::get("/v1/global/health")

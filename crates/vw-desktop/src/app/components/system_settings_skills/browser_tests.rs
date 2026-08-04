@@ -7,7 +7,8 @@ use super::browser::{
     detail_source_note, discovery_order_text, discovery_order_view, empty_state,
     header_panel_style, loading_banner, provider_global_paths, provider_project_paths,
     refresh_button, scope_button, scope_description, scope_source_matches, scope_title,
-    search_bar_style, search_text_input_style, status_banner, view as browser_view, view_overlays,
+    search_bar_style, search_text_input_style, skill_project_options, status_banner,
+    view as browser_view, view_overlays,
 };
 use crate::app::assets::Icon;
 use crate::app::message;
@@ -22,6 +23,23 @@ use vw_config_types::skills::SkillsDirectoryProvider;
 
 fn app() -> App {
     App::new().0
+}
+
+#[test]
+fn skill_project_options_put_current_first_and_deduplicate_recent_paths() {
+    let mut app = app();
+    app.project_path = Some("/repo/current".to_string());
+    app.recent_projects = vec![
+        "/repo/other".to_string(),
+        "/repo/current".to_string(),
+        "  /repo/third  ".to_string(),
+        String::new(),
+    ];
+
+    assert_eq!(
+        skill_project_options(&app),
+        vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
+    );
 }
 
 fn catalog_item(id: &str, source: &str) -> SkillsCatalogItem {
@@ -111,16 +129,24 @@ fn provider_paths_match_directory_provider_contract() {
     let cases = [
         (
             SkillsDirectoryProvider::Vibewindow,
-            ".vibewindow/skills 与 skills",
+            ".vibewindow/skills、skills 与 .agents/skills",
             vibewindow_global.as_str(),
         ),
         (
             SkillsDirectoryProvider::Codex,
-            ".codex/skills 与 .agents/skills",
+            ".codex/skills、.agents/skills 与 skills",
             "~/.codex/skills 与 ~/.agents/skills",
         ),
-        (SkillsDirectoryProvider::Claude, ".claude/skills", "~/.claude/skills"),
-        (SkillsDirectoryProvider::Cursor, ".cursor/skills", "~/.cursor/skills"),
+        (
+            SkillsDirectoryProvider::Claude,
+            ".claude/skills、skills 与 .agents/skills",
+            "~/.claude/skills",
+        ),
+        (
+            SkillsDirectoryProvider::Cursor,
+            ".cursor/skills、skills 与 .agents/skills",
+            "~/.cursor/skills",
+        ),
     ];
 
     for (provider, project, global) in cases {
@@ -179,11 +205,11 @@ fn scope_descriptions_are_exact_for_each_codex_scope() {
     let cases = [
         (
             SkillsDirectoryScope::Project,
-            "查看当前项目 .codex/skills 与 .agents/skills 目录命中的技能。",
+            "查看当前项目 .codex/skills、.agents/skills 与 skills 目录命中的技能。",
         ),
         (
             SkillsDirectoryScope::Ancestor,
-            "查看从项目父级向上发现的 .codex/skills 与 .agents/skills 技能。",
+            "查看从项目父级向上发现的 .codex/skills、.agents/skills 与 skills 技能。",
         ),
         (
             SkillsDirectoryScope::Global,
@@ -214,7 +240,7 @@ fn discovery_order_text_distinguishes_project_context() {
     app.project_path = Some("/workspace/demo".to_string());
     assert_eq!(
         discovery_order_text(&app),
-        "/workspace/demo/.codex/skills 与 .agents/skills -> 父级 .codex/skills 与 .agents/skills -> ~/.codex/skills 与 ~/.agents/skills"
+        "/workspace/demo/.codex/skills、.agents/skills 与 skills -> 父级 .codex/skills、.agents/skills 与 skills -> ~/.codex/skills 与 ~/.agents/skills"
     );
 }
 

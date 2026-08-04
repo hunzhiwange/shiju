@@ -1,0 +1,25 @@
+{
+  "id": "vanilla-sky",
+  "name": "香草天空 Vanilla Sky",
+  "tagline": "云很轻，阳光是温的。",
+  "palette": {
+    "background": "#f8f6f1",
+    "text": "#38342f",
+    "primary": "#9ab0c9",
+    "success": "#b8cddf",
+    "warning": "#a89f8d",
+    "danger": "#d4b882"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#9ab0c9",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

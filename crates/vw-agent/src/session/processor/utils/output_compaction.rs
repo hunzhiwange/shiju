@@ -197,6 +197,73 @@ fn truncate_string_tail(s: &str, limit: usize) -> String {
     out
 }
 
+fn truncate_string_middle(s: &str, limit: usize) -> String {
+    const MARKER: &str = "\n…<middle truncated>…\n";
+    if s.len() <= limit {
+        return s.to_string();
+    }
+    let content_budget = limit.saturating_sub(MARKER.len());
+    let head_budget = content_budget / 2;
+    let tail_budget = content_budget.saturating_sub(head_budget);
+
+    let mut head_end = head_budget.min(s.len());
+    while head_end > 0 && !s.is_char_boundary(head_end) {
+        head_end -= 1;
+    }
+    let mut tail_start = s.len().saturating_sub(tail_budget);
+    while tail_start < s.len() && !s.is_char_boundary(tail_start) {
+        tail_start += 1;
+    }
+    format!("{}{}{}", &s[..head_end], MARKER, &s[tail_start..])
+}
+
+fn is_agent_tool_name(name: &str) -> bool {
+    matches!(name.trim().to_ascii_lowercase().as_str(), "agenttool" | "agent_tool" | "agent")
+}
+
+fn compact_agent_tool_result(output: &str) -> Option<String> {
+    const SINGLE_REPORT_BYTES: usize = 16 * 1024;
+    const TOTAL_REPORT_BYTES: usize = 24 * 1024;
+    const MAX_MULTI_REPORT_BYTES: usize = 12 * 1024;
+    const MIN_REPORT_BYTES: usize = 768;
+
+    let mut value = serde_json::from_str::<Value>(output.trim()).ok()?;
+    let report_count = usize::from(value.get("output").and_then(Value::as_str).is_some())
+        + value
+            .get("tasks")
+            .and_then(Value::as_array)
+            .map(|tasks| {
+                tasks
+                    .iter()
+                    .filter(|task| task.get("output").and_then(Value::as_str).is_some())
+                    .count()
+            })
+            .unwrap_or_default();
+    if report_count == 0 {
+        return Some(output.to_string());
+    }
+    let report_budget = if report_count == 1 {
+        SINGLE_REPORT_BYTES
+    } else {
+        (TOTAL_REPORT_BYTES / report_count).clamp(MIN_REPORT_BYTES, MAX_MULTI_REPORT_BYTES)
+    };
+
+    if let Some(report) = value.get_mut("output").filter(|report| report.is_string()) {
+        let compacted = truncate_string_middle(report.as_str().unwrap_or_default(), report_budget);
+        *report = Value::String(compacted);
+    }
+    if let Some(tasks) = value.get_mut("tasks").and_then(Value::as_array_mut) {
+        for task in tasks {
+            if let Some(report) = task.get_mut("output").filter(|report| report.is_string()) {
+                let compacted =
+                    truncate_string_middle(report.as_str().unwrap_or_default(), report_budget);
+                *report = Value::String(compacted);
+            }
+        }
+    }
+    serde_json::to_string(&value).ok()
+}
+
 /// 执行 compact_tool_output 操作，并返回调用方需要的结果。
 pub(crate) fn compact_tool_output(name: &str, output: &str) -> String {
     const MAX_BYTES: usize = 3 * 1024;
@@ -208,6 +275,9 @@ pub(crate) fn compact_tool_output(name: &str, output: &str) -> String {
     }
     if name == "bash" {
         return truncate_string_tail(&s, MAX_BYTES_BASH);
+    }
+    if is_agent_tool_name(name) {
+        return compact_agent_tool_result(&s).unwrap_or_else(|| truncate_string(&s, MAX_BYTES));
     }
     truncate_string(&s, MAX_BYTES)
 }

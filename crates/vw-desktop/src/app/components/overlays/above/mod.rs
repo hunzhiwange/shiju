@@ -65,6 +65,8 @@ pub struct AboveOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Renderer>
     snap_within_viewport: bool,
     /// 关闭覆盖层时触发的消息
     on_close: Option<Message>,
+    /// 是否拦截覆盖层显示期间的所有用户输入事件
+    block_background_events: bool,
 }
 
 /// 基于锚点的上方覆盖层组件
@@ -141,6 +143,7 @@ impl<'a, Message, ThemeT, RendererT> AboveOverlay<'a, Message, ThemeT, RendererT
             gap: 0.0,
             snap_within_viewport: true,
             on_close: None,
+            block_background_events: false,
         }
     }
 
@@ -204,6 +207,12 @@ impl<'a, Message, ThemeT, RendererT> AboveOverlay<'a, Message, ThemeT, RendererT
     /// ```
     pub fn on_close(mut self, msg: Message) -> Self {
         self.on_close = Some(msg);
+        self
+    }
+
+    /// 设置覆盖层显示期间是否阻止事件传递到底层界面。
+    pub fn block_background_events(mut self, block: bool) -> Self {
+        self.block_background_events = block;
         self
     }
 

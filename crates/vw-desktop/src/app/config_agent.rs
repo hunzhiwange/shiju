@@ -29,12 +29,12 @@ use vw_config_types::{
     transcription::TranscriptionConfig,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use super::gateway::load_config_value_at_path;
 use super::gateway::{
     apply_main_agent_overrides, gateway_client, run_gateway_call, set_config_value_at_path,
     spawn_gateway_task,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use super::gateway::load_config_value_at_path;
 
 #[derive(Debug, Clone)]
 pub struct AcpSettingsSnapshot {
@@ -111,6 +111,34 @@ fn build_acp_agent_enabled_patch(
     let mut root_patch = serde_json::Map::new();
     root_patch.insert("acp".to_string(), serde_json::Value::Object(acp_patch));
     Ok(serde_json::Value::Object(root_patch))
+}
+
+fn build_acp_agent_create_patch(
+    agent_name: &str,
+    mut spec: AcpAgentConfig,
+    catalog: &HashMap<String, AcpAgentConfig>,
+    configured: HashMap<String, AcpAgentConfig>,
+) -> Result<serde_json::Value, String> {
+    let agent_name = agent_name.trim();
+    if agent_name.is_empty() {
+        return Err("acp agent name must not be empty".to_string());
+    }
+    if catalog.contains_key(agent_name) {
+        return Err(format!("acp agent already exists: {agent_name}"));
+    }
+
+    spec.command = spec.command.trim().to_string();
+    if spec.command.is_empty() {
+        return Err("acp agent command must not be empty".to_string());
+    }
+    spec.args = spec
+        .args
+        .into_iter()
+        .map(|arg| arg.trim().to_string())
+        .filter(|arg| !arg.is_empty())
+        .collect();
+
+    build_acp_agent_enabled_patch(agent_name, true, Some(spec), catalog, configured)
 }
 
 fn build_main_agent_overrides_patch(config: &Config) -> Result<Option<serde_json::Value>, String> {
@@ -236,6 +264,12 @@ pub async fn load_full_agent_config_async() -> Result<Config, String> {
     fetch_agent_config_via_gateway().await
 }
 
+pub async fn load_project_agent_config_async(project_path: &str) -> Result<Config, String> {
+    let client = gateway_client()?;
+    let value = client.config_get(Some(project_path)).await?;
+    serde_json::from_value(value).map_err(|error| error.to_string())
+}
+
 /// 读取全局配置原始 JSON，用于尚未进入 `Config` 强类型结构的字段。
 pub async fn load_global_config_value_async() -> Result<serde_json::Value, String> {
     fetch_global_config_value_via_gateway().await
@@ -358,6 +392,19 @@ pub async fn set_global_acp_agent_enabled_async(
     load_acp_settings_snapshot_async().await
 }
 
+pub async fn add_global_acp_agent_async(
+    agent_name: String,
+    spec: AcpAgentConfig,
+) -> Result<AcpSettingsSnapshot, String> {
+    let catalog = fetch_global_acp_config_via_gateway().await?;
+    let configured = fetch_global_agent_config_via_gateway().await?.acp;
+    let patch = build_acp_agent_create_patch(&agent_name, spec, &catalog, configured)?;
+
+    patch_agent_config_via_gateway(&patch).await?;
+
+    load_acp_settings_snapshot_async().await
+}
+
 /// 读取、保存或转换 `patch_full_agent_config_async` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -373,6 +420,14 @@ pub async fn set_global_acp_agent_enabled_async(
 /// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
 pub async fn patch_full_agent_config_async(patch: serde_json::Value) -> Result<(), String> {
     patch_agent_config_via_gateway(&patch).await
+}
+
+pub async fn patch_project_agent_config_async(
+    project_path: &str,
+    patch: serde_json::Value,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.config_patch(Some(project_path), &patch).await.map(|_| ())
 }
 
 /// 读取、保存或转换 `patch_agent_config_result` 对应的配置数据与运行时状态。

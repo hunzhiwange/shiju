@@ -294,6 +294,23 @@ async fn turn_initializes_system_message_and_enriches_user_message() {
 }
 
 #[tokio::test]
+async fn turn_timestamp_uses_configured_timezone() {
+    let provider = ProviderHandle::with_responses(vec![Ok(text_response("hello"))]);
+    let mut agent = default_agent(
+        provider.provider(),
+        Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
+    );
+    agent.timezone = chrono_tz::UTC;
+
+    agent.turn("hi").await.expect("turn should succeed");
+
+    let requests = provider.seen_messages();
+    let user = final_user_message(&requests[0]);
+    assert!(user.content.contains("+00:00 (UTC)"));
+    assert!(user.content.ends_with("] hi"));
+}
+
+#[tokio::test]
 async fn turn_skips_memory_context_when_loader_fails() {
     let provider = ProviderHandle::with_responses(vec![Ok(text_response("plain"))]);
     let mut agent = default_agent(
@@ -434,6 +451,24 @@ async fn turn_with_stream_sends_progress_and_final_response() {
     assert!(chunks.iter().any(|chunk| chunk.contains("思考中")));
     assert!(chunks.iter().any(|chunk| chunk == "streamed "));
     assert!(chunks.iter().any(|chunk| chunk == "answer"));
+}
+
+#[tokio::test]
+async fn turn_with_stream_timestamp_uses_configured_timezone() {
+    let provider = ProviderHandle::with_responses(vec![Ok(text_response("streamed answer"))]);
+    let mut agent = default_agent(
+        provider.provider(),
+        Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
+    );
+    agent.timezone = chrono_tz::UTC;
+    let (tx, _rx) = tokio::sync::mpsc::channel(8);
+
+    agent.turn_with_stream("hi", tx).await.expect("streaming turn should succeed");
+
+    let requests = provider.seen_messages();
+    let user = final_user_message(&requests[0]);
+    assert!(user.content.contains("+00:00 (UTC)"));
+    assert!(user.content.ends_with("] hi"));
 }
 
 #[tokio::test]

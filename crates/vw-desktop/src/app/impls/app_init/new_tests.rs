@@ -81,11 +81,35 @@ fn new_initializes_layout_panels_and_overlay_state() {
     assert!(app.file_manager_width >= 180.0);
     assert!(app.file_manager_width <= 600.0);
     assert!(!app.show_model_popover);
+    assert!(!app.show_workspace_mode_popover);
     assert!(!app.show_file_popover);
     assert!(!app.show_usage_popover);
     assert!(app.chat_context_menu_target.is_none());
     assert!(app.input_context_menu_pos.is_none());
     assert!(app.tool_detail_dialog.is_none());
+}
+
+#[test]
+fn workspace_mode_new_initializes_popover_closed_and_keeps_diff_visible() {
+    let (app, _task) = App::new();
+
+    assert!(!app.show_workspace_mode_popover);
+    assert!(app.show_diff);
+}
+
+#[test]
+fn work_workspace_state_defaults_to_hidden_overview() {
+    let (app, _task) = App::new();
+
+    assert_eq!(app.work_resource_mode, state::WorkResourceMode::Overview);
+    assert!(!app.work_resources_visible);
+    assert_eq!(app.work_split_ratio, 0.6);
+    assert!(!app.work_resource_fullscreen);
+    assert!(!app.work_resource_half_fullscreen);
+    assert!(!app.work_chat_fullscreen);
+    assert!(!app.work_chat_half_fullscreen);
+    assert!(!app.work_sidebar_more_open);
+    assert!(app.work_expanded_spaces.is_empty());
 }
 
 #[test]
@@ -207,10 +231,22 @@ fn new_initializes_search_preview_and_file_tree_state() {
 }
 
 #[test]
-fn new_initializes_settings_panels_and_gateway_drafts_idle() {
+fn new_initializes_code_editors_in_simplified_chinese() {
+    let (app, _task) = App::new();
+
+    assert_eq!(app.current_language, iced_code_editor::i18n::Language::ChineseSimplified);
+    assert_eq!(
+        app.git_copy_modal_code_editor.language(),
+        iced_code_editor::i18n::Language::ChineseSimplified
+    );
+}
+
+#[test]
+fn new_initializes_settings_panels_gateway_drafts_and_timezone() {
     let (app, _task) = App::new();
 
     assert_eq!(app.settings_tab, SettingsTab::Sessions);
+    assert_eq!(app.chat_timezone, vw_config_types::ui::DEFAULT_TIMEZONE);
     assert_eq!(app.system_settings_query, "");
     assert_eq!(app.system_settings_help_tab, None);
     assert_eq!(app.provider_settings.save_error, None);

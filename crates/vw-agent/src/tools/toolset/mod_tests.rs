@@ -102,6 +102,8 @@ fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> Deleg
         builtin: false,
         mode: mode.to_string(),
         enabled,
+        allow_as_subagent: true,
+        max_parallel_subagents: 4,
         provider: "ollama".to_string(),
         model: "llama3".to_string(),
         system_prompt: None,
@@ -114,11 +116,99 @@ fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> Deleg
         agentic: false,
         allowed_tools: Vec::new(),
         allowed_skills,
+        enabled_identity_files: Vec::new(),
         options: HashMap::new(),
         permission: serde_json::Value::Null,
         max_iterations: 10,
         steps: None,
     }
+}
+
+#[test]
+fn delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_skills() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join(".agents/skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: project-skill\ndescription: Project skill\n---\n",
+    )
+    .unwrap();
+
+    let mut root_config = test_config(&workspace);
+    root_config.skills.open_skills_enabled = false;
+    let agents = HashMap::from([(
+        "worker".to_string(),
+        agent_config("all", true, vec!["explicit-skill".to_string()]),
+    )]);
+
+    let effective =
+        enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
+
+    assert_eq!(
+        effective["worker"].allowed_skills,
+        vec!["explicit-skill".to_string(), "project-skill".to_string()]
+    );
+}
+
+#[test]
+fn delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir_all(workspace.join(".git")).unwrap();
+    let skill_dir = workspace.join("skills/project-skill");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(skill_dir.join("SKILL.md"), "# Project Skill\n").unwrap();
+
+    let mut root_config = test_config(&workspace);
+    root_config.skills.auto_load_project_skills = false;
+    root_config.skills.open_skills_enabled = false;
+    let agents = HashMap::from([(
+        "worker".to_string(),
+        agent_config("all", true, vec!["explicit-skill".to_string()]),
+    )]);
+
+    let effective =
+        enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
+
+    assert_eq!(effective["worker"].allowed_skills, vec!["explicit-skill".to_string()]);
+}
+
+#[test]
+fn configured_subagent_opt_out_overrides_builtin_default() {
+    let mut agents = HashMap::new();
+
+    let mut blocked = agent_config("subagent", true, Vec::new());
+    blocked.allow_as_subagent = false;
+    agents.insert("researcher".to_string(), blocked);
+
+    let mut disabled = agent_config("subagent", false, Vec::new());
+    disabled.allow_as_subagent = true;
+    agents.insert("coder".to_string(), disabled);
+
+    let eligible = enabled_delegate_agents(&agents);
+
+    assert!(eligible.contains_key("main"));
+    assert!(!eligible.contains_key("researcher"));
+    assert!(!eligible.contains_key("coder"));
+}
+
+#[test]
+fn agent_tool_parallel_limit_uses_current_agent_and_clamps_bounds() {
+    let mut agents = HashMap::new();
+    let mut main = agent_config("primary", true, Vec::new());
+    main.max_parallel_subagents = 3;
+    agents.insert("main".to_string(), main);
+
+    let mut worker = agent_config("subagent", true, Vec::new());
+    worker.max_parallel_subagents = 99;
+    agents.insert("worker".to_string(), worker);
+
+    assert_eq!(agent_tool_parallel_limit(&agents, "main"), 3);
+    assert_eq!(agent_tool_parallel_limit(&agents, "worker"), 32);
+    assert_eq!(agent_tool_parallel_limit(&agents, "missing"), 4);
 }
 
 fn tool_names(tools: &[Box<dyn Tool>]) -> Vec<&str> {
@@ -610,6 +700,77 @@ fn tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config() {
     assert!(spec.read_only);
     assert!(!spec.destructive);
     assert!(spec.concurrency_safe);
+}
+
+#[test]
+fn execution_environment_registers_agent_tool_from_loaded_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    let mut config = test_config(workspace);
+    config.agents.insert("worker".to_string(), agent_config("subagent", true, Vec::new()));
+    let ctx =
+        ToolRuntimeContext::new("parent-session", Some(workspace.to_string_lossy().to_string()));
+
+    let (tools, _) = execution_environment_for_config(&ctx, Arc::new(config));
+
+    assert!(tool_names(&tools).contains(&"AgentTool"));
+}
+
+#[test]
+fn default_config_registers_agent_tool_with_builtin_subagents() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    let config = test_config(workspace);
+    assert!(config.agents.is_empty());
+    let ctx =
+        ToolRuntimeContext::new("parent-session", Some(workspace.to_string_lossy().to_string()));
+
+    let (tools, _) = execution_environment_for_config(&ctx, Arc::new(config));
+
+    assert!(tool_names(&tools).contains(&"AgentTool"));
+}
+
+#[tokio::test]
+async fn workflow_and_goal_sessions_inherit_recursive_agent_tool_controls() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    let config = Arc::new(test_config(workspace));
+    let delegate_agents = enabled_delegate_agents(&config.agents);
+
+    assert!(!delegate_agents.is_empty());
+    assert!(
+        delegate_agents
+            .values()
+            .all(|agent| agent.enabled && agent.allow_as_subagent && agent.max_depth > 0)
+    );
+    assert_eq!(agent_tool_parallel_limit(&config.agents, "main"), 4);
+
+    for session_id in ["workflow-subtask-session", "goal-continuation-session"] {
+        let ctx =
+            ToolRuntimeContext::new(session_id, Some(workspace.to_string_lossy().to_string()));
+        let (tools, tool_use_context) =
+            execution_environment_for_config(&ctx, Arc::clone(&config));
+        let agent_tool =
+            tools.iter().find(|tool| tool.name() == "AgentTool").expect("AgentTool registered");
+        let actions = agent_tool.parameters_schema()["properties"]["action"]["enum"]
+            .as_array()
+            .expect("AgentTool action enum")
+            .clone();
+        for action in ["launch", "run", "status", "wait", "stop"] {
+            assert!(actions.iter().any(|value| value == action), "missing {action}");
+        }
+
+        let status = execute_tool_from_registry(
+            &tools,
+            "AgentTool",
+            json!({"action": "status"}),
+            tool_use_context,
+        )
+        .await
+        .expect("session-bound AgentTool status");
+        assert!(status.result.is_success());
+        assert!(status.result.model_text().contains(r#""action":"status""#));
+    }
 }
 
 #[test]

@@ -28,6 +28,7 @@
 pub(crate) use super::session::{Role, Session};
 
 mod artifacts;
+mod context_governance;
 mod helpers;
 mod llm_messages;
 mod llm_runner;
@@ -38,14 +39,16 @@ mod runner;
 mod todo_updates;
 mod todos;
 mod tools_exec;
+mod turn_policy;
 mod types;
 mod utils;
 
+pub(crate) use prefetch::app_session_scope_from_root_async;
 pub(crate) use types::ToolSessionState;
 
 pub(crate) use helpers::{allowed_tool_ids, should_execute_structured_tool_calls_locally};
 pub use runner::run;
-pub use types::{Request, StreamEvent};
+pub use types::{Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 
 /// 测试模块
 ///

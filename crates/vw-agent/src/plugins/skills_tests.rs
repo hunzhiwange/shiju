@@ -54,7 +54,7 @@ fn runtime_config(workspace_dir: &Path, config_dir: &Path) -> Config {
 }
 
 fn write_plugin_manifest(plugin_root: &Path, name: &str, skills_path: &str) {
-    let manifest_dir = plugin_root.join(".codex-plugin");
+    let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
     fs::write(
         manifest_dir.join("plugin.json"),
@@ -107,6 +107,30 @@ fn plugin_skills_are_loaded_from_manifest_component_path() {
     assert!(compact[0].prompts.is_empty());
     assert_eq!(skill_names(&full), vec!["plugin-skill"]);
     assert_eq!(full[0].prompts, vec!["# plugin-skill\nPlugin skill loaded\n"]);
+}
+
+#[test]
+fn plugin_skills_follow_configured_security_policy() {
+    let _lock = lock_env();
+    let dir = tempfile::tempdir().expect("temp dir");
+    let _home = EnvVarGuard::set("HOME", dir.path().join("home").to_str().unwrap());
+    let _open_enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
+    let _open_dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+
+    let workspace_dir = dir.path().join("workspace");
+    let config_dir = dir.path().join("config");
+    let plugin_root = workspace_dir.join(".vibewindow/plugins/plugin-pack");
+    write_plugin_manifest(&plugin_root, "plugin-pack", "./skills");
+    let skill = write_skill(&plugin_root.join("skills"), "scripted-plugin", "Plugin script");
+    fs::write(skill.join("run.sh"), "#!/bin/sh\ntrue\n").expect("write plugin script");
+
+    let mut config = runtime_config(&workspace_dir, &config_dir);
+    let default_loaded = load_skills_full_with_config(&workspace_dir, &config);
+    assert!(default_loaded.iter().any(|skill| skill.name == "scripted-plugin"));
+
+    config.skills.security.reject_script_files = true;
+    let rejected = load_skills_full_with_config(&workspace_dir, &config);
+    assert!(rejected.iter().all(|skill| skill.name != "scripted-plugin"));
 }
 
 #[test]

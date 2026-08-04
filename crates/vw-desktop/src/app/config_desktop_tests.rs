@@ -1,14 +1,13 @@
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 
 use tempfile::TempDir;
 use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 
 const SOURCE: &str = include_str!("config_desktop.rs");
-static CONFIG_DESKTOP_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 #[derive(Debug, Clone)]
 struct RecordedRequest {
@@ -136,7 +135,7 @@ fn write_http_response(stream: &mut TcpStream, status: u16, body: &str) {
 }
 
 fn env_lock() -> MutexGuard<'static, ()> {
-    CONFIG_DESKTOP_ENV_LOCK.lock().expect("env lock should not be poisoned")
+    crate::app::TEST_PROCESS_STATE_LOCK.lock().unwrap_or_else(|poison| poison.into_inner())
 }
 
 fn temp_home() -> (MutexGuard<'static, ()>, TempDir, EnvGuard) {

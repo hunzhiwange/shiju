@@ -7,13 +7,14 @@
 //! - 验证文件链接的安全性和有效性
 //! - 检测高风险命令和提示注入模式
 //!
-//! 审计流程遵循默认拒绝原则，只有通过所有检查的技能才能被安全使用。
+//! 审计 finding 由显式配置逐项启用；路径与文件系统操作错误始终返回错误。
 
 use anyhow::{Context, Result, bail};
 use regex::Regex;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
+use vw_config_types::skills::SkillSecurityConfig;
 
 /// 文本文件的最大允许字节数（512 KB）
 ///
@@ -89,10 +90,8 @@ impl SkillAuditReport {
 
 /// 审计技能目录的安全合规性
 ///
-/// 对指定的技能目录进行全面的安全审计，包括：
-/// - 检查必需的清单文件（SKILL.md 或 SKILL.toml）是否存在
-/// - 递归扫描所有文件，检测潜在的安全风险
-/// - 验证文件链接、脚本文件和危险命令模式
+/// 使用默认关闭策略扫描指定的技能目录。需要启用规则时，调用
+/// [`audit_skill_directory_with_security`]。
 ///
 /// # 参数
 /// - `skill_dir`: 技能目录的路径，必须是存在的目录
@@ -125,6 +124,14 @@ impl SkillAuditReport {
 /// }
 /// ```
 pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
+    audit_skill_directory_with_security(skill_dir, &SkillSecurityConfig::default())
+}
+
+/// 使用显式安全策略审计技能目录。
+pub fn audit_skill_directory_with_security(
+    skill_dir: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<SkillAuditReport> {
     // 验证技能目录是否存在
     if !skill_dir.exists() {
         bail!("Skill source does not exist: {}", skill_dir.display());
@@ -144,7 +151,7 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
     // 检查技能清单文件是否存在（至少需要 SKILL.md 或 SKILL.toml 之一）
     let has_manifest =
         canonical_root.join("SKILL.md").is_file() || canonical_root.join("SKILL.toml").is_file();
-    if !has_manifest {
+    if security.require_manifest && !has_manifest {
         report.findings.push(
             "Skill root must include SKILL.md or SKILL.toml for deterministic auditing."
                 .to_string(),
@@ -154,7 +161,7 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
     // 使用深度优先遍历收集所有路径，并对每个路径进行审计
     for path in collect_paths_depth_first(&canonical_root)? {
         report.files_scanned += 1;
-        audit_path(&canonical_root, &path, &mut report)?;
+        audit_path(&canonical_root, &path, security, &mut report)?;
     }
 
     Ok(report)
@@ -162,8 +169,9 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 
 /// 审计开放技能的 Markdown 文件
 ///
-/// 对仓库中的单个 Markdown 文件进行安全审计，通常用于审计未打包的开放技能。
-/// 该函数会验证文件路径是否位于仓库根目录内，并检查 Markdown 内容的安全性。
+/// 使用默认关闭策略审计仓库中的单个 Markdown 文件。该函数仍会无条件验证
+/// 文件路径位于仓库根目录内；需要启用内容规则时，调用
+/// [`audit_open_skill_markdown_with_security`]。
 ///
 /// # 参数
 /// - `path`: Markdown 文件的路径，必须是存在的文件
@@ -194,6 +202,15 @@ pub fn audit_skill_directory(skill_dir: &Path) -> Result<SkillAuditReport> {
 /// }
 /// ```
 pub fn audit_open_skill_markdown(path: &Path, repo_root: &Path) -> Result<SkillAuditReport> {
+    audit_open_skill_markdown_with_security(path, repo_root, &SkillSecurityConfig::default())
+}
+
+/// 使用显式安全策略审计开放式技能 Markdown 文件。
+pub fn audit_open_skill_markdown_with_security(
+    path: &Path,
+    repo_root: &Path,
+    security: &SkillSecurityConfig,
+) -> Result<SkillAuditReport> {
     // 验证 Markdown 文件是否存在
     if !path.exists() {
         bail!("Open-skill markdown not found: {}", path.display());
@@ -214,7 +231,7 @@ pub fn audit_open_skill_markdown(path: &Path, repo_root: &Path) -> Result<SkillA
 
     // 创建审计报告并扫描 Markdown 文件
     let mut report = SkillAuditReport { files_scanned: 1, findings: Vec::new() };
-    audit_markdown_file(&canonical_repo, &canonical_path, &mut report)?;
+    audit_markdown_file(&canonical_repo, &canonical_path, security, &mut report)?;
     Ok(report)
 }
 
@@ -270,7 +287,6 @@ fn collect_paths_depth_first(root: &Path) -> Result<Vec<PathBuf>> {
 ///
 /// 对文件或目录路径进行安全检查，包括：
 /// - 检测符号链接（在技能中不允许）
-/// - 阻止不支持的脚本文件
 /// - 检查文件大小限制
 /// - 审计 Markdown 和 TOML 文件的内容
 ///
@@ -282,7 +298,12 @@ fn collect_paths_depth_first(root: &Path) -> Result<Vec<PathBuf>> {
 /// # 返回值
 /// - `Ok(())`: 审计完成（可能在报告中记录了问题）
 /// - `Err`: 如果无法读取文件元数据或内容
-fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result<()> {
+fn audit_path(
+    root: &Path,
+    path: &Path,
+    security: &SkillSecurityConfig,
+    report: &mut SkillAuditReport,
+) -> Result<()> {
     // 获取文件元数据（使用 symlink_metadata 避免跟随符号链接）
     let metadata = fs::symlink_metadata(path)
         .with_context(|| format!("failed to read metadata for {}", path.display()))?;
@@ -290,7 +311,9 @@ fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result
 
     // 检查是否为符号链接（技能中不允许符号链接）
     if metadata.file_type().is_symlink() {
-        report.findings.push(format!("{rel}: symlinks are not allowed in installed skills."));
+        if security.reject_symlinks {
+            report.findings.push(format!("{rel}: symlinks are not allowed in installed skills."));
+        }
         return Ok(());
     }
 
@@ -300,14 +323,17 @@ fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result
     }
 
     // 检查是否为不支持的脚本文件
-    if is_unsupported_script_file(path) {
+    if security.reject_script_files && is_unsupported_script_file(path) {
         report
             .findings
             .push(format!("{rel}: script-like files are blocked by skill security policy."));
     }
 
     // 检查文本文件大小是否超过限制
-    if metadata.len() > MAX_TEXT_FILE_BYTES && (is_markdown_file(path) || is_toml_file(path)) {
+    if security.reject_oversized_text_files
+        && metadata.len() > MAX_TEXT_FILE_BYTES
+        && (is_markdown_file(path) || is_toml_file(path))
+    {
         report.findings.push(format!(
             "{rel}: file is too large for static audit (>{MAX_TEXT_FILE_BYTES} bytes)."
         ));
@@ -316,9 +342,9 @@ fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result
 
     // 根据文件类型进行相应的审计
     if is_markdown_file(path) {
-        audit_markdown_file(root, path, report)?;
+        audit_markdown_file(root, path, security, report)?;
     } else if is_toml_file(path) {
-        audit_manifest_file(root, path, report)?;
+        audit_manifest_file(root, path, security, report)?;
     }
 
     Ok(())
@@ -338,20 +364,29 @@ fn audit_path(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result
 /// # 返回值
 /// - `Ok(())`: 审计完成
 /// - `Err`: 如果无法读取文件内容
-fn audit_markdown_file(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result<()> {
+fn audit_markdown_file(
+    root: &Path,
+    path: &Path,
+    security: &SkillSecurityConfig,
+    report: &mut SkillAuditReport,
+) -> Result<()> {
     // 读取 Markdown 文件内容
     let content = fs::read_to_string(path)
         .with_context(|| format!("failed to read markdown file {}", path.display()))?;
     let rel = relative_display(root, path);
 
     // 检测高风险代码片段
-    if let Some(pattern) = detect_high_risk_snippet(&content) {
-        report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
+    if security.detect_high_risk_content {
+        if let Some(pattern) = detect_high_risk_snippet(&content) {
+            report.findings.push(format!("{rel}: detected high-risk command pattern ({pattern})."));
+        }
     }
 
     // 提取并审计所有 Markdown 链接
-    for raw_target in extract_markdown_links(&content) {
-        audit_markdown_link_target(root, path, &raw_target, report);
+    if security.reject_script_files || security.validate_markdown_links {
+        for raw_target in extract_markdown_links(&content) {
+            audit_markdown_link_target(root, path, &raw_target, security, report);
+        }
     }
 
     Ok(())
@@ -373,7 +408,12 @@ fn audit_markdown_file(root: &Path, path: &Path, report: &mut SkillAuditReport) 
 /// # 返回值
 /// - `Ok(())`: 审计完成
 /// - `Err`: 如果无法读取文件内容
-fn audit_manifest_file(root: &Path, path: &Path, report: &mut SkillAuditReport) -> Result<()> {
+fn audit_manifest_file(
+    root: &Path,
+    path: &Path,
+    security: &SkillSecurityConfig,
+    report: &mut SkillAuditReport,
+) -> Result<()> {
     // 读取 TOML 文件内容
     let content = fs::read_to_string(path)
         .with_context(|| format!("failed to read TOML manifest {}", path.display()))?;
@@ -383,7 +423,9 @@ fn audit_manifest_file(root: &Path, path: &Path, report: &mut SkillAuditReport) 
     let parsed: toml::Value = match toml::from_str(&content) {
         Ok(value) => value,
         Err(err) => {
-            report.findings.push(format!("{rel}: invalid TOML manifest ({err})."));
+            if security.validate_manifest {
+                report.findings.push(format!("{rel}: invalid TOML manifest ({err})."));
+            }
             return Ok(());
         }
     };
@@ -397,23 +439,26 @@ fn audit_manifest_file(root: &Path, path: &Path, report: &mut SkillAuditReport) 
             // 检查命令字段
             if let Some(command) = command {
                 // 检查是否包含 shell 链接操作符
-                if contains_shell_chaining(command) {
+                if security.detect_shell_chaining && contains_shell_chaining(command) {
                     report.findings.push(format!(
                         "{rel}: tools[{idx}].command uses shell chaining operators, which are blocked."
                     ));
                 }
                 // 检查是否匹配高风险模式
-                if let Some(pattern) = detect_high_risk_snippet(command) {
-                    report.findings.push(format!(
-                        "{rel}: tools[{idx}].command matches high-risk pattern ({pattern})."
-                    ));
+                if security.detect_high_risk_content {
+                    if let Some(pattern) = detect_high_risk_snippet(command) {
+                        report.findings.push(format!(
+                            "{rel}: tools[{idx}].command matches high-risk pattern ({pattern})."
+                        ));
+                    }
                 }
-            } else {
+            } else if security.validate_manifest {
                 report.findings.push(format!("{rel}: tools[{idx}] is missing a command field."));
             }
 
             // 检查 script/shell 类型工具的命令是否为空
-            if (kind.eq_ignore_ascii_case("script") || kind.eq_ignore_ascii_case("shell"))
+            if security.validate_manifest
+                && (kind.eq_ignore_ascii_case("script") || kind.eq_ignore_ascii_case("shell"))
                 && command.is_some_and(|value| value.trim().is_empty())
             {
                 report.findings.push(format!("{rel}: tools[{idx}] has an empty {kind} command."));
@@ -424,12 +469,14 @@ fn audit_manifest_file(root: &Path, path: &Path, report: &mut SkillAuditReport) 
     // 审计提示定义
     if let Some(prompts) = parsed.get("prompts").and_then(toml::Value::as_array) {
         for (idx, prompt) in prompts.iter().enumerate() {
-            if let Some(prompt) = prompt.as_str() {
-                // 检查提示内容是否包含高风险模式
-                if let Some(pattern) = detect_high_risk_snippet(prompt) {
-                    report.findings.push(format!(
-                        "{rel}: prompts[{idx}] contains high-risk pattern ({pattern})."
-                    ));
+            if security.detect_high_risk_content {
+                if let Some(prompt) = prompt.as_str() {
+                    // 检查提示内容是否包含高风险模式
+                    if let Some(pattern) = detect_high_risk_snippet(prompt) {
+                        report.findings.push(format!(
+                            "{rel}: prompts[{idx}] contains high-risk pattern ({pattern})."
+                        ));
+                    }
                 }
             }
         }
@@ -456,6 +503,7 @@ fn audit_markdown_link_target(
     root: &Path,
     source: &Path,
     raw: &str,
+    security: &SkillSecurityConfig,
     report: &mut SkillAuditReport,
 ) {
     // 规范化链接目标
@@ -472,7 +520,7 @@ fn audit_markdown_link_target(
     if let Some(scheme) = url_scheme(normalized) {
         // 允许 http/https/mailto 协议，但阻止指向 Markdown 的远程链接
         if matches!(scheme, "http" | "https" | "mailto") {
-            if has_markdown_suffix(normalized) {
+            if security.validate_markdown_links && has_markdown_suffix(normalized) {
                 report.findings.push(format!(
                     "{rel}: remote markdown links are blocked by skill security audit ({normalized})."
                 ));
@@ -481,9 +529,11 @@ fn audit_markdown_link_target(
         }
 
         // 阻止不支持的 URL 协议
-        report
-            .findings
-            .push(format!("{rel}: unsupported URL scheme in markdown link ({normalized})."));
+        if security.validate_markdown_links {
+            report
+                .findings
+                .push(format!("{rel}: unsupported URL scheme in markdown link ({normalized})."));
+        }
         return;
     }
 
@@ -495,21 +545,23 @@ fn audit_markdown_link_target(
 
     // 检查是否为绝对路径
     if looks_like_absolute_path(stripped) {
-        report
-            .findings
-            .push(format!("{rel}: absolute markdown link paths are not allowed ({normalized})."));
+        if security.validate_markdown_links {
+            report
+                .findings
+                .push(format!("{rel}: absolute markdown link paths are not allowed ({normalized})."));
+        }
         return;
     }
 
     // 检查是否指向脚本文件
-    if has_script_suffix(stripped) {
+    if security.reject_script_files && has_script_suffix(stripped) {
         report
             .findings
             .push(format!("{rel}: markdown links to script files are blocked ({normalized})."));
     }
 
     // 只对 Markdown 文件进行存在性检查
-    if !has_markdown_suffix(stripped) {
+    if !security.validate_markdown_links || !has_markdown_suffix(stripped) {
         return;
     }
 
@@ -651,57 +703,25 @@ fn is_toml_file(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("toml"))
 }
 
-/// 检查文件是否为不支持的脚本文件
-///
-/// 通过文件扩展名或 shebang 行判断是否为脚本文件。
-/// 脚本文件在技能中是被阻止的。
-///
-/// # 参数
-/// - `path`: 文件路径
-///
-/// # 返回值
-/// - `true`: 文件是脚本文件
-/// - `false`: 文件不是脚本文件
+/// 检查文件是否为不支持的脚本文件。
 fn is_unsupported_script_file(path: &Path) -> bool {
     has_script_suffix(path.to_string_lossy().as_ref()) || has_shell_shebang(path)
 }
 
-/// 检查字符串是否具有脚本文件后缀
-///
-/// 检查文件名或路径是否以常见的脚本文件扩展名结尾。
-/// 支持的后缀：.sh、.bash、.zsh、.ksh、.fish、.ps1、.bat、.cmd
-///
-/// # 参数
-/// - `raw`: 文件名或路径字符串
-///
-/// # 返回值
-/// - `true`: 字符串具有脚本后缀
-/// - `false`: 字符串没有脚本后缀
+/// 检查字符串是否具有脚本文件后缀。
 fn has_script_suffix(raw: &str) -> bool {
     let lowered = raw.to_ascii_lowercase();
     let script_suffixes = [".sh", ".bash", ".zsh", ".ksh", ".fish", ".ps1", ".bat", ".cmd"];
     script_suffixes.iter().any(|suffix| lowered.ends_with(suffix))
 }
 
-/// 检查文件是否包含 shell shebang
-///
-/// 读取文件的前 128 字节，检查是否包含 shell 脚本的 shebang 行（#!）。
-/// 支持检测的 shell：sh、bash、zsh、pwsh、powershell
-///
-/// # 参数
-/// - `path`: 文件路径
-///
-/// # 返回值
-/// - `true`: 文件包含 shell shebang
-/// - `false`: 文件不包含 shell shebang 或无法读取
+/// 检查文件是否包含 shell shebang。
 fn has_shell_shebang(path: &Path) -> bool {
     let Ok(content) = fs::read(path) else {
         return false;
     };
-    // 只检查文件的前 128 字节
     let prefix = &content[..content.len().min(128)];
     let shebang = String::from_utf8_lossy(prefix).to_ascii_lowercase();
-    // 检查是否以 #! 开头并包含常见 shell 名称
     shebang.starts_with("#!")
         && (shebang.contains("sh")
             || shebang.contains("bash")

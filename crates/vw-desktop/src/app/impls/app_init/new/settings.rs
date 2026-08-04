@@ -291,6 +291,7 @@ pub(super) fn build_skills_settings(
 
     crate::app::state::SkillsSettingsState {
         open_skills_enabled: skills_cfg.open_skills_enabled,
+        auto_load_project_skills: skills_cfg.auto_load_project_skills,
         directory_provider: skills_cfg.directory_provider,
         open_skills_dir_input: skills_cfg.open_skills_dir.clone().unwrap_or_default(),
         prompt_injection_mode: skills_cfg.prompt_injection_mode,
@@ -358,7 +359,7 @@ pub(super) fn build_web_search_settings(
         max_results_input: web_search_cfg.max_results.clamp(1, 10).to_string(),
         timeout_secs_input: web_search_cfg.timeout_secs.max(1).to_string(),
         user_agent: if web_search_cfg.user_agent.trim().is_empty() {
-            "VibeWindow/1.0".to_string()
+            vw_config_types::tools::DEFAULT_USER_AGENT.to_string()
         } else {
             web_search_cfg.user_agent.clone()
         },
@@ -523,79 +524,16 @@ pub(super) fn build_agents_ipc_settings(
 /// 模块内可见函数，执行 build_agents_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_agents_settings(
-    cfg: &serde_json::Value,
+    _cfg: &serde_json::Value,
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> crate::app::state::AgentsSettingsState {
-    let delegate_agents_cfg = &full_agent_cfg.agents;
-    let agent_cfg = &full_agent_cfg.agent;
-    let default_provider_cfg = full_agent_cfg.default_provider.clone();
-    let default_model_cfg = full_agent_cfg.default_model.clone();
-    let default_temperature_cfg = full_agent_cfg.default_temperature;
-    let ordered_keys = crate::app::state::ordered_agent_keys(delegate_agents_cfg);
-
-    let entries = ordered_keys
-        .into_iter()
-        .map(|key| {
-            let config = delegate_agents_cfg.get(&key).cloned();
-            if key == "main" {
-                let config = config.unwrap_or_else(|| {
-                    vw_config_types::agent::builtin_agent_config("main").unwrap_or_default()
-                });
-                let entry = vw_config_types::agent::DelegateAgentConfig {
-                    label: config.label,
-                    description: config.description,
-                    builtin: config.builtin,
-                    mode: "primary".to_string(),
-                    enabled: true,
-                    provider: if config.provider.trim().is_empty() {
-                        default_provider_cfg.clone().unwrap_or_default()
-                    } else {
-                        config.provider
-                    },
-                    model: if config.model.trim().is_empty() {
-                        default_model_cfg
-                            .as_deref()
-                            .and_then(|value| value.split('/').next_back())
-                            .unwrap_or_default()
-                            .to_string()
-                    } else {
-                        config.model
-                    },
-                    system_prompt: config.system_prompt,
-                    api_key: config.api_key,
-                    temperature: Some(config.temperature.unwrap_or(default_temperature_cfg)),
-                    top_p: config.top_p,
-                    identity_format: Some("openclaw".to_string()),
-                    hidden: config.hidden,
-                    max_depth: config.max_depth,
-                    agentic: config.agentic,
-                    allowed_tools: config.allowed_tools,
-                    allowed_skills: config.allowed_skills,
-                    options: config.options,
-                    permission: config.permission,
-                    max_iterations: config.max_iterations,
-                    steps: config.steps,
-                };
-                let mut ui_entry =
-                    crate::app::state::DelegateAgentSettingsEntry::from_config(&key, Some(entry));
-                ui_entry.compact_context = agent_cfg.compact_context;
-                ui_entry.max_tool_iterations = agent_cfg.max_tool_iterations.clamp(1, 200) as u32;
-                ui_entry.max_history_messages =
-                    agent_cfg.max_history_messages.clamp(1, 1000) as u32;
-                ui_entry.parallel_tools = agent_cfg.parallel_tools;
-                ui_entry.tool_dispatcher = {
-                    let value = agent_cfg.tool_dispatcher.trim().to_string();
-                    if value.is_empty() { "auto".to_string() } else { value }
-                };
-                ui_entry
-            } else {
-                crate::app::state::DelegateAgentSettingsEntry::from_config(&key, config)
-            }
-        })
-        .collect::<Vec<_>>();
+    let mut entries = crate::app::state::agent_settings_entries_from_config(full_agent_cfg);
+    let available_tools = config::load_tools_list_via_gateway();
+    crate::app::state::apply_default_allowed_tools(&mut entries, &available_tools);
 
     crate::app::state::AgentsSettingsState {
         loading: false,
+        project_path: None,
         providers: Vec::new(),
         provider_models: Vec::new(),
         entries,
@@ -614,8 +552,10 @@ pub(super) fn build_agents_settings(
             })
             .collect(),
         workspace_identity_root_path: None,
-        available_tools: config::load_tools_list_via_gateway(),
+        available_tools,
         save_error: None,
+        save_in_flight: false,
+        save_pending: false,
     }
 }
 
@@ -726,6 +666,14 @@ pub(super) fn build_multimodal_settings(
         max_images: multimodal_cfg.max_images.clamp(1, 16) as u32,
         max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
         allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
+        ocr_enabled: multimodal_cfg.ocr.enabled,
+        ocr_model: multimodal_cfg
+            .ocr
+            .model
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or_default()
+            .to_string(),
         save_error: None,
     }
 }
@@ -738,6 +686,8 @@ pub(super) fn build_security_settings(
     let security_cfg = &full_agent_cfg.security;
 
     crate::app::state::SecuritySettingsState {
+        active_tab: crate::app::state::SecuritySettingsTab::Bash,
+        bash: security_cfg.bash.clone(),
         sandbox_enabled_input: match security_cfg.sandbox.enabled {
             None => "auto".to_string(),
             Some(true) => "true".to_string(),
@@ -751,7 +701,7 @@ pub(super) fn build_security_settings(
             vw_config_types::security::SandboxBackend::Docker => "docker".to_string(),
             vw_config_types::security::SandboxBackend::None => "none".to_string(),
         },
-        sandbox_firejail_args_input: security_cfg.sandbox.firejail_args.join(", "),
+        sandbox_firejail_args: security_cfg.sandbox.firejail_args.clone(),
         resources_max_memory_mb: security_cfg.resources.max_memory_mb.clamp(32, 65_536),
         resources_max_cpu_time_seconds: security_cfg
             .resources
@@ -774,9 +724,9 @@ pub(super) fn build_security_settings(
         },
         otp_token_ttl_secs: security_cfg.otp.token_ttl_secs.clamp(1, 600),
         otp_cache_valid_secs: security_cfg.otp.cache_valid_secs.clamp(1, 86_400),
-        otp_gated_actions_input: security_cfg.otp.gated_actions.join(", "),
-        otp_gated_domains_input: security_cfg.otp.gated_domains.join(", "),
-        otp_gated_domain_categories_input: security_cfg.otp.gated_domain_categories.join(", "),
+        otp_gated_actions: security_cfg.otp.gated_actions.clone(),
+        otp_gated_domains: security_cfg.otp.gated_domains.clone(),
+        otp_gated_domain_categories: security_cfg.otp.gated_domain_categories.clone(),
         estop_enabled: security_cfg.estop.enabled,
         estop_state_file: {
             let value = security_cfg.estop.state_file.trim().to_string();
@@ -808,10 +758,11 @@ pub(super) fn build_security_settings(
             let value = security_cfg.syscall_anomaly.log_path.trim().to_string();
             if value.is_empty() { "syscall-anomalies.log".to_string() } else { value }
         },
-        syscall_anomaly_baseline_syscalls_input: security_cfg
+        syscall_anomaly_baseline_syscalls: security_cfg
             .syscall_anomaly
             .baseline_syscalls
-            .join(", "),
+            .clone(),
+        list_editor: crate::app::state::SecurityListEditorState::default(),
         canary_tokens: security_cfg.canary_tokens.clone(),
         semantic_guard: security_cfg.semantic_guard,
         semantic_guard_collection: {
@@ -829,41 +780,7 @@ pub(super) fn build_security_settings(
 pub(super) fn build_autonomy_settings(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> crate::app::state::AutonomySettingsState {
-    let autonomy_cfg = &full_agent_cfg.autonomy;
-
-    crate::app::state::AutonomySettingsState {
-        level: autonomy_cfg.level,
-        workspace_only: autonomy_cfg.workspace_only,
-        allowed_commands_input: autonomy_cfg.allowed_commands.join(", "),
-        forbidden_paths_input: autonomy_cfg.forbidden_paths.join(", "),
-        max_actions_per_hour: autonomy_cfg.max_actions_per_hour,
-        max_cost_per_day_cents: autonomy_cfg.max_cost_per_day_cents,
-        require_approval_for_medium_risk: autonomy_cfg.require_approval_for_medium_risk,
-        block_high_risk_commands: autonomy_cfg.block_high_risk_commands,
-        shell_redirect_policy: autonomy_cfg.shell_redirect_policy,
-        shell_env_passthrough_input: autonomy_cfg.shell_env_passthrough.join(", "),
-        auto_approve_input: autonomy_cfg.auto_approve.join(", "),
-        always_ask_input: autonomy_cfg.always_ask.join(", "),
-        allowed_roots_input: autonomy_cfg.allowed_roots.join(", "),
-        non_cli_excluded_tools_input: autonomy_cfg.non_cli_excluded_tools.join(", "),
-        non_cli_approval_approvers_input: autonomy_cfg.non_cli_approval_approvers.join(", "),
-        non_cli_natural_language_approval_mode: autonomy_cfg.non_cli_natural_language_approval_mode,
-        non_cli_natural_language_approval_mode_by_channel_input: autonomy_cfg
-            .non_cli_natural_language_approval_mode_by_channel
-            .iter()
-            .map(|(channel, mode)| {
-                let mode = match mode {
-                    vw_config_types::security::NonCliNaturalLanguageApprovalMode::Disabled => "disabled",
-                    vw_config_types::security::NonCliNaturalLanguageApprovalMode::RequestConfirm => "request_confirm",
-                    vw_config_types::security::NonCliNaturalLanguageApprovalMode::Direct => "direct",
-                };
-                format!("{channel}:{mode}")
-            })
-            .collect::<Vec<_>>()
-            .join(", "),
-        show_help_modal: false,
-        save_error: None,
-    }
+    crate::app::state::AutonomySettingsState::from_config(&full_agent_cfg.autonomy)
 }
 
 /// 模块内可见函数，执行 build_observability_settings 对应的应用流程。

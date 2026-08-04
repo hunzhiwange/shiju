@@ -82,7 +82,10 @@ fn content_panel_style_sets_dark_and_light_surfaces() {
     let dark = content_panel_style(&Theme::Dark);
     let light = content_panel_style(&Theme::Light);
 
-    assert_color_close(background_color(dark), Color::from_rgba8(17, 18, 22, 0.98));
+    assert_color_close(
+        background_color(dark),
+        crate::app::theme_catalog::panel_surface_color(&Theme::Dark, 0.98),
+    );
     assert_close(dark.border.width, 1.0);
     assert_close(dark.border.radius.top_left, 18.0);
     assert_color_close(
@@ -91,9 +94,37 @@ fn content_panel_style_sets_dark_and_light_surfaces() {
     );
     assert_color_close(dark.shadow.color, Color::BLACK.scale_alpha(0.14));
 
-    assert_color_close(background_color(light), Color::from_rgba8(255, 255, 255, 0.985));
-    assert_color_close(light.border.color, Color::from_rgba8(225, 229, 236, 0.98));
+    assert_color_close(
+        background_color(light),
+        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.985),
+    );
+    assert_color_close(
+        light.border.color,
+        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55),
+    );
     assert_color_close(light.shadow.color, Color::BLACK.scale_alpha(0.04));
+}
+
+#[test]
+fn content_panel_style_follows_custom_palette_background() {
+    let green = Theme::custom(
+        "green-surface".to_string(),
+        iced::theme::Palette {
+            background: Color::from_rgb8(0x12, 0x4A, 0x2E),
+            text: Color::from_rgb8(0xE8, 0xF5, 0xEC),
+            primary: Color::from_rgb8(0x3D, 0xB8, 0x6B),
+            success: Color::from_rgb8(0x3D, 0xB8, 0x6B),
+            warning: Color::from_rgb8(0xE6, 0xB8, 0x00),
+            danger: Color::from_rgb8(0xE0, 0x4F, 0x5F),
+        },
+    );
+    let style = content_panel_style(&green);
+    let bg = background_color(style);
+    assert_color_close(bg, crate::app::theme_catalog::panel_surface_color(&green, 0.98));
+    assert!(
+        (bg.g - Color::from_rgb8(0x12, 0x4A, 0x2E).g).abs() < 1.0e-5,
+        "content panel should keep custom green background, got {bg:?}"
+    );
 }
 
 #[test]
@@ -130,24 +161,32 @@ fn divider_session_and_highlight_colors_follow_theme() {
 fn session_panel_style_uses_radius_and_theme_palette() {
     let dark = session_panel_style(&Theme::Dark, 14.0);
     let light = session_panel_style(&Theme::Light, 10.0);
+    let dark_palette = Theme::Dark.extended_palette();
 
     assert_color_close(
         background_color(dark),
         blend_color(
-            Theme::Dark.extended_palette().background.base.color,
-            Color::from_rgb8(13, 15, 19),
-            0.42,
-        ),
+            dark_palette.background.base.color,
+            dark_palette.background.strong.color,
+            0.28,
+        )
+        .scale_alpha(0.99),
     );
     assert_color_close(
         dark.border.color,
-        Theme::Dark.extended_palette().background.strong.color.scale_alpha(0.78),
+        dark_palette.background.strong.color.scale_alpha(0.78),
     );
     assert_close(dark.border.radius.top_left, 18.0);
     assert_color_close(dark.shadow.color, Color::BLACK.scale_alpha(0.18));
 
-    assert_color_close(background_color(light), Color::from_rgba8(252, 253, 255, 0.99));
-    assert_color_close(light.border.color, Color::from_rgba8(222, 226, 233, 0.98));
+    assert_color_close(
+        background_color(light),
+        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
+    );
+    assert_color_close(
+        light.border.color,
+        Theme::Light.extended_palette().background.strong.color.scale_alpha(0.55),
+    );
     assert_close(light.border.radius.top_left, 14.0);
     assert_color_close(light.shadow.color, Color::BLACK.scale_alpha(0.05));
 }
@@ -157,18 +196,23 @@ fn right_column_styles_apply_inner_background_and_outer_border() {
     let dark_inner = right_column_inner_style(&Theme::Dark, 12.0);
     let light_inner = right_column_inner_style(&Theme::Light, 16.0);
     let outer = right_column_outer_style(&Theme::Light, 20.0);
+    let dark_palette = Theme::Dark.extended_palette();
 
     assert_color_close(
         background_color(dark_inner),
         blend_color(
-            Theme::Dark.extended_palette().background.base.color,
-            Color::from_rgb8(12, 13, 17),
-            0.34,
-        ),
+            dark_palette.background.base.color,
+            dark_palette.background.strong.color,
+            0.22,
+        )
+        .scale_alpha(0.99),
     );
     assert_close(dark_inner.border.width, 0.0);
     assert_close(dark_inner.border.radius.top_left, 16.0);
-    assert_color_close(background_color(light_inner), Color::from_rgba8(254, 254, 255, 0.99));
+    assert_color_close(
+        background_color(light_inner),
+        crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
+    );
     assert_close(light_inner.border.radius.top_left, 20.0);
 
     assert!(outer.background.is_none());

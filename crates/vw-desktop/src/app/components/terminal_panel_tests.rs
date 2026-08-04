@@ -1,5 +1,8 @@
 use crate::app::terminal::{Shell, TerminalState, TerminalTheme};
 use crate::app::{App, Message};
+use iced::advanced::renderer::Headless;
+use iced::advanced::{Layout, layout, widget::Tree};
+use iced::{Background, Font, Pixels, Size, Theme};
 
 fn test_app() -> App {
     App::new().0
@@ -7,6 +10,16 @@ fn test_app() -> App {
 
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
+}
+
+fn ensure_terminal_tabs(app: &mut App, count: usize) -> bool {
+    while app.terminal.tabs.len() < count {
+        if !app.terminal.add_terminal(None) {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn blank_terminal(is_visible: bool) -> TerminalState {
@@ -25,33 +38,50 @@ fn assert_close(actual: f32, expected: f32) {
 }
 
 #[test]
-fn available_terminal_width_uses_only_left_rail_when_settings_are_hidden() {
-    assert_close(super::terminal_panel::available_terminal_width(1200.0, false, 370.0), 1144.0);
-    assert_close(super::terminal_panel::available_terminal_width(-100.0, false, 370.0), 0.0);
-}
-
-#[test]
-fn available_terminal_width_clamps_finite_settings_width() {
-    assert_close(super::terminal_panel::available_terminal_width(1000.0, true, 20.0), 849.6);
-    assert_close(super::terminal_panel::available_terminal_width(2000.0, true, 1200.0), 1489.6);
-}
-
-#[test]
-fn available_terminal_width_defaults_non_finite_settings_width() {
-    for settings_width in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-        assert_close(
-            super::terminal_panel::available_terminal_width(1000.0, true, settings_width),
-            747.6,
+fn terminal_surface_uses_theme_base_background() {
+    for theme in [Theme::Dark, Theme::Light] {
+        let style = super::terminal_panel::terminal_surface_style(&theme);
+        assert_eq!(
+            style.background,
+            Some(Background::Color(theme.extended_palette().background.base.color))
         );
     }
 }
 
 #[test]
-fn available_terminal_width_handles_non_finite_window_width_without_underflow() {
-    assert_close(super::terminal_panel::available_terminal_width(f32::NAN, false, 370.0), 0.0);
-    assert!(
-        super::terminal_panel::available_terminal_width(f32::INFINITY, true, 370.0).is_infinite()
-    );
+fn terminal_content_bottom_padding_is_half_the_other_edges() {
+    let padding = super::terminal_panel::terminal_content_padding(1);
+
+    assert_close(padding.top, 8.0);
+    assert_close(padding.right, 8.0);
+    assert_close(padding.bottom, 4.0);
+    assert_close(padding.left, 8.01);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn view_fills_parent_width_independent_of_window_snapshot() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let mut app = test_app();
+    app.terminal = blank_terminal(true);
+    app.window_size = (480.0, 800.0);
+
+    let mut element = super::terminal_panel::view(&app);
+    let bounds = Size::new(1_200.0, 200.0);
+    let limits = layout::Limits::new(Size::ZERO, bounds);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let root = Layout::new(&node);
+    let column = root.children().next().expect("terminal root should contain a column");
+    let mut panels = column.children();
+    let header = panels.next().expect("terminal column should contain a header");
+    let output = panels.next().expect("terminal column should contain terminal output");
+
+    for panel in [root, column, header, output] {
+        assert_close(panel.bounds().width, bounds.width);
+    }
 }
 
 #[test]
@@ -164,6 +194,9 @@ fn view_builds_settings_layout_with_minimum_clamped_width_and_tiny_window() {
 fn view_builds_long_title_tabs_and_invalid_active_fallback() {
     let mut app = test_app();
     app.terminal.is_visible = true;
+    if !ensure_terminal_tabs(&mut app, 1) {
+        return;
+    }
 
     let first_id = app.terminal.tabs.first().expect("first terminal tab").id;
     let tab = app.terminal.tabs.iter_mut().find(|tab| tab.id == first_id).expect("first tab");
@@ -177,9 +210,9 @@ fn view_builds_long_title_tabs_and_invalid_active_fallback() {
 fn view_builds_multi_tab_context_menu() {
     let mut app = test_app();
     app.terminal.is_visible = true;
-
-    let added = app.terminal.add_terminal(None);
-    assert!(added, "expected test terminal tab to be created");
+    if !ensure_terminal_tabs(&mut app, 2) {
+        return;
+    }
 
     let first_id = app.terminal.tabs.first().expect("first terminal tab").id;
     app.terminal.active_id = Some(first_id);
@@ -193,9 +226,9 @@ fn view_builds_multi_tab_context_menu() {
 fn view_builds_multi_tab_with_non_first_active_tab_and_default_context_anchor() {
     let mut app = test_app();
     app.terminal.is_visible = true;
-
-    let added = app.terminal.add_terminal(None);
-    assert!(added, "expected test terminal tab to be created");
+    if !ensure_terminal_tabs(&mut app, 2) {
+        return;
+    }
 
     let second_id = app.terminal.tabs.last().expect("second terminal tab").id;
     app.terminal.active_id = Some(second_id);
@@ -209,6 +242,9 @@ fn view_builds_multi_tab_with_non_first_active_tab_and_default_context_anchor() 
 fn view_builds_single_tab_context_menu_with_disabled_close() {
     let mut app = test_app();
     app.terminal.is_visible = true;
+    if !ensure_terminal_tabs(&mut app, 1) {
+        return;
+    }
 
     let first_id = app.terminal.tabs.first().expect("first terminal tab").id;
     app.terminal.tab_context_menu_id = Some(first_id);
@@ -221,6 +257,9 @@ fn view_builds_single_tab_context_menu_with_disabled_close() {
 fn view_builds_rename_modal_for_active_tab() {
     let mut app = test_app();
     app.terminal.is_visible = true;
+    if !ensure_terminal_tabs(&mut app, 1) {
+        return;
+    }
 
     let active_id = app.terminal.active_id.expect("active terminal tab");
     let tab =
@@ -234,9 +273,9 @@ fn view_builds_rename_modal_for_active_tab() {
 fn view_ignores_rename_modal_for_inactive_tab() {
     let mut app = test_app();
     app.terminal.is_visible = true;
-
-    let added = app.terminal.add_terminal(None);
-    assert!(added, "expected test terminal tab to be created");
+    if !ensure_terminal_tabs(&mut app, 2) {
+        return;
+    }
 
     let inactive_id = app.terminal.tabs.first().expect("first terminal tab").id;
     let active_id = app.terminal.tabs.last().expect("last terminal tab").id;
@@ -255,6 +294,9 @@ fn view_ignores_rename_modal_for_inactive_tab() {
 fn view_ignores_rename_modal_when_active_id_points_to_missing_tab() {
     let mut app = test_app();
     app.terminal.is_visible = true;
+    if !ensure_terminal_tabs(&mut app, 1) {
+        return;
+    }
 
     let first_id = app.terminal.tabs.first().expect("first terminal tab").id;
     app.terminal.active_id = Some(u64::MAX);

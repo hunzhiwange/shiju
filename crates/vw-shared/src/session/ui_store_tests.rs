@@ -17,7 +17,9 @@ fn sample_session(id: &str) -> ChatSession {
         messages: vec![ChatMessage {
             role: ChatRole::User,
             content: "hello".to_owned(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         }],
         message_ids: vec![Some("message-1".to_owned())],
         calls: Vec::new(),

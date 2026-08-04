@@ -54,9 +54,10 @@
 //! - **网络请求配置 (HttpRequest)**：HTTP 请求工具白名单与请求限制
 //! - **转录配置 (Transcription)**：语音转录配置
 
+use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    settings_close_button, settings_error_banner, settings_muted_text_style, settings_panel_style,
-    settings_text_input_style,
+    icon_btn, settings_close_button, settings_error_banner, settings_muted_text_style,
+    settings_panel_style, settings_text_input_style,
 };
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -114,8 +115,12 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 pub enum SystemTab {
     /// 常规设置标签页
     General,
+    /// 主题管理标签页
+    Themes,
     /// 对话流设置标签页
     DialogueFlow,
+    /// 快捷消息设置标签页
+    QuickMessages,
     /// 编辑器设置标签页
     Editor,
     /// 项目设置标签页
@@ -211,10 +216,12 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 41] {
+    pub(super) fn all() -> [SystemTab; 43] {
         [
             SystemTab::General,
+            SystemTab::Themes,
             SystemTab::DialogueFlow,
+            SystemTab::QuickMessages,
             SystemTab::Editor,
             SystemTab::Projects,
             SystemTab::Providers,
@@ -274,7 +281,9 @@ impl std::fmt::Display for SystemTab {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SystemTab::General => write!(f, "常规设置"),
+            SystemTab::Themes => write!(f, "主题"),
             SystemTab::DialogueFlow => write!(f, "对话流"),
+            SystemTab::QuickMessages => write!(f, "快捷消息"),
             SystemTab::Editor => write!(f, "编辑器"),
             SystemTab::Projects => write!(f, "项目"),
             SystemTab::Providers => write!(f, "提供商"),
@@ -323,8 +332,14 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         SystemTab::General => {
             "常规设置 general app basic 基础 界面 语言 应用主题 自动保存 终端 终端 Shell 终端主题 终端字体 字体大小 preview auto save"
         }
+        SystemTab::Themes => {
+            "主题 themes gallery palette custom builtin 画廊 配色 色板 自定义主题 内置主题 应用 删除 新建主题"
+        }
         SystemTab::DialogueFlow => {
             "对话流 dialogue flow permission 对话 权限 时间线 显示推理摘要 展开 shell 工具 展开编辑工具 reasoning summary edit patch"
+        }
+        SystemTab::QuickMessages => {
+            "快捷消息 quick messages chat 输入框 常用操作 Git 操作 创建新会话 自定义消息 动作"
         }
         SystemTab::Editor => {
             "编辑器 editor code 编辑 主题与显示 编辑器主题 跟随系统主题 字体大小 行高 自动调整行高"
@@ -438,7 +453,7 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "浏览器配置 browser computer use tool 工具 基础行为 允许域名 窗口行为 运行后端 default webdriver sidecar viewport 自动化"
         }
         SystemTab::Multimodal => {
-            "多模态配置 multimodal image vision model 模型 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
+            "多模态配置 multimodal image vision model 模型 图片模型 OCR 文字提取 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
         }
         SystemTab::Transcription => {
             "转录配置 transcription audio speech model 模型 基础行为 启用 接口参数 API 密钥 接口地址 超时时间"
@@ -521,9 +536,12 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
         SystemTab::Multimodal => app.multimodal_settings.save_error.as_deref(),
         SystemTab::Transcription => app.transcription_settings.save_error.as_deref(),
-        SystemTab::General | SystemTab::DialogueFlow | SystemTab::Editor | SystemTab::Projects => {
-            None
-        }
+        SystemTab::Themes => app.themes_settings.error.as_deref(),
+        SystemTab::General
+        | SystemTab::DialogueFlow
+        | SystemTab::QuickMessages
+        | SystemTab::Editor
+        | SystemTab::Projects => None,
     }
 }
 
@@ -697,7 +715,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 根据当前激活的标签页加载对应的配置内容视图
     let content: Element<'_, Message> = match active_tab {
         SystemTab::General => crate::app::components::system_settings_general::view(app),
+        SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::DialogueFlow => crate::app::components::system_settings_dialogue_flow::view(app),
+        SystemTab::QuickMessages => {
+            crate::app::components::system_settings_quick_messages::view(app)
+        }
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
         SystemTab::Providers => {
@@ -751,7 +773,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     };
 
-    // 创建关闭按钮（右上角 × 符号）
+    // 左侧返回按钮和右侧关闭按钮执行相同的关闭操作
+    let back_btn = icon_btn(
+        Icon::ArrowLeft,
+        "返回",
+        Some(Message::View(message::ViewMessage::ToggleSystemSettings)),
+    );
     let close_btn =
         settings_close_button(Message::View(message::ViewMessage::ToggleSystemSettings));
 
@@ -762,7 +789,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(
                 row![
                     column![
-                        text("配置").size(22),
+                        row![text("配置").size(22), back_btn]
+                            .spacing(8)
+                            .align_y(Alignment::Center),
                         text("管理运行、工具、模型与连接设置。")
                             .size(12)
                             .style(settings_muted_text_style),

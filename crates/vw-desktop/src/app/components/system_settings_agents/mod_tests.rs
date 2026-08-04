@@ -10,6 +10,23 @@ fn agents_view_builds_default_loading_and_error_states() {
 }
 
 #[test]
+fn agent_project_options_put_current_first_and_deduplicate_recent_paths() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/repo/current".to_string());
+    app.recent_projects = vec![
+        "/repo/other".to_string(),
+        "/repo/current".to_string(),
+        "  /repo/third  ".to_string(),
+        String::new(),
+    ];
+
+    assert_eq!(
+        super::agent_project_options(&app),
+        vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
+    );
+}
+
+#[test]
 fn agents_view_builds_empty_entries_fallback() {
     let (mut app, _) = crate::app::App::new();
     app.agents_settings.entries.clear();
@@ -60,5 +77,5 @@ fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
 
     let element = super::view(&app);
 
-    assert_eq!(element.as_widget().children().len(), 3);
+    assert_eq!(element.as_widget().children().len(), 4);
 }

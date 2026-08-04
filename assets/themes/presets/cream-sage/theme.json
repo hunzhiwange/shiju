@@ -1,0 +1,25 @@
+{
+  "id": "cream-sage",
+  "name": "奶油鼠尾草 Cream Sage",
+  "tagline": "清晨厨房窗台上的一小盆绿。",
+  "palette": {
+    "background": "#f7f4ef",
+    "text": "#3d3630",
+    "primary": "#8a9a6d",
+    "success": "#a8b894",
+    "warning": "#c9b18a",
+    "danger": "#d4a5a5"
+  },
+  "assets": {
+    "cover": "cover.webp",
+    "background": "background.webp"
+  },
+  "appearance": {
+    "panel_bg": "#ffffff",
+    "input_bg": "#ffffff",
+    "button_bg": "#8a9a6d",
+    "button_text": "#0f172a",
+    "radius_px": 14,
+    "panel_alpha": 184
+  }
+}

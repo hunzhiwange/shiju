@@ -74,6 +74,8 @@
     pub(crate) proxy_settings: ProxySettingsState,
     /// 隧道设置状态
     pub(crate) tunnel_settings: TunnelSettingsState,
+    /// 主题设置状态
+    pub(crate) themes_settings: ThemesSettingsState,
     /// Composio 设置状态
     pub(crate) composio_settings: ComposioSettingsState,
     /// 转录设置状态
@@ -125,6 +127,15 @@
     pub(crate) file_search_anchor: Option<(f32, f32)>,
     /// 文件搜索结果中选中的索引
     pub(crate) file_search_selected_index: usize,
+    /// Slash 面板查询文本（不含前导 `/`）
+    pub(crate) slash_palette_query: String,
+    /// 是否显示 Slash 快捷选择面板
+    pub(crate) show_slash_palette: bool,
+    /// Slash 面板可见条目中的选中索引
+    pub(crate) slash_palette_selected_index: usize,
+    /// Slash 面板已展开的类别
+    pub(crate) slash_palette_expanded_kinds:
+        std::collections::BTreeSet<crate::app::state::SlashPaletteKind>,
     /// 在文件夹中查找的结果标签页列表
     pub(crate) find_results_tabs: Vec<FindInFolderTab>,
     /// 当前活跃的查找结果标签页 ID

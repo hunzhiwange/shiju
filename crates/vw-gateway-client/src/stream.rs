@@ -13,6 +13,23 @@ use crate::endpoint::GatewayEndpoint;
 /// 直接透出新的流式聊天事件类型。
 pub use vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 
+fn stream_http_failure_message(status: impl std::fmt::Display, body: &str) -> String {
+    let status_text = status.to_string();
+    let body = body.trim();
+    let is_payload_too_large = status_text.starts_with("413")
+        || body.contains("length limit exceeded")
+        || body.to_ascii_lowercase().contains("payload too large");
+    if is_payload_too_large {
+        return "请求内容过大（图片或会话历史超出网关限制），请压缩图片、减少附件数量或开启新会话后重试"
+            .to_string();
+    }
+    if body.is_empty() {
+        format!("gateway stream failed: {status_text}")
+    } else {
+        format!("gateway stream failed: {status_text} {body}")
+    }
+}
+
 /// 将网关 usage 载荷规整后的轻量统计结构。
 ///
 /// 当前网关的 `chat.step_finish` 与 `chat.done` 都会携带这组字段；
@@ -61,6 +78,9 @@ pub struct GatewayChatPostToolRoundEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GatewayTypedChatStreamEvent {
     Delta(String),
+    ContextLoaded {
+        paths: Vec<String>,
+    },
     StepStart(GatewayChatStepStartEvent),
     StepFinish(GatewayChatStepFinishEvent),
     PostToolRound(GatewayChatPostToolRoundEvent),
@@ -110,12 +130,48 @@ pub const STREAM_CONNECT_TIMEOUT_SECS: u64 = 30;
 #[allow(dead_code)]
 /// 单次流式请求允许持续的最长时间，单位为秒。
 pub const STREAM_REQUEST_TIMEOUT_SECS: u64 = 60 * 60 * 3;
+/// 标识同一次可恢复流运行的请求头。
+pub const STREAM_REQUEST_ID_HEADER: &str = "x-vw-stream-request-id";
+/// 指示服务端只回放该序号之后事件的标准 SSE 请求头。
+pub const LAST_EVENT_ID_HEADER: &str = "last-event-id";
 const CHAT_STREAM_PATH: &str = "/v1/chat/stream";
+
+/// 单次可恢复流请求携带的稳定运行标识与已确认游标。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GatewayStreamResume {
+    pub request_id: String,
+    pub last_event_id: Option<u64>,
+}
+
+/// 带服务端单调 SSE 序号的业务事件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GatewayStreamEvent<T> {
+    pub id: u64,
+    pub event: T,
+}
+
+/// 一次可恢复流订阅尝试的结束原因。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GatewayStreamAttemptResult {
+    /// 已收到业务协议定义的明确终态。
+    Terminated,
+    /// 调用方拒绝继续接收事件。
+    CallerStopped,
+    /// 连接在明确终态之前结束，调用方可使用原请求标识和游标重连。
+    Incomplete,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct GatewaySseFrame {
+    pub(crate) id: Option<u64>,
+    pub(crate) data: String,
+}
 
 /// 将原始网关流事件规整为 typed 结果。
 ///
 /// 当前只补齐新 TUI 已确认会消费的基础事件：
 /// - delta
+/// - context_loaded
 /// - step_start / step_finish
 /// - done / error
 ///
@@ -134,6 +190,18 @@ pub fn normalize_chat_stream_event(event: GatewayChatStreamEvent) -> GatewayType
         GatewayChatStreamEvent::Error(error) => GatewayTypedChatStreamEvent::Error(error),
         GatewayChatStreamEvent::Other(payload) => {
             match payload.get("type").and_then(serde_json::Value::as_str) {
+                Some("chat.context_loaded") => GatewayTypedChatStreamEvent::ContextLoaded {
+                    paths: payload
+                        .get("paths")
+                        .and_then(serde_json::Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(serde_json::Value::as_str)
+                        .map(str::trim)
+                        .filter(|path| !path.is_empty())
+                        .map(ToOwned::to_owned)
+                        .collect(),
+                },
                 Some("chat.step_start") => {
                     GatewayTypedChatStreamEvent::StepStart(parse_step_start_payload(&payload))
                 }
@@ -223,6 +291,17 @@ pub async fn stream_chat(
     stream_chat_inner(endpoint, directory, body, None, on_event).await
 }
 
+/// 执行一次支持请求复用与游标恢复的聊天流订阅。
+pub async fn stream_chat_resumable(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    resume: &GatewayStreamResume,
+    on_event: impl FnMut(GatewayStreamEvent<GatewayChatStreamEvent>) -> bool,
+) -> Result<GatewayStreamAttemptResult, String> {
+    stream_chat_attempt(endpoint, directory, body, Some(resume), None, on_event).await
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// 连接网关聊天流接口，并在连续无响应超过 `idle_timeout` 时返回超时错误。
 ///
@@ -244,6 +323,21 @@ async fn stream_chat_inner(
     idle_timeout: Option<std::time::Duration>,
     mut on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
 ) -> Result<(), String> {
+    stream_chat_attempt(endpoint, directory, body, None, idle_timeout, |event| {
+        on_event(event.event)
+    })
+    .await
+    .map(|_| ())
+}
+
+async fn stream_chat_attempt(
+    endpoint: &GatewayEndpoint,
+    directory: Option<&str>,
+    body: &GatewayChatStreamRequest,
+    resume: Option<&GatewayStreamResume>,
+    idle_timeout: Option<std::time::Duration>,
+    mut on_event: impl FnMut(GatewayStreamEvent<GatewayChatStreamEvent>) -> bool,
+) -> Result<GatewayStreamAttemptResult, String> {
     use futures_util::StreamExt;
 
     use crate::http::{apply_request_context, directory_query, log_request, transport_error};
@@ -264,6 +358,9 @@ async fn stream_chat_inner(
     if let Some(directory) = directory.filter(|value| !value.trim().is_empty()) {
         request = request.query(&[("directory", directory)]);
     }
+    if let Some(resume) = resume {
+        request = apply_stream_resume(request, resume);
+    }
     request = apply_request_context(request, endpoint);
 
     let response = request
@@ -282,7 +379,7 @@ async fn stream_chat_inner(
             response_body = %body.trim(),
             "gateway stream request failed"
         );
-        return Err(format!("gateway stream failed: {} {}", status, body.trim()));
+        return Err(stream_http_failure_message(status, &body));
     }
 
     info!(
@@ -317,19 +414,13 @@ async fn stream_chat_inner(
         sse_buffer.push_str(&String::from_utf8_lossy(&chunk));
 
         while let Some(frame) = take_next_sse_event(&mut sse_buffer) {
-            let payload = frame
-                .lines()
-                .filter_map(|line| line.trim_end_matches('\r').strip_prefix("data:"))
-                .map(|line| line.trim_start())
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            if payload.is_empty() {
+            let Some(frame) = parse_sse_frame(&frame)? else {
                 continue;
-            }
+            };
+            let id = required_event_id(frame.id, resume.is_some())?;
 
             let payload: serde_json::Value =
-                serde_json::from_str(&payload).map_err(|err| err.to_string())?;
+                serde_json::from_str(&frame.data).map_err(|err| err.to_string())?;
             let event = parse_stream_event(payload);
             debug!(
                 target: "vw_gateway_client",
@@ -340,7 +431,7 @@ async fn stream_chat_inner(
             );
             let event_type = event_name(&event);
             let terminal_event = is_terminal_stream_event(&event);
-            if !on_event(event) {
+            if !on_event(GatewayStreamEvent { id, event }) {
                 info!(
                     target: "vw_gateway_client",
                     endpoint = %endpoint.describe(),
@@ -349,7 +440,7 @@ async fn stream_chat_inner(
                     terminal_event = event_type,
                     "gateway stream finished"
                 );
-                return Ok(());
+                return Ok(GatewayStreamAttemptResult::CallerStopped);
             }
             if terminal_event {
                 info!(
@@ -360,7 +451,7 @@ async fn stream_chat_inner(
                     terminal_event = event_type,
                     "gateway stream finished"
                 );
-                return Ok(());
+                return Ok(GatewayStreamAttemptResult::Terminated);
             }
         }
     }
@@ -373,7 +464,7 @@ async fn stream_chat_inner(
         "gateway stream finished"
     );
 
-    Ok(())
+    Ok(GatewayStreamAttemptResult::Incomplete)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -419,7 +510,7 @@ pub fn stream_chat_blocking(
             response_body = %body.trim(),
             "gateway stream request failed"
         );
-        return Err(format!("gateway stream failed: {} {}", status, body.trim()));
+        return Err(stream_http_failure_message(status, &body));
     }
 
     info!(
@@ -572,6 +663,52 @@ pub(crate) fn take_next_sse_event(buffer: &mut String) -> Option<String> {
     let frame = buffer[..idx].to_string();
     buffer.drain(..idx + sep_len);
     Some(frame)
+}
+
+pub(crate) fn parse_sse_frame(frame: &str) -> Result<Option<GatewaySseFrame>, String> {
+    let mut id = None;
+    let data = frame
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_end_matches('\r');
+            if let Some(value) = line.strip_prefix("id:") {
+                id = Some(
+                    value
+                        .trim()
+                        .parse::<u64>()
+                        .map_err(|_| "gateway stream SSE id must be a non-negative integer".to_string()),
+                );
+                None
+            } else {
+                line.strip_prefix("data:").map(|value| Ok(value.trim_start()))
+            }
+        })
+        .collect::<Result<Vec<_>, String>>()?
+        .join("\n");
+
+    if data.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(GatewaySseFrame { id: id.transpose()?, data }))
+}
+
+pub(crate) fn apply_stream_resume(
+    mut request: reqwest::RequestBuilder,
+    resume: &GatewayStreamResume,
+) -> reqwest::RequestBuilder {
+    request = request.header(STREAM_REQUEST_ID_HEADER, &resume.request_id);
+    if let Some(last_event_id) = resume.last_event_id {
+        request = request.header(LAST_EVENT_ID_HEADER, last_event_id);
+    }
+    request
+}
+
+fn required_event_id(id: Option<u64>, resumable: bool) -> Result<u64, String> {
+    match (id, resumable) {
+        (Some(id), _) => Ok(id),
+        (None, true) => Err("gateway resumable stream event is missing SSE id".to_string()),
+        (None, false) => Ok(0),
+    }
 }
 
 /// 返回事件对应的稳定日志名称，便于统计与调试。

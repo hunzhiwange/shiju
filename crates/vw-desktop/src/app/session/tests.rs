@@ -41,7 +41,9 @@ fn chunk_scheduler_retains_anchor_and_expanded_text() {
         .map(|idx| ChatMessage {
             role: if idx == 259 { ChatRole::Assistant } else { ChatRole::User },
             content: format!("message {idx}"),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         })
         .collect();
     app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
@@ -88,7 +90,9 @@ fn apply_prepared_chat_ui_phase_preserves_explore_summary_animation_history() {
     app.chat = vec![ChatMessage {
         role: ChatRole::Assistant,
         content: first.to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
     app.chat_message_ids = vec![None];
     app.apply_prepared_chat_ui_phase(prepare_chat_ui_chunk_phase(&app.chat, 0, true, false));
@@ -123,7 +127,9 @@ fn prepare_chat_ui_chunk_phase_uses_display_text_for_tool_editor_cache() {
             "{\"status\":\"completed\",\"input\":\"selectors\",\"output\":\"2 matches\"}\n"
         )
         .to_string(),
+        model: None,
         think_timing: Vec::new(),
+        processing_timing: None,
     }];
 
     let PreparedChatUiPhase::Base(chunk) = prepare_chat_ui_chunk_phase(&chat, 0, true, false)
@@ -143,15 +149,23 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         ChatMessage {
             role: ChatRole::Assistant,
             content: "先给出结论".to_string(),
+            model: Some("message-model-a".to_string()),
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::Tool,
             content: "tool grep\n{\"status\":\"completed\",\"output\":\"2 matches\"}\n".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
-            role: ChatRole::User, content: "继续".to_string(), think_timing: Vec::new()
+            model: None,
+            role: ChatRole::User,
+            content: "继续".to_string(),
+            think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 
@@ -164,7 +178,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         usage: TokenUsage::default(),
         cost_usd: None,
         finish_reason: Some("stop".to_string()),
-        model: Some("model-a".to_string()),
+        model: Some("step-model-a".to_string()),
     });
     app.upsert_active_session_step(ChatSessionStep {
         index: 2,
@@ -175,7 +189,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         usage: TokenUsage::default(),
         cost_usd: None,
         finish_reason: Some("stop".to_string()),
-        model: Some("model-b".to_string()),
+        model: Some("step-model-b".to_string()),
     });
 
     app.rebuild_active_session_message_meta();
@@ -184,14 +198,10 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
     assert!(
         app.active_session_view_state.message_meta_texts[0]
             .as_deref()
-            .is_some_and(|text| text.contains("model-a"))
+            .is_some_and(|text| text.contains("message-model-a"))
     );
     assert_eq!(app.active_session_view_state.message_meta_texts[1], None);
-    assert!(
-        app.active_session_view_state.message_meta_texts[2]
-            .as_deref()
-            .is_some_and(|text| text.contains("model-b"))
-    );
+    assert_eq!(app.active_session_view_state.message_meta_texts[2], None);
 }
 
 #[test]
@@ -199,12 +209,18 @@ fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
     let (mut app, _task) = App::new();
     app.chat = vec![
         ChatMessage {
-            role: ChatRole::User, content: "问题".to_string(), think_timing: Vec::new()
+            model: None,
+            role: ChatRole::User,
+            content: "问题".to_string(),
+            think_timing: Vec::new(),
+            processing_timing: None,
         },
         ChatMessage {
             role: ChatRole::Assistant,
             content: "回答".to_string(),
+            model: None,
             think_timing: Vec::new(),
+            processing_timing: None,
         },
     ];
 
@@ -224,4 +240,81 @@ fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
     app.rebuild_active_session_message_meta();
 
     assert_eq!(app.active_session_view_state.message_meta_texts, vec![None, None]);
+}
+
+#[test]
+fn message_model_binding_updates_only_the_target_step() {
+    let mut messages = vec![
+        ChatMessage {
+            role: ChatRole::User,
+            content: "first question".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "first answer".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::User,
+            content: "second question".to_string(),
+            model: Some("history-model".to_string()),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "second answer".to_string(),
+            model: Some("history-model".to_string()),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+
+    bind_message_model_to_step(&mut messages, 1, "provider/model-a");
+
+    assert_eq!(messages[0].model.as_deref(), Some("provider/model-a"));
+    assert_eq!(messages[1].model.as_deref(), Some("provider/model-a"));
+    assert_eq!(messages[2].model.as_deref(), Some("history-model"));
+    assert_eq!(messages[3].model.as_deref(), Some("history-model"));
+}
+
+#[test]
+fn legacy_backfill_does_not_overwrite_persisted_message_models() {
+    let mut messages = vec![
+        ChatMessage {
+            role: ChatRole::User,
+            content: "question".to_string(),
+            model: Some("persisted-model".to_string()),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: "answer".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+    let steps = vec![ChatSessionStep {
+        index: 1,
+        started_ms: 1,
+        finished_ms: Some(2),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: None,
+        model: Some("step-model".to_string()),
+    }];
+
+    backfill_message_models_from_steps(&mut messages, &steps);
+
+    assert_eq!(messages[0].model.as_deref(), Some("persisted-model"));
+    assert_eq!(messages[1].model.as_deref(), Some("step-model"));
 }

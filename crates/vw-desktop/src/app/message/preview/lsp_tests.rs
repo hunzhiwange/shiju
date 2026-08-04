@@ -42,6 +42,33 @@ fn install_lsp_events(
 }
 
 #[test]
+fn lsp_results_rebind_overlay_to_active_preview() {
+    let active_path = "/tmp/active.rs";
+    let mut app = app();
+    app.active_preview_path = Some(active_path.to_string());
+    app.preview_tabs.push(preview_tab(active_path, "fn main() {}"));
+    app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
+    install_lsp_events(
+        &mut app,
+        [crate::app::lsp::LspEvent::Hover { text: "hover".to_string() }],
+    );
+
+    let _ = super::lsp::drain_lsp_events(&mut app);
+
+    assert_eq!(app.lsp_overlay_path.as_deref(), Some(active_path));
+
+    app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
+    install_lsp_events(
+        &mut app,
+        [crate::app::lsp::LspEvent::Completion { items: vec!["main".to_string()] }],
+    );
+
+    let _ = super::lsp::drain_lsp_events(&mut app);
+
+    assert_eq!(app.lsp_overlay_path.as_deref(), Some(active_path));
+}
+
+#[test]
 fn detach_lsp_for_tab_clears_all_document_metadata() {
     let mut tab = preview_tab("/tmp/main.rs", "fn main() {}");
     tab.lsp_server_key = Some("rust-analyzer");
@@ -84,6 +111,38 @@ fn sync_lsp_for_path_rejects_missing_tab_without_changing_status() {
 
     assert!(!synced);
     assert_eq!(app.lsp_status.as_deref(), Some("unchanged"));
+}
+
+#[test]
+fn lsp_workspace_root_prefers_project_containing_preview_file() {
+    let project = std::env::current_dir().unwrap().join("nested-project");
+    let file = project.join("src").join("main.rs");
+    let project_path = project.to_string_lossy();
+
+    let root_uri = super::lsp::lsp_root_uri_for_preview_path(Some(&project_path), &file);
+
+    assert_eq!(root_uri, Some(crate::app::path_to_file_uri(&project)));
+}
+
+#[test]
+fn lsp_workspace_root_keeps_active_project_for_external_definition() {
+    let project = std::env::current_dir().unwrap().join("active-project");
+    let external_file = std::env::temp_dir().join("dependency").join("lib.rs");
+    let project_path = project.to_string_lossy();
+
+    let root_uri = super::lsp::lsp_root_uri_for_preview_path(Some(&project_path), &external_file);
+
+    assert_eq!(root_uri, Some(crate::app::path_to_file_uri(&project)));
+}
+
+#[test]
+fn lsp_workspace_root_uses_file_parent_without_active_project() {
+    let file = std::env::current_dir().unwrap().join("standalone").join("main.rs");
+    let expected_root = file.parent().unwrap();
+
+    let root_uri = super::lsp::lsp_root_uri_for_preview_path(None, &file);
+
+    assert_eq!(root_uri, Some(crate::app::path_to_file_uri(expected_root)));
 }
 
 #[test]

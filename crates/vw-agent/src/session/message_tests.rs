@@ -29,7 +29,12 @@ fn assistant_info(session_id: &str, id: &str, parent_id: &str) -> Info {
     Info::Assistant(Box::new(AssistantInfo {
         id: id.to_string(),
         session_id: session_id.to_string(),
-        time: AssistantTime { created: 11, completed: Some(12) },
+        time: AssistantTime {
+            created: 11,
+            completed: Some(12),
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        },
         error: None,
         parent_id: parent_id.to_string(),
         model_id: "test-model".to_string(),

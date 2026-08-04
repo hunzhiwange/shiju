@@ -67,6 +67,8 @@ struct CachedAcpClientEntry {
 pub(super) struct ParsedAcpOptions {
     /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。
     pub(super) permission_mode: Option<PermissionMode>,
+    /// 是否允许 ACP 文件系统操作越过会话工作目录边界。
+    pub(super) full_access: bool,
     /// 非交互环境下的权限处理策略。
     pub(super) non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
     /// ACP 代理认证策略。

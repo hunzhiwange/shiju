@@ -10,5 +10,8 @@ mod sessions_panel;
 pub use new_session::new_session_picker_layer;
 /// 重新导出 projects_list::projects_list，作为上层模块访问该视图能力的稳定入口。
 pub use projects_list::projects_list;
-/// 重新导出 sessions_panel::project_sessions_panel，作为上层模块访问该视图能力的稳定入口。
-pub use sessions_panel::project_sessions_panel;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) use projects_list::project_list_action_order;
+/// 重新导出会话列表与菜单构建器，供项目视图内的不同布局复用同一套交互。
+pub use sessions_panel::{build_session_menu, project_sessions_panel};
+pub(super) use sessions_panel::session_status_icon;

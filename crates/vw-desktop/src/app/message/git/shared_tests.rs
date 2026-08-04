@@ -174,10 +174,22 @@ fn build_selected_commit_request_formats_conventional_subject_and_body() {
     let request = super::shared::build_selected_commit_request(&app).expect("message is valid");
 
     assert_eq!(request.message, "fix(desktop): refresh git state\n\nbody line");
+    assert!(!request.stage_all);
     assert_eq!(request.selected_files, vec!["src/main.rs"]);
     assert_eq!(request.selected_hunks, vec![("src/lib.rs".to_string(), 2)]);
     assert_eq!(request.selected_lines, vec![("src/lib.rs".to_string(), 4)]);
     assert_eq!(request.selected_old_lines, vec![("src/lib.rs".to_string(), 3)]);
+}
+
+#[test]
+fn build_all_commit_request_enables_atomic_stage_all() {
+    let (mut app, _task) = crate::app::App::new();
+    app.git_commit_message = "ship everything".to_string();
+
+    let request = super::shared::build_all_commit_request(&app).expect("message is valid");
+
+    assert!(request.stage_all);
+    assert_eq!(request.message, "feat: ship everything");
 }
 
 #[test]

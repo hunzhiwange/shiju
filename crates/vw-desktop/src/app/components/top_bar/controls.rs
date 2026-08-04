@@ -5,6 +5,7 @@
 
 use super::widgets::{icon_button, icon_toggle_button};
 use crate::app::assets::Icon;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, Screen, message};
 use iced::Element;
 use iced::widget::tooltip::Position as TooltipPosition;
@@ -47,45 +48,66 @@ pub(super) fn settings_button() -> Element<'static, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
     if matches!(app.screen, Screen::Project) {
-        let tools = row![
-            icon_toggle_button(
-                Icon::LayoutSidebar,
-                "切换左侧面板",
-                TooltipPosition::Bottom,
-                app.show_settings,
-                Message::View(message::ViewMessage::ToggleSettingsPanel),
-            ),
-            icon_toggle_button(
-                Icon::Terminal,
-                "切换终端",
-                TooltipPosition::Bottom,
-                app.terminal.is_visible,
-                Message::View(message::ViewMessage::ToggleTerminalPanel),
-            ),
-            icon_toggle_button(
-                Icon::Columns,
-                "切换审查",
-                TooltipPosition::Bottom,
-                app.show_diff,
-                Message::View(message::ViewMessage::ToggleDiffPanel),
-            ),
-            icon_toggle_button(
-                Icon::LayoutSidebarReverse,
-                "切换文件树",
-                TooltipPosition::Bottom,
-                app.show_file_manager,
-                Message::View(message::ViewMessage::FileManagerPanelVisible(
-                    !app.show_file_manager
-                )),
-            ),
-            icon_button(
-                Icon::Search,
-                "搜索",
-                TooltipPosition::Bottom,
-                Message::Search(message::SearchMessage::Open),
-            ),
-        ]
-        .spacing(2);
+        let mut tools = row![].spacing(2);
+        match app.workspace_mode {
+            WorkspaceMode::Code => {
+                tools = tools
+                    .push(icon_toggle_button(
+                        Icon::LayoutSidebar,
+                        "切换左侧面板",
+                        TooltipPosition::Bottom,
+                        app.show_settings,
+                        Message::View(message::ViewMessage::ToggleSettingsPanel),
+                    ))
+                    .push(icon_toggle_button(
+                        Icon::Terminal,
+                        "切换终端",
+                        TooltipPosition::Bottom,
+                        app.terminal.is_visible,
+                        Message::View(message::ViewMessage::ToggleTerminalPanel),
+                    ))
+                    .push(icon_toggle_button(
+                        Icon::Columns,
+                        "切换审查",
+                        TooltipPosition::Bottom,
+                        app.show_diff,
+                        Message::View(message::ViewMessage::ToggleDiffPanel),
+                    ))
+                    .push(icon_toggle_button(
+                        Icon::LayoutSidebarReverse,
+                        "切换文件树",
+                        TooltipPosition::Bottom,
+                        app.show_file_manager,
+                        Message::View(message::ViewMessage::FileManagerPanelVisible(
+                            !app.show_file_manager,
+                        )),
+                    ));
+            }
+            WorkspaceMode::Work => {
+                tools = tools
+                    .push(icon_toggle_button(
+                        Icon::LayoutSidebar,
+                        "切换工作侧栏",
+                        TooltipPosition::Bottom,
+                        !app.work_sidebar_collapsed,
+                        Message::View(message::ViewMessage::WorkSidebarToggled),
+                    ))
+                    .push(icon_toggle_button(
+                        Icon::LayoutSidebarReverse,
+                        "切换工作空间",
+                        TooltipPosition::Bottom,
+                        app.work_resources_visible,
+                        Message::View(message::ViewMessage::WorkResourcesToggled),
+                    ));
+            }
+        }
+
+        let tools = tools.push(icon_button(
+            Icon::Search,
+            "搜索",
+            TooltipPosition::Bottom,
+            Message::Search(message::SearchMessage::Open),
+        ));
 
         #[cfg(not(target_arch = "wasm32"))]
         let tools = tools.push(icon_toggle_button(

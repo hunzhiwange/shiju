@@ -1,5 +1,12 @@
 use super::*;
 
+pub(crate) const SHIJU_OFFICIAL_PROVIDER_ID: &str = "shiju";
+pub(crate) const SHIJU_OFFICIAL_PROVIDER_NAME: &str = "识矩";
+
+pub(crate) fn is_shiju_official_provider_id(provider_id: &str) -> bool {
+    provider_id.trim().eq_ignore_ascii_case(SHIJU_OFFICIAL_PROVIDER_ID)
+}
+
 /// 提供者摘要信息
 ///
 /// 提供者的基本信息和连接状态，
@@ -150,6 +157,8 @@ pub(crate) struct ProviderSettingsState {
     pub(crate) custom_provider_modal_open: bool,
     /// 当前是否正在编辑已有提供者
     pub(crate) custom_editing_provider_id: Option<String>,
+    /// 是否正在发现当前提供者的远端模型
+    pub(crate) custom_models_discovering: bool,
     /// 自定义提供者草稿
     pub(crate) custom: CustomProviderDraft,
     /// 自定义模型对话框状态
@@ -184,6 +193,7 @@ impl Default for ProviderSettingsState {
             disconnect_confirm_provider_id: None,
             custom_provider_modal_open: false,
             custom_editing_provider_id: None,
+            custom_models_discovering: false,
             custom: CustomProviderDraft::default(),
             custom_model_modal: None,
             save_error: None,
@@ -267,6 +277,10 @@ pub(crate) struct ModelDetailModalState {
 pub(crate) struct ModelSettingsState {
     /// 是否正在加载
     pub(crate) loading: bool,
+    /// 是否正在保存模型启用状态
+    pub(crate) saving: bool,
+    /// 当前展开的提供者模型分组；默认全部折叠
+    pub(crate) expanded_provider_ids: std::collections::HashSet<String>,
     /// 搜索查询
     pub(crate) query: String,
     /// 提供者模型列表

@@ -27,9 +27,12 @@
 //! editor.set_line_numbers_enabled(true);
 //! ```
 
-use crate::app::components::widgets::RightClickArea;
-use iced::{Element, Point, Task};
-use iced_code_editor::{CodeEditor, i18n, theme};
+use iced::{Element, Task};
+use iced_code_editor::{CodeEditor, ContextMenuEntry, i18n, theme};
+
+pub(crate) const APP_CONTEXT_MENU_INSERT_SELECTION: &str = "app.insert_selection";
+pub(crate) const APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS: &str =
+    "app.insert_selection_positions";
 
 /// 代码编辑器组件
 ///
@@ -48,6 +51,8 @@ pub struct Editor {
     /// 用于跟踪编辑器是否已连接到语言服务器
     #[cfg(not(target_arch = "wasm32"))]
     lsp_attached: bool,
+
+    preview_context_menu_configured: bool,
 }
 
 impl Editor {
@@ -76,6 +81,7 @@ impl Editor {
             inner: CodeEditor::new(content, syntax),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_attached: false,
+            preview_context_menu_configured: false,
         }
     }
 
@@ -178,6 +184,24 @@ impl Editor {
     /// ```
     pub fn set_ui_language(&mut self, language: i18n::Language) {
         self.inner.set_language(language);
+        if self.preview_context_menu_configured {
+            self.inner
+                .set_custom_context_menu_entries(preview_context_menu_entries(language));
+        }
+    }
+
+    /// 配置预览编辑器使用的应用菜单项和底层默认编辑菜单。
+    pub fn configure_preview_context_menu(
+        &mut self,
+        language: i18n::Language,
+        reveal_in_file_manager_enabled: bool,
+    ) {
+        self.preview_context_menu_configured = true;
+        self.inner
+            .set_custom_context_menu_entries(preview_context_menu_entries(language));
+        self.inner.set_default_context_menu_enabled(true);
+        self.inner
+            .set_reveal_in_file_manager_enabled(reveal_in_file_manager_enabled);
     }
 
     /// 检查是否可以执行撤销操作
@@ -486,7 +510,7 @@ impl Editor {
 
     /// 创建编辑器的视图元素
     ///
-    /// 生成一个仅包含编辑器本体的 `Element`，不附带任何右键菜单逻辑。
+    /// 生成包含底层原生右键菜单能力的编辑器 `Element`。
     ///
     /// # 参数
     ///
@@ -519,22 +543,16 @@ impl Editor {
     {
         self.inner.view().map(on_event)
     }
+}
 
-    /// 创建带右键菜单支持的编辑器视图。
-    ///
-    /// 右键菜单逻辑保持为外层包装能力，避免与编辑器/LSP 本体耦合在一起。
-    pub fn view<'a, Message>(
-        &'a self,
-        on_event: impl Fn(iced_code_editor::Message) -> Message + 'a,
-        on_right_click: impl Fn(Point) -> Message + 'a,
-    ) -> Element<'a, Message, iced::Theme, iced::Renderer>
-    where
-        Message: Clone + 'a,
-    {
-        let editor_view = self.content_view(on_event);
+fn preview_context_menu_entries(language: i18n::Language) -> Vec<ContextMenuEntry> {
+    let (insert_selection, insert_positions) = match language {
+        i18n::Language::ChineseSimplified => ("插入选择到聊天", "插入选区位置信息"),
+        _ => ("Insert selection into chat", "Insert selection positions"),
+    };
 
-        Element::new(
-            RightClickArea::new(editor_view, Box::new(on_right_click)).preserve_on_right_click(),
-        )
-    }
+    vec![
+        ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, insert_selection),
+        ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS, insert_positions),
+    ]
 }

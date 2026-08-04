@@ -9,6 +9,8 @@ use crate::session::ui_types as models;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
+use crate::session::runtime::SessionToolset;
 
 /// 会话处理请求
 ///
@@ -51,6 +53,61 @@ pub struct Request {
 
     /// 是否持久化会话工件（如生成的文件、中间结果等）
     pub persist_app_session_artifacts: bool,
+
+    /// 会话工件持久化所属的项目范围 ID
+    /// 使用前置计算后传入，避免在 runtime 内同步阻塞获取。
+    pub app_session_scope: Option<String>,
+
+    /// 当前提示轮次的显式取消令牌；模型与工具边界共享此令牌。
+    pub abort_token: Option<CancellationToken>,
+
+    /// 仅在当前绑定会话中可见的动态工具。
+    pub session_tools: SessionToolset,
+}
+
+/// 工具调用在类型化生命周期中的阶段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolEventKind {
+    /// 工具开始执行。
+    Start,
+    /// 工具仍在执行且状态或输出有更新。
+    Update,
+    /// 工具到达终态。
+    Complete,
+}
+
+/// 工具调用的协议中立状态。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolCallStatus {
+    /// 正在执行。
+    Running,
+    /// 等待后台工作完成。
+    Waiting,
+    /// 成功完成。
+    Completed,
+    /// 执行失败。
+    Failed,
+    /// 权限被拒绝。
+    Denied,
+    /// 已取消。
+    Cancelled,
+    /// 兼容未知但已净化的状态值。
+    Other(String),
+}
+
+/// 可直接映射到外部协议的类型化工具事件。
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolEvent {
+    /// 同一次工具调用在开始、更新和完成事件中保持稳定的 ID。
+    pub call_id: String,
+    /// 工具注册名称。
+    pub name: String,
+    /// 当前生命周期阶段。
+    pub kind: ToolEventKind,
+    /// 当前工具状态。
+    pub status: ToolCallStatus,
+    /// 已复用 UI 脱敏规则处理的结构化载荷。
+    pub payload: Value,
 }
 
 /// 流式事件枚举
@@ -59,8 +116,17 @@ pub struct Request {
 /// 这些事件用于实时通知客户端会话处理的进度和状态变化。
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
+    /// 系统提示词已加载协议文件，客户端可据此展示真实的上下文读取记录。
+    ContextLoaded {
+        /// 实际读取并注入系统提示词的协议文件路径。
+        paths: Vec<String>,
+    },
+
     /// 增量文本事件，包含新生成的文本片段
     Delta(String),
+
+    /// 类型化工具生命周期事件。
+    Tool(ToolEvent),
 
     /// 步骤开始事件，表示一个新的处理步骤开始执行
     StepStart {
@@ -116,6 +182,15 @@ pub(crate) struct ToolSessionState {
 
     /// 非 TODO 类型的工具运行次数统计
     pub(crate) non_todo_tool_runs: u64,
+
+    /// 当前请求通过 AgentTool 后台启动的直系子会话。
+    pub(crate) agent_background_children: Vec<String>,
+
+    /// 当前请求通过 AgentTool 成功创建直系子会话的次数。
+    pub(crate) successful_agent_delegations: u64,
+
+    /// 子智能体硬门禁已发送的纠偏次数。
+    pub(crate) required_agent_tool_retries: usize,
 }
 #[cfg(test)]
 #[path = "types_tests.rs"]

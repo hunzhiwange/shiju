@@ -6,6 +6,7 @@ use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
 use crate::app::state::{CustomProviderDraft, ModelCatalogEntry};
 use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 use vw_shared::auth::{self as shared_auth};
 
 use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
@@ -39,6 +40,96 @@ pub fn current_provider_api_key(provider_id: &str) -> Option<String> {
         Some(shared_auth::Info::Wellknown(info)) => Some(info.key),
         _ => None,
     }
+}
+
+pub(crate) fn merge_discovered_model_drafts(
+    existing: &mut Vec<crate::app::state::CustomProviderModelDraft>,
+    discovered: Vec<String>,
+) {
+    let mut merged = BTreeMap::new();
+
+    for model in existing.drain(..) {
+        let model_id = model.model_id.trim().to_string();
+        if model_id.is_empty() {
+            continue;
+        }
+        merged.entry(model_id.clone()).or_insert(crate::app::state::CustomProviderModelDraft {
+            model_id,
+            display_name: model.display_name,
+        });
+    }
+
+    for model_id in discovered {
+        let model_id = model_id.trim().to_string();
+        if model_id.is_empty() {
+            continue;
+        }
+        merged.entry(model_id.clone()).or_insert(crate::app::state::CustomProviderModelDraft {
+            model_id,
+            display_name: String::new(),
+        });
+    }
+
+    *existing = merged.into_values().collect();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn discover_custom_provider_models(
+    draft: CustomProviderDraft,
+) -> Result<Vec<String>, String> {
+    use vw_provider_resolver::remote_models::{
+        discover_openai_compatible_models, is_real_bearer, resolve_api_base,
+    };
+
+    let providers = model_provider::list_for_settings().await;
+    let provider = providers.get(draft.provider_id.trim());
+    let bearer = if is_real_bearer(&draft.api_key) {
+        Some(draft.api_key.trim().to_string())
+    } else {
+        provider
+            .and_then(|provider| provider.key.as_deref())
+            .filter(|key| is_real_bearer(key))
+            .map(str::to_string)
+    }
+    .ok_or_else(|| "请先填写或保存真实 API Key".to_string())?;
+
+    let configured_api = draft.base_url.trim();
+    let api_base = if configured_api.is_empty() {
+        provider.and_then(|provider| resolve_api_base(provider, None))
+    } else {
+        Some(configured_api.trim_end_matches('/').to_string())
+    }
+    .ok_or_else(|| "基础 URL 不能为空".to_string())?;
+
+    let models = discover_openai_compatible_models(&api_base, &bearer)
+        .await
+        .map_err(|error| discovery_error_message(error.category()))?;
+    if models.is_empty() {
+        return Err("未发现可用模型".to_string());
+    }
+    Ok(models)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn discovery_error_message(category: &str) -> String {
+    let detail = match category {
+        "timeout" => "请求超时",
+        "request" => "网络请求失败",
+        "http_status" => "服务返回错误状态",
+        "redirect" => "服务返回重定向",
+        "response_too_large" => "响应过大",
+        "invalid_response" => "返回格式无效",
+        "client" => "请求初始化失败",
+        _ => "未知错误",
+    };
+    format!("自动发现模型失败：{detail}")
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn discover_custom_provider_models(
+    _draft: CustomProviderDraft,
+) -> Result<Vec<String>, String> {
+    Err("当前平台暂不支持自动发现模型".to_string())
 }
 
 /// 处理 `load_custom_provider_draft` 对应的用户输入、异步结果或状态转换。

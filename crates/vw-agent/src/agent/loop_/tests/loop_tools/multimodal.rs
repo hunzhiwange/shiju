@@ -61,6 +61,7 @@ async fn run_tool_call_loop_rejects_oversized_image_payload() {
         max_images: 4,
         max_image_size_mb: 1,
         allow_remote_fetch: false,
+        ocr: Default::default(),
     };
 
     // 图片大小限制必须在 provider 调用前执行，避免 oversized data URL

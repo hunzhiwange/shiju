@@ -370,7 +370,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0)
         ),
-    ];
+    ]
+    .spacing(16);
 
     let mut content = column![
         settings_page_intro("浏览器配置", "配置允许站点、打开方式与浏览器自动化后端。"),

@@ -1,6 +1,33 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// HTTP 工具默认使用的桌面浏览器兼容 User-Agent。
+///
+/// 使用 macOS Chrome 的精简版本标识；Cookie 和 Client Hints 仍由真实浏览器会话管理。
+pub const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
+AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36";
+
+/// 解析 HTTP 工具实际使用的 User-Agent，并升级历史默认值。
+pub fn resolve_user_agent(user_agent: &str) -> String {
+    let user_agent = user_agent.trim();
+    if user_agent.is_empty() || user_agent.eq_ignore_ascii_case("VibeWindow/1.0") {
+        DEFAULT_USER_AGENT.into()
+    } else {
+        user_agent.into()
+    }
+}
+
+/// 多模态 OCR 图片模型配置（`[multimodal.ocr]` 配置段）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct MultimodalOcrConfig {
+    /// 是否启用图片 OCR。默认关闭。
+    #[serde(default)]
+    pub enabled: bool,
+    /// OCR 图片模型的完整 `provider/model` 引用。
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
 /// 多模态图片处理配置（`[multimodal]` 配置段）。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MultimodalConfig {
@@ -10,17 +37,24 @@ pub struct MultimodalConfig {
     /// 在 base64 编码前允许的单张图片大小上限，单位为 MiB。
     #[serde(default = "default_multimodal_max_image_size_mb")]
     pub max_image_size_mb: usize,
-    /// 是否允许抓取远程图片 URL（http/https）。默认关闭。
-    #[serde(default)]
+    /// 是否允许抓取远程图片 URL（http/https）。默认开启。
+    #[serde(default = "default_allow_remote_fetch")]
     pub allow_remote_fetch: bool,
+    /// 图片 OCR 降级配置。
+    #[serde(default)]
+    pub ocr: MultimodalOcrConfig,
 }
 
 fn default_multimodal_max_images() -> usize {
-    4
+    10
 }
 
 fn default_multimodal_max_image_size_mb() -> usize {
     5
+}
+
+fn default_allow_remote_fetch() -> bool {
+    true
 }
 
 impl MultimodalConfig {
@@ -37,7 +71,8 @@ impl Default for MultimodalConfig {
         Self {
             max_images: default_multimodal_max_images(),
             max_image_size_mb: default_multimodal_max_image_size_mb(),
-            allow_remote_fetch: false,
+            allow_remote_fetch: default_allow_remote_fetch(),
+            ocr: MultimodalOcrConfig::default(),
         }
     }
 }
@@ -357,7 +392,7 @@ impl Default for WebSearchConfig {
 }
 
 fn default_user_agent() -> String {
-    "VibeWindow/1.0".into()
+    resolve_user_agent("")
 }
 #[cfg(test)]
 #[path = "tools_tests.rs"]

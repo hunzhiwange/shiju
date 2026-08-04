@@ -84,6 +84,7 @@ pub enum TaskBoardMessage {
     },
     SelectStaffFeedTab(TaskBoardStaffFeedTab),
     SelectAllStaffTaskStatuses,
+    SelectStaffTaskStatusTab(TaskStatus),
     ToggleStaffTaskStatusFilter(TaskStatus),
     UpdateStaffCommandInput(String),
     SelectStaffCommandMember {

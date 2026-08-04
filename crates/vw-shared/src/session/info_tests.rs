@@ -27,3 +27,34 @@ fn info_serialization_uses_frontend_field_names_and_skips_empty_options() {
     assert!(value.get("parentID").is_none());
     assert!(value["revert"].get("partID").is_none());
 }
+
+#[test]
+fn plan_run_session_marker_round_trips() {
+    let ordinary = super::Info {
+        id: "session-1".to_string(),
+        slug: "ordinary-slug".to_string(),
+        project_id: "project-1".to_string(),
+        directory: "/work".to_string(),
+        parent_id: Some("parent-1".to_string()),
+        summary: None,
+        share: None,
+        title: "Plan run".to_string(),
+        version: "1".to_string(),
+        time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
+        permission: None,
+        revert: None,
+    };
+    assert!(!ordinary.is_plan_run());
+
+    let mut plan_run = ordinary.clone();
+    plan_run.slug = super::Info::plan_run_slug(&plan_run.slug);
+    assert!(plan_run.is_plan_run());
+    assert_eq!(super::Info::plan_run_slug(&plan_run.slug), plan_run.slug);
+
+    let value = serde_json::to_value(&plan_run).unwrap();
+    assert!(value.get("isPlanRun").is_none());
+
+    let restored: super::Info = serde_json::from_value(value).unwrap();
+    assert!(restored.is_plan_run());
+    assert_eq!(restored.slug, plan_run.slug);
+}

@@ -168,6 +168,7 @@ pub struct AcpClient {
     client_version: String,
     mcp_servers: Vec<acp::McpServer>,
     permission_mode: PermissionMode,
+    full_access: bool,
     non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
     auth_credentials: HashMap<String, String>,
     auth_policy: AuthPolicy,

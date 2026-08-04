@@ -4,7 +4,17 @@ use std::sync::Arc;
 use vw_shared::session::info::{Info, TimeInfo};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), think_timing: Vec::new() }
+    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+}
+
+fn message_with_model(role: ChatRole, content: &str, model: &str) -> ChatMessage {
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: Some(model.to_string()),
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, model: &str) -> ChatSessionStep {
@@ -41,9 +51,9 @@ fn session_info(id: &str, directory: &str, updated_ms: u64) -> Info {
 #[test]
 fn message_meta_labels_use_step_start_for_user_and_finish_for_assistant() {
     let chat = vec![
-        message(ChatRole::User, "question"),
+        message_with_model(ChatRole::User, "question", "message-model"),
         message(ChatRole::System, "context"),
-        message(ChatRole::Assistant, "answer"),
+        message_with_model(ChatRole::Assistant, "answer", "message-model"),
         message(ChatRole::Tool, "result"),
     ];
     let step = step(1, 1_000, Some(1_500), "model-a");
@@ -56,9 +66,9 @@ fn message_meta_labels_use_step_start_for_user_and_finish_for_assistant() {
     assert_eq!(
         labels,
         vec![
-            Some(format!("model-a · {started}")),
+            Some(format!("message-model · {started}")),
             None,
-            Some(format!("model-a · {finished}")),
+            Some(format!("message-model · {finished}")),
             None,
         ]
     );
@@ -68,8 +78,8 @@ fn message_meta_labels_use_step_start_for_user_and_finish_for_assistant() {
 fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
     let chat = vec![
         message(ChatRole::Assistant, "first"),
-        message(ChatRole::User, "second question"),
-        message(ChatRole::Assistant, "second answer"),
+        message_with_model(ChatRole::User, "second question", "message-model-b"),
+        message_with_model(ChatRole::Assistant, "second answer", "message-model-b"),
     ];
     let mut first = step(1, 1_000, Some(1_100), "unused");
     first.model = None;
@@ -80,14 +90,14 @@ fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
     let labels = build_message_meta_labels(&chat, &step_index_map);
 
     assert_eq!(labels[0], None);
-    assert!(labels[1].as_deref().is_some_and(|label| label.contains("model-b")));
-    assert!(labels[2].as_deref().is_some_and(|label| label.contains("model-b")));
+    assert!(labels[1].as_deref().is_some_and(|label| label.contains("message-model-b")));
+    assert!(labels[2].as_deref().is_some_and(|label| label.contains("message-model-b")));
 }
 
 #[test]
 fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     let (mut app, _task) = App::new();
-    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat = vec![message_with_model(ChatRole::User, "question", "message-model")];
     app.upsert_active_session_step(step(1, 1_000, Some(1_500), "model-a"));
 
     app.refresh_active_session_tail_message_meta(0);
@@ -95,7 +105,7 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     assert!(
         app.active_session_view_state.message_meta_texts[0]
             .as_deref()
-            .is_some_and(|label| label.contains("model-a"))
+            .is_some_and(|label| label.contains("message-model"))
     );
 
     app.upsert_active_session_step(step(1, 2_000, Some(2_500), "model-b"));
@@ -103,7 +113,7 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     assert!(
         app.active_session_view_state.message_meta_texts[0]
             .as_deref()
-            .is_some_and(|label| label.contains("model-b"))
+            .is_some_and(|label| label.contains("message-model"))
     );
 }
 

@@ -9,6 +9,52 @@
 //! - 在需要时间戳时直接返回毫秒值，减少重复样板代码
 //! - 在需要原始 `SystemTime` 时保留底层能力
 
+use std::time::Duration;
+use web_time::Instant;
+
+/// 只累计显式活跃区间的单调计时器。
+#[derive(Debug, Clone, Default)]
+pub struct ActiveTimer {
+    accumulated: Duration,
+    active_since: Option<Instant>,
+}
+
+impl ActiveTimer {
+    /// 从指定单调时间点开始计时；重复开始保持原活跃起点。
+    pub fn start_at(&mut self, now: Instant) {
+        if self.active_since.is_none() {
+            self.active_since = Some(now);
+        }
+    }
+
+    /// 暂停并返回累计毫秒数；未开始时保持原累计值。
+    pub fn pause_at(&mut self, now: Instant) -> u64 {
+        if let Some(started_at) = self.active_since.take() {
+            self.accumulated =
+                self.accumulated.saturating_add(now.saturating_duration_since(started_at));
+        }
+        duration_millis(self.accumulated)
+    }
+
+    /// 返回指定单调时间点的累计毫秒数，不改变计时状态。
+    pub fn elapsed_ms_at(&self, now: Instant) -> u64 {
+        let elapsed = self.active_since.map_or(self.accumulated, |started_at| {
+            self.accumulated.saturating_add(now.saturating_duration_since(started_at))
+        });
+        duration_millis(elapsed)
+    }
+
+    /// 清空累计值并停止计时。
+    pub fn reset(&mut self) {
+        self.accumulated = Duration::ZERO;
+        self.active_since = None;
+    }
+}
+
+fn duration_millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+}
+
 /// 获取当前时间的毫秒时间戳
 ///
 /// 在非 WASM 环境下使用 `std::time::SystemTime`，在 WASM 环境下使用

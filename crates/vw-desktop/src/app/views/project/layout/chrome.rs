@@ -2,13 +2,17 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::container;
+use iced::widget::{Space, container, stack};
 use iced::{Element, Length, Theme};
 
 use crate::app::Message;
 
 use super::super::handles::{HResizeHandle, TopBorderCover};
-use super::super::styles::{right_column_inner_style, right_column_outer_style};
+use super::super::styles::{
+    right_column_inner_style, right_column_outer_style, workspace_background_style,
+};
+
+const RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT: f32 = 1.0;
 
 /// 执行本模块的界面辅助逻辑。
 ///
@@ -35,7 +39,22 @@ pub fn right_column_chrome(
         .height(Length::Fill)
         .padding(iced::Padding { top: 0.0, right: 1.0, bottom: 1.0, left: 0.0 })
         .style(move |theme: &Theme| right_column_outer_style(theme, corner_radius));
-    container(right_column_base).width(Length::Fill).height(Length::Fill).into()
+    let bottom_border_cover = container(
+        container(Space::new())
+            .width(Length::Fill)
+            .height(Length::Fixed(RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT))
+            .style(workspace_background_style),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .align_y(iced::alignment::Vertical::Bottom);
+
+    container(
+        stack![right_column_base, bottom_border_cover].width(Length::Fill).height(Length::Fill),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// 计算遮罩分割线的宽度。

@@ -26,8 +26,6 @@
 
 use crate::app::components::editor::Editor;
 use iced::widget::Id;
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::PathBuf;
 
 /// 预览标签页
 ///
@@ -151,57 +149,6 @@ pub(crate) fn path_to_file_uri(path: &std::path::Path) -> String {
     let path_str = path.to_string_lossy().replace(' ', "%20");
     uri.push_str(&path_str);
     uri
-}
-
-/// 根据文件路径计算 LSP 根 URI
-///
-/// 确定语言服务器应该使用的项目根目录，并返回对应的文件 URI。
-/// 优先级如下：
-/// 1. 如果提供的提示路径在当前工作目录下，使用当前工作目录
-/// 2. 否则使用提示路径本身（或其父目录）
-/// 3. 如果没有提示路径，使用当前工作目录
-///
-/// # 参数
-///
-/// - `root_hint`: 可选的路径提示，通常是正在打开的文件路径
-///
-/// # 返回值
-///
-/// 返回项目根目录的文件 URI，如果无法确定则返回 `None`
-///
-/// # 示例
-///
-/// ```ignore
-/// use std::path::Path;
-/// use crate::app::preview::lsp_root_uri_for_path;
-///
-/// // 假设当前工作目录是 /home/user/project
-/// let root_uri = lsp_root_uri_for_path(Some(Path::new("/home/user/project/src/main.rs")));
-/// // 返回 "file:///home/user/project"
-/// ```
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn lsp_root_uri_for_path(root_hint: Option<&std::path::Path>) -> Option<String> {
-    // 获取当前工作目录
-    let cwd = std::env::current_dir().ok();
-    // 确定根目录
-    let root_dir = root_hint
-        .and_then(|path| {
-            // 如果路径是目录则直接使用，否则使用其父目录
-            if path.is_dir() { Some(path.to_path_buf()) } else { path.parent().map(PathBuf::from) }
-        })
-        .map(|hint_dir| {
-            // 如果提示目录在当前工作目录下，优先使用当前工作目录
-            if let Some(cwd) = &cwd
-                && hint_dir.starts_with(cwd)
-            {
-                cwd.clone()
-            } else {
-                hint_dir
-            }
-        })
-        .or(cwd)?;
-    // 转换为文件 URI
-    Some(path_to_file_uri(&root_dir))
 }
 
 impl std::fmt::Debug for PreviewTab {

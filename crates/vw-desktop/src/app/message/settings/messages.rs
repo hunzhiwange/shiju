@@ -507,6 +507,10 @@ pub enum ThemesMessage {
 pub enum AgentsMessage {
     Refresh,
     Loaded(AgentsLoaded),
+    ConfigLoaded {
+        project_path: Option<String>,
+        result: Result<Box<vw_config_types::config::Config>, String>,
+    },
     ProjectSelected(String),
     ProjectChanged(String),
     ProjectConfigLoaded {

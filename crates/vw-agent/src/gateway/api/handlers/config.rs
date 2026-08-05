@@ -57,9 +57,19 @@ pub(crate) fn stateful_router() -> Router<AppState> {
 }
 
 async fn config_get(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
+    if !has_explicit_directory(&query, &headers) {
+        let cfg = config::get_global_for_tenant(&tenant)
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+        return Ok(Json(
+            serde_json::to_value(cfg).map_err(|error| ApiError::internal(error.to_string()))?,
+        ));
+    }
+
     let dir = resolve_directory(&query, &headers);
     let cfg = with_instance(dir, move || Box::pin(async move { Ok(config::get().await) })).await?;
     Ok(Json(serde_json::to_value(cfg).map_err(|e| ApiError::internal(e.to_string()))?))
@@ -92,10 +102,11 @@ async fn config_patch(
 }
 
 async fn config_get_stateful(
+    tenant: Extension<TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    config_get(Query(query), headers).await
+    config_get(tenant, Query(query), headers).await
 }
 
 async fn config_patch_stateful(

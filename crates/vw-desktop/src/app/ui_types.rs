@@ -67,6 +67,7 @@ pub enum Message {
     StartupCliServiceBootstrapped(Result<(), String>),
     StartupAppConfigLoaded(Result<serde_json::Value, String>),
     StartupSystemSettingsLoaded(Result<vw_config_types::ui::AppSystemSettingsConfig, String>),
+    StartupAgentConfigLoaded(Result<Box<vw_config_types::config::Config>, String>),
     StartupBrowserConfigLoaded(Result<vw_config_types::tools::BrowserConfig, String>),
     BootstrapAppConfig(Result<serde_json::Value, String>),
     BootstrapSystemSettings(Result<vw_config_types::ui::AppSystemSettingsConfig, String>),

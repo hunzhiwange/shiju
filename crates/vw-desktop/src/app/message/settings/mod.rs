@@ -64,6 +64,10 @@ pub(crate) use messages::{
     TunnelMessage, WebSearchMessage,
 };
 
+pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
+    agents::config_task(project_path)
+}
+
 fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(), String>) {
     let save_error = result.err().map(server_config_unreachable_error);
 

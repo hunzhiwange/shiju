@@ -425,12 +425,15 @@ impl App {
                         Message::StartupSystemSettingsLoaded,
                     ),
                     Task::perform(
-                        crate::app::config::load_browser_config_async(),
-                        Message::StartupBrowserConfigLoaded,
+                        crate::app::config::load_full_agent_config_async(),
+                        |result| Message::StartupAgentConfigLoaded(result.map(Box::new)),
                     ),
                     Task::perform(
                         crate::app::session_gateway::gateway_external_apps_async(),
                         Message::ExternalAppsLoaded,
+                    ),
+                    crate::app::message::settings::reload_agents_config_task(
+                        self.agents_settings.project_path.clone(),
                     ),
                 ];
                 tasks.push(self.reload_sessions_for_project(None));
@@ -456,6 +459,19 @@ impl App {
                     ]);
                     #[cfg(not(target_arch = "wasm32"))]
                     return health;
+                }
+                Task::none()
+            }
+            Message::StartupAgentConfigLoaded(result) => {
+                match result {
+                    Ok(config) => self.apply_bootstrap_agent_config(&config),
+                    Err(error) => {
+                        tracing::warn!(
+                            target: "vw_desktop",
+                            error = %error,
+                            "failed to reload agent config after gateway bootstrap"
+                        );
+                    }
                 }
                 Task::none()
             }

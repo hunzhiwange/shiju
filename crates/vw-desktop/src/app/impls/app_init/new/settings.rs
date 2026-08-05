@@ -1,8 +1,6 @@
 //! 组织桌面应用初始化阶段的 settings.rs 逻辑。
 //! 本模块把启动输入、配置加载和初始状态装配拆开，便于定位启动失败路径。
 
-use std::collections::BTreeSet;
-
 use super::*;
 
 /// 模块内可见函数，执行 build_embedding_routes_settings 对应的应用流程。
@@ -27,6 +25,7 @@ pub(super) fn build_embedding_routes_settings(
             .as_ref()
             .err()
             .map(|err| config::server_config_unreachable_error(err.clone())),
+        save_success: false,
     }
 }
 
@@ -465,6 +464,10 @@ pub(super) fn build_gateway_settings(
         node_control_enabled: gateway_cfg.node_control.enabled,
         node_control_auth_token_input: gateway_cfg.node_control.auth_token.unwrap_or_default(),
         node_control_allowed_node_ids_input: gateway_cfg.node_control.allowed_node_ids.join("\n"),
+        service_action_running: None,
+        service_action_output: None,
+        copied_service_command: None,
+        pending_service_command_confirmation: None,
         show_help_modal: false,
         save_error: None,
     }
@@ -472,39 +475,6 @@ pub(super) fn build_gateway_settings(
 
 /// 模块内可见函数，执行 build_gateway_client_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_gateway_client_settings(
-    gateway_client_cfg: &vw_config_types::ui::GatewayClientSystemSettingsConfig,
-) -> crate::app::state::GatewayClientSettingsState {
-    let servers = gateway_client_cfg
-        .normalized_servers()
-        .iter()
-        .map(crate::app::state::GatewayClientServerDraft::from_config)
-        .collect::<Vec<_>>();
-    let active = gateway_client_cfg.active_server();
-
-    crate::app::state::GatewayClientSettingsState {
-        selected_server_id: active.id.clone(),
-        name_input: active.name.clone(),
-        servers,
-        health: std::collections::HashMap::new(),
-        host_input: {
-            let value = active.host.trim().to_string();
-            if value.is_empty() { "127.0.0.1".to_string() } else { value }
-        },
-        port: active.port.clamp(1, u16::MAX),
-        platform_id_input: active.platform_id.clone(),
-        company_id_input: active.company_id.clone(),
-        skey_input: if active.skey.trim().is_empty() {
-            active.bearer_token.clone()
-        } else {
-            active.skey.clone()
-        },
-        pending_remove_server_id: None,
-        show_help_modal: false,
-        save_error: None,
-    }
-}
-
 /// 模块内可见函数，执行 build_agents_ipc_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_agents_ipc_settings(
@@ -523,42 +493,6 @@ pub(super) fn build_agents_ipc_settings(
 
 /// 模块内可见函数，执行 build_agents_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_agents_settings(
-    _cfg: &serde_json::Value,
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::AgentsSettingsState {
-    let mut entries = crate::app::state::agent_settings_entries_from_config(full_agent_cfg);
-    let available_tools = config::load_tools_list_via_gateway();
-    crate::app::state::apply_default_allowed_tools(&mut entries, &available_tools);
-
-    crate::app::state::AgentsSettingsState {
-        loading: false,
-        project_path: None,
-        providers: Vec::new(),
-        provider_models: Vec::new(),
-        entries,
-        new_agent_key_input: String::new(),
-        selected_agent: crate::app::state::MAIN_AGENT_KEY.to_string(),
-        active_detail_tab: crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string(),
-        active_prompt_tab: crate::app::state::AGENT_PROMPT_SYSTEM_TAB.to_string(),
-        workspace_identity_files: crate::app::state::WORKSPACE_IDENTITY_FILES
-            .iter()
-            .map(|(file_name, label)| crate::app::state::WorkspaceIdentityFileState {
-                file_name: (*file_name).to_string(),
-                label: (*label).to_string(),
-                editor: iced::widget::text_editor::Content::with_text(""),
-                size_bytes: None,
-                modified_at_ms: None,
-            })
-            .collect(),
-        workspace_identity_root_path: None,
-        available_tools,
-        save_error: None,
-        save_in_flight: false,
-        save_pending: false,
-    }
-}
-
 /// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_staff_settings(
@@ -956,13 +890,44 @@ pub(super) fn build_transcription_settings(
     }
 }
 
-/// 模块内可见函数，执行 build_task_board_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_task_board_settings(
-    _cfg: &serde_json::Value,
-) -> crate::app::task::TaskBoardSettings {
-    crate::app::task::TaskBoardSettings::new()
+pub(super) fn apply_bootstrap_agent_config(
+    app: &mut App,
+    full_agent_cfg: &vw_config_types::config::Config,
+) {
+    let gateway_cfg_result = Ok(full_agent_cfg.gateway.clone());
+
+    app.embedding_routes_settings =
+        build_embedding_routes_settings(full_agent_cfg, &gateway_cfg_result);
+    app.model_routes_settings = build_model_routes_settings(full_agent_cfg);
+    app.query_classification_settings = build_query_classification_settings(full_agent_cfg);
+    app.goal_loop_settings = build_goal_loop_settings(full_agent_cfg);
+    app.heartbeat_settings = build_heartbeat_settings(full_agent_cfg);
+    app.cron_settings = build_cron_settings(full_agent_cfg);
+    app.sop_settings = build_sop_settings(full_agent_cfg);
+    app.scheduler_settings = build_scheduler_settings(full_agent_cfg);
+    app.hooks_settings = build_hooks_settings(full_agent_cfg);
+    app.runtime_settings = build_runtime_settings(full_agent_cfg);
+    app.skills_settings = build_skills_settings(full_agent_cfg);
+    app.research_settings = build_research_settings(full_agent_cfg);
+    app.web_search_settings = build_web_search_settings(full_agent_cfg);
+    app.browser_settings = build_browser_settings(full_agent_cfg);
+    app.http_request_settings = build_http_request_settings(full_agent_cfg);
+    app.gateway_settings = build_gateway_settings(&gateway_cfg_result);
+    app.agents_ipc_settings = build_agents_ipc_settings(full_agent_cfg);
+    app.staff_settings = build_staff_settings(full_agent_cfg);
+    app.coordination_settings = build_coordination_settings(full_agent_cfg);
+    app.memory_settings = build_memory_settings(full_agent_cfg);
+    app.channels_settings =
+        super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config);
+    app.reliability_settings = build_reliability_settings(full_agent_cfg);
+    app.multimodal_settings = build_multimodal_settings(full_agent_cfg);
+    app.security_settings = build_security_settings(full_agent_cfg);
+    app.autonomy_settings = build_autonomy_settings(full_agent_cfg);
+    app.observability_settings = build_observability_settings(full_agent_cfg);
+    app.storage_settings = build_storage_settings(full_agent_cfg);
+    app.proxy_settings = build_proxy_settings(full_agent_cfg);
+    app.tunnel_settings = build_tunnel_settings(full_agent_cfg);
+    app.composio_settings = build_composio_settings(full_agent_cfg);
+    app.transcription_settings = build_transcription_settings(full_agent_cfg);
+    app.acp_agents = super::sort_acp_agents(&full_agent_cfg.acp);
 }
-#[cfg(test)]
-#[path = "settings_tests.rs"]
-mod settings_tests;

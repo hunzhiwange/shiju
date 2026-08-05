@@ -164,8 +164,13 @@ async fn config_get_returns_serialized_instance_config() {
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
-    let Json(body) =
-        config_get(instance_query(&temp), HeaderMap::new()).await.expect("config should load");
+    let Json(body) = config_get(
+        Extension(TenantScope::default()),
+        instance_query(&temp),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("config should load");
 
     assert!(body.is_object());
     assert!(body.get("default_provider").is_some());
@@ -181,6 +186,7 @@ async fn config_get_stateful_returns_serialized_instance_config() {
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
     let Json(body) = config_get_stateful(
+        Extension(TenantScope::default()),
         Query(InstanceQuery { directory: Some(home.path().to_string_lossy().to_string()) }),
         HeaderMap::new(),
     )
@@ -189,6 +195,39 @@ async fn config_get_stateful_returns_serialized_instance_config() {
 
     assert!(body.is_object());
     assert!(body.get("default_provider").is_some());
+}
+
+#[tokio::test]
+async fn config_get_without_directory_restores_the_requested_tenant_after_restart() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant = TenantScope::new("desktop-platform", "desktop-company").expect("tenant");
+
+    config::update_global_for_tenant(
+        &tenant,
+        serde_json::json!({"agents": {"main": {"max_iterations": 123}}}),
+    )
+    .await
+    .expect("tenant config should persist");
+
+    let Json(body) = config_get(
+        Extension(tenant),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("tenant config should reload");
+
+    assert_eq!(body["agents"]["main"]["max_iterations"], 123);
+    assert_ne!(
+        config::get().await.agents["main"].max_iterations,
+        123,
+        "local gateway startup config must not replace the requested tenant"
+    );
 }
 
 #[tokio::test]

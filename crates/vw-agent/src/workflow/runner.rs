@@ -1030,18 +1030,13 @@ where
     F: FnMut(WorkflowRunEvent) + Send,
 {
     let messages = build_llm_messages(node, pool);
-    let requested_model = node
-        .data
-        .get("model")
-        .and_then(|model| string_field(model, "name"))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(runtime.model.as_str());
+    let requested_model = workflow_node_model(node, runtime.model.as_str());
     let (text, usage) = if runtime.provider.supports_streaming() {
-        run_llm_chat_streaming(runtime, node, node_index, &messages, requested_model, on_event)
+        run_llm_chat_streaming(runtime, node, node_index, &messages, &requested_model, on_event)
             .await?
     } else {
         let response =
-            run_llm_chat_with_model_fallback(runtime, &messages, requested_model).await?;
+            run_llm_chat_with_model_fallback(runtime, &messages, &requested_model).await?;
         (response.text.unwrap_or_default(), workflow_token_usage(response.usage.as_ref()))
     };
     let mut outputs = llm_outputs(text);
@@ -1060,6 +1055,25 @@ where
         error: None,
         elapsed_ms: 0,
     })
+}
+
+fn workflow_node_model(node: &WorkflowNode, runtime_model: &str) -> String {
+    let Some(model) = node.data.get("model") else {
+        return runtime_model.to_string();
+    };
+    let Some(name) =
+        string_field(model, "name").map(str::trim).filter(|value| !value.is_empty())
+    else {
+        return runtime_model.to_string();
+    };
+    if name.contains('/') {
+        return name.to_string();
+    }
+
+    string_field(model, "provider")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| name.to_string(), |provider| format!("{provider}/{name}"))
 }
 
 async fn run_llm_chat_streaming<F>(
@@ -2108,13 +2122,7 @@ async fn execute_agent_node(
         return Err("agent 节点缺少 tools".to_string());
     }
     let max_iterations = workflow_agent_max_iterations(&node.data)?;
-    let requested_model = node
-        .data
-        .get("model")
-        .and_then(|model| string_field(model, "name"))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(runtime.model.as_str())
-        .to_string();
+    let requested_model = workflow_node_model(node, runtime.model.as_str());
     let messages = build_llm_messages(node, pool);
     let request = WorkflowAgentRequest {
         messages: messages.clone(),
@@ -2554,13 +2562,8 @@ async fn execute_parameter_extractor_node(
     }
 
     let messages = parameter_extractor_messages(&input, &parameters);
-    let requested_model = node
-        .data
-        .get("model")
-        .and_then(|model| string_field(model, "name"))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(runtime.model.as_str());
-    let response = run_llm_chat_with_model_fallback(runtime, &messages, requested_model).await?;
+    let requested_model = workflow_node_model(node, runtime.model.as_str());
+    let response = run_llm_chat_with_model_fallback(runtime, &messages, &requested_model).await?;
     let text = response.text.unwrap_or_default();
     let extracted = parse_parameter_extractor_json(&text)?;
     let mut outputs = parameter_extractor_outputs(&parameters, &extracted);
@@ -2608,13 +2611,8 @@ async fn execute_question_classifier_node(
     }
 
     let messages = question_classifier_messages(&input, &classes);
-    let requested_model = node
-        .data
-        .get("model")
-        .and_then(|model| string_field(model, "name"))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or(runtime.model.as_str());
-    let response = run_llm_chat_with_model_fallback(runtime, &messages, requested_model).await?;
+    let requested_model = workflow_node_model(node, runtime.model.as_str());
+    let response = run_llm_chat_with_model_fallback(runtime, &messages, &requested_model).await?;
     let text = response.text.unwrap_or_default();
     let class_id = normalize_classifier_response(&text);
 

@@ -4,6 +4,8 @@ use iced::Task;
 use iced::Theme;
 use std::collections::{HashMap, HashSet};
 
+mod settings;
+
 fn build_multimodal_settings(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> super::state::MultimodalSettingsState {
@@ -35,6 +37,13 @@ fn build_task_board_settings(_cfg: &serde_json::Value) -> crate::app::task::Task
 }
 
 impl App {
+    pub(crate) fn apply_bootstrap_agent_config(
+        &mut self,
+        config: &vw_config_types::config::Config,
+    ) {
+        settings::apply_bootstrap_agent_config(self, config);
+    }
+
     /// 创建并初始化应用程序实例
     ///
     /// 此方法是应用程序的入口点，负责完成所有初始化工作。

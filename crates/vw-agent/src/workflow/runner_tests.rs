@@ -100,6 +100,23 @@ fn workflow_execution_batch_parallelizes_only_llm_nodes() {
 }
 
 #[test]
+fn workflow_node_model_qualifies_dify_provider_and_preserves_explicit_references() {
+    let split = node(
+        "llm",
+        "llm",
+        json!({"model": {"provider": " deepseek ", "name": " deepseek-v4-pro "}}),
+    );
+    assert_eq!(workflow_node_model(&split, "runtime/model"), "deepseek/deepseek-v4-pro");
+
+    let qualified =
+        node("llm", "llm", json!({"model": {"provider": "shiju", "name": "deepseek/v4"}}));
+    assert_eq!(workflow_node_model(&qualified, "runtime/model"), "deepseek/v4");
+
+    let missing = node("llm", "llm", json!({"model": {"provider": "deepseek", "name": " "}}));
+    assert_eq!(workflow_node_model(&missing, "runtime/model"), "runtime/model");
+}
+
+#[test]
 fn readiness_honors_selected_branch_edges() {
     let graph = graph(
         vec![

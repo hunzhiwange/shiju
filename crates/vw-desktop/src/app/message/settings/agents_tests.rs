@@ -88,6 +88,45 @@ fn project_config_loaded_ignores_stale_project_response() {
 }
 
 #[test]
+fn config_loaded_restores_persisted_agent_values_for_matching_scope() {
+    let mut app = test_app();
+    let mut config = config_with_main_skills(&[]);
+    config.agents.get_mut("main").expect("main agent").max_iterations = 123;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+            project_path: None,
+            result: Ok(config),
+        }),
+    );
+
+    assert_eq!(entry(&app, "main").max_iterations, 123);
+    assert!(!app.agents_settings.loading);
+}
+
+#[test]
+fn config_loaded_ignores_stale_scope_after_project_changes() {
+    let mut app = test_app();
+    app.agents_settings.project_path = Some("/project-b".to_string());
+    app.agents_settings.loading = true;
+    entry_mut(&mut app, "main").max_iterations = 77;
+    let mut config = config_with_main_skills(&[]);
+    config.agents.get_mut("main").expect("main agent").max_iterations = 123;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+            project_path: Some("/project-a".to_string()),
+            result: Ok(config),
+        }),
+    );
+
+    assert_eq!(entry(&app, "main").max_iterations, 77);
+    assert!(app.agents_settings.loading);
+}
+
+#[test]
 fn project_changed_tracks_save_scope_before_loading() {
     let mut app = test_app();
     app.agents_settings.save_error = Some("stale error".to_string());
@@ -582,13 +621,13 @@ fn loaded_success_preserves_nonempty_tool_inventory_when_refresh_returns_empty()
         SettingsMessage::Agents(AgentsMessage::Loaded(Ok((vec![], vec![], vec![])))),
     );
 
-    assert!(!app.agents_settings.loading);
+    assert!(app.agents_settings.loading);
     assert_eq!(app.agents_settings.available_tools, vec!["read".to_string()]);
     assert!(app.agents_settings.save_error.is_none());
 }
 
 #[test]
-fn loaded_error_stops_loading_and_preserves_existing_data() {
+fn loaded_error_preserves_existing_data_while_config_load_is_pending() {
     let mut app = test_app();
     app.agents_settings.loading = true;
     app.agents_settings.available_tools = vec!["read".to_string()];
@@ -598,7 +637,7 @@ fn loaded_error_stops_loading_and_preserves_existing_data() {
         SettingsMessage::Agents(AgentsMessage::Loaded(Err("provider unavailable".to_string()))),
     );
 
-    assert!(!app.agents_settings.loading);
+    assert!(app.agents_settings.loading);
     assert_eq!(app.agents_settings.available_tools, vec!["read".to_string()]);
     assert_eq!(app.agents_settings.save_error.as_deref(), Some("provider unavailable"));
 }

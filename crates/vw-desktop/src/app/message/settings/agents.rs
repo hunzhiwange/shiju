@@ -108,6 +108,44 @@ fn project_config_task(project_path: String) -> Task<Message> {
     )
 }
 
+pub(super) fn config_task(project_path: Option<String>) -> Task<Message> {
+    let response_project_path = project_path.clone();
+    Task::perform(
+        async move {
+            match project_path {
+                Some(project_path) => {
+                    crate::app::config::load_project_agent_config_async(&project_path).await
+                }
+                None => crate::app::config::load_full_agent_config_async().await,
+            }
+            .map(Box::new)
+        },
+        move |result| {
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+                project_path: response_project_path.clone(),
+                result,
+            }))
+        },
+    )
+}
+
+fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
+    let mut entries = crate::app::state::agent_settings_entries_from_config(config);
+    crate::app::state::apply_default_allowed_tools(
+        &mut entries,
+        &app.agents_settings.available_tools,
+    );
+    app.agents_settings.entries = entries;
+    if !app
+        .agents_settings
+        .entries
+        .iter()
+        .any(|entry| entry.key == app.agents_settings.selected_agent)
+    {
+        app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
+    }
+}
+
 fn find_entry_mut<'a>(
     app: &'a mut App,
     agent_key: &str,
@@ -578,17 +616,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::Refresh => {
             app.agents_settings.loading = true;
             app.agents_settings.save_error = None;
-            let mut tasks = vec![refresh_task()];
             if let Some(project_path) = app.project_path.clone() {
-                app.agents_settings.project_path = Some(project_path.clone());
-                tasks.push(project_config_task(project_path));
+                app.agents_settings.project_path = Some(project_path);
             }
-            Task::batch(tasks)
+            Task::batch(vec![
+                refresh_task(),
+                config_task(app.agents_settings.project_path.clone()),
+            ])
         }
         AgentsMessage::Loaded(res) => {
-            if app.agents_settings.project_path.is_none() {
-                app.agents_settings.loading = false;
-            }
             match res {
                 Ok((providers, provider_models, available_tools)) => {
                     app.agents_settings.providers = providers;
@@ -604,11 +640,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     {
                         app.agents_settings.available_tools = available_tools;
                     }
-                    app.agents_settings.save_error = None;
                 }
                 Err(error) => {
                     app.agents_settings.save_error = Some(error);
                 }
+            }
+            Task::none()
+        }
+        AgentsMessage::ConfigLoaded { project_path, result } => {
+            if app.agents_settings.project_path != project_path {
+                return Task::none();
+            }
+
+            app.agents_settings.loading = false;
+            match result {
+                Ok(config) => apply_config(app, config.as_ref()),
+                Err(error) => app.agents_settings.save_error = Some(error),
             }
             Task::none()
         }
@@ -632,21 +679,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.loading = false;
             match result {
                 Ok(config) => {
-                    let mut entries =
-                        crate::app::state::agent_settings_entries_from_config(config.as_ref());
-                    crate::app::state::apply_default_allowed_tools(
-                        &mut entries,
-                        &app.agents_settings.available_tools,
-                    );
-                    app.agents_settings.entries = entries;
-                    if !app
-                        .agents_settings
-                        .entries
-                        .iter()
-                        .any(|entry| entry.key == app.agents_settings.selected_agent)
-                    {
-                        app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
-                    }
+                    apply_config(app, config.as_ref());
                     app.agents_settings.save_error = None;
                 }
                 Err(error) => {

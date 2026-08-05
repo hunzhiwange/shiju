@@ -34,6 +34,20 @@ use serde_json::{Value, json};
 use std::process::Stdio;
 use tracing::debug;
 
+const AUTOMATION_EVASION_ARG: &str = "--disable-blink-features=AutomationControlled";
+
+fn agent_browser_launch_args(existing_args: Option<&str>) -> String {
+    let existing_args = existing_args.unwrap_or_default();
+
+    if existing_args.split_whitespace().any(|arg| arg == AUTOMATION_EVASION_ARG) {
+        existing_args.to_string()
+    } else if existing_args.trim().is_empty() {
+        AUTOMATION_EVASION_ARG.to_string()
+    } else {
+        format!("{existing_args} {AUTOMATION_EVASION_ARG}")
+    }
+}
+
 /// agent-browser CLI 工具的 JSON 响应结构
 ///
 /// 此结构体用于反序列化 `agent-browser --json` 命令的输出。
@@ -166,6 +180,11 @@ impl BrowserTool {
     /// - 标准错误输出会通过 debug 日志记录
     pub(crate) async fn run_command(&self, args: &[&str]) -> anyhow::Result<AgentBrowserResponse> {
         let mut cmd = tokio_command("agent-browser");
+        let existing_launch_args = std::env::var("AGENT_BROWSER_ARGS").ok();
+        cmd.env(
+            "AGENT_BROWSER_ARGS",
+            agent_browser_launch_args(existing_launch_args.as_deref()),
+        );
 
         // 如果配置了会话名称，添加 --session 参数以支持会话持久化
         if let Some(ref session) = self.session_name {

@@ -3,6 +3,29 @@ use crate::app::agent::security::SecurityPolicy;
 use std::sync::Arc;
 
 #[test]
+fn agent_browser_launch_args_preserve_existing_and_add_automation_evasion() {
+    let target_arg = "--disable-blink-features=AutomationControlled";
+
+    let empty = agent_browser_launch_args(None);
+    assert_eq!(empty, target_arg);
+
+    let existing = "--window-size=1280,720 --headless=new";
+    let merged = agent_browser_launch_args(Some(existing));
+    assert_eq!(merged, format!("{existing} {target_arg}"));
+
+    let already_configured = agent_browser_launch_args(Some(target_arg));
+    assert_eq!(already_configured, target_arg);
+
+    for args in [empty, merged, already_configured] {
+        assert_eq!(
+            args.split_whitespace().filter(|arg| *arg == target_arg).count(),
+            1,
+            "automation evasion argument must appear exactly once"
+        );
+    }
+}
+
+#[test]
 fn agent_browser_response_deserializes_success_and_error_shapes() {
     let ok: AgentBrowserResponse =
         serde_json::from_str(r#"{"success":true,"data":{"title":"Example"},"error":null}"#)

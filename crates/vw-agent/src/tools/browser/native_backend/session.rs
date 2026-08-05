@@ -31,6 +31,8 @@ use anyhow::{Context, Result};
 use fantoccini::{Client, ClientBuilder};
 use serde_json::{Map, Value};
 
+const AUTOMATION_EVASION_ARG: &str = "--disable-blink-features=AutomationControlled";
+
 /// 原生浏览器状态管理器
 ///
 /// 负责管理与 WebDriver 客户端的连接状态，提供会话的创建、访问和重置功能。
@@ -141,6 +143,7 @@ impl NativeBrowserState {
     /// # 配置能力 (Capabilities)
     ///
     /// 该方法会自动配置以下 Chrome 选项：
+    /// - 所有模式下添加 `--disable-blink-features=AutomationControlled` 参数
     /// - 无头模式下添加 `--headless=new` 和 `--disable-gpu` 参数
     /// - 支持自定义浏览器二进制文件路径
     ///
@@ -178,7 +181,7 @@ impl NativeBrowserState {
         // capabilities 是符合 W3C WebDriver 标准的配置对象
         let mut capabilities: Map<String, Value> = Map::new();
         let mut chrome_options: Map<String, Value> = Map::new();
-        let mut args: Vec<Value> = Vec::new();
+        let mut args = vec![Value::String(AUTOMATION_EVASION_ARG.to_string())];
 
         // 配置无头模式参数
         // --headless=new 使用 Chrome 新版无头模式（比旧版更稳定）
@@ -209,6 +212,11 @@ impl NativeBrowserState {
         }
 
         // 创建并配置 WebDriver 客户端构建器
+        // browser-native 会同时带入 Ring 与 AWS-LC，需在 Fantoccini 创建 Rustls 配置前
+        // 显式选择项目统一使用的 Ring provider。
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            let _ = rustls::crypto::ring::default_provider().install_default();
+        }
         let mut builder =
             ClientBuilder::rustls().context("Failed to initialize WebDriver client builder")?;
         if !capabilities.is_empty() {

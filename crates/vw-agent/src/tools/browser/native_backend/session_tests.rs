@@ -145,8 +145,38 @@ async fn ensure_session_sends_headless_arguments_and_trimmed_binary() {
     assert_eq!(requests[0].method, Method::POST);
     assert_eq!(requests[0].path, "/session");
     let chrome_options = &requests[0].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"];
-    assert_eq!(chrome_options["args"], json!(["--headless=new", "--disable-gpu"]));
+    assert_eq!(
+        chrome_options["args"],
+        json!([
+            "--disable-blink-features=AutomationControlled",
+            "--headless=new",
+            "--disable-gpu"
+        ])
+    );
     assert_eq!(chrome_options["binary"], "/opt/chrome-for-test");
+
+    state.reset_session().await;
+}
+
+#[tokio::test]
+async fn ensure_session_always_disables_automation_controlled() {
+    let stub = WebDriverStub::spawn().await;
+    let mut state = NativeBrowserState::default();
+
+    state
+        .ensure_session(false, &stub.base_url, None)
+        .await
+        .expect("webdriver stub should create a session");
+
+    let requests = stub.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].method, Method::POST);
+    assert_eq!(requests[0].path, "/session");
+    let chrome_options = &requests[0].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"];
+    assert_eq!(
+        chrome_options["args"],
+        json!(["--disable-blink-features=AutomationControlled"])
+    );
 
     state.reset_session().await;
 }
@@ -163,7 +193,10 @@ async fn ensure_session_omits_headless_arguments_and_blank_binary() {
 
     let requests = stub.requests();
     let chrome_options = &requests[0].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"];
-    assert!(chrome_options.get("args").is_none());
+    assert_eq!(
+        chrome_options["args"],
+        json!(["--disable-blink-features=AutomationControlled"])
+    );
     assert!(chrome_options.get("binary").is_none());
 
     state.reset_session().await;

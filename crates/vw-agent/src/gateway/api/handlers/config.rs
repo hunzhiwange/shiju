@@ -76,28 +76,12 @@ async fn config_get(
 }
 
 async fn config_patch(
+    Extension(tenant): Extension<TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
-    let writes_project_override = has_explicit_directory(&query, &headers);
-    let dir = resolve_directory(&query, &headers);
-    let project_root = PathBuf::from(&dir);
-    let next = with_instance(dir, move || {
-        Box::pin(async move {
-            if writes_project_override {
-                config::update_project(&project_root, patch)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))
-            } else {
-                config::update_global(patch)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                Ok(config::get().await)
-            }
-        })
-    })
-    .await?;
+    let (next, _) = apply_config_patch(&tenant, &query, &headers, patch).await?;
     Ok(Json(serde_json::to_value(next).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
@@ -110,29 +94,14 @@ async fn config_get_stateful(
 }
 
 async fn config_patch_stateful(
+    tenant: Extension<TenantScope>,
     State(state): State<AppState>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
-    let updates_active_config = !has_explicit_directory(&query, &headers);
-    let dir = resolve_directory(&query, &headers);
-    let project_root = PathBuf::from(&dir);
-    let next = with_instance(dir, move || {
-        Box::pin(async move {
-            if updates_active_config {
-                config::update_global(patch)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
-                Ok(config::get().await)
-            } else {
-                config::update_project(&project_root, patch)
-                    .await
-                    .map_err(|e| ApiError::bad_request(e.to_string()))
-            }
-        })
-    })
-    .await?;
+    let (next, updates_active_config) =
+        apply_config_patch(&tenant, &query, &headers, patch).await?;
     let response = serde_json::to_value(&next).map_err(|e| ApiError::internal(e.to_string()))?;
 
     if updates_active_config {
@@ -141,6 +110,36 @@ async fn config_patch_stateful(
     }
 
     Ok(Json(response))
+}
+
+async fn apply_config_patch(
+    tenant: &TenantScope,
+    query: &InstanceQuery,
+    headers: &HeaderMap,
+    patch: Value,
+) -> Result<(config::Config, bool), ApiError> {
+    let updates_active_config = !has_explicit_directory(query, headers);
+    if updates_active_config {
+        config::update_global_for_tenant(tenant, patch)
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+        let next = config::get_global_for_tenant(tenant)
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+        return Ok((next, true));
+    }
+
+    let dir = resolve_directory(query, headers);
+    let project_root = PathBuf::from(&dir);
+    let next = with_instance(dir, move || {
+        Box::pin(async move {
+            config::update_project(&project_root, patch)
+                .await
+                .map_err(|error| ApiError::bad_request(error.to_string()))
+        })
+    })
+    .await?;
+    Ok((next, false))
 }
 
 fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap) -> bool {

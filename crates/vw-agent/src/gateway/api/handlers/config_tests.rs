@@ -237,6 +237,7 @@ async fn config_patch_rejects_non_object_patch() {
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
     let err = config_patch(
+        Extension(TenantScope::default()),
         instance_query(&temp),
         HeaderMap::new(),
         Json(serde_json::json!("invalid-patch")),
@@ -258,6 +259,7 @@ async fn config_patch_updates_global_config_without_explicit_directory() {
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
     let Json(body) = config_patch(
+        Extension(TenantScope::default()),
         Query(InstanceQuery { directory: None }),
         HeaderMap::new(),
         Json(serde_json::json!({"default_provider": "global-provider"})),
@@ -267,6 +269,33 @@ async fn config_patch_updates_global_config_without_explicit_directory() {
 
     assert_eq!(body["default_provider"], "global-provider");
     assert_eq!(config::get().await.default_provider.as_deref(), Some("global-provider"));
+}
+
+#[tokio::test]
+async fn config_patch_without_directory_updates_only_the_requested_tenant() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant = TenantScope::new("desktop-platform", "desktop-company").expect("tenant");
+
+    let Json(body) = config_patch(
+        Extension(tenant.clone()),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+        Json(serde_json::json!({"default_provider": "tenant-provider"})),
+    )
+    .await
+    .expect("tenant patch should succeed");
+
+    assert_eq!(body["default_provider"], "tenant-provider");
+    assert_eq!(
+        config::get_global_for_tenant(&tenant).await.expect("tenant config").default_provider,
+        Some("tenant-provider".to_string())
+    );
+    assert_ne!(config::get().await.default_provider, Some("tenant-provider".to_string()));
 }
 
 #[tokio::test]
@@ -286,6 +315,7 @@ async fn config_patch_uses_explicit_header_for_project_override() {
     );
 
     let Json(body) = config_patch(
+        Extension(TenantScope::default()),
         Query(InstanceQuery { directory: None }),
         headers,
         Json(serde_json::json!({"default_provider": "header-project-provider"})),
@@ -312,6 +342,7 @@ async fn config_patch_stateful_updates_active_runtime_config_without_explicit_di
     let state = state(config::Config::default(), false, &[]);
 
     let Json(body) = config_patch_stateful(
+        Extension(TenantScope::default()),
         State(state.clone()),
         Query(InstanceQuery { directory: None }),
         HeaderMap::new(),
@@ -336,6 +367,7 @@ async fn config_patch_stateful_leaves_runtime_config_when_directory_is_explicit(
     let state = state(config::Config::default(), false, &[]);
 
     let Json(body) = config_patch_stateful(
+        Extension(TenantScope::default()),
         State(state.clone()),
         instance_query(&temp),
         HeaderMap::new(),
@@ -361,6 +393,7 @@ async fn config_patch_stateful_rejects_invalid_global_patch_without_mutating_run
     let state = state(current, false, &[]);
 
     let err = config_patch_stateful(
+        Extension(TenantScope::default()),
         State(state.clone()),
         Query(InstanceQuery { directory: None }),
         HeaderMap::new(),
@@ -397,6 +430,7 @@ async fn project_config_patch_writes_only_dot_vibewindow_override() {
     let base_before = store.get(&TenantScope::default()).unwrap().expect("local base row");
 
     let Json(response) = config_patch(
+        Extension(TenantScope::default()),
         directory_query(&project_one),
         HeaderMap::new(),
         Json(serde_json::json!({"default_provider": "project-provider"})),
@@ -444,6 +478,7 @@ async fn project_config_patch_never_persists_effective_base_fields() {
     let base_before = store.get(&TenantScope::default()).unwrap().expect("local base row");
 
     let Json(_) = config_patch(
+        Extension(TenantScope::default()),
         directory_query(&project),
         HeaderMap::new(),
         Json(serde_json::json!({"default_provider": "project-provider"})),
@@ -803,6 +838,7 @@ async fn config_patch_stateful_rejects_invalid_project_patch_without_mutating_ru
     let state = state(current, false, &[]);
 
     let error = config_patch_stateful(
+        Extension(TenantScope::default()),
         State(state.clone()),
         instance_query(&temp),
         HeaderMap::new(),

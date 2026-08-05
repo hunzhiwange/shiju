@@ -88,6 +88,27 @@ fn think_tags_allow_attributes_and_ignore_prefix_collisions() {
 }
 
 #[test]
+fn orphan_think_close_tags_are_removed_from_visible_text() {
+    let raw = "answer</think>\nnext</think reason=\"done\">tail</thinker>";
+
+    let blocks = owned_blocks_from_raw(raw);
+
+    assert!(
+        matches!(blocks.as_slice(), [ParsedChatBlock::Text { content }] if content == "answer\nnexttail</thinker>")
+    );
+}
+
+#[test]
+fn orphan_think_close_tag_does_not_create_an_empty_text_block() {
+    let blocks = owned_blocks_from_raw("</think><think>hidden</think>answer</think>");
+
+    assert!(matches!(blocks.as_slice(), [
+            ParsedChatBlock::Think { content, open },
+            ParsedChatBlock::Text { content: answer },
+        ] if content == "hidden" && !open && answer == "answer"));
+}
+
+#[test]
 fn unclosed_think_splits_following_tool_blocks() {
     let raw = "<think>plan\ntool bash\n{\"status\":\"completed\",\"output\":\"ok\"}\nanswer";
 

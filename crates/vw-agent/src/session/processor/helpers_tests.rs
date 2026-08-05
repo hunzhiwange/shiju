@@ -94,6 +94,21 @@ fn request_filter_uses_base_set_when_allowed_tools_is_not_a_non_empty_string_arr
 }
 
 #[test]
+fn request_filter_returns_empty_when_tools_are_explicitly_disabled() {
+    let specs = vec![crate::app::agent::tools::ToolSpec::new(
+        "AskUserQuestion",
+        "Ask the user a question",
+        json!({"type": "object"}),
+    )];
+
+    assert!(allowed_tool_ids_for_request_from_specs(
+        &specs,
+        &json!({"disable_tools": true, "allowed_tools": ["AskUserQuestion"]}),
+    )
+    .is_empty());
+}
+
+#[test]
 fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(

@@ -41,6 +41,8 @@ pub struct ChildAgentRunInput {
     pub directory: String,
     /// 要使用的委托 agent key。
     pub agent_key: String,
+    /// 从父请求继承的显式模型。
+    pub model: Option<String>,
     /// 本轮子任务提示词。
     pub prompt: String,
     /// 提示词之前的 Gateway 格式上下文消息。
@@ -130,6 +132,7 @@ fn validate_input(input: &ChildAgentRunInput) -> Result<()> {
 fn stream_request(
     child_session_id: &str,
     agent_key: &str,
+    model: Option<String>,
     prompt: &str,
     mut context: Vec<Value>,
 ) -> GatewayChatStreamRequest {
@@ -144,6 +147,7 @@ fn stream_request(
     GatewayChatStreamRequest {
         session_id: Some(SessionId::from(child_session_id)),
         messages: context,
+        model,
         agent: Some(agent_key.to_string()),
         ..GatewayChatStreamRequest::default()
     }
@@ -281,7 +285,14 @@ pub(crate) async fn cancel_created(
     reason: impl Into<String>,
 ) -> Result<ChildAgentRunResult> {
     let CreatedChildAgentRun {
-        input: ChildAgentRunInput { parent_session_id: _, directory, agent_key, prompt, context: _ },
+        input: ChildAgentRunInput {
+            parent_session_id: _,
+            directory,
+            agent_key,
+            model: _,
+            prompt,
+            context: _,
+        },
         child_session_id,
     } = created;
     let reason = reason.into();
@@ -331,13 +342,14 @@ where
         Future<Output = std::result::Result<GatewayChatStreamCollected, ApiError>> + Send + 'static,
 {
     let CreatedChildAgentRun {
-        input: ChildAgentRunInput { parent_session_id: _, directory, agent_key, prompt, context },
+        input:
+            ChildAgentRunInput { parent_session_id: _, directory, agent_key, model, prompt, context },
         child_session_id,
     } = created;
     let project_directory = directory.clone();
     let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
-            let request = stream_request(&child_session_id, &agent_key, &prompt, context);
+            let request = stream_request(&child_session_id, &agent_key, model, &prompt, context);
 
             let result = match execute_stream(request).await {
                 Ok(collected) => {

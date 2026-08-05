@@ -83,6 +83,91 @@ fn extract_tool_text_from_json_value(value: &serde_json::Value) -> Option<String
     None
 }
 
+const DEEPSEEK_DSML_OPEN_TAG: &str = "<｜DSML｜tool_calls>";
+const DEEPSEEK_DSML_CLOSE_TAG: &str = "</｜DSML｜tool_calls>";
+
+fn normalize_deepseek_dsml_body(body: &str) -> Option<String> {
+    static PARAMETER_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?is)<｜DSML｜parameter\b([^>]*)>(.*?)</｜DSML｜parameter>").unwrap()
+    });
+    static NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"\bname\s*=\s*(?:"([^"]+)"|'([^']+)')"#).unwrap()
+    });
+    static STRING_TRUE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"\bstring\s*=\s*(?:"true"|'true')"#).unwrap());
+
+    let mut normalized = String::with_capacity(body.len());
+    let mut last_end = 0;
+
+    for capture in PARAMETER_RE.captures_iter(body) {
+        let full_match = capture.get(0)?;
+        let attributes = capture.get(1)?.as_str();
+        let value = capture.get(2)?.as_str();
+        let name_capture = NAME_RE.captures(attributes)?;
+        let name = name_capture.get(1).or_else(|| name_capture.get(2))?.as_str().trim();
+        if name.is_empty() {
+            return None;
+        }
+
+        normalized.push_str(&body[last_end..full_match.start()]);
+        normalized.push_str("<parameter name=");
+        normalized.push_str(&serde_json::to_string(name).ok()?);
+        normalized.push('>');
+        if STRING_TRUE_RE.is_match(attributes) {
+            normalized.push_str(&serde_json::to_string(value).ok()?);
+        } else {
+            normalized.push_str(value);
+        }
+        normalized.push_str("</parameter>");
+        last_end = full_match.end();
+    }
+
+    normalized.push_str(&body[last_end..]);
+    let normalized = normalized
+        .replace("<｜DSML｜invoke", "<invoke")
+        .replace("</｜DSML｜invoke>", "</invoke>");
+
+    if normalized.contains("｜DSML｜") {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn parse_deepseek_dsml_calls(response: &str) -> Option<(String, Vec<ParsedToolCall>)> {
+    let mut text_parts = Vec::new();
+    let mut calls = Vec::new();
+    let mut remaining = response;
+
+    while let Some(open_index) = remaining.find(DEEPSEEK_DSML_OPEN_TAG) {
+        let before = remaining[..open_index].trim();
+        if !before.is_empty() {
+            text_parts.push(before.to_string());
+        }
+
+        let after_open = &remaining[open_index + DEEPSEEK_DSML_OPEN_TAG.len()..];
+        let close_index = after_open.find(DEEPSEEK_DSML_CLOSE_TAG)?;
+        let normalized_body = normalize_deepseek_dsml_body(&after_open[..close_index])?;
+        let (unexpected_text, mut block_calls) =
+            super::minimax_xml::parse_minimax_invoke_calls(&normalized_body)?;
+        if !unexpected_text.trim().is_empty() || block_calls.is_empty() {
+            return None;
+        }
+        calls.append(&mut block_calls);
+        remaining = &after_open[close_index + DEEPSEEK_DSML_CLOSE_TAG.len()..];
+    }
+
+    if calls.is_empty() || remaining.contains("｜DSML｜") {
+        return None;
+    }
+    let after = remaining.trim();
+    if !after.is_empty() {
+        text_parts.push(after.to_string());
+    }
+
+    Some((text_parts.join("\n"), calls))
+}
+
 /// 从 LLM 响应中解析工具调用
 ///
 /// 这是对外的主要解析函数，尝试按照多种格式从响应文本中提取工具调用。
@@ -92,13 +177,14 @@ fn extract_tool_text_from_json_value(value: &serde_json::Value) -> Option<String
 ///
 /// 1. **OpenAI JSON 格式**：尝试将整个响应解析为 JSON，提取 `tool_calls` 数组
 /// 2. **Minimax XML 格式**：处理 Minimax Provider 特有的 `<minimax:toolcall>` 格式
-/// 3. **XML 标签格式**：解析 `<tool_call`、`<toolcall`、`<tool-call`、`<invoke` 等标签
-/// 4. **Markdown 代码块**：处理 ` ```tool_call ` 格式的代码块
-/// 5. **带名称的 Markdown 工具块**：处理 ` ```tool <name> ` 格式
-/// 6. **XML 属性风格**：处理 `<invoke name="...">` 等带属性的 XML
-/// 7. **Perl 风格**：处理 `TOOL_CALL ... /TOOL_CALL` 格式
-/// 8. **FunctionCall 格式**：处理 `<FunctionCall>` XML 标签
-/// 9. **GLM 风格**：处理 GLM 模型特有的行式调用格式
+/// 3. **DeepSeek DSML 格式**：处理 `<｜DSML｜tool_calls>` 包装的调用
+/// 4. **XML 标签格式**：解析 `<tool_call`、`<toolcall`、`<tool-call`、`<invoke` 等标签
+/// 5. **Markdown 代码块**：处理 ` ```tool_call ` 格式的代码块
+/// 6. **带名称的 Markdown 工具块**：处理 ` ```tool <name> ` 格式
+/// 7. **XML 属性风格**：处理 `<invoke name="...">` 等带属性的 XML
+/// 8. **Perl 风格**：处理 `TOOL_CALL ... /TOOL_CALL` 格式
+/// 9. **FunctionCall 格式**：处理 `<FunctionCall>` XML 标签
+/// 10. **GLM 风格**：处理 GLM 模型特有的行式调用格式
 ///
 /// # 参数
 ///
@@ -149,7 +235,12 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 3：回退到 XML 风格的工具调用标签解析
+    // 策略 3：尝试 DeepSeek DSML 文本工具调用格式
+    if let Some((dsml_text, dsml_calls)) = parse_deepseek_dsml_calls(response) {
+        return (dsml_text, canonicalize_calls(dsml_calls));
+    }
+
+    // 策略 4：回退到 XML 风格的工具调用标签解析
     while let Some((start, open_tag)) =
         super::xml_helpers::find_first_tag(remaining, super::xml_helpers::tool_call_open_tags())
     {
@@ -293,7 +384,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 4：如果 XML 标签未找到任何结果，尝试带 tool_call 语言的 Markdown 代码块
+    // 策略 5：如果 XML 标签未找到任何结果，尝试带 tool_call 语言的 Markdown 代码块
     // OpenRouter 后的模型有时输出 ```tool_call ... ``` 或混合格式
     // ```tool_call ... </tool_call``` 而不是结构化 API 调用或 XML 标签
     if calls.is_empty() {
@@ -336,7 +427,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 5：尝试 ```tool <name> 格式（某些 Provider 如 xAI grok 使用）
+    // 策略 6：尝试 ```tool <name> 格式（某些 Provider 如 xAI grok 使用）
     // 示例：```tool file_write\n{"path": "...", "content": "..."}\n```
     if calls.is_empty() {
         // 用于匹配带工具名称的 Markdown 代码块的正则表达式
@@ -393,7 +484,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 6：XML 属性风格工具调用
+    // 策略 7：XML 属性风格工具调用
     // 示例格式：
     // <minimax:toolcall>
     // <invoke name="shell">
@@ -424,7 +515,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 7：Perl/哈希引用风格工具调用
+    // 策略 8：Perl/哈希引用风格工具调用
     // 示例格式：
     // TOOL_CALL
     // {tool => "shell", args => {
@@ -458,7 +549,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 8：FunctionCall XML 格式
+    // 策略 9：FunctionCall XML 格式
     // 示例格式：
     // <FunctionCall>
     // file_read
@@ -490,7 +581,7 @@ pub(crate) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
         }
     }
 
-    // 策略 9：GLM 风格工具调用（browser_open/url>https://..., shell/command>ls 等）
+    // 策略 10：GLM 风格工具调用（browser_open/url>https://..., shell/command>ls 等）
     if calls.is_empty() {
         let glm_calls = super::tool_call_formats::parse_glm_style_tool_calls(remaining);
         if !glm_calls.is_empty() {
@@ -557,6 +648,7 @@ fn canonicalize_calls(mut calls: Vec<ParsedToolCall>) -> Vec<ParsedToolCall> {
 ///
 /// 函数会检查响应是否包含以下模式：
 /// - XML 标签：`<tool_call`、`<toolcall`、`<tool-call`
+/// - DeepSeek DSML：`<｜DSML｜tool_calls>`
 /// - Markdown 代码块：` ```tool_call `、` ```toolcall `、` ```tool-call `
 /// - 带名称的工具块：` ```tool file_`、` ```tool shell ` 等
 /// - JSON 格式：`"tool_calls"`
@@ -590,6 +682,7 @@ pub(crate) fn detect_tool_call_parse_issue(
     let looks_like_tool_payload = trimmed.contains("<tool_call")
         || trimmed.contains("<toolcall")
         || trimmed.contains("<tool-call")
+        || trimmed.contains(DEEPSEEK_DSML_OPEN_TAG)
         || trimmed.contains("```tool_call")
         || trimmed.contains("```toolcall")
         || trimmed.contains("```tool-call")

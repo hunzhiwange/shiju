@@ -452,7 +452,7 @@ fn save_workspace_identity_file_task(
 fn build_agents_settings_patch(
     entries: &[DelegateAgentSettingsEntry],
 ) -> Result<serde_json::Value, String> {
-    let mut agents = std::collections::HashMap::with_capacity(entries.len());
+    let mut agents = serde_json::Map::with_capacity(entries.len());
     for entry in entries {
         let provider = entry.provider.trim().to_string();
         let model = entry.model.trim().to_string();
@@ -480,45 +480,27 @@ fn build_agents_settings_patch(
         enabled_identity_files.dedup();
         agents.insert(
             entry.key.clone(),
-            vw_config_types::agent::DelegateAgentConfig {
-                label: Some(entry.label.clone()),
-                description: None,
-                builtin: entry.key != MAIN_AGENT_KEY
-                    && vw_config_types::agent::builtin_agent_spec(&entry.key).is_some(),
-                mode: if entry.key == MAIN_AGENT_KEY {
-                    "primary".to_string()
-                } else {
-                    "all".to_string()
-                },
-                enabled: if entry.key == MAIN_AGENT_KEY { true } else { entry.enabled },
-                allow_as_subagent: entry.allow_as_subagent,
-                max_parallel_subagents: entry.max_parallel_subagents.clamp(1, 32) as usize,
-                provider,
-                model,
-                system_prompt: (!system_prompt.is_empty()).then_some(system_prompt),
-                api_key: (!api_key.is_empty()).then_some(api_key),
-                temperature: Some(entry.temperature.clamp(0.0, 2.0) as f64),
-                top_p: None,
-                identity_format: Some("openclaw".to_string()),
-                hidden: false,
-                max_depth: entry.max_depth.clamp(1, 32),
-                agentic: entry.agentic,
-                allowed_tools,
-                allowed_skills,
-                enabled_identity_files,
-                options: std::collections::HashMap::new(),
-                permission: serde_json::Value::Null,
-                max_iterations: entry.max_iterations.max(1) as usize,
-                steps: None,
-            },
+            serde_json::json!({
+                "enabled": if entry.key == MAIN_AGENT_KEY { true } else { entry.enabled },
+                "allow_as_subagent": entry.allow_as_subagent,
+                "max_parallel_subagents": entry.max_parallel_subagents.clamp(1, 32),
+                "provider": provider,
+                "model": model,
+                "system_prompt": (!system_prompt.is_empty()).then_some(system_prompt),
+                "api_key": (!api_key.is_empty()).then_some(api_key),
+                "temperature": entry.temperature.clamp(0.0, 2.0),
+                "max_depth": entry.max_depth.clamp(1, 32),
+                "agentic": entry.agentic,
+                "allowed_tools": allowed_tools,
+                "allowed_skills": allowed_skills,
+                "enabled_identity_files": enabled_identity_files,
+                "max_iterations": entry.max_iterations.max(1),
+            }),
         );
     }
 
     let mut patch = serde_json::Map::new();
-    patch.insert(
-        "agents".to_string(),
-        serde_json::to_value(agents).map_err(|error| error.to_string())?,
-    );
+    patch.insert("agents".to_string(), serde_json::Value::Object(agents));
 
     if let Some(main) = entries.iter().find(|entry| entry.key == MAIN_AGENT_KEY) {
         let provider = main.provider.trim();
@@ -540,14 +522,6 @@ fn build_agents_settings_patch(
         {
             patch.insert("default_temperature".to_string(), serde_json::Value::Number(temperature));
         }
-        patch.insert(
-            "identity".to_string(),
-            serde_json::json!({
-                "format": "openclaw",
-                "aieos_path": null,
-                "aieos_inline": null,
-            }),
-        );
         let tool_dispatcher = main.tool_dispatcher.trim();
         let tool_dispatcher = if tool_dispatcher.is_empty() { "auto" } else { tool_dispatcher };
         patch.insert(
@@ -565,7 +539,61 @@ fn build_agents_settings_patch(
     Ok(serde_json::Value::Object(patch))
 }
 
+fn verify_patch_applied(
+    actual: Option<&serde_json::Value>,
+    expected: &serde_json::Value,
+    path: &str,
+) -> Result<(), String> {
+    match expected {
+        serde_json::Value::Object(expected_fields) => {
+            let actual_fields = actual
+                .and_then(serde_json::Value::as_object)
+                .ok_or_else(|| format!("保存后配置缺少对象字段 {path}"))?;
+            for (key, expected_value) in expected_fields {
+                let child_path =
+                    if path.is_empty() { key.clone() } else { format!("{path}.{key}") };
+                verify_patch_applied(actual_fields.get(key), expected_value, &child_path)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Null => {
+            if actual.is_none_or(serde_json::Value::is_null) {
+                Ok(())
+            } else {
+                Err(format!("保存后配置字段 {path} 未被清空"))
+            }
+        }
+        _ if actual == Some(expected) => Ok(()),
+        _ => Err(format!("保存后配置字段 {path} 与提交值不一致")),
+    }
+}
+
+async fn persist_agents_patch(
+    project_path: Option<String>,
+    patch: serde_json::Value,
+) -> Result<(), String> {
+    let loaded = match project_path {
+        Some(project_path) => {
+            crate::app::config::patch_project_agent_config_async(&project_path, patch.clone())
+                .await?;
+            crate::app::config::load_project_agent_config_async(&project_path).await?
+        }
+        None => {
+            crate::app::config::patch_full_agent_config_async(patch.clone()).await?;
+            crate::app::config::load_full_agent_config_async().await?
+        }
+    };
+    let actual = serde_json::to_value(loaded).map_err(|error| error.to_string())?;
+    verify_patch_applied(Some(&actual), &patch, "")
+}
+
 fn persist_agents_settings(app: &mut App) -> Task<Message> {
+    if !app.agents_settings.config_ready {
+        app.agents_settings.save_error =
+            Some("Gateway 配置尚未加载完成，已拒绝保存默认快照。请刷新后重试。".to_string());
+        return Task::none();
+    }
+
     if app.agents_settings.save_in_flight {
         app.agents_settings.save_pending = true;
         return Task::none();
@@ -577,12 +605,7 @@ fn persist_agents_settings(app: &mut App) -> Task<Message> {
     let project_path = app.agents_settings.project_path.clone();
     let agents_task = crate::app::config::spawn_gateway_task("agent", async move {
         let patch = build_agents_settings_patch(&entries)?;
-        match project_path {
-            Some(project_path) => {
-                crate::app::config::patch_project_agent_config_async(&project_path, patch).await
-            }
-            None => crate::app::config::patch_full_agent_config_async(patch).await,
-        }
+        persist_agents_patch(project_path, patch).await
     });
 
     let compat_cleanup_task = crate::app::config::update_agents_compat_registry_async(|agents| {
@@ -615,10 +638,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         AgentsMessage::Refresh => {
             app.agents_settings.loading = true;
+            app.agents_settings.config_ready = false;
             app.agents_settings.save_error = None;
-            if let Some(project_path) = app.project_path.clone() {
-                app.agents_settings.project_path = Some(project_path);
-            }
+            app.agents_settings.project_path = app.project_path.clone();
             Task::batch(vec![
                 refresh_task(),
                 config_task(app.agents_settings.project_path.clone()),
@@ -654,8 +676,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
             app.agents_settings.loading = false;
             match result {
-                Ok(config) => apply_config(app, config.as_ref()),
-                Err(error) => app.agents_settings.save_error = Some(error),
+                Ok(config) => {
+                    apply_config(app, config.as_ref());
+                    app.agents_settings.config_ready = true;
+                }
+                Err(error) => {
+                    app.agents_settings.config_ready = false;
+                    app.agents_settings.save_error = Some(error);
+                }
             }
             Task::none()
         }
@@ -668,6 +696,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::ProjectChanged(project_path) => {
             app.agents_settings.project_path = Some(project_path.clone());
             app.agents_settings.loading = true;
+            app.agents_settings.config_ready = false;
             app.agents_settings.save_error = None;
             project_config_task(project_path)
         }
@@ -680,9 +709,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             match result {
                 Ok(config) => {
                     apply_config(app, config.as_ref());
+                    app.agents_settings.config_ready = true;
                     app.agents_settings.save_error = None;
                 }
                 Err(error) => {
+                    app.agents_settings.config_ready = false;
                     app.agents_settings.save_error = Some(error);
                 }
             }

@@ -95,7 +95,8 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     }
     let ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
-        .with_session_tools(req.session_tools.clone());
+        .with_session_tools(req.session_tools.clone())
+        .with_model(req.model.clone());
     let mut tool_state = ToolSessionState::default();
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
     let allowed_tools =

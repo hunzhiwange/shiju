@@ -48,6 +48,7 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
         parent_session_id,
         directory,
         agent_key: "reviewer".to_string(),
+        model: None,
         prompt: prompt.to_string(),
         context: vec![json!({"role": "system", "content": "review carefully"})],
     }
@@ -67,6 +68,7 @@ async fn child_agent_run_creates_persistent_child_and_waits() {
         input(parent.id.clone(), directory.clone(), "inspect the session lifecycle"),
         move |request| async move {
             assert_eq!(request.agent.as_deref(), Some("reviewer"));
+            assert_eq!(request.model, None);
             assert!(request.messages.iter().any(|message| {
                 message.get("role").and_then(serde_json::Value::as_str) == Some("system")
                     && message

@@ -619,6 +619,7 @@ impl App {
         if project_changed {
             self.agents_settings.project_path = Some(path.clone());
             self.agents_settings.loading = true;
+            self.agents_settings.config_ready = false;
             self.reset_task_board_project_state();
         }
 

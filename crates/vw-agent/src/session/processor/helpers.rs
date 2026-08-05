@@ -35,6 +35,10 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
     specs: &[tools::ToolSpec],
     options: &Value,
 ) -> HashSet<String> {
+    if options.get("disable_tools").and_then(Value::as_bool).unwrap_or(false) {
+        return HashSet::new();
+    }
+
     let base = allowed_tool_ids_from_specs(specs);
     let Some(raw_tools) = options.get("allowed_tools").and_then(Value::as_array) else {
         return base;

@@ -212,6 +212,8 @@ pub(crate) fn agent_settings_entries_from_config(
 /// 表示 AgentsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct AgentsSettingsState {
     pub(crate) loading: bool,
+    /// 只有从 Gateway 成功加载当前作用域后，界面状态才可作为保存来源。
+    pub(crate) config_ready: bool,
     pub(crate) project_path: Option<String>,
     pub(crate) providers: Vec<ProviderSummary>,
     pub(crate) provider_models: Vec<ProviderModelsSummary>,
@@ -231,7 +233,8 @@ pub(crate) struct AgentsSettingsState {
 impl Default for AgentsSettingsState {
     fn default() -> Self {
         Self {
-            loading: false,
+            loading: true,
+            config_ready: false,
             project_path: None,
             providers: Vec::new(),
             provider_models: Vec::new(),

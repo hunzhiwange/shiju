@@ -1279,7 +1279,8 @@ impl App {
                 let available_tools = config::load_tools_list_via_gateway();
                 super::state::apply_default_allowed_tools(&mut entries, &available_tools);
                 super::state::AgentsSettingsState {
-                    loading: false,
+                    loading: true,
+                    config_ready: false,
                     project_path: None,
                     providers: Vec::new(),
                     provider_models: Vec::new(),

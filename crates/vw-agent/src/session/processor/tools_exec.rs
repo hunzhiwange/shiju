@@ -594,7 +594,6 @@ fn finalize_agent_tool_children_with(
                     "AgentTool",
                     payload,
                 )) {
-                    let _ = coordinator.cancel_descendants(parent_session_id, child_session_ids);
                     return false;
                 }
             }
@@ -610,7 +609,6 @@ fn finalize_agent_tool_children_with(
                 "AgentTool",
                 payload.clone(),
             )) {
-                let _ = coordinator.cancel_descendants(parent_session_id, child_session_ids);
                 return false;
             }
             let message = format!("tool AgentTool\n{payload}\n");

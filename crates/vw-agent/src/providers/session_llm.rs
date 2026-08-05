@@ -92,6 +92,26 @@ impl SessionLlmProvider {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn gateway_chat_request(
+        messages: Vec<serde_json::Value>,
+        model: &str,
+    ) -> vw_gateway_client::GatewayChatStreamRequest {
+        vw_gateway_client::GatewayChatStreamRequest {
+            session_id: None,
+            messages,
+            system: None,
+            model: Some(model.to_string()),
+            reasoning_effort: None,
+            agent: None,
+            allowed_tools: None,
+            acp_agent: None,
+            acp_allowed_tools: None,
+            // Provider 调用只负责一次 LLM 推理；工具编排由外层调用方负责。
+            options: Some(serde_json::json!({"disable_tools": true})),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn stream_gateway_chat_blocking(
         messages: Vec<serde_json::Value>,
         model: &str,
@@ -104,18 +124,7 @@ impl SessionLlmProvider {
         vw_gateway_client::GatewayClient::stream_chat_blocking(
             &endpoint,
             None,
-            &vw_gateway_client::GatewayChatStreamRequest {
-                session_id: None,
-                messages,
-                system: None,
-                model: Some(model.to_string()),
-                reasoning_effort: None,
-                agent: None,
-                allowed_tools: None,
-                acp_agent: None,
-                acp_allowed_tools: None,
-                options: None,
-            },
+            &Self::gateway_chat_request(messages, model),
             |event| {
                 match event {
                     vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
@@ -288,18 +297,7 @@ impl Provider for SessionLlmProvider {
                 let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
                     &endpoint,
                     None,
-                    &vw_gateway_client::GatewayChatStreamRequest {
-                        session_id: None,
-                        messages,
-                        system: None,
-                        model: Some(model.to_string()),
-                        reasoning_effort: None,
-                        agent: None,
-                        allowed_tools: None,
-                        acp_agent: None,
-                        acp_allowed_tools: None,
-                        options: None,
-                    },
+                    &Self::gateway_chat_request(messages, &model),
                     |event| {
                         match event {
                             vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
@@ -366,18 +364,7 @@ impl Provider for SessionLlmProvider {
                 let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
                     &endpoint,
                     None,
-                    &vw_gateway_client::GatewayChatStreamRequest {
-                        session_id: None,
-                        messages,
-                        system: None,
-                        model: Some(model.to_string()),
-                        reasoning_effort: None,
-                        agent: None,
-                        allowed_tools: None,
-                        acp_agent: None,
-                        acp_allowed_tools: None,
-                        options: None,
-                    },
+                    &Self::gateway_chat_request(messages, &model),
                     |event| {
                         match event {
                             vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {

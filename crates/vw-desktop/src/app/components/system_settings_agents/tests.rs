@@ -11,6 +11,7 @@ fn agents_view_loading_state_adds_status_row() {
 
     assert_eq!(root_child_count(&app), 4);
 
+    app.agents_settings.config_ready = true;
     app.agents_settings.loading = true;
 
     assert_eq!(root_child_count(&app), 5);
@@ -19,6 +20,7 @@ fn agents_view_loading_state_adds_status_row() {
 #[test]
 fn agents_view_builds_sidebar_for_main_enabled_disabled_and_model_variants() {
     let (mut app, _) = App::new();
+    app.agents_settings.config_ready = true;
     let mut main = app
         .agents_settings
         .entries
@@ -54,6 +56,7 @@ fn agents_view_builds_sidebar_for_main_enabled_disabled_and_model_variants() {
 #[test]
 fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
     let (mut app, _) = App::new();
+    app.agents_settings.config_ready = true;
     let first_key = app
         .agents_settings
         .entries

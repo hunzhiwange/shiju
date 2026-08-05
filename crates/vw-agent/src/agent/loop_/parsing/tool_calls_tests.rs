@@ -101,6 +101,56 @@ after"#;
 }
 
 #[test]
+fn parse_tool_calls_extracts_deepseek_dsml_calls() {
+    let response = r#"before
+<｜DSML｜tool_calls>
+<｜DSML｜invoke name="Bash">
+<｜DSML｜parameter name="command" string="true">mkdir -p demo/sjb12</｜DSML｜parameter>
+<｜DSML｜parameter name="description" string="true">创建目录 demo/sjb12</｜DSML｜parameter>
+</｜DSML｜invoke>
+<｜DSML｜invoke name="Write">
+<｜DSML｜parameter name="filePath" string="true">demo/sjb12/index.html</｜DSML｜parameter>
+<｜DSML｜parameter name="content" string="true"><!DOCTYPE html>
+<html lang="zh-CN">
+<style>body { color: #fff; }</style>
+<script type="application/json">{"team":"中国"}</script>
+<body>世界杯</body>
+</html>
+</｜DSML｜parameter>
+</｜DSML｜invoke>
+</｜DSML｜tool_calls>
+after"#;
+
+    let (text, calls) = parse_tool_calls(response);
+
+    assert_eq!(text, "before\nafter");
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].name, "shell");
+    assert_eq!(calls[0].arguments["command"], "mkdir -p demo/sjb12");
+    assert_eq!(calls[0].arguments["description"], "创建目录 demo/sjb12");
+    assert_eq!(calls[1].name, "file_write");
+    assert_eq!(calls[1].arguments["filePath"], "demo/sjb12/index.html");
+    assert_eq!(
+        calls[1].arguments["content"],
+        "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<style>body { color: #fff; }</style>\n<script type=\"application/json\">{\"team\":\"中国\"}</script>\n<body>世界杯</body>\n</html>\n"
+    );
+}
+
+#[test]
+fn parse_tool_calls_rejects_incomplete_deepseek_dsml() {
+    let response = r#"<｜DSML｜tool_calls>
+<｜DSML｜invoke name="Bash">
+<｜DSML｜parameter name="command" string="true">pwd</｜DSML｜parameter>
+</｜DSML｜invoke>"#;
+
+    let (text, calls) = parse_tool_calls(response);
+
+    assert_eq!(text, response);
+    assert!(calls.is_empty());
+    assert!(detect_tool_call_parse_issue(response, &calls).is_some());
+}
+
+#[test]
 fn parse_tool_calls_supports_xml_wrapper_with_nested_xml_body() {
     let response = r#"intro
 <tool_call>

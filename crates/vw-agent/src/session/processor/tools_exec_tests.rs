@@ -1488,3 +1488,33 @@ fn agent_tool_finalization_emits_terminal_payloads_before_done() {
     assert_eq!(session.messages[0].role, Role::Tool);
     assert!(session.messages[0].content.contains(r#""status":"completed""#));
 }
+
+#[test]
+fn agent_tool_finalization_keeps_background_child_running_when_event_sink_closes() {
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let cancellation = coordinator
+        .register("parent", "child", "researcher", "collect evidence")
+        .expect("child should register");
+    coordinator.mark_running("parent", "child").expect("child should start");
+
+    let mut session = Session::new("parent".to_string());
+    assert!(!super::finalize_agent_tool_children_with(
+        &coordinator,
+        "parent",
+        &mut session,
+        &mut |_event| false,
+        &["child".to_string()],
+    ));
+
+    let snapshots = coordinator
+        .snapshots("parent", &["child".to_string()])
+        .expect("child snapshot should remain available");
+    assert_eq!(
+        snapshots[0].state,
+        crate::session::child_agent::coordinator::ChildAgentTaskState::Running
+    );
+    assert!(
+        !cancellation.is_cancelled(),
+        "closing the parent event sink must not cancel a background child"
+    );
+}

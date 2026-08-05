@@ -29,6 +29,7 @@ fn agent_project_options_put_current_first_and_deduplicate_recent_paths() {
 #[test]
 fn agents_view_builds_empty_entries_fallback() {
     let (mut app, _) = crate::app::App::new();
+    app.agents_settings.config_ready = true;
     app.agents_settings.entries.clear();
     app.agents_settings.selected_agent = "missing".to_string();
 
@@ -38,6 +39,7 @@ fn agents_view_builds_empty_entries_fallback() {
 #[test]
 fn agents_view_routes_each_detail_tab() {
     let (mut app, _) = crate::app::App::new();
+    app.agents_settings.config_ready = true;
 
     for tab in [
         crate::app::state::AGENT_DETAIL_BASIC_TAB,
@@ -53,6 +55,7 @@ fn agents_view_routes_each_detail_tab() {
 #[test]
 fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
     let (mut app, _) = crate::app::App::new();
+    app.agents_settings.config_ready = true;
     let mut main = app.agents_settings.entries[0].clone();
     main.key = "main".to_string();
     main.label = "Main".to_string();

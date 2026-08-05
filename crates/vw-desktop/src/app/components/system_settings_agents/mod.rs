@@ -77,6 +77,30 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
+    if !settings.config_ready {
+        let status = settings.save_error.as_deref().unwrap_or(
+            "正在等待 Gateway 返回当前作用域的委托代理配置；完成前不会使用默认值保存。",
+        );
+        return column![
+            settings_page_intro(
+                "委托代理配置",
+                "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
+            ),
+            section_card(
+                "配置尚未就绪",
+                "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。",
+            ),
+            text(status).size(12).style(settings_muted_text_style),
+            button(text("重新加载").size(12))
+                .padding([8, 14])
+                .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(14)
+        .width(Length::Fill)
+        .into();
+    }
+
     let provider_options =
         settings.providers.iter().map(|provider| provider.id.clone()).collect::<Vec<_>>();
     let sidebar_items = settings

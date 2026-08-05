@@ -44,12 +44,15 @@ pub(crate) fn hash_chat_content(raw: &str) -> u64 {
 pub(super) fn owned_blocks_from_raw(raw: &str) -> Vec<ParsedChatBlock> {
     parse_blocks(raw)
         .into_iter()
-        .map(|block| match block {
+        .filter_map(|block| match block {
             RenderBlock::Think { content, open } => {
-                ParsedChatBlock::Think { content: content.to_string(), open }
+                Some(ParsedChatBlock::Think { content: content.to_string(), open })
             }
-            RenderBlock::Tool { raw } => ParsedChatBlock::Tool { raw: raw.to_string() },
-            RenderBlock::Text { content } => ParsedChatBlock::Text { content: content.to_string() },
+            RenderBlock::Tool { raw } => Some(ParsedChatBlock::Tool { raw: raw.to_string() }),
+            RenderBlock::Text { content } => {
+                let content = strip_orphan_think_close_tags(content);
+                (!content.is_empty()).then_some(ParsedChatBlock::Text { content })
+            }
         })
         .collect()
 }
@@ -134,6 +137,16 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
         search_from = pos + 1;
     }
     None
+}
+
+fn strip_orphan_think_close_tags(mut s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    while let Some((pos, tag_len)) = find_think_close_tag(s) {
+        out.push_str(&s[..pos]);
+        s = &s[pos + tag_len..];
+    }
+    out.push_str(s);
+    out
 }
 
 /// 查找位于行首的 `[reasoning]` 推理块标记。

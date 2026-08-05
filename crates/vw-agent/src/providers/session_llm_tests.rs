@@ -104,6 +104,25 @@ fn parse_usage_rejects_fractional_token_counts() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn gateway_chat_request_disables_implicit_session_tools() {
+    let request = SessionLlmProvider::gateway_chat_request(
+        vec![serde_json::json!({"role": "user", "content": "hello"})],
+        "deepseek/deepseek-v4-pro",
+    );
+
+    assert_eq!(request.model.as_deref(), Some("deepseek/deepseek-v4-pro"));
+    assert_eq!(
+        request
+            .options
+            .as_ref()
+            .and_then(|options| options.get("disable_tools"))
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn build_messages_skips_blank_system_prompt() {
     let without_system = SessionLlmProvider::build_messages(Some("   "), "hello");
     assert_eq!(without_system.len(), 1);

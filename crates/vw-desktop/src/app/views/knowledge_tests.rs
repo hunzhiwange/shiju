@@ -738,8 +738,11 @@ fn document_styles_and_badges_cover_status_and_interaction_states() {
         );
 
         let title_idle = document_title_button_style(&theme, button::Status::Active, false);
+        let title_disabled = document_title_button_style(&theme, button::Status::Disabled, false);
         let title_hovered = document_title_button_style(&theme, button::Status::Hovered, false);
         let title_selected = document_title_button_style(&theme, button::Status::Active, true);
+        assert_eq!(title_idle.text_color, theme.palette().text);
+        assert_eq!(title_disabled.text_color, theme.palette().text);
         assert_ne!(title_idle.text_color, title_hovered.text_color);
         assert_eq!(title_hovered.text_color, title_selected.text_color);
 

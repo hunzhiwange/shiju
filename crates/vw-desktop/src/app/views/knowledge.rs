@@ -3326,14 +3326,13 @@ fn document_title_button_style(
     status: iced::widget::button::Status,
     selected: bool,
 ) -> iced::widget::button::Style {
-    let palette = theme.extended_palette();
     let hovered = matches!(status, iced::widget::button::Status::Hovered);
     iced::widget::button::Style {
         background: Some(Color::TRANSPARENT.into()),
         text_color: if hovered || selected {
             theme.palette().primary
         } else {
-            palette.primary.base.text
+            theme.palette().text
         },
         border: Border { radius: 6.0.into(), width: 0.0, color: Color::TRANSPARENT },
         ..Default::default()

@@ -1893,6 +1893,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     }
 }
 
+pub(super) fn initial_session_title_for_input(input: &str) -> String {
+    input
+        .trim()
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .unwrap_or("新会话")
+        .to_string()
+}
+
 /// 模块内可见函数，执行 start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message> {
@@ -1906,8 +1917,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     if app.active_session_id.is_none() {
         let id = id::descending(id::Prefix::Session, None)
             .unwrap_or_else(|_| format!("ses_{}", stream_id));
-        let title_input = item.query.trim().to_string();
-        let title = if title_input.is_empty() { "新会话".to_string() } else { title_input };
+        let title = initial_session_title_for_input(&item.query);
         let directory = app.project_path.clone().unwrap_or_default();
         let inferred_project_id = app
             .project_id

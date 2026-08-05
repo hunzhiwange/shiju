@@ -182,7 +182,7 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
                 let id_color_alpha = if enabled { 0.65 } else { 0.5 };
                 let meta_alpha = if enabled { 0.65 } else { 0.5 };
                 let meta_text = format!(
-                    "工具: {} · 附件: {} · 上下文限制: {}",
+                    "工具: {} · 图片输入: {} · 上下文限制: {}",
                     bool_support_label(m.toolcall),
                     bool_support_label(m.attachment),
                     format_context_limit(m.context_limit)

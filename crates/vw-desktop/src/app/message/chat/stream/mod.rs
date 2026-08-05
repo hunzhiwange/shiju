@@ -383,10 +383,11 @@ pub(super) fn maybe_generate_session_title(app: &App) -> Task<Message> {
 
     let title = current_session.title.trim();
     let first_user_trimmed = first_user_content.trim();
+    let initial_title = super::session::initial_session_title_for_input(&first_user_content);
     let should_generate = is_default_title(title)
         || title.is_empty()
         || title == "新会话"
-        || (!first_user_trimmed.is_empty() && title == first_user_trimmed);
+        || (!first_user_trimmed.is_empty() && title == initial_title);
 
     if !should_generate {
         return Task::none();

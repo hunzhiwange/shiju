@@ -13,7 +13,10 @@ use crate::app::components::system_settings_common::{
     settings_value_badge,
 };
 use crate::app::message::{KnowledgeToolMessage, ViewMessage};
-use crate::app::state::{KnowledgeDetailTab, KnowledgeDocumentInputTab, KnowledgeImportPollingJob};
+use crate::app::state::{
+    KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
+    KnowledgeDocumentInputTab, KnowledgeImportPollingJob,
+};
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
@@ -24,6 +27,7 @@ use iced::widget::{
 use iced::{
     Alignment, Background, Border, Color, Element, Length, Point, Shadow, Size, Theme, Vector,
 };
+use std::fmt;
 use vw_gateway_client::vw_api_types::knowledge::KnowledgeDocumentsBatchAction;
 use vw_gateway_client::{
     KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode, KnowledgeDatasetDto,
@@ -303,7 +307,7 @@ fn build_create_dataset_modal<'a>(
     let title = row![
         column![
             text("创建知识库").size(24),
-            text("配置知识库的分段、索引和检索参数。").size(12).style(settings_muted_text_style),
+            text("按模块完成基础信息、索引与检索配置。").size(12).style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -333,9 +337,9 @@ fn build_create_dataset_modal<'a>(
     let card = settings_modal_card(
         column![title, build_create_dataset_panel(app), actions].spacing(16).width(Length::Fill),
     )
-    .width(Length::Fixed(720.0))
-    .max_width(760.0)
-    .height(Length::Fixed(680.0));
+    .width(Length::Fixed(980.0))
+    .max_width(1040.0)
+    .height(Length::Fixed(660.0));
 
     settings_modal_overlay(
         base,
@@ -345,28 +349,125 @@ fn build_create_dataset_modal<'a>(
 }
 
 fn build_create_dataset_panel(app: &App) -> Element<'_, Message> {
-    let form = column![
-        text_input("名称", &app.knowledge.dataset_name_input)
+    let mut tabs = row![].spacing(8).align_y(Alignment::Center);
+    for tab in KnowledgeCreateDatasetTab::ALL {
+        tabs = tabs.push(segment_button(
+            tab.title(),
+            app.knowledge.create_dataset_tab == tab,
+            Message::Knowledge(KnowledgeToolMessage::SelectCreateDatasetTab(tab)),
+        ));
+    }
+
+    let content = match app.knowledge.create_dataset_tab {
+        KnowledgeCreateDatasetTab::Basic => build_create_dataset_basic_tab(app),
+        KnowledgeCreateDatasetTab::Indexing => build_create_dataset_indexing_tab(app),
+        KnowledgeCreateDatasetTab::Retrieval => build_create_dataset_retrieval_tab(app),
+    };
+
+    column![
+        container(tabs)
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(chrome_style),
+        knowledge_scrollable(content).height(Length::Fill),
+    ]
+    .spacing(14)
+    .height(Length::Fill)
+    .into()
+}
+
+fn build_create_dataset_basic_tab(app: &App) -> Element<'_, Message> {
+    let fields = column![
+        section_header("基础信息", "名称用于识别知识库，描述用于说明内容范围。"),
+        text("名称").size(12),
+        text_input("例如：产品文档", &app.knowledge.dataset_name_input)
             .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetNameChanged(value)))
-            .padding([9, 10])
+            .padding([11, 12])
             .size(13)
             .style(settings_text_input_style),
-        text_input("描述", &app.knowledge.dataset_description_input)
+        text("描述").size(12),
+        text_input("简要说明知识库包含的内容", &app.knowledge.dataset_description_input)
             .on_input(|value| {
                 Message::Knowledge(KnowledgeToolMessage::DatasetDescriptionChanged(value))
             })
-            .padding([9, 10])
+            .padding([11, 12])
             .size(13)
             .style(settings_text_input_style),
-        build_chunking_mode_section(app),
-        build_indexing_mode_section(app),
-        build_embedding_model_section(app),
-        build_retrieval_mode_section(app),
-        build_dataset_param_section(app),
     ]
-    .spacing(10);
+    .spacing(10)
+    .width(Length::Fill);
 
-    knowledge_scrollable(form).height(Length::Fill).into()
+    let overview = column![
+        section_header("配置流程", "创建前可随时切换页签检查配置。"),
+        create_dataset_step("1", "基础信息", "填写名称与用途"),
+        create_dataset_step("2", "分段与索引", "决定文档如何入库"),
+        create_dataset_step("3", "检索设置", "配置召回策略与参数"),
+    ]
+    .spacing(12)
+    .width(Length::Fill);
+
+    row![
+        container(fields).padding([18, 18]).width(Length::FillPortion(3)).style(chrome_style),
+        container(overview).padding([18, 18]).width(Length::FillPortion(2)).style(chrome_style),
+    ]
+    .spacing(14)
+    .width(Length::Fill)
+    .into()
+}
+
+fn create_dataset_step<'a>(
+    number: &'a str,
+    title: &'a str,
+    description: &'a str,
+) -> Element<'a, Message> {
+    row![
+        settings_value_badge(number),
+        column![
+            text(title).size(13),
+            text(description).size(11).style(settings_muted_text_style),
+        ]
+        .spacing(3),
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn build_create_dataset_indexing_tab(app: &App) -> Element<'_, Message> {
+    row![
+        container(build_chunking_mode_section(app))
+            .padding([16, 16])
+            .width(Length::FillPortion(1))
+            .style(chrome_style),
+        column![
+            container(build_indexing_mode_section(app))
+                .padding([16, 16])
+                .width(Length::Fill)
+                .style(chrome_style),
+            build_embedding_model_section(app),
+        ]
+        .spacing(14)
+        .width(Length::FillPortion(1)),
+    ]
+    .spacing(14)
+    .width(Length::Fill)
+    .into()
+}
+
+fn build_create_dataset_retrieval_tab(app: &App) -> Element<'_, Message> {
+    row![
+        container(build_retrieval_mode_section(app))
+            .padding([16, 16])
+            .width(Length::FillPortion(1))
+            .style(chrome_style),
+        container(build_dataset_param_section(app))
+            .padding([16, 16])
+            .width(Length::FillPortion(1))
+            .style(chrome_style),
+    ]
+    .spacing(14)
+    .width(Length::Fill)
+    .into()
 }
 
 fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
@@ -446,40 +547,54 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
     let test_label = if app.knowledge.testing_embedding { "测试中" } else { "测试连接" };
     let test_enabled = !app.knowledge.testing_embedding && !app.knowledge.loading_embedding_status;
 
+    let summary = row![
+        embedding_summary_item("Provider", embedding_status_provider_label(status)),
+        embedding_summary_item("模型", embedding_status_model_label(status)),
+        embedding_summary_item("维度", embedding_status_dimensions_label(status)),
+        embedding_summary_item("路由", embedding_status_route_label(status)),
+    ]
+    .spacing(8)
+    .width(Length::Fill);
+
     let mut content = column![
-        section_header("当前嵌入", "由记忆配置/嵌入路由解析。"),
-        embedding_kv_row("Provider", embedding_status_provider_label(status)),
-        embedding_kv_row("模型", embedding_status_model_label(status)),
-        embedding_kv_row("维度", embedding_status_dimensions_label(status)),
-        embedding_kv_row("路由提示", embedding_status_route_label(status)),
-        embedding_kv_row("向量检索", support_label(embedding_vector_available(app))),
-        embedding_kv_row("混合检索", support_label(embedding_hybrid_available(app))),
-        build_embedding_preset_list(app),
+        section_header("嵌入模型", "跟随全局配置，或锁定当前已生效模型。"),
+        build_embedding_model_picker(app),
+        summary,
+        row![
+            settings_value_badge(format!(
+                "向量 {}",
+                support_label(embedding_vector_available(app))
+            )),
+            settings_value_badge(format!(
+                "混合 {}",
+                support_label(embedding_hybrid_available(app))
+            )),
+        ]
+        .spacing(6),
         row![
             button(
-                row![primary_action_icon(Icon::Search, 13.0), text(test_label).size(13)].spacing(7)
+                row![primary_action_icon(Icon::Search, 13.0), text(test_label).size(12)].spacing(6)
             )
             .on_press_maybe(
                 test_enabled.then_some(Message::Knowledge(KnowledgeToolMessage::RunEmbeddingTest))
             )
-            .padding([9, 11])
-            .style(primary_action_btn_style)
-            .width(Length::Fill),
-            button(row![icon_svg(Icon::Gear, 13.0), text("记忆配置").size(13)].spacing(7))
+            .padding([8, 10])
+            .style(primary_action_btn_style),
+            button(row![icon_svg(Icon::Gear, 13.0), text("记忆配置").size(12)].spacing(6))
                 .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Memory)))
-                .padding([9, 11])
-                .style(knowledge_toolbar_button_style)
-                .width(Length::Fill),
+                .padding([8, 10])
+                .style(knowledge_toolbar_button_style),
+            button(row![icon_svg(Icon::Sliders, 13.0), text("嵌入路由").size(12)].spacing(6))
+                .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(
+                    SystemTab::EmbeddingRoutes
+                )))
+                .padding([8, 10])
+                .style(knowledge_toolbar_button_style),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
-        button(row![icon_svg(Icon::Sliders, 13.0), text("嵌入路由").size(13)].spacing(7))
-            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::EmbeddingRoutes)))
-            .padding([9, 11])
-            .style(knowledge_toolbar_button_style)
-            .width(Length::Fill),
     ]
-    .spacing(8);
+    .spacing(9);
 
     if app.knowledge.embedding_test_result.is_some() {
         content = content.push(embedding_kv_row(
@@ -488,7 +603,21 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
         ));
     }
 
-    container(content).padding([12, 12]).width(Length::Fill).style(chrome_style).into()
+    container(content).padding([16, 16]).width(Length::Fill).style(chrome_style).into()
+}
+
+fn embedding_summary_item<'a>(label: &'a str, value: String) -> Element<'a, Message> {
+    container(
+        column![
+            text(label).size(10).style(settings_muted_text_style),
+            text(value).size(12),
+        ]
+        .spacing(3),
+    )
+    .padding([8, 9])
+    .width(Length::FillPortion(1))
+    .style(|theme: &Theme| item_style(theme, false))
+    .into()
 }
 
 fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
@@ -2991,20 +3120,68 @@ fn enabled_label(value: bool) -> &'static str {
     if value { "启用" } else { "关闭" }
 }
 
-fn build_embedding_preset_list(app: &App) -> Element<'_, Message> {
-    let mut presets = column![text("网关预设").size(11).style(settings_muted_text_style)]
-        .spacing(5)
-        .width(Length::Fill);
-    if app.knowledge.loading_embedding_presets {
-        presets = presets.push(text("加载中").size(12));
-    } else if app.knowledge.embedding_presets.is_empty() {
-        presets = presets.push(text("暂无预设").size(12));
-    } else {
-        for preset in &app.knowledge.embedding_presets {
-            presets = presets.push(text(embedding_preset_label(preset)).size(12));
-        }
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DatasetEmbeddingOption {
+    selection: KnowledgeDatasetEmbeddingSelection,
+    label: String,
+}
+
+impl fmt::Display for DatasetEmbeddingOption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.label)
     }
-    presets.into()
+}
+
+fn build_embedding_model_picker(app: &App) -> Element<'_, Message> {
+    let options = dataset_embedding_options(app);
+    let selected = options
+        .iter()
+        .find(|option| option.selection == app.knowledge.dataset_embedding_selection)
+        .cloned()
+        .or_else(|| options.first().cloned());
+
+    pick_list(options, selected, |option| {
+        Message::Knowledge(KnowledgeToolMessage::DatasetEmbeddingSelectionChanged(option.selection))
+    })
+    .padding([9, 11])
+    .text_size(12)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fill)
+    .into()
+}
+
+fn dataset_embedding_options(app: &App) -> Vec<DatasetEmbeddingOption> {
+    let mut options = vec![DatasetEmbeddingOption {
+        selection: KnowledgeDatasetEmbeddingSelection::FollowGlobal,
+        label: "跟随全局配置（推荐）".to_string(),
+    }];
+    let Some(status) = app.knowledge.embedding_status.as_ref() else {
+        return options;
+    };
+    let model = status.model.trim();
+    if model.is_empty() || !status.vector_available {
+        return options;
+    }
+    let current_label = app
+        .knowledge
+        .embedding_presets
+        .iter()
+        .find(|preset| preset.provider_id == status.provider_id && preset.model == status.model)
+        .map(embedding_preset_label)
+        .unwrap_or_else(|| {
+            format!(
+                "{} · {} / {}维",
+                embedding_status_provider_label(Some(status)),
+                model,
+                status.dimensions
+            )
+        });
+    options.push(DatasetEmbeddingOption {
+        selection: KnowledgeDatasetEmbeddingSelection::LockCurrent,
+        label: format!("锁定当前 · {current_label}"),
+    });
+    options
 }
 
 fn embedding_vector_available(app: &App) -> bool {

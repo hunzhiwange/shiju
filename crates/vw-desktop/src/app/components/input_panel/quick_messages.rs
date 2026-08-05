@@ -461,7 +461,7 @@ fn shiju_menu(app: &App) -> Element<'_, Message> {
     let trigger = Tooltip::new(
         trigger_button,
         shiju_trigger_tooltip(&app.expert_hub.package_status),
-        TooltipPosition::Top,
+        TooltipPosition::Bottom,
     )
     .gap(6.0)
     .snap_within_viewport(true);

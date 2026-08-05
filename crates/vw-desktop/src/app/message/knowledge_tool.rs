@@ -1,8 +1,8 @@
 //! 知识库工作台消息处理。
 
 use crate::app::state::{
-    KnowledgeDetailTab, KnowledgeDocumentInputTab, KnowledgeFileImportDraft,
-    KnowledgeImportPollingJob,
+    KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
+    KnowledgeDocumentInputTab, KnowledgeFileImportDraft, KnowledgeImportPollingJob,
 };
 use crate::app::{App, Message};
 #[cfg(not(target_arch = "wasm32"))]
@@ -68,9 +68,11 @@ pub enum KnowledgeToolMessage {
     DocumentsBatchUpdated(Result<Vec<KnowledgeDocumentDto>, String>),
     DatasetNameChanged(String),
     DatasetDescriptionChanged(String),
+    SelectCreateDatasetTab(KnowledgeCreateDatasetTab),
     DatasetChunkingModeChanged(KnowledgeChunkingMode),
     DatasetIndexingModeChanged(KnowledgeIndexingMode),
     DatasetRetrievalModeChanged(KnowledgeRetrievalMode),
+    DatasetEmbeddingSelectionChanged(KnowledgeDatasetEmbeddingSelection),
     DatasetKeywordCountChanged(String),
     DatasetTopKChanged(String),
     DatasetScoreThresholdEnabledChanged(bool),
@@ -384,6 +386,10 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
             app.knowledge.dataset_description_input = value;
             Task::none()
         }
+        KnowledgeToolMessage::SelectCreateDatasetTab(tab) => {
+            app.knowledge.create_dataset_tab = tab;
+            Task::none()
+        }
         KnowledgeToolMessage::DatasetChunkingModeChanged(mode) => {
             app.knowledge.dataset_chunking_mode = mode;
             Task::none()
@@ -402,6 +408,10 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                 app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::HighQuality;
             }
             app.knowledge.dataset_retrieval_mode = mode;
+            Task::none()
+        }
+        KnowledgeToolMessage::DatasetEmbeddingSelectionChanged(selection) => {
+            app.knowledge.dataset_embedding_selection = selection;
             Task::none()
         }
         KnowledgeToolMessage::DatasetKeywordCountChanged(value) => {
@@ -433,6 +443,7 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
         }
         KnowledgeToolMessage::OpenCreateDatasetModal => {
             app.knowledge.create_dataset_modal_open = true;
+            app.knowledge.create_dataset_tab = KnowledgeCreateDatasetTab::Basic;
             Task::none()
         }
         KnowledgeToolMessage::CloseCreateDatasetModal => {
@@ -801,12 +812,26 @@ fn create_dataset(app: &mut App) -> Task<Message> {
         score_threshold_enabled: app.knowledge.dataset_score_threshold_enabled,
         score_threshold,
         rerank_enabled: app.knowledge.dataset_rerank_enabled,
-        embedding_model: None,
+        embedding_model: selected_dataset_embedding_model(app),
         rerank_model: trim_to_option(&app.knowledge.dataset_rerank_model_input),
     };
     Task::perform(create_dataset_async(body), |result| {
         Message::Knowledge(KnowledgeToolMessage::DatasetCreated(result))
     })
+}
+
+fn selected_dataset_embedding_model(app: &App) -> Option<String> {
+    if app.knowledge.dataset_embedding_selection
+        != KnowledgeDatasetEmbeddingSelection::LockCurrent
+    {
+        return None;
+    }
+    app.knowledge
+        .embedding_status
+        .as_ref()
+        .map(|status| status.model.trim())
+        .filter(|model| !model.is_empty())
+        .map(str::to_string)
 }
 
 fn delete_selected_dataset(app: &mut App) -> Task<Message> {

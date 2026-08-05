@@ -316,3 +316,15 @@ fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
 
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
+
+#[test]
+fn maybe_generate_session_title_accepts_multiline_initial_input_title() {
+    let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("session-1".to_string());
+    app.sessions = vec![session_info("session-1", "first line", "/project")];
+    app.chat = vec![chat_message(ChatRole::User, "first line\nsecond line")];
+
+    let task = super::maybe_generate_session_title(&app);
+
+    assert!(iced_runtime::task::into_stream(task.collect()).is_some());
+}

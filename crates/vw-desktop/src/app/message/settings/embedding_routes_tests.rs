@@ -39,7 +39,7 @@ fn template_routes_contain_complete_provider_defaults() {
     assert!(doubao.api_key_input.is_empty());
 
     let shiju = shiju_template_route();
-    assert_eq!(shiju.pattern, "semantic");
+    assert_eq!(shiju.pattern, "shiju");
     assert_eq!(shiju.provider, "custom:https://router.shiju.cloud/v1");
     assert_eq!(shiju.model, "text-embedding-v4");
     assert_eq!(shiju.dimensions, "1024");
@@ -84,6 +84,7 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
         &mut app,
         SettingsMessage::EmbeddingRoutes(EmbeddingRoutesMessage::InsertShijuTemplate),
     );
+    assert_eq!(app.embedding_routes_settings.routes[3].pattern, "shiju");
     assert_eq!(
         app.embedding_routes_settings.routes[3].provider,
         "custom:https://router.shiju.cloud/v1"

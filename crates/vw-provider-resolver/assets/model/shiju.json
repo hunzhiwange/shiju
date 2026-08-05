@@ -34,7 +34,25 @@
       },
       "qvq-max": {
         "id": "qvq-max",
-        "name": "qvq-max"
+        "name": "QVQ Max",
+        "family": "qvq",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "limit": {
+          "context": 131072,
+          "output": 8192
+        }
       },
       "deepseek-v3": {
         "id": "deepseek-v3",
@@ -58,7 +76,25 @@
       },
       "qwen-plus-latest": {
         "id": "qwen-plus-latest",
-        "name": "qwen-plus-latest"
+        "name": "Qwen Plus Latest",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 8192
+        }
       },
       "qwen-plus": {
         "id": "qwen-plus",
@@ -86,7 +122,26 @@
       },
       "qwen3.5-plus": {
         "id": "qwen3.5-plus",
-        "name": "qwen3.5-plus"
+        "name": "Qwen3.5 Plus",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 65536
+        }
       },
       "deepseek-v4-pro": {
         "id": "deepseek-v4-pro",
@@ -94,7 +149,25 @@
       },
       "qwen-image-edit-max": {
         "id": "qwen-image-edit-max",
-        "name": "qwen-image-edit-max"
+        "name": "Qwen Image Edit Max",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "image"
+          ]
+        },
+        "limit": {
+          "context": 0,
+          "output": 0
+        }
       },
       "qwen-math-plus": {
         "id": "qwen-math-plus",
@@ -110,7 +183,26 @@
       },
       "qwen3.5-flash": {
         "id": "qwen3.5-flash",
-        "name": "qwen3.5-flash"
+        "name": "Qwen3.5 Flash",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 65536
+        }
       },
       "deepseek-r1-distill-qwen-32b": {
         "id": "deepseek-r1-distill-qwen-32b",
@@ -126,7 +218,24 @@
       },
       "qwen-image-2.0": {
         "id": "qwen-image-2.0",
-        "name": "qwen-image-2.0"
+        "name": "Qwen Image 2.0",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "image"
+          ]
+        },
+        "limit": {
+          "context": 8192,
+          "output": 0
+        }
       },
       "qwen-turbo": {
         "id": "qwen-turbo",
@@ -155,7 +264,7 @@
         },
         "limit": {
           "context": 262144,
-          "output": 32768
+          "output": 32000
         }
       },
       "deepseek-v4-flash": {

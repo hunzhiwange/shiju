@@ -494,7 +494,7 @@ fn summarize_models_projects_active_capabilities_limits_and_detail() {
         capabilities: Capabilities {
             temperature: true,
             reasoning: true,
-            attachment: true,
+            attachment: false,
             toolcall: false,
             input: CapabilityIO { text: true, audio: false, image: true, video: false, pdf: true },
             output: CapabilityIO {

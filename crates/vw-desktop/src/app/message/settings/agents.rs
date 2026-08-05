@@ -66,7 +66,7 @@ fn summarize_models(
                             name: model.name,
                             enabled: model.status == "active",
                             toolcall: model.capabilities.toolcall,
-                            attachment: model.capabilities.attachment,
+                            attachment: model.capabilities.input.image,
                             context_limit: model.limit.context,
                             detail,
                         }

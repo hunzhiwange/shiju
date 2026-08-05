@@ -5,11 +5,15 @@ use super::{
     document_status_from_index_job, import_batch_success_message, import_request_from_file,
     import_success_message, looks_sensitive_token, mime_type_for_filename, parse_score_threshold,
     parse_usize_input, sanitize_document_page_size, sanitize_sensitive_display_text,
+    selected_dataset_embedding_model,
     trim_to_option, update,
 };
 use crate::app::{
     App,
-    state::{KnowledgeDetailTab, KnowledgeDocumentInputTab},
+    state::{
+        KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
+        KnowledgeDocumentInputTab,
+    },
 };
 use iced::widget::text_editor;
 use serde_json::Value;
@@ -665,6 +669,47 @@ fn dataset_created_closes_modal_and_selects_detail() {
     assert!(!app.knowledge.showing_dataset_list);
     assert!(app.knowledge.dataset_name_input.is_empty());
     assert_eq!(app.knowledge.datasets.len(), 1);
+}
+
+#[test]
+fn create_dataset_modal_tracks_tabs_and_supported_embedding_selection() {
+    let mut app = test_app();
+    app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
+        provider_id: "alibaba-cn".to_string(),
+        route_hint: Some("semantic".to_string()),
+        model: "text-embedding-v4".to_string(),
+        dimensions: 1024,
+        api_key_configured: true,
+        vector_available: true,
+        hybrid_available: true,
+        retrieval_modes: vec![KnowledgeRetrievalMode::FullText, KnowledgeRetrievalMode::Hybrid],
+        notes: BTreeMap::new(),
+    });
+
+    let _ = update(&mut app, KnowledgeToolMessage::OpenCreateDatasetModal);
+    assert_eq!(app.knowledge.create_dataset_tab, KnowledgeCreateDatasetTab::Basic);
+    assert_eq!(selected_dataset_embedding_model(&app), None);
+
+    let _ = update(
+        &mut app,
+        KnowledgeToolMessage::SelectCreateDatasetTab(KnowledgeCreateDatasetTab::Retrieval),
+    );
+    let _ = update(
+        &mut app,
+        KnowledgeToolMessage::DatasetEmbeddingSelectionChanged(
+            KnowledgeDatasetEmbeddingSelection::LockCurrent,
+        ),
+    );
+
+    assert_eq!(app.knowledge.create_dataset_tab, KnowledgeCreateDatasetTab::Retrieval);
+    assert_eq!(
+        selected_dataset_embedding_model(&app).as_deref(),
+        Some("text-embedding-v4")
+    );
+
+    let _ = update(&mut app, KnowledgeToolMessage::CloseCreateDatasetModal);
+    let _ = update(&mut app, KnowledgeToolMessage::OpenCreateDatasetModal);
+    assert_eq!(app.knowledge.create_dataset_tab, KnowledgeCreateDatasetTab::Basic);
 }
 
 #[test]

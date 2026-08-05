@@ -92,6 +92,18 @@ fn detail_tabs_expose_expected_titles_and_default() {
     );
     assert_eq!(KnowledgeDocumentInputTab::Files.title(), "文件");
     assert_eq!(KnowledgeDocumentInputTab::Text.title(), "文本");
+    assert_eq!(KnowledgeCreateDatasetTab::default(), KnowledgeCreateDatasetTab::Basic);
+    assert_eq!(
+        KnowledgeCreateDatasetTab::ALL,
+        [
+            KnowledgeCreateDatasetTab::Basic,
+            KnowledgeCreateDatasetTab::Indexing,
+            KnowledgeCreateDatasetTab::Retrieval,
+        ]
+    );
+    assert_eq!(KnowledgeCreateDatasetTab::Basic.title(), "基础信息");
+    assert_eq!(KnowledgeCreateDatasetTab::Indexing.title(), "分段与索引");
+    assert_eq!(KnowledgeCreateDatasetTab::Retrieval.title(), "检索设置");
 }
 
 #[test]
@@ -108,6 +120,11 @@ fn default_state_matches_empty_idle_ui_defaults() {
     assert!(state.selected_chunk_id.is_none());
     assert_eq!(state.active_tab, KnowledgeDetailTab::Documents);
     assert_eq!(state.document_input_tab, KnowledgeDocumentInputTab::Files);
+    assert_eq!(state.create_dataset_tab, KnowledgeCreateDatasetTab::Basic);
+    assert_eq!(
+        state.dataset_embedding_selection,
+        KnowledgeDatasetEmbeddingSelection::FollowGlobal
+    );
     assert!(state.showing_dataset_list);
     assert!(!state.create_dataset_modal_open);
     assert!(!state.document_preview_open);

@@ -366,7 +366,7 @@ fn build_model_popover<'a>(
                                 color: Some(Color::WHITE.scale_alpha(0.72)),
                             }),
                         text(format!(
-                            "工具 {} · 附件 {} · 上下文限制 {}",
+                            "工具 {} · 图片输入 {} · 上下文限制 {}",
                             if m.toolcall { "✓" } else { "✕" },
                             if m.attachment { "✓" } else { "✕" },
                             m.context_limit

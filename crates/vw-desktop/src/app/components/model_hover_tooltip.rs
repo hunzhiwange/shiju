@@ -204,7 +204,7 @@ pub(super) fn build_hover_tip<'a>(
                 && let Some(model) = provider.models.iter().find(|m| &m.id == model_id)
             {
                 let meta = format!(
-                    "工具 {} · 附件 {} · 上下文限制 {}",
+                    "工具 {} · 图片输入 {} · 上下文限制 {}",
                     if model.toolcall { "✓" } else { "✕" },
                     if model.attachment { "✓" } else { "✕" },
                     model.context_limit

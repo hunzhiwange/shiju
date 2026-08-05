@@ -25,6 +25,23 @@ pub enum KnowledgeDocumentInputTab {
     Text,
 }
 
+/// 创建知识库弹窗的配置页签。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum KnowledgeCreateDatasetTab {
+    #[default]
+    Basic,
+    Indexing,
+    Retrieval,
+}
+
+/// 新知识库使用嵌入配置的方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum KnowledgeDatasetEmbeddingSelection {
+    #[default]
+    FollowGlobal,
+    LockCurrent,
+}
+
 /// 桌面端文件入库草稿，只保存传输所需的文件元数据和 base64 载荷。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KnowledgeFileImportDraft {
@@ -69,6 +86,18 @@ impl KnowledgeDocumentInputTab {
     }
 }
 
+impl KnowledgeCreateDatasetTab {
+    pub(crate) const ALL: [Self; 3] = [Self::Basic, Self::Indexing, Self::Retrieval];
+
+    pub(crate) fn title(self) -> &'static str {
+        match self {
+            Self::Basic => "基础信息",
+            Self::Indexing => "分段与索引",
+            Self::Retrieval => "检索设置",
+        }
+    }
+}
+
 /// 桌面端知识库工作台状态。
 #[derive(Debug)]
 pub struct KnowledgeUiState {
@@ -85,6 +114,7 @@ pub struct KnowledgeUiState {
     pub(crate) selected_chunk_id: Option<String>,
     pub(crate) active_tab: KnowledgeDetailTab,
     pub(crate) document_input_tab: KnowledgeDocumentInputTab,
+    pub(crate) create_dataset_tab: KnowledgeCreateDatasetTab,
     pub(crate) showing_dataset_list: bool,
     pub(crate) create_dataset_modal_open: bool,
     pub(crate) document_preview_open: bool,
@@ -103,6 +133,7 @@ pub struct KnowledgeUiState {
     pub(crate) dataset_chunking_mode: KnowledgeChunkingMode,
     pub(crate) dataset_indexing_mode: KnowledgeIndexingMode,
     pub(crate) dataset_retrieval_mode: KnowledgeRetrievalMode,
+    pub(crate) dataset_embedding_selection: KnowledgeDatasetEmbeddingSelection,
     pub(crate) dataset_keyword_count_input: String,
     pub(crate) dataset_top_k_input: String,
     pub(crate) dataset_score_threshold_enabled: bool,
@@ -159,6 +190,7 @@ impl Default for KnowledgeUiState {
             selected_chunk_id: None,
             active_tab: KnowledgeDetailTab::Documents,
             document_input_tab: KnowledgeDocumentInputTab::Files,
+            create_dataset_tab: KnowledgeCreateDatasetTab::Basic,
             showing_dataset_list: true,
             create_dataset_modal_open: false,
             document_preview_open: false,
@@ -177,6 +209,7 @@ impl Default for KnowledgeUiState {
             dataset_chunking_mode: KnowledgeChunkingMode::General,
             dataset_indexing_mode: KnowledgeIndexingMode::Economy,
             dataset_retrieval_mode: KnowledgeRetrievalMode::FullText,
+            dataset_embedding_selection: KnowledgeDatasetEmbeddingSelection::FollowGlobal,
             dataset_keyword_count_input: "10".to_string(),
             dataset_top_k_input: "10".to_string(),
             dataset_score_threshold_enabled: false,

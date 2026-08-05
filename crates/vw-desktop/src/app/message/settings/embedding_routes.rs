@@ -29,7 +29,7 @@ fn doubao_template_route() -> EmbeddingRouteDraft {
 
 fn shiju_template_route() -> EmbeddingRouteDraft {
     EmbeddingRouteDraft {
-        pattern: "semantic".to_string(),
+        pattern: "shiju".to_string(),
         provider: "custom:https://router.shiju.cloud/v1".to_string(),
         model: "text-embedding-v4".to_string(),
         dimensions: "1024".to_string(),

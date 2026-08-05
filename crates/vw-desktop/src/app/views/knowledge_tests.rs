@@ -13,14 +13,15 @@ use super::{
     build_document_input_tabs, build_document_pagination, build_document_preview_drawer,
     build_document_rename_modal, build_document_status_menu, build_documents_tab,
     build_documents_table, build_documents_toolbar, build_embedding_model_section,
-    build_embedding_preset_list, build_file_import_panel, build_import_polling_panel,
+    build_embedding_model_picker, build_file_import_panel, build_import_polling_panel,
     build_indexing_mode_section, build_no_dataset_result_card, build_rerank_toggle,
     build_retrieval_mode_section, build_retrieval_tab, build_settings_tab,
     build_text_document_panel, build_upload_panel, build_workspace, chrome_style, chunk_card,
     chunk_preview_card, chunk_preview_title, chunk_type_label, chunking_label,
     compact_document_count_label, compact_input_row, dataset_card_button_style,
-    dataset_card_container_style, dataset_description, dataset_embedding_model_label, dataset_item,
-    dataset_tag, dataset_title, dataset_title_text_style, document_page_button,
+    dataset_card_container_style, dataset_description, dataset_embedding_model_label,
+    dataset_embedding_options, dataset_item, dataset_tag, dataset_title, dataset_title_text_style,
+    document_page_button,
     document_page_nav_button, document_page_size, document_page_size_selector,
     document_pagination_items, document_row, document_row_style, document_selection_button_style,
     document_status_badge, document_status_badge_style, document_status_filter_options,
@@ -349,6 +350,9 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
 #[test]
 fn create_dataset_controls_build_for_vector_and_rerank_capabilities() {
     let mut app = test_app();
+    app.knowledge.create_dataset_tab =
+        crate::app::state::KnowledgeCreateDatasetTab::Indexing;
+    keep_element(build_create_dataset_panel(&app));
     app.knowledge.runtime_status = Some(runtime_status(false, false));
     app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::Economy;
     app.knowledge.dataset_rerank_enabled = true;
@@ -364,6 +368,11 @@ fn create_dataset_controls_build_for_vector_and_rerank_capabilities() {
     keep_element(build_retrieval_mode_section(&app));
     keep_element(build_dataset_param_section(&app));
     keep_element(build_embedding_model_section(&app));
+    keep_element(build_embedding_model_picker(&app));
+
+    app.knowledge.create_dataset_tab =
+        crate::app::state::KnowledgeCreateDatasetTab::Retrieval;
+    keep_element(build_create_dataset_panel(&app));
 }
 
 #[test]
@@ -799,10 +808,11 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     let mut app = test_app();
     assert!(!embedding_vector_available(&app));
     assert!(!embedding_hybrid_available(&app));
+    assert_eq!(dataset_embedding_options(&app).len(), 1);
 
-    keep_element(build_embedding_preset_list(&app));
+    keep_element(build_embedding_model_picker(&app));
     app.knowledge.loading_embedding_presets = true;
-    keep_element(build_embedding_preset_list(&app));
+    keep_element(build_embedding_model_picker(&app));
     app.knowledge.loading_embedding_presets = false;
 
     app.knowledge.runtime_status = Some(runtime_status(true, true));
@@ -840,7 +850,23 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
         api_key_env_vars: vec![],
         description: "custom".to_string(),
     }];
-    keep_element(build_embedding_preset_list(&app));
+    keep_element(build_embedding_model_picker(&app));
+
+    app.knowledge.embedding_status = Some(KnowledgeEmbeddingStatusDto {
+        provider_id: "custom".to_string(),
+        route_hint: None,
+        model: "custom-embedding".to_string(),
+        dimensions: 384,
+        api_key_configured: true,
+        vector_available: true,
+        hybrid_available: true,
+        retrieval_modes: vec![KnowledgeRetrievalMode::Vector, KnowledgeRetrievalMode::Hybrid],
+        notes: BTreeMap::new(),
+    });
+    let options = dataset_embedding_options(&app);
+    assert_eq!(options.len(), 2);
+    assert!(options[1].label.contains("锁定当前"));
+    assert!(options[1].label.contains("custom-embedding"));
 
     let failed = KnowledgeEmbeddingTestResponse {
         ok: false,

@@ -101,6 +101,16 @@ fn queue_item(
     }
 }
 
+#[test]
+fn initial_session_title_uses_only_trimmed_first_line() {
+    assert_eq!(
+        super::initial_session_title_for_input("  第一行标题  \n第二行内容\n第三行内容  "),
+        "第一行标题"
+    );
+    assert_eq!(super::initial_session_title_for_input("\r\n  首行  \r\n次行"), "首行");
+    assert_eq!(super::initial_session_title_for_input(" \n\t "), "新会话");
+}
+
 fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
     crate::app::AgentRequest {
         id,

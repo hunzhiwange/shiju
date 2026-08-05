@@ -29,7 +29,7 @@ fn summarize_models(
                 .map(|m| {
                     let detail = serde_json::to_value(&m).unwrap_or(Value::Null);
                     let toolcall = m.capabilities.toolcall;
-                    let attachment = m.capabilities.attachment;
+                    let image_input = m.capabilities.input.image;
                     let context_limit = m.limit.context;
                     let enabled = m.status == "active";
                     ModelSummary {
@@ -37,7 +37,7 @@ fn summarize_models(
                         name: m.name,
                         enabled,
                         toolcall,
-                        attachment,
+                        attachment: image_input,
                         context_limit,
                         detail,
                     }

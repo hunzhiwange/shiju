@@ -253,6 +253,33 @@ fn bundled_models_loads_included_metadata() {
 }
 
 #[test]
+fn bundled_models_include_qwen37_plus_multimodal_metadata() {
+    let bundled = bundled_models("bundled_qwen37_plus");
+    let alibaba = bundled.get("alibaba-cn").expect("Alibaba China provider should be bundled");
+    let model =
+        alibaba.models.get("qwen3.7-plus").expect("Qwen3.7 Plus should be bundled");
+    let modalities =
+        model.modalities.as_ref().expect("Qwen3.7 Plus should declare modalities");
+    let cost = model.cost.as_ref().expect("Qwen3.7 Plus should declare cost");
+
+    assert!(model.attachment);
+    assert_eq!(
+        modalities.input.iter().map(String::as_str).collect::<Vec<_>>(),
+        vec!["text", "image", "video"]
+    );
+    assert_eq!(
+        modalities.output.iter().map(String::as_str).collect::<Vec<_>>(),
+        vec!["text"]
+    );
+    assert_eq!(model.limit.context, 1_000_000);
+    assert_eq!(model.limit.output, 64_000);
+    assert_eq!(cost.input, 0.5);
+    assert_eq!(cost.output, 3.0);
+    assert_eq!(cost.cache_read, Some(0.05));
+    assert_eq!(cost.cache_write, Some(0.625));
+}
+
+#[test]
 fn bundled_models_include_shiju_static_catalog() {
     let bundled = bundled_models("bundled_shiju");
     let shiju = bundled.get("shiju").expect("bundled models should include shiju");
@@ -303,12 +330,34 @@ fn bundled_models_include_shiju_static_catalog() {
     assert_eq!(shiju.models.len(), 34);
     assert!(shiju.models.contains_key("qwen-coder-turbo"));
     assert!(shiju.models.contains_key("deepseek-v4-flash"));
-    let vision = &shiju.models["qwen3-vl-flash"];
-    assert!(vision.attachment);
-    assert_eq!(
-        vision.modalities.as_ref().map(|modalities| modalities.input.as_slice()),
-        Some(["text".to_string(), "image".to_string()].as_slice())
-    );
+
+    for model_id in
+        ["qvq-max", "qwen-plus-latest", "qwen-image-edit-max", "qwen3-vl-flash"]
+    {
+        let input = &shiju.models[model_id]
+            .modalities
+            .as_ref()
+            .unwrap_or_else(|| panic!("{model_id} should declare modalities"))
+            .input;
+        assert!(input.iter().any(|modality| modality == "image"));
+    }
+
+    for model_id in ["qwen3.5-flash", "qwen3.5-plus"] {
+        let input = &shiju.models[model_id]
+            .modalities
+            .as_ref()
+            .unwrap_or_else(|| panic!("{model_id} should declare modalities"))
+            .input;
+        assert!(input.iter().any(|modality| modality == "image"));
+        assert!(input.iter().any(|modality| modality == "video"));
+    }
+
+    let image_generation = shiju.models["qwen-image-2.0"]
+        .modalities
+        .as_ref()
+        .expect("Qwen Image 2.0 should declare modalities");
+    assert_eq!(image_generation.input, ["text"]);
+    assert_eq!(image_generation.output, ["image"]);
     assert!(bundled.contains_key("openai"));
 }
 

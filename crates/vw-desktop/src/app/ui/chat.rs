@@ -172,6 +172,27 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
         None
     }
 
+    fn find_reasoning_marker(s: &str) -> Option<(usize, usize)> {
+        for (pos, _) in s.match_indices("[reasoning]") {
+            if pos > 0 && !s[..pos].ends_with('\n') {
+                continue;
+            }
+
+            let suffix = &s[pos + "[reasoning]".len()..];
+            let marker_len = if suffix.starts_with("\r\n") {
+                "[reasoning]".len() + 2
+            } else if suffix.starts_with('\n') {
+                "[reasoning]".len() + 1
+            } else if suffix.is_empty() {
+                "[reasoning]".len()
+            } else {
+                continue;
+            };
+            return Some((pos, marker_len));
+        }
+        None
+    }
+
     fn append_visible_without_orphan_close_tags(out: &mut String, mut s: &str) {
         while let Some((start, tag_len)) = find_think_close_tag(s) {
             out.push_str(&s[..start]);
@@ -207,12 +228,34 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
     }
 
     loop {
-        let Some((start, open_tag_len)) = find_think_open_tag(rest) else {
+        let think_open = find_think_open_tag(rest);
+        let reasoning_marker = find_reasoning_marker(rest);
+        let next_start = match (think_open, reasoning_marker) {
+            (None, None) => None,
+            (Some(tag), None) => Some((tag.0, tag.1, false)),
+            (None, Some(marker)) => Some((marker.0, marker.1, true)),
+            (Some(tag), Some(marker)) => Some(if tag.0 <= marker.0 {
+                (tag.0, tag.1, false)
+            } else {
+                (marker.0, marker.1, true)
+            }),
+        };
+        let Some((start, open_len, is_reasoning_marker)) = next_start else {
             append_visible_without_orphan_close_tags(&mut visible, rest);
             break;
         };
         append_visible_without_orphan_close_tags(&mut visible, &rest[..start]);
-        rest = &rest[start + open_tag_len..];
+        rest = &rest[start + open_len..];
+        if is_reasoning_marker {
+            if let Some(tool_start) = find_tool_start(rest) {
+                thinks.push(rest[..tool_start].to_string());
+                rest = &rest[tool_start..];
+                append_visible_without_orphan_close_tags(&mut visible, rest);
+            } else if !rest.is_empty() {
+                thinks.push(rest.to_string());
+            }
+            break;
+        }
         let Some((end, close_tag_len)) = find_think_close_tag(rest) else {
             if let Some(tool_start) = find_tool_start(rest) {
                 thinks.push(rest[..tool_start].to_string());

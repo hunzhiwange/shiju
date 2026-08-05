@@ -95,6 +95,42 @@ fn chat_session_round_trip_preserves_snapshot_payloads() {
 }
 
 #[test]
+fn chat_session_restores_reasoning_marker_as_thinking_block() {
+    let reasoning_content = "answer\n\n[reasoning]\nchain";
+    let snapshot = ChatSession {
+        id: "session_reasoning".to_string(),
+        title: "Reasoning".to_string(),
+        messages: vec![ChatMessage {
+            role: ChatRole::Assistant,
+            content: reasoning_content.to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }],
+        message_ids: vec![Some("msg-assistant".to_string())],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    };
+
+    let state = TuiState::from_chat_session(&snapshot);
+
+    assert!(matches!(
+        &state.messages[0],
+        UiMessage::Assistant(message) if message.text == "answer"
+    ));
+    assert!(matches!(
+        &state.messages[1],
+        UiMessage::Thinking(block)
+            if block.content == "chain"
+                && block.phase == crate::cli::tui_v2::model::UiThinkingPhase::Closed
+                && block.collapsed
+    ));
+    assert_eq!(state.to_chat_session().messages[0].content, reasoning_content);
+}
+
+#[test]
 fn chat_session_round_trip_preserves_tool_messages() {
     let snapshot = ChatSession {
         id: "session_tool_roundtrip".to_string(),

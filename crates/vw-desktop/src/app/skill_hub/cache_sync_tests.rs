@@ -9,8 +9,8 @@ fn quote_for_shell(path: &Path) -> String {
 }
 
 fn write_fixture(root: &Path, log: &Path, rebuild_response: &str) {
-    let bin = root.join("bin");
-    fs::create_dir_all(&bin).expect("create fixture bin");
+    let scripts = root.join("scripts");
+    fs::create_dir_all(&scripts).expect("create fixture scripts");
     fs::write(root.join("SKILL.md"), "---\nversion: 3.0.3\n---\n").expect("write manifest");
     let script = format!(
         "#!/bin/sh\n\
@@ -23,7 +23,7 @@ fn write_fixture(root: &Path, log: &Path, rebuild_response: &str) {
         quote_for_shell(log),
         rebuild_response.replace('\'', "'\\''"),
     );
-    let executable = bin.join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
+    let executable = scripts.join("shiju");
     fs::write(&executable, script).expect("write fixture executable");
     #[cfg(unix)]
     {
@@ -54,6 +54,7 @@ async fn cache_sync_fetches_selected_server_version_then_rebuilds_index_without_
         &root,
         &["skill:fetch", "--skill-id", "42"],
     );
+    assert!(Path::new(command.get_program()).ends_with("scripts/shiju"));
     assert!(command.get_envs().any(|(name, value)| name == "SHIJU_KEY" && value.is_none()));
     assert!(!format!("{command:?}").contains("credential"));
 }
@@ -81,13 +82,13 @@ async fn cache_sync_rejects_business_error_after_fetch_without_exposing_payload(
 async fn cache_sync_rejects_missing_non_executable_and_symlinked_cli() {
     let fixture = tempfile::tempdir().expect("fixture root");
     let root = fixture.path().join("installed-shiju");
-    fs::create_dir_all(root.join("bin")).unwrap();
-    fs::write(root.join("bin/shiju"), "#!/bin/sh\n").unwrap();
+    fs::create_dir_all(root.join("scripts")).unwrap();
+    fs::write(root.join("scripts/shiju"), "#!/bin/sh\n").unwrap();
 
     #[cfg(unix)]
     assert!(resolve_shiju_cli(&root).unwrap_err().to_string().contains("不可执行"));
 
-    fs::remove_file(root.join("bin/shiju")).unwrap();
+    fs::remove_file(root.join("scripts/shiju")).unwrap();
     assert!(resolve_shiju_cli(&root).unwrap_err().to_string().contains("不存在"));
 
     #[cfg(unix)]
@@ -96,7 +97,7 @@ async fn cache_sync_rejects_missing_non_executable_and_symlinked_cli() {
         let outside = fixture.path().join("outside");
         fs::write(&outside, "#!/bin/sh\n").unwrap();
         fs::set_permissions(&outside, fs::Permissions::from_mode(0o755)).unwrap();
-        symlink(&outside, root.join("bin/shiju")).unwrap();
+        symlink(&outside, root.join("scripts/shiju")).unwrap();
         assert!(resolve_shiju_cli(&root).unwrap_err().to_string().contains("符号链接"));
     }
 }
@@ -105,9 +106,9 @@ async fn cache_sync_rejects_missing_non_executable_and_symlinked_cli() {
 async fn cache_sync_stops_before_rebuild_on_nonzero_fetch_exit() {
     let fixture = tempfile::tempdir().expect("fixture root");
     let root = fixture.path().join("installed-shiju");
-    let bin = root.join("bin");
-    fs::create_dir_all(&bin).unwrap();
-    let executable = bin.join(if cfg!(windows) { "shiju.exe" } else { "shiju" });
+    let scripts = root.join("scripts");
+    fs::create_dir_all(&scripts).unwrap();
+    let executable = scripts.join("shiju");
     fs::write(&executable, "#!/bin/sh\nexit 7\n").unwrap();
     #[cfg(unix)]
     {

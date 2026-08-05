@@ -20,6 +20,11 @@ MACOS_ICON_SOURCE="${MACOS_ICON_SOURCE:-assets/logo/icon.icns}"
 MACOS_ICON_NAME="ShiJu.icns"
 PACKAGE_APP="${PACKAGE_APP:-0}"
 CREATE_DMG="${CREATE_DMG:-0}"
+MACOS_SIGN_MODE="${MACOS_SIGN_MODE:-adhoc}"
+MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-}"
+MACOS_NOTARIZE="${MACOS_NOTARIZE:-0}"
+NOTARY_KEYCHAIN_PROFILE="${NOTARY_KEYCHAIN_PROFILE:-}"
+NOTARY_KEYCHAIN_PATH="${NOTARY_KEYCHAIN_PATH:-}"
 
 if [ -n "$TARGET" ]; then
   TARGET_DIR="target/$TARGET/$PROFILE"
@@ -68,6 +73,104 @@ EOF
   exit 1
 }
 
+preflight_app_signing() {
+  case "$MACOS_SIGN_MODE" in
+    adhoc)
+      if [ "$MACOS_NOTARIZE" = "1" ]; then
+        echo "Error: MACOS_NOTARIZE=1 requires MACOS_SIGN_MODE=developer-id" >&2
+        exit 1
+      fi
+      ;;
+    developer-id)
+      if [ -z "$MACOS_SIGN_IDENTITY" ]; then
+        cat >&2 <<'EOF'
+Error: MACOS_SIGN_IDENTITY is required for Developer ID signing.
+
+Example:
+  MACOS_SIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" make macos
+EOF
+        exit 1
+      fi
+      case "$MACOS_SIGN_IDENTITY" in
+        "Developer ID Application:"*) ;;
+        *)
+          echo "Error: MACOS_SIGN_IDENTITY must be a Developer ID Application identity" >&2
+          exit 1
+          ;;
+      esac
+      if ! SIGNING_IDENTITIES="$(security find-identity -v -p codesigning)"; then
+        echo "Error: unable to read code-signing identities from the keychain" >&2
+        exit 1
+      fi
+      if ! grep -Fq "$MACOS_SIGN_IDENTITY" <<<"$SIGNING_IDENTITIES"; then
+        echo "Error: signing identity not found in the keychain: $MACOS_SIGN_IDENTITY" >&2
+        exit 1
+      fi
+      if [ "$MACOS_NOTARIZE" = "1" ]; then
+        if [ -z "$NOTARY_KEYCHAIN_PROFILE" ]; then
+          cat >&2 <<'EOF'
+Error: NOTARY_KEYCHAIN_PROFILE is required for notarization.
+
+Create it once with:
+  xcrun notarytool store-credentials "vibewindow-notary"
+
+Then run:
+  NOTARY_KEYCHAIN_PROFILE="vibewindow-notary" MACOS_SIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" make macos
+EOF
+          exit 1
+        fi
+        if [ "$PACKAGE_APP" != "1" ]; then
+          echo "Error: MACOS_NOTARIZE=1 requires PACKAGE_APP=1" >&2
+          exit 1
+        fi
+        command -v xcrun >/dev/null 2>&1 || {
+          echo "Error: xcrun is required for notarization" >&2
+          exit 1
+        }
+        if [ -n "$NOTARY_KEYCHAIN_PATH" ] && [ ! -f "$NOTARY_KEYCHAIN_PATH" ]; then
+          echo "Error: notary keychain not found: $NOTARY_KEYCHAIN_PATH" >&2
+          exit 1
+        fi
+      fi
+      ;;
+    *)
+      echo "Error: unsupported MACOS_SIGN_MODE: $MACOS_SIGN_MODE" >&2
+      exit 1
+      ;;
+  esac
+}
+
+submit_for_notarization() {
+  local artifact_path="$1"
+  local notary_result
+  local notary_status
+  local notary_auth_args=(--keychain-profile "$NOTARY_KEYCHAIN_PROFILE")
+
+  if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
+    notary_auth_args+=(--keychain "$NOTARY_KEYCHAIN_PATH")
+  fi
+
+  notary_result="$(mktemp -t vibewindow-notary-result)"
+  echo "Submitting $(basename "$artifact_path") for notarization..."
+  if ! xcrun notarytool submit \
+    "$artifact_path" \
+    "${notary_auth_args[@]}" \
+    --wait \
+    --output-format json >"$notary_result"; then
+    cat "$notary_result" >&2
+    rm -f "$notary_result"
+    exit 1
+  fi
+
+  cat "$notary_result"
+  notary_status="$(/usr/bin/plutil -extract status raw -o - "$notary_result" 2>/dev/null || true)"
+  rm -f "$notary_result"
+  if [ "$notary_status" != "Accepted" ]; then
+    echo "Error: notarization was not accepted (status: ${notary_status:-unknown})" >&2
+    exit 1
+  fi
+}
+
 ensure_app_icon() {
   if [ ! -f "$MACOS_ICON_SOURCE" ]; then
     echo "Error: macOS icon not found at $MACOS_ICON_SOURCE"
@@ -108,6 +211,8 @@ if [ "$MODE" = "cli" ]; then
   echo "$OUT_DIR/$ZIP_NAME"
   exit 0
 fi
+
+preflight_app_signing
 
 BUNDLE_DIR="$TARGET_DIR/bundle/osx"
 APP_BUNDLE="$BUNDLE_DIR/ShiJu.app"
@@ -172,11 +277,34 @@ fi
 
 ensure_app_icon
 
-ENTITLEMENTS="scripts/macos-entitlements.plist"
-echo "Code signing app bundle without sandbox entitlements..."
-codesign --force --deep --sign - "$APP_BUNDLE"
+if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
+  echo "Signing embedded binaries with Developer ID..."
+  for binary_name in vw-webview "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
+    binary_path="$DEST_DIR/$binary_name"
+    if [ -f "$binary_path" ]; then
+      codesign \
+        --force \
+        --timestamp \
+        --options runtime \
+        --sign "$MACOS_SIGN_IDENTITY" \
+        "$binary_path"
+    fi
+  done
+
+  echo "Signing app bundle with Developer ID..."
+  codesign \
+    --force \
+    --timestamp \
+    --options runtime \
+    --sign "$MACOS_SIGN_IDENTITY" \
+    "$APP_BUNDLE"
+else
+  echo "Applying ad-hoc signature for local development..."
+  codesign --force --deep --sign - "$APP_BUNDLE"
+fi
+
 echo "Verifying code signature..."
-codesign --verify --deep --strict "$APP_BUNDLE" || true
+codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 echo "Done! App bundle is ready at: $APP_BUNDLE"
 echo "You can run it with: open \"$APP_BUNDLE\""
@@ -187,6 +315,23 @@ if [ "$PACKAGE_APP" = "1" ]; then
   rm -f "$OUT_DIR/$ZIP_NAME"
   ditto -c -k --keepParent "$APP_BUNDLE" "$OUT_DIR/$ZIP_NAME"
   echo "Zip package: $OUT_DIR/$ZIP_NAME"
+fi
+
+if [ "$MACOS_NOTARIZE" = "1" ]; then
+  ZIP_PATH="$OUT_DIR/$ZIP_NAME"
+  submit_for_notarization "$ZIP_PATH"
+
+  echo "Stapling notarization ticket to app bundle..."
+  xcrun stapler staple "$APP_BUNDLE"
+  xcrun stapler validate "$APP_BUNDLE"
+
+  echo "Repacking stapled app bundle..."
+  rm -f "$ZIP_PATH"
+  ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+
+  echo "Validating Gatekeeper acceptance..."
+  spctl --assess --type execute --verbose=4 "$APP_BUNDLE"
+  echo "Signed and notarized zip package: $ZIP_PATH"
 fi
 
 if [ "$CREATE_DMG" = "1" ]; then
@@ -204,4 +349,13 @@ if [ "$CREATE_DMG" = "1" ]; then
   ln -s /Applications "$DMG_STAGE/Applications"
   hdiutil create -volname "ShiJu" -srcfolder "$DMG_STAGE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
   echo "DMG package: $OUT_DIR/$DMG_NAME"
+
+  if [ "$MACOS_NOTARIZE" = "1" ]; then
+    DMG_PATH="$OUT_DIR/$DMG_NAME"
+    submit_for_notarization "$DMG_PATH"
+    echo "Stapling notarization ticket to disk image..."
+    xcrun stapler staple "$DMG_PATH"
+    xcrun stapler validate "$DMG_PATH"
+    echo "Notarized DMG package: $DMG_PATH"
+  fi
 fi

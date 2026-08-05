@@ -29,8 +29,8 @@ use super::model::{
     MessageActionState, OverlayState, PromptState, TranscriptModeState, UiAssistantMessage,
     UiAttachment, UiAttachmentKind, UiCompactBoundary, UiMemoryEntry, UiMessage, UiMessageBase,
     UiMessageId, UiMessageOrigin, UiProgressMessage, UiQuestionOverlay, UiStep, UiStepState,
-    UiSystemMessage, UiSystemMessageLevel, UiThinkingTiming, UiTodoOverlay, UiTokenUsage,
-    UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
+    UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming,
+    UiTodoOverlay, UiTokenUsage, UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
 use crate::cli::session::GitWorkspaceStatus;
 
@@ -45,6 +45,37 @@ use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache};
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
 
 const EXTENDED_MESSAGE_PREFIX: &str = "vibewindow:tui-v2:";
+const REASONING_MARKER: &str = "[reasoning]";
+
+fn split_reasoning_marker(raw: &str) -> Option<(&str, &str)> {
+    for (marker_start, _) in raw.match_indices(REASONING_MARKER) {
+        if marker_start > 0 && !raw[..marker_start].ends_with('\n') {
+            continue;
+        }
+
+        let suffix = &raw[marker_start + REASONING_MARKER.len()..];
+        let reasoning = if let Some(reasoning) = suffix.strip_prefix("\r\n") {
+            reasoning
+        } else if let Some(reasoning) = suffix.strip_prefix('\n') {
+            reasoning
+        } else if suffix.is_empty() {
+            suffix
+        } else {
+            continue;
+        };
+        let visible = raw[..marker_start].trim_end_matches(['\r', '\n']);
+        return Some((visible, reasoning));
+    }
+    None
+}
+
+fn reasoning_visible_content(content: Option<String>) -> Option<String> {
+    content.map(|content| {
+        split_reasoning_marker(&content)
+            .map(|(visible, _)| visible.to_string())
+            .unwrap_or(content)
+    })
+}
 
 pub(crate) use reducer::{
     TuiAction, TuiTerminalUpdate, TuiToolCallUpdate, TuiToolResultUpdate, reduce_tui_state,
@@ -221,6 +252,7 @@ pub(crate) struct TuiPersistedMessage {
     pub(crate) raw_message_id: Option<String>,
     pub(crate) think_timing: Vec<UiThinkingTiming>,
     pub(crate) tool_payload: Option<String>,
+    pub(crate) assistant_payload: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -309,7 +341,7 @@ impl From<ChatSessionMeta> for TuiSessionPreview {
             updated_ms: value.updated_ms,
             message_count: value.message_count,
             call_count: value.call_count,
-            last_content: value.last_content,
+            last_content: reasoning_visible_content(value.last_content),
         }
     }
 }
@@ -322,7 +354,7 @@ impl From<&ChatSessionMeta> for TuiSessionPreview {
             updated_ms: value.updated_ms,
             message_count: value.message_count,
             call_count: value.call_count,
-            last_content: value.last_content.clone(),
+            last_content: reasoning_visible_content(value.last_content.clone()),
         }
     }
 }
@@ -336,7 +368,9 @@ impl TuiSessionPreview {
             updated_ms: session.updated_ms,
             message_count: session.messages.len(),
             call_count: session.calls.len(),
-            last_content: session.messages.last().map(|message| message.content.clone()),
+            last_content: reasoning_visible_content(
+                session.messages.last().map(|message| message.content.clone()),
+            ),
         }
     }
 }
@@ -481,31 +515,60 @@ impl TuiState {
         for (index, message) in session.messages.iter().enumerate() {
             let raw_message_id = session.message_ids.get(index).cloned().flatten();
             let base = snapshot_message_base(session.id.as_str(), index, raw_message_id.clone());
+            let mut pending_reasoning = None;
+            let mut assistant_payload = None;
 
             let ui_message = match message.role {
                 ChatRole::User => {
                     UiMessage::User(UiUserMessage { base, text: message.content.clone() })
                 }
-                ChatRole::Assistant => UiMessage::Assistant(UiAssistantMessage {
-                    base,
-                    text: message.content.clone(),
-                    usage: UiTokenUsage::default(),
-                    step_count: if Some(index) == last_assistant_index {
-                        session.steps.len()
+                ChatRole::Assistant => {
+                    let text = if let Some((visible, reasoning)) =
+                        split_reasoning_marker(&message.content)
+                    {
+                        assistant_payload = Some(message.content.clone());
+                        if !reasoning.is_empty() {
+                            pending_reasoning = Some(UiMessage::Thinking(UiThinkingBlock {
+                                base: UiMessageBase::new(UiMessageId::local(format!(
+                                    "snapshot-{index}-reasoning"
+                                )))
+                                .with_session_id(session.id.as_str()),
+                                summary: reducer::thinking_summary(reasoning),
+                                content: reasoning.to_string(),
+                                timing: message
+                                    .think_timing
+                                    .iter()
+                                    .map(UiThinkingTiming::from)
+                                    .collect(),
+                                collapsed: true,
+                                phase: UiThinkingPhase::Closed,
+                            }));
+                        }
+                        visible.to_string()
                     } else {
-                        0
-                    },
-                    terminal: if Some(index) == last_assistant_index {
-                        active_terminal.clone()
-                    } else {
-                        UiTurnTerminal::Done { finish_reason: None }
-                    },
-                    model: if Some(index) == last_assistant_index {
-                        state.status.model_name.clone()
-                    } else {
-                        None
-                    },
-                }),
+                        message.content.clone()
+                    };
+                    UiMessage::Assistant(UiAssistantMessage {
+                        base,
+                        text,
+                        usage: UiTokenUsage::default(),
+                        step_count: if Some(index) == last_assistant_index {
+                            session.steps.len()
+                        } else {
+                            0
+                        },
+                        terminal: if Some(index) == last_assistant_index {
+                            active_terminal.clone()
+                        } else {
+                            UiTurnTerminal::Done { finish_reason: None }
+                        },
+                        model: if Some(index) == last_assistant_index {
+                            state.status.model_name.clone()
+                        } else {
+                            None
+                        },
+                    })
+                }
                 ChatRole::Tool => {
                     let parsed = parse_tool_message_payload(&message.content);
                     UiMessage::ToolResult(UiToolResult {
@@ -529,10 +592,14 @@ impl TuiState {
             };
 
             state.messages.push(ui_message);
+            if let Some(reasoning) = pending_reasoning {
+                state.messages.push(reasoning);
+            }
             state.session.persisted_messages.push(TuiPersistedMessage {
                 raw_message_id,
                 think_timing: message.think_timing.iter().map(UiThinkingTiming::from).collect(),
                 tool_payload: (message.role == ChatRole::Tool).then(|| message.content.clone()),
+                assistant_payload,
             });
         }
 
@@ -916,6 +983,7 @@ fn persisted_message_from_ui_message(message: &UiMessage) -> Option<TuiPersisted
             UiMessage::ToolResult(message) => Some(serialize_tool_result_message(message)),
             _ => None,
         },
+        assistant_payload: None,
     })
 }
 
@@ -937,7 +1005,9 @@ fn snapshot_chat_message_from_ui_message(
         }),
         UiMessage::Assistant(message) => Some(session_ui::ChatMessage {
             role: ChatRole::Assistant,
-            content: message.text.clone(),
+            content: metadata
+                .and_then(|metadata| metadata.assistant_payload.clone())
+                .unwrap_or_else(|| message.text.clone()),
             model: None,
             think_timing: metadata
                 .map(|metadata| {

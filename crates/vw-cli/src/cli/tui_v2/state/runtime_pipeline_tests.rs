@@ -103,6 +103,42 @@ fn thinking_tags_split_delta_and_close_before_terminal() {
 }
 
 #[test]
+fn reasoning_marker_creates_closed_thinking_block() {
+    let mut state = TuiState::default();
+
+    apply_runtime_event_at(
+        &mut state,
+        UiRuntimeEvent::Delta("answer\n\n[reasoning]\nchain".to_string()),
+        1_000,
+    );
+
+    assert!(matches!(
+        &state.messages[0],
+        UiMessage::Assistant(message) if message.text == "answer"
+    ));
+    assert!(matches!(
+        &state.messages[1],
+        UiMessage::Thinking(block)
+            if block.content == "chain"
+                && block.phase == UiThinkingPhase::Closed
+                && block.collapsed
+    ));
+}
+
+#[test]
+fn inline_reasoning_text_remains_assistant_content() {
+    let mut state = TuiState::default();
+    let delta = "answer [reasoning] is a label";
+
+    apply_runtime_event(&mut state, UiRuntimeEvent::Delta(delta.to_string()));
+
+    assert!(matches!(
+        &state.messages[0],
+        UiMessage::Assistant(message) if message.text == delta
+    ));
+}
+
+#[test]
 fn empty_thinking_block_can_span_events_without_emitting_empty_message() {
     let mut state = TuiState::default();
 

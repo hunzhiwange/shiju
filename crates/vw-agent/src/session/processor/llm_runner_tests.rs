@@ -232,7 +232,7 @@ fn collect_stream_wraps_reasoning_before_text() {
 }
 
 #[test]
-fn collect_stream_uses_reasoning_as_fallback_text_when_no_content_arrives() {
+fn collect_stream_rejects_reasoning_without_assistant_content() {
     let (result, deltas) = collect_events([
         llm::StreamEvent::ReasoningDelta("only thoughts".to_string()),
         llm::StreamEvent::Done {
@@ -241,9 +241,7 @@ fn collect_stream_uses_reasoning_as_fallback_text_when_no_content_arrives() {
         },
     ]);
 
-    let step = result.expect("reasoning fallback should count as content");
-    assert_eq!(step.text, "only thoughts");
-    assert_eq!(step.reasoning_content, "only thoughts");
+    assert_eq!(result.unwrap_err(), "模型未返回内容");
     assert_eq!(deltas, vec!["<think>only thoughts", "</think>\n\n"]);
 }
 
@@ -475,9 +473,7 @@ fn collect_stream_flushes_reasoning_by_character_threshold() {
         },
     ]);
 
-    let step = result.expect("long reasoning should produce a valid step");
-    assert_eq!(step.reasoning_content.len(), 1024);
-    assert_eq!(step.text, step.reasoning_content); // fallback text
+    assert_eq!(result.unwrap_err(), "模型未返回内容");
     // Mid-stream flush includes the <think> prefix
     assert_eq!(deltas.len(), 2);
     assert_eq!(deltas[0], format!("<think>{}", "r".repeat(1024)));

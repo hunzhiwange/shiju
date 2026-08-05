@@ -158,16 +158,109 @@ jobs:
               TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
             fi
           done
-      - name: Build macOS DMG
+      - name: Configure macOS release signing
+        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          : "${MACOS_CERTIFICATE_P12_BASE64:?Missing MACOS_CERTIFICATE_P12_BASE64 secret}"
+          : "${MACOS_CERTIFICATE_PASSWORD:?Missing MACOS_CERTIFICATE_PASSWORD secret}"
+          : "${MACOS_SIGN_IDENTITY:?Missing MACOS_SIGN_IDENTITY secret}"
+          : "${APPLE_NOTARY_APPLE_ID:?Missing APPLE_NOTARY_APPLE_ID secret}"
+          : "${APPLE_NOTARY_PASSWORD:?Missing APPLE_NOTARY_PASSWORD secret}"
+          : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID secret}"
+
+          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
+          certificate_path="$RUNNER_TEMP/vibewindow-signing.p12"
+          keychain_password="$(openssl rand -base64 32)"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | /usr/bin/base64 -D > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          rm -f "$certificate_path"
+
+          signing_identities="$(security find-identity -v -p codesigning "$keychain_path")"
+          if ! grep -Fq "$MACOS_SIGN_IDENTITY" <<<"$signing_identities"; then
+            echo "Configured MACOS_SIGN_IDENTITY was not found in the imported certificate" >&2
+            exit 1
+          fi
+
+          xcrun notarytool store-credentials "vibewindow-ci" \
+            --apple-id "$APPLE_NOTARY_APPLE_ID" \
+            --password "$APPLE_NOTARY_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --keychain "$keychain_path"
+      - name: Install macOS packaging tools
         if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
+        run: cargo install cargo-bundle --locked
+      - name: Build macOS DMG for pull request
+        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        shell: bash
         run: |
-          cargo install cargo-bundle --locked
           for target in ${{ join(matrix.targets, ' ') }}; do
             if [[ "$target" == *apple-darwin ]]; then
-              TARGET="$target" PROFILE=dist OUT_DIR=target/distrib CREATE_DMG=1 INCLUDE_CLI_IN_APP=1 INCLUDE_ACP_IN_APP=1 scripts/bundle_macos.sh
+              TARGET="$target" \
+              PROFILE=dist \
+              OUT_DIR=target/distrib \
+              CREATE_DMG=1 \
+              INCLUDE_CLI_IN_APP=1 \
+              INCLUDE_ACP_IN_APP=1 \
+              scripts/bundle_macos.sh
             fi
           done
+      - name: Build signed and notarized macOS packages
+        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        shell: bash
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          for target in ${{ join(matrix.targets, ' ') }}; do
+            if [[ "$target" == *apple-darwin ]]; then
+              TARGET="$target" \
+              PROFILE=dist \
+              OUT_DIR=target/distrib \
+              CREATE_DMG=1 \
+              PACKAGE_APP=1 \
+              INCLUDE_CLI_IN_APP=1 \
+              INCLUDE_ACP_IN_APP=1 \
+              MACOS_SIGN_MODE=developer-id \
+              MACOS_NOTARIZE=1 \
+              MACOS_SIGN_IDENTITY="$MACOS_SIGN_IDENTITY" \
+              NOTARY_KEYCHAIN_PROFILE=vibewindow-ci \
+              NOTARY_KEYCHAIN_PATH="$RUNNER_TEMP/vibewindow-signing.keychain-db" \
+              scripts/bundle_macos.sh
+            fi
+          done
+      - name: Clean up macOS signing credentials
+        if: ${{ always() && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        shell: bash
+        run: |
+          keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
+          if [[ -f "$keychain_path" ]]; then
+            security delete-keychain "$keychain_path" || true
+          fi
+          rm -f \
+            "$RUNNER_TEMP/vibewindow-signing.p12" \
+            "$RUNNER_TEMP/vibewindow-signing.keychain-db"
       - name: Build Windows MSI
         if: ${{ contains(join(matrix.targets, ','), 'pc-windows-msvc') }}
         shell: bash
@@ -200,6 +293,7 @@ jobs:
             ${{ steps.cargo-dist.outputs.paths }}
             target/distrib/*.deb
             target/distrib/*.dmg
+            target/distrib/ShiJu-macos*.zip
             target/distrib/*.msi
             target/distrib/*.rpm
             ${{ env.BUILD_MANIFEST_NAME }}
@@ -288,6 +382,21 @@ jobs:
           echo "artifacts uploaded and released successfully"
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
+      - name: Upload signed macOS packages to GitHub Release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          macos_packages=(
+            target/distrib/*.dmg
+            target/distrib/ShiJu-macos*.zip
+          )
+          if (( ${#macos_packages[@]} == 0 )); then
+            echo "No custom macOS packages found"
+            exit 0
+          fi
+          gh release upload "$RELEASE_TAG" "${macos_packages[@]}" --clobber
       - name: "Upload dist-manifest.json"
         uses: actions/upload-artifact@v4
         with:

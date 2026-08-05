@@ -4,9 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-#[cfg(windows)]
-const SHIJU_CLI_NAME: &str = "shiju.exe";
-#[cfg(not(windows))]
 const SHIJU_CLI_NAME: &str = "shiju";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,9 +33,9 @@ impl std::error::Error for SkillCacheSyncError {}
 
 pub(super) fn resolve_shiju_cli(installation_root: &Path) -> Result<PathBuf, SkillCacheSyncError> {
     validate_directory(installation_root, "识矩技能安装目录")?;
-    let bin_dir = installation_root.join("bin");
-    validate_directory(&bin_dir, "识矩 CLI 目录")?;
-    let executable = bin_dir.join(SHIJU_CLI_NAME);
+    let scripts_dir = installation_root.join("scripts");
+    validate_directory(&scripts_dir, "识矩 CLI 目录")?;
+    let executable = scripts_dir.join(SHIJU_CLI_NAME);
     let metadata = fs::symlink_metadata(&executable).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
             SkillCacheSyncError::new("识矩 CLI 不存在，请重新安装主识矩技能")

@@ -206,7 +206,6 @@ fn collect_llm_step_from_stream(
 
     let mut reasoning_content = String::new(); // 推理内容缓冲区
     let mut text = String::new(); // 普通文本内容缓冲区
-    let mut fallback_text = String::new(); // 回退文本（当没有普通文本时使用推理内容）
     let mut usage = models::TokenUsage::default(); // 令牌使用统计
     let mut finish_reason: Option<String> = None; // 完成原因
     let mut tool_calls: Vec<llm::ToolCall> = Vec::new(); // 工具调用列表
@@ -290,8 +289,6 @@ fn collect_llm_step_from_stream(
                 reasoning_content.push_str(&delta);
                 // 如果还未开始接收普通内容，则流式输出推理内容
                 if !content_started {
-                    // 同时保存到回退文本，以便在没有普通文本时使用
-                    fallback_text.push_str(&delta);
                     // 如果 thinking 标签未打开，则打开它
                     if !thinking_open {
                         pending_reasoning.push_str("<think>");
@@ -376,12 +373,8 @@ fn collect_llm_step_from_stream(
         )?;
     }
 
-    // 如果普通文本为空但推理内容不为空，使用推理内容作为回退文本
-    if text.trim().is_empty() && !fallback_text.trim().is_empty() {
-        text = fallback_text;
-    }
-
-    // 验证至少有文本内容或工具调用
+    // 推理内容只是中间过程，不能作为最终答复。否则模型仅输出“接下来继续……”
+    // 之类的思考后以 stop 结束时，会被上层误判为任务已经完成。
     if text.trim().is_empty() && tool_calls.is_empty() {
         return Err("模型未返回内容".to_string());
     }

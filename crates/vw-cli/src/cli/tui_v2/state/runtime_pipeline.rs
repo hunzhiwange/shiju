@@ -13,7 +13,7 @@ use vw_gateway_client::GatewayChatUsage;
 
 use super::{
     TuiAction, TuiState, TuiTerminalUpdate, TuiToolCallUpdate, TuiToolResultUpdate,
-    reduce_tui_state,
+    reduce_tui_state, split_reasoning_marker,
 };
 use crate::cli::tui_v2::model::{
     UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage, UiSystemMessageLevel,
@@ -153,6 +153,25 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
         && let Some(tool_update) = parse_tool_delta(delta.as_str())
     {
         reduce_tui_state(state, TuiAction::ToolCallUpdated(tool_update));
+        return;
+    }
+
+    if !state.runtime.thinking_open
+        && let Some((visible, reasoning)) = split_reasoning_marker(delta.as_str())
+    {
+        if !visible.trim().is_empty() {
+            reduce_tui_state(
+                state,
+                TuiAction::AssistantDeltaReceived(visible.to_string()),
+            );
+        }
+        if !reasoning.is_empty() {
+            reduce_tui_state(
+                state,
+                TuiAction::ThinkingDeltaReceived(reasoning.to_string()),
+            );
+            reduce_tui_state(state, TuiAction::ThinkingClosed);
+        }
         return;
     }
 

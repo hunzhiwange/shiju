@@ -690,7 +690,7 @@ fn refresh_thinking_block(block: &mut UiThinkingBlock, updated_ms: u64) {
     block.summary = thinking_summary(&block.content);
 }
 
-fn thinking_summary(content: &str) -> Option<String> {
+pub(super) fn thinking_summary(content: &str) -> Option<String> {
     let first_line = content.lines().map(str::trim).find(|line| !line.is_empty())?;
 
     Some(truncate_summary(first_line, 96))

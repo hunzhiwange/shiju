@@ -16,6 +16,15 @@ fn split_think_removes_closed_think_and_reports_visible_text() {
 }
 
 #[test]
+fn split_think_treats_reasoning_marker_as_closed_think() {
+    let (thinks, visible, open) = super::split_think("answer\n\n[reasoning]\nchain");
+
+    assert_eq!(thinks, vec!["chain".to_string()]);
+    assert_eq!(visible, "answer");
+    assert!(!open);
+}
+
+#[test]
 fn split_think_strips_valid_tool_json_blocks_from_visible_text() {
     let raw = r#"before
 tool call

@@ -33,13 +33,70 @@ Install `cargo-bundle` (provides `cargo bundle` command):
 cargo install cargo-bundle
 ```
 
-Run the bundle script:
+For local development, run:
+
 ```bash
-./scripts/bundle_macos.sh
+make macos-dev
 ```
 
 Output defaults to:
 - `target/release/bundle/osx/ShiJu.app`
+
+### 1.3 Signed and Notarized macOS Package
+
+Public distribution requires a `Developer ID Application` certificate in the
+login keychain. Verify its exact name with:
+
+```bash
+security find-identity -v -p codesigning
+```
+
+Store the notarization credentials in the keychain once:
+
+```bash
+xcrun notarytool store-credentials "vibewindow-notary"
+```
+
+Build, sign embedded binaries and the app bundle, notarize it, staple the
+ticket, and produce the final zip:
+
+```bash
+MACOS_SIGN_IDENTITY="Developer ID Application: Example Corp (TEAMID)" \
+NOTARY_KEYCHAIN_PROFILE="vibewindow-notary" \
+make macos
+```
+
+Output defaults to:
+- `dist/macos/ShiJu-macos-release.zip`
+
+The Developer ID build enables Hardened Runtime without App Sandbox. Outbound
+networking remains available, and credentials stay in the macOS keychain.
+
+### 1.4 GitHub Actions Signing
+
+Tag releases sign and notarize macOS ZIP and DMG artifacts in
+`.github/workflows/release.yml`. Pull request builds use ad-hoc signing and
+never receive release credentials.
+
+Configure these GitHub Actions repository secrets:
+
+- `MACOS_CERTIFICATE_P12_BASE64`: base64-encoded Developer ID Application
+  certificate and private key exported as `.p12`.
+- `MACOS_CERTIFICATE_PASSWORD`: password used when exporting the `.p12`.
+- `MACOS_SIGN_IDENTITY`: exact `Developer ID Application: ... (TEAMID)` name.
+- `APPLE_NOTARY_APPLE_ID`: Apple Account used for notarization.
+- `APPLE_NOTARY_PASSWORD`: App-specific password for that Apple Account.
+- `APPLE_TEAM_ID`: ten-character Apple Developer Team ID.
+
+Encode the certificate without writing it to the repository:
+
+```bash
+/usr/bin/base64 -i DeveloperIDApplication.p12 | pbcopy
+```
+
+The workflow imports the certificate into an ephemeral keychain, validates the
+notarization credentials, signs every embedded executable, notarizes the app
+and final DMG, and removes temporary credentials even when the build fails.
 
 ## 2. Windows (Native Build on Windows Machine)
 

@@ -26,6 +26,13 @@ pub(super) enum RenderBlock<'a> {
     Text { content: &'a str },
 }
 
+#[derive(Clone, Copy)]
+enum SpecialBlockKind {
+    ThinkTag,
+    ReasoningMarker,
+    Tool,
+}
+
 pub(crate) fn hash_chat_content(raw: &str) -> u64 {
     use std::hash::{Hash, Hasher};
 
@@ -125,6 +132,28 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
             return Some((pos, tag_end_rel + 1));
         }
         search_from = pos + 1;
+    }
+    None
+}
+
+/// 查找位于行首的 `[reasoning]` 推理块标记。
+fn find_reasoning_marker(s: &str) -> Option<(usize, usize)> {
+    for (pos, _) in s.match_indices("[reasoning]") {
+        if pos > 0 && !s[..pos].ends_with('\n') {
+            continue;
+        }
+
+        let suffix = &s[pos + "[reasoning]".len()..];
+        let marker_len = if suffix.starts_with("\r\n") {
+            "[reasoning]".len() + 2
+        } else if suffix.starts_with('\n') {
+            "[reasoning]".len() + 1
+        } else if suffix.is_empty() {
+            "[reasoning]".len()
+        } else {
+            continue;
+        };
+        return Some((pos, marker_len));
     }
     None
 }
@@ -261,18 +290,19 @@ fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {
 
     loop {
         let think_pos = find_think_open_tag(rest).map(|(pos, _)| pos);
+        let reasoning_pos = find_reasoning_marker(rest).map(|(pos, _)| pos);
         let tool_pos = find_tool_start(rest);
 
-        let next_pos = match (think_pos, tool_pos) {
-            (None, None) => None,
-            (Some(pos), None) => Some((pos, true)),
-            (None, Some(pos)) => Some((pos, false)),
-            (Some(think_pos), Some(tool_pos)) => {
-                Some(if think_pos <= tool_pos { (think_pos, true) } else { (tool_pos, false) })
-            }
-        };
+        let next_pos = [
+            think_pos.map(|pos| (pos, SpecialBlockKind::ThinkTag)),
+            reasoning_pos.map(|pos| (pos, SpecialBlockKind::ReasoningMarker)),
+            tool_pos.map(|pos| (pos, SpecialBlockKind::Tool)),
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|(pos, _)| *pos);
 
-        let Some((pos, is_think)) = next_pos else {
+        let Some((pos, kind)) = next_pos else {
             if !rest.is_empty() {
                 out.push(RenderBlock::Text { content: rest });
             }
@@ -284,14 +314,34 @@ fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {
         }
         rest = &rest[pos..];
 
-        if !is_think {
-            let Some(consumed) = parse_tool_block(rest) else {
-                out.push(RenderBlock::Text { content: rest });
+        match kind {
+            SpecialBlockKind::Tool => {
+                let Some(consumed) = parse_tool_block(rest) else {
+                    out.push(RenderBlock::Text { content: rest });
+                    break;
+                };
+                out.push(RenderBlock::Tool { raw: &rest[..consumed] });
+                rest = &rest[consumed..];
+                continue;
+            }
+            SpecialBlockKind::ReasoningMarker => {
+                let Some((_, marker_len)) = find_reasoning_marker(rest) else {
+                    out.push(RenderBlock::Text { content: rest });
+                    break;
+                };
+                rest = &rest[marker_len..];
+                if let Some(tool_start) = find_tool_start(rest) {
+                    out.push(RenderBlock::Think {
+                        content: &rest[..tool_start],
+                        open: false,
+                    });
+                    push_tool_and_text_blocks(&mut out, &rest[tool_start..]);
+                } else {
+                    out.push(RenderBlock::Think { content: rest, open: false });
+                }
                 break;
-            };
-            out.push(RenderBlock::Tool { raw: &rest[..consumed] });
-            rest = &rest[consumed..];
-            continue;
+            }
+            SpecialBlockKind::ThinkTag => {}
         }
 
         let Some((_, open_tag_len)) = find_think_open_tag(rest) else {

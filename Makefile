@@ -1,6 +1,7 @@
 # VibeWindow 本地构建 Makefile
 # 用法: make <target>
-# 示例: make macos           # 本地构建 macOS 桌面 .app（含 CLI）
+# 示例: make macos-dev       # 本地构建 macOS 桌面 .app（含 CLI）
+#       make macos           # 构建已签名并公证的 macOS 发布包
 #       make release-all      # 构建所有平台
 #       make release-macos    # 构建 macOS 发布包
 #       make cli-local        # 本地 CLI 快速构建
@@ -88,7 +89,7 @@ WINDOWS_ARM := aarch64-pc-windows-msvc
         cross-install cross-check \
         clean distclean \
         info check-deps \
-        macos windows app-macos-with-cli app-windows-with-cli \
+        macos macos-dev windows app-macos-with-cli app-windows-with-cli \
         worktree-commit-merge worktree-sync-main worktree-reset-all \
         fmt-check clippy check-wasm check-all test unit-test unit-test-package coverage unit-coverage unit-coverage-package run agent \
         cloc
@@ -118,7 +119,7 @@ help: ## 显示帮助信息
 	@echo "$(GREEN)Desktop 开发:$(RESET)"
 	@grep -E '^desktop-.*##' $(MAKEFILE_LIST) | sed 's/desktop-/  /' | column -t -s '##'
 	@echo ""
-	@echo "$(GREEN)本地应用构建:$(RESET)"
+	@echo "$(GREEN)应用构建:$(RESET)"
 	@grep -E '^(macos|windows|app-).*##' $(MAKEFILE_LIST) | column -t -s '##'
 	@echo ""
 	@echo "$(GREEN)工具与检查:$(RESET)"
@@ -385,16 +386,19 @@ desktop-wasm: ensure-wasm-target ## 启动 vw-desktop wasm 开发服务 (trunk)
 	cd crates/vw-desktop && env -u NO_COLOR trunk serve --color never --port 8199 index.html
 
 ## ============================================================================
-## 本地应用构建 (原有目标)
+## 应用构建
 ## ============================================================================
 
-macos: ## 本地构建 macOS 桌面 .app（含 CLI，不含 ACP/zip/DMG）
+macos: ## 构建 Developer ID 签名并公证的 macOS .app zip（含 CLI）
+	MACOS_SIGN_MODE=developer-id MACOS_NOTARIZE=1 INCLUDE_CLI_IN_APP=1 INCLUDE_CLI_COMPAT_IN_APP=0 INCLUDE_ACP_IN_APP=0 PACKAGE_APP=1 CREATE_DMG=0 OUT_DIR=$(OUT_DIR)/macos ./scripts/bundle_macos.sh
+
+macos-dev: ## 本地构建 macOS 桌面 .app（ad-hoc 签名，含 CLI，不含 ACP/zip/DMG）
 	INCLUDE_CLI_IN_APP=1 INCLUDE_CLI_COMPAT_IN_APP=0 INCLUDE_ACP_IN_APP=0 PACKAGE_APP=0 CREATE_DMG=0 ./scripts/bundle_macos.sh
 
 windows: ## 本地构建 Windows 应用包
 	sh ./scripts/bundle_windows.sh
 
-app-macos-with-cli: macos ## 兼容别名：同 make macos
+app-macos-with-cli: macos-dev ## 兼容别名：同 make macos-dev
 
 app-windows-with-cli: ## 本地构建 Windows 应用包，并将 CLI 一并放入压缩包
 	INCLUDE_CLI_IN_APP=1 sh ./scripts/bundle_windows.sh

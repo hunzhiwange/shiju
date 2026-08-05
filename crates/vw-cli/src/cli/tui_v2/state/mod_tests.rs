@@ -134,6 +134,30 @@ fn session_preview_from_chat_session_uses_last_message_and_snapshot_counts() {
 }
 
 #[test]
+fn session_preview_hides_reasoning_marker_and_content() {
+    let session = ChatSession {
+        id: "snapshot".to_string(),
+        title: "Snapshot".to_string(),
+        messages: vec![ChatMessage {
+            role: ChatRole::Assistant,
+            content: "latest answer\n\n[reasoning]\nprivate chain".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }],
+        message_ids: vec![None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 9,
+    };
+
+    let preview = TuiSessionPreview::from_chat_session(&session);
+
+    assert_eq!(preview.last_content.as_deref(), Some("latest answer"));
+}
+
+#[test]
 fn tool_snapshot_parsing_handles_json_error_and_plain_payloads() {
     let snapshot = ChatSession {
         id: "tools".to_string(),

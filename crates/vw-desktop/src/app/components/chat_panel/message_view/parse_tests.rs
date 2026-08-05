@@ -19,6 +19,28 @@ fn owned_blocks_from_raw_splits_think_tool_and_text() {
 }
 
 #[test]
+fn reasoning_marker_renders_as_closed_think_block() {
+    let blocks = owned_blocks_from_raw("answer\n\n[reasoning]\nchain");
+
+    assert!(
+        matches!(blocks.first(), Some(ParsedChatBlock::Text { content }) if content == "answer\n\n")
+    );
+    assert!(
+        matches!(blocks.get(1), Some(ParsedChatBlock::Think { content, open }) if content == "chain" && !open)
+    );
+}
+
+#[test]
+fn inline_reasoning_text_stays_visible() {
+    let raw = "answer [reasoning] is a label";
+    let blocks = owned_blocks_from_raw(raw);
+
+    assert!(
+        matches!(blocks.as_slice(), [ParsedChatBlock::Text { content }] if content == raw)
+    );
+}
+
+#[test]
 fn borrowed_blocks_preserve_block_kinds() {
     let blocks = vec![
         ParsedChatBlock::Text { content: "hello".to_string() },

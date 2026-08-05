@@ -418,7 +418,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
                 styles::shiju_skill_button_style(theme, status, selected)
             });
         items = items.push(
-            Tooltip::new(skill_button, shiju_tooltip(&row), TooltipPosition::Top)
+            Tooltip::new(skill_button, shiju_tooltip(&row), TooltipPosition::Right)
                 .gap(6.0)
                 .snap_within_viewport(true),
         );

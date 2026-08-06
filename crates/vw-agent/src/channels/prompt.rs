@@ -374,6 +374,10 @@ pub(crate) fn build_workspace_identity_context(
 ) -> String {
     let mut prompt = String::new();
     prompt.push_str("## Project Context\n\n");
+    prompt.push_str(
+        "The following workspace files define your identity, behavior, and context. \
+         You MUST follow these instructions at all times.\n\n",
+    );
 
     let _ = identity_config;
     let max_chars = bootstrap_max_chars.unwrap_or(BOOTSTRAP_MAX_CHARS);

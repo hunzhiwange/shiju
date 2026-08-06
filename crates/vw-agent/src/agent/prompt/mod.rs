@@ -345,7 +345,8 @@ impl PromptSection for IdentitySection {
         let _ = ctx.identity_config;
 
         prompt.push_str(
-            "The following workspace files define your identity, behavior, and context.\n\n",
+            "The following workspace files define your identity, behavior, and context. \
+             You MUST follow these instructions at all times.\n\n",
         );
 
         for file in WORKSPACE_IDENTITY_FILES {

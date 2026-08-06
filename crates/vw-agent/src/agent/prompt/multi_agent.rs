@@ -5,6 +5,7 @@ pub(crate) fn recursive_orchestration_policy() -> &'static str {
     "## Recursive Multi-Agent Orchestration\n\n\
      - Default to AgentTool for every task that is not genuinely simple and single-step. Complex, multi-part, exploratory, implementation, review, tasks with independent workstreams, or otherwise non-trivial work should be delegated. When uncertain whether a task is simple, delegate.\n\
      - Identify internal workstreams, ordering dependencies, and write sets before delegation.\n\
+     - Never delegate the whole task you were assigned or use an equivalent restatement as a child prompt. Delegate only a clearly narrower, non-overlapping subtask with a distinct deliverable; otherwise complete it yourself or reuse an existing result.\n\
      - Launch independent read-only or non-overlapping work with `launch` or `spawn`, dispatching those calls in the same turn so they run in the background and in parallel.\n\
      - Continue useful parent work that does not depend on a launched result instead of waiting immediately.\n\
      - Use `run` only when a sub-agent result is an immediate dependency and the parent has no useful independent work to do first.\n\

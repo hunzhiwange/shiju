@@ -22,6 +22,8 @@ use super::{message, session};
 pub(crate) mod coordinator;
 
 const CHILD_AGENT_HANDOFF_PROMPT: &str = "\
+This prompt is already a delegated task. Do not pass the full task, or an equivalent restatement, \
+to another agent. Delegate only a clearly narrower, non-overlapping subtask with a distinct deliverable. \
 Your final response is a handoff to the parent agent. Adapt its detail to the task. \
 For research, search, or diagnosis, include conclusions, key evidence, source URLs or file paths, \
 and uncertainties. For implementation or execution, include the outcome, changed artifacts, \

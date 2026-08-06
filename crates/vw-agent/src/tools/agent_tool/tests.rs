@@ -290,6 +290,8 @@ async fn run_waits_for_persistent_child_session() {
     let (release_tx, release_rx) = oneshot::channel();
     let completed = Arc::new(AtomicBool::new(false));
     let completed_in_executor = completed.clone();
+    let coordinator =
+        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let release_rx = Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
     let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
     let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
@@ -318,7 +320,8 @@ async fn run_waits_for_persistent_child_session() {
                 parent_message_id: None,
             })
         })
-    });
+    })
+    .with_coordinator(coordinator.clone());
 
     let task = tokio::spawn(async move {
         tool.execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"})).await
@@ -335,6 +338,14 @@ async fn run_waits_for_persistent_child_session() {
     assert_ne!(body["child_session_id"], parent.id);
     assert_eq!(body["terminal_state"], "succeeded");
     assert_eq!(body["output"], "child completed");
+    let child_session_id = body["child_session_id"].as_str().expect("child session ID");
+    let snapshots = coordinator
+        .snapshots(&parent.id, &[child_session_id.to_string()])
+        .expect("foreground child should be tracked");
+    assert_eq!(
+        snapshots[0].state,
+        crate::session::child_agent::coordinator::ChildAgentTaskState::Succeeded
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -592,6 +603,86 @@ async fn launch_rejects_session_depth_at_agent_limit() {
     assert!(!result.success);
     assert!(result.error.expect("depth error").contains("depth limit reached"));
     assert!(!executor_called.load(Ordering::SeqCst));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn launch_rejects_task_already_assigned_to_an_ancestor() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let root = create_parent(directory.clone()).await;
+    let directory_for_child = directory.clone();
+    let root_id = root.id.clone();
+    let child = crate::app::agent::project::instance::provide(
+        directory.clone(),
+        None,
+        move || {
+            Box::pin(async move {
+                crate::session::session::create_next(crate::session::session::CreateInput {
+                    parent_id: Some(root_id),
+                    title: Some("child".to_string()),
+                    directory: directory_for_child,
+                    permission: None,
+                })
+                .await
+            })
+        },
+    )
+    .await
+    .expect("project context should initialize")
+    .expect("child session should persist");
+    let coordinator =
+        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    coordinator
+        .register(
+            &root.id,
+            &child.id,
+            "writer",
+            "Inspect the session lifecycle",
+        )
+        .expect("ancestor task should register");
+    let executor_called = Arc::new(AtomicBool::new(false));
+    let executor_called_in_tool = executor_called.clone();
+    let tool = AgentTool::new(
+        HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]),
+        Some(child.id.clone()),
+        directory.into(),
+    )
+    .with_coordinator(coordinator.clone())
+    .with_child_agent_stream_executor(Arc::new(move |_request| {
+        executor_called_in_tool.store(true, Ordering::SeqCst);
+        Box::pin(async move {
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "should not run".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    }));
+
+    let result = tool
+        .execute(json!({
+            "action": "launch",
+            "agent": "writer",
+            "prompt": "  INSPECT   THE SESSION LIFECYCLE "
+        }))
+        .await
+        .expect("duplicate delegation should return a tool result");
+
+    assert!(!result.success);
+    assert!(
+        result
+            .error
+            .expect("duplicate delegation error")
+            .contains("matches ancestor session")
+    );
+    assert!(!executor_called.load(Ordering::SeqCst));
+    assert!(
+        coordinator
+            .snapshots(&child.id, &[])
+            .expect("child task list should remain readable")
+            .is_empty(),
+        "duplicate rejection must happen before a grandchild is registered"
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]

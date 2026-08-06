@@ -285,8 +285,15 @@ pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> 
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        if !patch.is_object() {
+        let Some(patch_object) = patch.as_object() else {
             bail!("config patch must be a JSON object");
+        };
+        if !project_root.is_dir() {
+            bail!("project root must be an existing directory");
+        }
+        if patch_object.is_empty() {
+            return load_or_init_config_for_tenant(&TenantScope::default(), Some(project_root))
+                .await;
         }
         let tenant = TenantScope::default();
         let base = load_or_init_config_for_tenant(&tenant, None).await?;
@@ -305,8 +312,11 @@ pub(crate) async fn update_project_config_from_configs(
     before: &Config,
     after: &Config,
 ) -> Result<Config> {
-    let before = serde_json::to_value(before).context("Failed to serialize previous config")?;
-    let after = serde_json::to_value(after).context("Failed to serialize updated config")?;
-    let patch = merge_patch_between(&before, &after).unwrap_or_else(|| Value::Object(Map::new()));
+    let before_value =
+        serde_json::to_value(before).context("Failed to serialize previous config")?;
+    let after_value = serde_json::to_value(after).context("Failed to serialize updated config")?;
+    let Some(patch) = merge_patch_between(&before_value, &after_value) else {
+        return Ok(after.clone());
+    };
     update_project_config(project_root, patch).await
 }

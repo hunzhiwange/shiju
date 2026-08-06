@@ -7,6 +7,7 @@ use super::{
     config_save::{
         merge_patch_between, merge_raw_project_patch, prepare_project_override,
         save_config_to_store, save_project_config_override, select_override_shape,
+        update_project_config_from_configs,
     },
 };
 use crate::app::agent::config::SystemConfigStore;
@@ -272,6 +273,24 @@ fn merge_patch_between_returns_none_for_equal_values() {
     let value = serde_json::json!({"nested": [1, 2, 3]});
 
     assert_eq!(merge_patch_between(&value, &value), None);
+}
+
+#[tokio::test]
+async fn unchanged_project_config_does_not_create_override_file() {
+    let temp = TempDir::new().expect("temp dir");
+    let mut config = Config::default();
+    config.workspace_dir = temp.path().to_path_buf();
+    config.config_path = temp.path().join(".vibewindow.json");
+
+    let result = update_project_config_from_configs(temp.path(), &config, &config)
+        .await
+        .expect("unchanged config");
+
+    assert_eq!(
+        serde_json::to_value(result).expect("result json"),
+        serde_json::to_value(config).expect("config json")
+    );
+    assert!(!temp.path().join(".vibewindow.json").exists());
 }
 
 #[test]

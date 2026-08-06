@@ -232,6 +232,38 @@ impl ChildAgentCoordinator {
         snapshots_from_state(&self.lock_state(), parent_session_id, child_session_ids)
     }
 
+    /// 查找当前会话父链中与候选任务相同的既有委派。
+    ///
+    /// 子智能体启动时，其自身会话 ID 对应协调器中的一条子任务记录。沿该记录
+    /// 向上遍历即可在创建新 Session 前拒绝把祖先交下来的同一任务再次委派。
+    pub(crate) fn matching_ancestor_task(
+        &self,
+        parent_session_id: &str,
+        task: &str,
+    ) -> Result<Option<ChildAgentTaskSnapshot>> {
+        if parent_session_id.trim().is_empty() {
+            bail!("child agent parent session ID must not be empty");
+        }
+        if task.trim().is_empty() {
+            bail!("child agent task must not be empty");
+        }
+
+        let state = self.lock_state();
+        let candidate = normalized_task(task);
+        let mut current_session_id = parent_session_id.to_string();
+        let mut visited = HashSet::new();
+        while let Some(entry) = state.tasks.get(&current_session_id) {
+            if !visited.insert(current_session_id.clone()) {
+                bail!("child agent ancestor cycle detected at '{current_session_id}'");
+            }
+            if normalized_task(&entry.snapshot.task) == candidate {
+                return Ok(Some(entry.snapshot.clone()));
+            }
+            current_session_id = entry.snapshot.parent_session_id.clone();
+        }
+        Ok(None)
+    }
+
     #[allow(dead_code)] // 后续 plan-run 接线前先提供可复用的递归查询边界。
     pub(crate) fn descendant_snapshots(
         &self,
@@ -618,6 +650,10 @@ fn wait_satisfied(tasks: &[ChildAgentTaskSnapshot], condition: WaitCondition) ->
         WaitCondition::Any => tasks.iter().any(|task| task.state.is_terminal()),
         WaitCondition::All => tasks.iter().all(|task| task.state.is_terminal()),
     }
+}
+
+fn normalized_task(task: &str) -> String {
+    task.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
 }
 
 fn prune_terminal_tasks(

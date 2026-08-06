@@ -195,6 +195,8 @@ fn action_section_adds_default_multi_agent_policy_only_when_agent_tool_available
             "Complex, multi-part, exploratory, implementation, review",
             "independent workstreams",
             "When uncertain whether a task is simple, delegate",
+            "Never delegate the whole task you were assigned",
+            "clearly narrower, non-overlapping subtask",
             "same turn",
             "ordering dependencies",
             "overlapping writes",

@@ -388,6 +388,19 @@ impl AgentTool {
             }
         };
         let parent_session_id = self.parent_session_id()?;
+        let task = Self::task_summary(prompt);
+        if let Some(ancestor) =
+            self.coordinator.matching_ancestor_task(parent_session_id, &task)?
+        {
+            return Ok(Err(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!(
+                    "AgentTool refused duplicate delegation: this task matches ancestor session '{}'. Delegate only a distinct, bounded subtask or complete the inherited task directly.",
+                    ancestor.child_session_id
+                )),
+            }));
+        }
         let current_depth = child_agent::session_depth(
             self.workspace_dir.to_string_lossy().to_string(),
             parent_session_id.to_string(),
@@ -409,7 +422,6 @@ impl AgentTool {
             .filter(|value| !value.is_empty())
             .map(|value| vec![json!({"role": "system", "content": value})])
             .unwrap_or_default();
-        let task = Self::task_summary(prompt);
         let created = child_agent::create(ChildAgentRunInput {
             parent_session_id: parent_session_id.to_string(),
             directory: self.workspace_dir.to_string_lossy().to_string(),
@@ -472,9 +484,49 @@ impl AgentTool {
             Ok(prepared) => prepared,
             Err(result) => return Ok(result),
         };
+        let child_session_id = prepared.created.child_session_id.clone();
+        self.coordinator.register(
+            &prepared.parent_session_id,
+            &child_session_id,
+            &prepared.agent,
+            &prepared.task,
+        )?;
         self.report_child_created(&prepared);
         let PreparedChildRun { parent_session_id, agent, task, created } = prepared;
-        let result = self.run_child_agent(created).await?;
+        self.coordinator.mark_running(&parent_session_id, &child_session_id)?;
+        let result = match self.run_child_agent(created).await {
+            Ok(result) => result,
+            Err(error) => {
+                self.coordinator.mark_failed(
+                    &parent_session_id,
+                    &child_session_id,
+                    error.to_string(),
+                )?;
+                return Err(error);
+            }
+        };
+        match result.terminal_state {
+            ChildAgentTerminalState::Succeeded => {
+                self.coordinator.mark_succeeded(
+                    &parent_session_id,
+                    &child_session_id,
+                    result.output.clone().unwrap_or_default(),
+                )?;
+            }
+            ChildAgentTerminalState::Failed => {
+                self.coordinator.mark_failed(
+                    &parent_session_id,
+                    &child_session_id,
+                    result
+                        .error
+                        .clone()
+                        .unwrap_or_else(|| "child agent execution failed".to_string()),
+                )?;
+            }
+            ChildAgentTerminalState::Cancelled => {
+                self.coordinator.cancel(&parent_session_id, &child_session_id)?;
+            }
+        }
         let terminal_state = match result.terminal_state {
             ChildAgentTerminalState::Succeeded => "succeeded",
             ChildAgentTerminalState::Failed => "failed",

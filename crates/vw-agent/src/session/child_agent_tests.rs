@@ -73,7 +73,10 @@ async fn child_agent_run_creates_persistent_child_and_waits() {
                     && message
                         .get("content")
                         .and_then(serde_json::Value::as_str)
-                        .is_some_and(|content| content.contains("key evidence"))
+                        .is_some_and(|content| {
+                            content.contains("key evidence")
+                                && content.contains("Do not pass the full task")
+                        })
             }));
             assert_eq!(
                 request.messages.last(),

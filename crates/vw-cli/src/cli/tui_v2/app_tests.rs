@@ -1163,7 +1163,7 @@ fn tui_busy_queue_drains_priorities_and_preserves_editable_input() {
 }
 
 #[test]
-fn subagent_mode_requires_agent_tool_for_snapshot_request() {
+fn subagent_mode_prefers_agent_tool_without_hard_requirement() {
     let mut state = TuiState::default();
     state.session_options.permission_mode = super::model::PermissionMode::Plan;
     state.session_options.set_subagent_mode(true);
@@ -1179,9 +1179,8 @@ fn subagent_mode_requires_agent_tool_for_snapshot_request() {
 
     let tools = request.allowed_tools.as_ref().expect("subagent tool restriction");
     assert_eq!(tools.iter().filter(|tool| *tool == "AgentTool").count(), 1);
-    assert!(tools.iter().any(|tool| tool == "todowrite"));
     let options = request.options.as_ref().expect("subagent options");
-    assert_eq!(options["require_agent_tool"], true);
+    assert!(options.get("require_agent_tool").is_none());
     assert_eq!(
         options["allowed_tools"]
             .as_array()
@@ -1194,13 +1193,13 @@ fn subagent_mode_requires_agent_tool_for_snapshot_request() {
     let system = request.system.as_ref().expect("subagent system constraint");
     assert_eq!(system.len(), 1);
     assert_eq!(system.iter().filter(|prompt| prompt.contains("AgentTool-First Mode")).count(), 1);
+    assert!(system.iter().all(|prompt| !prompt.contains("required primary execution path")));
 
     let normal = PromptSubmission {
         execution: Box::new(state.session_options.execution_snapshot()),
         ..PromptSubmission::new("normal request")
     };
     let normal_request = gateway_stream_request_from_state(&state, &normal);
-    assert_eq!(normal_request.allowed_tools, Some(vec!["todowrite".to_string()]));
     assert_eq!(normal_request.system, None);
     assert!(
         normal_request

@@ -48,7 +48,6 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
         parent_session_id,
         directory,
         agent_key: "reviewer".to_string(),
-        model: None,
         prompt: prompt.to_string(),
         context: vec![json!({"role": "system", "content": "review carefully"})],
     }

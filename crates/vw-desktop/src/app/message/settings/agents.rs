@@ -539,52 +539,16 @@ fn build_agents_settings_patch(
     Ok(serde_json::Value::Object(patch))
 }
 
-fn verify_patch_applied(
-    actual: Option<&serde_json::Value>,
-    expected: &serde_json::Value,
-    path: &str,
-) -> Result<(), String> {
-    match expected {
-        serde_json::Value::Object(expected_fields) => {
-            let actual_fields = actual
-                .and_then(serde_json::Value::as_object)
-                .ok_or_else(|| format!("保存后配置缺少对象字段 {path}"))?;
-            for (key, expected_value) in expected_fields {
-                let child_path =
-                    if path.is_empty() { key.clone() } else { format!("{path}.{key}") };
-                verify_patch_applied(actual_fields.get(key), expected_value, &child_path)?;
-            }
-            Ok(())
-        }
-        serde_json::Value::Null => {
-            if actual.is_none_or(serde_json::Value::is_null) {
-                Ok(())
-            } else {
-                Err(format!("保存后配置字段 {path} 未被清空"))
-            }
-        }
-        _ if actual == Some(expected) => Ok(()),
-        _ => Err(format!("保存后配置字段 {path} 与提交值不一致")),
-    }
-}
-
 async fn persist_agents_patch(
     project_path: Option<String>,
     patch: serde_json::Value,
 ) -> Result<(), String> {
-    let loaded = match project_path {
+    match project_path {
         Some(project_path) => {
-            crate::app::config::patch_project_agent_config_async(&project_path, patch.clone())
-                .await?;
-            crate::app::config::load_project_agent_config_async(&project_path).await?
+            crate::app::config::patch_project_agent_config_async(&project_path, patch).await
         }
-        None => {
-            crate::app::config::patch_full_agent_config_async(patch.clone()).await?;
-            crate::app::config::load_full_agent_config_async().await?
-        }
-    };
-    let actual = serde_json::to_value(loaded).map_err(|error| error.to_string())?;
-    verify_patch_applied(Some(&actual), &patch, "")
+        None => crate::app::config::patch_full_agent_config_async(patch).await,
+    }
 }
 
 fn persist_agents_settings(app: &mut App) -> Task<Message> {

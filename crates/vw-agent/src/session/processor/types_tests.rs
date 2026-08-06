@@ -5,9 +5,8 @@ fn types_tests_module_is_wired() {
 }
 
 #[test]
-fn tool_session_state_defaults_to_unsatisfied_agent_tool_requirement() {
+fn tool_session_state_defaults_without_background_children() {
     let state = super::ToolSessionState::default();
 
-    assert_eq!(state.successful_agent_delegations, 0);
-    assert_eq!(state.required_agent_tool_retries, 0);
+    assert!(state.agent_background_children.is_empty());
 }

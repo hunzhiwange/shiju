@@ -272,7 +272,7 @@ fn agent_tool_lifecycle_status_covers_wait_failure_and_cancellation() {
 }
 
 #[test]
-fn successful_child_creation_satisfies_agent_tool_requirement() {
+fn background_child_creation_is_tracked_for_finalization() {
     let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
         parent_session_id: "parent-session".to_string(),
         child_session_id: "child-session".to_string(),
@@ -288,20 +288,16 @@ fn successful_child_creation_satisfies_agent_tool_requirement() {
     );
 
     assert_eq!(state.agent_background_children, vec!["child-session"]);
-    assert_eq!(state.successful_agent_delegations, 1);
 }
 
 #[test]
-fn agent_tool_management_actions_do_not_satisfy_agent_tool_requirement() {
+fn agent_tool_management_actions_do_not_track_new_background_children() {
     let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
         parent_session_id: "parent-session".to_string(),
         child_session_id: "child-session".to_string(),
         agent: "writer".to_string(),
         task: "inspect".to_string(),
     };
-    let failed_state = new_state();
-    assert_eq!(failed_state.successful_agent_delegations, 0);
-
     for action in ["status", "wait", "stop"] {
         let mut state = new_state();
         super::track_background_agent_child(
@@ -310,7 +306,6 @@ fn agent_tool_management_actions_do_not_satisfy_agent_tool_requirement() {
             &created,
         );
         assert!(state.agent_background_children.is_empty(), "{action}");
-        assert_eq!(state.successful_agent_delegations, 0, "{action}");
     }
 }
 

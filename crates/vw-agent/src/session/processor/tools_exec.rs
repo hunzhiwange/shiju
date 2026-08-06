@@ -489,8 +489,6 @@ fn track_background_agent_child(
     if !agent_tool_launches_background(input) {
         return;
     }
-    tool_state.successful_agent_delegations =
-        tool_state.successful_agent_delegations.saturating_add(1);
     if tool_state
         .agent_background_children
         .iter()

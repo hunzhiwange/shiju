@@ -79,7 +79,6 @@ pub struct AgentTool {
     agents: Arc<HashMap<String, DelegateAgentConfig>>,
     parent_session_id: Option<String>,
     workspace_dir: std::path::PathBuf,
-    parent_model: Option<String>,
     parallelism: Arc<Semaphore>,
     coordinator: ChildAgentCoordinator,
     #[cfg(test)]
@@ -104,7 +103,6 @@ impl AgentTool {
             agents: Arc::new(agents),
             parent_session_id,
             workspace_dir,
-            parent_model: None,
             parallelism: Arc::new(Semaphore::new(DEFAULT_MAX_PARALLEL_SUBAGENTS)),
             coordinator: global_child_agent_coordinator(),
             #[cfg(test)]
@@ -116,13 +114,6 @@ impl AgentTool {
     /// 设置同一 AgentTool 实例可同时运行的子智能体数量。
     pub(crate) fn with_max_parallel_subagents(mut self, max_parallel: usize) -> Self {
         self.parallelism = Arc::new(Semaphore::new(max_parallel.clamp(1, MAX_PARALLEL_SUBAGENTS)));
-        self
-    }
-
-    pub(crate) fn with_parent_model(mut self, model: Option<String>) -> Self {
-        self.parent_model = model
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
         self
     }
 
@@ -423,7 +414,6 @@ impl AgentTool {
             parent_session_id: parent_session_id.to_string(),
             directory: self.workspace_dir.to_string_lossy().to_string(),
             agent_key: agent.to_string(),
-            model: self.parent_model.clone(),
             prompt: prompt.to_string(),
             context,
         })

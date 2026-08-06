@@ -1041,7 +1041,6 @@ pub(crate) fn gateway_stream_request_from_state(
         .or_else(|| full_access_enabled.then(|| json!({"full_access": true})));
     if subagent_mode_enabled {
         let options = options.get_or_insert_with(|| json!({}));
-        options["require_agent_tool"] = json!(true);
         options["allowed_tools"] = json!(allowed_tools);
     }
     let system = subagent_mode_enabled.then(|| vec![SUBAGENT_MODE_SYSTEM_PROMPT.to_string()]);
@@ -1069,9 +1068,9 @@ pub(crate) fn gateway_stream_request_from_state(
 }
 
 const SUBAGENT_MODE_SYSTEM_PROMPT: &str = "## AgentTool-First Mode\n\n\
-- AgentTool is the required primary execution path for this user request. Before substantive work, delegate at least one meaningful workstream through AgentTool.\n\
-- The parent agent may coordinate, perform small supporting steps, verify evidence, and synthesize results, but must not complete the substantive task entirely by itself.\n\
-- If AgentTool is unavailable or delegation is blocked by a hard runtime limit, report that exact blocker instead of silently bypassing this mode.\n\
+- Prefer AgentTool for meaningful independent workstreams when delegation improves speed, focus, or verification.\n\
+- The parent agent may work directly when delegation would not help, and remains responsible for coordinating, verifying evidence, and synthesizing results.\n\
+- If an AgentTool call fails, report the exact blocker and continue safely when the task can still be completed without that delegation.\n\
 - Continue to follow all safety, permission, scope, and validation requirements.";
 
 pub(crate) fn gateway_message_from_chat_message(message: &ChatMessage) -> serde_json::Value {

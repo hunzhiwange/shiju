@@ -33,9 +33,9 @@ enum InlineModeCommand {
 
 const SUMMARY_HANDOFF_PROMPT: &str = "请总结当前会话中已经完成的工作、关键决策、已修改内容、验证结果和剩余任务，并生成一份可供下一个会话直接继续执行的完整提示词。只输出这份提示词，不要创建新会话。";
 pub(crate) const SUBAGENT_MODE_SYSTEM_PROMPT: &str = "## AgentTool-First Mode\n\n\
-- AgentTool is the required primary execution path for this user request. Before substantive work, delegate at least one meaningful workstream through AgentTool.\n\
-- The parent agent may coordinate, perform small supporting steps, verify evidence, and synthesize results, but must not complete the substantive task entirely by itself.\n\
-- If AgentTool is unavailable or delegation is blocked by a hard runtime limit, report that exact blocker instead of silently bypassing this mode.\n\
+- Prefer AgentTool for meaningful independent workstreams when delegation improves speed, focus, or verification.\n\
+- The parent agent may work directly when delegation would not help, and remains responsible for coordinating, verifying evidence, and synthesizing results.\n\
+- If an AgentTool call fails, report the exact blocker and continue safely when the task can still be completed without that delegation.\n\
 - Continue to follow all safety, permission, scope, and validation requirements.";
 
 pub(super) fn history_with_subagent_mode_system_prompt(
@@ -1147,7 +1147,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         acp_allowed_tools,
         agent,
         allowed_tools,
-        require_agent_tool: subagent_mode_enabled,
+        require_agent_tool: false,
         acp_force_new_session,
         acp_history_mode,
         acp_recent_count,

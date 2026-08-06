@@ -4,7 +4,6 @@ use super::{
     build_agents_settings_patch, bundled_workspace_identity_content,
     bundled_workspace_identity_path, handle_agents_config_saved, normalize_agent_key,
     summarize_models, summarize_providers, tool_in_preset, tools_for_preset, update,
-    verify_patch_applied,
 };
 use crate::app::{
     App,
@@ -215,35 +214,6 @@ fn agents_settings_patch_omits_fields_the_ui_does_not_own() {
     {
         assert!(main.get(field).is_none(), "unexpected destructive field: {field}");
     }
-}
-
-#[test]
-fn agent_save_verification_accepts_preserved_fields_and_rejects_mismatches() {
-    let actual = serde_json::json!({
-        "agents": {
-            "main": {
-                "max_iterations": 321,
-                "description": "must stay untouched"
-            }
-        }
-    });
-    let expected = serde_json::json!({
-        "agents": {
-            "main": {
-                "max_iterations": 321
-            }
-        }
-    });
-
-    assert!(verify_patch_applied(Some(&actual), &expected, "").is_ok());
-    assert!(
-        verify_patch_applied(
-            Some(&actual),
-            &serde_json::json!({"agents": {"main": {"max_iterations": 123}}}),
-            "",
-        )
-        .is_err()
-    );
 }
 
 #[test]

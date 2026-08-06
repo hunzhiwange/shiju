@@ -1287,7 +1287,7 @@ fn send_current_session_input_keeps_goal_mode_for_root_session() {
 }
 
 #[test]
-fn subagent_mode_request_preserves_agent_tool_and_sets_requirement() {
+fn subagent_mode_request_preserves_agent_tool_without_requirement() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("root-subagent".to_string());
     app.sessions = vec![session_info("root-subagent", "Root Subagent", "/repo")];
@@ -1313,8 +1313,9 @@ fn subagent_mode_request_preserves_agent_tool_and_sets_requirement() {
     assert_eq!(injected.role, crate::app::models::ChatRole::System);
     assert_eq!(injected.content, super::SUBAGENT_MODE_SYSTEM_PROMPT);
     assert!(injected.content.contains("AgentTool"));
+    assert!(!injected.content.contains("required primary execution path"));
     assert!(app.chat.iter().all(|message| message.content != injected.content));
-    assert!(request.require_agent_tool);
+    assert!(!request.require_agent_tool);
     assert_eq!(
         request.allowed_tools.as_ref().expect("restricted tools"),
         &["AgentTool".to_string(), "shell".to_string()]

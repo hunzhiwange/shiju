@@ -133,20 +133,6 @@ fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
 }
 
 #[test]
-fn require_agent_tool_option_accepts_only_boolean_true() {
-    assert!(require_agent_tool_enabled(&json!({ "require_agent_tool": true })));
-    for options in [
-        json!({}),
-        json!({ "require_agent_tool": false }),
-        json!({ "require_agent_tool": "true" }),
-        json!({ "require_agent_tool": 1 }),
-        json!({ "require_agent_tool": null }),
-    ] {
-        assert!(!require_agent_tool_enabled(&options), "{options}");
-    }
-}
-
-#[test]
 fn response_preview_trims_scrubs_credentials_and_truncates() {
     let secret = "abcdefghijklmnopqrstuvwxyz";
     let preview = response_preview(&format!("  token={secret}  "));

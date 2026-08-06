@@ -338,21 +338,20 @@ async fn run_waits_for_persistent_child_session() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn run_inherits_parent_selected_model_in_child_stream_request() {
+async fn run_leaves_model_selection_to_child_agent_config() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
     let tool = build_persistent_tool(parent.id, directory, |request| {
         Box::pin(async move {
-            assert_eq!(request.model.as_deref(), Some("provider/model"));
+            assert_eq!(request.model, None);
             Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
                 output: "child completed".to_string(),
                 message_id: None,
                 parent_message_id: None,
             })
         })
-    })
-    .with_parent_model(Some("provider/model".to_string()));
+    });
 
     let result = tool
         .execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"}))

@@ -366,54 +366,6 @@ fn run_routes_docs_request_without_starting_an_llm_step() {
 }
 
 #[test]
-fn required_agent_tool_rejects_unavailable_runtime() {
-    let workspace = tempfile::tempdir().expect("temp workspace should be created");
-    std::fs::create_dir(workspace.path().join("docs")).expect("docs dir should be created");
-    let mut req = request_with_session(&unique_session_id("required-agent-tool-unavailable"));
-    req.query = "请列出 docs 文件列表".to_string();
-    req.root = Some(workspace.path().to_string_lossy().to_string());
-    req.options = serde_json::json!({
-        "require_agent_tool": true,
-        "allowed_tools": ["shell"]
-    });
-    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let recorded_events = std::sync::Arc::clone(&events);
-
-    super::run(req, move |event| {
-        recorded_events.lock().expect("events lock should not be poisoned").push(event);
-        true
-    });
-
-    let events = events.lock().expect("events lock should not be poisoned");
-    let texts = event_texts(events.as_slice());
-    assert_eq!(texts.len(), 1);
-    assert!(texts[0].starts_with("error:"));
-    assert!(texts[0].contains("AgentTool"));
-    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::Done(_))));
-
-    let acp_error = super::required_agent_tool_runtime_error(
-        &serde_json::json!({
-            "require_agent_tool": true,
-            "acp_agent": "copilot"
-        }),
-        &HashSet::from(["AgentTool".to_string()]),
-    )
-    .expect("ACP should reject the local AgentTool requirement");
-    assert!(acp_error.contains("ACP"));
-}
-
-#[test]
-fn required_agent_tool_bypasses_docs_shortcut() {
-    let query = "请列出 docs 文件列表";
-
-    assert!(super::should_handle_docs_request_locally(query, &serde_json::json!({})));
-    assert!(!super::should_handle_docs_request_locally(
-        query,
-        &serde_json::json!({ "require_agent_tool": true })
-    ));
-}
-
-#[test]
 fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     let session_id = unique_session_id("structured-denied");
     let req = request_with_session(&session_id);
@@ -558,7 +510,7 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
 }
 
 #[test]
-fn required_agent_tool_retries_then_rejects_plain_final_text() {
+fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
     let session_id = unique_session_id("required-agent-tool-plain-text");
     let mut req = request_with_session(&session_id);
     req.options = serde_json::json!({ "require_agent_tool": true });
@@ -573,66 +525,7 @@ fn required_agent_tool_retries_then_rejects_plain_final_text() {
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
 
-    let outcomes = (1..=3)
-        .map(|step_index| {
-            let step_out = llm_step(&format!("plain answer {step_index}"));
-            super::handle_assistant_text_branch(
-                &req,
-                &mut session,
-                &ctx,
-                &mut llm_messages,
-                &mut total_usage,
-                &mut |event| {
-                    events.push(event);
-                    true
-                },
-                &mut tool_state,
-                &mut retries,
-                &mut step,
-                &mut tried_auto_complete_todos,
-                &step_out,
-                "plain answer",
-                &empty_tools,
-                false,
-                step_index,
-                None,
-            )
-        })
-        .collect::<Vec<_>>();
-
-    assert_eq!(outcomes, vec![true, true, false]);
-    assert_eq!(step, 2);
-    assert_eq!(
-        event_texts(&events)
-            .into_iter()
-            .filter(|event| event.starts_with("done"))
-            .count(),
-        0
-    );
-    let terminal = event_texts(&events).pop().expect("terminal error");
-    assert!(terminal.starts_with("error:"));
-    assert!(terminal.contains("AgentTool"));
-}
-
-#[test]
-fn successful_agent_delegation_allows_required_agent_tool_final_text() {
-    let session_id = unique_session_id("required-agent-tool-satisfied");
-    let mut req = request_with_session(&session_id);
-    req.options = serde_json::json!({ "require_agent_tool": true });
-    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
-    let mut session = super::Session::new(session_id);
-    let mut llm_messages = Vec::new();
-    let mut total_usage = models::TokenUsage::default();
-    let mut tool_state = super::ToolSessionState {
-        successful_agent_delegations: 1,
-        ..Default::default()
-    };
-    let mut retries = 0usize;
-    let mut step = 0;
-    let mut tried_auto_complete_todos = false;
-    let mut events = Vec::new();
-    let empty_tools = HashSet::new();
-    let step_out = llm_step("delegated final answer");
+    let step_out = llm_step("plain final answer");
 
     let should_continue = super::handle_assistant_text_branch(
         &req,
@@ -649,7 +542,7 @@ fn successful_agent_delegation_allows_required_agent_tool_final_text() {
         &mut step,
         &mut tried_auto_complete_todos,
         &step_out,
-        "delegated final answer",
+        "plain final answer",
         &empty_tools,
         false,
         1,

@@ -6,8 +6,7 @@
 use super::artifacts;
 use super::context_governance;
 use super::helpers::{
-    allowed_tool_ids_for_request_from_specs, is_acp_request, require_agent_tool_enabled,
-    response_preview, tool_call_preview,
+    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -30,8 +29,6 @@ const EMPTY_RESPONSE_ERR: &str = "模型未返回内容";
 const EMPTY_RESPONSE_RETRY_PROMPT: &str =
     "上一步模型输出为空，已自动重试。请继续当前任务并返回非空答复。";
 const EMPTY_RESPONSE_RETRY_LIMIT: usize = 4;
-const REQUIRED_AGENT_TOOL_RETRY_LIMIT: usize = 2;
-const REQUIRED_AGENT_TOOL_RETRY_PROMPT: &str = "子智能体模式要求至少通过 AgentTool 成功创建一个子会话。你尚未完成有效委派，请立即调用 AgentTool 创建子会话后再继续；status、wait、stop 或失败调用不计入。";
 
 fn request_full_access_enabled(options: &Value) -> bool {
     options.get("full_access").and_then(Value::as_bool).unwrap_or(false)
@@ -95,20 +92,13 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     }
     let ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
-        .with_session_tools(req.session_tools.clone())
-        .with_model(req.model.clone());
+        .with_session_tools(req.session_tools.clone());
     let mut tool_state = ToolSessionState::default();
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
     let allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
 
-    if let Some(message) = required_agent_tool_runtime_error(&req.options, &allowed_tools) {
-        session.push(Role::System, message.clone());
-        on_event(StreamEvent::Error(message));
-        return;
-    }
-
-    if should_handle_docs_request_locally(&req.query, &req.options) {
+    if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
     }
@@ -367,30 +357,8 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     }
 }
 
-fn required_agent_tool_runtime_error(
-    options: &Value,
-    allowed_tools: &HashSet<String>,
-) -> Option<String> {
-    if !require_agent_tool_enabled(options) {
-        return None;
-    }
-    if !super::should_execute_structured_tool_calls_locally(options) {
-        return Some(
-            "子智能体模式要求本地执行 AgentTool，但 ACP 路径不支持本地 AgentTool 执行"
-                .to_string(),
-        );
-    }
-    if !allowed_tools.iter().any(|tool| tools_exec::is_agent_tool(tool)) {
-        return Some(
-            "子智能体模式要求 AgentTool，但当前运行时未注册或请求未允许 AgentTool"
-                .to_string(),
-        );
-    }
-    None
-}
-
-fn should_handle_docs_request_locally(query: &str, options: &Value) -> bool {
-    utils::is_docs_request(query) && !require_agent_tool_enabled(options)
+fn should_handle_docs_request_locally(query: &str) -> bool {
+    utils::is_docs_request(query)
 }
 
 fn handle_docs_request(
@@ -696,31 +664,6 @@ fn handle_assistant_text_branch(
     *empty_response_retries = 0;
     session.push(Role::Assistant, text.to_string());
     llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
-
-    if require_agent_tool_enabled(&req.options) && tool_state.successful_agent_delegations == 0 {
-        if tool_state.required_agent_tool_retries < REQUIRED_AGENT_TOOL_RETRY_LIMIT {
-            tool_state.required_agent_tool_retries =
-                tool_state.required_agent_tool_retries.saturating_add(1);
-            let retry_message = format!(
-                "{}（{}/{}）",
-                REQUIRED_AGENT_TOOL_RETRY_PROMPT,
-                tool_state.required_agent_tool_retries,
-                REQUIRED_AGENT_TOOL_RETRY_LIMIT
-            );
-            session.push(Role::System, retry_message.clone());
-            llm_messages.push(json!({ "role": "system", "content": retry_message }));
-            *step += 1;
-            return true;
-        }
-
-        let final_message = format!(
-            "子智能体模式要求至少一次有效 AgentTool 委派；模型在 {} 次纠偏后仍未成功创建子会话，任务终止",
-            REQUIRED_AGENT_TOOL_RETRY_LIMIT
-        );
-        session.push(Role::System, final_message.clone());
-        on_event(StreamEvent::Error(final_message));
-        return false;
-    }
 
     if is_last_step {
         tracing::info!(

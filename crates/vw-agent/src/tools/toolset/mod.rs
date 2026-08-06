@@ -33,9 +33,6 @@ pub struct ToolRuntimeContext {
     /// 只属于当前会话的预发现工具。
     #[serde(skip)]
     session_tools: SessionToolset,
-    /// 当前父请求显式选择的模型，供子智能体继承。
-    #[serde(skip)]
-    model: Option<String>,
 }
 
 impl Default for ToolRuntimeContext {
@@ -57,7 +54,6 @@ impl ToolRuntimeContext {
             root,
             tool_use_context: Arc::new(tool_use_context),
             session_tools: SessionToolset::default(),
-            model: None,
         }
     }
 
@@ -84,18 +80,6 @@ impl ToolRuntimeContext {
     pub fn with_session_tools(mut self, session_tools: SessionToolset) -> Self {
         self.session_tools = session_tools;
         self
-    }
-
-    /// 注入当前父请求显式选择的模型。
-    pub(crate) fn with_model(mut self, model: Option<String>) -> Self {
-        self.model = model
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
-        self
-    }
-
-    fn model(&self) -> Option<&str> {
-        self.model.as_deref()
     }
 
     /// 返回当前会话的工具集合。
@@ -322,7 +306,6 @@ fn execution_environment_for_context_with_agent_callback(
         });
         tools.push(Box::new(
             AgentTool::new(delegate_agents, Some(ctx.session.clone()), workspace_dir)
-                .with_parent_model(ctx.model().map(str::to_owned))
                 .with_child_session_created_callback(callback),
         ));
     }

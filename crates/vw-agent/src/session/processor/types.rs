@@ -186,11 +186,6 @@ pub(crate) struct ToolSessionState {
     /// 当前请求通过 AgentTool 后台启动的直系子会话。
     pub(crate) agent_background_children: Vec<String>,
 
-    /// 当前请求通过 AgentTool 成功创建直系子会话的次数。
-    pub(crate) successful_agent_delegations: u64,
-
-    /// 子智能体硬门禁已发送的纠偏次数。
-    pub(crate) required_agent_tool_retries: usize,
 }
 #[cfg(test)]
 #[path = "types_tests.rs"]

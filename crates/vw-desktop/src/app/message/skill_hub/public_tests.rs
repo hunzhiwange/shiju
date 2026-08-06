@@ -190,36 +190,36 @@ fn market_detail_installs_skill_or_suite_through_gateway() {
         },
     );
     assert!(matches!(
-        begin_install(&mut state, Some("/project")).expect("skill install"),
+        begin_install(&mut state, None).expect("global skill install"),
         PublicRequest::InstallSkill {
             project_path,
             coordinate: requested,
             installations,
             ..
-        } if project_path == "/project"
+        } if project_path.is_empty()
             && requested == coordinate
             && installations == vec![SkillMarketInstallSelectionDto {
                 target: SkillMarketInstallTargetDto::VibeWindow,
-                scope: SkillMarketInstallScopeDto::Project,
+                scope: SkillMarketInstallScopeDto::Global,
             }]
     ));
     state.detail.as_mut().expect("skill detail").install = PublicInstallState::Idle;
-    reduce(&mut state, PublicSkillMessage::SelectDetailInstallScope(SkillInstallScope::Global));
+    reduce(&mut state, PublicSkillMessage::SelectDetailInstallScope(SkillInstallScope::Project));
     reduce(&mut state, PublicSkillMessage::ToggleDetailInstallTarget(SkillInstallTarget::Codex));
     reduce(
         &mut state,
         PublicSkillMessage::ToggleDetailInstallTarget(SkillInstallTarget::VibeWindow),
     );
     assert!(matches!(
-        begin_install(&mut state, None).expect("global Codex install"),
+        begin_install(&mut state, Some("/project")).expect("project Codex install"),
         PublicRequest::InstallSkill {
             project_path,
             installations,
             ..
-        } if project_path.is_empty()
+        } if project_path == "/project"
             && installations == vec![SkillMarketInstallSelectionDto {
                 target: SkillMarketInstallTargetDto::Codex,
-                scope: SkillMarketInstallScopeDto::Global,
+                scope: SkillMarketInstallScopeDto::Project,
             }]
     ));
 

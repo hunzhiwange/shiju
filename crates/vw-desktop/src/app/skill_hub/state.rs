@@ -332,7 +332,7 @@ impl PublicSkillMarketState {
             suite_detail: LoadState::Idle,
             markdown_items: Vec::new(),
             install: PublicInstallState::Idle,
-            install_scope: super::SkillInstallScope::Project,
+            install_scope: super::SkillInstallScope::Global,
             selected_install_project_path: None,
             selected_install_targets: vec![super::SkillInstallTarget::VibeWindow],
         });

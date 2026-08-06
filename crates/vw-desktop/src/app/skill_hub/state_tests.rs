@@ -306,6 +306,10 @@ fn market_detail_switches_visual_and_markdown_without_losing_coordinate() {
     assert_eq!(state.detail_generation, generation);
     assert_eq!(state.detail.as_ref().expect("detail").target, PublicDetailTarget::Skill(locator));
     assert_eq!(state.detail.as_ref().expect("detail").mode, PublicDetailMode::Markdown);
+    assert_eq!(
+        state.detail.as_ref().expect("detail").install_scope,
+        SkillInstallScope::Global
+    );
 
     state.sources = LoadState::Loaded(vec![
         SkillMarketSourceDto {

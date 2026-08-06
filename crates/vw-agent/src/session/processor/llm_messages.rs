@@ -12,6 +12,7 @@
 //! 转换后的每条消息都是包含 `role` 和 `content` 字段的 JSON 对象，符合主流 LLM API 的标准格式。
 
 use crate::app::agent::session::session::{Message, Role, Session};
+use crate::app::agent::multimodal::context::ImageTurnContext;
 
 pub(crate) fn session_message_to_llm_message(message: &Message) -> Option<serde_json::Value> {
     match message.role {
@@ -88,6 +89,15 @@ pub(crate) fn session_messages_to_llm_messages(session: &Session) -> Vec<serde_j
     // 遍历会话中的所有消息，根据角色进行转换
     session.messages.iter().filter_map(session_message_to_llm_message).collect()
 }
+
+/// 按图片上下文状态改写 LLM JSON 消息。
+pub(crate) fn apply_image_turn_context(
+    llm_messages: &mut [serde_json::Value],
+    context: &ImageTurnContext,
+) {
+    context.rewrite_json_messages(llm_messages);
+}
+
 #[cfg(test)]
 #[path = "llm_messages_tests.rs"]
 mod llm_messages_tests;

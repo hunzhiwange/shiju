@@ -112,13 +112,13 @@ async fn handle_list_hints_sorts_and_deduplicates_each_hint_kind() {
 }
 
 #[test]
-fn read_handlers_propagate_invalid_project_override_errors() {
+fn read_handlers_ignore_removed_project_override_file() {
     let tmp = TempDir::new().unwrap();
     std::fs::write(tmp.path().join(".vibewindow.json"), "{not-json").unwrap();
     let tool = test_tool(&tmp);
 
-    assert!(tool.handle_get().is_err());
-    assert!(tool.handle_list_hints().is_err());
+    assert!(tool.handle_get().is_ok());
+    assert!(tool.handle_list_hints().is_ok());
 }
 
 #[tokio::test]

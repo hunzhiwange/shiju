@@ -32,15 +32,18 @@ fn workspace_resolution_detects_config_json_file() {
 }
 
 #[test]
-fn workspace_resolution_detects_project_config_override_file() {
+fn workspace_resolution_ignores_removed_project_config_override_file() {
     let tmp = tempfile::tempdir().unwrap();
-    let config_dir = tmp.path().join("project");
-    std::fs::create_dir_all(&config_dir).unwrap();
-    std::fs::write(config_dir.join(".vibewindow.json"), "{}").unwrap();
+    let workspace = tmp.path().join("workspace");
+    let legacy = tmp.path().join(".vibewindow");
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::create_dir_all(&legacy).unwrap();
+    std::fs::write(workspace.join(".vibewindow.json"), "{}").unwrap();
+    std::fs::write(legacy.join("config.json"), "{}").unwrap();
 
-    let (resolved_config, resolved_workspace) = resolve_config_dir_for_workspace(&config_dir);
-    assert_eq!(resolved_config, config_dir);
-    assert_eq!(resolved_workspace, resolved_config.join("workspace"));
+    let (resolved_config, resolved_workspace) = resolve_config_dir_for_workspace(&workspace);
+    assert_eq!(resolved_config, legacy);
+    assert_eq!(resolved_workspace, workspace);
 }
 
 #[test]
@@ -143,7 +146,6 @@ async fn workspace_env_is_used_when_config_env_is_blank() {
     let tmp = tempfile::tempdir().unwrap();
     let workspace = tmp.path().join("project");
     tokio::fs::create_dir_all(&workspace).await.unwrap();
-    tokio::fs::write(workspace.join(".vibewindow.json"), "{}").await.unwrap();
     let default_config = tmp.path().join("default-config");
     let default_workspace = default_config.join("workspace");
     let workspace_env = workspace.to_string_lossy().into_owned();
@@ -171,7 +173,6 @@ async fn workspace_env_takes_priority_over_active_workspace_marker() {
     let workspace = tmp.path().join("project");
     tokio::fs::create_dir_all(&default_config).await.unwrap();
     tokio::fs::create_dir_all(&workspace).await.unwrap();
-    tokio::fs::write(workspace.join(".vibewindow.json"), "{}").await.unwrap();
     persist_active_workspace_marker(&default_config, &marker_config).await.unwrap();
     let workspace_env = workspace.to_string_lossy().into_owned();
 

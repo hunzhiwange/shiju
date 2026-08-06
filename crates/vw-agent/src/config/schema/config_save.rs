@@ -3,25 +3,14 @@ use anyhow::{Context, Result, bail};
 use directories::UserDirs;
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
-#[cfg(not(target_arch = "wasm32"))]
-use std::fs::{File, OpenOptions};
-#[cfg(not(target_arch = "wasm32"))]
-use std::io::Write;
 use std::path::Path;
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::PathBuf;
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::atomic::{AtomicU64, Ordering};
 use vw_api_types::id::TenantScope;
 use vw_config_types::config::Config;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::SystemConfigStore;
-use crate::app::agent::config::schema::CONFIG_OVERRIDE_FILENAME;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_io::{
-    merge_config_payload, read_project_config_override,
-};
+use crate::app::agent::config::schema::config_io::merge_config_payload;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::schema::config_load::load_or_init_config_for_tenant;
 #[cfg(not(target_arch = "wasm32"))]
@@ -32,24 +21,6 @@ use crate::app::agent::config::schema::config_secrets::encrypt_config_secrets;
 use crate::app::agent::config::schema::config_validate::validate_config;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::global_database::GlobalDatabase;
-
-#[cfg(not(target_arch = "wasm32"))]
-static PROJECT_OVERRIDE_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-#[cfg(not(target_arch = "wasm32"))]
-struct TemporaryOverrideFile {
-    path: PathBuf,
-    keep: bool,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Drop for TemporaryOverrideFile {
-    fn drop(&mut self) {
-        if !self.keep {
-            let _ = std::fs::remove_file(&self.path);
-        }
-    }
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn save_config_to_store(
@@ -75,19 +46,6 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        #[cfg(test)]
-        if config.config_path.file_name().is_some_and(|name| name == ".vibewindow.json")
-            && config.config_path.parent().is_some_and(Path::is_dir)
-        {
-            validate_config(config)?;
-            let payload = serde_json::to_vec_pretty(config)
-                .context("Failed to serialize test runtime config")?;
-            tokio::fs::write(&config.config_path, payload)
-                .await
-                .with_context(|| format!("Failed to write {}", config.config_path.display()))?;
-            return Ok(());
-        }
-
         let home = UserDirs::new()
             .map(|dirs| dirs.home_dir().to_path_buf())
             .context("Could not find home directory")?;
@@ -116,65 +74,33 @@ pub async fn save_config(config: &Config) -> Result<()> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn open_temporary_override(project_root: &Path) -> Result<(File, TemporaryOverrideFile)> {
-    for _ in 0..32 {
-        let sequence = PROJECT_OVERRIDE_TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let path = project_root
-            .join(format!(".{CONFIG_OVERRIDE_FILENAME}.tmp-{}-{sequence}", std::process::id()));
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        match options.open(&path) {
-            Ok(file) => return Ok((file, TemporaryOverrideFile { path, keep: false })),
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => {
-                return Err(error).context("Failed to create project config override temp file");
-            }
-        }
+pub(super) fn save_project_config_to_store(
+    store: &SystemConfigStore,
+    tenant: &TenantScope,
+    project_root: &Path,
+    payload: &Value,
+) -> Result<()> {
+    if !payload.is_object() {
+        bail!("project config payload root must be an object");
     }
-    bail!("Failed to allocate project config override temp file");
+    if !project_root.is_dir() {
+        bail!("project root must be an existing directory");
+    }
+    let project_key = project_root.to_str().context("Project root must be valid UTF-8")?;
+    let payload =
+        serde_json::to_string(payload).context("Failed to serialize project config payload")?;
+    store.upsert_project(tenant, project_key, &payload)
 }
 
-/// 原子写入显式项目根目录的 raw 配置覆盖。
-pub(super) fn save_project_config_override(project_root: &Path, payload: &Value) -> Result<()> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = (project_root, payload);
-        bail!("Project config overrides are not supported in WASM");
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        if !payload.is_object() {
-            bail!("project config override root must be an object");
-        }
-        if !project_root.is_dir() {
-            bail!("project root must be an existing directory");
-        }
-
-        let destination = project_root.join(CONFIG_OVERRIDE_FILENAME);
-        let mut contents = serde_json::to_vec_pretty(payload)
-            .context("Failed to serialize project config override")?;
-        contents.push(b'\n');
-        let (mut file, mut temporary) = open_temporary_override(project_root)?;
-        file.write_all(&contents).context("Failed to write project config override temp file")?;
-        file.sync_all().context("Failed to fsync project config override temp file")?;
-        drop(file);
-
-        std::fs::rename(&temporary.path, &destination)
-            .context("Failed to atomically replace project config override")?;
-        temporary.keep = true;
-
-        #[cfg(unix)]
-        File::open(project_root)
-            .and_then(|directory| directory.sync_all())
-            .context("Failed to fsync project config override directory")?;
-        Ok(())
-    }
+#[cfg(not(target_arch = "wasm32"))]
+async fn open_system_config_store() -> Result<SystemConfigStore> {
+    let home = UserDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context("Could not find home directory")?;
+    let database = GlobalDatabase::for_home(home)?;
+    tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
+        .await
+        .context("join system config store initialization task")?
 }
 
 pub(super) fn merge_raw_project_patch(target: &mut Value, patch: Value) {
@@ -276,10 +202,14 @@ pub(super) fn merge_patch_between(before: &Value, after: &Value) -> Option<Value
     }
 }
 
-pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> Result<Config> {
+pub(crate) async fn update_project_config_for_tenant(
+    tenant: &TenantScope,
+    project_root: &Path,
+    patch: Value,
+) -> Result<Config> {
     #[cfg(target_arch = "wasm32")]
     {
-        let _ = (project_root, patch);
+        let _ = (tenant, project_root, patch);
         bail!("Project config overrides are not supported in WASM");
     }
 
@@ -292,19 +222,44 @@ pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> 
             bail!("project root must be an existing directory");
         }
         if patch_object.is_empty() {
-            return load_or_init_config_for_tenant(&TenantScope::default(), Some(project_root))
-                .await;
+            return load_or_init_config_for_tenant(tenant, Some(project_root)).await;
         }
-        let tenant = TenantScope::default();
-        let base = load_or_init_config_for_tenant(&tenant, None).await?;
-        let override_path = project_root.join(CONFIG_OVERRIDE_FILENAME);
-        let raw_override = read_project_config_override(&override_path)
-            .await?
-            .unwrap_or_else(|| Value::Object(Map::new()));
+        let base = load_or_init_config_for_tenant(tenant, None).await?;
+        let store = open_system_config_store().await?;
+        let project_key =
+            project_root.to_str().context("Project root must be valid UTF-8")?.to_owned();
+        let read_store = store.clone();
+        let read_tenant = tenant.clone();
+        let raw_override =
+            tokio::task::spawn_blocking(move || read_store.get_project(&read_tenant, &project_key))
+                .await
+                .context("join project config load task")??
+                .map(|payload| {
+                    serde_json::from_str(&payload)
+                        .context("Failed to parse tenant project config payload")
+                })
+                .transpose()?
+                .unwrap_or_else(|| Value::Object(Map::new()));
         let next_override = prepare_project_override(&base, raw_override, patch)?;
-        save_project_config_override(project_root, &next_override)?;
-        load_or_init_config_for_tenant(&tenant, Some(project_root)).await
+        let write_store = store;
+        let write_tenant = tenant.clone();
+        let write_project_root = project_root.to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            save_project_config_to_store(
+                &write_store,
+                &write_tenant,
+                &write_project_root,
+                &next_override,
+            )
+        })
+        .await
+        .context("join project config save task")??;
+        load_or_init_config_for_tenant(tenant, Some(project_root)).await
     }
+}
+
+pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> Result<Config> {
+    update_project_config_for_tenant(&TenantScope::default(), project_root, patch).await
 }
 
 pub(crate) async fn update_project_config_from_configs(

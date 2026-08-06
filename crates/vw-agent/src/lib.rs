@@ -271,6 +271,9 @@ pub mod permission;
 // 插件包清单解析与静态审计
 pub mod plugins;
 
+// 基于 git2 的只读仓库发现
+pub(crate) mod git_repository;
+
 // 项目上下文
 pub mod project;
 

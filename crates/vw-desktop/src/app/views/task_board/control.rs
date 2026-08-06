@@ -22,6 +22,10 @@ use self::helpers::{running_dots, worktree_state_label};
 use self::worktree_office::build_worktree_pixel_office;
 use super::common::{button_style_danger, button_style_primary, button_style_secondary};
 
+pub(crate) fn should_render_worktree_controls(app: &App) -> bool {
+    app.project_is_git_repo
+}
+
 fn status_chip_style(theme: &Theme, tone: Color) -> iced::widget::container::Style {
     let palette = theme.extended_palette();
     iced::widget::container::Style {
@@ -228,7 +232,7 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             Color::from_rgba8(0, 0, 0, 0.0)
         },
     );
-    let worktree_chip = if worktree_manual_action_running {
+    let worktree_chip = if should_render_worktree_controls(app) && worktree_manual_action_running {
         Some(status_chip(
             format!("工作池处理中{}", running_dots(now_ms)),
             Color::from_rgb8(0xFF, 0x7A, 0x00),
@@ -335,7 +339,8 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     .style(top_controls_panel_style);
 
     let mut content = column![top_controls].spacing(12);
-    if let Some(snapshot) = &app.task_board_worktree_snapshot {
+    if should_render_worktree_controls(app) {
+        if let Some(snapshot) = &app.task_board_worktree_snapshot {
         let title_line = text("工作池").size(13).style(worktree_title_text_style);
         let lock_text = if snapshot.merge_target_locks.is_empty() {
             "合并锁: 无".to_string()
@@ -539,6 +544,7 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 .width(Length::Fill)
                 .style(worktree_status_panel_style);
         content = content.push(loading_panel);
+    }
     }
 
     container(content).padding([18, 20]).width(Length::Fill).style(control_outer_panel_style).into()

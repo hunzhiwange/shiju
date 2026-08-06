@@ -75,6 +75,19 @@ fn attachment_text(content: &str) -> &str {
         .expect("prepared content should contain an OCR attachment block")
 }
 
+fn visible_text_from_attachment(content: &str) -> &str {
+    let body = attachment_text(content);
+    body.strip_prefix("visible_text:\n")
+        .or_else(|| body.strip_prefix("visible_text:\r\n"))
+        .map(|rest| {
+            rest.split("\n\nvisual_summary:")
+                .next()
+                .unwrap_or(rest)
+                .trim_end()
+        })
+        .unwrap_or(body)
+}
+
 #[tokio::test]
 async fn ocr_preprocessing_replaces_markers_with_bounded_untrusted_text() {
     let data_uri = png_data_uri();
@@ -100,7 +113,12 @@ async fn ocr_preprocessing_replaces_markers_with_bounded_untrusted_text() {
     assert!(prepared.messages[1].content.contains(OCR_ATTACHMENT_START));
     assert!(!prepared.messages[1].content.contains("[IMAGE:"));
     assert!(!prepared.messages[1].content.contains(&data_uri));
-    assert_eq!(attachment_text(&prepared.messages[1].content).chars().count(), OCR_TEXT_MAX_CHARS);
+    assert_eq!(
+        visible_text_from_attachment(&prepared.messages[1].content)
+            .chars()
+            .count(),
+        OCR_TEXT_MAX_CHARS
+    );
     assert_eq!(prepared.messages[2].content, "previous response");
     assert_eq!(prepared.messages[3].content, "plain follow-up");
 
@@ -223,7 +241,7 @@ async fn ocr_preprocessing_truncates_unicode_at_character_boundaries_and_neutral
         prepare_messages_with_ocr(&messages, &ocr_config(Some("vision/reader")), &extractor)
             .await
             .expect("Unicode OCR output should truncate safely");
-    let text = attachment_text(&prepared.messages[0].content);
+    let text = visible_text_from_attachment(&prepared.messages[0].content);
 
     assert_eq!(text.chars().count(), OCR_TEXT_MAX_CHARS);
     assert!(text.ends_with('🧠'));

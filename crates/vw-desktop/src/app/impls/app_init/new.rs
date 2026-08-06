@@ -377,6 +377,7 @@ impl App {
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
             work_expanded_spaces: HashSet::new(),
             project_path: None,
+            project_is_git_repo: false,
             project_id: None,
             project_path_input: String::new(),
 

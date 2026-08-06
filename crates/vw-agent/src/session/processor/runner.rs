@@ -157,6 +157,20 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let mut llm_messages = llm_messages::session_messages_to_llm_messages(&session);
+    let mut image_turn = build_image_turn_context_for_request(&req, &session, &config);
+    if let Some(ctx_images) = image_turn.as_mut() {
+        ctx.tool_use_context().set_image_asset_scope(&ctx_images.scope);
+        ctx_images.rewrite_json_messages(&mut llm_messages);
+        let store = crate::app::agent::multimodal::assets::ImageAssetStore::from_global_paths();
+        if let Err(error) = ctx_images.register_session_refs(&store, &req.session) {
+            tracing::warn!(
+                target: "vw_agent",
+                session_id = %req.session,
+                error = %error,
+                "failed to register image asset session refs"
+            );
+        }
+    }
 
     let mut step = 0usize;
     let mut step_index: u32 = 0;
@@ -217,6 +231,11 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             return;
         }
 
+        let pending_reloads = ctx.tool_use_context().peek_pending_image_reloads();
+        if let Some(image_ctx) = image_turn.as_ref() {
+            image_ctx.attach_pending_reloads_to_json(&mut llm_messages, &pending_reloads);
+        }
+
         let step_out = match llm_runner::run_llm_step_with_retry(
             &req.session,
             &llm_messages,
@@ -228,7 +247,18 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             &mut on_event,
             retry_budget,
         ) {
-            Ok(output) => output,
+            Ok(output) => {
+                if let Some(image_ctx) = image_turn.as_mut() {
+                    if !pending_reloads.is_empty() {
+                        ctx.tool_use_context().clear_pending_image_reloads();
+                    }
+                    if !image_ctx.has_first_success() || !pending_reloads.is_empty() {
+                        image_ctx.mark_first_success();
+                        image_ctx.rewrite_json_messages(&mut llm_messages);
+                    }
+                }
+                output
+            }
             Err(message) => {
                 if handle_step_error(
                     &mut session,
@@ -806,6 +836,80 @@ fn handle_empty_assistant_text(
     *step += 1;
     true
 }
+
+fn build_image_turn_context_for_request(
+    req: &Request,
+    session: &Session,
+    config: &crate::config::Config,
+) -> Option<crate::app::agent::multimodal::context::ImageTurnContext> {
+    use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
+    use crate::app::agent::multimodal::context::ImageTurnContext;
+    use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
+    use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
+    use crate::app::agent::providers::ChatMessage;
+
+    let resume_history_only = req
+        .options
+        .get("desktop_resume_history_only")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    let history: Vec<ChatMessage> = session
+        .messages
+        .iter()
+        .filter(|message| matches!(message.role, Role::User | Role::Assistant | Role::System))
+        .map(|message| match message.role {
+            Role::User => ChatMessage::user(&message.content),
+            Role::Assistant => ChatMessage::assistant(&message.content),
+            Role::System => ChatMessage::system(&message.content),
+            Role::Tool => ChatMessage::assistant(&message.content),
+        })
+        .collect();
+
+    if !contains_image_markers(&history) && parse_image_markers(&req.query).1.is_empty() {
+        return None;
+    }
+
+    // 当前轮用户内容：非 resume 时取最后一条 user；resume 时全部按历史处理。
+    let (history_messages, current_user_content) = if resume_history_only {
+        (history, None)
+    } else {
+        let mut prior = history;
+        let current = prior
+            .iter()
+            .rposition(|message| message.role == "user")
+            .map(|index| prior.remove(index).content);
+        (prior, current)
+    };
+
+    let scope = ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
+        .ok()?;
+    let store = ImageAssetStore::from_global_paths();
+    let extractor = SessionImageTextExtractor::new();
+    match prompt::block_on(ImageTurnContext::build(
+        &store,
+        scope,
+        &history_messages,
+        current_user_content.as_deref(),
+        resume_history_only,
+        &config.multimodal,
+        req.model.as_deref(),
+        &extractor,
+    )) {
+        Ok(ctx) if !ctx.images.is_empty() => Some(ctx),
+        Ok(_) => None,
+        Err(error) => {
+            tracing::warn!(
+                target: "vw_agent",
+                session_id = %req.session,
+                error = %error,
+                "failed to build image turn context; continuing without asset reuse"
+            );
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "runner_tests.rs"]
 mod runner_tests;

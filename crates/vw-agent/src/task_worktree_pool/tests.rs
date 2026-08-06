@@ -1,40 +1,90 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use super::{
-    GitOutput, MERGE_LOCK_STALE_AFTER_MS, TaskWorktreePoolService, git_error_text,
-    is_managed_slot_path, normalize_merge_target, normalize_output, now_epoch_ms,
-    parse_worktree_list, sanitize_branch_token, slot_id_from_path,
+    MERGE_LOCK_STALE_AFTER_MS, TaskWorktreePoolService, is_managed_slot_path,
+    normalize_merge_target, now_epoch_ms, sanitize_branch_token, slot_id_from_path,
 };
 use crate::app::agent::project;
+use git2::{Repository, RepositoryInitOptions, WorktreeAddOptions};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use tempfile::TempDir;
 use vw_api_types::id::TaskId;
 use vw_api_types::task::TaskPoolWorktreeSlotStateDto;
 
-#[test]
-fn worktree_pool_parsers_normalize_git_output_and_porcelain_entries() {
-    assert_eq!(normalize_merge_target("  release/v1  "), "release/v1");
-    assert_eq!(normalize_output(b"one\r\ntwo\rthree\xff"), "one\ntwo\nthree\u{fffd}");
+/// 用仅含失败 stub 的 PATH 屏蔽真实 `git` 可执行文件。
+///
+/// 仅清空 PATH 不够：shell 侧解析会通过补全 PATH / 常见目录
+/// 再次找到系统 Git。
+struct PathGuard {
+    old: Option<OsString>,
+    _bin_dir: TempDir,
+}
 
-    let output = GitOutput {
-        success: false,
-        stdout: " stdout detail \n".to_string(),
-        stderr: " stderr detail \n".to_string(),
+impl PathGuard {
+    fn without_git() -> Self {
+        let bin_dir = TempDir::new().expect("git stub bin dir");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let stub = bin_dir.path().join("git");
+            std::fs::write(&stub, "#!/bin/sh\necho 'git stub: blocked' >&2\nexit 1\n")
+                .expect("write git stub");
+            let mut perms = std::fs::metadata(&stub).expect("stub metadata").permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&stub, perms).expect("stub permissions");
+        }
+        #[cfg(windows)]
+        {
+            let stub = bin_dir.path().join("git.cmd");
+            std::fs::write(&stub, "@echo off\r\necho git stub: blocked 1>&2\r\nexit /b 1\r\n")
+                .expect("write git stub");
+        }
+        let old = std::env::var_os("PATH");
+        unsafe { std::env::set_var("PATH", bin_dir.path()) };
+        Self { old, _bin_dir: bin_dir }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
+
+fn signature() -> git2::Signature<'static> {
+    git2::Signature::now("Vibe Window", "vw@example.com").expect("signature")
+}
+
+fn commit_tree(repo: &Repository, message: &str) -> git2::Oid {
+    let tree_id = {
+        let mut index = repo.index().expect("index");
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None).expect("add all");
+        index.write().expect("index write");
+        index.write_tree().expect("tree")
     };
-    assert_eq!(git_error_text(&output, "fallback"), "stderr detail\nstdout detail");
-    let empty = GitOutput { success: false, stdout: String::new(), stderr: String::new() };
-    assert_eq!(git_error_text(&empty, "fallback"), "fallback");
+    let tree = repo.find_tree(tree_id).expect("tree");
+    let sig = signature();
+    let parents = repo
+        .head()
+        .ok()
+        .and_then(|head| head.peel_to_commit().ok())
+        .into_iter()
+        .collect::<Vec<_>>();
+    let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs).expect("commit")
+}
 
-    let entries = parse_worktree_list(
-        "worktree /repo\nbranch refs/heads/main\n\n\
-         worktree /pool/slot-1\nbranch vw/task/slot-1\n\n\
-         worktree /detached\ndetached\n",
-    );
-    assert_eq!(entries.len(), 3);
-    assert_eq!(entries[0].path, PathBuf::from("/repo"));
-    assert_eq!(entries[0].branch.as_deref(), Some("main"));
-    assert_eq!(entries[1].branch.as_deref(), Some("vw/task/slot-1"));
-    assert_eq!(entries[2].branch, None);
+fn git2_current_branch(path: &Path) -> String {
+    crate::git_repository::current_branch(path).expect("current branch")
+}
+
+#[test]
+fn worktree_pool_helpers_normalize_merge_target_and_slot_paths() {
+    assert_eq!(normalize_merge_target("  release/v1  "), "release/v1");
 }
 
 #[test]
@@ -523,6 +573,116 @@ mod task_worktree_pool_lifecycle {
         let snapshot = service.snapshot(&project).await.expect("snapshot");
         assert_eq!(snapshot.busy_count, 3);
     }
+
+    #[tokio::test]
+    async fn task_worktree_pool_git2_lifecycle_works_without_git_executable() {
+        let _env_lock =
+            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+
+        let fixture = Git2PoolFixture::new();
+        fixture.add_slot("slot-ready");
+        std::fs::write(fixture.repo.join(".gitignore"), "ignored.txt\n").expect("gitignore");
+        // 重新提交 ignore，便于 recycle 时验证忽略文件被保留。
+        let repo = Repository::open(&fixture.repo).expect("reopen repo");
+        commit_tree(&repo, "add gitignore");
+        drop(repo);
+
+        let service = TaskWorktreePoolService::with_pool_root_for_tests(fixture.pool_root.clone());
+        let project = fixture.project();
+        let task_id = TaskId("task-git2".to_string());
+
+        let _path = PathGuard::without_git();
+
+        let snapshot = service.snapshot(&project).await.expect("snapshot without git CLI");
+        assert_eq!(snapshot.base_branch, "main");
+        assert_eq!(snapshot.idle_count, 1);
+        assert_eq!(snapshot.slots.len(), 1);
+        assert_eq!(snapshot.slots[0].id, "slot-ready");
+
+        let maintained = service.maintain(&project, 2).await.expect("maintain without git CLI");
+        assert!(maintained.idle_count >= 2);
+        assert_eq!(maintained.target_idle_count, 2);
+
+        let acquired =
+            service.acquire_and_prepare(&project, &task_id).await.expect("acquire without git CLI");
+        assert!(acquired.leased);
+        let slot = acquired.slot.expect("leased slot");
+        assert_eq!(slot.branch, "vw/task/task-git2");
+        assert_eq!(git2_current_branch(Path::new(&slot.path)), "vw/task/task-git2");
+
+        let slot_path = PathBuf::from(&slot.path);
+        std::fs::write(slot_path.join("scratch.txt"), "dirty").expect("untracked file");
+        std::fs::write(slot_path.join("ignored.txt"), "keep").expect("ignored file");
+
+        let reused = service
+            .acquire_and_prepare(&project, &task_id)
+            .await
+            .expect("re-acquire without git CLI");
+        assert_eq!(reused.slot.expect("reused").id, slot.id);
+
+        // 另一任务不得占用已在本槽检出的分支（跨 worktree 冲突由 git2 拒绝）。
+        let other = TaskId("task-other".to_string());
+        let other_acquired = service
+            .acquire_and_prepare(&project, &other)
+            .await
+            .expect("other task acquires different slot");
+        let other_slot = other_acquired.slot.expect("other slot");
+        assert_ne!(other_slot.id, slot.id);
+        assert_eq!(other_slot.branch, "vw/task/task-other");
+
+        service
+            .recycle_task_slot(&project, &task_id, None)
+            .await
+            .expect("recycle without git CLI");
+        assert!(!slot_path.join("scratch.txt").exists(), "untracked file should be cleaned");
+        assert!(slot_path.join("ignored.txt").exists(), "ignored file should be kept");
+
+        let after = service.snapshot(&project).await.expect("snapshot after recycle");
+        let recycled =
+            after.slots.iter().find(|entry| entry.id == slot.id).expect("recycled slot");
+        assert_eq!(recycled.state, TaskPoolWorktreeSlotStateDto::Idle);
+        assert_eq!(recycled.leased_task_id, None);
+    }
+
+    #[tokio::test]
+    async fn task_worktree_pool_requires_initial_commit_for_unborn_repo() {
+        let _env_lock =
+            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+        let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+
+        let temp = TempDir::new().expect("tempdir");
+        let repo = temp.path().join("unborn");
+        let pool_root = temp.path().join("task-worktrees");
+        std::fs::create_dir_all(&pool_root).expect("pool root");
+        Repository::init(&repo).expect("unborn repo");
+
+        let service = TaskWorktreePoolService::with_pool_root_for_tests(pool_root);
+        let project = project::Info {
+            id: "project-unborn".to_string(),
+            worktree: repo.to_string_lossy().to_string(),
+            vcs: Some(project::Vcs::Git),
+            name: None,
+            icon: None,
+            commands: None,
+            time: project::TimeInfo { created: 0, updated: 0, initialized: None },
+            sandboxes: Vec::new(),
+        };
+
+        let _path = PathGuard::without_git();
+
+        let error = service.snapshot(&project).await.expect_err("unborn repo should fail");
+        let message = error.to_string();
+        assert!(
+            message.contains("需要初始提交") || message.contains("requires initial commit"),
+            "expected initial-commit error, got: {message}"
+        );
+        assert!(
+            !message.to_lowercase().contains("non-git")
+                && !message.contains("requires a git project"),
+            "unborn repo must not be reported as non-git: {message}"
+        );
+    }
 }
 
 struct GitPoolFixture {
@@ -532,15 +692,16 @@ struct GitPoolFixture {
     pool_root: PathBuf,
 }
 
+type Git2PoolFixture = GitPoolFixture;
+
 impl GitPoolFixture {
     fn new() -> Self {
         let temp = tempfile::tempdir().expect("temp dir");
         let workspace = temp.path().join("workspace");
         let repo = temp.path().join("repo");
         let pool_root = temp.path().join("task-worktrees");
-        std::fs::create_dir_all(&workspace).expect("workspace dir");
         std::fs::create_dir_all(&pool_root).expect("pool root");
-        init_repo(&repo);
+        init_repo_git2(&repo);
         Self { _temp: temp, workspace, repo, pool_root }
     }
 
@@ -564,32 +725,32 @@ impl GitPoolFixture {
     }
 
     fn add_worktree(&self, branch: &str, branch_token: &str, path: &Path) {
-        run(Command::new("git")
-            .arg("-C")
-            .arg(&self.repo)
-            .arg("worktree")
-            .arg("add")
-            .arg("-b")
-            .arg(branch)
-            .arg(path)
-            .arg("main"));
+        if path.exists() {
+            std::fs::remove_dir_all(path).expect("clear worktree destination");
+        }
+        let repo = Repository::open(&self.repo).expect("open repo");
+        let commit = repo
+            .revparse_single("main")
+            .expect("main")
+            .peel_to_commit()
+            .expect("main commit");
+        let git_branch = repo.branch(branch, &commit, false).expect("create branch");
+        let reference = git_branch.into_reference();
+        let mut opts = WorktreeAddOptions::new();
+        opts.reference(Some(&reference));
+        let name = path.file_name().and_then(|value| value.to_str()).expect("worktree name");
+        repo.worktree(name, path, Some(&mut opts)).expect("add worktree");
         std::fs::write(path.join(format!("{branch_token}.txt")), branch_token)
             .expect("write worktree marker");
     }
 }
 
-fn init_repo(path: &Path) {
-    run(Command::new("git").arg("init").arg("-b").arg("main").arg(path));
-    run(Command::new("git")
-        .arg("-C")
-        .arg(path)
-        .arg("config")
-        .arg("user.email")
-        .arg("test@example.com"));
-    run(Command::new("git").arg("-C").arg(path).arg("config").arg("user.name").arg("Test User"));
+fn init_repo_git2(path: &Path) {
+    let mut opts = RepositoryInitOptions::new();
+    opts.initial_head("main");
+    let repo = Repository::init_opts(path, &opts).expect("git2 init");
     std::fs::write(path.join("README.md"), "demo").expect("write readme");
-    run(Command::new("git").arg("-C").arg(path).arg("add").arg("README.md"));
-    run(Command::new("git").arg("-C").arg(path).arg("commit").arg("-m").arg("init"));
+    commit_tree(&repo, "init");
 }
 
 fn worktree_git_dir(path: &Path) -> PathBuf {
@@ -607,29 +768,5 @@ fn worktree_git_dir(path: &Path) -> PathBuf {
 }
 
 fn current_branch(path: &Path) -> String {
-    let output = Command::new("git")
-        .arg("-C")
-        .arg(path)
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .output()
-        .expect("git branch");
-    assert!(
-        output.status.success(),
-        "command failed: stdout={} stderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
-}
-
-fn run(command: &mut Command) {
-    let output = command.output().expect("run command");
-    assert!(
-        output.status.success(),
-        "command failed: stdout={} stderr={}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
+    git2_current_branch(path)
 }

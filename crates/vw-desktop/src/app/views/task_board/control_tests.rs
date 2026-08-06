@@ -139,6 +139,7 @@ fn build_control_buttons_covers_active_scheduler_and_completed_tasks() {
 fn build_control_buttons_covers_loading_without_snapshot() {
     let mut app = test_app();
     app.project_path = Some("/repo".to_string());
+    app.project_is_git_repo = true;
     app.task_board_worktree_snapshot_loading = true;
 
     let element = super::build_control_buttons(&app);
@@ -147,8 +148,47 @@ fn build_control_buttons_covers_loading_without_snapshot() {
 }
 
 #[test]
+fn non_git_project_hides_worktree_controls() {
+    fn tree_node_count(tree: &iced::advanced::widget::Tree) -> usize {
+        1 + tree.children.iter().map(tree_node_count).sum::<usize>()
+    }
+
+    let mut non_git_app = test_app();
+    non_git_app.project_path = Some("/repo".to_string());
+    non_git_app.project_is_git_repo = false;
+    non_git_app.task_board_worktree_snapshot = Some(snapshot());
+    non_git_app.task_board_worktree_panel_expanded = true;
+    non_git_app.task_board_worktree_snapshot_loading = true;
+    non_git_app.task_board_worktree_pixel_office = true;
+    assert!(!super::should_render_worktree_controls(&non_git_app));
+    let non_git_nodes = {
+        let element = super::build_control_buttons(&non_git_app);
+        tree_node_count(&iced::advanced::widget::Tree::new(element.as_widget()))
+    };
+
+    let mut git_app = test_app();
+    git_app.project_path = Some("/repo".to_string());
+    git_app.project_is_git_repo = true;
+    git_app.task_board_worktree_snapshot = Some(snapshot());
+    git_app.task_board_worktree_panel_expanded = true;
+    git_app.task_board_worktree_snapshot_loading = true;
+    git_app.task_board_worktree_pixel_office = true;
+    assert!(super::should_render_worktree_controls(&git_app));
+    let git_nodes = {
+        let element = super::build_control_buttons(&git_app);
+        tree_node_count(&iced::advanced::widget::Tree::new(element.as_widget()))
+    };
+
+    assert!(
+        git_nodes > non_git_nodes,
+        "git project should render worktree panel widgets that non-git hides: git={git_nodes} non_git={non_git_nodes}"
+    );
+}
+
+#[test]
 fn build_control_buttons_covers_expanded_worktree_snapshot() {
     let mut app = test_app();
+    app.project_is_git_repo = true;
     app.task_board_worktree_snapshot = Some(snapshot());
     app.task_board_worktree_panel_expanded = true;
     app.task_board_worktree_snapshot_loading = true;
@@ -163,6 +203,7 @@ fn build_control_buttons_covers_expanded_worktree_snapshot() {
 #[test]
 fn build_control_buttons_covers_collapsed_worktree_snapshot_without_locks_or_activity() {
     let mut app = test_app();
+    app.project_is_git_repo = true;
     app.task_board_worktree_snapshot = Some(snapshot_without_locks());
     app.task_board_worktree_panel_expanded = false;
     app.task_board_worktree_snapshot_loading = false;
@@ -176,6 +217,7 @@ fn build_control_buttons_covers_collapsed_worktree_snapshot_without_locks_or_act
 #[tokio::test(flavor = "multi_thread")]
 async fn build_control_buttons_draws_confirming_worktree_panel() {
     let mut app = test_app();
+    app.project_is_git_repo = true;
     app.task_board_worktree_snapshot = Some(snapshot());
     app.task_board_worktree_panel_expanded = true;
     app.task_board_worktree_snapshot_loading = true;
@@ -188,6 +230,7 @@ async fn build_control_buttons_draws_confirming_worktree_panel() {
 #[test]
 fn build_control_buttons_covers_running_worktree_actions_and_pixel_office() {
     let mut cleanup_app = test_app();
+    cleanup_app.project_is_git_repo = true;
     cleanup_app.task_board_worktree_snapshot = Some(snapshot_without_locks());
     cleanup_app.task_board_worktree_manual_action_kind = Some("cleanup");
 
@@ -195,6 +238,7 @@ fn build_control_buttons_covers_running_worktree_actions_and_pixel_office() {
     std::hint::black_box(cleanup_element);
 
     let mut delete_app = test_app();
+    delete_app.project_is_git_repo = true;
     delete_app.task_board_worktree_snapshot = Some(snapshot_without_locks());
     delete_app.task_board_worktree_manual_action_kind = Some("delete");
     delete_app.task_board_worktree_manual_confirm_kind = Some("delete");
@@ -203,6 +247,7 @@ fn build_control_buttons_covers_running_worktree_actions_and_pixel_office() {
     std::hint::black_box(delete_element);
 
     let mut merge_app = test_app();
+    merge_app.project_is_git_repo = true;
     merge_app.task_board_worktree_snapshot = Some(snapshot());
     merge_app.task_board_worktree_manual_action_kind = Some("merge");
     merge_app.task_board_worktree_manual_confirm_kind = Some("merge");

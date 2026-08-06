@@ -2,10 +2,54 @@ use super::*;
 use axum::body::Body;
 use axum::extract::{Extension, Path, Query};
 use axum::http::{Request, StatusCode};
+use std::ffi::OsString;
 use std::path::Path as FsPath;
 use tempfile::TempDir;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+struct PathGuard {
+    old: Option<OsString>,
+    _bin_dir: TempDir,
+}
+
+impl PathGuard {
+    /// 用仅含失败 stub 的 PATH 屏蔽真实 `git` 可执行文件。
+    ///
+    /// 仅清空 PATH 不够：`git_std_command` 会通过补全 PATH / 常见目录
+    /// 再次解析到系统 Git。
+    fn without_git() -> Self {
+        let bin_dir = TempDir::new().expect("git stub bin dir");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let stub = bin_dir.path().join("git");
+            std::fs::write(&stub, "#!/bin/sh\necho 'git stub: blocked' >&2\nexit 1\n")
+                .expect("write git stub");
+            let mut perms = std::fs::metadata(&stub).expect("stub metadata").permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&stub, perms).expect("stub permissions");
+        }
+        #[cfg(windows)]
+        {
+            let stub = bin_dir.path().join("git.cmd");
+            std::fs::write(&stub, "@echo off\r\necho git stub: blocked 1>&2\r\nexit /b 1\r\n")
+                .expect("write git stub");
+        }
+        let old = std::env::var_os("PATH");
+        unsafe { std::env::set_var("PATH", bin_dir.path()) };
+        Self { old, _bin_dir: bin_dir }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
 
 #[test]
 fn router_builds_with_app_state() {
@@ -244,24 +288,23 @@ fn map_worktree_derives_name_id_and_timestamps() {
 }
 
 #[test]
-fn git_stdout_and_change_records_are_empty_for_non_repo() {
+fn current_branch_and_change_records_are_empty_for_non_repo() {
     let temp = TempDir::new().expect("tempdir");
 
-    assert!(
-        git_stdout(&temp.path().to_string_lossy(), &["rev-parse", "--abbrev-ref", "HEAD"])
-            .is_none()
-    );
+    assert!(current_branch(&temp.path().to_string_lossy()).is_none());
     assert!(collect_project_change_records(&temp.path().to_string_lossy()).is_empty());
 }
 
 #[test]
-fn git_stdout_returns_none_for_successful_empty_stdout() {
+fn current_branch_reads_committed_repository_branch() {
     let temp = TempDir::new().expect("tempdir");
     let repo = git2::Repository::init(temp.path()).expect("repo init");
     write_file(&temp.path().join("README.md"), "demo\n");
     commit_all(&repo, "initial");
 
-    assert!(git_stdout(&temp.path().to_string_lossy(), &["status", "--porcelain"]).is_none());
+    let branch = current_branch(&temp.path().to_string_lossy()).expect("branch");
+    assert!(!branch.is_empty());
+    assert_ne!(branch, "HEAD");
 }
 
 #[test]
@@ -350,6 +393,52 @@ fn map_project_reports_git_branch_and_dirty_state() {
     assert!(dto.git.is_repo);
     assert!(dto.git.has_uncommitted_changes);
     assert!(dto.current_branch.is_some());
+}
+
+#[test]
+fn gateway_git_metadata_works_without_git_executable() {
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+
+    let temp = TempDir::new().expect("tempdir");
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
+    write_file(&temp.path().join("README.md"), "clean\n");
+    write_file(&temp.path().join("tracked.txt"), "one\ntwo\n");
+    commit_all(&repo, "initial");
+    write_file(&temp.path().join("tracked.txt"), "one\ntwo\nthree\n");
+    write_file(&temp.path().join("new.txt"), "alpha\nbeta\n");
+    drop(repo);
+
+    let directory = temp.path().to_string_lossy().to_string();
+    let mut info = project_info("project-git2-metadata", directory.clone(), vec![]);
+    info.vcs = Some(project::Vcs::Git);
+
+    let _path = PathGuard::without_git();
+
+    let dto = map_project(&info);
+    assert!(dto.git.is_repo);
+    assert!(dto.git.has_uncommitted_changes);
+    let branch = dto.current_branch.expect("current branch should resolve without git CLI");
+    assert!(!branch.is_empty());
+    assert_ne!(branch, "HEAD");
+
+    let worktree = map_worktree("project-git2-metadata", &info, directory.clone());
+    assert_eq!(worktree.branch, branch);
+
+    let changed = file::status_git(temp.path());
+    let tracked = changed
+        .iter()
+        .find(|info| info.path == "tracked.txt" && info.status == file::Status::Modified)
+        .expect("modified tracked file should be reported without git CLI");
+    assert_eq!(tracked.added, 1);
+    assert_eq!(tracked.removed, 0);
+
+    let added = changed
+        .iter()
+        .find(|info| info.path == "new.txt" && info.status == file::Status::Added)
+        .expect("untracked file should be reported without git CLI");
+    assert_eq!(added.added, 2);
+    assert_eq!(added.removed, 0);
 }
 
 #[test]

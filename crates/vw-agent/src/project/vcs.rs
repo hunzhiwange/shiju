@@ -2,14 +2,17 @@
 //!
 //! 当前实现关注 Git 分支名：初始化时读取一次分支，并订阅文件 watcher 事件，在
 //! `.git/HEAD` 变化时重新读取并发布分支更新事件。
+//!
+//! 分支读取走 git2，不启动系统 Git。仍依赖 Git CLI 的范围外能力：
+//! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
 use crate::app::agent::bus;
 use crate::app::agent::file::watcher as file_watcher;
-use crate::app::agent::shell::git_std_command;
 use crate::app::agent::util::log;
+use crate::git_repository;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::{Arc, Mutex};
 
@@ -37,18 +40,7 @@ pub struct Info {
 }
 
 fn current_branch(worktree: &str) -> Option<String> {
-    let out = git_std_command()
-        .current_dir(worktree)
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if s.is_empty() { None } else { Some(s) }
+    git_repository::current_branch(Path::new(worktree))
 }
 
 /// 初始化工作树的 VCS 状态跟踪。
@@ -89,7 +81,7 @@ pub async fn init(worktree: PathBuf) -> Arc<Mutex<Info>> {
         if !file.ends_with("HEAD") {
             return;
         }
-        // HEAD 变化后异步重读分支，避免在 watcher 回调里执行 git 子进程阻塞事件处理。
+        // HEAD 变化后异步重读分支，避免在 watcher 回调里阻塞事件处理。
         let wt2 = wt.clone();
         let info3 = info2.clone();
         tokio::spawn(async move {

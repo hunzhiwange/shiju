@@ -82,7 +82,8 @@ pub(crate) use config_load::load_or_init_config;
 pub use config_load::load_or_init_config_for_tenant;
 pub(crate) use config_load::load_or_init_config_for_tenant_without_env;
 pub(crate) use config_save::{
-    save_config, save_config_for_tenant, update_project_config, update_project_config_from_configs,
+    save_config, save_config_for_tenant, update_project_config_for_tenant,
+    update_project_config_from_configs,
 };
 pub(crate) use config_secrets::{decrypt_config_secrets, encrypt_config_secrets};
 pub(crate) use config_validate::validate_config;
@@ -91,5 +92,4 @@ pub(crate) use workspace::resolve_runtime_config_dirs;
 
 /// 旧用户配置迁移来源文件名。
 const LEGACY_CONFIG_JSON_FILENAME: &str = "vibewindow.json";
-pub const CONFIG_OVERRIDE_FILENAME: &str = ".vibewindow.json";
 pub const CONFIG_AGENT_KEY: &str = "agent";

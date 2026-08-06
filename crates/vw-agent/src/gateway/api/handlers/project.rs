@@ -1,4 +1,8 @@
 //! 项目管理相关的 HTTP 路由模块
+//!
+//! 项目解析与 Git 元数据（分支、是否有未提交变更）走 git2，不启动系统 Git。
+//! 仍依赖 Git CLI 的范围外能力：`/v1/git/command`、普通 worktree fetch/submodule、
+//! skill clone/pull、snapshot 等。
 
 use axum::Json;
 use axum::Router;
@@ -68,17 +72,8 @@ fn timestamp_ms(value: u64) -> TimestampMs {
     TimestampMs(value.min(i64::MAX as u64) as i64)
 }
 
-fn git_stdout(directory: &str, args: &[&str]) -> Option<String> {
-    let output = crate::app::agent::shell::git_std_command()
-        .current_dir(directory)
-        .args(args)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() { None } else { Some(value) }
+fn current_branch(directory: &str) -> Option<String> {
+    crate::git_repository::current_branch(std::path::Path::new(directory))
 }
 
 fn collect_project_change_records(directory: &str) -> Vec<ProjectChangeRecordDto> {
@@ -176,7 +171,7 @@ fn map_project(info: &project::Info) -> ProjectDto {
         created_at_ms: timestamp_ms(info.time.created),
         updated_at_ms: timestamp_ms(info.time.updated),
         default_branch: None,
-        current_branch: git_stdout(&directory, &["rev-parse", "--abbrev-ref", "HEAD"]),
+        current_branch: current_branch(&directory),
         git,
         active_worktree_id: None,
         session_count,
@@ -205,7 +200,7 @@ fn map_worktree(project_id: &str, info: &project::Info, directory: String) -> Wo
         id: worktree_id_from_directory(&directory).as_str().into(),
         project_id: project_id.into(),
         name,
-        branch: git_stdout(&directory, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default(),
+        branch: current_branch(&directory).unwrap_or_default(),
         directory,
         status: WorktreeStatus::Ready,
         created_at_ms: timestamp_ms(info.time.created),

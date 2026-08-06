@@ -196,7 +196,7 @@ mod tests {
         };
         let client = Client::new();
 
-        let error = normalize_image_reference("http://[::1", &config, 1024, &client)
+        let error = normalize_image_reference("http://[::1", &config, 1024, usize::MAX, &client)
             .await
             .expect_err("malformed URL should fail before network access");
 
@@ -218,7 +218,7 @@ mod tests {
         )
         .await;
 
-        let normalized = normalize_remote_image(&source, bytes.len(), &Client::new())
+        let normalized = normalize_remote_image(&source, bytes.len(), usize::MAX, &Client::new())
             .await
             .expect("remote PNG should normalize");
 
@@ -230,7 +230,7 @@ mod tests {
         let not_found =
             one_shot_image_server("HTTP/1.1 404 Not Found", Some("image/png"), None, Vec::new())
                 .await;
-        let status_error = normalize_remote_image(&not_found, 1024, &Client::new())
+        let status_error = normalize_remote_image(&not_found, 1024, usize::MAX, &Client::new())
             .await
             .expect_err("non-success remote response should fail");
 
@@ -242,7 +242,7 @@ mod tests {
 
         let oversized =
             one_shot_image_server("HTTP/1.1 200 OK", Some("image/png"), Some(3), Vec::new()).await;
-        let size_error = normalize_remote_image(&oversized, 2, &Client::new())
+        let size_error = normalize_remote_image(&oversized, 2, usize::MAX, &Client::new())
             .await
             .expect_err("oversized content-length should fail before reading body");
 
@@ -261,7 +261,7 @@ mod tests {
         let source =
             one_shot_image_server("HTTP/1.1 200 OK", None, None, b"not an image".to_vec()).await;
 
-        let error = normalize_remote_image(&source, 1024, &Client::new())
+        let error = normalize_remote_image(&source, 1024, usize::MAX, &Client::new())
             .await
             .expect_err("remote bytes without detectable MIME should fail");
 
@@ -361,7 +361,7 @@ mod tests {
         let source = missing_path.to_str().unwrap();
         let client = Client::new();
 
-        let error = normalize_image_reference(source, &MultimodalConfig::default(), 1024, &client)
+        let error = normalize_image_reference(source, &MultimodalConfig::default(), 1024, usize::MAX, &client)
             .await
             .expect_err("missing local source should fail");
 
@@ -379,7 +379,7 @@ mod tests {
         std::fs::write(&image_path, bytes).unwrap();
 
         let normalized =
-            normalize_local_image(image_path.to_str().unwrap(), bytes.len()).await.unwrap();
+            normalize_local_image(image_path.to_str().unwrap(), bytes.len(), usize::MAX).await.unwrap();
 
         assert_eq!(normalized, format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)));
     }
@@ -390,7 +390,7 @@ mod tests {
         let image_path = temp.path().join("sample.bin");
         std::fs::write(&image_path, b"not an image").unwrap();
 
-        let error = normalize_local_image(image_path.to_str().unwrap(), 1024)
+        let error = normalize_local_image(image_path.to_str().unwrap(), 1024, usize::MAX)
             .await
             .expect_err("unknown file type should fail");
 
@@ -436,7 +436,7 @@ mod tests {
         let payload = STANDARD.encode(bytes);
 
         let normalized =
-            normalize_data_uri(&format!("data:IMAGE/PNG;base64,  {payload}  "), bytes.len())
+            normalize_data_uri(&format!("data:IMAGE/PNG;base64,  {payload}  "), bytes.len(), usize::MAX)
                 .unwrap();
 
         assert_eq!(normalized, format!("data:image/png;base64,{payload}"));
@@ -453,7 +453,7 @@ mod tests {
 
         for (source, expected_message) in cases {
             let error =
-                normalize_data_uri(source, 1024).expect_err("malformed data URI should fail");
+                normalize_data_uri(source, 1024, usize::MAX).expect_err("malformed data URI should fail");
             assert!(
                 error.to_string().contains(expected_message),
                 "unexpected error for {source}: {error}"
@@ -466,7 +466,7 @@ mod tests {
         let source = format!("data:image/png;base64,{}", STANDARD.encode([1_u8, 2, 3]));
 
         let error =
-            normalize_data_uri(&source, 2).expect_err("decoded payload should exceed limit");
+            normalize_data_uri(&source, 2, usize::MAX).expect_err("decoded payload should exceed limit");
 
         assert!(matches!(
             error.downcast_ref::<MultimodalError>(),

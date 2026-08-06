@@ -705,6 +705,40 @@ fn project_info_loaded_applies_current_project_identity_timestamp_and_branch() {
     assert_eq!(app.project_id.as_deref(), Some("project-id"));
     assert_eq!(app.project_updated_at_ms, Some(42));
     assert_eq!(app.selected_branch.as_deref(), Some("main"));
+    assert!(app.project_is_git_repo);
+}
+
+#[test]
+fn project_info_loaded_sets_non_git_capability_when_vcs_absent() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+    app.project_is_git_repo = true;
+    app.task_board_worktree_snapshot_loading = true;
+    app.task_board_last_worktree_snapshot_at_ms = 99;
+    app.task_board_worktree_snapshot = Some(crate::app::task::WorktreePoolSnapshot {
+        repo_root: "/tmp/stale".to_string(),
+        pool_root: "/tmp/stale/.worktrees".to_string(),
+        base_branch: "main".to_string(),
+        idle_count: 1,
+        busy_count: 0,
+        tainted_count: 0,
+        recycling_count: 0,
+        dead_count: 0,
+        merge_target_locks: Vec::new(),
+        slots: Vec::new(),
+    });
+    let mut loaded = loaded_project_info("/tmp/current", 42, Some("main"));
+    loaded.info.vcs = None;
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectInfoLoaded(Ok(loaded)),
+    );
+
+    assert!(!app.project_is_git_repo);
+    assert!(app.task_board_worktree_snapshot.is_none());
+    assert!(!app.task_board_worktree_snapshot_loading);
+    assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 0);
 }
 
 #[test]

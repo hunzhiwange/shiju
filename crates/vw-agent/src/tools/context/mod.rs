@@ -12,6 +12,7 @@ use super::read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 use crate::agent::loop_::approval::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::hooks::HookRunner;
+use crate::app::agent::multimodal::assets::{ImageAssetId, ImageAssetScope};
 use crate::app::agent::observability::Observer;
 use crate::app::agent::providers::ChatMessage;
 use crate::app::agent::security::SecurityPolicy;
@@ -22,6 +23,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
+
+/// 单次工具循环允许排队重看的图片数量上限。
+pub const MAX_PENDING_IMAGE_RELOADS: usize = 4;
 
 tokio::task_local! {
     static ACTIVE_TOOL_USE_CONTEXT: Arc<ToolUseContext>;
@@ -49,6 +53,58 @@ pub struct WorkflowState {
     pub worktree: WorktreeBindingState,
 }
 
+/// 待重看图片队列：去重、有数量上限，并绑定当前资产范围。
+#[derive(Debug, Clone, Default)]
+pub struct PendingImageReloadQueue {
+    scope_key: Option<String>,
+    ids: Vec<String>,
+}
+
+impl PendingImageReloadQueue {
+    /// 绑定当前图片资产范围键。
+    pub fn set_scope_key(&mut self, scope_key: impl Into<String>) {
+        self.scope_key = Some(scope_key.into());
+    }
+
+    /// 当前范围键。
+    pub fn scope_key(&self) -> Option<&str> {
+        self.scope_key.as_deref()
+    }
+
+    /// 入队一个 image_id；重复忽略，超量返回错误。
+    pub fn enqueue(&mut self, image_id: &str) -> Result<(), String> {
+        let image_id = image_id.trim();
+        if image_id.is_empty() {
+            return Err("image_id must be non-empty".to_string());
+        }
+        if self.ids.iter().any(|existing| existing == image_id) {
+            return Ok(());
+        }
+        if self.ids.len() >= MAX_PENDING_IMAGE_RELOADS {
+            return Err(format!(
+                "pending image reload queue is full (max {MAX_PENDING_IMAGE_RELOADS})"
+            ));
+        }
+        self.ids.push(image_id.to_string());
+        Ok(())
+    }
+
+    /// 查看当前排队 ID。
+    pub fn peek(&self) -> &[String] {
+        &self.ids
+    }
+
+    /// 取出全部排队 ID（不清空 scope）。
+    pub fn take_all(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.ids)
+    }
+
+    /// 清空排队 ID。
+    pub fn clear(&mut self) {
+        self.ids.clear();
+    }
+}
+
 /// Claude Tools V2 共享运行时上下文。
 #[derive(Clone)]
 pub struct ToolUseContext {
@@ -73,6 +129,7 @@ pub struct ToolUseContext {
     iteration: usize,
     bypass_non_cli_approval_for_turn: bool,
     workflow: Arc<Mutex<WorkflowState>>,
+    pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
 }
 
 impl Default for ToolUseContext {
@@ -134,6 +191,7 @@ impl ToolUseContext {
             iteration: 0,
             bypass_non_cli_approval_for_turn: false,
             workflow: Arc::new(Mutex::new(WorkflowState::default())),
+            pending_image_reloads: Arc::new(Mutex::new(PendingImageReloadQueue::default())),
         }
     }
 
@@ -362,6 +420,65 @@ impl ToolUseContext {
         self
     }
 
+    /// 注入待重看图片队列句柄。
+    pub fn with_pending_image_reloads_handle(
+        mut self,
+        pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
+    ) -> Self {
+        self.pending_image_reloads = pending_image_reloads;
+        self
+    }
+
+    /// 绑定当前图片资产范围。
+    pub fn set_image_asset_scope(&self, scope: &ImageAssetScope) {
+        let mut queue = self
+            .pending_image_reloads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        queue.set_scope_key(scope.key());
+    }
+
+    /// 返回待重看队列句柄。
+    pub fn pending_image_reloads_handle(&self) -> Arc<Mutex<PendingImageReloadQueue>> {
+        Arc::clone(&self.pending_image_reloads)
+    }
+
+    /// 将 image_id 加入待重看队列。
+    pub fn enqueue_pending_image_reload(&self, image_id: &ImageAssetId) -> Result<(), String> {
+        let mut queue = self
+            .pending_image_reloads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        queue.enqueue(image_id.as_str())
+    }
+
+    /// 查看待重看 ID 快照。
+    pub fn peek_pending_image_reloads(&self) -> Vec<String> {
+        let queue = self
+            .pending_image_reloads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        queue.peek().to_vec()
+    }
+
+    /// 清除待重看队列（仅在 LLM step 成功后调用）。
+    pub fn clear_pending_image_reloads(&self) {
+        let mut queue = self
+            .pending_image_reloads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        queue.clear();
+    }
+
+    /// 当前绑定的图片资产范围键。
+    pub fn image_asset_scope_key(&self) -> Option<String> {
+        let queue = self
+            .pending_image_reloads
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        queue.scope_key().map(ToOwned::to_owned)
+    }
+
     /// 注入观测器。
     pub fn with_observer(mut self, observer: Arc<dyn Observer>) -> Self {
         self.observer = Some(observer);
@@ -459,6 +576,14 @@ where
 /// 读取当前 task-local 中的工具上下文。
 pub fn current_tool_use_context() -> Option<Arc<ToolUseContext>> {
     ACTIVE_TOOL_USE_CONTEXT.try_with(Clone::clone).ok()
+}
+
+/// 将 image_id 加入当前工具上下文的待重看队列。
+pub fn enqueue_current_pending_image_reload(image_id: &ImageAssetId) -> Result<(), String> {
+    let context = current_tool_use_context().ok_or_else(|| {
+        "image_asset_read requires an active tool use context".to_string()
+    })?;
+    context.enqueue_pending_image_reload(image_id)
 }
 
 /// 返回当前 task-local 上下文中某个路径的最近读取状态。

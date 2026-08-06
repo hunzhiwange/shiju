@@ -36,6 +36,7 @@ fn new_initializes_safe_empty_session_state() {
 
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.project_path, None);
+    assert!(!app.project_is_git_repo);
     assert_eq!(app.project_id, None);
     assert_eq!(app.active_session_id, None);
     assert!(app.chat.is_empty());

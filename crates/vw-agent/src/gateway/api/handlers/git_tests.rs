@@ -1,6 +1,75 @@
 use super::*;
 use base64::Engine as _;
+use std::ffi::OsString;
 use uuid::Uuid;
+
+struct PathGuard {
+    old: Option<OsString>,
+    _bin_dir: tempfile::TempDir,
+}
+
+impl PathGuard {
+    /// 用仅含失败 stub 的 PATH 屏蔽真实 `git` 可执行文件。
+    ///
+    /// 仅清空 PATH 不够：`git_std_command` 会通过补全 PATH / 常见目录
+    /// 再次解析到系统 Git。
+    fn without_git() -> Self {
+        let bin_dir = tempfile::TempDir::new().expect("git stub bin dir");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let stub = bin_dir.path().join("git");
+            std::fs::write(&stub, "#!/bin/sh\necho 'git stub: blocked' >&2\nexit 1\n")
+                .expect("write git stub");
+            let mut perms = std::fs::metadata(&stub).expect("stub metadata").permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&stub, perms).expect("stub permissions");
+        }
+        #[cfg(windows)]
+        {
+            let stub = bin_dir.path().join("git.cmd");
+            std::fs::write(&stub, "@echo off\r\necho git stub: blocked 1>&2\r\nexit /b 1\r\n")
+                .expect("write git stub");
+        }
+        let old = std::env::var_os("PATH");
+        unsafe { std::env::set_var("PATH", bin_dir.path()) };
+        Self { old, _bin_dir: bin_dir }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
+
+/// 测试夹具专用 CLI helper；生产 commit/merge 路径走 git2，不经过本函数。
+fn run_git(directory: &str, args: &[&str]) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .current_dir(directory)
+        .args(args)
+        .output()
+        .map_err(|err| err.to_string())?;
+    let stdout =
+        String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n").replace('\r', "\n");
+    let stderr =
+        String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n").replace('\r', "\n");
+    if output.status.success() {
+        return Ok(stdout);
+    }
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim().to_string()
+    } else {
+        stderr.trim().to_string()
+    };
+    if detail.is_empty() {
+        return Err(format!("git command failed: {}", args.join(" ")));
+    }
+    Err(detail)
+}
 
 #[test]
 fn router_builds_with_unit_state() {
@@ -54,6 +123,292 @@ fn directory_from_worktree_id_decodes_utf8_and_rejects_invalid_payloads() {
     assert_eq!(error.message, "worktree not found");
 }
 
+#[test]
+fn gateway_git2_commit_works_without_git_executable() {
+    let _path = PathGuard::without_git();
+    let repo = init_repo_git2();
+
+    // Initial commit on an unborn repository.
+    std::fs::write(repo.path().join("created.txt"), "created\n").expect("created file");
+    let mut initial = empty_commit_request();
+    initial.message = "initial".to_string();
+    initial.stage_all = true;
+    let initial_response =
+        commit_selected_blocking(repo.path_str(), &initial).expect("initial commit");
+    assert!(initial_response.ok);
+    assert!(initial_response.created);
+    assert_eq!(initial_response.commit.message, "initial");
+    assert_eq!(initial_response.commit.sha.len(), 40);
+    assert_eq!(
+        blob_at_commit(repo.path(), &initial_response.commit.sha, "created.txt"),
+        "created\n"
+    );
+
+    // Full commit of a subsequent change.
+    std::fs::write(repo.path().join("created.txt"), "updated\n").expect("updated file");
+    let mut full = empty_commit_request();
+    full.message = "full update".to_string();
+    full.stage_all = true;
+    let full_response = commit_selected_blocking(repo.path_str(), &full).expect("full commit");
+    assert!(full_response.ok);
+    assert!(full_response.created);
+    assert_eq!(full_response.commit.message, "full update");
+    assert_eq!(
+        blob_at_commit(repo.path(), &full_response.commit.sha, "created.txt"),
+        "updated\n"
+    );
+
+    // No staged changes keeps created=false and HEAD unchanged.
+    let head = full_response.commit.sha.clone();
+    let mut noop = empty_commit_request();
+    noop.message = "noop".to_string();
+    noop.stage_all = true;
+    let noop_response = commit_selected_blocking(repo.path_str(), &noop).expect("noop commit");
+    assert!(noop_response.ok);
+    assert!(!noop_response.created);
+    assert_eq!(noop_response.commit.sha, head);
+    assert_eq!(noop_response.commit.message, "noop");
+}
+
+#[test]
+fn gateway_git2_partial_commit_preserves_unselected_changes() {
+    let _path = PathGuard::without_git();
+    let repo = init_repo_git2();
+    let hunk_old = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n";
+    let hunk_new = "ONE\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nTEN\n";
+    write_and_commit_all_git2(
+        repo.path(),
+        &[
+            ("selected.txt", "base-selected\n"),
+            ("other.txt", "base-other\n"),
+            ("lines.txt", "alpha\nold\nomega\n"),
+            ("hunks.txt", hunk_old),
+        ],
+        "initial",
+    );
+
+    std::fs::write(repo.path().join("selected.txt"), "selected-new\n").expect("selected change");
+    std::fs::write(repo.path().join("other.txt"), "other-new\n").expect("other change");
+    std::fs::write(repo.path().join("lines.txt"), "alpha\nnew\nomega\n").expect("lines change");
+    std::fs::write(repo.path().join("hunks.txt"), hunk_new).expect("hunks change");
+
+    let mut request = empty_commit_request();
+    request.message = "partial".to_string();
+    request.selected_files = vec!["selected.txt".to_string()];
+    request.selected_lines =
+        vec![vw_api_types::git::GitLineSelectionDto { path: "lines.txt".to_string(), line: 1 }];
+    request.selected_hunks =
+        vec![vw_api_types::git::GitHunkSelectionDto { path: "hunks.txt".to_string(), index: 0 }];
+
+    let response = commit_selected_blocking(repo.path_str(), &request).expect("partial commit");
+    assert!(response.created);
+    assert_eq!(response.commit.message, "partial");
+
+    // File selection commits the full working-tree content.
+    assert_eq!(
+        blob_at_commit(repo.path(), &response.commit.sha, "selected.txt"),
+        "selected-new\n"
+    );
+    // Line selection of the inserted line keeps the unselected old line.
+    assert_eq!(
+        blob_at_commit(repo.path(), &response.commit.sha, "lines.txt"),
+        "alpha\nnew\nold\nomega\n"
+    );
+    // Hunk 0 selects only the first distant change.
+    assert_eq!(
+        blob_at_commit(repo.path(), &response.commit.sha, "hunks.txt"),
+        "ONE\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n"
+    );
+    // Completely unselected file stays at the previous committed content.
+    assert_eq!(
+        blob_at_commit(repo.path(), &response.commit.sha, "other.txt"),
+        "base-other\n"
+    );
+
+    // Unselected working-tree changes remain dirty.
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("other.txt")).expect("other worktree"),
+        "other-new\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("hunks.txt")).expect("hunks worktree"),
+        hunk_new
+    );
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("lines.txt")).expect("lines worktree"),
+        "alpha\nnew\nomega\n"
+    );
+}
+
+#[test]
+fn gateway_git2_merge_works_without_git_executable() {
+    let _path = PathGuard::without_git();
+    let repo = init_repo_git2();
+
+    // Shared base commit on main.
+    write_and_commit_all_git2(repo.path(), &[("base.txt", "base\n")], "initial");
+
+    // Already-merged: feature points at the same commit as main.
+    create_branch_git2(repo.path(), "feature-already");
+    let already =
+        merge_branch_blocking(repo.path_str(), "feature-already", "main").expect("already merged");
+    assert!(already.ok);
+    assert!(already.already_merged);
+    assert_eq!(already.source_branch, "feature-already");
+    assert_eq!(already.target_branch, "main");
+    assert_eq!(already.message, "feature-already already merged into main");
+    assert!(git_is_clean(repo.path_str()).expect("clean after already-merged"));
+
+    // Fast-forward: feature is strictly ahead of main.
+    create_branch_git2(repo.path(), "feature-ff");
+    checkout_branch_git2(repo.path(), "feature-ff");
+    write_and_commit_all_git2(repo.path(), &[("ff.txt", "ff\n")], "ff commit");
+    let feature_ff_oid = head_oid_git2(repo.path());
+    checkout_branch_git2(repo.path(), "main");
+    let main_before_ff = head_oid_git2(repo.path());
+    let ff = merge_branch_blocking(repo.path_str(), "feature-ff", "main").expect("fast-forward");
+    assert!(ff.ok);
+    assert!(!ff.already_merged);
+    assert_eq!(ff.message, "merged feature-ff into main");
+    assert_eq!(head_oid_git2(repo.path()), feature_ff_oid);
+    assert_ne!(head_oid_git2(repo.path()), main_before_ff);
+    assert_eq!(commit_parent_count_git2(repo.path(), &feature_ff_oid), 1);
+    assert_eq!(blob_at_commit(repo.path(), &feature_ff_oid, "ff.txt"), "ff\n");
+
+    // Two-parent merge: main and feature diverge.
+    create_branch_git2(repo.path(), "feature-merge");
+    checkout_branch_git2(repo.path(), "feature-merge");
+    write_and_commit_all_git2(repo.path(), &[("feature-only.txt", "feature\n")], "feature side");
+    let feature_merge_oid = head_oid_git2(repo.path());
+    checkout_branch_git2(repo.path(), "main");
+    write_and_commit_all_git2(repo.path(), &[("main-only.txt", "main\n")], "main side");
+    let main_parent_oid = head_oid_git2(repo.path());
+    let merged =
+        merge_branch_blocking(repo.path_str(), "feature-merge", "main").expect("two-parent merge");
+    assert!(merged.ok);
+    assert!(!merged.already_merged);
+    assert_eq!(merged.message, "merged feature-merge into main");
+    let merge_oid = head_oid_git2(repo.path());
+    assert_eq!(commit_parent_count_git2(repo.path(), &merge_oid), 2);
+    assert_eq!(
+        commit_parent_oids_git2(repo.path(), &merge_oid),
+        vec![main_parent_oid, feature_merge_oid]
+    );
+    assert_eq!(blob_at_commit(repo.path(), &merge_oid, "feature-only.txt"), "feature\n");
+    assert_eq!(blob_at_commit(repo.path(), &merge_oid, "main-only.txt"), "main\n");
+    assert_eq!(
+        commit_message_git2(repo.path(), &merge_oid),
+        "chore(task): merge feature-merge into main"
+    );
+
+    // Dirty target auto-save before merge.
+    create_branch_git2(repo.path(), "feature-dirty");
+    checkout_branch_git2(repo.path(), "feature-dirty");
+    write_and_commit_all_git2(repo.path(), &[("dirty-feature.txt", "feature\n")], "dirty feature");
+    checkout_branch_git2(repo.path(), "main");
+    std::fs::write(repo.path().join("dirty-target.txt"), "target\n").expect("dirty target");
+    let dirty =
+        merge_branch_blocking(repo.path_str(), "feature-dirty", "main").expect("dirty auto-save");
+    assert!(dirty.ok);
+    assert!(!dirty.already_merged);
+    assert!(dirty.message.contains("saved target branch changes"));
+    assert!(git_is_clean(repo.path_str()).expect("clean after dirty merge"));
+    let dirty_head = head_oid_git2(repo.path());
+    assert_eq!(blob_at_commit(repo.path(), &dirty_head, "dirty-target.txt"), "target\n");
+    assert_eq!(blob_at_commit(repo.path(), &dirty_head, "dirty-feature.txt"), "feature\n");
+    assert!(
+        commit_message_git2(repo.path(), &dirty_head)
+            .contains("chore(task): merge feature-dirty into main")
+    );
+    let save_oid = commit_parent_oids_git2(repo.path(), &dirty_head)[0].clone();
+    assert!(
+        commit_message_git2(repo.path(), &save_oid)
+            .contains("chore(task): save main changes before merging feature-dirty")
+    );
+}
+
+#[test]
+fn gateway_git2_merge_conflict_restores_target_state() {
+    let _path = PathGuard::without_git();
+    let repo = init_repo_git2();
+    write_and_commit_all_git2(repo.path(), &[("conflict.txt", "base\n")], "initial");
+
+    create_branch_git2(repo.path(), "feature");
+    checkout_branch_git2(repo.path(), "feature");
+    write_and_commit_all_git2(repo.path(), &[("conflict.txt", "feature\n")], "feature change");
+
+    checkout_branch_git2(repo.path(), "main");
+    write_and_commit_all_git2(repo.path(), &[("conflict.txt", "main\n")], "main change");
+    let target_oid = head_oid_git2(repo.path());
+
+    let error = merge_branch_blocking(repo.path_str(), "feature", "main")
+        .expect_err("conflict should fail");
+    assert!(!error.trim().is_empty());
+
+    assert!(!repo.path().join(".git").join("MERGE_HEAD").exists());
+    assert!(git_is_clean(repo.path_str()).expect("clean after conflict restore"));
+    assert_eq!(head_oid_git2(repo.path()), target_oid);
+    assert_eq!(current_branch_git2(repo.path()), "main");
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("conflict.txt")).expect("restored worktree"),
+        "main\n"
+    );
+    assert_eq!(blob_at_commit(repo.path(), &target_oid, "conflict.txt"), "main\n");
+}
+
+#[test]
+fn gateway_git2_core_flow_works_without_git_executable() {
+    let _path = PathGuard::without_git();
+    let repo = init_repo_git2();
+
+    // 项目发现 / 分支元数据：无系统 Git 时仍可解析。
+    let discovered =
+        crate::git_repository::discover(repo.path()).expect("discover without git CLI");
+    assert_eq!(
+        discovered.workdir,
+        repo.path().canonicalize().unwrap_or_else(|_| repo.path().to_path_buf())
+    );
+    let branch =
+        crate::git_repository::current_branch(repo.path()).expect("branch without git CLI");
+    assert_eq!(branch, "main");
+
+    // Commit via gateway git2 path.
+    std::fs::write(repo.path().join("base.txt"), "base\n").expect("base file");
+    let mut initial = empty_commit_request();
+    initial.message = "initial".to_string();
+    initial.stage_all = true;
+    let initial_response =
+        commit_selected_blocking(repo.path_str(), &initial).expect("initial commit");
+    assert!(initial_response.ok);
+    assert!(initial_response.created);
+    assert_eq!(initial_response.commit.message, "initial");
+
+    // 脏工作区状态元数据同样不依赖系统 Git。
+    std::fs::write(repo.path().join("dirty.txt"), "dirty\n").expect("dirty file");
+    let status = crate::app::agent::file::status_git(repo.path());
+    assert!(
+        status.iter().any(|info| info.path == "dirty.txt"),
+        "status_git should report untracked file without git CLI"
+    );
+    std::fs::remove_file(repo.path().join("dirty.txt")).expect("remove dirty");
+
+    // Feature commit + merge via gateway git2 path.
+    create_branch_git2(repo.path(), "feature");
+    checkout_branch_git2(repo.path(), "feature");
+    write_and_commit_all_git2(repo.path(), &[("feature.txt", "feature\n")], "feature commit");
+    checkout_branch_git2(repo.path(), "main");
+    let merge =
+        merge_branch_blocking(repo.path_str(), "feature", "main").expect("merge without git CLI");
+    assert!(merge.ok);
+    assert!(!merge.already_merged);
+    assert_eq!(merge.message, "merged feature into main");
+    assert_eq!(
+        blob_at_commit(repo.path(), &head_oid_git2(repo.path()), "feature.txt"),
+        "feature\n"
+    );
+    assert!(git_is_clean(repo.path_str()).expect("clean after core flow"));
+}
+
 #[tokio::test]
 async fn git_commit_v1_rejects_blank_message_before_project_lookup() {
     let mut request = empty_commit_request();
@@ -90,36 +445,6 @@ async fn git_commit_v1_trims_message_and_commits_registered_project() {
         run_git(repo.path_str(), &["log", "--format=%s", "-n", "1"]).expect("commit subject"),
         "add created file\n"
     );
-}
-
-#[tokio::test]
-async fn git_command_v1_rejects_invalid_request_before_spawning_command() {
-    let request = GitCommandRequest {
-        directory: " ".to_string(),
-        args: vec!["status".to_string()],
-        timeout_secs: None,
-    };
-
-    let error = git_command_v1(Json(request)).await.expect_err("invalid command request");
-
-    assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
-    assert_eq!(error.message, "git directory is required");
-}
-
-#[tokio::test]
-async fn git_command_v1_runs_valid_git_command() {
-    let repo = init_repo();
-    let request = GitCommandRequest {
-        directory: repo.path_str().to_string(),
-        args: vec!["status".to_string(), "--short".to_string()],
-        timeout_secs: Some(5),
-    };
-
-    let Json(response) = git_command_v1(Json(request)).await.expect("valid git command");
-
-    assert!(response.success);
-    assert_eq!(response.code, Some(0));
-    assert_eq!(response.stdout, "");
 }
 
 #[tokio::test]
@@ -223,54 +548,6 @@ fn validate_repo_relative_path_rejects_nested_parent_escape() {
     assert!(validate_repo_relative_path("nested/../../secret").is_err());
     assert!(validate_repo_relative_path("nested/../sibling").is_err());
     assert!(validate_repo_relative_path("nested/file.txt").is_ok());
-}
-
-#[test]
-fn validate_git_command_request_checks_required_fields() {
-    let temp = tempfile::tempdir().expect("temp dir");
-    let valid = GitCommandRequest {
-        directory: temp.path().to_string_lossy().to_string(),
-        args: vec!["status".to_string()],
-        timeout_secs: Some(1),
-    };
-    assert!(validate_git_command_request(&valid).is_ok());
-
-    assert!(
-        validate_git_command_request(&GitCommandRequest {
-            directory: String::new(),
-            ..valid.clone()
-        })
-        .is_err()
-    );
-    assert!(
-        validate_git_command_request(&GitCommandRequest {
-            directory: "/definitely/missing/vw-git".to_string(),
-            ..valid.clone()
-        })
-        .is_err()
-    );
-    assert!(
-        validate_git_command_request(&GitCommandRequest { args: Vec::new(), ..valid.clone() })
-            .is_err()
-    );
-    assert!(
-        validate_git_command_request(&GitCommandRequest {
-            args: vec!["status\0bad".to_string()],
-            ..valid.clone()
-        })
-        .is_err()
-    );
-    assert!(
-        validate_git_command_request(&GitCommandRequest {
-            directory: format!("{}\0bad", temp.path().to_string_lossy()),
-            ..valid.clone()
-        })
-        .is_err()
-    );
-    assert!(
-        validate_git_command_request(&GitCommandRequest { timeout_secs: Some(0), ..valid })
-            .is_err()
-    );
 }
 
 #[test]
@@ -544,16 +821,6 @@ fn strip_final_line_ending_handles_lf_and_crlf() {
 }
 
 #[test]
-fn normalize_git_output_bytes_normalizes_crlf_and_cr() {
-    assert_eq!(normalize_git_output_bytes(b"a\r\nb\rc"), "a\nb\nc");
-}
-
-#[test]
-fn normalize_git_output_bytes_replaces_invalid_utf8_lossily() {
-    assert_eq!(normalize_git_output_bytes(b"ok\xff\r\n"), "ok\u{fffd}\n");
-}
-
-#[test]
 fn git_file_mode_defaults_for_untracked_files() {
     let repo = init_repo();
     std::fs::write(repo.path().join("new.txt"), "new\n").expect("new file");
@@ -568,52 +835,6 @@ fn git_file_mode_reads_tracked_index_mode() {
     run_git(repo.path_str(), &["add", "tracked.txt"]).expect("add tracked");
 
     assert_eq!(git_file_mode(repo.path_str(), "tracked.txt").expect("tracked mode"), "100644");
-}
-
-#[test]
-fn run_git_command_blocking_returns_stdout_and_status() {
-    let repo = init_repo();
-
-    let response = run_git_command_blocking(&GitCommandRequest {
-        directory: repo.path_str().to_string(),
-        args: vec!["status".to_string(), "--short".to_string()],
-        timeout_secs: None,
-    })
-    .expect("git status");
-
-    assert!(response.success);
-    assert_eq!(response.code, Some(0));
-    assert_eq!(response.stdout, "");
-}
-
-#[test]
-fn run_git_command_blocking_returns_nonzero_status_and_stderr() {
-    let repo = init_repo();
-
-    let response = run_git_command_blocking(&GitCommandRequest {
-        directory: repo.path_str().to_string(),
-        args: vec![
-            "rev-parse".to_string(),
-            "--verify".to_string(),
-            "refs/heads/missing".to_string(),
-        ],
-        timeout_secs: None,
-    })
-    .expect("git failure response");
-
-    assert!(!response.success);
-    assert_ne!(response.code, Some(0));
-    assert!(!response.stderr.trim().is_empty());
-}
-
-#[test]
-fn run_git_owned_surfaces_command_failure_detail() {
-    let repo = init_repo();
-    let error = run_git_owned(repo.path_str(), vec!["not-a-real-subcommand".to_string()])
-        .expect_err("invalid git subcommand");
-
-    assert!(!error.trim().is_empty());
-    assert!(!error.starts_with("git command failed:"));
 }
 
 #[test]
@@ -920,7 +1141,7 @@ fn verify_local_branch_and_worktree_lookup_distinguish_known_branch() {
 
     assert!(verify_local_branch(repo.path_str(), "feature").is_ok());
     assert!(verify_local_branch(repo.path_str(), "missing").is_err());
-    let main_path = git_worktree_path_for_branch(repo.path_str(), "main")
+    let main_path = worktree_path_for_branch(repo.path_str(), "main")
         .expect("worktree list")
         .expect("main worktree");
     assert_eq!(
@@ -928,7 +1149,7 @@ fn verify_local_branch_and_worktree_lookup_distinguish_known_branch() {
         std::fs::canonicalize(repo.path()).expect("canonical repo path")
     );
     assert_eq!(
-        git_worktree_path_for_branch(repo.path_str(), "missing").expect("missing lookup"),
+        worktree_path_for_branch(repo.path_str(), "missing").expect("missing lookup"),
         None
     );
 }
@@ -1152,6 +1373,113 @@ fn init_repo() -> TestRepo {
     run_git(repo.path_str(), &["config", "user.email", "test@example.com"]).expect("email");
     run_git(repo.path_str(), &["config", "user.name", "Test User"]).expect("name");
     repo
+}
+
+fn init_repo_git2() -> TestRepo {
+    let temp = tempfile::tempdir().expect("repo dir");
+    let mut opts = git2::RepositoryInitOptions::new();
+    opts.initial_head("main");
+    let repository = git2::Repository::init_opts(temp.path(), &opts).expect("git2 init");
+    repository.config().expect("config").set_str("user.name", "Test User").expect("name");
+    repository.config().expect("config").set_str("user.email", "test@example.com").expect("email");
+    TestRepo { temp }
+}
+
+fn write_and_commit_all_git2(path: &std::path::Path, files: &[(&str, &str)], message: &str) {
+    for (relative, content) in files {
+        let full = path.join(relative);
+        if let Some(parent) = full.parent() {
+            std::fs::create_dir_all(parent).expect("parent dir");
+        }
+        std::fs::write(&full, content).expect("write file");
+    }
+    let repo = git2::Repository::open(path).expect("open repo");
+    let tree_id = {
+        let mut index = repo.index().expect("index");
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None).expect("add all");
+        index.write().expect("index write");
+        index.write_tree().expect("tree")
+    };
+    let tree = repo.find_tree(tree_id).expect("tree");
+    let sig = repo.signature().expect("signature");
+    let parents = repo
+        .head()
+        .ok()
+        .and_then(|head| head.peel_to_commit().ok())
+        .into_iter()
+        .collect::<Vec<_>>();
+    let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs).expect("commit");
+}
+
+fn blob_at_commit(path: &std::path::Path, sha: &str, file: &str) -> String {
+    let repo = git2::Repository::open(path).expect("open repo");
+    let commit = repo
+        .revparse_single(sha)
+        .expect("revparse")
+        .peel_to_commit()
+        .expect("commit");
+    let tree = commit.tree().expect("tree");
+    let entry = tree.get_path(std::path::Path::new(file)).expect("tree path");
+    let object = entry.to_object(&repo).expect("object");
+    let blob = object.as_blob().expect("blob");
+    String::from_utf8_lossy(blob.content()).to_string()
+}
+
+fn create_branch_git2(path: &std::path::Path, name: &str) {
+    let repo = git2::Repository::open(path).expect("open repo");
+    let commit = repo.head().expect("head").peel_to_commit().expect("commit");
+    repo.branch(name, &commit, false).expect("create branch");
+}
+
+fn checkout_branch_git2(path: &std::path::Path, name: &str) {
+    let repo = git2::Repository::open(path).expect("open repo");
+    let object = repo.revparse_single(&format!("refs/heads/{name}")).expect("branch object");
+    repo.checkout_tree(&object, None).expect("checkout tree");
+    repo.set_head(&format!("refs/heads/{name}")).expect("set head");
+}
+
+fn head_oid_git2(path: &std::path::Path) -> String {
+    let repo = git2::Repository::open(path).expect("open repo");
+    repo.head().expect("head").peel_to_commit().expect("commit").id().to_string()
+}
+
+fn current_branch_git2(path: &std::path::Path) -> String {
+    let repo = git2::Repository::open(path).expect("open repo");
+    repo.head()
+        .expect("head")
+        .shorthand()
+        .expect("branch shorthand")
+        .to_string()
+}
+
+fn commit_parent_count_git2(path: &std::path::Path, sha: &str) -> usize {
+    let repo = git2::Repository::open(path).expect("open repo");
+    repo.revparse_single(sha)
+        .expect("revparse")
+        .peel_to_commit()
+        .expect("commit")
+        .parent_count()
+}
+
+fn commit_parent_oids_git2(path: &std::path::Path, sha: &str) -> Vec<String> {
+    let repo = git2::Repository::open(path).expect("open repo");
+    let commit = repo.revparse_single(sha).expect("revparse").peel_to_commit().expect("commit");
+    (0..commit.parent_count())
+        .map(|index| commit.parent_id(index).expect("parent id").to_string())
+        .collect()
+}
+
+fn commit_message_git2(path: &std::path::Path, sha: &str) -> String {
+    let repo = git2::Repository::open(path).expect("open repo");
+    repo.revparse_single(sha)
+        .expect("revparse")
+        .peel_to_commit()
+        .expect("commit")
+        .message()
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 fn install_failing_pre_commit_hook(repo: &TestRepo) {

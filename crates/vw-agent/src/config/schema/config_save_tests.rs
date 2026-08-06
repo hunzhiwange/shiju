@@ -6,7 +6,7 @@ use super::{
     Config, GatewaySkey,
     config_save::{
         merge_patch_between, merge_raw_project_patch, prepare_project_override,
-        save_config_to_store, save_project_config_override, select_override_shape,
+        save_config_to_store, save_project_config_to_store, select_override_shape,
         update_project_config_from_configs,
     },
 };
@@ -118,83 +118,26 @@ fn save_config_to_store_rejects_invalid_config_without_persisting_tenant() {
 }
 
 #[test]
-fn save_project_config_override_uses_private_permissions() {
+fn save_project_config_to_store_writes_database_without_project_file() {
     let temp = TempDir::new().expect("temp dir");
+    let store = store(&temp);
+    let tenant = TenantScope::new("platform", "company").expect("tenant");
     let payload = serde_json::json!({"default_provider": "project-provider"});
 
-    save_project_config_override(temp.path(), &payload).expect("save project override");
+    save_project_config_to_store(&store, &tenant, temp.path(), &payload)
+        .expect("save project config");
 
-    let path = temp.path().join(".vibewindow.json");
     assert_eq!(
-        serde_json::from_str::<Value>(&std::fs::read_to_string(&path).expect("override file"))
-            .expect("override json"),
+        serde_json::from_str::<Value>(
+            &store
+                .get_project(&tenant, temp.path().to_str().expect("project path"))
+                .expect("read project config")
+                .expect("stored project config")
+        )
+        .expect("project config json"),
         payload
     );
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        assert_eq!(
-            std::fs::metadata(path).expect("override metadata").permissions().mode() & 0o777,
-            0o600
-        );
-    }
-}
-
-#[test]
-fn save_project_config_override_removes_temporary_file_after_atomic_replace_failure() {
-    let temp = TempDir::new().expect("temp dir");
-    let destination = temp.path().join(".vibewindow.json");
-    std::fs::create_dir(&destination).expect("destination directory");
-    std::fs::write(destination.join("marker"), "unchanged").expect("marker");
-
-    let error = save_project_config_override(temp.path(), &serde_json::json!({"enabled": true}))
-        .expect_err("replacing a directory should fail");
-
-    assert!(error.to_string().contains("atomically replace project config override"));
-    assert_eq!(std::fs::read_to_string(destination.join("marker")).unwrap(), "unchanged");
-    let entries = std::fs::read_dir(temp.path())
-        .expect("project entries")
-        .map(|entry| entry.expect("entry").file_name())
-        .collect::<Vec<_>>();
-    assert_eq!(entries, vec![std::ffi::OsString::from(".vibewindow.json")]);
-}
-
-#[test]
-fn save_project_config_override_rejects_non_object_payload() {
-    let temp = TempDir::new().expect("temp dir");
-
-    let error = save_project_config_override(temp.path(), &serde_json::json!(["not", "object"]))
-        .expect_err("non-object override");
-
-    assert!(error.to_string().contains("override root must be an object"));
-    assert!(std::fs::read_dir(temp.path()).expect("project entries").next().is_none());
-}
-
-#[test]
-fn save_project_config_override_rejects_missing_project_root() {
-    let temp = TempDir::new().expect("temp dir");
-    let missing = temp.path().join("missing");
-
-    let error = save_project_config_override(&missing, &serde_json::json!({"enabled": true}))
-        .expect_err("missing project root");
-
-    assert!(error.to_string().contains("project root must be an existing directory"));
-    assert!(!missing.exists());
-}
-
-#[test]
-fn save_project_config_override_replaces_existing_file_with_newline_terminated_json() {
-    let temp = TempDir::new().expect("temp dir");
-    let destination = temp.path().join(".vibewindow.json");
-    std::fs::write(&destination, r#"{"stale":true}"#).expect("existing override");
-    let payload = serde_json::json!({"nested": {"enabled": true}});
-
-    save_project_config_override(temp.path(), &payload).expect("replace project override");
-
-    let contents = std::fs::read_to_string(&destination).expect("override contents");
-    assert!(contents.ends_with('\n'));
-    assert_eq!(serde_json::from_str::<Value>(&contents).expect("override json"), payload);
-    assert_eq!(std::fs::read_dir(temp.path()).expect("project entries").count(), 1);
+    assert!(!temp.path().join(".vibewindow.json").exists());
 }
 
 #[test]

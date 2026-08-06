@@ -1,3 +1,9 @@
+//! 任务 worktree 池：槽位租约、准备与回收。
+//!
+//! 池生命周期（snapshot / maintain / acquire / recycle）使用 git2，不启动系统 Git。
+//! 仍依赖 Git CLI 的范围外能力：`/v1/git/command`、普通 worktree fetch/submodule、
+//! skill clone/pull、snapshot 等。
+
 use crate::app::agent::project;
 use anyhow::{Context, Result, bail};
 use directories::UserDirs;
@@ -723,13 +729,6 @@ struct WorktreeEntry {
     branch: Option<String>,
 }
 
-#[derive(Debug)]
-struct GitOutput {
-    success: bool,
-    stdout: String,
-    stderr: String,
-}
-
 fn validate_project(project: &project::Info) -> Result<String> {
     if project.id.trim().is_empty() {
         bail!("missing project id");
@@ -761,125 +760,54 @@ fn default_pool_root(project: &project::Info) -> PathBuf {
 }
 
 async fn git_repo_root(worktree: &Path) -> Result<PathBuf> {
-    let output = run_git(worktree, ["rev-parse", "--show-toplevel"]).await?;
-    if !output.success {
-        bail!(git_error_text(&output, "failed to resolve git repo root"));
-    }
-    let root = output.stdout.trim();
-    if root.is_empty() {
-        bail!("git repo root is empty");
-    }
-    Ok(PathBuf::from(root))
+    let worktree = worktree.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let Some(discovered) = crate::git_repository::discover(&worktree) else {
+            bail!("failed to resolve git repo root");
+        };
+        if discovered.root_commit_ids.is_empty() {
+            bail!("需要初始提交");
+        }
+        Ok(discovered.workdir)
+    })
+    .await?
 }
 
 async fn git_base_branch(repo_root: &Path) -> Result<String> {
-    let output = run_git(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"]).await?;
-    if !output.success {
-        return Ok("main".to_string());
-    }
-    let branch = output.stdout.trim();
-    if branch.is_empty() || branch == "HEAD" {
-        Ok("main".to_string())
-    } else {
-        Ok(branch.to_string())
-    }
+    let repo_root = repo_root.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        match crate::git_repository::current_branch(&repo_root) {
+            Some(branch) if !branch.is_empty() && branch != "HEAD" => Ok(branch),
+            _ => Ok("main".to_string()),
+        }
+    })
+    .await?
 }
 
 async fn git_worktree_entries(repo_root: &Path) -> Result<Vec<WorktreeEntry>> {
-    let output = run_git(repo_root, ["worktree", "list", "--porcelain"]).await?;
-    if !output.success {
-        bail!(git_error_text(&output, "failed to read git worktrees"));
-    }
-    Ok(parse_worktree_list(&output.stdout))
+    let repo_root = repo_root.to_path_buf();
+    tokio::task::spawn_blocking(move || list_linked_worktrees(&repo_root)).await?
 }
 
-async fn run_git<const N: usize>(cwd: &Path, args: [&str; N]) -> Result<GitOutput> {
-    let cwd = cwd.to_path_buf();
-    let args = args.map(str::to_string);
-    let output = tokio::task::spawn_blocking(move || {
-        let mut command = crate::app::agent::shell::git_std_command();
-        command.current_dir(cwd);
-        for arg in args {
-            command.arg(arg);
-        }
-        command.output()
-    })
-    .await??;
-
-    Ok(GitOutput {
-        success: output.status.success(),
-        stdout: normalize_output(&output.stdout),
-        stderr: normalize_output(&output.stderr),
-    })
-}
-
-async fn run_git_dynamic(cwd: &Path, args: Vec<String>) -> Result<GitOutput> {
-    let cwd = cwd.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
-        let mut command = crate::app::agent::shell::git_std_command();
-        command.current_dir(cwd);
-        for arg in args {
-            command.arg(arg);
-        }
-        command.output()
-    })
-    .await??;
-
-    Ok(GitOutput {
-        success: output.status.success(),
-        stdout: normalize_output(&output.stdout),
-        stderr: normalize_output(&output.stderr),
-    })
-}
-
-fn normalize_output(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).replace("\r\n", "\n").replace('\r', "\n")
-}
-
-fn git_error_text(output: &GitOutput, fallback: &str) -> String {
-    let message = [output.stderr.trim(), output.stdout.trim()]
-        .into_iter()
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n");
-    if message.is_empty() { fallback.to_string() } else { message }
-}
-
-fn parse_worktree_list(input: &str) -> Vec<WorktreeEntry> {
+fn list_linked_worktrees(repo_root: &Path) -> Result<Vec<WorktreeEntry>> {
+    let repo = git2::Repository::open(repo_root)
+        .with_context(|| format!("failed to open git repository: {}", repo_root.display()))?;
+    let names = repo
+        .worktrees()
+        .with_context(|| format!("failed to read git worktrees: {}", repo_root.display()))?;
     let mut entries = Vec::new();
-    let mut current_path: Option<PathBuf> = None;
-    let mut current_branch: Option<String> = None;
-
-    for line in input.lines() {
-        if let Some(path) = line.strip_prefix("worktree ") {
-            if let Some(path) = current_path.take() {
-                entries.push(WorktreeEntry { path, branch: current_branch.take() });
-            }
-            current_path = Some(PathBuf::from(path.trim()));
-            current_branch = None;
+    for name in names.iter() {
+        let Ok(Some(name)) = name else {
             continue;
-        }
-        if let Some(branch) = line.strip_prefix("branch ") {
-            let branch = branch
-                .trim()
-                .strip_prefix("refs/heads/")
-                .unwrap_or_else(|| branch.trim())
-                .to_string();
-            current_branch = Some(branch);
-            continue;
-        }
-        if line.trim().is_empty() {
-            if let Some(path) = current_path.take() {
-                entries.push(WorktreeEntry { path, branch: current_branch.take() });
-            }
-            current_branch = None;
-        }
+        };
+        let worktree = repo
+            .find_worktree(name)
+            .with_context(|| format!("failed to open git worktree: {name}"))?;
+        let path = worktree.path().to_path_buf();
+        let branch = crate::git_repository::current_branch(&path);
+        entries.push(WorktreeEntry { path, branch });
     }
-
-    if let Some(path) = current_path.take() {
-        entries.push(WorktreeEntry { path, branch: current_branch.take() });
-    }
-    entries
+    Ok(entries)
 }
 
 fn is_managed_slot_path(path: &Path, pool_root: &Path) -> bool {
@@ -957,39 +885,23 @@ fn slot_health_failure(path: &Path) -> Option<String> {
 
 async fn prepare_slot_for_task(slot: &SlotRecord, task_id: &TaskId) -> Result<SlotRecord> {
     let task_branch = format!("vw/task/{}", sanitize_branch_token(task_id.as_ref()));
-    let reset_output =
-        run_git(Path::new(&slot.path), ["reset", "--hard", slot.branch_base_target()]).await?;
-    if !reset_output.success {
-        bail!(
-            "failed to reset task worktree slot: {}",
-            git_error_text(&reset_output, "git reset failed")
-        );
-    }
+    let slot_path = PathBuf::from(&slot.path);
+    let base_target = slot.branch_base_target().to_string();
+    let branch_for_checkout = task_branch.clone();
 
-    let clean_output = run_git(Path::new(&slot.path), ["clean", "-fd"]).await?;
-    if !clean_output.success {
-        bail!(
-            "failed to clean task worktree slot: {}",
-            git_error_text(&clean_output, "git clean failed")
-        );
-    }
-
-    let checkout_output = run_git_dynamic(
-        Path::new(&slot.path),
-        vec![
-            "checkout".to_string(),
-            "-B".to_string(),
-            task_branch.clone(),
-            slot.branch_base_target().to_string(),
-        ],
-    )
-    .await?;
-    if !checkout_output.success {
-        bail!(
-            "failed to checkout task worktree branch: {}",
-            git_error_text(&checkout_output, "git checkout failed")
-        );
-    }
+    tokio::task::spawn_blocking(move || {
+        let repo = open_worktree_repo(&slot_path)?;
+        hard_reset_to(&repo, &base_target).map_err(|error| {
+            anyhow::anyhow!("failed to reset task worktree slot: {error}")
+        })?;
+        clean_untracked_non_ignored(&repo)
+            .map_err(|error| anyhow::anyhow!("failed to clean task worktree slot: {error}"))?;
+        force_checkout_branch(&repo, &branch_for_checkout, &base_target).map_err(|error| {
+            anyhow::anyhow!("failed to checkout task worktree branch: {error}")
+        })?;
+        Ok::<(), anyhow::Error>(())
+    })
+    .await??;
 
     let mut prepared = slot.clone();
     prepared.branch = task_branch;
@@ -1000,30 +912,28 @@ async fn prepare_slot_for_task(slot: &SlotRecord, task_id: &TaskId) -> Result<Sl
 }
 
 async fn reset_and_clean_slot(slot: &SlotRecord) -> Result<SlotRecord> {
-    let reset_output =
-        run_git(Path::new(&slot.path), ["reset", "--hard", slot.branch_base_target()]).await?;
-    if !reset_output.success {
-        bail!(
-            "failed to reset task worktree slot: {}",
-            git_error_text(&reset_output, "git reset failed")
-        );
-    }
+    let slot_path = PathBuf::from(&slot.path);
+    let base_target = slot.branch_base_target().to_string();
+    let fallback_branch = slot.branch.clone();
 
-    let clean_output = run_git(Path::new(&slot.path), ["clean", "-fd"]).await?;
-    if !clean_output.success {
-        bail!(
-            "failed to clean task worktree slot: {}",
-            git_error_text(&clean_output, "git clean failed")
-        );
-    }
-
-    if !git_is_clean(Path::new(&slot.path)).await? {
-        bail!("task worktree slot is dirty after recycle: {}", slot.path);
-    }
+    let recycled_branch = tokio::task::spawn_blocking(move || {
+        let repo = open_worktree_repo(&slot_path)?;
+        hard_reset_to(&repo, &base_target).map_err(|error| {
+            anyhow::anyhow!("failed to reset task worktree slot: {error}")
+        })?;
+        clean_untracked_non_ignored(&repo)
+            .map_err(|error| anyhow::anyhow!("failed to clean task worktree slot: {error}"))?;
+        if !worktree_is_clean(&repo)? {
+            bail!("task worktree slot is dirty after recycle: {}", slot_path.display());
+        }
+        Ok::<String, anyhow::Error>(
+            crate::git_repository::current_branch(&slot_path).unwrap_or(fallback_branch),
+        )
+    })
+    .await??;
 
     let mut recycled = slot.clone();
-    recycled.branch =
-        current_branch(Path::new(&slot.path)).await.unwrap_or_else(|| slot.branch.clone());
+    recycled.branch = recycled_branch;
     recycled.state = TaskPoolWorktreeSlotStateDto::Idle;
     recycled.leased_task_id = None;
     recycled.taint_reason = None;
@@ -1051,21 +961,157 @@ fn sanitize_branch_token(value: &str) -> String {
     if token.is_empty() { "task".to_string() } else { token }
 }
 
-async fn git_is_clean(path: &Path) -> Result<bool> {
-    let output = run_git(path, ["status", "--short"]).await?;
-    if !output.success {
-        bail!(git_error_text(&output, "failed to read task worktree status"));
-    }
-    Ok(output.stdout.trim().is_empty())
+fn open_worktree_repo(path: &Path) -> Result<git2::Repository> {
+    git2::Repository::open(path)
+        .with_context(|| format!("failed to open task worktree: {}", path.display()))
 }
 
-async fn current_branch(path: &Path) -> Option<String> {
-    let output = run_git(path, ["rev-parse", "--abbrev-ref", "HEAD"]).await.ok()?;
-    if !output.success {
-        return None;
+fn hard_reset_to(repo: &git2::Repository, target: &str) -> Result<()> {
+    let object = repo
+        .revparse_single(target)
+        .with_context(|| format!("failed to resolve reset target: {target}"))?;
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.reset(&object, git2::ResetType::Hard, Some(&mut checkout))
+        .with_context(|| format!("git reset failed for target: {target}"))?;
+    Ok(())
+}
+
+fn clean_untracked_non_ignored(repo: &git2::Repository) -> Result<()> {
+    let workdir = repo.workdir().context("task worktree has no working directory")?;
+    let workdir_canon = comparable_path(workdir);
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(false)
+        .include_unmodified(false);
+
+    let statuses = repo.statuses(Some(&mut opts)).context("failed to read task worktree status")?;
+    let mut paths = Vec::new();
+    for entry in statuses.iter() {
+        let status = entry.status();
+        if !status.contains(git2::Status::WT_NEW) {
+            continue;
+        }
+        let Ok(relative) = entry.path() else {
+            continue;
+        };
+        let path = workdir.join(relative);
+        if !comparable_path(&path).starts_with(&workdir_canon) {
+            bail!("refusing to clean path outside worktree: {}", path.display());
+        }
+        paths.push(path);
     }
-    let branch = output.stdout.trim();
-    if branch.is_empty() { None } else { Some(branch.to_string()) }
+
+    paths.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
+    for path in paths {
+        if path.is_dir() {
+            std::fs::remove_dir_all(&path)
+                .with_context(|| format!("failed to remove untracked directory: {}", path.display()))?;
+        } else if path.exists() {
+            std::fs::remove_file(&path)
+                .with_context(|| format!("failed to remove untracked file: {}", path.display()))?;
+        }
+    }
+    Ok(())
+}
+
+fn force_checkout_branch(repo: &git2::Repository, branch_name: &str, start_point: &str) -> Result<()> {
+    let commit = repo
+        .revparse_single(start_point)
+        .and_then(|object| object.peel_to_commit())
+        .with_context(|| format!("failed to resolve checkout start point: {start_point}"))?;
+
+    match repo.find_branch(branch_name, git2::BranchType::Local) {
+        Ok(mut branch) => {
+            if branch_checked_out_elsewhere(repo, branch_name)? {
+                bail!("branch '{branch_name}' is already used by another worktree");
+            }
+            branch
+                .get_mut()
+                .set_target(commit.id(), "task worktree checkout -B")
+                .with_context(|| format!("failed to update branch: {branch_name}"))?;
+        }
+        Err(error) if error.code() == git2::ErrorCode::NotFound => {
+            repo.branch(branch_name, &commit, false)
+                .with_context(|| format!("failed to create branch: {branch_name}"))?;
+        }
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to resolve branch: {branch_name}"));
+        }
+    }
+
+    let reference = format!("refs/heads/{branch_name}");
+    repo.set_head(&reference)
+        .with_context(|| format!("failed to set HEAD to branch: {branch_name}"))?;
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.checkout_head(Some(&mut checkout))
+        .with_context(|| format!("failed to checkout branch: {branch_name}"))?;
+    Ok(())
+}
+
+fn branch_checked_out_elsewhere(repo: &git2::Repository, branch_name: &str) -> Result<bool> {
+    let branch_ref = format!("refs/heads/{branch_name}");
+    let current = repo.workdir().map(comparable_path);
+
+    if let Some(main_workdir) = primary_workdir(repo) {
+        if current.as_ref() != Some(&comparable_path(&main_workdir))
+            && worktree_has_branch_head(&main_workdir, &branch_ref)
+        {
+            return Ok(true);
+        }
+    }
+
+    let names = repo.worktrees().context("failed to list worktrees for branch check")?;
+    for name in names.iter() {
+        let Ok(Some(name)) = name else {
+            continue;
+        };
+        let worktree = match repo.find_worktree(name) {
+            Ok(worktree) => worktree,
+            Err(_) => continue,
+        };
+        let path = worktree.path().to_path_buf();
+        if current.as_ref() == Some(&comparable_path(&path)) {
+            continue;
+        }
+        if worktree_has_branch_head(&path, &branch_ref) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn primary_workdir(repo: &git2::Repository) -> Option<PathBuf> {
+    let common = comparable_path(repo.commondir());
+    let candidate = common.parent()?.to_path_buf();
+    if candidate.join(".git").exists() || candidate.join(".git").is_file() {
+        return Some(candidate);
+    }
+    // Common dir may already be `.git`; parent is the primary workdir.
+    if common.file_name().and_then(|name| name.to_str()) == Some(".git") {
+        return common.parent().map(Path::to_path_buf);
+    }
+    None
+}
+
+fn worktree_has_branch_head(path: &Path, branch_ref: &str) -> bool {
+    let Ok(repo) = git2::Repository::open(path) else {
+        return false;
+    };
+    repo.head()
+        .ok()
+        .is_some_and(|head| head.is_branch() && head.name().ok() == Some(branch_ref))
+}
+
+fn worktree_is_clean(repo: &git2::Repository) -> Result<bool> {
+    let mut opts = git2::StatusOptions::new();
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(false);
+    let statuses = repo.statuses(Some(&mut opts)).context("failed to read task worktree status")?;
+    Ok(statuses.is_empty())
 }
 
 fn worktree_git_dir(path: &Path) -> std::result::Result<PathBuf, String> {
@@ -1100,42 +1146,50 @@ async fn create_managed_worktree(
         .await
         .with_context(|| format!("failed to create task worktree pool: {}", pool_root.display()))?;
 
-    for _ in 0..128 {
-        let slot_id = next_slot_id();
-        let branch = format!("vw/task/{slot_id}");
-        let path = pool_root.join(&slot_id);
-        if path.exists() {
-            continue;
+    let repo_root = PathBuf::from(repo_root);
+    let pool_root = pool_root.to_path_buf();
+    let base_branch = base_branch.to_string();
+
+    tokio::task::spawn_blocking(move || {
+        for _ in 0..128 {
+            let slot_id = next_slot_id();
+            let branch = format!("vw/task/{slot_id}");
+            let path = pool_root.join(&slot_id);
+            if path.exists() {
+                continue;
+            }
+
+            let repo = git2::Repository::open(&repo_root).with_context(|| {
+                format!("failed to open git repository: {}", repo_root.display())
+            })?;
+            let commit = repo
+                .revparse_single(&base_branch)
+                .and_then(|object| object.peel_to_commit())
+                .with_context(|| format!("failed to resolve base branch: {base_branch}"))?;
+            let git_branch = repo
+                .branch(&branch, &commit, false)
+                .with_context(|| format!("failed to create task worktree branch: {branch}"))?;
+            let reference = git_branch.into_reference();
+            let mut opts = git2::WorktreeAddOptions::new();
+            opts.reference(Some(&reference));
+            repo.worktree(&slot_id, &path, Some(&mut opts)).with_context(|| {
+                format!("failed to create task worktree slot at {}", path.display())
+            })?;
+
+            return Ok(SlotRecord {
+                id: slot_id,
+                path: path.to_string_lossy().to_string(),
+                base_branch: base_branch.clone(),
+                branch,
+                state: TaskPoolWorktreeSlotStateDto::Idle,
+                leased_task_id: None,
+                taint_reason: None,
+            });
         }
 
-        let output = run_git_dynamic(
-            Path::new(repo_root),
-            vec![
-                "worktree".to_string(),
-                "add".to_string(),
-                "-b".to_string(),
-                branch.clone(),
-                path.to_string_lossy().to_string(),
-                base_branch.to_string(),
-            ],
-        )
-        .await?;
-        if !output.success {
-            bail!(git_error_text(&output, "failed to create task worktree slot"));
-        }
-
-        return Ok(SlotRecord {
-            id: slot_id,
-            path: path.to_string_lossy().to_string(),
-            base_branch: base_branch.to_string(),
-            branch,
-            state: TaskPoolWorktreeSlotStateDto::Idle,
-            leased_task_id: None,
-            taint_reason: None,
-        });
-    }
-
-    bail!("failed to generate a unique task worktree slot id");
+        bail!("failed to generate a unique task worktree slot id");
+    })
+    .await?
 }
 
 fn next_slot_id() -> String {

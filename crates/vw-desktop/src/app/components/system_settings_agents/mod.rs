@@ -240,7 +240,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         title,
         section_card(
             "项目配置作用域",
-            "切换项目会恢复该项目的委托代理配置；修改写入项目 .vibewindow.json。",
+            "切换项目会恢复该项目的委托代理配置；修改保存到项目配置数据库。",
         ),
         project_switcher,
         row![

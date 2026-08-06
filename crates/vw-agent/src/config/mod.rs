@@ -380,11 +380,19 @@ pub(crate) async fn get_global_for_tenant_without_env(
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-/// 加载本地租户基础配置与显式项目覆盖合并后的有效配置。
-pub async fn get_project(project_root: &Path) -> Result<Config, Error> {
-    schema::load_or_init_config_for_tenant(&TenantScope::default(), Some(project_root))
+/// 加载指定租户基础配置与项目数据库覆盖合并后的有效配置。
+pub async fn get_project_for_tenant(
+    tenant: &TenantScope,
+    project_root: &Path,
+) -> Result<Config, Error> {
+    schema::load_or_init_config_for_tenant(tenant, Some(project_root))
         .await
         .map_err(|error| Error::Invalid(error.to_string()))
+}
+
+/// 加载本地租户基础配置与项目数据库覆盖合并后的有效配置。
+pub async fn get_project(project_root: &Path) -> Result<Config, Error> {
+    get_project_for_tenant(&TenantScope::default(), project_root).await
 }
 
 pub(crate) async fn get_project_without_env(project_root: &Path) -> Result<Config, Error> {
@@ -628,14 +636,23 @@ pub async fn update_global(patch: Value) -> Result<(), Error> {
     update_global_for_tenant(&TenantScope::default(), patch).await
 }
 
-/// 将补丁写入显式项目根目录的 `.vibewindow.json` 覆盖文件。
-pub async fn update_project(project_root: &Path, patch: Value) -> Result<Config, Error> {
-    schema::update_project_config(project_root, patch)
+/// 将补丁写入指定租户的项目配置数据库记录。
+pub async fn update_project_for_tenant(
+    tenant: &TenantScope,
+    project_root: &Path,
+    patch: Value,
+) -> Result<Config, Error> {
+    schema::update_project_config_for_tenant(tenant, project_root, patch)
         .await
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-/// 仅把两个项目配置快照之间的差异写入显式项目覆盖文件。
+/// 将补丁写入本地租户的项目配置数据库记录。
+pub async fn update_project(project_root: &Path, patch: Value) -> Result<Config, Error> {
+    update_project_for_tenant(&TenantScope::default(), project_root, patch).await
+}
+
+/// 仅把两个项目配置快照之间的差异写入项目配置数据库。
 pub async fn update_project_from_configs(
     project_root: &Path,
     before: &Config,

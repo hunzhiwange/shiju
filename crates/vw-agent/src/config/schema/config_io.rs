@@ -58,25 +58,6 @@ pub(crate) async fn read_config_root_json(path: &Path) -> Result<serde_json::Val
     serde_json::from_str(&contents).context("Failed to parse config file")
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-/// 读取显式项目根目录中的配置覆盖。
-///
-/// 文件不存在时返回 `None`；存在时必须包含 JSON 对象。该函数不向父目录搜索，也不修改覆盖文件。
-pub(crate) async fn read_project_config_override(path: &Path) -> Result<Option<serde_json::Value>> {
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let contents =
-        fs::read_to_string(path).await.context("Failed to read project config override")?;
-    let value: serde_json::Value =
-        serde_json::from_str(&contents).context("Failed to parse project config override")?;
-    if !value.is_object() {
-        bail!("project config override root must be an object");
-    }
-    Ok(Some(value))
-}
-
 /// 将项目覆盖递归合并到数据库基础 payload。
 ///
 /// 对象逐层合并，`null` 删除基础字段，其他值直接替换。调用方负责保证两个根值均为对象。

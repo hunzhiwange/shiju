@@ -819,6 +819,7 @@ pub fn all_tools_with_runtime(
     #[cfg(not(target_arch = "wasm32"))]
     tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
     tool_arcs.push(Arc::new(ImageInfoTool::new(security.clone())));
+    tool_arcs.push(Arc::new(ImageAssetReadTool::new()));
 
     if let Some(key) = composio_key
         && !key.is_empty()

@@ -931,6 +931,14 @@ pub(crate) fn schedule_worktree_pool_maintenance(
 ) -> iced::Task<crate::app::Message> {
     use crate::app::Message;
 
+    if !app.project_is_git_repo {
+        app.task_board_worktree_snapshot = None;
+        app.task_board_worktree_snapshot_loading = false;
+        app.task_board_last_worktree_snapshot_at_ms = 0;
+        app.task_board_worktree_maintenance_in_flight = false;
+        return iced::Task::none();
+    }
+
     let desired_capacity = app
         .task_board_worktree_desired_capacity
         .unwrap_or(app.task_board_settings.max_concurrent)
@@ -999,6 +1007,13 @@ pub(crate) fn maybe_schedule_worktree_snapshot_refresh(
         app.task_board_last_worktree_snapshot_at_ms = 0;
         return iced::Task::none();
     };
+
+    if !app.project_is_git_repo {
+        app.task_board_worktree_snapshot = None;
+        app.task_board_worktree_snapshot_loading = false;
+        app.task_board_last_worktree_snapshot_at_ms = 0;
+        return iced::Task::none();
+    }
 
     if app.task_board_worktree_snapshot_loading {
         return iced::Task::none();
@@ -1303,6 +1318,10 @@ pub(crate) fn recycle_assigned_task_worktree_for_removal(
     app: &crate::app::App,
     task_id: &str,
 ) -> iced::Task<crate::app::Message> {
+    if !app.project_is_git_repo {
+        return iced::Task::none();
+    }
+
     let Some(project_path) = &app.project_path else {
         return iced::Task::none();
     };

@@ -107,6 +107,8 @@ pub struct App {
     pub(crate) work_expanded_spaces: HashSet<String>,
     /// 当前项目路径
     pub(crate) project_path: Option<String>,
+    /// 当前项目是否为 Git 仓库（网关 ProjectInfo.vcs）
+    pub(crate) project_is_git_repo: bool,
     /// 当前项目唯一标识符
     pub(crate) project_id: Option<String>,
     /// 项目路径输入框内容

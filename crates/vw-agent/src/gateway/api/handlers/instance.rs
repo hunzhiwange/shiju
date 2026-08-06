@@ -1,4 +1,7 @@
 //! 实例管理路由模块
+//!
+//! `/vcs` 分支读取走 git2，不启动系统 Git。仍依赖 Git CLI 的范围外能力：
+//! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
 use std::convert::Infallible;
 use std::time::Duration;
@@ -20,7 +23,6 @@ use crate::app::agent::gateway::approval_state;
 use crate::app::agent::gateway::instance::{InstanceQuery, resolve_directory, with_instance};
 use crate::app::agent::global;
 use crate::app::agent::project::instance;
-use crate::app::agent::shell::git_std_command;
 
 pub(crate) fn router<S>() -> Router<S>
 where
@@ -72,16 +74,7 @@ fn branch_for_worktree(worktree: &str) -> String {
     if worktree.trim().is_empty() {
         return String::new();
     }
-    git_std_command()
-        .current_dir(worktree)
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default()
+    crate::git_repository::current_branch(std::path::Path::new(worktree)).unwrap_or_default()
 }
 
 async fn vcs_get(

@@ -37,6 +37,41 @@ fn system_config_store_isolation(store: &SystemConfigStore) -> Result<()> {
 }
 
 #[test]
+fn project_config_store_isolates_tenants_and_project_paths() -> Result<()> {
+    for_each_system_config_store_provider(project_config_store_isolation)?;
+    Ok(())
+}
+
+fn project_config_store_isolation(store: &SystemConfigStore) -> Result<()> {
+    let tenant_a = TenantScope::new("platform-a", "company-a")?;
+    let tenant_b = TenantScope::new("platform-a", "company-b")?;
+    let project_a = "/workspace/project-a";
+    let project_b = "/workspace/project-b";
+
+    assert_eq!(store.get_project(&tenant_a, project_a)?, None);
+    assert_eq!(store.get_project(&tenant_a, project_b)?, None);
+    assert_eq!(store.get_project(&tenant_b, project_a)?, None);
+
+    store.upsert_project(&tenant_a, project_a, r#"{"model":"tenant-a-project-a"}"#)?;
+    store.upsert_project(&tenant_a, project_b, r#"{"model":"tenant-a-project-b"}"#)?;
+    store.upsert_project(&tenant_b, project_a, r#"{"model":"tenant-b-project-a"}"#)?;
+
+    assert_eq!(
+        store.get_project(&tenant_a, project_a)?.as_deref(),
+        Some(r#"{"model":"tenant-a-project-a"}"#)
+    );
+    assert_eq!(
+        store.get_project(&tenant_a, project_b)?.as_deref(),
+        Some(r#"{"model":"tenant-a-project-b"}"#)
+    );
+    assert_eq!(
+        store.get_project(&tenant_b, project_a)?.as_deref(),
+        Some(r#"{"model":"tenant-b-project-a"}"#)
+    );
+    Ok(())
+}
+
+#[test]
 fn system_config_store_keeps_sqlite_path_contract() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let database = GlobalDatabase::for_home(temp_dir.path())?;

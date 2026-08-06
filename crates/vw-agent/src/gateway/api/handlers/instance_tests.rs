@@ -215,33 +215,20 @@ async fn vcs_get_returns_empty_branch_for_non_git_directory() {
 #[tokio::test]
 async fn vcs_get_reports_current_git_branch() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let init = std::process::Command::new("git")
-        .args(["init", "-b", "unit-test-branch"])
-        .current_dir(temp.path())
-        .output()
-        .expect("git init should run");
-    assert!(init.status.success());
+    let repo = git2::Repository::init(temp.path()).expect("repo init");
     std::fs::write(temp.path().join("README.md"), "test").expect("readme should be written");
-    let add = std::process::Command::new("git")
-        .args(["add", "README.md"])
-        .current_dir(temp.path())
-        .output()
-        .expect("git add should run");
-    assert!(add.status.success());
-    let commit = std::process::Command::new("git")
-        .args([
-            "-c",
-            "user.email=test@example.invalid",
-            "-c",
-            "user.name=Test User",
-            "commit",
-            "-m",
-            "initial",
-        ])
-        .current_dir(temp.path())
-        .output()
-        .expect("git commit should run");
-    assert!(commit.status.success());
+    let mut index = repo.index().expect("index");
+    index.add_path(std::path::Path::new("README.md")).expect("add");
+    index.write().expect("index write");
+    let tree_id = index.write_tree().expect("tree");
+    let tree = repo.find_tree(tree_id).expect("tree lookup");
+    let sig = git2::Signature::now("Test User", "test@example.invalid").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[]).expect("commit");
+    repo.branch("unit-test-branch", &repo.head().expect("head").peel_to_commit().expect("commit"), false)
+        .expect("branch");
+    repo.set_head("refs/heads/unit-test-branch").expect("checkout branch ref");
+    repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+        .expect("checkout worktree");
 
     let Json(info) = vcs_get(Query(query_for(temp.path())), HeaderMap::new())
         .await

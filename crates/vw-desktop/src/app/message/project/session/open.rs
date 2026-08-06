@@ -352,6 +352,18 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 if loaded.current_branch.is_some() {
                     app.selected_branch = loaded.current_branch;
                 }
+                app.project_is_git_repo = matches!(info.vcs, Some(vw_shared::project::Vcs::Git));
+                if !app.project_is_git_repo {
+                    app.task_board_worktree_snapshot = None;
+                    app.task_board_worktree_snapshot_loading = false;
+                    app.task_board_last_worktree_snapshot_at_ms = 0;
+                    app.task_board_worktree_maintenance_in_flight = false;
+                    app.task_board_worktree_manual_action_kind = None;
+                    app.task_board_worktree_manual_confirm_kind = None;
+                    if app.task_board_executor_running {
+                        app.task_board_executor_running = false;
+                    }
+                }
                 app.project_id = Some(project_id);
             }
             Some(iced::Task::none())

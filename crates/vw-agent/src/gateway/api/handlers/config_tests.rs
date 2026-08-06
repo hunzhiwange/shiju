@@ -164,13 +164,10 @@ async fn config_get_returns_serialized_instance_config() {
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
-    let Json(body) = config_get(
-        Extension(TenantScope::default()),
-        instance_query(&temp),
-        HeaderMap::new(),
-    )
-    .await
-    .expect("config should load");
+    let Json(body) =
+        config_get(Extension(TenantScope::default()), instance_query(&temp), HeaderMap::new())
+            .await
+            .expect("config should load");
 
     assert!(body.is_object());
     assert!(body.get("default_provider").is_some());
@@ -214,13 +211,10 @@ async fn config_get_without_directory_restores_the_requested_tenant_after_restar
     .await
     .expect("tenant config should persist");
 
-    let Json(body) = config_get(
-        Extension(tenant),
-        Query(InstanceQuery { directory: None }),
-        HeaderMap::new(),
-    )
-    .await
-    .expect("tenant config should reload");
+    let Json(body) =
+        config_get(Extension(tenant), Query(InstanceQuery { directory: None }), HeaderMap::new())
+            .await
+            .expect("tenant config should reload");
 
     assert_eq!(body["agents"]["main"]["max_iterations"], 123);
     assert_ne!(
@@ -324,11 +318,16 @@ async fn config_patch_uses_explicit_header_for_project_override() {
     .expect("header project patch should succeed");
 
     assert_eq!(body["default_provider"], "header-project-provider");
+    let store = local_store(home.path());
     let override_value: Value = serde_json::from_str(
-        &std::fs::read_to_string(project.join(".vibewindow.json")).expect("project override"),
+        &store
+            .get_project(&TenantScope::default(), project.to_str().expect("project path"))
+            .expect("read project config")
+            .expect("project config"),
     )
-    .expect("override json");
+    .expect("project config json");
     assert_eq!(override_value, serde_json::json!({"default_provider": "header-project-provider"}));
+    assert!(!project.join(".vibewindow.json").exists());
 }
 
 #[tokio::test]
@@ -408,7 +407,7 @@ async fn config_patch_stateful_rejects_invalid_global_patch_without_mutating_run
 }
 
 #[tokio::test]
-async fn project_config_patch_writes_only_dot_vibewindow_override() {
+async fn project_config_patch_writes_only_database_override() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().expect("temp home");
     let project_one = home.path().join("project-one");
@@ -441,15 +440,66 @@ async fn project_config_patch_writes_only_dot_vibewindow_override() {
     assert_eq!(response["default_provider"], "project-provider");
     assert_eq!(response["default_model"], "base-model");
     let override_value: Value = serde_json::from_str(
-        &std::fs::read_to_string(project_one.join(".vibewindow.json")).expect("project override"),
+        &store
+            .get_project(&TenantScope::default(), project_one.to_str().expect("first project path"))
+            .expect("read first project config")
+            .expect("first project config"),
     )
-    .expect("override json");
+    .expect("project config json");
     assert_eq!(override_value, serde_json::json!({"default_provider": "project-provider"}));
+    assert!(!project_one.join(".vibewindow.json").exists());
     assert!(!project_two.join(".vibewindow.json").exists());
+    assert_eq!(
+        store
+            .get_project(
+                &TenantScope::default(),
+                project_two.to_str().expect("second project path"),
+            )
+            .expect("read second project config"),
+        None
+    );
     assert_eq!(
         store.get(&TenantScope::default()).unwrap().expect("local base row after patch"),
         base_before
     );
+}
+
+#[tokio::test]
+async fn project_config_patch_isolates_requested_tenant() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home");
+    let project = home.path().join("project");
+    std::fs::create_dir_all(&project).expect("project");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant_a = TenantScope::new("platform", "company-a").expect("first tenant");
+    let tenant_b = TenantScope::new("platform", "company-b").expect("second tenant");
+
+    for (tenant, provider) in
+        [(tenant_a.clone(), "project-provider-a"), (tenant_b.clone(), "project-provider-b")]
+    {
+        let Json(_) = config_patch(
+            Extension(tenant),
+            directory_query(&project),
+            HeaderMap::new(),
+            Json(serde_json::json!({"default_provider": provider})),
+        )
+        .await
+        .expect("tenant project patch");
+    }
+
+    let Json(first) = config_get(Extension(tenant_a), directory_query(&project), HeaderMap::new())
+        .await
+        .expect("first tenant project config");
+    let Json(second) = config_get(Extension(tenant_b), directory_query(&project), HeaderMap::new())
+        .await
+        .expect("second tenant project config");
+
+    assert_eq!(first["default_provider"], "project-provider-a");
+    assert_eq!(second["default_provider"], "project-provider-b");
+    assert!(!project.join(".vibewindow.json").exists());
 }
 
 #[tokio::test]
@@ -469,12 +519,14 @@ async fn project_config_patch_never_persists_effective_base_fields() {
     }))
     .await
     .expect("seed base config");
-    std::fs::write(
-        project.join(".vibewindow.json"),
-        serde_json::json!({"default_temperature": 0.4}).to_string(),
-    )
-    .expect("seed raw override");
     let store = local_store(home.path());
+    store
+        .upsert_project(
+            &TenantScope::default(),
+            project.to_str().expect("project path"),
+            &serde_json::json!({"default_temperature": 0.4}).to_string(),
+        )
+        .expect("seed project config");
     let base_before = store.get(&TenantScope::default()).unwrap().expect("local base row");
 
     let Json(_) = config_patch(
@@ -487,9 +539,12 @@ async fn project_config_patch_never_persists_effective_base_fields() {
     .expect("project patch");
 
     let override_value: Value = serde_json::from_str(
-        &std::fs::read_to_string(project.join(".vibewindow.json")).expect("project override"),
+        &store
+            .get_project(&TenantScope::default(), project.to_str().expect("project path"))
+            .expect("read project config")
+            .expect("project config"),
     )
-    .expect("override json");
+    .expect("project config json");
     assert_eq!(
         override_value,
         serde_json::json!({
@@ -498,6 +553,7 @@ async fn project_config_patch_never_persists_effective_base_fields() {
         })
     );
     assert!(override_value.get("default_model").is_none());
+    assert!(!project.join(".vibewindow.json").exists());
     assert_eq!(
         store.get(&TenantScope::default()).unwrap().expect("local base row after patch"),
         base_before

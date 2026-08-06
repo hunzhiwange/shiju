@@ -10,7 +10,13 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::Client;
 use std::path::Path;
 
+pub mod analysis;
+pub mod assets;
+pub mod context;
+mod image_compression;
 pub mod ocr;
+
+use image_compression::{compress_image_bytes, per_image_output_budget};
 
 const IMAGE_MARKER_PREFIX: &str = "[IMAGE:";
 const ALLOWED_IMAGE_MIME_TYPES: &[&str] =
@@ -86,6 +92,10 @@ pub enum MultimodalError {
     /// OCR 模型调用失败。上游错误不进入消息，避免泄露图片或 OCR 原文。
     #[error("OCR extraction failed for model: '{model}'")]
     OcrExtractionFailed { model: String },
+
+    /// 图片无法在请求输出预算内完成压缩，或 GIF 超出预算且不支持重编码。
+    #[error("multimodal image compression failed for '{input}': {reason}")]
+    CompressionFailed { input: String, reason: String },
 }
 
 /// 从消息正文中提取图片标记并返回清理后的文本。
@@ -220,6 +230,7 @@ pub async fn prepare_messages_for_provider(
     }
 
     let remote_client = build_runtime_proxy_client_with_timeouts("provider.ollama", 30, 10);
+    let output_budget = per_image_output_budget(found_images);
 
     let mut normalized_messages = Vec::with_capacity(messages.len());
     for message in messages {
@@ -236,8 +247,14 @@ pub async fn prepare_messages_for_provider(
 
         let mut normalized_refs = Vec::with_capacity(refs.len());
         for reference in refs {
-            let data_uri =
-                normalize_image_reference(&reference, config, max_bytes, &remote_client).await?;
+            let data_uri = normalize_image_reference(
+                &reference,
+                config,
+                max_bytes,
+                output_budget,
+                &remote_client,
+            )
+            .await?;
             normalized_refs.push(data_uri);
         }
 
@@ -325,10 +342,11 @@ async fn normalize_image_reference(
     source: &str,
     config: &MultimodalConfig,
     max_bytes: usize,
+    output_budget: usize,
     remote_client: &Client,
 ) -> anyhow::Result<String> {
     if source.starts_with("data:") {
-        return normalize_data_uri(source, max_bytes);
+        return normalize_data_uri(source, max_bytes, output_budget);
     }
 
     if source.starts_with("http://") || source.starts_with("https://") {
@@ -336,13 +354,17 @@ async fn normalize_image_reference(
             return Err(MultimodalError::RemoteFetchDisabled { input: source.to_string() }.into());
         }
 
-        return normalize_remote_image(source, max_bytes, remote_client).await;
+        return normalize_remote_image(source, max_bytes, output_budget, remote_client).await;
     }
 
-    normalize_local_image(source, max_bytes).await
+    normalize_local_image(source, max_bytes, output_budget).await
 }
 
-fn normalize_data_uri(source: &str, max_bytes: usize) -> anyhow::Result<String> {
+fn normalize_data_uri(
+    source: &str,
+    max_bytes: usize,
+    output_budget: usize,
+) -> anyhow::Result<String> {
     let Some(comma_idx) = source.find(',') else {
         return Err(MultimodalError::InvalidMarker {
             input: source.to_string(),
@@ -380,12 +402,13 @@ fn normalize_data_uri(source: &str, max_bytes: usize) -> anyhow::Result<String> 
     // 先解码再按实际字节数校验，避免压缩后的文本长度绕过图片大小限制。
     validate_size(source, decoded.len(), max_bytes)?;
 
-    Ok(format!("data:{mime};base64,{}", STANDARD.encode(decoded)))
+    to_data_uri(source, &mime, &decoded, output_budget)
 }
 
 async fn normalize_remote_image(
     source: &str,
     max_bytes: usize,
+    output_budget: usize,
     remote_client: &Client,
 ) -> anyhow::Result<String> {
     let response = remote_client.get(source).send().await.map_err(|error| {
@@ -426,11 +449,15 @@ async fn normalize_remote_image(
 
     validate_mime(source, &mime)?;
 
-    Ok(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
+    to_data_uri(source, &mime, bytes.as_ref(), output_budget)
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn normalize_local_image(source: &str, _max_bytes: usize) -> anyhow::Result<String> {
+async fn normalize_local_image(
+    source: &str,
+    _max_bytes: usize,
+    _output_budget: usize,
+) -> anyhow::Result<String> {
     Err(MultimodalError::LocalReadFailed {
         input: source.to_string(),
         reason: "Local file access is not supported on WASM".to_string(),
@@ -439,7 +466,11 @@ async fn normalize_local_image(source: &str, _max_bytes: usize) -> anyhow::Resul
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn normalize_local_image(source: &str, max_bytes: usize) -> anyhow::Result<String> {
+async fn normalize_local_image(
+    source: &str,
+    max_bytes: usize,
+    output_budget: usize,
+) -> anyhow::Result<String> {
     let path = Path::new(source);
     if !path.exists() || !path.is_file() {
         return Err(MultimodalError::ImageSourceNotFound { input: source.to_string() }.into());
@@ -464,7 +495,209 @@ async fn normalize_local_image(source: &str, max_bytes: usize) -> anyhow::Result
 
     validate_mime(source, &mime)?;
 
-    Ok(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
+    to_data_uri(source, &mime, &bytes, output_budget)
+}
+
+fn to_data_uri(
+    source: &str,
+    mime: &str,
+    bytes: &[u8],
+    output_budget: usize,
+) -> anyhow::Result<String> {
+    let materialized = materialize_image_bytes(source, mime, bytes, output_budget)?;
+    Ok(materialized.model_input_data_uri())
+}
+
+/// 源大小校验后的原图与压缩模型输入。
+#[derive(Debug, Clone)]
+pub struct MaterializedImage {
+    /// 原始图片引用（路径、URL 或 data URI）。
+    pub source: String,
+    /// 源校验后的原始字节。
+    pub original_bytes: Vec<u8>,
+    /// 原始 MIME。
+    pub original_mime: String,
+    /// 压缩后的模型输入字节。
+    pub model_input_bytes: Vec<u8>,
+    /// 模型输入 MIME。
+    pub model_input_mime: String,
+}
+
+impl MaterializedImage {
+    /// 模型输入对应的 data URI。
+    pub fn model_input_data_uri(&self) -> String {
+        format!(
+            "data:{};base64,{}",
+            self.model_input_mime,
+            STANDARD.encode(&self.model_input_bytes)
+        )
+    }
+}
+
+/// 加载并压缩单张图片引用，返回原图与模型输入变体。
+pub async fn materialize_image_reference(
+    source: &str,
+    config: &MultimodalConfig,
+    image_count_for_budget: usize,
+) -> anyhow::Result<MaterializedImage> {
+    let (_, max_image_size_mb) = config.effective_limits();
+    let max_bytes = max_image_size_mb.saturating_mul(1024 * 1024);
+    let output_budget = per_image_output_budget(image_count_for_budget.max(1));
+    let remote_client = build_runtime_proxy_client_with_timeouts("provider.ollama", 30, 10);
+    materialize_image_reference_with_budget(source, config, max_bytes, output_budget, &remote_client)
+        .await
+}
+
+async fn materialize_image_reference_with_budget(
+    source: &str,
+    config: &MultimodalConfig,
+    max_bytes: usize,
+    output_budget: usize,
+    remote_client: &Client,
+) -> anyhow::Result<MaterializedImage> {
+    if source.starts_with("data:") {
+        return materialize_data_uri(source, max_bytes, output_budget);
+    }
+    if source.starts_with("http://") || source.starts_with("https://") {
+        if !config.allow_remote_fetch {
+            return Err(MultimodalError::RemoteFetchDisabled { input: source.to_string() }.into());
+        }
+        return materialize_remote_image(source, max_bytes, output_budget, remote_client).await;
+    }
+    materialize_local_image(source, max_bytes, output_budget).await
+}
+
+fn materialize_image_bytes(
+    source: &str,
+    mime: &str,
+    bytes: &[u8],
+    output_budget: usize,
+) -> anyhow::Result<MaterializedImage> {
+    let (output_mime, output_bytes) =
+        compress_image_bytes(bytes, mime, output_budget).map_err(|reason| {
+            MultimodalError::CompressionFailed { input: source.to_string(), reason }
+        })?;
+    Ok(MaterializedImage {
+        source: source.to_string(),
+        original_bytes: bytes.to_vec(),
+        original_mime: mime.to_ascii_lowercase(),
+        model_input_bytes: output_bytes,
+        model_input_mime: output_mime,
+    })
+}
+
+fn materialize_data_uri(
+    source: &str,
+    max_bytes: usize,
+    output_budget: usize,
+) -> anyhow::Result<MaterializedImage> {
+    let Some(comma_idx) = source.find(',') else {
+        return Err(MultimodalError::InvalidMarker {
+            input: source.to_string(),
+            reason: "expected data URI payload".to_string(),
+        }
+        .into());
+    };
+    let header = &source[..comma_idx];
+    let payload = source[comma_idx + 1..].trim();
+    if !header.contains(";base64") {
+        return Err(MultimodalError::InvalidMarker {
+            input: source.to_string(),
+            reason: "only base64 data URIs are supported".to_string(),
+        }
+        .into());
+    }
+    let mime = header
+        .trim_start_matches("data:")
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    validate_mime(source, &mime)?;
+    let decoded = STANDARD.decode(payload).map_err(|error| MultimodalError::InvalidMarker {
+        input: source.to_string(),
+        reason: format!("invalid base64 payload: {error}"),
+    })?;
+    validate_size(source, decoded.len(), max_bytes)?;
+    materialize_image_bytes(source, &mime, &decoded, output_budget)
+}
+
+async fn materialize_remote_image(
+    source: &str,
+    max_bytes: usize,
+    output_budget: usize,
+    remote_client: &Client,
+) -> anyhow::Result<MaterializedImage> {
+    let response = remote_client.get(source).send().await.map_err(|error| {
+        MultimodalError::RemoteFetchFailed { input: source.to_string(), reason: error.to_string() }
+    })?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(MultimodalError::RemoteFetchFailed {
+            input: source.to_string(),
+            reason: format!("HTTP {status}"),
+        }
+        .into());
+    }
+    if let Some(content_length) = response.content_length() {
+        let content_length = usize::try_from(content_length).unwrap_or(usize::MAX);
+        validate_size(source, content_length, max_bytes)?;
+    }
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(ToString::to_string);
+    let bytes = response.bytes().await.map_err(|error| MultimodalError::RemoteFetchFailed {
+        input: source.to_string(),
+        reason: error.to_string(),
+    })?;
+    validate_size(source, bytes.len(), max_bytes)?;
+    let mime = detect_mime(None, bytes.as_ref(), content_type.as_deref()).ok_or_else(|| {
+        MultimodalError::UnsupportedMime { input: source.to_string(), mime: "unknown".to_string() }
+    })?;
+    validate_mime(source, &mime)?;
+    materialize_image_bytes(source, &mime, bytes.as_ref(), output_budget)
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn materialize_local_image(
+    source: &str,
+    _max_bytes: usize,
+    _output_budget: usize,
+) -> anyhow::Result<MaterializedImage> {
+    Err(MultimodalError::LocalReadFailed {
+        input: source.to_string(),
+        reason: "Local file access is not supported on WASM".to_string(),
+    }
+    .into())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn materialize_local_image(
+    source: &str,
+    max_bytes: usize,
+    output_budget: usize,
+) -> anyhow::Result<MaterializedImage> {
+    let path = Path::new(source);
+    if !path.exists() || !path.is_file() {
+        return Err(MultimodalError::ImageSourceNotFound { input: source.to_string() }.into());
+    }
+    let metadata = tokio::fs::metadata(path).await.map_err(|error| {
+        MultimodalError::LocalReadFailed { input: source.to_string(), reason: error.to_string() }
+    })?;
+    validate_size(source, usize::try_from(metadata.len()).unwrap_or(usize::MAX), max_bytes)?;
+    let bytes = tokio::fs::read(path).await.map_err(|error| MultimodalError::LocalReadFailed {
+        input: source.to_string(),
+        reason: error.to_string(),
+    })?;
+    validate_size(source, bytes.len(), max_bytes)?;
+    let mime = detect_mime(Some(path), &bytes, None).ok_or_else(|| {
+        MultimodalError::UnsupportedMime { input: source.to_string(), mime: "unknown".to_string() }
+    })?;
+    validate_mime(source, &mime)?;
+    materialize_image_bytes(source, &mime, &bytes, output_budget)
 }
 
 fn validate_size(source: &str, size_bytes: usize, max_bytes: usize) -> anyhow::Result<()> {
@@ -549,6 +782,22 @@ fn mime_from_magic(bytes: &[u8]) -> Option<&'static str> {
 
     None
 }
+
+#[cfg(test)]
+#[path = "analysis_tests.rs"]
+mod analysis_tests;
+
+#[cfg(test)]
+#[path = "assets_tests.rs"]
+mod assets_tests;
+
+#[cfg(test)]
+#[path = "context_tests.rs"]
+mod context_tests;
+
+#[cfg(test)]
+#[path = "image_compression_tests.rs"]
+mod image_compression_tests;
 
 #[cfg(test)]
 #[path = "ocr_tests.rs"]

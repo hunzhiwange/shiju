@@ -40,6 +40,7 @@ fn manual_retry_continues_existing_session_only_for_failed_tasks() {
 #[test]
 fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
     let (mut app, _task) = crate::app::App::new();
+    app.project_is_git_repo = true;
     app.task_board_executor_running = false;
     app.task_board_last_log_flush_at_ms = 99;
     app.task_board_log_scan_cursor = 3;
@@ -59,6 +60,47 @@ fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
     let _ = super::update(&mut app, super::TaskBoardMessage::StopExecution);
 
     assert!(!app.task_board_executor_running);
+}
+
+#[test]
+fn non_git_project_rejects_task_execution_with_toast() {
+    use crate::app::task::{Task, TaskStatus};
+
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some("/tmp/non-git-exec".to_string());
+    app.project_is_git_repo = false;
+    app.task_board_executor_running = false;
+    let mut task = Task::new(1);
+    task.id = "T-non-git".to_string();
+    task.status = TaskStatus::Pending;
+    app.task_board_tasks = vec![task];
+
+    let start = super::update(&mut app, super::TaskBoardMessage::StartExecution);
+    assert_eq!(start.units(), 1);
+    assert!(!app.task_board_executor_running);
+    assert!(
+        app.active_toast.as_ref().is_some_and(|toast| {
+            matches!(toast.kind, crate::app::state::ToastKind::Error)
+                && (toast.message.contains("Git") || toast.message.contains("git"))
+        }),
+        "StartExecution should toast for non-git projects"
+    );
+
+    app.active_toast = None;
+    let execute = super::update(
+        &mut app,
+        super::TaskBoardMessage::ExecuteTask { task_id: "T-non-git".to_string() },
+    );
+    assert_eq!(execute.units(), 1);
+    assert!(!app.task_board_executor.is_running("T-non-git"));
+    assert_eq!(app.task_board_tasks[0].status, TaskStatus::Pending);
+    assert!(
+        app.active_toast.as_ref().is_some_and(|toast| {
+            matches!(toast.kind, crate::app::state::ToastKind::Error)
+                && (toast.message.contains("Git") || toast.message.contains("git"))
+        }),
+        "ExecuteTask should toast for non-git projects"
+    );
 }
 
 #[test]
@@ -176,6 +218,7 @@ fn manual_execute_deduplicates_agent_scheduler_start_log() {
 
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/tmp/vibewindow-agent-scheduler-log-dedupe".to_string());
+    app.project_is_git_repo = true;
 
     let mut task = Task::new(1);
     task.id = "T-start-dedupe".to_string();
@@ -302,6 +345,7 @@ fn manual_execute_ignores_task_already_waiting_for_worktree() {
 
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/tmp/vibewindow-manual-duplicate-test".to_string());
+    app.project_is_git_repo = true;
 
     let mut task = Task::new(1);
     task.id = "T-reserved".to_string();

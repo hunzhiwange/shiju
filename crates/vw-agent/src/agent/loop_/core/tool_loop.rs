@@ -124,6 +124,11 @@ pub async fn run_tool_call_loop(
     if let Some(non_cli) = non_cli_approval_context.clone() {
         tool_use_context = tool_use_context.with_non_cli_approval_context(non_cli);
     }
+    let mut image_turn = prepare_legacy_image_turn(history, model, multimodal_config).await?;
+    if let Some(ctx) = image_turn.as_mut() {
+        tool_use_context.set_image_asset_scope(&ctx.scope);
+        ctx.rewrite_chat_messages(history);
+    }
     let tool_use_context = Arc::new(tool_use_context);
 
     for iteration in 0..max_iterations {
@@ -136,6 +141,11 @@ pub async fn run_tool_call_loop(
         }
 
         update_thinking_progress(on_delta.as_ref(), iteration).await;
+
+        let pending_reloads = tool_use_context.peek_pending_image_reloads();
+        if let Some(ctx) = image_turn.as_ref() {
+            ctx.attach_pending_reloads_to_chat(history, &pending_reloads);
+        }
 
         let round = run_llm_round(
             provider,
@@ -154,6 +164,16 @@ pub async fn run_tool_call_loop(
             iteration,
         )
         .await?;
+
+        if let Some(ctx) = image_turn.as_mut() {
+            if !pending_reloads.is_empty() {
+                tool_use_context.clear_pending_image_reloads();
+            }
+            if !ctx.has_first_success() || !pending_reloads.is_empty() {
+                ctx.mark_first_success();
+                ctx.rewrite_chat_messages(history);
+            }
+        }
 
         update_tool_call_progress(on_delta.as_ref(), round.tool_calls.len(), round.duration_secs)
             .await;
@@ -303,4 +323,45 @@ pub async fn run_tool_call_loop(
         }),
     );
     anyhow::bail!("Agent exceeded maximum tool iterations ({max_iterations})")
+}
+
+async fn prepare_legacy_image_turn(
+    history: &[ChatMessage],
+    model: &str,
+    multimodal_config: &crate::app::agent::config::MultimodalConfig,
+) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>> {
+    use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
+    use crate::app::agent::multimodal::context::ImageTurnContext;
+    use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
+    use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
+
+    if !contains_image_markers(history) {
+        return Ok(None);
+    }
+
+    let mut prior = history.to_vec();
+    let current = prior
+        .iter()
+        .rposition(|message| message.role == "user" && !parse_image_markers(&message.content).1.is_empty())
+        .map(|index| prior.remove(index).content);
+
+    let scope = ImageAssetScope::from_request_context(None, "legacy-tool-loop")?;
+    let store = ImageAssetStore::from_global_paths();
+    let extractor = SessionImageTextExtractor::new();
+    let ctx = ImageTurnContext::build(
+        &store,
+        scope,
+        &prior,
+        current.as_deref(),
+        false,
+        multimodal_config,
+        Some(model),
+        &extractor,
+    )
+    .await?;
+    if ctx.images.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(ctx))
+    }
 }

@@ -267,6 +267,18 @@ fn push_recent_project_moves_existing_to_front_and_truncates_to_storage_limit() 
 }
 
 #[test]
+fn open_project_resets_git_capability_until_project_info_loads() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some("/repo/old".to_string());
+    app.project_is_git_repo = true;
+
+    let _ = app.open_project("/repo/new".to_string());
+
+    assert_eq!(app.project_path.as_deref(), Some("/repo/new"));
+    assert!(!app.project_is_git_repo);
+}
+
+#[test]
 fn reset_task_board_project_state_clears_project_scoped_board_runtime() {
     let (mut app, _task) = crate::app::App::new();
     let mut task = crate::app::task::Task::new(1);
@@ -278,9 +290,11 @@ fn reset_task_board_project_state_clears_project_scoped_board_runtime() {
     app.task_board_selected_tasks.insert(task.id.clone());
     app.task_board_viewing_logs = Some(task);
     app.task_board_worktree_snapshot_loading = true;
+    app.project_is_git_repo = true;
 
     app.reset_task_board_project_state();
 
+    assert!(!app.project_is_git_repo);
     assert!(app.task_board_tasks.is_empty());
     assert!(app.task_board_executor.running_tasks.is_empty());
     assert!(!app.task_board_executor_running);

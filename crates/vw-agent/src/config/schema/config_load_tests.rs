@@ -351,13 +351,12 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
         )
         .unwrap();
 
-    let override_path = project_dir.join(super::CONFIG_OVERRIDE_FILENAME);
     let override_contents = json!({
         "default_provider": "project-provider",
         "default_model": "project-model"
     })
     .to_string();
-    tokio::fs::write(&override_path, &override_contents).await.unwrap();
+    store.upsert_project(&tenant, project_dir.to_str().unwrap(), &override_contents).unwrap();
 
     let loaded = load_config_for_tenant_from_store(
         &store,
@@ -375,8 +374,8 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
     assert_eq!(loaded.default_provider.as_deref(), Some("project-provider"));
     assert_eq!(loaded.default_model.as_deref(), Some("environment-model"));
     assert_eq!(loaded.workspace_dir, project_dir);
-    assert_eq!(loaded.config_path, override_path);
-    assert_eq!(tokio::fs::read_to_string(&loaded.config_path).await.unwrap(), override_contents);
+    assert_eq!(loaded.config_path, config_json_path(&config_dir));
+    assert!(!project_dir.join(".vibewindow.json").exists());
 
     let other_loaded = load_config_for_tenant_from_store(
         &store,
@@ -396,7 +395,7 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
     let clean_project = temp_home.path().join("nested/clean-project");
     tokio::fs::create_dir_all(&clean_project).await.unwrap();
     tokio::fs::write(
-        temp_home.path().join(super::CONFIG_OVERRIDE_FILENAME),
+        clean_project.join(".vibewindow.json"),
         r#"{"default_provider":"must-not-be-scanned"}"#,
     )
     .await
@@ -414,7 +413,7 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
     .unwrap();
     assert_eq!(clean_project_loaded.default_model.as_deref(), Some("database-model"));
     assert_eq!(clean_project_loaded.default_provider.as_deref(), Some("database-provider"));
-    assert!(!clean_project.join(super::CONFIG_OVERRIDE_FILENAME).exists());
+    assert!(clean_project.join(".vibewindow.json").exists());
 
     let new_tenant = TenantScope::new("platform-b", "company-new").unwrap();
     let initialized = load_config_for_tenant_from_store(
@@ -563,8 +562,8 @@ async fn load_config_rejects_invalid_project_override_without_mutating_base() {
     .to_string();
     store.upsert(&tenant, &base_payload).unwrap();
 
-    let override_path = project_dir.join(super::CONFIG_OVERRIDE_FILENAME);
-    tokio::fs::write(&override_path, "[]").await.unwrap();
+    let project_key = project_dir.to_str().unwrap();
+    store.upsert_project(&tenant, project_key, "[]").unwrap();
 
     let error = load_config_for_tenant_from_store(
         &store,
@@ -578,12 +577,12 @@ async fn load_config_rejects_invalid_project_override_without_mutating_base() {
     .await
     .unwrap_err();
 
-    assert!(error.to_string().contains("project config override root must be an object"));
+    assert!(error.to_string().contains("tenant project config payload root must be an object"));
     assert_eq!(store.get(&tenant).unwrap().as_deref(), Some(base_payload.as_str()));
-    assert_eq!(tokio::fs::read_to_string(&override_path).await.unwrap(), "[]");
+    assert_eq!(store.get_project(&tenant, project_key).unwrap().as_deref(), Some("[]"));
 
     let missing_tenant = TenantScope::new("platform", "missing-company").unwrap();
-    let missing_error = load_config_for_tenant_from_store(
+    let missing = load_config_for_tenant_from_store(
         &store,
         &missing_tenant,
         Some(&project_dir),
@@ -593,15 +592,16 @@ async fn load_config_rejects_invalid_project_override_without_mutating_base() {
         |_| {},
     )
     .await
-    .unwrap_err();
-    assert!(missing_error.to_string().contains("project config override root must be an object"));
-    assert_eq!(store.get(&missing_tenant).unwrap(), None);
+    .unwrap();
+    assert_eq!(missing.default_provider.as_deref(), Some("shiju"));
+    assert!(store.get(&missing_tenant).unwrap().is_some());
+    assert_eq!(store.get_project(&missing_tenant, project_key).unwrap(), None);
 
     for (contents, expected_error) in [
         (r#"{"gateway":{"host":""}}"#, "gateway.host must not be empty"),
         (r#"{"api_key":"enc2:not-hex"}"#, "Failed to decrypt config.api_key"),
     ] {
-        tokio::fs::write(&override_path, contents).await.unwrap();
+        store.upsert_project(&tenant, project_key, contents).unwrap();
         let error = load_config_for_tenant_from_store(
             &store,
             &tenant,
@@ -616,6 +616,7 @@ async fn load_config_rejects_invalid_project_override_without_mutating_base() {
 
         assert!(error.to_string().contains(expected_error), "unexpected error: {error:#}");
         assert_eq!(store.get(&tenant).unwrap().as_deref(), Some(base_payload.as_str()));
-        assert_eq!(tokio::fs::read_to_string(&override_path).await.unwrap(), contents);
+        assert_eq!(store.get_project(&tenant, project_key).unwrap().as_deref(), Some(contents));
+        assert!(!project_dir.join(".vibewindow.json").exists());
     }
 }

@@ -19,10 +19,9 @@ use vw_config_types::config::Config;
 use crate::app::agent::config::SystemConfigStore;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::migration::migrate_user_config;
+use crate::app::agent::config::schema::LEGACY_CONFIG_JSON_FILENAME;
 use crate::app::agent::config::schema::config_env::apply_env_overrides;
 use crate::app::agent::config::schema::config_helpers::config_dir_creation_error;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::config::schema::config_io::read_project_config_override;
 use crate::app::agent::config::schema::config_io::{
     extract_config_payload, merge_config_payload, normalize_legacy_alias_conflicts,
     normalize_top_level_table_aliases, read_config_root_json,
@@ -33,7 +32,6 @@ use crate::app::agent::config::schema::config_secrets::{
 use crate::app::agent::config::schema::config_validate::validate_config;
 use crate::app::agent::config::schema::resolve_telegram_allowed_users_env_refs;
 use crate::app::agent::config::schema::workspace::ConfigResolutionSource;
-use crate::app::agent::config::schema::{CONFIG_OVERRIDE_FILENAME, LEGACY_CONFIG_JSON_FILENAME};
 use crate::app::agent::config::schema::{
     default_config_and_workspace_dirs, resolve_runtime_config_dirs,
 };
@@ -196,14 +194,23 @@ pub(super) async fn load_config_for_tenant_from_store(
     resolution_source: ConfigResolutionSource,
     apply_environment: impl FnOnce(&mut Config),
 ) -> Result<Config> {
-    let config_path = project_root
-        .map(|root| root.join(CONFIG_OVERRIDE_FILENAME))
-        .unwrap_or_else(|| config_json_path(vibewindow_dir));
+    let config_path = config_json_path(vibewindow_dir);
+    let project_key = project_root
+        .map(|root| root.to_str().map(str::to_owned).context("Project root must be valid UTF-8"))
+        .transpose()?;
     let blocking_store = store.clone();
     let blocking_tenant = tenant.clone();
-    let stored_payload = tokio::task::spawn_blocking(move || blocking_store.get(&blocking_tenant))
-        .await
-        .context("join system config load task")??;
+    let (stored_payload, project_payload) = tokio::task::spawn_blocking(move || {
+        let system_payload = blocking_store.get(&blocking_tenant)?;
+        let project_payload = project_key
+            .as_deref()
+            .map(|key| blocking_store.get_project(&blocking_tenant, key))
+            .transpose()?
+            .flatten();
+        Ok::<_, anyhow::Error>((system_payload, project_payload))
+    })
+    .await
+    .context("join system config load task")??;
     let (base_payload_json, initialized) = match stored_payload {
         Some(payload) => (payload, false),
         None => {
@@ -224,11 +231,13 @@ pub(super) async fn load_config_for_tenant_from_store(
         bail!("tenant system config payload root must be an object");
     }
 
-    if let Some(project_root) = project_root {
-        let override_path = project_root.join(CONFIG_OVERRIDE_FILENAME);
-        if let Some(project_override) = read_project_config_override(&override_path).await? {
-            merge_config_payload(&mut merged_payload, project_override);
+    if let Some(project_payload) = project_payload {
+        let project_override: Value = serde_json::from_str(&project_payload)
+            .context("Failed to parse tenant project config payload")?;
+        if !project_override.is_object() {
+            bail!("tenant project config payload root must be an object");
         }
+        merge_config_payload(&mut merged_payload, project_override);
     }
 
     let config = decode_json_config_with_environment(
@@ -252,7 +261,7 @@ pub(super) async fn load_config_for_tenant_from_store(
     Ok(config)
 }
 
-/// 按显式租户加载数据库基础配置，并可选择叠加一个显式项目根的 `.vibewindow.json`。
+/// 按显式租户加载数据库基础配置，并可选择叠加项目路径对应的数据库覆盖。
 ///
 /// 本函数不会向项目父目录搜索。旧用户配置迁移仅在加载 `local/local` 时执行。
 #[cfg(not(target_arch = "wasm32"))]
@@ -283,9 +292,10 @@ async fn load_or_init_config_for_tenant_with_environment(
     #[cfg(test)]
     let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
     #[cfg(not(test))]
-    let store = tokio::task::spawn_blocking(move || {
-        SystemConfigStore::new(GlobalDatabase::for_home(home)?)
-    })
+    let store = {
+        let database = GlobalDatabase::for_home(home)?;
+        tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
+    }
     .await
     .context("join system config store initialization task")??;
     load_config_for_tenant_from_store(

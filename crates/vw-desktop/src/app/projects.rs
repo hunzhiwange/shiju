@@ -418,6 +418,7 @@ impl App {
     }
 
     pub(crate) fn reset_task_board_project_state(&mut self) {
+        self.project_is_git_repo = false;
         self.task_board_loading = false;
         self.task_board_tasks.clear();
         self.task_board_staff_projection = Default::default();
@@ -617,6 +618,7 @@ impl App {
         }
         self.project_path = Some(path.clone());
         if project_changed {
+            self.project_is_git_repo = false;
             self.agents_settings.project_path = Some(path.clone());
             self.agents_settings.loading = true;
             self.agents_settings.config_ready = false;

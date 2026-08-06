@@ -71,7 +71,15 @@ async fn config_get(
     }
 
     let dir = resolve_directory(&query, &headers);
-    let cfg = with_instance(dir, move || Box::pin(async move { Ok(config::get().await) })).await?;
+    let project_root = PathBuf::from(&dir);
+    let cfg = with_instance(dir, move || {
+        Box::pin(async move {
+            config::get_project_for_tenant(&tenant, &project_root)
+                .await
+                .map_err(|error| ApiError::bad_request(error.to_string()))
+        })
+    })
+    .await?;
     Ok(Json(serde_json::to_value(cfg).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
@@ -131,9 +139,10 @@ async fn apply_config_patch(
 
     let dir = resolve_directory(query, headers);
     let project_root = PathBuf::from(&dir);
+    let tenant = tenant.clone();
     let next = with_instance(dir, move || {
         Box::pin(async move {
-            config::update_project(&project_root, patch)
+            config::update_project_for_tenant(&tenant, &project_root, patch)
                 .await
                 .map_err(|error| ApiError::bad_request(error.to_string()))
         })

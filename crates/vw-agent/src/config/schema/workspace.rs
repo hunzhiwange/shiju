@@ -27,8 +27,6 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::fs;
 
-use crate::app::agent::config::schema::CONFIG_OVERRIDE_FILENAME;
-
 /// 活动工作空间状态标记文件名
 ///
 /// 该文件用于持久化当前活动的工作空间配置目录路径，
@@ -424,7 +422,7 @@ pub(super) async fn persist_active_workspace_config_dir_with_default(
 /// 按以下顺序尝试解析：
 ///
 /// 1. **工作空间目录本身就是配置目录**：
-///    - 检查是否存在 `config.json` 或项目覆盖 `.vibewindow.json`
+///    - 检查是否存在 `config.json`
 ///
 /// 2. **旧版布局**：
 ///    - 检查父目录下的 `.vibewindow` 子目录
@@ -439,10 +437,6 @@ pub(crate) fn resolve_config_dir_for_workspace(workspace_dir: &Path) -> (PathBuf
     if workspace_config_dir.join("config.json").exists() {
         return (workspace_config_dir.clone(), workspace_config_dir.join("workspace"));
     }
-    if workspace_config_dir.join(CONFIG_OVERRIDE_FILENAME).exists() {
-        return (workspace_config_dir.clone(), workspace_config_dir.join("workspace"));
-    }
-
     // 情况2：检查父目录下的 .vibewindow（旧版布局）
     let legacy_config_dir = workspace_dir.parent().map(|parent| parent.join(".vibewindow"));
     if let Some(legacy_dir) = legacy_config_dir {

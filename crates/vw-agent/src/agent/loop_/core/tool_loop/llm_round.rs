@@ -104,7 +104,12 @@ async fn run_llm_round_with_extractor(
     extractor: &dyn ImageTextExtractor,
 ) -> Result<LlmRoundResult> {
     let image_marker_count = multimodal::count_image_markers(history);
+    let has_asset_refs = history.iter().any(|message| message.content.contains("[VW_IMAGE:"));
+    let pre_normalized = image_markers_are_data_uris(history);
     let prepared_messages = if image_marker_count == 0 {
+        multimodal::prepare_messages_for_provider(history, multimodal_config).await?
+    } else if (has_asset_refs || pre_normalized) && provider.supports_vision() {
+        // 图片上下文已改写：归一化剩余 data URI，跳过逐步 OCR。
         multimodal::prepare_messages_for_provider(history, multimodal_config).await?
     } else if multimodal_config.ocr.enabled {
         multimodal::ocr::prepare_messages_with_ocr(history, multimodal_config, extractor).await?
@@ -339,4 +344,17 @@ fn build_assistant_history(
     } else {
         build_native_assistant_history(response_text, native_tool_calls, reasoning_content)
     }
+}
+
+fn image_markers_are_data_uris(history: &[ChatMessage]) -> bool {
+    let mut found = false;
+    for message in history.iter().filter(|message| message.role == "user") {
+        for reference in multimodal::parse_image_markers(&message.content).1 {
+            found = true;
+            if !reference.starts_with("data:") {
+                return false;
+            }
+        }
+    }
+    found
 }

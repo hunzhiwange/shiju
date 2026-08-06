@@ -1,8 +1,67 @@
 use super::super::{Commands, CommandsUpdate, Icon, IconUpdate};
 use super::*;
+use git2::Repository;
+use std::ffi::OsString;
 use std::path::Path;
 use tempfile::TempDir;
 use uuid::Uuid;
+
+struct PathGuard {
+    old: Option<OsString>,
+}
+
+impl PathGuard {
+    fn without_git() -> Self {
+        let old = std::env::var_os("PATH");
+        // 清空 PATH，使外部 `git` 不可用，同时保留 git2 发现路径可测。
+        unsafe { std::env::set_var("PATH", "") };
+        Self { old }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
+
+fn signature() -> git2::Signature<'static> {
+    git2::Signature::now("Vibe Window", "vw@example.com").expect("signature")
+}
+
+fn commit_tree(repo: &Repository, message: &str) -> git2::Oid {
+    let tree_id = {
+        let mut index = repo.index().expect("index");
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None).expect("add all");
+        index.write().expect("index write");
+        index.write_tree().expect("tree")
+    };
+    let tree = repo.find_tree(tree_id).expect("tree");
+    let sig = signature();
+    let parents = repo
+        .head()
+        .ok()
+        .and_then(|head| head.peel_to_commit().ok())
+        .into_iter()
+        .collect::<Vec<_>>();
+    let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs).expect("commit")
+}
+
+fn repo_with_initial_commit(path: &Path) -> Repository {
+    let repo = Repository::init(path).expect("repo init");
+    std::fs::write(path.join("README.md"), "demo\n").expect("readme");
+    commit_tree(&repo, "initial");
+    repo
+}
+
+fn add_linked_worktree(repo: &Repository, name: &str, path: &Path) {
+    let mut opts = git2::WorktreeAddOptions::new();
+    repo.worktree(name, path, Some(&mut opts)).expect("linked worktree");
+}
 
 #[test]
 fn local_project_id_is_deterministic_for_path() {
@@ -385,4 +444,66 @@ async fn remove_sandbox_returns_not_found_for_missing_project() {
         .await
         .expect_err("removing a sandbox from a missing project should fail");
     assert_eq!(error.to_string(), format!("project not found: {id}"));
+}
+
+#[tokio::test]
+async fn git2_project_discovery_works_without_git_executable() {
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+
+    let committed = TempDir::new().expect("committed tempdir");
+    let empty = TempDir::new().expect("empty tempdir");
+    let linked_root = TempDir::new().expect("linked root tempdir");
+    let primary_path = linked_root.path().join("primary");
+    let linked_path = linked_root.path().join("linked-wt");
+    std::fs::create_dir_all(&primary_path).expect("primary dir");
+
+    let committed_repo = repo_with_initial_commit(committed.path());
+    let root_oid = committed_repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("commit")
+        .id()
+        .to_string();
+    drop(committed_repo);
+
+    Repository::init(empty.path()).expect("empty repo");
+
+    let primary = repo_with_initial_commit(&primary_path);
+    let primary_root = primary
+        .head()
+        .expect("primary head")
+        .peel_to_commit()
+        .expect("primary commit")
+        .id()
+        .to_string();
+    add_linked_worktree(&primary, "linked-discovery", &linked_path);
+    drop(primary);
+
+    let tenant = crate::app::agent::project::default_tenant_scope();
+    let _path = PathGuard::without_git();
+
+    let (committed_info, _) =
+        from_directory(&tenant, committed.path()).await.expect("committed discover");
+    assert_eq!(committed_info.vcs, Some(Vcs::Git));
+    assert_eq!(committed_info.id, root_oid);
+
+    let (empty_first, _) = from_directory(&tenant, empty.path()).await.expect("empty discover");
+    assert_eq!(empty_first.vcs, Some(Vcs::Git));
+    assert!(!empty_first.id.is_empty());
+    let (empty_second, _) =
+        from_directory(&tenant, empty.path()).await.expect("empty rediscover");
+    assert_eq!(empty_second.vcs, Some(Vcs::Git));
+    assert_eq!(empty_second.id, empty_first.id);
+
+    let (linked_info, _) =
+        from_directory(&tenant, &linked_path).await.expect("linked worktree discover");
+    assert_eq!(linked_info.vcs, Some(Vcs::Git));
+    assert_eq!(linked_info.id, primary_root);
+
+    let _ = crate::app::agent::project::remove_local_test_project(&committed_info.id);
+    let _ = crate::app::agent::project::remove_local_test_project(&empty_first.id);
+    let _ = crate::app::agent::project::remove_local_test_project(&linked_info.id);
 }

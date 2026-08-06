@@ -143,6 +143,9 @@ pub(super) fn update(
 ) -> iced::Task<crate::app::Message> {
     dispatch_task_board_messages!(message,
     TaskBoardMessage::StartExecution => {
+        if !app.project_is_git_repo {
+            return app.show_error_toast("当前项目不是 Git 仓库，无法启动依赖 worktree 的任务调度");
+        }
         app.task_board_executor_running = true;
         app.task_board_last_log_flush_at_ms = 0;
         app.task_board_log_scan_cursor = 0;
@@ -327,6 +330,11 @@ pub(super) fn update(
             dispatch_agent_scheduler_merge_wake(app, response)
         }
         TaskBoardMessage::ExecuteTask { task_id } => {
+            if !app.project_is_git_repo {
+                return app.show_error_toast(
+                    "当前项目不是 Git 仓库，无法执行依赖 worktree 的任务",
+                );
+            }
             if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
                 if let Some(project_path) = &app.project_path {
                     let path = project_path.clone();

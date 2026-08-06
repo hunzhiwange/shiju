@@ -595,6 +595,7 @@ fn default_tool_read_only(tool_id: &str) -> bool {
             | "sop_status"
             | "pdf_read"
             | "image_info"
+            | "image_asset_read"
             | "web_fetch"
             | "web_search_tool"
     )

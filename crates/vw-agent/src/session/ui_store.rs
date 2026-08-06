@@ -905,6 +905,7 @@ pub fn delete_agent_session_scoped_for_tenant(tenant: &TenantScope, id: &str, sc
             run_project_operation("delete agent session", tenant, scope, |store, project_scope| {
                 store.delete_agent_session(project_scope, id)
             });
+        release_image_assets_for_deleted_session(id, scope);
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -923,11 +924,34 @@ pub fn delete_session_scoped(id: &str, scope: Option<&str>) {
             scope,
             |store, project_scope| store.delete_session(project_scope, id),
         );
+        release_image_assets_for_deleted_session(id, scope);
     }
 
     #[cfg(target_arch = "wasm32")]
     {
         ui_store::delete_session_scoped(data_dir(), id, scope);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn release_image_assets_for_deleted_session(session_id: &str, scope: Option<&str>) {
+    use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
+
+    let scope_key = scope
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(session_id);
+    let Ok(asset_scope) = ImageAssetScope::new(scope_key) else {
+        return;
+    };
+    let store = ImageAssetStore::from_global_paths();
+    if let Err(error) = store.release_session_refs(&asset_scope, session_id) {
+        tracing::warn!(
+            target: "vw_agent",
+            session_id = %session_id,
+            error = %error,
+            "failed to release image asset references after session delete"
+        );
     }
 }
 

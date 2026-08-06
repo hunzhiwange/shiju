@@ -5606,6 +5606,13 @@ pub fn update(
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
+            if !app.project_is_git_repo {
+                app.task_board_worktree_maintenance_in_flight = false;
+                app.task_board_worktree_snapshot = None;
+                app.task_board_worktree_snapshot_loading = false;
+                app.task_board_last_worktree_snapshot_at_ms = 0;
+                return iced::Task::none();
+            }
             app.task_board_worktree_maintenance_in_flight = false;
             match result {
                 Ok(outcome) => {
@@ -5655,6 +5662,12 @@ pub fn update(
         }
         TaskBoardMessage::WorktreeSnapshotLoaded { project_path, result } => {
             if !task_board_project_matches(app, &project_path) {
+                return iced::Task::none();
+            }
+            if !app.project_is_git_repo {
+                app.task_board_worktree_snapshot_loading = false;
+                app.task_board_worktree_snapshot = None;
+                app.task_board_last_worktree_snapshot_at_ms = 0;
                 return iced::Task::none();
             }
             app.task_board_worktree_snapshot_loading = false;

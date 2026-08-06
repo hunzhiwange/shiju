@@ -5,7 +5,7 @@
 use super::config_io::{
     extract_config_payload, merge_config_payload, normalize_legacy_alias_conflicts,
     normalize_top_level_table_aliases, parse_config_contents, read_config_root_json,
-    read_project_config_override, upsert_config_payload,
+    upsert_config_payload,
 };
 
 #[test]
@@ -279,27 +279,5 @@ fn merge_config_payload_recurses_and_treats_null_as_deletion() {
             "gateway": { "port": 9090 },
             "retained": true
         })
-    );
-}
-
-#[tokio::test]
-async fn project_config_override_requires_an_explicit_object_file() {
-    let tmp = tempfile::tempdir().unwrap();
-    let missing = tmp.path().join(".vibewindow.json");
-    assert!(read_project_config_override(&missing).await.unwrap().is_none());
-
-    tokio::fs::write(&missing, r#"{"default_model":"project"}"#).await.unwrap();
-    assert_eq!(
-        read_project_config_override(&missing).await.unwrap().unwrap()["default_model"],
-        "project"
-    );
-
-    tokio::fs::write(&missing, "null").await.unwrap();
-    assert!(
-        read_project_config_override(&missing)
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("root must be an object")
     );
 }

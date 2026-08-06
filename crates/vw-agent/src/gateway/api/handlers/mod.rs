@@ -85,8 +85,11 @@ pub mod integrations;
 /// 文件与搜索路由处理器模块
 pub mod file;
 
-/// Git 路由处理器模块
+/// Git 路由处理器模块（commit/merge 走 git2）
 pub mod git;
+
+/// `/v1/git/command` 通用 Git CLI 协议（仍依赖系统 Git）
+pub(crate) mod git_command;
 
 /// 全局网关路由处理器模块
 pub mod global;

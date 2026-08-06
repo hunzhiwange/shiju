@@ -484,7 +484,14 @@ pub async fn stream(
             )
             .await
             {
-                Ok(messages) => messages,
+                Ok(messages) => {
+                    if let Err(message) = assert_no_raw_image_paths(&messages) {
+                        let err = message::AssistantError::Unknown { message };
+                        on_event(StreamEvent::Error(err.clone()));
+                        return Err(Error::Api(err));
+                    }
+                    messages
+                }
                 Err(error) => {
                     let err = message::AssistantError::Unknown {
                         message: format!("multimodal image preparation failed: {error}"),
@@ -711,6 +718,29 @@ fn is_acp_retryable_assistant_error(err: &message::AssistantError) -> bool {
 fn is_acp_session_changed_message(message: &str) -> bool {
     message.to_ascii_lowercase().contains("acp session changed:")
 }
+
+/// 供应商边界：归一化后不得再出现本地路径或远程 URL 图片标记。
+fn assert_no_raw_image_paths(messages: &Value) -> Result<(), String> {
+    let Some(arr) = messages.as_array() else {
+        return Ok(());
+    };
+    for message in arr {
+        let Some(content) = message.get("content").and_then(Value::as_str) else {
+            continue;
+        };
+        let (_, refs) = crate::app::agent::multimodal::parse_image_markers(content);
+        for reference in refs {
+            if reference.starts_with("data:") {
+                continue;
+            }
+            return Err(format!(
+                "multimodal provider boundary rejected raw image reference (expected data URI or asset text)"
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "stream_tests.rs"]
 mod stream_tests;

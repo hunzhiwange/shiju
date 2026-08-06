@@ -1,25 +1,28 @@
-//! Git 提交网关路由模块
+//! 网关 Git 提交 / 合并路由（git2）。
+//!
+//! `/git/commit` 与 `/git/merge` 仅使用 libgit2，不启动系统 `git`。
+//! 仍依赖 Git CLI、不在本计划范围的路径：`/v1/git/command`、普通 worktree 的
+//! fetch/submodule、skill clone/pull、snapshot 等。
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Write;
 use std::path::{Component, Path};
-use std::process::Stdio;
 
 use axum::Json;
 use axum::Router;
 use axum::routing::post;
 use base64::Engine;
+use git2::{
+    BranchType, DiffOptions, IndexAddOption, IndexEntry, IndexTime, Oid, Repository, ResetType,
+    StatusOptions,
+};
 use similar::TextDiff;
-use tempfile::NamedTempFile;
 use vw_api_types::git::{
-    GitCommandRequest, GitCommandResponse, GitCommitDto, GitCommitRequest, GitCommitResponse,
-    GitMergeRequest, GitMergeResponse,
+    GitCommitDto, GitCommitRequest, GitCommitResponse, GitMergeRequest, GitMergeResponse,
 };
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::with_instance;
 use crate::app::agent::project;
-use crate::app::agent::shell::git_std_command;
 use crate::worktree;
 
 const DIFF_CONTEXT: usize = 3;
@@ -38,8 +41,8 @@ where
 {
     Router::new()
         .route("/git/commit", post(git_commit_v1))
-        .route("/git/command", post(git_command_v1))
         .route("/git/merge", post(git_merge_v1))
+        .merge(super::git_command::router())
 }
 
 async fn git_commit_v1(
@@ -61,19 +64,6 @@ async fn git_commit_v1(
     Ok(Json(response))
 }
 
-async fn git_command_v1(
-    Json(body): Json<GitCommandRequest>,
-) -> Result<Json<GitCommandResponse>, ApiError> {
-    validate_git_command_request(&body)?;
-
-    let response = tokio::task::spawn_blocking(move || run_git_command_blocking(&body))
-        .await
-        .map_err(|err| ApiError::internal(format!("git command task failed: {err}")))?
-        .map_err(ApiError::bad_request)?;
-
-    Ok(Json(response))
-}
-
 async fn git_merge_v1(
     Json(body): Json<GitMergeRequest>,
 ) -> Result<Json<GitMergeResponse>, ApiError> {
@@ -90,43 +80,6 @@ async fn git_merge_v1(
     .map_err(ApiError::bad_request)?;
 
     Ok(Json(response))
-}
-
-fn validate_git_command_request(request: &GitCommandRequest) -> Result<(), ApiError> {
-    if request.directory.trim().is_empty() {
-        return Err(ApiError::bad_request("git directory is required"));
-    }
-    if !Path::new(&request.directory).is_dir() {
-        return Err(ApiError::bad_request("git directory does not exist"));
-    }
-    if request.args.is_empty() {
-        return Err(ApiError::bad_request("git args are required"));
-    }
-    if request.args.iter().any(|arg| arg.contains('\0')) {
-        return Err(ApiError::bad_request("git args contain invalid null byte"));
-    }
-    if request.directory.contains('\0') {
-        return Err(ApiError::bad_request("git directory contains invalid null byte"));
-    }
-    if matches!(request.timeout_secs, Some(0)) {
-        return Err(ApiError::bad_request("git timeout must be positive"));
-    }
-    Ok(())
-}
-
-fn run_git_command_blocking(request: &GitCommandRequest) -> Result<GitCommandResponse, String> {
-    let output = git_std_command()
-        .current_dir(&request.directory)
-        .args(&request.args)
-        .output()
-        .map_err(|err| err.to_string())?;
-
-    Ok(GitCommandResponse {
-        success: output.status.success(),
-        code: output.status.code(),
-        stdout: normalize_git_output_bytes(&output.stdout),
-        stderr: normalize_git_output_bytes(&output.stderr),
-    })
 }
 
 async fn resolve_git_directory(
@@ -297,18 +250,31 @@ pub(crate) fn merge_branch_blocking(
 ) -> Result<GitMergeResponse, String> {
     verify_local_branch(directory, source_branch)?;
     verify_local_branch(directory, target_branch)?;
-    let workspace = git_worktree_path_for_branch(directory, target_branch)?
+    let workspace = worktree_path_for_branch(directory, target_branch)?
         .unwrap_or_else(|| directory.to_string());
 
-    abort_git_in_progress_states(&workspace);
-    run_git(&workspace, &["checkout", target_branch])?;
+    let repo = open_repo(&workspace)?;
+    clear_in_progress_git_state(&repo)?;
+    checkout_local_branch(&repo, target_branch)?;
+    drop(repo);
+
     let committed_target_changes =
         commit_target_branch_changes_if_needed(&workspace, source_branch, target_branch)?;
 
-    if git_command_success(
-        &workspace,
-        &["merge-base", "--is-ancestor", source_branch, target_branch],
-    )? {
+    let repo = open_repo(&workspace)?;
+    let target_oid = branch_commit_oid(&repo, target_branch)?;
+    let source_commit = {
+        let branch = repo
+            .find_branch(source_branch, BranchType::Local)
+            .map_err(|err| err.to_string())?;
+        branch.into_reference().peel_to_commit().map_err(|err| err.to_string())?
+    };
+    let annotated = repo
+        .find_annotated_commit(source_commit.id())
+        .map_err(|err| err.to_string())?;
+    let (analysis, _) = repo.merge_analysis(&[&annotated]).map_err(|err| err.to_string())?;
+
+    if analysis.is_up_to_date() {
         return Ok(GitMergeResponse {
             ok: true,
             source_branch: source_branch.to_string(),
@@ -326,20 +292,14 @@ pub(crate) fn merge_branch_blocking(
     }
 
     let merge_message = format!("chore(task): merge {source_branch} into {target_branch}");
-    let output = run_git_owned(
-        &workspace,
-        vec![
-            "merge".to_string(),
-            "--no-verify".to_string(),
-            "--no-edit".to_string(),
-            "--no-stat".to_string(),
-            "-m".to_string(),
-            merge_message,
-            source_branch.to_string(),
-        ],
-    );
-    match output {
-        Ok(_) => Ok(GitMergeResponse {
+    let merge_result = if analysis.is_fast_forward() {
+        fast_forward_branch(&repo, target_branch, &annotated)
+    } else {
+        create_merge_commit(&repo, &annotated, &source_commit, &merge_message)
+    };
+
+    match merge_result {
+        Ok(()) => Ok(GitMergeResponse {
             ok: true,
             source_branch: source_branch.to_string(),
             target_branch: target_branch.to_string(),
@@ -354,7 +314,7 @@ pub(crate) fn merge_branch_blocking(
             },
         }),
         Err(error) => {
-            abort_git_in_progress_states(&workspace);
+            restore_target_after_failed_merge(&repo, target_branch, target_oid)?;
             Err(error)
         }
     }
@@ -378,7 +338,7 @@ fn commit_target_branch_changes_if_needed(
 
     let message =
         format!("chore(task): save {target_branch} changes before merging {source_branch}");
-    git_commit_no_verify_with_message_file(directory, &message)?;
+    git_commit_with_message(directory, &message)?;
     if git_is_clean(directory)? {
         Ok(true)
     } else {
@@ -386,6 +346,163 @@ fn commit_target_branch_changes_if_needed(
             "target branch {target_branch} still has uncommitted changes after auto commit"
         ))
     }
+}
+
+fn worktree_path_for_branch(directory: &str, branch: &str) -> Result<Option<String>, String> {
+    let repo = open_repo(directory)?;
+    let branch_ref = format!("refs/heads/{branch}");
+
+    if worktree_has_branch_head(Path::new(directory), &branch_ref) {
+        return Ok(Some(workdir_string(&repo, directory)));
+    }
+
+    if let Some(primary) = repo.workdir() {
+        if primary != Path::new(directory) && worktree_has_branch_head(primary, &branch_ref) {
+            return Ok(Some(path_to_string(primary)));
+        }
+    }
+
+    let names = repo.worktrees().map_err(|err| err.to_string())?;
+    for name in names.iter() {
+        let Ok(Some(name)) = name else {
+            continue;
+        };
+        let worktree = match repo.find_worktree(name) {
+            Ok(worktree) => worktree,
+            Err(_) => continue,
+        };
+        let path = worktree.path().to_path_buf();
+        if worktree_has_branch_head(&path, &branch_ref) {
+            return Ok(Some(path_to_string(&path)));
+        }
+    }
+    Ok(None)
+}
+
+fn worktree_has_branch_head(path: &Path, branch_ref: &str) -> bool {
+    let Ok(repo) = Repository::open(path) else {
+        return false;
+    };
+    repo.head()
+        .ok()
+        .and_then(|head| head.name().ok().map(|name| name == branch_ref))
+        .unwrap_or(false)
+}
+
+fn workdir_string(repo: &Repository, fallback: &str) -> String {
+    repo.workdir().map(path_to_string).unwrap_or_else(|| fallback.to_string())
+}
+
+fn path_to_string(path: &Path) -> String {
+    path.to_string_lossy().trim_end_matches('/').to_string()
+}
+
+fn clear_in_progress_git_state(repo: &Repository) -> Result<(), String> {
+    if matches!(repo.state(), git2::RepositoryState::Clean) {
+        return Ok(());
+    }
+    if let Ok(head) = repo.head().and_then(|head| head.peel_to_commit()) {
+        let object = head.into_object();
+        let _ = repo.reset(&object, ResetType::Hard, None);
+    }
+    repo.cleanup_state().map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn checkout_local_branch(repo: &Repository, branch: &str) -> Result<(), String> {
+    let reference = format!("refs/heads/{branch}");
+    let object = repo.revparse_single(&reference).map_err(|err| err.to_string())?;
+    repo.checkout_tree(&object, None).map_err(|err| err.to_string())?;
+    repo.set_head(&reference).map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn branch_commit_oid(repo: &Repository, branch: &str) -> Result<Oid, String> {
+    repo.find_branch(branch, BranchType::Local)
+        .map_err(|err| err.to_string())?
+        .get()
+        .peel_to_commit()
+        .map_err(|err| err.to_string())
+        .map(|commit| commit.id())
+}
+
+fn fast_forward_branch(
+    repo: &Repository,
+    target_branch: &str,
+    annotated: &git2::AnnotatedCommit<'_>,
+) -> Result<(), String> {
+    let reference_name = format!("refs/heads/{target_branch}");
+    let msg = format!("Fast-Forward: Setting {target_branch} to id: {}", annotated.id());
+    match repo.find_reference(&reference_name) {
+        Ok(mut reference) => {
+            reference.set_target(annotated.id(), &msg).map_err(|err| err.to_string())?;
+        }
+        Err(err) => return Err(err.to_string()),
+    }
+    repo.set_head(&reference_name).map_err(|err| err.to_string())?;
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.checkout_head(Some(&mut checkout)).map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn create_merge_commit(
+    repo: &Repository,
+    annotated: &git2::AnnotatedCommit<'_>,
+    source_commit: &git2::Commit<'_>,
+    message: &str,
+) -> Result<(), String> {
+    let mut merge_opts = git2::MergeOptions::new();
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.merge(&[annotated], Some(&mut merge_opts), Some(&mut checkout))
+        .map_err(|err| err.to_string())?;
+
+    let mut index = repo.index().map_err(|err| err.to_string())?;
+    if index.has_conflicts() {
+        return Err(format!(
+            "merge conflict while merging {}; repository restored to the pre-merge target state",
+            annotated.id()
+        ));
+    }
+
+    let tree_id = index.write_tree().map_err(|err| err.to_string())?;
+    let tree = repo.find_tree(tree_id).map_err(|err| err.to_string())?;
+    let signature = repo.signature().map_err(|err| {
+        format!("git user.name and user.email must be configured in the repository: {err}")
+    })?;
+    let head_commit = repo
+        .head()
+        .map_err(|err| err.to_string())?
+        .peel_to_commit()
+        .map_err(|err| err.to_string())?;
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &[&head_commit, source_commit],
+    )
+    .map_err(|err| err.to_string())?;
+    repo.cleanup_state().map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+fn restore_target_after_failed_merge(
+    repo: &Repository,
+    target_branch: &str,
+    target_oid: Oid,
+) -> Result<(), String> {
+    let object = repo.find_object(target_oid, None).map_err(|err| err.to_string())?;
+    repo.reset(&object, ResetType::Hard, None).map_err(|err| err.to_string())?;
+    let reference = format!("refs/heads/{target_branch}");
+    repo.set_head(&reference).map_err(|err| err.to_string())?;
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force();
+    repo.checkout_head(Some(&mut checkout)).map_err(|err| err.to_string())?;
+    repo.cleanup_state().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 fn validate_repo_relative_path(path: &str) -> Result<(), String> {
@@ -408,35 +525,68 @@ fn validate_repo_relative_path(path: &str) -> Result<(), String> {
 }
 
 fn git_stage_file(directory: &str, file: &str) -> Result<(), String> {
-    run_git(directory, &["add", "-A", "--", file]).map(|_| ())
+    let repo = open_repo(directory)?;
+    let mut index = repo.index().map_err(|err| err.to_string())?;
+    let relative = Path::new(file);
+    let absolute = Path::new(directory).join(relative);
+    if absolute.exists() {
+        index.add_path(relative).map_err(|err| err.to_string())?;
+    } else {
+        // `git add -A -- path` stages deletions when the worktree file is gone.
+        let _ = index.remove_path(relative);
+    }
+    index.write().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 fn git_stage_all(directory: &str) -> Result<(), String> {
-    run_git(directory, &["add", "-A"]).map(|_| ())
+    let repo = open_repo(directory)?;
+    let mut index = repo.index().map_err(|err| err.to_string())?;
+    index
+        .add_all(["*"].iter(), IndexAddOption::DEFAULT, None)
+        .map_err(|err| err.to_string())?;
+    index.update_all(["*"].iter(), None).map_err(|err| err.to_string())?;
+    index.write().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 fn git_reset_index(directory: &str) -> Result<(), String> {
-    run_git(directory, &["reset", "-q"]).map(|_| ())
+    let repo = open_repo(directory)?;
+    match repo.head() {
+        Ok(head) => {
+            let object = head.peel_to_commit().map_err(|err| err.to_string())?.into_object();
+            repo.reset(&object, ResetType::Mixed, None).map_err(|err| err.to_string())?;
+        }
+        Err(_) => {
+            let mut index = repo.index().map_err(|err| err.to_string())?;
+            index.clear().map_err(|err| err.to_string())?;
+            index.write().map_err(|err| err.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 fn git_commit_with_message_file(directory: &str, message: &str) -> Result<(), String> {
-    let mut temp = NamedTempFile::new().map_err(|err| err.to_string())?;
-    temp.write_all(message.as_bytes()).map_err(|err| err.to_string())?;
-    temp.flush().map_err(|err| err.to_string())?;
-    let path = temp.path().to_string_lossy().to_string();
-    run_git_owned(directory, vec!["commit".to_string(), "-F".to_string(), path]).map(|_| ())
+    git_commit_with_message(directory, message)
 }
 
-fn git_commit_no_verify_with_message_file(directory: &str, message: &str) -> Result<(), String> {
-    let mut temp = NamedTempFile::new().map_err(|err| err.to_string())?;
-    temp.write_all(message.as_bytes()).map_err(|err| err.to_string())?;
-    temp.flush().map_err(|err| err.to_string())?;
-    let path = temp.path().to_string_lossy().to_string();
-    run_git_owned(
-        directory,
-        vec!["commit".to_string(), "--no-verify".to_string(), "-F".to_string(), path],
-    )
-    .map(|_| ())
+fn git_commit_with_message(directory: &str, message: &str) -> Result<(), String> {
+    let repo = open_repo(directory)?;
+    let signature = repo.signature().map_err(|err| {
+        format!("git user.name and user.email must be configured in the repository: {err}")
+    })?;
+    let mut index = repo.index().map_err(|err| err.to_string())?;
+    let tree_id = index.write_tree().map_err(|err| err.to_string())?;
+    let tree = repo.find_tree(tree_id).map_err(|err| err.to_string())?;
+    let parent = match repo.head() {
+        Ok(head) => Some(head.peel_to_commit().map_err(|err| err.to_string())?),
+        Err(err) if err.code() == git2::ErrorCode::UnbornBranch => None,
+        Err(err) => return Err(err.to_string()),
+    };
+    let parents: Vec<&git2::Commit<'_>> = parent.as_ref().into_iter().collect();
+    repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &parents)
+        .map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 fn git_stage_partial_file(
@@ -580,62 +730,54 @@ fn stage_final_line_ending_only_change(directory: &str, file_path: &str) -> Resu
 }
 
 fn write_index_content(directory: &str, file_path: &str, content: &str) -> Result<(), String> {
+    let repo = open_repo(directory)?;
+    let mut index = repo.index().map_err(|err| err.to_string())?;
     if content.is_empty() {
-        return run_git(directory, &["update-index", "--force-remove", "--", file_path])
-            .map(|_| ());
+        if index.get_path(Path::new(file_path), 0).is_some() {
+            index.remove_path(Path::new(file_path)).map_err(|err| err.to_string())?;
+            index.write().map_err(|err| err.to_string())?;
+        }
+        return Ok(());
     }
 
-    let mode = git_file_mode(directory, file_path)?;
-    let oid = git_hash_object_stdin(directory, content)?;
-    run_git_owned(
-        directory,
-        vec![
-            "update-index".to_string(),
-            "--add".to_string(),
-            "--cacheinfo".to_string(),
-            mode,
-            oid,
-            file_path.to_string(),
-        ],
-    )
-    .map(|_| ())
+    let mode = index.get_path(Path::new(file_path), 0).map(|entry| entry.mode).unwrap_or(0o100644);
+    let entry = IndexEntry {
+        ctime: IndexTime::new(0, 0),
+        mtime: IndexTime::new(0, 0),
+        dev: 0,
+        ino: 0,
+        mode,
+        uid: 0,
+        gid: 0,
+        file_size: 0,
+        id: Oid::ZERO_SHA1,
+        flags: 0,
+        flags_extended: 0,
+        path: file_path.as_bytes().to_vec(),
+    };
+    index.add_frombuffer(&entry, content.as_bytes()).map_err(|err| err.to_string())?;
+    index.write().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 fn git_file_mode(directory: &str, file_path: &str) -> Result<String, String> {
-    let output = run_git(directory, &["ls-files", "-s", "--", file_path])?;
-    Ok(output
-        .split_whitespace()
-        .next()
-        .filter(|mode| !mode.trim().is_empty())
-        .unwrap_or("100644")
-        .to_string())
+    let repo = open_repo(directory)?;
+    let index = repo.index().map_err(|err| err.to_string())?;
+    Ok(index
+        .get_path(Path::new(file_path), 0)
+        .map(|entry| format!("{:o}", entry.mode))
+        .filter(|mode| !mode.is_empty())
+        .unwrap_or_else(|| "100644".to_string()))
 }
 
 fn git_hash_object_stdin(directory: &str, content: &str) -> Result<String, String> {
-    let mut child = git_std_command()
-        .current_dir(directory)
-        .args(["hash-object", "-w", "--stdin"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| err.to_string())?;
-
-    let mut stdin = child.stdin.take().ok_or_else(|| "failed to open git stdin".to_string())?;
-    stdin.write_all(content.as_bytes()).map_err(|err| err.to_string())?;
-    drop(stdin);
-
-    let output = child.wait_with_output().map_err(|err| err.to_string())?;
-    if output.status.success() {
-        return Ok(String::from_utf8_lossy(&output.stdout).trim().to_string());
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if stderr.is_empty() { Err("git hash-object failed".to_string()) } else { Err(stderr) }
+    let repo = open_repo(directory)?;
+    let oid = repo.blob(content.as_bytes()).map_err(|err| err.to_string())?;
+    Ok(oid.to_string())
 }
 
 fn get_file_content_pair(directory: &str, file_path: &str) -> Option<(String, String)> {
-    let repo = git2::Repository::open(directory).ok()?;
+    let repo = Repository::open(directory).ok()?;
     let old_content = repo
         .head()
         .ok()
@@ -652,84 +794,42 @@ fn get_file_content_pair(directory: &str, file_path: &str) -> Option<(String, St
     Some((old_content, new_content))
 }
 
-fn run_git(directory: &str, args: &[&str]) -> Result<String, String> {
-    run_git_owned(directory, args.iter().map(|value| (*value).to_string()).collect())
+fn open_repo(directory: &str) -> Result<Repository, String> {
+    Repository::open(directory).map_err(|err| err.to_string())
 }
 
 fn git_head_sha(directory: &str) -> Result<String, String> {
-    Ok(run_git(directory, &["rev-parse", "HEAD"])?.trim().to_string())
+    let repo = open_repo(directory)?;
+    let oid = repo
+        .head()
+        .map_err(|err| err.to_string())?
+        .peel_to_commit()
+        .map_err(|err| err.to_string())?
+        .id();
+    Ok(oid.to_string())
 }
 
 fn verify_local_branch(directory: &str, branch: &str) -> Result<(), String> {
-    let branch_ref = format!("refs/heads/{branch}");
-    run_git(directory, &["show-ref", "--verify", "--quiet", &branch_ref]).map(|_| ())
+    let repo = open_repo(directory)?;
+    repo.find_branch(branch, BranchType::Local).map(|_| ()).map_err(|err| err.to_string())
 }
 
 fn git_has_staged_changes(directory: &str) -> Result<bool, String> {
-    Ok(!git_command_success(directory, &["diff", "--cached", "--quiet"])?)
+    let repo = open_repo(directory)?;
+    let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+    let mut opts = DiffOptions::new();
+    let diff = repo
+        .diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))
+        .map_err(|err| err.to_string())?;
+    Ok(diff.deltas().len() > 0)
 }
 
 fn git_is_clean(directory: &str) -> Result<bool, String> {
-    Ok(run_git(directory, &["status", "--porcelain=v1"])?.trim().is_empty())
-}
-
-fn git_command_success(directory: &str, args: &[&str]) -> Result<bool, String> {
-    let output = git_std_command()
-        .current_dir(directory)
-        .args(args)
-        .output()
-        .map_err(|err| err.to_string())?;
-    Ok(output.status.success())
-}
-
-fn git_worktree_path_for_branch(directory: &str, branch: &str) -> Result<Option<String>, String> {
-    let output = run_git(directory, &["worktree", "list", "--porcelain"])?;
-    let mut current_path: Option<String> = None;
-    for line in output.lines() {
-        if let Some(path) = line.strip_prefix("worktree ") {
-            current_path = Some(path.to_string());
-        } else if let Some(branch_ref) = line.strip_prefix("branch ")
-            && branch_ref == format!("refs/heads/{branch}")
-        {
-            return Ok(current_path);
-        } else if line.trim().is_empty() {
-            current_path = None;
-        }
-    }
-    Ok(None)
-}
-
-fn abort_git_in_progress_states(directory: &str) {
-    let _ = run_git(directory, &["merge", "--abort"]);
-    let _ = run_git(directory, &["reset", "--merge"]);
-}
-
-fn run_git_owned(directory: &str, args: Vec<String>) -> Result<String, String> {
-    let output = git_std_command()
-        .current_dir(directory)
-        .args(&args)
-        .output()
-        .map_err(|err| err.to_string())?;
-
-    let stdout = normalize_git_output_bytes(&output.stdout);
-    let stderr = normalize_git_output_bytes(&output.stderr);
-    if output.status.success() {
-        return Ok(stdout);
-    }
-
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim().to_string()
-    } else {
-        stderr.trim().to_string()
-    };
-    if detail.is_empty() {
-        return Err(format!("git command failed: {}", args.join(" ")));
-    }
-    Err(detail)
-}
-
-fn normalize_git_output_bytes(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).replace("\r\n", "\n").replace('\r', "\n")
+    let repo = open_repo(directory)?;
+    let mut opts = StatusOptions::new();
+    opts.include_untracked(true).recurse_untracked_dirs(true).include_ignored(false);
+    let statuses = repo.statuses(Some(&mut opts)).map_err(|err| err.to_string())?;
+    Ok(statuses.is_empty())
 }
 
 #[cfg(test)]

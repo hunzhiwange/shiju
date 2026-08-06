@@ -1,13 +1,16 @@
 //! 项目元数据的发现、持久化与更新入口。
 //!
-//! 本模块把目录映射为稳定的项目 `Info`：优先识别 Git 仓库根与初始提交，
-//! 在 Git 不可用或非仓库目录时退回本地路径哈希。它同时维护 sandbox 列表、
-//! 初始化时间、用户可编辑的项目名称/图标/命令，并通过事件总线通知调用方。
+//! 本模块把目录映射为稳定的项目 `Info`：优先用 git2 识别 Git 仓库根与初始提交，
+//! 在非仓库目录时退回本地路径哈希。它同时维护 sandbox 列表、初始化时间、
+//! 用户可编辑的项目名称/图标/命令，并通过事件总线通知调用方。
+//!
+//! 本路径使用 git2，不启动系统 Git。仍依赖 Git CLI 的范围外能力：
+//! `/v1/git/command`、普通 worktree fetch/submodule、skill clone/pull、snapshot 等。
 
 use super::{Error, Info, LOGGER, TimeInfo, UpdateInput, Vcs, discover, event, extra};
 use crate::app::agent::bus;
 use crate::app::agent::flag;
-use crate::app::agent::shell::git_std_command;
+use crate::git_repository;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -57,16 +60,6 @@ fn find_git_entry(start: &Path) -> Option<(PathBuf, PathBuf)> {
     None
 }
 
-fn git_available() -> bool {
-    git_std_command()
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-}
-
 fn read_cached_id(git_entry: &Path) -> Option<String> {
     std::fs::read_to_string(git_entry.join("vibewindow"))
         .ok()
@@ -76,44 +69,6 @@ fn read_cached_id(git_entry: &Path) -> Option<String> {
 
 fn write_cached_id(git_entry: &Path, id: &str) {
     let _ = std::fs::write(git_entry.join("vibewindow"), id);
-}
-
-fn run_git(cwd: &Path, args: &[&str]) -> Option<String> {
-    let out = git_std_command()
-        .current_dir(cwd)
-        .args(args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
-}
-
-fn roots_from_git(cwd: &Path) -> Option<Vec<String>> {
-    let out = run_git(cwd, &["rev-list", "--max-parents=0", "--all"])?;
-    let mut roots =
-        out.split('\n').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
-    // 多根历史的仓库按字典序取稳定首项，避免项目 ID 随 git 输出顺序漂移。
-    roots.sort();
-    if roots.is_empty() { None } else { Some(roots) }
-}
-
-fn show_toplevel(cwd: &Path) -> Option<PathBuf> {
-    let out = run_git(cwd, &["rev-parse", "--show-toplevel"])?;
-    let p = PathBuf::from(out);
-    if p.is_absolute() { Some(p) } else { Some(cwd.join(p)) }
-}
-
-fn git_common_dir_root(cwd: &Path) -> Option<PathBuf> {
-    let out = run_git(cwd, &["rev-parse", "--git-common-dir"])?;
-    let dir = Path::new(&out).parent().unwrap_or(Path::new("."));
-    if dir == Path::new(".") {
-        return Some(cwd.to_path_buf());
-    }
-    if dir.is_absolute() { Some(dir.to_path_buf()) } else { Some(cwd.join(dir)) }
 }
 
 fn fake_vcs() -> Option<Vcs> {
@@ -195,44 +150,27 @@ pub async fn from_directory(
         let mut worktree = directory.clone();
         let mut vcs = fake_vcs();
 
-        if let Some((sandbox0, git_entry)) = find_git_entry(&directory) {
-            sandbox = sandbox0;
-            worktree = sandbox.clone();
+        if let Some(discovered) = git_repository::discover(&directory) {
+            sandbox = discovered.workdir.clone();
+            worktree = discovered.common_root.clone();
 
-            let cached = read_cached_id(&git_entry);
+            let cached = read_cached_id(&discovered.common_dir);
             let cached_non_global =
                 cached.as_deref().filter(|c| *c != "global").map(str::to_string);
-            let has_git = git_available();
-            let roots = if has_git { roots_from_git(&sandbox) } else { None };
 
-            if !has_git {
-                // Git 不可用时只信任已有缓存；不猜测仓库状态，避免生成误导性的 VCS 信息。
-                if let Some(cached) = cached_non_global.clone() {
-                    id = cached;
-                }
-                vcs = fake_vcs();
+            if let Some(cached) = cached_non_global {
+                id = cached;
+            } else if let Some(root) = discovered.root_commit_ids.first() {
+                // 多根历史的仓库按字典序取稳定首项，避免项目 ID 随遍历顺序漂移。
+                id = root.clone();
+                write_cached_id(&discovered.common_dir, &id);
             } else {
-                if let Some(cached) = cached_non_global.clone() {
-                    id = cached;
-                } else if let Some(roots) = roots.clone() {
-                    id = roots[0].clone();
-                    write_cached_id(&git_entry, &id);
-                } else {
-                    vcs = fake_vcs();
-                }
-
-                if roots.is_some() || cached_non_global.is_some() {
-                    if let Some(top) = show_toplevel(&sandbox) {
-                        sandbox = top;
-                    }
-                    if let Some(common) = git_common_dir_root(&sandbox) {
-                        worktree = common;
-                    } else {
-                        worktree = sandbox.clone();
-                    }
-                    vcs = Some(Vcs::Git);
-                }
+                // 空仓库保留 Git 身份，并用路径 ID 写入 common git dir 缓存，
+                // 避免首个提交后项目 ID 漂移。
+                id = local_project_id_from_path(&discovered.common_root);
+                write_cached_id(&discovered.common_dir, &id);
             }
+            vcs = Some(Vcs::Git);
         }
         (id, sandbox, worktree, vcs)
     })

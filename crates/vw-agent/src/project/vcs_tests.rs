@@ -3,9 +3,31 @@ use crate::app::agent::bus;
 use crate::app::agent::file::watcher as file_watcher;
 use git2::Repository;
 use serde_json::json;
+use std::ffi::OsString;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tempfile::TempDir;
+
+struct PathGuard {
+    old: Option<OsString>,
+}
+
+impl PathGuard {
+    fn without_git() -> Self {
+        let old = std::env::var_os("PATH");
+        unsafe { std::env::set_var("PATH", "") };
+        Self { old }
+    }
+}
+
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match &self.old {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
 
 fn repo_with_initial_commit() -> (TempDir, Repository) {
     let temp = TempDir::new().expect("tempdir should create");
@@ -258,4 +280,29 @@ async fn init_recovers_poisoned_info_lock_when_head_changes() {
         info.lock().unwrap_or_else(|error| error.into_inner()).branch.as_deref(),
         Some("feature-vcs-poison")
     );
+}
+
+#[tokio::test]
+async fn git2_branch_tracking_works_without_git_executable() {
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let _async_env_lock = crate::test_support::global_async_env_lock().lock().await;
+
+    let (temp, repo) = repo_with_initial_commit();
+    {
+        let commit =
+            repo.head().expect("head should exist").peel_to_commit().expect("head commit");
+        repo.branch("feature/git2-branch", &commit, false).expect("branch should create");
+        repo.set_head("refs/heads/feature/git2-branch").expect("head should switch");
+    }
+    drop(repo);
+
+    let _path = PathGuard::without_git();
+    let branch =
+        current_branch(&temp.path().to_string_lossy()).expect("branch should read without git");
+    assert_eq!(branch, "feature/git2-branch");
+
+    let info = init(temp.path().to_path_buf()).await;
+    stop_watcher(&temp);
+    assert_eq!(info.lock().expect("info lock").branch.as_deref(), Some("feature/git2-branch"));
 }

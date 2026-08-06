@@ -277,11 +277,12 @@ pub fn queue_panel(
 
         // 格式化创建时间并构建时间文本组件
         let meta_label = queue_item_meta_label(item.created_ms, is_next, is_guide);
-        let time_text =
-            text(meta_label).size(11).style(|theme: &Theme| iced::widget::text::Style {
+        let time_text = text(meta_label).size(11).line_height(1.0).style(|theme: &Theme| {
+            iced::widget::text::Style {
                 // 使用次要颜色的 75% 透明度，使时间文本不那么突出
                 color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.75)),
-            });
+            }
+        });
 
         // 队列不包含当前执行中的请求，仅高亮队首项表示“下一条”
         let status_icon = if is_guide {
@@ -304,7 +305,7 @@ pub fn queue_panel(
             .style(move |_theme: &Theme, _| svg::Style { color: Some(status_color) });
 
         // 构建标题文本，格式为 "序号. 查询内容"
-        let title = text(format!("{}. {}", i + 1, label)).size(12);
+        let title = text(format!("{}. {}", i + 1, label)).size(12).line_height(1.0);
 
         let info = column![title, time_text].spacing(1).width(Length::Fill);
         let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());

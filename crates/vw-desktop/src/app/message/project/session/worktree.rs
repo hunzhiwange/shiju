@@ -60,6 +60,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSessionPicked { project_path: _, directory } => {
+            if app.new_session_creating {
+                return Some(iced::Task::none());
+            }
+            app.new_session_creating = true;
             app.new_session_last_directory = Some(directory.clone());
             let save_last_directory_task = save_config_field_task(
                 "new_session_last_directory",
@@ -78,6 +82,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ]))
         }
         ProjectMessage::ProjectCreateSessionWorktree(project_path) => {
+            if app.new_session_creating {
+                return Some(iced::Task::none());
+            }
             let requested_name = app.new_session_worktree_name.trim().to_string();
             if requested_name.is_empty() {
                 app.error_message = Some("请输入 worktree 英文名称".to_string());
@@ -91,6 +98,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     Some("worktree 名称仅支持小写英文、数字、连字符(-)".to_string());
                 return Some(iced::Task::none());
             }
+            app.new_session_creating = true;
             reset_new_session_picker_state(app);
             let project_path_clone = project_path.clone();
             Some(iced::Task::perform(

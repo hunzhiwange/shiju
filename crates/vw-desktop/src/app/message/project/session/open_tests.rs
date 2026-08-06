@@ -617,6 +617,25 @@ fn project_create_session_without_worktree_resets_picker_before_scheduling_creat
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
     assert!(app.new_session_reset_error.is_none());
+    assert!(app.new_session_creating);
+}
+
+#[test]
+fn project_create_session_ignores_duplicate_request_while_creation_is_running() {
+    let mut app = app();
+    app.project_path = Some("/tmp/current".to_string());
+    app.new_session_creating = true;
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSession(
+            "/tmp/duplicate".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.project_path.as_deref(), Some("/tmp/current"));
+    assert!(app.new_session_creating);
 }
 
 #[test]
@@ -626,6 +645,7 @@ fn session_create_failure_restores_summary_handoff_view_and_shows_error() {
         Some(crate::app::state::QuickMessageHandoffState::WaitingForSession {
             prompt: "continue".to_string(),
         });
+    app.new_session_creating = true;
 
     let task = super::handle(
         &mut app,
@@ -636,6 +656,7 @@ fn session_create_failure_restores_summary_handoff_view_and_shows_error() {
 
     assert!(task.is_some());
     assert!(app.quick_message_handoff.is_none());
+    assert!(!app.new_session_creating);
     assert!(
         app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("创建新会话失败"))
     );

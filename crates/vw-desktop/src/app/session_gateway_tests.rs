@@ -204,6 +204,16 @@ fn block_on_gateway_propagates_future_error() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn gateway_save_session_result_preserves_original_gateway_error() {
+    let result = super::gateway_save_session_result_from_future(async {
+        Err::<Option<std::path::PathBuf>, _>("original gateway save failure".to_string())
+    });
+
+    assert_eq!(result, Err("original gateway save failure".to_string()));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn block_on_gateway_runs_future_inside_multithread_runtime() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -292,6 +302,7 @@ fn desktop_gateway_blocking_surfaces_are_exposed_without_invoking_gateway() {
     let _ = super::gateway_session_preview_meta;
     let _ = super::gateway_session_file_path;
     let _ = super::gateway_resolve_session_scope_id;
+    let _ = super::gateway_save_session_result;
     let _ = super::gateway_save_session;
     let _ = super::gateway_set_session_scope;
     let _ = super::gateway_current_session_scope;

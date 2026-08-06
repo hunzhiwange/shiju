@@ -385,6 +385,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSession(project_path) => {
+            if app.new_session_creating {
+                return Some(iced::Task::none());
+            }
             let project_switch_task =
                 if app.project_path.as_deref() == Some(project_path.as_str()) {
                     iced::Task::none()
@@ -394,6 +397,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let project_worktree_enabled =
                 app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
             if !project_worktree_enabled {
+                app.new_session_creating = true;
                 reset_new_session_picker_state(app);
                 let project_path_clone = project_path.clone();
                 return Some(iced::Task::batch(vec![
@@ -428,6 +432,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ]))
         }
         ProjectMessage::SessionCreateFailed(error) => {
+            app.new_session_creating = false;
             if matches!(
                 app.quick_message_handoff,
                 Some(QuickMessageHandoffState::WaitingForSession { .. })

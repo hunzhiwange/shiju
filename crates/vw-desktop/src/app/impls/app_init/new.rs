@@ -652,6 +652,7 @@ impl App {
 
             // ========== 新建会话相关 ==========
             new_session_picker_project: None,
+            new_session_creating: false,
             new_session_picker_options: Vec::new(),
             project_worktree_enabled: cfg_project_worktree_enabled,
             new_session_last_directory: cfg_new_session_last_directory,

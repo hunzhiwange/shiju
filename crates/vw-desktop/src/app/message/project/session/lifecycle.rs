@@ -970,6 +970,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             }
 
+            app.new_session_creating = false;
             app.new_session_last_directory = Some(info.directory.clone());
             let save_last_directory_task = save_config_field_task(
                 "new_session_last_directory",

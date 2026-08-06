@@ -68,6 +68,7 @@ pub(super) struct WorkSpaceItem {
     pub(super) expanded: bool,
     pub(super) hovered: bool,
     pub(super) tools_open: bool,
+    pub(super) creating: bool,
     pub(super) sessions: Vec<WorkSpaceSession>,
     pub(super) message: Message,
     pub(super) toggle_message: Message,
@@ -281,6 +282,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                 expanded,
                 hovered: app.hovered_recent_project.as_deref() == Some(path.as_str()),
                 tools_open: app.project_tools_menu_path.as_deref() == Some(path.as_str()),
+                creating: app.new_session_creating,
                 sessions,
                 message: Message::Project(ProjectMessage::SwitchWorkSpacePressed(path.clone())),
                 toggle_message: Message::View(ViewMessage::WorkSpaceToggled(path.clone())),
@@ -360,11 +362,15 @@ fn navigation_button_style(theme: &Theme, status: button::Status) -> button::Sty
 }
 
 fn header_icon(icon: Icon) -> svg::Svg<'static> {
+    header_icon_enabled(icon, true)
+}
+
+fn header_icon_enabled(icon: Icon, enabled: bool) -> svg::Svg<'static> {
     svg::Svg::new(assets::get_icon(icon))
         .width(Length::Fixed(WORK_HEADER_ICON_SIZE))
         .height(Length::Fixed(WORK_HEADER_ICON_SIZE))
-        .style(|theme: &Theme, _status| svg::Style {
-            color: Some(theme.palette().text.scale_alpha(0.82)),
+        .style(move |theme: &Theme, _status| svg::Style {
+            color: Some(theme.palette().text.scale_alpha(if enabled { 0.82 } else { 0.32 })),
         })
 }
 
@@ -403,16 +409,29 @@ fn header_icon_button_sized(
     active: bool,
     control_size: f32,
 ) -> Element<'static, Message> {
-    let control = button(
-        container(header_icon(icon))
+    header_icon_button_sized_maybe(icon, label, Some(message), active, control_size)
+}
+
+fn header_icon_button_sized_maybe(
+    icon: Icon,
+    label: &'static str,
+    message: Option<Message>,
+    active: bool,
+    control_size: f32,
+) -> Element<'static, Message> {
+    let enabled = message.is_some();
+    let mut control = button(
+        container(header_icon_enabled(icon, enabled))
             .width(Length::Fixed(control_size))
             .height(Length::Fixed(control_size))
             .align_x(iced::alignment::Horizontal::Center)
             .align_y(iced::alignment::Vertical::Center),
     )
-    .on_press(message)
     .padding(0)
     .style(header_control_style(active));
+    if let Some(message) = message {
+        control = control.on_press(message);
+    }
 
     Tooltip::new(
         control,
@@ -688,6 +707,10 @@ fn collapsed_header(app: &App) -> Element<'static, Message> {
 }
 
 fn navigation_icon(icon: Icon) -> svg::Svg<'static> {
+    navigation_icon_enabled(icon, true)
+}
+
+fn navigation_icon_enabled(icon: Icon, enabled: bool) -> svg::Svg<'static> {
     let size = match icon {
         Icon::Plus | Icon::Grid1x2 => 15.0,
         _ => 18.0,
@@ -695,8 +718,8 @@ fn navigation_icon(icon: Icon) -> svg::Svg<'static> {
     svg::Svg::new(assets::get_icon(icon))
         .width(Length::Fixed(size))
         .height(Length::Fixed(size))
-        .style(|theme: &Theme, _status| svg::Style {
-            color: Some(theme.palette().text.scale_alpha(0.78)),
+        .style(move |theme: &Theme, _status| svg::Style {
+            color: Some(theme.palette().text.scale_alpha(if enabled { 0.78 } else { 0.32 })),
         })
 }
 
@@ -706,9 +729,22 @@ fn navigation_button(
     message: Message,
     trailing: Option<&'static str>,
 ) -> Element<'static, Message> {
+    navigation_button_maybe(label, icon, Some(message), trailing)
+}
+
+fn navigation_button_maybe(
+    label: &'static str,
+    icon: Icon,
+    message: Option<Message>,
+    trailing: Option<&'static str>,
+) -> Element<'static, Message> {
+    let enabled = message.is_some();
     let mut content = row![
-        container(navigation_icon(icon)).width(Length::Fixed(WORK_NAVIGATION_ICON_COLUMN_WIDTH)),
-        text(label).size(14),
+        container(navigation_icon_enabled(icon, enabled))
+            .width(Length::Fixed(WORK_NAVIGATION_ICON_COLUMN_WIDTH)),
+        text(label).size(14).style(move |theme: &Theme| text::Style {
+            color: (!enabled).then(|| theme.palette().text.scale_alpha(0.32)),
+        }),
         Space::new().width(Length::Fill),
     ]
     .spacing(10)
@@ -721,12 +757,14 @@ fn navigation_button(
         }));
     }
 
-    button(content)
-        .on_press(message)
-        .padding([9, 11])
+    let mut control =
+        button(content).padding([9, 11])
         .width(Length::Fill)
-        .style(navigation_button_style)
-        .into()
+        .style(navigation_button_style);
+    if let Some(message) = message {
+        control = control.on_press(message);
+    }
+    control.into()
 }
 
 fn more_menu_style(theme: &Theme) -> container::Style {
@@ -1060,16 +1098,20 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
                 .gap(6.0)
                 .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
                 .into();
-        let create = header_icon_button_sized(
-            Icon::Plus,
-            "新建任务",
-            Message::Batch(vec![
-                Message::Project(ProjectMessage::ProjectToolsMenuClosed),
-                space.create_message.clone(),
-            ]),
-            false,
-            30.0,
-        );
+        let create = if space.creating {
+            header_icon_button_sized_maybe(Icon::Plus, "任务创建中", None, false, 30.0)
+        } else {
+            header_icon_button_sized(
+                Icon::Plus,
+                "新建任务",
+                Message::Batch(vec![
+                    Message::Project(ProjectMessage::ProjectToolsMenuClosed),
+                    space.create_message.clone(),
+                ]),
+                false,
+                30.0,
+            )
+        };
         row![tools, create]
             .spacing(3)
             .align_y(iced::Alignment::Center)
@@ -1124,13 +1166,17 @@ fn space_session_button(app: &App, session: &WorkSpaceSession) -> Element<'stati
 
 fn navigation_section(app: &App) -> Element<'static, Message> {
     let specs = navigation_specs();
-    let navigation = column![navigation_button(
-        specs[0].0,
-        specs[0].1,
-        Message::View(ViewMessage::ProjectFileNewSession),
-        specs[0].2,
-    )]
-    .spacing(2);
+    let create_task_button = if app.new_session_creating {
+        navigation_button_maybe("创建中...", specs[0].1, None, specs[0].2)
+    } else {
+        navigation_button(
+            specs[0].0,
+            specs[0].1,
+            Message::View(ViewMessage::ProjectFileNewSession),
+            specs[0].2,
+        )
+    };
+    let navigation = column![create_task_button].spacing(2);
 
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation

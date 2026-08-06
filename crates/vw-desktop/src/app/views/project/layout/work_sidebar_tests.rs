@@ -102,6 +102,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     );
     assert!(model.spaces[0].hovered);
     assert!(model.spaces[0].tools_open);
+    assert!(!model.spaces[0].creating);
     assert!(!model.spaces[1].expanded);
     assert!(model.spaces[1].sessions.is_empty());
     assert!(!model.spaces[1].hovered);
@@ -142,6 +143,17 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
         panic!("space tools action should toggle that space menu");
     };
     assert_eq!(path, "/workspace/alpha");
+}
+
+#[test]
+fn work_sidebar_marks_space_creation_action_disabled_while_session_is_creating() {
+    let mut app = App::new().0;
+    app.recent_projects = vec!["/workspace/alpha".into()];
+    app.new_session_creating = true;
+
+    let model = work_sidebar::model(&app);
+
+    assert!(model.spaces[0].creating);
 }
 
 #[test]

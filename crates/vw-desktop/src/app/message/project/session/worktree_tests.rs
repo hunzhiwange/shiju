@@ -139,6 +139,27 @@ fn picking_existing_workspace_remembers_directory_and_resets_picker_state() {
     assert!(app.new_session_picker_project.is_none());
     assert!(app.new_session_picker_options.is_empty());
     assert!(app.new_session_worktree_name.is_empty());
+    assert!(app.new_session_creating);
+}
+
+#[test]
+fn picking_existing_workspace_ignores_duplicate_while_creation_is_running() {
+    let mut app = app();
+    app.new_session_creating = true;
+    app.new_session_picker_project = Some("/tmp/project".to_string());
+    app.new_session_last_directory = Some("/tmp/previous".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::ProjectCreateSessionPicked {
+            project_path: "/tmp/project".to_string(),
+            directory: "/tmp/project-wt".to_string(),
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.new_session_last_directory.as_deref(), Some("/tmp/previous"));
+    assert_eq!(app.new_session_picker_project.as_deref(), Some("/tmp/project"));
 }
 
 #[test]

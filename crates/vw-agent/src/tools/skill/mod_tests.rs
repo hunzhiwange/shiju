@@ -88,8 +88,15 @@ fn skill_prompt_content_trims_empties_and_uses_fallback() {
     let with_prompts = skill("s", None, vec![" first ", "", "\nsecond\n"]);
     let empty = skill("s", None, vec![" ", ""]);
 
-    assert_eq!(skill_prompt_content(&with_prompts), "first\n\nsecond");
-    assert_eq!(skill_prompt_content(&empty), "该技能没有内联指令。");
+    let with_prompts = skill_prompt_content(&with_prompts);
+    assert!(with_prompts.starts_with("<skill_execution_policy>"));
+    assert!(with_prompts.contains("不得静默跳过、合并、替代或虚构任何步骤"));
+    assert!(with_prompts.contains("如果任一步骤无法执行，必须立即停止"));
+    assert!(with_prompts.ends_with("first\n\nsecond"));
+
+    let empty = skill_prompt_content(&empty);
+    assert!(empty.starts_with("<skill_execution_policy>"));
+    assert!(empty.ends_with("该技能没有内联指令。"));
 }
 
 #[test]

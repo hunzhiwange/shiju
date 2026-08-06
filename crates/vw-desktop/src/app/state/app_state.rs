@@ -460,6 +460,8 @@ pub struct App {
     pub(crate) project_tools_menu_path: Option<String>,
     /// 新建会话选择器的项目路径
     pub(crate) new_session_picker_project: Option<String>,
+    /// 是否正在等待新会话创建完成
+    pub(crate) new_session_creating: bool,
     /// 新建会话选择器的选项列表（显示名，值）
     pub(crate) new_session_picker_options: Vec<(String, String)>,
     /// 项目 worktree 启用状态映射

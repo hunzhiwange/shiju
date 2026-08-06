@@ -39,6 +39,7 @@ use super::styles::square_icon_button_style;
 const MAX_QUEUE_PANEL_HEIGHT: f32 = 132.0;
 const QUEUE_SCROLLBAR_WIDTH: u32 = 4;
 const MAX_QUEUE_LABEL_CHARS: usize = 42;
+const QUEUE_ACTION_BUTTON_SIZE: f32 = 22.0;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
@@ -194,8 +195,13 @@ fn queue_action_button(
     action: Option<message::ChatMessage>,
 ) -> Element<'static, Message> {
     let enabled = action.is_some();
-    let mut action_button = button(icon_svg(icon, 12.0))
-        .padding(5)
+    let button_content = container(icon_svg(icon, 12.0))
+        .width(Length::Fixed(QUEUE_ACTION_BUTTON_SIZE))
+        .height(Length::Fixed(QUEUE_ACTION_BUTTON_SIZE))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center);
+    let mut action_button = button(button_content)
+        .padding(0)
         .style(move |theme: &Theme, status| square_icon_button_style(theme, status, enabled));
     if let Some(action) = action {
         action_button = action_button.on_press(Message::Chat(action));

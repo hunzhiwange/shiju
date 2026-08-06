@@ -746,6 +746,7 @@ fn session_rename_save_ignores_missing_or_empty_title_and_updates_local_titles()
 fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     let mut app = app();
     let info = session_info("s1", "First", "/tmp/project");
+    app.new_session_creating = true;
     app.project_path = Some("/tmp/project".to_string());
     app.sessions = vec![info.clone()];
     app.chat.push(crate::app::models::ChatMessage {
@@ -770,6 +771,7 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     assert!(app.chat.is_empty());
     assert!(app.chat_message_ids.is_empty());
     assert_eq!(app.usage, crate::app::models::TokenUsage::default());
+    assert!(!app.new_session_creating);
 }
 
 #[tokio::test(flavor = "multi_thread")]

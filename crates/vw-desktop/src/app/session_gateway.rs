@@ -790,6 +790,25 @@ pub fn gateway_resolve_session_scope_id(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn gateway_save_session_result_from_future<F>(
+    future: F,
+) -> Result<Option<std::path::PathBuf>, String>
+where
+    F: std::future::Future<Output = Result<Option<std::path::PathBuf>, String>>,
+{
+    block_on_gateway(future)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// 同步保存会话，并保留网关返回的原始错误。
+pub fn gateway_save_session_result(
+    session: &ChatSession,
+    directory: Option<&str>,
+) -> Result<Option<std::path::PathBuf>, String> {
+    gateway_save_session_result_from_future(gateway_save_session_async(session, directory))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// 执行 gateway_save_session 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -798,8 +817,9 @@ pub fn gateway_save_session(
     session: &ChatSession,
     directory: Option<&str>,
 ) -> Option<std::path::PathBuf> {
-    let result = block_on_gateway(gateway_save_session_async(session, directory));
-    if result.is_ok() { Some(std::path::PathBuf::from(&session.id)) } else { None }
+    gateway_save_session_result(session, directory)
+        .ok()
+        .map(|_| std::path::PathBuf::from(&session.id))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

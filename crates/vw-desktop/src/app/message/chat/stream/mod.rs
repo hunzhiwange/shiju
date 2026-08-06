@@ -21,6 +21,10 @@ use crate::app::{App, Message, models};
 use iced::Task;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use std::cell::RefCell;
+#[cfg(not(target_arch = "wasm32"))]
+use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::{LazyLock, Mutex};
 use vw_shared::session::session_utils::is_default_title;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -68,14 +72,71 @@ fn call_save_session_hook(
 fn gateway_save_session_for_stream(
     session: &models::ChatSession,
     directory: Option<&str>,
-) -> Option<std::path::PathBuf> {
+) -> Result<Option<std::path::PathBuf>, String> {
     #[cfg(test)]
     if let Some(result) = call_save_session_hook(session, directory) {
-        return result;
+        return Ok(result);
     }
 
-    session_gateway::gateway_save_session(session, directory)
+    session_gateway::gateway_save_session_result(session, directory)
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+struct PendingSessionSave {
+    session: models::ChatSession,
+    directory: Option<String>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct StreamSessionSaveCoordinator {
+    in_flight: Mutex<HashMap<String, Option<PendingSessionSave>>>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl StreamSessionSaveCoordinator {
+    fn save<F>(&self, session: models::ChatSession, directory: Option<String>, mut save: F)
+    where
+        F: FnMut(
+            &models::ChatSession,
+            Option<&str>,
+        ) -> Result<Option<std::path::PathBuf>, String>,
+    {
+        let session_id = session.id.clone();
+        let mut current = PendingSessionSave { session, directory };
+        {
+            let mut in_flight = self.in_flight.lock().expect("stream session save lock");
+            if let Some(pending) = in_flight.get_mut(&session_id) {
+                *pending = Some(current);
+                return;
+            }
+            in_flight.insert(session_id.clone(), None);
+        }
+
+        loop {
+            let _ = save(&current.session, current.directory.as_deref());
+            let next = {
+                let mut in_flight = self.in_flight.lock().expect("stream session save lock");
+                let pending = in_flight
+                    .get_mut(&session_id)
+                    .expect("in-flight stream session save should remain registered")
+                    .take();
+                if pending.is_none() {
+                    in_flight.remove(&session_id);
+                }
+                pending
+            };
+            let Some(pending) = next else {
+                break;
+            };
+            current = pending;
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+static STREAM_SESSION_SAVE_COORDINATOR: LazyLock<StreamSessionSaveCoordinator> =
+    LazyLock::new(StreamSessionSaveCoordinator::default);
 
 /// 模块内可见函数，执行 save_session_task 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -104,13 +165,25 @@ pub(super) fn save_session_task(
 ) -> Task<Message> {
     Task::perform(
         async move {
-            let result = crate::app::message::spawn_blocking_opt(move || {
-                Some(gateway_save_session_for_stream(&session, directory.as_deref()))
+            let completed = crate::app::message::spawn_blocking_opt(move || {
+                STREAM_SESSION_SAVE_COORDINATOR.save(session, directory, |session, directory| {
+                    let result = gateway_save_session_for_stream(session, directory);
+                    if let Err(error) = &result {
+                        tracing::warn!(
+                            target: "vw_desktop",
+                            session_id = %session.id,
+                            directory = ?directory,
+                            error = %error,
+                            "failed to save stream session"
+                        );
+                    }
+                    result
+                });
+                Some(())
             })
-            .await
-            .flatten();
-            if result.is_none() {
-                tracing::warn!(target: "vw_desktop", "failed to save session");
+            .await;
+            if completed.is_none() {
+                tracing::warn!(target: "vw_desktop", "stream session save task failed");
             }
         },
         |_| Message::Chat(ChatMessage::SessionSaveAck),

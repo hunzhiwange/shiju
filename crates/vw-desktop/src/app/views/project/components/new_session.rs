@@ -286,16 +286,27 @@ fn reset_worktree_message(directory: &str) -> Message {
 /// 点击按钮会发送 `ProjectCreateSession` 消息，打开会话选择器
 pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a, Message> {
     let is_active = app.new_session_picker_project.as_ref() == Some(&path);
-    button(
+    let is_creating = app.new_session_creating;
+    let mut create_button = button(
         container(
             row![
                 iced::widget::svg::Svg::new(assets::get_icon(Icon::Plus))
                     .width(Length::Fixed(14.0))
                     .height(Length::Fixed(14.0))
                     .style(move |theme: &Theme, _status| iced::widget::svg::Style {
-                        color: Some(if is_active { Color::WHITE } else { theme.palette().text }),
+                        color: Some(if is_creating {
+                            theme.palette().text.scale_alpha(0.35)
+                        } else if is_active {
+                            Color::WHITE
+                        } else {
+                            theme.palette().text
+                        }),
                     }),
-                text("新建会话").size(12),
+                text(if is_creating { "创建中..." } else { "新建会话" })
+                    .size(12)
+                    .style(move |theme: &Theme| text::Style {
+                        color: is_creating.then(|| theme.palette().text.scale_alpha(0.35)),
+                    }),
             ]
             .align_y(iced::alignment::Vertical::Center)
             .spacing(6),
@@ -303,7 +314,6 @@ pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a
         .width(Length::Fill)
         .align_x(iced::alignment::Horizontal::Center),
     )
-    .on_press(create_session_message(&path))
     .width(Length::Fill)
     .padding([10, 14])
     .style(move |theme: &Theme, status| {
@@ -313,8 +323,16 @@ pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a
             rounded_action_btn_style(theme, status)
         };
         style.border.radius = 14.0.into();
+        if is_creating {
+            style.background = Some(Background::Color(
+                theme.extended_palette().background.strong.color.scale_alpha(0.24),
+            ));
+            style.text_color = theme.palette().text.scale_alpha(0.35);
+        }
         style.shadow = iced::Shadow {
-            color: if is_active {
+            color: if is_creating {
+                Color::TRANSPARENT
+            } else if is_active {
                 theme.extended_palette().primary.base.color.scale_alpha(0.18)
             } else {
                 Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.10 } else { 0.04 })
@@ -323,8 +341,11 @@ pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a
             blur_radius: 20.0,
         };
         style
-    })
-    .into()
+    });
+    if !is_creating {
+        create_button = create_button.on_press(create_session_message(&path));
+    }
+    create_button.into()
 }
 
 /// 创建新建会话选择器图层

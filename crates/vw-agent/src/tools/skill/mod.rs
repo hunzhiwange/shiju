@@ -20,6 +20,15 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
+严格执行要求：
+1. 除非用户明确要求跳过、修改或重排某个具体步骤，否则必须按本技能规定的顺序完整执行全部工作流。
+2. 不得静默跳过、合并、替代或虚构任何步骤；不得因为已有部分信息而省略技能要求的验证步骤。
+3. 每完成一步，必须核对该步骤的要求和实际结果，再进入下一步。
+4. 如果任一步骤无法执行，必须立即停止并明确报告阻塞原因；不得继续后续步骤，也不得声称任务已经完成。
+5. 输出最终结果前，必须逐项确认所有必需步骤均已完成，并具有实际执行依据。
+</skill_execution_policy>"#;
+
 /// skill 工具的参数结构体
 ///
 /// 用于接收技能名称参数，通过反序列化从 JSON 值构造
@@ -409,7 +418,8 @@ fn skill_prompt_content(skill: &skills::Skill) -> String {
         .collect::<Vec<_>>()
         .join("\n\n");
 
-    if content.is_empty() { "该技能没有内联指令。".to_string() } else { content }
+    let content = if content.is_empty() { "该技能没有内联指令。" } else { &content };
+    format!("{SKILL_EXECUTION_POLICY}\n\n{content}")
 }
 
 fn xml_escape(value: &str) -> String {

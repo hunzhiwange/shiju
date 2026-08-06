@@ -227,6 +227,9 @@ fn new_session_button_builds_inactive_and_active_states() {
 
     app.new_session_picker_project = Some("/repo/app".to_owned());
     keep_element(new_session_button(&app, "/repo/app".to_owned()));
+
+    app.new_session_creating = true;
+    keep_element(new_session_button(&app, "/repo/app".to_owned()));
 }
 
 #[test]

@@ -318,6 +318,92 @@ fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
+    use std::sync::{mpsc, Arc, Mutex};
+    use std::time::Duration;
+
+    let coordinator = Arc::new(super::StreamSessionSaveCoordinator::default());
+    let saved_contents = Arc::new(Mutex::new(Vec::new()));
+    let other_session_saved = Arc::new(Mutex::new(false));
+    let (first_save_started_tx, first_save_started_rx) = mpsc::channel();
+    let (release_first_save_tx, release_first_save_rx) = mpsc::channel();
+
+    let snapshot = |content: &str| {
+        crate::app::models::ChatSession {
+            id: "session-1".to_string(),
+            title: "Session".to_string(),
+            messages: vec![chat_message(ChatRole::Assistant, content)],
+            message_ids: vec![None],
+            calls: Vec::new(),
+            steps: Vec::new(),
+            created_ms: 1,
+            updated_ms: 2,
+        }
+    };
+    let first_snapshot = snapshot("first");
+    let middle_snapshot = snapshot("middle");
+    let latest_snapshot = snapshot("latest");
+    let mut other_session = snapshot("other");
+    other_session.id = "session-2".to_string();
+
+    let first_coordinator = Arc::clone(&coordinator);
+    let first_saved_contents = Arc::clone(&saved_contents);
+    let first_save = std::thread::spawn(move || {
+        first_coordinator.save(
+            first_snapshot,
+            Some("/project".to_string()),
+            move |session, directory| {
+                first_saved_contents
+                    .lock()
+                    .expect("saved contents lock")
+                    .push((
+                        session.messages[0].content.clone(),
+                        directory.map(str::to_string),
+                    ));
+                if session.messages[0].content == "first" {
+                    first_save_started_tx.send(()).expect("signal first save start");
+                    release_first_save_rx
+                        .recv_timeout(Duration::from_secs(10))
+                        .expect("release first save");
+                }
+                Ok(Some(std::path::PathBuf::from(&session.id)))
+            },
+        );
+    });
+
+    first_save_started_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("first save should start");
+
+    coordinator.save(middle_snapshot, Some("/middle".to_string()), |_, _| {
+        panic!("an in-flight save must use the active runner")
+    });
+    coordinator.save(latest_snapshot, Some("/latest".to_string()), |_, _| {
+        panic!("an in-flight save must use the active runner")
+    });
+    let other_session_saved_by_callback = Arc::clone(&other_session_saved);
+    coordinator.save(other_session, Some("/other".to_string()), move |session, directory| {
+        assert_eq!(session.id, "session-2");
+        assert_eq!(directory, Some("/other"));
+        *other_session_saved_by_callback.lock().expect("other session saved lock") = true;
+        Ok(Some(std::path::PathBuf::from(&session.id)))
+    });
+    assert!(*other_session_saved.lock().expect("other session saved lock"));
+
+    release_first_save_tx.send(()).expect("release first save");
+    first_save.join().expect("first save thread");
+
+    assert_eq!(
+        saved_contents.lock().expect("saved contents lock").as_slice(),
+        [
+            ("first".to_string(), Some("/project".to_string())),
+            ("latest".to_string(), Some("/latest".to_string())),
+        ]
+    );
+}
+
+#[test]
 fn maybe_generate_session_title_accepts_multiline_initial_input_title() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("session-1".to_string());

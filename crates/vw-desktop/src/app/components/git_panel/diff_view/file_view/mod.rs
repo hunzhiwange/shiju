@@ -397,7 +397,6 @@ pub fn view_file(
         let status_dot =
             container(Space::new().width(Length::Fixed(6.0)).height(Length::Fixed(6.0)))
                 .width(Length::Fixed(6.0))
-                .height(Length::Fixed(6.0))
                 .style(move |theme: &iced::Theme| {
                     let ext = theme.extended_palette();
                     let color = match status {

@@ -2,7 +2,7 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, svg, text};
+use iced::widget::{Space, Stack, button, column, container, mouse_area, row, scrollable, svg, text};
 use iced::{Background, Border, Color, Element, Length, Point, Shadow, Theme, Vector};
 
 use crate::app::assets::{self, Icon};
@@ -1232,28 +1232,35 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
     .width(Length::Fill)
     .style(navigation_button_style);
 
-    let create: Element<'static, Message> = if app.work_sidebar_project_nav_hovered {
-        header_icon_button_sized(
-            Icon::Plus,
-            "新建项目!!!",
-            project_create_message(),
-            false,
-            CREATE_CONTROL_SIZE,
-        )
+    let create = header_icon_button_sized(
+        Icon::Plus,
+        "新建项目",
+        project_create_message(),
+        false,
+        CREATE_CONTROL_SIZE,
+    );
+
+    let content: Element<'static, Message> = if app.work_sidebar_project_nav_hovered {
+        Stack::new()
+            .push(switch.width(Length::Fill))
+            .push(
+                container(create)
+                    .width(Length::Fill)
+                    .align_x(iced::alignment::Horizontal::Right)
+                    .align_y(iced::alignment::Vertical::Center)
+                    .padding([0, 12]),
+            )
+            .width(Length::Fill)
+            .into()
     } else {
-        Space::new().width(Length::Fixed(CREATE_CONTROL_SIZE)).into()
+        switch.width(Length::Fill).into()
     };
 
-    mouse_area(
-        row![switch, create]
-            .spacing(2)
-            .align_y(iced::Alignment::Center)
-            .width(Length::Fill),
-    )
-    .on_enter(Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
-    .on_move(|_| Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
-    .on_exit(Message::View(ViewMessage::WorkSidebarProjectNavHovered(false)))
-    .into()
+    mouse_area(content)
+        .on_enter(Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
+        .on_move(|_| Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
+        .on_exit(Message::View(ViewMessage::WorkSidebarProjectNavHovered(false)))
+        .into()
 }
 
 fn load_more_button(remaining: usize) -> Element<'static, Message> {

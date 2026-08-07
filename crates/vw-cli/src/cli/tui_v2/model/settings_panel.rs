@@ -1,4 +1,4 @@
-use super::session_mode::{PermissionMode, PlanRunMode, ReasoningEffort};
+use super::session_mode::{GoalMode, PermissionMode, ReasoningEffort, WorkflowMode};
 use crate::cli::tui_v2::vim::VimMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +32,8 @@ pub(crate) struct SettingsValues {
     pub(crate) acp_backend: Option<String>,
     pub(crate) full_access_enabled: bool,
     pub(crate) subagent_mode_enabled: bool,
-    pub(crate) plan_run_mode: PlanRunMode,
+    pub(crate) workflow_mode: WorkflowMode,
+    pub(crate) goal_mode: GoalMode,
     pub(crate) effort: ReasoningEffort,
     pub(crate) fast: bool,
     pub(crate) theme: String,
@@ -48,7 +49,8 @@ impl Default for SettingsValues {
             acp_backend: None,
             full_access_enabled: false,
             subagent_mode_enabled: false,
-            plan_run_mode: PlanRunMode::Disabled,
+            workflow_mode: WorkflowMode::Disabled,
+            goal_mode: GoalMode::Enabled,
             effort: ReasoningEffort::Medium,
             fast: false,
             theme: "Dark".to_string(),
@@ -356,12 +358,11 @@ impl SettingsPanel {
                 if self.pending.subagent_mode_enabled { "开" } else { "关" }.to_string()
             }
             SettingKey::WorkflowMode => {
-                if self.pending.plan_run_mode == PlanRunMode::Workflow { "开" } else { "关" }
+                if self.pending.workflow_mode == WorkflowMode::Enabled { "开" } else { "关" }
                     .to_string()
             }
             SettingKey::GoalMode => {
-                if self.pending.plan_run_mode == PlanRunMode::Goal { "开" } else { "关" }
-                    .to_string()
+                if self.pending.goal_mode == GoalMode::Enabled { "开" } else { "关" }.to_string()
             }
             SettingKey::Effort => format!("{:?}", self.pending.effort).to_ascii_lowercase(),
             SettingKey::Fast => if self.pending.fast { "开" } else { "关" }.to_string(),

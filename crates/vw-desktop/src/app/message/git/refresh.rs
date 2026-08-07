@@ -206,17 +206,9 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             app.git_diff_comment_draft = None;
 
             if app.file_manager_show_changes {
-                let mut keys = std::collections::BTreeSet::<String>::new();
-                for file in &app.git_changed_files {
-                    let parts = file.split('/').filter(|part| !part.is_empty()).collect::<Vec<_>>();
-                    if parts.len() <= 1 {
-                        continue;
-                    }
-                    for idx in 0..(parts.len() - 1) {
-                        keys.insert(format!("chg:{}", parts[..=idx].join("/")));
-                    }
-                }
-                for key in keys {
+                for key in crate::app::components::file_tree::change_list_expand_keys(
+                    app.git_changed_files.iter().map(String::as_str),
+                ) {
                     app.ensure_file_tree_dir_expanded(key);
                 }
                 persist_file_tree_expanded(app);

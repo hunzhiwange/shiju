@@ -394,6 +394,80 @@ impl Default for WebSearchConfig {
 fn default_user_agent() -> String {
     resolve_user_agent("")
 }
+
+/// 委托代理内置必选工具主 ID 目录。
+///
+/// 匹配时还需覆盖既有别名（见 [`is_builtin_required_tool_id`]）；本切片仅列主 ID，
+/// 供 UI 展示与白名单合并使用。
+pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
+    "file_read",
+    "file_write",
+    "ls",
+    "glob",
+    "grep",
+    "apply_patch",
+    "bash",
+    "http_request",
+    "image_info",
+    "screenshot",
+    "AgentTool",
+    "skill",
+    "schedule",
+    "plan_enter",
+    "plan_exit",
+    "memory_forget",
+    "memory_recall",
+    "memory_store",
+    "batch",
+    "AskUserQuestion",
+    "Browser",
+    "BrowserOpen",
+    "Config",
+    "TodoRead",
+    "TodoWrite",
+    "WebSearch",
+    "file_edit",
+    "image_asset_read",
+    "tool_search",
+    "verify_plan_execution",
+];
+
+/// 主 ID 之外、仍视为同一内置必选工具的既有别名。
+const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
+    "shell",
+    "question",
+    "browser",
+    "browser_open",
+    "todoread",
+    "todowrite",
+    "web_search",
+    "websearch",
+    "web_search_tool",
+    "edit",
+];
+
+/// 判断工具 ID 是否属于内置必选目录（含主 ID 与既有别名）。
+pub fn is_builtin_required_tool_id(tool_id: &str) -> bool {
+    BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id)
+        || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
+}
+
+/// 判断工具 ID 是否为 MCP 动态工具（形如 `mcp__{server}__{tool}`）。
+///
+/// 要求以 `mcp__` 为前缀，且 `__` 分隔后至少两段非空（server 与 tool）。
+pub fn is_mcp_dynamic_tool_id(tool_id: &str) -> bool {
+    let Some(rest) = tool_id.strip_prefix("mcp__") else {
+        return false;
+    };
+    let mut parts = rest.split("__");
+    match (parts.next(), parts.next()) {
+        (Some(server), Some(tool)) => {
+            !server.is_empty() && !tool.is_empty() && parts.all(|part| !part.is_empty())
+        }
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 #[path = "tools_tests.rs"]
 mod tools_tests;

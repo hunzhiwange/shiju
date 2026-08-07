@@ -9,10 +9,13 @@ use crate::app::components::system_settings_common::{
     settings_segment_button_style, settings_value_badge,
 };
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
-use crate::app::state::DelegateAgentSettingsEntry;
+use crate::app::state::{
+    AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB, DelegateAgentSettingsEntry,
+};
 use crate::app::{App, Message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use vw_config_types::tools::is_builtin_required_tool_id;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ToolGroup {
@@ -249,6 +252,60 @@ pub(super) fn preset_tool_count(available_tools: &[String], preset_key: &str) ->
     available_tools.iter().filter(|tool_id| tool_in_preset(tool_id, preset_key)).count()
 }
 
+/// 按工具列表子 Tab 过滤可见工具：可选不含内置，内置仅含必选目录。
+pub(super) fn tools_for_list_tab<'a>(available_tools: &'a [String], tab: &str) -> Vec<&'a str> {
+    available_tools
+        .iter()
+        .map(String::as_str)
+        .filter(|tool_id| {
+            let is_builtin = is_builtin_required_tool_id(tool_id);
+            if tab == AGENT_TOOLS_BUILTIN_TAB {
+                is_builtin
+            } else {
+                !is_builtin
+            }
+        })
+        .collect()
+}
+
+pub(super) fn tool_card_is_locked(tool_id: &str) -> bool {
+    is_builtin_required_tool_id(tool_id)
+}
+
+pub(super) fn builtin_tool_badge_label() -> &'static str {
+    "内置"
+}
+
+pub(super) fn tool_card_press_message(
+    agent_key: String,
+    tool_id: String,
+    currently_checked: bool,
+    locked: bool,
+) -> Option<Message> {
+    if locked {
+        None
+    } else {
+        Some(Message::Settings(SettingsMessage::Agents(
+            AgentsMessage::AllowedToolToggled(agent_key, tool_id, !currently_checked),
+        )))
+    }
+}
+
+fn tools_list_tab_button<'a>(
+    label: &'a str,
+    key: &'a str,
+    active_key: &'a str,
+) -> Element<'a, Message> {
+    let is_active = key == active_key;
+    button(text(label).size(14))
+        .padding([10, 18])
+        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
+        .on_press(Message::Settings(SettingsMessage::Agents(
+            AgentsMessage::ToolsListTabSelected(key.to_string()),
+        )))
+        .into()
+}
+
 pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
     match tool_id {
         "read" | "file_read" => ToolMeta {
@@ -316,12 +373,12 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "以结构化参数执行 status、diff、log、add、commit、checkout、stash 等操作。",
             group: ToolGroup::Execute,
         },
-        "browser" => ToolMeta {
+        "browser" | "Browser" => ToolMeta {
             name: "浏览器交互",
             description: "在受控浏览器会话中打开页面、抓取快照、点击、输入、滚动和截图。",
             group: ToolGroup::Web,
         },
-        "browser_open" => ToolMeta {
+        "browser_open" | "BrowserOpen" => ToolMeta {
             name: "打开页面",
             description: "在系统默认浏览器中打开已批准的 HTTPS 链接；不负责 DOM 交互。",
             group: ToolGroup::Web,
@@ -336,7 +393,7 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "抓取网页正文并转成 text、markdown 或 html，适合读取页面内容。",
             group: ToolGroup::Web,
         },
-        "web_search" | "websearch" | "web_search_tool" => ToolMeta {
+        "web_search" | "websearch" | "web_search_tool" | "WebSearch" => ToolMeta {
             name: "联网搜索",
             description: "执行互联网搜索并返回结果摘要，适合找外部资料和线索。",
             group: ToolGroup::Web,
@@ -386,12 +443,12 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "查看指定 cron 任务最近的运行记录和输出摘要。",
             group: ToolGroup::Collaboration,
         },
-        "todoread" => ToolMeta {
+        "todoread" | "TodoRead" => ToolMeta {
             name: "读取任务计划",
             description: "读取当前会话的任务清单与执行状态，返回规范化 JSON。",
             group: ToolGroup::Collaboration,
         },
-        "todowrite" => ToolMeta {
+        "todowrite" | "TodoWrite" => ToolMeta {
             name: "写入任务计划",
             description: "覆盖或合并当前会话任务清单，用于持续更新执行进度。",
             group: ToolGroup::Collaboration,
@@ -406,7 +463,7 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "结束规划模式并回到正常执行流程。",
             group: ToolGroup::Collaboration,
         },
-        "question" => ToolMeta {
+        "question" | "AskUserQuestion" => ToolMeta {
             name: "用户提问",
             description: "向用户发起澄清问题，支持单选、多选和自定义输入。",
             group: ToolGroup::Collaboration,
@@ -441,6 +498,11 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "管理默认模型、场景路由规则和委托子代理的 provider/model 配置。",
             group: ToolGroup::Integration,
         },
+        "Config" => ToolMeta {
+            name: "配置管理",
+            description: "读取或调整运行时配置项，用于会话内配置查询与变更。",
+            group: ToolGroup::Integration,
+        },
         "composio" => ToolMeta {
             name: "外部集成",
             description: "通过 Composio 调用 Gmail、Notion、GitHub、Slack 等外部应用操作。",
@@ -460,6 +522,26 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "图像信息",
             description: "读取图像格式、尺寸、大小等元数据，并可选返回 Base64 数据。",
             group: ToolGroup::Web,
+        },
+        "image_asset_read" => ToolMeta {
+            name: "读取图像资源",
+            description: "读取工作区或资源路径中的图像内容，供视觉分析使用。",
+            group: ToolGroup::Web,
+        },
+        "file_edit" | "edit" => ToolMeta {
+            name: "编辑文件",
+            description: "对已有文件做局部编辑，适合小范围精确修改。",
+            group: ToolGroup::Files,
+        },
+        "tool_search" => ToolMeta {
+            name: "工具搜索",
+            description: "按名称或描述检索可用工具，便于发现可调用能力。",
+            group: ToolGroup::Integration,
+        },
+        "verify_plan_execution" => ToolMeta {
+            name: "验证计划执行",
+            description: "核对当前计划步骤是否已按预期完成，并汇总执行证据。",
+            group: ToolGroup::Collaboration,
         },
         "lsp" => ToolMeta {
             name: "语义分析",
@@ -576,52 +658,32 @@ pub(super) fn view<'a>(
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
     let settings = &app.agents_settings;
+    let active_tab = settings.active_tools_list_tab.as_str();
+    let is_builtin_tab = active_tab == AGENT_TOOLS_BUILTIN_TAB;
+    let visible_tool_ids = tools_for_list_tab(&settings.available_tools, active_tab);
+    let visible_tools: Vec<String> = visible_tool_ids.iter().map(|id| (*id).to_string()).collect();
+
     let tools_list: Element<'_, Message> = if settings.available_tools.is_empty() {
         text("暂无可用工具列表").size(12).into()
     } else {
-        let preset_row = row(tool_preset_meta()
-            .into_iter()
-            .map(|preset| {
-                let count = preset_tool_count(&settings.available_tools, preset.key);
-                let is_useful = count > 0;
-                let agent_key = entry.key.clone();
-
-                let button = button(
-                    column![
-                        text(preset.label).size(14),
-                        text(format!("{} · {} 项", preset.description, count))
-                            .size(11)
-                            .style(settings_muted_text_style),
-                    ]
-                    .spacing(4),
-                )
-                .padding([10, 14])
-                .style(rounded_action_btn_style);
-
-                let button = if is_useful {
-                    button.on_press(Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::AllowedToolsApplyPreset(agent_key, preset.key.to_string()),
-                    )))
-                } else {
-                    button
-                };
-
-                button.into()
-            })
-            .collect::<Vec<Element<'_, Message>>>())
-        .spacing(10)
-        .wrap();
+        let tabs_row = row![
+            tools_list_tab_button("可选", AGENT_TOOLS_OPTIONAL_TAB, active_tab),
+            tools_list_tab_button("内置", AGENT_TOOLS_BUILTIN_TAB, active_tab),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
 
         let group_sections = tool_group_order()
             .into_iter()
             .filter_map(|group| {
                 let group_meta = tool_group_meta(group);
-                let cards = settings
-                    .available_tools
+                let cards = visible_tools
                     .iter()
                     .filter(|tool_id| tool_meta(tool_id).group == group_meta.group)
                     .map(|tool_id| {
-                        let checked = entry.allowed_tools.iter().any(|tool| tool == tool_id);
+                        let locked = is_builtin_tab || tool_card_is_locked(tool_id);
+                        let checked = locked
+                            || entry.allowed_tools.iter().any(|tool| tool == tool_id);
                         let agent_key = entry.key.clone();
                         let tool_id = tool_id.clone();
                         let meta = tool_meta(&tool_id);
@@ -632,8 +694,8 @@ pub(super) fn view<'a>(
                             meta.name.to_string()
                         };
 
-                        button(
-                            column![
+                        let title: Element<'_, Message> = if locked {
+                            row![
                                 text(display_name)
                                     .size(14)
                                     .font(iced::Font {
@@ -641,12 +703,33 @@ pub(super) fn view<'a>(
                                         ..Default::default()
                                     })
                                     .style(move |theme: &Theme| iced::widget::text::Style {
-                                        color: Some(theme.palette().text.scale_alpha(if checked {
-                                            0.98
-                                        } else {
-                                            0.94
-                                        })),
+                                        color: Some(theme.palette().text.scale_alpha(0.98)),
                                     }),
+                                settings_value_badge(builtin_tool_badge_label()),
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center)
+                            .into()
+                        } else {
+                            text(display_name)
+                                .size(14)
+                                .font(iced::Font {
+                                    weight: iced::font::Weight::Bold,
+                                    ..Default::default()
+                                })
+                                .style(move |theme: &Theme| iced::widget::text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(if checked {
+                                        0.98
+                                    } else {
+                                        0.94
+                                    })),
+                                })
+                                .into()
+                        };
+
+                        let mut card = button(
+                            column![
+                                title,
                                 text(meta.description).size(12).style(move |theme: &Theme| {
                                     iced::widget::text::Style {
                                         color: Some(theme.palette().text.scale_alpha(if checked {
@@ -673,11 +756,15 @@ pub(super) fn view<'a>(
                         .width(Length::Fixed(220.0))
                         .style(move |theme: &Theme, status| {
                             tool_card_button_style(theme, status, checked)
-                        })
-                        .on_press(Message::Settings(SettingsMessage::Agents(
-                            AgentsMessage::AllowedToolToggled(agent_key, tool_id, !checked),
-                        )))
-                        .into()
+                        });
+
+                        if let Some(message) =
+                            tool_card_press_message(agent_key, tool_id, checked, locked)
+                        {
+                            card = card.on_press(message);
+                        }
+
+                        card.into()
                     })
                     .collect::<Vec<Element<'_, Message>>>();
 
@@ -702,34 +789,82 @@ pub(super) fn view<'a>(
             })
             .collect::<Vec<Element<'_, Message>>>();
 
-        column![
-            row![
-                button(text("全选").size(12))
-                    .padding([8, 14])
-                    .on_press(Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::AllowedToolsSelectAll(entry.key.clone()),
-                    )))
-                    .style(rounded_action_btn_style),
-                button(text("反选").size(12))
-                    .padding([8, 14])
-                    .on_press(Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::AllowedToolsInvertSelection(entry.key.clone()),
-                    )))
-                    .style(rounded_action_btn_style),
-                settings_value_badge(format!(
-                    "已选 {}/{}",
-                    entry.allowed_tools.len(),
-                    settings.available_tools.len(),
-                )),
-            ]
+        let groups = column(group_sections).spacing(16);
+
+        if is_builtin_tab {
+            column![tabs_row, groups].spacing(12).into()
+        } else {
+            let selected_optional = visible_tools
+                .iter()
+                .filter(|tool_id| entry.allowed_tools.iter().any(|tool| tool == *tool_id))
+                .count();
+
+            let preset_row = row(tool_preset_meta()
+                .into_iter()
+                .map(|preset| {
+                    let count = preset_tool_count(&visible_tools, preset.key);
+                    let is_useful = count > 0;
+                    let agent_key = entry.key.clone();
+
+                    let button = button(
+                        column![
+                            text(preset.label).size(14),
+                            text(format!("{} · {} 项", preset.description, count))
+                                .size(11)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(4),
+                    )
+                    .padding([10, 14])
+                    .style(rounded_action_btn_style);
+
+                    let button = if is_useful {
+                        button.on_press(Message::Settings(SettingsMessage::Agents(
+                            AgentsMessage::AllowedToolsApplyPreset(
+                                agent_key,
+                                preset.key.to_string(),
+                            ),
+                        )))
+                    } else {
+                        button
+                    };
+
+                    button.into()
+                })
+                .collect::<Vec<Element<'_, Message>>>())
             .spacing(10)
-            .align_y(Alignment::Center),
-            section_card("快捷预选", "按当前可用工具自动套用常见权限组合。"),
-            preset_row,
-            column(group_sections).spacing(16),
-        ]
-        .spacing(12)
-        .into()
+            .wrap();
+
+            column![
+                tabs_row,
+                row![
+                    button(text("全选").size(12))
+                        .padding([8, 14])
+                        .on_press(Message::Settings(SettingsMessage::Agents(
+                            AgentsMessage::AllowedToolsSelectAll(entry.key.clone()),
+                        )))
+                        .style(rounded_action_btn_style),
+                    button(text("反选").size(12))
+                        .padding([8, 14])
+                        .on_press(Message::Settings(SettingsMessage::Agents(
+                            AgentsMessage::AllowedToolsInvertSelection(entry.key.clone()),
+                        )))
+                        .style(rounded_action_btn_style),
+                    settings_value_badge(format!(
+                        "已选 {}/{}",
+                        selected_optional,
+                        visible_tools.len(),
+                    )),
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+                section_card("快捷预选", "按当前可用工具自动套用常见权限组合。"),
+                preset_row,
+                groups,
+            ]
+            .spacing(12)
+            .into()
+        }
     };
 
     column![

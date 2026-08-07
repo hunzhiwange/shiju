@@ -51,8 +51,8 @@ pub(crate) use prompt::{
     QueueDrainBoundary, QueuedPromptCommand, QueuedPromptCommandKind, QueuedPromptPriority,
 };
 pub(crate) use session_mode::{
-    AcpBackendOption, DelegateAgentOption, PermissionMode, PlanRunMode, ReasoningEffort,
-    SessionCapabilityMatrix, SessionOptions,
+    AcpBackendOption, DelegateAgentOption, GoalMode, PermissionMode, ReasoningEffort,
+    SessionCapabilityMatrix, SessionOptions, WorkflowMode,
 };
 pub(crate) use transcript_mode::{
     TranscriptEffectIntent, TranscriptModeState, TranscriptScrollRestore,

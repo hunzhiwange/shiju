@@ -5,6 +5,84 @@ fn task_632_test_module_is_wired() {
 }
 
 #[test]
+fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
+    let expected_primary = [
+        "file_read",
+        "file_write",
+        "ls",
+        "glob",
+        "grep",
+        "apply_patch",
+        "bash",
+        "http_request",
+        "image_info",
+        "screenshot",
+        "AgentTool",
+        "skill",
+        "schedule",
+        "plan_enter",
+        "plan_exit",
+        "memory_forget",
+        "memory_recall",
+        "memory_store",
+        "batch",
+        "AskUserQuestion",
+        "Browser",
+        "BrowserOpen",
+        "Config",
+        "TodoRead",
+        "TodoWrite",
+        "WebSearch",
+        "file_edit",
+        "image_asset_read",
+        "tool_search",
+        "verify_plan_execution",
+    ];
+    assert_eq!(super::BUILTIN_REQUIRED_TOOL_IDS, expected_primary);
+
+    for id in expected_primary {
+        assert!(
+            super::is_builtin_required_tool_id(id),
+            "primary id should match: {id}"
+        );
+    }
+
+    for (alias, primary) in [
+        ("shell", "bash"),
+        ("question", "AskUserQuestion"),
+        ("browser", "Browser"),
+        ("browser_open", "BrowserOpen"),
+        ("todoread", "TodoRead"),
+        ("todowrite", "TodoWrite"),
+        ("web_search", "WebSearch"),
+        ("websearch", "WebSearch"),
+        ("web_search_tool", "WebSearch"),
+        ("edit", "file_edit"),
+    ] {
+        assert!(
+            super::is_builtin_required_tool_id(alias),
+            "alias `{alias}` should match builtin required (primary `{primary}`)"
+        );
+    }
+
+    assert!(!super::is_builtin_required_tool_id("mcp__rustcodegraph__search"));
+    assert!(!super::is_builtin_required_tool_id("web_fetch"));
+    assert!(!super::is_builtin_required_tool_id(""));
+}
+
+#[test]
+fn is_mcp_dynamic_tool_id_detects_prefix() {
+    assert!(super::is_mcp_dynamic_tool_id("mcp__rustcodegraph__search"));
+    assert!(super::is_mcp_dynamic_tool_id("mcp__github__list_issues"));
+    assert!(!super::is_mcp_dynamic_tool_id("mcp__"));
+    assert!(!super::is_mcp_dynamic_tool_id("mcp__onlyserver"));
+    assert!(!super::is_mcp_dynamic_tool_id("mcp"));
+    assert!(!super::is_mcp_dynamic_tool_id("file_read"));
+    assert!(!super::is_mcp_dynamic_tool_id(""));
+    assert!(!super::is_builtin_required_tool_id("mcp__rustcodegraph__search"));
+}
+
+#[test]
 fn multimodal_config_defaults_and_effective_limits_are_safe() {
     let config = super::MultimodalConfig::default();
     assert_eq!(config.max_images, 10);

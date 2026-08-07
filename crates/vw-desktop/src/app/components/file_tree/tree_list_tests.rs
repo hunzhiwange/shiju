@@ -1,6 +1,7 @@
 use super::tree_list::{
-    DirNode, build_changes_list, build_file_tree_list, changes_directory_button_style,
-    changes_file_button_style, insert_path, tree_directory_button_style, tree_file_button_style,
+    DirNode, build_changes_list, build_file_tree_list, change_list_expand_keys,
+    changes_directory_button_style, changes_file_button_style, insert_path,
+    tree_directory_button_style, tree_file_button_style,
 };
 use crate::app::App;
 use crate::app::components::file_tree::model::build_file_tree_model;
@@ -31,6 +32,15 @@ fn insert_path_ignores_empty_paths_and_groups_root_and_nested_files() {
     let src = tree.children.get("src").expect("src directory should be created");
     assert_eq!(src.files, vec!["src/main.rs", "src//lib.rs"]);
     assert_eq!(src.children["bin"].files, vec!["src/bin/tool.rs"]);
+}
+
+#[test]
+fn change_list_expand_keys_use_chg_prefix_and_all_ancestor_dirs() {
+    let keys = change_list_expand_keys(["README.md", "src/main.rs", "src/nested/lib.rs", ""]);
+    assert_eq!(
+        keys.into_iter().collect::<Vec<_>>(),
+        vec!["chg:src".to_string(), "chg:src/nested".to_string()]
+    );
 }
 
 #[test]

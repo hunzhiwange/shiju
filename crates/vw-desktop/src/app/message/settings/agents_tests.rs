@@ -1068,6 +1068,83 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
 }
 
 #[test]
+fn available_tools_exclude_mcp_dynamic_ids() {
+    let mut app = test_app();
+    app.agents_settings.available_tools.clear();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::Loaded(Ok((
+            vec![],
+            vec![],
+            vec![
+                "bash".to_string(),
+                "mcp__rustcodegraph__search".to_string(),
+                "read".to_string(),
+                "mcp__github__list_issues".to_string(),
+            ],
+        )))),
+    );
+
+    assert_eq!(
+        app.agents_settings.available_tools,
+        vec!["bash".to_string(), "read".to_string()]
+    );
+    assert!(!app
+        .agents_settings
+        .available_tools
+        .iter()
+        .any(|tool| tool.starts_with("mcp__")));
+}
+
+#[test]
+fn allowed_tool_messages_keep_builtin_required_tools() {
+    let mut app = test_app();
+    app.agents_settings.available_tools = vec![
+        "bash".to_string(),
+        "read".to_string(),
+        "write".to_string(),
+        "web_search_tool".to_string(),
+    ];
+    entry_mut(&mut app, "main").allowed_tools =
+        vec!["bash".to_string(), "read".to_string(), "web_search_tool".to_string()];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            "main".to_string(),
+            "bash".to_string(),
+            false,
+        )),
+    );
+    assert!(entry(&app, "main").allowed_tools.iter().any(|tool| tool == "bash"));
+    assert!(entry(&app, "main").allowed_tools.iter().any(|tool| tool == "web_search_tool"));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolsInvertSelection("main".to_string())),
+    );
+    let inverted = &entry(&app, "main").allowed_tools;
+    assert!(inverted.iter().any(|tool| tool == "bash"));
+    assert!(inverted.iter().any(|tool| tool == "web_search_tool"));
+    assert!(inverted.iter().any(|tool| tool == "write"));
+    assert!(!inverted.iter().any(|tool| tool == "read"));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::AllowedToolsApplyPreset(
+            "main".to_string(),
+            "research".to_string(),
+        )),
+    );
+    let preset = &entry(&app, "main").allowed_tools;
+    assert!(preset.iter().any(|tool| tool == "bash"));
+    assert!(preset.iter().any(|tool| tool == "web_search_tool"));
+    assert!(preset.iter().any(|tool| tool == "read"));
+    assert!(!preset.iter().any(|tool| tool == "write"));
+}
+
+#[test]
 fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
     let mut app = test_app();
     app.agents_settings.available_tools = vec![
@@ -1104,19 +1181,29 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
             false,
         )),
     );
-    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash"]);
+    // 关闭可选工具时仍强制并回 available 中的内置必选。
+    assert_eq!(
+        entry(&app, "main").allowed_tools,
+        vec!["bash".to_string(), "web_search_tool".to_string()]
+    );
 
     let _ = update(
         &mut app,
         SettingsMessage::Agents(AgentsMessage::AllowedToolsSelectAll("main".to_string())),
     );
-    assert_eq!(entry(&app, "main").allowed_tools, app.agents_settings.available_tools);
+    let mut expected_all = app.agents_settings.available_tools.clone();
+    expected_all.sort();
+    assert_eq!(entry(&app, "main").allowed_tools, expected_all);
 
     let _ = update(
         &mut app,
         SettingsMessage::Agents(AgentsMessage::AllowedToolsInvertSelection("main".to_string())),
     );
-    assert!(entry(&app, "main").allowed_tools.is_empty());
+    // 内置必选（bash / web_search_tool）不可被反选清掉。
+    assert_eq!(
+        entry(&app, "main").allowed_tools,
+        vec!["bash".to_string(), "web_search_tool".to_string()]
+    );
 
     let _ = update(
         &mut app,
@@ -1125,7 +1212,10 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
             "research".to_string(),
         )),
     );
-    assert_eq!(entry(&app, "main").allowed_tools, vec!["read", "web_search_tool"]);
+    assert_eq!(
+        entry(&app, "main").allowed_tools,
+        vec!["bash".to_string(), "read".to_string(), "web_search_tool".to_string()]
+    );
 }
 
 #[test]

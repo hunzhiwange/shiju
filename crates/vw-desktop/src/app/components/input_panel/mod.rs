@@ -154,31 +154,63 @@ pub(super) fn bottom_bar_round_toggle<'a>(
     Tooltip::new(toggle, dark_tooltip_content(tooltip_label), TooltipPosition::Top).gap(6.0).into()
 }
 
-pub(super) fn session_control_button<'a>(app: &'a App) -> Option<Element<'a, Message>> {
-    let runtime = app.current_session_runtime();
-    let highlight_toggle = app.show_session_tool_selector_popover
-        || runtime.agent.is_some()
-        || runtime.tool_selector.has_manual_context_selection();
+fn session_tool_tab_icon(tab: crate::app::state::SessionToolSelectorTab) -> Icon {
+    match tab {
+        crate::app::state::SessionToolSelectorTab::Agent => Icon::Robot,
+        crate::app::state::SessionToolSelectorTab::Tools => Icon::Gear,
+        crate::app::state::SessionToolSelectorTab::Skills => Icon::Journals,
+    }
+}
 
-    let icon: Element<'_, Message> = icon_svg(Icon::Sliders, styles::BOTTOM_BAR_ICON_SIZE)
+pub(super) fn session_tool_tab_button<'a>(
+    app: &'a App,
+    tab: crate::app::state::SessionToolSelectorTab,
+) -> Element<'a, Message> {
+    let runtime = app.current_session_runtime();
+    let active_tab = runtime.tool_selector.active_tab();
+    let popover_open = app.show_session_tool_selector_popover;
+    let highlight = (popover_open && active_tab == tab)
+        || match tab {
+            crate::app::state::SessionToolSelectorTab::Agent => runtime.agent.is_some(),
+            crate::app::state::SessionToolSelectorTab::Tools => {
+                !runtime.tool_selector.selected_manual_tools().is_empty()
+            }
+            crate::app::state::SessionToolSelectorTab::Skills => {
+                !runtime.tool_selector.selected_manual_skills().is_empty()
+                    || !runtime.tool_selector.selected_shiju_skills().is_empty()
+            }
+        };
+
+    let icon: Element<'_, Message> = icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
         .style(move |theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(styles::selector_text_color(theme, highlight_toggle)),
+            color: Some(styles::selector_text_color(theme, highlight)),
         })
         .into();
     let toggle = bottom_bar_round_toggle(
         icon,
-        "会话控制",
-        Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover),
+        tab.label(),
+        Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(tab)),
     );
 
-    let selector: Element<'_, Message> =
+    if popover_open && active_tab == tab {
         AboveOverlay::new(toggle, session_tool_selector_popover(app))
-            .show(app.show_session_tool_selector_popover)
+            .show(true)
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::ClosePopovers))
-            .into();
+            .into()
+    } else {
+        toggle
+    }
+}
 
-    Some(selector)
+pub(super) fn session_tool_tab_buttons<'a>(
+    app: &'a App,
+) -> (Element<'a, Message>, Element<'a, Message>, Element<'a, Message>) {
+    (
+        session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Agent),
+        session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Tools),
+        session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Skills),
+    )
 }
 
 pub(super) fn acp_selector_button<'a>(
@@ -433,7 +465,7 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
     let selected_tools = runtime.tool_selector.selected_manual_tools();
     let selected_skills = runtime.tool_selector.selected_manual_skills();
     let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();
-    if selected_tools.is_empty() && selected_skills.is_empty() && selected_shiju_skills.is_empty() {
+    if !runtime.tool_selector.has_manual_context_selection() {
         return None;
     }
 
@@ -515,7 +547,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let acp_recent_count = runtime.map(|r| r.acp_recent_count).unwrap_or(app.acp_recent_count);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
-    let goal_mode_enabled = runtime.map(|r| r.goal_mode_enabled).unwrap_or(false);
+    let goal_mode_enabled = runtime.map(|r| r.goal_mode_enabled).unwrap_or(true);
     let subagent_mode_enabled = runtime.map(|r| r.subagent_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
@@ -557,7 +589,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
-    let primary_btn = session_control_button(app);
+    let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
     let acp_btn = acp_selector_button(app, selected_acp_agent.clone());
     let reasoning_btn =
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
@@ -600,12 +632,14 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 组装底部控制栏（包含模型选择、使用量、附件、任务池、取消、发送按钮）
     let bottom_bar = bottom_bar(
-        primary_btn,
+        Some(agent_tab_btn),
+        Some(tools_tab_btn),
+        Some(skills_tab_btn),
         acp_btn,
         reasoning_btn,
         permission_btn,
-        workflow_btn,
         goal_btn,
+        workflow_btn,
         subagent_btn,
         model_btn,
         usage_btn,

@@ -26,15 +26,18 @@ use super::types::StreamInput;
 ///
 /// 根据输入参数组装完整的系统提示词消息，按以下顺序合并：
 /// 1. Agent 的基础提示词（prompt）
-/// 2. Provider 特定的系统提示词
-/// 3. Codex 模式的指令（如果启用）
-/// 4. 输入中的系统消息
-/// 5. 用户自定义的系统消息
+/// 2. 统一会话系统提示（`system::provider`）
+/// 3. 输入中的系统消息
+/// 4. 用户自定义的系统消息
+///
+/// Codex OAuth 路径不再二次注入系统提示正文：`provider` 与
+/// `instructions` 已是同一正文，重复追加会导致整文翻倍。`is_codex`
+/// 仍保留给调用方做选项/token 等处理，本函数对提示正文无额外操作。
 ///
 /// # 参数
 ///
 /// * `input` - 流输入数据，包含 agent 配置、模型信息和系统消息
-/// * `is_codex` - 是否为 Codex 模式，如果是则添加额外指令
+/// * `is_codex` - 是否为 Codex 模式（仅用于日志；不二次追加统一提示）
 ///
 /// # 返回值
 ///
@@ -70,7 +73,7 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         .tag("is_codex", &is_codex.to_string())
         .info("build_system_messages: before provider prompt", None);
 
-    // 获取 provider 特定的系统提示词
+    // 获取统一会话系统提示
     let provider_prompts = crate::app::agent::session::system::provider(&input.model);
 
     // 记录日志：provider 提示词数量
@@ -83,11 +86,6 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
 
     // 将 provider 提示词添加到消息列表
     parts.extend(provider_prompts.into_iter().map(|s| s.to_string()));
-
-    // 如果是 Codex 模式，添加 Codex 特定的指令
-    if is_codex {
-        parts.push(crate::app::agent::session::system::instructions());
-    }
 
     // 添加输入中的系统消息（过滤掉空白消息）
     parts.extend(input.system.iter().cloned().filter(|s| !s.trim().is_empty()));

@@ -221,28 +221,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.show_file_manager = true;
             set_config_field("show_file_manager", serde_json::Value::Bool(true));
             if b {
-                // 自动展开包含变更文件的目录
-                // 收集所有变更文件的父目录路径
-                let mut keys = std::collections::BTreeSet::<String>::new();
-                for f in &app.git_changed_files {
-                    let parts = f.split('/').filter(|s| !s.is_empty()).collect::<Vec<_>>();
-                    if parts.len() <= 1 {
-                        continue;
-                    }
-                    // 构建每一层目录路径
-                    let mut current = String::new();
-                    for i in 0..parts.len() - 1 {
-                        if !current.is_empty() {
-                            current.push('/');
-                        }
-                        current.push_str(parts[i]);
-                    }
-                    keys.insert(current.clone());
+                // 自动展开包含变更文件的目录（键需带 chg: 前缀，并覆盖每一层祖先）
+                for key in crate::app::components::file_tree::change_list_expand_keys(
+                    app.git_changed_files.iter().map(String::as_str),
+                ) {
+                    app.ensure_file_tree_dir_expanded(key);
                 }
-                // 将这些目录添加到展开列表中
-                for k in keys {
-                    app.ensure_file_tree_dir_expanded(k);
-                }
+                let arr = serde_json::Value::Array(
+                    app.file_tree_expanded
+                        .iter()
+                        .cloned()
+                        .map(serde_json::Value::String)
+                        .collect(),
+                );
+                set_config_field("file_tree_expanded", arr);
             }
             Some(iced::Task::none())
         }

@@ -1794,6 +1794,141 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
     }
 }
 
+fn sample_agent_request(
+    workflow_mode_enabled: bool,
+    goal_mode_enabled: bool,
+    root: Option<&str>,
+) -> super::AgentRequest {
+    super::AgentRequest {
+        id: 77,
+        session: "route-session".to_string(),
+        query: "do the work".to_string(),
+        root: root.map(str::to_string),
+        model: Some("demo-model".to_string()),
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: false,
+        resume_history_only: false,
+        workflow_mode_enabled,
+        goal_mode_enabled,
+        history: Vec::new(),
+    }
+}
+
+#[test]
+fn goal_only_does_not_activate_task_plan_run() {
+    assert_eq!(
+        super::task_plan_run_mode_for_request(false, true, false),
+        None,
+        "goal alone must not enter task_plan_run"
+    );
+    let request = sample_agent_request(false, true, None);
+    let plan_run = super::build_task_plan_run_request(&request)
+        .expect("goal-only without root must not demand project root");
+    assert!(plan_run.is_none(), "goal-only must stay on ordinary chat");
+    assert!(super::lightweight_goal_active(false, true, false));
+    assert!(!super::lightweight_goal_active(true, true, false));
+}
+
+#[test]
+fn lightweight_goal_continues_until_evaluation_passes() {
+    let rejected = super::resolve_lightweight_goal_turn(
+        "已改代码，但还没跑测试",
+        r#"{"achieved":false,"reason":"缺少验证退出码证据"}"#,
+    )
+    .expect("negative evaluation");
+    assert!(matches!(
+        rejected,
+        super::LightweightGoalNext::Continue { reason } if reason.contains("缺少验证退出码")
+    ));
+
+    let continuation = super::build_lightweight_goal_continuation_prompt(
+        "修复登录超时",
+        "缺少验证退出码证据",
+    );
+    assert!(continuation.contains("目标续轮"));
+    assert!(continuation.contains("修复登录超时"));
+    assert!(!continuation.contains("编号任务文件"));
+
+    let passed = super::resolve_lightweight_goal_turn(
+        "验证通过，exit 0",
+        r#"{"achieved":true,"reason":"验证退出码为 0"}"#,
+    )
+    .expect("positive evaluation");
+    assert!(matches!(
+        passed,
+        super::LightweightGoalNext::Complete { reason } if reason.contains("验证退出码")
+    ));
+
+    let request = sample_agent_request(false, true, Some("/tmp/project"));
+    let options = super::gateway_request_options(&request, None).expect("goal-only options");
+    assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
+    assert!(
+        super::build_task_plan_run_request(&request)
+            .expect("goal-only")
+            .is_none(),
+        "goal-only continuation must not create task_plan_run / plan directory"
+    );
+}
+
+#[test]
+fn lightweight_goal_stops_on_explicit_blocker() {
+    let blocked = super::resolve_lightweight_goal_turn(
+        "状态：已阻塞\n阻塞原因：缺少部署凭据，需要用户输入\n",
+        r#"{"achieved":false,"reason":"不应再评估"}"#,
+    )
+    .expect("blocker wins before evaluation");
+    assert!(matches!(
+        blocked,
+        super::LightweightGoalNext::Blocked { reason } if reason.contains("缺少部署凭据")
+    ));
+
+    assert!(matches!(
+        super::lightweight_goal_next_action(false, "还差一步", Some("需要用户提供 API key")),
+        super::LightweightGoalNext::Blocked { reason } if reason.contains("API key")
+    ));
+}
+
+#[test]
+fn workflow_with_goal_uses_goal_plan_run_mode() {
+    assert_eq!(
+        super::task_plan_run_mode_for_request(true, true, false),
+        Some(vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Goal)
+    );
+    let request = sample_agent_request(true, true, Some("/tmp/project"));
+    let plan_run = super::build_task_plan_run_request(&request)
+        .expect("workflow+goal with root should build plan-run")
+        .expect("workflow+goal must construct TaskPlanRunRequest");
+    assert_eq!(
+        plan_run.mode,
+        vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Goal
+    );
+}
+
+#[test]
+fn workflow_without_goal_uses_workflow_plan_run_mode() {
+    assert_eq!(
+        super::task_plan_run_mode_for_request(true, false, false),
+        Some(vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow)
+    );
+    let request = sample_agent_request(true, false, Some("/tmp/project"));
+    let plan_run = super::build_task_plan_run_request(&request)
+        .expect("workflow with root should build plan-run")
+        .expect("workflow must construct TaskPlanRunRequest");
+    assert_eq!(
+        plan_run.mode,
+        vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow
+    );
+}
+
 #[test]
 fn parse_usage_defaults_invalid_and_partial_values() {
     let partial = super::parse_usage(Some(&serde_json::json!({

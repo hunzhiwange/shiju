@@ -11,7 +11,7 @@
 //! - 支持文件拖拽操作
 //! - 支持文件/目录的点击选中与预览
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use iced::widget::{button, column, container, row, text};
 use iced::{Background, Color, Element, Length, Theme};
@@ -51,6 +51,27 @@ pub(super) fn insert_path(tree: &mut DirNode, rel: &str) {
         }
         node = node.children.entry((*part).to_string()).or_default();
     }
+}
+
+/// 变更列表目录展开键（`chg:` 前缀），覆盖路径上每一层祖先目录。
+///
+/// 渲染侧使用 `chg:{相对目录}` 作为展开状态键；若漏掉前缀或中间层，
+/// 嵌套变更会保持折叠，只剩仓库根部的新增文件可见。
+pub(crate) fn change_list_expand_keys<'a, I>(files: I) -> BTreeSet<String>
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    let mut keys = BTreeSet::new();
+    for file in files {
+        let parts = file.split('/').filter(|part| !part.is_empty()).collect::<Vec<_>>();
+        if parts.len() <= 1 {
+            continue;
+        }
+        for idx in 0..(parts.len() - 1) {
+            keys.insert(format!("chg:{}", parts[..=idx].join("/")));
+        }
+    }
+    keys
 }
 
 fn primary_background(theme: &Theme, alpha: f32) -> Background {

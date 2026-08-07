@@ -381,13 +381,66 @@ fn goal_mode_button_follows_workflow_button() {
     for element in [goal_mode_button(false), goal_mode_button(true)] {
         assert_eq!(element.as_widget().children().len(), 2);
     }
+}
 
-    let source = include_str!("mod.rs");
-    let workflow = source.find("let workflow_btn =").expect("workflow button");
-    let goal = source.find("let goal_btn =").expect("goal button");
-    let subagent = source.find("let subagent_btn =").expect("subagent button");
-    assert!(workflow < goal && goal < subagent);
-    assert!(source.contains("workflow_btn,\n        goal_btn,\n        subagent_btn,"));
+#[test]
+fn bottom_bar_places_goal_after_full_access_and_session_tabs() {
+    for element in [goal_mode_button(false), goal_mode_button(true)] {
+        assert_eq!(element.as_widget().children().len(), 2);
+    }
+
+    let controls = include_str!("send_controls.rs");
+    let goal_push = controls.find("bar = bar.push(goal_btn)").expect("goal push");
+    let workflow_push = controls.find("bar = bar.push(workflow_btn)").expect("workflow push");
+    let subagent_push = controls.find("bar = bar.push(subagent_btn)").expect("subagent push");
+    assert!(
+        goal_push < workflow_push && workflow_push < subagent_push,
+        "bottom bar should place goal after full access and before workflow"
+    );
+
+    let mod_source = include_str!("mod.rs");
+    assert!(
+        mod_source.contains("goal_btn,\n        workflow_btn,\n        subagent_btn,"),
+        "input panel should pass goal before workflow into bottom_bar"
+    );
+    for tab in ["Agent", "Tools", "Skills"] {
+        assert!(
+            mod_source.contains(&format!("SessionToolSelectorTab::{tab}")),
+            "bottom bar should expose session tab entry for {tab}"
+        );
+        assert!(
+            mod_source.contains("OpenSessionToolSelectorTab"),
+            "bottom bar session tabs should open via OpenSessionToolSelectorTab"
+        );
+    }
+    assert!(
+        !mod_source.contains("\"会话控制\""),
+        "bottom bar should no longer use a single 会话控制 entry button"
+    );
+
+    let normal = bottom_bar(
+        Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
+        spacer(),
+        spacer(),
+        spacer(),
+        button(text("model")).into(),
+        button(text("usage")).into(),
+        button(text("attach")).into(),
+        Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
+        false,
+    );
+    let children = normal.as_widget().children();
+    // permission + goal + workflow + subagent + agent + tools + skills + acp + reasoning + model + fill + utility + actions
+    assert_eq!(children.len(), 13);
+    assert_eq!(children[11].children.len(), 2);
+    assert_eq!(children[12].children.len(), 3);
 }
 
 #[test]
@@ -452,6 +505,8 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
         Some(spacer()),
         Some(spacer()),
         Some(spacer()),
+        Some(spacer()),
+        Some(spacer()),
         spacer(),
         spacer(),
         spacer(),
@@ -466,14 +521,16 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
     let children = normal.as_widget().children();
 
     assert_eq!(normal.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 11);
-    assert_eq!(children[9].children.len(), 2);
-    assert_eq!(children[10].children.len(), 3);
+    assert_eq!(children.len(), 13);
+    assert_eq!(children[11].children.len(), 2);
+    assert_eq!(children[12].children.len(), 3);
 }
 
 #[test]
 fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
     let normal = bottom_bar(
+        None,
+        None,
         None,
         None,
         None,
@@ -503,6 +560,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
         None,
         None,
         None,
+        None,
+        None,
         spacer(),
         spacer(),
         spacer(),
@@ -524,6 +583,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
 #[test]
 fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
     let task_mode = bottom_bar(
+        None,
+        None,
         None,
         None,
         None,

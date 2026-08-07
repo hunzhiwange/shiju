@@ -160,6 +160,8 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("ls", "目录列表", ToolGroup::Files),
         ("write", "写入文件", ToolGroup::Files),
         ("file_write", "写入文件", ToolGroup::Files),
+        ("file_edit", "编辑文件", ToolGroup::Files),
+        ("edit", "编辑文件", ToolGroup::Files),
         ("apply_patch", "补丁编辑", ToolGroup::Execute),
         ("grep", "文本搜索", ToolGroup::Search),
         ("content_search", "内容搜索", ToolGroup::Search),
@@ -172,12 +174,15 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("process", "后台进程", ToolGroup::Execute),
         ("git_operations", "Git 操作", ToolGroup::Execute),
         ("browser", "浏览器交互", ToolGroup::Web),
+        ("Browser", "浏览器交互", ToolGroup::Web),
         ("browser_open", "打开页面", ToolGroup::Web),
+        ("BrowserOpen", "打开页面", ToolGroup::Web),
         ("http_request", "网络请求", ToolGroup::Web),
         ("web_fetch", "网页抓取", ToolGroup::Web),
         ("web_search", "联网搜索", ToolGroup::Web),
         ("websearch", "联网搜索", ToolGroup::Web),
         ("web_search_tool", "联网搜索", ToolGroup::Web),
+        ("WebSearch", "联网搜索", ToolGroup::Web),
         ("AgentTool", "AgentTool", ToolGroup::Collaboration),
         ("delegate_coordination_status", "委托状态", ToolGroup::Collaboration),
         ("schedule", "任务调度", ToolGroup::Collaboration),
@@ -188,20 +193,27 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("cron_run", "执行定时任务", ToolGroup::Collaboration),
         ("cron_runs", "运行历史", ToolGroup::Collaboration),
         ("todoread", "读取任务计划", ToolGroup::Collaboration),
+        ("TodoRead", "读取任务计划", ToolGroup::Collaboration),
         ("todowrite", "写入任务计划", ToolGroup::Collaboration),
+        ("TodoWrite", "写入任务计划", ToolGroup::Collaboration),
         ("plan_enter", "进入规划模式", ToolGroup::Collaboration),
         ("plan_exit", "退出规划模式", ToolGroup::Collaboration),
         ("question", "用户提问", ToolGroup::Collaboration),
+        ("AskUserQuestion", "用户提问", ToolGroup::Collaboration),
+        ("verify_plan_execution", "验证计划执行", ToolGroup::Collaboration),
         ("skill", "加载技能", ToolGroup::Collaboration),
         ("memory_recall", "读取记忆", ToolGroup::Memory),
         ("memory_store", "写入记忆", ToolGroup::Memory),
         ("memory_forget", "删除记忆", ToolGroup::Memory),
         ("proxy_config", "代理配置", ToolGroup::Integration),
         ("model_routing_config", "模型路由", ToolGroup::Integration),
+        ("Config", "配置管理", ToolGroup::Integration),
+        ("tool_search", "工具搜索", ToolGroup::Integration),
         ("composio", "外部集成", ToolGroup::Integration),
         ("pushover", "推送通知", ToolGroup::Integration),
         ("screenshot", "屏幕截图", ToolGroup::Web),
         ("image_info", "图像信息", ToolGroup::Web),
+        ("image_asset_read", "读取图像资源", ToolGroup::Web),
         ("lsp", "语义分析", ToolGroup::Integration),
         ("invalid", "无效调用", ToolGroup::Other),
         ("sop_execute", "启动 SOP", ToolGroup::Collaboration),
@@ -310,6 +322,7 @@ fn tool_card_button_style_covers_unselected_dark_states() {
 fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
     let (mut app, _) = crate::app::App::new();
     let mut entry = app.agents_settings.entries[0].clone();
+    app.agents_settings.available_tools.clear();
 
     let empty_tree = {
         let empty = super::tools::view(&app, &entry);
@@ -336,10 +349,13 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
     let grouped_tree = Tree::new(grouped.as_widget());
     let tools_list = &grouped_tree.children[1];
 
-    assert_eq!(tools_list.children.len(), 4);
-    assert_eq!(tools_list.children[0].children.len(), 3);
-    assert_eq!(tools_list.children[2].children.len(), 5);
-    assert_eq!(tools_list.children[3].children.len(), 8);
+    // tabs + select-all + preset section + presets + optional groups
+    assert_eq!(tools_list.children.len(), 5);
+    assert_eq!(tools_list.children[0].children.len(), 2);
+    assert_eq!(tools_list.children[1].children.len(), 3);
+    assert_eq!(tools_list.children[3].children.len(), 5);
+    // optional only: read(Files), proxy_config(Integration), custom_tool(Other)
+    assert_eq!(tools_list.children[4].children.len(), 3);
 }
 
 #[test]
@@ -352,10 +368,10 @@ fn tools_view_keeps_zero_match_presets_visible_without_grouping_them() {
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
 
-    assert_eq!(tools_list.children.len(), 4);
-    assert_eq!(tools_list.children[2].children.len(), 5);
-    assert_eq!(tools_list.children[3].children.len(), 1);
-    assert_eq!(tools_list.children[3].children[0].children[2].children.len(), 1);
+    assert_eq!(tools_list.children.len(), 5);
+    assert_eq!(tools_list.children[3].children.len(), 5);
+    assert_eq!(tools_list.children[4].children.len(), 1);
+    assert_eq!(tools_list.children[4].children[0].children[2].children.len(), 1);
 }
 
 #[test]
@@ -369,8 +385,115 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
     let view = super::tools::view(&app, &entry);
     let tree = Tree::new(view.as_widget());
     let tools_list = &tree.children[1];
-    let file_cards = &tools_list.children[3].children[0].children[2];
+    let file_cards = &tools_list.children[4].children[0].children[2];
 
-    assert_eq!(tools_list.children[0].children.len(), 3);
+    assert_eq!(tools_list.children[1].children.len(), 3);
     assert_eq!(file_cards.children.len(), 3);
+}
+
+#[test]
+fn tools_view_splits_optional_and_builtin_tabs() {
+    use crate::app::state::{AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB};
+    use vw_config_types::tools::is_builtin_required_tool_id;
+
+    let (mut app, _) = crate::app::App::new();
+    let entry = app.agents_settings.entries[0].clone();
+    app.agents_settings.available_tools = vec![
+        "bash".to_string(),
+        "custom_optional".to_string(),
+        "AgentTool".to_string(),
+        "proxy_config".to_string(),
+    ];
+
+    assert_eq!(app.agents_settings.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
+
+    let optional_ids = super::tools::tools_for_list_tab(
+        &app.agents_settings.available_tools,
+        &app.agents_settings.active_tools_list_tab,
+    );
+    assert_eq!(optional_ids, vec!["custom_optional", "proxy_config"]);
+    assert!(optional_ids.iter().all(|id| !is_builtin_required_tool_id(id)));
+
+    {
+        let optional_view = super::tools::view(&app, &entry);
+        let optional_tree = Tree::new(optional_view.as_widget());
+        let optional_list = &optional_tree.children[1];
+        // tabs + select-all row + preset section + preset buttons + grouped cards
+        assert!(
+            optional_list.children.len() >= 4,
+            "optional tab should keep preset controls"
+        );
+        assert_eq!(
+            optional_list.children[0].children.len(),
+            2,
+            "optional/builtin tab buttons"
+        );
+    }
+
+    app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
+    let builtin_ids = super::tools::tools_for_list_tab(
+        &app.agents_settings.available_tools,
+        &app.agents_settings.active_tools_list_tab,
+    );
+    assert_eq!(builtin_ids, vec!["bash", "AgentTool"]);
+    assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
+
+    let builtin_view = super::tools::view(&app, &entry);
+    let builtin_tree = Tree::new(builtin_view.as_widget());
+    let builtin_list = &builtin_tree.children[1];
+    assert_eq!(
+        builtin_list.children.len(),
+        2,
+        "builtin tab should only keep tabs row and grouped cards (no presets)"
+    );
+}
+
+#[test]
+fn builtin_tool_cards_are_locked_and_badged() {
+    use crate::app::message::settings::{AgentsMessage, SettingsMessage};
+    use crate::app::state::AGENT_TOOLS_BUILTIN_TAB;
+    use crate::app::Message;
+
+    let (mut app, _) = crate::app::App::new();
+    let mut entry = app.agents_settings.entries[0].clone();
+    app.agents_settings.available_tools = vec!["bash".to_string(), "custom_optional".to_string()];
+    app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
+    entry.allowed_tools = vec!["bash".to_string()];
+
+    assert!(super::tools::tool_card_is_locked("bash"));
+    assert!(!super::tools::tool_card_is_locked("custom_optional"));
+    assert_eq!(super::tools::builtin_tool_badge_label(), "内置");
+
+    assert!(
+        super::tools::tool_card_press_message("main".to_string(), "bash".to_string(), true, true)
+            .is_none(),
+        "locked builtin cards must not emit cancel toggle"
+    );
+    let optional_press = super::tools::tool_card_press_message(
+        "main".to_string(),
+        "custom_optional".to_string(),
+        false,
+        false,
+    );
+    assert!(matches!(
+        optional_press,
+        Some(Message::Settings(SettingsMessage::Agents(
+            AgentsMessage::AllowedToolToggled(ref agent, ref tool, true)
+        ))) if agent == "main" && tool == "custom_optional"
+    ));
+
+    let view = super::tools::view(&app, &entry);
+    let tree = Tree::new(view.as_widget());
+    let tools_list = &tree.children[1];
+    // tabs + groups; first group card title row includes badge child
+    let groups = &tools_list.children[1];
+    let first_group_cards = &groups.children[0].children[2];
+    assert_eq!(first_group_cards.children.len(), 1);
+    let card_content = &first_group_cards.children[0].children[0];
+    let title_row = &card_content.children[0];
+    assert_eq!(
+        title_row.children.len(),
+        2,
+        "builtin card title should include name + 内置 badge"
+    );
 }

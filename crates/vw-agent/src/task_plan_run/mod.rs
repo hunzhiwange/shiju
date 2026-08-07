@@ -5,6 +5,7 @@
 
 mod control;
 mod goal;
+mod goal_chat;
 mod model;
 mod prompts;
 mod runner;
@@ -51,10 +52,19 @@ mod model_tests;
 #[cfg(test)]
 #[path = "goal_tests.rs"]
 mod goal_tests;
+
+#[cfg(test)]
+#[path = "goal_chat_tests.rs"]
+mod goal_chat_tests;
 pub use goal::{
     GoalEvaluation, GoalTaskFilesState, build_goal_continuation_prompt,
     build_goal_evaluation_prompt, goal_evaluation_session_id, goal_turn_session_id,
     inspect_goal_task_files, parse_goal_evaluation,
+};
+pub use goal_chat::{
+    LightweightGoalAction, build_lightweight_goal_continuation_prompt,
+    build_lightweight_goal_evaluation_prompt, decide_lightweight_goal_action,
+    detect_explicit_lightweight_blocker, run_lightweight_goal_chat,
 };
 
 #[cfg(test)]

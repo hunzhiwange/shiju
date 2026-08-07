@@ -951,7 +951,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let task_mode_task_split_mode = runtime.task_mode_task_split_mode;
     let task_mode_subtasks = runtime.task_mode_subtasks.clone();
     // plan-run 子会话（有 parent_id）续聊必须走普通 agent stream，避免误开 plan-run。
-    // 工作流开关开启时始终进入 plan-run，不再按输入意图静默降级到普通聊天。
+    // 工作流开关开启时始终进入 plan-run；目标模式独立传递，不单独激活严格工作流。
     let workflow_mode_enabled =
         runtime.workflow_mode_enabled && !active_session_is_plan_run_child(app);
     let goal_mode_enabled = runtime.goal_mode_enabled && !active_session_is_plan_run_child(app);
@@ -1243,6 +1243,38 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 let runtime = app.current_session_runtime_mut();
                 runtime.tool_selector.select_tab(tab);
             }
+            if tab == SessionToolSelectorTab::Skills
+                && app.skills_settings.catalog.is_empty()
+                && !app.skills_settings.loading
+            {
+                Task::done(Message::Settings(message::SettingsMessage::SkillsRefresh))
+            } else {
+                Task::none()
+            }
+        }
+        ChatMessage::OpenSessionToolSelectorTab(tab) => {
+            let same_tab_open = app.show_session_tool_selector_popover
+                && app.current_session_runtime().tool_selector.active_tab() == tab;
+            {
+                let runtime = app.current_session_runtime_mut();
+                runtime.tool_selector.select_tab(tab);
+            }
+            if same_tab_open {
+                app.show_session_tool_selector_popover = false;
+                return Task::none();
+            }
+
+            app.show_session_tool_selector_popover = true;
+            app.show_model_popover = false;
+            app.show_mode_popover = false;
+            app.show_send_mode_popover = false;
+            app.show_file_popover = false;
+            app.show_acp_popover = false;
+            app.show_reasoning_effort_popover = false;
+            app.show_usage_popover = false;
+            app.show_session_actions_popover = false;
+            app.show_executor_popover = false;
+
             if tab == SessionToolSelectorTab::Skills
                 && app.skills_settings.catalog.is_empty()
                 && !app.skills_settings.loading

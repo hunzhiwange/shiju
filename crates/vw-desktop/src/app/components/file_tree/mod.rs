@@ -43,6 +43,8 @@ pub(crate) mod model;
 mod tree_list;
 mod widgets;
 
+pub(crate) use tree_list::change_list_expand_keys;
+
 pub(super) const FILE_MANAGER_SEARCH_ICON_SIZE: f32 = 14.0;
 const FILE_MANAGER_SEARCH_BUTTON_SIZE: f32 = 28.0;
 pub(super) const FILE_MANAGER_SEARCH_TAB_WIDTH: f32 = 36.0;

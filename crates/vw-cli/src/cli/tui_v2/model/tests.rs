@@ -12,10 +12,31 @@ use super::prompt::{
     PromptMode, PromptMotion, PromptState, PromptSubmission, PromptSubmissionStatus,
     QueuedPromptCommand, QueuedPromptCommandKind,
 };
+use super::session_mode::SessionOptions;
 use super::ui_message::{
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiMessageKind, UiTokenUsage,
     UiTurnTerminal,
 };
+
+#[test]
+fn session_options_defaults_goal_mode_enabled_and_independent_from_workflow() {
+    let options = SessionOptions::default();
+    assert!(options.goal_mode_enabled());
+    assert!(!options.workflow_mode_enabled());
+
+    let mut options = SessionOptions::default();
+    options.set_workflow_mode(true);
+    assert!(options.workflow_mode_enabled());
+    assert!(options.goal_mode_enabled());
+
+    options.set_goal_mode(false);
+    assert!(!options.goal_mode_enabled());
+    assert!(options.workflow_mode_enabled());
+
+    options.set_goal_mode(true);
+    assert!(options.goal_mode_enabled());
+    assert!(options.workflow_mode_enabled());
+}
 
 #[test]
 fn prompt_state_start_and_finish_submission_tracks_busy_lifecycle() {

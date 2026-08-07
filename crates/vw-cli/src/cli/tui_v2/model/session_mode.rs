@@ -48,7 +48,8 @@ pub(crate) struct SessionExecutionSnapshot {
     pub(crate) acp_force_new_session: bool,
     pub(crate) full_access_enabled: bool,
     pub(crate) subagent_mode_enabled: bool,
-    pub(crate) plan_run_mode: PlanRunMode,
+    pub(crate) workflow_mode: WorkflowMode,
+    pub(crate) goal_mode: GoalMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -73,11 +74,17 @@ pub(crate) enum SubagentMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum PlanRunMode {
+pub(crate) enum WorkflowMode {
     #[default]
     Disabled,
-    Workflow,
-    Goal,
+    Enabled,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum GoalMode {
+    Disabled,
+    #[default]
+    Enabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,7 +125,8 @@ pub(crate) struct SessionOptions {
     pub(crate) acp_session_mode: AcpSessionMode,
     pub(crate) access_mode: AccessMode,
     pub(crate) subagent_mode: SubagentMode,
-    pub(crate) plan_run_mode: PlanRunMode,
+    pub(crate) workflow_mode: WorkflowMode,
+    pub(crate) goal_mode: GoalMode,
 }
 
 impl SessionOptions {
@@ -144,7 +152,8 @@ impl SessionOptions {
             acp_force_new_session: self.acp_session_mode == AcpSessionMode::ForceNew,
             full_access_enabled: self.access_mode == AccessMode::Full,
             subagent_mode_enabled: self.subagent_mode == SubagentMode::Enabled,
-            plan_run_mode: self.plan_run_mode,
+            workflow_mode: self.workflow_mode,
+            goal_mode: self.goal_mode,
         }
     }
 
@@ -199,24 +208,19 @@ impl SessionOptions {
     }
 
     pub(crate) fn workflow_mode_enabled(&self) -> bool {
-        self.plan_run_mode == PlanRunMode::Workflow
+        self.workflow_mode == WorkflowMode::Enabled
     }
 
     pub(crate) fn goal_mode_enabled(&self) -> bool {
-        self.plan_run_mode == PlanRunMode::Goal
-    }
-
-    pub(crate) fn set_plan_run_mode(&mut self, mode: PlanRunMode) {
-        self.plan_run_mode = mode;
+        self.goal_mode == GoalMode::Enabled
     }
 
     pub(crate) fn set_workflow_mode(&mut self, enabled: bool) {
-        self.plan_run_mode = if enabled {
-            PlanRunMode::Workflow
-        } else if self.plan_run_mode == PlanRunMode::Workflow {
-            PlanRunMode::Disabled
-        } else {
-            self.plan_run_mode
-        };
+        self.workflow_mode =
+            if enabled { WorkflowMode::Enabled } else { WorkflowMode::Disabled };
+    }
+
+    pub(crate) fn set_goal_mode(&mut self, enabled: bool) {
+        self.goal_mode = if enabled { GoalMode::Enabled } else { GoalMode::Disabled };
     }
 }

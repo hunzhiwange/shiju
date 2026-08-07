@@ -12,28 +12,26 @@ use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::stream_adapter::{
     UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event,
 };
-use crate::cli::tui_v2::model::{PlanRunMode, PromptSubmission};
+use crate::cli::tui_v2::model::{GoalMode, PromptSubmission, WorkflowMode};
 
 const PLAN_RUN_RESUME_ATTEMPTS: usize = 3;
 
 pub(crate) fn plan_run_request_for_submission(
     submission: &PromptSubmission,
 ) -> Result<Option<TaskPlanRunRequest>, String> {
-    // 工作流开关开启时始终进入 plan-run，不再按输入意图静默降级到普通聊天。
-    let mode = match submission.execution.plan_run_mode {
-        PlanRunMode::Disabled => return Ok(None),
-        PlanRunMode::Workflow => {
-            if submission.text.trim().is_empty() {
-                return Ok(None);
-            }
-            TaskPlanRunMode::Workflow
-        }
-        PlanRunMode::Goal => {
-            if submission.text.trim().is_empty() {
-                return Ok(None);
-            }
-            TaskPlanRunMode::Goal
-        }
+    // 工作流或目标任一开启时进入 plan-run（路由细化由后续任务处理）。
+    if submission.execution.workflow_mode == WorkflowMode::Disabled
+        && submission.execution.goal_mode == GoalMode::Disabled
+    {
+        return Ok(None);
+    }
+    if submission.text.trim().is_empty() {
+        return Ok(None);
+    }
+    let mode = if submission.execution.goal_mode == GoalMode::Enabled {
+        TaskPlanRunMode::Goal
+    } else {
+        TaskPlanRunMode::Workflow
     };
     let root = submission
         .root

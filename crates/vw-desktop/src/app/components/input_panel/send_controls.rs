@@ -706,22 +706,27 @@ pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
 ///
 /// 工具栏采用水平布局，从左到右依次为：
 /// 1. 完全访问权限按钮（如果提供）
-/// 2. 主按钮（如果提供）
-/// 3. ACP 按钮（如果提供）
-/// 4. 推理强度按钮（如果提供）
-/// 5. 模型按钮（左侧固定）
-/// 6. 弹性空白（占据中间空间）
-/// 7. 使用情况按钮
-/// 8. 附件按钮
-/// 9. 任务池按钮（如果提供）
-/// 10. 取消和发送按钮（仅在非任务模式下显示）
+/// 2. 目标模式按钮
+/// 3. 工作流按钮
+/// 4. 子智能体按钮
+/// 5. 代理 / 工具 / 技能 TAB 入口（如果提供）
+/// 6. ACP 按钮（如果提供）
+/// 7. 推理强度按钮（如果提供）
+/// 8. 模型按钮（左侧固定）
+/// 9. 弹性空白（占据中间空间）
+/// 10. 使用情况按钮
+/// 11. 附件按钮
+/// 12. 任务池按钮（如果提供）
+/// 13. 取消和发送按钮（仅在非任务模式下显示）
 pub fn bottom_bar<'a>(
-    primary_btn: Option<Element<'a, Message>>,
+    agent_tab_btn: Option<Element<'a, Message>>,
+    tools_tab_btn: Option<Element<'a, Message>>,
+    skills_tab_btn: Option<Element<'a, Message>>,
     acp_btn: Option<Element<'a, Message>>,
     reasoning_btn: Option<Element<'a, Message>>,
     permission_btn: Option<Element<'a, Message>>,
-    workflow_btn: Element<'a, Message>,
     goal_btn: Element<'a, Message>,
+    workflow_btn: Element<'a, Message>,
     subagent_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
     usage_btn: Element<'a, Message>,
@@ -731,19 +736,25 @@ pub fn bottom_bar<'a>(
     send_btn: Option<Element<'a, Message>>,
     task_mode_enabled: bool,
 ) -> Element<'a, Message> {
-    // 创建基础布局：完全访问权限按钮 + 主智能体按钮 + ACP 按钮 + 模型按钮 + 弹性空白 + 使用情况按钮
+    // 创建基础布局：完全访问 + 目标 + 工作流 + 子智能体 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
     let mut bar = row![].spacing(4);
 
     if let Some(permission_btn) = permission_btn {
         bar = bar.push(permission_btn);
     }
 
-    bar = bar.push(workflow_btn);
     bar = bar.push(goal_btn);
+    bar = bar.push(workflow_btn);
     bar = bar.push(subagent_btn);
 
-    if let Some(primary_btn) = primary_btn {
-        bar = bar.push(primary_btn);
+    if let Some(agent_tab_btn) = agent_tab_btn {
+        bar = bar.push(agent_tab_btn);
+    }
+    if let Some(tools_tab_btn) = tools_tab_btn {
+        bar = bar.push(tools_tab_btn);
+    }
+    if let Some(skills_tab_btn) = skills_tab_btn {
+        bar = bar.push(skills_tab_btn);
     }
 
     if let Some(acp_btn) = acp_btn {

@@ -642,7 +642,16 @@ impl TuiApp {
             acp_backend: self.state.session_options.acp_backend.clone(),
             full_access_enabled: self.state.session_options.full_access_enabled(),
             subagent_mode_enabled: self.state.session_options.subagent_mode_enabled(),
-            plan_run_mode: self.state.session_options.plan_run_mode,
+            workflow_mode: if self.state.session_options.workflow_mode_enabled() {
+                crate::cli::tui_v2::model::session_mode::WorkflowMode::Enabled
+            } else {
+                crate::cli::tui_v2::model::session_mode::WorkflowMode::Disabled
+            },
+            goal_mode: if self.state.session_options.goal_mode_enabled() {
+                crate::cli::tui_v2::model::session_mode::GoalMode::Enabled
+            } else {
+                crate::cli::tui_v2::model::session_mode::GoalMode::Disabled
+            },
             effort: self.state.session_options.effort,
             fast: self.state.session_options.fast,
             theme: if self.state.theme_name.trim().is_empty() {
@@ -1377,7 +1386,12 @@ pub(crate) fn apply_settings_values_to_state(state: &mut super::TuiState, values
     state.session_options.select_acp_backend(values.acp_backend.clone());
     state.session_options.set_full_access(values.full_access_enabled);
     state.session_options.set_subagent_mode(values.subagent_mode_enabled);
-    state.session_options.set_plan_run_mode(values.plan_run_mode);
+    state.session_options.set_workflow_mode(
+        values.workflow_mode == crate::cli::tui_v2::model::session_mode::WorkflowMode::Enabled,
+    );
+    state.session_options.set_goal_mode(
+        values.goal_mode == crate::cli::tui_v2::model::session_mode::GoalMode::Enabled,
+    );
     state.prompt.vim_mode = values.vim_mode;
     if let Some(model) = values.model.clone() {
         reduce_tui_state(

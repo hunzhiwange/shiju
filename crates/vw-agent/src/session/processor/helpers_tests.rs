@@ -1,6 +1,7 @@
 use super::*;
 use serde_json::json;
 use std::collections::HashSet;
+use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 #[test]
 fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
@@ -10,35 +11,37 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
     let selected = base
         .iter()
         .find(|tool| {
-            !ALWAYS_RETAINED_TODO_TOOL_IDS.iter().any(|todo_tool| *todo_tool == tool.as_str())
+            !is_builtin_required_tool_id(tool) && !is_mcp_dynamic_tool_id(tool)
         })
-        .expect("at least one non-todo registered tool")
+        .expect("at least one optional non-MCP registered tool")
         .clone();
     let filtered = allowed_tool_ids_for_request(
         None,
         &json!({"allowed_tools": [selected.clone(), "missing-tool", "  ", 42]}),
     );
     assert!(filtered.contains(&selected));
-    for todo_tool in ALWAYS_RETAINED_TODO_TOOL_IDS {
-        assert!(
-            filtered.contains(*todo_tool),
-            "todo tool `{todo_tool}` must stay available under session tool filters"
-        );
+    for tool in &base {
+        if is_builtin_required_tool_id(tool) || is_mcp_dynamic_tool_id(tool) {
+            assert!(
+                filtered.contains(tool),
+                "required/MCP tool `{tool}` must stay available under session tool filters"
+            );
+        }
     }
-    assert_eq!(
-        filtered.len(),
-        1 + ALWAYS_RETAINED_TODO_TOOL_IDS
-            .iter()
-            .filter(|tool| base.contains(**tool))
-            .count()
-    );
+    let expected_retained = base
+        .iter()
+        .filter(|tool| {
+            *tool == &selected || is_builtin_required_tool_id(tool) || is_mcp_dynamic_tool_id(tool)
+        })
+        .count();
+    assert_eq!(filtered.len(), expected_retained);
 
     assert_eq!(allowed_tool_ids_for_request(None, &json!({})), base);
     assert_eq!(allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]})), base);
 }
 
 #[test]
-fn request_filter_always_retains_todo_tools_when_present_in_specs() {
+fn request_filter_always_retains_builtin_required_and_mcp_tools_when_present_in_specs() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             crate::app::agent::tools::TODO_WRITE_TOOL_ID,
@@ -47,14 +50,25 @@ fn request_filter_always_retains_todo_tools_when_present_in_specs() {
         )
         .with_aliases([crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS]),
         crate::app::agent::tools::ToolSpec::new(
-            crate::app::agent::tools::TODO_READ_TOOL_ID,
-            "Read todos",
+            "AskUserQuestion",
+            "Ask the user a question",
             json!({"type": "object"}),
         )
-        .with_aliases([crate::app::agent::tools::TODO_READ_TOOL_ALIAS]),
+        .with_aliases(["question"]),
+        crate::app::agent::tools::ToolSpec::new(
+            "mcp__rustcodegraph__search",
+            "Search code graph",
+            json!({"type": "object"}),
+        )
+        .with_aliases(["mcp_alias"]),
         crate::app::agent::tools::ToolSpec::new(
             "file_read",
             "Read file",
+            json!({"type": "object"}),
+        ),
+        crate::app::agent::tools::ToolSpec::new(
+            "web_fetch",
+            "Fetch URL",
             json!({"type": "object"}),
         ),
     ];
@@ -70,10 +84,14 @@ fn request_filter_always_retains_todo_tools_when_present_in_specs() {
             "file_read".to_string(),
             crate::app::agent::tools::TODO_WRITE_TOOL_ID.to_string(),
             crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS.to_string(),
-            crate::app::agent::tools::TODO_READ_TOOL_ID.to_string(),
-            crate::app::agent::tools::TODO_READ_TOOL_ALIAS.to_string(),
+            "AskUserQuestion".to_string(),
+            "question".to_string(),
+            "mcp__rustcodegraph__search".to_string(),
         ])
     );
+    assert!(!allowed.contains("web_fetch"));
+    assert!(!allowed.contains("mcp_alias"));
+    assert!(!allowed.contains("missing-tool"));
 }
 
 #[test]
@@ -97,7 +115,13 @@ fn allowed_tool_ids_for_request_uses_dynamic_specs() {
         &json!({"allowed_tools": ["mcp__rustcodegraph__search", "missing"]}),
     );
 
-    assert_eq!(allowed, HashSet::from(["mcp__rustcodegraph__search".to_string()]));
+    assert_eq!(
+        allowed,
+        HashSet::from([
+            "mcp__rustcodegraph__search".to_string(),
+            "file_read".to_string(),
+        ])
+    );
     assert!(allowed_tool_ids_from_specs(&specs).contains("mcp_alias"));
 }
 

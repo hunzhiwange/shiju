@@ -9,6 +9,8 @@ pub(crate) const AGENT_DETAIL_BASIC_TAB: &str = "basic";
 pub(crate) const AGENT_DETAIL_IDENTITY_TAB: &str = "identity";
 pub(crate) const AGENT_DETAIL_TOOLS_TAB: &str = "tools";
 pub(crate) const AGENT_DETAIL_SKILLS_TAB: &str = "skills";
+pub(crate) const AGENT_TOOLS_OPTIONAL_TAB: &str = "optional";
+pub(crate) const AGENT_TOOLS_BUILTIN_TAB: &str = "builtin";
 static GUIDE_HANDOFF_REQUEST_IDS: Lazy<Mutex<HashSet<u64>>> =
     Lazy::new(|| Mutex::new(HashSet::new()));
 
@@ -384,7 +386,7 @@ impl SessionRuntimeState {
             tool_selector: SessionToolSelectorState::default(),
             task_mode_enabled: false,
             workflow_mode_enabled: false,
-            goal_mode_enabled: false,
+            goal_mode_enabled: true,
             subagent_mode_enabled: false,
             task_mode_priority: "999".to_string(),
             task_mode_model,

@@ -448,6 +448,26 @@ fn changed_files_ready_updates_files_and_clears_selection() {
 }
 
 #[test]
+fn changed_files_ready_expands_change_list_dirs_when_showing_changes() {
+    let (mut app, _task) = crate::app::App::new();
+    app.git_changed_files_repo_path = Some("/repo".to_string());
+    app.file_manager_show_changes = true;
+    app.file_manager_changes_refreshing = false;
+
+    let _task = super::refresh::update(
+        &mut app,
+        GitMessage::ChangedFilesReady {
+            repo_path: Some("/repo".to_string()),
+            files: vec!["src/nested/lib.rs".to_string(), "README.md".to_string()],
+        },
+    );
+
+    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(!app.file_tree_expanded.contains(&"src".to_string()));
+}
+
+#[test]
 fn changed_files_ready_without_manual_refresh_does_not_create_toast() {
     let (mut app, _task) = crate::app::App::new();
     app.git_changed_files_repo_path = Some("/repo".to_string());

@@ -2,13 +2,16 @@
 
 本目录记录 `rustcodegraph` 技能的补充说明。
 
+调用前先按 `SKILL.md`「定位二进制」解析出绝对路径并赋给 `RCG`；不要依赖 PATH
+或环境变量。下文均使用 `"$RCG"`。
+
 ## 主动监听
 
 如果你想在本地开发时主动保持 `.rustcodegraph/` 索引新鲜，可以手工启动一个
 前台监听命令：
 
 ```bash
-~/.rustcodegraph/bin/rustcodegraph watch --path <project-root>
+"$RCG" watch --path <project-root>
 ```
 
 说明：
@@ -19,7 +22,7 @@
 - 默认 debounce 为 `2000ms`，可按需覆盖：
 
 ```bash
-~/.rustcodegraph/bin/rustcodegraph watch --path <project-root> --debounce-ms 500
+"$RCG" watch --path <project-root> --debounce-ms 500
 ```
 
 ## 手动同步
@@ -27,7 +30,7 @@
 以下场景仍然建议手工运行一次：
 
 ```bash
-~/.rustcodegraph/bin/rustcodegraph sync --path <project-root>
+"$RCG" sync --path <project-root>
 ```
 
 - watcher 没有启动。

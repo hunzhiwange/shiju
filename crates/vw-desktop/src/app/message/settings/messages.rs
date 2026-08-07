@@ -566,6 +566,7 @@ pub enum AgentsMessage {
     AllowedToolsSelectAll(String),
     AllowedToolsInvertSelection(String),
     AllowedToolsApplyPreset(String, String),
+    ToolsListTabSelected(String),
     AllowedSkillToggled(String, String, bool),
     AllowedSkillsSelectAll(String, crate::app::state::SkillsDirectoryScope),
     AllowedSkillsInvertSelection(String, crate::app::state::SkillsDirectoryScope),

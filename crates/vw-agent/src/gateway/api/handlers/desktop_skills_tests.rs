@@ -477,14 +477,14 @@ fn install_built_in_skill_copies_nested_resources() {
 
     let path = super::install_built_in_skill(
         project.path(),
-        "using-superpowers",
+        "rustcodegraph",
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install nested built-in");
     let skill_dir = std::path::PathBuf::from(path);
 
     assert!(skill_dir.join("SKILL.md").is_file());
-    assert!(skill_dir.join("references/codex-tools.md").is_file());
+    assert!(skill_dir.join("README.md").is_file());
 }
 
 #[test]

@@ -15,21 +15,13 @@ pub(super) fn handle_task_mode_toggled(app: &mut App, enabled: bool) -> Task<Mes
 /// 模块内可见函数，执行 handle_workflow_mode_toggled 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_workflow_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
-    let runtime = app.current_session_runtime_mut();
-    runtime.workflow_mode_enabled = enabled;
-    if enabled {
-        runtime.goal_mode_enabled = false;
-    }
+    app.current_session_runtime_mut().workflow_mode_enabled = enabled;
     Task::none()
 }
 
-/// 切换目标模式；与普通工作流执行互斥。
+/// 切换目标模式；可与工作流并存，互不关闭。
 pub(super) fn handle_goal_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
-    let runtime = app.current_session_runtime_mut();
-    runtime.goal_mode_enabled = enabled;
-    if enabled {
-        runtime.workflow_mode_enabled = false;
-    }
+    app.current_session_runtime_mut().goal_mode_enabled = enabled;
     Task::none()
 }
 

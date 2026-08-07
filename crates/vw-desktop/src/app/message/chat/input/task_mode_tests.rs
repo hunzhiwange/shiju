@@ -59,20 +59,29 @@ fn task_mode_scalar_settings_update_current_runtime() {
 }
 
 #[test]
-fn goal_mode_toggle_is_mutually_exclusive_with_workflow() {
+fn goal_and_workflow_modes_can_both_be_enabled() {
     let mut app = test_app();
 
+    // 默认目标开启；开启工作流不关闭目标
+    assert!(app.current_session_runtime().goal_mode_enabled);
     handle_workflow_mode_toggled(&mut app, true);
+    assert!(app.current_session_runtime().workflow_mode_enabled);
+    assert!(app.current_session_runtime().goal_mode_enabled);
+
+    // 关闭目标后重新开启，不关闭工作流
+    handle_goal_mode_toggled(&mut app, false);
     assert!(app.current_session_runtime().workflow_mode_enabled);
     assert!(!app.current_session_runtime().goal_mode_enabled);
 
     handle_goal_mode_toggled(&mut app, true);
     assert!(app.current_session_runtime().goal_mode_enabled);
-    assert!(!app.current_session_runtime().workflow_mode_enabled);
+    assert!(app.current_session_runtime().workflow_mode_enabled);
 
+    // 再次开关工作流，目标保持开启
+    handle_workflow_mode_toggled(&mut app, false);
     handle_workflow_mode_toggled(&mut app, true);
     assert!(app.current_session_runtime().workflow_mode_enabled);
-    assert!(!app.current_session_runtime().goal_mode_enabled);
+    assert!(app.current_session_runtime().goal_mode_enabled);
 }
 
 #[test]

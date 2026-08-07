@@ -346,10 +346,16 @@ mod tests {
         let local_bin = home.path().join(".local/bin");
         let cargo_bin = home.path().join(".cargo/bin");
         let bun_bin = home.path().join(".bun/bin");
+        let rustcodegraph_bin = home.path().join(".rustcodegraph/bin");
+        let rustcodegraph_current_bin = home.path().join(".rustcodegraph/current/bin");
         std::fs::create_dir_all(&profile_bin).expect("profile bin dir should be created");
         std::fs::create_dir_all(&local_bin).expect("local bin dir should be created");
         std::fs::create_dir_all(&cargo_bin).expect("cargo bin dir should be created");
         std::fs::create_dir_all(&bun_bin).expect("bun bin dir should be created");
+        std::fs::create_dir_all(&rustcodegraph_bin)
+            .expect("rustcodegraph bin dir should be created");
+        std::fs::create_dir_all(&rustcodegraph_current_bin)
+            .expect("rustcodegraph current bin dir should be created");
         std::fs::write(
             home.path().join(".zshrc"),
             format!("export PATH={}:$PATH\n", profile_bin.display()),
@@ -364,6 +370,8 @@ mod tests {
         assert!(path.contains(&local_bin.to_string_lossy().to_string()));
         assert!(path.contains(&cargo_bin.to_string_lossy().to_string()));
         assert!(path.contains(&bun_bin.to_string_lossy().to_string()));
+        assert!(path.contains(&rustcodegraph_bin.to_string_lossy().to_string()));
+        assert!(path.contains(&rustcodegraph_current_bin.to_string_lossy().to_string()));
     }
 
     #[cfg(not(windows))]

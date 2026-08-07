@@ -217,6 +217,9 @@ pub enum ChatMessage {
     /// 切换会话工具弹窗标签
     SessionToolSelectorTabSelected(crate::app::state::SessionToolSelectorTab),
 
+    /// 从底部栏打开会话工具弹窗并选中指定 TAB；同一 TAB 再点则关闭。
+    OpenSessionToolSelectorTab(crate::app::state::SessionToolSelectorTab),
+
     /// 修改会话工具弹窗搜索关键词
     SessionToolSelectorSearchChanged(String),
 
@@ -1091,6 +1094,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ModelInputChanged(_)
         | ChatMessage::SessionToolBucketToggled(_)
         | ChatMessage::SessionToolSelectorTabSelected(_)
+        | ChatMessage::OpenSessionToolSelectorTab(_)
         | ChatMessage::SessionToolSelectorSearchChanged(_)
         | ChatMessage::SessionToolSelectorSkillDirectoryScopeChanged(_)
         | ChatMessage::SessionToolGroupCollapsedToggled(_)

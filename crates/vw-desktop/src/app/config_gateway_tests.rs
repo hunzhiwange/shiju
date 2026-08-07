@@ -499,6 +499,7 @@ fn normalize_tool_ids_sorts_and_dedups() {
         String::new(),
         "file_read".to_string(),
         "bash".to_string(),
+        "mcp__rustcodegraph__search".to_string(),
     ]);
 
     assert_eq!(tools, vec!["bash".to_string(), "file_read".to_string()]);

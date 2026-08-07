@@ -1292,6 +1292,7 @@ impl App {
                     new_agent_key_input: String::new(),
                     selected_agent: super::state::MAIN_AGENT_KEY.to_string(),
                     active_detail_tab: super::state::AGENT_DETAIL_BASIC_TAB.to_string(),
+                    active_tools_list_tab: super::state::AGENT_TOOLS_OPTIONAL_TAB.to_string(),
                     active_prompt_tab: super::state::AGENT_PROMPT_SYSTEM_TAB.to_string(),
                     workspace_identity_files: super::state::WORKSPACE_IDENTITY_FILES
                         .iter()

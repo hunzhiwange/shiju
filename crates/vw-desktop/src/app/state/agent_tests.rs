@@ -167,7 +167,7 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert_eq!(runtime.input_editor.text(), "");
     assert!(!runtime.task_mode_enabled);
     assert!(!runtime.workflow_mode_enabled);
-    assert!(!runtime.goal_mode_enabled);
+    assert!(runtime.goal_mode_enabled);
     assert!(!runtime.subagent_mode_enabled);
     assert_eq!(runtime.task_mode_priority, "999");
     assert_eq!(runtime.task_mode_subtasks, ["", "", ""]);
@@ -193,4 +193,15 @@ fn session_runtime_default_matches_new_auto_model_defaults() {
     assert!(runtime.agent.is_none());
     assert!(runtime.acp_agent.is_none());
     assert!(runtime.last_effective_acp_agent.is_none());
+}
+
+#[test]
+fn session_runtime_defaults_goal_mode_enabled() {
+    let runtime = SessionRuntimeState::default();
+    assert!(runtime.goal_mode_enabled);
+    assert!(!runtime.workflow_mode_enabled);
+
+    let with_model = SessionRuntimeState::with_defaults("gpt-5".to_string(), true);
+    assert!(with_model.goal_mode_enabled);
+    assert!(!with_model.workflow_mode_enabled);
 }

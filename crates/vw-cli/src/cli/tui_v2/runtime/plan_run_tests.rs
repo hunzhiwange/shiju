@@ -14,7 +14,7 @@ use super::plan_run::plan_run_request_for_submission;
 use super::stream_adapter::{
     UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event,
 };
-use crate::cli::tui_v2::model::{PlanRunMode, PromptSubmission, UiMessage};
+use crate::cli::tui_v2::model::{GoalMode, PromptSubmission, UiMessage, WorkflowMode};
 use crate::cli::tui_v2::state::{TuiState, apply_runtime_event};
 
 #[test]
@@ -38,7 +38,8 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
         .with_root("/repo")
         .with_model("provider/model")
         .with_session_id("parent-session");
-    submission.execution.plan_run_mode = PlanRunMode::Workflow;
+    submission.execution.workflow_mode = WorkflowMode::Enabled;
+    submission.execution.goal_mode = GoalMode::Disabled;
     submission.execution.delegate_agent = Some("reviewer".to_string());
     submission.execution.acp_backend = Some("codex".to_string());
 
@@ -221,7 +222,8 @@ fn goal_mode_streams_turns_and_evaluations_until_terminal() {
         spawn_response_server("text/event-stream", response_body, 1);
     let mut submission =
         PromptSubmission::new("持续实现并验收目标").with_root("/repo");
-    submission.execution.plan_run_mode = PlanRunMode::Goal;
+    submission.execution.workflow_mode = WorkflowMode::Disabled;
+    submission.execution.goal_mode = GoalMode::Enabled;
 
     let request = plan_run_request_for_submission(&submission)
         .expect("goal route")
@@ -288,7 +290,8 @@ fn goal_mode_streams_turns_and_evaluations_until_terminal() {
 
 fn workflow_submission(text: &str, root: Option<&str>) -> PromptSubmission {
     let mut submission = PromptSubmission::new(text);
-    submission.execution.plan_run_mode = PlanRunMode::Workflow;
+    submission.execution.workflow_mode = WorkflowMode::Enabled;
+    submission.execution.goal_mode = GoalMode::Disabled;
     if let Some(root) = root {
         submission = submission.with_root(root);
     }

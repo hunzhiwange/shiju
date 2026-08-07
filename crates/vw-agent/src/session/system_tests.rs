@@ -73,31 +73,64 @@ fn environment_text_contains_core_fields() {
 }
 
 #[test]
-fn provider_selects_prompt_family_from_model_id() {
-    assert_eq!(provider(&test_model("gpt-5-mini", "openai")), vec![PROMPT_CODEX]);
-    assert_eq!(provider(&test_model("gpt-4.1", "openai")), vec![PROMPT_BEAST]);
-    assert_eq!(provider(&test_model("o3-mini", "openai")), vec![PROMPT_BEAST]);
-    assert_eq!(provider(&test_model("gemini-2.5-pro", "google")), vec![PROMPT_GEMINI]);
-    assert_eq!(provider(&test_model("claude-sonnet-4", "anthropic")), vec![PROMPT_ANTHROPIC]);
-    assert_eq!(provider(&test_model("Trinity-v1", "local")), vec![PROMPT_TRINITY]);
-    assert_eq!(provider(&test_model("qwen-plus", "qwen")), vec![PROMPT_ANTHROPIC_WITHOUT_TODO]);
+fn provider_returns_unified_prompt_for_all_models() {
+    let models = [
+        ("gpt-5-mini", "openai"),
+        ("gpt-4.1", "openai"),
+        ("o3-mini", "openai"),
+        ("gemini-2.5-pro", "google"),
+        ("claude-sonnet-4", "anthropic"),
+        ("Trinity-v1", "local"),
+        ("qwen-plus", "qwen"),
+        ("gpt-5-claude-gemini-Trinity", "mixed"),
+        ("gpt-4-claude-gemini-Trinity", "mixed"),
+        ("unknown-model", "custom"),
+    ];
+
+    let expected = vec![PROMPT_UNIFIED];
+    for (api_id, provider_id) in models {
+        assert_eq!(
+            provider(&test_model(api_id, provider_id)),
+            expected,
+            "model {api_id} should use the unified system prompt"
+        );
+    }
 }
 
 #[test]
-fn provider_prefers_the_first_matching_prompt_family() {
-    assert_eq!(provider(&test_model("gpt-5-claude-gemini-Trinity", "mixed")), vec![PROMPT_CODEX]);
-    assert_eq!(provider(&test_model("gpt-4-claude-gemini-Trinity", "mixed")), vec![PROMPT_BEAST]);
-    assert_eq!(provider(&test_model("gemini-claude-Trinity", "mixed")), vec![PROMPT_GEMINI]);
-    assert_eq!(provider(&test_model("claude-Trinity", "mixed")), vec![PROMPT_ANTHROPIC]);
-}
-
-#[test]
-fn instructions_are_trimmed_codex_prompt() {
+fn instructions_match_unified_prompt() {
     let instructions = instructions();
 
-    assert_eq!(instructions, PROMPT_CODEX.trim());
+    assert_eq!(instructions, PROMPT_UNIFIED.trim());
     assert!(!instructions.starts_with('\n'));
     assert!(!instructions.ends_with('\n'));
+}
+
+#[test]
+fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
+    let prompt = PROMPT_UNIFIED;
+
+    assert!(prompt.contains("## 指令优先级"));
+    assert!(prompt.contains("AGENTS.md"));
+    assert!(prompt.contains("代码模式") && prompt.contains("工作模式"));
+    assert!(prompt.contains("## 工具使用"));
+    assert!(
+        prompt.contains("协议未覆盖") || prompt.contains("未覆盖时"),
+        "default tools must be framed as fallback when project protocol is silent"
+    );
+    assert!(prompt.contains("## 自主代理纪律（防走偏）"));
+    assert!(prompt.contains("## 结构化工作流"));
+    assert!(
+        prompt.contains("说“接下来我会做 X”时，必须实际发起工具调用")
+            || prompt.contains("必须实际发起工具调用去做 X"),
+        "agent loop must require acting on stated next steps"
+    );
+    assert!(
+        prompt.contains("不要在证据不足时假设"),
+        "weaker models must be told not to invent codebase facts"
+    );
+    assert!(!prompt.contains("最好的编码智能体"));
+    assert!(!prompt.contains("软件工程任务的交互式 CLI 工具"));
 }
 
 #[test]

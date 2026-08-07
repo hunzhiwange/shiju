@@ -392,6 +392,57 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
 }
 
 #[test]
+fn open_session_tool_selector_tab_selects_and_toggles_popover() {
+    use crate::app::state::SessionToolSelectorTab;
+
+    let (mut app, _task) = crate::app::App::new();
+    app.show_model_popover = true;
+    app.show_acp_popover = true;
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Agent),
+    );
+    assert!(app.show_session_tool_selector_popover);
+    assert!(!app.show_model_popover);
+    assert!(!app.show_acp_popover);
+    assert_eq!(
+        app.current_session_runtime().tool_selector.active_tab(),
+        SessionToolSelectorTab::Agent
+    );
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Tools),
+    );
+    assert!(app.show_session_tool_selector_popover);
+    assert_eq!(
+        app.current_session_runtime().tool_selector.active_tab(),
+        SessionToolSelectorTab::Tools
+    );
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Tools),
+    );
+    assert!(!app.show_session_tool_selector_popover);
+    assert_eq!(
+        app.current_session_runtime().tool_selector.active_tab(),
+        SessionToolSelectorTab::Tools
+    );
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::OpenSessionToolSelectorTab(SessionToolSelectorTab::Skills),
+    );
+    assert!(app.show_session_tool_selector_popover);
+    assert_eq!(
+        app.current_session_runtime().tool_selector.active_tab(),
+        SessionToolSelectorTab::Skills
+    );
+}
+
+#[test]
 fn tool_selector_messages_update_query_scope_group_and_manual_context() {
     let (mut app, _task) = crate::app::App::new();
     let group = crate::app::state::SessionToolGroup::Files;

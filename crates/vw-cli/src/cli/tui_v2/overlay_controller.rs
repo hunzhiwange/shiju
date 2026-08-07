@@ -455,19 +455,20 @@ fn cycle_setting(state: &mut TuiState, delta: isize) {
             panel.pending.subagent_mode_enabled = !panel.pending.subagent_mode_enabled;
         }
         SettingKey::WorkflowMode => {
-            panel.pending.plan_run_mode =
-                if panel.pending.plan_run_mode == super::model::PlanRunMode::Workflow {
-                    super::model::PlanRunMode::Disabled
-                } else {
-                    super::model::PlanRunMode::Workflow
-                };
+            panel.pending.workflow_mode = if panel.pending.workflow_mode
+                == super::model::session_mode::WorkflowMode::Enabled
+            {
+                super::model::session_mode::WorkflowMode::Disabled
+            } else {
+                super::model::session_mode::WorkflowMode::Enabled
+            };
         }
         SettingKey::GoalMode => {
-            panel.pending.plan_run_mode =
-                if panel.pending.plan_run_mode == super::model::PlanRunMode::Goal {
-                    super::model::PlanRunMode::Disabled
+            panel.pending.goal_mode =
+                if panel.pending.goal_mode == super::model::session_mode::GoalMode::Enabled {
+                    super::model::session_mode::GoalMode::Disabled
                 } else {
-                    super::model::PlanRunMode::Goal
+                    super::model::session_mode::GoalMode::Enabled
                 };
         }
         SettingKey::Effort => {

@@ -237,7 +237,14 @@ fn build_effective_path() -> Option<OsString> {
                 push_unique_path(&mut paths, entry);
             }
 
-            for relative in [".local/bin", ".cargo/bin", ".bun/bin"] {
+            for relative in [
+                ".local/bin",
+                ".cargo/bin",
+                ".bun/bin",
+                // rustcodegraph: install.sh symlink target dirs + bundle layouts
+                ".rustcodegraph/bin",
+                ".rustcodegraph/current/bin",
+            ] {
                 push_unique_path(&mut paths, home.join(relative));
             }
         }

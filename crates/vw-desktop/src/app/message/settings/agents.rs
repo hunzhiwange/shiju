@@ -615,6 +615,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok((providers, provider_models, available_tools)) => {
                     app.agents_settings.providers = providers;
                     app.agents_settings.provider_models = provider_models;
+                    let available_tools =
+                        crate::app::state::filter_mcp_from_available_tools(available_tools);
                     if app.agents_settings.available_tools.is_empty() && !available_tools.is_empty()
                     {
                         crate::app::state::apply_default_allowed_tools(
@@ -969,6 +971,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             persist_agents_settings(app)
         }
         AgentsMessage::AllowedToolToggled(agent_key, tool_id, enabled) => {
+            if !enabled && vw_config_types::tools::is_builtin_required_tool_id(&tool_id) {
+                return Task::none();
+            }
+            let available_tools = app.agents_settings.available_tools.clone();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 if enabled {
                     if !entry.allowed_tools.iter().any(|tool| tool == &tool_id) {
@@ -977,6 +983,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                 } else {
                     entry.allowed_tools.retain(|tool| tool != &tool_id);
+                    entry.allowed_tools = crate::app::state::merge_builtin_required_tools(
+                        &entry.allowed_tools,
+                        &available_tools,
+                    );
                 }
             }
             app.agents_settings.save_error = None;
@@ -985,7 +995,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::AllowedToolsSelectAll(agent_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.allowed_tools = available_tools;
+                entry.allowed_tools = crate::app::state::merge_builtin_required_tools(
+                    &available_tools,
+                    &available_tools,
+                );
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
@@ -993,10 +1006,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::AllowedToolsInvertSelection(agent_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.allowed_tools = available_tools
-                    .into_iter()
-                    .filter(|tool| !entry.allowed_tools.iter().any(|selected| selected == tool))
-                    .collect();
+                let inverted = available_tools
+                    .iter()
+                    .filter(|tool| !entry.allowed_tools.iter().any(|selected| selected == *tool))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                entry.allowed_tools =
+                    crate::app::state::merge_builtin_required_tools(&inverted, &available_tools);
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
@@ -1004,10 +1020,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::AllowedToolsApplyPreset(agent_key, preset_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.allowed_tools = tools_for_preset(&available_tools, &preset_key);
+                let preset_tools = tools_for_preset(&available_tools, &preset_key);
+                entry.allowed_tools = crate::app::state::merge_builtin_required_tools(
+                    &preset_tools,
+                    &available_tools,
+                );
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
+        }
+        AgentsMessage::ToolsListTabSelected(tab_key) => {
+            app.agents_settings.active_tools_list_tab = tab_key;
+            Task::none()
         }
         AgentsMessage::AllowedSkillToggled(agent_key, skill_id, enabled) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {

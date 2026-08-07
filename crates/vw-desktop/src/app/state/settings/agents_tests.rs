@@ -10,7 +10,8 @@ use super::{
     ordered_agent_keys,
 };
 use crate::app::state::{
-    AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AgentSettingsEntryKind, MAIN_AGENT_KEY,
+    AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB,
+    AgentSettingsEntryKind, MAIN_AGENT_KEY,
     WORKSPACE_IDENTITY_FILES,
 };
 use std::collections::HashMap;
@@ -227,6 +228,7 @@ fn agents_settings_default_initializes_complete_idle_state() {
     assert!(state.provider_models.is_empty());
     assert_eq!(state.selected_agent, MAIN_AGENT_KEY);
     assert_eq!(state.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
+    assert_eq!(state.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
     assert_eq!(state.active_prompt_tab, AGENT_PROMPT_SYSTEM_TAB);
     assert!(state.new_agent_key_input.is_empty());
     assert!(state.available_tools.is_empty());

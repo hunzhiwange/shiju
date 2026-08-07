@@ -292,7 +292,11 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     let mut app = app();
     app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.show_file_manager = false;
-    app.git_changed_files = vec!["src/main.rs".to_string(), "README.md".to_string()];
+    app.git_changed_files = vec![
+        "src/main.rs".to_string(),
+        "src/nested/lib.rs".to_string(),
+        "README.md".to_string(),
+    ];
 
     let _ = super::handle(
         &mut app,
@@ -302,7 +306,9 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     assert!(app.file_manager_show_changes);
     assert!(app.active_preview_path.is_none());
     assert!(app.show_file_manager);
-    assert!(app.file_tree_expanded.contains(&"src".to_string()));
+    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+    assert!(!app.file_tree_expanded.contains(&"src".to_string()));
 }
 
 #[test]

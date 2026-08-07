@@ -4,14 +4,14 @@
 //!
 //! ## 主要功能
 //!
-//! - 根据不同的 AI 模型提供方选择合适的系统提示模板
+//! - 为所有模型提供统一的系统提示模板
 //! - 生成包含工作目录、平台信息、日期等的环境信息文本
 //! - 检测 Git 仓库状态
 //!
 //! ## 模块结构
 //!
-//! - `PROMPT_*` 常量：预加载的系统提示模板
-//! - `provider()`：根据模型选择提示
+//! - `PROMPT_UNIFIED`：统一系统提示模板
+//! - `provider()`：返回统一提示
 //! - `environment_from_ref()`：生成环境信息
 //!
 //! ## 使用示例
@@ -28,39 +28,14 @@ use crate::app::agent::util::log;
 use std::path::Path;
 use time::format_description;
 
-/// Anthropic 模型（如 Claude）的系统提示模板
+/// 统一的会话系统提示模板
 ///
-/// 包含针对 Anthropic/Claude 模型优化的系统指令
-const PROMPT_ANTHROPIC: &str = include_str!("prompt/anthropic.txt");
-
-/// 通用模型的系统提示模板（无 TODO 功能）
-///
-/// 用于不支持复杂 TODO 功能的模型，如 Qwen 系列
-const PROMPT_ANTHROPIC_WITHOUT_TODO: &str = include_str!("prompt/qwen.txt");
-
-/// GPT/OpenAI 高级模型（o1、o3 系列）的系统提示模板
-///
-/// 针对推理能力较强的 OpenAI 模型优化的系统指令
-const PROMPT_BEAST: &str = include_str!("prompt/beast.txt");
-
-/// Google Gemini 模型的系统提示模板
-///
-/// 包含针对 Gemini 模型优化的系统指令
-const PROMPT_GEMINI: &str = include_str!("prompt/gemini.txt");
-
-/// Codex 风格的系统提示模板
-///
-/// 默认的系统提示，用于 GPT-5 和其他兼容模型
-const PROMPT_CODEX: &str = include_str!("prompt/codex_header.txt");
-
-/// Trinity 模型的系统提示模板
-///
-/// 专门为 Trinity 系列模型设计的系统指令
-const PROMPT_TRINITY: &str = include_str!("prompt/trinity.txt");
+/// 所有模型共用；指令优先级为：用户本轮要求 > 项目协议（含 AGENTS.md）> 本文件默认指引。
+const PROMPT_UNIFIED: &str = include_str!("prompt/unified.txt");
 
 /// 获取默认的系统指令
 ///
-/// 返回 Codex 风格的系统提示，作为会话的基础指令集
+/// 返回统一系统提示，作为会话的基础指令集
 ///
 /// # 返回值
 ///
@@ -73,30 +48,20 @@ const PROMPT_TRINITY: &str = include_str!("prompt/trinity.txt");
 /// println!("系统指令: {}", instructions);
 /// ```
 pub fn instructions() -> String {
-    PROMPT_CODEX.trim().to_string()
+    PROMPT_UNIFIED.trim().to_string()
 }
 
-/// 根据模型类型选择合适的系统提示
+/// 返回统一的系统提示
 ///
-/// 根据提供的模型信息（模型 ID 和提供方），返回最适合该模型的
-/// 系统提示模板。不同的模型可能需要不同的指令格式和优化策略。
+/// 不再按模型 ID 分流；任意模型均使用同一份 `PROMPT_UNIFIED`。
 ///
 /// # 参数
 ///
-/// - `model`: 模型信息引用，包含模型 ID 和提供方信息
+/// - `model`: 模型信息引用，包含模型 ID 和提供方信息（仅用于日志）
 ///
 /// # 返回值
 ///
-/// 返回包含一个或多个系统提示字符串的向量
-///
-/// # 模型匹配规则
-///
-/// 1. GPT-5 系列 → PROMPT_CODEX
-/// 2. GPT/o1/o3 系列 → PROMPT_BEAST
-/// 3. Gemini 系列 → PROMPT_GEMINI
-/// 4. Claude 系列 → PROMPT_ANTHROPIC
-/// 5. Trinity 系列 → PROMPT_TRINITY
-/// 6. 其他模型 → PROMPT_ANTHROPIC_WITHOUT_TODO（回退）
+/// 返回包含统一系统提示的向量
 ///
 /// # 示例
 ///
@@ -113,35 +78,7 @@ pub fn provider(model: &provider::Model) -> Vec<&'static str> {
         .tag("providerID", &model.provider_id)
         .info("system_prompt::provider called", None);
 
-    // GPT-5 系列使用 Codex 风格提示
-    if id.contains("gpt-5") {
-        return vec![PROMPT_CODEX];
-    }
-
-    // GPT、o1、o3 系列使用 Beast 风格提示（针对推理优化）
-    if id.contains("gpt-") || id.contains("o1") || id.contains("o3") {
-        return vec![PROMPT_BEAST];
-    }
-
-    // Gemini 系列使用专用提示
-    if id.contains("gemini-") {
-        return vec![PROMPT_GEMINI];
-    }
-
-    // Claude 系列使用 Anthropic 专用提示
-    if id.contains("claude") {
-        return vec![PROMPT_ANTHROPIC];
-    }
-
-    // Trinity 系列使用专用提示（不区分大小写）
-    if id.to_lowercase().contains("trinity") {
-        return vec![PROMPT_TRINITY];
-    }
-
-    // 未知模型使用通用提示（无 TODO 功能）
-    log::create(None)
-        .info("system_prompt::provider: returning PROMPT_ANTHROPIC_WITHOUT_TODO (fallback)", None);
-    vec![PROMPT_ANTHROPIC_WITHOUT_TODO]
+    vec![PROMPT_UNIFIED]
 }
 
 /// 将布尔值转换为中文"是"或"否"

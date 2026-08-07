@@ -1843,11 +1843,13 @@ fn settings_subagent_mode_toggles_independently() {
 }
 
 #[test]
-fn settings_workflow_mode_toggles_and_replaces_goal_mode() {
+fn settings_workflow_and_goal_modes_can_both_be_enabled() {
     let mut controller = TuiController::default();
     let mut state = TuiState::default();
-    let mut values = SettingsValues::default();
-    values.plan_run_mode = super::model::PlanRunMode::Goal;
+    let values = SettingsValues::default();
+    // 默认目标开启；仅开工作流应保持目标
+    assert_eq!(values.goal_mode, super::model::session_mode::GoalMode::Enabled);
+    assert_eq!(values.workflow_mode, super::model::session_mode::WorkflowMode::Disabled);
     state.overlays.push(UiOverlay::Settings(SettingsPanel::for_capabilities(
         values,
         &state.session_capabilities,
@@ -1861,7 +1863,11 @@ fn settings_workflow_mode_toggles_and_replaces_goal_mode() {
     else {
         panic!("workflow mode setting saves");
     };
-    assert_eq!(panel.pending.plan_run_mode, super::model::PlanRunMode::Workflow);
+    assert_eq!(
+        panel.pending.workflow_mode,
+        super::model::session_mode::WorkflowMode::Enabled
+    );
+    assert_eq!(panel.pending.goal_mode, super::model::session_mode::GoalMode::Enabled);
     assert!(!panel.pending.subagent_mode_enabled);
 
     state.session_options.set_workflow_mode(true);
@@ -1871,10 +1877,17 @@ fn settings_workflow_mode_toggles_and_replaces_goal_mode() {
             .iter()
             .any(|pill| pill.label == "工作流 开")
     );
+    assert!(
+        build_prompt_host(&state)
+            .footer_pills
+            .iter()
+            .any(|pill| pill.label == "目标 开")
+    );
 
     let mut goal_state = TuiState::default();
     let mut goal_values = SettingsValues::default();
-    goal_values.plan_run_mode = super::model::PlanRunMode::Workflow;
+    goal_values.workflow_mode = super::model::session_mode::WorkflowMode::Enabled;
+    goal_values.goal_mode = super::model::session_mode::GoalMode::Disabled;
     goal_state.overlays.push(UiOverlay::Settings(SettingsPanel::for_capabilities(
         goal_values,
         &goal_state.session_capabilities,
@@ -1888,16 +1901,25 @@ fn settings_workflow_mode_toggles_and_replaces_goal_mode() {
     else {
         panic!("goal mode setting saves");
     };
-    assert_eq!(goal_panel.pending.plan_run_mode, super::model::PlanRunMode::Goal);
+    assert_eq!(
+        goal_panel.pending.goal_mode,
+        super::model::session_mode::GoalMode::Enabled
+    );
+    assert_eq!(
+        goal_panel.pending.workflow_mode,
+        super::model::session_mode::WorkflowMode::Enabled
+    );
 
-    goal_state.session_options.set_plan_run_mode(super::model::PlanRunMode::Goal);
+    goal_state.session_options.set_workflow_mode(true);
+    goal_state.session_options.set_goal_mode(true);
     assert!(
         build_prompt_host(&goal_state)
             .footer_pills
             .iter()
             .any(|pill| pill.label == "目标 开")
     );
-    assert!(!goal_state.session_options.workflow_mode_enabled());
+    assert!(goal_state.session_options.workflow_mode_enabled());
+    assert!(goal_state.session_options.goal_mode_enabled());
 }
 
 fn key(

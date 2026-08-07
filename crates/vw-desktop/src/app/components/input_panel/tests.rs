@@ -1,7 +1,7 @@
 use super::{
     acp_history_controls, acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle,
     dark_tooltip_content, popover_item_style, reasoning_effort_selector, selected_context_card,
-    selected_context_summary, session_control_button, skill_title, summarize_names, view,
+    selected_context_summary, session_tool_tab_buttons, skill_title, summarize_names, view,
     with_dark_tooltip,
 };
 use crate::app::assets::Icon;
@@ -103,7 +103,9 @@ fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
     let element = bottom_bar_round_toggle(
         icon,
         "toggle",
-        Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover),
+        Message::Chat(message::ChatMessage::OpenSessionToolSelectorTab(
+            crate::app::state::SessionToolSelectorTab::Agent,
+        )),
     );
 
     assert_eq!(element.as_widget().children().len(), 2);
@@ -133,7 +135,12 @@ fn acp_history_controls_render_all_modes_and_recent_input() {
 fn optional_selector_buttons_reflect_app_state() {
     let mut app = crate::app::App::new().0;
 
-    assert!(session_control_button(&app).is_some());
+    {
+        let (agent, tools, skills) = session_tool_tab_buttons(&app);
+        assert_eq!(agent.as_widget().children().len(), 2);
+        assert_eq!(tools.as_widget().children().len(), 2);
+        assert_eq!(skills.as_widget().children().len(), 2);
+    }
     assert!(acp_selector_button(&app, None).is_some());
     assert!(reasoning_effort_selector(&app, None, None).is_none());
 

@@ -117,14 +117,27 @@ fn build_system_messages_merges_non_empty_sources_in_order() {
 }
 
 #[test]
-fn build_system_messages_adds_codex_instructions_when_requested() {
+fn build_system_messages_does_not_duplicate_unified_prompt_for_codex() {
+    // Stable marker from unified.txt; must appear once regardless of is_codex.
+    const UNIFIED_MARKER: &str = "你是 VibeWindow，一个通用自主助手";
+
     let model = test_model("openai", "gpt-5-test", "openai");
     let input = test_input(model);
 
     let without_codex = build_system_messages(&input, false).join("\n");
     let with_codex = build_system_messages(&input, true).join("\n");
 
-    assert!(with_codex.len() > without_codex.len());
+    let without_count = without_codex.matches(UNIFIED_MARKER).count();
+    let with_count = with_codex.matches(UNIFIED_MARKER).count();
+    eprintln!("unified marker count without_codex={without_count} with_codex={with_count}");
+    eprintln!(
+        "joined lengths without_codex={} with_codex={}",
+        without_codex.len(),
+        with_codex.len()
+    );
+
+    assert_eq!(without_count, 1, "non-codex path should include unified prompt once");
+    assert_eq!(with_count, 1, "codex path must not duplicate unified prompt");
     assert!(with_codex.contains("agent prompt"));
     assert!(with_codex.contains("session system"));
 }

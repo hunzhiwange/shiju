@@ -8,6 +8,7 @@ use vw_config_types::agent::{
     BuiltinAgentKind, DelegateAgentConfig, builtin_agent_config, builtin_agent_keys,
     builtin_agent_spec,
 };
+use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 #[derive(Debug, Clone)]
 /// 表示 DelegateAgentSettingsEntry 相关的应用状态或派生数据。
@@ -121,6 +122,27 @@ pub(crate) fn ordered_agent_keys(
     builtin_agent_keys().into_iter().map(str::to_string).chain(custom_agent_keys).collect()
 }
 
+/// 从可选工具列表中剔除 MCP 动态工具（`mcp__{server}__{tool}`）。
+pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String> {
+    tools.into_iter().filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id)).collect()
+}
+
+/// 将用户可选选择与当前可见内置必选合并：`allowed ∪ (available ∩ 内置必选)`。
+pub(crate) fn merge_builtin_required_tools(
+    allowed: &[String],
+    available: &[String],
+) -> Vec<String> {
+    let mut merged = allowed.to_vec();
+    for tool in available.iter().filter(|tool_id| is_builtin_required_tool_id(tool_id)) {
+        if !merged.iter().any(|existing| existing == tool) {
+            merged.push(tool.clone());
+        }
+    }
+    merged.sort();
+    merged.dedup();
+    merged
+}
+
 pub(crate) fn apply_default_allowed_tools(
     entries: &mut [DelegateAgentSettingsEntry],
     available_tools: &[String],
@@ -131,7 +153,7 @@ pub(crate) fn apply_default_allowed_tools(
 
     for entry in entries {
         if entry.allowed_tools.is_empty() && !matches!(entry.key.as_str(), "title" | "summary") {
-            entry.allowed_tools = available_tools.to_vec();
+            entry.allowed_tools = merge_builtin_required_tools(available_tools, available_tools);
         }
     }
 }
@@ -221,6 +243,7 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) new_agent_key_input: String,
     pub(crate) selected_agent: String,
     pub(crate) active_detail_tab: String,
+    pub(crate) active_tools_list_tab: String,
     pub(crate) active_prompt_tab: String,
     pub(crate) workspace_identity_files: Vec<WorkspaceIdentityFileState>,
     pub(crate) workspace_identity_root_path: Option<String>,
@@ -250,6 +273,7 @@ impl Default for AgentsSettingsState {
             new_agent_key_input: String::new(),
             selected_agent: MAIN_AGENT_KEY.to_string(),
             active_detail_tab: AGENT_DETAIL_BASIC_TAB.to_string(),
+            active_tools_list_tab: AGENT_TOOLS_OPTIONAL_TAB.to_string(),
             active_prompt_tab: AGENT_PROMPT_SYSTEM_TAB.to_string(),
             workspace_identity_files: WORKSPACE_IDENTITY_FILES
                 .iter()

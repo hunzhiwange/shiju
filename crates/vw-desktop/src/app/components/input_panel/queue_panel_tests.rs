@@ -1,6 +1,6 @@
 use super::queue_panel::{
-    format_queue_time, is_dark_theme, queue_item_label, queue_item_meta_label, queue_item_style,
-    queue_move_availability, queue_panel, queue_panel_style,
+    is_dark_theme, queue_item_label, queue_item_style, queue_move_availability, queue_panel,
+    queue_panel_style,
 };
 use crate::app::QueueItem;
 use crate::app::state::{AcpHistoryReplayMode, ChatSendBehavior};
@@ -40,14 +40,6 @@ fn queue_item(query: &str, created_ms: u64) -> QueueItem {
 }
 
 #[test]
-fn format_queue_time_formats_epoch_millis_and_rejects_out_of_range_values() {
-    assert_eq!(format_queue_time(0), "1970-01-01 00:00:00");
-    assert_eq!(format_queue_time(999), "1970-01-01 00:00:00");
-    assert_eq!(format_queue_time(1_000), "1970-01-01 00:00:01");
-    assert_eq!(format_queue_time(u64::MAX), "");
-}
-
-#[test]
 fn queue_item_label_uses_trimmed_first_line_and_preserves_empty_first_line() {
     assert_eq!(queue_item_label("  first line  \nsecond line"), "first line");
     assert_eq!(queue_item_label("\nsecond line"), "");
@@ -77,17 +69,6 @@ fn queue_item_label_handles_empty_input_and_ascii_overflow() {
     assert_eq!(queue_item_label(""), "");
     assert_eq!(queue_item_label(&exact_limit), exact_limit);
     assert_eq!(queue_item_label(&over_limit), format!("{exact_limit}…"));
-}
-
-#[test]
-fn queue_item_meta_label_marks_next_item_and_handles_invalid_time() {
-    assert_eq!(queue_item_meta_label(0, false, false), "1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(0, true, false), "下一条 · 1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(0, true, true), "引导 · 下一条 · 1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(0, false, true), "引导 · 1970-01-01 00:00:00");
-    assert_eq!(queue_item_meta_label(u64::MAX, false, false), "");
-    assert_eq!(queue_item_meta_label(u64::MAX, true, false), "下一条");
-    assert_eq!(queue_item_meta_label(u64::MAX, false, true), "引导");
 }
 
 #[test]

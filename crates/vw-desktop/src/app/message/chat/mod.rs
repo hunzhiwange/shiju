@@ -351,6 +351,11 @@ pub enum ChatMessage {
     /// 将待发送队列中的消息向下移动
     QueueDown(usize),
 
+    /// 复制队列消息内容
+    ///
+    /// 将待发送队列中指定消息的完整内容写入剪贴板
+    QueueCopy(usize),
+
     /// 提交时钟滴答
     ///
     /// 定时触发消息提交检查
@@ -1101,6 +1106,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::QueueGuide(_)
         | ChatMessage::QueueUp(_)
         | ChatMessage::QueueDown(_)
+        | ChatMessage::QueueCopy(_)
         | ChatMessage::SubmitTick
         | ChatMessage::ForkSessionAt { .. }
         | ChatMessage::MessageIdsRecoveredForAction { .. }

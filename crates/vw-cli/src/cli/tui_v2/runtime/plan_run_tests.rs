@@ -107,12 +107,11 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
     }));
 
     let discussion = workflow_submission("如何实现工作流模式？", Some("/repo"));
-    assert!(
-        plan_run_request_for_submission(&discussion)
-            .expect("discussion route")
-            .is_none(),
-        "ordinary discussion must remain on chat"
-    );
+    let discussion_request = plan_run_request_for_submission(&discussion)
+        .expect("discussion route")
+        .expect("workflow toggle must enter plan-run for any non-empty query");
+    assert_eq!(discussion_request.mode, TaskPlanRunMode::Workflow);
+    assert_eq!(discussion_request.query, "如何实现工作流模式？");
     let missing_root = workflow_submission("实现工作流模式", None);
     assert!(
         plan_run_request_for_submission(&missing_root)

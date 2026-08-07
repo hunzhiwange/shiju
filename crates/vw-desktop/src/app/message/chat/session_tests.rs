@@ -639,6 +639,23 @@ fn queue_messages_reorder_remove_and_ignore_out_of_bounds_indices() {
 }
 
 #[test]
+fn queue_copy_keeps_items_and_ignores_out_of_bounds_or_empty_queries() {
+    let (mut app, _task) = crate::app::App::new();
+    app.current_session_runtime_mut().queue = vec![
+        queue_item("copy me", crate::app::state::ChatSendBehavior::Queue),
+        queue_item("", crate::app::state::ChatSendBehavior::Queue),
+    ];
+
+    let _ = super::update(&mut app, super::ChatMessage::QueueCopy(0));
+    let _ = super::update(&mut app, super::ChatMessage::QueueCopy(1));
+    let _ = super::update(&mut app, super::ChatMessage::QueueCopy(9));
+
+    let runtime = app.current_session_runtime();
+    let queries = runtime.queue.iter().map(|item| item.query.as_str()).collect::<Vec<_>>();
+    assert_eq!(queries, vec!["copy me", ""]);
+}
+
+#[test]
 fn queue_edit_restores_only_text_and_removes_the_selected_item() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
@@ -1191,13 +1208,13 @@ fn send_current_session_input_keeps_workflow_mode_for_root_session() {
 }
 
 #[test]
-fn send_current_session_input_routes_questions_to_normal_chat_in_workflow_mode() {
+fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on() {
     for (index, query) in [
         "这个模块是做什么的？",
         "为什么测试会失败",
         "解释一下当前工作流",
-        "这个模块做什么",
-        "帮我看看为什么失败",
+        "优化登录性能",
+        "继续刚才的任务",
         "How does this workflow work?",
     ]
     .into_iter()
@@ -1219,12 +1236,12 @@ fn send_current_session_input_routes_questions_to_normal_chat_in_workflow_mode()
         let runtime = app.get_session_runtime(&session_id);
         let request = runtime.active_agent_request.as_ref().expect("request should start");
         assert!(
-            !request.workflow_mode_enabled,
-            "question must use normal chat instead of plan-run: {query}"
+            request.workflow_mode_enabled,
+            "workflow toggle must enter plan-run for any query: {query}"
         );
         assert!(
             runtime.workflow_mode_enabled,
-            "routing one question must not turn off the workflow toggle"
+            "sending must not turn off the workflow toggle"
         );
     }
 }

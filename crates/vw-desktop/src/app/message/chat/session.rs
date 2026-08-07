@@ -930,122 +930,6 @@ fn active_session_is_plan_run_child(app: &App) -> bool {
     parent_id.is_some_and(|parent_id| !parent_id.trim().is_empty())
 }
 
-/// 判断工作流模式下的输入是否明确要求执行任务。
-///
-/// 工作流开关可以长期保持开启，但普通问答、解释和分析不应因此自动进入任务规划。
-/// 只有以明确执行动词发起的请求才走 plan-run；不明确的输入安全回退到普通聊天。
-fn workflow_input_requests_plan(query: &str) -> bool {
-    let query = query.trim();
-    if query.is_empty() {
-        return false;
-    }
-
-    let normalized = query.to_ascii_lowercase();
-    const CHINESE_ACTION_PREFIXES: &[&str] = &[
-        "实现", "修复", "修改", "新增", "添加", "删除", "移除", "重构", "创建", "生成",
-        "编写", "开发", "规划", "替换", "迁移", "升级", "安装", "配置", "部署", "发布",
-        "提交", "推送", "合并", "执行", "运行", "重试", "接入", "支持", "改成", "做一个",
-        "加上",
-    ];
-    const CHINESE_REQUEST_PREFIXES: &[&str] = &["请", "帮我", "帮忙", "麻烦"];
-    const ENGLISH_ACTION_PREFIXES: &[&str] = &[
-        "implement ",
-        "fix ",
-        "change ",
-        "update ",
-        "add ",
-        "remove ",
-        "delete ",
-        "refactor ",
-        "create ",
-        "generate ",
-        "write ",
-        "build ",
-        "plan ",
-        "replace ",
-        "migrate ",
-        "upgrade ",
-        "install ",
-        "configure ",
-        "deploy ",
-        "publish ",
-        "commit ",
-        "push ",
-        "merge ",
-        "run ",
-        "execute ",
-    ];
-
-    let mut conversational_query = query;
-    while let Some(remainder) = CHINESE_REQUEST_PREFIXES
-        .iter()
-        .find_map(|prefix| conversational_query.strip_prefix(prefix))
-    {
-        let trimmed = remainder.trim_start_matches(['：', ':', '，', ',', ' ']);
-        if trimmed.len() == conversational_query.len() {
-            break;
-        }
-        conversational_query = trimmed;
-    }
-    let english_action_query =
-        normalized.strip_prefix("please ").map(str::trim_start).unwrap_or(&normalized);
-    let starts_with_action =
-        CHINESE_ACTION_PREFIXES.iter().any(|prefix| query.starts_with(prefix))
-            || ENGLISH_ACTION_PREFIXES
-                .iter()
-                .any(|prefix| english_action_query.starts_with(prefix));
-    let polite_action_request = conversational_query != query
-        && CHINESE_ACTION_PREFIXES
-            .iter()
-            .any(|action| conversational_query.starts_with(action));
-    let object_action_request = query.starts_with('把')
-        && CHINESE_ACTION_PREFIXES.iter().any(|action| query.contains(action));
-    if starts_with_action || polite_action_request || object_action_request {
-        return true;
-    }
-
-    const CHINESE_QUESTION_PREFIXES: &[&str] = &[
-        "什么", "为什么", "为何", "怎么", "如何", "是否", "能否", "能不能", "可否",
-        "可以", "可不可以", "有没有", "哪里", "哪个", "谁", "多少", "几", "请问",
-        "解释", "介绍", "分析", "总结", "对比", "看看",
-    ];
-    const ENGLISH_QUESTION_PREFIXES: &[&str] = &[
-        "what ",
-        "why ",
-        "how ",
-        "is ",
-        "are ",
-        "can ",
-        "could ",
-        "would ",
-        "should ",
-        "do ",
-        "does ",
-        "did ",
-        "where ",
-        "when ",
-        "who ",
-        "which ",
-        "explain ",
-        "describe ",
-        "analyze ",
-        "summarize ",
-        "compare ",
-    ];
-    let looks_like_question = query.ends_with(['?', '？'])
-        || CHINESE_QUESTION_PREFIXES.iter().any(|prefix| query.starts_with(prefix))
-        || CHINESE_QUESTION_PREFIXES
-            .iter()
-            .any(|prefix| conversational_query.starts_with(prefix))
-        || ENGLISH_QUESTION_PREFIXES.iter().any(|prefix| normalized.starts_with(prefix));
-    if looks_like_question {
-        return false;
-    }
-
-    ["需要", "必须"].iter().any(|marker| query.contains(marker))
-        && CHINESE_ACTION_PREFIXES.iter().any(|action| query.contains(action))
-}
-
 fn send_current_session_input(app: &mut App) -> Task<Message> {
     let runtime = app.current_session_runtime();
     let query = runtime.input_editor.text().to_string();
@@ -1067,9 +951,9 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let task_mode_task_split_mode = runtime.task_mode_task_split_mode;
     let task_mode_subtasks = runtime.task_mode_subtasks.clone();
     // plan-run 子会话（有 parent_id）续聊必须走普通 agent stream，避免误开 plan-run。
-    let workflow_mode_enabled = runtime.workflow_mode_enabled
-        && !active_session_is_plan_run_child(app)
-        && workflow_input_requests_plan(&query);
+    // 工作流开关开启时始终进入 plan-run，不再按输入意图静默降级到普通聊天。
+    let workflow_mode_enabled =
+        runtime.workflow_mode_enabled && !active_session_is_plan_run_child(app);
     let goal_mode_enabled = runtime.goal_mode_enabled && !active_session_is_plan_run_child(app);
     let subagent_mode_enabled = runtime.subagent_mode_enabled;
     if let Some(command) = parse_inline_mode_command(&query) {
@@ -1494,6 +1378,19 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.queue.swap(i, i + 1);
             }
             Task::none()
+        }
+        ChatMessage::QueueCopy(i) => {
+            let query = {
+                let runtime = app.current_session_runtime();
+                match runtime.queue.get(i) {
+                    Some(item) => item.query.clone(),
+                    None => return Task::none(),
+                }
+            };
+            if query.is_empty() {
+                return Task::none();
+            }
+            Task::done(Message::CopyCode(query))
         }
         ChatMessage::SubmitTick => {
             let is_requesting = app.current_session_is_requesting();

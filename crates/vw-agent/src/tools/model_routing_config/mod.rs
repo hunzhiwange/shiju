@@ -37,7 +37,7 @@ use std::sync::Arc;
 const DEFAULT_AGENT_MAX_DEPTH: u32 = 3;
 
 /// 委托智能体的默认最大迭代次数（用于 agentic 模式）
-const DEFAULT_AGENT_MAX_ITERATIONS: usize = 10;
+const DEFAULT_AGENT_MAX_ITERATIONS: usize = 50_000;
 
 /// 模型路由配置工具
 ///

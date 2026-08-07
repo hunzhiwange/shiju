@@ -4,9 +4,20 @@
 //! 预览裁剪与 ACP 请求识别等细节职责。
 
 use super::utils;
-use crate::tools;
+use crate::tools::{self, TODO_READ_TOOL_ALIAS, TODO_READ_TOOL_ID, TODO_WRITE_TOOL_ALIAS, TODO_WRITE_TOOL_ID};
 use serde_json::Value;
 use std::collections::HashSet;
+
+/// 会话过滤工具白名单时仍必须保留的 Todo 跟踪工具。
+///
+/// 非简单问答任务依赖 TodoWrite/TodoRead 跟踪进度；若会话级过滤把它们剔掉，
+/// 续轮强制逻辑与进度更新会静默失效。
+const ALWAYS_RETAINED_TODO_TOOL_IDS: &[&str] = &[
+    TODO_READ_TOOL_ID,
+    TODO_READ_TOOL_ALIAS,
+    TODO_WRITE_TOOL_ID,
+    TODO_WRITE_TOOL_ALIAS,
+];
 
 /// 获取允许使用的工具 ID 集合。
 ///
@@ -56,7 +67,14 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
         return base;
     }
 
-    base.into_iter().filter(|tool| requested.contains(tool)).collect()
+    let mut filtered =
+        base.iter().filter(|tool| requested.contains(*tool)).cloned().collect::<HashSet<_>>();
+    for tool_id in ALWAYS_RETAINED_TODO_TOOL_IDS {
+        if base.contains(*tool_id) {
+            filtered.insert((*tool_id).to_string());
+        }
+    }
+    filtered
 }
 
 /// 构建用于日志输出的响应预览。

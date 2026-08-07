@@ -7,15 +7,73 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
     let base = allowed_tool_ids(None);
     assert!(!base.is_empty());
 
-    let selected = base.iter().next().expect("at least one registered tool").clone();
+    let selected = base
+        .iter()
+        .find(|tool| {
+            !ALWAYS_RETAINED_TODO_TOOL_IDS.iter().any(|todo_tool| *todo_tool == tool.as_str())
+        })
+        .expect("at least one non-todo registered tool")
+        .clone();
     let filtered = allowed_tool_ids_for_request(
         None,
         &json!({"allowed_tools": [selected.clone(), "missing-tool", "  ", 42]}),
     );
-    assert_eq!(filtered, HashSet::from([selected]));
+    assert!(filtered.contains(&selected));
+    for todo_tool in ALWAYS_RETAINED_TODO_TOOL_IDS {
+        assert!(
+            filtered.contains(*todo_tool),
+            "todo tool `{todo_tool}` must stay available under session tool filters"
+        );
+    }
+    assert_eq!(
+        filtered.len(),
+        1 + ALWAYS_RETAINED_TODO_TOOL_IDS
+            .iter()
+            .filter(|tool| base.contains(**tool))
+            .count()
+    );
 
     assert_eq!(allowed_tool_ids_for_request(None, &json!({})), base);
     assert_eq!(allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]})), base);
+}
+
+#[test]
+fn request_filter_always_retains_todo_tools_when_present_in_specs() {
+    let specs = vec![
+        crate::app::agent::tools::ToolSpec::new(
+            crate::app::agent::tools::TODO_WRITE_TOOL_ID,
+            "Write todos",
+            json!({"type": "object"}),
+        )
+        .with_aliases([crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS]),
+        crate::app::agent::tools::ToolSpec::new(
+            crate::app::agent::tools::TODO_READ_TOOL_ID,
+            "Read todos",
+            json!({"type": "object"}),
+        )
+        .with_aliases([crate::app::agent::tools::TODO_READ_TOOL_ALIAS]),
+        crate::app::agent::tools::ToolSpec::new(
+            "file_read",
+            "Read file",
+            json!({"type": "object"}),
+        ),
+    ];
+
+    let allowed = allowed_tool_ids_for_request_from_specs(
+        &specs,
+        &json!({"allowed_tools": ["file_read"]}),
+    );
+
+    assert_eq!(
+        allowed,
+        HashSet::from([
+            "file_read".to_string(),
+            crate::app::agent::tools::TODO_WRITE_TOOL_ID.to_string(),
+            crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS.to_string(),
+            crate::app::agent::tools::TODO_READ_TOOL_ID.to_string(),
+            crate::app::agent::tools::TODO_READ_TOOL_ALIAS.to_string(),
+        ])
+    );
 }
 
 #[test]

@@ -367,6 +367,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             &req,
             &mut session,
             &ctx,
+            &allowed_tools,
             &mut llm_messages,
             &mut total_usage,
             &mut on_event,
@@ -609,6 +610,7 @@ fn handle_assistant_text_branch(
     req: &Request,
     session: &mut Session,
     ctx: &ToolRuntimeContext,
+    allowed_tools: &HashSet<String>,
     llm_messages: &mut Vec<Value>,
     total_usage: &mut models::TokenUsage,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
@@ -727,7 +729,9 @@ fn handle_assistant_text_branch(
         "session processor accepted assistant response without tool calls"
     );
 
-    let enforce_todos = false;
+    // TodoWrite 可用时强制续轮：未完成 todo 不得提前结束，避免模型“口头完成”后意外退出。
+    let enforce_todos =
+        allowed_tools.iter().any(|name| crate::app::agent::tools::is_todo_write_tool_id(name));
     let mut incomplete = enforce_todos && todos::has_incomplete_todos(ctx);
     if enforce_todos
         && incomplete

@@ -378,7 +378,7 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "调度配置 scheduler tasks run 运行 执行能力 启用 最大任务 并发上限 最大并发 max_tasks max_concurrent"
         }
         SystemTab::Agents => {
-            "委托代理配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 工具迭代上限 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式"
+            "委托代理配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式"
         }
         SystemTab::Staff => {
             "员工配置 staff roster task board agent binding capability 员工 名册 任务看板 绑定 能力 工具 技能"

@@ -1,22 +1,23 @@
 //! 队列面板组件模块
 //!
 //! 本模块提供任务队列的可视化面板组件，用于显示待处理任务的列表。
-//! 面板支持显示任务序号、查询内容预览、创建时间以及执行状态指示器。
+//! 面板支持显示任务序号、单行内容预览以及执行状态指示器。
 //!
 //! # 主要功能
 //!
-//! - 渲染任务队列列表，每个任务项包含状态图标、标题、时间戳和图标操作
+//! - 渲染任务队列列表，每个任务项仅展示单行内容预览与图标操作
 //! - 自动截断过长的查询文本（超过42个字符时显示省略号）
-//! - 区分正在执行和等待中的任务，使用不同的图标和颜色
-//! - 支持引导、再次编辑、上下移动和删除队列项
+//! - 悬停时在右侧浮层展示完整内容
+//! - 区分引导与下一条任务，使用不同的图标和颜色
+//! - 支持引导、再次编辑、复制、上下移动和删除队列项
 //! - 支持滚动浏览，限制最大显示高度以保持界面整洁
 //!
 //! # 组件结构
 //!
 //! ```text
 //! ┌─────────────────────────────────────────┐
-//! │ ● 1. 这是一个示例查询文本...  2026-03-19 14:30:00 │
-//! │ ⟳ 2. 另一个查询任务...     2026-03-19 14:31:00 │
+//! │ ● 1. 这是一个示例查询文本...            │
+//! │ ○ 2. 另一个查询任务...                  │
 //! └─────────────────────────────────────────┘
 //! ```
 
@@ -25,8 +26,6 @@ use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use once_cell::sync::Lazy;
-use time::format_description::FormatItem;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
@@ -34,12 +33,13 @@ use crate::app::state::{ChatSendBehavior, QueueItem};
 use crate::app::{Message, message};
 
 use super::dark_tooltip_content;
-use super::styles::square_icon_button_style;
+use super::styles::{self, square_icon_button_style};
 
-const MAX_QUEUE_PANEL_HEIGHT: f32 = 132.0;
+const MAX_QUEUE_PANEL_HEIGHT: f32 = 120.0;
 const QUEUE_SCROLLBAR_WIDTH: u32 = 4;
 const MAX_QUEUE_LABEL_CHARS: usize = 42;
 const QUEUE_ACTION_BUTTON_SIZE: f32 = 22.0;
+const QUEUE_CONTENT_TOOLTIP_MAX_WIDTH: f32 = 360.0;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
@@ -110,47 +110,6 @@ pub(super) fn queue_panel_style(theme: &Theme) -> iced::widget::container::Style
     }
 }
 
-/// 将毫秒时间戳格式化为可读的日期时间字符串
-///
-/// 该函数将 Unix 时间戳（毫秒精度）转换为 `YYYY-MM-DD HH:MM:SS` 格式的字符串。
-/// 使用静态变量缓存格式描述符以避免重复解析，提高性能。
-///
-/// # 参数
-///
-/// - `created_ms`: 创建时间的 Unix 时间戳（毫秒）
-///
-/// # 返回值
-///
-/// 返回格式化后的日期时间字符串，格式为 `[年]-[月]-[日] [时]:[分]:[秒]`。
-/// 如果时间戳无效或格式化失败，返回空字符串。
-///
-/// # 示例
-///
-/// ```ignore
-/// let formatted = format_queue_time(1740675600000);
-/// // 返回类似 "2025-02-27 18:20:00" 的字符串
-/// ```
-pub(super) fn format_queue_time(created_ms: u64) -> String {
-    /// 时间格式描述符，用于将日期时间格式化为 "YYYY-MM-DD HH:MM:SS" 格式
-    ///
-    /// 使用 `Lazy` 延迟初始化，避免每次调用函数时重新解析格式字符串。
-    /// 格式：`[year]-[month]-[day] [hour]:[minute]:[second]`
-    static FMT: Lazy<Vec<FormatItem<'static>>> = Lazy::new(|| {
-        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-            .unwrap_or_default()
-    });
-
-    // 将毫秒时间戳转换为纳秒精度，用于构建 OffsetDateTime
-    let nanos = (created_ms as i128).saturating_mul(1_000_000);
-
-    // 从 Unix 纳秒时间戳构建 OffsetDateTime，并格式化为字符串
-    // 任一步骤失败均返回空字符串
-    time::OffsetDateTime::from_unix_timestamp_nanos(nanos)
-        .ok()
-        .and_then(|dt| dt.format(&FMT).ok())
-        .unwrap_or_default()
-}
-
 pub(super) fn queue_item_label(query: &str) -> String {
     let label = query.lines().next().unwrap_or("").trim();
 
@@ -161,25 +120,16 @@ pub(super) fn queue_item_label(query: &str) -> String {
     }
 }
 
-pub(super) fn queue_item_meta_label(
-    created_ms: u64,
-    is_next: bool,
-    is_guide: bool,
-) -> String {
-    let time_label = format_queue_time(created_ms);
-    let mut parts = Vec::with_capacity(3);
-
-    if is_guide {
-        parts.push("引导".to_string());
-    }
-    if is_next {
-        parts.push("下一条".to_string());
-    }
-    if !time_label.is_empty() {
-        parts.push(time_label);
-    }
-
-    parts.join(" · ")
+fn queue_content_tooltip(query: String) -> Element<'static, Message> {
+    container(
+        text(query)
+            .size(12)
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+    )
+    .style(styles::tooltip_dark_style)
+    .padding([6, 8])
+    .max_width(QUEUE_CONTENT_TOOLTIP_MAX_WIDTH)
+    .into()
 }
 
 pub(super) fn queue_move_availability(index: usize, queue_len: usize) -> (bool, bool) {
@@ -220,9 +170,9 @@ fn queue_action_button(
 ///
 /// 该函数创建一个可滚动的任务队列列表，显示所有待处理的查询任务。
 /// 每个任务项包含：
-/// - 状态图标（执行中使用旋转箭头，等待中使用圆点）
-/// - 任务序号和查询内容预览
-/// - 任务创建时间
+/// - 状态图标（引导 / 下一条 / 等待）
+/// - 任务序号和单行查询内容预览
+/// - 悬停时右侧展示完整内容
 ///
 /// # 参数
 ///
@@ -251,38 +201,30 @@ fn queue_action_button(
 ///
 /// ```text
 /// 面板容器（主题自适应背景 + 圆角 + 阴影）
-/// └── 滚动容器（内容自适应高度，最大 132px）
-///     └── 任务列表（垂直排列，间距 6px）
+/// └── 滚动容器（内容自适应高度，最大 120px）
+///     └── 任务列表（垂直排列，间距 4px）
 ///         └── 任务卡片（主题自适应背景 + 圆角边框）
 ///             └── 行布局
 ///                 ├── 状态图标（13px）
-///                 ├── 标题文本（自动填充宽度）
-///                 └── 时间文本（11px，次要颜色）
+///                 ├── 单行标题（自动填充宽度，悬停右侧展示全文）
+///                 └── 操作按钮
 /// ```
 pub fn queue_panel(
     queue: Vec<QueueItem>,
     is_requesting: bool,
 ) -> Element<'static, crate::app::Message> {
-    // 构建任务列表容器，设置项间距为 6 像素
-    let mut queue_items = column![].spacing(6);
+    // 构建任务列表容器，设置项间距为 4 像素
+    let mut queue_items = column![].spacing(4);
 
     // 遍历队列中的每个任务项，构建对应的 UI 卡片
     for (i, item) in queue.iter().enumerate() {
         // 获取查询文本的第一行作为显示标签
         // 如果第一行为空则使用空字符串
         let label = queue_item_label(&item.query);
+        let full_query = item.query.clone();
 
         let is_next = is_requesting && i == 0;
         let is_guide = item.send_behavior == ChatSendBehavior::Guide;
-
-        // 格式化创建时间并构建时间文本组件
-        let meta_label = queue_item_meta_label(item.created_ms, is_next, is_guide);
-        let time_text = text(meta_label).size(11).line_height(1.0).style(|theme: &Theme| {
-            iced::widget::text::Style {
-                // 使用次要颜色的 75% 透明度，使时间文本不那么突出
-                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.75)),
-            }
-        });
 
         // 队列不包含当前执行中的请求，仅高亮队首项表示“下一条”
         let status_icon = if is_guide {
@@ -304,10 +246,13 @@ pub fn queue_panel(
         let status = icon_svg(status_icon, 13.0)
             .style(move |_theme: &Theme, _| svg::Style { color: Some(status_color) });
 
-        // 构建标题文本，格式为 "序号. 查询内容"
+        // 构建标题文本，格式为 "序号. 查询内容"；悬停时在右侧展示完整内容
         let title = text(format!("{}. {}", i + 1, label)).size(12).line_height(1.0);
-
-        let info = column![title, time_text].spacing(1).width(Length::Fill);
+        let info = container(
+            Tooltip::new(title, queue_content_tooltip(full_query), TooltipPosition::Right)
+                .gap(8.0),
+        )
+        .width(Length::Fill);
         let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());
         let guide_button = queue_action_button(
             Icon::ChatTextFill,
@@ -318,6 +263,11 @@ pub fn queue_panel(
             Icon::Pencil,
             "再次编辑文字",
             Some(message::ChatMessage::QueueEdit(i)),
+        );
+        let copy_button = queue_action_button(
+            Icon::Copy,
+            "复制",
+            Some(message::ChatMessage::QueueCopy(i)),
         );
         let move_up_button = queue_action_button(
             Icon::ArrowUp,
@@ -337,6 +287,7 @@ pub fn queue_panel(
         let actions = row![
             guide_button,
             edit_button,
+            copy_button,
             move_up_button,
             move_down_button,
             remove_button
@@ -344,13 +295,13 @@ pub fn queue_panel(
         .spacing(3)
         .align_y(Alignment::Center);
 
-        // 构建行布局：状态图标 + 标题和时间（填充剩余宽度）+ 图标操作
+        // 构建行布局：状态图标 + 单行内容（填充剩余宽度）+ 图标操作
         let row = row![status, info, actions]
             .spacing(8)
             .align_y(Alignment::Center);
 
         let item_card = container(row)
-            .padding([6, 10])
+            .padding([5, 10])
             .width(Length::Fill)
             .style(move |theme: &Theme| queue_item_style(theme, is_next));
 

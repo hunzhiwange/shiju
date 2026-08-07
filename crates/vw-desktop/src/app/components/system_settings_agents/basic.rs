@@ -244,7 +244,7 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let max_tool_iterations_row = row![
-        label_col("工具迭代上限", "主 Agent 单次请求中允许的最大工具循环轮次。"),
+        label_col("最大迭代次数", "主 Agent 单次请求中允许的最大工具循环轮次。"),
         NumberInput::new(entry.max_tool_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {

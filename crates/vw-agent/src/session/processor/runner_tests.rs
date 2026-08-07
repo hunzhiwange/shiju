@@ -481,6 +481,7 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
         &req,
         &mut session,
         &ctx,
+        &empty_tools,
         &mut llm_messages,
         &mut total_usage,
         &mut |event| {
@@ -531,6 +532,7 @@ fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
         &req,
         &mut session,
         &ctx,
+        &empty_tools,
         &mut llm_messages,
         &mut total_usage,
         &mut |event| {
@@ -574,6 +576,7 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
         &req,
         &mut session,
         &ctx,
+        &empty_tools,
         &mut llm_messages,
         &mut total_usage,
         &mut |event| {
@@ -601,6 +604,68 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
     assert_eq!(llm_messages[0]["reasoning_content"].as_str(), Some("reasoning only"));
     assert_eq!(llm_messages[1]["role"].as_str(), Some("system"));
     assert!(events.is_empty());
+}
+
+#[test]
+fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
+    use crate::app::agent::tools::{TODO_WRITE_TOOL_ID, todo};
+
+    let session_id = unique_session_id("incomplete-todos");
+    let req = request_with_session(&session_id);
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState::default();
+    let mut retries = 0usize;
+    let mut step = 0;
+    let mut tried_auto_complete_todos = false;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+    let mut allowed_tools = HashSet::new();
+    allowed_tools.insert(TODO_WRITE_TOOL_ID.to_string());
+    let step_out = llm_step("看起来已经完成了");
+
+    let seed = serde_json::json!({
+        "todos": [{
+            "id": "1",
+            "content": "still pending work",
+            "status": "pending",
+            "priority": "medium"
+        }]
+    })
+    .to_string();
+    todo::write(&seed, &ctx).expect("seed incomplete todos");
+
+    let should_continue = super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &allowed_tools,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &mut tried_auto_complete_todos,
+        &step_out,
+        "看起来已经完成了",
+        &empty_tools,
+        false,
+        1,
+        None,
+    );
+
+    assert!(should_continue);
+    assert_eq!(step, 1);
+    assert!(session.messages.iter().any(|message| {
+        message.role == super::Role::User && message.content.contains("任务未完成")
+    }));
+    assert!(!event_texts(&events).iter().any(|text| text == "done"));
 }
 
 #[test]

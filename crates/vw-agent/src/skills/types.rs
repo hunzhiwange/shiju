@@ -15,13 +15,15 @@ use std::path::PathBuf;
 
 /// 默认预加载技能源列表
 ///
-/// 定义系统启动时自动预加载的技能别名与源 URL 映射。
-/// 目前包含两个核心技能：
-/// - `find-skills`: 技能发现工具
-/// - `skill-creator`: 技能创建工具
-const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 2] = [
-    ("find-skills", "https://skills.sh/vercel-labs/skills/find-skills"),
-    ("skill-creator", "https://skills.sh/anthropics/skills/skill-creator"),
+/// 定义系统启动时自动预加载的技能别名与源标识映射。
+/// 目前包含三个核心技能：
+/// - `create-task-plans`: 创建实施计划
+/// - `do-task-plans`: 执行实施计划
+/// - `rustcodegraph`: Rust 代码图导航
+const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 3] = [
+    ("create-task-plans", "bundled:create-task-plans"),
+    ("do-task-plans", "bundled:do-task-plans"),
+    ("rustcodegraph", "bundled:rustcodegraph"),
 ];
 
 /// 获取默认预加载技能别名字典
@@ -30,14 +32,15 @@ const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 2] = [
 ///
 /// # 返回值
 ///
-/// 返回技能别名到源 URL 的有序映射字典
+/// 返回技能别名到源标识的有序映射字典
 ///
 /// # 示例
 ///
 /// ```
 /// let aliases = default_preloaded_skill_aliases();
-/// assert!(aliases.contains_key("find-skills"));
-/// assert!(aliases.contains_key("skill-creator"));
+/// assert!(aliases.contains_key("create-task-plans"));
+/// assert!(aliases.contains_key("do-task-plans"));
+/// assert!(aliases.contains_key("rustcodegraph"));
 /// ```
 pub fn default_preloaded_skill_aliases() -> BTreeMap<String, String> {
     DEFAULT_PRELOADED_SKILL_SOURCES
@@ -74,7 +77,7 @@ pub fn default_policy_version() -> u32 {
 /// ```
 /// let policy = SkillDownloadPolicy::default();
 /// assert_eq!(policy.version, 1);
-/// assert!(policy.aliases.contains_key("find-skills"));
+/// assert!(policy.aliases.contains_key("create-task-plans"));
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillDownloadPolicy {

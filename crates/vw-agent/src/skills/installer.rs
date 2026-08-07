@@ -54,8 +54,9 @@ use vw_config_types::skills::SkillSecurityConfig;
 /// # 内置技能列表
 ///
 /// 当前预加载的技能包括：
-/// - `find-skills`：技能发现与搜索功能
-/// - `skill-creator`：技能创建与生成辅助工具
+/// - `create-task-plans`：创建实施计划
+/// - `do-task-plans`：执行实施计划
+/// - `rustcodegraph`：Rust 代码图导航
 ///
 /// # 平台差异
 ///
@@ -67,23 +68,31 @@ pub(crate) fn ensure_builtin_preloaded_skills(skills_path: &Path) -> Result<()> 
     ///
     /// 每个内置技能包含：
     /// - `dir_name`: 安装目录名称
-    /// - `source_url`: 来源 URL（用于元数据记录）
+    /// - `source_url`: 来源标识（用于元数据记录）
     /// - `markdown`: SKILL.md 文件内容（编译时嵌入）
-    const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 2] = [
+    const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
         BuiltinPreloadedSkill {
-            dir_name: "find-skills",
-            source_url: "https://skills.sh/vercel-labs/skills/find-skills",
+            dir_name: "create-task-plans",
+            source_url: "bundled:create-task-plans",
             markdown: include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/assets/skills/find-skills/SKILL.md"
+                "/assets/skills/create-task-plans/SKILL.md"
             )),
         },
         BuiltinPreloadedSkill {
-            dir_name: "skill-creator",
-            source_url: "https://skills.sh/anthropics/skills/skill-creator",
+            dir_name: "do-task-plans",
+            source_url: "bundled:do-task-plans",
             markdown: include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/assets/skills/skill-creator/SKILL.md"
+                "/assets/skills/do-task-plans/SKILL.md"
+            )),
+        },
+        BuiltinPreloadedSkill {
+            dir_name: "rustcodegraph",
+            source_url: "bundled:rustcodegraph",
+            markdown: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/assets/skills/rustcodegraph/SKILL.md"
             )),
         },
     ];

@@ -37,19 +37,21 @@ pub(crate) const SKILLS_SH_HOST: &str = "skills.sh";
 
 /// 默认预加载技能源列表
 ///
-/// 定义了默认需要预加载的技能别名与其对应的远程源 URL。
-/// 每个元组包含 (别名, 源 URL)。
+/// 定义了默认需要预加载的技能别名与其对应的源标识。
+/// 每个元组包含 (别名, 源标识)。
 ///
 /// # 示例
 ///
 /// ```
-/// // 包含两个默认技能：
-/// // - "find-skills": 技能发现工具
-/// // - "skill-creator": 技能创建工具
+/// // 包含三个默认技能：
+/// // - "create-task-plans": 创建实施计划
+/// // - "do-task-plans": 执行实施计划
+/// // - "rustcodegraph": Rust 代码图导航
 /// ```
-pub(crate) const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 2] = [
-    ("find-skills", "https://skills.sh/vercel-labs/skills/find-skills"),
-    ("skill-creator", "https://skills.sh/anthropics/skills/skill-creator"),
+pub(crate) const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 3] = [
+    ("create-task-plans", "bundled:create-task-plans"),
+    ("do-task-plans", "bundled:do-task-plans"),
+    ("rustcodegraph", "bundled:rustcodegraph"),
 ];
 
 /// 内置预加载技能定义结构体
@@ -72,23 +74,32 @@ pub(crate) struct BuiltinPreloadedSkill {
 ///
 /// # 包含的技能
 ///
-/// - `find-skills`: Vercel Labs 提供的技能发现工具
-/// - `skill-creator`: Anthropic 提供的技能创建工具
-pub(crate) const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 2] = [
+/// - `create-task-plans`: 创建实施计划
+/// - `do-task-plans`: 执行实施计划
+/// - `rustcodegraph`: Rust 代码图导航
+pub(crate) const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 3] = [
     BuiltinPreloadedSkill {
-        dir_name: "find-skills",
-        source_url: "https://skills.sh/vercel-labs/skills/find-skills",
+        dir_name: "create-task-plans",
+        source_url: "bundled:create-task-plans",
         markdown: include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/assets/skills/find-skills/SKILL.md"
+            "/assets/skills/create-task-plans/SKILL.md"
         )),
     },
     BuiltinPreloadedSkill {
-        dir_name: "skill-creator",
-        source_url: "https://skills.sh/anthropics/skills/skill-creator",
+        dir_name: "do-task-plans",
+        source_url: "bundled:do-task-plans",
         markdown: include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/assets/skills/skill-creator/SKILL.md"
+            "/assets/skills/do-task-plans/SKILL.md"
+        )),
+    },
+    BuiltinPreloadedSkill {
+        dir_name: "rustcodegraph",
+        source_url: "bundled:rustcodegraph",
+        markdown: include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/skills/rustcodegraph/SKILL.md"
         )),
     },
 ];
@@ -117,7 +128,7 @@ pub(crate) fn default_policy_version() -> u32 {
 ///
 /// ```ignore
 /// let aliases = default_preloaded_skill_aliases();
-/// assert_eq!(aliases.get("find-skills"), Some(&"https://skills.sh/vercel-labs/skills/find-skills".to_string()));
+/// assert_eq!(aliases.get("create-task-plans"), Some(&"bundled:create-task-plans".to_string()));
 /// ```
 pub(crate) fn default_preloaded_skill_aliases() -> BTreeMap<String, String> {
     DEFAULT_PRELOADED_SKILL_SOURCES

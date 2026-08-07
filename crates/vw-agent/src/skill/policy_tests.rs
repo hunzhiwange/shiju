@@ -121,7 +121,7 @@ fn load_or_init_policy_creates_normalizes_and_preserves_aliases() {
     std::fs::create_dir_all(&skills_path).unwrap();
 
     let policy = load_or_init_skill_download_policy(&skills_path).unwrap();
-    assert!(policy.aliases.contains_key("find-skills"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
     assert!(download_policy_path(&skills_path).is_file());
 
     std::fs::write(
@@ -142,7 +142,7 @@ fn load_or_init_policy_creates_normalizes_and_preserves_aliases() {
     assert_eq!(policy.trusted_domains, vec!["example.com", "github.com"]);
     assert_eq!(policy.blocked_domains, vec!["bad.example.com"]);
     assert_eq!(policy.aliases.get("local").map(String::as_str), Some("/tmp/local"));
-    assert!(policy.aliases.contains_key("skill-creator"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
 }
 
 #[test]
@@ -153,9 +153,9 @@ fn load_or_init_policy_writes_default_policy_when_missing() {
     let persisted = std::fs::read_to_string(download_policy_path(dir.path())).unwrap();
 
     assert_eq!(policy.version, 1);
-    assert!(policy.aliases.contains_key("find-skills"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
     assert!(persisted.contains("[aliases]"));
-    assert!(persisted.contains("find-skills"));
+    assert!(persisted.contains("create-task-plans"));
 }
 
 #[test]
@@ -168,8 +168,7 @@ fn load_policy_falls_back_to_defaults_for_invalid_toml() {
     assert_eq!(policy.version, 1);
     assert!(policy.trusted_domains.is_empty());
     assert!(policy.blocked_domains.is_empty());
-    assert!(policy.aliases.contains_key("find-skills"));
-    assert!(policy.aliases.contains_key("skill-creator"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
 }
 
 #[test]

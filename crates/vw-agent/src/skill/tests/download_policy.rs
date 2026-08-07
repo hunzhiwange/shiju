@@ -14,24 +14,25 @@ use super::super::*;
 /// 测试默认下载策略包含必需的预加载源
 ///
 /// 验证 `SkillDownloadPolicy::default()` 返回的策略中包含以下必需的别名映射：
-/// - `find-skills` -> `https://skills.sh/vercel-labs/skills/find-skills`
-/// - `skill-creator` -> `https://skills.sh/anthropics/skills/skill-creator`
+/// - `create-task-plans` -> `bundled:create-task-plans`
 ///
 /// 这些预加载源是系统核心功能的依赖项，必须始终可用。
 #[test]
 fn default_download_policy_contains_required_preloaded_sources() {
     let policy = SkillDownloadPolicy::default();
 
-    // 验证 find-skills 别名映射正确
+    // 验证 create-task-plans 别名映射正确
     assert_eq!(
-        policy.aliases.get("find-skills"),
-        Some(&"https://skills.sh/vercel-labs/skills/find-skills".to_string())
+        policy.aliases.get("create-task-plans"),
+        Some(&"bundled:create-task-plans".to_string())
     );
-
-    // 验证 skill-creator 别名映射正确
     assert_eq!(
-        policy.aliases.get("skill-creator"),
-        Some(&"https://skills.sh/anthropics/skills/skill-creator".to_string())
+        policy.aliases.get("do-task-plans"),
+        Some(&"bundled:do-task-plans".to_string())
+    );
+    assert_eq!(
+        policy.aliases.get("rustcodegraph"),
+        Some(&"bundled:rustcodegraph".to_string())
     );
 }
 
@@ -42,13 +43,13 @@ fn default_download_policy_contains_required_preloaded_sources() {
 /// # 解析优先级（从高到低）
 ///
 /// 1. **用户自定义别名** - 用户在策略中显式配置的别名
-/// 2. **默认别名** - 系统预置的标准别名（如 `find-skills`、`skill-creator`）
+/// 2. **默认别名** - 系统预置的标准别名（如 `create-task-plans`）
 /// 3. **原始 URL** - 如果输入不是别名，直接返回原始 URL
 ///
 /// # 测试场景
 ///
 /// - 自定义别名 `custom` 应解析为用户配置的 URL
-/// - 默认别名 `find-skills` 应解析为预置的 URL
+/// - 默认别名 `create-task-plans` 应解析为预置的源标识
 /// - 直接的 URL 应原样返回，不做任何转换
 #[test]
 fn resolve_skill_source_alias_prefers_user_and_default_aliases() {
@@ -64,8 +65,8 @@ fn resolve_skill_source_alias_prefers_user_and_default_aliases() {
 
     // 验证默认别名仍然可以正常解析
     assert_eq!(
-        resolve_skill_source_alias("find-skills", &policy),
-        "https://skills.sh/vercel-labs/skills/find-skills".to_string()
+        resolve_skill_source_alias("create-task-plans", &policy),
+        "bundled:create-task-plans".to_string()
     );
 
     // 验证直接的 URL 原样返回

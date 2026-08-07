@@ -13,7 +13,7 @@ fn default_download_policy_is_deny_by_default_for_domains() {
     assert_eq!(policy.version, 1);
     assert!(policy.trusted_domains.is_empty());
     assert!(policy.blocked_domains.is_empty());
-    assert!(policy.aliases.contains_key("skill-creator"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
 }
 
 #[test]
@@ -107,8 +107,8 @@ fn download_policy_deserialization_applies_missing_field_defaults() {
 
     assert_eq!(policy.version, 1);
     assert_eq!(
-        policy.aliases.get("find-skills").map(String::as_str),
-        Some("https://skills.sh/vercel-labs/skills/find-skills")
+        policy.aliases.get("create-task-plans").map(String::as_str),
+        Some("bundled:create-task-plans")
     );
     assert_eq!(policy.trusted_domains, vec!["trusted.example".to_string()]);
     assert!(policy.blocked_domains.is_empty());

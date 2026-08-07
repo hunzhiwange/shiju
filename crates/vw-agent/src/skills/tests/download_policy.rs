@@ -10,7 +10,7 @@
 //! ## 核心概念
 //!
 //! - **下载策略**：定义技能从何处下载的配置规则，包含源别名映射
-//! - **源别名**：将简短的技能名称映射到完整的下载 URL
+//! - **源别名**：将简短的技能名称映射到完整的下载 URL 或本地源标识
 //! - **预加载源**：系统默认提供的一组常用技能源，开箱即用
 
 use super::super::*;
@@ -20,8 +20,7 @@ use crate::app::agent::skill::{SkillDownloadPolicy, resolve_skill_source_alias};
 ///
 /// # 验证点
 ///
-/// 1. `find-skills` 别名应映射到 Vercel Labs 官方技能仓库
-/// 2. `skill-creator` 别名应映射到 Anthropic 官方技能仓库
+/// 1. `create-task-plans` 别名应映射到本地打包源标识
 ///
 /// # 设计意图
 ///
@@ -30,23 +29,25 @@ use crate::app::agent::skill::{SkillDownloadPolicy, resolve_skill_source_alias};
 ///
 /// # 示例场景
 ///
-/// 当用户在配置中引用 `find-skills` 时，系统应自动解析为：
-/// `https://skills.sh/vercel-labs/skills/find-skills`
+/// 当用户在配置中引用 `create-task-plans` 时，系统应自动解析为：
+/// `bundled:create-task-plans`
 #[test]
 fn default_download_policy_contains_required_preloaded_sources() {
     // 获取默认下载策略实例
     let policy = SkillDownloadPolicy::default();
 
-    // 验证 find-skills 别名指向正确的官方源
+    // 验证 create-task-plans 别名指向正确的本地打包源
     assert_eq!(
-        policy.aliases.get("find-skills"),
-        Some(&"https://skills.sh/vercel-labs/skills/find-skills".to_string())
+        policy.aliases.get("create-task-plans"),
+        Some(&"bundled:create-task-plans".to_string())
     );
-
-    // 验证 skill-creator 别名指向正确的官方源
     assert_eq!(
-        policy.aliases.get("skill-creator"),
-        Some(&"https://skills.sh/anthropics/skills/skill-creator".to_string())
+        policy.aliases.get("do-task-plans"),
+        Some(&"bundled:do-task-plans".to_string())
+    );
+    assert_eq!(
+        policy.aliases.get("rustcodegraph"),
+        Some(&"bundled:rustcodegraph".to_string())
     );
 }
 
@@ -73,8 +74,8 @@ fn default_download_policy_contains_required_preloaded_sources() {
 /// // 返回用户配置的 URL
 ///
 /// // 场景 2：默认别名正常工作
-/// resolve_skill_source_alias("find-skills", &policy)
-/// // 返回默认的官方 URL
+/// resolve_skill_source_alias("create-task-plans", &policy)
+/// // 返回默认的本地打包源标识
 ///
 /// // 场景 3：完整 URL 直接透传
 /// resolve_skill_source_alias("https://example.com/skill.zip", &policy)
@@ -96,8 +97,8 @@ fn resolve_skill_source_alias_prefers_user_and_default_aliases() {
 
     // 验证点 2：未被覆盖的默认别名仍可正常工作
     assert_eq!(
-        resolve_skill_source_alias("find-skills", &policy),
-        "https://skills.sh/vercel-labs/skills/find-skills".to_string()
+        resolve_skill_source_alias("create-task-plans", &policy),
+        "bundled:create-task-plans".to_string()
     );
 
     // 验证点 3：完整 URL 应直接返回，不进行别名解析

@@ -5,8 +5,9 @@ use crate::app::agent::config::SkillsPromptInjectionMode;
 fn default_policy_contains_stable_builtin_aliases() {
     let policy = SkillDownloadPolicy::default();
     assert_eq!(policy.version, default_policy_version());
-    assert!(policy.aliases.contains_key("find-skills"));
-    assert!(policy.aliases.contains_key("skill-creator"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
+    assert!(policy.aliases.contains_key("do-task-plans"));
+    assert!(policy.aliases.contains_key("rustcodegraph"));
     assert!(policy.trusted_domains.is_empty());
     assert!(policy.blocked_domains.is_empty());
 }

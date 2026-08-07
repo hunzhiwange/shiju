@@ -25,8 +25,20 @@ fn goal_mode_evaluation_requires_strict_json() {
             .achieved,
         true
     );
-    assert!(parse_goal_evaluation("```json\n{\"achieved\":true,\"reason\":\"ok\"}\n```").is_err());
+    assert_eq!(
+        parse_goal_evaluation("```json\n{\"achieved\":true,\"reason\":\"ok\"}\n```")
+            .expect("fenced evaluation")
+            .reason,
+        "ok"
+    );
+    assert_eq!(
+        parse_goal_evaluation("验收结论如下：\n{\"achieved\":false,\"reason\":\"缺验证\"}\n请继续。")
+            .expect("prose-wrapped evaluation")
+            .achieved,
+        false
+    );
     assert!(parse_goal_evaluation(r#"{"achieved":true,"reason":"","extra":1}"#).is_err());
+    assert!(parse_goal_evaluation("还没有完成目标").is_err());
 }
 
 #[test]

@@ -23,7 +23,8 @@ use crate::app::agent::skills::{
 use vw_config_types::skills::SkillsDirectoryProvider;
 
 static BUILT_IN_SKILLS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/skills");
-static RECOMMENDED_SKILL_IDS: &[&str] = &["find-skills", "skill-creator"];
+static RECOMMENDED_SKILL_IDS: &[&str] =
+    &["create-task-plans", "do-task-plans", "rustcodegraph"];
 static BUILT_IN_SKILLS: Lazy<Vec<BuiltInSkillMeta>> = Lazy::new(discover_built_in_skills);
 
 /// 新建本地技能时写入的最小 `SKILL.md` 模板。

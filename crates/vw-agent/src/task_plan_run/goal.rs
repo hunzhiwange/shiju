@@ -29,12 +29,28 @@ pub fn parse_goal_evaluation(output: &str) -> Result<GoalEvaluation, String> {
     if trimmed.is_empty() {
         return Err("目标评估器返回空响应".to_string());
     }
-    let evaluation: GoalEvaluation = serde_json::from_str(trimmed)
-        .map_err(|error| format!("目标评估器必须返回严格 JSON: {error}"))?;
-    if evaluation.reason.trim().is_empty() {
-        return Err("目标评估器 reason 不能为空".to_string());
+
+    // 模型常把 JSON 包在 Markdown 围栏或前后说明里；先抽合法 JSON，再按契约校验。
+    let candidates = vw_shared::json::extract_json_values(trimmed);
+    if candidates.is_empty() {
+        return Err("目标评估器必须返回严格 JSON: 未找到 JSON 对象".to_string());
     }
-    Ok(evaluation)
+
+    let mut last_error = String::from("目标评估器必须返回严格 JSON: 未找到合法评估对象");
+    for value in candidates.into_iter().rev() {
+        match serde_json::from_value::<GoalEvaluation>(value) {
+            Ok(evaluation) => {
+                if evaluation.reason.trim().is_empty() {
+                    return Err("目标评估器 reason 不能为空".to_string());
+                }
+                return Ok(evaluation);
+            }
+            Err(error) => {
+                last_error = format!("目标评估器必须返回严格 JSON: {error}");
+            }
+        }
+    }
+    Err(last_error)
 }
 
 pub fn inspect_goal_task_files(

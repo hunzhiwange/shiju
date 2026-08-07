@@ -223,7 +223,7 @@ fn builtin_preloaded_skills_create_markdown_and_metadata_once() {
     ensure_builtin_preloaded_skills(dir.path()).unwrap();
     ensure_builtin_preloaded_skills(dir.path()).unwrap();
 
-    for name in ["find-skills", "skill-creator"] {
+    for name in ["create-task-plans", "do-task-plans", "rustcodegraph"] {
         let skill_dir = dir.path().join(name);
         assert!(skill_dir.join("SKILL.md").is_file());
         let meta = std::fs::read_to_string(skill_dir.join("_meta.json")).unwrap();
@@ -235,7 +235,7 @@ fn builtin_preloaded_skills_create_markdown_and_metadata_once() {
 #[test]
 fn builtin_preloaded_skills_preserve_existing_skill_directories() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let existing = dir.path().join("find-skills");
+    let existing = dir.path().join("create-task-plans");
     std::fs::create_dir(&existing).unwrap();
     std::fs::write(existing.join("SKILL.md"), "# User managed\n").unwrap();
 
@@ -243,7 +243,8 @@ fn builtin_preloaded_skills_preserve_existing_skill_directories() {
 
     assert_eq!(std::fs::read_to_string(existing.join("SKILL.md")).unwrap(), "# User managed\n");
     assert!(!existing.join("_meta.json").exists());
-    assert!(dir.path().join("skill-creator/SKILL.md").is_file());
+    assert!(dir.path().join("do-task-plans/SKILL.md").is_file());
+    assert!(dir.path().join("rustcodegraph/SKILL.md").is_file());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -253,8 +254,9 @@ fn builtin_preloaded_skills_write_source_specific_metadata() {
     ensure_builtin_preloaded_skills(dir.path()).unwrap();
 
     for (name, source) in [
-        ("find-skills", "https://skills.sh/vercel-labs/skills/find-skills"),
-        ("skill-creator", "https://skills.sh/anthropics/skills/skill-creator"),
+        ("create-task-plans", "bundled:create-task-plans"),
+        ("do-task-plans", "bundled:do-task-plans"),
+        ("rustcodegraph", "bundled:rustcodegraph"),
     ] {
         let meta: serde_json::Value = serde_json::from_slice(
             &std::fs::read(dir.path().join(name).join("_meta.json")).unwrap(),

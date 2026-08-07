@@ -135,6 +135,12 @@ fn desktop_stream_request_id(req: &AgentRequest) -> String {
     format!("desktop-{nonce:032x}-{}-{:016x}", req.id, session_hasher.finish())
 }
 
+/// 轻量目标每一轮执行/验收必须使用不同流请求标识：续轮会改 chat body，
+/// 复用同一标识会触发网关 409「相同流请求标识对应了不同 chat 请求」。
+fn desktop_stream_request_id_for_turn(req: &AgentRequest, turn: u32) -> String {
+    format!("{}-t{turn}", desktop_stream_request_id(req))
+}
+
 async fn gateway_stream_retry_sleep(duration: std::time::Duration) {
     #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(duration).await;
@@ -1803,8 +1809,26 @@ fn parse_lightweight_goal_evaluation(output: &str) -> Result<(bool, String), Str
     if trimmed.is_empty() {
         return Err("目标评估器返回空响应".to_string());
     }
-    let value: serde_json::Value = serde_json::from_str(trimmed)
-        .map_err(|error| format!("目标评估器必须返回严格 JSON: {error}"))?;
+
+    // 模型常把 JSON 包在 Markdown 围栏或前后说明里；先抽合法 JSON，再按契约校验。
+    let candidates = vw_shared::json::extract_json_values(trimmed);
+    if candidates.is_empty() {
+        return Err("目标评估器必须返回严格 JSON: 未找到 JSON 对象".to_string());
+    }
+
+    let mut last_error = String::from("目标评估器必须返回严格 JSON: 未找到合法评估对象");
+    for value in candidates.into_iter().rev() {
+        match lightweight_goal_evaluation_from_value(value) {
+            Ok(result) => return Ok(result),
+            Err(error) => last_error = error,
+        }
+    }
+    Err(last_error)
+}
+
+fn lightweight_goal_evaluation_from_value(
+    value: serde_json::Value,
+) -> Result<(bool, String), String> {
     let achieved = value
         .get("achieved")
         .and_then(serde_json::Value::as_bool)
@@ -1880,15 +1904,108 @@ fn lightweight_goal_next_action(
 }
 
 /// 将执行证据与评估 JSON 合成为下一动作（桌面续轮触发条件）。
+/// 将执行证据与评估输出合成为下一动作（桌面续轮触发条件）。
 fn resolve_lightweight_goal_turn(
     execution_evidence: &str,
     evaluation_output: &str,
-) -> Result<LightweightGoalNext, String> {
+) -> LightweightGoalNext {
     if let Some(blocker) = detect_explicit_lightweight_blocker(execution_evidence) {
-        return Ok(LightweightGoalNext::Blocked { reason: blocker });
+        return LightweightGoalNext::Blocked { reason: blocker };
     }
-    let (achieved, reason) = parse_lightweight_goal_evaluation(evaluation_output)?;
-    Ok(lightweight_goal_next_action(achieved, &reason, None))
+    // 空响应/非法 JSON 按「未达成」续轮，而不是基础设施停机：评估器偶发空响应时
+    // 必须继续执行轮，不能让 UI 停在验收失败提示上。
+    let trimmed = evaluation_output.trim();
+    if trimmed.is_empty() {
+        return LightweightGoalNext::Continue {
+            reason: "独立验收未返回结论，请补充可验证证据并继续完成目标".to_string(),
+        };
+    }
+    match parse_lightweight_goal_evaluation(trimmed) {
+        Ok((achieved, reason)) => lightweight_goal_next_action(achieved, &reason, None),
+        Err(error) => LightweightGoalNext::Continue {
+            reason: format!("独立验收结论无效（{error}），请继续验证并完成目标"),
+        },
+    }
+}
+
+fn record_repeated_infrastructure_error(
+    error: &str,
+    last_error: &mut Option<String>,
+    repeated_errors: &mut u8,
+) -> bool {
+    if last_error.as_deref() == Some(error) {
+        *repeated_errors = repeated_errors.saturating_add(1);
+    } else {
+        *last_error = Some(error.to_string());
+        *repeated_errors = 1;
+    }
+    *repeated_errors >= 3
+}
+
+/// 评估流失败时转为续轮；连续三次相同基础设施错误才停机。
+fn lightweight_goal_infrastructure_continue(
+    error: &str,
+    last_error: &mut Option<String>,
+    repeated_errors: &mut u8,
+) -> LightweightGoalNext {
+    let reason = format!("目标验收基础设施错误：{error}");
+    if record_repeated_infrastructure_error(&reason, last_error, repeated_errors) {
+        LightweightGoalNext::Blocked {
+            reason: format!("连续三轮出现相同基础设施错误，目标模式已停止：{reason}"),
+        }
+    } else {
+        LightweightGoalNext::Continue { reason }
+    }
+}
+
+/// 独立验收一次：无会话落盘、禁用工具，对齐 provider 侧纯推理调用。
+async fn collect_lightweight_goal_evaluation(
+    endpoint: &vw_gateway_client::GatewayEndpoint,
+    root: Option<&str>,
+    model: Option<String>,
+    evaluation_prompt: String,
+) -> Result<String, String> {
+    let evaluation_body = vw_gateway_client::GatewayChatStreamRequest {
+        // 不绑定会话，避免与主会话/可恢复流标识纠缠。
+        session_id: None,
+        messages: vec![serde_json::json!({"role": "user", "content": evaluation_prompt})],
+        system: None,
+        model,
+        reasoning_effort: None,
+        agent: None,
+        allowed_tools: None,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        options: Some(serde_json::json!({
+            "goal_mode": true,
+            "goal_evaluation": true,
+            "disable_tools": true,
+        })),
+    };
+    let mut evaluation_text = String::new();
+    let mut stream_error = None;
+    vw_gateway_client::GatewayClient::stream_chat(
+        endpoint,
+        root,
+        &evaluation_body,
+        |event| match event {
+            vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                evaluation_text.push_str(&delta);
+                true
+            }
+            vw_gateway_client::GatewayChatStreamEvent::Done { .. } => false,
+            vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
+                stream_error = Some(error);
+                false
+            }
+            vw_gateway_client::GatewayChatStreamEvent::Other(_) => true,
+        },
+    )
+    .await?;
+    if let Some(error) = stream_error {
+        return Err(error);
+    }
+    Ok(evaluation_text)
 }
 
 /// 按工作流门控构造 plan-run 请求；未进入 plan-run 时返回 `Ok(None)`。
@@ -2108,6 +2225,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             );
             let original_goal = req.query.clone();
             let mut goal_evidence = String::new();
+            let mut goal_turn = 0_u32;
+            let mut last_infrastructure_error: Option<String> = None;
+            let mut repeated_infrastructure_errors = 0_u8;
+            // Complete/Blocked 会发终端事件；异常退出也必须发，否则 UI 一直转圈。
+            let mut goal_terminal_sent = false;
 
             let mut stream_done;
             let mut last_plan_run_event: Option<&'static str> = None;
@@ -2143,7 +2265,12 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             );
 
             'goal_turns: loop {
-            let mut reconnect = GatewayReconnectState::new(desktop_stream_request_id(&req));
+            goal_turn = goal_turn.saturating_add(1);
+            let mut reconnect = GatewayReconnectState::new(if goal_only {
+                desktop_stream_request_id_for_turn(&req, goal_turn)
+            } else {
+                desktop_stream_request_id(&req)
+            });
             let mut assistant_turn_buffer = String::new();
             let mut held_done: Option<(
                 crate::app::models::TokenUsage,
@@ -2583,6 +2710,16 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             last_plan_run_event,
                             "gateway agent stream cancelled by UI subscription drop"
                         );
+                        if goal_only && !goal_terminal_sent {
+                            let _ = output
+                                .send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                    req.id,
+                                    crate::app::models::TokenUsage::default(),
+                                    None,
+                                    None,
+                                )))
+                                .await;
+                        }
                         return;
                     }
                     GatewayStreamNext::PostToolRoundHandoff => {
@@ -2592,6 +2729,16 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             attempt,
                             "gateway agent stream stopped after post-tool-round handoff"
                         );
+                        if goal_only && !goal_terminal_sent {
+                            let _ = output
+                                .send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                    req.id,
+                                    crate::app::models::TokenUsage::default(),
+                                    None,
+                                    None,
+                                )))
+                                .await;
+                        }
                         return;
                     }
                     GatewayStreamNext::Failed(error) => {
@@ -2641,6 +2788,32 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             }
 
             if !stream_done || chat_turn_failed {
+                // chat_turn_failed 时流里已发过 AgentStreamError；其余异常结束补 Done，
+                // 避免目标续轮半截退出后 UI 仍认为请求进行中。
+                if goal_only && !chat_turn_failed && !goal_terminal_sent {
+                    if let Some((usage, message_id, parent_message_id)) = held_done.take() {
+                        let _ = output
+                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                req.id,
+                                usage,
+                                message_id,
+                                parent_message_id,
+                            )))
+                            .await;
+                    } else {
+                        let _ = output
+                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                req.id,
+                                crate::app::models::TokenUsage::default(),
+                                None,
+                                None,
+                            )))
+                            .await;
+                    }
+                    goal_terminal_sent = true;
+                } else if chat_turn_failed {
+                    goal_terminal_sent = true;
+                }
                 break 'goal_turns;
             }
 
@@ -2658,62 +2831,33 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                         format!("目标模式已停止：{blocker}"),
                     )))
                     .await;
+                goal_terminal_sent = true;
                 break 'goal_turns;
             }
 
             let evaluation_prompt =
                 build_lightweight_goal_evaluation_prompt(&original_goal, &goal_evidence);
-            let evaluation_body = vw_gateway_client::GatewayChatStreamRequest {
-                session_id: Some(format!("{}-goal-eval", req.session.trim()).into()),
-                messages: vec![json!({"role": "user", "content": evaluation_prompt})],
-                system: None,
-                model: chat_body.model.clone(),
-                reasoning_effort: None,
-                agent: None,
-                // 评估器不执行工具。
-                allowed_tools: Some(Vec::new()),
-                acp_agent: None,
-                acp_allowed_tools: None,
-                options: Some(json!({
-                    "goal_mode": true,
-                    "goal_evaluation": true,
-                })),
-            };
-            let mut evaluation_text = String::new();
-            let evaluation_result = vw_gateway_client::GatewayClient::stream_chat(
+            let evaluation_result = collect_lightweight_goal_evaluation(
                 &endpoint,
                 req.root.as_deref(),
-                &evaluation_body,
-                |event| match event {
-                    vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-                        evaluation_text.push_str(&delta);
-                        true
-                    }
-                    vw_gateway_client::GatewayChatStreamEvent::Done { .. }
-                    | vw_gateway_client::GatewayChatStreamEvent::Error(_) => false,
-                    vw_gateway_client::GatewayChatStreamEvent::Other(_) => true,
-                },
+                chat_body.model.clone(),
+                evaluation_prompt,
             )
             .await;
 
-            if let Err(error) = evaluation_result {
-                let _ = output
-                    .send(Message::Chat(message::ChatMessage::AgentStreamError(
-                        req.id,
-                        format!("目标验收失败：{error}"),
-                    )))
-                    .await;
-                break 'goal_turns;
-            }
-
-            let next = match resolve_lightweight_goal_turn(&goal_evidence, &evaluation_text) {
-                Ok(next) => next,
-                Err(error) => {
-                    // 评估 JSON 无法解析时按未达成续轮一次，避免静默成功。
-                    LightweightGoalNext::Continue {
-                        reason: format!("目标验收基础设施错误：{error}"),
-                    }
+            let next = match evaluation_result {
+                Ok(evaluation_text) => {
+                    let next = resolve_lightweight_goal_turn(&goal_evidence, &evaluation_text);
+                    // 软失败续轮不是传输层基础设施错误。
+                    last_infrastructure_error = None;
+                    repeated_infrastructure_errors = 0;
+                    next
                 }
+                Err(error) => lightweight_goal_infrastructure_continue(
+                    &error,
+                    &mut last_infrastructure_error,
+                    &mut repeated_infrastructure_errors,
+                ),
             };
 
             match next {
@@ -2743,6 +2887,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             )))
                             .await;
                     }
+                    goal_terminal_sent = true;
                     break 'goal_turns;
                 }
                 LightweightGoalNext::Blocked { reason } => {
@@ -2752,12 +2897,14 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             format!("目标模式已停止：{reason}"),
                         )))
                         .await;
+                    goal_terminal_sent = true;
                     break 'goal_turns;
                 }
                 LightweightGoalNext::Continue { reason } => {
                     info!(
                         target: "vw_desktop",
                         request_id = req.id,
+                        goal_turn,
                         reason = %reason,
                         "lightweight goal continuing"
                     );
@@ -2784,6 +2931,18 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 }
             }
             } // 'goal_turns
+
+            if goal_only && !goal_terminal_sent {
+                // 兜底：任何未显式收尾的退出都释放 UI 请求态。
+                let _ = output
+                    .send(Message::Chat(message::ChatMessage::AgentStreamDone(
+                        req.id,
+                        crate::app::models::TokenUsage::default(),
+                        None,
+                        None,
+                    )))
+                    .await;
+            }
 
             if workflow_mode_active && stream_done {
                 for session_id in plan_run_session_ids.drain() {

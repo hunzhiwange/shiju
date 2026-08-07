@@ -251,6 +251,11 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     assert_eq!(stable_id, super::desktop_stream_request_id(&request));
     assert!(!stable_id.contains(&request.session));
     assert!(!stable_id.contains(&request.query));
+    let turn1 = super::desktop_stream_request_id_for_turn(&request, 1);
+    let turn2 = super::desktop_stream_request_id_for_turn(&request, 2);
+    assert_ne!(turn1, turn2, "goal turns must not reuse stream request ids");
+    assert!(turn1.starts_with(&stable_id) && turn1.ends_with("-t1"));
+    assert!(turn2.starts_with(&stable_id) && turn2.ends_with("-t2"));
 }
 
 #[test]
@@ -1843,8 +1848,7 @@ fn lightweight_goal_continues_until_evaluation_passes() {
     let rejected = super::resolve_lightweight_goal_turn(
         "已改代码，但还没跑测试",
         r#"{"achieved":false,"reason":"缺少验证退出码证据"}"#,
-    )
-    .expect("negative evaluation");
+    );
     assert!(matches!(
         rejected,
         super::LightweightGoalNext::Continue { reason } if reason.contains("缺少验证退出码")
@@ -1861,12 +1865,67 @@ fn lightweight_goal_continues_until_evaluation_passes() {
     let passed = super::resolve_lightweight_goal_turn(
         "验证通过，exit 0",
         r#"{"achieved":true,"reason":"验证退出码为 0"}"#,
-    )
-    .expect("positive evaluation");
+    );
     assert!(matches!(
         passed,
         super::LightweightGoalNext::Complete { reason } if reason.contains("验证退出码")
     ));
+
+    let fenced = super::resolve_lightweight_goal_turn(
+        "验证通过，exit 0",
+        "```json\n{\"achieved\":true,\"reason\":\"验证退出码为 0\"}\n```",
+    );
+    assert!(matches!(
+        fenced,
+        super::LightweightGoalNext::Complete { reason } if reason.contains("验证退出码")
+    ));
+
+    let empty = super::resolve_lightweight_goal_turn("已执行一轮", "");
+    assert!(matches!(
+        empty,
+        super::LightweightGoalNext::Continue { reason }
+            if reason.contains("独立验收未返回结论")
+                && !reason.contains("目标验收基础设施错误")
+    ));
+
+    let mut last_error = None;
+    let mut repeated = 0_u8;
+    let first = super::lightweight_goal_infrastructure_continue(
+        "gateway stream failed: 500",
+        &mut last_error,
+        &mut repeated,
+    );
+    assert!(matches!(
+        first,
+        super::LightweightGoalNext::Continue { reason }
+            if reason.contains("目标验收基础设施错误：")
+    ));
+    let second = super::lightweight_goal_infrastructure_continue(
+        "gateway stream failed: 500",
+        &mut last_error,
+        &mut repeated,
+    );
+    assert!(matches!(second, super::LightweightGoalNext::Continue { .. }));
+    let third = super::lightweight_goal_infrastructure_continue(
+        "gateway stream failed: 500",
+        &mut last_error,
+        &mut repeated,
+    );
+    assert!(matches!(
+        third,
+        super::LightweightGoalNext::Blocked { reason }
+            if reason.contains("连续三轮出现相同基础设施错误")
+    ));
+
+    assert!(
+        SOURCE.contains("desktop_stream_request_id_for_turn")
+            && SOURCE.contains("lightweight_goal_infrastructure_continue")
+            && SOURCE.contains("collect_lightweight_goal_evaluation")
+            && SOURCE.contains("\"disable_tools\": true")
+            && SOURCE.contains("goal_terminal_sent")
+            && !SOURCE.contains("目标验收失败：{error}"),
+        "goal eval must disable tools, soft-continue on empty JSON, and always emit a terminal event"
+    );
 
     let request = sample_agent_request(false, true, Some("/tmp/project"));
     let options = super::gateway_request_options(&request, None).expect("goal-only options");
@@ -1884,8 +1943,7 @@ fn lightweight_goal_stops_on_explicit_blocker() {
     let blocked = super::resolve_lightweight_goal_turn(
         "状态：已阻塞\n阻塞原因：缺少部署凭据，需要用户输入\n",
         r#"{"achieved":false,"reason":"不应再评估"}"#,
-    )
-    .expect("blocker wins before evaluation");
+    );
     assert!(matches!(
         blocked,
         super::LightweightGoalNext::Blocked { reason } if reason.contains("缺少部署凭据")

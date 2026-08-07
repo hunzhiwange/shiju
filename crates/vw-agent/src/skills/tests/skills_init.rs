@@ -14,8 +14,9 @@ use std::fs;
 ///
 /// 验证 `init_skills_dir` 函数在首次调用时创建以下文件：
 /// - `skills/README.md` - 技能目录说明文档
-/// - `skills/find-skills/SKILL.md` - 技能发现工具的默认定义
-/// - `skills/skill-creator/SKILL.md` - 技能创建工具的默认定义
+/// - `skills/create-task-plans/SKILL.md` - 创建实施计划技能
+/// - `skills/do-task-plans/SKILL.md` - 执行实施计划技能
+/// - `skills/rustcodegraph/SKILL.md` - Rust 代码图导航技能
 /// - `skills/.download-policy.toml` - 下载策略配置文件
 ///
 /// # 测试逻辑
@@ -32,10 +33,9 @@ fn init_skills_creates_readme() {
 
     // 验证 README.md 文件已创建
     assert!(dir.path().join("skills").join("README.md").exists());
-    // 验证 find-skills 技能定义文件已创建
-    assert!(dir.path().join("skills").join("find-skills").join("SKILL.md").exists());
-    // 验证 skill-creator 技能定义文件已创建
-    assert!(dir.path().join("skills").join("skill-creator").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("create-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("do-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("rustcodegraph").join("SKILL.md").exists());
     // 验证下载策略配置文件已创建
     assert!(dir.path().join("skills").join(".download-policy.toml").exists());
 }
@@ -65,10 +65,9 @@ fn init_skills_idempotent() {
 
     // 验证 README.md 文件仍然存在
     assert!(dir.path().join("skills").join("README.md").exists());
-    // 验证 find-skills 技能定义文件仍然存在
-    assert!(dir.path().join("skills").join("find-skills").join("SKILL.md").exists());
-    // 验证 skill-creator 技能定义文件仍然存在
-    assert!(dir.path().join("skills").join("skill-creator").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("create-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("do-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("rustcodegraph").join("SKILL.md").exists());
 }
 
 /// 测试 Compact 模式下仅加载技能元数据

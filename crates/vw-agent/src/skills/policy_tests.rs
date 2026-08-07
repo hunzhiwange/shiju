@@ -81,8 +81,7 @@ fn policy_load_initializes_and_persists_defaults_when_file_is_missing() {
     let loaded = load_or_init_skill_download_policy(dir.path()).unwrap();
 
     assert_eq!(loaded.version, 1);
-    assert!(loaded.aliases.contains_key("find-skills"));
-    assert!(loaded.aliases.contains_key("skill-creator"));
+    assert!(loaded.aliases.contains_key("create-task-plans"));
     let persisted: SkillDownloadPolicy =
         toml::from_str(&std::fs::read_to_string(dir.path().join(".download-policy.toml")).unwrap())
             .unwrap();
@@ -107,7 +106,7 @@ fn policy_load_save_initializes_defaults_and_normalizes_domains() {
     assert_eq!(loaded.version, 7);
     assert_eq!(loaded.trusted_domains, vec!["example.com"]);
     assert_eq!(loaded.blocked_domains, vec!["bad.com"]);
-    assert!(loaded.aliases.contains_key("find-skills"));
+    assert!(loaded.aliases.contains_key("create-task-plans"));
 }
 
 #[test]
@@ -136,8 +135,7 @@ custom = "https://example.com/custom.git"
         loaded.aliases.get("custom").map(String::as_str),
         Some("https://example.com/custom.git")
     );
-    assert!(loaded.aliases.contains_key("find-skills"));
-    assert!(loaded.aliases.contains_key("skill-creator"));
+    assert!(loaded.aliases.contains_key("create-task-plans"));
 
     let persisted: SkillDownloadPolicy =
         toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
@@ -197,7 +195,7 @@ fn malformed_policy_falls_back_to_default_aliases() {
 
     let policy = load_or_init_skill_download_policy(dir.path()).unwrap();
 
-    assert!(policy.aliases.contains_key("find-skills"));
+    assert!(policy.aliases.contains_key("create-task-plans"));
     assert!(policy.trusted_domains.is_empty());
 }
 

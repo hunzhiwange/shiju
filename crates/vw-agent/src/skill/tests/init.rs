@@ -12,8 +12,7 @@ use std::path::Path;
 ///
 /// 验证点：
 /// - skills 目录下必须创建 README.md 文件
-/// - 必须创建 find-skills 子目录及对应的 SKILL.md 文件
-/// - 必须创建 skill-creator 子目录及对应的 SKILL.md 文件
+/// - 必须创建 create-task-plans / do-task-plans / rustcodegraph 子目录及对应的 SKILL.md 文件
 /// - 必须创建 .download-policy.toml 配置文件
 #[test]
 fn init_skills_creates_readme() {
@@ -25,8 +24,9 @@ fn init_skills_creates_readme() {
 
     // 验证所有必需文件和目录是否创建成功
     assert!(dir.path().join("skills").join("README.md").exists());
-    assert!(dir.path().join("skills").join("find-skills").join("SKILL.md").exists());
-    assert!(dir.path().join("skills").join("skill-creator").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("create-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("do-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("rustcodegraph").join("SKILL.md").exists());
     assert!(dir.path().join("skills").join(".download-policy.toml").exists());
 }
 
@@ -49,8 +49,9 @@ fn init_skills_idempotent() {
 
     // 验证所有必需文件在重复初始化后仍然存在
     assert!(dir.path().join("skills").join("README.md").exists());
-    assert!(dir.path().join("skills").join("find-skills").join("SKILL.md").exists());
-    assert!(dir.path().join("skills").join("skill-creator").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("create-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("do-task-plans").join("SKILL.md").exists());
+    assert!(dir.path().join("skills").join("rustcodegraph").join("SKILL.md").exists());
 }
 
 /// 测试技能目录路径的计算功能

@@ -277,18 +277,19 @@ fn read_local_skill_document_prefers_markdown_then_toml() {
 
 #[test]
 fn built_in_skill_helpers_read_metadata_and_mark_recommended_group() {
-    let skill = super::find_built_in_skill("skill-creator").unwrap_or_else(|| {
+    let skill = super::find_built_in_skill("create-task-plans").unwrap_or_else(|| {
         panic!(
             "bundled skill metadata; discovered: {:?}",
             super::BUILT_IN_SKILLS.iter().map(|skill| &skill.id).collect::<Vec<_>>()
         )
     });
-    assert_eq!(skill.id, "skill-creator");
+    assert_eq!(skill.id, "create-task-plans");
     assert_eq!(skill.group, super::BuiltInSkillGroup::Recommended);
     assert_eq!(skill.resource_count, 0);
 
-    let markdown = super::read_built_in_skill_markdown("skill-creator").expect("bundled markdown");
-    assert!(markdown.contains("skill-creator"));
+    let markdown =
+        super::read_built_in_skill_markdown("create-task-plans").expect("bundled markdown");
+    assert!(markdown.contains("create-task-plans"));
     assert!(super::find_built_in_skill("missing-skill").is_none());
     assert!(super::read_built_in_skill_markdown("missing-skill").is_err());
 }
@@ -330,12 +331,12 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
     let project = tempfile::tempdir().expect("project dir");
     let built_in_result = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
-        "find-skills",
+        "create-task-plans",
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     );
 
     if let Ok(built_in) = built_in_result {
-        assert_eq!(built_in.id, "find-skills");
+        assert_eq!(built_in.id, "create-task-plans");
         assert_eq!(built_in.kind, "recommended");
         assert!(!built_in.installed);
         assert!(built_in.can_install);
@@ -343,22 +344,22 @@ fn resolve_skill_detail_returns_built_in_and_local_variants() {
         assert_eq!(built_in.document_name, "SKILL.md");
     }
 
-    let skill_dir = project.path().join(".vibewindow/skills/find-skills");
+    let skill_dir = project.path().join(".vibewindow/skills/create-task-plans");
     std::fs::create_dir_all(&skill_dir).expect("skill dir");
     std::fs::write(
         skill_dir.join("SKILL.md"),
-        "---\nname: Local Find\ndescription: Local override\n---\n# Local\n",
+        "---\nname: Local Plans\ndescription: Local override\n---\n# Local\n",
     )
     .expect("local skill");
 
     let local = super::resolve_skill_detail(
         Some(project.path().to_str().expect("utf8 path")),
-        "find-skills",
+        "create-task-plans",
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("local detail");
 
-    assert_eq!(local.title, "Local Find");
+    assert_eq!(local.title, "Local Plans");
     assert_eq!(local.description, "Local override");
     assert!(local.installed);
     assert!(local.enabled);
@@ -400,13 +401,13 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
 
     let first = super::install_built_in_skill(
         project.path(),
-        "skill-creator",
+        "create-task-plans",
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install built-in");
     let second = super::install_built_in_skill(
         project.path(),
-        "skill-creator",
+        "create-task-plans",
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("install built-in again");
@@ -415,7 +416,7 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
-    let entry = catalog.iter().find(|item| item.id == "skill-creator").expect("catalog entry");
+    let entry = catalog.iter().find(|item| item.id == "create-task-plans").expect("catalog entry");
 
     assert_eq!(first, second);
     assert!(std::path::Path::new(&first).join("SKILL.md").is_file());
@@ -508,7 +509,7 @@ fn collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults
     assert!(personal.enabled);
     assert_eq!(personal.source, "workspace");
 
-    let bundled = catalog.iter().find(|item| item.id == "skill-creator").expect("bundled item");
+    let bundled = catalog.iter().find(|item| item.id == "do-task-plans").expect("bundled item");
     assert_eq!(bundled.source, "bundled");
     assert!(!bundled.installed);
     assert!(!bundled.enabled);
@@ -517,8 +518,8 @@ fn collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults
 #[test]
 fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project.path().join(".vibewindow/skills/find-skills");
-    write_markdown_skill(&skill_dir, "Local Finder", "Local description");
+    let skill_dir = project.path().join(".vibewindow/skills/create-task-plans");
+    write_markdown_skill(&skill_dir, "Local Plans", "Local description");
     std::fs::write(skill_dir.join("notes.txt"), "resource").expect("resource");
     std::fs::write(
         crate::app::agent::skills::local_skill_disabled_marker_path(&skill_dir),
@@ -531,9 +532,9 @@ fn collect_catalog_skills_uses_local_metadata_for_built_in_override() {
         vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
     )
     .expect("catalog");
-    let entry = catalog.iter().find(|item| item.id == "find-skills").expect("catalog entry");
+    let entry = catalog.iter().find(|item| item.id == "create-task-plans").expect("catalog entry");
 
-    assert_eq!(entry.title, "Local Finder");
+    assert_eq!(entry.title, "Local Plans");
     assert_eq!(entry.description, "Local description");
     assert_eq!(entry.kind, "recommended");
     assert_eq!(entry.resource_count, 2);

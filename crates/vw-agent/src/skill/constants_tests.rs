@@ -6,8 +6,16 @@ fn defaults_are_stable_and_include_builtin_aliases() {
     assert_eq!(default_policy_version(), 1);
     assert_eq!(default_version(), "0.1.0");
     assert_eq!(
-        aliases.get("find-skills").map(String::as_str),
-        Some("https://skills.sh/vercel-labs/skills/find-skills")
+        aliases.get("create-task-plans").map(String::as_str),
+        Some("bundled:create-task-plans")
+    );
+    assert_eq!(
+        aliases.get("do-task-plans").map(String::as_str),
+        Some("bundled:do-task-plans")
+    );
+    assert_eq!(
+        aliases.get("rustcodegraph").map(String::as_str),
+        Some("bundled:rustcodegraph")
     );
     assert_eq!(BUILTIN_PRELOADED_SKILLS.len(), DEFAULT_PRELOADED_SKILL_SOURCES.len());
 }
@@ -25,7 +33,7 @@ fn repository_policy_and_sync_constants_are_stable() {
 fn builtin_preloaded_skills_have_embedded_markdown_and_sources() {
     for builtin in BUILTIN_PRELOADED_SKILLS {
         assert!(!builtin.dir_name.trim().is_empty());
-        assert!(builtin.source_url.starts_with("https://skills.sh/"));
+        assert!(!builtin.source_url.trim().is_empty());
         assert!(builtin.markdown.contains("#") || builtin.markdown.contains("name:"));
     }
 }

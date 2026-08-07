@@ -572,61 +572,80 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::RecentRemovePressed(path) => {
-            app.recent_projects.retain(|p| p != &path);
-            save_recent_projects_background(app.recent_projects.clone());
-
-            if app.hovered_recent_project.as_ref() == Some(&path) {
-                app.hovered_recent_project = None;
+            app.project_tools_menu_path = None;
+            if app.project_path.as_ref() == Some(&path) {
+                app.recent_project_remove_confirm_path = None;
+                return Some(app.show_warning_toast("当前项目不能删除，请先切换到其他项目"));
             }
-            if app.project_tools_menu_path.as_ref() == Some(&path) {
-                app.project_tools_menu_path = None;
+            app.recent_project_remove_confirm_path = Some(path);
+            Some(iced::Task::none())
+        }
+        ProjectMessage::RecentRemoveCanceled => {
+            app.recent_project_remove_confirm_path = None;
+            Some(iced::Task::none())
+        }
+        ProjectMessage::RecentRemoveConfirmed(path) => {
+            if app.project_path.as_ref() == Some(&path) {
+                app.recent_project_remove_confirm_path = None;
+                return Some(app.show_warning_toast("当前项目不能删除，请先切换到其他项目"));
             }
-            if app.project_edit_path.as_ref() == Some(&path) {
-                app.project_edit_path = None;
-                app.project_edit_name.clear();
-                app.project_edit_icon.clear();
-                app.project_edit_icon_hovered = false;
-                app.project_edit_icon_color.clear();
-                app.project_edit_icon_color_picker_open = false;
-                app.project_edit_icon_color_format =
-                    crate::app::components::color_picker::ColorFormat::Hex;
-                app.project_edit_start_script.clear();
-                app.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
-                app.project_edit_worktree_enabled = false;
-                app.project_edit_task_board_settings = crate::app::task::TaskBoardSettings::new();
-                app.project_edit_max_concurrent_input.clear();
-                app.project_edit_task_board_auto_refresh = true;
-                app.project_edit_session_auto_refresh =
-                    default_recent_project_session_auto_refresh();
-                app.project_edit_session_refresh_interval_seconds_input.clear();
-                app.project_edit_task_board_refresh_interval_seconds_input.clear();
-                app.project_edit_task_board_scheduler_tick_interval_seconds_input.clear();
-                app.project_edit_task_board_auto_promote_tick_interval_seconds_input.clear();
-                app.project_edit_failed_retry_minutes_input.clear();
-                app.project_edit_failed_retry_max_attempts_input.clear();
-                app.project_edit_running_timeout_minutes_input.clear();
-            }
-
-            app.recent_projects_edits = app
-                .recent_projects
-                .iter()
-                .map(|p| {
-                    if let Some(m) = app.recent_projects_meta.iter().find(|m| &m.path == p) {
-                        m.name.clone()
-                    } else {
-                        std::path::Path::new(p)
-                            .file_name()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or(p)
-                            .to_string()
-                    }
-                })
-                .collect();
-
+            remove_recent_project(app, &path);
+            app.recent_project_remove_confirm_path = None;
             Some(iced::Task::none())
         }
         _ => None,
     }
+}
+
+fn remove_recent_project(app: &mut App, path: &str) {
+    app.recent_projects.retain(|p| p != path);
+    save_recent_projects_background(app.recent_projects.clone());
+
+    if app.hovered_recent_project.as_deref() == Some(path) {
+        app.hovered_recent_project = None;
+    }
+    if app.project_tools_menu_path.as_deref() == Some(path) {
+        app.project_tools_menu_path = None;
+    }
+    if app.project_edit_path.as_deref() == Some(path) {
+        app.project_edit_path = None;
+        app.project_edit_name.clear();
+        app.project_edit_icon.clear();
+        app.project_edit_icon_hovered = false;
+        app.project_edit_icon_color.clear();
+        app.project_edit_icon_color_picker_open = false;
+        app.project_edit_icon_color_format = crate::app::components::color_picker::ColorFormat::Hex;
+        app.project_edit_start_script.clear();
+        app.project_edit_start_script_editor = iced::widget::text_editor::Content::new();
+        app.project_edit_worktree_enabled = false;
+        app.project_edit_task_board_settings = crate::app::task::TaskBoardSettings::new();
+        app.project_edit_max_concurrent_input.clear();
+        app.project_edit_task_board_auto_refresh = true;
+        app.project_edit_session_auto_refresh = default_recent_project_session_auto_refresh();
+        app.project_edit_session_refresh_interval_seconds_input.clear();
+        app.project_edit_task_board_refresh_interval_seconds_input.clear();
+        app.project_edit_task_board_scheduler_tick_interval_seconds_input.clear();
+        app.project_edit_task_board_auto_promote_tick_interval_seconds_input.clear();
+        app.project_edit_failed_retry_minutes_input.clear();
+        app.project_edit_failed_retry_max_attempts_input.clear();
+        app.project_edit_running_timeout_minutes_input.clear();
+    }
+
+    app.recent_projects_edits = app
+        .recent_projects
+        .iter()
+        .map(|p| {
+            if let Some(m) = app.recent_projects_meta.iter().find(|m| &m.path == p) {
+                m.name.clone()
+            } else {
+                std::path::Path::new(p)
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(p)
+                    .to_string()
+            }
+        })
+        .collect();
 }
 
 #[cfg(test)]

@@ -42,6 +42,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarMoreToggled
         | ViewMessage::WorkSidebarMoreOpened
         | ViewMessage::WorkSidebarMoreClosed
+        | ViewMessage::WorkSidebarProjectNavHovered(_)
         | ViewMessage::WorkSidebarFilterScopeSelected(_)
         | ViewMessage::WorkSidebarFilterStatusSelected(_)
         | ViewMessage::WorkSidebarFilterTimeSelected(_)

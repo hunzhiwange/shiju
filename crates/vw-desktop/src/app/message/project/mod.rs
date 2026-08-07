@@ -113,6 +113,8 @@ pub enum ProjectMessage {
     ProjectEditCanceled,
     RecentRevealPressed(String),
     RecentRemovePressed(String),
+    RecentRemoveCanceled,
+    RecentRemoveConfirmed(String),
     ProjectPathChanged(String),
     AttachmentFilesPick,
     AttachmentFilesPicked(Option<Vec<String>>),

@@ -112,6 +112,35 @@ fn delete_request_and_cancel_only_change_confirmation_state() {
 }
 
 #[test]
+fn delete_request_blocks_current_project() {
+    let mut app = app();
+    app.recent_projects = vec!["/workspace/project-a".to_string()];
+    app.project_path = Some("/workspace/project-a".to_string());
+
+    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteRequested(0));
+
+    assert_eq!(app.recent_project_delete_confirm_idx, None);
+    assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
+    assert!(app.active_toast.is_some());
+}
+
+#[test]
+fn delete_confirmed_blocks_current_project() {
+    let mut app = app();
+    app.recent_projects = vec!["/workspace/project-a".to_string()];
+    app.recent_projects_edits = vec!["Project A".to_string()];
+    app.project_path = Some("/workspace/project-a".to_string());
+    app.recent_project_delete_confirm_idx = Some(0);
+
+    let _task = update(&mut app, SettingsMessage::RecentProjectDeleteConfirmed(0));
+
+    assert_eq!(app.recent_projects, vec!["/workspace/project-a"]);
+    assert_eq!(app.recent_projects_edits, vec!["Project A"]);
+    assert_eq!(app.recent_project_delete_confirm_idx, None);
+    assert!(app.active_toast.is_some());
+}
+
+#[test]
 fn delete_confirmed_removes_associated_state_and_rebuilds_display_names() {
     let mut app = app();
     app.recent_projects = vec![

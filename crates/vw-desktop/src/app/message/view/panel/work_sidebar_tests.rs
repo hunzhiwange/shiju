@@ -109,3 +109,20 @@ fn work_sidebar_more_and_filter_popovers_are_mutually_exclusive() {
     let _task = update_panel(&mut app, ViewMessage::WorkSidebarMoreClosed);
     assert!(!app.work_sidebar_more_open);
 }
+
+#[test]
+fn work_sidebar_project_nav_hover_shows_create_entry_and_clears_on_collapse() {
+    let mut app = App::new().0;
+    assert!(!app.work_sidebar_project_nav_hovered);
+
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarProjectNavHovered(true));
+    assert!(app.work_sidebar_project_nav_hovered);
+
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarProjectNavHovered(false));
+    assert!(!app.work_sidebar_project_nav_hovered);
+
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarProjectNavHovered(true));
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarToggled);
+    assert!(app.work_sidebar_collapsed);
+    assert!(!app.work_sidebar_project_nav_hovered);
+}

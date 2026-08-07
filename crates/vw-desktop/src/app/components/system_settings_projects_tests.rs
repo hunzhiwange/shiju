@@ -117,3 +117,21 @@ fn delete_confirmation_expands_only_the_selected_card_in_multiple_projects() {
     assert_eq!(view_shape(&first), view_shape(&second));
     assert!(view_shape(&second).1 > ordinary_shape.1);
 }
+
+#[test]
+fn current_project_shows_switch_hint_and_skips_delete_confirmation() {
+    let mut ordinary = test_app();
+    ordinary.recent_projects = vec!["/tmp/current".to_string()];
+    ordinary.recent_projects_edits = vec!["Current".to_string()];
+    ordinary.project_path = Some("/tmp/current".to_string());
+    let ordinary_shape = view_shape(&ordinary);
+
+    let mut confirming = test_app();
+    confirming.recent_projects = vec!["/tmp/current".to_string()];
+    confirming.recent_projects_edits = vec!["Current".to_string()];
+    confirming.project_path = Some("/tmp/current".to_string());
+    confirming.recent_project_delete_confirm_idx = Some(0);
+
+    assert!(ordinary_shape.1 > view_shape(&test_app()).1);
+    assert_eq!(view_shape(&confirming), ordinary_shape);
+}

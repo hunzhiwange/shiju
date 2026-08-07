@@ -304,6 +304,10 @@ fn work_sidebar_navigation_matches_reference_grouping_and_icons() {
             crate::app::components::system_settings::SystemTab::Projects
         ))
     ));
+    assert!(matches!(
+        work_sidebar::project_create_message(),
+        Message::View(ViewMessage::ProjectFileNewProject)
+    ));
 }
 
 #[test]

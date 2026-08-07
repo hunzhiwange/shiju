@@ -686,6 +686,58 @@ fn edit_cancel_resets_transient_fields() {
 }
 
 #[test]
+fn recent_remove_pressed_opens_confirmation_without_removing() {
+    let mut app = app();
+    let removed = "/tmp/remove".to_string();
+    let kept = "/tmp/keep".to_string();
+    app.recent_projects = vec![removed.clone(), kept.clone()];
+    app.recent_projects_edits = vec!["Remove".to_string(), "Keep".to_string()];
+    app.project_tools_menu_path = Some(removed.clone());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentRemovePressed(removed.clone()),
+    );
+
+    assert_eq!(app.recent_projects, vec![removed.clone(), kept]);
+    assert_eq!(app.recent_project_remove_confirm_path, Some(removed));
+    assert!(app.project_tools_menu_path.is_none());
+}
+
+#[test]
+fn recent_remove_pressed_blocks_current_project() {
+    let mut app = app();
+    let current = "/tmp/current".to_string();
+    app.recent_projects = vec![current.clone()];
+    app.recent_projects_edits = vec!["Current".to_string()];
+    app.project_path = Some(current.clone());
+    app.project_tools_menu_path = Some(current.clone());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentRemovePressed(current.clone()),
+    );
+
+    assert_eq!(app.recent_projects, vec![current]);
+    assert!(app.recent_project_remove_confirm_path.is_none());
+    assert!(app.project_tools_menu_path.is_none());
+    assert!(app.active_toast.is_some());
+}
+
+#[test]
+fn recent_remove_canceled_clears_confirmation() {
+    let mut app = app();
+    app.recent_project_remove_confirm_path = Some("/tmp/remove".to_string());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentRemoveCanceled,
+    );
+
+    assert!(app.recent_project_remove_confirm_path.is_none());
+}
+
+#[test]
 fn recent_remove_updates_recent_lists_and_clears_related_state() {
     let mut app = app();
     let removed = "/tmp/remove".to_string();
@@ -696,10 +748,11 @@ fn recent_remove_updates_recent_lists_and_clears_related_state() {
     app.project_tools_menu_path = Some(removed.clone());
     app.project_edit_path = Some(removed.clone());
     app.project_edit_name = "Remove".to_string();
+    app.recent_project_remove_confirm_path = Some(removed.clone());
 
     let _ = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::RecentRemovePressed(removed),
+        crate::app::message::project::ProjectMessage::RecentRemoveConfirmed(removed),
     );
 
     assert_eq!(app.recent_projects, vec![kept]);
@@ -708,6 +761,26 @@ fn recent_remove_updates_recent_lists_and_clears_related_state() {
     assert!(app.project_tools_menu_path.is_none());
     assert!(app.project_edit_path.is_none());
     assert!(app.project_edit_name.is_empty());
+    assert!(app.recent_project_remove_confirm_path.is_none());
+}
+
+#[test]
+fn recent_remove_confirmed_blocks_current_project() {
+    let mut app = app();
+    let current = "/tmp/current".to_string();
+    app.recent_projects = vec![current.clone()];
+    app.recent_projects_edits = vec!["Current".to_string()];
+    app.project_path = Some(current.clone());
+    app.recent_project_remove_confirm_path = Some(current.clone());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentRemoveConfirmed(current.clone()),
+    );
+
+    assert_eq!(app.recent_projects, vec![current]);
+    assert!(app.recent_project_remove_confirm_path.is_none());
+    assert!(app.active_toast.is_some());
 }
 
 #[test]
@@ -722,7 +795,7 @@ fn recent_remove_rebuilds_edit_names_from_file_names_when_meta_is_missing() {
 
     let _ = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::RecentRemovePressed(removed),
+        crate::app::message::project::ProjectMessage::RecentRemoveConfirmed(removed),
     );
 
     assert_eq!(app.recent_projects, vec![kept]);

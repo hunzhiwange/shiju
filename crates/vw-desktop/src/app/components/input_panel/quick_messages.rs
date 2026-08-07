@@ -9,7 +9,8 @@ use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    Tooltip, button, column, container, row, scrollable, text, tooltip::Position as TooltipPosition,
+    Space, Tooltip, button, column, container, row, scrollable, text,
+    tooltip::Position as TooltipPosition,
 };
 use iced::{Element, Length, Theme};
 use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup};
@@ -498,6 +499,42 @@ fn workspace_select_message(path: String) -> Message {
     ])
 }
 
+fn workspace_add_message() -> Message {
+    Message::Batch(vec![
+        Message::View(message::ViewMessage::WorkSpacePickerClosed),
+        Message::Project(message::ProjectMessage::OpenFolderPressed),
+    ])
+}
+
+fn workspace_menu_divider() -> Element<'static, Message> {
+    container(Space::new().height(Length::Fixed(1.0)))
+        .width(Length::Fill)
+        .style(|theme: &Theme| container::Style {
+            background: Some(iced::Background::Color(
+                theme.extended_palette().background.strong.color.scale_alpha(0.52),
+            )),
+            ..Default::default()
+        })
+        .into()
+}
+
+fn workspace_add_button() -> Element<'static, Message> {
+    button(
+        row![
+            super::icons::icon_svg(Icon::Plus, 13.0),
+            text("新增项目").size(12).width(Length::Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill),
+    )
+    .on_press(workspace_add_message())
+    .padding([8, 10])
+    .width(Length::Fill)
+    .style(|theme: &Theme, status| styles::quick_message_group_button_style(theme, status, false))
+    .into()
+}
+
 fn workspace_menu_view(app: &App) -> Element<'_, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     if app.recent_projects.is_empty() {
@@ -536,11 +573,15 @@ fn workspace_menu_view(app: &App) -> Element<'_, Message> {
                 .scroller_width(QUICK_MESSAGE_MENU_SCROLLBAR_WIDTH),
         ),
     );
-    container(items)
-        .padding(6)
-        .width(Length::Fixed(300.0))
-        .style(styles::quick_message_menu_style)
-        .into()
+    container(
+        column![items, workspace_menu_divider(), workspace_add_button()]
+            .spacing(3)
+            .width(Length::Fill),
+    )
+    .padding(6)
+    .width(Length::Fixed(300.0))
+    .style(styles::quick_message_menu_style)
+    .into()
 }
 
 fn workspace_menu(app: &App) -> Element<'_, Message> {

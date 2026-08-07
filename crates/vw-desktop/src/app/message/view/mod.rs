@@ -247,6 +247,8 @@ pub enum ViewMessage {
     WorkSidebarMoreOpened,
     /// 关闭工作模式左栏“更多”应用菜单
     WorkSidebarMoreClosed,
+    /// 悬停或离开工作模式左栏“项目”导航项
+    WorkSidebarProjectNavHovered(bool),
     /// 选择工作模式左栏的项目范围过滤
     WorkSidebarFilterScopeSelected(WorkSidebarFilterScope),
     /// 选择工作模式左栏的会话运行状态过滤
@@ -807,6 +809,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarMoreToggled
         | ViewMessage::WorkSidebarMoreOpened
         | ViewMessage::WorkSidebarMoreClosed
+        | ViewMessage::WorkSidebarProjectNavHovered(_)
         | ViewMessage::WorkSidebarFilterScopeSelected(_)
         | ViewMessage::WorkSidebarFilterStatusSelected(_)
         | ViewMessage::WorkSidebarFilterTimeSelected(_)

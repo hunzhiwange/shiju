@@ -64,6 +64,8 @@ pub struct App {
     pub(crate) work_sidebar_filter_open: bool,
     /// 工作模式左栏“更多”应用菜单是否打开
     pub(crate) work_sidebar_more_open: bool,
+    /// 工作模式左栏“项目”导航项是否悬停（展开态显示新建入口）
+    pub(crate) work_sidebar_project_nav_hovered: bool,
     /// 工作模式左栏项目范围过滤
     pub(crate) work_sidebar_filter_scope: WorkSidebarFilterScope,
     /// 工作模式左栏会话运行状态过滤
@@ -824,6 +826,8 @@ pub struct App {
     pub(crate) recent_projects_edits: Vec<String>,
     /// 确认删除的最近项目索引
     pub(crate) recent_project_delete_confirm_idx: Option<usize>,
+    /// 确认从列表移除的最近项目路径
+    pub(crate) recent_project_remove_confirm_path: Option<String>,
     /// 对话流权限编辑器内容
     pub(crate) dialogue_flow_permission_editor: text_editor::Content,
     pub(crate) dialogue_flow_show_reasoning_summary: bool,

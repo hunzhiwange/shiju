@@ -355,6 +355,7 @@ impl App {
             work_sidebar_collapsed: false,
             work_sidebar_filter_open: false,
             work_sidebar_more_open: false,
+            work_sidebar_project_nav_hovered: false,
             work_sidebar_filter_scope: state::WorkSidebarFilterScope::default(),
             work_sidebar_filter_status: state::WorkSidebarFilterStatus::default(),
             work_sidebar_filter_time: state::WorkSidebarFilterTime::default(),
@@ -610,6 +611,7 @@ impl App {
                 recent.iter().map(|p| display_name_for_path(&recent_meta, p)).collect()
             },
             recent_project_delete_confirm_idx: None,
+            recent_project_remove_confirm_path: None,
 
             // ========== 对话流配置 ==========
             dialogue_flow_permission_editor: iced::widget::text_editor::Content::with_text("{}"),

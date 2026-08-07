@@ -107,7 +107,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     for (i, p) in app.recent_projects_edits.iter().enumerate() {
         let path = app.recent_projects.get(i).cloned().unwrap_or_default();
         let open_path = path.clone();
-        let is_confirming_delete = app.recent_project_delete_confirm_idx == Some(i);
+        let is_current_project = app.project_path.as_ref() == Some(&path);
+        let is_confirming_delete =
+            !is_current_project && app.recent_project_delete_confirm_idx == Some(i);
 
         let mut content = column![
             row![
@@ -146,6 +148,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(8)
         .width(Length::Fill);
+
+        if is_current_project {
+            content = content.push(
+                text("当前项目不能删除，请先切换到其他项目")
+                    .size(11)
+                    .style(settings_muted_text_style),
+            );
+        }
 
         if is_confirming_delete {
             content = content.push(

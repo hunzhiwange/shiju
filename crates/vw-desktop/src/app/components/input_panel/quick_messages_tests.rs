@@ -154,6 +154,27 @@ fn work_mode_space_picker_routes_selection_and_renders_without_quick_messages() 
 }
 
 #[test]
+fn work_mode_space_picker_add_project_closes_and_opens_folder() {
+    let mut app = App::new().0;
+    app.workspace_mode = WorkspaceMode::Work;
+    app.work_space_picker_open = true;
+    app.quick_messages.clear();
+    app.recent_projects.clear();
+
+    assert!(view(&app).is_some());
+    let Message::Batch(messages) = workspace_add_message() else {
+        panic!("add project should close the picker and open a folder dialog");
+    };
+    assert!(matches!(
+        messages.as_slice(),
+        [
+            Message::View(message::ViewMessage::WorkSpacePickerClosed),
+            Message::Project(message::ProjectMessage::OpenFolderPressed)
+        ]
+    ));
+}
+
+#[test]
 fn input_strip_places_shiju_before_general_actions() {
     let mut app = App::new().0;
     app.workspace_mode = WorkspaceMode::Code;

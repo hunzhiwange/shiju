@@ -30,6 +30,7 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.work_sidebar_width = WORK_SIDEBAR_COLLAPSED_WIDTH;
                 app.work_sidebar_filter_open = false;
                 app.work_sidebar_more_open = false;
+                app.work_sidebar_project_nav_hovered = false;
             }
             app.work_sidebar_collapsed = !app.work_sidebar_collapsed;
         }
@@ -50,6 +51,9 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::WorkSidebarMoreClosed => {
             app.work_sidebar_more_open = false;
+        }
+        ViewMessage::WorkSidebarProjectNavHovered(hovered) => {
+            app.work_sidebar_project_nav_hovered = hovered;
         }
         ViewMessage::WorkSidebarFilterScopeSelected(scope) => {
             app.work_sidebar_filter_scope = scope;

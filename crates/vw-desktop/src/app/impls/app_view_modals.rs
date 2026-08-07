@@ -11,6 +11,7 @@ mod git_diff;
 mod permission_modal;
 mod project_edit;
 mod question_modal;
+mod recent_project_remove;
 mod rename;
 
 #[allow(dead_code)]
@@ -34,6 +35,7 @@ pub(crate) use git_diff::with_git_diff_overlays;
 pub(crate) use permission_modal::with_permission_modal;
 pub(crate) use project_edit::with_project_edit;
 pub(crate) use question_modal::with_question_modal;
+pub(crate) use recent_project_remove::with_recent_project_remove_confirm;
 pub(crate) use rename::{with_file_tree_rename, with_session_rename};
 #[cfg(test)]
 #[path = "app_view_modals_tests.rs"]

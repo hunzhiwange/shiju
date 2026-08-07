@@ -1186,18 +1186,13 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
             expert_hub_message(ExpertHubSection::Experts),
             specs[1].2,
         ))
-        .push(navigation_button(specs[2].0, specs[2].1, project_navigation_message(), specs[2].2))
+        .push(project_navigation_control(app))
         .push(shiju_apps_button())
         .push(shiju_skills_button())
         .push(expert_hub_button());
 
     #[cfg(target_arch = "wasm32")]
-    let navigation = navigation.push(navigation_button(
-        specs[2].0,
-        specs[2].1,
-        project_navigation_message(),
-        specs[2].2,
-    ));
+    let navigation = navigation.push(project_navigation_control(app));
 
     navigation
         .push(navigation_button(
@@ -1212,6 +1207,53 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
 
 pub(super) fn project_navigation_message() -> Message {
     Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Projects))
+}
+
+pub(super) fn project_create_message() -> Message {
+    Message::View(ViewMessage::ProjectFileNewProject)
+}
+
+fn project_navigation_control(app: &App) -> Element<'static, Message> {
+    const CREATE_CONTROL_SIZE: f32 = 30.0;
+    let (_, icon, _) = navigation_specs()[2];
+    let switch = button(
+        row![
+            container(navigation_icon(icon))
+                .width(Length::Fixed(WORK_NAVIGATION_ICON_COLUMN_WIDTH)),
+            text("项目").size(14),
+            Space::new().width(Length::Fill),
+        ]
+        .spacing(10)
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill),
+    )
+    .on_press(project_navigation_message())
+    .padding([9, 11])
+    .width(Length::Fill)
+    .style(navigation_button_style);
+
+    let create: Element<'static, Message> = if app.work_sidebar_project_nav_hovered {
+        header_icon_button_sized(
+            Icon::Plus,
+            "新建项目!!!",
+            project_create_message(),
+            false,
+            CREATE_CONTROL_SIZE,
+        )
+    } else {
+        Space::new().width(Length::Fixed(CREATE_CONTROL_SIZE)).into()
+    };
+
+    mouse_area(
+        row![switch, create]
+            .spacing(2)
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill),
+    )
+    .on_enter(Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
+    .on_move(|_| Message::View(ViewMessage::WorkSidebarProjectNavHovered(true)))
+    .on_exit(Message::View(ViewMessage::WorkSidebarProjectNavHovered(false)))
+    .into()
 }
 
 fn load_more_button(remaining: usize) -> Element<'static, Message> {

@@ -49,6 +49,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::RecentProjectDeleteRequested(idx) => {
+            if let Some(path) = app.recent_projects.get(idx)
+                && app.project_path.as_ref() == Some(path)
+            {
+                app.recent_project_delete_confirm_idx = None;
+                return app.show_warning_toast("当前项目不能删除，请先切换到其他项目");
+            }
             app.recent_project_delete_confirm_idx = Some(idx);
             Task::none()
         }
@@ -57,6 +63,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::RecentProjectDeleteConfirmed(idx) => {
+            if let Some(path) = app.recent_projects.get(idx)
+                && app.project_path.as_ref() == Some(path)
+            {
+                app.recent_project_delete_confirm_idx = None;
+                return app.show_warning_toast("当前项目不能删除，请先切换到其他项目");
+            }
             if idx < app.recent_projects.len() {
                 let path = app.recent_projects.remove(idx);
                 if idx < app.recent_projects_edits.len() {

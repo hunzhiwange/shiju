@@ -240,6 +240,7 @@ impl App {
         let root_content = app_view_modals::with_account_details(self, root_content);
         let root_content = app_view_modals::with_chat_reset_dialog(self, root_content);
         let root_content = app_view_modals::with_chat_fork_dialog(self, root_content);
+        let root_content = app_view_modals::with_recent_project_remove_confirm(self, root_content);
         // 确认对话框（问题模态框）
         let root_content = app_view_modals::with_question_modal(self, root_content);
         let root_content = app_view_modals::with_permission_modal(self, root_content);

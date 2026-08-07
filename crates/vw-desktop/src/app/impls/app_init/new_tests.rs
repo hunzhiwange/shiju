@@ -110,6 +110,7 @@ fn work_workspace_state_defaults_to_hidden_overview() {
     assert!(!app.work_chat_fullscreen);
     assert!(!app.work_chat_half_fullscreen);
     assert!(!app.work_sidebar_more_open);
+    assert!(!app.work_sidebar_project_nav_hovered);
     assert!(app.work_expanded_spaces.is_empty());
 }
 

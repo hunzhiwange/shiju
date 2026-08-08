@@ -705,7 +705,7 @@ fn recent_remove_pressed_opens_confirmation_without_removing() {
 }
 
 #[test]
-fn recent_remove_pressed_blocks_current_project() {
+fn recent_remove_pressed_allows_current_project_confirmation() {
     let mut app = app();
     let current = "/tmp/current".to_string();
     app.recent_projects = vec![current.clone()];
@@ -718,10 +718,10 @@ fn recent_remove_pressed_blocks_current_project() {
         crate::app::message::project::ProjectMessage::RecentRemovePressed(current.clone()),
     );
 
-    assert_eq!(app.recent_projects, vec![current]);
-    assert!(app.recent_project_remove_confirm_path.is_none());
+    assert_eq!(app.recent_projects, vec![current.clone()]);
+    assert_eq!(app.recent_project_remove_confirm_path, Some(current));
     assert!(app.project_tools_menu_path.is_none());
-    assert!(app.active_toast.is_some());
+    assert!(app.active_toast.is_none());
 }
 
 #[test]
@@ -765,11 +765,12 @@ fn recent_remove_updates_recent_lists_and_clears_related_state() {
 }
 
 #[test]
-fn recent_remove_confirmed_blocks_current_project() {
+fn recent_remove_confirmed_current_project_selects_first_remaining_project() {
     let mut app = app();
     let current = "/tmp/current".to_string();
-    app.recent_projects = vec![current.clone()];
-    app.recent_projects_edits = vec!["Current".to_string()];
+    let next = "/tmp/next".to_string();
+    app.recent_projects = vec![current.clone(), next.clone()];
+    app.recent_projects_edits = vec!["Current".to_string(), "Next".to_string()];
     app.project_path = Some(current.clone());
     app.recent_project_remove_confirm_path = Some(current.clone());
 
@@ -778,9 +779,10 @@ fn recent_remove_confirmed_blocks_current_project() {
         crate::app::message::project::ProjectMessage::RecentRemoveConfirmed(current.clone()),
     );
 
-    assert_eq!(app.recent_projects, vec![current]);
+    assert_eq!(app.recent_projects, vec![next.clone()]);
+    assert_eq!(app.project_path, Some(next));
     assert!(app.recent_project_remove_confirm_path.is_none());
-    assert!(app.active_toast.is_some());
+    assert!(app.active_toast.is_none());
 }
 
 #[test]

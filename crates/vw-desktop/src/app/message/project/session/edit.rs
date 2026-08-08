@@ -573,10 +573,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::RecentRemovePressed(path) => {
             app.project_tools_menu_path = None;
-            if app.project_path.as_ref() == Some(&path) {
-                app.recent_project_remove_confirm_path = None;
-                return Some(app.show_warning_toast("当前项目不能删除，请先切换到其他项目"));
-            }
             app.recent_project_remove_confirm_path = Some(path);
             Some(iced::Task::none())
         }
@@ -585,13 +581,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::RecentRemoveConfirmed(path) => {
-            if app.project_path.as_ref() == Some(&path) {
-                app.recent_project_remove_confirm_path = None;
-                return Some(app.show_warning_toast("当前项目不能删除，请先切换到其他项目"));
-            }
+            let deleting_current = app.project_path.as_ref() == Some(&path);
             remove_recent_project(app, &path);
             app.recent_project_remove_confirm_path = None;
-            Some(iced::Task::none())
+            if deleting_current {
+                Some(app.open_first_recent_project_or_home())
+            } else {
+                Some(iced::Task::none())
+            }
         }
         _ => None,
     }

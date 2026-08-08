@@ -533,6 +533,15 @@ impl App {
         }
     }
 
+    /// 删除当前项目后打开剩余列表中的第一个项目；没有项目时返回首页。
+    pub fn open_first_recent_project_or_home(&mut self) -> Task<Message> {
+        if let Some(path) = self.recent_projects.first().cloned() {
+            self.open_project_and_index(path)
+        } else {
+            Task::done(Message::View(message::ViewMessage::GoHome))
+        }
+    }
+
     /// 切换工作模式空间，并把当前聊天作为新空间中的未提交会话继续保留。
     pub fn switch_work_space_preserving_chat(&mut self, path: String) -> Task<Message> {
         if self.project_path.as_deref() == Some(path.as_str()) {

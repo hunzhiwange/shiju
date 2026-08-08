@@ -39,6 +39,19 @@ async fn project_settings_refresh_task_reloads_agents_and_skills_for_project() {
     )));
 }
 
+#[tokio::test]
+async fn open_first_recent_project_or_home_goes_home_when_no_projects_remain() {
+    let (mut app, _) = crate::app::App::new();
+    app.recent_projects.clear();
+
+    let messages = collect_task_messages(app.open_first_recent_project_or_home()).await;
+
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        crate::app::Message::View(crate::app::message::ViewMessage::GoHome)
+    )));
+}
+
 #[test]
 fn open_project_immediately_moves_agent_settings_to_new_project_scope() {
     let (mut app, _) = crate::app::App::new();

@@ -430,6 +430,14 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "image_asset_read",
     "tool_search",
     "verify_plan_execution",
+    "Sleep",
+    "ListMcpResources",
+    "ListMcpResourceTemplates",
+    "ReadMcpResource",
+    "ListMcpPrompts",
+    "GetMcpPrompt",
+    "McpAuth",
+    "McpStatus",
 ];
 
 /// 主 ID 之外、仍视为同一内置必选工具的既有别名。
@@ -444,6 +452,14 @@ const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
     "websearch",
     "web_search_tool",
     "edit",
+    "sleep",
+    "list_mcp_resources",
+    "list_mcp_resource_templates",
+    "read_mcp_resource",
+    "list_mcp_prompts",
+    "get_mcp_prompt",
+    "mcp_auth",
+    "mcp_status",
 ];
 
 /// 判断工具 ID 是否属于内置必选目录（含主 ID 与既有别名）。

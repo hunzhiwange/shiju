@@ -28,6 +28,22 @@ serde_json = "1"
 tao = { version = "0.34" }
 wry = { version = "0.54" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", features = ["exception", "disable-encoding-assertions"] }
+objc2-app-kit = { version = "0.3.0", default-features = false, features = [
+    "std",
+    "objc2-core-foundation",
+    "NSApplication",
+    "NSEvent",
+    "NSMenu",
+    "NSMenuItem",
+] }
+objc2-foundation = { version = "0.3.0", default-features = false, features = [
+    "std",
+    "NSString",
+    "NSObject",
+] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 rfd = "0.14"
 

@@ -4,6 +4,8 @@
 
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
+mod edit_menu;
 #[cfg(not(target_arch = "wasm32"))]
 mod toolbar;
 
@@ -787,6 +789,8 @@ fn main() {
     };
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
+    #[cfg(target_os = "macos")]
+    edit_menu::install_edit_menu();
     let proxy = event_loop.create_proxy();
     {
         let stdin_proxy = proxy.clone();
@@ -870,6 +874,7 @@ fn main() {
         let toolbar_ready_proxy = proxy.clone();
         let toolbar = match WebViewBuilder::new()
             .with_html(toolbar_html())
+            .with_clipboard(true)
             .with_bounds(region.to_wry_rect())
             .with_on_page_load_handler(move |event, _url| {
                 if matches!(event, wry::PageLoadEvent::Finished) {
@@ -919,6 +924,7 @@ fn main() {
             .with_url(initial_url)
             .with_user_agent(SAFARI_USER_AGENT)
             .with_devtools(true)
+            .with_clipboard(true)
             .with_accept_first_mouse(true)
             .with_initialization_script(&init_script)
             .with_on_page_load_handler(move |_event, url| {
@@ -945,6 +951,7 @@ fn main() {
         WebViewBuilder::new_with_web_context(&mut web_context)
             .with_url(initial_url)
             .with_devtools(true)
+            .with_clipboard(true)
             .with_accept_first_mouse(true)
             .with_initialization_script(&init_script)
             .with_on_page_load_handler(move |_event, url| {
@@ -1125,6 +1132,10 @@ fn main() {
 
 #[cfg(any(target_arch = "wasm32", coverage))]
 fn main() {}
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "edit_menu_tests.rs"]
+mod edit_menu_tests;
 
 #[cfg(test)]
 #[path = "main_tests.rs"]

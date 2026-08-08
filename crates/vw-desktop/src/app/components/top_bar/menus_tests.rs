@@ -15,7 +15,7 @@ fn test_app(screen: Screen) -> App {
 
 fn item(entry: &MenuEntry) -> (&str, Option<&str>, &Message) {
     match entry {
-        MenuEntry::Item { label, shortcut, message } => (*label, *shortcut, message.as_ref()),
+        MenuEntry::Item { label, shortcut, message, .. } => (*label, *shortcut, message.as_ref()),
         MenuEntry::Separator => panic!("expected menu item"),
     }
 }

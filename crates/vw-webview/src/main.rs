@@ -789,9 +789,9 @@ fn main() {
     };
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
-    #[cfg(target_os = "macos")]
-    edit_menu::install_edit_menu();
     let proxy = event_loop.create_proxy();
+    #[cfg(target_os = "macos")]
+    edit_menu::install_edit_menu(proxy.clone(), &url);
     {
         let stdin_proxy = proxy.clone();
         thread::spawn(move || {
@@ -1066,6 +1066,8 @@ fn main() {
                         let _ = toolbar.evaluate_script(&script);
                     }
                 }
+                #[cfg(target_os = "macos")]
+                edit_menu::set_current_url(&current_url);
             }
             Event::UserEvent(UserEvent::ToolbarReady) => {
                 if let Some(toolbar) = toolbar_webview.as_ref()
@@ -1104,6 +1106,8 @@ fn main() {
             Event::UserEvent(UserEvent::ClearBrowser) => {
                 browser_cleared = true;
                 current_url.clear();
+                #[cfg(target_os = "macos")]
+                edit_menu::set_current_url("");
                 let _ = webview.load_url(DEFAULT_TARGET);
                 if let Some(toolbar) = toolbar_webview.as_ref()
                     && let Ok(script) = toolbar_address_script("")

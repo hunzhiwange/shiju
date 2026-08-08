@@ -93,6 +93,19 @@ fn default_acp_icon_uses_requested_size() {
 }
 
 #[test]
+fn default_acp_icon_uses_robot_instead_of_connector() {
+    let source = include_str!("icons.rs");
+    assert!(
+        source.contains("assets::get_icon(Icon::Robot)"),
+        "default ACP backend should use robot icon like slash ACP entries"
+    );
+    assert!(
+        !source.contains("assets::get_icon(Icon::GearWideConnected)"),
+        "default ACP backend should not reuse expert-hub connector icon"
+    );
+}
+
+#[test]
 fn raw_svg_handle_accepts_asset_handle_without_theme_style() {
     let element: Element<'_, Message> =
         raw_svg_handle(assets::get_icon(Icon::AppCodex), 15.0).into();

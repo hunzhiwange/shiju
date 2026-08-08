@@ -397,7 +397,6 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
         agent: Some("main".to_string()),
         acp_agent: Some("codex".to_string()),
         parent_session_id: Some("main-session".to_string()),
-        mode: vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow,
     };
     let mut events = Vec::new();
 
@@ -1830,17 +1829,16 @@ fn sample_agent_request(
 
 #[test]
 fn goal_only_does_not_activate_task_plan_run() {
-    assert_eq!(
-        super::task_plan_run_mode_for_request(false, true, false),
-        None,
+    assert!(
+        !super::task_plan_run_active(false, false),
         "goal alone must not enter task_plan_run"
     );
     let request = sample_agent_request(false, true, None);
     let plan_run = super::build_task_plan_run_request(&request)
         .expect("goal-only without root must not demand project root");
     assert!(plan_run.is_none(), "goal-only must stay on ordinary chat");
-    assert!(super::lightweight_goal_active(false, true, false));
-    assert!(!super::lightweight_goal_active(true, true, false));
+    assert!(super::lightweight_goal_active(false, false));
+    assert!(!super::lightweight_goal_active(true, false));
 }
 
 #[test]
@@ -1956,35 +1954,24 @@ fn lightweight_goal_stops_on_explicit_blocker() {
 }
 
 #[test]
-fn workflow_with_goal_uses_goal_plan_run_mode() {
-    assert_eq!(
-        super::task_plan_run_mode_for_request(true, true, false),
-        Some(vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Goal)
-    );
-    let request = sample_agent_request(true, true, Some("/tmp/project"));
-    let plan_run = super::build_task_plan_run_request(&request)
+fn workflow_enabled_builds_plan_run_request_without_mode() {
+    assert!(super::task_plan_run_active(true, false));
+    assert!(!super::task_plan_run_active(true, true));
+    assert!(!super::task_plan_run_active(false, false));
+
+    let with_goal = sample_agent_request(true, true, Some("/tmp/project"));
+    let plan_run = super::build_task_plan_run_request(&with_goal)
         .expect("workflow+goal with root should build plan-run")
         .expect("workflow+goal must construct TaskPlanRunRequest");
-    assert_eq!(
-        plan_run.mode,
-        vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Goal
-    );
-}
+    assert_eq!(plan_run.query, with_goal.query);
+    assert_eq!(plan_run.root, "/tmp/project");
 
-#[test]
-fn workflow_without_goal_uses_workflow_plan_run_mode() {
-    assert_eq!(
-        super::task_plan_run_mode_for_request(true, false, false),
-        Some(vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow)
-    );
-    let request = sample_agent_request(true, false, Some("/tmp/project"));
-    let plan_run = super::build_task_plan_run_request(&request)
+    let without_goal = sample_agent_request(true, false, Some("/tmp/project"));
+    let plan_run = super::build_task_plan_run_request(&without_goal)
         .expect("workflow with root should build plan-run")
         .expect("workflow must construct TaskPlanRunRequest");
-    assert_eq!(
-        plan_run.mode,
-        vw_gateway_client::vw_api_types::task::TaskPlanRunMode::Workflow
-    );
+    assert_eq!(plan_run.query, without_goal.query);
+    assert_eq!(plan_run.root, "/tmp/project");
 }
 
 #[test]

@@ -24,6 +24,8 @@ pub mod lsp;
 pub mod message;
 /// models 子模块，拆分当前领域的局部职责。
 pub(crate) mod models;
+/// 原生系统菜单（macOS）。
+pub(crate) mod native_menu;
 /// preview 子模块，拆分当前领域的局部职责。
 pub mod preview;
 /// projects 子模块，拆分当前领域的局部职责。

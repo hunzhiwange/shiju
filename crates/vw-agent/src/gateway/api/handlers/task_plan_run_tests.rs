@@ -14,7 +14,6 @@ fn sample_request() -> TaskPlanRunRequest {
         agent: None,
         acp_agent: None,
         parent_session_id: None,
-        mode: vw_api_types::task::TaskPlanRunMode::Workflow,
     }
 }
 

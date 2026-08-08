@@ -1,8 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use vw_gateway_client::vw_api_types::task::{
-    TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStatusResponse,
-};
+use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStatusResponse};
 use vw_gateway_client::{
     GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume,
 };
@@ -12,27 +10,20 @@ use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::stream_adapter::{
     UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event,
 };
-use crate::cli::tui_v2::model::{GoalMode, PromptSubmission, WorkflowMode};
+use crate::cli::tui_v2::model::{PromptSubmission, WorkflowMode};
 
 const PLAN_RUN_RESUME_ATTEMPTS: usize = 3;
 
 pub(crate) fn plan_run_request_for_submission(
     submission: &PromptSubmission,
 ) -> Result<Option<TaskPlanRunRequest>, String> {
-    // 工作流或目标任一开启时进入 plan-run（路由细化由后续任务处理）。
-    if submission.execution.workflow_mode == WorkflowMode::Disabled
-        && submission.execution.goal_mode == GoalMode::Disabled
-    {
+    // 仅工作流开启时进入 plan-run；目标模式由网关底层固定开启。
+    if submission.execution.workflow_mode == WorkflowMode::Disabled {
         return Ok(None);
     }
     if submission.text.trim().is_empty() {
         return Ok(None);
     }
-    let mode = if submission.execution.goal_mode == GoalMode::Enabled {
-        TaskPlanRunMode::Goal
-    } else {
-        TaskPlanRunMode::Workflow
-    };
     let root = submission
         .root
         .as_deref()
@@ -46,7 +37,6 @@ pub(crate) fn plan_run_request_for_submission(
         agent: submission.execution.delegate_agent.clone(),
         acp_agent: submission.execution.acp_backend.clone(),
         parent_session_id: submission.session_id.clone(),
-        mode,
     }))
 }
 

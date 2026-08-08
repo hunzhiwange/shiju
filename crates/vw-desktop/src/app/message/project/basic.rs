@@ -11,8 +11,9 @@
 
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{append_local_attachments, load_project_info_task};
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 
-use crate::app::{App, Message, set_config_field};
+use crate::app::{App, Message, Screen, set_config_field};
 use std::time::Duration;
 
 fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
@@ -20,6 +21,50 @@ fn schedule_file_manager_refresh_tick() -> iced::Task<Message> {
         Duration::from_millis(90),
         Message::Project(ProjectMessage::FileManagerRefreshAnimationTick),
     )
+}
+
+/// 工作模式下打开变更相关视图时，立刻切到「工作空间文件」并取消聊天独占。
+fn reveal_work_workspace_files(app: &mut App) -> Option<iced::Task<Message>> {
+    if !matches!(app.screen, Screen::Project) || app.workspace_mode != WorkspaceMode::Work {
+        return None;
+    }
+    let need_reveal = !app.work_resources_visible
+        || app.work_resource_mode != WorkResourceMode::WorkspaceFiles
+        || app.work_chat_fullscreen
+        || app.work_chat_half_fullscreen;
+    if !need_reveal {
+        return None;
+    }
+    app.work_resources_visible = true;
+    app.work_resource_mode = WorkResourceMode::WorkspaceFiles;
+    app.work_chat_fullscreen = false;
+    app.work_chat_half_fullscreen = false;
+    Some(iced::Task::done(Message::View(
+        crate::app::message::ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles),
+    )))
+}
+
+/// 切到文件管理器「更改」页，并展开变更路径上的目录。
+fn ensure_file_manager_changes_expanded(app: &mut App, extra_paths: impl IntoIterator<Item = String>) {
+    app.show_file_manager = true;
+    set_config_field("show_file_manager", serde_json::Value::Bool(true));
+    if !app.file_manager_show_changes {
+        app.file_manager_show_changes = true;
+        set_config_field("file_manager_show_changes", serde_json::Value::Bool(true));
+    }
+    let mut paths = app.git_changed_files.clone();
+    paths.extend(extra_paths);
+    let keys: Vec<String> =
+        crate::app::components::file_tree::change_list_expand_keys(paths.iter().map(String::as_str))
+            .into_iter()
+            .collect();
+    for key in keys {
+        app.ensure_file_tree_dir_expanded(key);
+    }
+    let arr = serde_json::Value::Array(
+        app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
+    );
+    set_config_field("file_tree_expanded", arr);
 }
 
 #[cfg(test)]
@@ -220,7 +265,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             set_config_field("file_manager_show_changes", serde_json::Value::Bool(b));
             app.show_file_manager = true;
             set_config_field("show_file_manager", serde_json::Value::Bool(true));
+            let mut tasks = Vec::new();
             if b {
+                // 工作模式：立刻切到「工作空间文件」，避免变更列表藏在概览/浏览器后面
+                if let Some(task) = reveal_work_workspace_files(app) {
+                    tasks.push(task);
+                }
                 // 自动展开包含变更文件的目录（键需带 chg: 前缀，并覆盖每一层祖先）
                 for key in crate::app::components::file_tree::change_list_expand_keys(
                     app.git_changed_files.iter().map(String::as_str),
@@ -236,7 +286,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 );
                 set_config_field("file_tree_expanded", arr);
             }
-            Some(iced::Task::none())
+            Some(if tasks.is_empty() {
+                iced::Task::none()
+            } else {
+                iced::Task::batch(tasks)
+            })
         }
         ProjectMessage::FileManagerRefreshChanges => {
             if app.git_changed_files_loading || app.file_manager_changes_refreshing {
@@ -273,16 +327,18 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(schedule_file_manager_refresh_tick())
         }
         // 处理打开 Git 变更文件事件
-        // 构建文件的完整路径并打开预览
+        // 工作模式先跳到「工作空间文件 → 更改」，目录未展开则立刻展开，再聚焦该变更文件
         ProjectMessage::OpenChangedFile(path) => {
-            if let Some(root) = &app.project_path {
-                let full = std::path::Path::new(root).join(&path);
-                let full_str = full.to_string_lossy().to_string();
-                return Some(iced::Task::done(Message::Preview(
-                    crate::app::message::PreviewMessage::Open(full_str),
-                )));
+            let mut tasks = Vec::new();
+            if let Some(task) = reveal_work_workspace_files(app) {
+                tasks.push(task);
             }
-            Some(iced::Task::none())
+            app.active_find_results_tab_id = None;
+            ensure_file_manager_changes_expanded(app, std::iter::once(path.clone()));
+            tasks.push(iced::Task::done(Message::Git(
+                crate::app::message::GitMessage::FocusFile(path),
+            )));
+            Some(iced::Task::batch(tasks))
         }
         // 处理将文件树项添加到聊天的事件
         // 在聊天输入框的光标位置插入文件引用（格式：@相对路径:行号:列号）

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::thread;
 
 use vw_gateway_client::vw_api_types::task::{
-    TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
+    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
 };
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
@@ -55,7 +55,6 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
             agent: Some("reviewer".to_string()),
             acp_agent: Some("codex".to_string()),
             parent_session_id: Some("parent-session".to_string()),
-            mode: TaskPlanRunMode::Workflow,
         }
     );
 
@@ -67,9 +66,12 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
     let requests = server.join().expect("join plan-run stream server");
     let body = request_json(&requests[0]);
     let recorded: TaskPlanRunRequest =
-        serde_json::from_value(body).expect("decode recorded TaskPlanRunRequest");
+        serde_json::from_value(body.clone()).expect("decode recorded TaskPlanRunRequest");
 
-    assert_eq!(recorded.mode, TaskPlanRunMode::Workflow);
+    assert!(
+        !body.as_object().expect("request object").contains_key("mode"),
+        "plan-run request must not send removed mode field"
+    );
     assert_eq!(recorded.root, "/repo");
     assert_eq!(recorded.agent.as_deref(), Some("reviewer"));
     assert_eq!(recorded.acp_agent.as_deref(), Some("codex"));
@@ -111,7 +113,6 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
     let discussion_request = plan_run_request_for_submission(&discussion)
         .expect("discussion route")
         .expect("workflow toggle must enter plan-run for any non-empty query");
-    assert_eq!(discussion_request.mode, TaskPlanRunMode::Workflow);
     assert_eq!(discussion_request.query, "如何实现工作流模式？");
     let missing_root = workflow_submission("实现工作流模式", None);
     assert!(
@@ -167,7 +168,21 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
 }
 
 #[test]
-fn goal_mode_streams_turns_and_evaluations_until_terminal() {
+fn goal_mode_alone_does_not_enter_plan_run() {
+    let mut submission =
+        PromptSubmission::new("持续实现并验收目标").with_root("/repo");
+    submission.execution.workflow_mode = WorkflowMode::Disabled;
+    submission.execution.goal_mode = GoalMode::Enabled;
+
+    let request = plan_run_request_for_submission(&submission).expect("goal-only route");
+    assert!(
+        request.is_none(),
+        "goal mode alone must not enter plan-run; gateway enables goal under workflow"
+    );
+}
+
+#[test]
+fn workflow_mode_streams_goal_turns_and_evaluations_until_terminal() {
     let goal_events = [
         TaskPlanRunStreamEventDto::PlanningStarted {
             task_id: "goal-1".to_string(),
@@ -222,14 +237,12 @@ fn goal_mode_streams_turns_and_evaluations_until_terminal() {
         spawn_response_server("text/event-stream", response_body, 1);
     let mut submission =
         PromptSubmission::new("持续实现并验收目标").with_root("/repo");
-    submission.execution.workflow_mode = WorkflowMode::Disabled;
+    submission.execution.workflow_mode = WorkflowMode::Enabled;
     submission.execution.goal_mode = GoalMode::Enabled;
 
     let request = plan_run_request_for_submission(&submission)
-        .expect("goal route")
-        .expect("goal mode should use plan-run");
-
-    assert_eq!(request.mode, TaskPlanRunMode::Goal);
+        .expect("workflow route")
+        .expect("workflow mode should use plan-run");
 
     let mut state = TuiState::default();
     let mut runtime_events = Vec::new();
@@ -239,10 +252,15 @@ fn goal_mode_streams_turns_and_evaluations_until_terminal() {
         true
     });
     let requests = server.join().expect("join goal stream server");
+    let body = request_json(&requests[0]);
     let recorded: TaskPlanRunRequest =
-        serde_json::from_value(request_json(&requests[0])).expect("decode goal request");
+        serde_json::from_value(body.clone()).expect("decode goal request");
 
-    assert_eq!(recorded.mode, TaskPlanRunMode::Goal);
+    assert!(
+        !body.as_object().expect("request object").contains_key("mode"),
+        "plan-run request must not send removed mode field"
+    );
+    assert_eq!(recorded.query, "持续实现并验收目标");
     assert_eq!(
         runtime_events
             .iter()

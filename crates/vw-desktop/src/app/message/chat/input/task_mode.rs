@@ -19,9 +19,9 @@ pub(super) fn handle_workflow_mode_toggled(app: &mut App, enabled: bool) -> Task
     Task::none()
 }
 
-/// 切换目标模式；可与工作流并存，互不关闭。
-pub(super) fn handle_goal_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
-    app.current_session_runtime_mut().goal_mode_enabled = enabled;
+/// 目标模式底层固定开启，不可通过界面关闭；保留处理入口以兼容旧消息。
+pub(super) fn handle_goal_mode_toggled(app: &mut App, _enabled: bool) -> Task<Message> {
+    app.current_session_runtime_mut().goal_mode_enabled = true;
     Task::none()
 }
 

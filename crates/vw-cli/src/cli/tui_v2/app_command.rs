@@ -647,11 +647,7 @@ impl TuiApp {
             } else {
                 crate::cli::tui_v2::model::session_mode::WorkflowMode::Disabled
             },
-            goal_mode: if self.state.session_options.goal_mode_enabled() {
-                crate::cli::tui_v2::model::session_mode::GoalMode::Enabled
-            } else {
-                crate::cli::tui_v2::model::session_mode::GoalMode::Disabled
-            },
+            goal_mode: crate::cli::tui_v2::model::session_mode::GoalMode::Enabled,
             effort: self.state.session_options.effort,
             fast: self.state.session_options.fast,
             theme: if self.state.theme_name.trim().is_empty() {
@@ -1389,9 +1385,7 @@ pub(crate) fn apply_settings_values_to_state(state: &mut super::TuiState, values
     state.session_options.set_workflow_mode(
         values.workflow_mode == crate::cli::tui_v2::model::session_mode::WorkflowMode::Enabled,
     );
-    state.session_options.set_goal_mode(
-        values.goal_mode == crate::cli::tui_v2::model::session_mode::GoalMode::Enabled,
-    );
+    state.session_options.set_goal_mode(true);
     state.prompt.vim_mode = values.vim_mode;
     if let Some(model) = values.model.clone() {
         reduce_tui_state(

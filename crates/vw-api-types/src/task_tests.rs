@@ -709,7 +709,6 @@ fn task_plan_run_request_and_events_serialize_session_fields() {
         agent: None,
         acp_agent: None,
         parent_session_id: Some("main-session".to_string()),
-        mode: crate::task::TaskPlanRunMode::Workflow,
     };
     assert_eq!(
         serde_json::to_value(&request).expect("serialize request"),
@@ -872,15 +871,18 @@ fn task_plan_run_control_status_and_cancelled_event_roundtrip() {
 }
 
 #[test]
-fn task_plan_run_modes_and_goal_events_round_trip() {
-    use crate::task::{TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+fn task_plan_run_request_ignores_legacy_mode_and_goal_events_round_trip() {
+    use crate::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
-    let workflow: TaskPlanRunRequest = serde_json::from_value(json!({
+    // 旧客户端仍可能发送 mode；网关侧已删除该参数，反序列化时忽略。
+    let request: TaskPlanRunRequest = serde_json::from_value(json!({
         "query": "plan it",
         "root": "/repo",
+        "mode": "workflow",
     }))
-    .expect("request without mode");
-    assert_eq!(workflow.mode, TaskPlanRunMode::Workflow);
+    .expect("legacy mode field is ignored");
+    assert_eq!(request.query, "plan it");
+    assert_eq!(request.root, "/repo");
 
     let goal = TaskPlanRunRequest {
         query: "finish with evidence".to_string(),
@@ -889,7 +891,6 @@ fn task_plan_run_modes_and_goal_events_round_trip() {
         agent: None,
         acp_agent: None,
         parent_session_id: Some("main-session".to_string()),
-        mode: TaskPlanRunMode::Goal,
     };
     assert_eq!(
         serde_json::to_value(goal).expect("serialize goal request"),
@@ -897,7 +898,6 @@ fn task_plan_run_modes_and_goal_events_round_trip() {
             "query": "finish with evidence",
             "root": "/repo",
             "parent_session_id": "main-session",
-            "mode": "goal",
         })
     );
 

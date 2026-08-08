@@ -212,7 +212,7 @@ impl SessionOptions {
     }
 
     pub(crate) fn goal_mode_enabled(&self) -> bool {
-        self.goal_mode == GoalMode::Enabled
+        true
     }
 
     pub(crate) fn set_workflow_mode(&mut self, enabled: bool) {
@@ -220,7 +220,8 @@ impl SessionOptions {
             if enabled { WorkflowMode::Enabled } else { WorkflowMode::Disabled };
     }
 
-    pub(crate) fn set_goal_mode(&mut self, enabled: bool) {
-        self.goal_mode = if enabled { GoalMode::Enabled } else { GoalMode::Disabled };
+    pub(crate) fn set_goal_mode(&mut self, _enabled: bool) {
+        // 目标模式底层固定开启，不可关闭。
+        self.goal_mode = GoalMode::Enabled;
     }
 }

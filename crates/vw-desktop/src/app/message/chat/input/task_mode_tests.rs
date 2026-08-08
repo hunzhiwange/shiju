@@ -59,7 +59,7 @@ fn task_mode_scalar_settings_update_current_runtime() {
 }
 
 #[test]
-fn goal_and_workflow_modes_can_both_be_enabled() {
+fn goal_mode_stays_enabled_and_independent_from_workflow() {
     let mut app = test_app();
 
     // 默认目标开启；开启工作流不关闭目标
@@ -68,10 +68,10 @@ fn goal_and_workflow_modes_can_both_be_enabled() {
     assert!(app.current_session_runtime().workflow_mode_enabled);
     assert!(app.current_session_runtime().goal_mode_enabled);
 
-    // 关闭目标后重新开启，不关闭工作流
+    // 关闭请求被忽略，目标模式保持开启
     handle_goal_mode_toggled(&mut app, false);
     assert!(app.current_session_runtime().workflow_mode_enabled);
-    assert!(!app.current_session_runtime().goal_mode_enabled);
+    assert!(app.current_session_runtime().goal_mode_enabled);
 
     handle_goal_mode_toggled(&mut app, true);
     assert!(app.current_session_runtime().goal_mode_enabled);

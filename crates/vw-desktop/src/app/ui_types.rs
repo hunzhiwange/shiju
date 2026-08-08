@@ -102,6 +102,8 @@ pub enum Message {
     WorkflowManager(message::WorkflowManagerMessage),
     Notification(message::NotificationMessage),
     TaskBoard(message::TaskBoardMessage),
+    #[cfg(target_os = "macos")]
+    NativeMenu(crate::app::native_menu::NativeMenuAction),
     #[cfg(not(target_arch = "wasm32"))]
     PreviewLspTick,
     CopyShortcut,

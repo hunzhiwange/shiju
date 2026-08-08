@@ -951,10 +951,10 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let task_mode_task_split_mode = runtime.task_mode_task_split_mode;
     let task_mode_subtasks = runtime.task_mode_subtasks.clone();
     // plan-run 子会话（有 parent_id）续聊必须走普通 agent stream，避免误开 plan-run。
-    // 工作流开关开启时始终进入 plan-run；目标模式独立传递，不单独激活严格工作流。
+    // 工作流开关开启时始终进入 plan-run；目标模式底层固定开启，不可关闭。
     let workflow_mode_enabled =
         runtime.workflow_mode_enabled && !active_session_is_plan_run_child(app);
-    let goal_mode_enabled = runtime.goal_mode_enabled && !active_session_is_plan_run_child(app);
+    let goal_mode_enabled = !active_session_is_plan_run_child(app);
     let subagent_mode_enabled = runtime.subagent_mode_enabled;
     if let Some(command) = parse_inline_mode_command(&query) {
         return apply_inline_mode_command(app, command);

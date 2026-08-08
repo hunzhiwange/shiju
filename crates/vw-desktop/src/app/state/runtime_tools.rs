@@ -224,7 +224,7 @@ impl Default for SessionToolSelectorState {
             collapsed_groups: BTreeSet::new(),
             active_tab: SessionToolSelectorTab::Agent,
             query: String::new(),
-            skill_directory_scope: SkillsDirectoryScope::Project,
+            skill_directory_scope: SkillsDirectoryScope::All,
         }
     }
 }

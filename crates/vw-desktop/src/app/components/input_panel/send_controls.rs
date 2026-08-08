@@ -437,41 +437,9 @@ pub fn workflow_mode_button(active: bool) -> Element<'static, Message> {
     .into()
 }
 
-pub fn goal_mode_button(active: bool) -> Element<'static, Message> {
-    let goal_icon: Element<'_, Message> = icon_svg(Icon::Star, SECONDARY_ICON_SIZE)
-        .style(move |theme: &Theme, _| svg::Style {
-            color: Some(if active {
-                prominent_action_foreground(theme)
-            } else {
-                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
-            }),
-        })
-        .into();
-
-    let button_content = container(goal_icon)
-        .width(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .height(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    let button = button(button_content)
-        .padding(0)
-        .style(move |theme: &Theme, status| {
-            permission_access_button_style(theme, status, true, active)
-        })
-        .on_press(Message::Chat(message::ChatMessage::GoalModeToggled(!active)));
-
-    let tooltip_label = if active { "关闭目标模式" } else { "启用目标模式" };
-    tooltip(
-        button,
-        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
-        Position::Top,
-    )
-    .into()
-}
-
 pub fn subagent_mode_button(active: bool) -> Element<'static, Message> {
-    let subagent_icon: Element<'_, Message> = icon_svg(Icon::Robot, SECONDARY_ICON_SIZE)
+    // 子智能体用盒子图标，避免与 ACP 默认后端的机器人图标撞车。
+    let subagent_icon: Element<'_, Message> = icon_svg(Icon::Box, SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
             color: Some(if active {
                 prominent_action_foreground(theme)
@@ -706,18 +674,17 @@ pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
 ///
 /// 工具栏采用水平布局，从左到右依次为：
 /// 1. 完全访问权限按钮（如果提供）
-/// 2. 目标模式按钮
-/// 3. 工作流按钮
-/// 4. 子智能体按钮
-/// 5. 代理 / 工具 / 技能 TAB 入口（如果提供）
-/// 6. ACP 按钮（如果提供）
-/// 7. 推理强度按钮（如果提供）
-/// 8. 模型按钮（左侧固定）
-/// 9. 弹性空白（占据中间空间）
-/// 10. 使用情况按钮
-/// 11. 附件按钮
-/// 12. 任务池按钮（如果提供）
-/// 13. 取消和发送按钮（仅在非任务模式下显示）
+/// 2. 工作流按钮
+/// 3. 子智能体按钮
+/// 4. 代理 / 工具 / 技能 TAB 入口（如果提供）
+/// 5. ACP 按钮（如果提供）
+/// 6. 推理强度按钮（如果提供）
+/// 7. 模型按钮（左侧固定）
+/// 8. 弹性空白（占据中间空间）
+/// 9. 使用情况按钮
+/// 10. 附件按钮
+/// 11. 任务池按钮（如果提供）
+/// 12. 取消和发送按钮（仅在非任务模式下显示）
 pub fn bottom_bar<'a>(
     agent_tab_btn: Option<Element<'a, Message>>,
     tools_tab_btn: Option<Element<'a, Message>>,
@@ -725,7 +692,6 @@ pub fn bottom_bar<'a>(
     acp_btn: Option<Element<'a, Message>>,
     reasoning_btn: Option<Element<'a, Message>>,
     permission_btn: Option<Element<'a, Message>>,
-    goal_btn: Element<'a, Message>,
     workflow_btn: Element<'a, Message>,
     subagent_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
@@ -736,14 +702,13 @@ pub fn bottom_bar<'a>(
     send_btn: Option<Element<'a, Message>>,
     task_mode_enabled: bool,
 ) -> Element<'a, Message> {
-    // 创建基础布局：完全访问 + 目标 + 工作流 + 子智能体 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
+    // 创建基础布局：完全访问 + 工作流 + 子智能体 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
     let mut bar = row![].spacing(4);
 
     if let Some(permission_btn) = permission_btn {
         bar = bar.push(permission_btn);
     }
 
-    bar = bar.push(goal_btn);
     bar = bar.push(workflow_btn);
     bar = bar.push(subagent_btn);
 

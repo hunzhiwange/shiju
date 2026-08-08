@@ -464,7 +464,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(8)
         .align_y(Alignment::Center),
-        scrollable(list)
+        scrollable(
+            container(list)
+                .width(Length::Fill)
+                .padding(iced::Padding::default().left(3.0).right(3.0)),
+        )
             .id(app.notifications_scroll_id.clone())
             .direction(iced::widget::scrollable::Direction::Vertical(
                 iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),

@@ -1748,33 +1748,17 @@ async fn stream_workflow_chat_messages(
     Ok(())
 }
 
-/// 决定本轮是否进入 `task_plan_run`，以及使用 Goal 还是 Workflow 模式。
+/// 决定本轮是否进入 `task_plan_run`。
 ///
 /// 门控只认工作流开关：单独开启目标不会进入严格 plan-run。
-/// 目标仅在 plan-run 已激活时选择 `TaskPlanRunMode::Goal`。
-fn task_plan_run_mode_for_request(
-    workflow_mode_enabled: bool,
-    goal_mode_enabled: bool,
-    resume_history_only: bool,
-) -> Option<vw_api_types::task::TaskPlanRunMode> {
-    let plan_run = workflow_mode_enabled && !resume_history_only;
-    if !plan_run {
-        return None;
-    }
-    Some(if goal_mode_enabled {
-        vw_api_types::task::TaskPlanRunMode::Goal
-    } else {
-        vw_api_types::task::TaskPlanRunMode::Workflow
-    })
+/// 网关 plan-run 固定目标模式，不再区分 Goal/Workflow 参数。
+fn task_plan_run_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
+    workflow_mode_enabled && !resume_history_only
 }
 
-/// 无工作流但开启目标时，走普通聊天 + 独立验收续轮。
-fn lightweight_goal_active(
-    workflow_mode_enabled: bool,
-    goal_mode_enabled: bool,
-    resume_history_only: bool,
-) -> bool {
-    goal_mode_enabled && !workflow_mode_enabled && !resume_history_only
+/// 无工作流时，目标模式固定开启：走普通聊天 + 独立验收续轮。
+fn lightweight_goal_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
+    !workflow_mode_enabled && !resume_history_only
 }
 
 /// 轻量目标续轮决策。
@@ -2013,13 +1997,9 @@ async fn collect_lightweight_goal_evaluation(
 fn build_task_plan_run_request(
     req: &AgentRequest,
 ) -> Result<Option<vw_api_types::task::TaskPlanRunRequest>, String> {
-    let Some(mode) = task_plan_run_mode_for_request(
-        req.workflow_mode_enabled,
-        req.goal_mode_enabled,
-        req.resume_history_only,
-    ) else {
+    if !task_plan_run_active(req.workflow_mode_enabled, req.resume_history_only) {
         return Ok(None);
-    };
+    }
     let Some(root) = req.root.as_deref().filter(|value| !value.trim().is_empty()) else {
         return Err("启用工作流执行需要先选择项目根目录".to_string());
     };
@@ -2033,7 +2013,6 @@ fn build_task_plan_run_request(
             let trimmed = req.session.trim();
             (!trimmed.is_empty()).then(|| trimmed.to_string())
         },
-        mode,
     }))
 }
 
@@ -2114,12 +2093,8 @@ fn gateway_request_options(
     if let Some(system_prompt) = subagent_system_prompt {
         options.insert("chat_system_prompt".to_string(), json!(system_prompt));
     }
-    if lightweight_goal_active(
-        req.workflow_mode_enabled,
-        req.goal_mode_enabled,
-        req.resume_history_only,
-    ) {
-        // 无工作流目标：网关侧可识别独立验收续轮；桌面在一轮结束后按评估结果续轮。
+    if lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only) {
+        // 目标模式固定开启：网关侧可识别独立验收续轮；桌面在一轮结束后按评估结果续轮。
         options.insert("goal_mode".to_string(), json!(true));
     }
     (!options.is_empty()).then_some(Value::Object(options))
@@ -2177,13 +2152,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "model": req.model,
             });
             let options = gateway_request_options(&req, subagent_system_prompt.as_deref());
-            // 仅工作流开启才进入 task_plan_run；目标≠工作流，只叠加 Goal/Workflow 模式。
-            let workflow_mode_active = task_plan_run_mode_for_request(
-                req.workflow_mode_enabled,
-                req.goal_mode_enabled,
-                req.resume_history_only,
-            )
-            .is_some();
+            // 仅工作流开启才进入 task_plan_run；目标模式由网关固定开启。
+            let workflow_mode_active =
+                task_plan_run_active(req.workflow_mode_enabled, req.resume_history_only);
             let plan_run_body = match build_task_plan_run_request(&req) {
                 Ok(body) => body,
                 Err(error) => {
@@ -2218,11 +2189,8 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 },
                 options: options.clone(),
             };
-            let goal_only = lightweight_goal_active(
-                req.workflow_mode_enabled,
-                req.goal_mode_enabled,
-                req.resume_history_only,
-            );
+            let goal_only =
+                lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only);
             let original_goal = req.query.clone();
             let mut goal_evidence = String::new();
             let mut goal_turn = 0_u32;

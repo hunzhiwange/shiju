@@ -4,7 +4,8 @@ mod controls;
 mod drag;
 mod external;
 mod gateway;
-mod menus;
+pub(crate) mod menu_actions;
+pub(crate) mod menus;
 mod widgets;
 mod workspace_mode;
 

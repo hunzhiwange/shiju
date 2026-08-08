@@ -464,12 +464,8 @@ fn cycle_setting(state: &mut TuiState, delta: isize) {
             };
         }
         SettingKey::GoalMode => {
-            panel.pending.goal_mode =
-                if panel.pending.goal_mode == super::model::session_mode::GoalMode::Enabled {
-                    super::model::session_mode::GoalMode::Disabled
-                } else {
-                    super::model::session_mode::GoalMode::Enabled
-                };
+            // 目标模式底层固定开启，设置项已从面板移除；保留分支防止旧状态误关。
+            panel.pending.goal_mode = super::model::session_mode::GoalMode::Enabled;
         }
         SettingKey::Effort => {
             panel.pending.effort = cycle_copy_value(panel.pending.effort, &efforts, delta);

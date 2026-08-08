@@ -91,7 +91,8 @@ pub(crate) struct SettingsPanel {
 }
 
 impl SettingsPanel {
-    pub(crate) fn new(values: SettingsValues) -> Self {
+    pub(crate) fn new(mut values: SettingsValues) -> Self {
+        values.goal_mode = GoalMode::Enabled;
         Self {
             rows: vec![
                 SettingRow { key: SettingKey::Model, label: "模型", unavailable_reason: None },
@@ -118,11 +119,6 @@ impl SettingsPanel {
                 SettingRow {
                     key: SettingKey::WorkflowMode,
                     label: "工作流模式",
-                    unavailable_reason: None,
-                },
-                SettingRow {
-                    key: SettingKey::GoalMode,
-                    label: "目标模式",
                     unavailable_reason: None,
                 },
                 SettingRow {

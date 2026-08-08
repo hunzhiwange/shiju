@@ -19,7 +19,7 @@ use super::ui_message::{
 };
 
 #[test]
-fn session_options_defaults_goal_mode_enabled_and_independent_from_workflow() {
+fn session_options_defaults_goal_mode_enabled_and_cannot_disable() {
     let options = SessionOptions::default();
     assert!(options.goal_mode_enabled());
     assert!(!options.workflow_mode_enabled());
@@ -30,7 +30,7 @@ fn session_options_defaults_goal_mode_enabled_and_independent_from_workflow() {
     assert!(options.goal_mode_enabled());
 
     options.set_goal_mode(false);
-    assert!(!options.goal_mode_enabled());
+    assert!(options.goal_mode_enabled());
     assert!(options.workflow_mode_enabled());
 
     options.set_goal_mode(true);

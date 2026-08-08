@@ -288,6 +288,8 @@ impl App {
             agent,
             #[cfg(target_arch = "wasm32")]
             crate::app::wasm_ime::subscription(),
+            #[cfg(target_os = "macos")]
+            crate::app::native_menu::subscription(),
             events,
             terminal_subs,
             question_poll,

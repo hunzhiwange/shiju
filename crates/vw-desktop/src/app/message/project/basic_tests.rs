@@ -9,6 +9,25 @@ fn app() -> crate::app::App {
     crate::app::App::new().0
 }
 
+async fn collect_task_messages(
+    task: iced::Task<crate::app::Message>,
+) -> Vec<crate::app::Message> {
+    use iced_runtime::Action;
+    use iced_runtime::futures::futures::StreamExt;
+
+    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
+        return Vec::new();
+    };
+
+    while let Some(action) = stream.next().await {
+        if let Action::Output(messages) = action {
+            return messages;
+        }
+    }
+
+    Vec::new()
+}
+
 fn recent_project(path: &str, name: &str) -> crate::app::RecentProjectMeta {
     crate::app::RecentProjectMeta {
         path: path.to_string(),
@@ -311,6 +330,36 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     assert!(!app.file_tree_expanded.contains(&"src".to_string()));
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn file_manager_show_changes_true_in_work_mode_reveals_workspace_files() {
+    let mut app = app();
+    app.screen = crate::app::Screen::Project;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.work_resources_visible = false;
+    app.work_resource_mode = crate::app::state::WorkResourceMode::Browser;
+    app.work_chat_fullscreen = true;
+    app.git_changed_files = vec!["src/main.rs".to_string()];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileManagerShowChanges(true),
+    )
+    .expect("task");
+
+    assert!(app.file_manager_show_changes);
+    assert!(app.work_resources_visible);
+    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
+    assert!(!app.work_chat_fullscreen);
+    assert!(collect_task_messages(task).await.iter().any(|message| {
+        matches!(
+            message,
+            crate::app::Message::View(crate::app::message::ViewMessage::WorkResourceModeSelected(
+                crate::app::state::WorkResourceMode::WorkspaceFiles
+            ))
+        )
+    }));
+}
+
 #[test]
 fn file_manager_show_changes_false_preserves_preview_and_resets_find_selection() {
     let mut app = app();
@@ -449,6 +498,80 @@ fn open_changed_file_without_project_returns_none_task_only() {
 
     assert!(task.is_some());
     assert!(app.project_path.is_none());
+    assert!(app.file_manager_show_changes);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_changed_file_in_work_mode_reveals_workspace_changes_and_focuses_file() {
+    let mut app = app();
+    app.screen = crate::app::Screen::Project;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.project_path = Some("/workspace/project".to_string());
+    app.work_resources_visible = false;
+    app.work_resource_mode = crate::app::state::WorkResourceMode::Overview;
+    app.work_chat_fullscreen = true;
+    app.file_manager_show_changes = false;
+    app.show_file_manager = false;
+    app.git_changed_files = vec!["src/nested/lib.rs".to_string(), "README.md".to_string()];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenChangedFile(
+            "src/nested/lib.rs".to_string(),
+        ),
+    )
+    .expect("task");
+
+    assert!(app.work_resources_visible);
+    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
+    assert!(!app.work_chat_fullscreen);
+    assert!(app.file_manager_show_changes);
+    assert!(app.show_file_manager);
+    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
+
+    let messages = collect_task_messages(task).await;
+    assert!(messages.iter().any(|message| {
+        matches!(
+            message,
+            crate::app::Message::View(crate::app::message::ViewMessage::WorkResourceModeSelected(
+                crate::app::state::WorkResourceMode::WorkspaceFiles
+            ))
+        )
+    }));
+    assert!(messages.iter().any(|message| {
+        matches!(
+            message,
+            crate::app::Message::Git(crate::app::message::GitMessage::FocusFile(path))
+                if path == "src/nested/lib.rs"
+        )
+    }));
+}
+
+#[test]
+fn open_changed_file_expands_collapsed_change_dirs_when_already_in_changes_view() {
+    let mut app = app();
+    app.screen = crate::app::Screen::Project;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.project_path = Some("/workspace/project".to_string());
+    app.work_resources_visible = true;
+    app.work_resource_mode = crate::app::state::WorkResourceMode::WorkspaceFiles;
+    app.file_manager_show_changes = true;
+    app.show_file_manager = true;
+    app.git_changed_files = vec!["src/nested/lib.rs".to_string()];
+    app.file_tree_expanded.clear();
+    app.file_tree_expanded_set.clear();
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenChangedFile(
+            "src/nested/lib.rs".to_string(),
+        ),
+    );
+
+    assert!(app.file_manager_show_changes);
+    assert!(app.file_tree_expanded.contains(&"chg:src".to_string()));
+    assert!(app.file_tree_expanded.contains(&"chg:src/nested".to_string()));
 }
 
 #[test]

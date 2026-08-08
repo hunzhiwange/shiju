@@ -1881,7 +1881,7 @@ fn settings_workflow_and_goal_modes_can_both_be_enabled() {
         build_prompt_host(&state)
             .footer_pills
             .iter()
-            .any(|pill| pill.label == "目标 开")
+            .all(|pill| !pill.label.starts_with("目标 "))
     );
 
     let mut goal_state = TuiState::default();
@@ -1892,14 +1892,11 @@ fn settings_workflow_and_goal_modes_can_both_be_enabled() {
         goal_values,
         &goal_state.session_capabilities,
     )));
-    for _ in 0..6 {
-        key(&mut controller, &mut goal_state, KeyCode::Down);
-    }
-    key(&mut controller, &mut goal_state, KeyCode::Right);
+    // 目标模式设置项已移除；保存后仍强制开启。
     let TuiControllerCommand::Overlay(TuiOverlayCommand::SettingsSave(goal_panel)) =
         key(&mut controller, &mut goal_state, KeyCode::Enter)
     else {
-        panic!("goal mode setting saves");
+        panic!("settings save");
     };
     assert_eq!(
         goal_panel.pending.goal_mode,
@@ -1911,12 +1908,12 @@ fn settings_workflow_and_goal_modes_can_both_be_enabled() {
     );
 
     goal_state.session_options.set_workflow_mode(true);
-    goal_state.session_options.set_goal_mode(true);
+    goal_state.session_options.set_goal_mode(false);
     assert!(
         build_prompt_host(&goal_state)
             .footer_pills
             .iter()
-            .any(|pill| pill.label == "目标 开")
+            .all(|pill| !pill.label.starts_with("目标 "))
     );
     assert!(goal_state.session_options.workflow_mode_enabled());
     assert!(goal_state.session_options.goal_mode_enabled());

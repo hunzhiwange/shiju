@@ -321,24 +321,10 @@ pub struct TaskPoolMatrixEventsResponse {
     pub events: Vec<TaskPoolMatrixEventDto>,
 }
 
-/// 聊天计划执行模式。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TaskPlanRunMode {
-    /// 执行一次计划，子任务重试耗尽后明确阻塞。
-    #[default]
-    Workflow,
-    /// 持续执行并独立评估，直到目标达成或遇到真实阻塞。
-    Goal,
-}
-
-impl TaskPlanRunMode {
-    fn is_workflow(&self) -> bool {
-        matches!(self, Self::Workflow)
-    }
-}
-
-/// 聊天 workflow/goal 模式触发的计划执行请求。
+/// 聊天工作流触发的计划执行请求。
+///
+/// 网关侧始终按目标模式执行：独立验收未通过时自动续轮，直到达成或真实阻塞。
+/// 旧客户端若仍发送 `mode` 字段会被忽略。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskPlanRunRequest {
     pub query: String,
@@ -352,9 +338,6 @@ pub struct TaskPlanRunRequest {
     /// 发起 plan-run 的主会话 ID，供子会话 `parent_id` 绑定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_session_id: Option<String>,
-    /// 运行方式；旧请求缺省保持单次工作流语义。
-    #[serde(default, skip_serializing_if = "TaskPlanRunMode::is_workflow")]
-    pub mode: TaskPlanRunMode,
 }
 
 /// 后台计划运行的可查询生命周期状态。

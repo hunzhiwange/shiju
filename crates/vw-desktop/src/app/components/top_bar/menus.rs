@@ -6,24 +6,40 @@
 use super::widgets::{menu_btn, menu_container, menu_item_btn, menu_separator};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::message::view::MenuType;
+use crate::app::components::top_bar::menu_actions::NativeMenuAction;
 use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::{App, Message, Screen, message};
 use iced::Element;
 use iced::widget::Column;
 
-pub(super) enum MenuEntry {
-    Item { label: &'static str, shortcut: Option<&'static str>, message: Box<Message> },
+pub(crate) enum MenuEntry {
+    Item {
+        action: Option<NativeMenuAction>,
+        label: &'static str,
+        shortcut: Option<&'static str>,
+        message: Box<Message>,
+    },
     Separator,
 }
 
 impl MenuEntry {
-    fn item(label: &'static str, shortcut: Option<&'static str>, message: Message) -> Self {
-        Self::Item { label, shortcut, message: Box::new(message) }
+    fn item(
+        action: NativeMenuAction,
+        label: &'static str,
+        shortcut: Option<&'static str>,
+        message: Message,
+    ) -> Self {
+        Self::Item {
+            action: Some(action),
+            label,
+            shortcut,
+            message: Box::new(message),
+        }
     }
 
     fn into_element(self) -> Element<'static, Message> {
         match self {
-            Self::Item { label, shortcut, message } => {
+            Self::Item { label, shortcut, message, .. } => {
                 menu_item_btn(label, shortcut, Some(*message))
             }
             Self::Separator => menu_separator(),
@@ -35,36 +51,42 @@ fn menu_entries(entries: Vec<MenuEntry>) -> Element<'static, Message> {
     Column::with_children(entries.into_iter().map(MenuEntry::into_element)).into()
 }
 
-pub(super) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
+pub(crate) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
     if is_project {
         vec![
             MenuEntry::item(
+                NativeMenuAction::FileNewSession,
                 "新建会话",
                 None,
                 Message::View(message::ViewMessage::ProjectFileNewSession),
             ),
             MenuEntry::item(
+                NativeMenuAction::FileNewProject,
                 "新建项目",
                 None,
                 Message::View(message::ViewMessage::ProjectFileNewProject),
             ),
             MenuEntry::item(
+                NativeMenuAction::FileShowSessions,
                 "查看会话",
                 None,
                 Message::View(message::ViewMessage::ProjectFileShowSessions),
             ),
             MenuEntry::item(
+                NativeMenuAction::FileShowProjects,
                 "查看项目",
                 None,
                 Message::View(message::ViewMessage::ProjectFileShowProjects),
             ),
             MenuEntry::Separator,
             MenuEntry::item(
+                NativeMenuAction::FileSave,
                 "保存文件",
                 Some("⌘S"),
                 Message::Preview(crate::app::message::PreviewMessage::SaveFile),
             ),
             MenuEntry::item(
+                NativeMenuAction::FileSaveAll,
                 "保存所有文件",
                 Some("⌥⌘S"),
                 Message::View(message::ViewMessage::ProjectFileSaveAll),
@@ -73,65 +95,80 @@ pub(super) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
     } else {
         vec![
             MenuEntry::item(
+                NativeMenuAction::FileSave,
                 "保存代码",
                 Some("⌘S"),
                 Message::Preview(crate::app::message::PreviewMessage::SaveFile),
             ),
-            MenuEntry::item("返回首页", None, Message::View(message::ViewMessage::GoHome)),
+            MenuEntry::item(
+                NativeMenuAction::FileGoHome,
+                "返回首页",
+                None,
+                Message::View(message::ViewMessage::GoHome),
+            ),
         ]
     }
 }
 
-pub(super) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
+pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
     if !is_project {
         return Vec::new();
     }
 
     vec![
         MenuEntry::item(
+            NativeMenuAction::EditUndo,
             "撤销",
             Some("⌘Z"),
             Message::Editor(crate::app::message::editor::EditorMessage::Undo),
         ),
         MenuEntry::item(
+            NativeMenuAction::EditRedo,
             "重做",
             Some("⇧⌘Z"),
             Message::Editor(crate::app::message::editor::EditorMessage::Redo),
         ),
         MenuEntry::Separator,
         MenuEntry::item(
+            NativeMenuAction::EditCut,
             "剪切",
             Some("⌘X"),
             Message::Editor(crate::app::message::editor::EditorMessage::Cut),
         ),
         MenuEntry::item(
+            NativeMenuAction::EditCopy,
             "复制",
             Some("⌘C"),
             Message::Editor(crate::app::message::editor::EditorMessage::Copy),
         ),
         MenuEntry::item(
+            NativeMenuAction::EditPaste,
             "粘贴",
             Some("⌘V"),
             Message::Editor(crate::app::message::editor::EditorMessage::Paste),
         ),
         MenuEntry::Separator,
         MenuEntry::item(
+            NativeMenuAction::EditOpenSearch,
             "搜索",
             Some("⌘F"),
             Message::Editor(crate::app::message::editor::EditorMessage::OpenSearch),
         ),
         MenuEntry::item(
+            NativeMenuAction::EditOpenReplace,
             "替换",
             Some("⌥⌘F"),
             Message::Editor(crate::app::message::editor::EditorMessage::OpenReplace),
         ),
         MenuEntry::Separator,
         MenuEntry::item(
+            NativeMenuAction::EditFindInProject,
             "在文件中搜索",
             None,
             Message::Project(message::ProjectMessage::FileTreeFindInProject),
         ),
         MenuEntry::item(
+            NativeMenuAction::EditReplaceInProject,
             "在文件中替换",
             None,
             Message::Project(message::ProjectMessage::FileTreeReplaceInProject),
@@ -139,7 +176,7 @@ pub(super) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
     ]
 }
 
-pub(super) fn view_menu_entries(
+pub(crate) fn view_menu_entries(
     workspace_mode: WorkspaceMode,
     show_file_manager: bool,
     file_manager_show_changes: bool,
@@ -147,11 +184,13 @@ pub(super) fn view_menu_entries(
     if workspace_mode == WorkspaceMode::Work {
         return vec![
             MenuEntry::item(
+                NativeMenuAction::ViewToggleWorkSidebar,
                 "切换工作侧栏",
                 None,
                 Message::View(message::ViewMessage::WorkSidebarToggled),
             ),
             MenuEntry::item(
+                NativeMenuAction::ViewWorkOverview,
                 "概览",
                 None,
                 Message::View(message::ViewMessage::WorkResourceModeSelected(
@@ -159,6 +198,7 @@ pub(super) fn view_menu_entries(
                 )),
             ),
             MenuEntry::item(
+                NativeMenuAction::ViewWorkWorkspaceFiles,
                 "工作空间文件",
                 None,
                 Message::View(message::ViewMessage::WorkResourceModeSelected(
@@ -166,6 +206,7 @@ pub(super) fn view_menu_entries(
                 )),
             ),
             MenuEntry::item(
+                NativeMenuAction::ViewWorkBrowser,
                 "浏览器",
                 None,
                 Message::View(message::ViewMessage::WorkResourceModeSelected(
@@ -182,16 +223,19 @@ pub(super) fn view_menu_entries(
 
     vec![
         MenuEntry::item(
+            NativeMenuAction::ViewToggleSettingsPanel,
             "切换左侧面板",
             None,
             Message::View(message::ViewMessage::ToggleSettingsPanel),
         ),
         MenuEntry::item(
+            NativeMenuAction::ViewToggleFileManager,
             file_manager_panel_toggle_label,
             None,
             Message::View(message::ViewMessage::FileManagerPanelVisible(!show_file_manager)),
         ),
         MenuEntry::item(
+            NativeMenuAction::ViewToggleFileManagerChanges,
             file_manager_mode_toggle_label,
             None,
             Message::Project(message::ProjectMessage::FileManagerShowChanges(
@@ -199,11 +243,13 @@ pub(super) fn view_menu_entries(
             )),
         ),
         MenuEntry::item(
+            NativeMenuAction::ViewToggleDiffPanel,
             "切换 Diff 面板",
             None,
             Message::View(message::ViewMessage::ToggleDiffPanel),
         ),
         MenuEntry::item(
+            NativeMenuAction::ViewToggleTerminalPanel,
             "切换终端面板",
             None,
             Message::View(message::ViewMessage::ToggleTerminalPanel),
@@ -211,17 +257,33 @@ pub(super) fn view_menu_entries(
     ]
 }
 
-pub(super) fn help_menu_entries() -> Vec<MenuEntry> {
+pub(crate) fn help_menu_entries() -> Vec<MenuEntry> {
     vec![
-        MenuEntry::item("关于", None, Message::View(message::ViewMessage::ToggleAboutModal)),
-        MenuEntry::Separator,
-        MenuEntry::item("重启", None, Message::View(message::ViewMessage::RestartApp)),
         MenuEntry::item(
+            NativeMenuAction::HelpAbout,
+            "关于",
+            None,
+            Message::View(message::ViewMessage::ToggleAboutModal),
+        ),
+        MenuEntry::Separator,
+        MenuEntry::item(
+            NativeMenuAction::HelpRestart,
+            "重启",
+            None,
+            Message::View(message::ViewMessage::RestartApp),
+        ),
+        MenuEntry::item(
+            NativeMenuAction::HelpInstallCli,
             "安装 CLI 命令工具",
             None,
             Message::View(message::ViewMessage::InstallCliTool),
         ),
-        MenuEntry::item("检测更新", None, Message::View(message::ViewMessage::OpenAppUpdateModal)),
+        MenuEntry::item(
+            NativeMenuAction::HelpCheckUpdate,
+            "检测更新",
+            None,
+            Message::View(message::ViewMessage::OpenAppUpdateModal),
+        ),
     ]
 }
 

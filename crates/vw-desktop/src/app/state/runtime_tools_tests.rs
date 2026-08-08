@@ -68,7 +68,7 @@ fn tool_selector_tracks_search_and_skill_directory_scope() {
     let mut selector = SessionToolSelectorState::default();
 
     assert_eq!(selector.query(), "");
-    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::Project);
+    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::All);
 
     selector.set_query("web".to_string());
     selector.select_skill_directory_scope(SkillsDirectoryScope::Global);
@@ -307,7 +307,7 @@ fn tool_selector_defaults_enable_every_bucket_without_filters() {
     assert!(!selector.has_manual_context_selection());
     assert_eq!(selector.active_tab(), SessionToolSelectorTab::Agent);
     assert_eq!(selector.query(), "");
-    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::Project);
+    assert_eq!(selector.skill_directory_scope(), SkillsDirectoryScope::All);
 
     let inventory = SessionToolInventory::default();
     assert!(inventory.base_tools.is_empty());

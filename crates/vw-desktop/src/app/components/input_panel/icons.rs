@@ -156,12 +156,11 @@ pub(super) fn is_dark_mode(theme: &Theme) -> bool {
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(super) fn default_acp_icon<'a>(size: f32) -> Element<'a, Message> {
-    // svg 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-    svg::Svg::<'a, iced::Theme>::new(assets::get_icon(Icon::GearWideConnected))
+    // 默认 ACP 后端与 slash 面板 ACP 分组一致，使用机器人图标，而非专家中心的连接器图标。
+    svg::Svg::<'a, iced::Theme>::new(assets::get_icon(Icon::Robot))
         .width(Length::Fixed(size))
         .height(Length::Fixed(size))
         .style(|theme: &Theme, _| svg::Style {
-            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             color: Some(if is_dark_mode(theme) { Color::WHITE } else { theme.palette().text }),
         })
         .into()

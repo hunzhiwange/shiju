@@ -1,7 +1,7 @@
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 use vw_api_types::task::{
-    TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
+    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
     TaskPoolMatrixActorDto, TaskPoolMatrixEventDto, TaskPoolMatrixEventKindDto,
     TaskPoolMatrixPublishRequest, TaskPoolStatus, TaskPoolWorktreeAcquireRequest,
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMergeLockRequest,
@@ -92,7 +92,6 @@ async fn task_plan_run_control_stream_treats_cancelled_as_terminal() {
         agent: None,
         acp_agent: None,
         parent_session_id: None,
-        mode: TaskPlanRunMode::Workflow,
     };
     let mut events = Vec::new();
 
@@ -136,7 +135,6 @@ async fn task_plan_run_stream_treats_blocked_as_terminal() {
         agent: None,
         acp_agent: None,
         parent_session_id: None,
-        mode: TaskPlanRunMode::Workflow,
     };
     let mut events = Vec::new();
 
@@ -172,7 +170,6 @@ async fn task_plan_run_stream_sends_selected_tenant_headers() {
         agent: None,
         acp_agent: None,
         parent_session_id: Some("main-session".to_string()),
-        mode: TaskPlanRunMode::Workflow,
     };
     let mut events = Vec::new();
 
@@ -193,7 +190,7 @@ async fn task_plan_run_stream_sends_selected_tenant_headers() {
 }
 
 #[tokio::test]
-async fn task_plan_run_goal_mode_serializes_request_mode() {
+async fn task_plan_run_request_omits_removed_mode_field() {
     let event = TaskPlanRunStreamEventDto::Finished {
         task_id: "task-goal".to_string(),
         plan_dir: "/repo/.plans/task-goal".to_string(),
@@ -212,7 +209,6 @@ async fn task_plan_run_goal_mode_serializes_request_mode() {
         agent: None,
         acp_agent: None,
         parent_session_id: Some("main-session".to_string()),
-        mode: TaskPlanRunMode::Goal,
     };
 
     super::GatewayClient::stream_task_plan_run(server.client().endpoint(), &request, |_| true)
@@ -220,7 +216,12 @@ async fn task_plan_run_goal_mode_serializes_request_mode() {
         .expect("task plan stream");
 
     let recorded = server.take_request();
-    assert_eq!(recorded.body["mode"], "goal");
+    assert!(
+        recorded.body.get("mode").is_none(),
+        "serialized plan-run request must omit removed mode field"
+    );
+    assert_eq!(recorded.body["query"], "reach goal");
+    assert_eq!(recorded.body["parent_session_id"], "main-session");
     server.join();
 }
 
@@ -255,7 +256,6 @@ async fn task_plan_resumable_stream_reports_incomplete_eof_and_terminal_event() 
         agent: None,
         acp_agent: None,
         parent_session_id: None,
-        mode: TaskPlanRunMode::Workflow,
     };
     let first_resume = GatewayStreamResume {
         request_id: "plan-request-1".to_string(),
@@ -330,7 +330,6 @@ async fn task_plan_resumable_stream_reports_caller_stop() {
         agent: None,
         acp_agent: None,
         parent_session_id: None,
-        mode: TaskPlanRunMode::Workflow,
     };
     let resume = GatewayStreamResume {
         request_id: "plan-request-stop".to_string(),

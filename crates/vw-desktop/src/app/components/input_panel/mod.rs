@@ -118,7 +118,7 @@ use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
-    bottom_bar, cancel_button, full_access_button, goal_mode_button, pool_button, send_button,
+    bottom_bar, cancel_button, full_access_button, pool_button, send_button,
     subagent_mode_button, workflow_mode_button,
 };
 use task_mode::task_mode_form;
@@ -155,10 +155,11 @@ pub(super) fn bottom_bar_round_toggle<'a>(
 }
 
 fn session_tool_tab_icon(tab: crate::app::state::SessionToolSelectorTab) -> Icon {
+    // 与 slash 面板语义对齐：技能=星标、工具=终端；代理用六边形身份标记，避免像聊天气泡。
     match tab {
-        crate::app::state::SessionToolSelectorTab::Agent => Icon::Robot,
-        crate::app::state::SessionToolSelectorTab::Tools => Icon::Gear,
-        crate::app::state::SessionToolSelectorTab::Skills => Icon::Journals,
+        crate::app::state::SessionToolSelectorTab::Agent => Icon::Hexagon,
+        crate::app::state::SessionToolSelectorTab::Tools => Icon::Terminal,
+        crate::app::state::SessionToolSelectorTab::Skills => Icon::Star,
     }
 }
 
@@ -547,7 +548,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let acp_recent_count = runtime.map(|r| r.acp_recent_count).unwrap_or(app.acp_recent_count);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
-    let goal_mode_enabled = runtime.map(|r| r.goal_mode_enabled).unwrap_or(true);
     let subagent_mode_enabled = runtime.map(|r| r.subagent_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
@@ -595,7 +595,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
     let workflow_btn = workflow_mode_button(workflow_mode_enabled);
-    let goal_btn = goal_mode_button(goal_mode_enabled);
     let subagent_btn = subagent_mode_button(subagent_mode_enabled);
 
     // ========== 计算按钮启用状态 ==========
@@ -638,7 +637,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         acp_btn,
         reasoning_btn,
         permission_btn,
-        goal_btn,
         workflow_btn,
         subagent_btn,
         model_btn,

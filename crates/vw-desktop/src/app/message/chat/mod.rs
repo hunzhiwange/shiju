@@ -260,7 +260,7 @@ pub enum ChatMessage {
     /// 启用后，本轮聊天会先生成临时 Dify 工作流，再通过 workflow 流式执行。
     WorkflowModeToggled(bool),
 
-    /// 目标模式开关切换；未通过独立验收时自动续轮。
+    /// 目标模式已固定开启；消息保留仅为兼容，处理端会忽略关闭请求。
     GoalModeToggled(bool),
 
     /// 子智能体模式开关切换；启用后顶层提示词要求优先使用 AgentTool。

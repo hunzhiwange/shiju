@@ -389,7 +389,7 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
-        match message {
+        let task = match message {
             #[cfg(not(target_arch = "wasm32"))]
             Message::StartupCliServiceBootstrapped(result) => {
                 match result {
@@ -710,7 +710,24 @@ impl App {
                 // 将多个 Task 合并为一个批量 Task
                 Task::batch(tasks)
             }
+
+            #[cfg(target_os = "macos")]
+            Message::NativeMenu(action) => {
+                match crate::app::native_menu::resolve_native_menu_action(self, action) {
+                    Some(resolved) => self.update(resolved),
+                    None => Task::none(),
+                }
+            }
+        };
+
+        #[cfg(target_os = "macos")]
+        {
+            crate::app::native_menu::install_or_sync(
+                crate::app::native_menu::NativeMenuSnapshot::from_app(self),
+            );
         }
+
+        task
     }
 }
 #[cfg(test)]

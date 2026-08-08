@@ -2,7 +2,7 @@ use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,
     send_behavior_icon, send_behavior_popover, send_button, utility_cluster_style,
-    goal_mode_button, subagent_mode_button, workflow_mode_button,
+    subagent_mode_button, workflow_mode_button,
 };
 use super::styles::square_icon_button_style;
 use crate::app::Message;
@@ -377,31 +377,35 @@ fn workflow_mode_button_constructs_inactive_and_active_variants() {
 }
 
 #[test]
-fn goal_mode_button_follows_workflow_button() {
-    for element in [goal_mode_button(false), goal_mode_button(true)] {
-        assert_eq!(element.as_widget().children().len(), 2);
-    }
-}
-
-#[test]
-fn bottom_bar_places_goal_after_full_access_and_session_tabs() {
-    for element in [goal_mode_button(false), goal_mode_button(true)] {
-        assert_eq!(element.as_widget().children().len(), 2);
-    }
-
+fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
     let controls = include_str!("send_controls.rs");
-    let goal_push = controls.find("bar = bar.push(goal_btn)").expect("goal push");
     let workflow_push = controls.find("bar = bar.push(workflow_btn)").expect("workflow push");
     let subagent_push = controls.find("bar = bar.push(subagent_btn)").expect("subagent push");
     assert!(
-        goal_push < workflow_push && workflow_push < subagent_push,
-        "bottom bar should place goal after full access and before workflow"
+        workflow_push < subagent_push,
+        "bottom bar should place workflow before subagent"
+    );
+    assert!(
+        !controls.contains("bar = bar.push(goal_btn)"),
+        "bottom bar must not expose removed goal mode button"
+    );
+    assert!(
+        controls.contains("icon_svg(Icon::Box, SECONDARY_ICON_SIZE)"),
+        "subagent mode should use box icon, not the ACP robot icon"
+    );
+    assert!(
+        !controls.contains("subagent_icon: Element<'_, Message> = icon_svg(Icon::Robot"),
+        "subagent mode must not reuse ACP default robot icon"
     );
 
     let mod_source = include_str!("mod.rs");
     assert!(
-        mod_source.contains("goal_btn,\n        workflow_btn,\n        subagent_btn,"),
-        "input panel should pass goal before workflow into bottom_bar"
+        mod_source.contains("workflow_btn,\n        subagent_btn,"),
+        "input panel should pass workflow then subagent into bottom_bar"
+    );
+    assert!(
+        !mod_source.contains("goal_btn"),
+        "input panel must not wire goal mode button"
     );
     for tab in ["Agent", "Tools", "Skills"] {
         assert!(
@@ -413,6 +417,18 @@ fn bottom_bar_places_goal_after_full_access_and_session_tabs() {
             "bottom bar session tabs should open via OpenSessionToolSelectorTab"
         );
     }
+    assert!(
+        mod_source.contains("SessionToolSelectorTab::Agent => Icon::Hexagon"),
+        "agent tab should use hexagon identity icon, not a chat bubble"
+    );
+    assert!(
+        mod_source.contains("SessionToolSelectorTab::Tools => Icon::Terminal"),
+        "tools tab should use terminal icon aligned with slash palette"
+    );
+    assert!(
+        mod_source.contains("SessionToolSelectorTab::Skills => Icon::Star"),
+        "skills tab should use star icon aligned with slash palette"
+    );
     assert!(
         !mod_source.contains("\"会话控制\""),
         "bottom bar should no longer use a single 会话控制 entry button"
@@ -427,7 +443,6 @@ fn bottom_bar_places_goal_after_full_access_and_session_tabs() {
         Some(spacer()),
         spacer(),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -437,10 +452,10 @@ fn bottom_bar_places_goal_after_full_access_and_session_tabs() {
         false,
     );
     let children = normal.as_widget().children();
-    // permission + goal + workflow + subagent + agent + tools + skills + acp + reasoning + model + fill + utility + actions
-    assert_eq!(children.len(), 13);
-    assert_eq!(children[11].children.len(), 2);
-    assert_eq!(children[12].children.len(), 3);
+    // permission + workflow + subagent + agent + tools + skills + acp + reasoning + model + fill + utility + actions
+    assert_eq!(children.len(), 12);
+    assert_eq!(children[10].children.len(), 2);
+    assert_eq!(children[11].children.len(), 3);
 }
 
 #[test]
@@ -509,7 +524,6 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
         Some(spacer()),
         spacer(),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -521,9 +535,9 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
     let children = normal.as_widget().children();
 
     assert_eq!(normal.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 13);
-    assert_eq!(children[11].children.len(), 2);
-    assert_eq!(children[12].children.len(), 3);
+    assert_eq!(children.len(), 12);
+    assert_eq!(children[10].children.len(), 2);
+    assert_eq!(children[11].children.len(), 3);
 }
 
 #[test]
@@ -537,7 +551,6 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
         None,
         spacer(),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -548,9 +561,9 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
     );
     let children = normal.as_widget().children();
 
-    assert_eq!(children.len(), 7);
-    assert_eq!(children[5].children[0].children.len(), 1);
-    assert_eq!(children[6].children.len(), 1);
+    assert_eq!(children.len(), 6);
+    assert_eq!(children[4].children[0].children.len(), 1);
+    assert_eq!(children[5].children.len(), 1);
 }
 
 #[test]
@@ -564,7 +577,6 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
         None,
         spacer(),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -576,8 +588,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
     let children = task_mode.as_widget().children();
 
     assert_eq!(task_mode.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 6);
-    assert_eq!(children[5].children.len(), 3);
+    assert_eq!(children.len(), 5);
+    assert_eq!(children[4].children.len(), 3);
 }
 
 #[test]
@@ -591,7 +603,6 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
         None,
         spacer(),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -602,6 +613,6 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
     );
     let children = task_mode.as_widget().children();
 
-    assert_eq!(children.len(), 6);
-    assert!(!children[5].children.is_empty());
+    assert_eq!(children.len(), 5);
+    assert!(!children[4].children.is_empty());
 }

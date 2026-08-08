@@ -411,18 +411,6 @@ pub(crate) fn build_prompt_host(state: &TuiState) -> TuiPromptHost {
                     TuiTone::Muted
                 },
             ),
-            TuiPill::new(
-                if state.session_options.goal_mode_enabled() {
-                    "目标 开"
-                } else {
-                    "目标 关"
-                },
-                if state.session_options.goal_mode_enabled() {
-                    TuiTone::Accent
-                } else {
-                    TuiTone::Muted
-                },
-            ),
         ],
         cursor_char_index: state.prompt.cursor.char_index,
         selection: state.prompt.editor.selection,

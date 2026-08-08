@@ -5,9 +5,7 @@ use super::goal::{
     goal_evaluation_session_id, goal_turn_session_id, inspect_goal_task_files,
     parse_goal_evaluation,
 };
-use super::prompts::{
-    build_execution_prompt, build_goal_planning_prompt, build_planning_prompt, plan_dir_abs,
-};
+use super::prompts::{build_execution_prompt, build_goal_planning_prompt, plan_dir_abs};
 use super::session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history};
 use super::{PlanTaskEntry, build_batch_stages, load_tasks_json};
 use crate::session::child_agent::coordinator::{
@@ -19,7 +17,7 @@ use serde_json::{Map, Value, json};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use vw_api_types::task::{TaskPlanRunMode, TaskPlanRunRequest, TaskPlanRunStreamEventDto};
+use vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 
 /// 子任务首次执行失败后允许的额外重试次数。
 ///
@@ -233,10 +231,8 @@ where
         return Ok(());
     }
 
-    let planning_prompt = match request.mode {
-        TaskPlanRunMode::Workflow => build_planning_prompt(task_id, &request.query),
-        TaskPlanRunMode::Goal => build_goal_planning_prompt(task_id, &request.query),
-    };
+    // 网关 plan-run 固定目标模式：规划提示始终要求独立验收关卡。
+    let planning_prompt = build_goal_planning_prompt(task_id, &request.query);
     let (planning_delta_tx, mut planning_delta_rx) = tokio::sync::mpsc::channel(64);
     let planning_run = runner.run_session(
         SessionRunRequest {
@@ -547,48 +543,27 @@ where
         }
 
         if let Some((subtask_id, reason)) = stage_failed {
-            if request.mode == TaskPlanRunMode::Goal {
-                if !combined_output.is_empty() {
-                    combined_output.push_str("\n\n");
-                }
-                combined_output.push_str(&format!("子任务 {subtask_id} 执行失败：{reason}"));
-                continue;
+            // 目标模式：子任务失败不立即阻塞，记入证据后进入独立验收/续轮。
+            if !combined_output.is_empty() {
+                combined_output.push_str("\n\n");
             }
-            let session_id = subtask_session_id(task_id, &subtask_id);
-            let _ = on_event(TaskPlanRunStreamEventDto::Blocked {
-                task_id: task_id.to_string(),
-                batch: Some(batch),
-                subtask_id: Some(subtask_id),
-                reason,
-                session_id,
-            });
-            return Ok(());
+            combined_output.push_str(&format!("子任务 {subtask_id} 执行失败：{reason}"));
+            continue;
         }
     }
 
-    if request.mode == TaskPlanRunMode::Goal {
-        return run_goal_loop(
-            task_id,
-            request,
-            runner,
-            &mut on_event,
-            &plan_abs,
-            &plan_dir_display,
-            &plan_markdown,
-            &document.tasks,
-            combined_output,
-        )
-        .await;
-    }
-
-    let _ = on_event(TaskPlanRunStreamEventDto::Finished {
-        task_id: task_id.to_string(),
-        plan_dir: plan_dir_display,
-        status: "completed".to_string(),
-        output: combined_output,
-        session_id: Some(planning_session),
-    });
-    Ok(())
+    run_goal_loop(
+        task_id,
+        request,
+        runner,
+        &mut on_event,
+        &plan_abs,
+        &plan_dir_display,
+        &plan_markdown,
+        &document.tasks,
+        combined_output,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]

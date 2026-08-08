@@ -103,6 +103,24 @@ fn thinking_tags_split_delta_and_close_before_terminal() {
 }
 
 #[test]
+fn thinking_alias_tags_split_delta_like_think_tags() {
+    let mut state = TuiState::default();
+
+    apply_runtime_event(
+        &mut state,
+        UiRuntimeEvent::Delta("visible <thinking>\nplan\n</thinking>\nafter".to_string()),
+    );
+
+    assert!(!state.runtime.thinking_open);
+    assert!(state.messages.iter().any(|message| {
+        matches!(message, UiMessage::Thinking(block) if block.content.contains("plan"))
+    }));
+    assert!(state.messages.iter().any(|message| {
+        matches!(message, UiMessage::Assistant(assistant) if assistant.text == "visible after")
+    }));
+}
+
+#[test]
 fn reasoning_marker_creates_closed_thinking_block() {
     let mut state = TuiState::default();
 

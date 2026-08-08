@@ -407,9 +407,10 @@ pub async fn gateway_question_list_async() -> Result<Vec<vw_shared::question::Re
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_session_todo_list_async(
     id: &str,
+    directory: Option<&str>,
 ) -> Result<Vec<vw_shared::todo::Todo>, String> {
     let client = gateway_client()?;
-    client.session_todo_get(id, None).await
+    client.session_todo_get(id, directory).await
 }
 
 /// 执行 gateway_question_reply_async 对应的领域操作。

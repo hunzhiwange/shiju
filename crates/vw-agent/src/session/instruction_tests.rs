@@ -332,6 +332,51 @@ async fn project_agents_reads_only_selected_project_root() {
     assert!(!resolved.content.contains("other project rules"));
 }
 
+#[test]
+fn extract_skill_md_paths_keeps_backtick_and_bare_paths_in_order() {
+    let content = "先读 `./skills/rustcodegraph/SKILL.md`，也可 skills/other/SKILL.md；重复 `./skills/rustcodegraph/SKILL.md`。";
+    assert_eq!(
+        extract_skill_md_paths(content),
+        vec![
+            "./skills/rustcodegraph/SKILL.md".to_string(),
+            "skills/other/SKILL.md".to_string(),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn project_agents_appends_required_skills_absolute_paths() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let agents = selected.path().join("AGENTS.md");
+    std::fs::write(
+        &agents,
+        "导航：\n- `./skills/rustcodegraph/SKILL.md`\n- fallback rg\n",
+    )
+    .expect("write agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let resolved = project_agents(selected.path().to_str()).await.expect("selected agents");
+    let expected = normalize_str(selected.path().join("skills/rustcodegraph/SKILL.md"));
+
+    assert!(resolved.content.contains("<required_skills>"));
+    assert!(resolved.content.contains(&expected));
+    assert!(resolved.content.contains("</required_skills>"));
+}
+
+#[tokio::test]
+async fn project_agents_omits_required_skills_when_no_skill_path() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let agents = selected.path().join("AGENTS.md");
+    std::fs::write(&agents, "no skill paths here").expect("write agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let resolved = project_agents(selected.path().to_str()).await.expect("selected agents");
+
+    assert!(!resolved.content.contains("<required_skills>"));
+}
+
 #[tokio::test]
 async fn agent_workspace_identity_reads_only_enabled_non_empty_known_files() {
     let _guard = ENV_LOCK.lock().await;

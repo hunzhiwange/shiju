@@ -105,17 +105,25 @@ fn instance_directory_opt() -> Option<String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn todo_storage_session_id(session_id: &str) -> String {
-    instance::project()
-        .map(|project| format!("{}:{session_id}", project.id))
-        .unwrap_or_else(|| session_id.to_string())
+fn map_tool_todos_to_gateway(
+    todos: Vec<crate::app::agent::tools::todo::Todo>,
+) -> Vec<Info> {
+    todos
+        .into_iter()
+        .map(|todo| Info {
+            id: todo.id,
+            content: todo.content,
+            status: todo_status_from_str(&todo.status),
+            priority: todo_priority_from_str(&todo.priority),
+        })
+        .collect()
 }
 
 /// 执行 update 操作，并返回调用方需要的结果。
 pub async fn update(input: UpdateInput) -> Result<(), Error> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let storage_session_id = todo_storage_session_id(&input.session_id);
+        // 与 TodoWrite 工具保持同一存储键：原始 session id + 当前项目 scope。
         let tool_todos = input
             .todos
             .iter()
@@ -126,7 +134,7 @@ pub async fn update(input: UpdateInput) -> Result<(), Error> {
                 id: todo.id.clone(),
             })
             .collect::<Vec<_>>();
-        crate::app::agent::tools::todo::write_session_todos(&storage_session_id, tool_todos)?;
+        crate::app::agent::tools::todo::write_session_todos(&input.session_id, tool_todos)?;
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -146,16 +154,9 @@ pub async fn update(input: UpdateInput) -> Result<(), Error> {
 pub async fn get(session_id: &str) -> Vec<Info> {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let storage_session_id = todo_storage_session_id(session_id);
-        return crate::app::agent::tools::todo::read_session_todos(&storage_session_id)
-            .into_iter()
-            .map(|todo| Info {
-                id: todo.id,
-                content: todo.content,
-                status: todo_status_from_str(&todo.status),
-                priority: todo_priority_from_str(&todo.priority),
-            })
-            .collect();
+        return map_tool_todos_to_gateway(crate::app::agent::tools::todo::read_session_todos(
+            session_id,
+        ));
     }
 
     #[cfg(target_arch = "wasm32")]

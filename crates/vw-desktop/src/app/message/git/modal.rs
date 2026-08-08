@@ -6,7 +6,7 @@ use super::GitMessage;
 use super::shared::{
     configure_git_code_editor, dismiss_preview_transient_ui, text_too_large_for_code_editor,
 };
-use crate::app::{App, Message, state::ChatTextDiff};
+use crate::app::{App, Message};
 use iced::Task;
 
 fn open_copy_modal_with_text(app: &mut App, text: String) {
@@ -81,11 +81,17 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             app.show_diff = true;
             Task::none()
         }
-        GitMessage::OpenChatTextDiff { title, file, before, after } => {
+        GitMessage::OpenChatTextDiff { title, file: _, before, after } => {
+            // 与 OpenCustomDiffResult 共用自定义 Diff 弹窗，避免在面板中再插一块独立消息框。
             dismiss_preview_transient_ui(app);
-            app.chat_text_diff = Some(ChatTextDiff { title, file, before, after });
-            app.show_git_custom_diff_modal = false;
-            app.git_custom_diff_hide_inputs = false;
+            app.chat_text_diff = None;
+            app.show_git_custom_diff_modal = true;
+            app.git_custom_diff_hide_inputs = true;
+            app.git_custom_diff_title = title;
+            app.git_custom_diff_before_editor =
+                iced::widget::text_editor::Content::with_text(&before);
+            app.git_custom_diff_after_editor =
+                iced::widget::text_editor::Content::with_text(&after);
             app.active_preview_path = None;
             app.show_diff = true;
             app.file_manager_show_changes = true;
@@ -93,6 +99,8 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
         }
         GitMessage::CloseChatTextDiff => {
             app.chat_text_diff = None;
+            app.show_git_custom_diff_modal = false;
+            app.git_custom_diff_hide_inputs = false;
             Task::none()
         }
         GitMessage::OpenDiffCopyMode(file) => {

@@ -151,20 +151,62 @@ fn stream_request(
     }
 }
 
+fn is_think_tag_remainder(remainder: &str) -> bool {
+    if remainder.is_empty() || remainder.chars().next().is_some_and(char::is_whitespace) {
+        return true;
+    }
+    remainder
+        .strip_prefix("ing")
+        .is_some_and(|after| after.is_empty() || after.chars().next().is_some_and(char::is_whitespace))
+}
+
+fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
+    let mut search_from = 0usize;
+    while let Some(pos_rel) = s[search_from..].find("<think") {
+        let pos = search_from + pos_rel;
+        if s[pos..].starts_with("</think") {
+            search_from = pos + 1;
+            continue;
+        }
+        let Some(tag_end_rel) = s[pos..].find('>') else {
+            return None;
+        };
+        let tag = &s[pos + "<think".len()..pos + tag_end_rel];
+        if is_think_tag_remainder(tag) {
+            return Some((pos, tag_end_rel + 1));
+        }
+        search_from = pos + 1;
+    }
+    None
+}
+
+fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
+    let mut search_from = 0usize;
+    while let Some(pos_rel) = s[search_from..].find("</think") {
+        let pos = search_from + pos_rel;
+        let Some(tag_end_rel) = s[pos..].find('>') else {
+            return None;
+        };
+        let tag = &s[pos + "</think".len()..pos + tag_end_rel];
+        if is_think_tag_remainder(tag) {
+            return Some((pos, tag_end_rel + 1));
+        }
+        search_from = pos + 1;
+    }
+    None
+}
+
 fn strip_completed_think_blocks(output: &str) -> String {
     let mut visible = String::with_capacity(output.len());
     let mut cursor = 0;
-    while let Some(relative_start) = output[cursor..].find("<think") {
-        let start = cursor + relative_start;
-        let Some(open_end) = output[start..].find('>').map(|offset| start + offset + 1) else {
-            break;
-        };
-        let Some(close_start) = output[open_end..].find("</think>").map(|offset| open_end + offset)
-        else {
+    while let Some((rel_start, open_len)) = find_think_open_tag(&output[cursor..]) {
+        let start = cursor + rel_start;
+        let open_end = start + open_len;
+        let Some((rel_close, close_len)) = find_think_close_tag(&output[open_end..]) else {
             break;
         };
         visible.push_str(&output[cursor..start]);
-        cursor = close_start + "</think>".len();
+        cursor = open_end + rel_close + close_len;
     }
     visible.push_str(&output[cursor..]);
     visible

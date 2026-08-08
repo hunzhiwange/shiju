@@ -73,12 +73,26 @@ fn apply_loaded_session_todos(
     maybe_auto_collapse_todo_panel(app)
 }
 
+fn todo_list_directory(app: &App) -> Option<String> {
+    app.active_session_id
+        .as_ref()
+        .and_then(|id| app.sessions.iter().find(|session| &session.id == id))
+        .map(|session| session.directory.clone())
+        .filter(|directory| !directory.trim().is_empty())
+        .or_else(|| app.project_path.clone())
+}
+
 /// 模块内可见函数，执行 load_input_panel_todos_task 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn load_input_panel_todos_task(session_id: String) -> Task<Message> {
+pub(super) fn load_input_panel_todos_task(
+    session_id: String,
+    directory: Option<String>,
+) -> Task<Message> {
     Task::perform(
         async move {
-            let result = session_gateway::gateway_session_todo_list_async(&session_id).await;
+            let result =
+                session_gateway::gateway_session_todo_list_async(&session_id, directory.as_deref())
+                    .await;
             (session_id, result)
         },
         |(session_id, res)| Message::Chat(ChatMessage::InputPanelTodosLoaded(session_id, res)),
@@ -94,7 +108,7 @@ pub(super) fn handle_load_input_panel_todos(app: &mut App) -> Task<Message> {
         return Task::none();
     };
 
-    load_input_panel_todos_task(session_id)
+    load_input_panel_todos_task(session_id, todo_list_directory(app))
 }
 
 /// 模块内可见函数，执行 handle_todo_poll_tick 对应的应用流程。
@@ -106,7 +120,7 @@ pub(super) fn handle_todo_poll_tick(app: &mut App) -> Task<Message> {
         return Task::none();
     };
 
-    load_input_panel_todos_task(session_id)
+    load_input_panel_todos_task(session_id, todo_list_directory(app))
 }
 
 /// 模块内可见函数，执行 handle_input_panel_todos_loaded 对应的应用流程。

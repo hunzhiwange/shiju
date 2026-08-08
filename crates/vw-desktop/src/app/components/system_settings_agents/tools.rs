@@ -363,6 +363,11 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "在受限工作目录执行 Bash 命令，支持超时、审批和风险控制。",
             group: ToolGroup::Execute,
         },
+        "PowerShell" | "powershell" => ToolMeta {
+            name: "PowerShell",
+            description: "在 Windows 上执行 PowerShell 命令，受工作区与安全策略约束。",
+            group: ToolGroup::Execute,
+        },
         "process" => ToolMeta {
             name: "后台进程",
             description: "启动长时间运行的后台命令、查看输出并终止进程。",
@@ -372,6 +377,11 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "Git 操作",
             description: "以结构化参数执行 status、diff、log、add、commit、checkout、stash 等操作。",
             group: ToolGroup::Execute,
+        },
+        "notebook_edit" | "NotebookEdit" => ToolMeta {
+            name: "编辑笔记本",
+            description: "按 cell 插入、替换或删除已有 .ipynb；编辑前需先用 file_read 读取。",
+            group: ToolGroup::Files,
         },
         "browser" | "Browser" => ToolMeta {
             name: "浏览器交互",
@@ -388,7 +398,7 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "向外部 API 发起 HTTP 请求，支持 method、headers 和 body，并受域名白名单约束。",
             group: ToolGroup::Web,
         },
-        "web_fetch" => ToolMeta {
+        "web_fetch" | "WebFetch" | "webfetch" => ToolMeta {
             name: "网页抓取",
             description: "抓取网页正文并转成 text、markdown 或 html，适合读取页面内容。",
             group: ToolGroup::Web,
@@ -399,8 +409,13 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             group: ToolGroup::Web,
         },
         "AgentTool" => ToolMeta {
-            name: "AgentTool",
-            description: "统一的 agent 入口；既可同步运行专门代理，也可启动后台 agent 会话并继续 list/get/stop。",
+            name: "委托子代理",
+            description: "把复杂工作交给持久子代理：launch/spawn 并行启动，run 同步等待，status/wait/stop 管理任务与结果。",
+            group: ToolGroup::Collaboration,
+        },
+        "delegate" => ToolMeta {
+            name: "委托执行",
+            description: "把子任务交给专门智能体；默认单次提示，agentic=true 时可带过滤工具循环迭代。",
             group: ToolGroup::Collaboration,
         },
         "delegate_coordination_status" => ToolMeta {
@@ -453,20 +468,60 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "覆盖或合并当前会话任务清单，用于持续更新执行进度。",
             group: ToolGroup::Collaboration,
         },
-        "plan_enter" => ToolMeta {
+        "plan_enter" | "EnterPlanMode" | "enter_plan_mode" => ToolMeta {
             name: "进入规划模式",
             description: "进入显式规划工作流，开始先列计划再执行。",
             group: ToolGroup::Collaboration,
         },
-        "plan_exit" => ToolMeta {
+        "plan_exit" | "ExitPlanMode" | "exit_plan_mode" => ToolMeta {
             name: "退出规划模式",
-            description: "结束规划模式并回到正常执行流程。",
+            description: "结束规划模式并回到正常执行流程；默认会先检查是否满足进入执行的最小条件。",
             group: ToolGroup::Collaboration,
+        },
+        "enter_worktree" | "EnterWorktree" => ToolMeta {
+            name: "进入 Worktree",
+            description: "创建并绑定真实 Git worktree，后续工具调用切换到该隔离工作区。",
+            group: ToolGroup::Execute,
+        },
+        "exit_worktree" | "ExitWorktree" => ToolMeta {
+            name: "退出 Worktree",
+            description: "退出当前绑定的 worktree；默认要求工作树干净，force 可强制移除。",
+            group: ToolGroup::Execute,
         },
         "question" | "AskUserQuestion" => ToolMeta {
             name: "用户提问",
             description: "向用户发起澄清问题，支持单选、多选和自定义输入。",
             group: ToolGroup::Collaboration,
+        },
+        "Brief" | "brief" => ToolMeta {
+            name: "发送简报",
+            description: "向用户发送一条可见消息，可附带本地文件附件。",
+            group: ToolGroup::Collaboration,
+        },
+        "Sleep" | "sleep" => ToolMeta {
+            name: "短暂等待",
+            description: "暂停执行一小段时间，适合等待外部状态收敛或短暂退避。",
+            group: ToolGroup::Collaboration,
+        },
+        "SendMessage" | "send_message" => ToolMeta {
+            name: "发送 IPC 消息",
+            description: "向单个 agent、团队成员或全部在线 agent 发送 IPC 消息。",
+            group: ToolGroup::Integration,
+        },
+        "SendUserFile" | "send_user_file" => ToolMeta {
+            name: "准备用户附件",
+            description: "为当前会话准备可发送给用户的本地文件附件标记。",
+            group: ToolGroup::Collaboration,
+        },
+        "TeamCreate" | "team_create" => ToolMeta {
+            name: "创建团队",
+            description: "创建或覆盖一个团队对象，并定义成员边界。",
+            group: ToolGroup::Integration,
+        },
+        "TeamDelete" | "team_delete" => ToolMeta {
+            name: "删除团队",
+            description: "删除一个已存在的团队对象。",
+            group: ToolGroup::Integration,
         },
         "skill" => ToolMeta {
             name: "加载技能",
@@ -524,8 +579,8 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             group: ToolGroup::Web,
         },
         "image_asset_read" => ToolMeta {
-            name: "读取图像资源",
-            description: "读取工作区或资源路径中的图像内容，供视觉分析使用。",
+            name: "重载图像资源",
+            description: "按 image_id 请求在下一步模型调用中重新加载已存储图像；不直接返回图像字节。",
             group: ToolGroup::Web,
         },
         "file_edit" | "edit" => ToolMeta {
@@ -533,19 +588,59 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "对已有文件做局部编辑，适合小范围精确修改。",
             group: ToolGroup::Files,
         },
-        "tool_search" => ToolMeta {
+        "tool_search" | "ToolSearch" => ToolMeta {
             name: "工具搜索",
-            description: "按名称或描述检索可用工具，便于发现可调用能力。",
+            description: "搜索当前上下文中真实可见的工具，并解释每个结果为何命中。",
             group: ToolGroup::Integration,
         },
-        "verify_plan_execution" => ToolMeta {
+        "verify_plan_execution" | "VerifyPlanExecution" => ToolMeta {
             name: "验证计划执行",
-            description: "核对当前计划步骤是否已按预期完成，并汇总执行证据。",
+            description: "校验当前计划模式是否已满足进入执行阶段的最小条件。",
             group: ToolGroup::Collaboration,
         },
         "lsp" => ToolMeta {
             name: "语义分析",
             description: "实验性语言服务入口，用于文件级语义分析与导航，当前仍在开发中。",
+            group: ToolGroup::Integration,
+        },
+        "ListMcpResources" | "list_mcp_resources" => ToolMeta {
+            name: "MCP 资源列表",
+            description: "列出当前会话可真实连通的 MCP 服务器资源。",
+            group: ToolGroup::Integration,
+        },
+        "ListMcpResourceTemplates" | "list_mcp_resource_templates" => ToolMeta {
+            name: "MCP 资源模板",
+            description: "列出当前会话可真实连通的 MCP 服务器资源模板。",
+            group: ToolGroup::Integration,
+        },
+        "ReadMcpResource" | "read_mcp_resource" => ToolMeta {
+            name: "读取 MCP 资源",
+            description: "读取指定 MCP 资源的真实内容。",
+            group: ToolGroup::Integration,
+        },
+        "ListMcpPrompts" | "list_mcp_prompts" => ToolMeta {
+            name: "MCP Prompt 列表",
+            description: "列出当前会话可真实连通的 MCP 服务器 prompts。",
+            group: ToolGroup::Integration,
+        },
+        "GetMcpPrompt" | "get_mcp_prompt" => ToolMeta {
+            name: "获取 MCP Prompt",
+            description: "按 server 与 prompt 名称获取 MCP prompt 消息。",
+            group: ToolGroup::Integration,
+        },
+        "McpAuth" | "mcp_auth" => ToolMeta {
+            name: "MCP 认证信息",
+            description: "读取当前会话的 MCP 认证桥接信息，包括策略、认证方法和目标 server。",
+            group: ToolGroup::Integration,
+        },
+        "McpStatus" | "mcp_status" => ToolMeta {
+            name: "MCP 状态",
+            description: "读取 MCP server 的启用状态、连接状态、工具数量和认证方法摘要。",
+            group: ToolGroup::Integration,
+        },
+        "RemoteTrigger" | "remote_trigger" => ToolMeta {
+            name: "远端触发",
+            description: "触发远端任务或环境动作；稳定后端未接入时会显式报错。",
             group: ToolGroup::Integration,
         },
         "invalid" => ToolMeta {
@@ -615,7 +710,7 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
         },
         _ => ToolMeta {
             name: "未分类工具",
-            description: "当前未接入专门说明，可结合下方工具 ID 判断其用途。",
+            description: "尚未收录该工具的专用说明；请结合下方工具 ID，或在运行时工具实现中查看其 description。",
             group: ToolGroup::Other,
         },
     }

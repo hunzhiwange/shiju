@@ -669,7 +669,8 @@ pub fn tool_git_diff_view<'a>(
         return None;
     }
 
-    let expanded = true;
+    // 列表点击后走自定义 Diff 弹窗，不在消息卡片内嵌大块 diff。
+    let expanded = false;
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
 

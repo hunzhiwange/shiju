@@ -130,3 +130,35 @@ async fn update_persists_ui_todos_and_get_round_trips_gateway_shape() {
 
     assert_eq!(loaded, expected);
 }
+
+#[tokio::test]
+async fn gateway_get_reads_todos_written_by_tool_with_same_session_key() {
+    use crate::app::agent::tools::todo::{Todo, write_session_todos_for_test};
+
+    let project = tempfile::tempdir().expect("project dir");
+    let session_id = format!("todo-tool-roundtrip-{}", std::process::id());
+    let tool_todos = vec![Todo {
+        id: "1".to_string(),
+        content: "tool wrote this".to_string(),
+        status: "in_progress".to_string(),
+        priority: "high".to_string(),
+    }];
+
+    let loaded = crate::app::agent::project::instance::provide(project.path(), None, {
+        let session_id = session_id.clone();
+        let tool_todos = tool_todos.clone();
+        move || {
+            Box::pin(async move {
+                write_session_todos_for_test(&session_id, tool_todos).expect("tool write");
+                get(&session_id).await
+            })
+        }
+    })
+    .await
+    .expect("project instance");
+
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].content, "tool wrote this");
+    assert!(matches!(loaded[0].status, TodoStatus::InProgress));
+    assert!(matches!(loaded[0].priority, TodoPriority::High));
+}

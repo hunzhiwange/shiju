@@ -814,7 +814,13 @@ pub(super) fn handle_agent_stream_done(
         Task::none()
     };
     let session_todos_task = if is_active_session {
-        super::todos::load_input_panel_todos_task(session_id.clone())
+        let directory = app
+            .sessions
+            .iter()
+            .find(|entry| entry.id == session_id)
+            .map(|entry| entry.directory.clone())
+            .or_else(|| app.project_path.clone());
+        super::todos::load_input_panel_todos_task(session_id.clone(), directory)
     } else {
         Task::none()
     };

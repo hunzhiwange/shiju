@@ -261,6 +261,8 @@ pub enum ViewMessage {
     WorkSidebarTabSelected(WorkSidebarTab),
     /// 为当前工作模式左栏标签加载更多项目
     WorkSidebarLoadMorePressed,
+    /// 为指定空间加载更多任务
+    WorkSidebarSpaceTasksLoadMorePressed(String),
     /// 打开或关闭输入区空间选择器
     WorkSpacePickerToggled,
     /// 关闭输入区空间选择器
@@ -816,6 +818,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarFilterReset
         | ViewMessage::WorkSidebarTabSelected(_)
         | ViewMessage::WorkSidebarLoadMorePressed
+        | ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(_)
         | ViewMessage::WorkSpacePickerToggled
         | ViewMessage::WorkSpacePickerClosed
         | ViewMessage::WorkSplitRatioChanged(_)

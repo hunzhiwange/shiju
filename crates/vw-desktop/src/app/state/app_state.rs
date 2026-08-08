@@ -107,6 +107,8 @@ pub struct App {
     pub(crate) work_browser_controller: crate::app::webview_runtime::WorkBrowserController,
     /// 工作模式左栏中按真实项目路径展开的空间
     pub(crate) work_expanded_spaces: HashSet<String>,
+    /// 工作模式左栏各空间当前可见任务数量（项目路径 -> 可见条数）
+    pub(crate) work_sidebar_space_task_visible: HashMap<String, usize>,
     /// 当前项目路径
     pub(crate) project_path: Option<String>,
     /// 当前项目是否为 Git 仓库（网关 ProjectInfo.vcs）

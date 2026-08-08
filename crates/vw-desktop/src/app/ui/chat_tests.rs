@@ -95,9 +95,26 @@ tool call
 
 #[test]
 fn split_think_ignores_tags_with_non_whitespace_suffixes() {
-    let (thinks, visible, open) = super::split_think("a <thinking>nope</thinking> b");
+    let (thinks, visible, open) = super::split_think("a <thinker>nope</thinker> b");
     assert!(thinks.is_empty());
-    assert_eq!(visible, "a <thinking>nope</thinking> b");
+    assert_eq!(visible, "a <thinker>nope</thinker> b");
+    assert!(!open);
+}
+
+#[test]
+fn split_think_accepts_thinking_alias_tags() {
+    let (thinks, visible, open) =
+        super::split_think("a <thinking>plan next step</thinking> b");
+    assert_eq!(thinks, vec!["plan next step".to_string()]);
+    assert_eq!(visible, "a  b");
+    assert!(!open);
+}
+
+#[test]
+fn split_think_accepts_mixed_think_and_thinking_close_tags() {
+    let (thinks, visible, open) = super::split_think("<thinking>one</think><think>two</thinking>");
+    assert_eq!(thinks, vec!["one".to_string(), "two".to_string()]);
+    assert!(visible.is_empty());
     assert!(!open);
 }
 
@@ -174,7 +191,7 @@ fn split_think_removes_orphan_close_tag_before_later_think_block() {
 
 #[test]
 fn split_think_preserves_non_tag_close_text() {
-    let raw = "before </thinking> after";
+    let raw = "before </thinker> after";
     let (thinks, visible, open) = super::split_think(raw);
     assert!(thinks.is_empty());
     assert_eq!(visible, raw);

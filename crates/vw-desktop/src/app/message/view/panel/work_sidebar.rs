@@ -2,8 +2,9 @@
 
 use super::ViewMessage;
 use crate::app::state::{
-    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP, WorkSidebarFilterScope,
-    WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
+    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP,
+    WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
+    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
 };
 use crate::app::{App, Message};
 use iced::Task;
@@ -15,6 +16,7 @@ const MAX_WORK_SIDEBAR_WIDTH: f32 = 520.0;
 fn reset_visible_items(app: &mut App) {
     app.work_sidebar_visible_tasks = WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
     app.work_sidebar_visible_spaces = WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS;
+    app.work_sidebar_space_task_visible.clear();
 }
 
 pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
@@ -86,6 +88,17 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     app.work_sidebar_visible_spaces.saturating_add(WORK_SIDEBAR_LOAD_MORE_STEP);
             }
         },
+        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(project_path) => {
+            let current = app
+                .work_sidebar_space_task_visible
+                .get(&project_path)
+                .copied()
+                .unwrap_or(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE);
+            app.work_sidebar_space_task_visible.insert(
+                project_path,
+                current.saturating_add(WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP),
+            );
+        }
         ViewMessage::WorkSpacePickerToggled => {
             app.work_space_picker_open = !app.work_space_picker_open;
         }

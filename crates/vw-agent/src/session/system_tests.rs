@@ -118,6 +118,10 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         prompt.contains("协议未覆盖") || prompt.contains("未覆盖时"),
         "default tools must be framed as fallback when project protocol is silent"
     );
+    assert!(
+        prompt.contains("<required_skills>") && prompt.contains("SKILL.md"),
+        "Codex-style skill paths from project protocol must be read before other search"
+    );
     assert!(prompt.contains("## 自主代理纪律（防走偏）"));
     assert!(prompt.contains("## 结构化工作流"));
     assert!(

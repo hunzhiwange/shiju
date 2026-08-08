@@ -62,6 +62,10 @@ pub enum WorkSidebarFilterTime {
 
 pub const WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS: usize = 10;
 pub const WORK_SIDEBAR_LOAD_MORE_STEP: usize = 5;
+/// 工作模式空间展开后默认展示的任务条数。
+pub const WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE: usize = 20;
+/// 工作模式空间任务每次加载更多的条数。
+pub const WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP: usize = 20;
 
 /// 工作模式左栏当前展示的列表。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

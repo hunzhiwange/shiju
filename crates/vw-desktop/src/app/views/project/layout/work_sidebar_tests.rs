@@ -233,6 +233,9 @@ async fn work_sidebar_task_context_menu_routes_session_id_and_pointer_position()
 #[test]
 fn work_sidebar_paginates_tasks_and_spaces_from_ten_in_steps_of_five() {
     let mut app = App::new().0;
+    app.recent_projects.clear();
+    app.recent_projects_edits.clear();
+    app.project_sessions.clear();
     for index in 0..13 {
         let path = format!("/workspace/project-{index:02}");
         app.recent_projects.push(path.clone());
@@ -258,6 +261,42 @@ fn work_sidebar_paginates_tasks_and_spaces_from_ten_in_steps_of_five() {
     let loaded = work_sidebar::model(&app);
     assert_eq!(loaded.tasks.len(), 13);
     assert_eq!(loaded.spaces.len(), 13);
+}
+
+#[test]
+fn work_sidebar_paginates_expanded_space_tasks_from_twenty() {
+    let mut app = App::new().0;
+    app.recent_projects.clear();
+    app.recent_projects_edits.clear();
+    app.project_sessions.clear();
+    let path = "/workspace/alpha".to_string();
+    app.recent_projects.push(path.clone());
+    app.work_expanded_spaces.insert(path.clone());
+    app.project_sessions.insert(
+        path.clone(),
+        (0..25)
+            .map(|index| {
+                session(
+                    &format!("session-{index:02}"),
+                    &format!("任务 {index:02}"),
+                    &path,
+                    (25 - index) as u64,
+                )
+            })
+            .collect(),
+    );
+
+    let initial = work_sidebar::model(&app);
+    assert_eq!(initial.spaces.len(), 1);
+    assert_eq!(initial.spaces[0].session_total, 25);
+    assert_eq!(initial.spaces[0].sessions.len(), 20);
+    assert_eq!(initial.spaces[0].sessions[0].id, "session-00");
+    assert_eq!(initial.spaces[0].sessions[19].id, "session-19");
+
+    app.work_sidebar_space_task_visible.insert(path, 40);
+    let loaded = work_sidebar::model(&app);
+    assert_eq!(loaded.spaces[0].sessions.len(), 25);
+    assert_eq!(loaded.spaces[0].session_total, 25);
 }
 
 #[test]

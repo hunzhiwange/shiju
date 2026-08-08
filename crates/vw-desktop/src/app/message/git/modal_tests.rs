@@ -108,8 +108,12 @@ fn custom_diff_result_hides_inputs_and_shows_diff_view() {
 #[test]
 fn chat_text_diff_open_and_close_update_panel_state() {
     let mut app = test_app();
-    app.show_git_custom_diff_modal = true;
-    app.git_custom_diff_hide_inputs = true;
+    app.chat_text_diff = Some(crate::app::state::ChatTextDiff {
+        title: "stale".to_string(),
+        file: "stale.rs".to_string(),
+        before: "old".to_string(),
+        after: "new".to_string(),
+    });
     app.active_preview_path = Some("preview.rs".to_string());
 
     let _ = update(
@@ -122,19 +126,20 @@ fn chat_text_diff_open_and_close_update_panel_state() {
         },
     );
 
-    let diff = app.chat_text_diff.as_ref().expect("chat text diff");
-    assert_eq!(diff.title, "Chat patch");
-    assert_eq!(diff.file, "main.rs");
-    assert_eq!(diff.before, "a");
-    assert_eq!(diff.after, "b");
+    assert!(app.chat_text_diff.is_none());
+    assert!(app.show_git_custom_diff_modal);
+    assert!(app.git_custom_diff_hide_inputs);
+    assert_eq!(app.git_custom_diff_title, "Chat patch");
+    assert_eq!(app.git_custom_diff_before_editor.text(), "a");
+    assert_eq!(app.git_custom_diff_after_editor.text(), "b");
     assert!(app.show_diff);
     assert!(app.file_manager_show_changes);
-    assert!(!app.show_git_custom_diff_modal);
-    assert!(!app.git_custom_diff_hide_inputs);
     assert!(app.active_preview_path.is_none());
 
     let _ = update(&mut app, GitMessage::CloseChatTextDiff);
     assert!(app.chat_text_diff.is_none());
+    assert!(!app.show_git_custom_diff_modal);
+    assert!(!app.git_custom_diff_hide_inputs);
 }
 
 #[test]

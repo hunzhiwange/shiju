@@ -2,7 +2,7 @@
 //!
 //! 本模块负责把 `UiRuntimeEvent` 进一步规整为状态层可直接消费的动作序列：
 //! - delta/step/terminal 落到既有 reducer 动作，统一汇聚成 `UiMessage`
-//! - delta 内部的 `<think>` 与 `tool <name>\n{json}` 片段在此转换为 typed UI 消息
+//! - delta 内部的 `<think>` / `<thinking>` 与 `tool <name>\n{json}` 片段在此转换为 typed UI 消息
 //! - runtime 侧尚未识别的事件，显式转换为 UI warning，而不是静默吞掉
 //! - timeout/error 终态补一条错误消息，便于 renderer 在 transcript 中稳定展示
 
@@ -22,10 +22,28 @@ use crate::cli::tui_v2::model::{
 };
 use crate::cli::tui_v2::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 
-const THINK_OPEN_TAG: &str = "<think>";
-const THINK_CLOSE_TAG: &str = "</think>";
+/// Canonical and API-compat thinking open tags. Prefer longer match when both could apply.
+const THINK_OPEN_TAGS: &[&str] = &["<thinking>", "<think>"];
+/// Canonical and API-compat thinking close tags.
+const THINK_CLOSE_TAGS: &[&str] = &["</thinking>", "</think>"];
 const REDACTED_THINK_OPEN_TAG: &str = "<redacted-thinking>";
 const REDACTED_THINK_CLOSE_TAG: &str = "</redacted-thinking>";
+
+fn find_earliest_tag(haystack: &str, tags: &[&str]) -> Option<(usize, usize)> {
+    let mut best: Option<(usize, usize)> = None;
+    for tag in tags {
+        if let Some(index) = haystack.find(tag) {
+            best = Some(match best {
+                Some((best_index, best_len)) if best_index < index => (best_index, best_len),
+                Some((best_index, best_len)) if best_index == index && best_len >= tag.len() => {
+                    (best_index, best_len)
+                }
+                _ => (index, tag.len()),
+            });
+        }
+    }
+    best
+}
 
 /// 将单个 runtime 事件应用到状态层。
 pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) {
@@ -178,7 +196,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
     let mut remaining = delta.as_str();
     while !remaining.is_empty() {
         if state.runtime.thinking_open {
-            if let Some(close_index) = remaining.find(THINK_CLOSE_TAG) {
+            if let Some((close_index, close_len)) = find_earliest_tag(remaining, THINK_CLOSE_TAGS) {
                 let thinking_delta = &remaining[..close_index];
                 if !thinking_delta.is_empty() {
                     reduce_tui_state(
@@ -188,7 +206,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
                 }
                 reduce_tui_state(state, TuiAction::ThinkingClosed);
                 state.runtime.thinking_open = false;
-                remaining = &remaining[close_index + THINK_CLOSE_TAG.len()..];
+                remaining = &remaining[close_index + close_len..];
                 remaining = remaining.trim_start_matches(['\r', '\n']);
                 if remaining.is_empty() {
                     break;
@@ -200,7 +218,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
             break;
         }
 
-        if let Some(open_index) = remaining.find(THINK_OPEN_TAG) {
+        if let Some((open_index, open_len)) = find_earliest_tag(remaining, THINK_OPEN_TAGS) {
             let assistant_delta = &remaining[..open_index];
             if !assistant_delta.trim().is_empty() {
                 reduce_tui_state(
@@ -209,7 +227,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
                 );
             }
             state.runtime.thinking_open = true;
-            remaining = &remaining[open_index + THINK_OPEN_TAG.len()..];
+            remaining = &remaining[open_index + open_len..];
             continue;
         }
 

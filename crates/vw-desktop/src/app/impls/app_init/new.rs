@@ -377,6 +377,7 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             work_browser_controller: crate::app::webview_runtime::WorkBrowserController::default(),
             work_expanded_spaces: HashSet::new(),
+            work_sidebar_space_task_visible: HashMap::new(),
             project_path: None,
             project_is_git_repo: false,
             project_id: None,

@@ -88,6 +88,19 @@ fn think_tags_allow_attributes_and_ignore_prefix_collisions() {
 }
 
 #[test]
+fn thinking_alias_tags_are_parsed_as_think_blocks() {
+    let raw = "pre <thinking>plan</thinking> tail";
+
+    let blocks = owned_blocks_from_raw(raw);
+
+    assert!(matches!(blocks.first(), Some(ParsedChatBlock::Text { content }) if content == "pre "));
+    assert!(
+        matches!(blocks.get(1), Some(ParsedChatBlock::Think { content, open }) if content == "plan" && !open)
+    );
+    assert!(matches!(blocks.get(2), Some(ParsedChatBlock::Text { content }) if content == " tail"));
+}
+
+#[test]
 fn orphan_think_close_tags_are_removed_from_visible_text() {
     let raw = "answer</think>\nnext</think reason=\"done\">tail</thinker>";
 

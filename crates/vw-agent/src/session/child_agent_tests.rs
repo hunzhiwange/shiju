@@ -143,6 +143,19 @@ fn child_agent_handoff_execution_returns_last_visible_result() {
 }
 
 #[test]
+fn child_agent_handoff_strips_thinking_alias_blocks() {
+    let output = concat!(
+        "<thinking>inspect implementation details</thinking>\n",
+        "Final answer without tags."
+    );
+
+    assert_eq!(
+        super::child_agent::child_agent_handoff_from_output(output),
+        "Final answer without tags."
+    );
+}
+
+#[test]
 fn child_agent_handoff_plain_text_is_preserved() {
     assert_eq!(
         super::child_agent::child_agent_handoff_from_output("simple execution result"),

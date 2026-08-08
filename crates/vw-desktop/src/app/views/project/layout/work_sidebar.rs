@@ -17,7 +17,8 @@ use crate::app::message::{ShijuAppsMessage, SkillHubMessage};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::skill_hub::ExpertHubSection;
 use crate::app::state::{
-    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
+    WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WorkSidebarFilterScope, WorkSidebarFilterStatus,
+    WorkSidebarFilterTime, WorkSidebarTab,
 };
 use crate::app::{App, Message};
 
@@ -70,6 +71,7 @@ pub(super) struct WorkSpaceItem {
     pub(super) tools_open: bool,
     pub(super) creating: bool,
     pub(super) sessions: Vec<WorkSpaceSession>,
+    pub(super) session_total: usize,
     pub(super) message: Message,
     pub(super) toggle_message: Message,
     pub(super) create_message: Message,
@@ -257,9 +259,16 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
             }
 
             let expanded = app.work_expanded_spaces.contains(path);
+            let session_total = filtered_sessions.len();
             let sessions = if expanded {
+                let visible = app
+                    .work_sidebar_space_task_visible
+                    .get(path)
+                    .copied()
+                    .unwrap_or(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE);
                 filtered_sessions
                     .into_iter()
+                    .take(visible)
                     .map(|(_, session)| WorkSpaceSession {
                         id: session.id.clone(),
                         title: session.title.clone(),
@@ -284,6 +293,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                 tools_open: app.project_tools_menu_path.as_deref() == Some(path.as_str()),
                 creating: app.new_session_creating,
                 sessions,
+                session_total,
                 message: Message::Project(ProjectMessage::SwitchWorkSpacePressed(path.clone())),
                 toggle_message: Message::View(ViewMessage::WorkSpaceToggled(path.clone())),
                 create_message: Message::Project(ProjectMessage::ProjectCreateSession(
@@ -1263,14 +1273,14 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
         .into()
 }
 
-fn load_more_button(remaining: usize) -> Element<'static, Message> {
+fn load_more_button(remaining: usize, message: Message) -> Element<'static, Message> {
     button(
         text(format!("加载更多 · 还有 {remaining} 条"))
             .size(12)
             .width(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center),
     )
-    .on_press(Message::View(ViewMessage::WorkSidebarLoadMorePressed))
+    .on_press(message)
     .padding([8, 9])
     .width(Length::Fill)
     .style(navigation_button_style)
@@ -1287,7 +1297,10 @@ fn tasks_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Messag
             tasks = tasks.push(task_button(app, task));
         }
         if model.tasks.len() < model.task_total {
-            tasks = tasks.push(load_more_button(model.task_total - model.tasks.len()));
+            tasks = tasks.push(load_more_button(
+                model.task_total - model.tasks.len(),
+                Message::View(ViewMessage::WorkSidebarLoadMorePressed),
+            ));
         }
     }
     tasks.into()
@@ -1304,9 +1317,20 @@ fn spaces_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Messa
             for session in &space.sessions {
                 spaces = spaces.push(space_session_button(app, session));
             }
+            if space.expanded && space.sessions.len() < space.session_total {
+                spaces = spaces.push(load_more_button(
+                    space.session_total - space.sessions.len(),
+                    Message::View(ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(
+                        space.path.clone(),
+                    )),
+                ));
+            }
         }
         if model.spaces.len() < model.space_total {
-            spaces = spaces.push(load_more_button(model.space_total - model.spaces.len()));
+            spaces = spaces.push(load_more_button(
+                model.space_total - model.spaces.len(),
+                Message::View(ViewMessage::WorkSidebarLoadMorePressed),
+            ));
         }
     }
     spaces.into()

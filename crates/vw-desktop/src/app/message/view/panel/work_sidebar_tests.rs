@@ -2,8 +2,9 @@ use super::super::{ViewMessage, update as update_panel};
 use super::WORK_SIDEBAR_COLLAPSED_WIDTH;
 use crate::app::App;
 use crate::app::state::{
-    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP, WorkSidebarFilterScope,
-    WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
+    WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP,
+    WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
+    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
 };
 
 #[test]
@@ -80,6 +81,51 @@ fn work_sidebar_tabs_and_load_more_keep_independent_limits() {
     );
     assert_eq!(app.work_sidebar_visible_tasks, WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS);
     assert_eq!(app.work_sidebar_visible_spaces, WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS);
+}
+
+#[test]
+fn work_sidebar_space_tasks_load_more_increments_per_space_and_resets_on_filter() {
+    let mut app = App::new().0;
+    let path = "/workspace/alpha".to_string();
+
+    let _task = update_panel(
+        &mut app,
+        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
+    );
+    assert_eq!(
+        app.work_sidebar_space_task_visible.get(&path),
+        Some(&(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP))
+    );
+
+    let _task = update_panel(
+        &mut app,
+        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
+    );
+    assert_eq!(
+        app.work_sidebar_space_task_visible.get(&path),
+        Some(
+            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
+        )
+    );
+
+    let other = "/workspace/beta".to_string();
+    let _task = update_panel(
+        &mut app,
+        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(other.clone()),
+    );
+    assert_eq!(
+        app.work_sidebar_space_task_visible.get(&other),
+        Some(&(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP))
+    );
+    assert_eq!(
+        app.work_sidebar_space_task_visible.get(&path),
+        Some(
+            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
+        )
+    );
+
+    let _task = update_panel(&mut app, ViewMessage::WorkSidebarFilterReset);
+    assert!(app.work_sidebar_space_task_visible.is_empty());
 }
 
 #[test]

@@ -134,6 +134,15 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
         None
     }
 
+    fn is_think_tag_remainder(remainder: &str) -> bool {
+        if remainder.is_empty() || remainder.chars().next().is_some_and(char::is_whitespace) {
+            return true;
+        }
+        remainder.strip_prefix("ing").is_some_and(|after| {
+            after.is_empty() || after.chars().next().is_some_and(char::is_whitespace)
+        })
+    }
+
     fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
         let mut search_from = 0usize;
         while let Some(pos_rel) = s[search_from..].find("<think") {
@@ -147,7 +156,7 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
             };
             let tag_end = pos + tag_end_rel;
             let tag = &s[pos + "<think".len()..tag_end];
-            if tag.is_empty() || tag.chars().next().is_some_and(char::is_whitespace) {
+            if is_think_tag_remainder(tag) {
                 return Some((pos, tag_end_rel + 1));
             }
             search_from = pos + 1;
@@ -164,7 +173,7 @@ pub fn split_think(raw: &str) -> (Vec<String>, String, bool) {
             };
             let tag_end = pos + tag_end_rel;
             let tag = &s[pos + "</think".len()..tag_end];
-            if tag.is_empty() || tag.chars().next().is_some_and(char::is_whitespace) {
+            if is_think_tag_remainder(tag) {
                 return Some((pos, tag_end_rel + 1));
             }
             search_from = pos + 1;

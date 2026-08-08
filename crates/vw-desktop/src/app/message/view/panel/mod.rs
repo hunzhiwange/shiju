@@ -49,6 +49,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarFilterReset
         | ViewMessage::WorkSidebarTabSelected(_)
         | ViewMessage::WorkSidebarLoadMorePressed
+        | ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(_)
         | ViewMessage::WorkSpacePickerToggled
         | ViewMessage::WorkSpacePickerClosed => work_sidebar::update(app, message),
 

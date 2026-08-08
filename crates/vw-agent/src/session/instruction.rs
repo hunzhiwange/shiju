@@ -10,8 +10,10 @@ use crate::app::agent::project::instance;
 use crate::app::agent::session::message;
 use crate::app::agent::util::filesystem;
 use crate::app::agent::util::log;
+use regex::Regex;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -58,6 +60,51 @@ fn instance_state()
 /// 将路径规范化为可比较的字符串。
 fn normalize_str(p: impl AsRef<Path>) -> String {
     filesystem::normalize_path(p).to_string_lossy().to_string()
+}
+
+/// 匹配协议文本中的 `SKILL.md` 路径（含反引号包裹与裸路径）。
+static SKILL_MD_PATH_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:`([^`\n]*SKILL\.md)`|((?:\./)?(?:[\w.-]+/)+SKILL\.md))")
+        .expect("skill path regex")
+});
+
+/// 从协议正文提取 `SKILL.md` 路径，去重并保持出现顺序。
+fn extract_skill_md_paths(content: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for caps in SKILL_MD_PATH_RE.captures_iter(content) {
+        let Some(path) = caps.get(1).or_else(|| caps.get(2)).map(|m| m.as_str().trim()) else {
+            continue;
+        };
+        if path.is_empty() || !seen.insert(path.to_string()) {
+            continue;
+        }
+        out.push(path.to_string());
+    }
+    out
+}
+
+/// 将协议中的技能路径展开为 Codex 风格的绝对路径列表。
+///
+/// 只给路径，不加技能描述；模型按路径 Read 后执行。
+fn format_required_skills_block(project_root: &Path, content: &str) -> String {
+    let paths = extract_skill_md_paths(content);
+    if paths.is_empty() {
+        return String::new();
+    }
+
+    let mut block = String::from("\n\n<required_skills>\n");
+    for path in paths {
+        let absolute = if Path::new(&path).is_absolute() {
+            normalize_str(&path)
+        } else {
+            let relative = path.trim_start_matches("./");
+            normalize_str(project_root.join(relative))
+        };
+        let _ = writeln!(block, "{absolute}");
+    }
+    block.push_str("</required_skills>");
+    block
 }
 
 /// 返回全局指令文件候选路径。
@@ -225,13 +272,16 @@ pub async fn system() -> Vec<String> {
 /// 读取当前请求所选项目根目录下的 `AGENTS.md`。
 ///
 /// 该来源独立于系统/全局指令发现：调用方可将项目协议追加到系统提示词，同时只把
-/// 此路径暴露给界面。项目配置被禁用、根目录为空、文件缺失或内容为空时返回 `None`。
+/// 此路径暴露给界面。若正文提到 `SKILL.md` 路径，会追加 Codex 风格的
+/// `<required_skills>` 绝对路径列表（不含技能描述）。项目配置被禁用、根目录为空、
+/// 文件缺失或内容为空时返回 `None`。
 pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
     if flag::vibewindow_disable_project_config() {
         return None;
     }
     let root = root.map(str::trim).filter(|root| !root.is_empty())?;
-    let filepath = PathBuf::from(root).join("AGENTS.md");
+    let root_path = PathBuf::from(root);
+    let filepath = root_path.join("AGENTS.md");
     if !filesystem::exists(&filepath) {
         return None;
     }
@@ -240,9 +290,10 @@ pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
     if content.trim().is_empty() {
         return None;
     }
+    let skills_block = format_required_skills_block(&root_path, &content);
     Some(Resolved {
         filepath: filepath.clone(),
-        content: format!("Instructions from: {}\n{}", filepath, content),
+        content: format!("Instructions from: {}\n{}{}", filepath, content, skills_block),
     })
 }
 

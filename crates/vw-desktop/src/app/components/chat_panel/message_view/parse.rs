@@ -69,9 +69,27 @@ pub(super) fn borrowed_blocks(
     })
 }
 
+/// 判断 `<think` / `</think` 之后到 `>` 之前的后缀是否构成合法思考标签名。
+///
+/// 接受：
+/// - 空后缀：`<think>` / `</think>`
+/// - 空白开头：带属性，如 `<think time="1s">`
+/// - `ing`：`<thinking>` / `</thinking>`（部分 API 返回此形式）
+/// - `ing` + 空白属性：`<thinking foo="bar">`
+///
+/// 拒绝前缀碰撞，例如 `<thinker>` / `</thinker>`。
+fn is_think_tag_remainder(remainder: &str) -> bool {
+    if remainder.is_empty() || remainder.chars().next().is_some_and(char::is_whitespace) {
+        return true;
+    }
+    remainder
+        .strip_prefix("ing")
+        .is_some_and(|after| after.is_empty() || after.chars().next().is_some_and(char::is_whitespace))
+}
+
 /// 查找思考块的开始标签
 ///
-/// 在字符串中搜索 `<think ...>` 形式的开始标签。
+/// 在字符串中搜索 `<think ...>` / `<thinking ...>` 形式的开始标签。
 /// 支持带属性的标签（如 `<think time="123">`）。
 ///
 /// # 参数
@@ -102,7 +120,7 @@ fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
         let tag_end = pos + tag_end_rel;
 
         let tag = &s[pos + "<think".len()..tag_end];
-        if tag.is_empty() || tag.chars().next().is_some_and(char::is_whitespace) {
+        if is_think_tag_remainder(tag) {
             return Some((pos, tag_end_rel + 1));
         }
         search_from = pos + 1;
@@ -112,7 +130,7 @@ fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
 
 /// 查找思考块的结束标签
 ///
-/// 在字符串中搜索 `</think ...>` 形式的闭合标签。
+/// 在字符串中搜索 `</think ...>` / `</thinking ...>` 形式的闭合标签。
 ///
 /// # 参数
 /// - `s`: 要搜索的字符串
@@ -131,7 +149,7 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
         let tag_end = pos + tag_end_rel;
 
         let tag = &s[pos + "</think".len()..tag_end];
-        if tag.is_empty() || tag.chars().next().is_some_and(char::is_whitespace) {
+        if is_think_tag_remainder(tag) {
             return Some((pos, tag_end_rel + 1));
         }
         search_from = pos + 1;
@@ -294,7 +312,7 @@ fn push_tool_and_text_blocks<'a>(out: &mut Vec<RenderBlock<'a>>, mut s: &'a str)
 /// 返回解析后的渲染块向量
 ///
 /// # 解析规则
-/// 1. 优先识别 `<think ...>...</think` 标签对
+/// 1. 优先识别 `<think ...>` / `<thinking ...>` 标签对
 /// 2. 在思考块外识别 `tool ...` 工具调用块
 /// 3. 其余内容作为普通文本块
 fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {

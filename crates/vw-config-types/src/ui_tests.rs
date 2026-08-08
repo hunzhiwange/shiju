@@ -32,7 +32,7 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert_eq!(settings.editor_font_size, 14.0);
     assert_eq!(settings.editor_line_height, 20.0);
     assert!(settings.editor_auto_line_height);
-    assert!(settings.dialogue_flow_show_reasoning_summary);
+    assert!(!settings.dialogue_flow_show_reasoning_summary);
     assert!(!settings.dialogue_flow_expand_shell_tool_section);
     assert!(!settings.dialogue_flow_expand_edit_tool_section);
     assert!(settings.tui_keybindings.is_empty());
@@ -302,6 +302,7 @@ fn serde_defaults_fill_nested_ui_config() {
     assert_eq!(settings.gateway_client.host, "10.0.0.8");
     assert_eq!(settings.gateway_client.port, crate::gateway::DEFAULT_GATEWAY_PORT);
     assert_eq!(settings.preview_auto_save, PreviewAutoSaveMode::AfterDelay);
+    assert!(!settings.dialogue_flow_show_reasoning_summary);
     assert_eq!(
         settings.model_routes,
         vec![ModelRoute {

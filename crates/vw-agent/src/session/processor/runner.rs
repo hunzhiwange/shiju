@@ -30,6 +30,22 @@ const EMPTY_RESPONSE_RETRY_PROMPT: &str =
     "上一步模型输出为空，已自动重试。请继续当前任务并返回非空答复。";
 const EMPTY_RESPONSE_RETRY_LIMIT: usize = 4;
 
+fn prepare_context_before_llm_step(
+    llm_messages: &mut Vec<Value>,
+    system: &[String],
+    tools: &[crate::app::agent::tools::ToolSpec],
+    model_limit: &crate::app::agent::provider::provider::ModelLimit,
+    observed_input_tokens: Option<i64>,
+) -> Result<context_governance::ContextCompactionResult, String> {
+    context_governance::compact_context_for_next_request(
+        llm_messages,
+        system,
+        tools,
+        model_limit,
+        observed_input_tokens,
+    )
+}
+
 fn request_full_access_enabled(options: &Value) -> bool {
     options.get("full_access").and_then(Value::as_bool).unwrap_or(false)
 }
@@ -177,6 +193,8 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     let mut total_usage = models::TokenUsage::default();
     let mut tried_auto_complete_todos = false;
     let mut empty_response_retries = 0usize;
+    let model_limit = crate::session::llm::model_limit_for_request(req.model.clone(), &req.options);
+    let mut observed_input_tokens: Option<i64> = None;
 
     loop {
         let is_last_step = step >= turn_policy.max_tool_iterations;
@@ -208,18 +226,50 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         );
         step_index = step_index.saturating_add(1);
 
-        let cleared_tool_results = context_governance::clear_stale_tool_results(
+        let pending_reloads = ctx.tool_use_context().peek_pending_image_reloads();
+        if let Some(image_ctx) = image_turn.as_ref() {
+            image_ctx.attach_pending_reloads_to_json(&mut llm_messages, &pending_reloads);
+        }
+
+        let tool_specs_for_context = if is_last_step {
+            &[][..]
+        } else {
+            available_tool_specs.as_slice()
+        };
+        let compaction = match prepare_context_before_llm_step(
             &mut llm_messages,
-            context_governance::RECENT_TOOL_RESULTS_TO_KEEP,
-        );
-        if cleared_tool_results > 0 {
+            &system,
+            tool_specs_for_context,
+            &model_limit,
+            observed_input_tokens,
+        ) {
+            Ok(result) => result,
+            Err(message) => {
+                tracing::warn!(
+                    target: "vw_agent",
+                    session_id = %req.session,
+                    step_index,
+                    context_limit = model_limit.context,
+                    input_limit = context_governance::effective_input_window(&model_limit),
+                    "session processor stopped before llm step because context compaction was insufficient"
+                );
+                on_event(StreamEvent::Error(message));
+                return;
+            }
+        };
+        if compaction.passes > 0 {
             tracing::info!(
                 target: "vw_agent",
                 session_id = %req.session,
                 step_index,
-                cleared_tool_results,
-                retained_tool_results = context_governance::RECENT_TOOL_RESULTS_TO_KEEP,
-                "session processor cleared stale tool result content"
+                before_tokens = compaction.before_tokens,
+                after_tokens = compaction.after_tokens,
+                context_limit = model_limit.context,
+                input_limit = context_governance::effective_input_window(&model_limit),
+                cleared_tool_results = compaction.cleared_tool_results,
+                trimmed_messages = compaction.trimmed_messages,
+                compaction_passes = compaction.passes,
+                "session processor compacted context before llm step"
             );
         }
 
@@ -229,11 +279,6 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             model: req.model.clone(),
         }) {
             return;
-        }
-
-        let pending_reloads = ctx.tool_use_context().peek_pending_image_reloads();
-        if let Some(image_ctx) = image_turn.as_ref() {
-            image_ctx.attach_pending_reloads_to_json(&mut llm_messages, &pending_reloads);
         }
 
         let step_out = match llm_runner::run_llm_step_with_retry(
@@ -306,6 +351,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         total_usage.output_tokens += step_out.usage.output_tokens;
         total_usage.cached_tokens += step_out.usage.cached_tokens;
         total_usage.reasoning_tokens += step_out.usage.reasoning_tokens;
+        observed_input_tokens = Some(step_out.usage.input_tokens);
 
         let step_text_preview = response_preview(&step_out.text);
         tracing::info!(

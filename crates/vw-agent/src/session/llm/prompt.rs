@@ -213,6 +213,19 @@ async fn resolve_model_for_options(
     resolve_model(model).await
 }
 
+/// 在请求前读取与实际 LLM 路由相同的模型限制，不发起模型请求。
+pub(crate) fn model_limit_for_request(
+    model: Option<String>,
+    options: &Value,
+) -> provider::ModelLimit {
+    block_on(async {
+        resolve_model_for_options(model, options)
+            .await
+            .map(|resolved| resolved.limit)
+            .unwrap_or_else(|_| provider::resolve_model_limit(None, None, None))
+    })
+}
+
 /// 获取当前时间的 Unix 时间戳（毫秒）
 ///
 /// ## 返回值

@@ -373,6 +373,121 @@ fn custom_model_modal_adds_edits_closes_and_removes_models() {
 }
 
 #[test]
+fn custom_model_modal_restores_and_saves_full_metadata() {
+    let mut app = app();
+    app.provider_settings.custom.models = vec![CustomProviderModelDraft {
+        model_id: "model".to_string(),
+        display_name: "Model".to_string(),
+        family: "family".to_string(),
+        context_limit: "32768".to_string(),
+        input_limit: "28672".to_string(),
+        output_limit: "4096".to_string(),
+        reasoning: Some(true),
+        tool_call: Some(false),
+        temperature: Some(true),
+        attachment: Some(true),
+        input_modalities: Some(vec!["text".to_string(), "image".to_string()]),
+        output_modalities: Some(vec!["text".to_string()]),
+        ..Default::default()
+    }];
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(Some(0)));
+    let modal = app.provider_settings.custom_model_modal.as_ref().unwrap();
+    assert_eq!(modal.family, "family");
+    assert_eq!(modal.context_limit, "32768");
+    assert_eq!(modal.input_limit, "28672");
+    assert_eq!(modal.output_limit, "4096");
+    assert_eq!(modal.reasoning, Some(true));
+    assert_eq!(modal.tool_call, Some(false));
+    assert_eq!(modal.temperature, Some(true));
+    assert_eq!(modal.attachment, Some(true));
+    assert_eq!(modal.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(modal.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalFamilyChanged("new-family".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalContextLimitChanged("65536".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalInputLimitChanged("60000".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalOutputLimitChanged("4096".to_string()),
+    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelModalToolCallChanged(true));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalInputModalityToggled("image".to_string(), false),
+    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelModalSave);
+
+    let model = &app.provider_settings.custom.models[0];
+    assert_eq!(model.family, "new-family");
+    assert_eq!(model.context_limit, "65536");
+    assert_eq!(model.input_limit, "60000");
+    assert_eq!(model.output_limit, "4096");
+    assert_eq!(model.tool_call, Some(true));
+    assert_eq!(model.input_modalities.as_deref(), Some(["text".to_string()].as_slice()));
+}
+
+#[test]
+fn custom_model_modal_rejects_duplicate_ids_and_invalid_limit_relationships() {
+    let mut app = app();
+    app.provider_settings.custom.models = vec![
+        CustomProviderModelDraft { model_id: "existing".to_string(), ..Default::default() },
+    ];
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(None));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalIdChanged(" existing ".to_string()),
+    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelModalSave);
+    assert_eq!(app.provider_settings.save_error.as_deref(), Some("模型 ID 已存在：existing"));
+    assert!(app.provider_settings.custom_model_modal.is_some());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalIdChanged("new-model".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalContextLimitChanged("100".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalInputLimitChanged("101".to_string()),
+    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelModalSave);
+    assert_eq!(
+        app.provider_settings.save_error.as_deref(),
+        Some("模型 new-model 的输入限制不能超过上下文限制")
+    );
+    assert!(app.provider_settings.custom_model_modal.is_some());
+}
+
+#[test]
+fn custom_provider_save_rejects_duplicate_model_ids_before_async_save() {
+    let mut app = app();
+    app.provider_settings.custom.provider_id = "custom".to_string();
+    app.provider_settings.custom.base_url = "https://example.test".to_string();
+    app.provider_settings.custom.models = vec![
+        CustomProviderModelDraft { model_id: "model".to_string(), ..Default::default() },
+        CustomProviderModelDraft { model_id: " model ".to_string(), ..Default::default() },
+    ];
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderSave);
+    assert_eq!(app.provider_settings.save_error.as_deref(), Some("模型 ID 重复：model"));
+    assert!(!app.provider_settings.loading);
+}
+
+#[test]
 fn custom_model_discovery_tracks_busy_state_and_merges_results() {
     let mut app = app();
     app.provider_settings.custom_provider_modal_open = true;
@@ -380,6 +495,7 @@ fn custom_model_discovery_tracks_busy_state_and_merges_results() {
     app.provider_settings.custom.models = vec![CustomProviderModelDraft {
         model_id: "model-b".to_string(),
         display_name: "保留名称".to_string(),
+        ..Default::default()
     }];
 
     let _ = update(&mut app, SettingsMessage::CustomProviderModelsDiscover);

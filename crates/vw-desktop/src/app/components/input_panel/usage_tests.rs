@@ -17,12 +17,28 @@ fn model_info(context_limit: u64) -> UsageModelInfo {
         model_id: "gpt-test".to_string(),
         model_name: "GPT Test".to_string(),
         context_limit,
+        input_limit: context_limit,
         output_limit: 4096,
+        limit_is_default: false,
         cost_input_per_million: 2.0,
         cost_output_per_million: 6.0,
         cost_cache_read_per_million: 0.5,
         cost_cache_write_per_million: 1.0,
     }
+}
+
+#[test]
+fn usage_rate_uses_the_same_effective_input_window_as_agent_defaults() {
+    let mut app = test_app();
+    app.usage_model_info = Some(UsageModelInfo {
+        context_limit: 32_768,
+        input_limit: 28_672,
+        limit_is_default: true,
+        ..model_info(32_768)
+    });
+    app.active_session_view_state.steps.push(step(25_805));
+
+    assert!(get_usage_rate_percent(&app) >= 90.0);
 }
 
 fn step(input_tokens: i64) -> ChatSessionStep {

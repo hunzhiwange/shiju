@@ -62,6 +62,32 @@ fn normalize_adapter_preserves_trimmed_custom_adapter() {
 }
 
 #[test]
+fn model_limit_resolution_uses_defaults_only_for_missing_or_zero_values() {
+    let fallback = resolve_model_limit(None, None, None);
+
+    assert_eq!(fallback.context, DEFAULT_MODEL_CONTEXT_LIMIT);
+    assert_eq!(fallback.input, Some(DEFAULT_MODEL_INPUT_LIMIT));
+    assert_eq!(fallback.output, DEFAULT_MODEL_OUTPUT_LIMIT);
+
+    let explicit = resolve_model_limit(Some(12_345), Some(10_000), Some(2_048));
+    assert_eq!(explicit.context, 12_345);
+    assert_eq!(explicit.input, Some(10_000));
+    assert_eq!(explicit.output, 2_048);
+
+    let output_not_applicable = resolve_model_limit(Some(0), Some(0), Some(0));
+    assert_eq!(output_not_applicable.context, DEFAULT_MODEL_CONTEXT_LIMIT);
+    assert_eq!(output_not_applicable.input, Some(DEFAULT_MODEL_INPUT_LIMIT));
+    assert_eq!(output_not_applicable.output, 0);
+}
+
+#[test]
+fn effective_input_window_matches_runtime_default_limit() {
+    let limit = resolve_model_limit(None, None, None);
+
+    assert_eq!(super::effective_input_window(&limit), DEFAULT_MODEL_INPUT_LIMIT);
+}
+
+#[test]
 fn from_models_dev_model_uses_model_adapter_before_provider_adapter() {
     let provider = raw_provider();
     let mut model = raw_model("model-a");

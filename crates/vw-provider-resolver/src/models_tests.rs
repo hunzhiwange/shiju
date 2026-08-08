@@ -1,10 +1,13 @@
 use super::*;
 use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::thread;
+use serde_json::{Value, json};
+use vw_shared::provider::state::from_models_dev_model;
 
 #[cfg(not(target_arch = "wasm32"))]
 static MODELS_STATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -359,6 +362,170 @@ fn bundled_models_include_shiju_static_catalog() {
     assert_eq!(image_generation.input, ["text"]);
     assert_eq!(image_generation.output, ["image"]);
     assert!(bundled.contains_key("openai"));
+}
+
+#[test]
+fn bundled_shiju_models_have_usable_limits_and_modalities() {
+    let shiju = bundled_models("bundled_shiju_audit")
+        .remove("shiju")
+        .expect("bundled models should include shiju");
+
+    for (model_id, model) in shiju.models {
+        assert!(model.limit.context > 0, "{model_id} should have a context limit");
+        let output_is_text = model
+            .modalities
+            .as_ref()
+            .is_none_or(|modalities| modalities.output.iter().any(|item| item == "text"));
+        if output_is_text {
+            assert!(model.limit.output > 0, "{model_id} should have a text output limit");
+        }
+    }
+}
+
+fn audit_provider_models(
+    label: &str,
+    providers: &HashMap<String, Provider>,
+) -> Result<(), String> {
+    for (provider_id, provider) in providers {
+        for (model_id, model) in &provider.models {
+            if model.limit.context == 0 {
+                return Err(format!("{label}/{provider_id}/{model_id}: missing context limit"));
+            }
+            let Some(modalities) = model.modalities.as_ref() else {
+                return Err(format!("{label}/{provider_id}/{model_id}: missing modalities"));
+            };
+            if modalities.input.is_empty() {
+                return Err(format!("{label}/{provider_id}/{model_id}: missing input modalities"));
+            }
+            if (model.tool_call || model.reasoning)
+                && modalities.output.iter().any(|item| item == "text")
+                && !modalities.input.iter().any(|item| item == "text")
+            {
+                return Err(format!(
+                    "{label}/{provider_id}/{model_id}: text model missing text input"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn bundled_model_assets_have_no_missing_limits_or_malformed_modalities() {
+    for (label, text) in [
+        ("api", include_str!("../assets/model/api.json")),
+        ("shiju", include_str!("../assets/model/shiju.json")),
+    ] {
+        let value: Value = serde_json::from_str(text).expect("model asset should be valid JSON");
+        let providers = if label == "shiju" {
+            value
+                .get("shiju")
+                .map(|provider| {
+                    serde_json::from_value::<HashMap<String, Provider>>(json!({
+                        "shiju": provider
+                    }))
+                })
+                .expect("shiju asset should contain its provider")
+                .expect("shiju provider should parse")
+        } else {
+            serde_json::from_value::<HashMap<String, Provider>>(value)
+                .expect("api providers should parse")
+        };
+
+        audit_provider_models(label, &providers).unwrap_or_else(|error| panic!("{error}"));
+    }
+}
+
+#[test]
+fn model_asset_audit_rejects_missing_limits_bad_modalities_and_textless_text_models() {
+    let missing_limit = json!({
+        "fixture": {
+            "models": {
+                "broken": {
+                    "id": "broken",
+                    "name": "Broken",
+                    "modalities": {"input": ["text"], "output": ["text"]}
+                }
+            }
+        }
+    });
+    let parsed: HashMap<String, Provider> = serde_json::from_value(missing_limit).unwrap();
+    let error = audit_provider_models("missing-limit", &parsed).unwrap_err();
+    assert!(error.contains("missing context limit"));
+
+    let malformed_modalities = json!({
+        "fixture": {
+            "models": {
+                "broken": {
+                    "id": "broken",
+                    "name": "Broken",
+                    "limit": {"context": 1024},
+                    "modalities": {"input": "text", "output": ["text"]}
+                }
+            }
+        }
+    });
+    assert!(serde_json::from_value::<HashMap<String, Provider>>(malformed_modalities).is_err());
+
+    let textless_text_model = json!({
+        "fixture": {
+            "models": {
+                "broken": {
+                    "id": "broken",
+                    "name": "Broken",
+                    "reasoning": true,
+                    "limit": {"context": 1024},
+                    "modalities": {"input": ["image"], "output": ["text"]}
+                }
+            }
+        }
+    });
+    let provider = serde_json::from_value::<HashMap<String, Provider>>(textless_text_model)
+        .unwrap()
+        .remove("fixture")
+        .unwrap();
+    let model = &provider.models["broken"];
+    assert!(model.modalities.as_ref().unwrap().input.iter().all(|item| item != "text"));
+    assert!(model.reasoning && model.modalities.as_ref().unwrap().output.iter().any(|item| item == "text"));
+    let error = audit_provider_models(
+        "textless-text",
+        &HashMap::from([(String::from("fixture"), provider)]),
+    )
+    .unwrap_err();
+    assert!(error.contains("text model missing text input"));
+}
+
+#[test]
+fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models() {
+    let bundled = bundled_models("bundled_api_audit");
+
+    for (provider_id, provider) in bundled {
+        if provider.models.is_empty() {
+            continue;
+        }
+
+        for (model_id, model) in &provider.models {
+            assert!(model.limit.context > 0, "{provider_id}/{model_id} should have a context limit");
+            let output_is_text = model
+                .modalities
+                .as_ref()
+                .is_none_or(|modalities| modalities.output.iter().any(|item| item == "text"));
+            if output_is_text {
+                assert!(model.limit.output > 0, "{provider_id}/{model_id} should have a text output limit");
+            }
+
+            if let Some(modalities) = model.modalities.as_ref()
+                && modalities.output.iter().any(|item| {
+                    matches!(item.as_str(), "image" | "audio" | "video")
+                })
+                && !modalities.output.iter().any(|item| item == "text")
+            {
+                let converted = from_models_dev_model(&provider, model);
+                assert!(!converted.capabilities.output.text,
+                    "{provider_id}/{model_id} must keep media-only output non-text");
+            }
+        }
+    }
 }
 
 #[tokio::test]

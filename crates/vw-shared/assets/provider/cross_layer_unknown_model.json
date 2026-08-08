@@ -1,0 +1,7 @@
+{
+  "provider_id": "cross-layer-provider",
+  "provider_name": "Cross Layer Provider",
+  "base_url": "https://cross-layer.example/v1",
+  "model_id": "unknown-custom-model",
+  "model_name": "Unknown Custom Model"
+}

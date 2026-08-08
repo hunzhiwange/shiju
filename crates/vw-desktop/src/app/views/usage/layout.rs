@@ -110,18 +110,18 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
         runtime.model.clone()
     };
 
-    // 计算上下文使用率：最近步骤输入 token 占上下文限制的百分比
+    // 计算上下文使用率：最近步骤输入 token 占当前输入窗口的百分比
     let usage_rate = app
         .usage_model_info
         .as_ref()
         .map(|info| {
-            if info.context_limit == 0 {
+            if info.input_limit == 0 {
                 "0.0%".to_string()
             } else {
                 format!(
                     "{:.1}%",
                     (usage_data.last_step_input_tokens as f64) * 100.0
-                        / (info.context_limit as f64)
+                        / (info.input_limit as f64)
                 )
             }
         })
@@ -224,6 +224,21 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
                 .as_ref()
                 .map(|i| i.output_limit.to_string())
                 .unwrap_or_else(|| "暂无".to_string()),
+        ),
+        kv(
+            "输入窗口",
+            app.usage_model_info
+                .as_ref()
+                .map(|i| i.input_limit.to_string())
+                .unwrap_or_else(|| "暂无".to_string()),
+        ),
+        kv(
+            "限制说明",
+            app.usage_model_info
+                .as_ref()
+                .filter(|i| i.limit_is_default)
+                .map(|_| "使用保守默认值".to_string())
+                .unwrap_or_else(|| "模型配置".to_string()),
         ),
         kv("输入 token", usage_data.last_step_input_tokens.to_string()),
         kv("使用率", usage_rate),

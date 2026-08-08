@@ -58,6 +58,30 @@ pub(crate) struct CustomProviderModelDraft {
     pub(crate) model_id: String,
     /// 模型显示名称
     pub(crate) display_name: String,
+    /// 模型家族
+    pub(crate) family: String,
+    /// 上下文限制输入文本；空值表示沿用基线或安全默认值。
+    pub(crate) context_limit: String,
+    /// 最大输入限制输入文本；空值表示沿用基线或安全默认值。
+    pub(crate) input_limit: String,
+    /// 最大输出限制输入文本；空值表示沿用基线或安全默认值。
+    pub(crate) output_limit: String,
+    /// 显式推理能力覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) reasoning: Option<bool>,
+    /// 显式工具调用能力覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) tool_call: Option<bool>,
+    /// 显式温度能力覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) temperature: Option<bool>,
+    /// 显式附件能力覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) attachment: Option<bool>,
+    /// 显式交错输入输出能力覆盖；复杂 field 形式保留在原始配置中。
+    pub(crate) interleaved: Option<bool>,
+    /// 显式输入模态覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) input_modalities: Option<Vec<String>>,
+    /// 显式输出模态覆盖；None 表示沿用基线或安全默认值。
+    pub(crate) output_modalities: Option<Vec<String>>,
+    /// 编辑时原始模型 ID，用于模型改名时迁移旧配置。
+    pub(crate) original_model_id: Option<String>,
 }
 
 /// 自定义提供者草稿
@@ -96,7 +120,7 @@ impl Default for CustomProviderDraft {
 /// 自定义提供者模型对话框状态
 ///
 /// 管理添加或编辑自定义提供者模型时的对话框状态。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct CustomProviderModelModalState {
     /// 正在编辑的模型索引（None 表示新增）
     pub(crate) edit_index: Option<usize>,
@@ -104,6 +128,30 @@ pub(crate) struct CustomProviderModelModalState {
     pub(crate) model_id: String,
     /// 模型显示名称输入
     pub(crate) display_name: String,
+    /// 模型家族输入
+    pub(crate) family: String,
+    /// 上下文限制输入文本
+    pub(crate) context_limit: String,
+    /// 最大输入限制输入文本
+    pub(crate) input_limit: String,
+    /// 最大输出限制输入文本
+    pub(crate) output_limit: String,
+    /// 显式推理能力覆盖
+    pub(crate) reasoning: Option<bool>,
+    /// 显式工具调用能力覆盖
+    pub(crate) tool_call: Option<bool>,
+    /// 显式温度能力覆盖
+    pub(crate) temperature: Option<bool>,
+    /// 显式附件能力覆盖
+    pub(crate) attachment: Option<bool>,
+    /// 显式交错输入输出能力覆盖
+    pub(crate) interleaved: Option<bool>,
+    /// 显式输入模态覆盖
+    pub(crate) input_modalities: Option<Vec<String>>,
+    /// 显式输出模态覆盖
+    pub(crate) output_modalities: Option<Vec<String>>,
+    /// 编辑时原始模型 ID
+    pub(crate) original_model_id: Option<String>,
 }
 
 /// 模型目录条目

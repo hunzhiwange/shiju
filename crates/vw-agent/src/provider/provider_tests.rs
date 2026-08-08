@@ -184,3 +184,178 @@ async fn agent_provider_new_model_inherits_unique_builtin_api() {
     assert_eq!(model.api.url, "https://api.deepseek.com");
     assert_eq!(model.api.adapter, default_adapter());
 }
+
+#[tokio::test]
+async fn agent_provider_unknown_model_uses_shared_limit_and_capability_defaults() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home should be created");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+
+    config::update(serde_json::json!({
+        "providers": {
+            "agent-default-provider": {
+                "models": {
+                    "agent-unknown-model": {"status": "active"}
+                }
+            }
+        }
+    }))
+    .await
+    .expect("isolated provider config should be saved");
+
+    let state = load_state_impl(false).await;
+    let model = state.providers["agent-default-provider"].models["agent-unknown-model"].clone();
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
+
+    assert_eq!(model.limit.context, expected.context);
+    assert_eq!(model.limit.input, expected.input);
+    assert_eq!(model.limit.output, expected.output);
+    assert!(model.capabilities.toolcall);
+    assert!(model.capabilities.input.text);
+    assert!(model.capabilities.output.text);
+}
+
+#[tokio::test]
+async fn agent_cross_layer_fixture_uses_the_same_default_limit() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home should be created");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../vw-shared/assets/provider/cross_layer_unknown_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let provider_id = fixture["provider_id"].as_str().unwrap();
+    let model_id = fixture["model_id"].as_str().unwrap();
+
+    let mut provider = serde_json::json!({
+        "api": fixture["base_url"],
+        "models": {model_id: {"name": fixture["model_name"], "status": "active"}}
+    });
+    let mut providers = serde_json::Map::new();
+    providers.insert(provider_id.to_string(), provider.take());
+    config::update(serde_json::json!({"providers": providers}))
+    .await
+    .expect("isolated provider config should be saved");
+
+    let state = load_state_impl(false).await;
+    let model = &state.providers[provider_id].models[model_id];
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
+    assert_eq!(model.limit.context, expected.context);
+    assert_eq!(model.limit.input, expected.input);
+    assert_eq!(model.limit.output, expected.output);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_cross_layer_explicit_model_reaches_the_next_request_with_metadata() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home should be created");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../vw-shared/assets/provider/cross_layer_explicit_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let provider_id = fixture["provider_id"].as_str().unwrap();
+    let model_id = fixture["model_id"].as_str().unwrap();
+    let model_config = serde_json::json!({
+        "name": fixture["model_name"],
+        "family": fixture["family"],
+        "reasoning": fixture["reasoning"],
+        "tool_call": fixture["tool_call"],
+        "temperature": fixture["temperature"],
+        "attachment": fixture["attachment"],
+        "interleaved": fixture["interleaved"],
+        "modalities": {
+            "input": fixture["input_modalities"],
+            "output": fixture["output_modalities"]
+        },
+        "limit": {
+            "context": fixture["context_limit"],
+            "input": fixture["input_limit"],
+            "output": fixture["output_limit"]
+        },
+        "status": "active"
+    });
+    let mut models = serde_json::Map::new();
+    models.insert(model_id.to_string(), model_config);
+    let mut provider = serde_json::json!({
+        "api": fixture["base_url"],
+        "models": models
+    });
+    let mut providers = serde_json::Map::new();
+    providers.insert(provider_id.to_string(), provider.take());
+    config::update(serde_json::json!({"providers": providers}))
+        .await
+        .expect("isolated provider config should be saved");
+
+    let state = load_state_impl(false).await;
+    let model = &state.providers[provider_id].models[model_id];
+    let request_limit = crate::session::llm::model_limit_for_request(
+        Some(format!("{provider_id}/{model_id}")),
+        &serde_json::json!({}),
+    );
+    assert_eq!(model.limit.context, request_limit.context);
+    assert_eq!(model.limit.input, request_limit.input);
+    assert_eq!(model.limit.output, request_limit.output);
+    assert!(model.capabilities.reasoning);
+    assert!(!model.capabilities.toolcall);
+    assert!(model.capabilities.input.image);
+}
+
+#[tokio::test]
+async fn agent_provider_explicit_model_capabilities_match_resolver_contract() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home should be created");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+
+    config::update(serde_json::json!({
+        "providers": {
+            "agent-capability-provider": {
+                "models": {
+                    "custom-model": {
+                        "status": "active",
+                        "family": "custom-family",
+                        "reasoning": true,
+                        "tool_call": false,
+                        "temperature": true,
+                        "attachment": true,
+                        "modalities": {
+                            "input": ["text", "image"],
+                            "output": ["text"]
+                        },
+                        "limit": {"context": 65536, "input": 60000, "output": 4096}
+                    }
+                }
+            }
+        }
+    }))
+    .await
+    .expect("isolated provider config should be saved");
+
+    let state = load_state_impl(false).await;
+    let model = &state.providers["agent-capability-provider"].models["custom-model"];
+
+    assert_eq!(model.family.as_deref(), Some("custom-family"));
+    assert!(model.capabilities.reasoning);
+    assert!(!model.capabilities.toolcall);
+    assert!(model.capabilities.temperature);
+    assert!(model.capabilities.attachment);
+    assert!(model.capabilities.input.text);
+    assert!(model.capabilities.input.image);
+    assert!(model.capabilities.output.text);
+    assert!(!model.capabilities.output.image);
+    assert_eq!(model.limit.context, 65536);
+    assert_eq!(model.limit.input, Some(60000));
+    assert_eq!(model.limit.output, 4096);
+}

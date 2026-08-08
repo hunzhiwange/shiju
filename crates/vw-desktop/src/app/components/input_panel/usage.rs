@@ -12,7 +12,7 @@ use iced::{Color, Theme};
 
 /// 计算当前上下文使用率百分比
 ///
-/// 根据活跃会话的最后一个步骤的输入 token 数与模型上下文限制，
+/// 根据活跃会话的最后一个步骤的输入 token 数与模型输入窗口限制，
 /// 计算当前上下文使用百分比。
 ///
 /// # 参数
@@ -26,8 +26,8 @@ use iced::{Color, Theme};
 /// # 计算逻辑
 ///
 /// 1. 从活跃会话的最后一个步骤获取输入 token 数
-/// 2. 获取模型的上下文限制
-/// 3. 计算 (input_tokens / context_limit) * 100
+/// 2. 获取模型的有效输入窗口
+/// 3. 计算 (input_tokens / input_limit) * 100
 pub fn get_usage_rate_percent(app: &App) -> f32 {
     // 尝试从活跃会话获取最后一个步骤的输入 token 数
     if let Some(info) = &app.usage_model_info {
@@ -38,11 +38,11 @@ pub fn get_usage_rate_percent(app: &App) -> f32 {
             .map(|step| step.usage.input_tokens)
             .unwrap_or(0);
         // 防止除以零
-        if info.context_limit == 0 {
+        if info.input_limit == 0 {
             return 0.0;
         }
         // 计算使用率百分比
-        ((last_step_input_tokens as f64) * 100.0 / (info.context_limit as f64)) as f32
+        ((last_step_input_tokens as f64) * 100.0 / (info.input_limit as f64)) as f32
     } else {
         0.0
     }

@@ -43,7 +43,7 @@ mod acp;
 mod aisdk;
 
 pub use messages::has_tool_calls;
-pub(crate) use prompt::stream_chat_with_tools_for_session_with_abort;
+pub(crate) use prompt::{model_limit_for_request, stream_chat_with_tools_for_session_with_abort};
 pub use prompt::{
     send_prompt, stream_chat_with_tools, stream_chat_with_tools_for_session, stream_prompt,
     stream_prompt_with_tools,

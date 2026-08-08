@@ -21,6 +21,17 @@ fn provider_connect_header_and_custom_drafts_have_empty_defaults() {
     let model = CustomProviderModelDraft::default();
     assert!(model.model_id.is_empty());
     assert!(model.display_name.is_empty());
+    assert!(model.family.is_empty());
+    assert!(model.context_limit.is_empty());
+    assert!(model.input_limit.is_empty());
+    assert!(model.output_limit.is_empty());
+    assert!(model.reasoning.is_none());
+    assert!(model.tool_call.is_none());
+    assert!(model.temperature.is_none());
+    assert!(model.attachment.is_none());
+    assert!(model.interleaved.is_none());
+    assert!(model.input_modalities.is_none());
+    assert!(model.output_modalities.is_none());
 
     let provider = CustomProviderDraft::default();
     assert!(provider.provider_id.is_empty());
@@ -124,10 +135,33 @@ fn model_detail_and_model_settings_defaults_are_stable() {
         edit_index: Some(2),
         model_id: "claude-sonnet".to_string(),
         display_name: "Claude Sonnet".to_string(),
+        family: "claude".to_string(),
+        context_limit: "200000".to_string(),
+        input_limit: "190000".to_string(),
+        output_limit: "10000".to_string(),
+        reasoning: Some(true),
+        tool_call: Some(true),
+        temperature: Some(false),
+        attachment: Some(true),
+        interleaved: Some(true),
+        input_modalities: Some(vec!["text".to_string(), "image".to_string()]),
+        output_modalities: Some(vec!["text".to_string()]),
+        original_model_id: Some("claude-sonnet".to_string()),
     };
     assert_eq!(custom_modal.edit_index, Some(2));
     assert_eq!(custom_modal.model_id, "claude-sonnet");
     assert_eq!(custom_modal.display_name, "Claude Sonnet");
+    assert_eq!(custom_modal.family, "claude");
+    assert_eq!(custom_modal.context_limit, "200000");
+    assert_eq!(custom_modal.input_limit, "190000");
+    assert_eq!(custom_modal.output_limit, "10000");
+    assert_eq!(custom_modal.reasoning, Some(true));
+    assert_eq!(custom_modal.tool_call, Some(true));
+    assert_eq!(custom_modal.temperature, Some(false));
+    assert_eq!(custom_modal.attachment, Some(true));
+    assert_eq!(custom_modal.interleaved, Some(true));
+    assert_eq!(custom_modal.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(custom_modal.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
 
     let row = ModelDetailRow { label: "Context".to_string(), value: "128k".to_string() };
     let modal = ModelDetailModalState {

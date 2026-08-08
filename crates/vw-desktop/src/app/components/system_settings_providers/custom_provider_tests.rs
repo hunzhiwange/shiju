@@ -78,9 +78,18 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
         CustomProviderModelDraft {
             model_id: "llama3.1".to_string(),
             display_name: "Llama 3.1".to_string(),
+            ..Default::default()
         },
-        CustomProviderModelDraft { model_id: "qwen".to_string(), display_name: String::new() },
-        CustomProviderModelDraft { model_id: String::new(), display_name: String::new() },
+        CustomProviderModelDraft {
+            model_id: "qwen".to_string(),
+            display_name: String::new(),
+            ..Default::default()
+        },
+        CustomProviderModelDraft {
+            model_id: String::new(),
+            display_name: String::new(),
+            ..Default::default()
+        },
     ];
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 

@@ -25,8 +25,8 @@ use crate::auth;
 use serde_json::Value;
 
 pub use vw_shared::provider::state::{
-    State, as_string_map, builtin_model_limit, from_models_dev_model, from_models_dev_provider,
-    normalize_adapter,
+    State, as_string_map, builtin_model_limit, default_model_capabilities, from_models_dev_model,
+    from_models_dev_provider, normalize_adapter, resolve_model_capabilities, resolve_model_limit,
 };
 pub use vw_shared::provider::types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
@@ -426,61 +426,28 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                         }
                     }
 
-                    let mut limit_context = model_cfg
-                        .get("limit")
-                        .and_then(|l| l.get("context"))
-                        .and_then(Value::as_u64)
-                        .or_else(|| base.as_ref().map(|m| m.limit.context))
-                        .unwrap_or(0);
-                    let mut limit_output = model_cfg
-                        .get("limit")
-                        .and_then(|l| l.get("output"))
-                        .and_then(Value::as_u64)
-                        .or_else(|| base.as_ref().map(|m| m.limit.output))
-                        .unwrap_or(0);
-                    let mut limit_input = model_cfg
-                        .get("limit")
-                        .and_then(|l| l.get("input"))
-                        .and_then(Value::as_u64)
-                        .or_else(|| base.as_ref().and_then(|m| m.limit.input));
+                    let config_limit = model_cfg.get("limit");
+                    let limit = resolve_model_limit(
+                        config_limit
+                            .and_then(|limit| limit.get("context"))
+                            .and_then(Value::as_u64)
+                            .filter(|value| *value > 0)
+                            .or_else(|| base.as_ref().map(|model| model.limit.context)),
+                        config_limit
+                            .and_then(|limit| limit.get("input"))
+                            .and_then(Value::as_u64)
+                            .filter(|value| *value > 0)
+                            .or_else(|| base.as_ref().and_then(|model| model.limit.input)),
+                        config_limit
+                            .and_then(|limit| limit.get("output"))
+                            .and_then(Value::as_u64)
+                            .or_else(|| base.as_ref().map(|model| model.limit.output)),
+                    );
 
-                    if (limit_context == 0 || limit_output == 0)
-                        && let Some((ctx, out, inp)) = builtin_model_limit(provider_id, model_id)
-                    {
-                        if limit_context == 0 {
-                            limit_context = ctx;
-                        }
-                        if limit_output == 0 {
-                            limit_output = out;
-                        }
-                        if limit_input.is_none() {
-                            limit_input = inp;
-                        }
-                    }
-
-                    let cap = base.as_ref().map(|m| m.capabilities.clone()).unwrap_or_else(|| {
-                        Capabilities {
-                            temperature: false,
-                            reasoning: false,
-                            attachment: false,
-                            toolcall: true,
-                            input: CapabilityIO {
-                                text: true,
-                                audio: false,
-                                image: false,
-                                video: false,
-                                pdf: false,
-                            },
-                            output: CapabilityIO {
-                                text: true,
-                                audio: false,
-                                image: false,
-                                video: false,
-                                pdf: false,
-                            },
-                            interleaved: InterleavedCapability::Bool(false),
-                        }
-                    });
+                    let cap = resolve_model_capabilities(
+                        model_cfg,
+                        base.as_ref().map(|model| &model.capabilities),
+                    );
 
                     let cost = base.as_ref().map(|m| m.cost.clone()).unwrap_or(ModelCost {
                         input: 0.0,
@@ -497,11 +464,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                         family,
                         capabilities: cap,
                         cost,
-                        limit: ModelLimit {
-                            context: limit_context,
-                            input: limit_input,
-                            output: limit_output,
-                        },
+                        limit,
                         status,
                         options: options_model,
                         headers,

@@ -1,6 +1,6 @@
 use super::*;
-use crate::app::state::{CustomProviderModelDraft, ProviderHeaderDraft};
-use serde_json::json;
+use crate::app::state::{CustomProviderDraft, CustomProviderModelDraft, ProviderHeaderDraft};
+use serde_json::{Value, json};
 
 #[test]
 fn discovered_models_replace_blank_placeholder_and_preserve_existing_names() {
@@ -9,6 +9,7 @@ fn discovered_models_replace_blank_placeholder_and_preserve_existing_names() {
         CustomProviderModelDraft {
             model_id: "model-b".to_string(),
             display_name: "自定义名称".to_string(),
+            ..Default::default()
         },
     ];
 
@@ -29,6 +30,7 @@ fn discovered_models_ignore_blank_and_duplicate_ids() {
     let mut existing = vec![CustomProviderModelDraft {
         model_id: "model-a".to_string(),
         display_name: String::new(),
+        ..Default::default()
     }];
 
     merge_discovered_model_drafts(
@@ -83,6 +85,48 @@ fn custom_provider_draft_copies_fields_and_sorts_models() {
         draft.models.iter().map(|model| model.display_name.as_str()).collect::<Vec<_>>(),
         vec!["Alpha", "", "", "Zed"]
     );
+}
+
+#[test]
+fn custom_provider_draft_restores_model_capabilities_limits_modalities_and_family() {
+    let raw = json!({
+        "models": {
+            "vision-model": {
+                "id": "vendor-vision",
+                "name": "Vision",
+                "family": "vendor-family",
+                "reasoning": true,
+                "tool_call": false,
+                "temperature": true,
+                "attachment": true,
+                "interleaved": true,
+                "modalities": {
+                    "input": ["text", "image"],
+                    "output": ["text"]
+                },
+                "limit": {"context": 131072, "input": 120000, "output": 8192},
+                "headers": {"X-Model": "kept"},
+                "options": {"reasoningEffort": "high"}
+            }
+        }
+    });
+
+    let draft = custom_provider_draft_from_value("custom", &raw).unwrap();
+    let model = &draft.models[0];
+
+    assert_eq!(model.model_id, "vision-model");
+    assert_eq!(model.display_name, "Vision");
+    assert_eq!(model.family, "vendor-family");
+    assert_eq!(model.context_limit, "131072");
+    assert_eq!(model.input_limit, "120000");
+    assert_eq!(model.output_limit, "8192");
+    assert_eq!(model.reasoning, Some(true));
+    assert_eq!(model.tool_call, Some(false));
+    assert_eq!(model.temperature, Some(true));
+    assert_eq!(model.attachment, Some(true));
+    assert_eq!(model.interleaved, Some(true));
+    assert_eq!(model.input_modalities, Some(vec!["text".to_string(), "image".to_string()]));
+    assert_eq!(model.output_modalities, Some(vec!["text".to_string()]));
 }
 
 #[test]
@@ -224,10 +268,12 @@ fn custom_provider_patch_from_draft_trims_values_and_preserves_existing_model_co
             CustomProviderModelDraft {
                 model_id: " model-a ".to_string(),
                 display_name: " Model A ".to_string(),
+                ..Default::default()
             },
             CustomProviderModelDraft {
                 model_id: " ".to_string(),
                 display_name: " skipped ".to_string(),
+                ..Default::default()
             },
         ],
     };
@@ -242,7 +288,7 @@ fn custom_provider_patch_from_draft_trims_values_and_preserves_existing_model_co
         }
     });
 
-    let (provider_id, patch) = custom_provider_patch_from_draft(&draft, Some(&existing));
+    let (provider_id, patch) = custom_provider_patch_from_draft(&draft, Some(&existing)).unwrap();
 
     assert_eq!(provider_id, "custom");
     assert_eq!(
@@ -277,6 +323,7 @@ fn custom_provider_patch_from_draft_removes_empty_names_and_headers() {
         models: vec![CustomProviderModelDraft {
             model_id: "model-a".to_string(),
             display_name: " ".to_string(),
+            ..Default::default()
         }],
     };
     let existing = json!({
@@ -290,7 +337,7 @@ fn custom_provider_patch_from_draft_removes_empty_names_and_headers() {
         }
     });
 
-    let (_, patch) = custom_provider_patch_from_draft(&draft, Some(&existing));
+    let (_, patch) = custom_provider_patch_from_draft(&draft, Some(&existing)).unwrap();
 
     assert_eq!(
         patch,
@@ -307,4 +354,235 @@ fn custom_provider_patch_from_draft_removes_empty_names_and_headers() {
             }
         })
     );
+}
+
+#[test]
+fn custom_provider_patch_writes_explicit_model_metadata_and_preserves_unedited_fields() {
+    let draft = CustomProviderDraft {
+        provider_id: "custom".to_string(),
+        display_name: "Custom".to_string(),
+        base_url: "https://api.example.test/v1".to_string(),
+        api_key: String::new(),
+        headers: vec![ProviderHeaderDraft {
+            key: "X-Keep".to_string(),
+            value: "yes".to_string(),
+        }],
+        models: vec![CustomProviderModelDraft {
+            model_id: "model-a".to_string(),
+            display_name: "Model A".to_string(),
+            family: "family-a".to_string(),
+            context_limit: "65536".to_string(),
+            input_limit: "60000".to_string(),
+            output_limit: "4096".to_string(),
+            reasoning: Some(true),
+            tool_call: Some(false),
+            temperature: Some(true),
+            attachment: Some(true),
+            interleaved: Some(true),
+            input_modalities: Some(vec!["text".to_string(), "image".to_string()]),
+            output_modalities: Some(vec!["text".to_string()]),
+            ..Default::default()
+        }],
+    };
+    let existing = json!({
+        "models": {
+            "model-a": {
+                "id": "vendor-model-a",
+                "status": "active",
+                "headers": {"X-Keep": "yes"},
+                "options": {"foo": "bar"}
+            }
+        }
+    });
+
+    let (_, patch) = custom_provider_patch_from_draft(&draft, Some(&existing)).unwrap();
+    assert_eq!(
+        patch,
+        json!({
+            "providers": {
+                "custom": {
+                    "name": "Custom",
+                    "api": "https://api.example.test/v1",
+                    "models": {
+                        "model-a": {
+                            "id": "vendor-model-a",
+                            "name": "Model A",
+                            "family": "family-a",
+                            "reasoning": true,
+                            "tool_call": false,
+                            "temperature": true,
+                            "attachment": true,
+                            "interleaved": true,
+                            "modalities": {"input": ["text", "image"], "output": ["text"]},
+                            "limit": {"context": 65536, "input": 60000, "output": 4096},
+                            "status": "active",
+                            "headers": {"X-Keep": "yes"},
+                            "options": {"foo": "bar"}
+                        }
+                    }
+                }
+            }
+        })
+    );
+}
+
+#[test]
+fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../../../vw-shared/assets/provider/cross_layer_unknown_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let draft = CustomProviderDraft {
+        provider_id: fixture["provider_id"].as_str().unwrap().to_string(),
+        display_name: fixture["provider_name"].as_str().unwrap().to_string(),
+        base_url: fixture["base_url"].as_str().unwrap().to_string(),
+        api_key: String::new(),
+        headers: Vec::new(),
+        models: vec![CustomProviderModelDraft {
+            model_id: fixture["model_id"].as_str().unwrap().to_string(),
+            display_name: fixture["model_name"].as_str().unwrap().to_string(),
+            ..Default::default()
+        }],
+    };
+
+    let (_, patch) = custom_provider_patch_from_draft(&draft, None).unwrap();
+    let model = &patch["providers"][fixture["provider_id"].as_str().unwrap()]["models"]
+        [fixture["model_id"].as_str().unwrap()];
+    assert!(model.get("limit").is_none());
+
+    let resolved = vw_shared::provider::state::resolve_model_limit(None, None, None);
+    assert_eq!(vw_shared::provider::state::effective_input_window(&resolved), 28_672);
+}
+
+#[test]
+fn cross_layer_explicit_fixture_round_trips_through_settings_patch() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../../../vw-shared/assets/provider/cross_layer_explicit_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let draft = CustomProviderDraft {
+        provider_id: fixture["provider_id"].as_str().unwrap().to_string(),
+        display_name: fixture["provider_name"].as_str().unwrap().to_string(),
+        base_url: fixture["base_url"].as_str().unwrap().to_string(),
+        api_key: String::new(),
+        headers: Vec::new(),
+        models: vec![CustomProviderModelDraft {
+            model_id: fixture["model_id"].as_str().unwrap().to_string(),
+            display_name: fixture["model_name"].as_str().unwrap().to_string(),
+            family: fixture["family"].as_str().unwrap().to_string(),
+            context_limit: fixture["context_limit"].as_u64().unwrap().to_string(),
+            input_limit: fixture["input_limit"].as_u64().unwrap().to_string(),
+            output_limit: fixture["output_limit"].as_u64().unwrap().to_string(),
+            reasoning: fixture["reasoning"].as_bool(),
+            tool_call: fixture["tool_call"].as_bool(),
+            temperature: fixture["temperature"].as_bool(),
+            attachment: fixture["attachment"].as_bool(),
+            interleaved: fixture["interleaved"].as_bool(),
+            input_modalities: Some(
+                fixture["input_modalities"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|item| item.as_str().unwrap().to_string())
+                    .collect(),
+            ),
+            output_modalities: Some(
+                fixture["output_modalities"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|item| item.as_str().unwrap().to_string())
+                    .collect(),
+            ),
+            ..Default::default()
+        }],
+    };
+
+    let (_, patch) = custom_provider_patch_from_draft(&draft, None).unwrap();
+    let provider_id = fixture["provider_id"].as_str().unwrap();
+    let restored = custom_provider_draft_from_value(provider_id, &patch["providers"][provider_id])
+        .unwrap();
+    let model = &restored.models[0];
+    assert_eq!(model.model_id, fixture["model_id"].as_str().unwrap());
+    assert_eq!(model.family, fixture["family"].as_str().unwrap());
+    assert_eq!(model.context_limit, fixture["context_limit"].as_u64().unwrap().to_string());
+    assert_eq!(model.input_limit, fixture["input_limit"].as_u64().unwrap().to_string());
+    assert_eq!(model.output_limit, fixture["output_limit"].as_u64().unwrap().to_string());
+    assert_eq!(model.reasoning, fixture["reasoning"].as_bool());
+    assert_eq!(model.tool_call, fixture["tool_call"].as_bool());
+    assert_eq!(model.temperature, fixture["temperature"].as_bool());
+    assert_eq!(model.attachment, fixture["attachment"].as_bool());
+    assert_eq!(model.interleaved, fixture["interleaved"].as_bool());
+    assert_eq!(model.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(model.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
+}
+
+#[test]
+fn custom_provider_patch_rejects_invalid_numbers_and_relationships() {
+    let mut model = CustomProviderModelDraft {
+        model_id: "model".to_string(),
+        context_limit: "not-a-number".to_string(),
+        ..Default::default()
+    };
+    let draft = |model| CustomProviderDraft {
+        provider_id: "custom".to_string(),
+        display_name: String::new(),
+        base_url: "https://example.test".to_string(),
+        api_key: String::new(),
+        headers: vec![ProviderHeaderDraft::default()],
+        models: vec![model],
+    };
+
+    assert_eq!(
+        custom_provider_patch_from_draft(&draft(model.clone()), None).unwrap_err(),
+        "模型 model 的上下文限制必须是正整数"
+    );
+
+    model.context_limit = "100".to_string();
+    model.input_limit = "101".to_string();
+    assert_eq!(
+        custom_provider_patch_from_draft(&draft(model.clone()), None).unwrap_err(),
+        "模型 model 的输入限制不能超过上下文限制"
+    );
+
+    model.input_limit.clear();
+    model.output_limit = "101".to_string();
+    assert_eq!(
+        custom_provider_patch_from_draft(&draft(model), None).unwrap_err(),
+        "模型 model 的输出限制不能超过上下文限制"
+    );
+}
+
+#[test]
+fn custom_provider_patch_removes_empty_overrides_so_resolver_can_use_defaults() {
+    let draft = CustomProviderDraft {
+        provider_id: "custom".to_string(),
+        display_name: String::new(),
+        base_url: "https://example.test".to_string(),
+        api_key: String::new(),
+        headers: vec![ProviderHeaderDraft::default()],
+        models: vec![CustomProviderModelDraft {
+            model_id: "model".to_string(),
+            family: "old".to_string(),
+            context_limit: String::new(),
+            input_limit: String::new(),
+            output_limit: String::new(),
+            ..Default::default()
+        }],
+    };
+    let existing = json!({
+        "models": {
+            "model": {
+                "limit": {"context": 1234, "input": 1000, "output": 200},
+                "reasoning": true,
+                "family": "old"
+            }
+        }
+    });
+
+    let (_, patch) = custom_provider_patch_from_draft(&draft, Some(&existing)).unwrap();
+    let model = &patch["providers"]["custom"]["models"]["model"];
+    assert!(model.get("limit").is_none());
+    assert_eq!(model["reasoning"], true);
+    assert_eq!(model["family"], "old");
 }

@@ -1,6 +1,12 @@
 use super::*;
+use crate::app::agent::provider::provider::{ModelLimit, resolve_model_limit};
+use crate::app::agent::tools::ToolSpec;
 use crate::session::session::{Message, Role, Session};
 use serde_json::json;
+
+fn limit(context: u64, input: Option<u64>, output: u64) -> ModelLimit {
+    ModelLimit { context, input, output }
+}
 
 fn message(role: Role, content: &str) -> Message {
     Message { role, content: content.to_string() }
@@ -109,4 +115,94 @@ fn stale_tool_result_clearing_is_idempotent_and_ignores_other_roles() {
     assert_eq!(clear_stale_tool_results(&mut messages, 0), 0);
     assert_eq!(messages[0]["content"], "keep user");
     assert_eq!(messages[2]["content"], "keep assistant");
+}
+
+#[test]
+fn auto_compaction_uses_an_inclusive_ninety_percent_boundary() {
+    let model_limit = limit(1_000, Some(1_000), 100);
+
+    assert!(!should_compact(899, &model_limit));
+    assert!(should_compact(900, &model_limit));
+    assert!(should_compact(901, &model_limit));
+}
+
+#[test]
+fn effective_input_window_prefers_input_and_handles_invalid_output_space() {
+    assert_eq!(effective_input_window(&limit(100_000, Some(80_000), 20_000)), 80_000);
+    assert_eq!(effective_input_window(&limit(100_000, None, 10_000)), 90_000);
+    assert_eq!(effective_input_window(&limit(1_000, None, 2_000)), 0);
+
+    let defaults = resolve_model_limit(None, None, None);
+    assert_eq!(defaults.context, 32_768);
+    assert_eq!(defaults.input, Some(28_672));
+    assert_eq!(defaults.output, 4_096);
+}
+
+#[test]
+fn context_usage_prefers_positive_real_input_usage_and_estimates_missing_usage() {
+    let messages = vec![json!({"role": "user", "content": "small"})];
+    let system = vec!["rules".to_string()];
+    let tools = vec![ToolSpec::new("search", "search", json!({"type": "object"}))];
+    let model_limit = limit(1_000, Some(1_000), 100);
+
+    assert_eq!(context_usage_tokens(&messages, &system, &tools, Some(900)), 900);
+    assert!(context_usage_tokens(&messages, &system, &tools, Some(0)) > 0);
+    assert!(context_usage_tokens(&messages, &system, &tools, Some(-1)) > 0);
+    assert!(should_compact(
+        context_usage_tokens(&messages, &system, &tools, Some(900)),
+        &model_limit
+    ));
+}
+
+#[test]
+fn compaction_keeps_system_and_protocol_pairs_while_clearing_old_results() {
+    let mut messages = vec![json!({"role": "system", "content": "system rules"})];
+    for index in 0..9 {
+        let call_id = format!("old-call-{index}");
+        messages.push(json!({
+            "role": "assistant",
+            "tool_calls": [{"id": call_id, "type": "function"}]
+        }));
+        messages.push(json!({
+            "role": "tool",
+            "tool_call_id": call_id,
+            "content": if index == 0 { "old tool output ".repeat(80) } else { "recent".to_string() }
+        }));
+    }
+    messages.push(json!({"role": "user", "content": "recent question"}));
+    messages.push(json!({"role": "assistant", "content": "recent answer"}));
+
+    let result = compact_context_for_next_request(
+        &mut messages,
+        &["system rules".to_string()],
+        &[],
+        &limit(500, Some(500), 0),
+        Some(490),
+    )
+    .expect("old tool result should make the request fit");
+
+    assert_eq!(result.cleared_tool_results, 1);
+    assert!(messages.iter().any(|message| message["role"] == "system"));
+    assert!(messages.iter().any(|message| message["role"] == "user"));
+    assert!(messages.iter().any(|message| message["role"] == "assistant" && message["tool_calls"].is_array()));
+    let cleared = messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "old-call-0")
+        .expect("old tool pair should remain");
+    assert_eq!(cleared["content"], STALE_TOOL_RESULT_PLACEHOLDER);
+}
+
+#[test]
+fn compaction_stops_after_a_finite_number_of_passes_when_system_alone_is_too_large() {
+    let mut messages = vec![json!({"role": "user", "content": "question"})];
+    let error = compact_context_for_next_request(
+        &mut messages,
+        &["x".repeat(1_000)],
+        &[],
+        &limit(100, Some(100), 0),
+        None,
+    )
+    .expect_err("an oversized system prompt cannot be compacted");
+
+    assert!(error.contains("上下文压缩后仍超过限制"));
 }

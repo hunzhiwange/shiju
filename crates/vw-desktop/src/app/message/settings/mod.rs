@@ -190,6 +190,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CustomProviderModelClose
         | SettingsMessage::CustomProviderModelModalIdChanged(_)
         | SettingsMessage::CustomProviderModelModalNameChanged(_)
+        | SettingsMessage::CustomProviderModelModalFamilyChanged(_)
+        | SettingsMessage::CustomProviderModelModalContextLimitChanged(_)
+        | SettingsMessage::CustomProviderModelModalInputLimitChanged(_)
+        | SettingsMessage::CustomProviderModelModalOutputLimitChanged(_)
+        | SettingsMessage::CustomProviderModelModalReasoningChanged(_)
+        | SettingsMessage::CustomProviderModelModalToolCallChanged(_)
+        | SettingsMessage::CustomProviderModelModalTemperatureChanged(_)
+        | SettingsMessage::CustomProviderModelModalAttachmentChanged(_)
+        | SettingsMessage::CustomProviderModelModalInterleavedChanged(_)
+        | SettingsMessage::CustomProviderModelModalInputModalityToggled(_, _)
+        | SettingsMessage::CustomProviderModelModalOutputModalityToggled(_, _)
         | SettingsMessage::CustomProviderModelModalSave
         | SettingsMessage::CustomProviderModelRemove(_)
         | SettingsMessage::CustomProviderModelsDiscover

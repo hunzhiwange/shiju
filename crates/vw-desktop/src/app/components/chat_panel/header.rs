@@ -396,6 +396,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     let session_title = get_session_title(app);
     let usage_percent = get_usage_rate_percent(app);
     let (input_tokens, context_limit, estimated_cost, total_tokens) = get_usage_details(app);
+    let input_limit = app.usage_model_info.as_ref().map(|info| info.input_limit).unwrap_or(0);
     let (is_running, queued, has_unseen_success, breathe, running_color) = get_session_status(app);
 
     let status_icon: Element<'_, Message> = {
@@ -489,7 +490,10 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let usage_tooltip_content = container(
         column![
-            text(format!("上下文: {} / {}", input_tokens, context_limit))
+            text(format!("输入窗口: {} / {}", input_tokens, input_limit))
+                .size(12)
+                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(format!("上下文上限: {}", context_limit))
                 .size(12)
                 .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
             text(format!("使用率: {:.1}%", usage_percent)).size(12).style(|_theme: &Theme| {
@@ -501,6 +505,13 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
             text(format!("预估成本: ${:.4}", estimated_cost)).size(12).style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
+            if app.usage_model_info.as_ref().is_some_and(|info| info.limit_is_default) {
+                text("限制：使用保守默认值").size(12).style(|_theme: &Theme| {
+                    iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
+                })
+            } else {
+                text("").size(12)
+            },
         ]
         .spacing(4),
     )

@@ -15,7 +15,7 @@ use super::helpers::{is_valid_provider_id, summarize_providers};
 use super::models::{
     connect_provider, current_provider_api_key, disconnect_provider,
     discover_custom_provider_models, load_custom_provider_draft, merge_discovered_model_drafts,
-    save_custom_provider,
+    save_custom_provider, validate_model_drafts,
 };
 use super::tasks::{
     load_catalog_task, refresh_task, save_popular_providers_task, sync_remote_task,
@@ -30,6 +30,41 @@ fn reset_models_sync_state(app: &mut App) {
 fn replace_popular_patterns(app: &mut App, patterns: Vec<String>) {
     app.provider_settings.popular_patterns =
         patterns.into_iter().filter(|pattern| !is_shiju_official_provider_id(pattern)).collect();
+}
+
+fn model_modal_state(
+    edit_index: Option<usize>,
+    model: Option<CustomProviderModelDraft>,
+) -> CustomProviderModelModalState {
+    let model = model.unwrap_or_default();
+    CustomProviderModelModalState {
+        edit_index,
+        model_id: model.model_id,
+        display_name: model.display_name,
+        family: model.family,
+        context_limit: model.context_limit,
+        input_limit: model.input_limit,
+        output_limit: model.output_limit,
+        reasoning: model.reasoning,
+        tool_call: model.tool_call,
+        temperature: model.temperature,
+        attachment: model.attachment,
+        interleaved: model.interleaved,
+        input_modalities: model.input_modalities,
+        output_modalities: model.output_modalities,
+        original_model_id: model.original_model_id,
+    }
+}
+
+fn toggle_modality(slot: &mut Option<Vec<String>>, modality: String, enabled: bool) {
+    let values = slot.get_or_insert_with(|| vec!["text".to_string()]);
+    if enabled {
+        if !values.iter().any(|value| value == &modality) {
+            values.push(modality);
+        }
+    } else {
+        values.retain(|value| value != &modality);
+    }
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -324,12 +359,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CustomProviderModelOpen(edit_index) => {
-            let (model_id, display_name) = edit_index
-                .and_then(|i| app.provider_settings.custom.models.get(i).cloned())
-                .map(|m| (m.model_id, m.display_name))
-                .unwrap_or_default();
-            app.provider_settings.custom_model_modal =
-                Some(CustomProviderModelModalState { edit_index, model_id, display_name });
+            let model = edit_index.and_then(|i| app.provider_settings.custom.models.get(i).cloned());
+            app.provider_settings.custom_model_modal = Some(model_modal_state(edit_index, model));
+            app.provider_settings.save_error = None;
             app.provider_settings.catalog_open = false;
             app.provider_settings.connect_modal = None;
             Task::none()
@@ -350,6 +382,72 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Task::none()
         }
+        SettingsMessage::CustomProviderModelModalFamilyChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.family = v;
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalContextLimitChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.context_limit = v;
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalInputLimitChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.input_limit = v;
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalOutputLimitChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.output_limit = v;
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalReasoningChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.reasoning = Some(v);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalToolCallChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.tool_call = Some(v);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalTemperatureChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.temperature = Some(v);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalAttachmentChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.attachment = Some(v);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalInterleavedChanged(v) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                m.interleaved = Some(v);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalInputModalityToggled(modality, enabled) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                toggle_modality(&mut m.input_modalities, modality, enabled);
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelModalOutputModalityToggled(modality, enabled) => {
+            if let Some(m) = &mut app.provider_settings.custom_model_modal {
+                toggle_modality(&mut m.output_modalities, modality, enabled);
+            }
+            Task::none()
+        }
         SettingsMessage::CustomProviderModelModalSave => {
             let Some(m) = app.provider_settings.custom_model_modal.clone() else {
                 return Task::none();
@@ -362,14 +460,52 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let new_model = CustomProviderModelDraft {
                 model_id,
                 display_name: m.display_name.trim().to_string(),
+                family: m.family.trim().to_string(),
+                context_limit: m.context_limit.trim().to_string(),
+                input_limit: m.input_limit.trim().to_string(),
+                output_limit: m.output_limit.trim().to_string(),
+                reasoning: m.reasoning,
+                tool_call: m.tool_call,
+                temperature: m.temperature,
+                attachment: m.attachment,
+                interleaved: m.interleaved,
+                input_modalities: m.input_modalities,
+                output_modalities: m.output_modalities,
+                original_model_id: m.original_model_id,
             };
+            if app
+                .provider_settings
+                .custom
+                .models
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| Some(*index) != m.edit_index)
+                .any(|(_, model)| model.model_id.trim() == new_model.model_id)
+            {
+                app.provider_settings.save_error =
+                    Some(format!("模型 ID 已存在：{}", new_model.model_id));
+                return Task::none();
+            }
+            let mut next_models = app.provider_settings.custom.models.clone();
             if let Some(i) = m.edit_index {
-                if i < app.provider_settings.custom.models.len() {
-                    app.provider_settings.custom.models[i] = new_model;
+                if i >= next_models.len() {
+                    app.provider_settings.custom_model_modal = None;
+                    return Task::none();
                 }
+                next_models[i] = new_model.clone();
+            } else {
+                next_models.push(new_model.clone());
+            }
+            if let Err(error) = validate_model_drafts(&next_models) {
+                app.provider_settings.save_error = Some(error);
+                return Task::none();
+            }
+            if let Some(i) = m.edit_index {
+                app.provider_settings.custom.models[i] = new_model;
             } else {
                 app.provider_settings.custom.models.push(new_model);
             }
+            app.provider_settings.save_error = None;
             app.provider_settings.custom_model_modal = None;
             Task::none()
         }
@@ -438,6 +574,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let has_models = draft.models.iter().any(|m| !m.model_id.trim().is_empty());
             if !has_models {
                 app.provider_settings.save_error = Some("至少添加一个模型".to_string());
+                return Task::none();
+            }
+            if let Err(error) = validate_model_drafts(&draft.models) {
+                app.provider_settings.save_error = Some(error);
                 return Task::none();
             }
 

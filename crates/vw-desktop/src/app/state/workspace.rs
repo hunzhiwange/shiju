@@ -266,8 +266,12 @@ pub struct UsageModelInfo {
     pub model_name: String,
     /// 上下文长度限制（token 数）
     pub context_limit: u64,
+    /// 当前请求可用的输入窗口（token 数）
+    pub input_limit: u64,
     /// 输出长度限制（token 数）
     pub output_limit: u64,
+    /// 是否使用未知模型的保守默认限制
+    pub limit_is_default: bool,
     /// 输入 token 每百万的成本（美元）
     pub cost_input_per_million: f64,
     /// 输出 token 每百万的成本（美元）

@@ -47,6 +47,7 @@ fn overlays_return_base_add_modal_and_edit_modal() {
         edit_index: None,
         model_id: "gpt-5".to_string(),
         display_name: "GPT-5".to_string(),
+        ..Default::default()
     });
     keep_element(super::custom_model_modal::view_overlays(&app, text("dialog").into()));
 
@@ -83,6 +84,7 @@ fn overlays_wrap_base_only_when_model_draft_exists() {
         edit_index: None,
         model_id: String::new(),
         display_name: String::new(),
+        ..Default::default()
     });
     let open = element_tree(super::custom_model_modal::view_overlays(&app, text("dialog").into()));
 

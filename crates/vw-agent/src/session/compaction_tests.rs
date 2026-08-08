@@ -245,16 +245,16 @@ async fn overflow_is_false_for_unlimited_or_unusable_context() {
 async fn overflow_uses_total_when_present_and_rounds_threshold() {
     let model = model_with_limits(100_000, None, 10_000);
 
-    assert!(!is_overflow(&token_info(Some(62_999), 99_999, 0, 0, 0), &model).await);
-    assert!(is_overflow(&token_info(Some(63_000), 1, 1, 1, 1), &model).await);
+    assert!(!is_overflow(&token_info(Some(80_999), 99_999, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(81_000), 1, 1, 1, 1), &model).await);
 }
 
 #[tokio::test]
 async fn overflow_falls_back_to_component_sum_and_input_limit() {
     let model = model_with_limits(200_000, Some(100_000), 20_000);
 
-    assert!(!is_overflow(&token_info(None, 45_000, 10_000, 900, 99), &model).await);
-    assert!(is_overflow(&token_info(None, 45_000, 10_000, 900, 100), &model).await);
+    assert!(!is_overflow(&token_info(None, 80_000, 9_000, 900, 99), &model).await);
+    assert!(is_overflow(&token_info(None, 80_000, 9_000, 900, 100), &model).await);
 }
 
 #[tokio::test]
@@ -266,11 +266,11 @@ async fn overflow_treats_negative_counts_as_zero() {
 }
 
 #[tokio::test]
-async fn overflow_caps_reserved_output_space_at_compaction_buffer() {
+async fn overflow_reserves_model_output_space() {
     let model = model_with_limits(100_000, None, 50_000);
 
-    assert!(!is_overflow(&token_info(Some(55_999), 0, 0, 0, 0), &model).await);
-    assert!(is_overflow(&token_info(Some(56_000), 0, 0, 0, 0), &model).await);
+    assert!(!is_overflow(&token_info(Some(44_999), 0, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(45_000), 0, 0, 0, 0), &model).await);
 }
 
 #[tokio::test]

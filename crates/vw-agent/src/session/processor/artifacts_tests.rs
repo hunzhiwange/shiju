@@ -193,6 +193,7 @@ fn ai_call_payloads_compact_repeated_context_before_persisting() {
     let serialized = serde_json::to_vec(call).expect("compacted call should serialize");
     assert!(serialized.len() < 20 * 1024, "call payload is too large: {} bytes", serialized.len());
     assert_eq!(call["context_compacted"], true);
+    assert!(call.get("calls").is_none(), "UI call summaries must not carry raw call records");
     assert!(call["prompt"].as_str().unwrap_or_default().contains("context compacted"));
     assert!(call["messages"][0]["content"]
         .as_str()

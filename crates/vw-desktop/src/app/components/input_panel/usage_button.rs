@@ -56,6 +56,7 @@ pub fn usage_button(app: &App) -> Element<'_, Message> {
     // 获取当前使用率百分比和详细统计信息
     let usage_percent = get_usage_rate_percent(app);
     let (input_tokens, context_limit, estimated_cost, total_tokens) = get_usage_details(app);
+    let input_limit = app.usage_model_info.as_ref().map(|info| info.input_limit).unwrap_or(0);
 
     // 创建圆环画布，用于可视化使用率
     let usage_ring = canvas(UsageRing { percent: usage_percent })
@@ -65,8 +66,11 @@ pub fn usage_button(app: &App) -> Element<'_, Message> {
     // 构建工具提示内容，显示详细的使用统计信息
     let usage_tip = container(
         column![
-            // 上下文使用情况：输入 token 数 / 上下文限制
-            text(format!("上下文: {} / {}", input_tokens, context_limit))
+            // 输入使用情况：输入 token 数 / 当前请求输入窗口
+            text(format!("输入窗口: {} / {}", input_tokens, input_limit))
+                .size(12)
+                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(format!("上下文上限: {}", context_limit))
                 .size(12)
                 .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
             // 使用率百分比，使用黄色高亮显示
@@ -81,6 +85,13 @@ pub fn usage_button(app: &App) -> Element<'_, Message> {
             text(format!("预估成本: ${:.4}", estimated_cost)).size(12).style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
+            if app.usage_model_info.as_ref().is_some_and(|info| info.limit_is_default) {
+                text("限制：使用保守默认值").size(12).style(|_theme: &Theme| {
+                    iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
+                })
+            } else {
+                text("").size(12)
+            },
         ]
         .spacing(4),
     )

@@ -148,7 +148,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         model_id: m.id.clone(),
                         model_name: m.name,
                         context_limit: m.limit.context,
+                        input_limit: vw_shared::provider::state::effective_input_window(&m.limit),
                         output_limit: m.limit.output,
+                        limit_is_default: vw_shared::provider::state::is_default_model_limit(
+                            &m.limit,
+                        ),
                         cost_input_per_million: m.cost.input,
                         cost_output_per_million: m.cost.output,
                         cost_cache_read_per_million: m.cost.cache.read,

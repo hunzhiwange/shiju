@@ -12,7 +12,7 @@
 //!
 //! # 压缩策略
 //!
-//! 1. 当会话使用率达到 70% 的可用上下文时，触发溢出检测
+//! 1. 当会话使用率达到 90% 的可用上下文时，触发溢出检测
 //! 2. 修剪时会保护最近 2 轮对话和所有 skill 工具调用
 //! 3. 只有当可修剪的 token 数量超过最小阈值时才执行实际修剪
 //! 4. 压缩后会发布 `session.compacted` 事件通知相关组件
@@ -22,9 +22,9 @@ use crate::app::agent::config;
 use crate::app::agent::id;
 use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
-use crate::app::agent::provider::transform as provider_transform;
 use crate::app::agent::session::message;
 use crate::app::agent::util::token;
+use crate::session::processor::context_governance;
 use serde_json::json;
 
 /// 压缩相关事件定义
@@ -37,15 +37,10 @@ pub mod event {
     pub const COMPACTED: bus::Definition = bus::Definition { r#type: "session.compacted" };
 }
 
-/// 压缩缓冲区大小
-///
-/// 为输出预留的最小 token 数量，确保模型有足够空间生成响应
-const COMPACTION_BUFFER: u64 = 20_000;
-
 /// 检测会话是否溢出上下文限制
 ///
 /// 根据当前的 token 使用情况和模型的上下文限制，判断是否需要执行压缩。
-/// 当使用率达到可用上下文的 70% 时返回 true。
+/// 当使用率达到可用上下文的 90% 时返回 true。
 ///
 /// # 参数
 ///
@@ -59,8 +54,8 @@ const COMPACTION_BUFFER: u64 = 20_000;
 ///
 /// # 算法说明
 ///
-/// 1. 计算可用的上下文空间：上下文限制减去输出预留缓冲区
-/// 2. 计算目标阈值：可用空间的 70%
+/// 1. 计算可用的上下文空间：优先使用输入限制，否则从上下文限制扣除输出限制
+/// 2. 计算目标阈值：可用空间的 90%
 /// 3. 比较当前使用量与目标阈值
 ///
 /// # 示例
@@ -81,47 +76,22 @@ const COMPACTION_BUFFER: u64 = 20_000;
 /// ```
 pub async fn is_overflow(tokens: &message::TokenInfo, model: &provider::Model) -> bool {
     let _cfg = config::get().await;
-
-    // 获取模型的上下文窗口限制，0 表示无限制
-    let context = model.limit.context;
-    if context == 0 {
+    if model.limit.context == 0
+        || context_governance::effective_input_window(&model.limit) == 0
+        || model.limit.input.is_some_and(|input| {
+            input > model.limit.context.saturating_sub(model.limit.output)
+        })
+    {
         return false;
     }
-
-    // 溢出阈值：70% 的可用空间
-    let threshold = 0.7_f64;
-
-    // 计算当前的 token 使用总量
-    // 如果 total 字段存在则使用，否则累加各分量
-    let count = tokens
-        .total
-        .unwrap_or(tokens.input + tokens.output + tokens.cache.read + tokens.cache.write);
-    let count = if count > 0 { count as u64 } else { 0 };
-
-    // 获取模型的最大输出 token 限制
-    let max_out = provider_transform::max_output_tokens(model.limit.output);
-    // 预留缓冲区，确保有足够空间生成输出
-    let reserved = COMPACTION_BUFFER.min(max_out);
-
-    // 计算可用的上下文空间
-    // 优先使用输入限制，否则使用总上下文限制
-    let usable = if let Some(input_limit) = model.limit.input {
-        input_limit.saturating_sub(reserved)
-    } else {
-        context.saturating_sub(reserved)
-    };
-
-    // 如果可用空间为 0，不触发溢出
-    if usable == 0 {
-        return false;
-    }
-
-    // 计算目标阈值（70% 的可用空间）
-    let target = ((usable as f64) * threshold).round();
-    let target = if target.is_finite() && target > 0.0 { target as u64 } else { usable };
-
-    // 当前使用量是否达到或超过目标阈值
-    count >= target
+    let count = tokens.total.unwrap_or_else(|| {
+        tokens
+            .input
+            .saturating_add(tokens.output)
+            .saturating_add(tokens.cache.read)
+            .saturating_add(tokens.cache.write)
+    });
+    context_governance::should_compact(count.max(0) as u64, &model.limit)
 }
 
 /// 修剪最小阈值

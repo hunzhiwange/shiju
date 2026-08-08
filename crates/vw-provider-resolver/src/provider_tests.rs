@@ -258,6 +258,78 @@ async fn filtered_state_keeps_only_active_models_and_merges_config_fields() {
 }
 
 #[tokio::test]
+async fn cross_layer_unknown_model_uses_shared_default_limit() {
+    let env = ProviderTestEnv::new().await;
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../vw-shared/assets/provider/cross_layer_unknown_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let provider_id = fixture["provider_id"].as_str().unwrap();
+    let model_id = fixture["model_id"].as_str().unwrap();
+    let providers = json!({
+        "models": {model_id: {"name": fixture["model_name"], "status": "active"}}
+    });
+    let mut provider = providers;
+    provider["api"] = fixture["base_url"].clone();
+    let mut provider_map = serde_json::Map::new();
+    provider_map.insert(provider_id.to_string(), provider);
+    env.write_config(config_with_default(Value::Null, Value::Object(provider_map))).await;
+
+    let model = list_for_settings().await[provider_id].models[model_id].clone();
+    let expected = vw_shared::provider::state::resolve_model_limit(None, None, None);
+    assert_eq!(model.limit.context, expected.context);
+    assert_eq!(model.limit.input, expected.input);
+    assert_eq!(model.limit.output, expected.output);
+}
+
+#[tokio::test]
+async fn cross_layer_explicit_model_preserves_limits_and_capabilities_after_reload() {
+    let env = ProviderTestEnv::new().await;
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../vw-shared/assets/provider/cross_layer_explicit_model.json"
+    ))
+    .expect("cross-layer fixture should parse");
+    let provider_id = fixture["provider_id"].as_str().unwrap();
+    let model_id = fixture["model_id"].as_str().unwrap();
+    let model = json!({
+        "name": fixture["model_name"],
+        "family": fixture["family"],
+        "reasoning": fixture["reasoning"],
+        "tool_call": fixture["tool_call"],
+        "temperature": fixture["temperature"],
+        "attachment": fixture["attachment"],
+        "interleaved": fixture["interleaved"],
+        "modalities": {
+            "input": fixture["input_modalities"],
+            "output": fixture["output_modalities"]
+        },
+        "limit": {
+            "context": fixture["context_limit"],
+            "input": fixture["input_limit"],
+            "output": fixture["output_limit"]
+        },
+        "status": "active"
+    });
+    let mut provider = json!({"api": fixture["base_url"], "models": {}});
+    provider["models"][model_id] = model;
+    let mut providers = serde_json::Map::new();
+    providers.insert(provider_id.to_string(), provider);
+    env.write_config(config_with_default(Value::Null, Value::Object(providers))).await;
+
+    let model = list_for_settings().await[provider_id].models[model_id].clone();
+    assert_eq!(model.limit.context, fixture["context_limit"].as_u64().unwrap());
+    assert_eq!(model.limit.input, Some(fixture["input_limit"].as_u64().unwrap()));
+    assert_eq!(model.limit.output, fixture["output_limit"].as_u64().unwrap());
+    assert_eq!(model.family.as_deref(), fixture["family"].as_str());
+    assert!(model.capabilities.reasoning);
+    assert!(!model.capabilities.toolcall);
+    assert!(model.capabilities.temperature);
+    assert!(model.capabilities.attachment);
+    assert!(model.capabilities.input.text && model.capabilities.input.image);
+    assert!(model.capabilities.output.text);
+}
+
+#[tokio::test]
 async fn env_source_does_not_expose_key_when_provider_declares_multiple_env_vars() {
     let env = ProviderTestEnv::new().await;
     env.set_env("SECOND_PROVIDER_KEY", "second-secret");
@@ -309,6 +381,85 @@ async fn custom_config_provider_uses_safe_defaults() {
     assert!(model.capabilities.toolcall);
     assert!(model.capabilities.input.text);
     assert_eq!(model.cost.output, 0.0);
+}
+
+#[tokio::test]
+async fn custom_model_without_limits_uses_shared_defaults_and_explicit_limits_win() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "custom-limit-provider": {
+                "models": {
+                    "fallback-model": {"status": "active"},
+                    "explicit-model": {
+                        "status": "active",
+                        "limit": {"context": 12_345, "input": 10_000, "output": 2_048}
+                    }
+                }
+            }
+        }),
+    ))
+    .await;
+
+    let fallback = get_model("custom-limit-provider", "fallback-model")
+        .await
+        .expect("fallback model should resolve");
+    assert_eq!(fallback.limit.context, vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT);
+    assert_eq!(fallback.limit.input, Some(vw_shared::provider::state::DEFAULT_MODEL_INPUT_LIMIT));
+    assert_eq!(fallback.limit.output, vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT);
+
+    let explicit = get_model("custom-limit-provider", "explicit-model")
+        .await
+        .expect("explicit model should resolve");
+    assert_eq!(explicit.limit.context, 12_345);
+    assert_eq!(explicit.limit.input, Some(10_000));
+    assert_eq!(explicit.limit.output, 2_048);
+}
+
+#[tokio::test]
+async fn custom_model_explicit_capabilities_override_baseline_fields() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({
+            "custom-capability-provider": {
+                "models": {
+                    "custom-model": {
+                        "status": "active",
+                        "family": "custom-family",
+                        "reasoning": true,
+                        "tool_call": false,
+                        "temperature": true,
+                        "attachment": true,
+                        "modalities": {
+                            "input": ["text", "image"],
+                            "output": ["text"]
+                        },
+                        "limit": {"context": 65536, "input": 60000, "output": 4096}
+                    }
+                }
+            }
+        }),
+    ))
+    .await;
+
+    let model = get_model("custom-capability-provider", "custom-model")
+        .await
+        .expect("custom model should resolve");
+
+    assert_eq!(model.family.as_deref(), Some("custom-family"));
+    assert!(model.capabilities.reasoning);
+    assert!(!model.capabilities.toolcall);
+    assert!(model.capabilities.temperature);
+    assert!(model.capabilities.attachment);
+    assert!(model.capabilities.input.text);
+    assert!(model.capabilities.input.image);
+    assert!(model.capabilities.output.text);
+    assert!(!model.capabilities.output.image);
+    assert_eq!(model.limit.context, 65536);
+    assert_eq!(model.limit.input, Some(60000));
+    assert_eq!(model.limit.output, 4096);
 }
 
 #[tokio::test]

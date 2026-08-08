@@ -24,7 +24,7 @@ pub(crate) struct ChatGlobalStatus {
 }
 
 thread_local! {
-    /// 缓存上一次解析出的状态及其指纹，避免动画帧每 90ms 重复全量解析末条消息造成卡顿。
+    /// 缓存上一次解析出的状态及其指纹，避免高频动画帧重复全量解析末条消息造成卡顿。
     static STATUS_MEMO: RefCell<Option<(StatusFingerprint, Option<ChatGlobalStatus>)>> =
         const { RefCell::new(None) };
 }

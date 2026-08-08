@@ -1,7 +1,9 @@
 use super::ChatMessage;
 use crate::app::TodoPanelPlacement;
 use crate::app::components::chat_panel::message_measure::ChatMessageMeasurement;
-use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtualizer};
+use crate::app::components::chat_panel::virtualizer::{
+    ChatScrollAnchor, ChatScrollMode, ChatVirtualizer,
+};
 use crate::app::models::{ChatMessage as ChatEntry, ChatRole};
 use crate::app::skill_hub::{InstalledSkill, LoadState};
 use crate::app::{Message, message};
@@ -476,6 +478,24 @@ fn toggle_sets_add_and_remove_keys() {
     assert!(app.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
     let _ = super::update(&mut app, ChatMessage::ToggleExploreSummary(5, 6));
     assert!(!app.chat_explore_expanded.contains(&((5_u64 << 32) | 6)));
+}
+
+#[test]
+fn toggle_tool_file_preserves_scroll_anchor_and_clears_stale_height() {
+    let (mut app, _) = crate::app::App::new();
+    app.chat = vec![chat_entry(ChatRole::Assistant, "tool apply_patch\n{}")];
+    app.chat_auto_scroll = false;
+    app.chat_message_measured_heights.insert(0, 88.0);
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[88.0]);
+    app.chat_virtualizer.set_viewport_height(200.0);
+    app.chat_virtualizer.preserve_anchor(ChatScrollAnchor::new(0, 12.0));
+    app.sync_chat_virtualizer_compat_fields();
+
+    let _ = super::update(&mut app, ChatMessage::ToggleToolFile(0, 0, "src/main.rs".to_string()));
+    assert!(app.chat_tool_file_expanded.contains("0:0:src/main.rs"));
+    assert!(!app.chat_message_measured_heights.contains_key(&0));
+    assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
+    assert_eq!(app.chat_virtualizer.anchor().map(|anchor| anchor.index), Some(0));
 }
 
 #[test]

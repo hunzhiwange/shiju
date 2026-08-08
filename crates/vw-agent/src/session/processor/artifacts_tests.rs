@@ -167,6 +167,43 @@ fn step_and_final_ai_call_payloads_persist_to_scoped_session() {
 }
 
 #[test]
+fn ai_call_payloads_compact_repeated_context_before_persisting() {
+    let session_id = unique_id("compact-context");
+    let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    let req = request(&session_id, 96, true);
+    let session = Session {
+        id: session_id.clone(),
+        messages: vec![
+            Message { role: Role::User, content: format!("old {}", "x".repeat(32 * 1024)) },
+            Message {
+                role: Role::Assistant,
+                content: format!("recent {}", "y".repeat(32 * 1024)),
+            },
+        ],
+    };
+    let step = LlmStep { text: "z".repeat(32 * 1024), ..llm_step() };
+    ui_store::delete_session_scoped(&session_id, Some(&scope));
+
+    persist_step_ai_call_payload(&req, &session, &usage(0, 0, 0, 0), &step, 1, Some(&scope));
+
+    let loaded = ui_store::load_session_scoped(&session_id, Some(&scope))
+        .expect("compacted AI call should persist");
+    let call = &loaded.calls[0];
+    let serialized = serde_json::to_vec(call).expect("compacted call should serialize");
+    assert!(serialized.len() < 20 * 1024, "call payload is too large: {} bytes", serialized.len());
+    assert_eq!(call["context_compacted"], true);
+    assert!(call["prompt"].as_str().unwrap_or_default().contains("context compacted"));
+    assert!(call["messages"][0]["content"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("context compacted"));
+    assert!(call["answer"].as_str().unwrap_or_default().contains("context compacted"));
+
+    ui_store::delete_session_scoped(&session_id, Some(&scope));
+}
+
+#[test]
 fn ai_call_payloads_respect_persistence_guards() {
     let session_id = unique_id("skip");
     let scope = unique_id("scope");

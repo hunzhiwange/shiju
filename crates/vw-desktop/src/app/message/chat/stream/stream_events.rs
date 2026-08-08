@@ -12,9 +12,13 @@ use crate::app::ui::chat;
 use crate::app::{App, Message, QueueItem, models};
 use iced::Task;
 use serde::Deserialize;
+use std::time::Duration;
 use tracing::info;
 use vw_shared::message::types as message;
 use vw_shared::session::info as session_info;
+
+/// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
+pub(super) const STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 
 fn update_think_timing_from_delta(message: &mut models::ChatMessage, delta: &str, now: u64) {
     if delta.is_empty() {
@@ -412,8 +416,66 @@ fn finish_active_stream_tail_update(
     }
 }
 
-/// 模块内可见函数，执行 handle_agent_stream_delta 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+pub(super) fn queue_agent_stream_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+
+    queue_agent_session_delta(app, session_id, delta)
+}
+
+pub(super) fn queue_agent_session_delta(
+    app: &mut App,
+    session_id: String,
+    delta: String,
+) -> Task<Message> {
+    if delta.is_empty() {
+        return Task::none();
+    }
+
+    let schedule_flush = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.pending_stream_delta.push_str(&delta);
+        if runtime.stream_delta_flush_scheduled {
+            false
+        } else {
+            runtime.stream_delta_flush_scheduled = true;
+            true
+        }
+    };
+
+    if schedule_flush {
+        crate::app::message::after(
+            STREAM_DELTA_FLUSH_INTERVAL,
+            Message::Chat(super::ChatMessage::AgentStreamDeltaFlush(session_id)),
+        )
+    } else {
+        Task::none()
+    }
+}
+
+pub(super) fn flush_agent_stream_delta(app: &mut App, session_id: String) -> Task<Message> {
+    let delta = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.stream_delta_flush_scheduled = false;
+        std::mem::take(&mut runtime.pending_stream_delta)
+    };
+    if delta.is_empty() {
+        Task::none()
+    } else {
+        apply_agent_session_delta(app, session_id, delta)
+    }
+}
+
+pub(super) fn flush_agent_stream_delta_for_request(app: &mut App, id: u64) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    flush_agent_stream_delta(app, session_id)
+}
+
+/// 模块内可见函数，执行单次流式增量更新；测试和终态处理可绕过合并窗口。
+#[cfg(test)]
 pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
@@ -422,11 +484,16 @@ pub(super) fn handle_agent_stream_delta(app: &mut App, id: u64, delta: String) -
     handle_agent_session_delta(app, session_id, delta)
 }
 
+#[cfg(test)]
 pub(super) fn handle_agent_session_delta(
     app: &mut App,
     session_id: String,
     delta: String,
 ) -> Task<Message> {
+    apply_agent_session_delta(app, session_id, delta)
+}
+
+fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -> Task<Message> {
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
     if is_active {
@@ -553,12 +620,13 @@ pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String
     if session_id.trim().is_empty() {
         return Task::none();
     }
+    let flush_task = flush_agent_stream_delta(app, session_id.clone());
     app.get_session_runtime_mut(&session_id).is_requesting = false;
     app.sync_task_pet_from_runtime();
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.sync_active_session_from_chat();
     }
-    Task::none()
+    flush_task
 }
 
 /// 模块内可见函数，执行 handle_agent_workflow_node_update 对应的应用流程。
@@ -582,6 +650,9 @@ fn handle_agent_tool_blocks_update(
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+
+    // 工具事件必须排在尚未刷新的正文之后，避免合并窗口改变消息顺序。
+    let _ = flush_agent_stream_delta(app, session_id.clone());
 
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
@@ -668,6 +739,7 @@ pub(super) fn handle_agent_stream_done(
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    let _ = flush_agent_stream_delta(app, session_id.clone());
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
@@ -852,6 +924,8 @@ pub(super) fn handle_agent_post_tool_round(
         return Task::none();
     }
 
+    let _ = flush_agent_stream_delta(app, session_id.clone());
+
     let runtime = app.get_session_runtime(&session_id);
     let Some(active_request) = runtime.active_agent_request.clone() else {
         return Task::none();
@@ -987,6 +1061,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         }
         return app.show_error_toast(display_err);
     };
+    let _ = flush_agent_stream_delta(app, session_id.clone());
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();

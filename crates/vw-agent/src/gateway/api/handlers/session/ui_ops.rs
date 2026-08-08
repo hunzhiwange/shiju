@@ -97,7 +97,8 @@ pub(super) async fn session_ui_save(
 
     let directory = resolve_directory(&query, &headers);
     let scope = ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None);
-    tracing::info!(
+    let preserve_calls = body.calls.is_empty();
+    tracing::debug!(
         target: "vw_agent",
         session_id = %body.id,
         directory = %directory,
@@ -107,8 +108,13 @@ pub(super) async fn session_ui_save(
         "gateway saving session ui snapshot"
     );
     // 保存完整 UI 快照可能触发磁盘写入，继续隔离到阻塞线程池中执行。
+    // 空 calls 只更新 UI 表，避免重复序列化和写入大型原始调用记录。
     crate::global_database::run_isolated(move || {
-        ui_store::save_session_scoped_for_tenant(&tenant, &body, scope.as_deref())
+        if preserve_calls {
+            ui_store::save_session_ui_snapshot_scoped_for_tenant(&tenant, &body, scope.as_deref())
+        } else {
+            ui_store::save_session_scoped_for_tenant(&tenant, &body, scope.as_deref())
+        }
     })
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;

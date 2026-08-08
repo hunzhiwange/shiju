@@ -306,6 +306,49 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn empty_calls_in_ui_snapshot_preserve_existing_raw_call_records() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let initial = scoped_session("preserve-calls", "Session", "initial", 20);
+    let expected_calls = initial.calls.clone();
+    let Json(initial_saved) = session_ui_save(
+        Path(initial.id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(initial.clone()),
+    )
+    .await
+    .expect("initial session save should succeed");
+    assert!(initial_saved);
+
+    let mut snapshot = initial;
+    snapshot.messages[0].content = "updated".to_string();
+    snapshot.calls.clear();
+    let Json(snapshot_saved) = session_ui_save(
+        Path(snapshot.id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(snapshot),
+    )
+    .await
+    .expect("UI snapshot save should succeed");
+    assert!(snapshot_saved);
+
+    let Json(loaded) = session_ui_get(
+        Path("preserve-calls".to_string()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("saved session should load");
+    assert_eq!(loaded.expect("saved session").calls, expected_calls);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn ui_snapshot_handlers_cover_archived_scope_and_errors() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();

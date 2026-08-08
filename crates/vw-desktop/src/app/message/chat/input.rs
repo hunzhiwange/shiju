@@ -416,14 +416,34 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             if !app.chat_tool_file_expanded.remove(&key) {
                 app.chat_tool_file_expanded.insert(key);
             }
-            Task::none()
+            // 展开/收起内联 diff 会显著改变消息高度，需与 ToggleThink 一样重测，
+            // 否则虚拟列表 spacer 仍按旧高度计算，表现为大片空白。
+            app.chat_message_measured_heights.remove(&msg_idx);
+            if app.chat_auto_scroll {
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
+                app.chat_virtualizer.snap_to_tail();
+                app.sync_chat_virtualizer_compat_fields();
+            } else {
+                app.chat_virtualizer.preserve_current_anchor_around();
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
+            }
+            super::measure_visible_chat_messages_task()
         }
         ChatMessage::ToggleTool(msg_idx, tool_idx) => {
             let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
             if !app.chat_tool_expanded.remove(&key) {
                 app.chat_tool_expanded.insert(key);
             }
-            Task::none()
+            app.chat_message_measured_heights.remove(&msg_idx);
+            if app.chat_auto_scroll {
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
+                app.chat_virtualizer.snap_to_tail();
+                app.sync_chat_virtualizer_compat_fields();
+            } else {
+                app.chat_virtualizer.preserve_current_anchor_around();
+                app.refine_chat_message_estimated_heights(msg_idx, msg_idx.saturating_add(1));
+            }
+            super::measure_visible_chat_messages_task()
         }
         ChatMessage::ToolFileHover(key) => {
             app.chat_tool_file_hovered = Some(key);

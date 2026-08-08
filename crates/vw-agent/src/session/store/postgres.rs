@@ -217,11 +217,38 @@ impl PostgresSessionStore {
     pub(super) fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction().context("begin PostgreSQL session save")?;
-        upsert_session_header(&mut transaction, scope, session)?;
+        upsert_session_header(&mut transaction, scope, session, session.calls.len())?;
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_calls(&mut transaction, scope, session)?;
         replace_session_steps(&mut transaction, scope, session)?;
         transaction.commit().context("commit PostgreSQL session save")?;
+        Ok(())
+    }
+
+    pub(super) fn save_session_ui_snapshot(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection
+            .transaction()
+            .context("begin PostgreSQL session UI snapshot save")?;
+        let call_count = transaction
+            .query_opt(
+                "SELECT call_count FROM session_index
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, &session.id),
+            )?
+            .map(|row| from_i64_usize(row.get(0), "session call_count"))
+            .transpose()?
+            .unwrap_or(session.calls.len());
+        upsert_session_header(&mut transaction, scope, session, call_count)?;
+        replace_session_messages(&mut transaction, scope, session)?;
+        replace_session_steps(&mut transaction, scope, session)?;
+        transaction
+            .commit()
+            .context("commit PostgreSQL session UI snapshot save")?;
         Ok(())
     }
 
@@ -631,11 +658,12 @@ fn upsert_session_header(
     client: &mut impl GenericClient,
     scope: &ProjectScope,
     session: &ChatSession,
+    call_count: usize,
 ) -> Result<()> {
     let created_ms = to_i64(session.created_ms, "session created_ms")?;
     let updated_ms = to_i64(session.updated_ms, "session updated_ms")?;
     let message_count = usize_to_i64(session.messages.len(), "session message_count")?;
-    let call_count = usize_to_i64(session.calls.len(), "session call_count")?;
+    let call_count = usize_to_i64(call_count, "session call_count")?;
     let last_content = session_last_content(&session.messages);
     client
         .execute(

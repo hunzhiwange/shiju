@@ -9,7 +9,8 @@ use crate::app::agent::global;
 use crate::app::agent::project::instance;
 use crate::app::agent::session::message;
 use crate::app::agent::skills::{
-    SkillLoadMode, load_skills_from_directory, skills_to_prompt_with_mode,
+    Skill, SkillLoadMode, load_skills_from_directory, load_skills_with_config,
+    skills_to_prompt_with_mode,
 };
 use crate::app::agent::util::filesystem;
 use crate::app::agent::util::log;
@@ -87,6 +88,46 @@ fn extract_skill_md_paths(content: &str) -> Vec<String> {
     out
 }
 
+fn is_skill_name_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.' | ':' | '/' | '@')
+}
+
+/// 判断协议正文是否包含边界完整、大小写不敏感的技能名称。
+fn mentions_skill_name(content: &str, name: &str) -> bool {
+    let content = content.to_ascii_lowercase();
+    let name = name.trim().to_ascii_lowercase();
+    if name.is_empty() {
+        return false;
+    }
+
+    content.match_indices(&name).any(|(start, _)| {
+        let end = start + name.len();
+        let before = content[..start].chars().next_back();
+        let after = content[end..].chars().next();
+        before.is_none_or(|character| !is_skill_name_character(character))
+            && after.is_none_or(|character| !is_skill_name_character(character))
+    })
+}
+
+fn canonical_skill_directory(skill: &Skill) -> Option<PathBuf> {
+    skill
+        .location
+        .as_deref()
+        .and_then(Path::parent)
+        .and_then(|directory| std::fs::canonicalize(directory).ok())
+}
+
+fn load_full_skill_directory(directory: &Path, config: &config::Config) -> Option<Skill> {
+    let source_directory = directory.parent()?;
+    load_skills_from_directory(
+        source_directory,
+        SkillLoadMode::Full,
+        &config.skills.security,
+    )
+    .into_iter()
+    .find(|skill| canonical_skill_directory(skill).as_deref() == Some(directory))
+}
+
 /// 将协议中的技能引用展开为已预加载指令或待读取的绝对路径。
 fn format_required_skills_block(
     project_root: &Path,
@@ -94,13 +135,13 @@ fn format_required_skills_block(
     config: &config::Config,
 ) -> String {
     let paths = extract_skill_md_paths(content);
-    if paths.is_empty() {
-        return String::new();
-    }
-
     let canonical_root = std::fs::canonicalize(project_root).ok();
+    let mut discovery_config = config.clone();
+    discovery_config.skills.prompt_injection_mode = config::SkillsPromptInjectionMode::Compact;
+    let discovered_skills = load_skills_with_config(project_root, &discovery_config);
     let mut loaded_skills = Vec::new();
     let mut loaded_directories = HashSet::new();
+    let mut loaded_names = HashSet::new();
     let mut unresolved_paths = Vec::new();
 
     for path in paths {
@@ -129,32 +170,42 @@ fn format_required_skills_block(
         if loaded_directories.contains(&skill_directory) {
             continue;
         }
-        let Some(source_directory) = skill_directory.parent() else {
-            unresolved_paths.push(rendered_path);
-            continue;
-        };
-
-        let selected = load_skills_from_directory(
-            source_directory,
-            SkillLoadMode::Full,
-            &config.skills.security,
-        )
-        .into_iter()
-        .find(|skill| {
-            skill
-                .location
-                .as_deref()
-                .and_then(Path::parent)
-                .and_then(|directory| std::fs::canonicalize(directory).ok())
-                .is_some_and(|directory| directory == skill_directory)
-        });
+        let selected = load_full_skill_directory(&skill_directory, config);
 
         if let Some(skill) = selected {
             loaded_directories.insert(skill_directory);
+            loaded_names.insert(skill.name.to_ascii_lowercase());
             loaded_skills.push(skill);
         } else {
             unresolved_paths.push(rendered_path);
         }
+    }
+
+    for skill in discovered_skills {
+        if !mentions_skill_name(content, &skill.name) {
+            continue;
+        }
+        let normalized_name = skill.name.to_ascii_lowercase();
+        if loaded_names.contains(&normalized_name) {
+            continue;
+        }
+        let Some(directory) = canonical_skill_directory(&skill) else {
+            continue;
+        };
+        if loaded_directories.contains(&directory) {
+            continue;
+        }
+        if let Some(skill) = load_full_skill_directory(&directory, config) {
+            loaded_names.insert(normalized_name);
+            loaded_directories.insert(directory);
+            loaded_skills.push(skill);
+        } else if let Some(location) = skill.location {
+            unresolved_paths.push(normalize_str(location));
+        }
+    }
+
+    if loaded_skills.is_empty() && unresolved_paths.is_empty() {
+        return String::new();
     }
 
     let mut block = String::from("\n\n<required_skills>\n");

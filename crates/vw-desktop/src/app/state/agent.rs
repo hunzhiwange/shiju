@@ -244,6 +244,10 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) has_unseen_success: bool,
     /// 当前活跃的 Agent 请求
     pub(crate) active_agent_request: Option<AgentRequest>,
+    /// 尚未提交到聊天 UI 的流式文本增量。
+    pub(crate) pending_stream_delta: String,
+    /// 是否已经为流式文本增量安排了合并刷新。
+    pub(crate) stream_delta_flush_scheduled: bool,
     /// 请求队列
     pub(crate) queue: Vec<QueueItem>,
     /// 输入编辑器内容
@@ -377,6 +381,8 @@ impl SessionRuntimeState {
             submit_anim: 0,
             has_unseen_success: false,
             active_agent_request: None,
+            pending_stream_delta: String::new(),
+            stream_delta_flush_scheduled: false,
             queue: Vec::new(),
             input_editor: text_editor::Content::new(),
             model,

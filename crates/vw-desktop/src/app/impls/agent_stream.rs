@@ -2458,7 +2458,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
 
                             let next_message = match event {
                                 vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-                                    info!(
+                                    tracing::debug!(
                                         target: "vw_desktop",
                                         request_id = req.id,
                                         event_id,

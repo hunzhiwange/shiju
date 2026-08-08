@@ -221,7 +221,7 @@ impl SessionStore {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-                    upsert_session_header(transaction, scope, session)?;
+                    upsert_session_header(transaction, scope, session, session.calls.len())?;
                     replace_session_messages(transaction, scope, session)?;
                     replace_session_calls(transaction, scope, session)?;
                     replace_session_steps(transaction, scope, session)?;
@@ -230,6 +230,33 @@ impl SessionStore {
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.save_session(scope, session))
+            }
+        }
+    }
+
+    pub fn save_session_ui_snapshot(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+    ) -> Result<()> {
+        validate_id("session id", &session.id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let call_count = existing_session_call_count(
+                        transaction,
+                        scope,
+                        &session.id,
+                        session.calls.len(),
+                    )?;
+                    upsert_session_header(transaction, scope, session, call_count)?;
+                    replace_session_messages(transaction, scope, session)?;
+                    replace_session_steps(transaction, scope, session)?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.save_session_ui_snapshot(scope, session))
             }
         }
     }
@@ -778,6 +805,7 @@ fn upsert_session_header(
     transaction: &Transaction<'_>,
     scope: &ProjectScope,
     session: &ChatSession,
+    call_count: usize,
 ) -> Result<()> {
     transaction.execute(
         "INSERT INTO session_index (
@@ -800,11 +828,28 @@ fn upsert_session_header(
             to_i64(session.created_ms, "session created_ms")?,
             to_i64(session.updated_ms, "session updated_ms")?,
             usize_to_i64(session.messages.len(), "session message_count")?,
-            usize_to_i64(session.calls.len(), "session call_count")?,
+            usize_to_i64(call_count, "session call_count")?,
             session_last_content(&session.messages),
         ],
     )?;
     Ok(())
+}
+
+fn existing_session_call_count(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session_id: &str,
+    fallback: usize,
+) -> Result<usize> {
+    let call_count = transaction
+        .query_row(
+            "SELECT call_count FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, session_id),
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?;
+    call_count.map_or(Ok(fallback), |value| from_i64_usize(value, "session call_count"))
 }
 
 fn replace_session_messages(

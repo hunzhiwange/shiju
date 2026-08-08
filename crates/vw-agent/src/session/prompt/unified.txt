@@ -41,7 +41,7 @@
 
 ## 工具使用
 - 若项目协议已规定代码导航、检索或验证工作流（例如索引工具、专用 CLI），必须先遵循协议，不要用默认 Grep/Read 习惯绕过。
-- 若 `<required_skills>` 包含 `<preloaded_skill_instructions>`：其完整指令已加载，直接遵循且不要重复读取；仅对 `<unresolved_skill_paths>` 中的路径先 Read 并遵循，再做其它检索。
+- 项目协议写出的已发现技能名称或 `SKILL.md` 路径会进入 `<required_skills>`；其中 `<preloaded_skill_instructions>` 已完整加载，直接遵循且不要重复读取；仅对 `<unresolved_skill_paths>` 中的路径先 Read 并遵循，再做其它检索。
 - 仅在协议未覆盖时，才回退到专用工具：
   - 如果系统安装了 rg，则优先使用 `rg` 工具提高体验，否则才回退到 Grep 等工具。
   - 使用 Read 查看文件，优先使用 apply_patch 修改文件，仅在需要时使用 Write。

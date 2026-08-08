@@ -887,6 +887,27 @@ pub fn save_session_scoped_for_tenant(
     }
 }
 
+/// 按显式租户保存 UI 快照，但保留独立持久化的原始调用记录。
+pub fn save_session_ui_snapshot_scoped_for_tenant(
+    tenant: &TenantScope,
+    session: &ChatSession,
+    scope: Option<&str>,
+) -> Option<PathBuf> {
+    ensure_scope_project_metadata(scope);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation("save session UI snapshot", tenant, scope, |store, project_scope| {
+            store.save_session_ui_snapshot(project_scope, session)?;
+            Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        ui_store::save_session_scoped(data_dir(), session, scope)
+    }
+}
+
 /// 执行 delete_session 操作，并返回调用方需要的结果。
 pub fn delete_session(id: &str) {
     delete_session_scoped(id, session_scope().as_deref());

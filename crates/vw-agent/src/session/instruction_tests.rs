@@ -347,6 +347,14 @@ fn extract_skill_md_paths_keeps_backtick_and_bare_paths_in_order() {
     );
 }
 
+#[test]
+fn mentions_skill_name_requires_complete_identifier_boundaries() {
+    assert!(mentions_skill_name("优先使用 RustCodeGraph 技能", "rustcodegraph"));
+    assert!(mentions_skill_name("skill: `rustcodegraph`", "rustcodegraph"));
+    assert!(!mentions_skill_name("使用 rustcodegraph-pro", "rustcodegraph"));
+    assert!(!mentions_skill_name("使用 myrustcodegraph", "rustcodegraph"));
+}
+
 #[tokio::test]
 async fn project_agents_appends_required_skills_absolute_paths() {
     let _guard = ENV_LOCK.lock().await;
@@ -393,6 +401,33 @@ async fn project_agents_preloads_referenced_skill_instructions() {
 
     assert!(resolved.content.contains("<preloaded_skill_instructions>"));
     assert!(resolved.content.contains("MUST_USE_GRAPH_FIRST"));
+}
+
+#[tokio::test]
+async fn project_agents_preloads_skill_referenced_only_by_name() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let skill_dir = selected.path().join("skills/rustcodegraph");
+    std::fs::create_dir_all(&skill_dir).expect("create skill dir");
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: rustcodegraph\ndescription: graph navigation\n---\n\nMUST_USE_NAMED_GRAPH_FIRST\n",
+    )
+    .expect("write skill");
+    std::fs::write(
+        selected.path().join("AGENTS.md"),
+        "代码导航优先使用 rustcodegraph 技能；未覆盖时使用 rg。\n",
+    )
+    .expect("write agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let config = config::Config::default();
+    let resolved = project_agents_with_config(selected.path().to_str(), &config)
+        .await
+        .expect("selected agents");
+
+    assert!(resolved.content.contains("<preloaded_skill_instructions>"));
+    assert!(resolved.content.contains("MUST_USE_NAMED_GRAPH_FIRST"));
 }
 
 #[tokio::test]

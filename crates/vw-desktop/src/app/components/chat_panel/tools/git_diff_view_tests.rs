@@ -321,14 +321,15 @@ fn git_diff_styles_cover_dark_light_and_state_variants() {
     let light_hovered = tool_card_style(&Theme::Light, false, true, false);
     let light_error = tool_card_style(&Theme::Light, true, false, false);
 
-    assert!(dark_normal.background.is_some());
+    assert!(dark_normal.background.is_none());
     assert_ne!(dark_normal.background, dark_hovered.background);
     assert_eq!(dark_hovered.background, dark_expanded.background);
     assert_ne!(dark_normal.background, dark_error.background);
-    assert_ne!(dark_normal.background, light_normal.background);
     assert_ne!(light_normal.background, light_hovered.background);
     assert_ne!(light_normal.background, light_error.background);
-    assert_eq!(dark_normal.border.width, 1.0);
+    assert_ne!(dark_hovered.background, light_hovered.background);
+    assert_eq!(dark_normal.border.width, 0.0);
+    assert_eq!(dark_error.border.width, 0.0);
     assert_eq!(dark_normal.border.radius.top_left, 14.0);
 
     let dark_content = tool_content_style(&Theme::Dark, false);
@@ -338,6 +339,7 @@ fn git_diff_styles_cover_dark_light_and_state_variants() {
     assert_ne!(dark_content.background, dark_error_content.background);
     assert_ne!(dark_content.background, light_content.background);
     assert_ne!(light_content.background, light_error_content.background);
+    assert_eq!(dark_content.border.width, 0.0);
     assert_eq!(dark_content.border.radius.top_left, 12.0);
 }
 
@@ -354,10 +356,11 @@ fn git_diff_button_style_covers_active_hovered_and_pressed_states() {
 
     assert_ne!(active.background, hovered.background);
     assert_ne!(hovered.background, pressed.background);
-    assert_ne!(active.background, light_active.background);
+    assert_eq!(active.background, light_active.background);
     assert_ne!(light_active.background, light_hovered.background);
     assert_ne!(light_hovered.background, light_pressed.background);
-    assert_eq!(active.border.width, 1.0);
+    assert_ne!(hovered.background, light_hovered.background);
+    assert_eq!(active.border.width, 0.0);
     assert_eq!(active.border.radius.top_left, 11.0);
     assert_eq!(active.text_color, Theme::Dark.palette().text);
 }

@@ -404,6 +404,39 @@ fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn stream_session_save_stops_retries_after_payload_too_large() {
+    use std::sync::{Arc, Mutex};
+
+    let coordinator = super::StreamSessionSaveCoordinator::default();
+    let saved_count = Arc::new(Mutex::new(0));
+    let first_count = Arc::clone(&saved_count);
+    let snapshot = crate::app::models::ChatSession {
+        id: "oversized-session".to_string(),
+        title: "Session".to_string(),
+        messages: vec![chat_message(ChatRole::Assistant, "answer")],
+        message_ids: vec![None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    };
+
+    coordinator.save(snapshot.clone(), None, move |_, _| {
+        *first_count.lock().expect("save count lock") += 1;
+        Err("gateway request failed: 413 Payload Too Large".to_string())
+    });
+
+    let second_count = Arc::clone(&saved_count);
+    coordinator.save(snapshot, None, move |_, _| {
+        *second_count.lock().expect("save count lock") += 1;
+        Ok(None)
+    });
+
+    assert_eq!(*saved_count.lock().expect("save count lock"), 1);
+}
+
+#[test]
 fn maybe_generate_session_title_accepts_multiline_initial_input_title() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("session-1".to_string());

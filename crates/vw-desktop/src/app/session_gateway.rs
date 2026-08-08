@@ -348,20 +348,19 @@ pub async fn gateway_save_session_async(
     directory: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
+    // 原始 calls 由网关/流处理器独立持久化；UI 快照不再重复携带它们。
     let mut session_to_save = session.clone();
-    if session_to_save.calls.is_empty()
-        && let Some(existing) = client.session_ui_get(&session.id, directory).await?
-        && !existing.calls.is_empty()
-    {
-        tracing::info!(
+    let omitted_call_count = session_to_save.calls.len();
+    session_to_save.calls.clear();
+    if omitted_call_count > 0 {
+        tracing::debug!(
             target: "vw_desktop",
-            session_id = %session.id,
-            call_count = existing.calls.len(),
-            "preserving existing raw call records while saving session ui snapshot"
+            session_id = %session_to_save.id,
+            omitted_call_count,
+            "omitted raw call records from session ui snapshot"
         );
-        session_to_save.calls = existing.calls;
     }
-    tracing::info!(
+    tracing::debug!(
         target: "vw_desktop",
         session_id = %session_to_save.id,
         directory = ?directory,

@@ -417,6 +417,32 @@ fn stream_delta_defers_session_save_off_update_path() {
 }
 
 #[test]
+fn queued_stream_deltas_are_coalesced_until_flush() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![None; app.chat.len()];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
+    let second_task = super::queue_agent_stream_delta(&mut app, 42, " world".to_string());
+
+    assert!(first_task.units() > 0);
+    assert_eq!(second_task.units(), 0);
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat.last().unwrap().content, "question");
+    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, "hello world");
+
+    let _flush_task = super::flush_agent_stream_delta(&mut app, session_id.clone());
+
+    assert_eq!(app.chat.last().unwrap().content, "hello world");
+    assert!(app.get_session_runtime(&session_id).pending_stream_delta.is_empty());
+    assert!(!app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
+}
+
+#[test]
 fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();

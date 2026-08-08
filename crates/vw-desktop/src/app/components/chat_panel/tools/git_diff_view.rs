@@ -2,7 +2,7 @@
 //!
 //! 本模块把结构化或文本形式的 Git diff 输出转换为聊天面板中的紧凑预览。
 
-use iced::widget::{Space, button, column, container, mouse_area, row, svg, text};
+use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, svg, text};
 /// 重新导出 use iced::{Alignment, Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 /// 重新导出 use std::collections::HashMap，让上层模块通过稳定路径访问。
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use crate::app::assets::Icon;
 /// 重新导出 use crate::app::components::chat_panel::utils::{，让上层模块通过稳定路径访问。
 use crate::app::components::chat_panel::utils::{
-    change_pills, eye_icon_button_style, icon_svg, truncate_chars,
+    change_pills, chat_scroll_direction, eye_icon_button_style, icon_svg, truncate_chars,
 };
 /// 重新导出 use crate::app::components::git_panel::embedded_custom_text_diff_view，让上层模块通过稳定路径访问。
 use crate::app::components::git_panel::embedded_custom_text_diff_view;
@@ -295,21 +295,19 @@ pub(super) fn tool_card_style(
     let base_bg = if is_error {
         ext.danger.base.color.scale_alpha(if is_dark { 0.12 } else { 0.08 })
     } else if is_hovered || expanded {
-        ext.background.weak.color.scale_alpha(if is_dark { 0.30 } else { 0.75 })
+        ext.background.weak.color.scale_alpha(if is_dark { 0.18 } else { 0.30 })
     } else {
-        ext.background.weak.color.scale_alpha(if is_dark { 0.18 } else { 0.52 })
+        Color::TRANSPARENT
     };
-    let border_color = if is_error {
-        ext.danger.base.color.scale_alpha(if is_dark { 0.40 } else { 0.32 })
-    } else {
-        ext.background.strong.color.scale_alpha(if is_dark { 0.60 } else { 0.75 })
-    };
-
     iced::widget::container::Style {
         // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        background: Some(Background::Color(base_bg)),
+        background: if is_error || is_hovered || expanded {
+            Some(Background::Color(base_bg))
+        } else {
+            None
+        },
         // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border { width: 1.0, color: border_color, radius: 14.0.into() },
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 14.0.into() },
         ..Default::default()
     }
 }
@@ -340,14 +338,18 @@ pub(super) fn tool_content_style(theme: &Theme, is_error: bool) -> iced::widget:
     let border = if is_error {
         ext.danger.base.color.scale_alpha(if is_dark { 0.35 } else { 0.28 })
     } else {
-        ext.background.strong.color.scale_alpha(if is_dark { 0.55 } else { 0.75 })
+        Color::TRANSPARENT
     };
 
     iced::widget::container::Style {
         // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         background: Some(Background::Color(background)),
         // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        border: Border { width: 1.0, color: border, radius: 12.0.into() },
+        border: Border {
+            width: if is_error { 1.0 } else { 0.0 },
+            color: border,
+            radius: 12.0.into(),
+        },
         ..Default::default()
     }
 }
@@ -382,7 +384,7 @@ pub(super) fn tool_item_button_style(
         iced::widget::button::Status::Hovered => {
             Some(ext.background.weak.color.scale_alpha(if is_dark { 0.38 } else { 0.78 }))
         }
-        _ => Some(ext.background.base.color.scale_alpha(if is_dark { 0.16 } else { 0.96 })),
+        _ => None,
     };
 
     iced::widget::button::Style {
@@ -391,9 +393,9 @@ pub(super) fn tool_item_button_style(
         // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         border: Border {
             // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            width: 1.0,
+            width: 0.0,
             // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            color: ext.background.strong.color.scale_alpha(if is_dark { 0.55 } else { 0.82 }),
+            color: Color::TRANSPARENT,
             // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             radius: 11.0.into(),
         },
@@ -460,14 +462,7 @@ fn diff_pill<'a>() -> Element<'a, Message> {
                 ext.background.base.color.scale_alpha(0.35)
             })),
             // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            border: Border {
-                // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                width: 1.0,
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: ext.background.strong.color.scale_alpha(if is_dark { 0.48 } else { 0.72 }),
-                // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                radius: 999.0.into(),
-            },
+            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
             // text_color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             text_color: Some(secondary_text(theme, 0.9, 0.86)),
             ..Default::default()
@@ -524,7 +519,13 @@ pub(super) fn render_git_diff_content<'a>(
     // after 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     after: String,
 ) -> Element<'a, Message> {
-    container(embedded_custom_text_diff_view(app, title, path, before, after, None))
+    // 聊天虚拟列表不能吞下整文件 diff：无高度上限会撑爆消息高度，
+    // 导致 spacer/测量错乱，表现为点击「查看变更」后整页空白。
+    const INLINE_DIFF_MAX_HEIGHT: f32 = 360.0;
+    let diff = scrollable(embedded_custom_text_diff_view(app, title, path, before, after, None))
+        .direction(chat_scroll_direction())
+        .height(Length::Fixed(INLINE_DIFF_MAX_HEIGHT));
+    container(diff)
         .width(Length::Fill)
         .style(|theme: &Theme| tool_content_style(theme, false))
         .padding(6)
@@ -571,7 +572,12 @@ pub(super) fn git_diff_body<'a>(
 
         let button_row = row![
             row![
-                icon_svg(Icon::GitBranch).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)),
+                icon_svg(Icon::GitBranch)
+                    .width(Length::Fixed(12.0))
+                    .height(Length::Fixed(12.0))
+                    .style(|theme: &Theme, _status| svg::Style {
+                        color: Some(secondary_text(theme, 0.94, 0.92)),
+                    }),
                 text(label).size(14).style(|theme: &Theme| iced::widget::text::Style {
                     // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                     color: Some(secondary_text(theme, 0.94, 0.92)),
@@ -728,42 +734,8 @@ pub fn tool_git_diff_view<'a>(
     )))
     .into();
 
-    let mut head_row = row![
-        tool_header_title("git_diff", title, is_error),
-        container(icon_svg(Icon::GitBranch).width(Length::Fixed(13.0)).height(Length::Fixed(13.0)))
-            .padding([5, 6])
-            .style(|theme: &Theme| {
-                let ext = theme.extended_palette();
-                let is_dark = theme.palette().background.r
-                    + theme.palette().background.g
-                    + theme.palette().background.b
-                    < 1.5;
-                iced::widget::container::Style {
-                    // background 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    background: Some(Background::Color(if is_dark {
-                        ext.background.weak.color.scale_alpha(0.30)
-                    } else {
-                        ext.background.base.color.scale_alpha(0.28)
-                    })),
-                    // border 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    border: Border {
-                        // width 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        width: 1.0,
-                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        color: ext.background.strong.color.scale_alpha(if is_dark {
-                            0.5
-                        } else {
-                            0.64
-                        }),
-                        // radius 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        radius: 10.0.into(),
-                    },
-                    ..Default::default()
-                }
-            }),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let mut head_row =
+        row![tool_header_title("git_diff", title, is_error),].spacing(8).align_y(Alignment::Center);
 
     if !summary.is_empty() {
         head_row = head_row.push(text(summary).size(13).style(|theme: &Theme| {

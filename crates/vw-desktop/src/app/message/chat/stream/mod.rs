@@ -22,7 +22,7 @@ use iced::Task;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use std::cell::RefCell;
 #[cfg(not(target_arch = "wasm32"))]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{LazyLock, Mutex};
 use vw_shared::session::session_utils::is_default_title;
@@ -90,7 +90,14 @@ struct PendingSessionSave {
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 struct StreamSessionSaveCoordinator {
-    in_flight: Mutex<HashMap<String, Option<PendingSessionSave>>>,
+    state: Mutex<StreamSessionSaveState>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct StreamSessionSaveState {
+    in_flight: HashMap<String, Option<PendingSessionSave>>,
+    blocked_sessions: HashSet<String>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,24 +112,39 @@ impl StreamSessionSaveCoordinator {
         let session_id = session.id.clone();
         let mut current = PendingSessionSave { session, directory };
         {
-            let mut in_flight = self.in_flight.lock().expect("stream session save lock");
-            if let Some(pending) = in_flight.get_mut(&session_id) {
+            let mut state = self.state.lock().expect("stream session save lock");
+            if state.blocked_sessions.contains(&session_id) {
+                return;
+            }
+            if let Some(pending) = state.in_flight.get_mut(&session_id) {
                 *pending = Some(current);
                 return;
             }
-            in_flight.insert(session_id.clone(), None);
+            state.in_flight.insert(session_id.clone(), None);
         }
 
         loop {
-            let _ = save(&current.session, current.directory.as_deref());
+            let result = save(&current.session, current.directory.as_deref());
+            if matches!(&result, Err(error) if error.contains("413 Payload Too Large")) {
+                let mut state = self.state.lock().expect("stream session save lock");
+                state.blocked_sessions.insert(session_id.clone());
+                state.in_flight.remove(&session_id);
+                tracing::warn!(
+                    target: "vw_desktop",
+                    session_id = %session_id,
+                    "disabling stream session saves after payload-too-large response"
+                );
+                break;
+            }
             let next = {
-                let mut in_flight = self.in_flight.lock().expect("stream session save lock");
-                let pending = in_flight
+                let mut state = self.state.lock().expect("stream session save lock");
+                let pending = state
+                    .in_flight
                     .get_mut(&session_id)
                     .expect("in-flight stream session save should remain registered")
                     .take();
                 if pending.is_none() {
-                    in_flight.remove(&session_id);
+                    state.in_flight.remove(&session_id);
                 }
                 pending
             };
@@ -251,7 +273,10 @@ pub(super) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::AgentStreamDelta(id, delta) => {
-            stream_events::handle_agent_stream_delta(app, id, delta)
+            stream_events::queue_agent_stream_delta(app, id, delta)
+        }
+        ChatMessage::AgentStreamDeltaFlush(session_id) => {
+            stream_events::flush_agent_stream_delta(app, session_id)
         }
         ChatMessage::AgentContextLoaded(id, paths) => {
             stream_events::handle_agent_context_loaded(app, id, paths)
@@ -276,7 +301,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             query,
         ),
         ChatMessage::PlanRunSessionDelta { session_id, delta } => {
-            stream_events::handle_agent_session_delta(app, session_id, delta)
+            stream_events::queue_agent_session_delta(app, session_id, delta)
         }
         ChatMessage::PlanRunSessionWaiting(session_id) => {
             handle_plan_run_session_waiting(app, session_id)
@@ -288,6 +313,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             stream_events::handle_plan_run_session_finished(app, session_id)
         }
         ChatMessage::AgentStepStart(id, session_id, step_index, created_ms, model) => {
+            let _ = stream_events::flush_agent_stream_delta_for_request(app, id);
             steps::handle_agent_step_start(app, id, session_id, step_index, created_ms, model)
         }
         ChatMessage::AgentStepFinish(
@@ -298,16 +324,19 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             usage,
             finish_reason,
             model,
-        ) => steps::handle_agent_step_finish(
-            app,
-            id,
-            session_id,
-            step_index,
-            finished_ms,
-            usage,
-            finish_reason,
-            model,
-        ),
+        ) => {
+            let _ = stream_events::flush_agent_stream_delta_for_request(app, id);
+            steps::handle_agent_step_finish(
+                app,
+                id,
+                session_id,
+                step_index,
+                finished_ms,
+                usage,
+                finish_reason,
+                model,
+            )
+        }
         ChatMessage::SessionSaveAck => Task::none(),
         ChatMessage::AgentStepCostLoaded(_id, session_id, step_index, resolved_model, cost) => {
             steps::handle_agent_step_cost_loaded(app, session_id, step_index, resolved_model, cost)
@@ -408,15 +437,17 @@ fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Me
         return Task::none();
     }
 
+    let flush_task = stream_events::flush_agent_stream_delta(app, session_id.to_string());
     app.get_session_runtime_mut(session_id).is_requesting = true;
     app.sync_task_pet_from_runtime();
-    Task::none()
+    flush_task
 }
 
 fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    let flush_task = stream_events::flush_agent_stream_delta(app, session_id.clone());
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     {
@@ -431,7 +462,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     if is_active_session {
         app.sync_active_session_from_chat();
     }
-    start_next(app, &session_id)
+    flush_task.chain(start_next(app, &session_id))
 }
 
 /// 模块内可见函数，执行 maybe_generate_session_title 对应的应用流程。

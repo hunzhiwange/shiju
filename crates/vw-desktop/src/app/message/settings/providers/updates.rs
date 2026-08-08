@@ -462,7 +462,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.custom_editing_provider_id = None;
                 app.provider_settings.save_error = None;
                 app.provider_settings.custom_provider_modal_open = false;
-                Task::none()
+                Task::perform(async { vw_provider_resolver::provider::invalidate_cache().await }, |_| {
+                    Message::Settings(SettingsMessage::ProvidersRefresh)
+                })
             }
             Err(e) => {
                 app.provider_settings.loading = false;

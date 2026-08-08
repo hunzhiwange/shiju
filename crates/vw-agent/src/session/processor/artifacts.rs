@@ -11,22 +11,60 @@ use crate::session::session::{Role, Session};
 use crate::session::ui_types as models;
 use serde_json::{Value, json};
 
+/// UI 会话中的 `calls` 只用于计数和诊断；完整 prompt 已按 step 单独保存在
+/// `session_step_llm_raw`，这里不能再次把不断增长的历史完整复制进去。
+const COMPACT_CALL_PROMPT_BYTES: usize = 4 * 1024;
+const COMPACT_CALL_MESSAGES_BYTES: usize = 4 * 1024;
+const COMPACT_CALL_ANSWER_BYTES: usize = 4 * 1024;
+const COMPACT_CALL_MESSAGE_BYTES: usize = 2 * 1024;
+
+fn compact_text(value: &str, max_bytes: usize) -> String {
+    if value.len() <= max_bytes {
+        return value.to_string();
+    }
+
+    const MARKER: &str = "\n…<context compacted>…\n";
+    let content_budget = max_bytes.saturating_sub(MARKER.len());
+    let head_budget = content_budget / 2;
+    let tail_budget = content_budget.saturating_sub(head_budget);
+    let mut head_end = head_budget.min(value.len());
+    while head_end > 0 && !value.is_char_boundary(head_end) {
+        head_end -= 1;
+    }
+    let mut tail_start = value.len().saturating_sub(tail_budget);
+    while tail_start < value.len() && !value.is_char_boundary(tail_start) {
+        tail_start += 1;
+    }
+    format!("{}{}{}", &value[..head_end], MARKER, &value[tail_start..])
+}
+
 fn session_messages_payload(session: &Session) -> Vec<Value> {
-    session
-        .messages
-        .iter()
-        .map(|message| {
-            json!({
-                "role": match message.role {
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    Role::System => "system",
-                    Role::Tool => "tool",
-                },
-                "content": message.content,
-            })
-        })
-        .collect()
+    let mut messages = Vec::new();
+    let mut used_bytes = 0usize;
+
+    for message in session.messages.iter().rev() {
+        let role = match message.role {
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::System => "system",
+            Role::Tool => "tool",
+        };
+        let value = json!({
+            "role": role,
+            "content": compact_text(&message.content, COMPACT_CALL_MESSAGE_BYTES),
+        });
+        let value_bytes = serde_json::to_vec(&value).map_or(0, |serialized| serialized.len());
+        if !messages.is_empty()
+            && used_bytes.saturating_add(value_bytes) > COMPACT_CALL_MESSAGES_BYTES
+        {
+            break;
+        }
+        used_bytes = used_bytes.saturating_add(value_bytes);
+        messages.push(value);
+    }
+
+    messages.reverse();
+    messages
 }
 
 /// 持久化单步 AI 调用摘要载荷。
@@ -61,14 +99,13 @@ pub(crate) fn persist_step_ai_call_payload(
             "cached_tokens": usage_now.cached_tokens,
             "reasoning_tokens": usage_now.reasoning_tokens,
         },
-        "prompt": prompting::build_prompt(
-            session,
-            req.model.as_deref(),
-            req.root.as_deref(),
-            None,
+        "prompt": compact_text(
+            &prompting::build_prompt(session, req.model.as_deref(), req.root.as_deref(), None),
+            COMPACT_CALL_PROMPT_BYTES,
         ),
-        "answer": step.text,
+        "answer": compact_text(&step.text, COMPACT_CALL_ANSWER_BYTES),
         "messages": session_messages_payload(session),
+        "context_compacted": true,
     });
     let _ = crate::session::ui_store::persist_ai_call_payload(
         &req.session,
@@ -161,14 +198,13 @@ pub(crate) fn persist_final_ai_call_payload(
             "cached_tokens": total_usage.cached_tokens,
             "reasoning_tokens": total_usage.reasoning_tokens,
         },
-        "prompt": prompting::build_prompt(
-            session,
-            req.model.as_deref(),
-            req.root.as_deref(),
-            None,
+        "prompt": compact_text(
+            &prompting::build_prompt(session, req.model.as_deref(), req.root.as_deref(), None),
+            COMPACT_CALL_PROMPT_BYTES,
         ),
-        "answer": answer,
+        "answer": compact_text(answer, COMPACT_CALL_ANSWER_BYTES),
         "messages": session_messages_payload(session),
+        "context_compacted": true,
     });
     let _ = crate::session::ui_store::persist_ai_call_payload(
         &req.session,

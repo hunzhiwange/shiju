@@ -6,6 +6,7 @@ use iced::Subscription;
 use super::agent_stream::agent_stream;
 use super::message;
 use super::{App, Message, Screen};
+use crate::app::components::status_animation::ACTIVITY_ANIMATION_INTERVAL_MS;
 use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -193,7 +194,7 @@ impl App {
             || self.has_active_explore_summary_animation()
             || self.task_pet_window_id.is_some()
         {
-            iced::time::every(std::time::Duration::from_millis(90))
+            iced::time::every(std::time::Duration::from_millis(ACTIVITY_ANIMATION_INTERVAL_MS))
                 .map(|_| Message::View(message::ViewMessage::ActivityAnimationTick))
         } else {
             Subscription::none()

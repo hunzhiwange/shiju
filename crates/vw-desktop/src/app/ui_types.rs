@@ -19,6 +19,14 @@ pub enum TodoPanelPlacement {
     ChatTopRight,
 }
 
+/// 编辑菜单剪切/复制/粘贴的上下文路由种类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClipboardShortcutKind {
+    Copy,
+    Cut,
+    Paste,
+}
+
 impl TodoPanelPlacement {
     pub(crate) fn label(self) -> &'static str {
         match self {
@@ -107,6 +115,12 @@ pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
     PreviewLspTick,
     CopyShortcut,
+    CutShortcut,
+    PasteShortcut,
+    ClipboardShortcutRouted {
+        kind: ClipboardShortcutKind,
+        input_focused: bool,
+    },
     CopyCode(String),
     CopyFile(String),
     CopyDone,

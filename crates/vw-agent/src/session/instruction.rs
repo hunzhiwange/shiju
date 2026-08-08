@@ -8,6 +8,9 @@ use crate::app::agent::flag;
 use crate::app::agent::global;
 use crate::app::agent::project::instance;
 use crate::app::agent::session::message;
+use crate::app::agent::skills::{
+    SkillLoadMode, load_skills_from_directory, skills_to_prompt_with_mode,
+};
 use crate::app::agent::util::filesystem;
 use crate::app::agent::util::log;
 use regex::Regex;
@@ -84,24 +87,92 @@ fn extract_skill_md_paths(content: &str) -> Vec<String> {
     out
 }
 
-/// 将协议中的技能路径展开为 Codex 风格的绝对路径列表。
-///
-/// 只给路径，不加技能描述；模型按路径 Read 后执行。
-fn format_required_skills_block(project_root: &Path, content: &str) -> String {
+/// 将协议中的技能引用展开为已预加载指令或待读取的绝对路径。
+fn format_required_skills_block(
+    project_root: &Path,
+    content: &str,
+    config: &config::Config,
+) -> String {
     let paths = extract_skill_md_paths(content);
     if paths.is_empty() {
         return String::new();
     }
 
-    let mut block = String::from("\n\n<required_skills>\n");
+    let canonical_root = std::fs::canonicalize(project_root).ok();
+    let mut loaded_skills = Vec::new();
+    let mut loaded_directories = HashSet::new();
+    let mut unresolved_paths = Vec::new();
+
     for path in paths {
-        let absolute = if Path::new(&path).is_absolute() {
-            normalize_str(&path)
+        let absolute_path = if Path::new(&path).is_absolute() {
+            PathBuf::from(&path)
         } else {
-            let relative = path.trim_start_matches("./");
-            normalize_str(project_root.join(relative))
+            project_root.join(path.trim_start_matches("./"))
         };
-        let _ = writeln!(block, "{absolute}");
+        let rendered_path = normalize_str(&absolute_path);
+
+        let Some((canonical_root, canonical_file)) =
+            canonical_root.as_ref().zip(std::fs::canonicalize(&absolute_path).ok())
+        else {
+            unresolved_paths.push(rendered_path);
+            continue;
+        };
+        if !canonical_file.starts_with(canonical_root) || !canonical_file.is_file() {
+            unresolved_paths.push(rendered_path);
+            continue;
+        }
+
+        let Some(skill_directory) = canonical_file.parent().map(Path::to_path_buf) else {
+            unresolved_paths.push(rendered_path);
+            continue;
+        };
+        if loaded_directories.contains(&skill_directory) {
+            continue;
+        }
+        let Some(source_directory) = skill_directory.parent() else {
+            unresolved_paths.push(rendered_path);
+            continue;
+        };
+
+        let selected = load_skills_from_directory(
+            source_directory,
+            SkillLoadMode::Full,
+            &config.skills.security,
+        )
+        .into_iter()
+        .find(|skill| {
+            skill
+                .location
+                .as_deref()
+                .and_then(Path::parent)
+                .and_then(|directory| std::fs::canonicalize(directory).ok())
+                .is_some_and(|directory| directory == skill_directory)
+        });
+
+        if let Some(skill) = selected {
+            loaded_directories.insert(skill_directory);
+            loaded_skills.push(skill);
+        } else {
+            unresolved_paths.push(rendered_path);
+        }
+    }
+
+    let mut block = String::from("\n\n<required_skills>\n");
+    if !loaded_skills.is_empty() {
+        block.push_str("<preloaded_skill_instructions>\n");
+        block.push_str(&skills_to_prompt_with_mode(
+            &loaded_skills,
+            project_root,
+            config::SkillsPromptInjectionMode::Full,
+        ));
+        block.push_str("\n</preloaded_skill_instructions>\n");
+    }
+    if !unresolved_paths.is_empty() {
+        block.push_str("<unresolved_skill_paths>\n");
+        for path in unresolved_paths {
+            let _ = writeln!(block, "{path}");
+        }
+        block.push_str("</unresolved_skill_paths>\n");
     }
     block.push_str("</required_skills>");
     block
@@ -272,10 +343,21 @@ pub async fn system() -> Vec<String> {
 /// 读取当前请求所选项目根目录下的 `AGENTS.md`。
 ///
 /// 该来源独立于系统/全局指令发现：调用方可将项目协议追加到系统提示词，同时只把
-/// 此路径暴露给界面。若正文提到 `SKILL.md` 路径，会追加 Codex 风格的
-/// `<required_skills>` 绝对路径列表（不含技能描述）。项目配置被禁用、根目录为空、
-/// 文件缺失或内容为空时返回 `None`。
+/// 此路径暴露给界面。若正文提到项目内的 `SKILL.md`，会通过现有安全审计加载完整
+/// 指令；无法安全加载的引用保留为绝对路径，交给模型显式读取或报告。项目配置被
+/// 禁用、根目录为空、文件缺失或内容为空时返回 `None`。
 pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
+    if flag::vibewindow_disable_project_config() || root.is_none_or(|root| root.trim().is_empty()) {
+        return None;
+    }
+    let config = config::get().await;
+    project_agents_with_config(root, &config).await
+}
+
+async fn project_agents_with_config(
+    root: Option<&str>,
+    config: &config::Config,
+) -> Option<Resolved> {
     if flag::vibewindow_disable_project_config() {
         return None;
     }
@@ -290,7 +372,7 @@ pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
     if content.trim().is_empty() {
         return None;
     }
-    let skills_block = format_required_skills_block(&root_path, &content);
+    let skills_block = format_required_skills_block(&root_path, &content, config);
     Some(Resolved {
         filepath: filepath.clone(),
         content: format!("Instructions from: {}\n{}{}", filepath, content, skills_block),

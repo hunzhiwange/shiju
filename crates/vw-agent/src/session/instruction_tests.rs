@@ -325,7 +325,10 @@ async fn project_agents_reads_only_selected_project_root() {
         .expect("write other agents");
     let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
 
-    let resolved = project_agents(selected.path().to_str()).await.expect("selected agents");
+    let config = config::Config::default();
+    let resolved = project_agents_with_config(selected.path().to_str(), &config)
+        .await
+        .expect("selected agents");
 
     assert_eq!(resolved.filepath, normalize_str(selected_agents));
     assert!(resolved.content.contains("selected project rules"));
@@ -360,8 +363,66 @@ async fn project_agents_appends_required_skills_absolute_paths() {
     let expected = normalize_str(selected.path().join("skills/rustcodegraph/SKILL.md"));
 
     assert!(resolved.content.contains("<required_skills>"));
+    assert!(resolved.content.contains("<unresolved_skill_paths>"));
     assert!(resolved.content.contains(&expected));
     assert!(resolved.content.contains("</required_skills>"));
+}
+
+#[tokio::test]
+async fn project_agents_preloads_referenced_skill_instructions() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let skill_dir = selected.path().join("skills/rustcodegraph");
+    std::fs::create_dir_all(&skill_dir).expect("create skill dir");
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: rustcodegraph\ndescription: graph navigation\n---\n\nMUST_USE_GRAPH_FIRST\n",
+    )
+    .expect("write skill");
+    std::fs::write(
+        selected.path().join("AGENTS.md"),
+        "导航：先使用 `./skills/rustcodegraph/SKILL.md`。\n",
+    )
+    .expect("write agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let config = config::Config::default();
+    let resolved = project_agents_with_config(selected.path().to_str(), &config)
+        .await
+        .expect("selected agents");
+
+    assert!(resolved.content.contains("<preloaded_skill_instructions>"));
+    assert!(resolved.content.contains("MUST_USE_GRAPH_FIRST"));
+}
+
+#[tokio::test]
+async fn project_agents_does_not_preload_skill_outside_project_root() {
+    let _guard = ENV_LOCK.lock().await;
+    let selected = tempfile::tempdir().expect("selected project");
+    let outside = tempfile::tempdir().expect("outside project");
+    let skill_dir = outside.path().join("skills/external");
+    std::fs::create_dir_all(&skill_dir).expect("create external skill dir");
+    let skill_path = skill_dir.join("SKILL.md");
+    std::fs::write(
+        &skill_path,
+        "---\nname: external\ndescription: external skill\n---\n\nMUST_NOT_BE_PRELOADED\n",
+    )
+    .expect("write external skill");
+    std::fs::write(
+        selected.path().join("AGENTS.md"),
+        format!("先使用 `{}`。\n", skill_path.display()),
+    )
+    .expect("write agents");
+    let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
+
+    let config = config::Config::default();
+    let resolved = project_agents_with_config(selected.path().to_str(), &config)
+        .await
+        .expect("selected agents");
+
+    assert!(resolved.content.contains("<unresolved_skill_paths>"));
+    assert!(resolved.content.contains(&normalize_str(&skill_path)));
+    assert!(!resolved.content.contains("MUST_NOT_BE_PRELOADED"));
 }
 
 #[tokio::test]

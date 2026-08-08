@@ -415,6 +415,9 @@ fn configured_server_panel<'a>(
     let edit_message = controls_enabled.then(|| {
         Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditRequested(server_index)))
     });
+    let delete_message = controls_enabled.then(|| {
+        Message::Settings(SettingsMessage::Mcp(McpMessage::RequestDelete(server_index)))
+    });
 
     let mut content = column![
         row![
@@ -429,6 +432,7 @@ fn configured_server_panel<'a>(
             .width(Length::Fill),
             badges,
             toolbar_button("编辑", edit_message),
+            toolbar_button("删除", delete_message),
             toolbar_button(preview_label, preview_action_message(preview_enabled)),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
@@ -846,6 +850,33 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     content.into()
+}
+
+/// 在 MCP 设置页上叠加统一的删除确认模态框。
+pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if app.mcp_settings.active_tab != McpSettingsTab::Servers {
+        return dialog;
+    }
+
+    let Some(index) = app.mcp_settings.delete_pending else {
+        return dialog;
+    };
+    let server_name = configured_mcp_server_rows(&app.mcp_settings.editor.text())
+        .ok()
+        .and_then(|rows| rows.get(index).map(|row| row.name.clone()))
+        .unwrap_or_else(|| format!("mcpServers[{index}]"));
+    let confirm = Message::Settings(SettingsMessage::Mcp(McpMessage::ConfirmDelete(index)));
+    let cancel = Message::Settings(SettingsMessage::Mcp(McpMessage::CancelDelete));
+    let confirm_dialog = crate::app::components::toast::confirm_dialog(
+        "确认删除 MCP 服务器",
+        format!("将删除 MCP 服务器「{server_name}」。此操作不可撤销。"),
+        "确认删除",
+        "取消",
+        confirm,
+        cancel,
+    );
+
+    iced::widget::stack![dialog, confirm_dialog].into()
 }
 
 #[cfg(test)]

@@ -133,19 +133,19 @@ pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
             NativeMenuAction::EditCut,
             "剪切",
             Some("⌘X"),
-            Message::Editor(crate::app::message::editor::EditorMessage::Cut),
+            Message::CutShortcut,
         ),
         MenuEntry::item(
             NativeMenuAction::EditCopy,
             "复制",
             Some("⌘C"),
-            Message::Editor(crate::app::message::editor::EditorMessage::Copy),
+            Message::CopyShortcut,
         ),
         MenuEntry::item(
             NativeMenuAction::EditPaste,
             "粘贴",
             Some("⌘V"),
-            Message::Editor(crate::app::message::editor::EditorMessage::Paste),
+            Message::PasteShortcut,
         ),
         MenuEntry::Separator,
         MenuEntry::item(

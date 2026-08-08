@@ -25,6 +25,16 @@ fn parse_shortcut_rejects_unknown_keys() {
 }
 
 #[test]
+fn clipboard_edit_actions_skip_native_accelerators() {
+    // 回归：剪切/复制/粘贴若注册系统加速键，会截获 ⌘X/⌘C/⌘V，导致输入框无法粘贴。
+    let src = include_str!("macos.rs");
+    assert!(src.contains("NativeMenuAction::EditCut"));
+    assert!(src.contains("NativeMenuAction::EditCopy"));
+    assert!(src.contains("NativeMenuAction::EditPaste"));
+    assert!(src.contains("| NativeMenuAction::EditPaste => None"));
+}
+
+#[test]
 fn window_menu_registers_as_system_windows_menu() {
     // 回归：窗口菜单必须在 init_for_nsapp 后调用 set_as_windows_menu_for_nsapp，
     // 否则 macOS 不会注入「填充 / 居中 / 移动与调整大小 / 全屏幕平铺」。

@@ -188,6 +188,33 @@ fn set_server_enabled_rejects_missing_index_without_changing_source() {
 }
 
 #[test]
+fn delete_server_removes_selected_server_and_recounts() {
+    let editor = text_editor::Content::with_text(
+        r#"[
+            {"name":"first","command":"npx"},
+            {"name":"second","command":"node"},
+            {"name":"third","command":"bun"}
+        ]"#,
+    );
+
+    let (value, count) = delete_server(&editor, 1).expect("selected server should be deleted");
+
+    assert_eq!(count, 2);
+    assert_eq!(value[0]["name"], "first");
+    assert_eq!(value[1]["name"], "third");
+}
+
+#[test]
+fn delete_server_rejects_missing_index_without_changing_source() {
+    let editor = text_editor::Content::with_text(r#"[{"name":"local","command":"npx"}]"#);
+
+    let error = delete_server(&editor, 1).expect_err("missing server index");
+
+    assert!(error.contains("mcpServers[1] in global config"));
+    assert!(editor.text().contains("local"));
+}
+
+#[test]
 fn set_runtime_server_enabled_trims_names_and_rejects_invalid_existing_overrides() {
     let overrides = set_runtime_server_enabled(&[], " plugin-mcp ", true).expect("new override");
     assert_eq!(overrides, vec![json!({"name": "plugin-mcp", "enabled": true})]);
@@ -505,6 +532,75 @@ fn edit_messages_open_save_and_cancel_single_server_form() {
     let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ServerEditCanceled));
     assert_eq!(app.mcp_settings.editing_server_index, None);
     assert_eq!(app.mcp_settings.new_server.name_input, "");
+}
+
+#[test]
+fn delete_confirmation_requires_matching_target_and_adjusts_edit_index() {
+    let mut app = app();
+    app.mcp_settings.editor = text_editor::Content::with_text(
+        r#"[
+            {"name":"first","command":"npx"},
+            {"name":"second","command":"node"},
+            {"name":"third","command":"bun"}
+        ]"#,
+    );
+    app.mcp_settings.editing_server_index = Some(2);
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
+    assert_eq!(app.mcp_settings.delete_pending, Some(1));
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(0)));
+    assert_eq!(app.mcp_settings.delete_pending, None);
+    assert!(app.mcp_settings.editor.text().contains("second"));
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(1)));
+
+    assert!(app.mcp_settings.saving);
+    assert_eq!(app.mcp_settings.server_count, 2);
+    assert!(!app.mcp_settings.editor.text().contains("second"));
+    assert_eq!(app.mcp_settings.editing_server_index, Some(1));
+}
+
+#[test]
+fn deleting_edited_server_clears_stale_form_state_and_cancel_keeps_editor() {
+    let mut app = app();
+    app.mcp_settings.editor = text_editor::Content::with_text(
+        r#"[{"name":"first","command":"npx"},{"name":"second","command":"node"}]"#,
+    );
+    app.mcp_settings.editing_server_index = Some(1);
+    app.mcp_settings.new_server_expanded = true;
+    app.mcp_settings.new_server.name_input = "second".to_string();
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::CancelDelete));
+    assert_eq!(app.mcp_settings.delete_pending, None);
+    assert!(app.mcp_settings.editor.text().contains("second"));
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(1)));
+
+    assert_eq!(app.mcp_settings.editing_server_index, None);
+    assert!(!app.mcp_settings.new_server_expanded);
+    assert_eq!(app.mcp_settings.new_server.name_input, "");
+}
+
+#[test]
+fn delete_request_rejects_invalid_index_and_confirm_without_pending_is_noop() {
+    let mut app = app();
+    app.mcp_settings.editor = text_editor::Content::with_text(
+        r#"[{"name":"local","command":"npx"}]"#,
+    );
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
+    assert_eq!(app.mcp_settings.delete_pending, None);
+    assert!(app.mcp_settings.save_error.as_deref().is_some_and(|error| {
+        error.contains("mcpServers[1] in global config")
+    }));
+
+    let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(0)));
+    assert!(!app.mcp_settings.saving);
+    assert!(app.mcp_settings.editor.text().contains("local"));
 }
 
 #[test]

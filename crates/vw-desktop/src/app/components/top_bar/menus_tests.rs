@@ -96,9 +96,9 @@ fn project_edit_menu_entries_preserve_groups_shortcuts_and_actions() {
 
     assert!(matches!(item(&entries[0]).2, Message::Editor(message::editor::EditorMessage::Undo)));
     assert!(matches!(item(&entries[1]).2, Message::Editor(message::editor::EditorMessage::Redo)));
-    assert!(matches!(item(&entries[3]).2, Message::Editor(message::editor::EditorMessage::Cut)));
-    assert!(matches!(item(&entries[4]).2, Message::Editor(message::editor::EditorMessage::Copy)));
-    assert!(matches!(item(&entries[5]).2, Message::Editor(message::editor::EditorMessage::Paste)));
+    assert!(matches!(item(&entries[3]).2, Message::CutShortcut));
+    assert!(matches!(item(&entries[4]).2, Message::CopyShortcut));
+    assert!(matches!(item(&entries[5]).2, Message::PasteShortcut));
     assert!(matches!(
         item(&entries[7]).2,
         Message::Editor(message::editor::EditorMessage::OpenSearch)

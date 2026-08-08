@@ -45,6 +45,23 @@ fn resolve_project_file_actions_match_topbar_messages() {
 }
 
 #[test]
+fn resolve_project_edit_clipboard_actions_use_focus_aware_shortcuts() {
+    let app = test_app(Screen::Project);
+    assert!(matches!(
+        resolve_native_menu_action(&app, NativeMenuAction::EditCut),
+        Some(Message::CutShortcut)
+    ));
+    assert!(matches!(
+        resolve_native_menu_action(&app, NativeMenuAction::EditCopy),
+        Some(Message::CopyShortcut)
+    ));
+    assert!(matches!(
+        resolve_native_menu_action(&app, NativeMenuAction::EditPaste),
+        Some(Message::PasteShortcut)
+    ));
+}
+
+#[test]
 fn resolve_help_actions_remain_available() {
     let app = test_app(Screen::Home);
     assert!(matches!(

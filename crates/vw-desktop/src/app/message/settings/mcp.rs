@@ -384,6 +384,23 @@ fn set_server_enabled(
     Ok((value, count))
 }
 
+fn delete_server(
+    editor: &text_editor::Content,
+    index: usize,
+) -> Result<(Value, usize), String> {
+    let (mut value, _) = editor_value(editor)?;
+    let servers =
+        value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
+    if index >= servers.len() {
+        return Err(format!(
+            "Invalid mcpServers[{index}] in global config: index out of bounds"
+        ));
+    }
+    servers.remove(index);
+    let count = validate_mcp_servers(&value)?;
+    Ok((value, count))
+}
+
 fn loaded_mcp_server_overrides(global_config: &Value) -> Vec<Value> {
     global_config.get("mcpServerOverrides").and_then(Value::as_array).cloned().unwrap_or_default()
 }
@@ -443,11 +460,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         McpMessage::TabSelected(tab) => {
             app.mcp_settings.active_tab = tab;
+            app.mcp_settings.delete_pending = None;
             Task::none()
         }
         McpMessage::Refresh => {
             app.mcp_settings.loading = true;
             app.mcp_settings.inspect_loading = true;
+            app.mcp_settings.delete_pending = None;
             app.mcp_settings.save_error = None;
             app.mcp_settings.inspect_error = None;
             app.mcp_settings.status_message = None;
@@ -457,6 +476,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.mcp_settings.loading = false;
             match result {
                 Ok(global_config) => {
+                    app.mcp_settings.delete_pending = None;
                     app.mcp_settings.runtime_overrides =
                         loaded_mcp_server_overrides(&global_config);
                     app.mcp_settings.new_server = McpNewServerState::default();
@@ -498,6 +518,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         McpMessage::EditorAction(action) => {
             app.mcp_settings.editor.perform(action);
+            app.mcp_settings.delete_pending = None;
             clear_edit_feedback(app);
             Task::none()
         }
@@ -585,6 +606,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         McpMessage::ServerEditRequested(index) => {
+            app.mcp_settings.delete_pending = None;
             match server_edit_state(&app.mcp_settings.editor, index) {
                 Ok(state) => {
                     app.mcp_settings.new_server = state;
@@ -599,6 +621,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         McpMessage::ServerEditCanceled => {
             app.mcp_settings.new_server = McpNewServerState::default();
             app.mcp_settings.editing_server_index = None;
+            app.mcp_settings.delete_pending = None;
             clear_edit_feedback(app);
             Task::none()
         }
@@ -662,6 +685,68 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else {
                 app.mcp_settings.expanded_previews.insert(key);
             }
+            Task::none()
+        }
+        McpMessage::RequestDelete(index) => {
+            if app.mcp_settings.loading
+                || app.mcp_settings.saving
+                || app.mcp_settings.active_tab != crate::app::state::McpSettingsTab::Servers
+            {
+                return Task::none();
+            }
+            match editor_value(&app.mcp_settings.editor) {
+                Ok((value, _)) if value.as_array().is_some_and(|servers| index < servers.len()) => {
+                    app.mcp_settings.delete_pending = Some(index);
+                    clear_edit_feedback(app);
+                }
+                Ok(_) => {
+                    app.mcp_settings.delete_pending = None;
+                    app.mcp_settings.save_error = Some(format!(
+                        "Invalid mcpServers[{index}] in global config: index out of bounds"
+                    ));
+                }
+                Err(err) => {
+                    app.mcp_settings.delete_pending = None;
+                    app.mcp_settings.save_error = Some(err);
+                }
+            }
+            Task::none()
+        }
+        McpMessage::ConfirmDelete(index) => {
+            let pending_matches = app.mcp_settings.delete_pending == Some(index);
+            app.mcp_settings.delete_pending = None;
+            if !pending_matches || app.mcp_settings.loading || app.mcp_settings.saving {
+                return Task::none();
+            }
+            match delete_server(&app.mcp_settings.editor, index) {
+                Ok((value, count)) => {
+                    if let Ok(text) = pretty(&value) {
+                        app.mcp_settings.editor = text_editor::Content::with_text(&text);
+                    }
+                    app.mcp_settings.server_count = count;
+                    match app.mcp_settings.editing_server_index {
+                        Some(editing_index) if editing_index == index => {
+                            app.mcp_settings.editing_server_index = None;
+                            app.mcp_settings.new_server = McpNewServerState::default();
+                            app.mcp_settings.new_server_expanded = false;
+                        }
+                        Some(editing_index) if editing_index > index => {
+                            app.mcp_settings.editing_server_index = Some(editing_index - 1);
+                        }
+                        _ => {}
+                    }
+                    app.mcp_settings.saving = true;
+                    clear_edit_feedback(app);
+                    save_task(value)
+                }
+                Err(err) => {
+                    app.mcp_settings.save_error = Some(err);
+                    Task::none()
+                }
+            }
+        }
+        McpMessage::CancelDelete => {
+            app.mcp_settings.delete_pending = None;
             Task::none()
         }
         McpMessage::Save => match editor_value(&app.mcp_settings.editor) {

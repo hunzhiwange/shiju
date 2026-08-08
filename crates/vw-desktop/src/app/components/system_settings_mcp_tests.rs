@@ -3,7 +3,7 @@ use super::{
     configured_mcp_server_rows, configured_server_panel, connection_status_label_and_tone,
     empty_preview, form_field, inspect_for_server, mcp_tab_button, mcp_tab_labels,
     new_server_panel, preview_action_message, runtime_server_panel, status_badge, status_dot_color,
-    toolbar_button, tools_preview_section, value_field, value_preview_section, view,
+    toolbar_button, tools_preview_section, value_field, value_preview_section, view, view_overlays,
 };
 use crate::app::Message;
 use crate::app::message::settings::{McpMessage, SettingsMessage};
@@ -287,4 +287,23 @@ fn view_builds_servers_runtime_and_json_tabs_with_state_variants() {
     app.mcp_settings.inspect_loading = true;
     app.mcp_settings.saving = true;
     assert!(!view(&app).as_widget().children().is_empty());
+}
+
+#[test]
+fn delete_confirmation_uses_shared_modal_overlay_and_only_shows_on_servers_tab() {
+    let (mut app, _) = crate::app::App::new();
+    app.mcp_settings.editor = text_editor::Content::with_text(
+        r#"[{"name":"demo","type":"stdio","command":"npx"}]"#,
+    );
+    app.mcp_settings.delete_pending = Some(0);
+
+    let base: iced::Element<'_, Message> = iced::widget::text("base").into();
+    let overlay = view_overlays(&app, base);
+    assert_eq!(overlay.as_widget().children().len(), 2);
+    drop(overlay);
+
+    app.mcp_settings.active_tab = McpSettingsTab::Json;
+    let base: iced::Element<'_, Message> = iced::widget::text("base").into();
+    let unchanged = view_overlays(&app, base);
+    assert!(unchanged.as_widget().children().is_empty());
 }

@@ -388,6 +388,12 @@ pub enum McpMessage {
     ServerEnabledToggled(usize, bool),
     RuntimeServerEnabledToggled(String, bool),
     PreviewExpandedToggled(String),
+    /// 请求删除指定索引的 MCP 服务器（弹出确认）。
+    RequestDelete(usize),
+    /// 确认删除指定的 MCP 服务器；处理时仍需匹配当前待确认索引。
+    ConfirmDelete(usize),
+    /// 取消删除操作。
+    CancelDelete,
     Save,
     Saved(Result<(), String>),
 }

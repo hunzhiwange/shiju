@@ -976,6 +976,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
     }
 
+    if app.system_settings_tab == SystemTab::Mcp {
+        dialog = crate::app::components::system_settings_mcp::view_overlays(app, dialog);
+    }
+
     if app.system_settings_tab == SystemTab::Gateway {
         dialog = crate::app::components::system_settings_gateway::view_overlays(app, dialog);
     }

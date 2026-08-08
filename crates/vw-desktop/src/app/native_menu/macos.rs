@@ -154,7 +154,14 @@ fn append_entries(
                 let Some(action) = *action else {
                     continue;
                 };
-                let accelerator = (*shortcut).and_then(parse_shortcut);
+                // 剪切/复制/粘贴不注册系统加速键：否则 macOS 会截获 ⌘X/⌘C/⌘V，
+                // iced 自绘输入框与代码编辑器收不到按键。菜单点击仍走应用内路由。
+                let accelerator = match action {
+                    NativeMenuAction::EditCut
+                    | NativeMenuAction::EditCopy
+                    | NativeMenuAction::EditPaste => None,
+                    _ => (*shortcut).and_then(parse_shortcut),
+                };
                 let enabled = menu_item_enabled(action, snapshot);
                 let item = MenuItem::with_id(action.id(), *label, enabled, accelerator);
                 submenu.append(&item).ok()?;

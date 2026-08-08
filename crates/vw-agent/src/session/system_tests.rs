@@ -119,8 +119,10 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "default tools must be framed as fallback when project protocol is silent"
     );
     assert!(
-        prompt.contains("<required_skills>") && prompt.contains("SKILL.md"),
-        "Codex-style skill paths from project protocol must be read before other search"
+        prompt.contains("<required_skills>")
+            && prompt.contains("<preloaded_skill_instructions>")
+            && prompt.contains("<unresolved_skill_paths>"),
+        "project skill instructions must be followed directly or read before other search"
     );
     assert!(prompt.contains("## 自主代理纪律（防走偏）"));
     assert!(prompt.contains("## 结构化工作流"));

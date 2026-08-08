@@ -732,7 +732,7 @@ fn queue_edit_restores_only_text_and_removes_the_selected_item() {
 }
 
 #[test]
-fn queue_guide_moves_the_selected_item_first_and_marks_immediate_handoff() {
+fn queue_guide_removes_item_and_dispatches_with_stop_and_send() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     crate::app::state::clear_pending_guide_handoff(42);
@@ -749,14 +749,12 @@ fn queue_guide_moves_the_selected_item_first_and_marks_immediate_handoff() {
     super::update(&mut app, super::ChatMessage::QueueGuide(1));
 
     let runtime = app.current_session_runtime();
-    assert_eq!(runtime.queue[0].query, "guide now");
-    assert_eq!(runtime.queue[0].send_behavior, crate::app::state::ChatSendBehavior::Guide);
-    assert_eq!(runtime.queue[1].query, "waiting");
-    assert!(crate::app::state::take_pending_guide_handoff(42));
+    assert_eq!(runtime.queue.len(), 1);
+    assert_eq!(runtime.queue[0].query, "waiting");
     assert!(!crate::app::state::take_pending_guide_handoff(42));
 
     super::update(&mut app, super::ChatMessage::QueueGuide(9));
-    assert_eq!(app.current_session_runtime().queue.len(), 2);
+    assert_eq!(app.current_session_runtime().queue.len(), 1);
     assert!(!crate::app::state::take_pending_guide_handoff(42));
 }
 

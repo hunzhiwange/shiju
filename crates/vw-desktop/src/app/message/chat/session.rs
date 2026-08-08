@@ -655,18 +655,10 @@ fn fork_session_locally(
 }
 
 fn save_session_task(session: models::ChatSession, directory: Option<String>) -> Task<Message> {
-    Task::perform(
-        async move {
-            crate::app::session_gateway::gateway_save_session_async(&session, directory.as_deref())
-                .await
-        },
-        |result| {
-            if let Err(error) = result {
-                tracing::warn!(target: "vw_desktop", error = %error, "failed to save session");
-            }
-            Message::Chat(ChatMessage::SessionSaveAck)
-        },
-    )
+    // Stream updates and lifecycle events can enqueue snapshots at the same time.
+    // Route this path through the same per-session coordinator so an older
+    // snapshot cannot finish after a newer one and overwrite the history.
+    stream::save_session_task(session, directory)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1382,20 +1374,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             iced::widget::operation::focus(app.input_editor_id.clone())
         }
         ChatMessage::QueueGuide(i) => {
-            let request_id = {
+            let item = {
                 let runtime = app.current_session_runtime_mut();
                 if i >= runtime.queue.len() {
                     return Task::none();
                 }
-                let mut item = runtime.queue.remove(i);
-                item.send_behavior = ChatSendBehavior::Guide;
-                runtime.queue.insert(0, item);
-                runtime.active_agent_request.as_ref().map(|request| request.id)
+                runtime.queue.remove(i)
             };
-            if let Some(request_id) = request_id {
-                crate::app::state::mark_pending_guide_handoff(request_id);
-            }
-            Task::none()
+            let mut new_item = item;
+            new_item.send_behavior = ChatSendBehavior::StopAndSend;
+            dispatch_queue_item(app, new_item)
         }
         ChatMessage::QueueUp(i) => {
             let runtime = app.current_session_runtime_mut();

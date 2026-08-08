@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use super::message;
 use super::{App, Message, Screen};
 use crate::app::state::RuntimePlatform;
+use crate::app::ui_types::ClipboardShortcutKind;
 
 fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
     acp_agents.sort_by(|left, right| {
@@ -32,6 +33,34 @@ fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
         left_key.cmp(&right_key)
     });
     acp_agents
+}
+
+fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
+    iced::widget::operation::is_focused(app.input_editor_id.clone()).map(move |input_focused| {
+        Message::ClipboardShortcutRouted { kind, input_focused }
+    })
+}
+
+fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
+    if app.screen == Screen::Project && app.show_git_copy_modal {
+        if app.git_copy_modal_use_color {
+            message::git::update(
+                app,
+                message::GitMessage::CopyModalCodeEditorEvent(iced_code_editor::Message::Copy),
+            )
+        } else {
+            Task::done(Message::CopyCode(app.git_copy_modal_editor.text()))
+        }
+    } else if app.screen == Screen::Preview {
+        message::editor::update(app, message::EditorMessage::Copy)
+    } else if app.screen == Screen::Project
+        && app.show_diff
+        && !app.git_diff_selected_lines.is_empty()
+    {
+        message::git::update(app, message::GitMessage::CopyDiffSelection)
+    } else {
+        message::editor::update(app, message::EditorMessage::Copy)
+    }
 }
 
 impl App {
@@ -606,36 +635,28 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             Message::PreviewLspTick => message::preview::tick_lsp(self),
 
-            // 复制快捷键处理（上下文感知的复制操作）
-            Message::CopyShortcut => {
-                // 在项目屏幕且显示 Git 复制模态框时
-                if self.screen == Screen::Project && self.show_git_copy_modal {
-                    if self.git_copy_modal_use_color {
-                        // 如果启用了颜色，使用代码编辑器的复制功能
-                        message::git::update(
-                            self,
-                            message::GitMessage::CopyModalCodeEditorEvent(
-                                iced_code_editor::Message::Copy,
-                            ),
-                        )
-                    } else {
-                        // 否则直接复制模态框编辑器的文本
-                        Task::done(Message::CopyCode(self.git_copy_modal_editor.text()))
-                    }
-                } else if self.screen == Screen::Preview {
-                    // 在预览屏幕下，使用编辑器的复制功能
-                    message::editor::update(self, message::EditorMessage::Copy)
-                } else if self.screen == Screen::Project
-                    && self.show_diff
-                    && !self.git_diff_selected_lines.is_empty()
-                {
-                    // 在项目屏幕且显示 diff 且有选中行时，复制 diff 选区
-                    message::git::update(self, message::GitMessage::CopyDiffSelection)
-                } else {
-                    // 其他情况不执行任何操作
-                    Task::none()
+            // 复制/剪切/粘贴：先判断聊天输入框是否聚焦，再路由到输入区或代码编辑器上下文
+            Message::CopyShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Copy),
+            Message::CutShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Cut),
+            Message::PasteShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Paste),
+            Message::ClipboardShortcutRouted { kind, input_focused } => match (kind, input_focused) {
+                (ClipboardShortcutKind::Copy, true) => {
+                    self.update(Message::Chat(message::ChatMessage::CopyInputSelection))
                 }
-            }
+                (ClipboardShortcutKind::Cut, true) => {
+                    self.update(Message::Chat(message::ChatMessage::CutInputSelection))
+                }
+                (ClipboardShortcutKind::Paste, true) => {
+                    self.update(Message::Chat(message::ChatMessage::PasteIntoInput))
+                }
+                (ClipboardShortcutKind::Copy, false) => copy_shortcut_without_input(self),
+                (ClipboardShortcutKind::Cut, false) => {
+                    message::editor::update(self, message::EditorMessage::Cut)
+                }
+                (ClipboardShortcutKind::Paste, false) => {
+                    message::editor::update(self, message::EditorMessage::Paste)
+                }
+            },
 
             // 复制代码到剪贴板
             Message::CopyCode(s) => {

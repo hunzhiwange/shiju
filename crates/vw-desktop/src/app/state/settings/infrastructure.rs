@@ -152,6 +152,8 @@ pub(crate) struct McpSettingsState {
     pub(crate) inspect_error: Option<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) status_message: Option<String>,
+    /// 待删除确认的 MCP 服务器索引。
+    pub(crate) delete_pending: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -179,6 +181,7 @@ impl Default for McpSettingsState {
             inspect_error: None,
             save_error: None,
             status_message: None,
+            delete_pending: None,
         }
     }
 }

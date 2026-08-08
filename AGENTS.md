@@ -20,7 +20,8 @@ VibeWindow 是 Rust 优先的自主代理运行时，目标是高性能、高效
 ## 工作流
 
 1. 搜索与理解
-   - Rust 代码导航优先使用 `./skills/rustcodegraph/SKILL.md` skill；未索引、文档/配置或图未覆盖时使用 `rg` 与文件读取。
+   - `./skills/rustcodegraph/SKILL.md`
+   - 未索引、文档/配置或图未覆盖时使用 `rg` 与文件读取。
    - 实现前用代码搜索验证假设。
 2. 定义范围
    - 明确当前任务的修改边界，不顺手改无关模块。

@@ -13,7 +13,7 @@ use vw_shared::provider::types::Info;
 
 use super::messages::SettingsMessage;
 use super::types::ModelStatusChange;
-use super::util::is_provider_connected;
+use super::util::{is_provider_connected, load_gateway_providers};
 
 fn summarize_models(
     providers: std::collections::HashMap<String, Info>,
@@ -51,10 +51,7 @@ fn summarize_models(
 }
 
 async fn load_models_for_settings() -> Result<Vec<ProviderModelsSummary>, String> {
-    let response = config::gateway_client()?.provider_list(None).await?;
-    let providers =
-        response.all.into_iter().map(|provider| (provider.id.clone(), provider)).collect();
-    Ok(summarize_models(providers))
+    Ok(summarize_models(load_gateway_providers().await?))
 }
 
 fn collect_model_status_changes(

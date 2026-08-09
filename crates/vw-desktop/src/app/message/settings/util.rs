@@ -1,5 +1,16 @@
 //! 提供系统设置消息处理共享的小型工具函数。
 
+use vw_shared::provider::types::Info;
+
+pub async fn load_gateway_providers() -> Result<std::collections::HashMap<String, Info>, String> {
+    let response = crate::app::config::gateway_client()?.provider_list(None).await?;
+    Ok(response
+        .all
+        .into_iter()
+        .map(|provider| (provider.id.clone(), provider))
+        .collect())
+}
+
 pub fn parse_comma_or_newline_list(input: &str) -> Vec<String> {
     input
         .split([',', '\n'])

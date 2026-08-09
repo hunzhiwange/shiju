@@ -2,7 +2,6 @@
 
 use super::types::AgentsLoaded;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
-use crate::app::provider::provider as model_provider;
 use crate::app::{
     App, Message,
     state::{
@@ -19,7 +18,7 @@ use std::time::UNIX_EPOCH;
 use vw_shared::provider::types as provider_types;
 use vw_shared::provider::types::Info;
 
-use super::util::is_provider_connected;
+use super::util::{is_provider_connected, load_gateway_providers};
 
 fn summarize_providers(providers: std::collections::HashMap<String, Info>) -> Vec<ProviderSummary> {
     let mut out = providers
@@ -31,7 +30,7 @@ fn summarize_providers(providers: std::collections::HashMap<String, Info>) -> Ve
                 provider_types::ProviderSource::Config => {
                     ("配置", is_provider_connected(&provider))
                 }
-                provider_types::ProviderSource::Custom => ("内置", false),
+                provider_types::ProviderSource::Custom => ("内置", is_provider_connected(&provider)),
             };
             ProviderSummary {
                 id: provider.id,
@@ -82,8 +81,7 @@ fn summarize_models(
 fn refresh_task() -> Task<Message> {
     Task::perform(
         async move {
-            model_provider::invalidate_cache().await;
-            let providers = model_provider::list_for_settings().await;
+            let providers = load_gateway_providers().await?;
             let provider_summaries = summarize_providers(providers.clone());
             let provider_models = summarize_models(providers);
             let available_tools = crate::app::config::load_tools_list_via_gateway();

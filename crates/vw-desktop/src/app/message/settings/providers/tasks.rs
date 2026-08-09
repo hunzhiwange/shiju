@@ -10,6 +10,7 @@ use iced::Task;
 
 use super::super::messages::SettingsMessage;
 use super::super::types::ProvidersLoaded;
+use super::super::util::load_gateway_providers;
 use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
 
 fn providers_refreshed_message(result: ProvidersLoaded) -> Message {
@@ -45,7 +46,7 @@ pub fn refresh_task() -> Task<Message> {
     Task::perform(
         async move {
             model_provider::invalidate_cache().await;
-            let providers = model_provider::list_for_settings().await;
+            let providers = load_gateway_providers().await?;
             let raw_providers = provider_models::get().await;
             let cfg = config::load_full_agent_config_async()
                 .await
@@ -71,7 +72,7 @@ pub fn sync_remote_task() -> Task<Message> {
         async move {
             provider_models::refresh().await;
             model_provider::invalidate_cache().await;
-            let providers = model_provider::list_for_settings().await;
+            let providers = load_gateway_providers().await?;
             let raw_providers = provider_models::get().await;
             let cfg = config::load_full_agent_config_async()
                 .await
@@ -92,7 +93,7 @@ pub fn load_catalog_task() -> Task<Message> {
     Task::perform(
         async move {
             model_provider::invalidate_cache().await;
-            let providers = model_provider::list_for_settings().await;
+            let providers = load_gateway_providers().await?;
             let raw_providers = provider_models::get().await;
             Ok(build_catalog_from_sources(&raw_providers, &providers))
         },

@@ -19,7 +19,7 @@ pub fn summarize_providers(
                 model_provider::ProviderSource::Api => ("API 密钥", true),
                 model_provider::ProviderSource::Env => ("环境变量", true),
                 model_provider::ProviderSource::Config => ("配置", is_provider_connected(&p)),
-                model_provider::ProviderSource::Custom => ("内置", false),
+                model_provider::ProviderSource::Custom => ("内置", is_provider_connected(&p)),
             };
             ProviderSummary {
                 id: p.id,

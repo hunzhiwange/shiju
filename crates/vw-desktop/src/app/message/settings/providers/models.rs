@@ -10,6 +10,7 @@ use std::collections::{BTreeMap, HashSet};
 use vw_shared::auth::{self as shared_auth};
 
 use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
+use super::super::util::load_gateway_providers;
 
 fn auth_filepath() -> std::path::PathBuf {
     let base = directories::BaseDirs::new();
@@ -287,8 +288,8 @@ pub async fn connect_provider(
     )
     .map_err(|e| e.to_string())?;
     model_provider::invalidate_cache().await;
-    let providers = model_provider::list_for_settings().await;
-    if let Some(p) = providers.get(&provider_id) {
+    let local_providers = model_provider::list_for_settings().await;
+    if let Some(p) = local_providers.get(&provider_id) {
         let mut provider_cfg = serde_json::Map::new();
         if let Some(api) = p.models.values().find_map(|model| {
             let url = model.api.url.trim();
@@ -317,6 +318,7 @@ pub async fn connect_provider(
             .await
             .map_err(server_config_unreachable_error)?;
     }
+    let providers = load_gateway_providers().await?;
     let cfg =
         config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);
@@ -346,7 +348,7 @@ pub async fn disconnect_provider(
         .await
         .map_err(server_config_unreachable_error)?;
     model_provider::invalidate_cache().await;
-    let providers = model_provider::list_for_settings().await;
+    let providers = load_gateway_providers().await?;
     let cfg =
         config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);
@@ -387,7 +389,7 @@ pub async fn save_custom_provider(
         .map_err(|e| e.to_string())?;
     }
     model_provider::invalidate_cache().await;
-    let providers = model_provider::list_for_settings().await;
+    let providers = load_gateway_providers().await?;
     let cfg =
         config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);

@@ -152,6 +152,17 @@ fn summarize_providers_maps_every_source_and_sorts_by_name_then_id() {
 }
 
 #[test]
+fn summarize_providers_marks_keyed_custom_provider_as_connected() {
+    let mut custom = provider("custom", "Custom", ProviderSource::Custom, Vec::new());
+    custom.key = Some("configured-secret".to_string());
+
+    let summaries = summarize_providers(HashMap::from([(custom.id.clone(), custom)]));
+
+    assert_eq!(summaries.len(), 1);
+    assert!(summaries[0].connected);
+}
+
+#[test]
 fn load_popular_providers_from_config_returns_unconfigured_empty_fallback() {
     let config = vw_config_types::config::Config {
         popular_providers: vec!["openai".to_string()],

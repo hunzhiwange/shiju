@@ -1896,8 +1896,7 @@ fn resolve_lightweight_goal_turn(
     if let Some(blocker) = detect_explicit_lightweight_blocker(execution_evidence) {
         return LightweightGoalNext::Blocked { reason: blocker };
     }
-    // 空响应/非法 JSON 按「未达成」续轮，而不是基础设施停机：评估器偶发空响应时
-    // 必须继续执行轮，不能让 UI 停在验收失败提示上。
+    // 这是纯决策函数；外层会用基础设施错误计数器保护空响应/非法 JSON。
     let trimmed = evaluation_output.trim();
     if trimmed.is_empty() {
         return LightweightGoalNext::Continue {
@@ -1910,6 +1909,20 @@ fn resolve_lightweight_goal_turn(
             reason: format!("独立验收结论无效（{error}），请继续验证并完成目标"),
         },
     }
+}
+
+/// 把评估器协议错误纳入重复错误熔断，避免无效 JSON 触发无限续轮。
+fn lightweight_goal_evaluation_error(
+    execution_evidence: &str,
+    evaluation_output: &str,
+) -> Option<String> {
+    if detect_explicit_lightweight_blocker(execution_evidence).is_some() {
+        return None;
+    }
+    if evaluation_output.trim().is_empty() {
+        return Some("目标评估器返回空响应".to_string());
+    }
+    parse_lightweight_goal_evaluation(evaluation_output).err()
 }
 
 fn record_repeated_infrastructure_error(
@@ -1942,6 +1955,26 @@ fn lightweight_goal_infrastructure_continue(
     }
 }
 
+fn resolve_lightweight_goal_turn_with_infrastructure_guard(
+    execution_evidence: &str,
+    evaluation_output: &str,
+    last_infrastructure_error: &mut Option<String>,
+    repeated_infrastructure_errors: &mut u8,
+) -> LightweightGoalNext {
+    if let Some(error) = lightweight_goal_evaluation_error(execution_evidence, evaluation_output) {
+        return lightweight_goal_infrastructure_continue(
+            &error,
+            last_infrastructure_error,
+            repeated_infrastructure_errors,
+        );
+    }
+
+    let next = resolve_lightweight_goal_turn(execution_evidence, evaluation_output);
+    *last_infrastructure_error = None;
+    *repeated_infrastructure_errors = 0;
+    next
+}
+
 /// 独立验收一次：无会话落盘、禁用工具，对齐 provider 侧纯推理调用。
 async fn collect_lightweight_goal_evaluation(
     endpoint: &vw_gateway_client::GatewayEndpoint,
@@ -1953,7 +1986,9 @@ async fn collect_lightweight_goal_evaluation(
         // 不绑定会话，避免与主会话/可恢复流标识纠缠。
         session_id: None,
         messages: vec![serde_json::json!({"role": "user", "content": evaluation_prompt})],
-        system: None,
+        system: Some(vec![
+            "你是严格的 JSON 目标验收器。只输出一个 JSON 对象，不得输出 Markdown、代码围栏、解释或其他文字。对象只能包含 achieved（布尔值）和 reason（非空字符串）。".to_string(),
+        ]),
         model,
         reasoning_effort: None,
         agent: None,
@@ -1964,6 +1999,8 @@ async fn collect_lightweight_goal_evaluation(
             "goal_mode": true,
             "goal_evaluation": true,
             "disable_tools": true,
+            "temperature": 0.0,
+            "max_output_tokens": 256,
         })),
     };
     let mut evaluation_text = String::new();
@@ -2814,13 +2851,12 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             .await;
 
             let next = match evaluation_result {
-                Ok(evaluation_text) => {
-                    let next = resolve_lightweight_goal_turn(&goal_evidence, &evaluation_text);
-                    // 软失败续轮不是传输层基础设施错误。
-                    last_infrastructure_error = None;
-                    repeated_infrastructure_errors = 0;
-                    next
-                }
+                Ok(evaluation_text) => resolve_lightweight_goal_turn_with_infrastructure_guard(
+                    &goal_evidence,
+                    &evaluation_text,
+                    &mut last_infrastructure_error,
+                    &mut repeated_infrastructure_errors,
+                ),
                 Err(error) => lightweight_goal_infrastructure_continue(
                     &error,
                     &mut last_infrastructure_error,

@@ -18,7 +18,6 @@ use serde_json::Value;
 use std::hash::{Hash, Hasher};
 
 use crate::app::assets::Icon;
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
@@ -31,10 +30,10 @@ use super::{
     tool_permission_state, tool_permission_summary, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    chat_context_menu, chat_context_target_key, chat_scroll_direction,
+    chat_context_target_key, chat_scroll_direction,
     chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
     eye_icon_svg_style, icon_svg, is_recent_copy, simplified_block_style,
-    simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    simplified_code_block_style, truncate_chars, truncate_lines_middle, wrap_chat_context_menu,
 };
 
 pub(super) fn copy_content_hash(text: &str) -> u64 {
@@ -432,16 +431,7 @@ pub fn tool_text_view<'a>(
         container(text("")).height(Length::Fixed(0.0)).into()
     };
 
-    let body: Element<'a, Message> = if let Some(menu) = chat_context_menu(context_menu_open) {
-        PointBelowOverlay::new(body, menu)
-            .show(true)
-            .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-            .gap(0.0)
-            .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-            .into()
-    } else {
-        body
-    };
+    let body = wrap_chat_context_menu(body, context_menu_open, context_menu_anchor, false);
 
     Some(
         container(column![head, body].spacing(8))

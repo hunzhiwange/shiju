@@ -7,7 +7,6 @@ use iced::{Alignment, Background, Border, Element, Length, Padding, Theme};
 use serde_json::{Map, Value};
 
 use crate::app::assets::Icon;
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::state::{
     AdvancedToolSurfaceSpec, AdvancedToolSurfaceState, explicit_advanced_tool_surface_spec,
@@ -24,10 +23,10 @@ use super::{
     tool_permission_state, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    chat_context_menu, chat_context_target_key, chat_scroll_direction,
+    chat_context_target_key, chat_scroll_direction,
     chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
     eye_icon_svg_style, icon_svg, simplified_block_style, simplified_code_block_style,
-    truncate_chars, truncate_lines_middle,
+    truncate_chars, truncate_lines_middle, wrap_chat_context_menu,
 };
 
 pub(super) fn is_advanced_surface_tool(tool_name: &str) -> bool {
@@ -800,14 +799,5 @@ pub fn tool_advanced_view<'a>(
     let content: Element<'a, Message> =
         container(content).padding([2, 6]).width(Length::Fill).style(simplified_block_style).into();
 
-    Some(if let Some(menu) = chat_context_menu(context_menu_open) {
-        PointBelowOverlay::new(content, menu)
-            .show(true)
-            .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-            .gap(0.0)
-            .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-            .into()
-    } else {
-        content
-    })
+    Some(wrap_chat_context_menu(content, context_menu_open, context_menu_anchor, false))
 }

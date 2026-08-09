@@ -6,9 +6,8 @@ use iced::widget::{column, container, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 
 use crate::app::components::chat_panel::utils::{
-    chat_context_menu, chat_context_target_key, chat_secondary_muted_text_color,
+    chat_context_target_key, chat_secondary_muted_text_color, wrap_chat_context_menu,
 };
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
 
@@ -146,14 +145,5 @@ pub(crate) fn build_write_tool_view<'a>(
     .preserve_on_right_click()
     .into();
 
-    if let Some(menu) = chat_context_menu(context_menu_open) {
-        PointBelowOverlay::new(content, menu)
-            .show(true)
-            .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-            .gap(0.0)
-            .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-            .into()
-    } else {
-        content
-    }
+    wrap_chat_context_menu(content, context_menu_open, context_menu_anchor, false)
 }

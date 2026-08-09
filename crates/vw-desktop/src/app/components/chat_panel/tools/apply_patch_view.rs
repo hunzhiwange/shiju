@@ -8,7 +8,6 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::path::Path;
 
 use crate::app::assets::{self, Icon};
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
@@ -32,10 +31,10 @@ use super::{
     tool_permission_state, tool_permission_target_summary, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    bold_font, change_pills, chat_context_menu, chat_context_target_key, chat_scroll_direction,
+    bold_font, change_pills, chat_context_target_key, chat_scroll_direction,
     deletions_pill, eye_icon_button_style, eye_icon_svg_style, file_button_style, icon_svg,
     resolve_path, simplified_block_style, simplified_code_block_style, truncate_chars,
-    truncate_lines_middle,
+    truncate_lines_middle, wrap_chat_context_menu,
 };
 
 /// 执行 tool_apply_patch_view 对应的模块功能。
@@ -499,16 +498,7 @@ pub fn tool_apply_patch_view<'a>(
     let content: Element<'a, Message> =
         container(content).padding([2, 0]).width(Length::Fill).style(simplified_block_style).into();
 
-    let content: Element<'a, Message> = if let Some(menu) = chat_context_menu(context_menu_open) {
-        PointBelowOverlay::new(content, menu)
-            .show(true)
-            .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-            .gap(0.0)
-            .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-            .into()
-    } else {
-        content
-    };
+    let content = wrap_chat_context_menu(content, context_menu_open, context_menu_anchor, false);
 
     Some(content)
 }

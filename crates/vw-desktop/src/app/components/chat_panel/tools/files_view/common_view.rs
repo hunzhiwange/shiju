@@ -5,11 +5,11 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_context_menu, chat_context_target_key, chat_scroll_direction,
+    chat_context_target_key, chat_scroll_direction,
     chat_secondary_muted_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
     simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    wrap_chat_context_menu,
 };
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
 
@@ -350,16 +350,7 @@ pub(crate) fn build_common_tool_view<'a>(
         fallback_body.is_some(),
     );
 
-    let list_view: Element<'a, Message> = if let Some(menu) = chat_context_menu(context_menu_open) {
-        PointBelowOverlay::new(list_view, menu)
-            .show(true)
-            .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-            .gap(0.0)
-            .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-            .into()
-    } else {
-        list_view
-    };
+    let list_view = wrap_chat_context_menu(list_view, context_menu_open, context_menu_anchor, false);
 
     let mut content = iced::widget::column![head, filter_row].spacing(8);
     if let Some(fallback_body) = fallback_body {

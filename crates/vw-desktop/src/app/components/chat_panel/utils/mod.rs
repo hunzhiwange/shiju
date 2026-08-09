@@ -54,5 +54,5 @@ pub use time::{
 };
 pub use ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_target_key,
-    copy_tooltip_content,
+    copy_tooltip_content, wrap_chat_context_menu,
 };

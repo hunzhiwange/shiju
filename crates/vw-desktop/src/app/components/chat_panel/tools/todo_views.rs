@@ -8,12 +8,11 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::tool_text_support::chat_text_font;
 use crate::app::components::chat_panel::utils::{
-    chat_context_menu, chat_context_target_key, chat_scroll_direction,
+    chat_context_target_key, chat_scroll_direction,
     chat_secondary_subtle_text_color, chat_secondary_text_color, icon_svg, simplified_block_style,
-    truncate_chars,
+    truncate_chars, wrap_chat_context_menu,
 };
 use crate::app::components::input_panel::todo_panel::read_todos_for_panel;
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 use vw_shared::todo::Todo;
@@ -338,16 +337,7 @@ pub fn tool_todowrite_compact_view<'a>(
         )
         .preserve_on_right_click()
         .into();
-        let body: Element<'a, Message> = if let Some(menu) = chat_context_menu(context_menu_open) {
-            PointBelowOverlay::new(body, menu)
-                .show(true)
-                .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-                .gap(0.0)
-                .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-                .into()
-        } else {
-            body
-        };
+        let body = wrap_chat_context_menu(body, context_menu_open, context_menu_anchor, false);
         content = content.push(container(body).width(Length::Fill));
     }
 

@@ -1915,14 +1915,43 @@ fn lightweight_goal_continues_until_evaluation_passes() {
             if reason.contains("连续三轮出现相同基础设施错误")
     ));
 
+    let mut last_evaluation_error = None;
+    let mut repeated_evaluation_errors = 0_u8;
+    for _ in 0..2 {
+        let next = super::resolve_lightweight_goal_turn_with_infrastructure_guard(
+            "已执行一轮",
+            "模型返回了说明文字而不是 JSON",
+            &mut last_evaluation_error,
+            &mut repeated_evaluation_errors,
+        );
+        assert!(matches!(
+            next,
+            super::LightweightGoalNext::Continue { reason }
+                if reason.contains("目标评估器必须返回严格 JSON")
+        ));
+    }
+    let blocked_evaluation = super::resolve_lightweight_goal_turn_with_infrastructure_guard(
+        "已执行一轮",
+        "模型返回了说明文字而不是 JSON",
+        &mut last_evaluation_error,
+        &mut repeated_evaluation_errors,
+    );
+    assert!(matches!(
+        blocked_evaluation,
+        super::LightweightGoalNext::Blocked { reason }
+            if reason.contains("连续三轮出现相同基础设施错误")
+    ));
+
     assert!(
         SOURCE.contains("desktop_stream_request_id_for_turn")
             && SOURCE.contains("lightweight_goal_infrastructure_continue")
+            && SOURCE.contains("resolve_lightweight_goal_turn_with_infrastructure_guard")
             && SOURCE.contains("collect_lightweight_goal_evaluation")
             && SOURCE.contains("\"disable_tools\": true")
+            && SOURCE.contains("\"max_output_tokens\": 256")
             && SOURCE.contains("goal_terminal_sent")
             && !SOURCE.contains("目标验收失败：{error}"),
-        "goal eval must disable tools, soft-continue on empty JSON, and always emit a terminal event"
+        "goal eval must guard invalid JSON, disable tools, and always emit a terminal event"
     );
 
     let request = sample_agent_request(false, true, Some("/tmp/project"));

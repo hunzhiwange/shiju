@@ -59,7 +59,6 @@ use crate::app::assets::Icon;
 use crate::app::components::input_panel::attachment::{
     attachment_preview_strip, parse_attachment_markers,
 };
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::models::{self, ChatRole};
 use crate::app::{App, Message, message};
@@ -83,9 +82,9 @@ use super::tools::{
     pending_permission_request_for_message, pending_permission_targets_message,
 };
 use super::utils::{
-    chat_context_menu, chat_context_target_key, chat_secondary_muted_text_color,
-    chat_secondary_text_color, copy_tooltip_content, icon_svg, is_recent_copy,
-    normalize_display_text,
+    chat_context_target_key, chat_secondary_muted_text_color, chat_secondary_text_color,
+    copy_tooltip_content, icon_svg, is_recent_copy, normalize_display_text,
+    wrap_chat_context_menu,
 };
 
 pub(crate) use self::assistant_body::deduped_tool_last_indices;
@@ -522,18 +521,12 @@ pub fn message_view<'a>(
     .preserve_on_right_click()
     .into();
 
-    let bubble_inner: Element<'a, Message> =
-        if let Some(menu) = chat_context_menu(context_menu_open) {
-            PointBelowOverlay::new(bubble_inner, menu)
-                .show(true)
-                .anchor(iced::Point::new(context_menu_anchor.0, context_menu_anchor.1))
-                .gap(0.0)
-                .close_on_target_click(true)
-                .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
-                .into()
-        } else {
-            bubble_inner
-        };
+    let bubble_inner = wrap_chat_context_menu(
+        bubble_inner,
+        context_menu_open,
+        context_menu_anchor,
+        true,
+    );
 
     let footer_element: Element<'a, Message> = {
         let mut footer_col = column![].spacing(6);

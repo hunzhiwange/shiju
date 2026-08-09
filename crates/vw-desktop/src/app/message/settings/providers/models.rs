@@ -144,11 +144,174 @@ pub async fn load_custom_provider_draft(
 ) -> Result<CustomProviderDraft, String> {
     let cfg =
         config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
-    let raw = cfg
-        .providers
+    let raw = cfg.providers.get(&provider_id);
+    let settings_providers = model_provider::list_for_settings().await;
+    let settings = settings_providers.get(&provider_id);
+    let catalog = provider_models::get().await;
+    let catalog_model_ids = catalog
         .get(&provider_id)
-        .ok_or_else(|| format!("提供商 {} 不在系统配置的 providers 中", provider_id))?;
-    custom_provider_draft_from_value(&provider_id, raw)
+        .map(|provider| provider.models.keys().cloned().collect::<HashSet<_>>())
+        .unwrap_or_default();
+
+    match (raw, settings) {
+        (Some(raw), Some(settings)) => {
+            merge_custom_provider_draft(&provider_id, raw, settings, &catalog_model_ids)
+        }
+        (Some(raw), None) => {
+            let mut draft = custom_provider_draft_from_value(&provider_id, raw)?;
+            for model in &mut draft.models {
+                model.from_catalog = catalog_model_ids.contains(&model.model_id);
+            }
+            Ok(draft)
+        }
+        (None, Some(settings)) => {
+            Ok(draft_from_settings_provider(&provider_id, settings, &catalog_model_ids))
+        }
+        (None, None) => {
+            Err(format!("提供商 {} 不在系统配置的 providers 中", provider_id))
+        }
+    }
+}
+
+fn merge_custom_provider_draft(
+    provider_id: &str,
+    raw: &Value,
+    settings: &model_provider::Info,
+    catalog_model_ids: &HashSet<String>,
+) -> Result<CustomProviderDraft, String> {
+    let mut draft = custom_provider_draft_from_value(provider_id, raw)?;
+    let mut by_id = BTreeMap::new();
+    for model in draft.models.drain(..) {
+        let model_id = model.model_id.trim().to_string();
+        if model_id.is_empty() {
+            continue;
+        }
+        by_id.insert(model_id, model);
+    }
+
+    let mut settings_models = settings.models.values().cloned().collect::<Vec<_>>();
+    settings_models = model_provider::sort(settings_models);
+
+    let mut models = Vec::with_capacity(settings_models.len() + by_id.len());
+    for settings_model in settings_models {
+        let from_catalog = catalog_model_ids.contains(&settings_model.id);
+        let mut model = by_id.remove(&settings_model.id).unwrap_or_else(|| {
+            model_draft_from_settings_model(&settings_model, from_catalog)
+        });
+        overlay_settings_model_onto_draft(&mut model, &settings_model, from_catalog);
+        models.push(model);
+    }
+    for (_, mut leftover) in by_id {
+        leftover.from_catalog = catalog_model_ids.contains(&leftover.model_id);
+        models.push(leftover);
+    }
+    models.sort_by(|left, right| left.model_id.cmp(&right.model_id));
+    draft.models = models;
+
+    if draft.display_name.trim().is_empty() {
+        draft.display_name = settings.name.clone();
+    }
+    if draft.base_url.trim().is_empty() {
+        if let Some(api) = settings.models.values().find_map(|model| {
+            let url = model.api.url.trim();
+            (!url.is_empty()).then(|| url.to_string())
+        }) {
+            draft.base_url = api;
+        }
+    }
+    Ok(draft)
+}
+
+fn draft_from_settings_provider(
+    provider_id: &str,
+    settings: &model_provider::Info,
+    catalog_model_ids: &HashSet<String>,
+) -> CustomProviderDraft {
+    let mut settings_models = settings.models.values().cloned().collect::<Vec<_>>();
+    settings_models = model_provider::sort(settings_models);
+    let models = settings_models
+        .iter()
+        .map(|model| {
+            let from_catalog = catalog_model_ids.contains(&model.id);
+            let mut draft = model_draft_from_settings_model(model, from_catalog);
+            overlay_settings_model_onto_draft(&mut draft, model, from_catalog);
+            draft
+        })
+        .collect::<Vec<_>>();
+    let base_url = settings
+        .models
+        .values()
+        .find_map(|model| {
+            let url = model.api.url.trim();
+            (!url.is_empty()).then(|| url.to_string())
+        })
+        .unwrap_or_default();
+    CustomProviderDraft {
+        provider_id: provider_id.to_string(),
+        display_name: settings.name.clone(),
+        base_url,
+        api_key: current_provider_api_key(provider_id).unwrap_or_default(),
+        headers: vec![crate::app::state::ProviderHeaderDraft::default()],
+        models: if models.is_empty() {
+            vec![crate::app::state::CustomProviderModelDraft::default()]
+        } else {
+            models
+        },
+    }
+}
+
+fn model_draft_from_settings_model(
+    model: &model_provider::Model,
+    from_catalog: bool,
+) -> crate::app::state::CustomProviderModelDraft {
+    crate::app::state::CustomProviderModelDraft {
+        model_id: model.id.clone(),
+        display_name: model.name.clone(),
+        family: model.family.clone().unwrap_or_default(),
+        context_limit: (model.limit.context > 0)
+            .then(|| model.limit.context.to_string())
+            .unwrap_or_default(),
+        input_limit: model
+            .limit
+            .input
+            .filter(|value| *value > 0)
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+        output_limit: (model.limit.output > 0)
+            .then(|| model.limit.output.to_string())
+            .unwrap_or_default(),
+        enabled: model.status == "active",
+        from_catalog,
+        original_model_id: Some(model.id.clone()),
+        ..Default::default()
+    }
+}
+
+fn overlay_settings_model_onto_draft(
+    draft: &mut crate::app::state::CustomProviderModelDraft,
+    settings_model: &model_provider::Model,
+    from_catalog: bool,
+) {
+    draft.enabled = settings_model.status == "active";
+    draft.from_catalog = from_catalog;
+    draft.original_model_id = Some(settings_model.id.clone());
+    if draft.display_name.trim().is_empty() {
+        draft.display_name = settings_model.name.clone();
+    }
+    if draft.family.trim().is_empty() {
+        draft.family = settings_model.family.clone().unwrap_or_default();
+    }
+    if draft.context_limit.trim().is_empty() && settings_model.limit.context > 0 {
+        draft.context_limit = settings_model.limit.context.to_string();
+    }
+    if draft.input_limit.trim().is_empty() {
+        if let Some(input) = settings_model.limit.input.filter(|value| *value > 0) {
+            draft.input_limit = input.to_string();
+        }
+    }
+    if draft.output_limit.trim().is_empty() && settings_model.limit.output > 0 {
+        draft.output_limit = settings_model.limit.output.to_string();
+    }
 }
 
 fn custom_provider_draft_from_value(
@@ -198,6 +361,11 @@ fn custom_model_draft_from_value(
 
     let limit = model.get("limit").and_then(Value::as_object);
     let modalities = model.get("modalities").and_then(Value::as_object);
+    let enabled = model
+        .get("status")
+        .and_then(Value::as_str)
+        .map(|status| status == "active")
+        .unwrap_or(true);
     crate::app::state::CustomProviderModelDraft {
         model_id: model_id.to_string(),
         display_name: model.get("name").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -224,6 +392,8 @@ fn custom_model_draft_from_value(
         interleaved: model.get("interleaved").and_then(Value::as_bool),
         input_modalities: extract_modalities(modalities, "input"),
         output_modalities: extract_modalities(modalities, "output"),
+        enabled,
+        from_catalog: false,
         original_model_id: Some(model_id.to_string()),
     }
 }
@@ -422,15 +592,26 @@ pub(crate) fn custom_provider_patch_from_draft(
         .cloned()
         .unwrap_or_default();
 
+    // Gateway config patches deep-merge objects; omitted model keys are kept.
+    // Explicit `null` is required to delete renamed or removed models.
     let mut models_obj = serde_json::Map::new();
+    let mut draft_model_ids = HashSet::new();
+    let mut kept_model_ids = HashSet::new();
     for m in &draft.models {
         let model_id = m.model_id.trim();
         if model_id.is_empty() {
             continue;
         }
+        draft_model_ids.insert(model_id.to_string());
         let existing_model = existing_models
             .get(model_id)
             .or_else(|| m.original_model_id.as_deref().and_then(|id| existing_models.get(id)));
+        let existed_in_config = existing_model.is_some();
+        // Keep untouched disabled catalog models out of user config.
+        if m.from_catalog && !m.enabled && !existed_in_config {
+            continue;
+        }
+        kept_model_ids.insert(model_id.to_string());
         let mut model_cfg = existing_model.and_then(Value::as_object).cloned().unwrap_or_default();
         if !m.display_name.trim().is_empty() {
             model_cfg.insert(
@@ -496,7 +677,16 @@ pub(crate) fn custom_provider_patch_from_draft(
         } else {
             model_cfg.remove("headers");
         }
+        model_cfg.insert(
+            "status".to_string(),
+            Value::String(if m.enabled { "active" } else { "disabled" }.to_string()),
+        );
         models_obj.insert(model_id.to_string(), serde_json::Value::Object(model_cfg));
+    }
+    for existing_id in existing_models.keys() {
+        if !draft_model_ids.contains(existing_id) && !kept_model_ids.contains(existing_id) {
+            models_obj.insert(existing_id.clone(), Value::Null);
+        }
     }
 
     let mut provider_cfg =
@@ -533,13 +723,8 @@ pub(crate) fn validate_model_drafts(
             return Err(format!("模型 ID 重复：{model_id}"));
         }
         let context = parse_limit_field(model_id, "上下文", &model.context_limit, false)?;
-        let input = parse_limit_field(model_id, "输入", &model.input_limit, false)?;
+        parse_limit_field(model_id, "输入", &model.input_limit, false)?;
         let output = parse_limit_field(model_id, "输出", &model.output_limit, true)?;
-        if let (Some(context), Some(input)) = (context, input) {
-            if input > context {
-                return Err(format!("模型 {model_id} 的输入限制不能超过上下文限制"));
-            }
-        }
         if let (Some(context), Some(output)) = (context, output) {
             if output > context {
                 return Err(format!("模型 {model_id} 的输出限制不能超过上下文限制"));

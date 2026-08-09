@@ -65,10 +65,19 @@ pub enum CustomProviderModelTab {
     Capabilities,
 }
 
+/// 编辑提供商模型列表的启用状态过滤。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CustomProviderModelFilter {
+    All,
+    #[default]
+    Enabled,
+    Disabled,
+}
+
 /// 自定义提供者模型草稿
 ///
 /// 用于添加自定义模型时的输入状态。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(crate) struct CustomProviderModelDraft {
     /// 模型标识符
     pub(crate) model_id: String,
@@ -96,8 +105,35 @@ pub(crate) struct CustomProviderModelDraft {
     pub(crate) input_modalities: Option<Vec<String>>,
     /// 显式输出模态覆盖；None 表示沿用基线或安全默认值。
     pub(crate) output_modalities: Option<Vec<String>>,
+    /// 是否启用；对应配置中的 `status: active|disabled`。
+    pub(crate) enabled: bool,
+    /// 是否来自系统默认模型目录；用于保存时避免把未改动的禁用目录模型写入配置。
+    pub(crate) from_catalog: bool,
     /// 编辑时原始模型 ID，用于模型改名时迁移旧配置。
     pub(crate) original_model_id: Option<String>,
+}
+
+impl Default for CustomProviderModelDraft {
+    fn default() -> Self {
+        Self {
+            model_id: String::new(),
+            display_name: String::new(),
+            family: String::new(),
+            context_limit: String::new(),
+            input_limit: String::new(),
+            output_limit: String::new(),
+            reasoning: None,
+            tool_call: None,
+            temperature: None,
+            attachment: None,
+            interleaved: None,
+            input_modalities: None,
+            output_modalities: None,
+            enabled: true,
+            from_catalog: false,
+            original_model_id: None,
+        }
+    }
 }
 
 /// 自定义提供者草稿
@@ -229,6 +265,8 @@ pub(crate) struct ProviderSettingsState {
     pub(crate) custom_models_discovering: bool,
     /// 自定义提供者草稿
     pub(crate) custom: CustomProviderDraft,
+    /// 编辑提供商模型列表的启用状态过滤
+    pub(crate) custom_models_filter: CustomProviderModelFilter,
     /// 自定义模型对话框状态
     pub(crate) custom_model_modal: Option<CustomProviderModelModalState>,
     /// 保存错误信息
@@ -264,6 +302,7 @@ impl Default for ProviderSettingsState {
             custom_editing_provider_id: None,
             custom_models_discovering: false,
             custom: CustomProviderDraft::default(),
+            custom_models_filter: CustomProviderModelFilter::default(),
             custom_model_modal: None,
             save_error: None,
         }

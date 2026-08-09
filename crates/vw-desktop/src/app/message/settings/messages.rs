@@ -2,8 +2,9 @@
 
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, CronAddJobType, CronAddScheduleKind, CronSettingsTab,
-    CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab, McpNewServerTransport,
-    McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
+    CustomProviderModelFilter, CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab,
+    McpNewServerTransport, McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
+    ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -822,6 +823,8 @@ pub enum SettingsMessage {
     CustomProviderModelModalOutputModalityToggled(String, bool),
     CustomProviderModelModalSave,
     CustomProviderModelRemove(usize),
+    CustomProviderModelEnabledToggled(usize, bool),
+    CustomProviderModelFilterSelected(CustomProviderModelFilter),
     CustomProviderModelsDiscover,
     CustomProviderModelsDiscovered {
         provider_id: String,

@@ -205,6 +205,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CustomProviderModelModalOutputModalityToggled(_, _)
         | SettingsMessage::CustomProviderModelModalSave
         | SettingsMessage::CustomProviderModelRemove(_)
+        | SettingsMessage::CustomProviderModelEnabledToggled(_, _)
+        | SettingsMessage::CustomProviderModelFilterSelected(_)
         | SettingsMessage::CustomProviderModelsDiscover
         | SettingsMessage::CustomProviderModelsDiscovered { .. }
         | SettingsMessage::CustomProviderSave

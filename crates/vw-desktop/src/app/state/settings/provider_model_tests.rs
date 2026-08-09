@@ -32,6 +32,8 @@ fn provider_connect_header_and_custom_drafts_have_empty_defaults() {
     assert!(model.interleaved.is_none());
     assert!(model.input_modalities.is_none());
     assert!(model.output_modalities.is_none());
+    assert!(model.enabled);
+    assert!(!model.from_catalog);
 
     let provider = CustomProviderDraft::default();
     assert!(provider.provider_id.is_empty());
@@ -74,6 +76,7 @@ fn provider_settings_default_populates_popular_patterns_and_modal_state() {
     assert_eq!(state.custom_provider_tab, CustomProviderTab::Basic);
     assert!(state.custom_editing_provider_id.is_none());
     assert!(!state.custom_models_discovering);
+    assert_eq!(state.custom_models_filter, CustomProviderModelFilter::Enabled);
     assert!(state.custom_model_modal.is_none());
     assert!(state.save_error.is_none());
     assert!(state.popular_patterns.iter().all(|pattern| !is_shiju_official_provider_id(pattern)));

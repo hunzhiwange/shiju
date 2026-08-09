@@ -3,8 +3,8 @@
 use crate::app::{
     App, Message,
     state::{
-        CustomProviderDraft, CustomProviderModelDraft, CustomProviderModelModalState,
-        CustomProviderModelTab, CustomProviderTab,
+        CustomProviderDraft, CustomProviderModelDraft, CustomProviderModelFilter,
+        CustomProviderModelModalState, CustomProviderModelTab, CustomProviderTab,
         ProviderConnectState, ProviderHeaderDraft, SHIJU_OFFICIAL_PROVIDER_NAME,
         is_shiju_official_provider_id,
     },
@@ -275,6 +275,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.provider_settings.custom_provider_tab = CustomProviderTab::default();
             app.provider_settings.custom_editing_provider_id = None;
             app.provider_settings.custom_models_discovering = false;
+            app.provider_settings.custom_models_filter = CustomProviderModelFilter::default();
             app.provider_settings.custom = CustomProviderDraft::default();
             app.provider_settings.save_error = None;
             app.provider_settings.connect_modal = None;
@@ -288,6 +289,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.provider_settings.loading = true;
             app.provider_settings.custom_provider_tab = CustomProviderTab::default();
             app.provider_settings.custom_models_discovering = false;
+            app.provider_settings.custom_models_filter = CustomProviderModelFilter::default();
             app.provider_settings.save_error = None;
             app.provider_settings.connect_modal = None;
             app.provider_settings.connect_error = None;
@@ -486,6 +488,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 interleaved: m.interleaved,
                 input_modalities: m.input_modalities,
                 output_modalities: m.output_modalities,
+                enabled: m
+                    .edit_index
+                    .and_then(|index| app.provider_settings.custom.models.get(index))
+                    .map(|model| model.enabled)
+                    .unwrap_or(true),
+                from_catalog: m
+                    .edit_index
+                    .and_then(|index| app.provider_settings.custom.models.get(index))
+                    .map(|model| model.from_catalog)
+                    .unwrap_or(false),
                 original_model_id: m.original_model_id,
             };
             if app
@@ -525,9 +537,23 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CustomProviderModelRemove(idx) => {
-            if idx < app.provider_settings.custom.models.len() {
-                app.provider_settings.custom.models.remove(idx);
+            if let Some(model) = app.provider_settings.custom.models.get_mut(idx) {
+                if model.from_catalog {
+                    model.enabled = false;
+                } else {
+                    app.provider_settings.custom.models.remove(idx);
+                }
             }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelEnabledToggled(idx, enabled) => {
+            if let Some(model) = app.provider_settings.custom.models.get_mut(idx) {
+                model.enabled = enabled;
+            }
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelFilterSelected(filter) => {
+            app.provider_settings.custom_models_filter = filter;
             Task::none()
         }
         SettingsMessage::CustomProviderModelsDiscover => {

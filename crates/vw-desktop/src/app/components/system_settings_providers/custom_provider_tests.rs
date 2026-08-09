@@ -78,11 +78,14 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
         CustomProviderModelDraft {
             model_id: "llama3.1".to_string(),
             display_name: "Llama 3.1".to_string(),
+            enabled: true,
             ..Default::default()
         },
         CustomProviderModelDraft {
             model_id: "qwen".to_string(),
             display_name: String::new(),
+            enabled: false,
+            from_catalog: true,
             ..Default::default()
         },
         CustomProviderModelDraft {
@@ -91,6 +94,15 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
             ..Default::default()
         },
     ];
+    app.provider_settings.custom_provider_tab = crate::app::state::CustomProviderTab::Models;
+    keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
+
+    app.provider_settings.custom_models_filter =
+        crate::app::state::CustomProviderModelFilter::All;
+    keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
+
+    app.provider_settings.custom_models_filter =
+        crate::app::state::CustomProviderModelFilter::Disabled;
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 
     app.provider_settings.save_error = Some("保存失败".to_string());

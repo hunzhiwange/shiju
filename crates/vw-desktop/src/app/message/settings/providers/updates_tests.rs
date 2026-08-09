@@ -403,6 +403,53 @@ fn custom_model_modal_adds_edits_closes_and_removes_models() {
 }
 
 #[test]
+fn custom_provider_model_filter_and_enable_toggle_update_state() {
+    use crate::app::state::CustomProviderModelFilter;
+
+    let mut app = app();
+    app.provider_settings.custom.models = vec![
+        CustomProviderModelDraft {
+            model_id: "enabled".to_string(),
+            enabled: true,
+            from_catalog: true,
+            ..Default::default()
+        },
+        CustomProviderModelDraft {
+            model_id: "disabled".to_string(),
+            enabled: false,
+            from_catalog: false,
+            ..Default::default()
+        },
+    ];
+
+    assert_eq!(
+        app.provider_settings.custom_models_filter,
+        CustomProviderModelFilter::Enabled
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelFilterSelected(CustomProviderModelFilter::All),
+    );
+    assert_eq!(
+        app.provider_settings.custom_models_filter,
+        CustomProviderModelFilter::All
+    );
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelEnabledToggled(0, false),
+    );
+    assert!(!app.provider_settings.custom.models[0].enabled);
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelRemove(0));
+    assert!(!app.provider_settings.custom.models[0].enabled);
+    assert_eq!(app.provider_settings.custom.models.len(), 2);
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelRemove(1));
+    assert_eq!(app.provider_settings.custom.models.len(), 1);
+}
+
+#[test]
 fn custom_model_modal_restores_and_saves_full_metadata() {
     let mut app = app();
     app.provider_settings.custom.models = vec![CustomProviderModelDraft {
@@ -495,9 +542,28 @@ fn custom_model_modal_rejects_duplicate_ids_and_invalid_limit_relationships() {
         SettingsMessage::CustomProviderModelModalInputLimitChanged("101".to_string()),
     );
     let _ = update(&mut app, SettingsMessage::CustomProviderModelModalSave);
+    assert!(app.provider_settings.save_error.is_none());
+    assert!(app.provider_settings.custom_model_modal.is_none());
+    assert_eq!(app.provider_settings.custom.models.last().unwrap().model_id, "new-model");
+    assert_eq!(app.provider_settings.custom.models.last().unwrap().input_limit, "101");
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(None));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalIdChanged("overflow-output".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalContextLimitChanged("100".to_string()),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelModalOutputLimitChanged("101".to_string()),
+    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelModalSave);
     assert_eq!(
         app.provider_settings.save_error.as_deref(),
-        Some("模型 new-model 的输入限制不能超过上下文限制")
+        Some("模型 overflow-output 的输出限制不能超过上下文限制")
     );
     assert!(app.provider_settings.custom_model_modal.is_some());
 }

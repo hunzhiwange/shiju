@@ -20,9 +20,9 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
-use crate::app::state::CustomProviderTab;
+use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
 use iced::{Alignment, Element, Length};
 
 const SCROLLBAR_WIDTH: f32 = 4.0;
@@ -103,6 +103,32 @@ fn provider_tab_button(
         .on_press(Message::Settings(message::SettingsMessage::CustomProviderTabSelected(tab)))
         .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
         .into()
+}
+
+fn model_filter_button(
+    label: &'static str,
+    filter: CustomProviderModelFilter,
+    active: CustomProviderModelFilter,
+) -> Element<'static, Message> {
+    let is_active = filter == active;
+    button(text(label).size(12))
+        .padding([6, 10])
+        .on_press(Message::Settings(
+            message::SettingsMessage::CustomProviderModelFilterSelected(filter),
+        ))
+        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
+        .into()
+}
+
+fn model_matches_filter(
+    enabled: bool,
+    filter: CustomProviderModelFilter,
+) -> bool {
+    match filter {
+        CustomProviderModelFilter::All => true,
+        CustomProviderModelFilter::Enabled => enabled,
+        CustomProviderModelFilter::Disabled => !enabled,
+    }
 }
 
 /// 渲染自定义提供商配置模态对话框的叠加层视图
@@ -251,8 +277,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             headers_controls,
         );
 
+        let enabled_count =
+            s.custom.models.iter().filter(|model| model.enabled && !model.model_id.trim().is_empty()).count();
+        let total_count =
+            s.custom.models.iter().filter(|model| !model.model_id.trim().is_empty()).count();
         let mut model_actions = row![
-            settings_value_badge(format!("{} 个模型", s.custom.models.len())),
+            settings_value_badge(format!("{enabled_count}/{total_count} 已启用")),
             container(text(" ")).width(Length::Fill),
         ]
         .spacing(10)
@@ -281,14 +311,39 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(None))),
         ));
 
-        let mut models_panel = column![field_row(
-            "模型",
-            "维护该 provider 可用的模型列表；展示名称可留空。",
-            model_actions,
-        )]
+        let filter_row = row![
+            model_filter_button("全部", CustomProviderModelFilter::All, s.custom_models_filter),
+            model_filter_button(
+                "已启用",
+                CustomProviderModelFilter::Enabled,
+                s.custom_models_filter,
+            ),
+            model_filter_button(
+                "已禁用",
+                CustomProviderModelFilter::Disabled,
+                s.custom_models_filter,
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+
+        let mut models_panel = column![
+            field_row(
+                "模型",
+                "维护该 provider 可用的模型列表；可启用/禁用，展示名称可留空。",
+                model_actions,
+            ),
+            settings_divider(),
+            field_row("过滤", "按启用状态筛选模型列表。", filter_row),
+        ]
         .spacing(0);
 
+        let mut visible_count = 0usize;
         for (i, m) in s.custom.models.iter().enumerate() {
+            if !model_matches_filter(m.enabled, s.custom_models_filter) {
+                continue;
+            }
+            visible_count += 1;
             let title = if m.display_name.trim().is_empty() {
                 if m.model_id.trim().is_empty() { "未命名模型" } else { m.model_id.as_str() }
             } else {
@@ -299,17 +354,44 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             } else {
                 m.model_id.as_str()
             };
+            let title_alpha = if m.enabled { 1.0 } else { 0.65 };
+            let subtitle_alpha = if m.enabled { 0.65 } else { 0.5 };
+            let enabled = m.enabled;
+            let remove_message = if m.from_catalog {
+                Message::Settings(message::SettingsMessage::CustomProviderModelEnabledToggled(
+                    i, false,
+                ))
+            } else {
+                Message::Settings(message::SettingsMessage::CustomProviderModelRemove(i))
+            };
 
             models_panel = models_panel.push(settings_divider());
             models_panel = models_panel.push(
                 container(
                     row![
                         column![
-                            text(title).size(13),
-                            text(subtitle).size(11).style(settings_muted_text_style),
+                            text(title)
+                                .size(13)
+                                .style(move |theme: &iced::Theme| text::Style {
+                                    color: Some(theme.palette().text.scale_alpha(title_alpha)),
+                                }),
+                            text(subtitle)
+                                .size(11)
+                                .style(move |theme: &iced::Theme| text::Style {
+                                    color: Some(
+                                        theme.palette().text.scale_alpha(subtitle_alpha),
+                                    ),
+                                }),
                         ]
                         .spacing(4)
                         .width(Length::Fill),
+                        toggler(enabled).on_toggle(move |value| {
+                            Message::Settings(
+                                message::SettingsMessage::CustomProviderModelEnabledToggled(
+                                    i, value,
+                                ),
+                            )
+                        }),
                         icon_btn(
                             Icon::Pencil,
                             "编辑",
@@ -319,14 +401,28 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                         ),
                         icon_btn(
                             Icon::Trash,
-                            "移除",
-                            Some(Message::Settings(
-                                message::SettingsMessage::CustomProviderModelRemove(i)
-                            ))
+                            if m.from_catalog { "禁用" } else { "移除" },
+                            Some(remove_message),
                         ),
                     ]
                     .spacing(10)
                     .align_y(Alignment::Center),
+                )
+                .padding([14, 0])
+                .width(Length::Fill),
+            );
+        }
+        if visible_count == 0 {
+            models_panel = models_panel.push(settings_divider());
+            models_panel = models_panel.push(
+                container(
+                    text(match s.custom_models_filter {
+                        CustomProviderModelFilter::All => "暂无模型",
+                        CustomProviderModelFilter::Enabled => "当前没有已启用的模型",
+                        CustomProviderModelFilter::Disabled => "当前没有已禁用的模型",
+                    })
+                    .size(12)
+                    .style(settings_muted_text_style),
                 )
                 .padding([14, 0])
                 .width(Length::Fill),

@@ -9,10 +9,10 @@ pub struct State {
     pub providers: HashMap<String, Info>,
 }
 
-/// 未知模型的保守上下文窗口，避免上下文治理因零值被绕过。
-pub const DEFAULT_MODEL_CONTEXT_LIMIT: u64 = 32_768;
-/// 未知模型的保守输入窗口，给输出预留默认空间。
-pub const DEFAULT_MODEL_INPUT_LIMIT: u64 = 28_672;
+/// 未知模型的默认上下文窗口；未配置时使用该兜底值。
+pub const DEFAULT_MODEL_CONTEXT_LIMIT: u64 = 200_000;
+/// 未知模型的默认输入窗口，给输出预留默认空间。
+pub const DEFAULT_MODEL_INPUT_LIMIT: u64 = 195_904;
 /// 未知模型的保守文本输出窗口。
 pub const DEFAULT_MODEL_OUTPUT_LIMIT: u64 = 4_096;
 

@@ -146,7 +146,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let context_limit_row = text_row(
             "上下文限制（token）",
             "总上下文窗口；留空时沿用内置基线或安全默认值。",
-            "例如 32768，留空使用默认值",
+            "例如 200000，留空使用默认值",
             &mm.context_limit,
             |v| Message::Settings(
                 message::SettingsMessage::CustomProviderModelModalContextLimitChanged(v),
@@ -154,8 +154,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
         let input_limit_row = text_row(
             "最大输入（token）",
-            "最大输入窗口；必须不超过上下文限制。",
-            "例如 28672，留空使用默认值",
+            "最大输入窗口；留空时沿用内置基线或安全默认值。",
+            "例如 195904，留空使用默认值",
             &mm.input_limit,
             |v| Message::Settings(
                 message::SettingsMessage::CustomProviderModelModalInputLimitChanged(v),

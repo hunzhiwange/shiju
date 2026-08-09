@@ -133,8 +133,8 @@ fn effective_input_window_prefers_input_and_handles_invalid_output_space() {
     assert_eq!(effective_input_window(&limit(1_000, None, 2_000)), 0);
 
     let defaults = resolve_model_limit(None, None, None);
-    assert_eq!(defaults.context, 32_768);
-    assert_eq!(defaults.input, Some(28_672));
+    assert_eq!(defaults.context, 200_000);
+    assert_eq!(defaults.input, Some(195_904));
     assert_eq!(defaults.output, 4_096);
 }
 

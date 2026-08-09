@@ -2,8 +2,8 @@
 
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, CronAddJobType, CronAddScheduleKind, CronSettingsTab,
-    GatewaySettingsTab, McpNewServerTransport, McpSettingsTab, ModelCatalogEntry, SecurityListKind,
-    SecuritySettingsTab, ThemeEditorTab,
+    CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab, McpNewServerTransport,
+    McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -795,6 +795,7 @@ pub enum SettingsMessage {
     CustomProviderEditOpen(String),
     CustomProviderEditLoaded(Result<crate::app::state::CustomProviderDraft, String>),
     CustomProviderClose,
+    CustomProviderTabSelected(CustomProviderTab),
     CustomProviderIdChanged(String),
     CustomProviderNameChanged(String),
     CustomProviderBaseUrlChanged(String),
@@ -805,6 +806,7 @@ pub enum SettingsMessage {
     CustomProviderHeaderValueChanged(usize, String),
     CustomProviderModelOpen(Option<usize>),
     CustomProviderModelClose,
+    CustomProviderModelTabSelected(CustomProviderModelTab),
     CustomProviderModelModalIdChanged(String),
     CustomProviderModelModalNameChanged(String),
     CustomProviderModelModalFamilyChanged(String),

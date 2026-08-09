@@ -292,6 +292,36 @@ fn custom_provider_open_close_and_edit_results_manage_modal_state() {
 }
 
 #[test]
+fn custom_provider_and_model_tabs_select_and_reset_on_open() {
+    let mut app = app();
+    app.provider_settings.custom_provider_tab = CustomProviderTab::Models;
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderOpen);
+    assert_eq!(app.provider_settings.custom_provider_tab, CustomProviderTab::Basic);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderTabSelected(CustomProviderTab::Authentication),
+    );
+    assert_eq!(app.provider_settings.custom_provider_tab, CustomProviderTab::Authentication);
+
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(None));
+    assert_eq!(
+        app.provider_settings.custom_model_modal.as_ref().unwrap().active_tab,
+        CustomProviderModelTab::Info
+    );
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelTabSelected(CustomProviderModelTab::Capabilities),
+    );
+    assert_eq!(
+        app.provider_settings.custom_model_modal.as_ref().unwrap().active_tab,
+        CustomProviderModelTab::Capabilities
+    );
+}
+
+#[test]
 fn custom_provider_fields_and_headers_ignore_out_of_range_indices() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CustomProviderIdChanged("custom".to_string()));

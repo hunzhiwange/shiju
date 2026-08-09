@@ -4,6 +4,7 @@ use crate::app::{
     App, Message,
     state::{
         CustomProviderDraft, CustomProviderModelDraft, CustomProviderModelModalState,
+        CustomProviderModelTab, CustomProviderTab,
         ProviderConnectState, ProviderHeaderDraft, SHIJU_OFFICIAL_PROVIDER_NAME,
         is_shiju_official_provider_id,
     },
@@ -38,6 +39,7 @@ fn model_modal_state(
 ) -> CustomProviderModelModalState {
     let model = model.unwrap_or_default();
     CustomProviderModelModalState {
+        active_tab: CustomProviderModelTab::default(),
         edit_index,
         model_id: model.model_id,
         display_name: model.display_name,
@@ -270,6 +272,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         },
         SettingsMessage::CustomProviderOpen => {
             app.provider_settings.custom_provider_modal_open = true;
+            app.provider_settings.custom_provider_tab = CustomProviderTab::default();
             app.provider_settings.custom_editing_provider_id = None;
             app.provider_settings.custom_models_discovering = false;
             app.provider_settings.custom = CustomProviderDraft::default();
@@ -283,6 +286,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CustomProviderEditOpen(provider_id) => {
             app.provider_settings.loading = true;
+            app.provider_settings.custom_provider_tab = CustomProviderTab::default();
             app.provider_settings.custom_models_discovering = false;
             app.provider_settings.save_error = None;
             app.provider_settings.connect_modal = None;
@@ -301,6 +305,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.custom_models_discovering = false;
                 app.provider_settings.custom_editing_provider_id = Some(draft.provider_id.clone());
                 app.provider_settings.custom = draft;
+                app.provider_settings.custom_provider_tab = CustomProviderTab::default();
                 app.provider_settings.custom_provider_modal_open = true;
                 Task::none()
             }
@@ -316,6 +321,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.provider_settings.custom_editing_provider_id = None;
             app.provider_settings.custom_models_discovering = false;
             app.provider_settings.save_error = None;
+            Task::none()
+        }
+        SettingsMessage::CustomProviderTabSelected(tab) => {
+            app.provider_settings.custom_provider_tab = tab;
             Task::none()
         }
         SettingsMessage::CustomProviderIdChanged(v) => {
@@ -368,6 +377,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CustomProviderModelClose => {
             app.provider_settings.custom_model_modal = None;
+            Task::none()
+        }
+        SettingsMessage::CustomProviderModelTabSelected(tab) => {
+            if let Some(model) = &mut app.provider_settings.custom_model_modal {
+                model.active_tab = tab;
+            }
             Task::none()
         }
         SettingsMessage::CustomProviderModelModalIdChanged(v) => {

@@ -71,6 +71,7 @@ fn provider_settings_default_populates_popular_patterns_and_modal_state() {
     assert!(state.connect_error.is_none());
     assert!(state.disconnect_confirm_provider_id.is_none());
     assert!(!state.custom_provider_modal_open);
+    assert_eq!(state.custom_provider_tab, CustomProviderTab::Basic);
     assert!(state.custom_editing_provider_id.is_none());
     assert!(!state.custom_models_discovering);
     assert!(state.custom_model_modal.is_none());
@@ -132,6 +133,7 @@ fn provider_and_model_summary_structs_preserve_public_fields() {
 #[test]
 fn model_detail_and_model_settings_defaults_are_stable() {
     let custom_modal = CustomProviderModelModalState {
+        active_tab: CustomProviderModelTab::Capabilities,
         edit_index: Some(2),
         model_id: "claude-sonnet".to_string(),
         display_name: "Claude Sonnet".to_string(),
@@ -148,6 +150,7 @@ fn model_detail_and_model_settings_defaults_are_stable() {
         output_modalities: Some(vec!["text".to_string()]),
         original_model_id: Some("claude-sonnet".to_string()),
     };
+    assert_eq!(custom_modal.active_tab, CustomProviderModelTab::Capabilities);
     assert_eq!(custom_modal.edit_index, Some(2));
     assert_eq!(custom_modal.model_id, "claude-sonnet");
     assert_eq!(custom_modal.display_name, "Claude Sonnet");

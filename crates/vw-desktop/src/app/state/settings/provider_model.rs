@@ -49,6 +49,22 @@ pub(crate) struct ProviderHeaderDraft {
     pub(crate) value: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CustomProviderTab {
+    #[default]
+    Basic,
+    Authentication,
+    Models,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CustomProviderModelTab {
+    #[default]
+    Info,
+    Limits,
+    Capabilities,
+}
+
 /// 自定义提供者模型草稿
 ///
 /// 用于添加自定义模型时的输入状态。
@@ -122,6 +138,8 @@ impl Default for CustomProviderDraft {
 /// 管理添加或编辑自定义提供者模型时的对话框状态。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CustomProviderModelModalState {
+    /// 当前选中的模型配置 Tab。
+    pub(crate) active_tab: CustomProviderModelTab,
     /// 正在编辑的模型索引（None 表示新增）
     pub(crate) edit_index: Option<usize>,
     /// 模型标识符输入
@@ -203,6 +221,8 @@ pub(crate) struct ProviderSettingsState {
     pub(crate) disconnect_confirm_provider_id: Option<String>,
     /// 自定义提供者对话框是否打开
     pub(crate) custom_provider_modal_open: bool,
+    /// 自定义提供者对话框当前选中的 Tab
+    pub(crate) custom_provider_tab: CustomProviderTab,
     /// 当前是否正在编辑已有提供者
     pub(crate) custom_editing_provider_id: Option<String>,
     /// 是否正在发现当前提供者的远端模型
@@ -240,6 +260,7 @@ impl Default for ProviderSettingsState {
             connect_error: None,
             disconnect_confirm_provider_id: None,
             custom_provider_modal_open: false,
+            custom_provider_tab: CustomProviderTab::default(),
             custom_editing_provider_id: None,
             custom_models_discovering: false,
             custom: CustomProviderDraft::default(),

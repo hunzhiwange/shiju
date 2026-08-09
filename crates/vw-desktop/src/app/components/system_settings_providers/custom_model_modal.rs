@@ -8,12 +8,18 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_modal_card,
     settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style,
+    settings_section_card, settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::{App, Message, message};
+use crate::app::state::CustomProviderModelTab;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length};
+
+const SCROLLBAR_WIDTH: f32 = 4.0;
+const SCROLLBAR_GUTTER: u16 = 3;
+// 两侧同时预留滚动条宽度与内容间隔，避免内容贴住 4px 滚动条。
+const SCROLLABLE_SIDE_PADDING: u16 = SCROLLBAR_WIDTH as u16 + SCROLLBAR_GUTTER;
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
 
@@ -74,6 +80,19 @@ fn capability_checkbox(
         .label(label)
         .on_toggle(on_toggle)
         .style(settings_checkbox_style)
+        .into()
+}
+
+fn model_tab_button(
+    label: &'static str,
+    tab: CustomProviderModelTab,
+    active_tab: CustomProviderModelTab,
+) -> Element<'static, Message> {
+    let is_active = tab == active_tab;
+    button(text(label).size(13))
+        .padding([8, 14])
+        .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelTabSelected(tab)))
+        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
         .into()
 }
 
@@ -232,12 +251,15 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(0);
 
-        let body = column![
+        let info_tab = column![
             settings_section_card("模型信息", "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"),
             settings_panel(
                 column![id_row, settings_divider(), name_row, settings_divider(), family_row]
                     .spacing(0),
             ),
+        ]
+        .spacing(16);
+        let limits_tab = column![
             settings_section_card("限制", "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"),
             settings_panel(
                 column![
@@ -249,11 +271,31 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 ]
                 .spacing(0),
             ),
+        ]
+        .spacing(16);
+        let capabilities_tab = column![
             settings_section_card("能力与模态", "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"),
             settings_panel(column![capabilities_row, settings_divider(), modalities_row].spacing(0)),
         ]
-        .spacing(16)
-        .width(Length::Fill);
+        .spacing(16);
+
+        let tabs = row![
+            model_tab_button("模型信息", CustomProviderModelTab::Info, mm.active_tab),
+            model_tab_button("限制", CustomProviderModelTab::Limits, mm.active_tab),
+            model_tab_button(
+                "能力与模态",
+                CustomProviderModelTab::Capabilities,
+                mm.active_tab,
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+
+        let body: Element<'_, Message> = match mm.active_tab {
+            CustomProviderModelTab::Info => info_tab.into(),
+            CustomProviderModelTab::Limits => limits_tab.into(),
+            CustomProviderModelTab::Capabilities => capabilities_tab.into(),
+        };
 
         let error_banner: Element<'_, Message> = s
             .save_error
@@ -268,9 +310,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 close_btn,
             ]
             .align_y(Alignment::Start),
+            tabs,
             error_banner,
-            scrollable(container(body).padding([0, 2]))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            scrollable(
+                container(body).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
+            )
+                .direction(
+                    Direction::Vertical(
+                        Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+                    ),
+                )
                 .height(Length::Fill),
             row![
                 container(text("")).width(Length::Fill),
@@ -292,7 +341,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .height(Length::Fill);
 
         let card = settings_modal_card(modal_col)
-            .width(Length::Fixed(720.0))
+            .width(Length::Fixed(840.0))
             .height(Length::Fixed(680.0));
         base = settings_modal_overlay(Some(base), close_message, card);
     }

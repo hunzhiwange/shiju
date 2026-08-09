@@ -16,13 +16,19 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, icon_btn,
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_error_banner, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_text_input_style,
-    settings_value_badge,
+    settings_page_intro, settings_panel, settings_section_card, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
+use crate::app::state::CustomProviderTab;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length};
+
+const SCROLLBAR_WIDTH: f32 = 4.0;
+const SCROLLBAR_GUTTER: u16 = 3;
+// 两侧同时预留滚动条宽度与内容间隔，避免内容贴住 4px 滚动条。
+const SCROLLABLE_SIDE_PADDING: u16 = SCROLLBAR_WIDTH as u16 + SCROLLBAR_GUTTER;
 
 pub(super) fn field_row<'a>(
     label: &'a str,
@@ -84,6 +90,19 @@ pub(super) fn secure_text_row<'a>(
             .style(settings_text_input_style)
             .width(Length::Fill),
     )
+}
+
+fn provider_tab_button(
+    label: &'static str,
+    tab: CustomProviderTab,
+    active_tab: CustomProviderTab,
+) -> Element<'static, Message> {
+    let is_active = tab == active_tab;
+    button(text(label).size(13))
+        .padding([8, 14])
+        .on_press(Message::Settings(message::SettingsMessage::CustomProviderTabSelected(tab)))
+        .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
+        .into()
 }
 
 /// 渲染自定义提供商配置模态对话框的叠加层视图
@@ -314,7 +333,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             );
         }
 
-        let body_col = column![
+        let basic_tab = column![
             settings_section_card(
                 "基础信息",
                 "命名 provider，并指定展示名称与 OpenAI 兼容接口地址。",
@@ -327,21 +346,44 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     settings_divider(),
                     base_url_row
                 ]
-                .spacing(0)
+                .spacing(0),
             ),
+        ]
+        .spacing(16);
+        let authentication_tab = column![
             settings_section_card(
                 "认证与请求头",
                 "设置默认 API Key，并为需要额外 header 的网关场景补充请求头。",
             ),
             settings_panel(column![api_key_row, settings_divider(), headers_row].spacing(0)),
+        ]
+        .spacing(16);
+        let models_tab = column![
             settings_section_card(
                 "模型",
                 "维护该 provider 的模型列表，后续聊天与生成界面会复用这里的配置。",
             ),
             settings_panel(models_panel),
         ]
-        .spacing(16)
-        .width(Length::Fill);
+        .spacing(16);
+
+        let tabs = row![
+            provider_tab_button("基础信息", CustomProviderTab::Basic, s.custom_provider_tab),
+            provider_tab_button(
+                "认证与请求头",
+                CustomProviderTab::Authentication,
+                s.custom_provider_tab,
+            ),
+            provider_tab_button("模型", CustomProviderTab::Models, s.custom_provider_tab),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+
+        let body_col: Element<'_, Message> = match s.custom_provider_tab {
+            CustomProviderTab::Basic => basic_tab.into(),
+            CustomProviderTab::Authentication => authentication_tab.into(),
+            CustomProviderTab::Models => models_tab.into(),
+        };
 
         let footer_row =
             row![
@@ -361,11 +403,17 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .align_y(Alignment::Center)
             .width(Length::Fill);
 
-        let scroll_body = scrollable(container(body_col).padding([0, 2]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        let scroll_body = scrollable(
+            container(body_col).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
+        )
+            .direction(
+                Direction::Vertical(
+                    Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+                ),
+            )
             .height(Length::Fill);
 
-        let mut modal_col = column![header_row].spacing(16).height(Length::Fill);
+        let mut modal_col = column![header_row, tabs].spacing(16).height(Length::Fill);
         if let Some(err) = &s.save_error {
             modal_col = modal_col.push(settings_error_banner(err));
         }

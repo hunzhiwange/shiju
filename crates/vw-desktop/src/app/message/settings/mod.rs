@@ -178,6 +178,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CustomProviderEditOpen(_)
         | SettingsMessage::CustomProviderEditLoaded(_)
         | SettingsMessage::CustomProviderClose
+        | SettingsMessage::CustomProviderTabSelected(_)
         | SettingsMessage::CustomProviderIdChanged(_)
         | SettingsMessage::CustomProviderNameChanged(_)
         | SettingsMessage::CustomProviderBaseUrlChanged(_)
@@ -188,6 +189,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CustomProviderHeaderValueChanged(_, _)
         | SettingsMessage::CustomProviderModelOpen(_)
         | SettingsMessage::CustomProviderModelClose
+        | SettingsMessage::CustomProviderModelTabSelected(_)
         | SettingsMessage::CustomProviderModelModalIdChanged(_)
         | SettingsMessage::CustomProviderModelModalNameChanged(_)
         | SettingsMessage::CustomProviderModelModalFamilyChanged(_)

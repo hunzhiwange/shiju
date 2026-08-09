@@ -2,6 +2,7 @@
 //! 视图将补丁摘要、文件列表和差异预览组合呈现，帮助用户审查自动修改。
 
 use iced::widget::svg;
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use std::path::Path;
@@ -11,8 +12,6 @@ use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
-#[cfg(not(target_arch = "wasm32"))]
-use super::ChangeFile;
 #[cfg(not(target_arch = "wasm32"))]
 use super::apply_patch_preview::parse_unified_diff_change_files;
 use super::apply_patch_preview::{collect_apply_patch_changes, find_apply_patch_change};
@@ -27,6 +26,7 @@ use super::tool_parse::{
     resolve_output_path, tool_change_file_summaries, tool_change_files, tool_error_text,
     tool_input, tool_output_path, tool_output_text, tool_status, tool_structured_diff_text,
 };
+use super::types::ChangeFile;
 use super::{
     ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_permission_error_text,
     tool_permission_state, tool_permission_target_summary, tool_permission_title, tool_text_editor,
@@ -83,14 +83,7 @@ pub fn tool_apply_patch_view<'a>(
             files = change_summaries.iter().map(|c| (c.kind, c.path.clone())).collect();
         }
     }
-    let expanded_paths = files
-        .iter()
-        .filter_map(|(_, path)| {
-            let expanded_key = apply_patch_file_expand_key(msg_idx, tool_idx, path);
-            app.chat_tool_file_expanded.contains(&expanded_key).then(|| path.clone())
-        })
-        .collect::<std::collections::HashSet<_>>();
-    let changes = if expanded && !expanded_paths.is_empty() {
+    let changes = if !summaries_by_path.is_empty() {
         let structured_changes = tool_change_files(&v);
         if structured_changes.is_empty() {
             collect_apply_patch_changes(&output, input)
@@ -278,7 +271,7 @@ pub fn tool_apply_patch_view<'a>(
                     .as_ref()
                     .cloned()
                     .map(preview_eye_button)
-                    .unwrap_or_else(|| Space::new().into());
+                    .unwrap_or_else(|| Space::new().width(Length::Fixed(20.0)).into());
                 let count_meta: Element<'a, Message> = if let Some(c) = summaries_by_path.get(path)
                 {
                     if *kind == 'D' {
@@ -298,7 +291,30 @@ pub fn tool_apply_patch_view<'a>(
                     } else {
                         format!("{}  +{}-{}", path, c.additions, c.deletions)
                     };
-                    let diff_row = row![
+                    let resolved_change =
+                        resolve_apply_patch_change_preview(app, &changes, *kind, path);
+                    let external_diff_btn: Element<'a, Message> =
+                        if let Some(change) = resolved_change.clone() {
+                            external_diff_button(Message::Git(
+                                message::GitMessage::OpenChatTextDiff {
+                                    title: title.clone(),
+                                    file: path.clone(),
+                                    before: change.before,
+                                    after: change.after,
+                                },
+                            ))
+                        } else {
+                            Space::new().width(Length::Fixed(20.0)).into()
+                        };
+                    let view_changes_btn = view_changes_toggle_button(
+                        file_expanded,
+                        Message::Chat(message::ChatMessage::ToggleToolFile(
+                            msg_idx,
+                            tool_idx,
+                            path.clone(),
+                        )),
+                    );
+                    let header_row = row![
                         row![
                             apply_patch_file_icon(icon),
                             text(path.clone()).size(14).style(|theme: &Theme| {
@@ -310,96 +326,67 @@ pub fn tool_apply_patch_view<'a>(
                         .spacing(10)
                         .align_y(Alignment::Center),
                         eye_btn,
+                        external_diff_btn,
                         container(Space::new()).width(Length::Fill),
                         count_meta,
-                        view_changes_pill(),
-                        icon_svg(if file_expanded { Icon::ChevronUp } else { Icon::ChevronDown })
-                            .width(Length::Fixed(10.0))
-                            .height(Length::Fixed(10.0))
-                            .style(|theme: &Theme, _status| svg::Style {
-                                color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
-                            })
+                        view_changes_btn,
                     ]
                     .align_y(Alignment::Center)
                     .spacing(10);
-                    let diff_btn = button(diff_row)
+                    let header = container(header_row)
                         .padding([8, 0])
                         .width(Length::Fill)
-                        .style(apply_patch_file_button_style)
-                        .on_press(Message::Chat(message::ChatMessage::ToggleToolFile(
-                            msg_idx,
-                            tool_idx,
-                            path.clone(),
-                        )));
+                        .style(apply_patch_inner_card_style);
+
                     if file_expanded {
-                        let resolved_change = find_apply_patch_change(&changes, path).cloned();
-                        #[cfg(not(target_arch = "wasm32"))]
-                        let resolved_change = resolved_change
-                            .or_else(|| {
-                                (*kind == 'D')
-                                    .then(|| deleted_file_preview_from_repo_diff(app, path))
-                                    .flatten()
-                            })
-                            .or_else(|| {
-                                (*kind == 'D')
-                                    .then(|| deleted_file_preview_from_history(app, path))
-                                    .flatten()
-                            })
-                            .or_else(|| {
-                                let change = find_apply_patch_change(&changes, path)?;
-                                if *kind == 'D' && change.before.is_empty() {
-                                    deleted_file_preview_from_repo_diff(app, path)
-                                        .or_else(|| deleted_file_preview_from_history(app, path))
-                                } else {
-                                    None
-                                }
-                            });
-                        let diff_body: Element<'a, Message> = if let Some(change) = resolved_change
-                        {
-                            container(render_git_diff_content(
-                                app,
-                                title,
-                                Some(path.clone()),
-                                change.before,
-                                change.after,
-                            ))
-                            .width(Length::Fill)
-                            .clip(true)
-                            .padding([4, 0])
-                            .into()
-                        } else if *kind == 'D' {
-                            container(
-                                text("文件已删除，但当前记录未包含删除前内容预览").size(14).style(
+                        let diff_body: Element<'a, Message> =
+                            if let Some(change) = resolved_change {
+                                container(render_git_diff_content(
+                                    app,
+                                    title,
+                                    Some(path.clone()),
+                                    change.before,
+                                    change.after,
+                                ))
+                                .width(Length::Fill)
+                                .clip(true)
+                                .padding([4, 0])
+                                .into()
+                            } else if *kind == 'D' {
+                                container(
+                                    text("文件已删除，但当前记录未包含删除前内容预览").size(14).style(
+                                        |theme: &Theme| iced::widget::text::Style {
+                                            color: Some(apply_patch_secondary_text(
+                                                theme, 0.72, 0.74,
+                                            )),
+                                        },
+                                    ),
+                                )
+                                .width(Length::Fill)
+                                .clip(true)
+                                .padding([10, 0])
+                                .style(apply_patch_inner_card_style)
+                                .into()
+                            } else {
+                                container(text("未能解析文件变更").size(14).style(
                                     |theme: &Theme| iced::widget::text::Style {
                                         color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
                                     },
-                                ),
-                            )
-                            .width(Length::Fill)
-                            .clip(true)
-                            .padding([10, 0])
-                            .style(apply_patch_inner_card_style)
-                            .into()
-                        } else {
-                            container(text("未能解析文件变更").size(14).style(|theme: &Theme| {
-                                iced::widget::text::Style {
-                                    color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
-                                }
-                            }))
-                            .width(Length::Fill)
-                            .clip(true)
-                            .padding([10, 0])
-                            .style(apply_patch_inner_card_style)
-                            .into()
-                        };
+                                ))
+                                .width(Length::Fill)
+                                .clip(true)
+                                .padding([10, 0])
+                                .style(apply_patch_inner_card_style)
+                                .into()
+                            };
                         list = list.push(
-                            container(column![diff_btn, diff_body].spacing(4))
+                            container(column![header, diff_body].spacing(4))
                                 .width(Length::Fill)
                                 .clip(true)
                                 .style(apply_patch_outer_card_style),
                         );
                     } else {
-                        list = list.push(diff_btn);
+                        list = list.push(header);
                     }
                 } else {
                     let open_row = row![
@@ -564,6 +551,85 @@ fn view_changes_pill<'a>() -> Element<'a, Message> {
     .into()
 }
 
+fn view_changes_toggle_button<'a>(expanded: bool, on_press: Message) -> Element<'a, Message> {
+    button(
+        row![
+            view_changes_pill(),
+            icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+                .width(Length::Fixed(10.0))
+                .height(Length::Fixed(10.0))
+                .style(|theme: &Theme, _status| svg::Style {
+                    color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
+                })
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([2, 4])
+    .style(apply_patch_file_button_style)
+    .on_press(on_press)
+    .into()
+}
+
+fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
+    let eye = icon_svg(Icon::ChevronRight)
+        .width(Length::Fixed(12.0))
+        .height(Length::Fixed(12.0))
+        .style(|theme: &Theme, _status| {
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            svg::Style {
+                color: Some(if is_dark {
+                    theme.palette().text.scale_alpha(0.9)
+                } else {
+                    theme.extended_palette().secondary.base.text
+                }),
+            }
+        });
+    let btn = button(eye).padding([2, 4]).style(apply_patch_file_button_style).on_press(on_press);
+    Tooltip::new(
+        btn,
+        container(text("查找变更").size(12))
+            .padding([6, 8])
+            .style(|_theme: &Theme| iced::widget::container::Style {
+                text_color: Some(Color::WHITE),
+                background: Some(Background::Color(Color::from_rgba8(0, 0, 0, 0.94))),
+                border: Border { radius: 6.0.into(), ..Default::default() },
+                ..Default::default()
+            }),
+        TooltipPosition::Top,
+    )
+    .gap(6)
+    .into()
+}
+
+fn resolve_apply_patch_change_preview(
+    app: &App,
+    changes: &[ChangeFile],
+    kind: char,
+    path: &str,
+) -> Option<ChangeFile> {
+    let resolved = find_apply_patch_change(changes, path).cloned();
+    #[cfg(not(target_arch = "wasm32"))]
+    let resolved = resolved
+        .or_else(|| (kind == 'D').then(|| deleted_file_preview_from_repo_diff(app, path)).flatten())
+        .or_else(|| (kind == 'D').then(|| deleted_file_preview_from_history(app, path)).flatten())
+        .or_else(|| {
+            let change = find_apply_patch_change(changes, path)?;
+            if kind == 'D' && change.before.is_empty() {
+                deleted_file_preview_from_repo_diff(app, path)
+                    .or_else(|| deleted_file_preview_from_history(app, path))
+            } else {
+                None
+            }
+        });
+    #[cfg(target_arch = "wasm32")]
+    let _ = (app, kind);
+    resolved
+}
+
 pub(super) fn apply_patch_header_summary(
     files: &[(char, String)],
 ) -> (String, String, Option<String>) {
@@ -716,7 +782,7 @@ pub(super) fn apply_patch_header_file_icon(path: &str) -> Icon {
 }
 
 fn preview_eye_button<'a>(abs: String) -> Element<'a, Message> {
-    let eye = icon_svg(Icon::ChevronRight)
+    let eye = icon_svg(Icon::Eye)
         .width(Length::Fixed(12.0))
         .height(Length::Fixed(12.0))
         .style(|theme: &Theme, _status| {
@@ -732,7 +798,9 @@ fn preview_eye_button<'a>(abs: String) -> Element<'a, Message> {
                 }),
             }
         });
-    mouse_area(container(eye).padding([4, 6]))
+    button(eye)
+        .padding([2, 4])
+        .style(apply_patch_file_button_style)
         .on_press(Message::Preview(message::PreviewMessage::Open(abs)))
         .into()
 }

@@ -508,7 +508,7 @@ pub(super) fn git_diff_title(preview: &GitDiffPreview) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn render_git_diff_content<'a>(
+pub(crate) fn render_git_diff_content<'a>(
     app: &'a App,
     // title 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     title: String,

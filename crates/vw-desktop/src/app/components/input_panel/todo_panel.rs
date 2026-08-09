@@ -276,8 +276,8 @@ fn open_git_panel_button(changed_files: usize) -> Element<'static, Message> {
 fn floating_collapsed_badge(total: usize) -> Element<'static, Message> {
     let count = total.min(99).to_string();
     let badge = container(text(count).size(14))
-        .width(Length::Fixed(38.0))
-        .height(Length::Fixed(38.0))
+        .width(Length::Fixed(26.0))
+        .height(Length::Fixed(26.0))
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
         .style(|theme: &Theme| {
@@ -310,8 +310,8 @@ fn floating_collapsed_badge(total: usize) -> Element<'static, Message> {
 
     button(badge)
         .padding(0)
-        .width(Length::Fixed(38.0))
-        .height(Length::Fixed(38.0))
+        .width(Length::Fixed(26.0))
+        .height(Length::Fixed(26.0))
         .style(iced::widget::button::text)
         .on_press(Message::Chat(message::ChatMessage::ToggleTodoPanel))
         .into()

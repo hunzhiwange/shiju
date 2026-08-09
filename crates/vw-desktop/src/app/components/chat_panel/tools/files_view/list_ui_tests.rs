@@ -1,9 +1,10 @@
 use super::super::types::ChangeFile;
 use super::list_ui::{
-    build_file_list_column, diff_eye_button, diff_eye_button_slot, edit_change_counts,
-    edit_file_name_color, edit_file_name_link, edit_file_row_content, edit_result_label,
-    edit_verb_text, fallback_edit_diff_payload, file_name_tooltip, file_row_label,
-    tool_file_hover_key, tool_file_left,
+    build_file_list_column, edit_change_counts, edit_file_change_block,
+    edit_file_change_button_style, edit_file_expand_key, edit_file_name_color, edit_file_name_link,
+    edit_result_label, edit_verb_text, external_diff_button, fallback_edit_diff_payload,
+    file_name_tooltip, file_row_label, tool_file_hover_key, tool_file_left, view_changes_pill,
+    view_changes_secondary_text, view_changes_toggle_button,
 };
 use super::{FileListState, FilesViewContext};
 use crate::app::{App, Message};
@@ -214,11 +215,17 @@ fn edit_file_name_color_keeps_base_color_and_changes_alpha_on_hover() {
 }
 
 #[test]
+fn edit_file_expand_key_includes_indices_and_path() {
+    assert_eq!(edit_file_expand_key(1, 2, "src/main.rs"), "1:2:src/main.rs");
+}
+
+#[test]
 fn edit_row_helpers_build_hovered_and_idle_elements() {
     keep_element(file_name_tooltip("src/main.rs".to_string()));
-    keep_element(diff_eye_button(Message::None));
-    keep_element(diff_eye_button_slot(true, Message::None));
-    keep_element(diff_eye_button_slot(false, Message::None));
+    keep_element(external_diff_button(Message::None));
+    keep_element(view_changes_toggle_button(false, Message::None));
+    keep_element(view_changes_toggle_button(true, Message::None));
+    keep_element(view_changes_pill());
     keep_element(edit_verb_text("读取"));
     keep_element(edit_change_counts(3, 1));
     keep_element(tool_file_left("读取", "main.rs".to_string(), true, Some("L1-L3".to_string())));
@@ -231,28 +238,46 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
         Message::None,
         true,
     ));
-    keep_element(edit_file_row_content(
+
+    let app = test_app();
+    keep_element(edit_file_change_block(
+        &app,
         1,
         2,
         "/tmp/vibe-window/src/main.rs",
+        "src/main.rs".to_string(),
         "已编辑",
         "src/main.rs".to_string(),
-        Message::None,
-        false,
         Some((2, 1)),
-        Message::None,
+        "src/main.rs  +2-1".to_string(),
+        "before".to_string(),
+        "after".to_string(),
     ));
-    keep_element(edit_file_row_content(
+
+    let mut expanded = test_app();
+    expanded
+        .chat_tool_file_expanded
+        .insert(edit_file_expand_key(1, 2, "src/main.rs"));
+    expanded.chat_tool_file_hovered =
+        Some(tool_file_hover_key(1, 2, "/tmp/vibe-window/src/main.rs"));
+    keep_element(edit_file_change_block(
+        &expanded,
         1,
         2,
-        "/tmp/vibe-window/src/lib.rs",
-        "已写入",
-        "src/lib.rs".to_string(),
-        Message::None,
-        true,
-        None,
-        Message::None,
+        "/tmp/vibe-window/src/main.rs",
+        "src/main.rs".to_string(),
+        "已编辑",
+        "src/main.rs".to_string(),
+        Some((2, 1)),
+        "src/main.rs  +2-1".to_string(),
+        "before".to_string(),
+        "after".to_string(),
     ));
+
+    let _ = edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Active);
+    let _ = edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Hovered);
+    let _ = view_changes_secondary_text(&iced::Theme::Dark);
+    let _ = view_changes_secondary_text(&iced::Theme::Light);
 }
 
 #[test]
@@ -330,10 +355,11 @@ fn build_file_list_column_handles_search_items_and_truncated_labels() {
 }
 
 #[test]
-fn build_file_list_column_uses_change_payload_for_edit_rows() {
+fn build_file_list_column_expands_inline_diff_for_edit_rows() {
     let mut app = test_app();
     let abs = "/tmp/vibe-window/src/main.rs";
-    app.chat_tool_file_hovered = Some(tool_file_hover_key(1, 2, abs));
+    app.chat_tool_file_expanded
+        .insert(edit_file_expand_key(1, 2, "src/main.rs"));
     let view_ctx = ctx(&app, "file_edit", r#"{"path":"src/main.rs","new_string":"after"}"#, "");
     let render_state = state(vec![("src/main.rs".to_string(), abs.to_string())], false);
     let mut changes_by_path = HashMap::new();
@@ -348,7 +374,15 @@ fn build_file_list_column_uses_change_payload_for_edit_rows() {
         },
     );
 
-    keep_column(build_file_list_column(&app, &render_state, &view_ctx, &changes_by_path));
+    assert_eq!(
+        column_child_count(build_file_list_column(
+            &app,
+            &render_state,
+            &view_ctx,
+            &changes_by_path
+        )),
+        1
+    );
 }
 
 #[test]

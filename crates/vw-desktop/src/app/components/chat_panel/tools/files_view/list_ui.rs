@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
@@ -15,6 +16,7 @@ use crate::app::components::chat_panel::utils::{
 use crate::app::{App, Message, message};
 
 use super::super::diff_utils::file_preview;
+use super::super::git_diff_view::render_git_diff_content;
 use super::super::tool_parse::tool_input_path;
 use super::super::types::ChangeFile;
 
@@ -60,56 +62,39 @@ pub(crate) fn build_file_list_column<'a>(
             && let Some(rel) = relative_to_project_root(app, abs)
         {
             if let Some(change) = changes_by_path.get(rel.as_str()) {
-                let hover_key = tool_file_hover_key(view_ctx.msg_idx, view_ctx.tool_idx, abs);
-                let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
                 let title = format!("{}  +{}-{}", rel, change.additions, change.deletions);
-                let change_message = Message::Git(message::GitMessage::OpenChatTextDiff {
-                    title,
-                    file: rel.clone(),
-                    before: change.before.clone(),
-                    after: change.after.clone(),
-                });
-                let file_name = file_row_label(app, view_ctx, display, abs);
-                let row_content = edit_file_row_content(
+                column_view = column_view.push(edit_file_change_block(
+                    app,
                     view_ctx.msg_idx,
                     view_ctx.tool_idx,
                     abs,
+                    rel,
                     edit_result_label(&view_ctx.tool_name, view_ctx.is_running, view_ctx.is_error),
-                    file_name,
-                    Message::Preview(message::PreviewMessage::Open(abs.clone())),
-                    is_hovered,
+                    file_row_label(app, view_ctx, display, abs),
                     Some((change.additions, change.deletions)),
-                    change_message,
-                );
-
-                column_view = column_view.push(row_content);
+                    title,
+                    change.before.clone(),
+                    change.after.clone(),
+                ));
                 continue;
             }
         }
 
         if let Some((title, file, after)) = fallback_edit_diff_payload(app, view_ctx, display, abs)
         {
-            let hover_key = tool_file_hover_key(view_ctx.msg_idx, view_ctx.tool_idx, abs);
-            let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
-            let change_message = Message::Git(message::GitMessage::OpenChatTextDiff {
-                title,
-                file,
-                before: String::new(),
-                after,
-            });
-            let row_content = edit_file_row_content(
+            column_view = column_view.push(edit_file_change_block(
+                app,
                 view_ctx.msg_idx,
                 view_ctx.tool_idx,
                 abs,
+                file,
                 edit_result_label(&view_ctx.tool_name, view_ctx.is_running, view_ctx.is_error),
                 file_row_label(app, view_ctx, display, abs),
-                Message::Preview(message::PreviewMessage::Open(abs.clone())),
-                is_hovered,
                 None,
-                change_message,
-            );
-
-            column_view = column_view.push(row_content);
+                title,
+                String::new(),
+                after,
+            ));
             continue;
         }
 
@@ -198,32 +183,71 @@ pub(super) fn fallback_edit_diff_payload(
     Some((title, file, after))
 }
 
-pub(super) fn edit_file_row_content<'a>(
+pub(super) fn edit_file_expand_key(msg_idx: usize, tool_idx: usize, path: &str) -> String {
+    format!("{msg_idx}:{tool_idx}:{path}")
+}
+
+pub(super) fn edit_file_change_block<'a>(
+    app: &'a App,
     msg_idx: usize,
     tool_idx: usize,
     abs: &str,
+    file: String,
     verb: &'static str,
     file_name: String,
-    open_message: Message,
-    is_hovered: bool,
     counts: Option<(usize, usize)>,
-    diff_message: Message,
+    title: String,
+    before: String,
+    after: String,
 ) -> Element<'a, Message> {
-    let mut content = row![
+    let expand_key = edit_file_expand_key(msg_idx, tool_idx, &file);
+    let file_expanded = app.chat_tool_file_expanded.contains(&expand_key);
+    let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
+    let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
+    let open_message = Message::Preview(message::PreviewMessage::Open(abs.to_string()));
+    let open_diff_message = Message::Git(message::GitMessage::OpenChatTextDiff {
+        title: title.clone(),
+        file: file.clone(),
+        before: before.clone(),
+        after: after.clone(),
+    });
+    let toggle_message =
+        Message::Chat(message::ChatMessage::ToggleToolFile(msg_idx, tool_idx, file.clone()));
+
+    let mut header = row![
         edit_verb_text(verb),
         edit_file_name_link(msg_idx, tool_idx, abs, file_name, open_message, is_hovered),
+        external_diff_button(open_diff_message),
+        container(Space::new()).width(Length::Fill),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
 
     if let Some((adds, dels)) = counts {
-        content = content.push(edit_change_counts(adds, dels));
+        header = header.push(edit_change_counts(adds, dels));
     }
 
-    content = content.push(diff_eye_button_slot(is_hovered, diff_message));
-    let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
+    header = header.push(view_changes_toggle_button(file_expanded, toggle_message));
 
-    mouse_area(container(content).width(Length::Fill))
+    let header = container(header).padding([6, 0]).width(Length::Fill);
+
+    let block: Element<'a, Message> = if file_expanded {
+        let diff_body = container(render_git_diff_content(
+            app,
+            title,
+            Some(file),
+            before,
+            after,
+        ))
+        .width(Length::Fill)
+        .clip(true)
+        .padding([4, 0]);
+        column![header, diff_body].spacing(4).into()
+    } else {
+        header.into()
+    };
+
+    mouse_area(container(block).width(Length::Fill))
         .on_enter(Message::Chat(message::ChatMessage::ToolFileHover(hover_key)))
         .on_exit(Message::Chat(message::ChatMessage::ToolFileHoverLeave))
         .into()
@@ -287,43 +311,124 @@ pub(super) fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
         .into()
 }
 
-pub(super) fn diff_eye_button<'a>(on_press: Message) -> Element<'a, Message> {
+pub(super) fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
     let eye = icon_svg(Icon::ChevronRight)
         .width(Length::Fixed(12.0))
         .height(Length::Fixed(12.0))
-        .style(|theme: &Theme, _status| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            iced::widget::svg::Style {
-                color: Some(if is_dark {
-                    theme.palette().text.scale_alpha(0.9)
-                } else {
-                    theme.extended_palette().secondary.base.text
-                }),
-            }
+        .style(|theme: &Theme, _status| svg::Style {
+            color: Some(view_changes_secondary_text(theme)),
         });
 
-    let button: Element<'a, Message> = mouse_area(
-        container(eye).style(|_theme: &Theme| iced::widget::container::Style::default()),
-    )
-    .on_press(on_press)
-    .into();
+    let button: Element<'a, Message> =
+        button(eye).padding([2, 4]).style(edit_file_change_button_style).on_press(on_press).into();
 
     Tooltip::new(button, file_name_tooltip("查找变更".to_string()), TooltipPosition::Top)
         .gap(6)
         .into()
 }
 
-pub(super) fn diff_eye_button_slot<'a>(
-    is_hovered: bool,
+pub(super) fn view_changes_toggle_button<'a>(
+    expanded: bool,
     on_press: Message,
 ) -> Element<'a, Message> {
-    if is_hovered {
-        diff_eye_button(on_press)
+    button(
+        row![
+            view_changes_pill(),
+            icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+                .width(Length::Fixed(10.0))
+                .height(Length::Fixed(10.0))
+                .style(|theme: &Theme, _status| svg::Style {
+                    color: Some(view_changes_secondary_text(theme)),
+                })
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([2, 4])
+    .style(edit_file_change_button_style)
+    .on_press(on_press)
+    .into()
+}
+
+pub(super) fn view_changes_pill<'a>() -> Element<'a, Message> {
+    container(text("查看变更").size(14).style(|theme: &Theme| {
+        let is_dark = theme.palette().background.r
+            + theme.palette().background.g
+            + theme.palette().background.b
+            < 1.5;
+        iced::widget::text::Style {
+            color: Some(if is_dark {
+                theme.palette().text.scale_alpha(0.88)
+            } else {
+                theme.extended_palette().secondary.base.text
+            }),
+        }
+    }))
+    .padding([2, 8])
+    .style(|theme: &Theme| {
+        let ext = theme.extended_palette();
+        let is_dark = theme.palette().background.r
+            + theme.palette().background.g
+            + theme.palette().background.b
+            < 1.5;
+        iced::widget::container::Style {
+            background: Some(Background::Color(if is_dark {
+                ext.background.weak.color.scale_alpha(0.24)
+            } else {
+                ext.background.base.color.scale_alpha(0.76)
+            })),
+            border: Border {
+                width: 1.0,
+                color: ext.background.strong.color.scale_alpha(if is_dark { 0.48 } else { 0.75 }),
+                radius: 999.0.into(),
+            },
+            ..Default::default()
+        }
+    })
+    .into()
+}
+
+pub(super) fn view_changes_secondary_text(theme: &Theme) -> Color {
+    let is_dark = theme.palette().background.r
+        + theme.palette().background.g
+        + theme.palette().background.b
+        < 1.5;
+    if is_dark {
+        theme.palette().text.scale_alpha(0.72)
     } else {
-        Space::new().width(Length::Fixed(12.0)).into()
+        theme.extended_palette().secondary.base.text.scale_alpha(0.74)
+    }
+}
+
+pub(super) fn edit_file_change_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let ext = theme.extended_palette();
+    let is_dark = theme.palette().background.r
+        + theme.palette().background.g
+        + theme.palette().background.b
+        < 1.5;
+    let background = match status {
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
+            Some(Background::Color(if is_dark {
+                ext.background.weak.color.scale_alpha(0.28)
+            } else {
+                ext.background.weak.color.scale_alpha(0.55)
+            }))
+        }
+        _ => None,
+    };
+    iced::widget::button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: Border {
+            width: 0.0,
+            color: Color::TRANSPARENT,
+            radius: 8.0.into(),
+        },
+        shadow: Default::default(),
+        ..Default::default()
     }
 }
 

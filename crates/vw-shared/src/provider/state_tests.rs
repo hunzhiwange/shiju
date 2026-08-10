@@ -81,6 +81,52 @@ fn model_limit_resolution_uses_defaults_only_for_missing_or_zero_values() {
 }
 
 #[test]
+fn legacy_large_context_input_limit_uses_new_default() {
+    let resolved = resolve_model_limit(Some(200_000), Some(28_672), Some(4_096));
+
+    assert_eq!(resolved.input, Some(200_000));
+}
+
+#[test]
+fn legacy_small_context_input_limit_stays_bounded() {
+    let resolved = resolve_model_limit(Some(32_768), Some(28_672), Some(4_096));
+
+    assert_eq!(resolved.input, Some(28_672));
+}
+
+#[test]
+fn explicit_context_expansion_updates_inherited_input_window() {
+    let base = ModelLimit { context: 128_000, input: Some(28_672), output: 4_096 };
+
+    let resolved = resolve_model_limit_with_base(Some(333_333_333), None, None, Some(&base));
+
+    assert_eq!(resolved.context, 333_333_333);
+    assert_eq!(resolved.input, Some(200_000));
+    assert_eq!(resolved.output, 4_096);
+}
+
+#[test]
+fn explicit_input_limit_still_wins_over_expanded_context() {
+    let base = ModelLimit { context: 128_000, input: Some(28_672), output: 4_096 };
+
+    let resolved =
+        resolve_model_limit_with_base(Some(333_333_333), Some(200_000), None, Some(&base));
+
+    assert_eq!(resolved.context, 333_333_333);
+    assert_eq!(resolved.input, Some(200_000));
+}
+
+#[test]
+fn expanded_context_replaces_a_persisted_inherited_input_limit() {
+    let base = ModelLimit { context: 128_000, input: Some(28_672), output: 4_096 };
+
+    let resolved =
+        resolve_model_limit_with_base(Some(333_333_333), Some(28_672), None, Some(&base));
+
+    assert_eq!(resolved.input, Some(200_000));
+}
+
+#[test]
 fn effective_input_window_matches_runtime_default_limit() {
     let limit = resolve_model_limit(None, None, None);
 

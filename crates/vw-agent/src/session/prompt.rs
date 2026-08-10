@@ -144,6 +144,40 @@ pub struct SystemPrompt {
     pub content: String,
     /// 当前所选项目及委托代理工作区实际读取、需要在界面展示的文件路径。
     pub visible_instruction_paths: Vec<String>,
+    /// 不含项目协议的基础系统指令。
+    base_content: String,
+    /// 作为独立系统消息发送的项目协议。
+    project_protocol: Option<String>,
+}
+
+impl SystemPrompt {
+    /// 按稳定优先级生成每一步发送给模型的独立系统消息。
+    pub fn runtime_parts(
+        &self,
+        primary_system_prompt: Option<&str>,
+        include_max_steps: bool,
+    ) -> Vec<String> {
+        let mut parts = vec![self.base_content.clone()];
+        if let Some(prompt) = primary_system_prompt.map(str::trim).filter(|prompt| !prompt.is_empty())
+        {
+            parts.push(prompt.to_string());
+        }
+        if let Some(project_protocol) = self.project_protocol.as_ref() {
+            parts.push(project_protocol.clone());
+        }
+        if include_max_steps {
+            parts.push(max_steps_text().to_string());
+        }
+        parts.into_iter().filter(|part| !part.trim().is_empty()).collect()
+    }
+}
+
+fn format_project_protocol(content: &str) -> String {
+    format!(
+        "<project_protocol>\n{content}\n</project_protocol>\n\n\
+         上述项目协议是当前工作区的强制执行规则。选择工具、技能、工作流、编辑方式或验证命令前，\
+         必须先检查并遵循其中与当前任务相关的要求；不得以默认习惯替代项目协议。"
+    )
 }
 
 /// 构建系统提示词，并单独保留所选项目的协议文件路径供界面展示。
@@ -166,10 +200,11 @@ pub fn system_with_agent_metadata(
     // 添加系统指令
     let mut instructions = instruction_system();
     let mut visible_instruction_paths = Vec::new();
+    let mut project_protocol = None;
     if let Some(project_agents) = project_agents(root) {
         instructions.retain(|resolved| resolved.filepath != project_agents.filepath);
         visible_instruction_paths.push(project_agents.filepath.clone());
-        instructions.insert(0, project_agents);
+        project_protocol = Some(format_project_protocol(&project_agents.content));
     }
     for agent_identity in agent_workspace_identity(agent_key, enabled_identity_files) {
         if instructions.iter().any(|resolved| resolved.filepath == agent_identity.filepath) {
@@ -180,10 +215,19 @@ pub fn system_with_agent_metadata(
     }
     parts.extend(instructions.into_iter().map(|resolved| resolved.content));
 
-    // 过滤空白内容并用双换行符连接各部分
+    // 项目协议单独保留，在运行时作为靠后的系统消息发送，避免被默认说明淹没。
+    let base_content = join_non_empty_parts(parts);
+    let content = join_non_empty_parts(
+        [Some(base_content.clone()), project_protocol.clone()]
+            .into_iter()
+            .flatten()
+            .collect(),
+    );
     SystemPrompt {
-        content: join_non_empty_parts(parts),
+        content,
         visible_instruction_paths,
+        base_content,
+        project_protocol,
     }
 }
 

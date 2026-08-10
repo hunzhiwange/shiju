@@ -1756,9 +1756,69 @@ fn task_plan_run_active(workflow_mode_enabled: bool, resume_history_only: bool) 
     workflow_mode_enabled && !resume_history_only
 }
 
-/// 无工作流时，目标模式固定开启：走普通聊天 + 独立验收续轮。
+/// 无工作流时，只有目标明确且目标模式开启才走独立验收续轮。
 fn lightweight_goal_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
     !workflow_mode_enabled && !resume_history_only
+}
+
+/// 判断普通聊天是否包含足够明确的可执行目标。
+///
+/// 目标模式不能把所有问句都升级成“必须完成”的任务，否则解释、闲聊或
+/// 模糊的“继续一下”会在验收失败后触发无意义续轮。这里保守地只接受带有
+/// 常见动作词、且包含实际对象的请求；工作流模式仍由显式开关单独控制。
+fn lightweight_goal_query_is_clear(query: &str) -> bool {
+    let query = query.trim();
+    if query.is_empty() {
+        return false;
+    }
+
+    const ACTION_MARKERS: &[&str] = &[
+        "修复", "实现", "添加", "增加", "修改", "重构", "优化", "创建", "删除", "移除",
+        "补充", "编写", "更新", "升级", "排查", "解决", "处理", "完成", "构建", "运行",
+        "测试", "检查", "识别", "分析", "生成", "制作", "开发", "设计", "整理", "迁移",
+        "替换", "恢复", "配置", "部署", "提交", "发布", "do ", "fix ", "implement ",
+        "add ", "change ", "refactor ", "build ", "create ", "update ", "run ", "test ",
+        "check ", "identify ", "analyze ", "generate ",
+    ];
+    const INFORMATION_PREFIXES: &[&str] = &[
+        "为什么", "怎么", "如何", "什么", "是否", "能否", "可以吗", "请问", "解释一下", "介绍一下",
+        "what ", "why ", "how ", "can you explain", "could you explain",
+    ];
+    const VAGUE_REQUESTS: &[&str] = &[
+        "继续", "继续刚才", "继续上次", "帮我看看", "看看", "看一下", "处理一下", "修复一下",
+        "做一下", "搞一下", "这个", "那个", "问题", "do it", "continue", "take a look",
+    ];
+
+    let lowered = query.to_ascii_lowercase();
+    if query.ends_with(['?', '？'])
+        || INFORMATION_PREFIXES
+            .iter()
+            .any(|prefix| query.starts_with(prefix) || lowered.starts_with(prefix))
+    {
+        return false;
+    }
+
+    let has_action = ACTION_MARKERS
+        .iter()
+        .any(|marker| query.contains(marker) || lowered.contains(marker));
+    if !has_action {
+        return false;
+    }
+
+    let compact_len = query.chars().filter(|character| !character.is_whitespace()).count();
+    if compact_len < 4 {
+        return false;
+    }
+
+    !VAGUE_REQUESTS.iter().any(|request| {
+        query == *request || lowered == request.to_ascii_lowercase()
+    })
+}
+
+fn lightweight_goal_enabled_for_request(req: &AgentRequest) -> bool {
+    req.goal_mode_enabled
+        && lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only)
+        && lightweight_goal_query_is_clear(&req.query)
 }
 
 /// 轻量目标续轮决策。
@@ -1979,12 +2039,15 @@ fn resolve_lightweight_goal_turn_with_infrastructure_guard(
 async fn collect_lightweight_goal_evaluation(
     endpoint: &vw_gateway_client::GatewayEndpoint,
     root: Option<&str>,
+    parent_session_id: &str,
     model: Option<String>,
     evaluation_prompt: String,
 ) -> Result<String, String> {
     let evaluation_body = vw_gateway_client::GatewayChatStreamRequest {
-        // 不绑定会话，避免与主会话/可恢复流标识纠缠。
-        session_id: None,
+        // 复用原会话作为图片资产作用域 key；网关会通过 goal_evaluation
+        // 选项跳过这次验收内容的会话持久化。
+        session_id: (!parent_session_id.trim().is_empty())
+            .then(|| parent_session_id.to_string().into()),
         messages: vec![serde_json::json!({"role": "user", "content": evaluation_prompt})],
         system: Some(vec![
             "你是严格的 JSON 目标验收器。只输出一个 JSON 对象，不得输出 Markdown、代码围栏、解释或其他文字。对象只能包含 achieved（布尔值）和 reason（非空字符串）。".to_string(),
@@ -2130,8 +2193,8 @@ fn gateway_request_options(
     if let Some(system_prompt) = subagent_system_prompt {
         options.insert("chat_system_prompt".to_string(), json!(system_prompt));
     }
-    if lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only) {
-        // 目标模式固定开启：网关侧可识别独立验收续轮；桌面在一轮结束后按评估结果续轮。
+    if lightweight_goal_enabled_for_request(req) {
+        // 目标清晰时才启用独立验收续轮；普通问答保持单轮响应。
         options.insert("goal_mode".to_string(), json!(true));
     }
     (!options.is_empty()).then_some(Value::Object(options))
@@ -2226,8 +2289,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 },
                 options: options.clone(),
             };
-            let goal_only =
-                lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only);
+            let goal_only = lightweight_goal_enabled_for_request(&req);
             let original_goal = req.query.clone();
             let mut goal_evidence = String::new();
             let mut goal_turn = 0_u32;
@@ -2845,6 +2907,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             let evaluation_result = collect_lightweight_goal_evaluation(
                 &endpoint,
                 req.root.as_deref(),
+                &req.session,
                 chat_body.model.clone(),
                 evaluation_prompt,
             )

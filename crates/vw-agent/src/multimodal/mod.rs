@@ -19,6 +19,9 @@ pub mod ocr;
 use image_compression::{compress_image_bytes, per_image_output_budget};
 
 const IMAGE_MARKER_PREFIX: &str = "[IMAGE:";
+/// Internal gateway option used by the OCR model request to avoid recursively
+/// preprocessing the image it is already sending to the vision model.
+pub(crate) const DISABLE_OCR_OPTION: &str = "disable_multimodal_ocr";
 const ALLOWED_IMAGE_MIME_TYPES: &[&str] =
     &["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp"];
 

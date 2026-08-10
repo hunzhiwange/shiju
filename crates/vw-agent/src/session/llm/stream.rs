@@ -510,6 +510,9 @@ pub async fn stream(
         let mut aisdk_options = merged_options.clone();
         if let Some(obj) = aisdk_options.as_object_mut() {
             obj.remove("litellmProxy");
+            // This flag controls the local gateway preprocessing boundary and
+            // must not be forwarded as an unknown provider request option.
+            obj.remove(crate::app::agent::multimodal::DISABLE_OCR_OPTION);
         }
 
         // ========== 重试循环 ==========

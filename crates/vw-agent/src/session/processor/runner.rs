@@ -142,12 +142,11 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     );
     if !base_system.visible_instruction_paths.is_empty()
         && !on_event(StreamEvent::ContextLoaded {
-            paths: base_system.visible_instruction_paths,
+            paths: base_system.visible_instruction_paths.clone(),
         })
     {
         return;
     }
-    let base_system = base_system.content;
 
     prefetch::prefetch_seed_context(
         &mut session,
@@ -173,7 +172,20 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let mut llm_messages = llm_messages::session_messages_to_llm_messages(&session);
-    let mut image_turn = build_image_turn_context_for_request(&req, &session, &config);
+    let mut image_turn = match build_image_turn_context_for_request(&req, &session, &config) {
+        Ok(ctx) => ctx,
+        Err(message) => {
+            tracing::warn!(
+                target: "vw_agent",
+                session_id = %req.session,
+                error = %message,
+                "failed to build image turn context"
+            );
+            session.push(Role::System, message.clone());
+            on_event(StreamEvent::Error(message));
+            return;
+        }
+    };
     if let Some(ctx_images) = image_turn.as_mut() {
         ctx.tool_use_context().set_image_asset_scope(&ctx_images.scope);
         ctx_images.rewrite_json_messages(&mut llm_messages);
@@ -199,13 +211,8 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     loop {
         let is_last_step = step >= turn_policy.max_tool_iterations;
         let empty_tools = HashSet::<String>::new();
-        let mut system = vec![base_system.clone()];
-        if let Some(prompt) = primary_system_prompt.as_ref() {
-            system.push(prompt.clone());
-        }
-        if is_last_step {
-            system.push(prompt::max_steps_text().to_string());
-        }
+        let system =
+            base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
         let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
 
         let retry_budget = if is_acp {
@@ -231,15 +238,23 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             image_ctx.attach_pending_reloads_to_json(&mut llm_messages, &pending_reloads);
         }
 
+        // The preflight estimate must match the tool definitions that the
+        // LLM step will actually receive. In particular, OCR's nested request
+        // disables tools and should not spend its input budget on every local
+        // tool schema.
         let tool_specs_for_context = if is_last_step {
-            &[][..]
+            Vec::new()
         } else {
-            available_tool_specs.as_slice()
+            available_tool_specs
+                .iter()
+                .filter(|spec| allowed_tools.contains(&spec.id))
+                .cloned()
+                .collect::<Vec<_>>()
         };
         let compaction = match prepare_context_before_llm_step(
             &mut llm_messages,
             &system,
-            tool_specs_for_context,
+            &tool_specs_for_context,
             &model_limit,
             observed_input_tokens,
         ) {
@@ -380,7 +395,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
                     &mut session,
                     &ctx,
                     &allowed_tools,
-                    &base_system,
+                    &base_system.content,
                     &mut llm_messages,
                     &mut total_usage,
                     &mut on_event,
@@ -891,12 +906,25 @@ fn build_image_turn_context_for_request(
     req: &Request,
     session: &Session,
     config: &crate::config::Config,
-) -> Option<crate::app::agent::multimodal::context::ImageTurnContext> {
+) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>, String> {
     use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
     use crate::app::agent::multimodal::context::ImageTurnContext;
     use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
     use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
+    use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
     use crate::app::agent::providers::ChatMessage;
+
+    // OCR itself is routed through the local gateway. Its nested request still
+    // contains the image marker, so it must reach the configured vision model
+    // without entering this preprocessing path again.
+    if req
+        .options
+        .get(DISABLE_OCR_OPTION)
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        return Ok(None);
+    }
 
     let resume_history_only = req
         .options
@@ -917,7 +945,7 @@ fn build_image_turn_context_for_request(
         .collect();
 
     if !contains_image_markers(&history) && parse_image_markers(&req.query).1.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     // 当前轮用户内容：非 resume 时取最后一条 user；resume 时全部按历史处理。
@@ -933,7 +961,7 @@ fn build_image_turn_context_for_request(
     };
 
     let scope = ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
-        .ok()?;
+        .map_err(|error| format!("invalid image asset scope: {error}"))?;
     let store = ImageAssetStore::from_global_paths();
     let extractor = SessionImageTextExtractor::new();
     match prompt::block_on(ImageTurnContext::build(
@@ -946,16 +974,21 @@ fn build_image_turn_context_for_request(
         req.model.as_deref(),
         &extractor,
     )) {
-        Ok(ctx) if !ctx.images.is_empty() => Some(ctx),
-        Ok(_) => None,
+        Ok(ctx) if !ctx.images.is_empty() => Ok(Some(ctx)),
+        Ok(_) => Ok(None),
         Err(error) => {
-            tracing::warn!(
-                target: "vw_agent",
-                session_id = %req.session,
-                error = %error,
-                "failed to build image turn context; continuing without asset reuse"
-            );
-            None
+            if config.multimodal.ocr.enabled {
+                // OCR 开启时必须把失败暴露给用户，不能静默回退成直传图片。
+                Err(format!("image OCR preprocessing failed: {error}"))
+            } else {
+                tracing::warn!(
+                    target: "vw_agent",
+                    session_id = %req.session,
+                    error = %error,
+                    "failed to build image turn context; continuing without asset reuse"
+                );
+                Ok(None)
+            }
         }
     }
 }

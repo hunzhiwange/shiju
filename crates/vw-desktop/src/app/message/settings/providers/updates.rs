@@ -54,12 +54,22 @@ fn model_modal_state(
         interleaved: model.interleaved,
         input_modalities: model.input_modalities,
         output_modalities: model.output_modalities,
+        inherited_capabilities: model.inherited_capabilities,
         original_model_id: model.original_model_id,
     }
 }
 
-fn toggle_modality(slot: &mut Option<Vec<String>>, modality: String, enabled: bool) {
-    let values = slot.get_or_insert_with(|| vec!["text".to_string()]);
+fn toggle_modality(
+    slot: &mut Option<Vec<String>>,
+    modality: String,
+    enabled: bool,
+    inherited: Option<&[String]>,
+) {
+    let values = slot.get_or_insert_with(|| {
+        inherited
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| vec!["text".to_string()])
+    });
     if enabled {
         if !values.iter().any(|value| value == &modality) {
             values.push(modality);
@@ -455,13 +465,31 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CustomProviderModelModalInputModalityToggled(modality, enabled) => {
             if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                toggle_modality(&mut m.input_modalities, modality, enabled);
+                let inherited = m
+                    .inherited_capabilities
+                    .as_ref()
+                    .map(|capabilities| capabilities.input_modalities.clone());
+                toggle_modality(
+                    &mut m.input_modalities,
+                    modality,
+                    enabled,
+                    inherited.as_deref(),
+                );
             }
             Task::none()
         }
         SettingsMessage::CustomProviderModelModalOutputModalityToggled(modality, enabled) => {
             if let Some(m) = &mut app.provider_settings.custom_model_modal {
-                toggle_modality(&mut m.output_modalities, modality, enabled);
+                let inherited = m
+                    .inherited_capabilities
+                    .as_ref()
+                    .map(|capabilities| capabilities.output_modalities.clone());
+                toggle_modality(
+                    &mut m.output_modalities,
+                    modality,
+                    enabled,
+                    inherited.as_deref(),
+                );
             }
             Task::none()
         }
@@ -488,6 +516,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 interleaved: m.interleaved,
                 input_modalities: m.input_modalities,
                 output_modalities: m.output_modalities,
+                inherited_capabilities: m.inherited_capabilities,
                 enabled: m
                     .edit_index
                     .and_then(|index| app.provider_settings.custom.models.get(index))

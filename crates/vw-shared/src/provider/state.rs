@@ -12,9 +12,11 @@ pub struct State {
 /// 未知模型的默认上下文窗口；未配置时使用该兜底值。
 pub const DEFAULT_MODEL_CONTEXT_LIMIT: u64 = 200_000;
 /// 未知模型的默认输入窗口，给输出预留默认空间。
-pub const DEFAULT_MODEL_INPUT_LIMIT: u64 = 195_904;
+pub const DEFAULT_MODEL_INPUT_LIMIT: u64 = 200_000;
 /// 未知模型的保守文本输出窗口。
 pub const DEFAULT_MODEL_OUTPUT_LIMIT: u64 = 4_096;
+
+const LEGACY_MODEL_INPUT_LIMIT: u64 = 28_672;
 
 /// 按“有效配置值 -> 基线值 -> 集中默认值”解析模型限制。
 ///
@@ -24,11 +26,55 @@ pub fn resolve_model_limit(
     input: Option<u64>,
     output: Option<u64>,
 ) -> ModelLimit {
+    let context = context.filter(|value| *value > 0).unwrap_or(DEFAULT_MODEL_CONTEXT_LIMIT);
+    let output = output.unwrap_or(DEFAULT_MODEL_OUTPUT_LIMIT);
+    let input = input
+        .filter(|value| *value > 0)
+        .map(|value| {
+            if value == LEGACY_MODEL_INPUT_LIMIT && context >= DEFAULT_MODEL_CONTEXT_LIMIT {
+                DEFAULT_MODEL_INPUT_LIMIT
+            } else {
+                value
+            }
+        })
+        .unwrap_or(DEFAULT_MODEL_INPUT_LIMIT);
+
     ModelLimit {
-        context: context.filter(|value| *value > 0).unwrap_or(DEFAULT_MODEL_CONTEXT_LIMIT),
-        input: Some(input.filter(|value| *value > 0).unwrap_or(DEFAULT_MODEL_INPUT_LIMIT)),
-        output: output.unwrap_or(DEFAULT_MODEL_OUTPUT_LIMIT),
+        context,
+        input: Some(input),
+        output,
     }
+}
+
+/// 解析带基础模型的配置限制。
+///
+/// 当用户显式扩大总上下文、但没有单独填写输入限制时，输入窗口应随总窗口扩大，
+/// 而不是继续继承基础模型可能很小的输入限制。显式输入限制仍然优先。
+pub fn resolve_model_limit_with_base(
+    context: Option<u64>,
+    input: Option<u64>,
+    output: Option<u64>,
+    base: Option<&ModelLimit>,
+) -> ModelLimit {
+    let context_is_explicit = context.is_some_and(|value| value > 0);
+    let resolved_context = context.or_else(|| base.map(|limit| limit.context));
+    let resolved_output = output.or_else(|| base.map(|limit| limit.output));
+    let inherited_input = context_is_explicit
+        && base.is_some_and(|base_limit| {
+            resolved_context.is_some_and(|value| value > base_limit.context)
+                && input == base_limit.input
+        });
+    let resolved_input = input.filter(|_| !inherited_input).or_else(|| {
+        if !context_is_explicit {
+            return base.and_then(|limit| limit.input);
+        }
+
+        let context = resolved_context.unwrap_or(DEFAULT_MODEL_CONTEXT_LIMIT);
+        let output = resolved_output.unwrap_or(DEFAULT_MODEL_OUTPUT_LIMIT);
+        Some(DEFAULT_MODEL_INPUT_LIMIT.min(context.saturating_sub(output)))
+    });
+
+    resolve_model_limit(resolved_context, resolved_input, resolved_output)
 }
 
 /// 计算当前请求可使用的输入窗口。

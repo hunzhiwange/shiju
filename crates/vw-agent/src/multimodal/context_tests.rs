@@ -55,7 +55,16 @@ fn tracked(
 }
 
 fn context_with(images: Vec<TrackedImage>, resume_history_only: bool) -> ImageTurnContext {
-    ImageTurnContext::from_tracked(ImageAssetScope::new("proj").unwrap(), images, resume_history_only)
+    ImageTurnContext::from_tracked(
+        ImageAssetScope::new("proj").unwrap(),
+        images,
+        resume_history_only,
+        false,
+    )
+}
+
+fn context_with_ocr(images: Vec<TrackedImage>) -> ImageTurnContext {
+    ImageTurnContext::from_tracked(ImageAssetScope::new("proj").unwrap(), images, false, true)
 }
 
 #[test]
@@ -124,6 +133,23 @@ fn history_and_resume_only_never_attach_image_bytes() {
     assert!(!content_contains_image_bytes(&resume_text));
 }
 
+#[test]
+fn ocr_enabled_sends_text_instead_of_image_bytes_on_first_step() {
+    let data_uri = "data:image/jpeg;base64,EEEE";
+    let image = tracked("/tmp/ocr.png", true, data_uri, &"33".repeat(32));
+    let ctx = context_with_ocr(vec![image.clone()]);
+
+    let first = ctx.rewrite_content(&format!("look [IMAGE:{}]", image.source_ref));
+    assert!(
+        !first.contains("data:image"),
+        "OCR mode must not attach compressed image bytes"
+    );
+    assert!(first.contains("[VW_IMAGE:"));
+    assert!(first.contains("ocr-text"));
+    assert!(first.contains("visual_summary"));
+    assert!(!ctx.should_attach_image_bytes());
+}
+
 #[tokio::test]
 async fn legacy_loop_reuses_cached_analysis() {
     let temp = tempfile::tempdir().unwrap();
@@ -163,6 +189,13 @@ async fn legacy_loop_reuses_cached_analysis() {
     .expect("build context");
     assert_eq!(extractor.calls.load(Ordering::SeqCst), 1);
     assert_eq!(ctx1.images.len(), 1);
+    assert!(
+        !ctx1.should_attach_image_bytes(),
+        "enabled OCR must prefer reference text over image bytes"
+    );
+    let rewritten = ctx1.rewrite_content(&format!("see [IMAGE:{source}]"));
+    assert!(!rewritten.contains("data:image"));
+    assert!(rewritten.contains("ocr-text"));
 
     let ctx2 = ImageTurnContext::build(
         &store,

@@ -432,7 +432,7 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
                 input: CapabilityIO {
                     text: true,
                     audio: false,
-                    image: false,
+                    image: id == "catalog-model",
                     video: false,
                     pdf: false,
                 },
@@ -451,7 +451,7 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
                 cache: ModelCostCache { read: 0.0, write: 0.0 },
                 experimental_over_200k: None,
             },
-            limit: ModelLimit { context, input: None, output: 4096 },
+            limit: ModelLimit { context, input: Some(28_672), output: 4096 },
             status: status.to_string(),
             options: Default::default(),
             headers: Default::default(),
@@ -465,7 +465,10 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
         "api": "https://example.test/v1",
         "models": {
             "custom-model": {"name": "Custom Model", "status": "active"},
-            "catalog-model": {"status": "disabled"}
+            "catalog-model": {
+                "status": "disabled",
+                "limit": {"context": 333333333, "input": 28672}
+            }
         }
     });
     let settings = Info {
@@ -494,6 +497,13 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
     assert!(!draft.models[0].enabled);
     assert!(draft.models[0].from_catalog);
     assert_eq!(draft.models[0].display_name, "Catalog Model");
+    assert_eq!(draft.models[0].context_limit, "333333333");
+    assert!(draft.models[0].input_limit.is_empty());
+    let inherited = draft.models[0]
+        .inherited_capabilities
+        .as_ref()
+        .expect("catalog model capabilities should be available to the editor");
+    assert!(inherited.input_modalities.iter().any(|modality| modality == "image"));
     assert!(draft.models[1].enabled);
     assert!(!draft.models[1].from_catalog);
     assert!(draft.models[2].enabled);
@@ -639,7 +649,7 @@ fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
     assert!(model.get("limit").is_none());
 
     let resolved = vw_shared::provider::state::resolve_model_limit(None, None, None);
-    assert_eq!(vw_shared::provider::state::effective_input_window(&resolved), 195_904);
+    assert_eq!(vw_shared::provider::state::effective_input_window(&resolved), 200_000);
 }
 
 #[test]

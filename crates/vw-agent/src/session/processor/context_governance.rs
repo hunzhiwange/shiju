@@ -11,6 +11,10 @@ pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
 pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 90;
 
 const ESTIMATED_CHARS_PER_TOKEN: u64 = 4;
+// Image data is encoded as a transport payload, not as text tokens. Counting
+// the whole base64 body here can reject an otherwise valid vision request
+// before the provider gets a chance to apply its image-token accounting.
+const ESTIMATED_IMAGE_TOKENS: u64 = 4_096;
 const AUTO_COMPACTION_MAX_PASSES: usize = 2;
 const RECENT_NON_SYSTEM_MESSAGES_TO_KEEP: usize = 6;
 
@@ -52,9 +56,47 @@ fn estimate_bytes_as_tokens(bytes: usize) -> u64 {
 }
 
 fn estimate_value_tokens(value: &Value) -> u64 {
-    serde_json::to_vec(value)
+    let (value, image_count) = compact_image_payload_for_estimation(value);
+    serde_json::to_vec(&value)
         .map(|bytes| estimate_bytes_as_tokens(bytes.len()))
         .unwrap_or(u64::MAX)
+        .saturating_add(ESTIMATED_IMAGE_TOKENS.saturating_mul(image_count as u64))
+}
+
+fn compact_image_payload_for_estimation(value: &Value) -> (Value, usize) {
+    let Some(content) = value.get("content").and_then(Value::as_str) else {
+        return (value.clone(), 0);
+    };
+    let (cleaned, image_refs) = crate::app::agent::multimodal::parse_image_markers(content);
+    let image_count = image_refs.iter().filter(|image_ref| is_data_image_uri(image_ref)).count();
+    if image_count == 0 {
+        return (value.clone(), 0);
+    }
+
+    let mut estimated_content = cleaned;
+    for image_ref in image_refs {
+        if is_data_image_uri(&image_ref) {
+            estimated_content.push_str("\n[image attachment]");
+        } else {
+            estimated_content.push_str("\n[IMAGE:");
+            estimated_content.push_str(&image_ref);
+            estimated_content.push(']');
+        }
+    }
+
+    // Keep the original message untouched; this value exists only for the
+    // deterministic size estimate.
+    let mut estimated = value.clone();
+    if let Some(object) = estimated.as_object_mut() {
+        object.insert("content".to_string(), Value::String(estimated_content));
+    }
+    (estimated, image_count)
+}
+
+fn is_data_image_uri(value: &str) -> bool {
+    value
+        .get(.."data:image/".len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:image/"))
 }
 
 fn estimate_context_tokens(

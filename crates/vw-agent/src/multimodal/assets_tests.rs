@@ -323,6 +323,7 @@ fn many_historical_images_emit_only_bounded_text() {
         ImageAssetScope::new("hist").unwrap(),
         images.clone(),
         false,
+        false,
     );
     let mut content = String::new();
     for image in &images {

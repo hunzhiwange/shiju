@@ -65,6 +65,20 @@ pub enum CustomProviderModelTab {
     Capabilities,
 }
 
+/// 模型目录提供的能力默认值，仅用于编辑表单展示与交互。
+///
+/// 这些值不属于用户显式覆盖；保存模型时仍只写入对应的 `Option` 覆盖字段。
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ModelCapabilityDefaults {
+    pub(crate) reasoning: bool,
+    pub(crate) tool_call: bool,
+    pub(crate) temperature: bool,
+    pub(crate) attachment: bool,
+    pub(crate) interleaved: bool,
+    pub(crate) input_modalities: Vec<String>,
+    pub(crate) output_modalities: Vec<String>,
+}
+
 /// 编辑提供商模型列表的启用状态过滤。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CustomProviderModelFilter {
@@ -105,6 +119,8 @@ pub(crate) struct CustomProviderModelDraft {
     pub(crate) input_modalities: Option<Vec<String>>,
     /// 显式输出模态覆盖；None 表示沿用基线或安全默认值。
     pub(crate) output_modalities: Option<Vec<String>>,
+    /// 模型目录提供的能力默认值，不直接写入用户配置。
+    pub(crate) inherited_capabilities: Option<ModelCapabilityDefaults>,
     /// 是否启用；对应配置中的 `status: active|disabled`。
     pub(crate) enabled: bool,
     /// 是否来自系统默认模型目录；用于保存时避免把未改动的禁用目录模型写入配置。
@@ -129,6 +145,7 @@ impl Default for CustomProviderModelDraft {
             interleaved: None,
             input_modalities: None,
             output_modalities: None,
+            inherited_capabilities: None,
             enabled: true,
             from_catalog: false,
             original_model_id: None,
@@ -204,6 +221,8 @@ pub(crate) struct CustomProviderModelModalState {
     pub(crate) input_modalities: Option<Vec<String>>,
     /// 显式输出模态覆盖
     pub(crate) output_modalities: Option<Vec<String>>,
+    /// 模型目录提供的能力默认值，不直接写入用户配置。
+    pub(crate) inherited_capabilities: Option<ModelCapabilityDefaults>,
     /// 编辑时原始模型 ID
     pub(crate) original_model_id: Option<String>,
 }

@@ -80,4 +80,67 @@ fn system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist(
 
     assert!(prompt.content.contains("selected project protocol"));
     assert_eq!(prompt.visible_instruction_paths, vec![project_path]);
+    assert!(!prompt.base_content.contains("selected project protocol"));
+    assert!(
+        prompt
+            .project_protocol
+            .as_deref()
+            .is_some_and(|protocol| protocol.contains("selected project protocol"))
+    );
+}
+
+#[test]
+fn runtime_parts_send_project_protocol_after_default_and_custom_instructions() {
+    let prompt = super::SystemPrompt {
+        content: "base\n\nproject".to_string(),
+        visible_instruction_paths: Vec::new(),
+        base_content: "base".to_string(),
+        project_protocol: Some("project".to_string()),
+    };
+
+    assert_eq!(
+        prompt.runtime_parts(Some("custom"), false),
+        vec!["base", "custom", "project"]
+    );
+
+    let parts = prompt.runtime_parts(Some("custom"), true);
+    assert_eq!(&parts[..3], ["base", "custom", "project"]);
+    assert_eq!(parts.last().map(String::as_str), Some(super::max_steps_text()));
+}
+
+#[test]
+fn project_protocol_wrapper_is_generic_and_marks_rules_as_mandatory() {
+    let protocol = super::format_project_protocol("use any project-specific workflow");
+
+    assert!(protocol.contains("<project_protocol>"));
+    assert!(protocol.contains("use any project-specific workflow"));
+    assert!(protocol.contains("强制执行规则"));
+}
+
+#[test]
+fn runtime_parts_keep_project_referenced_skill_instructions_in_every_step() {
+    let project = tempfile::tempdir().expect("project workspace");
+    let skill_directory = project.path().join("skills/project-navigator");
+    std::fs::create_dir_all(&skill_directory).expect("create skill directory");
+    std::fs::write(
+        skill_directory.join("SKILL.md"),
+        "---\nname: project-navigator\ndescription: project navigation\n---\n\nMUST_USE_PROJECT_NAVIGATOR\n",
+    )
+    .expect("write project skill");
+    std::fs::write(
+        project.path().join("AGENTS.md"),
+        "代码导航必须使用 `./skills/project-navigator/SKILL.md`。",
+    )
+    .expect("write project protocol");
+
+    let prompt = super::system_with_metadata(None, project.path().to_str());
+    let first_step = prompt.runtime_parts(None, false);
+    let later_step = prompt.runtime_parts(Some("continue the task"), false);
+
+    for parts in [&first_step, &later_step] {
+        let project_protocol = parts.last().expect("project protocol system part");
+        assert!(project_protocol.contains("代码导航必须使用"));
+        assert!(project_protocol.contains("<preloaded_skill_instructions>"));
+        assert!(project_protocol.contains("MUST_USE_PROJECT_NAVIGATOR"));
+    }
 }

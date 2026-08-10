@@ -4,7 +4,7 @@ use crate::app::config;
 use crate::app::config::server_config_unreachable_error;
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
-use crate::app::state::{CustomProviderDraft, ModelCatalogEntry};
+use crate::app::state::{CustomProviderDraft, ModelCatalogEntry, ModelCapabilityDefaults};
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashSet};
 use vw_shared::auth::{self as shared_auth};
@@ -280,6 +280,7 @@ fn model_draft_from_settings_model(
         output_limit: (model.limit.output > 0)
             .then(|| model.limit.output.to_string())
             .unwrap_or_default(),
+        inherited_capabilities: Some(model_capability_defaults(model)),
         enabled: model.status == "active",
         from_catalog,
         original_model_id: Some(model.id.clone()),
@@ -292,6 +293,7 @@ fn overlay_settings_model_onto_draft(
     settings_model: &model_provider::Model,
     from_catalog: bool,
 ) {
+    draft.inherited_capabilities = Some(model_capability_defaults(settings_model));
     draft.enabled = settings_model.status == "active";
     draft.from_catalog = from_catalog;
     draft.original_model_id = Some(settings_model.id.clone());
@@ -301,10 +303,21 @@ fn overlay_settings_model_onto_draft(
     if draft.family.trim().is_empty() {
         draft.family = settings_model.family.clone().unwrap_or_default();
     }
+    let context_was_explicit = !draft.context_limit.trim().is_empty();
     if draft.context_limit.trim().is_empty() && settings_model.limit.context > 0 {
         draft.context_limit = settings_model.limit.context.to_string();
     }
-    if draft.input_limit.trim().is_empty() {
+    let inherited_input_was_persisted = context_was_explicit
+        && draft
+            .context_limit
+            .parse::<u64>()
+            .ok()
+            .is_some_and(|context| context > settings_model.limit.context)
+        && draft.input_limit.parse::<u64>().ok() == settings_model.limit.input;
+    if inherited_input_was_persisted {
+        draft.input_limit.clear();
+    }
+    if draft.input_limit.trim().is_empty() && !context_was_explicit {
         if let Some(input) = settings_model.limit.input.filter(|value| *value > 0) {
             draft.input_limit = input.to_string();
         }
@@ -312,6 +325,37 @@ fn overlay_settings_model_onto_draft(
     if draft.output_limit.trim().is_empty() && settings_model.limit.output > 0 {
         draft.output_limit = settings_model.limit.output.to_string();
     }
+}
+
+fn model_capability_defaults(model: &model_provider::Model) -> ModelCapabilityDefaults {
+    let input_modalities = capability_io_modalities(&model.capabilities.input);
+    let output_modalities = capability_io_modalities(&model.capabilities.output);
+    ModelCapabilityDefaults {
+        reasoning: model.capabilities.reasoning,
+        tool_call: model.capabilities.toolcall,
+        temperature: model.capabilities.temperature,
+        attachment: model.capabilities.attachment,
+        interleaved: matches!(
+            &model.capabilities.interleaved,
+            model_provider::InterleavedCapability::Bool(true)
+                | model_provider::InterleavedCapability::Field { .. }
+        ),
+        input_modalities,
+        output_modalities,
+    }
+}
+
+fn capability_io_modalities(io: &model_provider::CapabilityIO) -> Vec<String> {
+    [
+        (io.text, "text"),
+        (io.image, "image"),
+        (io.audio, "audio"),
+        (io.video, "video"),
+        (io.pdf, "pdf"),
+    ]
+    .into_iter()
+    .filter_map(|(enabled, modality)| enabled.then_some(modality.to_string()))
+    .collect()
 }
 
 fn custom_provider_draft_from_value(
@@ -392,6 +436,7 @@ fn custom_model_draft_from_value(
         interleaved: model.get("interleaved").and_then(Value::as_bool),
         input_modalities: extract_modalities(modalities, "input"),
         output_modalities: extract_modalities(modalities, "output"),
+        inherited_capabilities: None,
         enabled,
         from_catalog: false,
         original_model_id: Some(model_id.to_string()),

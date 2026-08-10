@@ -134,7 +134,7 @@ fn effective_input_window_prefers_input_and_handles_invalid_output_space() {
 
     let defaults = resolve_model_limit(None, None, None);
     assert_eq!(defaults.context, 200_000);
-    assert_eq!(defaults.input, Some(195_904));
+    assert_eq!(defaults.input, Some(200_000));
     assert_eq!(defaults.output, 4_096);
 }
 
@@ -152,6 +152,24 @@ fn context_usage_prefers_positive_real_input_usage_and_estimates_missing_usage()
         context_usage_tokens(&messages, &system, &tools, Some(900)),
         &model_limit
     ));
+}
+
+#[test]
+fn context_usage_does_not_count_base64_image_body_as_text_tokens() {
+    let image_payload = "a".repeat(4 * 1024 * 1024);
+    let mut messages = vec![json!({
+        "role": "user",
+        "content": format!("inspect [IMAGE:data:image/jpeg;base64,{image_payload}]")
+    })];
+    let system = vec!["rules".to_string()];
+    let tools = Vec::<ToolSpec>::new();
+    let model_limit = limit(1_000_000, Some(200_000), 4_096);
+
+    let estimated = context_usage_tokens(&messages, &system, &tools, None);
+
+    assert!(estimated < 200_000);
+    compact_context_for_next_request(&mut messages, &system, &tools, &model_limit, None)
+        .expect("a vision request should not fail because of its base64 transport payload");
 }
 
 #[test]

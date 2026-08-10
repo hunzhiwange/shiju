@@ -2,7 +2,8 @@
 //!
 //! 状态机：
 //! - 历史图片 / resume-only：始终使用 `[VW_IMAGE:id]` + 有界 OCR/摘要
-//! - 当前新图片：首次成功 LLM step 前保留压缩 data URI；成功后切换为引用文本
+//! - `multimodal.ocr.enabled`：当前新图片也直接使用 OCR/摘要文本，不再首轮直传压缩图
+//! - 当前新图片（OCR 关闭）：首次成功 LLM step 前保留压缩 data URI；成功后切换为引用文本
 //! - 首次 step 网络失败不切换状态，重试仍可携带图片
 
 use super::analysis::{
@@ -47,25 +48,29 @@ pub struct ImageTurnContext {
     first_success: bool,
     /// Desktop resume-only：全部图片按历史处理。
     resume_history_only: bool,
+    /// 已启用 OCR：主模型只接收引用 + 有界文字，不直传压缩图。
+    ocr_text_only: bool,
 }
 
 impl ImageTurnContext {
     /// 空上下文（无图片）。
     pub fn empty(scope: ImageAssetScope) -> Self {
-        Self::from_tracked(scope, Vec::new(), false)
+        Self::from_tracked(scope, Vec::new(), false, false)
     }
 
-    /// 测试/组装：设置受跟踪图片与 resume 标志。
+    /// 测试/组装：设置受跟踪图片与 resume / OCR 标志。
     pub fn from_tracked(
         scope: ImageAssetScope,
         images: Vec<TrackedImage>,
         resume_history_only: bool,
+        ocr_text_only: bool,
     ) -> Self {
         Self {
             scope,
             images,
             first_success: false,
             resume_history_only,
+            ocr_text_only,
         }
     }
 
@@ -81,6 +86,7 @@ impl ImageTurnContext {
         current_model: Option<&str>,
         extractor: &dyn ImageTextExtractor,
     ) -> Result<Self> {
+        let ocr_text_only = config.ocr.enabled;
         let mut images = Vec::new();
         let mut total_refs = 0usize;
         for message in history_messages {
@@ -99,6 +105,7 @@ impl ImageTurnContext {
                 images,
                 first_success: false,
                 resume_history_only,
+                ocr_text_only,
             });
         }
 
@@ -151,6 +158,7 @@ impl ImageTurnContext {
             images,
             first_success: false,
             resume_history_only,
+            ocr_text_only,
         })
     }
 
@@ -164,7 +172,7 @@ impl ImageTurnContext {
 
     /// 是否仍应在下一步携带压缩图。
     pub fn should_attach_image_bytes(&self) -> bool {
-        if self.resume_history_only || self.first_success {
+        if self.resume_history_only || self.first_success || self.ocr_text_only {
             return false;
         }
         self.images.iter().any(|image| image.is_current)

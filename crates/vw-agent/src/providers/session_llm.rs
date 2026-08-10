@@ -8,6 +8,7 @@ use crate::app::agent::providers::traits::{
     ChatMessage, ChatRequest, ChatResponse, Provider, ProviderCapabilities, StreamChunk,
     StreamOptions, TokenUsage, ToolsPayload,
 };
+use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
 
@@ -107,7 +108,10 @@ impl SessionLlmProvider {
             acp_agent: None,
             acp_allowed_tools: None,
             // Provider 调用只负责一次 LLM 推理；工具编排由外层调用方负责。
-            options: Some(serde_json::json!({"disable_tools": true})),
+            options: Some(serde_json::json!({
+                "disable_tools": true,
+                (DISABLE_OCR_OPTION): true,
+            })),
         }
     }
 

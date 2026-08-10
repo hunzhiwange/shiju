@@ -665,8 +665,13 @@ async fn start_gateway_chat_producer(
     let history_messages = messages;
     let root_dir = dir;
     let stream_session_id = session_id.as_ref().map(|value| value.0.clone()).unwrap_or_default();
-    let should_persist_app_session_artifacts = !stream_session_id.trim().is_empty();
-    let app_session_scope = if should_persist_app_session_artifacts {
+    let goal_evaluation = options
+        .get("goal_evaluation")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let should_persist_app_session_artifacts =
+        !stream_session_id.trim().is_empty() && !goal_evaluation;
+    let app_session_scope = if should_persist_app_session_artifacts || goal_evaluation {
         crate::app::agent::session::processor::app_session_scope_from_root_async(Some(
             root_dir.as_str(),
         ))
@@ -674,7 +679,7 @@ async fn start_gateway_chat_producer(
     } else {
         None
     };
-    let stream_message_ids = if stream_session_id.trim().is_empty() {
+    let stream_message_ids = if !should_persist_app_session_artifacts {
         None
     } else {
         preallocate_stream_turn_message_ids().ok()
@@ -757,7 +762,7 @@ async fn start_gateway_chat_producer(
                     let payload = match ev {
                         agent_session::processor::StreamEvent::Done(usage) => {
                             let processing_completed_ms = agent_session::session::now_ms();
-                            let (message_id, parent_message_id) = if !stream_session_id.is_empty()
+                            let (message_id, parent_message_id) = if should_persist_app_session_artifacts
                                 && !(resume_history_only && query.trim().is_empty())
                             {
                                 let stream_message_ids = stream_message_ids.clone();
@@ -806,7 +811,7 @@ async fn start_gateway_chat_producer(
                         }
                         agent_session::processor::StreamEvent::Error(error) => {
                             let processing_completed_ms = agent_session::session::now_ms();
-                            if !stream_session_id.is_empty()
+                            if should_persist_app_session_artifacts
                                 && !(resume_history_only && query.trim().is_empty())
                             {
                                 let stream_message_ids = stream_message_ids.clone();

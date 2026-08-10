@@ -1842,6 +1842,35 @@ fn goal_only_does_not_activate_task_plan_run() {
 }
 
 #[test]
+fn lightweight_goal_requires_a_clear_executable_request() {
+    for query in [
+        "修复登录超时并运行测试",
+        "识别这张图片并提取关键信息",
+        "Please implement the retry guard",
+        "do the work",
+    ] {
+        assert!(
+            super::lightweight_goal_query_is_clear(query),
+            "explicit action should enable goal mode: {query}"
+        );
+    }
+
+    for query in [
+        "这个模块是做什么的？",
+        "为什么测试会失败",
+        "解释一下当前工作流",
+        "继续刚才",
+        "帮我看看",
+        "你好",
+    ] {
+        assert!(
+            !super::lightweight_goal_query_is_clear(query),
+            "unclear or informational input must stay single-turn: {query}"
+        );
+    }
+}
+
+#[test]
 fn lightweight_goal_continues_until_evaluation_passes() {
     let rejected = super::resolve_lightweight_goal_turn(
         "已改代码，但还没跑测试",

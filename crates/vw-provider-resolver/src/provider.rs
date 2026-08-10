@@ -427,21 +427,22 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                     }
 
                     let config_limit = model_cfg.get("limit");
-                    let limit = resolve_model_limit(
-                        config_limit
-                            .and_then(|limit| limit.get("context"))
-                            .and_then(Value::as_u64)
-                            .filter(|value| *value > 0)
-                            .or_else(|| base.as_ref().map(|model| model.limit.context)),
-                        config_limit
-                            .and_then(|limit| limit.get("input"))
-                            .and_then(Value::as_u64)
-                            .filter(|value| *value > 0)
-                            .or_else(|| base.as_ref().and_then(|model| model.limit.input)),
-                        config_limit
-                            .and_then(|limit| limit.get("output"))
-                            .and_then(Value::as_u64)
-                            .or_else(|| base.as_ref().map(|model| model.limit.output)),
+                    let configured_context = config_limit
+                        .and_then(|limit| limit.get("context"))
+                        .and_then(Value::as_u64)
+                        .filter(|value| *value > 0);
+                    let configured_input = config_limit
+                        .and_then(|limit| limit.get("input"))
+                        .and_then(Value::as_u64)
+                        .filter(|value| *value > 0);
+                    let configured_output = config_limit
+                        .and_then(|limit| limit.get("output"))
+                        .and_then(Value::as_u64);
+                    let limit = vw_shared::provider::state::resolve_model_limit_with_base(
+                        configured_context,
+                        configured_input,
+                        configured_output,
+                        base.as_ref().map(|model| &model.limit),
                     );
 
                     let cap = resolve_model_capabilities(

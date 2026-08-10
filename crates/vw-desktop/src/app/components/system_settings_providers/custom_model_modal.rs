@@ -71,6 +71,17 @@ fn modality_checked(values: Option<&Vec<String>>, modality: &str) -> bool {
         .unwrap_or(modality == "text")
 }
 
+fn effective_capability(
+    override_value: Option<bool>,
+    inherited: Option<&crate::app::state::ModelCapabilityDefaults>,
+    inherited_value: impl FnOnce(&crate::app::state::ModelCapabilityDefaults) -> bool,
+    default: bool,
+) -> bool {
+    override_value
+        .or_else(|| inherited.map(inherited_value))
+        .unwrap_or(default)
+}
+
 fn capability_checkbox(
     checked: bool,
     label: &'static str,
@@ -155,7 +166,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let input_limit_row = text_row(
             "最大输入（token）",
             "最大输入窗口；留空时沿用内置基线或安全默认值。",
-            "例如 195904，留空使用默认值",
+            "例如 200000，留空使用默认值",
             &mm.input_limit,
             |v| Message::Settings(
                 message::SettingsMessage::CustomProviderModelModalInputLimitChanged(v),
@@ -172,27 +183,52 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
 
         let reasoning = capability_checkbox(
-            mm.reasoning.unwrap_or(false),
+            effective_capability(
+                mm.reasoning,
+                mm.inherited_capabilities.as_ref(),
+                |capabilities| capabilities.reasoning,
+                false,
+            ),
             "推理",
             |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalReasoningChanged(value)),
         );
         let tool_call = capability_checkbox(
-            mm.tool_call.unwrap_or(true),
+            effective_capability(
+                mm.tool_call,
+                mm.inherited_capabilities.as_ref(),
+                |capabilities| capabilities.tool_call,
+                true,
+            ),
             "工具调用",
             |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalToolCallChanged(value)),
         );
         let temperature = capability_checkbox(
-            mm.temperature.unwrap_or(false),
+            effective_capability(
+                mm.temperature,
+                mm.inherited_capabilities.as_ref(),
+                |capabilities| capabilities.temperature,
+                false,
+            ),
             "温度",
             |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalTemperatureChanged(value)),
         );
         let attachment = capability_checkbox(
-            mm.attachment.unwrap_or(false),
+            effective_capability(
+                mm.attachment,
+                mm.inherited_capabilities.as_ref(),
+                |capabilities| capabilities.attachment,
+                false,
+            ),
             "附件",
             |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalAttachmentChanged(value)),
         );
         let interleaved = capability_checkbox(
-            mm.interleaved.unwrap_or(false),
+            effective_capability(
+                mm.interleaved,
+                mm.inherited_capabilities.as_ref(),
+                |capabilities| capabilities.interleaved,
+                false,
+            ),
             "交错输入输出",
             |value| Message::Settings(
                 message::SettingsMessage::CustomProviderModelModalInterleavedChanged(value),
@@ -205,7 +241,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
 
         let input_modality_checks = MODALITIES.into_iter().map(|modality| {
-            let checked = modality_checked(mm.input_modalities.as_ref(), modality);
+            let inherited = mm
+                .inherited_capabilities
+                .as_ref()
+                .map(|capabilities| &capabilities.input_modalities);
+            let checked = modality_checked(mm.input_modalities.as_ref().or(inherited), modality);
             let modality = modality.to_string();
             checkbox(checked)
                 .label(modality.clone())
@@ -221,7 +261,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 .into()
         });
         let output_modality_checks = MODALITIES.into_iter().map(|modality| {
-            let checked = modality_checked(mm.output_modalities.as_ref(), modality);
+            let inherited = mm
+                .inherited_capabilities
+                .as_ref()
+                .map(|capabilities| &capabilities.output_modalities);
+            let checked = modality_checked(mm.output_modalities.as_ref().or(inherited), modality);
             let modality = modality.to_string();
             checkbox(checked)
                 .label(modality.clone())

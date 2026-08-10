@@ -119,6 +119,14 @@ fn gateway_chat_request_disables_implicit_session_tools() {
             .and_then(serde_json::Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        request
+            .options
+            .as_ref()
+            .and_then(|options| options.get(crate::app::agent::multimodal::DISABLE_OCR_OPTION))
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]

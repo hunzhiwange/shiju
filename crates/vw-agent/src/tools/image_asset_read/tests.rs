@@ -125,6 +125,7 @@ fn requested_image_is_attached_to_next_step_once() {
         ImageAssetScope::new("proj").unwrap(),
         vec![tracked],
         false,
+        false,
     );
     ctx.mark_first_success();
 

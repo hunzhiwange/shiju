@@ -151,6 +151,7 @@ fn model_detail_and_model_settings_defaults_are_stable() {
         interleaved: Some(true),
         input_modalities: Some(vec!["text".to_string(), "image".to_string()]),
         output_modalities: Some(vec!["text".to_string()]),
+        inherited_capabilities: None,
         original_model_id: Some("claude-sonnet".to_string()),
     };
     assert_eq!(custom_modal.active_tab, CustomProviderModelTab::Capabilities);

@@ -33,6 +33,23 @@ fn chat_virtualizer_state_initializes_from_chat() {
 }
 
 #[test]
+fn rebuild_chat_message_estimated_heights_uses_uniform_initial_height() {
+    let (mut app, _task) = super::App::new();
+    app.chat = vec![
+        message(super::ChatRole::User, "short"),
+        message(super::ChatRole::Assistant, &"very long\n".repeat(20_000)),
+    ];
+
+    app.rebuild_chat_message_estimated_heights();
+
+    assert_eq!(
+        app.chat_message_estimated_heights,
+        vec![super::CHAT_INITIAL_MESSAGE_HEIGHT; app.chat.len()]
+    );
+    assert_eq!(app.chat_virtualizer.len(), app.chat.len());
+}
+
+#[test]
 fn chat_virtualizer_state_resyncs_after_prepared_chunk() {
     let (mut app, _task) = super::App::new();
     app.chat = vec![

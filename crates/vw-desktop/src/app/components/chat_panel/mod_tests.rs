@@ -1,9 +1,9 @@
 use super::{
-    active_user_question_idx, chat_message_column, chat_panel_virtual_window, chat_todo_overlay,
-    compute_visible_message_window_for_chat, is_chat_message_idx_visible,
-    is_waiting_for_quick_message_session, jump_to_bottom_button, live_message_meta_fallback,
-    rough_message_heights, user_question_indices, user_question_nav_overlay, user_question_preview,
-    view,
+    active_user_question_idx, chat_message_column, chat_panel_context_menu_overlay,
+    chat_panel_virtual_window, chat_todo_overlay, compute_visible_message_window_for_chat,
+    is_chat_message_idx_visible, is_waiting_for_quick_message_session, jump_to_bottom_button,
+    live_message_meta_fallback, rough_message_heights, user_question_indices,
+    user_question_nav_overlay, user_question_preview, view,
 };
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
@@ -232,6 +232,34 @@ fn chat_panel_view_builds_started_message_window() {
     app.chat_virtualizer.set_viewport_height(200.0);
 
     keep_element(view(&app));
+}
+
+#[test]
+fn chat_panel_context_menu_overlay_builds_closed_and_open_states() {
+    let (mut app, _) = App::new();
+    keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
+
+    app.chat_context_menu_target =
+        Some(crate::app::components::chat_panel::utils::chat_context_target_key(0, None));
+    app.chat_context_menu_pos = Some((12.0, 24.0));
+    keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));
+}
+
+#[test]
+fn chat_panel_context_menu_has_a_single_overlay_owner() {
+    assert!(include_str!("mod.rs").contains("PointBelowOverlay::new(content, menu)"));
+    for source in [
+        include_str!("message_view.rs"),
+        include_str!("tools/advanced_view.rs"),
+        include_str!("tools/apply_patch_view.rs"),
+        include_str!("tools/files_view/common_view.rs"),
+        include_str!("tools/files_view/write_view.rs"),
+        include_str!("tools/text_view.rs"),
+        include_str!("tools/todo_views.rs"),
+        include_str!("tools/web_view.rs"),
+    ] {
+        assert!(!source.contains("PointBelowOverlay"));
+    }
 }
 
 #[test]

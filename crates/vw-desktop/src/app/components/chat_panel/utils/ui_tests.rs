@@ -1,7 +1,6 @@
 use super::ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_menu_button_style,
     chat_context_menu_style, chat_context_target_key, copy_tooltip_content, copy_tooltip_style,
-    wrap_chat_context_menu,
 };
 use iced::widget::button;
 use iced::{Background, Color, Length, Theme};
@@ -33,12 +32,6 @@ fn menu_and_tooltip_build_only_when_requested() {
     assert!(chat_context_menu(false).is_none());
     assert!(chat_context_menu(true).is_some());
     let _ = copy_tooltip_content("复制");
-}
-
-#[test]
-fn context_menu_wrapper_keeps_a_stable_content_shell_when_toggled() {
-    let _closed = wrap_chat_context_menu(iced::widget::text("chat"), false, (12.0, 26.0), true);
-    let _open = wrap_chat_context_menu(iced::widget::text("chat"), true, (12.0, 26.0), true);
 }
 
 #[test]

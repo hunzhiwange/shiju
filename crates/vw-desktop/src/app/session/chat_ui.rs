@@ -30,6 +30,7 @@ pub enum PreparedChatUiPhase {
 /// CHAT_UI_CHUNK_SIZE 使用的固定配置值。
 pub const CHAT_UI_CHUNK_SIZE: usize = 32;
 const CHAT_HEAVY_EDITOR_CACHE_MESSAGE_MARGIN: usize = 24;
+pub(crate) const CHAT_INITIAL_MESSAGE_HEIGHT: f32 = 120.0;
 
 #[derive(Debug, Clone, Default)]
 struct ParsedChatUiArtifacts {
@@ -878,10 +879,9 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn rebuild_chat_message_estimated_heights(&mut self) {
-        let heights = crate::app::components::chat_panel::rough_message_heights(&self.chat);
+        let heights = vec![CHAT_INITIAL_MESSAGE_HEIGHT; self.chat.len()];
         self.chat_virtualizer.set_estimated_heights(&heights);
         self.sync_chat_virtualizer_compat_fields();
-        self.refine_chat_message_estimated_heights(0, self.chat.len());
     }
 
     /// 执行 invalidate_chat_ui_state 对应的领域操作。

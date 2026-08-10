@@ -5,10 +5,9 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_context_target_key, chat_scroll_direction,
-    chat_secondary_muted_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
-    wrap_chat_context_menu,
+    chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
+    simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
@@ -115,8 +114,6 @@ pub(crate) fn build_common_tool_view<'a>(
     list_column: iced::widget::Column<'a, Message>,
 ) -> Element<'a, Message> {
     let context_key = chat_context_target_key(view_ctx.msg_idx, Some(view_ctx.tool_idx));
-    let context_menu_open = view_ctx.app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = view_ctx.app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
     let selected_context_text =
         super::super::selected_chat_text_for_target(view_ctx.app, context_key);
 
@@ -349,8 +346,6 @@ pub(crate) fn build_common_tool_view<'a>(
         render_state.total_items,
         fallback_body.is_some(),
     );
-
-    let list_view = wrap_chat_context_menu(list_view, context_menu_open, context_menu_anchor, false);
 
     let mut content = iced::widget::column![head, filter_row].spacing(8);
     if let Some(fallback_body) = fallback_body {

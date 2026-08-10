@@ -8,9 +8,8 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::tool_text_support::chat_text_font;
 use crate::app::components::chat_panel::utils::{
-    chat_context_target_key, chat_scroll_direction,
-    chat_secondary_subtle_text_color, chat_secondary_text_color, icon_svg, simplified_block_style,
-    truncate_chars, wrap_chat_context_menu,
+    chat_context_target_key, chat_scroll_direction, chat_secondary_subtle_text_color,
+    chat_secondary_text_color, icon_svg, simplified_block_style, truncate_chars,
 };
 use crate::app::components::input_panel::todo_panel::read_todos_for_panel;
 use crate::app::components::widgets::RightClickArea;
@@ -212,8 +211,6 @@ pub fn tool_todowrite_compact_view<'a>(
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let expanded = tool_expanded(app, key, is_running);
     let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
-    let context_menu_open = app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
     let selected_context_text = selected_chat_text_for_target(app, context_key);
 
     let head_with_hover = todo_tool_header(
@@ -337,7 +334,6 @@ pub fn tool_todowrite_compact_view<'a>(
         )
         .preserve_on_right_click()
         .into();
-        let body = wrap_chat_context_menu(body, context_menu_open, context_menu_anchor, false);
         content = content.push(container(body).width(Length::Fill));
     }
 

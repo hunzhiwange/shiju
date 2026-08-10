@@ -30,10 +30,9 @@ use super::{
     tool_permission_state, tool_permission_summary, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    chat_context_target_key, chat_scroll_direction,
-    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, is_recent_copy, simplified_block_style,
-    simplified_code_block_style, truncate_chars, truncate_lines_middle, wrap_chat_context_menu,
+    chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
+    copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg, is_recent_copy,
+    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };
 
 pub(super) fn copy_content_hash(text: &str) -> u64 {
@@ -212,8 +211,6 @@ pub fn tool_text_view<'a>(
     let expanded = show_body;
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
     let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
-    let context_menu_open = app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
 
     let label = tool_header_label(tool_name);
     let title = if let Some(permission_state) = permission_state {
@@ -430,8 +427,6 @@ pub fn tool_text_view<'a>(
     } else {
         container(text("")).height(Length::Fixed(0.0)).into()
     };
-
-    let body = wrap_chat_context_menu(body, context_menu_open, context_menu_anchor, false);
 
     Some(
         container(column![head, body].spacing(8))

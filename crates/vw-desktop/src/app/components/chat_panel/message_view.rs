@@ -84,7 +84,6 @@ use super::tools::{
 use super::utils::{
     chat_context_target_key, chat_secondary_muted_text_color, chat_secondary_text_color,
     copy_tooltip_content, icon_svg, is_recent_copy, normalize_display_text,
-    wrap_chat_context_menu,
 };
 
 pub(crate) use self::assistant_body::deduped_tool_last_indices;
@@ -441,9 +440,6 @@ pub fn message_view<'a>(
     };
 
     let context_key = chat_context_target_key(idx, None);
-    let context_menu_open = app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
-
     let bubble_inner = container(body)
         .padding(if is_user {
             iced::Padding { top: 4.0, right: 14.0, bottom: 4.0, left: 14.0 }
@@ -520,13 +516,6 @@ pub fn message_view<'a>(
     )
     .preserve_on_right_click()
     .into();
-
-    let bubble_inner = wrap_chat_context_menu(
-        bubble_inner,
-        context_menu_open,
-        context_menu_anchor,
-        true,
-    );
 
     let footer_element: Element<'a, Message> = {
         let mut footer_col = column![].spacing(6);

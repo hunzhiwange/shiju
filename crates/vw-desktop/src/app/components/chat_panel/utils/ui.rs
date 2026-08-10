@@ -2,15 +2,13 @@
 //!
 //! 本模块提供状态、路径、文本、主题、时间或菜单相关的小型工具，供聊天面板视图复用。
 
-use iced::widget::{Space, button, column, container, text};
-/// 重新导出 use iced::{Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Background, Border, Color, Element, Length, Point, Theme};
-
-use crate::app::components::overlays::PointBelowOverlay;
 /// 重新导出 use crate::app::Message，让上层模块通过稳定路径访问。
 use crate::app::Message;
 /// 重新导出 use crate::app::message::ChatMessage，让上层模块通过稳定路径访问。
 use crate::app::message::ChatMessage;
+use iced::widget::{button, column, container, text};
+/// 重新导出 use iced::{Background, Border, Color, Element, Length, Theme}，让上层模块通过稳定路径访问。
+use iced::{Background, Border, Color, Element, Length, Theme};
 
 /// 重新导出 use super::theme::is_dark_theme，让上层模块通过稳定路径访问。
 use super::theme::is_dark_theme;
@@ -126,27 +124,6 @@ pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
     .style(chat_context_menu_style);
 
     Some(menu.into())
-}
-
-/// 在不重建内容子树的前提下包裹聊天上下文菜单。
-///
-/// 菜单关闭时也保留 `PointBelowOverlay` 外壳，只关闭浮层显示。这样右键打开菜单
-/// 不会改变文本编辑器的控件树路径，已选中的文本仍能保持可见。
-pub fn wrap_chat_context_menu<'a>(
-    content: impl Into<Element<'a, Message>>,
-    is_open: bool,
-    anchor: (f32, f32),
-    close_on_target_click: bool,
-) -> Element<'a, Message> {
-    let menu = chat_context_menu(is_open).unwrap_or_else(|| Space::new().into());
-
-    PointBelowOverlay::new(content, menu)
-        .show(is_open)
-        .anchor(Point::new(anchor.0, anchor.1))
-        .gap(0.0)
-        .close_on_target_click(close_on_target_click)
-        .on_close(Message::Chat(ChatMessage::CloseMessageContextMenu))
-        .into()
 }
 
 pub(super) fn chat_context_menu_button_style(

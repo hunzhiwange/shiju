@@ -82,12 +82,13 @@ mod virtualizer_tests;
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, text};
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::{Background, Border, Color, Element, Length, Point, Theme};
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
 
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
+use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message, state::QuickMessageHandoffState};
@@ -98,7 +99,7 @@ use self::header::chat_header_view;
 use self::height_index::CHAT_MESSAGE_GAP;
 use self::message_view::estimate_message_height_rough;
 use self::message_view::message_view;
-use self::utils::{chat_scroll_direction, icon_svg, truncate_chars};
+use self::utils::{chat_context_menu, chat_scroll_direction, icon_svg, truncate_chars};
 use self::virtualizer::ChatVirtualWindow;
 #[cfg(test)]
 use self::virtualizer::ChatVirtualizer;
@@ -131,6 +132,23 @@ pub(crate) fn compute_visible_message_window_for_chat(
 
 pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {
     app.chat_virtualizer.window()
+}
+
+fn chat_panel_context_menu_overlay<'a>(
+    app: &'a App,
+    content: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let is_open = app.chat_context_menu_target.is_some();
+    let anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
+    let menu = chat_context_menu(is_open).unwrap_or_else(|| Space::new().into());
+
+    PointBelowOverlay::new(content, menu)
+        .show(is_open)
+        .anchor(Point::new(anchor.0, anchor.1))
+        .gap(0.0)
+        .close_on_target_click(true)
+        .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
+        .into()
 }
 
 pub(crate) fn is_waiting_for_quick_message_session(app: &App) -> bool {
@@ -385,7 +403,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(6)
             .width(Length::Fill)
             .height(Length::Fill);
-        panel_base.into()
+        chat_panel_context_menu_overlay(app, panel_base)
     } else if is_loading_session_ui {
         session_loading_panel(app)
     } else {

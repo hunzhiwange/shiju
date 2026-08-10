@@ -206,8 +206,18 @@ fn build_write_tool_view_handles_empty_running_error_permission_and_fallback_sta
 }
 
 #[test]
-fn build_write_tool_view_wraps_open_context_menu_in_overlay() {
+fn build_write_tool_view_keeps_the_same_tree_when_context_menu_opens() {
     let mut app = App::new().0;
+    let closed_child_count = {
+        let closed_view_ctx = view_context(&app, "tool write\n{}", None, false, false);
+        let closed_element = build_write_tool_view(
+            &closed_view_ctx,
+            &file_list_state(Vec::new()),
+            iced::widget::column![],
+        );
+        closed_element.as_widget().children().len()
+    };
+
     app.chat_context_menu_target =
         Some(crate::app::components::chat_panel::utils::chat_context_target_key(1, Some(2)));
     app.chat_context_menu_pos = Some((24.0, 32.0));
@@ -216,6 +226,6 @@ fn build_write_tool_view_wraps_open_context_menu_in_overlay() {
     let element =
         build_write_tool_view(&view_ctx, &file_list_state(Vec::new()), iced::widget::column![]);
 
-    assert_eq!(element.as_widget().children().len(), 2);
+    assert_eq!(element.as_widget().children().len(), closed_child_count);
     assert_eq!(element.as_widget().size().width, Length::Fill);
 }

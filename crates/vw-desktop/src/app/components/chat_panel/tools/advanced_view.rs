@@ -26,7 +26,7 @@ use crate::app::components::chat_panel::utils::{
     chat_context_target_key, chat_scroll_direction,
     chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
     eye_icon_svg_style, icon_svg, simplified_block_style, simplified_code_block_style,
-    truncate_chars, truncate_lines_middle, wrap_chat_context_menu,
+    truncate_chars, truncate_lines_middle,
 };
 
 pub(super) fn is_advanced_surface_tool(tool_name: &str) -> bool {
@@ -663,8 +663,6 @@ pub fn tool_advanced_view<'a>(
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
     let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
-    let context_menu_open = app.chat_context_menu_target == Some(context_key);
-    let context_menu_anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
     let context_text = selected_chat_text_for_target(app, context_key)
         .unwrap_or_else(|| if body_text.is_empty() { summary.clone() } else { body_text.clone() });
 
@@ -799,5 +797,5 @@ pub fn tool_advanced_view<'a>(
     let content: Element<'a, Message> =
         container(content).padding([2, 6]).width(Length::Fill).style(simplified_block_style).into();
 
-    Some(wrap_chat_context_menu(content, context_menu_open, context_menu_anchor, false))
+    Some(content)
 }

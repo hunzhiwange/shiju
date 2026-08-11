@@ -8,7 +8,7 @@ use super::PostgresAgentSchedulerStore;
 use crate::agent_scheduler::domain::TaskId;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;
-use crate::agent_scheduler::store::dependencies::ensure_mutable_successors;
+use crate::agent_scheduler::store::dependencies::{build_task_graph, ensure_mutable_successors};
 use crate::agent_scheduler::task_graph::{AgentTaskDependency, TaskGraph, TaskGraphTaskSnapshot};
 
 impl PostgresAgentSchedulerStore {
@@ -60,6 +60,20 @@ impl PostgresAgentSchedulerStore {
             Ok(())
         })
     }
+
+    pub(in crate::agent_scheduler::store) fn load_task_graph(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<TaskGraph> {
+        crate::global_database::run_sync_database(|| {
+            let scope = context.storage_scope()?;
+            let mut connection = self.database.connect_postgres()?;
+            let dependencies = list_task_dependencies_with_client(&mut *connection, &scope)?;
+            let task_ids = dependency_task_ids(&[], &dependencies);
+            let tasks = load_task_snapshots(&mut *connection, &scope, &task_ids, false)?;
+            build_task_graph(dependencies, tasks)
+        })
+    }
 }
 
 fn list_task_dependencies_with_client(
@@ -109,15 +123,31 @@ fn lock_task_snapshots(
     scope: &AgentSchedulerScope,
     task_ids: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, TaskGraphTaskSnapshot>> {
+    load_task_snapshots(client, scope, task_ids, true)
+}
+
+fn load_task_snapshots(
+    client: &mut impl GenericClient,
+    scope: &AgentSchedulerScope,
+    task_ids: &BTreeSet<String>,
+    lock_tasks: bool,
+) -> Result<BTreeMap<String, TaskGraphTaskSnapshot>> {
     let project = scope.project_scope();
     let mut tasks = BTreeMap::new();
+    let query = if lock_tasks {
+        "SELECT id, kind, status
+         FROM scheduler_tasks
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND id = $4
+         FOR UPDATE"
+    } else {
+        "SELECT id, kind, status
+         FROM scheduler_tasks
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND id = $4"
+    };
     for task_id in task_ids {
         let task = client
             .query_opt(
-                "SELECT id, kind, status
-                 FROM scheduler_tasks
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND id = $4
-                 FOR UPDATE",
+                query,
                 &[
                     &project.platform_id().as_ref(),
                     &project.company_id().as_ref(),

@@ -132,6 +132,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 })),
                             }
                         }),
+                        text(&entry.key).size(12).style(move |theme: &Theme| {
+                            iced::widget::text::Style {
+                                color: Some(if is_selected {
+                                    theme.palette().text.scale_alpha(0.72)
+                                } else {
+                                    theme.palette().text.scale_alpha(0.62)
+                                }),
+                            }
+                        }),
+                        text(&entry.description).size(12).style(move |theme: &Theme| {
+                            iced::widget::text::Style {
+                                color: Some(if is_selected {
+                                    theme.palette().text.scale_alpha(0.72)
+                                } else {
+                                    theme.palette().text.scale_alpha(0.62)
+                                }),
+                            }
+                        }),
                         text(meta).size(12).style(move |theme: &Theme| {
                             iced::widget::text::Style {
                                 color: Some(if is_selected {

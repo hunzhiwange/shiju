@@ -82,6 +82,31 @@ fn system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist(
 }
 
 #[test]
+fn system_prompt_initial_request_reads_explicit_workspace_agents_family() {
+    let project = tempfile::tempdir().expect("project workspace");
+    std::fs::create_dir_all(project.path().join(".vibewindow"))
+        .expect("create project config directory");
+    std::fs::write(project.path().join("AGENTS.md"), "root protocol").expect("write root agents");
+    std::fs::write(project.path().join(".vibewindow/AGENTS.md"), "project protocol")
+        .expect("write project config agents");
+    std::fs::write(project.path().join("AGENTS.local.md"), "local protocol")
+        .expect("write local agents");
+
+    let prompt = super::system_with_metadata(None, project.path().to_str());
+
+    assert_eq!(prompt.visible_instruction_paths.len(), 3);
+    let context = prompt
+        .instruction_context()
+        .iter()
+        .map(|resolved| resolved.content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(context.contains("root protocol"));
+    assert!(context.contains("project protocol"));
+    assert!(context.contains("local protocol"));
+}
+
+#[test]
 fn agents_context_base_system_excludes_instruction_content() {
     let project = tempfile::tempdir().expect("project workspace");
     std::fs::write(project.path().join("AGENTS.md"), "agents instruction content")

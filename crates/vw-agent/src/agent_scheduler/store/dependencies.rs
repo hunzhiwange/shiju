@@ -64,6 +64,38 @@ impl AgentSchedulerStore {
         transaction.commit()?;
         Ok(())
     }
+
+    pub fn load_task_graph(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+    ) -> Result<TaskGraph> {
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.load_task_graph(context);
+        }
+
+        let scope = context.storage_scope()?;
+        let connection = open_initialized_connection(self, context)?;
+        let dependencies = list_task_dependencies_with_connection(&connection, &scope)?;
+        let task_ids = dependency_task_ids(&[], &dependencies);
+        let tasks = load_task_snapshots(&connection, &scope, &task_ids)?;
+        build_task_graph(dependencies, tasks)
+    }
+}
+
+pub(crate) fn build_task_graph(
+    dependencies: Vec<AgentTaskDependency>,
+    tasks: BTreeMap<String, TaskGraphTaskSnapshot>,
+) -> Result<TaskGraph> {
+    let graph_tasks = dependency_task_ids(&[], &dependencies)
+        .iter()
+        .map(|task_id| {
+            tasks
+                .get(task_id)
+                .cloned()
+                .with_context(|| format!("task graph task does not exist: {task_id}"))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    TaskGraph::new(graph_tasks, dependencies)
 }
 
 fn list_task_dependencies_with_connection(
@@ -104,12 +136,12 @@ fn dependency_task_ids(
 }
 
 fn load_task_snapshots(
-    transaction: &Transaction<'_>,
+    connection: &Connection,
     scope: &vw_api_types::agent_scheduler::AgentSchedulerScope,
     task_ids: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, TaskGraphTaskSnapshot>> {
     let (platform_id, company_id, project_id) = scope_params(scope);
-    let mut statement = transaction.prepare(
+    let mut statement = connection.prepare(
         "SELECT id, kind, status
          FROM scheduler_tasks
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND id = ?4",
@@ -117,13 +149,16 @@ fn load_task_snapshots(
     let mut tasks = BTreeMap::new();
     for task_id in task_ids {
         let task = statement
-            .query_row(params![platform_id, company_id, project_id, task_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            })
+            .query_row(
+                params![platform_id, company_id, project_id, task_id],
+                |row: &rusqlite::Row<'_>| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
+            )
             .optional()?
             .map(|(id, kind, status)| {
                 Ok::<TaskGraphTaskSnapshot, anyhow::Error>(TaskGraphTaskSnapshot::new(

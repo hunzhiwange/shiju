@@ -16,6 +16,7 @@ use crate::task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID;
 
 const DEFAULT_FAILED_RETRY_MINUTES: u32 = 20;
 const DEFAULT_FAILED_RETRY_MAX_ATTEMPTS: u32 = 10;
+const DEFAULT_AUTO_PROMOTE_DELAY_MS: i64 = 30_000;
 const DEFAULT_RUNNING_TIMEOUT_MS: i64 = 20 * 60_000;
 const DEFAULT_MERGE_STALL_TIMEOUT_MS: i64 = 300_000;
 const RUNNING_TIMEOUT_GRACE_MARKER: &str = "超时保活";
@@ -26,6 +27,8 @@ const OUTCOME_BLOCKED: &str = "blocked";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentSchedulerPolicyConfig {
+    pub auto_promote_pool_tasks: bool,
+    pub auto_promote_delay_ms: i64,
     pub failed_retry_minutes: u32,
     pub failed_retry_max_attempts: u32,
     pub running_timeout_ms: i64,
@@ -35,6 +38,8 @@ pub struct AgentSchedulerPolicyConfig {
 impl Default for AgentSchedulerPolicyConfig {
     fn default() -> Self {
         Self {
+            auto_promote_pool_tasks: false,
+            auto_promote_delay_ms: DEFAULT_AUTO_PROMOTE_DELAY_MS,
             failed_retry_minutes: DEFAULT_FAILED_RETRY_MINUTES,
             failed_retry_max_attempts: DEFAULT_FAILED_RETRY_MAX_ATTEMPTS,
             running_timeout_ms: DEFAULT_RUNNING_TIMEOUT_MS,
@@ -46,6 +51,8 @@ impl Default for AgentSchedulerPolicyConfig {
 impl AgentSchedulerPolicyConfig {
     fn sanitized(&self) -> Self {
         Self {
+            auto_promote_pool_tasks: self.auto_promote_pool_tasks,
+            auto_promote_delay_ms: self.auto_promote_delay_ms.max(0),
             failed_retry_minutes: self.failed_retry_minutes.clamp(1, 1440),
             failed_retry_max_attempts: self.failed_retry_max_attempts.clamp(0, 10),
             running_timeout_ms: self.running_timeout_ms.max(1),
@@ -94,7 +101,9 @@ impl<'a> AgentSchedulerPolicyService<'a> {
             }
 
             match task.status {
-                AgentTaskStatus::Draft => {}
+                AgentTaskStatus::Draft => {
+                    self.apply_pool_policy(project_path, &task, now_ms, &config, &mut outcome)?;
+                }
                 AgentTaskStatus::Assigned
                 | AgentTaskStatus::Dispatched
                 | AgentTaskStatus::Acknowledged
@@ -140,6 +149,66 @@ impl<'a> AgentSchedulerPolicyService<'a> {
         }
 
         Ok(outcome)
+    }
+
+    fn apply_pool_policy(
+        &self,
+        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+        task: &StoredAgentTask,
+        now_ms: TimestampMs,
+        config: &AgentSchedulerPolicyConfig,
+        outcome: &mut AgentSchedulerPolicyOutcome,
+    ) -> Result<()> {
+        if !config.auto_promote_pool_tasks || !is_backlog_task(task) {
+            return Ok(());
+        }
+        let delay_ms = integer_metadata_field(&task.metadata, "auto_promote_delay_ms")
+            .unwrap_or(config.auto_promote_delay_ms)
+            .max(0);
+        if elapsed_since(now_ms, task.created_at_ms) < delay_ms {
+            return Ok(());
+        }
+
+        let from_status_key = crate::agent_scheduler::task_board::task_board_status_key(task);
+        let updated = self
+            .store
+            .transition_task_status(
+                project_path,
+                &task.id,
+                AgentTaskStatus::Queued,
+                now_ms,
+            )?
+            .with_context(|| {
+                format!("task disappeared during pool promotion: {}", task.id.as_str())
+            })?;
+        let to_status_key = crate::agent_scheduler::task_board::task_board_status_key(&updated);
+        let message = "agent scheduler policy auto-promoted pool task to queued";
+        self.append_log(
+            project_path,
+            &task.id,
+            None,
+            now_ms,
+            Some(task.status),
+            Some(AgentTaskStatus::Queued),
+            Some(from_status_key.clone()),
+            Some(to_status_key.clone()),
+            message,
+        )?;
+        self.append_event(
+            project_path,
+            &updated,
+            None,
+            AgentEventKind::TaskResumed,
+            Some(task.status),
+            Some(AgentTaskStatus::Queued),
+            Some(from_status_key),
+            Some(to_status_key),
+            message,
+            json!({"policy_action": "auto_promote_pool"}),
+            now_ms,
+        )?;
+        outcome.promoted_task_ids.push(task.id.clone());
+        Ok(())
     }
 
     fn apply_retry_policy(
@@ -622,6 +691,15 @@ impl<'a> AgentSchedulerPolicyService<'a> {
         )?;
         Ok(())
     }
+}
+
+fn is_backlog_task(task: &StoredAgentTask) -> bool {
+    let status_key = crate::agent_scheduler::task_board::task_board_status_key(task);
+    task.status == AgentTaskStatus::Draft
+        && (matches!(
+            status_role_from_metadata(&task.metadata),
+            Some(TaskPoolWorkflowStatusRoleDto::Backlog)
+        ) || matches!(status_key.as_str(), "pool" | "backlog" | "draft"))
 }
 
 fn is_review_ready_projection(

@@ -83,6 +83,28 @@ fn enabled_identity_files_follow_selected_agent_config_snapshot() {
     assert!(super::enabled_identity_files_for_agent(&config, Some("missing")).is_empty());
 }
 
+#[test]
+fn session_protocol_initial_step_contains_explicit_workspace_agents() {
+    let project = tempfile::tempdir().expect("project workspace");
+    std::fs::write(project.path().join("AGENTS.md"), "INITIAL_AGENTS_PROTOCOL")
+        .expect("write project agents");
+    let base_system = crate::session::prompt::system_with_metadata(None, project.path().to_str());
+    let history = vec![serde_json::json!({ "role": "user", "content": "start task" })];
+    let mut protocol = super::DesktopSessionProtocol::default();
+
+    let messages = protocol
+        .assemble(&history, base_system.instruction_context(), false)
+        .expect("assemble initial protocol messages");
+
+    assert_eq!(messages.last(), history.last());
+    assert!(messages.first().is_some_and(|message| {
+        message.get("role").and_then(serde_json::Value::as_str) == Some("user")
+            && message.get("content").and_then(serde_json::Value::as_str).is_some_and(|content| {
+                content.contains("AGENTS.md") && content.contains("INITIAL_AGENTS_PROTOCOL")
+            })
+    }));
+}
+
 use crate::app::agent::session::llm;
 use crate::app::agent::tools::ToolRuntimeContext;
 use crate::session::ui_types as models;

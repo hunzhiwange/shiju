@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Semaphore;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 const DEFAULT_MAX_PARALLEL_SUBAGENTS: usize = 4;
 const MAX_PARALLEL_SUBAGENTS: usize = 32;
@@ -182,6 +182,7 @@ impl AgentTool {
         &self,
         prepared: PreparedChildRun,
         cancellation: tokio_util::sync::CancellationToken,
+        parallel_permit: OwnedSemaphorePermit,
     ) -> anyhow::Result<()> {
         let PreparedChildRun { parent_session_id, agent: _, task: _, created } = prepared;
         let child_session_id = created.child_session_id.clone();
@@ -194,6 +195,7 @@ impl AgentTool {
         let spawned = std::thread::Builder::new()
             .name("vw-child-agent".to_string())
             .spawn(move || {
+                let _parallel_permit = parallel_permit;
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
@@ -478,6 +480,22 @@ impl AgentTool {
     }
 
     async fn handle_launch(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        let parallel_permit = match self.parallelism.clone().try_acquire_owned() {
+            Ok(permit) => permit,
+            Err(tokio::sync::TryAcquireError::NoPermits) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(
+                        "AgentTool active subagent limit reached; wait for a running child to finish or cancel it before launching another."
+                            .to_string(),
+                    ),
+                });
+            }
+            Err(tokio::sync::TryAcquireError::Closed) => {
+                anyhow::bail!("AgentTool parallel limiter is unavailable");
+            }
+        };
         let prepared = match self.prepare_child_run(args).await? {
             Ok(prepared) => prepared,
             Err(result) => return Ok(result),
@@ -498,7 +516,7 @@ impl AgentTool {
             "agent": prepared.agent,
             "task": prepared.task,
         }))?;
-        self.spawn_background_child(prepared, cancellation)?;
+        self.spawn_background_child(prepared, cancellation, parallel_permit)?;
         Ok(ToolResult { success: true, output, error: None })
     }
 

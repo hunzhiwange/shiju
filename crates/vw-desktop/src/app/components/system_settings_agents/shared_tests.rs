@@ -10,7 +10,10 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
     DelegateAgentSettingsEntry {
         key: key.to_string(),
         label: key.to_string(),
+        description: String::new(),
         kind,
+        role_controls_locked: false,
+        can_disable: true,
         enabled: true,
         allow_as_subagent: false,
         max_parallel_subagents: 4,

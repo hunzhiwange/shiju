@@ -1,6 +1,6 @@
 //! Agent Scheduler API 路由。
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -1211,36 +1211,14 @@ impl StoreBackedAgentSchedulerGateway {
         project_path: &AgentSchedulerContext,
     ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
         self.store.initialize_project(project_path).map_err(map_scheduler_error)?;
-        let dependencies = self
-            .store
-            .list_task_dependencies(project_path)
-            .map_err(map_scheduler_error)?;
-        let task_ids = dependencies
-            .iter()
-            .flat_map(|dependency| [&dependency.predecessor, &dependency.successor])
-            .map(|task_id| task_id.as_str().to_owned())
-            .collect::<BTreeSet<_>>();
-        let tasks = self
-            .store
-            .list_tasks(project_path, AgentTaskFilter::default())
-            .map_err(map_scheduler_error)?
-            .into_iter()
-            .filter(|task| task_ids.contains(task.id.as_str()))
-            .collect::<Vec<_>>();
-        let graph = TaskGraph::new(
-            tasks
-                .iter()
-                .map(|task| TaskGraphTaskSnapshot::new(task.id.clone(), task.kind, task.status))
-                .collect(),
-            dependencies.clone(),
-        )
-        .map_err(map_scheduler_error)?;
-        let tasks = tasks
-            .into_iter()
+        let graph = self.store.load_task_graph(project_path).map_err(map_scheduler_error)?;
+        let tasks = graph
+            .tasks()
             .map(|task| task_graph_task_to_dto(task, &graph))
             .collect::<Result<Vec<_>, _>>()?;
-        let edges = dependencies
-            .into_iter()
+        let edges = graph
+            .dependencies()
+            .iter()
             .map(|dependency| AgentSchedulerTaskGraphEdgeDto {
                 predecessor_task_id: dependency.predecessor.as_str().to_string(),
                 successor_task_id: dependency.successor.as_str().to_string(),
@@ -1300,7 +1278,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     ) -> Result<AgentSchedulerWakeResponse, ApiError> {
         let project_path = parse_project_path(&request.project_path)?;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        self.apply_policy_tick(None, &project_path, request.now_ms).await?;
+        self.apply_policy_tick(None, &project_path, request.now_ms, false).await?;
         let dispatch_lock = self.project_dispatch_lock(&project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
@@ -1780,7 +1758,13 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             "agent scheduler project wake requested"
         );
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        self.apply_policy_tick(Some(project_id.as_str()), &project_path, request.now_ms).await?;
+        self.apply_policy_tick(
+            Some(project_id.as_str()),
+            &project_path,
+            request.now_ms,
+            request.auto_promote_pool_tasks,
+        )
+        .await?;
         let dispatch_lock = self.project_dispatch_lock(&project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
         if let Some(response) =
@@ -1899,8 +1883,12 @@ impl StoreBackedAgentSchedulerGateway {
         project_id: Option<&str>,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         now_ms: TimestampMs,
+        auto_promote_pool_tasks: bool,
     ) -> Result<AgentSchedulerPolicyOutcome, ApiError> {
-        let config = AgentSchedulerPolicyConfig::default();
+        let config = AgentSchedulerPolicyConfig {
+            auto_promote_pool_tasks,
+            ..AgentSchedulerPolicyConfig::default()
+        };
         let outcome = AgentSchedulerPolicyService::new(&self.store)
             .apply_project_policy(project_path, now_ms, &config)
             .map_err(map_scheduler_error)?;
@@ -4604,7 +4592,7 @@ fn capability_to_dto(capability: AgentCapabilityRecord) -> AgentCapabilityDto {
 }
 
 fn task_graph_task_to_dto(
-    task: StoredAgentTask,
+    task: &TaskGraphTaskSnapshot,
     graph: &TaskGraph,
 ) -> Result<AgentSchedulerTaskGraphTaskDto, ApiError> {
     let readiness = graph.readiness_for(&task.id).map_err(map_scheduler_error)?;

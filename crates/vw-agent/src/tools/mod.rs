@@ -167,7 +167,6 @@ pub use cron_remove::CronRemoveTool;
 pub use cron_run::CronRunTool;
 pub use cron_runs::CronRunsTool;
 pub use cron_update::CronUpdateTool;
-pub(crate) use delegate::DelegateTool;
 pub use delegate_coordination_status::DelegateCoordinationStatusTool;
 pub use enter_plan_mode::EnterPlanModeTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -352,3 +351,5 @@ mod coverage_tests;
 #[cfg(test)]
 #[path = "tests/mod_tests.rs"]
 mod tests;
+#[cfg(test)]
+pub(crate) use delegate::DelegateTool;

@@ -287,7 +287,7 @@ fn agent_scheduler_wake_response_does_not_reserve_desktop_running_slot() {
 }
 
 #[test]
-fn pending_agent_scheduler_create_requests_are_queued_and_filter_non_pending() {
+fn wake_agent_scheduler_create_requests_include_pool_and_filter_terminal_tasks() {
     use crate::app::task::{Task, TaskStatus};
     use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
@@ -310,13 +310,15 @@ fn pending_agent_scheduler_create_requests_are_queued_and_filter_non_pending() {
     archived.id = "T-archived".to_string();
     archived.status = TaskStatus::Archived;
 
-    let requests = super::agent_scheduler_pending_create_task_requests(
+    let requests = super::agent_scheduler_wake_create_task_requests(
         &[pool, pending, completed, archived],
         crate::app::task::DEFAULT_TASK_WORKFLOW_ID,
     );
 
-    assert_eq!(requests.len(), 1);
-    let request = &requests[0];
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].task_id, "T-pool");
+    assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
+    let request = &requests[1];
     assert_eq!(request.task_id, "T-pending-register");
     assert_eq!(request.kind, AgentTaskKindDto::Finite);
     assert_eq!(request.status, Some(AgentTaskStatusDto::Queued));

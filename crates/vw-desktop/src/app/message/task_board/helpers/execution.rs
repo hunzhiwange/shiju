@@ -731,12 +731,10 @@ pub(crate) fn sync_task_board_gateway_snapshot(
     )
 }
 
-pub(crate) fn agent_scheduler_pending_create_task_requests(
+pub(crate) fn agent_scheduler_wake_create_task_requests(
     tasks: &[Task],
     workflow_id: &str,
 ) -> Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest> {
-    use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
-
     let workflow = task_workflow_for_agent_scheduler(workflow_id);
     tasks
         .iter()
@@ -744,14 +742,11 @@ pub(crate) fn agent_scheduler_pending_create_task_requests(
             workflow
                 .as_ref()
                 .and_then(|workflow| workflow.status_role(task.status))
-                .is_some_and(|role| matches!(role, StatusRole::Queued | StatusRole::Planning))
+                .is_some_and(|role| {
+                    matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning)
+                })
         })
-        .map(|task| {
-            let mut request = agent_scheduler_create_task_request(task, workflow_id);
-            request.kind = AgentTaskKindDto::Finite;
-            request.status = Some(AgentTaskStatusDto::Queued);
-            request
-        })
+        .map(|task| agent_scheduler_create_task_request(task, workflow_id))
         .collect()
 }
 

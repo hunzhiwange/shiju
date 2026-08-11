@@ -14,6 +14,7 @@ use crate::app::{
     },
 };
 use iced::widget::text_editor;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use vw_shared::provider::types::{
@@ -271,6 +272,41 @@ fn agents_settings_patch_omits_fields_the_ui_does_not_own() {
     {
         assert!(main.get(field).is_none(), "unexpected destructive field: {field}");
     }
+}
+
+#[test]
+fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
+    let config = vw_config_types::config::Config::default();
+    let entries = crate::app::state::agent_settings_entries_from_config(&config);
+
+    let patch = build_agents_settings_patch(&entries).expect("fresh settings should serialize");
+    let researcher = &patch["agents"]["researcher"];
+
+    for field in [
+        "allow_as_subagent",
+        "max_parallel_subagents",
+        "max_depth",
+        "agentic",
+        "max_iterations",
+    ] {
+        assert!(researcher.get(field).is_none(), "unexpected fixed boundary: {field}");
+    }
+    assert_eq!(researcher["allowed_tools"], serde_json::json!(["file_read", "glob", "grep", "image_info", "ls", "lsp", "pdf_read", "web_fetch", "web_search_tool"]));
+}
+
+#[test]
+fn agents_settings_patch_removes_legacy_general_entry() {
+    let mut config = vw_config_types::config::Config::default();
+    config.agents.insert(
+        "general".to_string(),
+        vw_config_types::agent::DelegateAgentConfig::default(),
+    );
+    let entries = crate::app::state::agent_settings_entries_from_config(&config);
+
+    assert!(entries.iter().all(|entry| entry.key != "general"));
+    let patch = build_agents_settings_patch(&entries).expect("settings patch should serialize");
+
+    assert_eq!(patch["agents"].get("general"), Some(&Value::Null));
 }
 
 #[test]
@@ -1199,6 +1235,22 @@ fn allowed_tool_messages_keep_builtin_required_tools() {
     assert!(preset.iter().any(|tool| tool == "web_search_tool"));
     assert!(preset.iter().any(|tool| tool == "read"));
     assert!(!preset.iter().any(|tool| tool == "write"));
+}
+
+#[test]
+fn collab_preset_omits_legacy_delegate_coordination_status() {
+    let available_tools = vec![
+        "AgentTool".to_string(),
+        "delegate_coordination_status".to_string(),
+        "schedule".to_string(),
+        "plan_enter".to_string(),
+    ];
+
+    assert!(!tool_in_preset("delegate_coordination_status", "collab"));
+    assert_eq!(
+        tools_for_preset(&available_tools, "collab"),
+        vec!["AgentTool", "plan_enter", "schedule"]
+    );
 }
 
 #[test]

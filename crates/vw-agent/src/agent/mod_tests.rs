@@ -277,6 +277,37 @@ fn build_resolved_agent_applies_runtime_defaults() {
 }
 
 #[test]
+fn public_delegate_agents_resolve_dedicated_role_prompts() {
+    let expectations = [
+        ("researcher", "资料研究", "禁止写入工作区", "外部一手资料"),
+        ("coder", "代码实现", "可以修改工作区", "相邻实现和测试"),
+        ("reviewer", "代码审查", "禁止修改工作区", "文件、行号、触发条件和影响"),
+        ("explore", "代码探索", "禁止修改工作区", "路径、符号、调用关系"),
+    ];
+
+    for (key, role, workspace_boundary, responsibility) in expectations {
+        let resolved =
+            build_resolved_agent(key, DelegateAgentConfig::default(), &Vec::new(), &Vec::new());
+        let prompt = resolved
+            .definition
+            .system_prompt
+            .as_deref()
+            .unwrap_or_else(|| panic!("{key} should resolve a dedicated prompt"));
+
+        for expected in [
+            role,
+            workspace_boundary,
+            responsibility,
+            "有界子任务",
+            "不得创建子代理",
+            "不得伪造验证结果",
+        ] {
+            assert!(prompt.contains(expected), "{key} prompt should contain {expected}: {prompt}");
+        }
+    }
+}
+
+#[test]
 fn build_resolved_agent_orders_permission_layers() {
     let defaults = permission_next::from_config(&json!({"shared": "allow"}));
     let user = permission_next::from_config(&json!({"shared": "ask"}));
@@ -301,7 +332,7 @@ fn build_resolved_agent_orders_permission_layers() {
 
 #[test]
 fn build_resolved_agent_preserves_custom_builtin_prompts() {
-    for key in ["explore", "compaction", "title", "summary"] {
+    for key in ["researcher", "coder", "reviewer", "explore", "compaction", "title", "summary"] {
         let resolved = build_resolved_agent(
             key,
             DelegateAgentConfig {

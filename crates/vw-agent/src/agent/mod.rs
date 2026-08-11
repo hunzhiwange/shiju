@@ -81,6 +81,15 @@ const PROMPT_COMPACTION: &str = include_str!("prompt/compaction.txt");
 /// 用于 explore 代理执行代码库探索任务
 const PROMPT_EXPLORE: &str = include_str!("prompt/explore.txt");
 
+/// 研究角色提示词模板。
+const PROMPT_RESEARCHER: &str = include_str!("prompt/researcher.txt");
+
+/// 实现角色提示词模板。
+const PROMPT_CODER: &str = include_str!("prompt/coder.txt");
+
+/// 审查角色提示词模板。
+const PROMPT_REVIEWER: &str = include_str!("prompt/reviewer.txt");
+
 /// 摘要提示词模板
 ///
 /// 用于 summary 代理生成对话摘要
@@ -383,17 +392,17 @@ fn build_resolved_agent(
         merge_json_value(&mut permission, &overlay);
         config.permission = permission;
     }
-    if key == "explore" && config.system_prompt.is_none() {
-        config.system_prompt = Some(PROMPT_EXPLORE.to_string());
-    }
-    if key == "compaction" && config.system_prompt.is_none() {
-        config.system_prompt = Some(PROMPT_COMPACTION.to_string());
-    }
-    if key == "title" && config.system_prompt.is_none() {
-        config.system_prompt = Some(PROMPT_TITLE.to_string());
-    }
-    if key == "summary" && config.system_prompt.is_none() {
-        config.system_prompt = Some(PROMPT_SUMMARY.to_string());
+    if config.system_prompt.is_none() {
+        config.system_prompt = match key {
+            "researcher" => Some(PROMPT_RESEARCHER.to_string()),
+            "coder" => Some(PROMPT_CODER.to_string()),
+            "reviewer" => Some(PROMPT_REVIEWER.to_string()),
+            "explore" => Some(PROMPT_EXPLORE.to_string()),
+            "compaction" => Some(PROMPT_COMPACTION.to_string()),
+            "title" => Some(PROMPT_TITLE.to_string()),
+            "summary" => Some(PROMPT_SUMMARY.to_string()),
+            _ => None,
+        };
     }
 
     ResolvedAgentDefinition {

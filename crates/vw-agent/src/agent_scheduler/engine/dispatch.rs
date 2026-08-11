@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
@@ -24,7 +22,7 @@ use crate::agent_scheduler::store::runs::{ClaimReadyTaskRunRequest, StoredAgentR
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
 use crate::agent_scheduler::store::workers::{AgentWorkerFilter, StoredAgentWorker};
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
-use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot};
+use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness};
 
 pub const DEFAULT_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
 
@@ -531,19 +529,7 @@ fn load_task_graph(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
 ) -> Result<TaskGraph> {
-    let dependencies = store.list_task_dependencies(project_path)?;
-    let task_ids = dependencies
-        .iter()
-        .flat_map(|dependency| [&dependency.predecessor, &dependency.successor])
-        .map(|task_id| task_id.as_str().to_owned())
-        .collect::<BTreeSet<_>>();
-    let tasks = store
-        .list_tasks(project_path, AgentTaskFilter::default())?
-        .into_iter()
-        .filter(|task| task_ids.contains(task.id.as_str()))
-        .map(|task| TaskGraphTaskSnapshot::new(task.id, task.kind, task.status))
-        .collect();
-    TaskGraph::new(tasks, dependencies)
+    store.load_task_graph(project_path)
 }
 
 fn task_graph_allows_dispatch(graph: &TaskGraph, task: &StoredAgentTask) -> Result<bool> {

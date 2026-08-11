@@ -833,7 +833,7 @@ fn code_review_selection_honors_exclusions_and_priority_order() {
 }
 
 #[test]
-fn pending_scheduler_requests_include_only_queued_and_planning_tasks() {
+fn wake_scheduler_requests_include_pool_queued_and_planning_tasks() {
     use crate::app::task::{Task, TaskStatus};
     use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
@@ -846,17 +846,24 @@ fn pending_scheduler_requests_include_only_queued_and_planning_tasks() {
     let mut running = Task::new(3);
     running.id = "running".to_string();
     running.status = TaskStatus::Running;
+    let mut pool = Task::new(4);
+    pool.id = "pool".to_string();
+    pool.status = TaskStatus::Pool;
 
-    let requests = super::agent_scheduler_pending_create_task_requests(
-        &[pending, planning, running],
+    let requests = super::agent_scheduler_wake_create_task_requests(
+        &[pool, pending, planning, running],
         crate::app::task::workflow::DEFAULT_TASK_WORKFLOW_ID,
     );
 
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].task_id, "pending");
-    assert_eq!(requests[1].task_id, "planning");
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[0].task_id, "pool");
+    assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
+    assert_eq!(requests[1].task_id, "pending");
+    assert_eq!(requests[2].task_id, "planning");
     assert!(requests.iter().all(|request| request.kind == AgentTaskKindDto::Finite));
-    assert!(requests.iter().all(|request| request.status == Some(AgentTaskStatusDto::Queued)));
+    assert!(requests[1..].iter().all(|request| {
+        request.status == Some(AgentTaskStatusDto::Queued)
+    }));
 }
 
 #[test]

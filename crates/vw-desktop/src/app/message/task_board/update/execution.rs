@@ -40,7 +40,7 @@ fn wake_agent_scheduler(
                         now_ms: TimestampMs(i64::try_from(now_ms).unwrap_or(i64::MAX)),
                         dispatch_mode,
                         max_concurrent,
-                        auto_promote_pool_tasks: false,
+                        auto_promote_pool_tasks: true,
                     },
                 )
                 .await?;
@@ -76,7 +76,7 @@ fn wake_agent_scheduler_after_registering_pending(
     let max_concurrent = Some(app.task_board_settings.max_concurrent.clamp(1, 10));
     let workflow_id = current_staff_workflow_id(app);
     let pending_create_requests =
-        agent_scheduler_pending_create_task_requests(&app.task_board_tasks, &workflow_id);
+        agent_scheduler_wake_create_task_requests(&app.task_board_tasks, &workflow_id);
     iced::Task::perform(
         async move {
             let scope = resolve_task_board_scheduler_scope(&project_path).await?;
@@ -90,7 +90,7 @@ fn wake_agent_scheduler_after_registering_pending(
                         now_ms: TimestampMs(i64::try_from(now_ms).unwrap_or(i64::MAX)),
                         dispatch_mode,
                         max_concurrent,
-                        auto_promote_pool_tasks: false,
+                        auto_promote_pool_tasks: true,
                     },
                 )
                 .await?;

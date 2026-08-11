@@ -37,13 +37,13 @@ fn delegate_agent_entry_uses_builtin_worker_defaults() {
     let entry = DelegateAgentSettingsEntry::from_config("title", None);
 
     assert_eq!(entry.key, "title");
-    assert_eq!(entry.label, "Title");
+    assert_eq!(entry.label, "标题生成");
     assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
     assert!(entry.enabled);
-    assert!(entry.allow_as_subagent);
+    assert!(!entry.allow_as_subagent);
     assert_eq!(entry.temperature, 0.5);
-    assert_eq!(entry.max_depth, 3);
-    assert_eq!(entry.max_iterations, 50_000);
+    assert_eq!(entry.max_depth, 1);
+    assert_eq!(entry.max_iterations, 32);
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn delegate_agent_entry_blank_builtin_label_falls_back_to_builtin_label() {
     let entry = DelegateAgentSettingsEntry::from_config("title", Some(config));
 
     assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
-    assert_eq!(entry.label, "Title");
+    assert_eq!(entry.label, "标题生成");
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn ordered_agent_keys_does_not_duplicate_configured_builtin_keys() {
 }
 
 #[test]
-fn default_allowed_tools_selects_all_except_title_and_summary() {
+fn default_allowed_tools_preserves_builtin_role_defaults() {
     let mut entries = builtin_agent_keys()
         .into_iter()
         .map(|key| DelegateAgentSettingsEntry::from_config(key, None))
@@ -209,15 +209,10 @@ fn default_allowed_tools_selects_all_except_title_and_summary() {
     apply_default_allowed_tools(&mut entries, &available_tools);
 
     for entry in entries {
-        if matches!(entry.key.as_str(), "title" | "summary") {
-            assert!(entry.allowed_tools.is_empty(), "{} must remain tool-free", entry.key);
-        } else {
-            assert_eq!(
-                entry.allowed_tools, available_tools,
-                "{} should default to all tools",
-                entry.key
-            );
-        }
+        let expected = vw_config_types::agent::builtin_agent_config(&entry.key)
+            .expect("builtin config")
+            .allowed_tools;
+        assert_eq!(entry.allowed_tools, expected, "{} must retain its role tools", entry.key);
     }
 }
 

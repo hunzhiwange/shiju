@@ -205,6 +205,45 @@ fn agent_scheduler_policy_leaves_pool_task_draft_without_legacy_auto_promote() -
 }
 
 #[test]
+fn agent_scheduler_policy_promotes_due_pool_task_when_explicitly_enabled() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path().join("project-agent-scheduler-policy-pool-enabled");
+    std::fs::create_dir_all(&project_path)?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(&project_path)?;
+
+    let pool_id = TaskId::new("task-policy-pool-enabled")?;
+    store.create_task(
+        &project_path,
+        finite_task(
+            &pool_id,
+            AgentTaskStatus::Draft,
+            json!({
+                "task_board.status_key": "pool",
+                "task_board.status_role": "backlog",
+                "auto_promote_delay_ms": 0
+            }),
+            TimestampMs(1_000),
+        )?,
+    )?;
+
+    let outcome = AgentSchedulerPolicyService::new(&store).apply_project_policy(
+        &project_path,
+        TimestampMs(1_001),
+        &AgentSchedulerPolicyConfig {
+            auto_promote_pool_tasks: true,
+            ..AgentSchedulerPolicyConfig::default()
+        },
+    )?;
+
+    assert_eq!(outcome.promoted_task_ids, vec![pool_id.clone()]);
+    let task = store.load_task(&project_path, &pool_id)?.expect("pool task");
+    assert_eq!(task.status, AgentTaskStatus::Queued);
+    assert_eq!(task.metadata["task_board.status_role"], "queued");
+    Ok(())
+}
+
+#[test]
 fn agent_scheduler_policy_leaves_review_ready_task_for_stage_action() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-agent-scheduler-policy-workspace");

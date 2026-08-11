@@ -20,7 +20,11 @@ pub(super) fn is_main_agent(entry: &DelegateAgentSettingsEntry) -> bool {
 }
 
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
-    !is_main_agent(entry)
+    entry.can_disable
+}
+
+pub(super) fn shows_delegation_controls(entry: &DelegateAgentSettingsEntry) -> bool {
+    !entry.role_controls_locked
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -244,11 +248,20 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let delegation_section = column![
-        section_card("子智能体委托", "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。"),
-        column![allow_as_subagent_row, max_parallel_subagents_row].spacing(14),
-    ]
-    .spacing(14);
+    let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
+        column![
+            section_card("子智能体委托", "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。"),
+            column![allow_as_subagent_row, max_parallel_subagents_row].spacing(14),
+        ]
+        .spacing(14)
+        .into()
+    } else {
+        column![
+            section_card("角色边界", "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"),
+        ]
+        .spacing(14)
+        .into()
+    };
 
     let max_depth_row = row![
         label_col("最大深度", "委托嵌套深度上限，防止无限递归。"),
@@ -404,7 +417,7 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card(&entry.label, "为当前 Agent 单独设置 provider、model 与基础运行参数。",),
+        section_card(&entry.label, &entry.description),
         registration_section,
         delegation_section,
         provider_row,
@@ -412,7 +425,7 @@ pub(super) fn view<'a>(
         force_model_selection_row,
         api_key_row,
         temperature_row,
-        max_depth_row,
+        shows_delegation_controls(entry).then_some(max_depth_row),
         max_iterations_row,
         agentic_row,
         main_runtime_section,

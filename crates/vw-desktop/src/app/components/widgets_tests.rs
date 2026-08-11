@@ -137,11 +137,10 @@ fn area() -> RightClickArea<'static, TestMessage, Theme, RecordingRenderer> {
 }
 
 fn tree_for(
-    _widget: &RightClickArea<'static, TestMessage, Theme, RecordingRenderer>,
+    widget: &RightClickArea<'static, TestMessage, Theme, RecordingRenderer>,
 ) -> widget::Tree {
-    let mut tree = widget::Tree::empty();
-    tree.children.push(widget::Tree::empty());
-    tree
+    let widget: &dyn Widget<TestMessage, Theme, RecordingRenderer> = widget;
+    widget::Tree::new(widget)
 }
 
 fn layout_for(bounds: Rectangle) -> layout::Node {
@@ -154,9 +153,25 @@ fn update_with(
     event: Event,
     cursor: mouse::Cursor,
 ) -> Vec<TestMessage> {
+    update_with_bounds(
+        area,
+        tree,
+        event,
+        cursor,
+        Rectangle { x: 10.0, y: 20.0, width: 120.0, height: 40.0 },
+    )
+}
+
+fn update_with_bounds(
+    area: &mut RightClickArea<'static, TestMessage, Theme, RecordingRenderer>,
+    tree: &mut widget::Tree,
+    event: Event,
+    cursor: mouse::Cursor,
+    bounds: Rectangle,
+) -> Vec<TestMessage> {
     let renderer = RecordingRenderer::default();
     let mut clipboard = iced::advanced::clipboard::Null;
-    let node = layout_for(Rectangle { x: 10.0, y: 20.0, width: 120.0, height: 40.0 });
+    let node = layout_for(bounds);
     let mut messages = Vec::new();
     let mut shell = Shell::new(&mut messages);
 
@@ -296,6 +311,33 @@ fn global_position_mode_publishes_window_position_after_child_update() {
         &mut tree,
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
         mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(
+        messages,
+        vec![TestMessage::ChildUpdated, TestMessage::RightClicked(Point::new(34.0, 47.0)),]
+    );
+}
+
+#[test]
+fn global_position_mode_uses_raw_window_position_inside_scrolling_content() {
+    let mut area = area().use_global_position();
+    let mut tree = tree_for(&area);
+
+    let moved_messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(34.0, 47.0) }),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+    assert_eq!(moved_messages, vec![TestMessage::ChildUpdated]);
+
+    let messages = update_with_bounds(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(34.0, 147.0)),
+        Rectangle { x: 10.0, y: 120.0, width: 120.0, height: 40.0 },
     );
 
     assert_eq!(

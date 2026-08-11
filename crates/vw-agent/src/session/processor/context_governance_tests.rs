@@ -13,6 +13,33 @@ fn message(role: Role, content: &str) -> Message {
 }
 
 #[test]
+fn context_compaction_never_removes_agents_protocol_reminder() {
+    let reminder = json!({
+        "role": "user",
+        "content": "<system-reminder>Instructions from: /workspace/AGENTS.md\nFollow it.</system-reminder>"
+    });
+    let mut messages = vec![reminder.clone()];
+    for index in 0..12 {
+        messages.push(json!({
+            "role": if index % 2 == 0 { "user" } else { "assistant" },
+            "content": format!("history-{index}-{}", "x".repeat(240))
+        }));
+    }
+
+    let result = compact_context_for_next_request(
+        &mut messages,
+        &["system".to_string()],
+        &[],
+        &limit(600, Some(600), 0),
+        None,
+    );
+
+    let result = result.expect("history should compact below the input limit");
+    assert!(result.passes > 0);
+    assert!(messages.contains(&reminder));
+}
+
+#[test]
 fn history_trim_preserves_system_and_recent_messages() {
     let mut session = Session {
         id: "context-governance".to_string(),

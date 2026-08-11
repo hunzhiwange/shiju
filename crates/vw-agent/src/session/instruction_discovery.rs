@@ -66,10 +66,9 @@ pub fn discover(roots: &DiscoveryRoots) -> Vec<Source> {
         push_file(&mut sources, &mut seen, SourceKind::User, directory.join(AGENTS_FILE));
     }
     if roots.project_config_enabled {
-        for directory in project_directories(
-            roots.current_directory.as_deref(),
-            roots.worktree.as_deref(),
-        ) {
+        for directory in
+            project_directories(roots.current_directory.as_deref(), roots.worktree.as_deref())
+        {
             sources.extend(directory_sources_with_seen(&directory, &mut seen));
         }
     }
@@ -98,6 +97,22 @@ pub fn system_sources() -> Vec<Source> {
         user_config: Some(global::paths().config.clone()),
         current_directory,
         worktree: worktree.flatten(),
+        project_config_enabled: !flag::vibewindow_disable_project_config(),
+    })
+}
+
+/// 使用请求显式传入的工作区解析 AGENTS 来源。
+///
+/// 会话处理器运行在独立线程时，项目 task-local 可能已经离开原异步作用域；因此模型
+/// 首步不能依赖 [`instance::directory`] 猜测当前项目。显式工作区同时作为当前目录和
+/// 发现边界，确保启动请求稳定读取所选项目根目录的 AGENTS 文件族。
+pub fn workspace_sources(workspace: &Path) -> Vec<Source> {
+    let workspace = filesystem::normalize_path(workspace);
+    discover(&DiscoveryRoots {
+        managed_config: flag::vibewindow_config_dir().map(PathBuf::from),
+        user_config: Some(global::paths().config.clone()),
+        current_directory: Some(workspace.clone()),
+        worktree: Some(workspace),
         project_config_enabled: !flag::vibewindow_disable_project_config(),
     })
 }
@@ -131,19 +146,16 @@ fn directory_sources_with_seen(directory: &Path, seen: &mut HashSet<PathBuf>) ->
     let mut sources = Vec::new();
     push_file(&mut sources, seen, SourceKind::Project, directory.join(AGENTS_FILE));
     let vibewindow = directory.join(".vibewindow");
-    push_file(
-        &mut sources,
-        seen,
-        SourceKind::ProjectConfig,
-        vibewindow.join(AGENTS_FILE),
-    );
+    push_file(&mut sources, seen, SourceKind::ProjectConfig, vibewindow.join(AGENTS_FILE));
 
     let mut rules = std::fs::read_dir(vibewindow.join("rules"))
         .into_iter()
         .flatten()
         .flatten()
         .map(|entry| entry.path())
-        .filter(|path| path.is_file() && path.extension().is_some_and(|extension| extension == "md"))
+        .filter(|path| {
+            path.is_file() && path.extension().is_some_and(|extension| extension == "md")
+        })
         .collect::<Vec<_>>();
     rules.sort();
     for rule in rules {

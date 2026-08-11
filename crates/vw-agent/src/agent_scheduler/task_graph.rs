@@ -127,6 +127,10 @@ impl TaskGraph {
         &self.dependencies
     }
 
+    pub fn tasks(&self) -> impl Iterator<Item = &TaskGraphTaskSnapshot> {
+        self.tasks.values()
+    }
+
     pub fn readiness_for(&self, task_id: &TaskId) -> Result<TaskGraphReadiness> {
         let task = self.task(task_id)?;
         if task.status != AgentTaskStatus::Queued {

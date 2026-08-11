@@ -6,6 +6,16 @@ use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::oneshot;
 
+struct DropSignal(Option<oneshot::Sender<()>>);
+
+impl Drop for DropSignal {
+    fn drop(&mut self) {
+        if let Some(sender) = self.0.take() {
+            let _ = sender.send(());
+        }
+    }
+}
+
 async fn create_parent(directory: String) -> crate::session::session::Info {
     crate::app::agent::project::instance::provide(directory.clone(), None, move || {
         Box::pin(async move {
@@ -200,6 +210,34 @@ fn spec_and_schema_describe_configured_agents() {
     assert!(spec.concurrency_safe);
     assert!(!spec.requires_user_interaction);
     assert!(spec.strict);
+}
+
+#[test]
+fn default_agent_tool_schema_uses_chinese_role_catalog() {
+    let agents = vw_config_types::agent::merged_agent_configs(&HashMap::new())
+        .into_iter()
+        .filter(|(_, config)| config.enabled && config.allow_as_subagent)
+        .collect();
+    let tool = build_tool_with_agents(agents);
+
+    let schema = tool.parameters_schema();
+    assert_eq!(
+        schema["properties"]["agent"]["enum"],
+        json!(["coder", "explore", "researcher", "reviewer"])
+    );
+
+    let description = schema["properties"]["agent"]["description"]
+        .as_str()
+        .expect("agent description");
+    for expected in [
+        "代码实现",
+        "代码探索",
+        "资料研究",
+        "代码审查",
+        "只读审查代码、测试与风险",
+    ] {
+        assert!(description.contains(expected), "schema should contain {expected}: {description}");
+    }
 }
 
 #[test]
@@ -633,6 +671,176 @@ async fn concurrent_runs_respect_configured_limit() {
     }
 
     assert_eq!(max_active.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn background_launches_respect_active_subagent_limit() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let launches = Arc::new(AtomicUsize::new(0));
+    let created_count = Arc::new(AtomicUsize::new(0));
+    let started_in_executor = started.clone();
+    let release_in_executor = release.clone();
+    let launches_in_executor = launches.clone();
+    let created_count_in_callback = created_count.clone();
+    let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
+        let started = started_in_executor.clone();
+        let release = release_in_executor.clone();
+        let launches = launches_in_executor.clone();
+        Box::pin(async move {
+            if launches.fetch_add(1, Ordering::SeqCst) == 0 {
+                started.notify_one();
+                release.notified().await;
+            }
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "child completed".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    })
+    .with_max_parallel_subagents(1)
+    .with_child_session_created_callback(Arc::new(move |_created| {
+        created_count_in_callback.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let first = tool
+        .execute(json!({"action": "launch", "agent": "writer", "prompt": "first"}))
+        .await
+        .expect("first background launch should return");
+    let first_body: Value = serde_json::from_str(&first.output).expect("first launch result");
+    let first_child_session_id = first_body["child_session_id"]
+        .as_str()
+        .expect("first child session ID")
+        .to_string();
+    tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
+        .await
+        .expect("first background child should start");
+
+    let rejected = tool
+        .execute(json!({"action": "launch", "agent": "writer", "prompt": "second"}))
+        .await
+        .expect("capacity rejection should return a tool result");
+
+    assert!(!rejected.success);
+    assert!(
+        rejected
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("active subagent limit"))
+    );
+    assert_eq!(
+        created_count.load(Ordering::SeqCst),
+        1,
+        "a rejected launch must not create a child session"
+    );
+
+    release.notify_one();
+    let waited = tool
+        .execute(json!({
+            "action": "wait",
+            "child_session_id": first_child_session_id,
+            "timeout_ms": 1_000
+        }))
+        .await
+        .expect("first child should complete");
+    let waited_body: Value = serde_json::from_str(&waited.output).expect("wait result");
+    assert_eq!(waited_body["tasks"][0]["state"], "succeeded");
+
+    let restarted = tokio::time::timeout(std::time::Duration::from_millis(200), async {
+        loop {
+            let result = tool
+                .execute(json!({"action": "launch", "agent": "writer", "prompt": "third"}))
+                .await?;
+            if result.success {
+                return Ok::<_, anyhow::Error>(result);
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("completed background child should release capacity")
+    .expect("restart should return a tool result");
+    assert!(restarted.success);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cancelled_background_launch_releases_parallel_permit() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let launches = Arc::new(AtomicUsize::new(0));
+    let (cancelled_tx, cancelled_rx) = oneshot::channel();
+    let cancelled_tx = Arc::new(std::sync::Mutex::new(Some(cancelled_tx)));
+    let started_in_executor = started.clone();
+    let launches_in_executor = launches.clone();
+    let cancelled_tx_in_executor = cancelled_tx.clone();
+    let tool = Arc::new(
+        build_persistent_tool(parent.id.clone(), directory, move |_request| {
+            let started = started_in_executor.clone();
+            let launches = launches_in_executor.clone();
+            let cancelled_tx = cancelled_tx_in_executor.clone();
+            Box::pin(async move {
+                if launches.fetch_add(1, Ordering::SeqCst) == 0 {
+                    let _cancelled = DropSignal(
+                        cancelled_tx.lock().expect("cancelled signal lock").take(),
+                    );
+                    started.notify_one();
+                    std::future::pending::<()>().await;
+                }
+                Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                    output: "child completed".to_string(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            })
+        })
+        .with_max_parallel_subagents(1),
+    );
+
+    let launched = tool
+        .execute(json!({"action": "launch", "agent": "writer", "prompt": "background"}))
+        .await
+        .expect("background launch should return");
+    let launched_body: Value = serde_json::from_str(&launched.output).expect("launch result");
+    let child_session_id = launched_body["child_session_id"]
+        .as_str()
+        .expect("child session ID")
+        .to_string();
+    tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
+        .await
+        .expect("background child should start");
+
+    let run_tool = tool.clone();
+    let foreground = tokio::spawn(async move {
+        run_tool
+            .execute(json!({"action": "run", "agent": "writer", "prompt": "foreground"}))
+            .await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    assert!(
+        !foreground.is_finished(),
+        "run must share the active background child limit"
+    );
+
+    tool.execute(json!({"action": "stop", "child_session_id": child_session_id}))
+        .await
+        .expect("stop should cancel the background child");
+    tokio::time::timeout(std::time::Duration::from_millis(200), cancelled_rx)
+        .await
+        .expect("background executor should be cancelled")
+        .expect("cancellation signal should be sent");
+
+    let foreground = tokio::time::timeout(std::time::Duration::from_millis(200), foreground)
+        .await
+        .expect("cancellation should release the permit for run")
+        .expect("foreground task should join")
+        .expect("foreground run should return");
+    assert!(foreground.success);
 }
 
 #[tokio::test(flavor = "current_thread")]

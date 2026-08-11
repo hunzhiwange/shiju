@@ -79,12 +79,11 @@ pub(super) fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
 /// # 返回
 ///
 /// 返回系统指令字符串向量，每个元素代表一条独立的指令
-fn instruction_system() -> Vec<super::instruction::Resolved> {
-    block_on(super::instruction::system_resolved())
-}
-
-fn project_agents(root: Option<&str>) -> Option<super::instruction::Resolved> {
-    block_on(super::instruction::project_agents(root))
+fn instruction_system(root: Option<&str>) -> Vec<super::instruction::Resolved> {
+    match root.map(str::trim).filter(|root| !root.is_empty()) {
+        Some(root) => block_on(super::instruction::workspace_resolved(std::path::Path::new(root))),
+        None => block_on(super::instruction::system_resolved()),
+    }
 }
 
 fn agent_workspace_identity(
@@ -193,13 +192,21 @@ pub fn system_with_agent_metadata(
     parts.extend(environment(model, root));
 
     // 添加系统指令
-    let mut instruction_context = instruction_system();
-    let mut visible_instruction_paths = Vec::new();
-    if let Some(project_agents) = project_agents(root) {
-        instruction_context.retain(|resolved| resolved.filepath != project_agents.filepath);
-        visible_instruction_paths.push(project_agents.filepath.clone());
-        instruction_context.push(project_agents);
-    }
+    let mut instruction_context = instruction_system(root);
+    let normalized_root = root
+        .map(str::trim)
+        .filter(|root| !root.is_empty())
+        .map(std::path::PathBuf::from)
+        .map(crate::app::agent::util::filesystem::normalize_path);
+    let mut visible_instruction_paths = instruction_context
+        .iter()
+        .filter(|resolved| {
+            normalized_root
+                .as_ref()
+                .is_some_and(|root| std::path::Path::new(&resolved.filepath).starts_with(root))
+        })
+        .map(|resolved| resolved.filepath.clone())
+        .collect::<Vec<_>>();
     for agent_identity in agent_workspace_identity(agent_key, enabled_identity_files) {
         if instruction_context.iter().any(|resolved| resolved.filepath == agent_identity.filepath) {
             continue;

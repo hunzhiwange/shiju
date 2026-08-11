@@ -141,6 +141,14 @@ fn message_role(message: &Value) -> Option<&str> {
     message.get("role").and_then(Value::as_str)
 }
 
+fn is_transient_protocol_message(message: &Value) -> bool {
+    message_role(message) == Some("user")
+        && message
+            .get("content")
+            .and_then(Value::as_str)
+            .is_some_and(|content| content.trim_start().starts_with("<system-reminder>"))
+}
+
 /// 在压缩清理后将已调用技能的临时元用户消息放回历史前方。
 ///
 /// 该函数按稳定来源标识替换旧注入，因此可以在每次压缩后调用而不会重复注入。
@@ -210,8 +218,12 @@ fn tool_call_ids(message: &Value) -> Vec<String> {
 
 /// 按消息组裁剪旧历史，工具调用和对应结果始终一起保留或移除。
 fn trim_llm_history(messages: &mut Vec<Value>, max_non_system_messages: usize) -> usize {
-    let non_system_count =
-        messages.iter().filter(|message| message_role(message) != Some("system")).count();
+    let non_system_count = messages
+        .iter()
+        .filter(|message| {
+            message_role(message) != Some("system") && !is_transient_protocol_message(message)
+        })
+        .count();
     let mut remaining_to_remove = non_system_count.saturating_sub(max_non_system_messages);
     if remaining_to_remove == 0 {
         return 0;
@@ -220,7 +232,10 @@ fn trim_llm_history(messages: &mut Vec<Value>, max_non_system_messages: usize) -
     let mut consumed = vec![false; messages.len()];
     let mut groups = Vec::<Vec<usize>>::new();
     for index in 0..messages.len() {
-        if consumed[index] || message_role(&messages[index]) == Some("system") {
+        if consumed[index]
+            || message_role(&messages[index]) == Some("system")
+            || is_transient_protocol_message(&messages[index])
+        {
             continue;
         }
 

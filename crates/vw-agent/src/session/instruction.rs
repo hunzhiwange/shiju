@@ -212,6 +212,21 @@ pub async fn system_resolved() -> Vec<Resolved> {
     out
 }
 
+/// 从请求显式选择的工作区加载首步 AGENTS 上下文。
+///
+/// 该入口不依赖项目 task-local，供跨线程的桌面、计划执行和子代理入口使用。
+pub async fn workspace_resolved(workspace: &Path) -> Vec<Resolved> {
+    let config = config::get().await;
+    let workspace = filesystem::normalize_path(workspace);
+    let policy = instruction_policy(&config, &workspace);
+
+    crate::session::instruction_discovery::workspace_sources(&workspace)
+        .into_iter()
+        .filter(|source| source.kind != crate::session::instruction_discovery::SourceKind::Rule)
+        .filter_map(|source| resolved_file(&source.filepath, &policy, Vec::new()))
+        .collect()
+}
+
 /// 读取系统级指令内容。
 ///
 /// 返回每个指令文件的可注入文本，空文件会被跳过。

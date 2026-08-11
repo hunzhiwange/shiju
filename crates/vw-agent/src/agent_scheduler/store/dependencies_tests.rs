@@ -27,6 +27,14 @@ fn agent_scheduler_store_replaces_scoped_task_graph_atomically() -> Result<()> {
         store.list_task_dependencies(&scope_a)?,
         vec![dependency("task-a", "task-b")]
     );
+    assert_eq!(
+        store
+            .load_task_graph(&scope_a)?
+            .tasks()
+            .map(|task| task.id.as_str().to_owned())
+            .collect::<Vec<_>>(),
+        vec!["task-a", "task-b"]
+    );
     store.replace_task_dependencies(&scope_b, vec![dependency("task-b", "task-c")])?;
 
     store.replace_task_dependencies(&scope_a, vec![dependency("task-a", "task-c")])?;

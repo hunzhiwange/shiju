@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use vw_shared::provider::types as provider_types;
 use vw_shared::provider::types::Info;
+use vw_config_types::agent::builtin_agent_spec;
 
 use super::util::{is_provider_connected, load_gateway_providers};
 
@@ -201,7 +202,6 @@ fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                     tool_id,
                     &[
                         "AgentTool",
-                        "delegate_coordination_status",
                         "schedule",
                         "cron_add",
                         "cron_list",
@@ -456,12 +456,14 @@ fn build_agents_settings_patch(
         let model = entry.model.trim().to_string();
         let system_prompt = entry.system_prompt_editor.text().trim().to_string();
         let api_key = entry.api_key_input.trim().to_string();
-        let allowed_tools = entry
+        let mut allowed_tools = entry
             .allowed_tools
             .iter()
             .map(|tool| tool.trim().to_string())
             .filter(|tool| !tool.is_empty())
             .collect::<Vec<_>>();
+        allowed_tools.sort();
+        allowed_tools.dedup();
         let allowed_skills = entry
             .allowed_skills
             .iter()
@@ -476,9 +478,46 @@ fn build_agents_settings_patch(
             .collect::<Vec<_>>();
         enabled_identity_files.sort();
         enabled_identity_files.dedup();
-        agents.insert(
-            entry.key.clone(),
-            serde_json::json!({
+        let mut agent = serde_json::Map::new();
+        if builtin_agent_spec(&entry.key).is_some() {
+            if entry.can_disable {
+                agent.insert("enabled".to_string(), serde_json::Value::Bool(entry.enabled));
+            }
+            agent.insert("provider".to_string(), serde_json::Value::String(provider));
+            agent.insert("model".to_string(), serde_json::Value::String(model));
+            agent.insert(
+                "force_model_selection".to_string(),
+                serde_json::Value::Bool(entry.force_model_selection),
+            );
+            agent.insert(
+                "system_prompt".to_string(),
+                (!system_prompt.is_empty())
+                    .then_some(system_prompt)
+                    .map_or(serde_json::Value::Null, serde_json::Value::String),
+            );
+            agent.insert(
+                "api_key".to_string(),
+                (!api_key.is_empty())
+                    .then_some(api_key)
+                    .map_or(serde_json::Value::Null, serde_json::Value::String),
+            );
+            agent.insert("temperature".to_string(), serde_json::json!(entry.temperature.clamp(0.0, 2.0)));
+            if entry.key == MAIN_AGENT_KEY {
+                agent.insert(
+                    "max_parallel_subagents".to_string(),
+                    serde_json::json!(entry.max_parallel_subagents.clamp(1, 32)),
+                );
+            }
+            if builtin_agent_spec(&entry.key).is_some_and(|spec| spec.allow_as_subagent) {
+                agent.insert("allowed_tools".to_string(), serde_json::json!(allowed_tools));
+            }
+            agent.insert("allowed_skills".to_string(), serde_json::json!(allowed_skills));
+            agent.insert(
+                "enabled_identity_files".to_string(),
+                serde_json::json!(enabled_identity_files),
+            );
+        } else {
+            agent = serde_json::json!({
                 "enabled": if entry.key == MAIN_AGENT_KEY { true } else { entry.enabled },
                 "allow_as_subagent": entry.allow_as_subagent,
                 "max_parallel_subagents": entry.max_parallel_subagents.clamp(1, 32),
@@ -494,9 +533,14 @@ fn build_agents_settings_patch(
                 "allowed_skills": allowed_skills,
                 "enabled_identity_files": enabled_identity_files,
                 "max_iterations": entry.max_iterations.max(1),
-            }),
-        );
+            })
+            .as_object()
+            .expect("agent settings patch is an object")
+            .clone();
+        }
+        agents.insert(entry.key.clone(), serde_json::Value::Object(agent));
     }
+    agents.insert("general".to_string(), serde_json::Value::Null);
 
     let mut patch = serde_json::Map::new();
     patch.insert("agents".to_string(), serde_json::Value::Object(agents));

@@ -1779,7 +1779,7 @@ async fn agent_scheduler_gateway_policy_wake_leaves_pool_when_auto_promote_disab
 }
 
 #[tokio::test]
-async fn agent_scheduler_gateway_policy_wake_leaves_pool_task_draft() {
+async fn agent_scheduler_gateway_policy_wake_promotes_and_dispatches_pool_task() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-policy-pool");
     std::fs::create_dir_all(&project_path).expect("project dir");
@@ -1843,14 +1843,14 @@ async fn agent_scheduler_gateway_policy_wake_leaves_pool_task_draft() {
         .expect("wake response");
     assert_eq!(response.status(), StatusCode::OK);
     let body = response_json(response).await;
-    assert_eq!(body["dispatched"], false);
-    assert_eq!(body["task_id"], serde_json::Value::Null);
+    assert_eq!(body["dispatched"], true);
+    assert_eq!(body["task_id"], "task-policy-pool-wake");
 
     let task_id = TaskId::new("task-policy-pool-wake").expect("task id");
     let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Draft);
+    assert_ne!(task.status, AgentTaskStatus::Draft);
     let events = store.list_events_after(&project_path, None, 100).expect("events");
-    assert!(events.iter().all(|event| event.payload["policy_action"] != "auto_promote_pool"));
+    assert!(events.iter().any(|event| event.payload["policy_action"] == "auto_promote_pool"));
 }
 
 #[tokio::test]

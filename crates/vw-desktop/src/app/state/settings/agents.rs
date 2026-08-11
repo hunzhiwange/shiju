@@ -6,7 +6,7 @@
 use super::*;
 use vw_config_types::agent::{
     BuiltinAgentKind, DelegateAgentConfig, builtin_agent_config, builtin_agent_keys,
-    builtin_agent_spec,
+    builtin_agent_spec, merged_agent_configs,
 };
 use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
@@ -15,7 +15,12 @@ use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id
 pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) key: String,
     pub(crate) label: String,
+    pub(crate) description: String,
     pub(crate) kind: AgentSettingsEntryKind,
+    /// 内置角色的委托资格、递归深度和并发上限由角色目录固定。
+    pub(crate) role_controls_locked: bool,
+    /// 仅自定义角色和可委托的内置角色允许从设置页关闭。
+    pub(crate) can_disable: bool,
     pub(crate) enabled: bool,
     pub(crate) allow_as_subagent: bool,
     pub(crate) max_parallel_subagents: u32,
@@ -59,7 +64,12 @@ impl DelegateAgentSettingsEntry {
         Self {
             key: key.to_string(),
             label: default_agent_label(key, &config),
+            description: default_agent_description(key, &config),
             kind,
+            role_controls_locked: builtin_agent_spec(key).is_some(),
+            can_disable: builtin_agent_spec(key)
+                .map(|spec| spec.allow_as_subagent)
+                .unwrap_or(true),
             enabled: if key == MAIN_AGENT_KEY { true } else { config.enabled },
             allow_as_subagent: config.allow_as_subagent,
             max_parallel_subagents: config.max_parallel_subagents.clamp(1, 32) as u32,
@@ -135,6 +145,16 @@ fn default_agent_label(key: &str, config: &DelegateAgentConfig) -> String {
         .unwrap_or_else(|| key.to_string())
 }
 
+fn default_agent_description(key: &str, config: &DelegateAgentConfig) -> String {
+    config
+        .description
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| builtin_agent_spec(key).map(|spec| spec.description.to_string()))
+        .unwrap_or_default()
+}
+
 /// 执行 ordered_agent_keys 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -144,6 +164,7 @@ pub(crate) fn ordered_agent_keys(
 ) -> Vec<String> {
     let mut custom_agent_keys = configured_agents
         .keys()
+        .filter(|key| key.as_str() != "general")
         .filter(|key| builtin_agent_spec(key.as_str()).is_none())
         .cloned()
         .collect::<Vec<_>>();
@@ -181,7 +202,7 @@ pub(crate) fn apply_default_allowed_tools(
     }
 
     for entry in entries {
-        if entry.allowed_tools.is_empty() && !matches!(entry.key.as_str(), "title" | "summary") {
+        if !entry.role_controls_locked && entry.allowed_tools.is_empty() {
             entry.allowed_tools = merge_builtin_required_tools(available_tools, available_tools);
         }
     }
@@ -190,13 +211,13 @@ pub(crate) fn apply_default_allowed_tools(
 pub(crate) fn agent_settings_entries_from_config(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> Vec<DelegateAgentSettingsEntry> {
-    let delegate_agents_cfg = &full_agent_cfg.agents;
+    let delegate_agents_cfg = merged_agent_configs(&full_agent_cfg.agents);
     let agent_cfg = &full_agent_cfg.agent;
     let default_provider_cfg = full_agent_cfg.default_provider.clone();
     let default_model_cfg = full_agent_cfg.default_model.clone();
     let default_temperature_cfg = full_agent_cfg.default_temperature;
 
-    ordered_agent_keys(delegate_agents_cfg)
+    ordered_agent_keys(&delegate_agents_cfg)
         .into_iter()
         .map(|key| {
             let config = delegate_agents_cfg.get(&key).cloned();

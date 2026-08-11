@@ -1768,7 +1768,7 @@ fn task_board_applies_agent_scheduler_custom_status_key() {
 }
 
 #[test]
-fn agent_scheduler_registers_active_workflow_queued_statuses() {
+fn agent_scheduler_registers_active_workflow_pool_and_queued_statuses() {
     use crate::app::task::{Task, TaskStatus};
     use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};
 
@@ -1783,13 +1783,15 @@ fn agent_scheduler_registers_active_workflow_queued_statuses() {
     backlog.id = "T-campaign-backlog".to_string();
     backlog.status = TaskStatus::parse_key("campaign_ideas").expect("campaign backlog status");
 
-    let requests = super::super::helpers::agent_scheduler_pending_create_task_requests(
+    let requests = super::super::helpers::agent_scheduler_wake_create_task_requests(
         &[backlog, queued],
         "marketing_campaign",
     );
 
-    assert_eq!(requests.len(), 1);
-    let request = &requests[0];
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].task_id, "T-campaign-backlog");
+    assert_eq!(requests[0].status, Some(AgentTaskStatusDto::Draft));
+    let request = &requests[1];
     assert_eq!(request.task_id, "T-campaign-queued");
     assert_eq!(request.kind, AgentTaskKindDto::Finite);
     assert_eq!(request.status, Some(AgentTaskStatusDto::Queued));
@@ -3202,14 +3204,16 @@ mod task_board_worktree_gateway {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn execution_tick_registers_pending_tasks_before_agent_scheduler_wake() {
+    async fn execution_tick_registers_pool_and_pending_tasks_before_agent_scheduler_wake() {
         let _guard =
             super::super::TEST_GATEWAY_ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
         let project_dir = tempfile::tempdir().expect("project dir");
         let project_path = project_dir.path().to_str().expect("utf8 project path");
         let gateway = TestGateway::start(vec![
             project_response(project_path),
+            agent_scheduler_create_response("T-register-pool"),
             agent_scheduler_create_response("T-register-pending"),
+            wake_response_value("T-register-pool"),
         ]);
         let (mut app, _task) = crate::app::App::new();
         app.project_path = Some(project_path.to_string());
@@ -3252,7 +3256,7 @@ mod task_board_worktree_gateway {
             .position(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/wake")
             .expect("agent scheduler wake request");
         assert_eq!(scheduler_requests[wake_index].body["max_concurrent"], 2);
-        assert!(scheduler_requests[wake_index].body.get("auto_promote_pool_tasks").is_none());
+        assert_eq!(scheduler_requests[wake_index].body["auto_promote_pool_tasks"], true);
         assert!(
             create_index < wake_index,
             "pending task must be registered before wake: {:?}",
@@ -3263,11 +3267,24 @@ mod task_board_worktree_gateway {
                 .iter()
                 .filter(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/tasks")
                 .count(),
-            1
+            2
         );
-        let create_request = scheduler_requests[create_index];
-        assert_eq!(create_request.method, "POST");
-        assert_eq!(create_request.body["task_id"], "T-register-pending");
+        let create_requests = scheduler_requests
+            .iter()
+            .filter(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/tasks")
+            .collect::<Vec<_>>();
+        assert!(create_requests.iter().all(|request| request.method == "POST"));
+        assert!(create_requests.iter().any(|request| {
+            request.body["task_id"] == "T-register-pool" && request.body["status"] == "draft"
+        }));
+        assert!(create_requests.iter().any(|request| {
+            request.body["task_id"] == "T-register-pending"
+                && request.body["status"] == "queued"
+        }));
+        let create_request = create_requests
+            .iter()
+            .find(|request| request.body["task_id"] == "T-register-pending")
+            .expect("pending task create request");
         assert_eq!(create_request.body["kind"], "finite");
         assert_eq!(create_request.body["status"], "queued");
         assert_eq!(create_request.body["metadata"]["prompt"], "Do the gateway worktree task");
@@ -3408,13 +3425,14 @@ mod task_board_worktree_gateway {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn promote_tick_wakes_scheduler_without_legacy_pool_promotion() {
+    async fn promote_tick_requests_pool_promotion_without_legacy_bulk_command() {
         let _guard =
             super::super::TEST_GATEWAY_ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
         let project_dir = tempfile::tempdir().expect("project dir");
         let project_path = project_dir.path().to_str().expect("utf8 project path");
         let gateway = TestGateway::start(vec![
             project_response(project_path),
+            agent_scheduler_create_response("T-promote-pool"),
             wake_response_value("T-promote-pool"),
         ]);
         let (mut app, _task) = crate::app::App::new();
@@ -3450,7 +3468,10 @@ mod task_board_worktree_gateway {
         assert!(
             scheduler_requests
                 .iter()
-                .any(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/wake")
+                .any(|request| {
+                    request.path == "/v1/agent-scheduler/projects/project-gateway/wake"
+                        && request.body["auto_promote_pool_tasks"] == true
+                })
         );
     }
 

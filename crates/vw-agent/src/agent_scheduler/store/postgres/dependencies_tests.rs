@@ -39,6 +39,14 @@ fn postgres_task_graph_matches_sqlite_replacement_contract() -> Result<()> {
 
     store.replace_task_dependencies(&context, vec![dependency("task-a", "task-b")])?;
     assert_eq!(store.list_task_dependencies(&context)?, vec![dependency("task-a", "task-b")]);
+    assert_eq!(
+        store
+            .load_task_graph(&context)?
+            .tasks()
+            .map(|task| task.id.as_str().to_owned())
+            .collect::<Vec<_>>(),
+        vec!["task-a", "task-b"]
+    );
     let initial = vec![dependency("task-a", "task-b")];
     for invalid_graph in [
         vec![dependency("task-a", "task-missing")],

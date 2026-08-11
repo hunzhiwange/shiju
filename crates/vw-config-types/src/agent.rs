@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -225,86 +225,283 @@ pub struct BuiltinAgentSpec {
     pub label: &'static str,
     pub description: &'static str,
     pub kind: BuiltinAgentKind,
+    pub mode: &'static str,
+    pub hidden: bool,
+    pub allow_as_subagent: bool,
+    pub max_parallel_subagents: usize,
+    pub max_depth: u32,
+    pub allowed_tools: &'static [&'static str],
+    pub permission: &'static str,
     pub default_temperature: Option<f64>,
+    pub max_iterations: usize,
 }
 
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 11] = [
+const READONLY_CODE_TOOLS: &[&str] = &["file_read", "ls", "glob", "grep", "lsp"];
+const RESEARCHER_TOOLS: &[&str] = &[
+    "file_read",
+    "ls",
+    "glob",
+    "grep",
+    "lsp",
+    "web_fetch",
+    "web_search_tool",
+    "pdf_read",
+    "image_info",
+];
+const CODER_TOOLS: &[&str] = &[
+    "file_read",
+    "file_write",
+    "file_edit",
+    "apply_patch",
+    "bash",
+    "ls",
+    "glob",
+    "grep",
+    "lsp",
+    "git_operations",
+];
+const MAIN_TOOLS: &[&str] = &[
+    "AgentTool",
+    "file_read",
+    "file_write",
+    "file_edit",
+    "apply_patch",
+    "bash",
+    "ls",
+    "glob",
+    "grep",
+    "lsp",
+    "git_operations",
+];
+const PLAN_TOOLS: &[&str] = &[
+    "file_read",
+    "file_write",
+    "file_edit",
+    "apply_patch",
+    "ls",
+    "glob",
+    "grep",
+];
+const NO_TOOLS: &[&str] = &[];
+
+const READONLY_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "lsp": "allow"
+}"#;
+const RESEARCHER_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "lsp": "allow",
+    "web_fetch": "allow",
+    "web_search_tool": "allow",
+    "pdf_read": "allow",
+    "image_info": "allow"
+}"#;
+const CODER_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "file_write": "allow",
+    "file_edit": "allow",
+    "apply_patch": "allow",
+    "bash": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "lsp": "allow",
+    "git_operations": "allow"
+}"#;
+const MAIN_PERMISSION: &str = r#"{
+    "*": "deny",
+    "AgentTool": "allow",
+    "file_read": "allow",
+    "file_write": "allow",
+    "file_edit": "allow",
+    "apply_patch": "allow",
+    "bash": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "lsp": "allow",
+    "git_operations": "allow"
+}"#;
+const PLAN_PERMISSION: &str = r#"{
+    "*": "deny",
+    "file_read": "allow",
+    "ls": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "file_write": {
+        "*": "deny",
+        ".vibewindow/plans/*.md": "allow"
+    },
+    "file_edit": {
+        "*": "deny",
+        ".vibewindow/plans/*.md": "allow"
+    },
+    "apply_patch": {
+        "*": "deny",
+        ".vibewindow/plans/*.md": "allow"
+    }
+}"#;
+const DENY_ALL_PERMISSION: &str = r#"{ "*": "deny" }"#;
+
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
     BuiltinAgentSpec {
         key: "main",
-        label: "Main",
-        description: "默认主 Agent，会继承主会话运行时参数。",
+        label: "主代理",
+        description: "负责理解请求、直接执行，并在复杂任务中协调专业子代理。",
         kind: BuiltinAgentKind::Main,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 4,
+        max_depth: 0,
+        allowed_tools: MAIN_TOOLS,
+        permission: MAIN_PERMISSION,
         default_temperature: Some(0.7),
+        max_iterations: 64,
     },
     BuiltinAgentSpec {
         key: "researcher",
-        label: "Researcher",
-        description: "偏研究与信息收集。",
+        label: "资料研究",
+        description: "查阅外部文档、开源实现与参考资料，输出带来源的研究结论。",
         kind: BuiltinAgentKind::Worker,
-        default_temperature: Some(0.7),
+        mode: "subagent",
+        hidden: false,
+        allow_as_subagent: true,
+        max_parallel_subagents: 1,
+        max_depth: 1,
+        allowed_tools: RESEARCHER_TOOLS,
+        permission: RESEARCHER_PERMISSION,
+        default_temperature: Some(0.1),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "coder",
-        label: "Coder",
-        description: "偏实现与代码修改。",
+        label: "代码实现",
+        description: "在明确范围内实现代码变更并完成必要验证。",
         kind: BuiltinAgentKind::Worker,
-        default_temperature: Some(0.7),
+        mode: "subagent",
+        hidden: false,
+        allow_as_subagent: true,
+        max_parallel_subagents: 1,
+        max_depth: 1,
+        allowed_tools: CODER_TOOLS,
+        permission: CODER_PERMISSION,
+        default_temperature: Some(0.2),
+        max_iterations: 64,
     },
     BuiltinAgentSpec {
         key: "reviewer",
-        label: "Reviewer",
-        description: "偏审查与风险识别。",
+        label: "代码审查",
+        description: "只读审查代码、测试与风险，给出有证据的缺陷报告。",
         kind: BuiltinAgentKind::Worker,
-        default_temperature: Some(0.7),
+        mode: "subagent",
+        hidden: false,
+        allow_as_subagent: true,
+        max_parallel_subagents: 1,
+        max_depth: 1,
+        allowed_tools: READONLY_CODE_TOOLS,
+        permission: READONLY_PERMISSION,
+        default_temperature: Some(0.1),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "build",
-        label: "Build",
-        description: "偏构建与验证。",
+        label: "构建模式",
+        description: "面向交互式实现、构建与验证，不作为委托子代理。",
         kind: BuiltinAgentKind::Worker,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: CODER_TOOLS,
+        permission: CODER_PERMISSION,
         default_temperature: Some(0.7),
+        max_iterations: 64,
     },
     BuiltinAgentSpec {
         key: "plan",
-        label: "Plan",
-        description: "偏规划与拆解。",
+        label: "规划模式",
+        description: "面向交互式需求澄清和实施规划，不直接修改业务代码。",
         kind: BuiltinAgentKind::Worker,
+        mode: "primary",
+        hidden: false,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: PLAN_TOOLS,
+        permission: PLAN_PERMISSION,
         default_temperature: Some(0.7),
-    },
-    BuiltinAgentSpec {
-        key: "general",
-        label: "General",
-        description: "通用型子 Agent。",
-        kind: BuiltinAgentKind::Worker,
-        default_temperature: Some(0.7),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "explore",
-        label: "Explore",
-        description: "偏只读探索与代码搜索。",
+        label: "代码探索",
+        description: "只读搜索本地代码、符号与调用关系，返回可操作的定位结果。",
         kind: BuiltinAgentKind::Worker,
-        default_temperature: Some(0.7),
+        mode: "subagent",
+        hidden: false,
+        allow_as_subagent: true,
+        max_parallel_subagents: 1,
+        max_depth: 1,
+        allowed_tools: READONLY_CODE_TOOLS,
+        permission: READONLY_PERMISSION,
+        default_temperature: Some(0.1),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "compaction",
-        label: "Compaction",
-        description: "偏摘要压缩与上下文整理。",
+        label: "上下文压缩",
+        description: "内部压缩长对话上下文，不面向用户或委托调用。",
         kind: BuiltinAgentKind::Worker,
+        mode: "primary",
+        hidden: true,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: NO_TOOLS,
+        permission: DENY_ALL_PERMISSION,
         default_temperature: Some(0.7),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "title",
-        label: "Title",
-        description: "偏标题生成。",
+        label: "标题生成",
+        description: "内部生成会话标题，不面向用户或委托调用。",
         kind: BuiltinAgentKind::Worker,
+        mode: "primary",
+        hidden: true,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: NO_TOOLS,
+        permission: DENY_ALL_PERMISSION,
         default_temperature: Some(0.5),
+        max_iterations: 32,
     },
     BuiltinAgentSpec {
         key: "summary",
-        label: "Summary",
-        description: "偏总结生成。",
+        label: "会话总结",
+        description: "内部生成会话摘要，不面向用户或委托调用。",
         kind: BuiltinAgentKind::Worker,
+        mode: "primary",
+        hidden: true,
+        allow_as_subagent: false,
+        max_parallel_subagents: 1,
+        max_depth: 0,
+        allowed_tools: NO_TOOLS,
+        permission: DENY_ALL_PERMISSION,
         default_temperature: Some(0.7),
+        max_iterations: 32,
     },
 ];
 
@@ -318,82 +515,23 @@ pub fn builtin_agent_keys() -> Vec<&'static str> {
 
 pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
     let spec = builtin_agent_spec(key)?;
-    let mut config = AgentDefinitionConfig {
+    Some(AgentDefinitionConfig {
         label: Some(spec.label.to_string()),
         description: Some(spec.description.to_string()),
         builtin: true,
-        mode: match spec.kind {
-            BuiltinAgentKind::Main => "primary".to_string(),
-            BuiltinAgentKind::Worker => "all".to_string(),
-        },
+        mode: spec.mode.to_string(),
         enabled: true,
+        allow_as_subagent: spec.allow_as_subagent,
+        max_parallel_subagents: spec.max_parallel_subagents,
         temperature: spec.default_temperature,
         identity_format: Some("openclaw".to_string()),
+        hidden: spec.hidden,
+        max_depth: spec.max_depth,
+        allowed_tools: spec.allowed_tools.iter().map(|tool| (*tool).to_string()).collect(),
+        permission: serde_json::from_str(spec.permission).expect("builtin agent permission is valid JSON"),
+        max_iterations: spec.max_iterations,
         ..AgentDefinitionConfig::default()
-    };
-
-    match key {
-        "main" => {
-            config.mode = "primary".to_string();
-        }
-        "build" => {
-            config.mode = "primary".to_string();
-            config.permission = json!({
-                "question": "allow",
-                "AskUserQuestion": "allow",
-                "plan_enter": "allow"
-            });
-        }
-        "plan" => {
-            config.mode = "primary".to_string();
-            config.permission = json!({
-                "question": "allow",
-                "AskUserQuestion": "allow",
-                "plan_exit": "allow",
-                "todoread": "deny",
-                "todowrite": "deny",
-                "TodoRead": "deny",
-                "TodoWrite": "deny",
-                "edit": {
-                    "*": "deny",
-                    ".vibewindow/plans/*.md": "allow"
-                }
-            });
-        }
-        "general" => {
-            config.mode = "subagent".to_string();
-            config.permission = json!({
-                "todoread": "deny",
-                "todowrite": "deny",
-                "TodoRead": "deny",
-                "TodoWrite": "deny"
-            });
-        }
-        "explore" => {
-            config.mode = "subagent".to_string();
-            config.permission = json!({
-                "*": "deny",
-                "grep": "allow",
-                "glob": "allow",
-                "ls": "allow",
-                "bash": "allow",
-                "lsp": "allow",
-                "webfetch": "allow",
-                "WebFetch": "allow",
-                "websearch": "allow",
-                "WebSearch": "allow",
-                "read": "allow"
-            });
-        }
-        "compaction" | "title" | "summary" => {
-            config.mode = "primary".to_string();
-            config.hidden = true;
-            config.permission = json!({ "*": "deny" });
-        }
-        _ => {}
-    }
-
-    Some(config)
+    })
 }
 
 pub fn merged_agent_configs(
@@ -406,17 +544,35 @@ pub fn merged_agent_configs(
         })
         .collect::<HashMap<_, _>>();
     for (key, value) in configured {
-        let mut merged_value = value.clone();
-        if let Some(spec) = builtin_agent_spec(key) {
-            if merged_value.label.is_none() {
-                merged_value.label = Some(spec.label.to_string());
-            }
-            if merged_value.description.is_none() {
-                merged_value.description = Some(spec.description.to_string());
-            }
-            merged_value.builtin = true;
+        if key == "general" {
+            continue;
         }
-        merged.insert(key.clone(), merged_value);
+        if let Some(spec) = builtin_agent_spec(key) {
+            let mut builtin = builtin_agent_config(spec.key).expect("builtin spec has configuration");
+            builtin.enabled &= value.enabled;
+            if spec.allow_as_subagent && !value.allowed_tools.is_empty() {
+                builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));
+            }
+            if key == "main" {
+                builtin.max_parallel_subagents = value.max_parallel_subagents.max(1);
+            }
+            builtin.provider = value.provider.clone();
+            builtin.model = value.model.clone();
+            builtin.force_model_selection = value.force_model_selection;
+            builtin.system_prompt = value.system_prompt.clone();
+            builtin.api_key = value.api_key.clone();
+            if value.temperature.is_some() {
+                builtin.temperature = value.temperature;
+            }
+            builtin.top_p = value.top_p;
+            builtin.allowed_skills = value.allowed_skills.clone();
+            builtin.enabled_identity_files = value.enabled_identity_files.clone();
+            builtin.options = value.options.clone();
+            builtin.steps = value.steps;
+            merged.insert(key.clone(), builtin);
+        } else {
+            merged.insert(key.clone(), value.clone());
+        }
     }
     merged
 }

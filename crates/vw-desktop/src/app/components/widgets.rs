@@ -44,6 +44,12 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     use_global_position: bool,
 }
 
+#[derive(Default)]
+struct RightClickAreaState {
+    /// `Scrollable` 会把传给子控件的 cursor 转换为内容坐标；事件中的位置仍是窗口坐标。
+    last_window_position: Option<Point>,
+}
+
 impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, RendererT> {
     /// 创建新的右键点击区域
     ///
@@ -87,6 +93,14 @@ impl<'a, Message, ThemeT, RendererT> Widget<Message, ThemeT, RendererT>
 where
     RendererT: iced::advanced::Renderer,
 {
+    fn tag(&self) -> widget::tree::Tag {
+        widget::tree::Tag::of::<RightClickAreaState>()
+    }
+
+    fn state(&self) -> widget::tree::State {
+        widget::tree::State::new(RightClickAreaState::default())
+    }
+
     /// 获取子组件树
     ///
     /// 返回包含内容元素的组件树向量，用于 Iced 的组件树管理
@@ -205,6 +219,11 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
+        let state = tree.state.downcast_mut::<RightClickAreaState>();
+        if let Event::Mouse(mouse::Event::CursorMoved { position }) = event {
+            state.last_window_position = Some(*position);
+        }
+
         // 检测右键点击事件：
         // 1. 事件类型为鼠标按钮按下
         // 2. 按下的是右键
@@ -235,7 +254,11 @@ where
         if is_right_click_inside && let Some(pos) = cursor.position() {
             let bounds = layout.bounds();
             let local = Point::new(pos.x - bounds.x, pos.y - bounds.y);
-            let click_position = if self.use_global_position { pos } else { local };
+            let click_position = if self.use_global_position {
+                state.last_window_position.unwrap_or(pos)
+            } else {
+                local
+            };
             shell.publish((self.on_right_click)(click_position));
         }
     }

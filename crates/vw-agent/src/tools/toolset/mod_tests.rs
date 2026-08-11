@@ -628,7 +628,7 @@ fn all_tools_with_runtime_filters_delegate_agents_and_disables_coordination() {
 }
 
 #[test]
-fn all_tools_with_runtime_registers_delegate_coordination_when_enabled() {
+fn canonical_agent_tool_does_not_register_legacy_coordination_status() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
@@ -657,7 +657,7 @@ fn all_tools_with_runtime_registers_delegate_coordination_when_enabled() {
     let names = tool_names(&tools);
 
     assert!(names.contains(&"AgentTool"));
-    assert!(names.contains(&"delegate_coordination_status"));
+    assert!(!names.contains(&"delegate_coordination_status"));
 }
 
 #[test]

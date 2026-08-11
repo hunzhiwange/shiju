@@ -35,19 +35,25 @@ use vw_config_types::skills::SkillsDirectoryProvider;
 
 mod audit;
 mod cli;
+mod discovery;
 mod init;
 mod installer;
+mod invoked;
+mod listing;
 mod loader;
 pub(crate) mod marketplace;
-pub(crate) mod shiju;
 mod open_skills;
 mod policy;
 mod prompt;
+mod session_state;
+pub(crate) mod shiju;
 mod source;
 mod types;
 
+pub(crate) use invoked::{InvokedSkillRecord, InvokedSkillReplay};
 pub(crate) use loader::{load_skills_from_directory, read_markdown_skill_metadata};
 pub use prompt::{skills_to_prompt, skills_to_prompt_with_mode};
+pub(crate) use session_state::SkillListingSessionState;
 pub(crate) use types::SkillLoadMode;
 pub use types::{Skill, SkillTool};
 
@@ -218,7 +224,8 @@ fn push_skill_source_dir(
     kind: LocalSkillSourceKind,
     path: PathBuf,
 ) {
-    if path.is_dir() && seen.insert(path.clone()) {
+    let realpath = path.canonicalize().unwrap_or_else(|_| path.clone());
+    if path.is_dir() && seen.insert(realpath) {
         dirs.push(LocalSkillSourceDir { kind, path });
     }
 }
@@ -429,9 +436,7 @@ fn load_workspace_skills(
 ) -> Vec<Skill> {
     discover_local_skill_source_dirs_with_provider(Some(workspace_dir), directory_provider)
         .into_iter()
-        .flat_map(|source| {
-            loader::load_skills_from_directory(&source.path, load_mode, security)
-        })
+        .flat_map(|source| loader::load_skills_from_directory(&source.path, load_mode, security))
         .collect()
 }
 
@@ -455,11 +460,7 @@ pub(crate) fn load_project_skills_with_config(
         extend_unique_skills(
             &mut skills,
             &mut seen,
-            loader::load_skills_from_directory(
-                &source.path,
-                load_mode,
-                &config.skills.security,
-            ),
+            loader::load_skills_from_directory(&source.path, load_mode, &config.skills.security),
         );
     }
 
@@ -578,3 +579,18 @@ mod tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
+
+#[cfg(test)]
+#[path = "discovery_tests.rs"]
+mod discovery_tests;
+
+#[cfg(test)]
+#[path = "listing_tests.rs"]
+mod listing_tests;
+
+#[cfg(test)]
+#[path = "invoked_tests.rs"]
+mod invoked_tests;
+#[cfg(test)]
+#[path = "session_state_tests.rs"]
+mod session_state_tests;

@@ -102,9 +102,9 @@ fn audit_markdown_link_target(
 
     if looks_like_absolute_path(stripped) {
         if security.validate_markdown_links {
-            report
-                .findings
-                .push(format!("{rel}: absolute markdown link paths are not allowed ({normalized})."));
+            report.findings.push(format!(
+                "{rel}: absolute markdown link paths are not allowed ({normalized})."
+            ));
         }
         return;
     }

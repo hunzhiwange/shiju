@@ -23,20 +23,22 @@ fn tool_with_security(security: SecurityPolicy) -> SkillTool {
 }
 
 #[test]
-fn args_deserialize_name_and_ignore_unknown_fields() {
+fn args_deserialize_skill_and_ignore_unknown_fields() {
     let args: Args = serde_json::from_value(json!({
-        "name": "rustcodegraph",
+        "skill": "rustcodegraph",
+        "args": "crates/vw-agent",
         "ignored": true,
     }))
     .expect("valid skill arguments should deserialize");
 
-    assert_eq!(args.name, "rustcodegraph");
+    assert_eq!(args.skill, "rustcodegraph");
+    assert_eq!(args.args.as_deref(), Some("crates/vw-agent"));
 }
 
 #[test]
-fn args_reject_missing_or_non_string_name() {
+fn args_reject_missing_or_non_string_skill() {
     let missing = serde_json::from_value::<Args>(json!({}));
-    let non_string = serde_json::from_value::<Args>(json!({ "name": 239 }));
+    let non_string = serde_json::from_value::<Args>(json!({ "skill": 239 }));
 
     assert!(missing.is_err());
     assert!(non_string.is_err());
@@ -49,6 +51,17 @@ fn tool_metadata_uses_stable_name_schema_and_cached_description() {
     assert_eq!(tool.name(), "skill");
     assert_eq!(tool.description(), "cached skill description");
     assert_eq!(tool.parameters_schema(), SkillTool::schema());
+}
+
+#[test]
+fn skill_tool_prompt_requires_blocking_invocation_before_response() {
+    let description = super::prompt::build_description_text(
+        PathBuf::from("unused-skill-test-workspace").as_path(),
+        &config::Config::default(),
+    );
+
+    assert!(description.contains("BLOCKING REQUIREMENT"));
+    assert!(description.contains("MUST call this tool before responding"));
 }
 
 #[tokio::test]

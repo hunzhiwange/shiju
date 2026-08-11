@@ -33,6 +33,7 @@
 //! </available_skills>
 //! ```
 
+use crate::app::agent::skills::listing::SkillListingEntry;
 use crate::app::agent::skills::types::Skill;
 use std::path::{Path, PathBuf};
 
@@ -108,6 +109,23 @@ fn write_xml_text_element(out: &mut String, indent: usize, tag: &str, value: &st
     out.push_str("</");
     out.push_str(tag);
     out.push_str(">\n");
+}
+
+/// 将预算选择后的技能元数据渲染为 Claude 同构的元用户提醒。
+///
+/// 完整技能正文仅由 Skill Tool 在实际调用时加载，因此这里有意只输出名称和描述。
+pub(crate) fn format_skill_listing_reminder(entries: &[SkillListingEntry]) -> String {
+    let mut reminder = String::from(
+        "<system-reminder>\nThe following skills are available to use with the Skill tool:\n<available_skills>\n",
+    );
+    for entry in entries {
+        reminder.push_str("  <skill>\n");
+        write_xml_text_element(&mut reminder, 4, "name", &entry.name);
+        write_xml_text_element(&mut reminder, 4, "description", &entry.description);
+        reminder.push_str("  </skill>\n");
+    }
+    reminder.push_str("</available_skills>\n</system-reminder>");
+    reminder
 }
 
 /// 解析技能的完整文件路径

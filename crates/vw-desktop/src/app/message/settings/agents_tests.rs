@@ -201,6 +201,63 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
 }
 
 #[test]
+fn agent_provider_clear_clears_model_and_persists_null_defaults() {
+    let mut app = test_app();
+    entry_mut(&mut app, "main").provider = "openrouter".to_string();
+    entry_mut(&mut app, "main").model = "glm-5".to_string();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProviderCleared("main".to_string())),
+    );
+
+    assert!(entry(&app, "main").provider.is_empty());
+    assert!(entry(&app, "main").model.is_empty());
+    let patch = build_agents_settings_patch(&app.agents_settings.entries)
+        .expect("cleared model settings should serialize");
+    assert_eq!(patch["default_provider"], serde_json::Value::Null);
+    assert_eq!(patch["default_model"], serde_json::Value::Null);
+}
+
+#[test]
+fn agent_model_clear_keeps_provider() {
+    let mut app = test_app();
+    entry_mut(&mut app, "main").provider = "openrouter".to_string();
+    entry_mut(&mut app, "main").model = "glm-5".to_string();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ModelCleared("main".to_string())),
+    );
+
+    assert_eq!(entry(&app, "main").provider, "openrouter");
+    assert!(entry(&app, "main").model.is_empty());
+    let patch = build_agents_settings_patch(&app.agents_settings.entries)
+        .expect("cleared model settings should serialize");
+    assert_eq!(patch["default_provider"], "openrouter");
+    assert_eq!(patch["default_model"], serde_json::Value::Null);
+}
+
+#[test]
+fn force_model_selection_toggle_persists() {
+    let mut app = test_app();
+    assert!(!entry(&app, "main").force_model_selection);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ForceModelSelectionToggled(
+            "main".to_string(),
+            true,
+        )),
+    );
+
+    assert!(entry(&app, "main").force_model_selection);
+    let patch = build_agents_settings_patch(&app.agents_settings.entries)
+        .expect("force selection should serialize");
+    assert_eq!(patch["agents"]["main"]["force_model_selection"], true);
+}
+
+#[test]
 fn agents_settings_patch_omits_fields_the_ui_does_not_own() {
     let app = test_app();
 

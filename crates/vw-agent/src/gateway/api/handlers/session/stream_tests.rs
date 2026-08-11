@@ -1,4 +1,5 @@
 use super::*;
+use crate::config::DelegateAgentConfig;
 use axum::http::header;
 
 #[test]
@@ -66,6 +67,46 @@ fn normalize_tool_ids_deduplicates_and_returns_none_when_empty() {
 
     assert_eq!(ids, Some(vec!["shell".to_string(), "file_read".to_string()]));
     assert_eq!(empty, None);
+}
+
+#[test]
+fn forced_child_model_overrides_parent_selection() {
+    let agent = DelegateAgentConfig {
+        provider: "token-plan".to_string(),
+        model: "qwen3.7-plus".to_string(),
+        force_model_selection: true,
+        ..DelegateAgentConfig::default()
+    };
+
+    assert_eq!(
+        delegated_model_override(&agent, Some("wrong-provider/qwen3.7-plus".to_string())),
+        Some("token-plan/qwen3.7-plus".to_string())
+    );
+}
+
+#[test]
+fn incomplete_forced_child_binding_is_ignored() {
+    let agent = DelegateAgentConfig {
+        provider: "token-plan".to_string(),
+        force_model_selection: true,
+        ..DelegateAgentConfig::default()
+    };
+
+    assert_eq!(
+        delegated_model_override(&agent, Some("token-plan/qwen3.7-plus".to_string())),
+        Some("token-plan/qwen3.7-plus".to_string())
+    );
+}
+
+#[test]
+fn child_soft_preference_does_not_bypass_profile_fit() {
+    let agent = DelegateAgentConfig {
+        provider: "token-plan".to_string(),
+        model: "qwen3.7-plus".to_string(),
+        ..DelegateAgentConfig::default()
+    };
+
+    assert_eq!(delegated_model_override(&agent, None), None);
 }
 
 #[test]
@@ -211,15 +252,13 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         "output": "/workspace"
     });
 
-    let event = agent_session::processor::StreamEvent::Tool(
-        agent_session::processor::ToolEvent {
-            call_id: "call-1".to_string(),
-            name: "shell".to_string(),
-            kind: agent_session::processor::ToolEventKind::Complete,
-            status: agent_session::processor::ToolCallStatus::Completed,
-            payload: payload.clone(),
-        },
-    );
+    let event = agent_session::processor::StreamEvent::Tool(agent_session::processor::ToolEvent {
+        call_id: "call-1".to_string(),
+        name: "shell".to_string(),
+        kind: agent_session::processor::ToolEventKind::Complete,
+        status: agent_session::processor::ToolCallStatus::Completed,
+        payload: payload.clone(),
+    });
     let stream_payload = stream_payload_for_non_done_event(
         event,
         &mut assistant_text,
@@ -233,10 +272,7 @@ fn gateway_stream_preserves_existing_tool_payloads() {
     .expect("tool payload");
     let legacy_delta = format!("tool shell\n{payload}\n");
 
-    assert_eq!(
-        stream_payload,
-        serde_json::json!({"type": "chat.delta", "delta": legacy_delta})
-    );
+    assert_eq!(stream_payload, serde_json::json!({"type": "chat.delta", "delta": legacy_delta}));
     assert_eq!(assistant_text, legacy_delta);
 }
 
@@ -580,15 +616,14 @@ fn generated_stream_parts_and_preallocated_ids_are_non_empty() {
     let start = new_stream_step_start_part("ses-1", "msg-a", None).expect("start part");
     let finish =
         new_stream_step_finish_part("ses-1", "msg-a", "snap".to_string()).expect("finish part");
-    let patch =
-        new_stream_patch_part(
-            "ses-1",
-            "msg-a",
-            "hash".to_string(),
-            vec!["file".to_string()],
-            Some((2, 1)),
-        )
-        .expect("patch part");
+    let patch = new_stream_patch_part(
+        "ses-1",
+        "msg-a",
+        "hash".to_string(),
+        vec!["file".to_string()],
+        Some((2, 1)),
+    )
+    .expect("patch part");
     let ids = preallocate_stream_turn_message_ids().expect("preallocated ids");
 
     assert!(matches!(start, agent_session::message::Part::StepStart(_)));

@@ -1,10 +1,14 @@
 use super::core::Agent;
-use crate::app::agent::config::{AgentConfig, ClassificationRule, QueryClassificationConfig};
+use crate::app::agent::config::{
+    AgentConfig, ClassificationRule, ModelRouteConfig, QueryClassificationConfig,
+};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
+use crate::app::agent::provider::provider;
 use crate::app::agent::providers::{ChatMessage, Provider};
 use crate::app::agent::tools::{Tool, ToolResult};
 use crate::providers::traits::ProviderCapabilities;
+use crate::session::llm::{AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -83,6 +87,53 @@ fn build_agent_with_provider_and_tools(
         .observer(Arc::new(NoopObserver))
         .build()
         .expect("core test agent should build")
+}
+
+fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
+    provider::Model {
+        id: id.to_string(),
+        provider_id: provider_id.to_string(),
+        api: provider::ApiInfo {
+            id: id.to_string(),
+            url: String::new(),
+            adapter: "openai-compatible".to_string(),
+        },
+        name: id.to_string(),
+        family: None,
+        capabilities: provider::Capabilities {
+            temperature: true,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: provider::CapabilityIO {
+                text: true,
+                audio: false,
+                image: false,
+                video: false,
+                pdf: false,
+            },
+            output: provider::CapabilityIO {
+                text: true,
+                audio: false,
+                image: false,
+                video: false,
+                pdf: false,
+            },
+            interleaved: provider::InterleavedCapability::Bool(false),
+        },
+        cost: provider::ModelCost {
+            input: 1.0,
+            output: 1.0,
+            cache: provider::ModelCostCache { read: 1.0, write: 1.0 },
+            experimental_over_200k: None,
+        },
+        limit: provider::ModelLimit { context: 32_000, input: None, output: 4096 },
+        status: "active".to_string(),
+        options: HashMap::new(),
+        headers: HashMap::new(),
+        release_date: "2026-01-01".to_string(),
+        variants: HashMap::new(),
+    }
 }
 
 #[test]
@@ -202,9 +253,10 @@ fn build_system_prompt_omits_tool_protocol_for_native_provider() {
     assert!(!prompt.contains("<tool>"));
 }
 
-#[test]
-fn classify_model_returns_hint_for_available_hint_without_route_mapping() {
+#[tokio::test]
+async fn classify_model_preserves_explicit_model_over_classification_rules() {
     let mut agent = build_agent();
+    agent.model_name = "provider/explicit".to_string();
     agent.classification_config = QueryClassificationConfig {
         enabled: true,
         rules: vec![ClassificationRule {
@@ -217,13 +269,15 @@ fn classify_model_returns_hint_for_available_hint_without_route_mapping() {
         }],
     };
     agent.available_hints = vec!["fast".to_string()];
-    agent.route_model_by_hint = HashMap::new();
 
-    assert_eq!(agent.classify_model("quick summary"), "hint:fast");
+    assert_eq!(
+        agent.classify_model("quick summary").await.expect("explicit model should resolve"),
+        "provider/explicit"
+    );
 }
 
-#[test]
-fn classify_model_returns_base_model_when_matched_hint_is_unavailable() {
+#[tokio::test]
+async fn classify_model_preserves_explicit_model_when_no_rule_matches() {
     let mut agent = build_agent();
     agent.model_name = "base-model".to_string();
     agent.classification_config = QueryClassificationConfig {
@@ -238,13 +292,15 @@ fn classify_model_returns_base_model_when_matched_hint_is_unavailable() {
         }],
     };
 
-    assert_eq!(agent.classify_model("quick summary"), "base-model");
+    assert_eq!(
+        agent.classify_model("slow summary").await.expect("explicit model should resolve"),
+        "base-model"
+    );
 }
 
 #[test]
-fn classify_model_returns_base_model_when_no_rule_matches() {
+fn legacy_and_processor_auto_selection_are_consistent() {
     let mut agent = build_agent();
-    agent.model_name = "base-model".to_string();
     agent.classification_config = QueryClassificationConfig {
         enabled: true,
         rules: vec![ClassificationRule {
@@ -253,12 +309,46 @@ fn classify_model_returns_base_model_when_no_rule_matches() {
             patterns: Vec::new(),
             min_length: None,
             max_length: None,
-            priority: 10,
+            priority: 1,
         }],
     };
     agent.available_hints = vec!["fast".to_string()];
+    agent.route_model_by_hint =
+        HashMap::from([("fast".to_string(), "provider/fast".to_string())]);
+    agent.model_name = "auto".to_string();
+    let models = vec![selectable_model("provider", "fast")];
+    let candidates = models
+        .iter()
+        .map(|model| ModelCandidate { provider_id: &model.provider_id, model })
+        .collect::<Vec<_>>();
 
-    assert_eq!(agent.classify_model("slow summary"), "base-model");
+    let processor = select_auto_model(
+        &AutoModelSelectionRequest {
+            message: "quick summary",
+            required_context: 0,
+            needs_tools: true,
+            needs_image_input: false,
+            needs_attachments: false,
+            soft_preference: None,
+            query_classification: agent.classification_config.clone(),
+            model_routes: vec![ModelRouteConfig {
+                hint: "fast".to_string(),
+                provider: "provider".to_string(),
+                model: "fast".to_string(),
+                max_tokens: None,
+                api_key: None,
+            }],
+        },
+        &candidates,
+    )
+    .expect("processor selection should succeed");
+
+    let legacy = agent
+        .classify_model_with_candidates("quick summary", &candidates)
+        .expect("legacy selection should succeed");
+
+    assert_eq!(legacy, processor.model);
+    assert_eq!(legacy, ModelReference::new("provider", "fast"));
 }
 
 #[test]

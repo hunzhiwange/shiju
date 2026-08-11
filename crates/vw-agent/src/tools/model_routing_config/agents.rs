@@ -45,6 +45,7 @@ impl ModelRoutingConfigTool {
             max_parallel_subagents: 4,
             provider: provider.clone(),
             model: model.clone(),
+            force_model_selection: false,
             system_prompt: None,
             api_key: None,
             temperature: None,

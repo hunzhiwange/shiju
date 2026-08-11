@@ -23,6 +23,7 @@ use crate::app::agent::id;
 use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;
+use crate::app::agent::skills::SkillListingSessionState;
 use crate::app::agent::util::token;
 use crate::session::processor::context_governance;
 use serde_json::json;
@@ -78,9 +79,10 @@ pub async fn is_overflow(tokens: &message::TokenInfo, model: &provider::Model) -
     let _cfg = config::get().await;
     if model.limit.context == 0
         || context_governance::effective_input_window(&model.limit) == 0
-        || model.limit.input.is_some_and(|input| {
-            input > model.limit.context.saturating_sub(model.limit.output)
-        })
+        || model
+            .limit
+            .input
+            .is_some_and(|input| input > model.limit.context.saturating_sub(model.limit.output))
     {
         return false;
     }
@@ -103,6 +105,20 @@ pub const PRUNE_MINIMUM: u64 = 20_000;
 ///
 /// 当累计的可修剪 token 数量超过此值时才开始记录待修剪项
 pub const PRUNE_PROTECT: u64 = 40_000;
+
+/// 在压缩完成后请求 AGENTS 重载，并重新建立所有已调用技能的临时上下文。
+///
+/// 实际运行时负责把返回的上下文更新应用到该轮模型请求；此接口保持重放顺序可测试。
+pub(crate) fn restore_invoked_skills_after_compaction(
+    llm_messages: &mut Vec<serde_json::Value>,
+    skills: &SkillListingSessionState,
+    agent_id: &str,
+    reload_agents: impl FnOnce(),
+) -> Result<Vec<context_governance::InvokedSkillContextUpdate>, String> {
+    reload_agents();
+    let replays = skills.restore_invoked(agent_id)?;
+    Ok(context_governance::restore_invoked_skill_context(llm_messages, &replays))
+}
 
 /// 受保护的工具列表
 ///

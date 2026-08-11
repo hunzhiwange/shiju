@@ -172,6 +172,49 @@ pub struct AgentSchedulerCreateTaskResponse {
     pub task: AgentTaskDto,
 }
 
+/// Agent Scheduler 有向成功依赖边，从前置任务指向后继任务。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskGraphEdgeDto {
+    pub predecessor_task_id: String,
+    pub successor_task_id: String,
+}
+
+/// Agent Scheduler 项目任务图的完整替换请求。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerReplaceTaskGraphRequest {
+    pub edges: Vec<AgentSchedulerTaskGraphEdgeDto>,
+}
+
+/// 任务在当前成功依赖图中的派生就绪原因。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentSchedulerTaskGraphReadinessDto {
+    Ready,
+    WaitingDependencies,
+    BlockedByDependency,
+    NotQueued,
+}
+
+/// 项目任务图快照中的单个任务及其派生就绪性。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskGraphTaskDto {
+    pub task_id: String,
+    pub status: AgentTaskStatusDto,
+    pub readiness: AgentSchedulerTaskGraphReadinessDto,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub waiting_task_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocking_task_ids: Vec<String>,
+}
+
+/// Agent Scheduler 项目任务图及实时就绪性快照。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSchedulerTaskGraphResponse {
+    pub project_id: ProjectId,
+    pub edges: Vec<AgentSchedulerTaskGraphEdgeDto>,
+    pub tasks: Vec<AgentSchedulerTaskGraphTaskDto>,
+}
+
 /// Agent Scheduler 任务运行状态。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

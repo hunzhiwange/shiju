@@ -12,6 +12,7 @@ use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
 
 pub mod artifacts;
+pub mod dependencies;
 pub mod events;
 pub mod logs;
 pub mod outbox;
@@ -326,6 +327,9 @@ fn scope_params(scope: &AgentSchedulerScope) -> (&str, &str, &str) {
     (project.platform_id().as_ref(), project.company_id().as_ref(), project.project_id().as_ref())
 }
 
+#[cfg(test)]
+#[path = "dependencies_tests.rs"]
+mod dependencies_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod tests;

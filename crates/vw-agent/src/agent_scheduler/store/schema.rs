@@ -18,8 +18,10 @@ pub(super) fn initialize_scoped_schema(
 fn initialize_current_schema(conn: &Connection) -> Result<()> {
     reject_unprefixed_scheduler_tables(conn)?;
     conn.execute_batch(TASK_EXECUTION_SCHEMA)?;
+    conn.execute_batch(TASK_DEPENDENCY_SCHEMA)?;
     conn.execute_batch(RESOURCE_SCHEMA)?;
     conn.execute_batch(TASK_EXECUTION_INDEXES)?;
+    conn.execute_batch(TASK_DEPENDENCY_INDEXES)?;
     conn.execute_batch(RESOURCE_INDEXES)?;
     Ok(())
 }
@@ -51,9 +53,10 @@ pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
     "resource_leases",
 ];
 
-pub(super) const SCHEDULER_TABLES: [&str; 11] = [
+pub(super) const SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_meta",
     "scheduler_tasks",
+    "scheduler_task_dependencies",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -240,6 +243,25 @@ CREATE TABLE IF NOT EXISTS scheduler_outbox_messages (
 );
 "#;
 
+const TASK_DEPENDENCY_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS scheduler_task_dependencies (
+    platform_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    predecessor_task_id TEXT NOT NULL,
+    successor_task_id TEXT NOT NULL,
+    PRIMARY KEY (
+        platform_id, company_id, project_id, predecessor_task_id, successor_task_id
+    ),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, predecessor_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (platform_id, company_id, project_id, successor_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE CASCADE
+);
+"#;
+
 pub(super) const TASK_EXECUTION_INDEXES: &str = r#"
 CREATE INDEX IF NOT EXISTS idx_scheduler_tasks_status
 ON scheduler_tasks(platform_id, company_id, project_id, status, id);
@@ -267,6 +289,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduler_outbox_messages_idempotency_key
 ON scheduler_outbox_messages(platform_id, company_id, project_id, idempotency_key);
 CREATE INDEX IF NOT EXISTS idx_scheduler_outbox_delivery_status
 ON scheduler_outbox_messages(platform_id, company_id, project_id, status, next_attempt_at_ms, id);
+"#;
+
+const TASK_DEPENDENCY_INDEXES: &str = r#"
+CREATE INDEX IF NOT EXISTS idx_scheduler_task_dependencies_predecessor
+ON scheduler_task_dependencies(
+    platform_id, company_id, project_id, predecessor_task_id, successor_task_id
+);
+CREATE INDEX IF NOT EXISTS idx_scheduler_task_dependencies_successor
+ON scheduler_task_dependencies(
+    platform_id, company_id, project_id, successor_task_id, predecessor_task_id
+);
 "#;
 
 pub(super) const RESOURCE_SCHEMA: &str = r#"

@@ -8,9 +8,7 @@ use vw_gateway_client::{
     ShijuSystemSkillQuery,
 };
 
-fn fixture(
-    responses: Vec<(String, String)>,
-) -> (String, thread::JoinHandle<Vec<String>>) {
+fn fixture(responses: Vec<(String, String)>) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU skill fixture");
     let address = listener.local_addr().expect("fixture address");
     let handle = thread::spawn(move || {
@@ -163,9 +161,7 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
     for (request, expected) in requests.iter().zip(expected) {
         assert!(request.starts_with(expected), "{request}");
         assert!(
-            request
-                .to_ascii_lowercase()
-                .contains("x-api-key: fixture-private-skill-secret\r\n")
+            request.to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
         );
         assert!(!request.lines().next().unwrap_or_default().contains(credential.expose()));
     }
@@ -187,30 +183,26 @@ async fn shiju_skill_adapter_maps_remote_install_relationship() {
     assert!(requests[0].starts_with("POST /skills/31/install "));
     assert!(requests[1].starts_with("DELETE /skills/31/install "));
     for request in requests {
-        assert!(request.to_ascii_lowercase().contains(
-            "x-api-key: fixture-private-skill-secret\r\n"
-        ));
+        assert!(
+            request.to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
+        );
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_adapter_forwards_explicit_version_id() {
-    let (base, requests) =
-        fixture(vec![("204 No Content".to_string(), String::new())]);
+    let (base, requests) = fixture(vec![("204 No Content".to_string(), String::new())]);
     let client = ShijuSkillClient::with_base_url(&base).expect("client");
     let credential = credential();
 
-    client
-        .remote_install_version(&credential, 31, 88)
-        .await
-        .expect("install explicit version");
+    client.remote_install_version(&credential, 31, 88).await.expect("install explicit version");
 
     let requests = requests.join().expect("join fixture");
     assert!(requests[0].starts_with("POST /skills/31/install "));
     assert!(requests[0].ends_with(r#"{"version_id":88}"#));
-    assert!(requests[0]
-        .to_ascii_lowercase()
-        .contains("x-api-key: fixture-private-skill-secret\r\n"));
+    assert!(
+        requests[0].to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
+    );
     assert!(!requests[0].lines().next().unwrap_or_default().contains(credential.expose()));
 }
 
@@ -221,12 +213,7 @@ async fn shiju_skill_adapter_rejects_invalid_paging_and_upstream_errors_without_
     let invalid = client
         .system(
             &credential,
-            &ShijuSystemSkillQuery {
-                page: 0,
-                page_size: 20,
-                name: None,
-                tag_id: None,
-            },
+            &ShijuSystemSkillQuery { page: 0, page_size: 20, name: None, tag_id: None },
         )
         .await
         .expect_err("zero page");

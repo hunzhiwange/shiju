@@ -9,6 +9,9 @@ use super::agent_scheduler::{
     AgentSchedulerLegacyImportResponse, AgentSchedulerLegacyTaskImportDto,
     AgentSchedulerMatrixDispatchEventDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerOutboxDrainResponse, AgentSchedulerScope,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
+    AgentSchedulerTaskGraphReadinessDto, AgentSchedulerTaskGraphResponse,
+    AgentSchedulerTaskGraphTaskDto,
     AgentSchedulerStaffCommandPayloadDto, AgentSchedulerStageActionCommandPayloadDto,
     AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto,
     AgentSchedulerStageCapabilityIoSummaryDto, AgentSchedulerStageCapabilityKindDto,
@@ -36,6 +39,46 @@ use super::task::{
 };
 use serde_json::json;
 use std::collections::BTreeMap;
+
+#[test]
+fn agent_scheduler_task_graph_contract_roundtrips_success_dependencies_and_readiness() {
+    let edge = AgentSchedulerTaskGraphEdgeDto {
+        predecessor_task_id: "task/prepare".to_string(),
+        successor_task_id: "task/review".to_string(),
+    };
+    let replace_request = AgentSchedulerReplaceTaskGraphRequest { edges: vec![edge.clone()] };
+    let snapshot = AgentSchedulerTaskGraphResponse {
+        project_id: "project/one".into(),
+        edges: vec![edge],
+        tasks: vec![AgentSchedulerTaskGraphTaskDto {
+            task_id: "task/review".to_string(),
+            status: AgentTaskStatusDto::Queued,
+            readiness: AgentSchedulerTaskGraphReadinessDto::BlockedByDependency,
+            waiting_task_ids: vec!["task/approve".to_string()],
+            blocking_task_ids: vec!["task/prepare".to_string()],
+        }],
+    };
+
+    let replace_json = serde_json::to_value(&replace_request).expect("serialize graph replace");
+    assert_eq!(replace_json["edges"][0]["predecessor_task_id"], "task/prepare");
+    assert_eq!(replace_json["edges"][0]["successor_task_id"], "task/review");
+    assert_eq!(
+        serde_json::from_value::<AgentSchedulerReplaceTaskGraphRequest>(replace_json)
+            .expect("decode graph replace"),
+        replace_request
+    );
+
+    let snapshot_json = serde_json::to_value(&snapshot).expect("serialize graph snapshot");
+    assert_eq!(snapshot_json["tasks"][0]["status"], "queued");
+    assert_eq!(snapshot_json["tasks"][0]["readiness"], "blocked_by_dependency");
+    assert_eq!(snapshot_json["tasks"][0]["waiting_task_ids"][0], "task/approve");
+    assert_eq!(snapshot_json["tasks"][0]["blocking_task_ids"][0], "task/prepare");
+    assert_eq!(
+        serde_json::from_value::<AgentSchedulerTaskGraphResponse>(snapshot_json)
+            .expect("decode graph snapshot"),
+        snapshot
+    );
+}
 
 #[test]
 fn task_reasoning_effort_dto_roundtrips() {

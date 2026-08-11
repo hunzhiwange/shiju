@@ -9,6 +9,9 @@ use crate::app::agent::providers::{ChatMessage, Provider};
 use crate::app::agent::runtime;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::{Tool, ToolSpec};
+use crate::session::llm::{
+    AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model,
+};
 use anyhow::Result;
 use chrono_tz::Tz;
 use std::collections::HashMap;
@@ -180,12 +183,11 @@ impl Agent {
             Arc::from(observability::create_observer(&config.observability));
         let runtime: Arc<dyn runtime::RuntimeAdapter> =
             Arc::from(runtime::create_runtime(&config.runtime)?);
-        let security =
-            Arc::new(SecurityPolicy::from_configs(
-                &config.autonomy,
-                &config.security,
-                &config.workspace_dir,
-            ));
+        let security = Arc::new(SecurityPolicy::from_configs(
+            &config.autonomy,
+            &config.security,
+            &config.workspace_dir,
+        ));
 
         let memory: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage_and_routes(
             &config.memory,
@@ -235,7 +237,7 @@ impl Agent {
         let route_model_by_hint: HashMap<String, String> = config
             .model_routes
             .iter()
-            .map(|route| (route.hint.clone(), route.model.clone()))
+            .map(|route| (route.hint.clone(), format!("{}/{}", route.provider, route.model)))
             .collect();
         let available_hints: Vec<String> = route_model_by_hint.keys().cloned().collect();
 
@@ -319,30 +321,62 @@ impl Agent {
         self.prompt_builder.build(&ctx)
     }
 
-    pub(super) fn classify_model(&self, user_message: &str) -> String {
-        if let Some(decision) = super::super::classifier::classify_with_decision(
-            &self.classification_config,
-            user_message,
-        ) {
-            if self.available_hints.contains(&decision.hint) {
-                let resolved_model = self
-                    .route_model_by_hint
-                    .get(&decision.hint)
-                    .map(String::as_str)
-                    .unwrap_or("unknown");
-                tracing::info!(
-                    target: "query_classification",
-                    hint = decision.hint.as_str(),
-                    model = resolved_model,
-                    rule_priority = decision.priority,
-                    message_length = user_message.len(),
-                    "Classified message route"
-                );
-                return format!("hint:{}", decision.hint);
-            }
+    pub(super) async fn classify_model(&self, user_message: &str) -> Result<String> {
+        if !is_auto_model_request(&self.model_name) {
+            return Ok(self.model_name.clone());
         }
 
-        self.model_name.clone()
+        let providers = crate::app::agent::provider::provider::list().await;
+        let models = providers
+            .values()
+            .flat_map(|provider| provider.models.values())
+            .cloned()
+            .collect::<Vec<_>>();
+        let candidates = models
+            .iter()
+            .map(|model| ModelCandidate { provider_id: &model.provider_id, model })
+            .collect::<Vec<_>>();
+
+        self.classify_model_with_candidates(user_message, &candidates)
+            .map(|selected| format!("{}/{}", selected.provider, selected.model))
+            .map_err(anyhow::Error::msg)
+    }
+
+    pub(super) fn classify_model_with_candidates(
+        &self,
+        user_message: &str,
+        candidates: &[ModelCandidate<'_>],
+    ) -> std::result::Result<ModelReference, String> {
+        let model_routes = self
+            .route_model_by_hint
+            .iter()
+            .filter(|(hint, _)| self.available_hints.contains(*hint))
+            .filter_map(|(hint, model)| {
+                let (provider, model) = model.split_once('/')?;
+                Some(crate::app::agent::config::ModelRouteConfig {
+                    hint: hint.clone(),
+                    provider: provider.to_string(),
+                    model: model.to_string(),
+                    max_tokens: None,
+                    api_key: None,
+                })
+            })
+            .collect();
+        select_auto_model(
+            &AutoModelSelectionRequest {
+                message: user_message,
+                required_context: 0,
+                needs_tools: true,
+                needs_image_input: false,
+                needs_attachments: false,
+                soft_preference: None,
+                query_classification: self.classification_config.clone(),
+                model_routes,
+            },
+            candidates,
+        )
+        .map(|decision| decision.model)
+        .map_err(|error| error.to_string())
     }
 
     /// 运行单次对话（便捷方法）
@@ -371,4 +405,9 @@ impl Agent {
     pub async fn run_single(&mut self, message: &str) -> Result<String> {
         self.turn(message).await
     }
+}
+
+fn is_auto_model_request(model: &str) -> bool {
+    let model = model.trim();
+    model.is_empty() || model.eq_ignore_ascii_case("auto")
 }

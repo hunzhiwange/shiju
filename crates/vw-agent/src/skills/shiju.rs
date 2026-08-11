@@ -4,8 +4,8 @@ use std::fmt;
 use std::time::Duration;
 
 use reqwest::{Method, StatusCode, Url};
-use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use vw_gateway_client::{
     ShijuCompanySkillQuery, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillSearchQuery,
@@ -303,7 +303,10 @@ async fn decode_response<T: DeserializeOwned>(
 }
 
 fn http_error(status: StatusCode) -> ShijuSkillError {
-    ShijuSkillError::upstream(format!("SHIJU skill upstream request failed: HTTP {}", status.as_u16()))
+    ShijuSkillError::upstream(format!(
+        "SHIJU skill upstream request failed: HTTP {}",
+        status.as_u16()
+    ))
 }
 
 fn business_error(code: i64) -> ShijuSkillError {
@@ -336,9 +339,7 @@ fn validate_skill_id(skill_id: u64) -> Result<(), ShijuSkillError> {
 
 fn validate_version_id(version_id: u64) -> Result<(), ShijuSkillError> {
     if version_id == 0 {
-        Err(ShijuSkillError::invalid(
-            "SHIJU skill version id must be greater than zero",
-        ))
+        Err(ShijuSkillError::invalid("SHIJU skill version id must be greater than zero"))
     } else {
         Ok(())
     }
@@ -354,9 +355,7 @@ fn validate_tag_id(tag_id: Option<u64>) -> Result<(), ShijuSkillError> {
 
 fn validate_optional_text(value: Option<&str>, name: &str) -> Result<(), ShijuSkillError> {
     if value.is_some_and(|value| value.trim().is_empty()) {
-        Err(ShijuSkillError::invalid(format!(
-            "SHIJU skill {name} filter cannot be blank"
-        )))
+        Err(ShijuSkillError::invalid(format!("SHIJU skill {name} filter cannot be blank")))
     } else {
         Ok(())
     }
@@ -366,11 +365,7 @@ fn page_parameters(page: u32, page_size: u32) -> Vec<(&'static str, String)> {
     vec![("page", page.to_string()), ("page_size", page_size.to_string())]
 }
 
-fn push_text_filter<'a>(
-    query: &mut Vec<(&'a str, String)>,
-    key: &'a str,
-    value: Option<&str>,
-) {
+fn push_text_filter<'a>(query: &mut Vec<(&'a str, String)>, key: &'a str, value: Option<&str>) {
     if let Some(value) = value {
         query.push((key, value.to_string()));
     }

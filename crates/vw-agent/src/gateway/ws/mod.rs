@@ -430,9 +430,9 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     };
 
     // 为会话构建一次系统提示
-    let system_prompt = {
+    let (system_prompt, protocol_messages) = {
         let config_guard = state.config.lock();
-        crate::app::agent::channels::build_system_prompt(
+        let system_prompt = crate::app::agent::channels::build_system_prompt(
             &config_guard.workspace_dir,
             &state.model,
             &[],
@@ -440,10 +440,25 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             Some(&config_guard.identity),
             None,
             timezone,
-        )
+        );
+        let skills = crate::app::agent::skills::load_skills_with_config(
+            &config_guard.workspace_dir,
+            &config_guard,
+        );
+        let skill_tool_enabled =
+            state.tools_registry_exec.iter().any(|tool| tool.name().eq_ignore_ascii_case("skill"));
+        let protocol_messages = crate::app::agent::channels::build_workspace_protocol_messages(
+            &config_guard.workspace_dir,
+            &skills,
+            skill_tool_enabled,
+            8_192,
+        );
+        (system_prompt, protocol_messages)
     };
 
-    // 将系统消息添加到历史
+    // 临时协议消息不在 WebSocket 输出中可见；它们排在 system/history 之前，
+    // 与 session processor 的 AGENTS、技能目录、真实历史顺序一致。
+    history.extend(protocol_messages);
     history.push(ChatMessage::system(&system_prompt));
 
     // 初始化审批管理器

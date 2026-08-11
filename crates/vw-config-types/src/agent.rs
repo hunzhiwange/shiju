@@ -65,6 +65,9 @@ pub struct AgentDefinitionConfig {
     pub provider: String,
     /// 模型名称。
     pub model: String,
+    /// 是否强制使用完整的 provider/model 绑定。
+    #[serde(default)]
+    pub force_model_selection: bool,
     /// 可选的 system prompt。
     #[serde(default, alias = "prompt")]
     pub system_prompt: Option<String>,
@@ -151,6 +154,7 @@ impl Default for AgentDefinitionConfig {
             max_parallel_subagents: default_max_parallel_subagents(),
             provider: String::new(),
             model: String::new(),
+            force_model_selection: false,
             system_prompt: None,
             api_key: None,
             temperature: None,
@@ -182,6 +186,7 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("max_parallel_subagents", &self.max_parallel_subagents)
             .field("provider", &self.provider)
             .field("model", &self.model)
+            .field("force_model_selection", &self.force_model_selection)
             .field("system_prompt", &self.system_prompt)
             .field("api_key_configured", &self.api_key.is_some())
             .field("temperature", &self.temperature)
@@ -198,6 +203,13 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("max_iterations", &self.max_iterations)
             .field("steps", &self.steps)
             .finish()
+    }
+}
+
+impl AgentDefinitionConfig {
+    /// 判断 provider 与 model 是否共同构成完整的模型绑定。
+    pub fn has_complete_model_binding(&self) -> bool {
+        !self.provider.trim().is_empty() && !self.model.trim().is_empty()
     }
 }
 

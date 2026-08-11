@@ -31,12 +31,7 @@ struct FixtureEntry {
 
 impl FixtureEntry {
     fn file(name: impl Into<String>, content: impl Into<Vec<u8>>) -> Self {
-        Self {
-            name: name.into(),
-            content: content.into(),
-            mode: 0o100644,
-            symlink: false,
-        }
+        Self { name: name.into(), content: content.into(), mode: 0o100644, symlink: false }
     }
 }
 
@@ -60,16 +55,10 @@ fn archive(entries: &[FixtureEntry]) -> Vec<u8> {
             .unix_permissions(entry.mode);
         if entry.symlink {
             writer
-                .add_symlink(
-                    entry.name.as_str(),
-                    String::from_utf8_lossy(&entry.content),
-                    options,
-                )
+                .add_symlink(entry.name.as_str(), String::from_utf8_lossy(&entry.content), options)
                 .expect("add fixture symlink");
         } else {
-            writer
-                .start_file(entry.name.as_str(), options)
-                .expect("start fixture file");
+            writer.start_file(entry.name.as_str(), options).expect("start fixture file");
             writer.write_all(&entry.content).expect("write fixture file");
         }
     }
@@ -86,10 +75,8 @@ fn content_hash(entries: &[FixtureEntry]) -> String {
         })
         .collect::<Vec<_>>();
     files.sort_by(|left, right| left.0.cmp(&right.0));
-    let manifest = files
-        .into_iter()
-        .map(|(path, hash)| format!("{path}:{hash}\n"))
-        .collect::<String>();
+    let manifest =
+        files.into_iter().map(|(path, hash)| format!("{path}:{hash}\n")).collect::<String>();
     hex::encode(Sha256::digest(manifest.as_bytes()))
 }
 
@@ -145,11 +132,8 @@ fn assert_no_staging_residue(skills_root: &Path) {
         Err(error) => panic!("read skills root: {error}"),
     };
     for entry in entries {
-        let name = entry
-            .expect("read skills root entry")
-            .file_name()
-            .to_string_lossy()
-            .into_owned();
+        let name =
+            entry.expect("read skills root entry").file_name().to_string_lossy().into_owned();
         assert!(!name.starts_with(".skill-install-"), "staging residue: {name}");
     }
 }
@@ -175,10 +159,7 @@ fn market_skill_install_accepts_only_verified_atomic_artifact() {
     )
     .expect("verified artifact should install");
 
-    assert_eq!(
-        installed,
-        root.join("fixture--public--safe-skill")
-    );
+    assert_eq!(installed, root.join("fixture--public--safe-skill"));
     assert!(installed.join("SKILL.md").is_file());
     let metadata: serde_json::Value = serde_json::from_slice(
         &fs::read(installed.join("_meta.json")).expect("read safe metadata"),
@@ -238,25 +219,19 @@ fn market_skill_install_rejects_dangerous_artifacts_without_residue() {
         "---\nname: safe-skill\ndescription: Safe fixture\n---\n# Safe\n",
     );
     let cases = [
-        (
-            "tampered",
-            {
-                let mut artifact = signed_artifact(std::slice::from_ref(&valid_manifest));
-                artifact.archive = archive(&[FixtureEntry::file(
-                    "SKILL.md",
-                    "---\nname: safe-skill\ndescription: Changed\n---\n# Changed\n",
-                )]);
-                artifact
-            },
-        ),
-        (
-            "unsigned",
-            {
-                let mut artifact = signed_artifact(std::slice::from_ref(&valid_manifest));
-                artifact.proof.signed = false;
-                artifact
-            },
-        ),
+        ("tampered", {
+            let mut artifact = signed_artifact(std::slice::from_ref(&valid_manifest));
+            artifact.archive = archive(&[FixtureEntry::file(
+                "SKILL.md",
+                "---\nname: safe-skill\ndescription: Changed\n---\n# Changed\n",
+            )]);
+            artifact
+        }),
+        ("unsigned", {
+            let mut artifact = signed_artifact(std::slice::from_ref(&valid_manifest));
+            artifact.proof.signed = false;
+            artifact
+        }),
         (
             "path traversal",
             signed_artifact(&[
@@ -283,16 +258,12 @@ fn market_skill_install_rejects_dangerous_artifacts_without_residue() {
                 },
             ]),
         ),
-        (
-            "too many files",
-            {
-                let mut entries = vec![valid_manifest.clone()];
-                entries.extend(
-                    (0..512).map(|index| FixtureEntry::file(format!("refs/{index}.txt"), "")),
-                );
-                signed_artifact(&entries)
-            },
-        ),
+        ("too many files", {
+            let mut entries = vec![valid_manifest.clone()];
+            entries
+                .extend((0..512).map(|index| FixtureEntry::file(format!("refs/{index}.txt"), "")));
+            signed_artifact(&entries)
+        }),
         (
             "expanded size",
             signed_artifact(&[
@@ -307,10 +278,7 @@ fn market_skill_install_rejects_dangerous_artifacts_without_residue() {
                 FixtureEntry::file(format!("{}.txt", "a".repeat(241)), "long"),
             ]),
         ),
-        (
-            "missing SKILL.md",
-            signed_artifact(&[FixtureEntry::file("README.md", "# Missing\n")]),
-        ),
+        ("missing SKILL.md", signed_artifact(&[FixtureEntry::file("README.md", "# Missing\n")])),
     ];
 
     for (name, artifact) in cases {
@@ -343,10 +311,8 @@ fn market_skill_install_rejects_download_limit_device_entry_and_target_conflict(
 
     let project = tempfile::tempdir().expect("fixture project");
     let root = skills_root(project.path());
-    let mut device_archive = archive(&[
-        valid_manifest.clone(),
-        FixtureEntry::file("device", "not a regular file"),
-    ]);
+    let mut device_archive =
+        archive(&[valid_manifest.clone(), FixtureEntry::file("device", "not a regular file")]);
     mark_last_central_entry_as_device(&mut device_archive);
     let mut device = signed_artifact(&[
         valid_manifest.clone(),
@@ -369,10 +335,7 @@ fn market_skill_install_rejects_download_limit_device_entry_and_target_conflict(
         &default_security(),
     )
     .expect_err("target conflict must fail");
-    assert_eq!(
-        fs::read_to_string(target.join("marker")).expect("read conflict marker"),
-        "keep"
-    );
+    assert_eq!(fs::read_to_string(target.join("marker")).expect("read conflict marker"), "keep");
     assert_no_staging_residue(&root);
 }
 
@@ -449,9 +412,7 @@ fn market_skillset_install_is_atomic_and_records_source_membership() {
     assert_eq!(installed.len(), 3);
     let meta = root.join("fixture--skillset--fixture-suite");
     assert!(meta.join("SKILL.md").is_file());
-    assert!(root
-        .join("fixture--public--first-skill/references/nested/guide.md")
-        .is_file());
+    assert!(root.join("fixture--public--first-skill/references/nested/guide.md").is_file());
     let meta_coordinate = SkillMarketCoordinateDto {
         locator: SkillMarketSkillLocatorDto {
             source: "fixture".to_string(),
@@ -467,9 +428,7 @@ fn market_skillset_install_is_atomic_and_records_source_membership() {
     for (coordinate, package_type) in expected_packages {
         let path = root.join(format!(
             "{}--{}--{}",
-            coordinate.locator.source,
-            coordinate.locator.namespace,
-            coordinate.locator.slug
+            coordinate.locator.source, coordinate.locator.namespace, coordinate.locator.slug
         ));
         let metadata: serde_json::Value = serde_json::from_slice(
             &fs::read(path.join("_meta.json")).expect("read suite metadata"),
@@ -497,10 +456,7 @@ fn market_skillset_install_is_atomic_and_records_source_membership() {
     .expect_err("member conflict must reject the entire transaction");
     assert!(!conflict_root.join("fixture--public--first-skill").exists());
     assert!(!conflict_root.join("fixture--skillset--fixture-suite").exists());
-    assert_eq!(
-        fs::read_to_string(existing.join("marker")).expect("read marker"),
-        "keep"
-    );
+    assert_eq!(fs::read_to_string(existing.join("marker")).expect("read marker"), "keep");
     assert_no_staging_residue(&conflict_root);
 
     let duplicate_project = tempfile::tempdir().expect("duplicate project");
@@ -583,6 +539,5 @@ fn mark_last_central_entry_as_device(archive: &mut [u8]) {
         .rposition(|window| window == signature)
         .expect("central directory entry");
     let external_attributes = (0o020666_u32) << 16;
-    archive[(offset + 38)..(offset + 42)]
-        .copy_from_slice(&external_attributes.to_le_bytes());
+    archive[(offset + 38)..(offset + 42)].copy_from_slice(&external_attributes.to_le_bytes());
 }

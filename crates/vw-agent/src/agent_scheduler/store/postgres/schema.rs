@@ -115,6 +115,23 @@ CREATE TABLE IF NOT EXISTS scheduler_tasks (
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS scheduler_task_dependencies (
+    platform_id TEXT NOT NULL,
+    company_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    predecessor_task_id TEXT NOT NULL,
+    successor_task_id TEXT NOT NULL,
+    PRIMARY KEY (
+        platform_id, company_id, project_id, predecessor_task_id, successor_task_id
+    ),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, predecessor_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE CASCADE,
+    FOREIGN KEY (platform_id, company_id, project_id, successor_task_id)
+        REFERENCES scheduler_tasks(platform_id, company_id, project_id, id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS scheduler_runs (
     platform_id TEXT NOT NULL,
     company_id TEXT NOT NULL,
@@ -314,6 +331,14 @@ CREATE INDEX IF NOT EXISTS idx_scheduler_tasks_assignee
 ON scheduler_tasks(platform_id, company_id, project_id, assigned_to, status, id);
 CREATE INDEX IF NOT EXISTS idx_scheduler_tasks_next_scheduled_at
 ON scheduler_tasks(platform_id, company_id, project_id, next_scheduled_at, id);
+CREATE INDEX IF NOT EXISTS idx_scheduler_task_dependencies_predecessor
+ON scheduler_task_dependencies(
+    platform_id, company_id, project_id, predecessor_task_id, successor_task_id
+);
+CREATE INDEX IF NOT EXISTS idx_scheduler_task_dependencies_successor
+ON scheduler_task_dependencies(
+    platform_id, company_id, project_id, successor_task_id, predecessor_task_id
+);
 CREATE INDEX IF NOT EXISTS idx_scheduler_runs_task_status
 ON scheduler_runs(platform_id, company_id, project_id, task_id, status, started_at_ms);
 CREATE INDEX IF NOT EXISTS idx_scheduler_runs_lease_expiry

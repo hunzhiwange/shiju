@@ -227,7 +227,7 @@ mod tests {
     /// - 包含技能工具名称 `<name>release_checklist</name>`
     /// - 包含工具类型 `<kind>shell</kind>`
     #[test]
-    fn skills_section_includes_instructions_and_tools() {
+    fn skills_section_does_not_inline_skill_bodies() {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含工具和指令的技能
@@ -246,6 +246,7 @@ mod tests {
             }],
             prompts: vec!["Run smoke tests before deploy.".into()],
             location: None,
+            ..crate::app::agent::skills::Skill::default()
         }];
 
         // 使用 Full 模式构建上下文
@@ -263,12 +264,7 @@ mod tests {
         // 构建技能段
         let output = SkillsSection.build(&ctx).unwrap();
 
-        // 验证技能的完整信息被渲染
-        assert!(output.contains("<available_skills>"));
-        assert!(output.contains("<name>deploy</name>"));
-        assert!(output.contains("<instruction>Run smoke tests before deploy.</instruction>"));
-        assert!(output.contains("<name>release_checklist</name>"));
-        assert!(output.contains("<kind>shell</kind>"));
+        assert!(output.is_empty());
     }
 
     /// 测试技能段在精简模式下省略指令和工具详情
@@ -290,7 +286,7 @@ mod tests {
     /// - **不**包含指令标签 `<instruction>`
     /// - **不**包含工具详情标签 `<tools>`
     #[test]
-    fn skills_section_compact_mode_omits_instructions_and_tools() {
+    fn skills_section_is_empty_in_compact_mode() {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含完整信息的技能（但在 Compact 模式下会被简化）
@@ -309,6 +305,7 @@ mod tests {
             }],
             prompts: vec!["Run smoke tests before deploy.".into()],
             location: Some(Path::new("/tmp/workspace/skills/deploy/SKILL.md").to_path_buf()),
+            ..crate::app::agent::skills::Skill::default()
         }];
 
         // 使用 Compact 模式构建上下文
@@ -326,14 +323,7 @@ mod tests {
         // 构建技能段
         let output = SkillsSection.build(&ctx).unwrap();
 
-        // 验证基本信息被包含
-        assert!(output.contains("<available_skills>"));
-        assert!(output.contains("<name>deploy</name>"));
-        assert!(output.contains("<location>skills/deploy/SKILL.md</location>"));
-
-        // 验证详细内容被省略
-        assert!(!output.contains("<instruction>Run smoke tests before deploy.</instruction>"));
-        assert!(!output.contains("<tools>"));
+        assert!(output.is_empty());
     }
 
     /// 测试日期时间段的格式化输出
@@ -433,7 +423,7 @@ mod tests {
     /// 此测试确保用户提供的技能内容不会破坏提示词的 XML 结构，
     /// 防止潜在的提示词注入攻击。
     #[test]
-    fn prompt_builder_inlines_and_escapes_skills() {
+    fn prompt_builder_excludes_skill_bodies() {
         let tools: Vec<Box<dyn Tool>> = vec![];
 
         // 创建包含特殊字符的技能，用于测试 XML 转义功能
@@ -452,6 +442,7 @@ mod tests {
             }],
             prompts: vec!["Use <tool_call> and & keep output \"safe\"".into()], // 包含各种特殊字符
             location: None,
+            ..crate::app::agent::skills::Skill::default()
         }];
 
         // 构建提示词上下文
@@ -469,29 +460,7 @@ mod tests {
         // 构建完整的系统提示词
         let prompt = SystemPromptBuilder::with_defaults().build(&ctx).unwrap();
 
-        // 验证技能标签存在
-        assert!(prompt.contains("<available_skills>"));
-
-        // 验证技能名称的特殊字符被正确转义
-        assert!(prompt.contains("<name>code&lt;review&gt;&amp;</name>"));
-
-        // 验证描述中的引号被转义
-        assert!(prompt.contains(
-            "<description>Review &quot;unsafe&quot; and &apos;risky&apos; bits</description>"
-        ));
-
-        // 验证工具名称中的引号被转义
-        assert!(prompt.contains("<name>run&quot;linter&quot;</name>"));
-
-        // 验证工具描述中的多种特殊字符被转义
-        assert!(prompt.contains("<description>Run &lt;lint&gt; &amp; report</description>"));
-
-        // 验证工具类型中的 & 被转义
-        assert!(prompt.contains("<kind>shell&amp;exec</kind>"));
-
-        // 验证指令中的所有特殊字符被正确转义
-        assert!(prompt.contains(
-                "<instruction>Use &lt;tool_call&gt; and &amp; keep output &quot;safe&quot;</instruction>"
-            ));
+        assert!(!prompt.contains("<available_skills>"));
+        assert!(!prompt.contains("Use <tool_call> and & keep output \"safe\""));
     }
 }

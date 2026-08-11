@@ -30,7 +30,7 @@ pub(crate) use super::session::{Role, Session};
 mod artifacts;
 pub(crate) mod context_governance;
 mod helpers;
-mod llm_messages;
+pub(crate) mod llm_messages;
 mod llm_runner;
 mod planning;
 mod prefetch;

@@ -14,8 +14,9 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerStageActionCommandPayloadDto, AgentSchedulerStageActionInputsDto,
-    AgentSchedulerStageActionOutcomeDto, AgentSchedulerTaskMetadataPatchDto,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerStageActionCommandPayloadDto,
+    AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto,
+    AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
     AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerUpsertTeamRequest,
     AgentSchedulerUpsertWorkerRequest, AgentSchedulerWorkerRunEventKindDto,
     AgentSchedulerWorkerRunEventRequest, AgentTaskKindDto, AgentTaskStatusDto, AgentTeamMemberDto,
@@ -673,6 +674,80 @@ async fn agent_scheduler_project_wake_skips_lifecycle_ineligible_queued_task() {
     assert_eq!(task.status, AgentTaskStatus::Queued);
     let logs = store.list_task_logs(&project_path, &task_id).expect("logs");
     assert!(logs.is_empty());
+}
+
+#[tokio::test]
+async fn project_local_wake_uses_graph_readiness() {
+    let temp = tempfile::tempdir().expect("temp project root");
+    let project_path = temp.path().join("project-agent-scheduler-wake-task-graph");
+    std::fs::create_dir_all(&project_path).expect("project dir");
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
+        output: "unexpected local execution".to_string(),
+    });
+    let store = gateway.store.clone();
+    store.initialize_project(&project_path).expect("init scheduler");
+    let mut prerequisite =
+        task_graph_task("task-project-wake-prerequisite", AgentTaskStatus::Submitted);
+    prerequisite.metadata = json!({
+        "prompt": "Do not run before the graph prerequisite completes",
+        "priority": 1,
+        "order_no": 1,
+        "model": "auto",
+        "agent": "main"
+    });
+    store.create_task(&project_path, prerequisite).expect("seed prerequisite task");
+    let mut blocked = task_graph_task("task-project-wake-blocked", AgentTaskStatus::Queued);
+    blocked.metadata = json!({
+        "prompt": "Do not run while the graph prerequisite is incomplete",
+        "priority": 1,
+        "order_no": 2,
+        "model": "auto",
+        "agent": "main"
+    });
+    store.create_task(&project_path, blocked).expect("seed blocked task");
+    store
+        .replace_task_dependencies(
+            &project_path,
+            vec![crate::agent_scheduler::task_graph::AgentTaskDependency::new(
+                TaskId::new("task-project-wake-prerequisite").expect("prerequisite task id"),
+                TaskId::new("task-project-wake-blocked").expect("blocked task id"),
+            )],
+        )
+        .expect("store graph dependency");
+
+    let project_id = scheduler_project_id(&project_path);
+    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
+    let wake_uri = format!("/agent-scheduler/projects/{project_id}/wake");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri(wake_uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::to_string(&AgentSchedulerProjectWakeRequest {
+                        now_ms: TimestampMs(1_783_000_904_000),
+                        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
+                        max_concurrent: None,
+                        auto_promote_pool_tasks: false,
+                    })
+                    .expect("wake json"),
+                ))
+                .expect("wake request"),
+        )
+        .await
+        .expect("wake response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response_json(response).await["dispatched"], false);
+    let task = store
+        .load_task(
+            &project_path,
+            &TaskId::new("task-project-wake-blocked").expect("blocked task id"),
+        )
+        .expect("load blocked task")
+        .expect("blocked task persists");
+    assert_eq!(task.status, AgentTaskStatus::Queued);
 }
 
 #[tokio::test]
@@ -1904,6 +1979,141 @@ async fn agent_scheduler_task_board_uses_task_board_status_key_metadata() {
 
     assert_eq!(status_key("task-campaign-running"), "campaign_queued");
     assert_eq!(status_key("task-campaign-review"), "campaign_queued");
+}
+
+#[tokio::test]
+async fn agent_scheduler_gateway_replaces_and_reads_scoped_task_graph() {
+    let _ = agent_scheduler_project_task_graph;
+    let _ = agent_scheduler_project_replace_task_graph;
+
+    let temp = tempfile::tempdir().expect("temp project root");
+    let project_path = temp.path().join("project-task-graph-gateway");
+    std::fs::create_dir_all(&project_path).expect("project dir");
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let store = gateway.store.clone();
+    store.initialize_project(&project_path).expect("init scheduler");
+
+    for (task_id, status) in [
+        ("task-graph-submitted", AgentTaskStatus::Submitted),
+        ("task-graph-completed", AgentTaskStatus::Completed),
+        ("task-graph-failed", AgentTaskStatus::Failed),
+        ("task-graph-cancelled", AgentTaskStatus::Cancelled),
+        ("task-graph-archived", AgentTaskStatus::Archived),
+        ("task-graph-waiting", AgentTaskStatus::Queued),
+        ("task-graph-ready", AgentTaskStatus::Queued),
+        ("task-graph-blocked-failed", AgentTaskStatus::Queued),
+        ("task-graph-blocked-cancelled", AgentTaskStatus::Queued),
+        ("task-graph-blocked-archived", AgentTaskStatus::Queued),
+    ] {
+        store
+            .create_task(&project_path, task_graph_task(task_id, status))
+            .expect("seed task graph task");
+    }
+
+    let project_id = scheduler_project_id(&project_path);
+    let graph_uri = format!("/agent-scheduler/projects/{project_id}/task-graph");
+    let request = AgentSchedulerReplaceTaskGraphRequest {
+        edges: vec![
+            task_graph_edge("task-graph-submitted", "task-graph-waiting"),
+            task_graph_edge("task-graph-completed", "task-graph-ready"),
+            task_graph_edge("task-graph-failed", "task-graph-blocked-failed"),
+            task_graph_edge("task-graph-cancelled", "task-graph-blocked-cancelled"),
+            task_graph_edge("task-graph-archived", "task-graph-blocked-archived"),
+        ],
+    };
+    let response = put_json_response(
+        router_with_gateway::<()>(Arc::new(gateway.clone())).with_state(()),
+        &graph_uri,
+        &request,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let snapshot = response_json(response).await;
+    assert_eq!(snapshot["edges"].as_array().expect("edges").len(), 5);
+    assert_task_graph_readiness(
+        &snapshot,
+        "task-graph-waiting",
+        "waiting_dependencies",
+        "waiting_task_ids",
+        "task-graph-submitted",
+    );
+    assert_task_graph_readiness(&snapshot, "task-graph-ready", "ready", "", "");
+    for (task_id, predecessor_id) in [
+        ("task-graph-blocked-failed", "task-graph-failed"),
+        ("task-graph-blocked-cancelled", "task-graph-cancelled"),
+        ("task-graph-blocked-archived", "task-graph-archived"),
+    ] {
+        assert_task_graph_readiness(
+            &snapshot,
+            task_id,
+            "blocked_by_dependency",
+            "blocking_task_ids",
+            predecessor_id,
+        );
+    }
+
+    store
+        .transition_task_status(
+            &project_path,
+            &TaskId::new("task-graph-submitted").expect("task id"),
+            AgentTaskStatus::Completed,
+            TimestampMs(1_783_001_000_000),
+        )
+        .expect("complete predecessor");
+    let snapshot =
+        get_json(router_with_gateway::<()>(Arc::new(gateway)).with_state(()), &graph_uri).await;
+    let completed_predecessor = snapshot["tasks"]
+        .as_array()
+        .expect("graph tasks")
+        .iter()
+        .find(|task| task["task_id"] == "task-graph-submitted")
+        .expect("completed predecessor in graph snapshot");
+    assert_eq!(completed_predecessor["status"], "completed");
+    assert_task_graph_readiness(&snapshot, "task-graph-waiting", "ready", "", "");
+}
+
+#[tokio::test]
+async fn agent_scheduler_gateway_rejects_invalid_graph_without_partial_write() {
+    let _ = agent_scheduler_project_task_graph;
+    let _ = agent_scheduler_project_replace_task_graph;
+
+    let temp = tempfile::tempdir().expect("temp project root");
+    let project_path = temp.path().join("project-task-graph-invalid");
+    std::fs::create_dir_all(&project_path).expect("project dir");
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    let store = gateway.store.clone();
+    store.initialize_project(&project_path).expect("init scheduler");
+    for task_id in ["task-graph-before", "task-graph-after"] {
+        store
+            .create_task(&project_path, task_graph_task(task_id, AgentTaskStatus::Queued))
+            .expect("seed task graph task");
+    }
+
+    let project_id = scheduler_project_id(&project_path);
+    let graph_uri = format!("/agent-scheduler/projects/{project_id}/task-graph");
+    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
+    let valid = AgentSchedulerReplaceTaskGraphRequest {
+        edges: vec![task_graph_edge("task-graph-before", "task-graph-after")],
+    };
+    let response = put_json_response(app.clone(), &graph_uri, &valid).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let invalid = AgentSchedulerReplaceTaskGraphRequest {
+        edges: vec![task_graph_edge("task-graph-before", "task-graph-before")],
+    };
+    let response = put_json_response(app.clone(), &graph_uri, &invalid).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let error = response_json(response).await;
+    assert!(error.to_string().contains("task graph rejects self dependency"));
+
+    let snapshot = get_json(app, &graph_uri).await;
+    assert_eq!(
+        snapshot["edges"],
+        json!([{
+            "predecessor_task_id": "task-graph-before",
+            "successor_task_id": "task-graph-after",
+        }])
+    );
 }
 
 #[tokio::test]
@@ -6581,6 +6791,61 @@ fn encode_path_segment(value: &str) -> String {
     encoded
 }
 
+fn task_graph_edge(
+    predecessor_task_id: &str,
+    successor_task_id: &str,
+) -> AgentSchedulerTaskGraphEdgeDto {
+    AgentSchedulerTaskGraphEdgeDto {
+        predecessor_task_id: predecessor_task_id.to_string(),
+        successor_task_id: successor_task_id.to_string(),
+    }
+}
+
+fn task_graph_task(task_id: &str, status: AgentTaskStatus) -> NewAgentTask {
+    NewAgentTask {
+        id: TaskId::new(task_id).expect("task id"),
+        title: format!("Task graph {task_id}"),
+        kind: AgentTaskKind::Finite,
+        status,
+        spec_uri: format!("shared/tasks/{task_id}/spec.md"),
+        meta_uri: format!("shared/tasks/{task_id}/meta.json"),
+        assigned_to: None,
+        team_id: None,
+        room_id: None,
+        project_room_id: None,
+        delegated_to_team: None,
+        schedule: None,
+        timezone: None,
+        next_scheduled_at: None,
+        last_executed_at: None,
+        dag: Vec::new(),
+        metadata: json!({}),
+        created_at_ms: TimestampMs(1_783_000_999_000),
+    }
+}
+
+fn assert_task_graph_readiness(
+    snapshot: &serde_json::Value,
+    task_id: &str,
+    readiness: &str,
+    dependency_key: &str,
+    dependency_task_id: &str,
+) {
+    let task = snapshot["tasks"]
+        .as_array()
+        .expect("graph tasks")
+        .iter()
+        .find(|task| task["task_id"] == task_id)
+        .unwrap_or_else(|| panic!("graph task not found: {task_id}"));
+    assert_eq!(task["readiness"], readiness, "unexpected readiness for {task_id}");
+    if dependency_key.is_empty() {
+        assert!(task.get("waiting_task_ids").is_none());
+        assert!(task.get("blocking_task_ids").is_none());
+    } else {
+        assert_eq!(task[dependency_key], json!([dependency_task_id]));
+    }
+}
+
 fn scheduler_project_id(project_path: &std::path::Path) -> String {
     let project_id = project_path
         .storage_scope()
@@ -6710,6 +6975,22 @@ where
     app.oneshot(
         Request::builder()
             .method(Method::POST)
+            .uri(uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_string(body).expect("request json")))
+            .expect("request"),
+    )
+    .await
+    .expect("response")
+}
+
+async fn put_json_response<T>(app: axum::Router, uri: &str, body: &T) -> axum::response::Response
+where
+    T: serde::Serialize,
+{
+    app.oneshot(
+        Request::builder()
+            .method(Method::PUT)
             .uri(uri)
             .header(header::CONTENT_TYPE, "application/json")
             .body(Body::from(serde_json::to_string(body).expect("request json")))

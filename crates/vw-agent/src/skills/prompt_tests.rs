@@ -14,6 +14,7 @@ fn compact_prompt_escapes_xml_and_omits_full_sections() {
         tools: Vec::new(),
         prompts: vec!["full instructions".to_string()],
         location: None,
+        ..Skill::default()
     };
     let prompt = skills_to_prompt_with_mode(
         &[skill],
@@ -52,6 +53,7 @@ fn full_prompt_includes_tools_instructions_and_absolute_locations() {
         }],
         prompts: vec!["Always check \"edge\" cases".to_string()],
         location: Some(outside.path().join("quote-skill").join("SKILL.md")),
+        ..Skill::default()
     };
 
     let prompt = skills_to_prompt(&[skill], workspace.path());
@@ -89,6 +91,7 @@ fn compact_prompt_keeps_absolute_location_outside_workspace() {
         tools: Vec::new(),
         prompts: Vec::new(),
         location: Some(std::path::PathBuf::from("/opt/shared/SKILL.md")),
+        ..Skill::default()
     };
 
     let prompt = skills_to_prompt_with_mode(

@@ -97,7 +97,7 @@ pub(crate) async fn run_message_execution(
                     // 设置请求的工作目录
                     root: Some(request_root_dir.to_string_lossy().to_string()),
                     // 指定使用的模型
-                    model: Some(route.model.clone()),
+                    model: Some(channel_model_request_model(&route.provider, &route.model)),
                     options: channel_session_options(),
                     approval: Some(ctx.approval_manager.clone()),
                     channel_name: Some(msg.channel.clone()),

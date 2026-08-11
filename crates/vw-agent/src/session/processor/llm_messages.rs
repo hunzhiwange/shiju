@@ -11,8 +11,11 @@
 //!
 //! 转换后的每条消息都是包含 `role` 和 `content` 字段的 JSON 对象，符合主流 LLM API 的标准格式。
 
-use crate::app::agent::session::session::{Message, Role, Session};
 use crate::app::agent::multimodal::context::ImageTurnContext;
+use crate::app::agent::session::session::{Message, Role, Session};
+use crate::session::context_injection;
+use crate::session::instruction::Resolved;
+use serde_json::Value;
 
 pub(crate) fn session_message_to_llm_message(message: &Message) -> Option<serde_json::Value> {
     match message.role {
@@ -88,6 +91,35 @@ pub(crate) fn extend_llm_messages_from_session_range(
 pub(crate) fn session_messages_to_llm_messages(session: &Session) -> Vec<serde_json::Value> {
     // 遍历会话中的所有消息，根据角色进行转换
     session.messages.iter().filter_map(session_message_to_llm_message).collect()
+}
+
+/// 组装桌面会话单步请求的临时协议上下文。
+///
+/// 这些提醒只发给 provider，绝不回写到 `Session`，从而保持桌面 UI 历史可见内容不变。
+/// 顺序固定为 AGENTS、已调用技能、技能目录和真实历史。
+pub(crate) fn assemble_session_protocol_messages(
+    history: &[Value],
+    instructions: &[Resolved],
+    invoked_skill_messages: &[Value],
+    skill_listing: Option<Value>,
+) -> Vec<Value> {
+    let injection = context_injection::assemble_agents_context(instructions, history);
+    let mut messages = injection
+        .transient_messages
+        .iter()
+        .map(|message| {
+            serde_json::json!({
+                "role": "user",
+                "content": message.content,
+            })
+        })
+        .collect::<Vec<_>>();
+    messages.extend(invoked_skill_messages.iter().cloned());
+    if let Some(skill_listing) = skill_listing {
+        messages.push(skill_listing);
+    }
+    messages.extend(injection.history);
+    messages
 }
 
 /// 按图片上下文状态改写 LLM JSON 消息。

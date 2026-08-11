@@ -10,9 +10,10 @@ use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{AgentRunStatus, AgentSchedulerContext, RunId, TaskId, WorkerName};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
-use super::store::runs::{AgentRunFinishStatus, ClaimTaskRunRequest};
+use super::store::runs::{AgentRunFinishStatus, ClaimReadyTaskRunRequest, ClaimTaskRunRequest};
 use super::store::tasks::NewAgentTask;
 use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
+use super::task_graph::AgentTaskDependency;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
@@ -83,6 +84,150 @@ fn agent_run_store_rejects_invalid_lease_times_and_returns_none_for_missing_runs
 #[test]
 fn agent_run_store_claims_task_once_and_lists_stale_leases() -> Result<()> {
     for_each_run_store_provider(assert_run_store_claims_task_once_and_lists_stale_leases)
+}
+
+#[test]
+fn claim_ready_task_run_assigns_and_inserts_atomically() -> Result<()> {
+    for_each_run_store_provider(assert_claim_ready_task_run_assigns_and_inserts_atomically)
+}
+
+fn assert_claim_ready_task_run_assigns_and_inserts_atomically(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+) -> Result<()> {
+    let predecessor_id = TaskId::new("ready-claim-predecessor")?;
+    let task_id = TaskId::new("ready-claim-successor")?;
+    store.initialize_project(context)?;
+    store.create_task(
+        context,
+        finite_task_with_status(&predecessor_id, AgentTaskStatus::Completed)?,
+    )?;
+    store.create_task(context, finite_task_with_status(&task_id, AgentTaskStatus::Queued)?)?;
+    store.replace_task_dependencies(
+        context,
+        vec![AgentTaskDependency::new(predecessor_id, task_id.clone())],
+    )?;
+
+    let claimed = store
+        .claim_ready_task_run(
+            context,
+            ready_claim_request("ready-claim-run", &task_id, "worker-a"),
+        )?
+        .expect("completed dependencies allow the queued task to be claimed");
+    assert_eq!(claimed.id.as_str(), "ready-claim-run");
+    assert_eq!(claimed.status, AgentRunStatus::Leased);
+    assert_eq!(
+        store.load_task(context, &task_id)?.expect("claimed task exists").status,
+        AgentTaskStatus::Assigned
+    );
+
+    assert!(
+        store
+            .claim_ready_task_run(
+                context,
+                ready_claim_request("ready-claim-run-duplicate", &task_id, "worker-b"),
+            )?
+            .is_none()
+    );
+    assert_eq!(
+        store.load_latest_run_for_task(context, &task_id)?.map(|run| run.id),
+        Some(RunId::new("ready-claim-run")?)
+    );
+    Ok(())
+}
+
+#[test]
+fn claim_ready_task_run_rejects_unsatisfied_dependencies_without_state_change() -> Result<()> {
+    for_each_run_store_provider(assert_claim_ready_task_run_rejects_unsatisfied_dependencies)
+}
+
+fn assert_claim_ready_task_run_rejects_unsatisfied_dependencies(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+) -> Result<()> {
+    store.initialize_project(context)?;
+    for (suffix, predecessor_status) in [
+        ("waiting", AgentTaskStatus::Queued),
+        ("submitted", AgentTaskStatus::Submitted),
+        ("failed", AgentTaskStatus::Failed),
+        ("cancelled", AgentTaskStatus::Cancelled),
+        ("archived", AgentTaskStatus::Archived),
+    ] {
+        let predecessor_id = TaskId::new(format!("unsatisfied-predecessor-{suffix}"))?;
+        let task_id = TaskId::new(format!("unsatisfied-successor-{suffix}"))?;
+        store
+            .create_task(context, finite_task_with_status(&predecessor_id, predecessor_status)?)?;
+        store.create_task(context, finite_task_with_status(&task_id, AgentTaskStatus::Queued)?)?;
+        store.replace_task_dependencies(
+            context,
+            vec![AgentTaskDependency::new(predecessor_id, task_id.clone())],
+        )?;
+
+        assert!(
+            store
+                .claim_ready_task_run(
+                    context,
+                    ready_claim_request(&format!("unsatisfied-run-{suffix}"), &task_id, "worker-a"),
+                )?
+                .is_none(),
+            "{suffix} predecessor must prevent claiming"
+        );
+        assert_eq!(
+            store.load_task(context, &task_id)?.expect("queued task exists").status,
+            AgentTaskStatus::Queued
+        );
+        assert!(store.load_latest_run_for_task(context, &task_id)?.is_none());
+        store.replace_task_dependencies(context, Vec::new())?;
+    }
+    Ok(())
+}
+
+#[test]
+fn claim_ready_task_run_allows_one_competing_claimer() -> Result<()> {
+    for_each_run_store_provider(assert_claim_ready_task_run_allows_one_competing_claimer)
+}
+
+fn assert_claim_ready_task_run_allows_one_competing_claimer(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+) -> Result<()> {
+    let task_id = TaskId::new("ready-claim-concurrent-task")?;
+    store.initialize_project(context)?;
+    store.create_task(context, finite_task_with_status(&task_id, AgentTaskStatus::Queued)?)?;
+
+    let barrier = Arc::new(Barrier::new(3));
+    let claims = std::thread::scope(|scope| {
+        let first_barrier = Arc::clone(&barrier);
+        let first_task_id = task_id.clone();
+        let first = scope.spawn(move || {
+            first_barrier.wait();
+            store.claim_ready_task_run(
+                context,
+                ready_claim_request("ready-claim-concurrent-1", &first_task_id, "worker-a"),
+            )
+        });
+        let second_barrier = Arc::clone(&barrier);
+        let second_task_id = task_id.clone();
+        let second = scope.spawn(move || {
+            second_barrier.wait();
+            store.claim_ready_task_run(
+                context,
+                ready_claim_request("ready-claim-concurrent-2", &second_task_id, "worker-b"),
+            )
+        });
+        barrier.wait();
+        Ok::<_, anyhow::Error>([
+            first.join().expect("first ready claim thread")?,
+            second.join().expect("second ready claim thread")?,
+        ])
+    })?;
+
+    assert_eq!(claims.iter().filter(|claim| claim.is_some()).count(), 1);
+    assert_eq!(
+        store.load_task(context, &task_id)?.expect("concurrent task exists").status,
+        AgentTaskStatus::Assigned
+    );
+    Ok(())
 }
 
 fn assert_run_store_claims_task_once_and_lists_stale_leases(
@@ -393,6 +538,20 @@ fn run_ids(runs: &[super::store::runs::StoredAgentRun]) -> Vec<&str> {
 
 fn claim_request(run_id: &str, task_id: &TaskId, worker_id: &str) -> ClaimTaskRunRequest {
     ClaimTaskRunRequest {
+        run_id: RunId::new(run_id).expect("valid run id"),
+        task_id: task_id.clone(),
+        worker_id: WorkerName::new(worker_id).expect("valid worker id"),
+        lease_acquired_at_ms: TimestampMs(1_000),
+        lease_expires_at_ms: Some(TimestampMs(2_000)),
+    }
+}
+
+fn ready_claim_request(
+    run_id: &str,
+    task_id: &TaskId,
+    worker_id: &str,
+) -> ClaimReadyTaskRunRequest {
+    ClaimReadyTaskRunRequest {
         run_id: RunId::new(run_id).expect("valid run id"),
         task_id: task_id.clone(),
         worker_id: WorkerName::new(worker_id).expect("valid worker id"),

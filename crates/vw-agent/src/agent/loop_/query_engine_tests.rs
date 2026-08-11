@@ -208,7 +208,8 @@ fn chat_text(text: &str, usage: Option<TokenUsage>) -> ChatResponse {
 
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
-        history: vec![ChatMessage::system("system prompt")],
+        history: Vec::new(),
+        request_system_prompt: "system prompt".to_string(),
         tools_registry: Vec::new(),
         observer: Arc::new(RecordingObserver::new(Arc::new(NoopObserver))),
         provider: Arc::new(provider),
@@ -224,6 +225,50 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         turn_count: 0,
         timezone: chrono_tz::Asia::Shanghai,
     }
+}
+
+#[tokio::test]
+async fn agent_and_query_engine_use_ephemeral_query_engine_context_each_turn() {
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_text("first", None)),
+        ProviderStep::Response(chat_text("second", None)),
+    ]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+
+    engine.submit_message("one").await.expect("first turn should succeed");
+    engine.submit_message("two").await.expect("second turn should succeed");
+
+    let requests = provider_handle.seen_messages();
+    assert_eq!(requests.len(), 2);
+    for request in &requests {
+        assert_eq!(request[0].role, "user");
+        assert!(request[0].content.starts_with("<system-reminder>"));
+    }
+    assert!(engine.history_snapshot().iter().all(|message| !message.content.contains("<system-reminder>")));
+    assert!(engine.history_snapshot().iter().all(|message| message.role != "system"));
+}
+
+#[tokio::test]
+async fn agent_and_query_engine_use_ephemeral_context_after_history_trim() {
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_text("first", None)),
+        ProviderStep::Response(chat_text("second", None)),
+    ]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.max_history_messages = 1;
+
+    engine.submit_message("one").await.expect("first turn should succeed");
+    engine.submit_message("two").await.expect("second turn should succeed");
+
+    let requests = provider_handle.seen_messages();
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|request| request[0].content.starts_with("<system-reminder>")));
+    let history = engine.history_snapshot();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].content, "second");
+    assert!(history.iter().all(|message| !message.content.contains("<system-reminder>")));
 }
 
 #[test]
@@ -524,7 +569,7 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
     assert!(result.is_err());
     assert_eq!(engine.turn_count(), 0);
     assert_eq!(engine.history_snapshot().len(), before.len());
-    assert_eq!(engine.history_snapshot()[1].content, "previous");
+    assert_eq!(engine.history_snapshot()[0].content, "previous");
     assert_eq!(engine.session_state().usage.llm_calls, 0);
 }
 

@@ -91,6 +91,9 @@ pub struct AgentTool {
 impl AgentTool {
     fn inherited_model_ref() -> Option<String> {
         let context = current_tool_use_context()?;
+        if context.model_selected_by_auto() {
+            return None;
+        }
         let model = context.model()?.trim();
         if model.is_empty() {
             return None;
@@ -100,6 +103,14 @@ impl AgentTool {
             Some(provider) => format!("{provider}/{model}"),
             None => model.to_string(),
         })
+    }
+
+    fn model_for_child_request(agent_config: &DelegateAgentConfig) -> Option<String> {
+        if agent_config.force_model_selection && agent_config.has_complete_model_binding() {
+            return agent::resolve_model_ref(agent_config)
+                .map(|model_ref| format!("{}/{}", model_ref.provider_id, model_ref.model_id));
+        }
+        Self::inherited_model_ref()
     }
 
     /// 创建新的 `AgentTool`。
@@ -442,9 +453,7 @@ impl AgentTool {
             parent_session_id: parent_session_id.to_string(),
             directory: self.workspace_dir.to_string_lossy().to_string(),
             agent_key: agent.to_string(),
-            model: (agent == "main" || agent::resolve_model_ref(agent_config).is_none())
-                .then(Self::inherited_model_ref)
-                .flatten(),
+            model: Self::model_for_child_request(agent_config),
             prompt: prompt.to_string(),
             context,
         })

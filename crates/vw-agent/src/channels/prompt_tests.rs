@@ -1,6 +1,10 @@
 use super::*;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use crate::app::agent::tools::{Tool, ToolResult};
+use crate::session::instruction::{InstructionSource, Resolved};
+use crate::session::llm::{
+    ModelReference, ModelSelectionDecision, ModelSelectionSource, ModelTaskProfile,
+};
 use serde_json::{Value, json};
 
 struct NamedTool(&'static str);
@@ -135,6 +139,71 @@ fn channel_system_prompt_uses_delivery_instructions_when_base_is_empty() {
 
     assert!(prompt.starts_with("When responding on WhatsApp:"));
     assert!(prompt.contains("Do not reveal raw tool names"));
+}
+
+#[test]
+fn entrypoint_context_all_external_paths_share_agents_skill_contract() {
+    let instructions = vec![Resolved {
+        filepath: "/workspace/AGENTS.md".to_string(),
+        content: "Instructions from: /workspace/AGENTS.md\nFollow the project protocol."
+            .to_string(),
+        sources: vec![InstructionSource {
+            filepath: "/workspace/AGENTS.md".to_string(),
+            parent: None,
+            conditions: Vec::new(),
+        }],
+        diagnostics: Vec::new(),
+    }];
+    let skills = vec![crate::app::agent::skills::Skill {
+        name: "verify".to_string(),
+        description: "Verify the completed work.".to_string(),
+        ..crate::app::agent::skills::Skill::default()
+    }];
+
+    let expected = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
+    let channel = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
+    let gateway = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
+    let websocket = build_entrypoint_protocol_messages(&instructions, &skills, true, 8_192);
+    let snapshot = |messages: &[ChatMessage]| {
+        messages
+            .iter()
+            .map(|message| (message.role.as_str().to_string(), message.content.clone()))
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(snapshot(&channel), snapshot(&expected));
+    assert_eq!(snapshot(&gateway), snapshot(&expected));
+    assert_eq!(snapshot(&websocket), snapshot(&expected));
+    assert!(expected[0].content.contains("Follow the project protocol."));
+    assert!(expected[1].content.contains("<available_skills>"));
+    assert!(!expected.iter().any(|message| message.content.contains("SKILL.md full body")));
+
+    let simple_gateway = build_entrypoint_protocol_messages(&instructions, &skills, false, 8_192);
+    assert_eq!(simple_gateway.len(), 1);
+    assert!(!simple_gateway[0].content.contains("<available_skills>"));
+}
+
+#[test]
+fn selection_trace_redacts_prompt() {
+    let trace = model_selection_trace(&ModelSelectionDecision {
+        model: ModelReference::new("provider", "fast"),
+        source: ModelSelectionSource::Auto,
+        profile: ModelTaskProfile::Lightweight,
+        reason: "source=auto; prompt=private prompt text".to_string(),
+    });
+
+    assert!(trace.contains("provider/fast"));
+    assert!(trace.contains("lightweight"));
+    assert!(!trace.contains("private prompt text"));
+}
+
+#[test]
+fn channel_auto_uses_selected_model() {
+    assert_eq!(channel_model_request_model("channel-provider", "auto"), "auto");
+    assert_eq!(
+        channel_model_request_model("channel-provider", "selected"),
+        "channel-provider/selected"
+    );
 }
 
 #[test]
@@ -293,9 +362,9 @@ fn workspace_identity_context_loads_openclaw_bootstrap_files() {
 
     let prompt = build_workspace_identity_context(temp.path(), None, Some(200));
 
-    assert!(prompt.starts_with("## Project Context"));
+    assert!(prompt.starts_with("## Project Identity Context"));
     assert!(prompt.contains("ALREADY injected"));
-    assert!(prompt.contains("agent notes"));
+    assert!(!prompt.contains("agent notes"));
     assert!(prompt.contains("boot notes"));
     assert!(prompt.contains("[File not found: SOUL.md]"));
 }
@@ -308,7 +377,7 @@ fn load_openclaw_bootstrap_files_skips_missing_bootstrap_marker() {
     let mut prompt = String::new();
     load_openclaw_bootstrap_files(&mut prompt, temp.path(), 200);
 
-    assert!(prompt.contains("agent notes"));
+    assert!(!prompt.contains("agent notes"));
     assert!(prompt.contains("[File not found: SOUL.md]"));
     assert!(!prompt.contains("### BOOTSTRAP.md"));
 }
@@ -325,8 +394,8 @@ fn workspace_identity_context_accepts_identity_config_and_default_limit() {
 
     let prompt = build_workspace_identity_context(temp.path(), Some(&identity_config), None);
 
-    assert!(prompt.starts_with("## Project Context"));
-    assert!(prompt.contains("agent notes"));
+    assert!(prompt.starts_with("## Project Identity Context"));
+    assert!(!prompt.contains("agent notes"));
 }
 
 #[test]
@@ -476,7 +545,7 @@ fn system_prompt_default_wrapper_uses_xml_task_text() {
 }
 
 #[test]
-fn system_prompt_with_compact_skill_mode_includes_skills_without_tools_section() {
+fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
     let temp = tempfile::tempdir().unwrap();
     let skill = crate::app::agent::skills::Skill {
         name: "do-task-plans".to_string(),
@@ -487,6 +556,7 @@ fn system_prompt_with_compact_skill_mode_includes_skills_without_tools_section()
         tools: Vec::new(),
         prompts: vec!["follow the written task plan".to_string()],
         location: Some(temp.path().join("skills/do-task-plans/SKILL.md")),
+        ..crate::app::agent::skills::Skill::default()
     };
     let prompt = build_system_prompt_with_mode(
         temp.path(),
@@ -501,7 +571,7 @@ fn system_prompt_with_compact_skill_mode_includes_skills_without_tools_section()
     );
 
     assert!(!prompt.contains("## Tools"));
-    assert!(prompt.contains("## Available Skills"));
-    assert!(prompt.contains("do-task-plans"));
-    assert!(prompt.contains("skills/do-task-plans/SKILL.md"));
+    assert!(!prompt.contains("## Available Skills"));
+    assert!(!prompt.contains("do-task-plans"));
+    assert!(!prompt.contains("skills/do-task-plans/SKILL.md"));
 }

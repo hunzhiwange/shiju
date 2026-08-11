@@ -82,6 +82,9 @@ use super::types::{AgentInfo, PromptStreamEvent, StreamEvent, StreamInput};
 /// let model = resolve_model(Some("openai/gpt-4".to_string())).await?;
 /// ```
 async fn resolve_model(model: Option<String>) -> Result<provider::Model, String> {
+    if is_auto_model_request(model.as_deref()) {
+        return resolve_auto_model("", &Value::Null, false).await;
+    }
     // 处理用户提供的模型标识符：去除空白并检查是否非空
     if let Some(s) = model.as_deref().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) {
         // 获取所有可用的 provider 列表
@@ -147,6 +150,55 @@ fn request_options_enable_acp(options: &Value) -> bool {
             .is_some_and(|value| !value.trim().is_empty())
 }
 
+fn is_auto_model_request(model: Option<&str>) -> bool {
+    model.map(str::trim).is_none_or(|model| model.is_empty() || model.eq_ignore_ascii_case("auto"))
+}
+
+fn request_bypasses_auto_selector(_model: Option<&str>, options: &Value) -> bool {
+    request_options_enable_acp(options)
+}
+
+async fn resolve_auto_model(
+    message: &str,
+    options: &Value,
+    needs_tools: bool,
+) -> Result<provider::Model, String> {
+    let config = crate::app::agent::config::get().await;
+    let providers = provider::list().await;
+    let candidates = providers
+        .values()
+        .flat_map(|provider| provider.models.values())
+        .cloned()
+        .collect::<Vec<_>>();
+    let agent = options.get("agent").and_then(Value::as_str).and_then(|key| config.agents.get(key));
+    let soft_preference = agent
+        .filter(|agent| !agent.provider.trim().is_empty() && !agent.model.trim().is_empty())
+        .map(|agent| super::ModelReference::new(&agent.provider, &agent.model));
+    let model_candidates = candidates
+        .iter()
+        .map(|model| super::ModelCandidate { provider_id: &model.provider_id, model })
+        .collect::<Vec<_>>();
+    let needs_image_input = !crate::app::agent::multimodal::parse_image_markers(message).1.is_empty();
+    let selected = super::select_auto_model(
+        &super::AutoModelSelectionRequest {
+            message,
+            required_context: 0,
+            needs_tools,
+            needs_image_input,
+            needs_attachments: needs_image_input,
+            soft_preference,
+            query_classification: config.query_classification.clone(),
+            model_routes: config.model_routes.clone(),
+        },
+        &model_candidates,
+    )
+    .map_err(|error| error.to_string())?;
+    candidates
+        .into_iter()
+        .find(|model| model.provider_id == selected.model.provider && model.id == selected.model.model)
+        .ok_or_else(|| "Auto 模型选择结果不在 active 候选中".to_string())
+}
+
 fn acp_route_model(options: &Value) -> provider::Model {
     let model_id = options
         .get("acp_agent")
@@ -205,9 +257,12 @@ async fn resolve_model_for_options(
     model: Option<String>,
     options: &Value,
 ) -> Result<provider::Model, String> {
-    let has_explicit_model = model.as_deref().map(str::trim).is_some_and(|value| !value.is_empty());
-    if !has_explicit_model && request_options_enable_acp(options) {
+    if request_bypasses_auto_selector(model.as_deref(), options) {
         return Ok(acp_route_model(options));
+    }
+
+    if is_auto_model_request(model.as_deref()) {
+        return resolve_auto_model("", options, true).await;
     }
 
     resolve_model(model).await

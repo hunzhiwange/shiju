@@ -20,6 +20,7 @@ pub mod staff;
 pub mod state_machine;
 pub mod store;
 pub mod task_board;
+pub mod task_graph;
 
 #[cfg(test)]
 #[path = "task_board_tests.rs"]
@@ -108,3 +109,7 @@ mod local_runner_tests;
 #[cfg(test)]
 #[path = "runner/matrix_tests.rs"]
 mod matrix_runner_tests;
+
+#[cfg(test)]
+#[path = "task_graph_tests.rs"]
+mod task_graph_tests;

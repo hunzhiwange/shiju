@@ -79,3 +79,43 @@ fn extend_llm_messages_from_session_range_allows_start_past_end() {
 
     assert_eq!(llm_messages, vec![json!({"role": "user", "content": "existing"})]);
 }
+
+#[test]
+fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
+    let instructions = vec![crate::session::instruction::Resolved {
+        filepath: "/workspace/AGENTS.md".to_string(),
+        content: "Instructions from: /workspace/AGENTS.md\nFollow the protocol.".to_string(),
+        sources: Vec::new(),
+        diagnostics: Vec::new(),
+    }];
+    let history = vec![json!({"role": "user", "content": "real history"})];
+    let invoked = vec![
+        json!({"role": "user", "content": "<system-reminder>Skill is active.</system-reminder>"}),
+    ];
+    let listing = Some(
+        json!({"role": "user", "content": "<system-reminder>Available skills: rustcodegraph</system-reminder>"}),
+    );
+
+    let first = super::assemble_session_protocol_messages(
+        &history,
+        &instructions,
+        &invoked,
+        listing.clone(),
+    );
+    let next =
+        super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing);
+
+    for messages in [&first, &next] {
+        assert!(
+            messages[0]["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("Follow the protocol."))
+        );
+        assert_eq!(messages[1], invoked[0]);
+        assert_eq!(
+            messages[2]["content"],
+            "<system-reminder>Available skills: rustcodegraph</system-reminder>"
+        );
+        assert_eq!(messages[3], history[0]);
+    }
+}

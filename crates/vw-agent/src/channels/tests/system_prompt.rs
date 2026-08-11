@@ -38,7 +38,7 @@ fn build_system_prompt(
 /// - Tools（工具章节）
 /// - Safety（安全章节）
 /// - Workspace（工作区章节）
-/// - Project Context（项目上下文章节）
+/// - Project Identity Context（项目身份上下文章节）
 /// - Current Date & Time（当前日期时间章节）
 /// - Runtime（运行时章节）
 #[test]
@@ -51,7 +51,7 @@ fn prompt_contains_all_sections() {
     assert!(prompt.contains("## Tools"), "missing Tools section");
     assert!(prompt.contains("## Safety"), "missing Safety section");
     assert!(prompt.contains("## Workspace"), "missing Workspace section");
-    assert!(prompt.contains("## Project Context"), "missing Project Context");
+    assert!(prompt.contains("## Project Identity Context"), "missing Project Identity Context");
     assert!(prompt.contains("## Current Date & Time"), "missing Date/Time");
     assert!(prompt.contains("## Runtime"), "missing Runtime section");
 }
@@ -112,7 +112,7 @@ fn prompt_injects_safety() {
 /// - SOUL.md（核心指导原则）
 /// - IDENTITY.md（身份信息）
 /// - USER.md（用户配置）
-/// - AGENTS.md（代理配置）
+/// - AGENTS.md（通过临时 meta-user 消息注入，不属于 system prompt）
 /// - TOOLS.md（工具配置）
 /// - MEMORY.md（长期记忆）
 ///
@@ -128,7 +128,7 @@ fn prompt_injects_workspace_files() {
     assert!(prompt.contains("### IDENTITY.md"), "missing IDENTITY.md");
     assert!(prompt.contains("Name: VibeWindow"), "missing IDENTITY content");
     assert!(prompt.contains("### USER.md"), "missing USER.md");
-    assert!(prompt.contains("### AGENTS.md"), "missing AGENTS.md");
+    assert!(!prompt.contains("### AGENTS.md"), "AGENTS.md must not be in system prompt");
     assert!(prompt.contains("### TOOLS.md"), "missing TOOLS.md");
 
     // HEARTBEAT.md 不应出现在频道提示中
@@ -149,7 +149,7 @@ fn prompt_missing_file_markers() {
 
     // 验证缺失文件的标记存在
     assert!(prompt.contains("[File not found: SOUL.md]"));
-    assert!(prompt.contains("[File not found: AGENTS.md]"));
+    assert!(!prompt.contains("[File not found: AGENTS.md]"));
     assert!(prompt.contains("[File not found: IDENTITY.md]"));
 }
 

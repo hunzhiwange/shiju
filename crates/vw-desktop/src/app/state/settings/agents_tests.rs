@@ -90,6 +90,7 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
     assert_eq!(entry.max_parallel_subagents, 32);
     assert_eq!(entry.provider, "openai");
     assert_eq!(entry.model, "gpt-4.1");
+    assert!(!entry.force_model_selection);
     assert_eq!(entry.temperature, 2.0);
     assert_eq!(entry.max_depth, 1);
     assert_eq!(entry.max_iterations, 500);
@@ -104,6 +105,20 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
     assert_eq!(entry.max_history_messages, 100);
     assert!(!entry.parallel_tools);
     assert_eq!(entry.tool_dispatcher, "auto");
+}
+
+#[test]
+fn delegate_agent_entry_copies_force_model_selection() {
+    let config = DelegateAgentConfig {
+        provider: "openai".to_string(),
+        model: "gpt-5".to_string(),
+        force_model_selection: true,
+        ..Default::default()
+    };
+
+    let entry = DelegateAgentSettingsEntry::from_config("custom", Some(config));
+
+    assert!(entry.force_model_selection);
 }
 
 #[test]

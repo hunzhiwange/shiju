@@ -176,10 +176,7 @@ fn ai_call_payloads_compact_repeated_context_before_persisting() {
         id: session_id.clone(),
         messages: vec![
             Message { role: Role::User, content: format!("old {}", "x".repeat(32 * 1024)) },
-            Message {
-                role: Role::Assistant,
-                content: format!("recent {}", "y".repeat(32 * 1024)),
-            },
+            Message { role: Role::Assistant, content: format!("recent {}", "y".repeat(32 * 1024)) },
         ],
     };
     let step = LlmStep { text: "z".repeat(32 * 1024), ..llm_step() };
@@ -195,10 +192,9 @@ fn ai_call_payloads_compact_repeated_context_before_persisting() {
     assert_eq!(call["context_compacted"], true);
     assert!(call.get("calls").is_none(), "UI call summaries must not carry raw call records");
     assert!(call["prompt"].as_str().unwrap_or_default().contains("context compacted"));
-    assert!(call["messages"][0]["content"]
-        .as_str()
-        .unwrap_or_default()
-        .contains("context compacted"));
+    assert!(
+        call["messages"][0]["content"].as_str().unwrap_or_default().contains("context compacted")
+    );
     assert!(call["answer"].as_str().unwrap_or_default().contains("context compacted"));
 
     ui_store::delete_session_scoped(&session_id, Some(&scope));

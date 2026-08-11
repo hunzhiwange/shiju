@@ -22,6 +22,80 @@
 
 use super::*;
 
+/// Returns the model request passed to the session processor for a channel message.
+///
+/// Explicit channel selections use complete provider/model references. `auto` remains
+/// a policy request so the processor selects once and reports the concrete model.
+pub(crate) fn channel_model_request_model(provider: &str, model: &str) -> String {
+    let model = model.trim();
+    if model.is_empty() || model.eq_ignore_ascii_case("auto") {
+        return "auto".to_string();
+    }
+
+    let provider = provider.trim();
+    if provider.is_empty() || model.contains('/') {
+        return model.to_string();
+    }
+
+    format!("{provider}/{model}")
+}
+
+/// Formats safe Auto-selection metadata for channel diagnostics.
+///
+/// The decision deliberately has no prompt field; callers must not append request
+/// content to this trace.
+pub(crate) fn model_selection_trace(
+    decision: &crate::session::llm::ModelSelectionDecision,
+) -> String {
+    format!(
+        "model={}/{}; source={:?}; profile={:?}",
+        decision.model.provider, decision.model.model, decision.source, decision.profile
+    )
+}
+
+/// Builds the transient protocol messages shared by external model entrypoints.
+///
+/// AGENTS and the skill directory are user-role meta reminders, never part of a
+/// system prompt or persisted conversation history. Full skill bodies remain
+/// exclusive to successful Skill tool invocations.
+pub(crate) fn build_entrypoint_protocol_messages(
+    instructions: &[crate::session::instruction::Resolved],
+    skills: &[skills::Skill],
+    skill_tool_enabled: bool,
+    context_window_tokens: usize,
+) -> Vec<ChatMessage> {
+    let injection = crate::session::context_injection::assemble_agents_context(instructions, &[]);
+    let mut messages = injection
+        .transient_messages
+        .into_iter()
+        .map(|message| ChatMessage::user(message.content))
+        .collect::<Vec<_>>();
+    let mut skill_state = skills::SkillListingSessionState::default();
+    if let Some(reminder) =
+        skill_state.prepare("main", skills, skill_tool_enabled, context_window_tokens)
+    {
+        messages.push(ChatMessage::user(reminder.content));
+    }
+    messages
+}
+
+/// Resolves the current workspace protocol and renders it for a legacy external
+/// entrypoint that does not use the session processor directly.
+pub(crate) fn build_workspace_protocol_messages(
+    workspace_dir: &Path,
+    skills: &[skills::Skill],
+    skill_tool_enabled: bool,
+    context_window_tokens: usize,
+) -> Vec<ChatMessage> {
+    let system = crate::session::prompt::system_with_metadata(None, workspace_dir.to_str());
+    build_entrypoint_protocol_messages(
+        system.instruction_context(),
+        skills,
+        skill_tool_enabled,
+        context_window_tokens,
+    )
+}
+
 /// 构建通道特定的系统提示
 ///
 /// 根据通道类型和配置，为基础提示添加通道相关的指令和上下文信息。
@@ -355,7 +429,7 @@ pub(crate) fn load_openclaw_bootstrap_files(
     );
 
     let bootstrap_files =
-        ["AGENTS.md", "SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "BOOTSTRAP.md", "MEMORY.md"];
+        ["SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "BOOTSTRAP.md", "MEMORY.md"];
 
     for filename in &bootstrap_files {
         if matches!(*filename, "HEARTBEAT.md" | "BOOTSTRAP.md")
@@ -373,10 +447,9 @@ pub(crate) fn build_workspace_identity_context(
     bootstrap_max_chars: Option<usize>,
 ) -> String {
     let mut prompt = String::new();
-    prompt.push_str("## Project Context\n\n");
+    prompt.push_str("## Project Identity Context\n\n");
     prompt.push_str(
-        "The following workspace files define your identity, behavior, and context. \
-         You MUST follow these instructions at all times.\n\n",
+        "The following workspace files provide non-protocol identity and delivery context.\n\n",
     );
 
     let _ = identity_config;
@@ -556,15 +629,9 @@ pub fn build_system_prompt_with_mode(
          - When in doubt, ask before acting externally.\n\n",
     );
 
-    // ── 3. 技能章节（根据配置选择完整或紧凑模式）─────────────
-    if !skills.is_empty() {
-        prompt.push_str(&skills::skills_to_prompt_with_mode(
-            skills,
-            workspace_dir,
-            skills_prompt_mode,
-        ));
-        prompt.push_str("\n\n");
-    }
+    // 技能目录由每次 provider 请求的临时 meta-user 消息装配；完整 SKILL.md
+    // 只允许 Skill Tool 成功调用后注入，不能混入静态 system prompt。
+    let _ = (skills, skills_prompt_mode);
 
     // ── 4. 工作空间章节 ────────────────────────────────────────────
     let _ = writeln!(prompt, "## Workspace\n\nWorking directory: `{}`\n", workspace_dir.display());

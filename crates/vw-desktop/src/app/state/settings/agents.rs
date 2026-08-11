@@ -21,6 +21,7 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) max_parallel_subagents: u32,
     pub(crate) provider: String,
     pub(crate) model: String,
+    pub(crate) force_model_selection: bool,
     pub(crate) system_prompt_editor: text_editor::Content,
     pub(crate) api_key_input: String,
     pub(crate) temperature: f32,
@@ -64,6 +65,7 @@ impl DelegateAgentSettingsEntry {
             max_parallel_subagents: config.max_parallel_subagents.clamp(1, 32) as u32,
             provider: config.provider,
             model: config.model,
+            force_model_selection: config.force_model_selection,
             system_prompt_editor: text_editor::Content::with_text(
                 config
                     .system_prompt
@@ -94,6 +96,33 @@ impl DelegateAgentSettingsEntry {
 
 fn default_agent_config_for_key(key: &str) -> DelegateAgentConfig {
     builtin_agent_config(key).unwrap_or_default()
+}
+
+pub(crate) fn main_agent_model_fields(
+    config: &DelegateAgentConfig,
+    default_provider: Option<&str>,
+    default_model: Option<&str>,
+) -> (String, String) {
+    if let Some((provider, model)) = default_model
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.split_once('/'))
+        .filter(|(provider, model)| !provider.trim().is_empty() && !model.trim().is_empty())
+    {
+        return (provider.trim().to_string(), model.trim().to_string());
+    }
+
+    let provider = if config.provider.trim().is_empty() {
+        default_provider.map(str::trim).unwrap_or_default().to_string()
+    } else {
+        config.provider.trim().to_string()
+    };
+    let model = if config.model.trim().is_empty() {
+        default_model.map(str::trim).unwrap_or_default().to_string()
+    } else {
+        config.model.trim().to_string()
+    };
+    (provider, model)
 }
 
 fn default_agent_label(key: &str, config: &DelegateAgentConfig) -> String {
@@ -177,6 +206,11 @@ pub(crate) fn agent_settings_entries_from_config(
 
             let config =
                 config.unwrap_or_else(|| builtin_agent_config(MAIN_AGENT_KEY).unwrap_or_default());
+            let (provider, model) = main_agent_model_fields(
+                &config,
+                default_provider_cfg.as_deref(),
+                default_model_cfg.as_deref(),
+            );
             let entry = DelegateAgentConfig {
                 label: config.label,
                 description: config.description,
@@ -185,20 +219,9 @@ pub(crate) fn agent_settings_entries_from_config(
                 enabled: true,
                 allow_as_subagent: config.allow_as_subagent,
                 max_parallel_subagents: config.max_parallel_subagents,
-                provider: if config.provider.trim().is_empty() {
-                    default_provider_cfg.clone().unwrap_or_default()
-                } else {
-                    config.provider
-                },
-                model: if config.model.trim().is_empty() {
-                    default_model_cfg
-                        .as_deref()
-                        .and_then(|value| value.split('/').next_back())
-                        .unwrap_or_default()
-                        .to_string()
-                } else {
-                    config.model
-                },
+                provider,
+                model,
+                force_model_selection: config.force_model_selection,
                 system_prompt: config.system_prompt,
                 api_key: config.api_key,
                 temperature: Some(config.temperature.unwrap_or(default_temperature_cfg)),

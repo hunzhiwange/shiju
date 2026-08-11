@@ -56,8 +56,7 @@ fn markdown_audit_covers_link_edge_cases() {
     .unwrap();
     let mut report = SkillAuditReport::default();
 
-    let security =
-        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    let security = SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
     audit_markdown_file(dir.path(), &markdown, &security, &mut report).unwrap();
     let summary = report.summary();
 
@@ -77,8 +76,7 @@ fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
     .unwrap();
     let mut report = SkillAuditReport::default();
 
-    let security =
-        SkillSecurityConfig { detect_high_risk_content: true, ..Default::default() };
+    let security = SkillSecurityConfig { detect_high_risk_content: true, ..Default::default() };
     audit_markdown_resource_file(dir.path(), &markdown, &security, &mut report).unwrap();
     let summary = report.summary();
 
@@ -90,8 +88,7 @@ fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
 fn markdown_link_without_parent_reports_resolution_error() {
     let mut report = SkillAuditReport::default();
 
-    let security =
-        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    let security = SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
     audit_markdown_link_target(
         Path::new("."),
         Path::new(""),

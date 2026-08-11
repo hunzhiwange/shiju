@@ -11,10 +11,7 @@ pub(crate) struct ChatTurnPolicy {
 }
 
 impl ChatTurnPolicy {
-    pub(crate) fn from_config(
-        config: &crate::config::Config,
-        agent_key: Option<&str>,
-    ) -> Self {
+    pub(crate) fn from_config(config: &crate::config::Config, agent_key: Option<&str>) -> Self {
         let selected_agent =
             agent_key.map(str::trim).filter(|key| !key.is_empty()).unwrap_or("main");
         let configured_max_tool_iterations = if selected_agent == "main" {
@@ -29,11 +26,8 @@ impl ChatTurnPolicy {
         let max_tool_iterations = (configured_max_tool_iterations > 0)
             .then_some(configured_max_tool_iterations)
             .unwrap_or(DEFAULT_MAX_TOOL_ITERATIONS);
-        let max_history_messages = config
-            .agent
-            .max_history_messages
-            .max(1)
-            .min(MAX_HISTORY_MESSAGES);
+        let max_history_messages =
+            config.agent.max_history_messages.max(1).min(MAX_HISTORY_MESSAGES);
         let max_history_messages = if config.agent.max_history_messages == 0 {
             DEFAULT_MAX_HISTORY_MESSAGES
         } else {

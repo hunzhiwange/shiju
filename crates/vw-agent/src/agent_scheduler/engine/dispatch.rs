@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
@@ -18,10 +20,11 @@ use crate::agent_scheduler::staff::workflow_snapshot_from_staff_config;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::events::AppendAgentEventRequest;
 use crate::agent_scheduler::store::outbox::EnqueueOutboxMessageRequest;
-use crate::agent_scheduler::store::runs::{ClaimTaskRunRequest, StoredAgentRun};
+use crate::agent_scheduler::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
 use crate::agent_scheduler::store::workers::{AgentWorkerFilter, StoredAgentWorker};
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
+use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot};
 
 pub const DEFAULT_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
 
@@ -105,18 +108,10 @@ where
         now_ms: TimestampMs,
     ) -> Result<Option<DispatchOutcome>> {
         tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task_id.as_str(), dispatch_mode = ?self.dispatch_mode, now_ms = now_ms.0, "agent scheduler task dispatch started");
-        let Some(task) = self.store.load_task(project_path, task_id)? else {
-            tracing::warn!(project_path = %project_path.storage_project_path().display(), task_id = task_id.as_str(), "agent scheduler task dispatch skipped missing task");
+        let Some(task) = ready_queued_finite_task(self.store, project_path, Some(task_id))? else {
+            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task_id.as_str(), "agent scheduler task dispatch skipped non-ready queued finite task");
             return Ok(None);
         };
-        if task.kind != AgentTaskKind::Finite || task.status != AgentTaskStatus::Queued {
-            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), task_kind = ?task.kind, task_status = task.status.as_str(), "agent scheduler task dispatch skipped non-queued finite task");
-            return Ok(None);
-        }
-        let workflow = load_dispatch_workflow(self.store, project_path)?;
-        if !task_lifecycle_allows_dispatch(project_path, &task, &workflow) {
-            return Ok(None);
-        }
         self.dispatch_task(project_path, task, now_ms).await
     }
 
@@ -159,11 +154,10 @@ where
         tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), worker_id = worker.id.as_str(), ready_runtime = ?ready.runtime, ready_room_id = ?ready.room_id, dispatch_mode = ?self.dispatch_mode, "agent scheduler worker ready");
         validate_dispatch_mode_available(&ready, &worker, self.dispatch_mode)?;
 
-        self.store
-            .transition_task_status(project_path, &task.id, AgentTaskStatus::Assigned, now_ms)?
-            .with_context(|| {
-                format!("pending task disappeared before claim: {}", task.id.as_str())
-            })?;
+        let Some(run) = self.claim_ready_run(project_path, &task, &worker, now_ms)? else {
+            tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), "agent scheduler task became unavailable before ready claim");
+            return Ok(None);
+        };
         let dispatched = self
             .store
             .transition_task_status(project_path, &task.id, AgentTaskStatus::Dispatched, now_ms)?
@@ -171,7 +165,6 @@ where
                 format!("assigned task disappeared before dispatch: {}", task.id.as_str())
             })?;
 
-        let run = self.claim_run(project_path, &task, &worker, now_ms)?;
         let target = dispatch_target_from_worker(
             &ready,
             &worker,
@@ -221,24 +214,16 @@ where
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
     ) -> Result<Option<StoredAgentTask>> {
-        let workflow = load_dispatch_workflow(self.store, project_path)?;
-        let tasks = self.store.list_active_tasks(
-            project_path,
-            AgentTaskFilter::for_status(AgentTaskStatus::Queued),
-        )?;
-        Ok(tasks.into_iter().find(|task| {
-            task.kind == AgentTaskKind::Finite
-                && task_lifecycle_allows_dispatch(project_path, task, &workflow)
-        }))
+        ready_queued_finite_task(self.store, project_path, None)
     }
 
-    fn claim_run(
+    fn claim_ready_run(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
         worker: &StoredAgentWorker,
         now_ms: TimestampMs,
-    ) -> Result<StoredAgentRun> {
+    ) -> Result<Option<StoredAgentRun>> {
         let lease_expires_at_ms = TimestampMs(
             now_ms
                 .0
@@ -247,17 +232,16 @@ where
         );
         let run_id = RunId::new(format!("run-{}-{}", task.id.as_str(), now_ms.0))?;
         self.store
-            .claim_task_run(
+            .claim_ready_task_run(
                 project_path,
-                ClaimTaskRunRequest {
+                ClaimReadyTaskRunRequest {
                     run_id,
                     task_id: task.id.clone(),
                     worker_id: worker.id.clone(),
                     lease_acquired_at_ms: now_ms,
                     lease_expires_at_ms: Some(lease_expires_at_ms),
                 },
-            )?
-            .with_context(|| format!("task was not claimable after dispatch: {}", task.id.as_str()))
+            )
     }
 
     fn append_worker_selected_event(
@@ -516,6 +500,57 @@ pub(crate) fn selected_worker(
     workers.iter().find(|worker| worker.id == candidate.worker_id).cloned().with_context(|| {
         format!("selected worker snapshot missing: {}", candidate.worker_id.as_str())
     })
+}
+
+pub(crate) fn ready_queued_finite_task(
+    store: &AgentSchedulerStore,
+    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+    task_id: Option<&TaskId>,
+) -> Result<Option<StoredAgentTask>> {
+    let workflow = load_dispatch_workflow(store, project_path)?;
+    let graph = load_task_graph(store, project_path)?;
+    let filter = AgentTaskFilter {
+        task_id: task_id.cloned(),
+        status: Some(AgentTaskStatus::Queued),
+        assigned_to: None,
+    };
+    let tasks = store.list_active_tasks(project_path, filter)?;
+    for task in tasks {
+        if task.kind != AgentTaskKind::Finite
+            || !task_lifecycle_allows_dispatch(project_path, &task, &workflow)
+            || !task_graph_allows_dispatch(&graph, &task)?
+        {
+            continue;
+        }
+        return Ok(Some(task));
+    }
+    Ok(None)
+}
+
+fn load_task_graph(
+    store: &AgentSchedulerStore,
+    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+) -> Result<TaskGraph> {
+    let dependencies = store.list_task_dependencies(project_path)?;
+    let task_ids = dependencies
+        .iter()
+        .flat_map(|dependency| [&dependency.predecessor, &dependency.successor])
+        .map(|task_id| task_id.as_str().to_owned())
+        .collect::<BTreeSet<_>>();
+    let tasks = store
+        .list_tasks(project_path, AgentTaskFilter::default())?
+        .into_iter()
+        .filter(|task| task_ids.contains(task.id.as_str()))
+        .map(|task| TaskGraphTaskSnapshot::new(task.id, task.kind, task.status))
+        .collect();
+    TaskGraph::new(tasks, dependencies)
+}
+
+fn task_graph_allows_dispatch(graph: &TaskGraph, task: &StoredAgentTask) -> Result<bool> {
+    if !graph.dependencies().iter().any(|dependency| dependency.successor == task.id) {
+        return Ok(true);
+    }
+    Ok(matches!(graph.readiness_for(&task.id)?, TaskGraphReadiness::Ready))
 }
 
 pub(crate) fn matrix_dispatch_event(

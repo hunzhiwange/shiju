@@ -7,8 +7,12 @@ pub mod child_agent;
 mod child_agent_tests;
 /// 声明 compaction 子模块，保持当前领域的职责拆分清晰。
 pub mod compaction;
+/// 声明临时模型上下文装配器，避免 AGENTS 进入可见聊天记录。
+pub mod context_injection;
 /// 声明 instruction 子模块，保持当前领域的职责拆分清晰。
 pub mod instruction;
+/// 声明 instruction discovery 子模块，集中确定 AGENTS 文件的来源与优先级。
+pub mod instruction_discovery;
 /// 声明 llm 子模块，保持当前领域的职责拆分清晰。
 pub mod llm;
 /// 声明 message 子模块，保持当前领域的职责拆分清晰。

@@ -15,20 +15,122 @@ use super::todo_updates;
 use super::todos;
 use super::tools_exec;
 use super::turn_policy::ChatTurnPolicy;
-use super::types::{Request, StreamEvent, ToolSessionState};
+use super::types::{Request, ResolvedRequestModel, StreamEvent, ToolSessionState};
 use super::utils;
-use crate::app::agent::tools::{ToolRuntimeContext, ToolUseContext};
 use crate::app::agent::config;
+use crate::app::agent::tools::{ToolRuntimeContext, ToolUseContext};
 use crate::session::prompt;
 use crate::session::session::{Message, Role, Session};
 use crate::session::ui_types as models;
 use serde_json::{Value, json};
 use std::collections::HashSet;
+use std::path::PathBuf;
 
 const EMPTY_RESPONSE_ERR: &str = "模型未返回内容";
 const EMPTY_RESPONSE_RETRY_PROMPT: &str =
     "上一步模型输出为空，已自动重试。请继续当前任务并返回非空答复。";
 const EMPTY_RESPONSE_RETRY_LIMIT: usize = 4;
+
+/// Desktop 单轮执行期间的临时协议状态。
+///
+/// 状态只控制 provider 请求的临时消息，不能进入 `Session`，以免 UI 历史出现元提醒。
+#[derive(Default)]
+struct DesktopSessionProtocol {
+    skills: Vec<crate::app::agent::skills::Skill>,
+    skill_state: crate::app::agent::skills::SkillListingSessionState,
+    agent_id: String,
+    context_window_tokens: usize,
+}
+
+impl DesktopSessionProtocol {
+    fn new(
+        skills: Vec<crate::app::agent::skills::Skill>,
+        agent_id: impl Into<String>,
+        context_window_tokens: usize,
+    ) -> Self {
+        Self { skills, agent_id: agent_id.into(), context_window_tokens, ..Self::default() }
+    }
+
+    fn assemble(
+        &mut self,
+        history: &[Value],
+        instructions: &[crate::session::instruction::Resolved],
+        skill_tool_enabled: bool,
+    ) -> Result<Vec<Value>, String> {
+        let invoked_skill_messages = self
+            .skill_state
+            .restore_invoked(&self.agent_id)?
+            .into_iter()
+            .map(|replay| json!({ "role": "user", "content": replay.content }))
+            .collect::<Vec<_>>();
+        let skill_listing = self
+            .skill_state
+            .prepare(&self.agent_id, &self.skills, skill_tool_enabled, self.context_window_tokens)
+            .map(|reminder| json!({ "role": "user", "content": reminder.content }));
+        Ok(llm_messages::assemble_session_protocol_messages(
+            history,
+            instructions,
+            &invoked_skill_messages,
+            skill_listing,
+        ))
+    }
+
+    fn consume_tool_output(
+        &mut self,
+        tool_name: &str,
+        input: &str,
+        output: &tools_exec::ToolProtocolOutput,
+        llm_messages: &mut Vec<Value>,
+    ) {
+        let invoked_skill_registered = self.register_invoked_skill(tool_name, input, output);
+        if invoked_skill_registered {
+            return;
+        }
+        llm_messages.extend(
+            output
+                .extra_messages
+                .iter()
+                .map(|message| json!({ "role": message.role, "content": message.content })),
+        );
+    }
+
+    fn register_invoked_skill(
+        &mut self,
+        tool_name: &str,
+        input: &str,
+        output: &tools_exec::ToolProtocolOutput,
+    ) -> bool {
+        if !tool_name.eq_ignore_ascii_case("skill") || output.extra_messages.is_empty() {
+            return false;
+        }
+        let Some(skill_name) = output.context_updates.iter().find_map(|update| {
+            (update.key == "skill.name").then(|| update.value.as_str()).flatten()
+        }) else {
+            return false;
+        };
+        let Some(skill) = self.skills.iter().find(|skill| skill.name == skill_name) else {
+            tracing::warn!(
+                skill_name,
+                "skill tool result could not be registered for protocol replay"
+            );
+            return false;
+        };
+        let source = skill
+            .location
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("skills").join(&skill.name).join("SKILL.md"));
+        let args = serde_json::from_str::<Value>(input)
+            .ok()
+            .and_then(|value| value.get("args").and_then(Value::as_str).map(ToOwned::to_owned));
+        match crate::app::agent::skills::InvokedSkillRecord::new(skill_name, &source, args) {
+            Ok(record) => self.skill_state.register_invoked(&self.agent_id, record),
+            Err(error) => {
+                tracing::warn!(skill_name, error, "skill tool result could not be registered");
+                false
+            }
+        }
+    }
+}
 
 fn prepare_context_before_llm_step(
     llm_messages: &mut Vec<Value>,
@@ -61,13 +163,107 @@ fn with_request_model_context(
         && !provider.trim().is_empty()
         && !model.trim().is_empty()
     {
-        context = context
-            .with_provider(provider.trim().to_string())
-            .with_model(model.trim().to_string());
+        context =
+            context.with_provider(provider.trim().to_string()).with_model(model.trim().to_string());
     } else {
         context = context.with_model(request_model.to_string());
     }
     context
+}
+
+fn is_auto_model_request(model: Option<&str>) -> bool {
+    model.map(str::trim).is_none_or(|model| model.is_empty() || model.eq_ignore_ascii_case("auto"))
+}
+
+fn request_needs_image_input(req: &Request) -> bool {
+    use crate::app::agent::multimodal::parse_image_markers;
+
+    !parse_image_markers(&req.query).1.is_empty()
+        || req.history.iter().any(|message| !parse_image_markers(&message.content).1.is_empty())
+}
+
+fn resolve_request_model(
+    req: &Request,
+    config: &crate::config::Config,
+) -> Result<ResolvedRequestModel, String> {
+    if is_acp_request(&req.options) {
+        let model = req
+            .options
+            .get("acp_agent")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|model| !model.is_empty())
+            .unwrap_or("acp");
+        return Ok(ResolvedRequestModel::new(
+            format!("acp/{model}"),
+            crate::app::agent::provider::provider::ModelLimit {
+                context: 8192,
+                input: None,
+                output: 4096,
+            },
+        ));
+    }
+
+    let providers = prompt::block_on(crate::app::agent::provider::provider::list());
+    let candidates =
+        providers.values().flat_map(|info| info.models.values()).cloned().collect::<Vec<_>>();
+    let selected = if is_auto_model_request(req.model.as_deref()) {
+        let needs_image_input = request_needs_image_input(req);
+        let agent_key = req.options.get("agent").and_then(Value::as_str).map(str::trim);
+        let soft_preference = agent_key
+            .and_then(|key| config.agents.get(key))
+            .filter(|agent| !agent.provider.trim().is_empty() && !agent.model.trim().is_empty())
+            .map(|agent| crate::session::llm::ModelReference::new(&agent.provider, &agent.model));
+        let candidates_for_selection = candidates
+            .iter()
+            .map(|model| crate::session::llm::ModelCandidate {
+                provider_id: &model.provider_id,
+                model,
+            })
+            .collect::<Vec<_>>();
+        let decision = crate::session::llm::select_auto_model(
+            &crate::session::llm::AutoModelSelectionRequest {
+                message: &req.query,
+                required_context: 0,
+                needs_tools: true,
+                needs_image_input,
+                needs_attachments: needs_image_input,
+                soft_preference,
+                query_classification: config.query_classification.clone(),
+                model_routes: config.model_routes.clone(),
+            },
+            &candidates_for_selection,
+        )
+        .map_err(|error| error.to_string())?;
+        candidates
+            .into_iter()
+            .find(|model| {
+                model.provider_id == decision.model.provider && model.id == decision.model.model
+            })
+            .ok_or_else(|| "Auto 模型选择结果不在 active 候选中".to_string())?
+    } else {
+        let requested = req.model.as_deref().expect("non-auto request has a model").trim();
+        let matches = candidates
+            .into_iter()
+            .filter(|candidate| {
+                if let Some((provider, model)) = requested.split_once('/') {
+                    candidate.provider_id == provider && candidate.id == model
+                } else {
+                    candidate.id == requested
+                }
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [model] => model.clone(),
+            [] => return Err(format!("未找到模型：{requested}")),
+            _ => return Err(format!("模型ID存在歧义：{requested}，请使用 provider/model")),
+        }
+    };
+
+    Ok(ResolvedRequestModel::new(
+        format!("{}/{}", selected.provider_id, selected.id),
+        selected.limit,
+    ))
 }
 
 fn enabled_identity_files_for_agent(
@@ -86,10 +282,22 @@ fn enabled_identity_files_for_agent(
 ///
 /// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
 /// 这里仅将实现迁移至独立文件，方便后续按职责维护。
-pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
     let mut session = Session::new(req.session.clone());
     let is_acp = is_acp_request(&req.options);
+    let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let app_session_scope = req.app_session_scope.as_deref();
+
+    let agent_key = req.options.get("agent").and_then(Value::as_str);
+    let config = prompt::block_on(config::get());
+    let selected_model = match resolve_request_model(&req, &config) {
+        Ok(model) => model,
+        Err(message) => {
+            on_event(StreamEvent::Error(message));
+            return;
+        }
+    };
+    req.model = Some(selected_model.model.clone());
 
     session.messages = req
         .history
@@ -107,8 +315,9 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
 
     let mut tool_use_context = with_request_model_context(
         ToolUseContext::new(req.session.clone(), req.root.clone()),
-        req.model.as_deref(),
-    );
+        selected_model.step_event_model(),
+    )
+    .with_auto_model_selection(model_selected_by_auto);
     if let Some(channel_name) = req.channel_name.clone() {
         tool_use_context = tool_use_context.with_channel(channel_name);
     }
@@ -136,14 +345,24 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
     let allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
+    let skill_workspace = req
+        .root
+        .as_deref()
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let skills = crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
+    let mut session_protocol = DesktopSessionProtocol::new(
+        skills,
+        agent_key.unwrap_or("main"),
+        usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
+    );
 
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
     }
 
-    let agent_key = req.options.get("agent").and_then(Value::as_str);
-    let config = prompt::block_on(config::get());
     let turn_policy = ChatTurnPolicy::from_config(&config, agent_key);
     let trimmed_history_messages =
         context_governance::trim_session_history(&mut session, turn_policy.max_history_messages);
@@ -158,7 +377,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     }
     let enabled_identity_files = enabled_identity_files_for_agent(&config, agent_key);
     let base_system = prompt::system_with_agent_metadata(
-        req.model.as_deref(),
+        selected_model.step_event_model(),
         req.root.as_deref(),
         agent_key,
         &enabled_identity_files,
@@ -228,14 +447,13 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
     let mut total_usage = models::TokenUsage::default();
     let mut tried_auto_complete_todos = false;
     let mut empty_response_retries = 0usize;
-    let model_limit = crate::session::llm::model_limit_for_request(req.model.clone(), &req.options);
+    let model_limit = selected_model.limit.clone();
     let mut observed_input_tokens: Option<i64> = None;
 
     loop {
         let is_last_step = step >= turn_policy.max_tool_iterations;
         let empty_tools = HashSet::<String>::new();
-        let system =
-            base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
+        let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
         let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
 
         let retry_budget = if is_acp {
@@ -274,8 +492,19 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
                 .cloned()
                 .collect::<Vec<_>>()
         };
+        let mut provider_messages = match session_protocol.assemble(
+            &llm_messages,
+            base_system.instruction_context(),
+            tools_for_step.contains("skill"),
+        ) {
+            Ok(messages) => messages,
+            Err(message) => {
+                on_event(StreamEvent::Error(message));
+                return;
+            }
+        };
         let compaction = match prepare_context_before_llm_step(
-            &mut llm_messages,
+            &mut provider_messages,
             &system,
             &tool_specs_for_context,
             &model_limit,
@@ -314,16 +543,16 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         if !on_event(StreamEvent::StepStart {
             step_index,
             created_ms: utils::now_ms(),
-            model: req.model.clone(),
+            model: Some(selected_model.model.clone()),
         }) {
             return;
         }
 
         let step_out = match llm_runner::run_llm_step_with_retry(
             &req.session,
-            &llm_messages,
+            &provider_messages,
             &system,
-            req.model.clone(),
+            Some(selected_model.model.clone()),
             &req.options,
             &available_tool_specs,
             tools_for_step,
@@ -371,7 +600,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             finished_ms: utils::now_ms(),
             usage: step_out.usage.clone(),
             finish_reason: step_out.finish_reason.clone(),
-            model: req.model.clone(),
+            model: Some(selected_model.model.clone()),
         }) {
             return;
         }
@@ -380,7 +609,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
             &req,
             &ctx.session,
             step_index,
-            &llm_messages,
+            &provider_messages,
             &step_out,
             app_session_scope.as_deref(),
         );
@@ -423,6 +652,7 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
                     &mut total_usage,
                     &mut on_event,
                     &mut tool_state,
+                    &mut session_protocol,
                     &step_out,
                     &step_text_preview,
                     is_last_step,
@@ -557,6 +787,7 @@ fn handle_structured_tool_calls(
     total_usage: &mut models::TokenUsage,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     tool_state: &mut ToolSessionState,
+    session_protocol: &mut DesktopSessionProtocol,
     step_out: &llm_runner::LlmStep,
     step_text_preview: &str,
     is_last_step: bool,
@@ -645,7 +876,7 @@ fn handle_structured_tool_calls(
             }
             continue;
         } else {
-            tools_exec::run_tool_and_record(
+            let output = tools_exec::run_tool_and_record_with_protocol(
                 session,
                 &call.name,
                 &call.arguments,
@@ -653,8 +884,18 @@ fn handle_structured_tool_calls(
                 true,
                 on_event,
                 tool_state,
-            )
-            .unwrap_or_default()
+            );
+            if let Some(output) = output {
+                session_protocol.consume_tool_output(
+                    &call.name,
+                    &call.arguments,
+                    &output,
+                    llm_messages,
+                );
+                output.content_for_model
+            } else {
+                String::new()
+            }
         };
         llm_messages.push(utils::tool_result_to_message(&call.id, &content));
         call_index += 1;
@@ -930,30 +1171,22 @@ fn build_image_turn_context_for_request(
     session: &Session,
     config: &crate::config::Config,
 ) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>, String> {
+    use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
     use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
     use crate::app::agent::multimodal::context::ImageTurnContext;
     use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
     use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
-    use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
     use crate::app::agent::providers::ChatMessage;
 
     // OCR itself is routed through the local gateway. Its nested request still
     // contains the image marker, so it must reach the configured vision model
     // without entering this preprocessing path again.
-    if req
-        .options
-        .get(DISABLE_OCR_OPTION)
-        .and_then(Value::as_bool)
-        == Some(true)
-    {
+    if req.options.get(DISABLE_OCR_OPTION).and_then(Value::as_bool) == Some(true) {
         return Ok(None);
     }
 
-    let resume_history_only = req
-        .options
-        .get("desktop_resume_history_only")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let resume_history_only =
+        req.options.get("desktop_resume_history_only").and_then(Value::as_bool).unwrap_or(false);
 
     let history: Vec<ChatMessage> = session
         .messages
@@ -983,8 +1216,9 @@ fn build_image_turn_context_for_request(
         (prior, current)
     };
 
-    let scope = ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
-        .map_err(|error| format!("invalid image asset scope: {error}"))?;
+    let scope =
+        ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
+            .map_err(|error| format!("invalid image asset scope: {error}"))?;
     let store = ImageAssetStore::from_global_paths();
     let extractor = SessionImageTextExtractor::new();
     match prompt::block_on(ImageTurnContext::build(

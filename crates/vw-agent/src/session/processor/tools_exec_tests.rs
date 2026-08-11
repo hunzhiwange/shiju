@@ -1,6 +1,4 @@
-use crate::app::agent::session::processor::{
-    StreamEvent, ToolCallStatus, ToolEventKind,
-};
+use crate::app::agent::session::processor::{StreamEvent, ToolCallStatus, ToolEventKind};
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::{ToolCallError, ToolRuntimeContext, ToolUseContext, todo};
 use crate::app::agent::tools::{ToolCallResult, ToolCallTelemetry, ToolRenderHint};
@@ -73,9 +71,7 @@ fn delta_texts(events: &[StreamEvent]) -> Vec<String> {
         .iter()
         .filter_map(|event| match event {
             StreamEvent::Delta(text) => Some(text.clone()),
-            StreamEvent::Tool(event) => {
-                Some(format!("tool {}\n{}\n", event.name, event.payload))
-            }
+            StreamEvent::Tool(event) => Some(format!("tool {}\n{}\n", event.name, event.payload)),
             _ => None,
         })
         .collect()

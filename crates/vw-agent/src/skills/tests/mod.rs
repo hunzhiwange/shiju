@@ -36,7 +36,7 @@
 //! - [`skills_prompt`] - 技能提示词生成测试
 //! - [`skills_sh_source`] - skills.sh URL 解析测试
 
-mod helpers;
+pub(crate) mod helpers;
 
 mod config_resolution;
 

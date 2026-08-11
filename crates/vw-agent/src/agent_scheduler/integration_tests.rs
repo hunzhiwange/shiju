@@ -41,15 +41,17 @@ use super::store::workers::{
     AgentCapabilityRecord, AgentWorkerFilter, NewAgentWorkerSnapshot,
     UpdateAgentWorkerLifecycleRequest,
 };
+use super::task_graph::AgentTaskDependency;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
 use crate::session::store::SessionStore;
 
-const GLOBAL_SCOPED_TABLES: [&str; 18] = [
+const GLOBAL_SCOPED_TABLES: [&str; 19] = [
     "projects",
     "scheduler_meta",
     "scheduler_tasks",
+    "scheduler_task_dependencies",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -66,12 +68,13 @@ const GLOBAL_SCOPED_TABLES: [&str; 18] = [
     "session_todos",
     "session_agent_sessions",
 ];
-const GLOBAL_APPLICATION_TABLES: [&str; 22] = [
+const GLOBAL_APPLICATION_TABLES: [&str; 23] = [
     "platform",
     "company",
     "projects",
     "scheduler_meta",
     "scheduler_tasks",
+    "scheduler_task_dependencies",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -264,6 +267,17 @@ async fn global_database_enforces_project_and_scheduler_scope_isolation() -> Res
             ],
         )?;
         scheduler.create_task(context, isolation_task(label)?)?;
+        let mut completed_dependency = isolation_task(label)?;
+        completed_dependency.id = TaskId::new("shared-completed-dependency")?;
+        completed_dependency.status = AgentTaskStatus::Completed;
+        scheduler.create_task(context, completed_dependency)?;
+        scheduler.replace_task_dependencies(
+            context,
+            vec![AgentTaskDependency::new(
+                TaskId::new("shared-completed-dependency")?,
+                task_id.clone(),
+            )],
+        )?;
         scheduler.claim_task_run(
             context,
             ClaimTaskRunRequest {
@@ -477,7 +491,8 @@ async fn global_database_enforces_project_and_scheduler_scope_isolation() -> Res
                 ],
                 |row| row.get(0),
             )?;
-            assert_eq!(count, 1, "unexpected scoped row count for {table}");
+            let expected_count = if table == "scheduler_tasks" { 2 } else { 1 };
+            assert_eq!(count, expected_count, "unexpected scoped row count for {table}");
         }
         assert!(
             projects.delete(context.scope().project_scope()).is_err(),
@@ -767,6 +782,131 @@ async fn agent_scheduler_e2e_dispatches_and_completes_finite_task() -> Result<()
         .import_legacy_task(&artifact_root.join("shared/tasks/task-e2e-finite"))?;
     assert_eq!(imported.task.status, AgentTaskStatus::Completed);
     assert_eq!(imported.spec.acceptance_criteria.len(), 3);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn agent_scheduler_task_graph_unlocks_only_after_completed_wake() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path().join("task-graph-dispatch-closure");
+    fs::create_dir_all(&project_path)?;
+
+    let store = AgentSchedulerStore::new();
+    let controller = FakeControllerAdapter::new();
+    let worker_id = WorkerName::new("worker-task-graph-closure")?;
+    let prerequisite_id = TaskId::new("task-graph-prerequisite")?;
+    let successor_id = TaskId::new("task-graph-successor")?;
+    let failed_predecessor_id = TaskId::new("task-graph-failed-predecessor")?;
+    let failed_successor_id = TaskId::new("task-graph-failed-successor")?;
+
+    store.initialize_project(&project_path)?;
+    store.create_task(&project_path, finite_task(&prerequisite_id)?)?;
+    store.create_task(&project_path, finite_task(&successor_id)?)?;
+    let mut failed_predecessor = finite_task(&failed_predecessor_id)?;
+    failed_predecessor.status = AgentTaskStatus::Failed;
+    store.create_task(&project_path, failed_predecessor)?;
+    store.create_task(&project_path, finite_task(&failed_successor_id)?)?;
+    store.replace_task_dependencies(
+        &project_path,
+        vec![
+            AgentTaskDependency::new(prerequisite_id.clone(), successor_id.clone()),
+            AgentTaskDependency::new(failed_predecessor_id, failed_successor_id.clone()),
+        ],
+    )?;
+    store.upsert_worker_snapshot(&project_path, idle_worker(&worker_id)?)?;
+    controller.set_snapshot(WorkerControllerSnapshot {
+        worker_name: worker_id.clone(),
+        desired_state: WorkerLifecycleState::Running,
+        runtime: Some("copaw".to_string()),
+        team_id: Some(TeamId::new("team-e2e")?),
+        worker_role: Some("worker".to_string()),
+        room_id: Some("!worker-task-graph-closure:example.test".to_string()),
+        container_state: Some("ready".to_string()),
+    });
+    let engine = DispatchEngine::new(&store, &controller);
+
+    let first_dispatch = engine
+        .dispatch_once(&project_path, TimestampMs(1_783_002_000_000))
+        .await?
+        .expect("first wake dispatches the prerequisite only");
+    assert_eq!(first_dispatch.task_id, prerequisite_id);
+    assert_eq!(
+        store.load_task(&project_path, &successor_id)?.expect("successor persists").status,
+        AgentTaskStatus::Queued
+    );
+
+    for (status, timestamp_ms) in [
+        (AgentTaskStatus::Acknowledged, TimestampMs(1_783_002_001_000)),
+        (AgentTaskStatus::Running, TimestampMs(1_783_002_002_000)),
+        (AgentTaskStatus::Submitted, TimestampMs(1_783_002_003_000)),
+    ] {
+        store
+            .transition_task_status(&project_path, &prerequisite_id, status, timestamp_ms)?
+            .expect("prerequisite state transition persists");
+    }
+    assert_eq!(
+        engine.dispatch_once(&project_path, TimestampMs(1_783_002_004_000)).await?,
+        None,
+        "submitted prerequisite does not unlock its successor"
+    );
+    assert_eq!(
+        store
+            .load_task(&project_path, &failed_successor_id)?
+            .expect("failed dependency successor persists")
+            .status,
+        AgentTaskStatus::Queued
+    );
+
+    let completed_at_ms = TimestampMs(1_783_002_005_000);
+    store
+        .finish_run(
+            &project_path,
+            &first_dispatch.run_id,
+            AgentRunFinishStatus::Succeeded,
+            completed_at_ms,
+            None,
+        )?
+        .expect("prerequisite run finishes");
+    store
+        .transition_task_status(
+            &project_path,
+            &prerequisite_id,
+            AgentTaskStatus::Completed,
+            completed_at_ms,
+        )?
+        .expect("submitted prerequisite completes");
+
+    let second_dispatch = engine
+        .dispatch_once(&project_path, TimestampMs(1_783_002_006_000))
+        .await?
+        .expect("second explicit wake dispatches the unlocked successor");
+    assert_eq!(second_dispatch.task_id, successor_id);
+    assert!(store.load_run(&project_path, &second_dispatch.run_id)?.is_some());
+    assert_eq!(
+        store.load_task(&project_path, &successor_id)?.expect("successor persists").status,
+        AgentTaskStatus::Dispatched
+    );
+    assert_eq!(
+        store
+            .load_task(&project_path, &failed_successor_id)?
+            .expect("failed dependency successor persists")
+            .status,
+        AgentTaskStatus::Queued
+    );
+    assert_eq!(
+        store
+            .list_events_after(&project_path, None, 10)?
+            .into_iter()
+            .map(|event| event.kind)
+            .collect::<Vec<_>>(),
+        vec![
+            AgentEventKind::WorkerSelected,
+            AgentEventKind::MatrixDispatched,
+            AgentEventKind::WorkerSelected,
+            AgentEventKind::MatrixDispatched,
+        ]
+    );
 
     Ok(())
 }

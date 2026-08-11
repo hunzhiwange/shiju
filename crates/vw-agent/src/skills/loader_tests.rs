@@ -133,3 +133,25 @@ fn markdown_loader_uses_unknown_name_without_directory_component() {
     assert_eq!(skill.description, "Useful description.");
     assert!(skill.prompts.is_empty());
 }
+
+#[test]
+fn markdown_loader_keeps_invocation_metadata_in_metadata_only_mode() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("review");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    let path = skill_dir.join("SKILL.md");
+    std::fs::write(
+        &path,
+        "---\nallowed-tools: Read\ndisable-model-invocation: true\nuser-invocable: false\npaths: src/*.rs\nargument-hint: '[file]'\n---\n# Review\n",
+    )
+    .unwrap();
+
+    let skill = load_skill_md(&path, &skill_dir, SkillLoadMode::MetadataOnly).unwrap();
+
+    assert_eq!(skill.allowed_tools, vec!["Read"]);
+    assert!(skill.disable_model_invocation);
+    assert!(!skill.user_invocable);
+    assert_eq!(skill.paths, vec!["src/*.rs"]);
+    assert_eq!(skill.argument_hint.as_deref(), Some("[file]"));
+    assert!(skill.prompts.is_empty());
+}

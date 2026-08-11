@@ -1,14 +1,24 @@
 //! Desktop Chat 发送模型前的确定性上下文治理。
 
-use crate::session::session::{Role, Session};
 use crate::app::agent::provider::provider::ModelLimit;
+use crate::app::agent::skills::InvokedSkillReplay;
 use crate::app::agent::tools::ToolSpec;
+use crate::session::session::{Role, Session};
 use serde_json::Value;
 
 pub(crate) const RECENT_TOOL_RESULTS_TO_KEEP: usize = 8;
 pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
     "[Earlier tool result cleared to preserve conversation context]";
 pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 90;
+
+const INVOKED_SKILL_SOURCE_FIELD: &str = "vw_invoked_skill_source";
+
+/// 重放技能时恢复的上下文更新，顺序与技能调用顺序一致。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct InvokedSkillContextUpdate {
+    pub(crate) key: String,
+    pub(crate) value: Value,
+}
 
 const ESTIMATED_CHARS_PER_TOKEN: u64 = 4;
 // Image data is encoded as a transport payload, not as text tokens. Counting
@@ -44,10 +54,8 @@ pub(crate) fn should_compact(input_tokens: u64, limit: &ModelLimit) -> bool {
         return input_tokens > 0;
     }
 
-    let threshold = window
-        .saturating_mul(AUTO_COMPACTION_THRESHOLD_PERCENT)
-        .saturating_add(99)
-        / 100;
+    let threshold =
+        window.saturating_mul(AUTO_COMPACTION_THRESHOLD_PERCENT).saturating_add(99) / 100;
     input_tokens >= threshold
 }
 
@@ -99,17 +107,13 @@ fn is_data_image_uri(value: &str) -> bool {
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:image/"))
 }
 
-fn estimate_context_tokens(
-    messages: &[Value],
-    system: &[String],
-    tools: &[ToolSpec],
-) -> u64 {
-    let message_tokens = messages.iter().fold(0_u64, |total, message| {
-        total.saturating_add(estimate_value_tokens(message))
-    });
-    let system_tokens = system.iter().fold(0_u64, |total, prompt| {
-        total.saturating_add(estimate_bytes_as_tokens(prompt.len()))
-    });
+fn estimate_context_tokens(messages: &[Value], system: &[String], tools: &[ToolSpec]) -> u64 {
+    let message_tokens = messages
+        .iter()
+        .fold(0_u64, |total, message| total.saturating_add(estimate_value_tokens(message)));
+    let system_tokens = system
+        .iter()
+        .fold(0_u64, |total, prompt| total.saturating_add(estimate_bytes_as_tokens(prompt.len())));
     let tool_tokens = tools.iter().fold(0_u64, |total, tool| {
         total.saturating_add(estimate_value_tokens(
             &serde_json::to_value(tool).unwrap_or(Value::Null),
@@ -137,6 +141,58 @@ fn message_role(message: &Value) -> Option<&str> {
     message.get("role").and_then(Value::as_str)
 }
 
+/// 在压缩清理后将已调用技能的临时元用户消息放回历史前方。
+///
+/// 该函数按稳定来源标识替换旧注入，因此可以在每次压缩后调用而不会重复注入。
+pub(crate) fn restore_invoked_skill_context(
+    messages: &mut Vec<Value>,
+    replays: &[InvokedSkillReplay],
+) -> Vec<InvokedSkillContextUpdate> {
+    messages.retain(|message| message.get(INVOKED_SKILL_SOURCE_FIELD).is_none());
+
+    let mut restored_messages = replays
+        .iter()
+        .map(|replay| {
+            serde_json::json!({
+                "role": "user",
+                "content": replay.content,
+                INVOKED_SKILL_SOURCE_FIELD: replay.stable_id,
+            })
+        })
+        .collect::<Vec<_>>();
+    restored_messages.append(messages);
+    *messages = restored_messages;
+
+    replays
+        .iter()
+        .flat_map(|replay| {
+            let mut updates = vec![InvokedSkillContextUpdate {
+                key: "skill.name".to_string(),
+                value: Value::String(replay.stable_id.clone()),
+            }];
+            if !replay.allowed_tools.is_empty() {
+                updates.push(InvokedSkillContextUpdate {
+                    key: "skill.allowed_tools".to_string(),
+                    value: serde_json::json!(replay.allowed_tools),
+                });
+            }
+            if let Some(model) = &replay.model {
+                updates.push(InvokedSkillContextUpdate {
+                    key: "skill.model".to_string(),
+                    value: Value::String(model.clone()),
+                });
+            }
+            if let Some(effort) = &replay.effort {
+                updates.push(InvokedSkillContextUpdate {
+                    key: "skill.effort".to_string(),
+                    value: Value::String(effort.clone()),
+                });
+            }
+            updates
+        })
+        .collect()
+}
+
 fn tool_call_ids(message: &Value) -> Vec<String> {
     message
         .get("tool_calls")
@@ -154,10 +210,8 @@ fn tool_call_ids(message: &Value) -> Vec<String> {
 
 /// 按消息组裁剪旧历史，工具调用和对应结果始终一起保留或移除。
 fn trim_llm_history(messages: &mut Vec<Value>, max_non_system_messages: usize) -> usize {
-    let non_system_count = messages
-        .iter()
-        .filter(|message| message_role(message) != Some("system"))
-        .count();
+    let non_system_count =
+        messages.iter().filter(|message| message_role(message) != Some("system")).count();
     let mut remaining_to_remove = non_system_count.saturating_sub(max_non_system_messages);
     if remaining_to_remove == 0 {
         return 0;
@@ -182,9 +236,7 @@ fn trim_llm_history(messages: &mut Vec<Value>, max_non_system_messages: usize) -
                 if consumed[candidate] || message_role(&messages[candidate]) != Some("tool") {
                     continue;
                 }
-                let tool_call_id = messages[candidate]
-                    .get("tool_call_id")
-                    .and_then(Value::as_str);
+                let tool_call_id = messages[candidate].get("tool_call_id").and_then(Value::as_str);
                 if tool_call_id.is_some_and(|id| call_ids.iter().any(|call_id| call_id == id)) {
                     consumed[candidate] = true;
                     group.push(candidate);
@@ -283,10 +335,7 @@ pub(crate) fn trim_session_history(session: &mut Session, max_non_system_message
 }
 
 /// 清理较旧的结构化工具结果内容，但保留协议配对字段和最近结果。
-pub(crate) fn clear_stale_tool_results(
-    messages: &mut [Value],
-    keep_recent: usize,
-) -> usize {
+pub(crate) fn clear_stale_tool_results(messages: &mut [Value], keep_recent: usize) -> usize {
     let tool_result_count = messages
         .iter()
         .filter(|message| message.get("role").and_then(Value::as_str) == Some("tool"))

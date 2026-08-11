@@ -271,7 +271,7 @@ fn run_single_method_is_available_on_agent_type() {
 }
 
 #[tokio::test]
-async fn turn_initializes_system_message_and_enriches_user_message() {
+async fn turn_uses_ephemeral_system_reminder_and_enriches_user_message() {
     let provider = ProviderHandle::with_responses(vec![Ok(text_response("hello"))]);
     let mut agent = default_agent(
         provider.provider(),
@@ -283,14 +283,61 @@ async fn turn_initializes_system_message_and_enriches_user_message() {
     let response = agent.turn("hi").await.expect("turn should succeed");
 
     assert_eq!(response, "hello");
-    assert_eq!(agent.history()[0].role, "system");
-    assert_eq!(agent.history()[1].role, "user");
-    assert_eq!(agent.history()[2].content, "hello");
+    assert_eq!(agent.history()[0].role, "user");
+    assert_eq!(agent.history()[1].content, "hello");
 
     let requests = provider.seen_messages();
     let user = final_user_message(&requests[0]);
     assert!(user.content.contains("[Memory context]\n- tone: concise"));
     assert!(user.content.contains("] hi"));
+}
+
+#[tokio::test]
+async fn agent_and_query_engine_use_ephemeral_agent_context_each_turn() {
+    let provider = ProviderHandle::with_responses(vec![
+        Ok(text_response("first")),
+        Ok(text_response("second")),
+    ]);
+    let mut agent = default_agent(
+        provider.provider(),
+        Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
+    );
+
+    agent.turn("one").await.expect("first turn should succeed");
+    agent.turn("two").await.expect("second turn should succeed");
+
+    let requests = provider.seen_messages();
+    assert_eq!(requests.len(), 2);
+    for request in &requests {
+        assert_eq!(request[0].role, "user");
+        assert!(request[0].content.starts_with("<system-reminder>"));
+    }
+    assert!(agent.history().iter().all(|message| !message.content.contains("<system-reminder>")));
+    assert!(agent.history().iter().all(|message| message.role != "system"));
+}
+
+#[tokio::test]
+async fn agent_and_query_engine_use_ephemeral_stream_context_each_turn() {
+    let provider = ProviderHandle::with_responses(vec![
+        Ok(text_response("first")),
+        Ok(text_response("second")),
+    ]);
+    let mut agent = default_agent(
+        provider.provider(),
+        Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
+    );
+    let (on_delta, _receiver) = tokio::sync::mpsc::channel(128);
+
+    agent
+        .turn_with_stream("one", on_delta.clone())
+        .await
+        .expect("first stream turn should succeed");
+    agent.turn_with_stream("two", on_delta).await.expect("second stream turn should succeed");
+
+    let requests = provider.seen_messages();
+    assert_eq!(requests.len(), 2);
+    assert!(requests.iter().all(|request| request[0].content.starts_with("<system-reminder>")));
+    assert!(agent.history().iter().all(|message| !message.content.contains("<system-reminder>")));
 }
 
 #[tokio::test]
@@ -426,7 +473,7 @@ async fn turn_trims_history_after_success() {
     let response = agent.turn("short history").await.expect("turn should succeed");
 
     assert_eq!(response, "trimmed");
-    assert_eq!(agent.history().iter().filter(|message| message.role == "system").count(), 1);
+    assert_eq!(agent.history().iter().filter(|message| message.role == "system").count(), 0);
     assert_eq!(agent.history().iter().filter(|message| message.role != "system").count(), 1);
     assert_eq!(
         agent.history().last().expect("assistant response should remain").content,

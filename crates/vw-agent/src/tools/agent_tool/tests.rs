@@ -414,6 +414,53 @@ async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn auto_parent_allows_child_auto_selection() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let tool = build_persistent_tool(parent.id, directory, |request| {
+        Box::pin(async move {
+            assert_eq!(request.model, None);
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: "child completed".to_string(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    });
+    let context = Arc::new(
+        ToolUseContext::new("parent", None)
+            .with_provider("token-plan")
+            .with_model("qwen3.7-plus")
+            .with_auto_model_selection(true),
+    );
+
+    let result = scope_tool_use_context(
+        context,
+        tool.execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"})),
+    )
+    .await
+    .expect("child run should complete");
+
+    assert!(result.success);
+}
+
+#[test]
+fn forced_child_request_model_overrides_parent_selection() {
+    let agent = DelegateAgentConfig {
+        provider: "token-plan".to_string(),
+        model: "qwen3.7-plus".to_string(),
+        force_model_selection: true,
+        ..DelegateAgentConfig::default()
+    };
+
+    assert_eq!(
+        AgentTool::model_for_child_request(&agent),
+        Some("token-plan/qwen3.7-plus".to_string())
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn launch_returns_running_before_child_completes_and_wait_observes_completion() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();

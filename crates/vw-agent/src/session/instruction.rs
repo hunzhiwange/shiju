@@ -5,23 +5,39 @@
 
 use crate::app::agent::config;
 use crate::app::agent::flag;
-use crate::app::agent::global;
 use crate::app::agent::project::instance;
+use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::session::message;
-use crate::app::agent::skills::{
-    Skill, SkillLoadMode, load_skills_from_directory, load_skills_with_config,
-    skills_to_prompt_with_mode,
-};
 use crate::app::agent::util::filesystem;
 use crate::app::agent::util::log;
-use regex::Regex;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
+
+#[path = "instruction_cache.rs"]
+mod instruction_cache;
+#[path = "instruction_include.rs"]
+mod instruction_include;
+#[path = "instruction_rules.rs"]
+mod instruction_rules;
+
+#[cfg(test)]
+#[path = "instruction_cache_tests.rs"]
+mod instruction_cache_tests;
+
+#[cfg(test)]
+#[path = "instruction_include_tests.rs"]
+mod instruction_include_tests;
+#[cfg(test)]
+#[path = "instruction_rules_tests.rs"]
+mod instruction_rules_tests;
+
+#[cfg(test)]
+#[path = "claude_protocol_parity_tests.rs"]
+mod claude_protocol_parity_tests;
 
 static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     log::create(Some({
@@ -31,7 +47,6 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-const FILES: [&str; 3] = ["AGENTS.md", "CLAUDE.md", "CONTEXT.md"];
 const WORKSPACE_IDENTITY_FILES: [&str; 8] = [
     "AGENTS.md",
     "SOUL.md",
@@ -47,6 +62,7 @@ const WORKSPACE_IDENTITY_FILES: [&str; 8] = [
 #[derive(Debug, Default)]
 struct State {
     claims: Mutex<HashMap<String, HashSet<String>>>,
+    cache: Mutex<instruction_cache::InstructionCache>,
 }
 
 /// 获取项目实例级别的指令状态工厂。
@@ -64,185 +80,6 @@ fn instance_state()
 /// 将路径规范化为可比较的字符串。
 fn normalize_str(p: impl AsRef<Path>) -> String {
     filesystem::normalize_path(p).to_string_lossy().to_string()
-}
-
-/// 匹配协议文本中的 `SKILL.md` 路径（含反引号包裹与裸路径）。
-static SKILL_MD_PATH_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:`([^`\n]*SKILL\.md)`|((?:\./)?(?:[\w.-]+/)+SKILL\.md))")
-        .expect("skill path regex")
-});
-
-/// 从协议正文提取 `SKILL.md` 路径，去重并保持出现顺序。
-fn extract_skill_md_paths(content: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut seen = HashSet::new();
-    for caps in SKILL_MD_PATH_RE.captures_iter(content) {
-        let Some(path) = caps.get(1).or_else(|| caps.get(2)).map(|m| m.as_str().trim()) else {
-            continue;
-        };
-        if path.is_empty() || !seen.insert(path.to_string()) {
-            continue;
-        }
-        out.push(path.to_string());
-    }
-    out
-}
-
-fn is_skill_name_character(character: char) -> bool {
-    character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.' | ':' | '/' | '@')
-}
-
-/// 判断协议正文是否包含边界完整、大小写不敏感的技能名称。
-fn mentions_skill_name(content: &str, name: &str) -> bool {
-    let content = content.to_ascii_lowercase();
-    let name = name.trim().to_ascii_lowercase();
-    if name.is_empty() {
-        return false;
-    }
-
-    content.match_indices(&name).any(|(start, _)| {
-        let end = start + name.len();
-        let before = content[..start].chars().next_back();
-        let after = content[end..].chars().next();
-        before.is_none_or(|character| !is_skill_name_character(character))
-            && after.is_none_or(|character| !is_skill_name_character(character))
-    })
-}
-
-fn canonical_skill_directory(skill: &Skill) -> Option<PathBuf> {
-    skill
-        .location
-        .as_deref()
-        .and_then(Path::parent)
-        .and_then(|directory| std::fs::canonicalize(directory).ok())
-}
-
-fn load_full_skill_directory(directory: &Path, config: &config::Config) -> Option<Skill> {
-    let source_directory = directory.parent()?;
-    load_skills_from_directory(
-        source_directory,
-        SkillLoadMode::Full,
-        &config.skills.security,
-    )
-    .into_iter()
-    .find(|skill| canonical_skill_directory(skill).as_deref() == Some(directory))
-}
-
-/// 将协议中的技能引用展开为已预加载指令或待读取的绝对路径。
-fn format_required_skills_block(
-    project_root: &Path,
-    content: &str,
-    config: &config::Config,
-) -> String {
-    let paths = extract_skill_md_paths(content);
-    let canonical_root = std::fs::canonicalize(project_root).ok();
-    let mut discovery_config = config.clone();
-    discovery_config.skills.prompt_injection_mode = config::SkillsPromptInjectionMode::Compact;
-    let discovered_skills = load_skills_with_config(project_root, &discovery_config);
-    let mut loaded_skills = Vec::new();
-    let mut loaded_directories = HashSet::new();
-    let mut loaded_names = HashSet::new();
-    let mut unresolved_paths = Vec::new();
-
-    for path in paths {
-        let absolute_path = if Path::new(&path).is_absolute() {
-            PathBuf::from(&path)
-        } else {
-            project_root.join(path.trim_start_matches("./"))
-        };
-        let rendered_path = normalize_str(&absolute_path);
-
-        let Some((canonical_root, canonical_file)) =
-            canonical_root.as_ref().zip(std::fs::canonicalize(&absolute_path).ok())
-        else {
-            unresolved_paths.push(rendered_path);
-            continue;
-        };
-        if !canonical_file.starts_with(canonical_root) || !canonical_file.is_file() {
-            unresolved_paths.push(rendered_path);
-            continue;
-        }
-
-        let Some(skill_directory) = canonical_file.parent().map(Path::to_path_buf) else {
-            unresolved_paths.push(rendered_path);
-            continue;
-        };
-        if loaded_directories.contains(&skill_directory) {
-            continue;
-        }
-        let selected = load_full_skill_directory(&skill_directory, config);
-
-        if let Some(skill) = selected {
-            loaded_directories.insert(skill_directory);
-            loaded_names.insert(skill.name.to_ascii_lowercase());
-            loaded_skills.push(skill);
-        } else {
-            unresolved_paths.push(rendered_path);
-        }
-    }
-
-    for skill in discovered_skills {
-        if !mentions_skill_name(content, &skill.name) {
-            continue;
-        }
-        let normalized_name = skill.name.to_ascii_lowercase();
-        if loaded_names.contains(&normalized_name) {
-            continue;
-        }
-        let Some(directory) = canonical_skill_directory(&skill) else {
-            continue;
-        };
-        if loaded_directories.contains(&directory) {
-            continue;
-        }
-        if let Some(skill) = load_full_skill_directory(&directory, config) {
-            loaded_names.insert(normalized_name);
-            loaded_directories.insert(directory);
-            loaded_skills.push(skill);
-        } else if let Some(location) = skill.location {
-            unresolved_paths.push(normalize_str(location));
-        }
-    }
-
-    if loaded_skills.is_empty() && unresolved_paths.is_empty() {
-        return String::new();
-    }
-
-    let mut block = String::from("\n\n<required_skills>\n");
-    if !loaded_skills.is_empty() {
-        block.push_str("<preloaded_skill_instructions>\n");
-        block.push_str(&skills_to_prompt_with_mode(
-            &loaded_skills,
-            project_root,
-            config::SkillsPromptInjectionMode::Full,
-        ));
-        block.push_str("\n</preloaded_skill_instructions>\n");
-    }
-    if !unresolved_paths.is_empty() {
-        block.push_str("<unresolved_skill_paths>\n");
-        for path in unresolved_paths {
-            let _ = writeln!(block, "{path}");
-        }
-        block.push_str("</unresolved_skill_paths>\n");
-    }
-    block.push_str("</required_skills>");
-    block
-}
-
-/// 返回全局指令文件候选路径。
-///
-/// 候选顺序体现优先级：显式配置目录优先，其次全局配置目录，最后兼容 Claude Code
-/// 的用户级 `CLAUDE.md`。
-fn global_files() -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    if let Some(dir) = flag::vibewindow_config_dir() {
-        files.push(PathBuf::from(dir).join("AGENTS.md"));
-    }
-    files.push(global::paths().config.join("AGENTS.md"));
-    if !*flag::VIBEWINDOW_DISABLE_CLAUDE_CODE_PROMPT {
-        files.push(global::paths().home.join(".claude").join("CLAUDE.md"));
-    }
-    files
 }
 
 /// 向上解析相对指令文件名。
@@ -294,42 +131,35 @@ pub async fn clear(message_id: &str) {
     let state = instance_state()().await;
     let mut claims = state.claims.lock().await;
     claims.remove(message_id);
+    drop(claims);
+    state
+        .cache
+        .lock()
+        .await
+        .clear_session(&filesystem::normalize_path(instance::directory()), message_id);
+}
+
+/// 让压缩后的会话在下次访问时重新读取所有已解析的指令。
+pub async fn reload_after_compaction(message_id: &str) {
+    let state = instance_state()().await;
+    state.claims.lock().await.remove(message_id);
+    state
+        .cache
+        .lock()
+        .await
+        .invalidate_for_compaction(&filesystem::normalize_path(instance::directory()), message_id);
 }
 
 /// 查找当前系统级指令文件路径集合。
 ///
-/// 返回规范化后的路径集合。项目内指令会按 `AGENTS.md`、`CLAUDE.md`、`CONTEXT.md`
-/// 顺序选中第一类存在的文件；全局指令同样只取优先级最高的存在文件。
+/// 返回所有 AGENTS 来源的规范化路径集合。
 pub async fn system_paths() -> HashSet<String> {
     let _cfg = config::get().await;
-    let mut paths = HashSet::<String>::new();
-
-    if !flag::vibewindow_disable_project_config() {
-        let start = PathBuf::from(instance::directory());
-        let stop = {
-            let wt = instance::worktree();
-            if wt.is_empty() { None } else { Some(PathBuf::from(wt)) }
-        };
-
-        for file in FILES {
-            let matches = filesystem::find_up(file, start.clone(), stop.clone()).await;
-            if !matches.is_empty() {
-                for p in matches {
-                    paths.insert(normalize_str(p));
-                }
-                break;
-            }
-        }
-    }
-
-    for file in global_files() {
-        if filesystem::exists(&file) {
-            paths.insert(normalize_str(file));
-            break;
-        }
-    }
-
-    paths
+    crate::session::instruction_discovery::system_sources()
+        .into_iter()
+        .filter(|source| source.kind != crate::session::instruction_discovery::SourceKind::Rule)
+        .map(|source| normalize_str(source.filepath))
+        .collect()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -366,19 +196,17 @@ async fn fetch_url(url: &str) -> String {
 /// 返回每个非空指令文件的路径与可注入文本。读取失败按空内容处理，使缺失或临时
 /// 不可读的指令文件不会中断会话创建。
 pub async fn system_resolved() -> Vec<Resolved> {
-    let _cfg = config::get().await;
-    let paths = system_paths().await;
-
+    let config = config::get().await;
+    let workspace = filesystem::normalize_path(instance::directory());
+    let policy = instruction_policy(&config, &workspace);
     let mut out = Vec::new();
-    for p in paths {
-        let content = std::fs::read_to_string(&p).unwrap_or_default();
-        if content.trim().is_empty() {
+    for source in crate::session::instruction_discovery::system_sources() {
+        if source.kind == crate::session::instruction_discovery::SourceKind::Rule {
             continue;
         }
-        out.push(Resolved {
-            filepath: p.clone(),
-            content: format!("Instructions from: {}\n{}", p, content),
-        });
+        if let Some(resolved) = resolved_file(&source.filepath, &policy, Vec::new()) {
+            out.push(resolved);
+        }
     }
 
     out
@@ -394,9 +222,9 @@ pub async fn system() -> Vec<String> {
 /// 读取当前请求所选项目根目录下的 `AGENTS.md`。
 ///
 /// 该来源独立于系统/全局指令发现：调用方可将项目协议追加到系统提示词，同时只把
-/// 此路径暴露给界面。若正文提到项目内的 `SKILL.md`，会通过现有安全审计加载完整
-/// 指令；无法安全加载的引用保留为绝对路径，交给模型显式读取或报告。项目配置被
-/// 禁用、根目录为空、文件缺失或内容为空时返回 `None`。
+/// 此路径暴露给界面。AGENTS 正文不会触发技能名称或路径猜测，技能仅由独立的
+/// Skill Tool 链路按需加载。项目配置被禁用、根目录为空、文件缺失或内容为空时返回
+/// `None`。
 pub async fn project_agents(root: Option<&str>) -> Option<Resolved> {
     if flag::vibewindow_disable_project_config() || root.is_none_or(|root| root.trim().is_empty()) {
         return None;
@@ -418,16 +246,8 @@ async fn project_agents_with_config(
     if !filesystem::exists(&filepath) {
         return None;
     }
-    let filepath = normalize_str(filepath);
-    let content = std::fs::read_to_string(&filepath).unwrap_or_default();
-    if content.trim().is_empty() {
-        return None;
-    }
-    let skills_block = format_required_skills_block(&root_path, &content, config);
-    Some(Resolved {
-        filepath: filepath.clone(),
-        content: format!("Instructions from: {}\n{}{}", filepath, content, skills_block),
-    })
+    let policy = instruction_policy(config, &root_path);
+    resolved_file(&filepath, &policy, Vec::new())
 }
 
 /// 返回指定委托代理的身份工作区根目录。
@@ -446,10 +266,9 @@ pub fn agent_workspace_root(agent_key: Option<&str>) -> Option<PathBuf> {
         }
     }
 
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .map(|home| vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}")))
+    std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).map(
+        |home| vw_config_types::paths::home_config_dir(home).join(format!("workspace{suffix}")),
+    )
 }
 
 /// 读取指定委托代理工作区中已启用、实际存在且非空的身份文件。
@@ -477,6 +296,8 @@ pub fn agent_workspace_identity(
             Some(Resolved {
                 filepath: filepath.clone(),
                 content: format!("Instructions from: {}\n{}", filepath, content),
+                sources: vec![InstructionSource { filepath, parent: None, conditions: Vec::new() }],
+                diagnostics: Vec::new(),
             })
         })
         .collect()
@@ -511,26 +332,68 @@ pub fn loaded(messages: &[message::WithParts]) -> HashSet<String> {
     paths
 }
 
-/// 在指定目录查找第一份支持的指令文件。
+/// 在指定目录查找优先级最高的 AGENTS 指令文件。
 ///
 /// 返回规范化路径；如果目录下没有支持的文件，返回 `None`。
 pub async fn find(dir: &str) -> Option<String> {
-    for file in FILES {
-        let filepath = PathBuf::from(dir).join(file);
-        if filesystem::exists(&filepath) {
-            return Some(normalize_str(filepath));
-        }
-    }
-    None
+    crate::session::instruction_discovery::directory_sources(Path::new(dir))
+        .into_iter()
+        .next()
+        .map(|source| normalize_str(source.filepath))
 }
 
 /// 已解析出的附加指令文件。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolved {
     /// 指令文件的规范化路径。
     pub filepath: String,
     /// 带来源头的指令内容。
     pub content: String,
+    /// 展开后参与该指令的文件来源及父子关系。
+    pub sources: Vec<InstructionSource>,
+    /// 未授权、缺失或循环包含等明确诊断。
+    pub diagnostics: Vec<String>,
+}
+
+/// 展开后单个指令文本的来源和激活条件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstructionSource {
+    /// 规范化后的来源文件路径。
+    pub filepath: String,
+    /// 包含该文件的父文件；根来源为 `None`。
+    pub parent: Option<String>,
+    /// 激活该来源所需的路径条件。
+    pub conditions: Vec<String>,
+}
+
+fn instruction_policy(config: &config::Config, workspace: &Path) -> SecurityPolicy {
+    SecurityPolicy::from_configs(&config.autonomy, &config.security, workspace)
+}
+
+fn resolved_file(
+    filepath: &Path,
+    policy: &SecurityPolicy,
+    conditions: Vec<String>,
+) -> Option<Resolved> {
+    let expanded = instruction_include::expand(filepath, policy);
+    if expanded.content.trim().is_empty() {
+        return None;
+    }
+    let filepath = normalize_str(filepath);
+    Some(Resolved {
+        filepath: filepath.clone(),
+        content: format!("Instructions from: {}\n{}", filepath, expanded.content),
+        sources: expanded
+            .sources
+            .into_iter()
+            .map(|source| InstructionSource {
+                filepath: source.filepath,
+                parent: source.parent,
+                conditions: conditions.clone(),
+            })
+            .collect(),
+        diagnostics: expanded.diagnostics,
+    })
 }
 
 /// 解析目标文件上级目录中的附加指令。
@@ -548,34 +411,58 @@ pub async fn resolve(
     let mut results: Vec<Resolved> = Vec::new();
 
     let target = normalize_str(filepath);
+    let root = filesystem::normalize_path(instance::directory());
+    let config = config::get().await;
+    let policy = instruction_policy(&config, &root);
     let mut current = PathBuf::from(&target)
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| PathBuf::from(&target));
-    let root = filesystem::normalize_path(instance::directory());
 
-    while current.starts_with(&root) && current != root {
-        let Some(found) = find(&current.to_string_lossy().to_string()).await else {
-            current = current.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| root.clone());
-            continue;
-        };
-
-        if found != target
-            && !system.contains(&found)
-            && !already.contains(&found)
-            && !is_claimed(message_id, &found).await
-        {
-            // claim 必须在读取前完成，防止并发解析同一消息时重复注入相同指令。
-            claim(message_id, &found).await;
-            let content = std::fs::read_to_string(&found).unwrap_or_default();
-            if !content.trim().is_empty() {
-                results.push(Resolved {
-                    filepath: found.clone(),
-                    content: format!("Instructions from: {}\n{}", found, content),
-                });
+    while current.starts_with(&root) {
+        for source in crate::session::instruction_discovery::directory_sources(&current) {
+            let found = normalize_str(&source.filepath);
+            if found != target
+                && !system.contains(&found)
+                && !already.contains(&found)
+                && !is_claimed(message_id, &found).await
+            {
+                // claim 必须在读取前完成，防止并发解析同一消息时重复注入相同指令。
+                claim(message_id, &found).await;
+                if source.kind == crate::session::instruction_discovery::SourceKind::Rule {
+                    let Some(rule) = instruction_rules::load_if_matches(
+                        &source.filepath,
+                        &root,
+                        Path::new(&target),
+                    ) else {
+                        continue;
+                    };
+                    results.push(Resolved {
+                        filepath: found.clone(),
+                        content: format!("Instructions from: {}\n{}", found, rule.content),
+                        sources: vec![InstructionSource {
+                            filepath: found.clone(),
+                            parent: None,
+                            conditions: rule.conditions,
+                        }],
+                        diagnostics: Vec::new(),
+                    });
+                } else {
+                    let state = instance_state()().await;
+                    let mut cache = state.cache.lock().await;
+                    let (resolved, _) = cache.load(&root, message_id, &source.filepath, || {
+                        resolved_file(&source.filepath, &policy, Vec::new())
+                    });
+                    if let Some(resolved) = resolved {
+                        results.push(resolved);
+                    }
+                }
             }
         }
 
+        if current == root {
+            break;
+        }
         current = current.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| root.clone());
     }
 

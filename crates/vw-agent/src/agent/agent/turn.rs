@@ -39,11 +39,6 @@ impl Agent {
     /// # Ok::<(), anyhow::Error>(())
     /// ```
     pub async fn turn(&mut self, user_message: &str) -> Result<String> {
-        if self.history.is_empty() {
-            let system_prompt = self.build_system_prompt()?;
-            self.history.push(ChatMessage::system(system_prompt));
-        }
-
         if self.auto_save {
             let _ = self
                 .memory
@@ -107,11 +102,15 @@ impl Agent {
 
         self.history.push(ChatMessage::user(enriched));
 
-        let effective_model = self.classify_model(user_message);
+        let effective_model = self.classify_model(user_message).await?;
+        let persistent_len = self.history.len();
+        let mut request_history = self.ephemeral_request_history()?;
+        let transient_len = request_history.len();
+        request_history.extend(self.history.iter().cloned());
 
         let final_response = run_tool_call_loop(
             self.provider.as_ref(),
-            &mut self.history,
+            &mut request_history,
             &self.tools,
             self.observer.as_ref(),
             "agent",
@@ -129,6 +128,8 @@ impl Agent {
             &[],
         )
         .await?;
+
+        self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
 
         self.trim_history();
 
@@ -173,11 +174,6 @@ impl Agent {
         user_message: &str,
         on_delta: tokio::sync::mpsc::Sender<String>,
     ) -> Result<String> {
-        if self.history.is_empty() {
-            let system_prompt = self.build_system_prompt()?;
-            self.history.push(ChatMessage::system(system_prompt));
-        }
-
         if self.auto_save {
             let _ = self
                 .memory
@@ -241,11 +237,15 @@ impl Agent {
 
         self.history.push(ChatMessage::user(enriched));
 
-        let effective_model = self.classify_model(user_message);
+        let effective_model = self.classify_model(user_message).await?;
+        let persistent_len = self.history.len();
+        let mut request_history = self.ephemeral_request_history()?;
+        let transient_len = request_history.len();
+        request_history.extend(self.history.iter().cloned());
 
         let final_response = run_tool_call_loop(
             self.provider.as_ref(),
-            &mut self.history,
+            &mut request_history,
             &self.tools,
             self.observer.as_ref(),
             "agent",
@@ -264,8 +264,17 @@ impl Agent {
         )
         .await?;
 
+        self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
+
         self.trim_history();
 
         Ok(final_response)
+    }
+
+    fn ephemeral_request_history(&self) -> Result<Vec<ChatMessage>> {
+        let protocol = self.build_system_prompt()?;
+        Ok(vec![ChatMessage::user(format!(
+            "<system-reminder>\n{protocol}\n</system-reminder>"
+        ))])
     }
 }

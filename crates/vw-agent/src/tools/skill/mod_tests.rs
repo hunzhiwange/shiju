@@ -16,16 +16,18 @@ fn skill(name: &str, location: Option<PathBuf>, prompts: Vec<&str>) -> Skill {
         tools: Vec::new(),
         prompts: prompts.into_iter().map(ToOwned::to_owned).collect(),
         location,
+        ..Skill::default()
     }
 }
 
 #[test]
-fn schema_requires_name_string() {
+fn schema_requires_skill_string() {
     let schema = SkillTool::schema();
 
     assert_eq!(schema["type"], "object");
-    assert_eq!(schema["properties"]["name"]["type"], "string");
-    assert_eq!(schema["required"], json!(["name"]));
+    assert_eq!(schema["properties"]["skill"]["type"], "string");
+    assert_eq!(schema["properties"]["args"]["type"], "string");
+    assert_eq!(schema["required"], json!(["skill"]));
 }
 
 #[test]
@@ -92,7 +94,7 @@ fn skill_prompt_content_trims_empties_and_uses_fallback() {
     assert!(with_prompts.starts_with("<skill_execution_policy>"));
     assert!(with_prompts.contains("不得静默跳过、合并、替代或虚构任何步骤"));
     assert!(with_prompts.contains("如果任一步骤无法执行，必须立即停止"));
-    assert!(with_prompts.ends_with("first\n\nsecond"));
+    assert!(with_prompts.ends_with(" first \n\n\nsecond\n"));
 
     let empty = skill_prompt_content(&empty);
     assert!(empty.starts_with("<skill_execution_policy>"));
@@ -115,12 +117,12 @@ fn file_urls_are_absolute_and_directory_urls_have_trailing_slash() {
 }
 
 #[test]
-fn args_require_a_string_name() {
-    let args: Args = serde_json::from_value(json!({"name": "review"})).unwrap();
-    assert_eq!(args.name, "review");
+fn args_require_a_string_skill() {
+    let args: Args = serde_json::from_value(json!({"skill": "review"})).unwrap();
+    assert_eq!(args.skill, "review");
 
     assert!(serde_json::from_value::<Args>(json!({})).is_err());
-    assert!(serde_json::from_value::<Args>(json!({"name": 7})).is_err());
+    assert!(serde_json::from_value::<Args>(json!({"skill": 7})).is_err());
 }
 
 #[test]

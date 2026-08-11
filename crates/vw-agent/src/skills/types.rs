@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use std::path::PathBuf;
 
 /// 默认预加载技能源列表
@@ -172,6 +173,85 @@ pub struct Skill {
     /// 技能文件在本地文件系统的路径（运行时设置，不参与序列化）
     #[serde(skip)]
     pub location: Option<PathBuf>,
+
+    /// 描述模型应在何时考虑调用该技能。
+    #[serde(default)]
+    pub when_to_use: Option<String>,
+
+    /// 技能调用期间允许使用的工具名称。
+    #[serde(default)]
+    pub allowed_tools: Vec<String>,
+
+    /// 技能请求使用的模型覆盖。
+    #[serde(default)]
+    pub model: Option<String>,
+
+    /// 是否禁止模型自动调用，只允许用户显式调用。
+    #[serde(default)]
+    pub disable_model_invocation: bool,
+
+    /// 是否允许用户通过技能选择器显式调用。
+    #[serde(default = "default_user_invocable")]
+    pub user_invocable: bool,
+
+    /// 技能生命周期钩子定义，保留原始结构供调用层处理。
+    #[serde(default)]
+    pub hooks: Option<serde_json::Value>,
+
+    /// 调用后应采用的上下文策略。
+    #[serde(default)]
+    pub context: Option<String>,
+
+    /// 仅对匹配这些相对路径的文件生效；空列表表示无路径限制。
+    #[serde(default)]
+    pub paths: Vec<String>,
+
+    /// 技能请求的推理强度覆盖。
+    #[serde(default)]
+    pub effort: Option<String>,
+
+    /// 用户显式调用技能时展示的参数提示。
+    #[serde(default)]
+    pub argument_hint: Option<String>,
+}
+
+impl Skill {
+    /// 返回技能是否适用于给定的工作区相对路径。
+    pub fn applies_to_path(&self, path: &Path) -> bool {
+        self.paths.is_empty()
+            || self.paths.iter().any(|pattern| {
+                glob::Pattern::new(pattern).is_ok_and(|pattern| pattern.matches_path(path))
+            })
+    }
+}
+
+impl Default for Skill {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            version: default_version(),
+            author: None,
+            tags: Vec::new(),
+            tools: Vec::new(),
+            prompts: Vec::new(),
+            location: None,
+            when_to_use: None,
+            allowed_tools: Vec::new(),
+            model: None,
+            disable_model_invocation: false,
+            user_invocable: default_user_invocable(),
+            hooks: None,
+            context: None,
+            paths: Vec::new(),
+            effort: None,
+            argument_hint: None,
+        }
+    }
+}
+
+fn default_user_invocable() -> bool {
+    true
 }
 
 /// 技能工具定义

@@ -4,14 +4,11 @@ use std::thread;
 
 use serde_json::json;
 use vw_gateway_client::{
-    SkillMarketCoordinateDto, SkillMarketSkillLocatorDto, SkillMarketSkillQuery,
-    SkillMarketSort,
+    SkillMarketCoordinateDto, SkillMarketSkillLocatorDto, SkillMarketSkillQuery, SkillMarketSort,
 };
 
 use super::provider::{SkillMarketProvider, SkillMarketProviderError};
-use super::skillhub::{
-    SkillHubProvider, skill_artifact_redirect_url, skill_file_redirect_url,
-};
+use super::skillhub::{SkillHubProvider, skill_artifact_redirect_url, skill_file_redirect_url};
 
 struct FixtureResponse {
     status: &'static str,
@@ -21,32 +18,19 @@ struct FixtureResponse {
 
 impl FixtureResponse {
     fn json(body: serde_json::Value) -> Self {
-        Self {
-            status: "200 OK",
-            content_type: "application/json",
-            body: body.to_string(),
-        }
+        Self { status: "200 OK", content_type: "application/json", body: body.to_string() }
     }
 
     fn raw(status: &'static str, content_type: &'static str, body: &str) -> Self {
-        Self {
-            status,
-            content_type,
-            body: body.to_string(),
-        }
+        Self { status, content_type, body: body.to_string() }
     }
 }
 
-fn fixture_sequence(
-    responses: Vec<FixtureResponse>,
-) -> (String, thread::JoinHandle<Vec<String>>) {
+fn fixture_sequence(responses: Vec<FixtureResponse>) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SkillHub fixture");
     let address = listener.local_addr().expect("read SkillHub fixture address");
     let handle = thread::spawn(move || {
-        responses
-            .into_iter()
-            .map(|response| respond(&listener, response))
-            .collect()
+        responses.into_iter().map(|response| respond(&listener, response)).collect()
     });
     (format!("http://{address}"), handle)
 }
@@ -94,10 +78,7 @@ fn skillhub_file_redirect_accepts_only_the_trusted_https_object_path() {
         "https://skillhub-1388575217.cos.accelerate.myqcloud.com/skills/demo/1.2.3/files/SKILL.md",
         "https://skillhub-1388575217.cos.accelerate.myqcloud.com/orgs/org-bv6b8qcb/tencent-docs/1.0.41/files/SKILL.md",
     ] {
-        assert_eq!(
-            skill_file_redirect_url(trusted).expect("trusted redirect").as_str(),
-            trusted
-        );
+        assert_eq!(skill_file_redirect_url(trusted).expect("trusted redirect").as_str(), trusted);
     }
 
     for untrusted in [
@@ -119,9 +100,7 @@ fn skillhub_artifact_redirect_accepts_only_the_trusted_https_zip_path() {
         "https://skillhub-1388575217.cos.accelerate.myqcloud.com/skills/11288/tencent-docs/1.0.41.zip",
     ] {
         assert_eq!(
-            skill_artifact_redirect_url(trusted)
-                .expect("trusted redirect")
-                .as_str(),
+            skill_artifact_redirect_url(trusted).expect("trusted redirect").as_str(),
             trusted
         );
     }
@@ -348,9 +327,11 @@ async fn skillhub_provider_encodes_queries_and_namespace() {
     assert!(requests[3].starts_with(
         "GET /api/v1/skills/slug%2Fwith%20+%20%E4%B8%AD%E6%96%87/file?path=SKILL.md&version=1.2.3&namespace=team%2Fname+%2B+%E4%B8%AD%E6%96%87 HTTP/1.1\r\n"
     ));
-    assert!(requests[4].starts_with(
-        "GET /api/v1/skillsets/suite%2Fwith%20+%20%E4%B8%AD%E6%96%87 HTTP/1.1\r\n"
-    ));
+    assert!(
+        requests[4].starts_with(
+            "GET /api/v1/skillsets/suite%2Fwith%20+%20%E4%B8%AD%E6%96%87 HTTP/1.1\r\n"
+        )
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -392,9 +373,7 @@ async fn skillhub_provider_routes_canonical_coordinate_to_artifact_contract() {
     assert!(requests[1].starts_with(
         "GET /api/v1/open/skills/fixture-skill/versions/1.2.3/signature?namespace=fixture HTTP/1.1\r\n"
     ));
-    assert!(
-        requests[2].starts_with("GET /api/v1/open/platform/keys HTTP/1.1\r\n")
-    );
+    assert!(requests[2].starts_with("GET /api/v1/open/platform/keys HTTP/1.1\r\n"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -450,28 +429,21 @@ async fn skillhub_provider_resolves_skillset_and_member_artifacts() {
     ]);
     let provider = provider(&base_url);
 
-    let artifact = provider
-        .skill_set_artifact("skillhub", "fixture-suite")
-        .await
-        .expect("skill-set artifact");
+    let artifact =
+        provider.skill_set_artifact("skillhub", "fixture-suite").await.expect("skill-set artifact");
 
     assert_eq!(artifact.slug, "fixture-suite");
     assert_eq!(artifact.archive, b"fixture-suite-zip");
     assert_eq!(artifact.members.len(), 1);
     assert_eq!(artifact.members[0].coordinate.version, "1.2.3");
-    assert_eq!(
-        artifact.members[0].coordinate.locator.namespace,
-        "fixture"
-    );
+    assert_eq!(artifact.members[0].coordinate.locator.namespace, "fixture");
     assert_eq!(artifact.members[0].artifact.archive, b"fixture-member-zip");
     let requests = requests.join().expect("join SkillHub fixture");
-    assert!(requests[0]
-        .starts_with("GET /api/v1/skillsets/fixture-suite HTTP/1.1\r\n"));
-    assert!(requests[1]
-        .starts_with("GET /api/v1/skillsets/fixture-suite/download HTTP/1.1\r\n"));
-    assert!(requests[2].starts_with(
-        "GET /api/v1/skills/fixture-skill?namespace=fixture HTTP/1.1\r\n"
-    ));
+    assert!(requests[0].starts_with("GET /api/v1/skillsets/fixture-suite HTTP/1.1\r\n"));
+    assert!(requests[1].starts_with("GET /api/v1/skillsets/fixture-suite/download HTTP/1.1\r\n"));
+    assert!(
+        requests[2].starts_with("GET /api/v1/skills/fixture-skill?namespace=fixture HTTP/1.1\r\n")
+    );
     assert!(requests[3].starts_with(
         "GET /api/v1/download?slug=fixture-skill&version=1.2.3&namespace=fixture HTTP/1.1\r\n"
     ));

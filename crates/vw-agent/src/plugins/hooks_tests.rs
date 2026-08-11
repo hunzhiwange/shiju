@@ -16,6 +16,7 @@ fn plugin_hook_events_and_modes_export_stable_names() {
     assert_eq!(PluginHookEvent::AfterToolCall.as_str(), "after_tool_call");
     assert_eq!(PluginHookEvent::BeforeLlmCall.as_str(), "before_llm_call");
     assert_eq!(PluginHookEvent::UserPromptSubmit.as_str(), "user_prompt_submit");
+    assert_eq!(PluginHookEvent::InstructionsLoaded.as_str(), "instructions_loaded");
     assert_eq!(PluginHookMode::Blocking.as_str(), "blocking");
 }
 
@@ -41,7 +42,8 @@ fn plugin_hooks_parse_supported_events() {
                 },
                 { "event": "after_tool_call", "command": "audit-tool" },
                 { "event": "before_llm_call", "command": "prompt-audit" },
-                { "event": "user_prompt_submit", "command": "prompt-submit" }
+                { "event": "user_prompt_submit", "command": "prompt-submit" },
+                { "event": "instructions_loaded", "command": "instructions-audit" }
             ]
         }),
     );
@@ -50,11 +52,12 @@ fn plugin_hooks_parse_supported_events() {
         load_plugin_hooks_manifest(&hooks_path, &plugin_root, &workspace_dir).expect("hooks parse");
 
     println!("plugin hooks events: {:?}", hooks.iter().map(|hook| hook.event).collect::<Vec<_>>());
-    assert_eq!(hooks.len(), 4);
+    assert_eq!(hooks.len(), 5);
     assert_eq!(hooks[0].event, PluginHookEvent::BeforeToolCall);
     assert_eq!(hooks[1].event, PluginHookEvent::AfterToolCall);
     assert_eq!(hooks[2].event, PluginHookEvent::BeforeLlmCall);
     assert_eq!(hooks[3].event, PluginHookEvent::UserPromptSubmit);
+    assert_eq!(hooks[4].event, PluginHookEvent::InstructionsLoaded);
     assert_eq!(hooks[0].command, "lint-tool");
     assert_eq!(hooks[0].args, vec!["--fast".to_string()]);
     assert_eq!(hooks[0].timeout_secs, Some(5));

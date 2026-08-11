@@ -11,9 +11,25 @@ use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
 
-const SCHEDULER_TABLES: [&str; 11] = [
+const SQLITE_SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_meta",
     "scheduler_tasks",
+    "scheduler_task_dependencies",
+    "scheduler_runs",
+    "scheduler_task_logs",
+    "scheduler_task_artifacts",
+    "scheduler_run_workspaces",
+    "scheduler_workers",
+    "scheduler_teams",
+    "scheduler_resource_leases",
+    "scheduler_events",
+    "scheduler_outbox_messages",
+];
+
+const POSTGRES_SCHEDULER_TABLES: [&str; 12] = [
+    "scheduler_meta",
+    "scheduler_tasks",
+    "scheduler_task_dependencies",
     "scheduler_runs",
     "scheduler_task_logs",
     "scheduler_task_artifacts",
@@ -38,9 +54,43 @@ const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
     "resource_leases",
 ];
 
-const SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 11] = [
+const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
+    (
+        "scheduler_task_dependencies",
+        &[
+            "platform_id",
+            "company_id",
+            "project_id",
+            "predecessor_task_id",
+            "successor_task_id",
+        ],
+    ),
+    ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
+    ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
+    ("scheduler_task_artifacts", &["id"]),
+    ("scheduler_run_workspaces", &["platform_id", "company_id", "project_id", "run_id"]),
+    ("scheduler_workers", &["platform_id", "company_id", "project_id", "id"]),
+    ("scheduler_teams", &["platform_id", "company_id", "project_id", "id"]),
+    ("scheduler_resource_leases", &["platform_id", "company_id", "project_id", "id"]),
+    ("scheduler_events", &["id"]),
+    ("scheduler_outbox_messages", &["platform_id", "company_id", "project_id", "id"]),
+];
+
+const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
+    ("scheduler_meta", &["platform_id", "company_id", "project_id", "key"]),
+    ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
+    (
+        "scheduler_task_dependencies",
+        &[
+            "platform_id",
+            "company_id",
+            "project_id",
+            "predecessor_task_id",
+            "successor_task_id",
+        ],
+    ),
     ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
     ("scheduler_task_artifacts", &["id"]),
@@ -66,7 +116,7 @@ fn agent_scheduler_initialize_schema_is_idempotent_for_in_memory_database() -> R
         |row| row.get(0),
     )?;
     let foreign_keys_enabled: i64 = conn.query_row("PRAGMA foreign_keys", [], |row| row.get(0))?;
-    assert_eq!(scheduler_table_count, SCHEDULER_TABLES.len() as i64);
+    assert_eq!(scheduler_table_count, SQLITE_SCHEDULER_TABLES.len() as i64);
     assert_eq!(foreign_keys_enabled, 1);
 
     Ok(())
@@ -113,13 +163,15 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
     let conn = Connection::open(&db_path)?;
 
     assert_sqlite_object_exists(&conn, "table", "projects")?;
-    for table in SCHEDULER_TABLES {
+    for table in SQLITE_SCHEDULER_TABLES {
         assert_sqlite_object_exists(&conn, "table", table)?;
     }
 
     for index in [
         "idx_scheduler_tasks_status",
         "idx_scheduler_tasks_assignee",
+        "idx_scheduler_task_dependencies_predecessor",
+        "idx_scheduler_task_dependencies_successor",
         "idx_scheduler_runs_lease_expiry",
         "idx_scheduler_task_logs_task_seq",
         "idx_scheduler_task_artifacts_task",
@@ -132,11 +184,11 @@ fn assert_sqlite_scheduler_schema() -> Result<()> {
         assert_sqlite_object_exists(&conn, "index", index)?;
     }
 
-    for table in SCHEDULER_TABLES {
+    for table in SQLITE_SCHEDULER_TABLES {
         assert_scope_columns(&conn, table)?;
         assert_project_restrict_foreign_key(&conn, table)?;
     }
-    for (table, expected_columns) in SCHEDULER_PRIMARY_KEYS {
+    for (table, expected_columns) in SQLITE_SCHEDULER_PRIMARY_KEYS {
         assert_sqlite_primary_key(&conn, table, expected_columns)?;
     }
 
@@ -202,16 +254,23 @@ fn assert_postgres_scheduler_schema() -> Result<()> {
         .into_iter()
         .map(|row| row.get::<_, String>(0))
         .collect::<Vec<_>>();
-    let mut expected_tables = SCHEDULER_TABLES.map(str::to_owned).to_vec();
+    let mut expected_tables = POSTGRES_SCHEDULER_TABLES.map(str::to_owned).to_vec();
     expected_tables.sort();
     assert_eq!(table_names, expected_tables);
 
-    for table in SCHEDULER_TABLES {
+    for table in POSTGRES_SCHEDULER_TABLES {
         assert_postgres_scope_columns(&mut *connection, table)?;
         assert_postgres_project_restrict_foreign_key(&mut *connection, table)?;
     }
-    for (table, expected_columns) in SCHEDULER_PRIMARY_KEYS {
+    for (table, expected_columns) in POSTGRES_SCHEDULER_PRIMARY_KEYS {
         assert_postgres_primary_key(&mut *connection, table, expected_columns)?;
+    }
+    assert_postgres_task_dependency_foreign_keys(&mut *connection)?;
+    for index in [
+        "idx_scheduler_task_dependencies_predecessor",
+        "idx_scheduler_task_dependencies_successor",
+    ] {
+        assert_postgres_object_exists(&mut *connection, "index", index)?;
     }
     for table in LEGACY_SCHEDULER_TABLES {
         assert_postgres_object_missing(&mut *connection, table)?;
@@ -322,7 +381,7 @@ fn assert_sqlite_rejects_unprefixed_scheduler_tables() -> Result<()> {
         let marker: String =
             conn.query_row(&format!("SELECT marker FROM {legacy_table}"), [], |row| row.get(0))?;
         assert_eq!(marker, "kept", "legacy table {legacy_table} was modified");
-        for current_table in SCHEDULER_TABLES {
+        for current_table in SQLITE_SCHEDULER_TABLES {
             assert_sqlite_object_missing(&conn, "table", current_table)?;
         }
     }
@@ -356,7 +415,7 @@ fn assert_postgres_rejects_unprefixed_scheduler_tables() -> Result<()> {
         let marker: String =
             connection.query_one(&format!("SELECT marker FROM {legacy_table}"), &[])?.get(0);
         assert_eq!(marker, "kept", "legacy PostgreSQL table {legacy_table} was modified");
-        for current_table in SCHEDULER_TABLES {
+        for current_table in POSTGRES_SCHEDULER_TABLES {
             assert_postgres_object_missing(&mut *connection, current_table)?;
         }
         drop(connection);
@@ -490,6 +549,62 @@ fn assert_postgres_object_missing(
         )?
         .get(0);
     assert!(!found, "unexpected PostgreSQL scheduler table: {table}");
+    Ok(())
+}
+
+fn assert_postgres_object_exists(
+    connection: &mut impl postgres::GenericClient,
+    object_type: &str,
+    name: &str,
+) -> Result<()> {
+    let relation_kind = match object_type {
+        "index" => "i",
+        other => anyhow::bail!("unsupported PostgreSQL object type: {other}"),
+    };
+    let found: bool = connection
+        .query_one(
+            "SELECT EXISTS(
+                 SELECT 1
+                 FROM pg_catalog.pg_class AS class
+                 JOIN pg_catalog.pg_namespace AS namespace
+                   ON namespace.oid = class.relnamespace
+                 WHERE namespace.nspname = current_schema()
+                   AND class.relname = $1
+                   AND class.relkind = $2
+             )",
+            &[&name, &relation_kind],
+        )?
+        .get(0);
+    assert!(found, "missing PostgreSQL {object_type}: {name}");
+    Ok(())
+}
+
+fn assert_postgres_task_dependency_foreign_keys(
+    connection: &mut impl postgres::GenericClient,
+) -> Result<()> {
+    let definitions = connection
+        .query(
+            "SELECT pg_catalog.pg_get_constraintdef(constraint.oid)
+             FROM pg_catalog.pg_constraint AS constraint
+             WHERE constraint.conrelid = 'scheduler_task_dependencies'::regclass
+               AND constraint.contype = 'f'",
+            &[],
+        )?
+        .into_iter()
+        .map(|row| row.get::<_, String>(0))
+        .collect::<Vec<_>>();
+    for column in ["predecessor_task_id", "successor_task_id"] {
+        assert!(
+            definitions.iter().any(|definition| {
+                definition.contains(&format!(
+                    "FOREIGN KEY (platform_id, company_id, project_id, {column})"
+                )) && definition.contains(
+                    "REFERENCES scheduler_tasks(platform_id, company_id, project_id, id)"
+                ) && definition.contains("ON DELETE CASCADE")
+            }),
+            "missing PostgreSQL scoped {column} foreign key: {definitions:?}"
+        );
+    }
     Ok(())
 }
 

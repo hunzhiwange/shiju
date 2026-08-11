@@ -44,6 +44,55 @@ fn agent_definition_defaults_include_subagent_controls() {
 }
 
 #[test]
+fn agent_definition_force_model_selection_defaults_off() {
+    let definition: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test"
+    }))
+    .expect("legacy-shaped agent config should deserialize");
+
+    assert!(!definition.force_model_selection);
+}
+
+#[test]
+fn agent_definition_force_model_selection_round_trips() {
+    let definition = super::AgentDefinitionConfig {
+        provider: "openai".into(),
+        model: "gpt-test".into(),
+        force_model_selection: true,
+        ..Default::default()
+    };
+
+    let value = serde_json::to_value(&definition).expect("agent config should serialize");
+    assert_eq!(value["force_model_selection"], true);
+
+    let decoded: super::AgentDefinitionConfig =
+        serde_json::from_value(value).expect("agent config should deserialize");
+    assert!(decoded.force_model_selection);
+}
+
+#[test]
+fn agent_definition_complete_model_binding_requires_non_blank_provider_and_model() {
+    let complete = super::AgentDefinitionConfig {
+        provider: " openai ".into(),
+        model: " gpt-test ".into(),
+        ..Default::default()
+    };
+    assert!(complete.has_complete_model_binding());
+
+    for (provider, model) in [("", "gpt-test"), (" \t ", "gpt-test"), ("openai", ""),
+        ("openai", " \t ")] {
+        let incomplete = super::AgentDefinitionConfig {
+            provider: provider.into(),
+            model: model.into(),
+            force_model_selection: true,
+            ..Default::default()
+        };
+        assert!(!incomplete.has_complete_model_binding());
+    }
+}
+
+#[test]
 fn agent_definition_identity_files_default_empty_and_round_trip() {
     let legacy: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
         "provider": "openai",

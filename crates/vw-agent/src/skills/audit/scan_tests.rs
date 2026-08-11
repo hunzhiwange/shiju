@@ -60,8 +60,7 @@ fn audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown() {
     std::fs::write(&resource, "[also missing](docs/also-missing.md)\n").unwrap();
 
     let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
-    let security =
-        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    let security = SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
     audit_path(dir.path(), &skill, &security, &mut report).unwrap();
     audit_path(dir.path(), &resource, &security, &mut report).unwrap();
 
@@ -75,13 +74,8 @@ fn audit_path_reports_missing_path_metadata_error() {
     let missing = dir.path().join("missing.md");
     let mut report = crate::app::agent::skills::audit::report::SkillAuditReport::default();
 
-    let error = audit_path(
-        dir.path(),
-        &missing,
-        &SkillSecurityConfig::default(),
-        &mut report,
-    )
-    .unwrap_err();
+    let error =
+        audit_path(dir.path(), &missing, &SkillSecurityConfig::default(), &mut report).unwrap_err();
 
     assert!(error.to_string().contains("failed to read metadata"));
     assert!(error.to_string().contains("missing.md"));

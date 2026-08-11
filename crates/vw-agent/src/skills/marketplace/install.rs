@@ -48,10 +48,7 @@ pub(crate) fn install_verified_market_artifact_for_roots(
     security: &SkillSecurityConfig,
 ) -> Result<Vec<PathBuf>> {
     let mut seen = BTreeSet::new();
-    let roots = skills_roots
-        .iter()
-        .filter(|root| seen.insert((*root).clone()))
-        .collect::<Vec<_>>();
+    let roots = skills_roots.iter().filter(|root| seen.insert((*root).clone())).collect::<Vec<_>>();
     if roots.is_empty() {
         bail!("skill market install requires at least one target");
     }
@@ -96,14 +93,9 @@ fn install_verified_market_artifact_ref(
     ensure_target_absent(&target)?;
     ensure_skills_root(skills_root)?;
 
-    let staging = Builder::new()
-        .prefix(".skill-install-")
-        .tempdir_in(skills_root)
-        .with_context(|| {
-            format!(
-                "failed to create skill market staging directory in {}",
-                skills_root.display()
-            )
+    let staging =
+        Builder::new().prefix(".skill-install-").tempdir_in(skills_root).with_context(|| {
+            format!("failed to create skill market staging directory in {}", skills_root.display())
         })?;
     let package = staging.path().join("package");
     fs::create_dir(&package).context("failed to create skill market package staging directory")?;
@@ -121,10 +113,7 @@ fn install_verified_market_artifact_ref(
     write_safe_metadata(&package, coordinate, &content_hash, "skill", None)?;
     ensure_target_absent(&target)?;
     fs::rename(&package, &target).with_context(|| {
-        format!(
-            "failed to atomically install skill market artifact at {}",
-            target.display()
-        )
+        format!("failed to atomically install skill market artifact at {}", target.display())
     })?;
     Ok(target)
 }
@@ -184,33 +173,21 @@ pub(crate) fn install_verified_market_skill_set(
         ensure_target_absent(target)?;
     }
 
-    let staging = Builder::new()
-        .prefix(".skill-install-")
-        .tempdir_in(skills_root)
-        .with_context(|| {
-            format!(
-                "failed to create skill-set staging directory in {}",
-                skills_root.display()
-            )
+    let staging =
+        Builder::new().prefix(".skill-install-").tempdir_in(skills_root).with_context(|| {
+            format!("failed to create skill-set staging directory in {}", skills_root.display())
         })?;
     let suite_archive = staging.path().join("suite");
     fs::create_dir(&suite_archive).context("failed to create skill-set archive staging")?;
     let suite_files = extract_safe_archive(&artifact.archive, &suite_archive)?;
-    let manifest = validate_skill_set_manifest(
-        &suite_archive,
-        &suite_files,
-        &artifact.slug,
-        &member_slugs,
-    )?;
+    let manifest =
+        validate_skill_set_manifest(&suite_archive, &suite_files, &artifact.slug, &member_slugs)?;
 
     let identify_path = suite_archive.join("identify.md");
-    let identify = fs::read_to_string(&identify_path)
-        .context("skill-set identify.md is not valid UTF-8")?;
+    let identify =
+        fs::read_to_string(&identify_path).context("skill-set identify.md is not valid UTF-8")?;
     let version = meta_skill_version(&identify)?;
-    let meta_coordinate = SkillMarketCoordinateDto {
-        version,
-        ..meta_coordinate
-    };
+    let meta_coordinate = SkillMarketCoordinateDto { version, ..meta_coordinate };
     validate_market_coordinate(&meta_coordinate)?;
 
     let packages = staging.path().join("packages");
@@ -255,9 +232,7 @@ pub(crate) fn install_verified_market_skill_set(
     Ok(targets)
 }
 
-pub(crate) fn validate_market_coordinate(
-    coordinate: &SkillMarketCoordinateDto,
-) -> Result<()> {
+pub(crate) fn validate_market_coordinate(coordinate: &SkillMarketCoordinateDto) -> Result<()> {
     target_directory_name(coordinate).map(|_| ())
 }
 
@@ -333,8 +308,7 @@ fn verify_proof(
     if payload.content_hash != proof.content_hash {
         bail!("skill market artifact proof contains inconsistent content hashes");
     }
-    if payload.skill_slug != coordinate.locator.slug
-        || payload.skill_version != coordinate.version
+    if payload.skill_slug != coordinate.locator.slug || payload.skill_version != coordinate.version
     {
         bail!("skill market artifact proof does not match the requested coordinate");
     }
@@ -343,9 +317,7 @@ fn verify_proof(
 
 fn validate_content_hash(content_hash: &str) -> Result<()> {
     if content_hash.len() != 64
-        || !content_hash
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        || !content_hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
         bail!("skill market artifact content hash is invalid");
     }
@@ -397,8 +369,8 @@ fn extract_safe_archive(
     archive_bytes: &[u8],
     destination: &Path,
 ) -> Result<BTreeMap<String, String>> {
-    let mut archive =
-        ZipArchive::new(Cursor::new(archive_bytes)).context("skill market artifact is not a ZIP")?;
+    let mut archive = ZipArchive::new(Cursor::new(archive_bytes))
+        .context("skill market artifact is not a ZIP")?;
     if archive.len() > MAX_ARCHIVE_ENTRIES {
         bail!("skill market artifact exceeds the 512 entry limit");
     }
@@ -446,8 +418,7 @@ fn extract_safe_archive(
 
         let ignored = ignored_archive_path(&raw_name);
         let output_path = (!ignored).then(|| destination.join(&relative_path));
-        let file_hash =
-            read_entry(&mut entry, output_path.as_deref(), &mut extracted_total)?;
+        let file_hash = read_entry(&mut entry, output_path.as_deref(), &mut extracted_total)?;
         if extracted_total > MAX_EXTRACTED_BYTES {
             bail!("skill market artifact exceeds the 64 MiB extracted limit");
         }
@@ -469,9 +440,7 @@ fn validate_archive_path(raw_name: &str) -> Result<PathBuf> {
     }
     let path = Path::new(raw_name);
     if path.is_absolute()
-        || path
-            .components()
-            .any(|component| !matches!(component, Component::Normal(_)))
+        || path.components().any(|component| !matches!(component, Component::Normal(_)))
     {
         bail!("skill market ZIP contains an unsafe path: {raw_name}");
     }
@@ -500,15 +469,9 @@ fn read_entry<R: Read>(
                     format!("failed to create skill market directory {}", parent.display())
                 })?;
             }
-            Some(
-                OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(path)
-                    .with_context(|| {
-                        format!("failed to create skill market file {}", path.display())
-                    })?,
-            )
+            Some(OpenOptions::new().write(true).create_new(true).open(path).with_context(|| {
+                format!("failed to create skill market file {}", path.display())
+            })?)
         }
         None => None,
     };
@@ -528,8 +491,7 @@ fn read_entry<R: Read>(
         }
         hasher.update(&buffer[..read]);
         if let Some(file) = output.as_mut() {
-            file.write_all(&buffer[..read])
-                .context("failed to write skill market ZIP entry")?;
+            file.write_all(&buffer[..read]).context("failed to write skill market ZIP entry")?;
         }
     }
     if let Some(file) = output.as_mut() {
@@ -579,8 +541,7 @@ fn write_safe_metadata(
         .with_context(|| format!("failed to write safe metadata {}", path.display()))?;
     file.write_all(b"\n")
         .with_context(|| format!("failed to finish safe metadata {}", path.display()))?;
-    file.flush()
-        .with_context(|| format!("failed to flush safe metadata {}", path.display()))?;
+    file.flush().with_context(|| format!("failed to flush safe metadata {}", path.display()))?;
     Ok(())
 }
 
@@ -619,10 +580,7 @@ fn commit_packages_atomically(packages: &[PathBuf], targets: &[PathBuf]) -> Resu
                 let _ = fs::rename(committed_target, original_package);
             }
             return Err(error).with_context(|| {
-                format!(
-                    "failed to atomically install skill-set package at {}",
-                    target.display()
-                )
+                format!("failed to atomically install skill-set package at {}", target.display())
             });
         }
         committed.push((target, package));
@@ -663,8 +621,8 @@ fn validate_skill_set_manifest(
 ) -> Result<SkillSetManifest> {
     let manifest_bytes = fs::read(suite_archive.join("manifest.json"))
         .context("skill-set artifact must contain manifest.json")?;
-    let manifest: SkillSetManifest = serde_json::from_slice(&manifest_bytes)
-        .context("skill-set manifest.json is invalid")?;
+    let manifest: SkillSetManifest =
+        serde_json::from_slice(&manifest_bytes).context("skill-set manifest.json is invalid")?;
     if manifest.manifest_version != "1"
         || manifest.package_type != "skillset"
         || manifest.slug != expected_slug
@@ -674,11 +632,7 @@ fn validate_skill_set_manifest(
 
     let declared_slugs = unique_values(&manifest.skill_slugs, "skillSlugs")?;
     let listed_slugs = unique_values(
-        &manifest
-            .skills
-            .iter()
-            .map(|member| member.slug.clone())
-            .collect::<Vec<_>>(),
+        &manifest.skills.iter().map(|member| member.slug.clone()).collect::<Vec<_>>(),
         "skills",
     )?;
     if &declared_slugs != expected_members || listed_slugs != declared_slugs {
@@ -692,9 +646,8 @@ fn validate_skill_set_manifest(
         if !declared_files.insert(file.path.clone()) {
             bail!("skill-set manifest contains a duplicate file");
         }
-        let actual_hash = file_hashes
-            .get(&file.path)
-            .context("skill-set manifest declares a missing file")?;
+        let actual_hash =
+            file_hashes.get(&file.path).context("skill-set manifest declares a missing file")?;
         if actual_hash != &file.sha256 {
             bail!("skill-set file hash does not match its manifest");
         }

@@ -4,6 +4,7 @@ use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use crate::global_database::GlobalDatabase;
 
 mod artifacts;
+mod dependencies;
 mod events;
 mod logs;
 mod outbox;

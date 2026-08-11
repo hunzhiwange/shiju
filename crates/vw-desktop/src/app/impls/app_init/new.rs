@@ -6,33 +6,6 @@ use std::collections::{HashMap, HashSet};
 
 mod settings;
 
-fn main_agent_model_fields(
-    config: &vw_config_types::agent::DelegateAgentConfig,
-    default_provider: Option<&str>,
-    default_model: Option<&str>,
-) -> (String, String) {
-    if let Some((provider, model)) = default_model
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .and_then(|value| value.split_once('/'))
-        .filter(|(provider, model)| !provider.trim().is_empty() && !model.trim().is_empty())
-    {
-        return (provider.trim().to_string(), model.trim().to_string());
-    }
-
-    let provider = if config.provider.trim().is_empty() {
-        default_provider.map(str::trim).unwrap_or_default().to_string()
-    } else {
-        config.provider.trim().to_string()
-    };
-    let model = if config.model.trim().is_empty() {
-        default_model.map(str::trim).unwrap_or_default().to_string()
-    } else {
-        config.model.trim().to_string()
-    };
-    (provider, model)
-}
-
 fn build_multimodal_settings(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> super::state::MultimodalSettingsState {
@@ -286,16 +259,10 @@ impl App {
         let cron_cfg = full_agent_cfg.cron.clone();
         let sop_cfg = full_agent_cfg.sop.clone();
         let scheduler_cfg = full_agent_cfg.scheduler.clone();
-        let agent_cfg = full_agent_cfg.agent.clone();
-        let delegate_agents_cfg = full_agent_cfg.agents.clone();
         let embedding_routes_cfg = full_agent_cfg.embedding_routes.clone();
         let autonomy_cfg = full_agent_cfg.autonomy.clone();
         let memory_cfg = full_agent_cfg.memory.clone();
         let reliability_cfg = full_agent_cfg.reliability.clone();
-        let identity_cfg = full_agent_cfg.identity.clone();
-        let default_provider_cfg = full_agent_cfg.default_provider.clone();
-        let default_model_cfg = full_agent_cfg.default_model.clone();
-        let default_temperature_cfg = full_agent_cfg.default_temperature;
         let security_cfg = full_agent_cfg.security.clone();
         #[cfg(not(target_arch = "wasm32"))]
         let gateway_cfg_result = config::load_gateway_config_result();
@@ -1232,76 +1199,23 @@ impl App {
             },
 
             agents_settings: {
-                let ordered_keys = super::state::ordered_agent_keys(&delegate_agents_cfg);
-
-                let mut entries = ordered_keys
-                    .into_iter()
-                    .map(|key| {
-                        let config = delegate_agents_cfg.get(&key).cloned();
-                        if key == "main" {
-                            let config = config.unwrap_or_else(|| {
-                                vw_config_types::agent::builtin_agent_config("main")
-                                    .unwrap_or_default()
-                            });
-                            let (provider, model) = main_agent_model_fields(
-                                &config,
-                                default_provider_cfg.as_deref(),
-                                default_model_cfg.as_deref(),
-                            );
-                            let entry = vw_config_types::agent::DelegateAgentConfig {
-                                label: config.label,
-                                description: config.description,
-                                builtin: config.builtin,
-                                mode: "primary".to_string(),
-                                enabled: true,
-                                allow_as_subagent: config.allow_as_subagent,
-                                max_parallel_subagents: config.max_parallel_subagents,
-                                provider,
-                                model,
-                                system_prompt: config.system_prompt,
-                                api_key: config.api_key,
-                                temperature: Some(
-                                    config.temperature.unwrap_or(default_temperature_cfg as f64),
-                                ),
-                                top_p: config.top_p,
-                                identity_format: Some({
-                                    let _ = identity_cfg;
-                                    "openclaw".to_string()
-                                }),
-                                hidden: config.hidden,
-                                max_depth: config.max_depth,
-                                agentic: config.agentic,
-                                allowed_tools: config.allowed_tools,
-                                allowed_skills: config.allowed_skills,
-                                enabled_identity_files: config.enabled_identity_files,
-                                options: config.options,
-                                permission: config.permission,
-                                max_iterations: config.max_iterations,
-                                steps: config.steps,
-                            };
-                            let mut ui_entry =
-                                super::state::DelegateAgentSettingsEntry::from_config(
-                                    &key,
-                                    Some(entry),
-                                );
-                            ui_entry.compact_context = agent_cfg.compact_context;
-                            ui_entry.max_tool_iterations =
-                                u32::try_from(agent_cfg.max_tool_iterations)
-                                    .unwrap_or(u32::MAX)
-                                    .max(1);
-                            ui_entry.max_history_messages =
-                                agent_cfg.max_history_messages.clamp(1, 1000) as u32;
-                            ui_entry.parallel_tools = agent_cfg.parallel_tools;
-                            ui_entry.tool_dispatcher = {
-                                let v = agent_cfg.tool_dispatcher.trim().to_string();
-                                if v.is_empty() { "auto".to_string() } else { v }
-                            };
-                            ui_entry
-                        } else {
-                            super::state::DelegateAgentSettingsEntry::from_config(&key, config)
-                        }
-                    })
-                    .collect::<Vec<_>>();
+                let mut entries =
+                    super::state::agent_settings_entries_from_config(&full_agent_cfg);
+                if let Some(main) = entries.iter_mut().find(|entry| entry.key == "main") {
+                    main.compact_context = full_agent_cfg.agent.compact_context;
+                    main.max_tool_iterations = u32::try_from(
+                        full_agent_cfg.agent.max_tool_iterations,
+                    )
+                    .unwrap_or(u32::MAX)
+                    .max(1);
+                    main.max_history_messages =
+                        full_agent_cfg.agent.max_history_messages.clamp(1, 1000) as u32;
+                    main.parallel_tools = full_agent_cfg.agent.parallel_tools;
+                    main.tool_dispatcher = {
+                        let value = full_agent_cfg.agent.tool_dispatcher.trim().to_string();
+                        if value.is_empty() { "auto".to_string() } else { value }
+                    };
+                }
                 let available_tools = config::load_tools_list_via_gateway();
                 super::state::apply_default_allowed_tools(&mut entries, &available_tools);
                 super::state::AgentsSettingsState {

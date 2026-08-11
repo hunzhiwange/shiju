@@ -131,7 +131,7 @@ fn validate_input(input: &ChildAgentRunInput) -> Result<()> {
     Ok(())
 }
 
-fn stream_request(
+pub(crate) fn stream_request(
     child_session_id: &str,
     agent_key: &str,
     model: Option<String>,
@@ -159,9 +159,9 @@ fn is_think_tag_remainder(remainder: &str) -> bool {
     if remainder.is_empty() || remainder.chars().next().is_some_and(char::is_whitespace) {
         return true;
     }
-    remainder
-        .strip_prefix("ing")
-        .is_some_and(|after| after.is_empty() || after.chars().next().is_some_and(char::is_whitespace))
+    remainder.strip_prefix("ing").is_some_and(|after| {
+        after.is_empty() || after.chars().next().is_some_and(char::is_whitespace)
+    })
 }
 
 fn find_think_open_tag(s: &str) -> Option<(usize, usize)> {
@@ -329,14 +329,15 @@ pub(crate) async fn cancel_created(
     reason: impl Into<String>,
 ) -> Result<ChildAgentRunResult> {
     let CreatedChildAgentRun {
-        input: ChildAgentRunInput {
-            parent_session_id: _,
-            directory,
-            agent_key,
-            model: _,
-            prompt,
-            context: _,
-        },
+        input:
+            ChildAgentRunInput {
+                parent_session_id: _,
+                directory,
+                agent_key,
+                model: _,
+                prompt,
+                context: _,
+            },
         child_session_id,
     } = created;
     let reason = reason.into();
@@ -387,14 +388,7 @@ where
 {
     let CreatedChildAgentRun {
         input:
-            ChildAgentRunInput {
-                parent_session_id: _,
-                directory,
-                agent_key,
-                model,
-                prompt,
-                context,
-            },
+            ChildAgentRunInput { parent_session_id: _, directory, agent_key, model, prompt, context },
         child_session_id,
     } = created;
     let project_directory = directory.clone();

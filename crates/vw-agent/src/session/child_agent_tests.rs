@@ -54,6 +54,38 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
     }
 }
 
+#[test]
+fn child_agent_stream_request_keeps_complete_model_reference() {
+    let request = super::child_agent::stream_request(
+        "child-session",
+        "reviewer",
+        Some("token-plan/qwen3.7-plus".to_string()),
+        "inspect",
+        Vec::new(),
+    );
+
+    assert_eq!(request.model.as_deref(), Some("token-plan/qwen3.7-plus"));
+}
+
+#[test]
+fn session_protocol_child_agent_uses_same_contract() {
+    let protocol_context = vec![
+        json!({"role": "user", "content": "<system-reminder>Child AGENTS for its cwd.</system-reminder>"}),
+        json!({"role": "user", "content": "<system-reminder>Inherited skill is active.</system-reminder>"}),
+    ];
+
+    let request = super::child_agent::stream_request(
+        "child-session",
+        "reviewer",
+        None,
+        "inspect",
+        protocol_context.clone(),
+    );
+
+    assert_eq!(&request.messages[..2], protocol_context.as_slice());
+    assert_eq!(request.messages.last(), Some(&json!({"role": "user", "content": "inspect"})));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn child_agent_run_creates_persistent_child_and_waits() {
     let workspace = tempfile::tempdir().expect("temporary workspace");

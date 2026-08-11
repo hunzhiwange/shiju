@@ -205,6 +205,7 @@ fn build_uses_configured_optional_fields() {
         tools: Vec::new(),
         prompts: Vec::new(),
         location: None,
+        ..Skill::default()
     };
     let classification_config = QueryClassificationConfig { enabled: true, rules: Vec::new() };
     let config = AgentConfig { max_history_messages: 7, ..AgentConfig::default() };

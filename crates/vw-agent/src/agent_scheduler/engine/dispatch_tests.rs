@@ -25,6 +25,7 @@ use crate::agent_scheduler::store::runs::ClaimTaskRunRequest;
 use crate::agent_scheduler::store::tasks::NewAgentTask;
 use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
+use crate::agent_scheduler::task_graph::AgentTaskDependency;
 
 struct EnabledTraceSubscriber;
 
@@ -331,6 +332,66 @@ async fn dispatch_skips_queued_task_when_lifecycle_stage_is_not_dispatchable() -
     assert_eq!(disabled.status, AgentTaskStatus::Queued);
     assert_eq!(review.status, AgentTaskStatus::Queued);
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn dispatch_skips_queued_task_with_unsatisfied_dependencies() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path();
+    let store = AgentSchedulerStore::new();
+    let controller = FakeControllerAdapter::new();
+    let now_ms = TimestampMs(1_783_000_355_000);
+
+    store.initialize_project(project_path)?;
+    let mut predecessor = pending_task()?;
+    predecessor.id = TaskId::new("task-dispatch-prerequisite")?;
+    predecessor.status = AgentTaskStatus::Submitted;
+    store.create_task(project_path, predecessor)?;
+    let mut blocked = pending_task()?;
+    blocked.id = TaskId::new("task-dispatch-blocked")?;
+    store.create_task(project_path, blocked)?;
+    let mut ready = pending_task()?;
+    ready.id = TaskId::new("task-dispatch-ready")?;
+    store.create_task(project_path, ready)?;
+    store.replace_task_dependencies(
+        project_path,
+        vec![AgentTaskDependency::new(
+            TaskId::new("task-dispatch-prerequisite")?,
+            TaskId::new("task-dispatch-blocked")?,
+        )],
+    )?;
+    store.upsert_worker_snapshot(project_path, sleeping_worker()?)?;
+    controller.set_snapshot(WorkerControllerSnapshot {
+        worker_name: WorkerName::new("worker-api")?,
+        desired_state: WorkerLifecycleState::Running,
+        runtime: Some("copaw".to_string()),
+        team_id: Some(TeamId::new("team-alpha")?),
+        worker_role: Some("worker".to_string()),
+        room_id: Some("!worker-api-room:example.test".to_string()),
+        container_state: Some("ready".to_string()),
+    });
+
+    let engine = DispatchEngine::new(&store, &controller);
+    let directed = engine
+        .dispatch_task_once(
+            project_path,
+            &TaskId::new("task-dispatch-blocked")?,
+            now_ms,
+        )
+        .await?;
+    assert_eq!(directed, None);
+
+    let outcome = engine
+        .dispatch_once(project_path, now_ms)
+        .await?
+        .expect("ready task dispatches after blocked task is skipped");
+
+    assert_eq!(outcome.task_id.as_str(), "task-dispatch-ready");
+    let blocked = store
+        .load_task(project_path, &TaskId::new("task-dispatch-blocked")?)?
+        .expect("blocked task persists");
+    assert_eq!(blocked.status, AgentTaskStatus::Queued);
     Ok(())
 }
 

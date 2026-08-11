@@ -51,6 +51,7 @@ async fn task_local_context_is_visible_only_inside_scope() {
             .with_channel("cli")
             .with_provider("provider-a")
             .with_model("model-a")
+            .with_auto_model_selection(true)
             .with_turn_id("turn-1")
             .with_iteration(3)
             .with_full_access_enabled(true)
@@ -65,6 +66,7 @@ async fn task_local_context_is_visible_only_inside_scope() {
         assert_eq!(current.channel(), Some("cli"));
         assert_eq!(current.provider(), Some("provider-a"));
         assert_eq!(current.model(), Some("model-a"));
+        assert!(current.model_selected_by_auto());
         assert_eq!(current.turn_id(), Some("turn-1"));
         assert_eq!(current.iteration(), 3);
         assert!(current.full_access_enabled());

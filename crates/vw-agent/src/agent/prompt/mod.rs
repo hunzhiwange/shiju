@@ -5,7 +5,7 @@
 //! ## 核心功能
 //!
 //! - **模块化提示词构建**：通过 `PromptSection` trait 定义可插拔的提示词片段
-//! - **上下文注入**：将工作区文件、工具定义、技能列表等动态注入提示词
+//! - **上下文注入**：将工作区文件和工具定义等动态注入提示词
 //! - **身份管理**：支持标准身份文件的加载与渲染
 //!
 //! ## 主要组件
@@ -21,7 +21,6 @@
 //! | `ToolsSection` | 工具列表及参数定义 |
 //! | `ActionSection` | 行为指导（原生工具/分发器模式） |
 //! | `SafetySection` | 安全约束与最佳实践 |
-//! | `SkillsSection` | 技能列表与说明 |
 //! | `WorkspaceSection` | 工作区目录结构与 Git 状态 |
 //! | `IdentitySection` | 项目身份文件 |
 //! | `DateTimeSection` | 当前日期时间 |
@@ -187,12 +186,11 @@ pub trait PromptSection: Send + Sync {
 /// 1. `ToolsSection` - 工具定义
 /// 2. `ActionSection` - 行为指导
 /// 3. `SafetySection` - 安全规则
-/// 4. `SkillsSection` - 技能列表
-/// 5. `WorkspaceSection` - 工作区信息
-/// 6. `IdentitySection` - 身份文件
-/// 7. `DateTimeSection` - 日期时间
-/// 8. `RuntimeSection` - 运行时信息
-/// 9. `ChannelMediaSection` - 媒体标记说明
+/// 4. `WorkspaceSection` - 工作区信息
+/// 5. `IdentitySection` - 身份文件
+/// 6. `DateTimeSection` - 日期时间
+/// 7. `RuntimeSection` - 运行时信息
+/// 8. `ChannelMediaSection` - 通道媒体标记说明
 #[derive(Default)]
 pub struct SystemPromptBuilder {
     /// 提示词片段列表，按顺序构建
@@ -221,7 +219,6 @@ impl SystemPromptBuilder {
                 Box::new(ToolsSection),
                 Box::new(ActionSection),
                 Box::new(SafetySection),
-                Box::new(SkillsSection),
                 Box::new(WorkspaceSection),
                 Box::new(IdentitySection),
                 Box::new(DateTimeSection),
@@ -310,9 +307,9 @@ pub struct ActionSection;
 /// 定义代理必须遵守的安全规则和行为边界。
 pub struct SafetySection;
 
-/// 技能片段 - 技能列表与说明
+/// 已废弃的技能片段占位符。
 ///
-/// 根据配置的注入模式渲染可用技能。
+/// 技能元数据由临时元用户提醒装配，完整正文只由 Skill Tool 成功调用后注入。
 pub struct SkillsSection;
 
 /// 工作区片段 - 目录结构与 Git 状态
@@ -454,13 +451,8 @@ impl PromptSection for SkillsSection {
         "skills"
     }
 
-    fn build(&self, ctx: &PromptContext<'_>) -> Result<String> {
-        // 委托给技能模块的提示词生成函数
-        Ok(crate::app::agent::skills::skills_to_prompt_with_mode(
-            ctx.skills,
-            ctx.workspace_dir,
-            ctx.skills_prompt_mode,
-        ))
+    fn build(&self, _ctx: &PromptContext<'_>) -> Result<String> {
+        Ok(String::new())
     }
 }
 

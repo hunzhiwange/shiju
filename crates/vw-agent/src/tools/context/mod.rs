@@ -125,6 +125,7 @@ pub struct ToolUseContext {
     channel: Option<String>,
     provider: Option<String>,
     model: Option<String>,
+    model_selected_by_auto: bool,
     turn_id: Option<String>,
     iteration: usize,
     bypass_non_cli_approval_for_turn: bool,
@@ -152,6 +153,7 @@ impl fmt::Debug for ToolUseContext {
             .field("channel", &self.channel)
             .field("provider", &self.provider)
             .field("model", &self.model)
+            .field("model_selected_by_auto", &self.model_selected_by_auto)
             .field("turn_id", &self.turn_id)
             .field("iteration", &self.iteration)
             .field("has_security", &self.security.is_some())
@@ -187,6 +189,7 @@ impl ToolUseContext {
             channel: None,
             provider: None,
             model: None,
+            model_selected_by_auto: false,
             turn_id: None,
             iteration: 0,
             bypass_non_cli_approval_for_turn: false,
@@ -293,6 +296,11 @@ impl ToolUseContext {
     /// 返回模型名称。
     pub fn model(&self) -> Option<&str> {
         self.model.as_deref()
+    }
+
+    /// 返回当前模型是否由 Auto 为父请求选择。
+    pub fn model_selected_by_auto(&self) -> bool {
+        self.model_selected_by_auto
     }
 
     /// 返回 turn ID。
@@ -527,6 +535,12 @@ impl ToolUseContext {
     /// 注入模型名称。
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
+        self
+    }
+
+    /// 标记当前模型是否由 Auto 为父请求选择。
+    pub fn with_auto_model_selection(mut self, selected_by_auto: bool) -> Self {
+        self.model_selected_by_auto = selected_by_auto;
         self
     }
 

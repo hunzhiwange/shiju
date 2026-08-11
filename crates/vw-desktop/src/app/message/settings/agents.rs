@@ -484,6 +484,7 @@ fn build_agents_settings_patch(
                 "max_parallel_subagents": entry.max_parallel_subagents.clamp(1, 32),
                 "provider": provider,
                 "model": model,
+                "force_model_selection": entry.force_model_selection,
                 "system_prompt": (!system_prompt.is_empty()).then_some(system_prompt),
                 "api_key": (!api_key.is_empty()).then_some(api_key),
                 "temperature": entry.temperature.clamp(0.0, 2.0),
@@ -503,17 +504,21 @@ fn build_agents_settings_patch(
     if let Some(main) = entries.iter().find(|entry| entry.key == MAIN_AGENT_KEY) {
         let provider = main.provider.trim();
         let model = main.model.trim();
-        if !provider.is_empty() {
-            patch.insert(
-                "default_provider".to_string(),
-                serde_json::Value::String(provider.to_string()),
-            );
-        }
+        patch.insert(
+            "default_provider".to_string(),
+            if provider.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::Value::String(provider.to_string())
+            },
+        );
         if !provider.is_empty() && !model.is_empty() {
             patch.insert(
                 "default_model".to_string(),
                 serde_json::Value::String(format!("{provider}/{model}")),
             );
+        } else {
+            patch.insert("default_model".to_string(), serde_json::Value::Null);
         }
         if let Some(temperature) =
             serde_json::Number::from_f64(main.temperature.clamp(0.0, 2.0) as f64)
@@ -864,9 +869,31 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
         }
+        AgentsMessage::ProviderCleared(agent_key) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.provider.clear();
+                entry.model.clear();
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
         AgentsMessage::ModelChanged(agent_key, model) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.model = model;
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
+        AgentsMessage::ModelCleared(agent_key) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.model.clear();
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
+        AgentsMessage::ForceModelSelectionToggled(agent_key, force_model_selection) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.force_model_selection = force_model_selection;
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)

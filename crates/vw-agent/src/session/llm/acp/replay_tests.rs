@@ -3,6 +3,20 @@ use serde_json::{Value, json};
 use super::*;
 
 #[test]
+fn entrypoint_context_acp_replay_deduplicates_meta_messages() {
+    let messages = serde_json::json!([
+        {"role": "user", "content": "<system-reminder>AGENTS current contents</system-reminder>"},
+        {"role": "user", "content": "<system-reminder>AGENTS current contents</system-reminder>"},
+        {"role": "user", "content": "current user request"}
+    ]);
+
+    let prompt = build_replay_prompt(&messages, AcpReplayStrategy::Full, 3);
+
+    assert_eq!(prompt.matches("AGENTS current contents").count(), 1);
+    assert_eq!(prompt.matches("current user request").count(), 1);
+}
+
+#[test]
 fn build_request_prompt_extracts_latest_user_message_when_not_forcing_replay() {
     let prompt = build_request_prompt(
         &json!([

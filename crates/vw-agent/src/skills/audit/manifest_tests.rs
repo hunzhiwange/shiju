@@ -69,14 +69,10 @@ fn manifest_audit_reports_missing_manifest_read_error() {
     let missing = dir.path().join("missing.toml");
     let mut report = SkillAuditReport::default();
 
-    let error = audit_manifest_file(
-        dir.path(),
-        &missing,
-        &SkillSecurityConfig::default(),
-        &mut report,
-    )
-    .unwrap_err()
-    .to_string();
+    let error =
+        audit_manifest_file(dir.path(), &missing, &SkillSecurityConfig::default(), &mut report)
+            .unwrap_err()
+            .to_string();
 
     assert!(error.contains("failed to read TOML manifest"), "{error}");
     assert!(error.contains("missing.toml"), "{error}");

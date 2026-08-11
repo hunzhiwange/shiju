@@ -125,24 +125,36 @@ async fn run_gateway_chat_simple_with_extractor(
 
     // 构建系统提示词
     // 通过注入工作空间感知的系统上下文，保持 webhook/gateway 提示词与通道行为一致
-    let system_prompt = {
+    let (system_prompt, protocol_messages) = {
         let config_guard = state.config.lock();
         let timezone = crate::app::agent::util::locale::parse_timezone(
             &config_guard.app_ui.system_settings.timezone,
         )?;
-        crate::app::agent::channels::build_system_prompt(
+        let system_prompt = crate::app::agent::channels::build_system_prompt(
             &config_guard.workspace_dir,
             &state.model,
             &[], // tools - 简单聊天不使用工具
-            &[], // skills - 简单聊天不启用技能
+            &[], // skills stay outside the system prompt
             Some(&config_guard.identity),
             None, // bootstrap_max_chars - 使用默认值
             timezone,
-        )
+        );
+        let skills = crate::app::agent::skills::load_skills_with_config(
+            &config_guard.workspace_dir,
+            &config_guard,
+        );
+        let protocol_messages = crate::app::agent::channels::build_workspace_protocol_messages(
+            &config_guard.workspace_dir,
+            &skills,
+            false,
+            8_192,
+        );
+        (system_prompt, protocol_messages)
     };
 
-    // 组装完整的消息序列：系统消息 + 用户消息
-    let mut messages = Vec::with_capacity(1 + user_messages.len());
+    // 协议元消息只在本次 provider 请求中存在；简单网关禁用 Skill Tool，因此仅注入 AGENTS。
+    let mut messages = Vec::with_capacity(protocol_messages.len() + 1 + user_messages.len());
+    messages.extend(protocol_messages);
     messages.push(ChatMessage::system(system_prompt));
     messages.extend(user_messages);
 

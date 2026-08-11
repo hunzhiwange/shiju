@@ -5,11 +5,11 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
-use reqwest::redirect::Policy;
 use reqwest::header::LOCATION;
+use reqwest::redirect::Policy;
 use reqwest::{Client, StatusCode};
-use serde::de::{DeserializeOwned, Deserializer};
 use serde::Deserialize;
+use serde::de::{DeserializeOwned, Deserializer};
 use serde_json::Value;
 use url::Url;
 use vw_gateway_client::{
@@ -21,9 +21,9 @@ use vw_gateway_client::{
 };
 
 use super::provider::{
-    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider,
-    SkillMarketProviderError, SkillMarketSkillSetArtifact,
-    SkillMarketSkillSetMemberArtifact, SkillMarketSkillSetVerificationPolicy,
+    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,
+    SkillMarketSkillSetArtifact, SkillMarketSkillSetMemberArtifact,
+    SkillMarketSkillSetVerificationPolicy,
 };
 
 const SOURCE: &str = "skillhub";
@@ -51,19 +51,16 @@ impl SkillHubProvider {
     }
 
     fn build(base_url: &str) -> Result<Self, SkillMarketProviderError> {
-        let client = Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .redirect(Policy::none())
-            .build()
-            .map_err(|_| {
-                SkillMarketProviderError::InvalidResponse(
-                    "failed to build the SkillHub HTTP client".to_string(),
-                )
-            })?;
+        let client =
+            Client::builder().timeout(REQUEST_TIMEOUT).redirect(Policy::none()).build().map_err(
+                |_| {
+                    SkillMarketProviderError::InvalidResponse(
+                        "failed to build the SkillHub HTTP client".to_string(),
+                    )
+                },
+            )?;
         let base_url = Url::parse(base_url).map_err(|_| {
-            SkillMarketProviderError::InvalidResponse(
-                "SkillHub base URL is invalid".to_string(),
-            )
+            SkillMarketProviderError::InvalidResponse("SkillHub base URL is invalid".to_string())
         })?;
         if !matches!(base_url.scheme(), "http" | "https") || base_url.cannot_be_a_base() {
             return Err(SkillMarketProviderError::InvalidResponse(
@@ -96,37 +93,27 @@ impl SkillHubProvider {
         Ok(url)
     }
 
-    async fn get_json<T: DeserializeOwned>(
-        &self,
-        url: Url,
-    ) -> Result<T, SkillMarketProviderError> {
+    async fn get_json<T: DeserializeOwned>(&self, url: Url) -> Result<T, SkillMarketProviderError> {
         let response = self.client.get(url).send().await.map_err(map_request_error)?;
         ensure_success(response.status())?;
         response.json::<T>().await.map_err(|_| {
-            SkillMarketProviderError::InvalidResponse(
-                "SkillHub returned invalid JSON".to_string(),
-            )
+            SkillMarketProviderError::InvalidResponse("SkillHub returned invalid JSON".to_string())
         })
     }
 
     async fn get_text(&self, url: Url) -> Result<String, SkillMarketProviderError> {
         let response = self.client.get(url).send().await.map_err(map_request_error)?;
         let response = if response.status().is_redirection() {
-            let location = response
-                .headers()
-                .get(LOCATION)
-                .and_then(|value| value.to_str().ok())
-                .ok_or_else(|| {
-                    SkillMarketProviderError::InvalidResponse(
-                        "SkillHub file redirect is missing a valid location".to_string(),
-                    )
-                })?;
+            let location =
+                response.headers().get(LOCATION).and_then(|value| value.to_str().ok()).ok_or_else(
+                    || {
+                        SkillMarketProviderError::InvalidResponse(
+                            "SkillHub file redirect is missing a valid location".to_string(),
+                        )
+                    },
+                )?;
             let redirect_url = skill_file_redirect_url(location)?;
-            self.client
-                .get(redirect_url)
-                .send()
-                .await
-                .map_err(map_request_error)?
+            self.client.get(redirect_url).send().await.map_err(map_request_error)?
         } else {
             response
         };
@@ -138,35 +125,24 @@ impl SkillHubProvider {
         })
     }
 
-    async fn get_artifact_bytes(
-        &self,
-        url: Url,
-    ) -> Result<Vec<u8>, SkillMarketProviderError> {
+    async fn get_artifact_bytes(&self, url: Url) -> Result<Vec<u8>, SkillMarketProviderError> {
         let response = self.client.get(url).send().await.map_err(map_request_error)?;
         let mut response = if response.status().is_redirection() {
-            let location = response
-                .headers()
-                .get(LOCATION)
-                .and_then(|value| value.to_str().ok())
-                .ok_or_else(|| {
-                    SkillMarketProviderError::InvalidResponse(
-                        "SkillHub artifact redirect is missing a valid location".to_string(),
-                    )
-                })?;
+            let location =
+                response.headers().get(LOCATION).and_then(|value| value.to_str().ok()).ok_or_else(
+                    || {
+                        SkillMarketProviderError::InvalidResponse(
+                            "SkillHub artifact redirect is missing a valid location".to_string(),
+                        )
+                    },
+                )?;
             let redirect_url = skill_artifact_redirect_url(location)?;
-            self.client
-                .get(redirect_url)
-                .send()
-                .await
-                .map_err(map_request_error)?
+            self.client.get(redirect_url).send().await.map_err(map_request_error)?
         } else {
             response
         };
         ensure_success(response.status())?;
-        if response
-            .content_length()
-            .is_some_and(|length| length > MAX_ARTIFACT_BYTES as u64)
-        {
+        if response.content_length().is_some_and(|length| length > MAX_ARTIFACT_BYTES as u64) {
             return Err(SkillMarketProviderError::InvalidResponse(
                 "SkillHub artifact exceeds the download limit".to_string(),
             ));
@@ -285,8 +261,7 @@ impl SkillMarketProvider for SkillHubProvider {
         locator: &SkillMarketSkillLocatorDto,
     ) -> Result<SkillMarketSkillFileDto, SkillMarketProviderError> {
         let detail = self.skill_detail(locator).await?;
-        let mut url =
-            self.endpoint(&["api", "v1", "skills", &locator.slug, "file"])?;
+        let mut url = self.endpoint(&["api", "v1", "skills", &locator.slug, "file"])?;
         {
             let mut pairs = url.query_pairs_mut();
             pairs.append_pair("path", SKILL_FILE_PATH);
@@ -294,10 +269,7 @@ impl SkillMarketProvider for SkillHubProvider {
             pairs.append_pair("namespace", &locator.namespace);
         }
         let content = self.get_text(url).await?;
-        Ok(SkillMarketSkillFileDto {
-            coordinate: detail.skill.coordinate,
-            content,
-        })
+        Ok(SkillMarketSkillFileDto { coordinate: detail.skill.coordinate, content })
     }
 
     async fn skill_artifact(
@@ -327,37 +299,28 @@ impl SkillMarketProvider for SkillHubProvider {
             version,
             "signature",
         ])?;
-        signature_url
-            .query_pairs_mut()
-            .append_pair("namespace", namespace);
+        signature_url.query_pairs_mut().append_pair("namespace", namespace);
         let signature: RawArtifactSignature = self.get_json(signature_url).await?;
-        let (key_id, payload, signature_b64, public_key_b64) =
-            if signature.signed {
-                let key_id = required(signature.key_id, "signature key ID")?;
-                let payload = required(signature.payload, "signature payload")?;
-                let signature_b64 =
-                    required(signature.signature, "artifact signature")?;
-                let keys_url =
-                    self.endpoint(&["api", "v1", "open", "platform", "keys"])?;
-                let keys: RawPlatformKeys = self.get_json(keys_url).await?;
-                let key = keys
-                    .keys
-                    .into_iter()
-                    .find(|key| key.key_id == key_id)
-                    .ok_or_else(|| {
-                        SkillMarketProviderError::InvalidResponse(
-                            "SkillHub signature key is unavailable".to_string(),
-                        )
-                    })?;
-                if key.algorithm != "Ed25519" {
-                    return Err(SkillMarketProviderError::InvalidResponse(
-                        "SkillHub signature key algorithm is unsupported".to_string(),
-                    ));
-                }
-                (key_id, payload, signature_b64, key.public_key_raw_b64)
-            } else {
-                (String::new(), String::new(), String::new(), String::new())
-            };
+        let (key_id, payload, signature_b64, public_key_b64) = if signature.signed {
+            let key_id = required(signature.key_id, "signature key ID")?;
+            let payload = required(signature.payload, "signature payload")?;
+            let signature_b64 = required(signature.signature, "artifact signature")?;
+            let keys_url = self.endpoint(&["api", "v1", "open", "platform", "keys"])?;
+            let keys: RawPlatformKeys = self.get_json(keys_url).await?;
+            let key = keys.keys.into_iter().find(|key| key.key_id == key_id).ok_or_else(|| {
+                SkillMarketProviderError::InvalidResponse(
+                    "SkillHub signature key is unavailable".to_string(),
+                )
+            })?;
+            if key.algorithm != "Ed25519" {
+                return Err(SkillMarketProviderError::InvalidResponse(
+                    "SkillHub signature key algorithm is unsupported".to_string(),
+                ));
+            }
+            (key_id, payload, signature_b64, key.public_key_raw_b64)
+        } else {
+            (String::new(), String::new(), String::new(), String::new())
+        };
 
         Ok(SkillMarketArtifact {
             archive,
@@ -418,11 +381,7 @@ impl SkillMarketProvider for SkillHubProvider {
             })
             .collect();
         let content = response.content.clone().unwrap_or_default();
-        Ok(SkillMarketSkillSetDetailDto {
-            skill_set: map_skill_set(response),
-            members,
-            content,
-        })
+        Ok(SkillMarketSkillSetDetailDto { skill_set: map_skill_set(response), members, content })
     }
 
     async fn skill_set_artifact(
@@ -440,15 +399,13 @@ impl SkillMarketProvider for SkillHubProvider {
             ));
         }
 
-        let download_url =
-            self.endpoint(&["api", "v1", "skillsets", slug, "download"])?;
+        let download_url = self.endpoint(&["api", "v1", "skillsets", slug, "download"])?;
         let archive = self.get_artifact_bytes(download_url).await?;
         let mut members = Vec::with_capacity(detail.skills.len());
         for member in detail.skills {
             let locator = SkillMarketSkillLocatorDto {
                 source: SOURCE.to_string(),
-                namespace: required_value(&member.namespace, "member namespace")?
-                    .to_string(),
+                namespace: required_value(&member.namespace, "member namespace")?.to_string(),
                 slug: required_value(&member.slug, "member slug")?.to_string(),
             };
             let coordinate = if let Some(version) =
@@ -459,10 +416,8 @@ impl SkillMarketProvider for SkillHubProvider {
                 self.skill_detail(&locator).await?.skill.coordinate
             };
             let member_artifact = self.skill_artifact(&coordinate).await?;
-            members.push(SkillMarketSkillSetMemberArtifact {
-                coordinate,
-                artifact: member_artifact,
-            });
+            members
+                .push(SkillMarketSkillSetMemberArtifact { coordinate, artifact: member_artifact });
         }
 
         Ok(SkillMarketSkillSetArtifact {
@@ -484,16 +439,14 @@ pub(super) fn skill_file_redirect_url(location: &str) -> Result<Url, SkillMarket
     let trusted_path = url
         .path_segments()
         .map(|segments| segments.collect::<Vec<_>>())
-        .is_some_and(|segments| {
-            match segments.as_slice() {
-                ["skills", slug, version, "files", SKILL_FILE_PATH] => {
-                    !slug.is_empty() && !version.is_empty()
-                }
-                ["orgs", organization, slug, version, "files", SKILL_FILE_PATH] => {
-                    !organization.is_empty() && !slug.is_empty() && !version.is_empty()
-                }
-                _ => false,
+        .is_some_and(|segments| match segments.as_slice() {
+            ["skills", slug, version, "files", SKILL_FILE_PATH] => {
+                !slug.is_empty() && !version.is_empty()
             }
+            ["orgs", organization, slug, version, "files", SKILL_FILE_PATH] => {
+                !organization.is_empty() && !slug.is_empty() && !version.is_empty()
+            }
+            _ => false,
         });
     if url.scheme() != "https"
         || url.host_str() != Some(SKILL_FILE_REDIRECT_HOST)
@@ -511,9 +464,7 @@ pub(super) fn skill_file_redirect_url(location: &str) -> Result<Url, SkillMarket
     Ok(url)
 }
 
-pub(super) fn skill_artifact_redirect_url(
-    location: &str,
-) -> Result<Url, SkillMarketProviderError> {
+pub(super) fn skill_artifact_redirect_url(location: &str) -> Result<Url, SkillMarketProviderError> {
     let url = Url::parse(location).map_err(|_| {
         SkillMarketProviderError::InvalidResponse(
             "SkillHub artifact redirect URL is invalid".to_string(),
@@ -522,19 +473,15 @@ pub(super) fn skill_artifact_redirect_url(
     let trusted_path = url
         .path_segments()
         .map(|segments| segments.collect::<Vec<_>>())
-        .is_some_and(|segments| {
-            match segments.as_slice() {
-                ["skills", slug, archive] => {
-                    !slug.is_empty() && valid_zip_archive(archive)
-                }
-                ["skills", skill_id, slug, archive] => {
-                    skill_id.bytes().all(|byte| byte.is_ascii_digit())
-                        && !skill_id.is_empty()
-                        && !slug.is_empty()
-                        && valid_zip_archive(archive)
-                }
-                _ => false,
+        .is_some_and(|segments| match segments.as_slice() {
+            ["skills", slug, archive] => !slug.is_empty() && valid_zip_archive(archive),
+            ["skills", skill_id, slug, archive] => {
+                skill_id.bytes().all(|byte| byte.is_ascii_digit())
+                    && !skill_id.is_empty()
+                    && !slug.is_empty()
+                    && valid_zip_archive(archive)
             }
+            _ => false,
         });
     if url.scheme() != "https"
         || url.host_str() != Some(SKILL_FILE_REDIRECT_HOST)
@@ -553,18 +500,14 @@ pub(super) fn skill_artifact_redirect_url(
 }
 
 fn valid_zip_archive(archive: &str) -> bool {
-    archive
-        .strip_suffix(".zip")
-        .is_some_and(|version| !version.is_empty())
+    archive.strip_suffix(".zip").is_some_and(|version| !version.is_empty())
 }
 
 fn map_request_error(error: reqwest::Error) -> SkillMarketProviderError {
     if error.is_timeout() {
         SkillMarketProviderError::Timeout
     } else {
-        SkillMarketProviderError::Upstream(
-            "SkillHub request could not be completed".to_string(),
-        )
+        SkillMarketProviderError::Upstream("SkillHub request could not be completed".to_string())
     }
 }
 
@@ -592,11 +535,7 @@ fn map_skill(raw: RawSkill) -> Result<SkillMarketSkillDto, SkillMarketProviderEr
 
     Ok(SkillMarketSkillDto {
         coordinate: SkillMarketCoordinateDto {
-            locator: SkillMarketSkillLocatorDto {
-                source: SOURCE.to_string(),
-                namespace,
-                slug,
-            },
+            locator: SkillMarketSkillLocatorDto { source: SOURCE.to_string(), namespace, slug },
             version,
         },
         name: raw.name.unwrap_or_default(),
@@ -623,31 +562,21 @@ fn map_skill_detail(
     let slug = required(raw.skill.slug, "slug")?;
     let version = required(raw.latest_version.version, "version")?;
     let requires_api_key = label_is_true(raw.skill.labels.as_ref(), "requires_api_key");
-    let security = raw.security_reports.into_values().next().map(|report| {
-        SkillMarketSecurityDto {
-            status: report.status.unwrap_or_else(|| "unknown".to_string()),
-            summary: report.status_text,
-        }
+    let security = raw.security_reports.into_values().next().map(|report| SkillMarketSecurityDto {
+        status: report.status.unwrap_or_else(|| "unknown".to_string()),
+        summary: report.status_text,
     });
     let stats = raw.skill.stats.unwrap_or_default();
 
     Ok(SkillMarketSkillDetailDto {
         skill: SkillMarketSkillDto {
             coordinate: SkillMarketCoordinateDto {
-                locator: SkillMarketSkillLocatorDto {
-                    source: SOURCE.to_string(),
-                    namespace,
-                    slug,
-                },
+                locator: SkillMarketSkillLocatorDto { source: SOURCE.to_string(), namespace, slug },
                 version,
             },
             name: raw.skill.display_name.unwrap_or_default(),
             description: raw.skill.summary.or(raw.skill.summary_zh).unwrap_or_default(),
-            author: raw
-                .owner
-                .display_name
-                .or(raw.owner.handle)
-                .unwrap_or_default(),
+            author: raw.owner.display_name.or(raw.owner.handle).unwrap_or_default(),
             category: raw.skill.category.unwrap_or_default(),
             tags: tags(None, raw.skill.sub_categories),
             icon: raw.skill.icon_url,
@@ -679,21 +608,13 @@ fn map_skill_set(raw: RawSkillSet) -> SkillMarketSkillSetDto {
     }
 }
 
-fn required(
-    value: Option<String>,
-    field: &str,
-) -> Result<String, SkillMarketProviderError> {
+fn required(value: Option<String>, field: &str) -> Result<String, SkillMarketProviderError> {
     value.filter(|value| !value.is_empty()).ok_or_else(|| {
-        SkillMarketProviderError::InvalidResponse(format!(
-            "SkillHub response is missing {field}"
-        ))
+        SkillMarketProviderError::InvalidResponse(format!("SkillHub response is missing {field}"))
     })
 }
 
-fn required_value<'a>(
-    value: &'a str,
-    field: &str,
-) -> Result<&'a str, SkillMarketProviderError> {
+fn required_value<'a>(value: &'a str, field: &str) -> Result<&'a str, SkillMarketProviderError> {
     if value.trim().is_empty() {
         Err(SkillMarketProviderError::InvalidResponse(format!(
             "skill coordinate is missing {field}"
@@ -739,15 +660,11 @@ fn tags(raw_tags: Option<Value>, sub_categories: Vec<RawCategoryRef>) -> Vec<Str
 }
 
 fn label_is_true(labels: Option<&BTreeMap<String, Value>>, name: &str) -> bool {
-    labels
-        .and_then(|labels| labels.get(name))
-        .is_some_and(|value| {
-            value.as_bool().unwrap_or_else(|| {
-                value
-                    .as_str()
-                    .is_some_and(|value| value.eq_ignore_ascii_case("true"))
-            })
+    labels.and_then(|labels| labels.get(name)).is_some_and(|value| {
+        value.as_bool().unwrap_or_else(|| {
+            value.as_str().is_some_and(|value| value.eq_ignore_ascii_case("true"))
         })
+    })
 }
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>

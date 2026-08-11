@@ -15,6 +15,7 @@ use super::runner::local::{
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::tasks::NewAgentTask;
+use super::task_graph::AgentTaskDependency;
 
 #[test]
 fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()> {
@@ -126,6 +127,63 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].acp_agent.as_deref(), Some("codex"));
     assert_eq!(requests[0].reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    Ok(())
+}
+
+#[test]
+fn local_runner_cannot_bypass_task_graph() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path().join("project-local-runner-task-graph");
+    std::fs::create_dir_all(&project_path)?;
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("task-local-runner-blocked")?;
+    let predecessor_id = TaskId::new("task-local-runner-prerequisite")?;
+    let executor = RecordingExecutor::succeeding("unexpected local execution");
+    let runner = LocalAgentRunner::new(&store, &executor);
+
+    store.initialize_project(&project_path)?;
+    let mut predecessor = finite_task(&predecessor_id)?;
+    predecessor.status = AgentTaskStatus::Submitted;
+    store.create_task(&project_path, predecessor)?;
+    store.create_task(&project_path, finite_task(&task_id)?)?;
+    store.replace_task_dependencies(
+        &project_path,
+        vec![AgentTaskDependency::new(predecessor_id, task_id.clone())],
+    )?;
+
+    let outcome = runner.run_once(
+        &project_path,
+        LocalAgentRunnerRequest {
+            task_id: task_id.clone(),
+            worker_id: WorkerName::new("local-worker")?,
+            now_ms: TimestampMs(1_500),
+        },
+    )?;
+
+    assert_eq!(outcome, None);
+    assert_eq!(
+        store.load_task(&project_path, &task_id)?.expect("blocked task persists").status,
+        AgentTaskStatus::Queued
+    );
+    assert!(executor.requests.lock().expect("execution requests lock").is_empty());
+
+    store.transition_task_status(
+        &project_path,
+        &TaskId::new("task-local-runner-prerequisite")?,
+        AgentTaskStatus::Completed,
+        TimestampMs(1_501),
+    )?;
+    let outcome = runner
+        .run_once(
+            &project_path,
+            LocalAgentRunnerRequest {
+                task_id: task_id.clone(),
+                worker_id: WorkerName::new("local-worker")?,
+                now_ms: TimestampMs(1_502),
+            },
+        )?
+        .expect("task runs after the prerequisite completes");
+    assert_eq!(outcome.task_id, task_id);
     Ok(())
 }
 

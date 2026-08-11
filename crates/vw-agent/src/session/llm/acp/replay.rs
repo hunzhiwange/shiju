@@ -5,6 +5,7 @@
 //! 丢弃、完整、摘要或最近历史策略。
 
 use serde_json::Value;
+use std::collections::HashSet;
 
 use super::AcpReplayStrategy;
 
@@ -77,6 +78,15 @@ fn content_to_text(content: &Value) -> String {
         }
     }
     out.trim().to_string()
+}
+
+/// ACP accepts a single text prompt, so transient meta-user messages need an
+/// explicit serialization boundary. They are not ordinary conversation turns
+/// and must not be replayed once per historical request.
+fn is_protocol_meta_message(role: &str, content: &str) -> bool {
+    role == "user"
+        && content.starts_with("<system-reminder>")
+        && content.ends_with("</system-reminder>")
 }
 
 /// 生成单行预览文本。
@@ -160,11 +170,19 @@ pub(crate) fn build_replay_prompt(
     };
 
     let mut system_messages = Vec::new();
+    let mut protocol_messages = Vec::new();
+    let mut seen_protocol_messages = HashSet::new();
     let mut non_system_messages = Vec::<(String, String)>::new();
     for item in items {
         let role = item.get("role").and_then(Value::as_str).unwrap_or_default();
         let content = content_to_text(&item.get("content").cloned().unwrap_or(Value::Null));
         if content.is_empty() {
+            continue;
+        }
+        if is_protocol_meta_message(role, &content) {
+            if seen_protocol_messages.insert(content.clone()) {
+                protocol_messages.push(content);
+            }
             continue;
         }
         if role == "system" {
@@ -200,6 +218,12 @@ pub(crate) fn build_replay_prompt(
 
     if !system_messages.is_empty() {
         sections.push(format!("<system>\n{}\n</system>", system_messages.join("\n\n")));
+    }
+    if !protocol_messages.is_empty() {
+        sections.push(format!(
+            "<protocol_context>\n{}\n</protocol_context>",
+            protocol_messages.join("\n\n")
+        ));
     }
 
     match strategy {

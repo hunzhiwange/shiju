@@ -42,6 +42,7 @@ fn skills_to_prompt_with_skills() {
         tools: vec![],
         prompts: vec!["Do the thing.".to_string()],
         location: None,
+        ..Skill::default()
     }];
     let prompt = skills_to_prompt(&skills, Path::new("/tmp"));
 
@@ -79,6 +80,7 @@ fn skills_to_prompt_compact_mode_omits_instructions_and_tools() {
         }],
         prompts: vec!["Do the thing.".to_string()],
         location: Some(PathBuf::from("/tmp/workspace/skills/test/SKILL.md")),
+        ..Skill::default()
     }];
 
     // 使用紧凑模式生成提示
@@ -130,6 +132,7 @@ fn skills_to_prompt_includes_tools() {
         }],
         prompts: vec![],
         location: None,
+        ..Skill::default()
     }];
     let prompt = skills_to_prompt(&skills, Path::new("/tmp"));
 
@@ -163,6 +166,7 @@ fn skills_to_prompt_escapes_xml_content() {
         tools: vec![],
         prompts: vec!["Use <tool> & check \"quotes\".".to_string()], // 包含多种特殊字符
         location: None,
+        ..Skill::default()
     }];
 
     let prompt = skills_to_prompt(&skills, Path::new("/tmp"));

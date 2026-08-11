@@ -180,6 +180,23 @@ fn acp_route_model_uses_default_for_non_string_agent() {
     }
 }
 
+#[test]
+fn explicit_model_bypasses_auto() {
+    assert!(!is_auto_model_request(Some("provider/model")));
+    assert!(is_auto_model_request(Some("auto")));
+    assert!(is_auto_model_request(None));
+}
+
+#[test]
+fn acp_route_bypasses_auto_selector() {
+    assert!(request_bypasses_auto_selector(None, &json!({ "acp_agent": "codex" })));
+    assert!(request_bypasses_auto_selector(
+        Some("provider/model"),
+        &json!({ "acp_agent": "codex" })
+    ));
+    assert!(!request_bypasses_auto_selector(Some("auto"), &json!({})));
+}
+
 #[tokio::test]
 async fn resolve_model_for_options_uses_acp_route_model_without_explicit_model() {
     let model = resolve_model_for_options(None, &json!({ "acp_agent": "codex" }))
@@ -202,15 +219,16 @@ async fn resolve_model_for_options_treats_blank_model_as_absent_for_acp_test() {
 }
 
 #[tokio::test]
-async fn resolve_model_for_options_keeps_invalid_explicit_model_error_for_acp() {
-    let error = resolve_model_for_options(
+async fn resolve_model_for_options_prioritizes_acp_over_explicit_model() {
+    let model = resolve_model_for_options(
         Some("__missing_provider_for_acp__/missing-model".to_string()),
         &json!({ "acp_agent": "codex" }),
     )
     .await
-    .expect_err("explicit bad model should still fail");
+    .expect("ACP should bypass normal explicit model parsing");
 
-    assert!(error.contains("未找到模型"));
+    assert_eq!(model.provider_id, "acp");
+    assert_eq!(model.id, "codex");
 }
 
 #[tokio::test]

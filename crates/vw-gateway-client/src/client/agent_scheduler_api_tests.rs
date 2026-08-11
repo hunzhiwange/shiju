@@ -6,6 +6,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerTaskBoardEventsResponse,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
     AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertWorkerRequest, AgentSchedulerWakeRequest,
     AgentSchedulerWorkerRunEventKindDto, AgentSchedulerWorkerRunEventRequest, AgentTaskKindDto,
@@ -25,6 +26,78 @@ use crate::endpoint::GatewayEndpoint;
 fn scheduler_scope(project_id: &str) -> AgentSchedulerScopeDto {
     AgentSchedulerScopeDto::for_default_tenant(ProjectId::from(project_id))
         .expect("scheduler scope")
+}
+
+#[tokio::test]
+async fn agent_scheduler_client_reads_and_replaces_task_graph() {
+    let tenant = TenantScope::new("platform-graph", "company-graph").expect("tenant scope");
+    let scope = AgentSchedulerScopeDto::new(
+        ProjectScope::new(tenant.clone(), ProjectId::from("project/one ?"))
+            .expect("project scope"),
+    );
+    let server = test_support::server_with_tenant_scope(
+        vec![
+            (
+                200,
+                json!({
+                    "project_id": "project/one ?",
+                    "edges": [{
+                        "predecessor_task_id": "task/prepare",
+                        "successor_task_id": "task/review"
+                    }],
+                    "tasks": [{
+                        "task_id": "task/review",
+                        "status": "queued",
+                        "readiness": "waiting_dependencies",
+                        "waiting_task_ids": ["task/prepare"],
+                        "blocking_task_ids": []
+                    }]
+                }),
+            ),
+            (200, json!({"project_id": "project/one ?", "edges": [], "tasks": []})),
+        ],
+        tenant.clone(),
+    );
+    let replace = AgentSchedulerReplaceTaskGraphRequest {
+        edges: vec![AgentSchedulerTaskGraphEdgeDto {
+            predecessor_task_id: "task/prepare".to_string(),
+            successor_task_id: "task/review".to_string(),
+        }],
+    };
+
+    let snapshot = server
+        .client()
+        .agent_scheduler_task_graph(&scope)
+        .await
+        .expect("read task graph");
+    let replaced = server
+        .client()
+        .agent_scheduler_replace_task_graph(&scope, &replace)
+        .await
+        .expect("replace task graph");
+
+    assert_eq!(snapshot.edges, replace.edges);
+    assert!(replaced.edges.is_empty());
+    let get = server.take_request();
+    let put = server.take_request();
+    let path = "/v1/agent-scheduler/projects/project%2Fone%20%3F/task-graph";
+    assert_eq!(get.method, "GET");
+    assert_eq!(get.path, path);
+    assert_eq!(put.method, "PUT");
+    assert_eq!(put.path, path);
+    assert_eq!(put.body["edges"][0]["predecessor_task_id"], "task/prepare");
+    assert_eq!(put.body["edges"][0]["successor_task_id"], "task/review");
+    for request in [&get, &put] {
+        assert_eq!(
+            request.header(vw_api_types::id::PLATFORM_ID_HEADER),
+            Some(tenant.platform_id().as_ref())
+        );
+        assert_eq!(
+            request.header(vw_api_types::id::COMPANY_ID_HEADER),
+            Some(tenant.company_id().as_ref())
+        );
+    }
+    server.join();
 }
 
 #[tokio::test]

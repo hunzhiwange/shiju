@@ -302,14 +302,10 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::create_dir_all(&parent_plain_skill).unwrap();
     fs::write(parent_plain_skill.join("SKILL.md"), "# Parent Plain\nParent plain skill\n").unwrap();
 
-    let parent_agents_skill =
-        repo_root.join(".agents").join("skills").join("parent-agents-skill");
+    let parent_agents_skill = repo_root.join(".agents").join("skills").join("parent-agents-skill");
     fs::create_dir_all(&parent_agents_skill).unwrap();
-    fs::write(
-        parent_agents_skill.join("SKILL.md"),
-        "# Parent Agents\nParent agents skill\n",
-    )
-    .unwrap();
+    fs::write(parent_agents_skill.join("SKILL.md"), "# Parent Agents\nParent agents skill\n")
+        .unwrap();
 
     let hidden_skill = project_dir.join(".vibewindow").join("skills").join("hidden-skill");
     fs::create_dir_all(&hidden_skill).unwrap();

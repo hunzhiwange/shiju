@@ -16,6 +16,7 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
         max_parallel_subagents: 4,
         provider: String::new(),
         model: String::new(),
+        force_model_selection: false,
         system_prompt_editor: text_editor::Content::new(),
         api_key_input: String::new(),
         temperature: 0.7,

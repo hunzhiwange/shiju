@@ -30,6 +30,37 @@ fn request_model_context_keeps_provider_and_model_together() {
 }
 
 #[test]
+fn request_model_context_retains_auto_selection_source() {
+    let context = super::with_request_model_context(
+        crate::app::agent::tools::ToolUseContext::new("parent", None),
+        Some("token-plan/qwen3.7-plus"),
+    )
+    .with_auto_model_selection(true);
+
+    assert!(context.model_selected_by_auto());
+}
+
+#[test]
+fn processor_auto_resolves_model_before_tool_context() {
+    let req = request_with_session("auto-before-tools");
+
+    let resolved = super::resolve_request_model(&req, &crate::config::Config::default())
+        .expect("Auto request should resolve before building tool context");
+
+    assert!(resolved.model.contains('/'));
+}
+
+#[test]
+fn processor_step_events_report_selected_model() {
+    let req = request_with_session("selected-step-events");
+
+    let resolved = super::resolve_request_model(&req, &crate::config::Config::default())
+        .expect("Auto request should resolve once for all processor events");
+
+    assert_eq!(resolved.step_event_model(), Some(resolved.model.as_str()));
+}
+
+#[test]
 fn enabled_identity_files_follow_selected_agent_config_snapshot() {
     let mut config = crate::config::Config::default();
     config.agents.insert(
@@ -47,14 +78,8 @@ fn enabled_identity_files_follow_selected_agent_config_snapshot() {
         },
     );
 
-    assert_eq!(
-        super::enabled_identity_files_for_agent(&config, None),
-        vec!["AGENTS.md"]
-    );
-    assert_eq!(
-        super::enabled_identity_files_for_agent(&config, Some("reviewer")),
-        vec!["SOUL.md"]
-    );
+    assert_eq!(super::enabled_identity_files_for_agent(&config, None), vec!["AGENTS.md"]);
+    assert_eq!(super::enabled_identity_files_for_agent(&config, Some("reviewer")), vec!["SOUL.md"]);
     assert!(super::enabled_identity_files_for_agent(&config, Some("missing")).is_empty());
 }
 
@@ -428,6 +453,7 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
     let mut llm_messages = Vec::new();
     let mut total_usage = models::TokenUsage::default();
     let mut tool_state = super::ToolSessionState::default();
+    let mut session_protocol = super::DesktopSessionProtocol::default();
     let mut events = Vec::new();
     let step_out = super::llm_runner::LlmStep {
         tool_calls: vec![llm::ToolCall {
@@ -451,6 +477,7 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
             true
         },
         &mut tool_state,
+        &mut session_protocol,
         &step_out,
         "",
         false,
@@ -475,6 +502,7 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
     let mut llm_messages = Vec::new();
     let mut total_usage = models::TokenUsage::default();
     let mut tool_state = super::ToolSessionState::default();
+    let mut session_protocol = super::DesktopSessionProtocol::default();
     let mut allowed_tools = HashSet::new();
     allowed_tools.insert("otherwise_allowed".to_string());
     let step_out = super::llm_runner::LlmStep {
@@ -496,6 +524,7 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
         &mut total_usage,
         &mut |_| true,
         &mut tool_state,
+        &mut session_protocol,
         &step_out,
         "",
         true,

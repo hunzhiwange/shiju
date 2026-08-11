@@ -106,6 +106,7 @@ fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> Deleg
         max_parallel_subagents: 4,
         provider: "ollama".to_string(),
         model: "llama3".to_string(),
+        force_model_selection: false,
         system_prompt: None,
         api_key: None,
         temperature: None,

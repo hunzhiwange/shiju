@@ -10,9 +10,7 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
 
     let selected = base
         .iter()
-        .find(|tool| {
-            !is_builtin_required_tool_id(tool) && !is_mcp_dynamic_tool_id(tool)
-        })
+        .find(|tool| !is_builtin_required_tool_id(tool) && !is_mcp_dynamic_tool_id(tool))
         .expect("at least one optional non-MCP registered tool")
         .clone();
     let filtered = allowed_tool_ids_for_request(
@@ -73,10 +71,8 @@ fn request_filter_always_retains_builtin_required_and_mcp_tools_when_present_in_
         ),
     ];
 
-    let allowed = allowed_tool_ids_for_request_from_specs(
-        &specs,
-        &json!({"allowed_tools": ["file_read"]}),
-    );
+    let allowed =
+        allowed_tool_ids_for_request_from_specs(&specs, &json!({"allowed_tools": ["file_read"]}));
 
     assert_eq!(
         allowed,
@@ -117,10 +113,7 @@ fn allowed_tool_ids_for_request_uses_dynamic_specs() {
 
     assert_eq!(
         allowed,
-        HashSet::from([
-            "mcp__rustcodegraph__search".to_string(),
-            "file_read".to_string(),
-        ])
+        HashSet::from(["mcp__rustcodegraph__search".to_string(), "file_read".to_string(),])
     );
     assert!(allowed_tool_ids_from_specs(&specs).contains("mcp_alias"));
 }
@@ -183,11 +176,13 @@ fn request_filter_returns_empty_when_tools_are_explicitly_disabled() {
         json!({"type": "object"}),
     )];
 
-    assert!(allowed_tool_ids_for_request_from_specs(
-        &specs,
-        &json!({"disable_tools": true, "allowed_tools": ["AskUserQuestion"]}),
-    )
-    .is_empty());
+    assert!(
+        allowed_tool_ids_for_request_from_specs(
+            &specs,
+            &json!({"disable_tools": true, "allowed_tools": ["AskUserQuestion"]}),
+        )
+        .is_empty()
+    );
 }
 
 #[test]

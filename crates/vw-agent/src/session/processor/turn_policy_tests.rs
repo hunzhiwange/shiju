@@ -6,17 +6,11 @@ fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
     config.agent.max_history_messages = 64;
     config.agents.insert(
         "main".to_string(),
-        crate::config::DelegateAgentConfig {
-            max_iterations: 12,
-            ..Default::default()
-        },
+        crate::config::DelegateAgentConfig { max_iterations: 12, ..Default::default() },
     );
     config.agents.insert(
         "reviewer".to_string(),
-        crate::config::DelegateAgentConfig {
-            max_iterations: 7,
-            ..Default::default()
-        },
+        crate::config::DelegateAgentConfig { max_iterations: 7, ..Default::default() },
     );
     config.agent.max_tool_iterations = 23;
 
@@ -46,10 +40,7 @@ fn turn_policy_falls_back_to_main_for_unknown_or_blank_agent() {
     config.agent.max_tool_iterations = 19;
     config.agents.insert(
         "main".to_string(),
-        crate::config::DelegateAgentConfig {
-            max_iterations: 9,
-            ..Default::default()
-        },
+        crate::config::DelegateAgentConfig { max_iterations: 9, ..Default::default() },
     );
 
     assert_eq!(ChatTurnPolicy::from_config(&config, Some("missing")).max_tool_iterations, 19);

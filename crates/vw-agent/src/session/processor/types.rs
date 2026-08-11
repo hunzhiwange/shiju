@@ -5,12 +5,13 @@
 
 use crate::agent::loop_::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;
+use crate::app::agent::provider::provider::ModelLimit;
+use crate::session::runtime::SessionToolset;
 use crate::session::ui_types as models;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
-use crate::session::runtime::SessionToolset;
 
 /// 会话处理请求
 ///
@@ -63,6 +64,23 @@ pub struct Request {
 
     /// 仅在当前绑定会话中可见的动态工具。
     pub session_tools: SessionToolset,
+}
+
+/// A complete model reference chosen once for a processor request.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedRequestModel {
+    pub(crate) model: String,
+    pub(crate) limit: ModelLimit,
+}
+
+impl ResolvedRequestModel {
+    pub(crate) fn new(model: String, limit: ModelLimit) -> Self {
+        Self { model, limit }
+    }
+
+    pub(crate) fn step_event_model(&self) -> Option<&str> {
+        Some(&self.model)
+    }
 }
 
 /// 工具调用在类型化生命周期中的阶段。
@@ -185,7 +203,6 @@ pub(crate) struct ToolSessionState {
 
     /// 当前请求通过 AgentTool 后台启动的直系子会话。
     pub(crate) agent_background_children: Vec<String>,
-
 }
 #[cfg(test)]
 #[path = "types_tests.rs"]

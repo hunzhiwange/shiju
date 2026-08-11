@@ -30,9 +30,12 @@
 
 mod logging;
 mod messages;
+mod model_selector;
 mod options;
 mod prompt;
 mod stream;
+#[cfg(test)]
+mod model_selector_tests;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -43,7 +46,13 @@ mod acp;
 mod aisdk;
 
 pub use messages::has_tool_calls;
-pub(crate) use prompt::{model_limit_for_request, stream_chat_with_tools_for_session_with_abort};
+pub use model_selector::{
+    select_auto_model, AutoModelSelectionRequest, ModelCandidate, ModelReference,
+    ModelSelectionDecision, ModelSelectionError, ModelSelectionSource, ModelTaskProfile,
+};
+#[cfg(test)]
+pub(crate) use prompt::model_limit_for_request;
+pub(crate) use prompt::stream_chat_with_tools_for_session_with_abort;
 pub use prompt::{
     send_prompt, stream_chat_with_tools, stream_chat_with_tools_for_session, stream_prompt,
     stream_prompt_with_tools,

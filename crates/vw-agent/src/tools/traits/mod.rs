@@ -193,6 +193,15 @@ pub struct ToolExtraMessage {
     pub content: Value,
 }
 
+impl ToolExtraMessage {
+    /// 创建仅供模型上下文消费的元用户文本消息。
+    ///
+    /// 技能正文不能混入普通工具结果，否则模型会把加载确认和执行指令混为一谈。
+    pub fn meta_user_text(content: impl Into<String>) -> Self {
+        Self { role: "user".to_string(), content: Value::String(content.into()) }
+    }
+}
+
 /// 工具渲染提示。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolRenderHint {

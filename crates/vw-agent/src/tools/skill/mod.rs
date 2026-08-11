@@ -3,10 +3,9 @@
 //! 加载并执行预定义的技能脚本。技能是可重用的工作流模板，
 //! 用于封装常见的任务模式和最佳实践。
 
-use super::traits::{Tool, ToolResult};
+use super::traits::{Tool, ToolCallResult, ToolResult};
 use crate::app::agent::agent;
 use crate::app::agent::config;
-use crate::app::agent::file::ripgrep;
 use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::question;
 use crate::app::agent::security::{SecurityPolicy, policy::ToolOperation};
@@ -20,14 +19,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
-严格执行要求：
-1. 除非用户明确要求跳过、修改或重排某个具体步骤，否则必须按本技能规定的顺序完整执行全部工作流。
-2. 不得静默跳过、合并、替代或虚构任何步骤；不得因为已有部分信息而省略技能要求的验证步骤。
-3. 每完成一步，必须核对该步骤的要求和实际结果，再进入下一步。
-4. 如果任一步骤无法执行，必须立即停止并明确报告阻塞原因；不得继续后续步骤，也不得声称任务已经完成。
-5. 输出最终结果前，必须逐项确认所有必需步骤均已完成，并具有实际执行依据。
-</skill_execution_policy>"#;
+mod invocation;
+mod prompt;
 
 /// skill 工具的参数结构体
 ///
@@ -35,7 +28,11 @@ const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
 #[derive(Debug, Clone, Deserialize)]
 struct Args {
     /// 要加载的技能名称
-    name: String,
+    #[serde(alias = "name", alias = "skill_name")]
+    skill: String,
+    /// 可选的技能调用参数。
+    #[serde(default)]
+    args: Option<String>,
 }
 
 /// 技能调用工具
@@ -179,9 +176,10 @@ impl SkillTool {
         json!({
             "type": "object",
             "properties": {
-                "name": { "type": "string" }
+                "skill": { "type": "string" },
+                "args": { "type": "string" }
             },
-            "required": ["name"]
+            "required": ["skill"]
         })
     }
 
@@ -298,42 +296,72 @@ impl SkillTool {
             }
         }
     }
+
+    async fn invoke(&self, input: Value) -> ToolCallResult {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = input;
+            return failure_result("skill 在 Web 版本不可用".to_string());
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Err(error) = self.security.enforce_tool_operation(ToolOperation::Act, "skill") {
+                return failure_result(error);
+            }
+            let args: Args = match serde_json::from_value(input) {
+                Ok(args) => args,
+                Err(error) => {
+                    return failure_result(format!("Missing or invalid parameters: {error}"));
+                }
+            };
+            let skills = skills::load_skills_full_with_config(
+                &self.workspace_dir,
+                self.root_config.as_ref(),
+            );
+            let Some(skill) =
+                skills.iter().find(|skill| skill_matches_name(skill, &args.skill)).cloned()
+            else {
+                return failure_result(format!(
+                    "未找到技能 \"{}\"。可用技能：{}",
+                    args.skill,
+                    available_skill_names(&skills)
+                ));
+            };
+            if skill.disable_model_invocation {
+                return failure_result(format!("技能 \"{}\" 禁止模型调用", skill.name));
+            }
+            if let Err(error) = self.ask_skill_permission(&skill.name).await {
+                return failure_result(error);
+            }
+            match invocation::build_invocation_result(
+                &skill,
+                &self.workspace_dir,
+                args.args.as_deref(),
+            ) {
+                Ok(result) => result,
+                Err(error) => failure_result(error),
+            }
+        }
+    }
+}
+
+fn failure_result(error: String) -> ToolCallResult {
+    ToolCallResult {
+        data: json!({ "success": false, "error": error }),
+        model_result: Value::String(error),
+        telemetry: Some(super::traits::ToolCallTelemetry {
+            success: false,
+            ..super::traits::ToolCallTelemetry::default()
+        }),
+        ..ToolCallResult::default()
+    }
 }
 
 /// 生成工具描述文本（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 fn build_description_text(workspace_dir: &Path, root_config: &config::Config) -> String {
-    let skills = skills::load_skills_with_config(workspace_dir, root_config);
-    let accessible = accessible_skills(skills);
-
-    if accessible.is_empty() {
-        return "加载一个专用技能，以获得特定领域的指导与工作流。目前没有可用技能。".to_string();
-    }
-
-    let mut lines = vec![
-        "加载一个专用技能，以获得特定领域的指导与工作流。".to_string(),
-        String::new(),
-        "当任务匹配下面任一技能时，调用该工具来加载对应技能。".to_string(),
-        "技能会把详细指令、工作流，以及随附资源的访问方式注入到对话上下文中。".to_string(),
-        String::new(),
-        "<available_skills>".to_string(),
-    ];
-
-    for skill in accessible {
-        lines.push("  <skill>".to_string());
-        lines.push(format!("    <name>{}</name>", xml_escape(&skill.name)));
-        if let Some(id) = skill_file_id(&skill)
-            && id != skill.name
-        {
-            lines.push(format!("    <id>{}</id>", xml_escape(&id)));
-        }
-        lines.push(format!("    <description>{}</description>", xml_escape(&skill.description)));
-        let location = skill_location(&skill, workspace_dir);
-        lines.push(format!("    <location>{}</location>", file_url(&location)));
-        lines.push("  </skill>".to_string());
-    }
-    lines.push("</available_skills>".to_string());
-    lines.join("\n")
+    prompt::build_description_text(workspace_dir, root_config)
 }
 
 /// 生成工具描述文本（WASM 平台）
@@ -346,7 +374,7 @@ fn build_description_text(workspace_dir: &Path, root_config: &config::Config) ->
 /// 返回简化的英文工具描述
 #[cfg(target_arch = "wasm32")]
 fn build_description_text(_workspace_dir: &Path, _root_config: &config::Config) -> String {
-    "Load a specialized skill with domain-specific instructions and workflow context.".to_string()
+    prompt::build_description_text(_workspace_dir, _root_config)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -410,16 +438,7 @@ fn available_skill_names(skills: &[skills::Skill]) -> String {
 }
 
 fn skill_prompt_content(skill: &skills::Skill) -> String {
-    let content = skill
-        .prompts
-        .iter()
-        .map(|prompt| prompt.trim())
-        .filter(|prompt| !prompt.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n\n");
-
-    let content = if content.is_empty() { "该技能没有内联指令。" } else { &content };
-    format!("{SKILL_EXECUTION_POLICY}\n\n{content}")
+    prompt::skill_prompt_content(skill, None)
 }
 
 fn xml_escape(value: &str) -> String {
@@ -613,123 +632,16 @@ impl Tool for SkillTool {
     /// - 技能不存在：返回可用技能列表
     /// - 权限被拒绝：返回权限拒绝信息
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let _ = args;
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("skill 在 Web 版本不可用".to_string()),
-            });
+        let result = self.invoke(args).await;
+        if result.is_success() {
+            Ok(ToolResult { success: true, output: result.model_text(), error: None })
+        } else {
+            Ok(ToolResult { success: false, output: String::new(), error: result.error_text() })
         }
+    }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // 1. 安全策略检查
-            if let Err(error) = self.security.enforce_tool_operation(ToolOperation::Act, "skill") {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(error),
-                });
-            }
-
-            // 2. 解析参数
-            let args: Args = match serde_json::from_value(args) {
-                Ok(v) => v,
-                Err(e) => {
-                    return Ok(ToolResult {
-                        success: false,
-                        output: String::new(),
-                        error: Some(format!("Missing or invalid parameters: {e}")),
-                    });
-                }
-            };
-
-            // 3. 查找技能
-            let skills = skills::load_skills_full_with_config(
-                &self.workspace_dir,
-                self.root_config.as_ref(),
-            );
-            let skill_info =
-                match skills.iter().find(|skill| skill_matches_name(skill, &args.name)).cloned() {
-                    Some(info) => info,
-                    None => {
-                        return Ok(ToolResult {
-                            success: false,
-                            output: String::new(),
-                            error: Some(format!(
-                                "未找到技能 \"{}\"。可用技能：{}",
-                                args.name,
-                                available_skill_names(&skills)
-                            )),
-                        });
-                    }
-                };
-
-            // 4. 请求权限确认
-            if let Err(error) = self.ask_skill_permission(&skill_info.name).await {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(error),
-                });
-            }
-
-            // 5. 获取技能目录和基础 URL
-            let loc = skill_location(&skill_info, &self.workspace_dir);
-            let dir = match loc.parent().map(|p| p.to_path_buf()) {
-                Some(v) => v,
-                None => {
-                    return Ok(ToolResult {
-                        success: false,
-                        output: String::new(),
-                        error: Some("技能路径无效".to_string()),
-                    });
-                }
-            };
-            let base = base_dir_url(dir.as_path());
-
-            // 6. 获取技能目录下的文件列表（抽样）
-            // 过滤掉 SKILL.md 文件，最多显示 10 个文件
-            let files = ripgrep::files(ripgrep::FilesInput {
-                cwd: dir.clone(),
-                glob: None,
-                hidden: Some(true),
-                follow: Some(false),
-                max_depth: None,
-            })
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|f| !f.contains("SKILL.md"))
-            .take(10)
-            .map(|rel| format!("<file>{}</file>", dir.join(rel).to_string_lossy()))
-            .collect::<Vec<_>>()
-            .join("\n");
-
-            // 7. 构造并返回技能内容
-            Ok(ToolResult {
-                success: true,
-                output: [
-                    format!("<skill_content name=\"{}\">", xml_escape(&skill_info.name)),
-                    format!("# 技能：{}", skill_info.name),
-                    String::new(),
-                    skill_prompt_content(&skill_info),
-                    String::new(),
-                    format!("该技能的基础目录：{}", base),
-                    "该技能中的相对路径（例如 scripts/、reference/）都相对于该基础目录。"
-                        .to_string(),
-                    "注意：文件列表为抽样结果。".to_string(),
-                    String::new(),
-                    "<skill_files>".to_string(),
-                    files,
-                    "</skill_files>".to_string(),
-                    "</skill_content>".to_string(),
-                ]
-                .join("\n"),
-                error: None,
-            })
-        }
+    async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
+        Ok(self.invoke(input).await)
     }
 }
 
@@ -743,3 +655,7 @@ mod tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
+
+#[cfg(test)]
+#[path = "invocation_tests.rs"]
+mod invocation_tests;

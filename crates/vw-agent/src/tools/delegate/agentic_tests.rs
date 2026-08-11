@@ -70,6 +70,7 @@ fn agentic_config() -> DelegateAgentConfig {
         max_parallel_subagents: 4,
         provider: "test-provider".to_string(),
         model: "test-model".to_string(),
+        force_model_selection: false,
         system_prompt: None,
         api_key: None,
         temperature: Some(0.2),

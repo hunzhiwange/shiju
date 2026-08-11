@@ -218,9 +218,9 @@ pub(crate) fn install_skill_from_source(
     // 检测是否为 Git 来源
     if is_git_source(&resolved_source) {
         let (installed_dir, files_scanned) =
-            install_git_skill_source(&resolved_source, skills_path, security).with_context(|| {
-                format!("failed to install git skill source: {resolved_source}")
-            })?;
+            install_git_skill_source(&resolved_source, skills_path, security).with_context(
+                || format!("failed to install git skill source: {resolved_source}"),
+            )?;
         return Ok(InstallResult::Git { installed_dir, files_scanned });
     }
 

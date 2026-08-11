@@ -41,14 +41,8 @@ fn default_download_policy_contains_required_preloaded_sources() {
         policy.aliases.get("create-task-plans"),
         Some(&"bundled:create-task-plans".to_string())
     );
-    assert_eq!(
-        policy.aliases.get("do-task-plans"),
-        Some(&"bundled:do-task-plans".to_string())
-    );
-    assert_eq!(
-        policy.aliases.get("rustcodegraph"),
-        Some(&"bundled:rustcodegraph".to_string())
-    );
+    assert_eq!(policy.aliases.get("do-task-plans"), Some(&"bundled:do-task-plans".to_string()));
+    assert_eq!(policy.aliases.get("rustcodegraph"), Some(&"bundled:rustcodegraph".to_string()));
 }
 
 /// 测试技能源别名解析函数的优先级行为

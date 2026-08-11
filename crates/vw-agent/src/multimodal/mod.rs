@@ -163,7 +163,7 @@ pub fn parse_image_markers(content: &str) -> (String, Vec<String>) {
 pub fn count_image_markers(messages: &[ChatMessage]) -> usize {
     messages
         .iter()
-        .filter(|m| m.role == "user")
+        .filter(|m| m.role == "user" && !m.content.starts_with("<system-reminder>"))
         .map(|m| parse_image_markers(&m.content).1.len())
         .sum()
 }

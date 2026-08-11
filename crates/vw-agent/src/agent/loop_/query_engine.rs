@@ -80,6 +80,7 @@ pub(crate) struct QueryEngineSnapshot {
 
 pub(crate) struct QueryEngine {
     history: Vec<ChatMessage>,
+    request_system_prompt: String,
     tools_registry: Vec<Box<dyn Tool>>,
     observer: Arc<RecordingObserver>,
     provider: Arc<dyn Provider>,
@@ -288,7 +289,8 @@ impl QueryEngine {
         system_prompt.push_str(&build_shell_policy_instructions(&config.autonomy));
 
         Ok(Self {
-            history: vec![ChatMessage::system(system_prompt)],
+            history: Vec::new(),
+            request_system_prompt: system_prompt,
             tools_registry,
             observer,
             provider,
@@ -320,10 +322,17 @@ impl QueryEngine {
         };
 
         self.history.push(ChatMessage::user(enriched));
+        let persistent_len = self.history.len();
+        let mut request_history = vec![ChatMessage::user(format!(
+            "<system-reminder>\n{}\n</system-reminder>",
+            self.request_system_prompt
+        ))];
+        let transient_len = request_history.len();
+        request_history.extend(self.history.iter().cloned());
 
         let result = agent_turn(
             self.provider.as_ref(),
-            &mut self.history,
+            &mut request_history,
             &self.tools_registry,
             self.observer.as_ref(),
             &self.provider_name,
@@ -338,6 +347,7 @@ impl QueryEngine {
         if result.is_err() {
             self.history = history_snapshot;
         } else {
+            self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
             self.turn_count = self.turn_count.saturating_add(1);
             self.govern_history().await;
         }

@@ -5,12 +5,14 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyImportResponse, AgentSchedulerOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse, AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
-    AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskLogsResponse,
+    AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
+    AgentSchedulerTaskLogsResponse,
     AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerTaskMetadataUpdateResponse,
     AgentSchedulerTeamsResponse, AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertTeamResponse,
     AgentSchedulerUpsertWorkerRequest, AgentSchedulerUpsertWorkerResponse,
     AgentSchedulerWakeRequest, AgentSchedulerWakeResponse, AgentSchedulerWorkerRunEventRequest,
     AgentSchedulerWorkerRunEventResponse, AgentSchedulerWorkersResponse,
+    AgentSchedulerReplaceTaskGraphRequest,
 };
 
 use super::GatewayClient;
@@ -57,6 +59,27 @@ impl GatewayClient {
         self.ensure_scheduler_tenant_scope(scope)?;
         let path = agent_scheduler_tasks_path(scope);
         self.get_json(&path, &[]).await
+    }
+
+    /// 拉取 Agent Scheduler 项目任务图及实时就绪性快照。
+    pub async fn agent_scheduler_task_graph(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+    ) -> Result<AgentSchedulerTaskGraphResponse, String> {
+        self.ensure_scheduler_tenant_scope(scope)?;
+        let path = agent_scheduler_task_graph_path(scope);
+        self.get_json(&path, &[]).await
+    }
+
+    /// 完整替换 Agent Scheduler 项目任务图。
+    pub async fn agent_scheduler_replace_task_graph(
+        &self,
+        scope: &AgentSchedulerScopeDto,
+        request: &AgentSchedulerReplaceTaskGraphRequest,
+    ) -> Result<AgentSchedulerTaskGraphResponse, String> {
+        self.ensure_scheduler_tenant_scope(scope)?;
+        let path = agent_scheduler_task_graph_path(scope);
+        self.put_json(&path, &[], request).await
     }
 
     /// 拉取 Agent Scheduler 桌面任务板 workflow 快照。
@@ -243,6 +266,10 @@ fn agent_scheduler_bulk_command_path(scope: &AgentSchedulerScopeDto) -> String {
 
 fn agent_scheduler_tasks_path(scope: &AgentSchedulerScopeDto) -> String {
     format!("{}/tasks", agent_scheduler_project_path(scope))
+}
+
+fn agent_scheduler_task_graph_path(scope: &AgentSchedulerScopeDto) -> String {
+    format!("{}/task-graph", agent_scheduler_project_path(scope))
 }
 
 fn agent_scheduler_workflow_path(scope: &AgentSchedulerScopeDto) -> String {

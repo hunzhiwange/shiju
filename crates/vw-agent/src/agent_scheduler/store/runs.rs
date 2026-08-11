@@ -4,7 +4,7 @@ use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use vw_api_types::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId, WorkerName};
-use crate::agent_scheduler::state_machine::AgentTaskStatus;
+use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 
 use super::{
     AgentSchedulerStorageContext, AgentSchedulerStore, open_initialized_connection,
@@ -16,6 +16,15 @@ lease_expires_at_ms, started_at_ms, finished_at_ms, last_heartbeat_at_ms, error_
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimTaskRunRequest {
+    pub run_id: RunId,
+    pub task_id: TaskId,
+    pub worker_id: WorkerName,
+    pub lease_acquired_at_ms: TimestampMs,
+    pub lease_expires_at_ms: Option<TimestampMs>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimReadyTaskRunRequest {
     pub run_id: RunId,
     pub task_id: TaskId,
     pub worker_id: WorkerName,
@@ -130,6 +139,78 @@ impl AgentSchedulerStore {
 
         let stored = load_run_with_conn(&tx, context, &request.run_id)?
             .with_context(|| format!("run disappeared after claim: {}", request.run_id.as_str()))?;
+        tx.commit()?;
+        Ok(Some(stored))
+    }
+
+    pub fn claim_ready_task_run(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        request: ClaimReadyTaskRunRequest,
+    ) -> Result<Option<StoredAgentRun>> {
+        validate_ready_claim_request(&request)?;
+        if let Some(store) = postgres_provider(self, context)? {
+            return store.claim_ready_task_run(context, request);
+        }
+
+        let scope = context.storage_scope()?;
+        let (platform_id, company_id, project_id) = scope_params(&scope);
+        let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some((kind, status)) = load_task_kind_and_status(&tx, context, &request.task_id)?
+        else {
+            return Ok(None);
+        };
+        if kind != AgentTaskKind::Finite
+            || status != AgentTaskStatus::Queued
+            || active_run_exists(&tx, context, &request.task_id)?
+            || has_unsatisfied_dependencies(&tx, context, &request.task_id)?
+        {
+            return Ok(None);
+        }
+
+        let assigned = tx.execute(
+            "UPDATE scheduler_tasks
+             SET status = ?1, updated_at_ms = ?2
+             WHERE platform_id = ?3 AND company_id = ?4 AND project_id = ?5 AND id = ?6
+               AND kind = 'finite' AND status = 'queued'",
+            params![
+                AgentTaskStatus::Assigned.as_str(),
+                request.lease_acquired_at_ms.0,
+                platform_id,
+                company_id,
+                project_id,
+                request.task_id.as_str(),
+            ],
+        )?;
+        if assigned != 1 {
+            return Ok(None);
+        }
+
+        let attempt = next_attempt(&tx, context, &request.task_id)?;
+        tx.execute(
+            "INSERT INTO scheduler_runs (
+                 platform_id, company_id, project_id, id, task_id, worker_id, status, attempt,
+                 lease_acquired_at_ms, lease_expires_at_ms, started_at_ms
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                platform_id,
+                company_id,
+                project_id,
+                request.run_id.as_str(),
+                request.task_id.as_str(),
+                request.worker_id.as_str(),
+                run_status_key(AgentRunStatus::Leased),
+                i64::from(attempt),
+                request.lease_acquired_at_ms.0,
+                request.lease_expires_at_ms.map(|value| value.0),
+                request.lease_acquired_at_ms.0,
+            ],
+        )?;
+
+        let stored = load_run_with_conn(&tx, context, &request.run_id)?.with_context(|| {
+            format!("run disappeared after ready claim: {}", request.run_id.as_str())
+        })?;
         tx.commit()?;
         Ok(Some(stored))
     }
@@ -251,12 +332,48 @@ impl AgentSchedulerStore {
 }
 
 fn validate_claim_request(request: &ClaimTaskRunRequest) -> Result<()> {
-    if let Some(lease_expires_at_ms) = request.lease_expires_at_ms
-        && lease_expires_at_ms < request.lease_acquired_at_ms
+    validate_lease_times(request.lease_acquired_at_ms, request.lease_expires_at_ms)
+}
+
+fn validate_ready_claim_request(request: &ClaimReadyTaskRunRequest) -> Result<()> {
+    validate_lease_times(request.lease_acquired_at_ms, request.lease_expires_at_ms)
+}
+
+fn validate_lease_times(
+    lease_acquired_at_ms: TimestampMs,
+    lease_expires_at_ms: Option<TimestampMs>,
+) -> Result<()> {
+    if let Some(lease_expires_at_ms) = lease_expires_at_ms
+        && lease_expires_at_ms < lease_acquired_at_ms
     {
         bail!("run lease expiry must not be before lease acquisition time");
     }
     Ok(())
+}
+
+fn load_task_kind_and_status(
+    conn: &Connection,
+    context: &(impl AgentSchedulerStorageContext + ?Sized),
+    task_id: &TaskId,
+) -> Result<Option<(AgentTaskKind, AgentTaskStatus)>> {
+    let scope = context.storage_scope()?;
+    let (platform_id, company_id, project_id) = scope_params(&scope);
+    let task = conn
+        .query_row(
+            "SELECT kind, status FROM scheduler_tasks
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND id = ?4",
+            params![platform_id, company_id, project_id, task_id.as_str()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .with_context(|| format!("load task for ready run claim: {}", task_id.as_str()))?;
+    task.map(|(kind, status)| {
+        Ok((
+            AgentTaskKind::parse(&kind).context("parse task kind for ready run claim")?,
+            AgentTaskStatus::parse(&status).context("parse task status for ready run claim")?,
+        ))
+    })
+    .transpose()
 }
 
 fn load_task_status(
@@ -305,6 +422,32 @@ fn active_run_exists(
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND task_id = ?4
            AND finished_at_ms IS NULL
            AND status IN ('leased', 'running')",
+        params![platform_id, company_id, project_id, task_id.as_str()],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
+fn has_unsatisfied_dependencies(
+    conn: &Connection,
+    context: &(impl AgentSchedulerStorageContext + ?Sized),
+    task_id: &TaskId,
+) -> Result<bool> {
+    let scope = context.storage_scope()?;
+    let (platform_id, company_id, project_id) = scope_params(&scope);
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*)
+         FROM scheduler_task_dependencies AS dependency
+         LEFT JOIN scheduler_tasks AS predecessor
+           ON predecessor.platform_id = dependency.platform_id
+          AND predecessor.company_id = dependency.company_id
+          AND predecessor.project_id = dependency.project_id
+          AND predecessor.id = dependency.predecessor_task_id
+         WHERE dependency.platform_id = ?1
+           AND dependency.company_id = ?2
+           AND dependency.project_id = ?3
+           AND dependency.successor_task_id = ?4
+           AND (predecessor.id IS NULL OR predecessor.status <> 'completed')",
         params![platform_id, company_id, project_id, task_id.as_str()],
         |row| row.get(0),
     )?;

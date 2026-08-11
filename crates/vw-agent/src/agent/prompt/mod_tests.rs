@@ -87,7 +87,6 @@ fn section_names_are_stable() {
     assert_eq!(ToolsSection.name(), "tools");
     assert_eq!(ActionSection.name(), "action");
     assert_eq!(SafetySection.name(), "safety");
-    assert_eq!(SkillsSection.name(), "skills");
     assert_eq!(WorkspaceSection.name(), "workspace");
     assert_eq!(RuntimeSection.name(), "runtime");
     assert_eq!(DateTimeSection.name(), "datetime");
@@ -191,8 +190,7 @@ fn action_section_switches_between_native_and_dispatcher_modes() {
 #[test]
 fn action_section_adds_default_multi_agent_policy_only_when_agent_tool_available() {
     for dispatcher_instructions in ["", "tool tags"] {
-        let with_agent_tool: Vec<Box<dyn Tool>> =
-            vec![Box::new(TestTool), Box::new(AgentToolStub)];
+        let with_agent_tool: Vec<Box<dyn Tool>> = vec![Box::new(TestTool), Box::new(AgentToolStub)];
         let with_agent_ctx = PromptContext {
             dispatcher_instructions,
             ..empty_context(Path::new("/tmp"), &with_agent_tool)
@@ -230,8 +228,7 @@ fn action_section_adds_default_multi_agent_policy_only_when_agent_tool_available
 #[test]
 fn action_section_teaches_event_driven_subagent_wait_and_synthesis() {
     for dispatcher_instructions in ["", "tool tags"] {
-        let with_agent_tool: Vec<Box<dyn Tool>> =
-            vec![Box::new(TestTool), Box::new(AgentToolStub)];
+        let with_agent_tool: Vec<Box<dyn Tool>> = vec![Box::new(TestTool), Box::new(AgentToolStub)];
         let with_agent_ctx = PromptContext {
             dispatcher_instructions,
             ..empty_context(Path::new("/tmp"), &with_agent_tool)
@@ -285,8 +282,7 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         crate::app::agent::config::SkillsPromptInjectionMode::Compact,
         chrono_tz::Asia::Shanghai,
     );
-    let planning =
-        crate::task_plan_run::build_planning_prompt("workflow-1", "实现递归智能体编排");
+    let planning = crate::task_plan_run::build_planning_prompt("workflow-1", "实现递归智能体编排");
     let execution = crate::task_plan_run::build_execution_prompt(
         "实现递归智能体编排",
         4,
@@ -324,11 +320,13 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
     }
 
     assert!(!execution.contains("不要重新拆分任务"));
-    for expected in [
-        "不得改写外层编号任务、批次依赖或任务文件所有权",
-        "可在当前任务边界内自主拆分内部工作流",
-    ] {
-        assert!(execution.contains(expected), "missing execution boundary '{expected}':\n{execution}");
+    for expected in
+        ["不得改写外层编号任务、批次依赖或任务文件所有权", "可在当前任务边界内自主拆分内部工作流"]
+    {
+        assert!(
+            execution.contains(expected),
+            "missing execution boundary '{expected}':\n{execution}"
+        );
     }
 
     let goal_evaluation = crate::task_plan_run::build_goal_evaluation_prompt(
@@ -337,11 +335,9 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         "[AgentTool 后代终态]\n- session=child state=failed error=验证失败",
         &crate::task_plan_run::GoalTaskFilesState::Complete,
     );
-    for expected in [
-        "active、waiting、queued 或 running",
-        "failed 或 cancelled",
-        "父会话验证并综合",
-    ] {
+    for expected in
+        ["active、waiting、queued 或 running", "failed 或 cancelled", "父会话验证并综合"]
+    {
         assert!(
             goal_evaluation.contains(expected),
             "missing descendant acceptance gate '{expected}':\n{goal_evaluation}"

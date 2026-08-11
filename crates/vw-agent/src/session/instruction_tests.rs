@@ -155,18 +155,6 @@ fn normalize_str_keeps_paths_comparable() {
 }
 
 #[tokio::test]
-async fn global_files_puts_explicit_config_dir_first() {
-    let _guard = ENV_LOCK.lock().await;
-    let config_dir = tempfile::tempdir().expect("config dir");
-    let _config = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.path().as_os_str());
-
-    let files = global_files();
-
-    assert_eq!(files.first(), Some(&config_dir.path().join("AGENTS.md")));
-    assert!(files.iter().any(|path| path.file_name().is_some_and(|name| name == "AGENTS.md")));
-}
-
-#[tokio::test]
 async fn resolve_relative_warns_to_empty_when_project_config_is_disabled_without_config_dir() {
     let _guard = ENV_LOCK.lock().await;
     let _disable = EnvGuard::set("VIBEWINDOW_DISABLE_PROJECT_CONFIG", "1");
@@ -195,12 +183,12 @@ async fn resolve_relative_uses_project_instance_when_project_config_is_enabled()
     let project = tempfile::tempdir().expect("project dir");
     let nested = project.path().join("nested");
     std::fs::create_dir_all(&nested).expect("nested dir");
-    let local = nested.join("CONTEXT.md");
-    std::fs::write(&local, "local instructions").expect("write context");
+    let local = nested.join("AGENTS.md");
+    std::fs::write(&local, "local instructions").expect("write agents");
     let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
 
     let found = instance::provide(project.path().join("nested"), None, move || {
-        Box::pin(async move { resolve_relative("CONTEXT.md") })
+        Box::pin(async move { resolve_relative("AGENTS.md") })
     })
     .await
     .expect("project instance should provide");
@@ -245,7 +233,7 @@ async fn system_paths_selects_first_project_instruction_family() {
 }
 
 #[tokio::test]
-async fn system_paths_falls_back_to_context_when_higher_priority_project_files_are_missing() {
+async fn system_paths_ignores_legacy_project_instruction_names() {
     let _guard = ENV_LOCK.lock().await;
     let project = tempfile::tempdir().expect("project dir");
     let config_dir = tempfile::tempdir().expect("config dir");
@@ -260,7 +248,7 @@ async fn system_paths_falls_back_to_context_when_higher_priority_project_files_a
     .await
     .expect("project instance should provide");
 
-    assert!(paths.contains(&normalize_str(context)));
+    assert!(!paths.contains(&normalize_str(context)));
 }
 
 #[tokio::test]
@@ -294,13 +282,19 @@ async fn system_reads_first_existing_global_instruction_and_skips_empty_files() 
     let paths = system_paths().await;
     let instructions = system().await;
 
-    assert_eq!(paths, HashSet::from([normalize_str(&global_agents)]));
-    assert_eq!(instructions.len(), 1);
-    assert!(instructions[0].contains(&normalize_str(&global_agents)));
-    assert!(instructions[0].contains("global instructions"));
+    assert!(paths.contains(&normalize_str(&global_agents)));
+    assert!(instructions.iter().any(|instruction| {
+        instruction.contains(&normalize_str(&global_agents))
+            && instruction.contains("global instructions")
+    }));
 
     std::fs::write(&global_agents, "   \n").expect("rewrite empty global agents");
-    assert!(system().await.is_empty());
+    assert!(
+        !system()
+            .await
+            .iter()
+            .any(|instruction| instruction.contains(&normalize_str(&global_agents)))
+    );
 }
 
 #[tokio::test]
@@ -335,49 +329,23 @@ async fn project_agents_reads_only_selected_project_root() {
     assert!(!resolved.content.contains("other project rules"));
 }
 
-#[test]
-fn extract_skill_md_paths_keeps_backtick_and_bare_paths_in_order() {
-    let content = "先读 `./skills/rustcodegraph/SKILL.md`，也可 skills/other/SKILL.md；重复 `./skills/rustcodegraph/SKILL.md`。";
-    assert_eq!(
-        extract_skill_md_paths(content),
-        vec![
-            "./skills/rustcodegraph/SKILL.md".to_string(),
-            "skills/other/SKILL.md".to_string(),
-        ]
-    );
-}
-
-#[test]
-fn mentions_skill_name_requires_complete_identifier_boundaries() {
-    assert!(mentions_skill_name("优先使用 RustCodeGraph 技能", "rustcodegraph"));
-    assert!(mentions_skill_name("skill: `rustcodegraph`", "rustcodegraph"));
-    assert!(!mentions_skill_name("使用 rustcodegraph-pro", "rustcodegraph"));
-    assert!(!mentions_skill_name("使用 myrustcodegraph", "rustcodegraph"));
-}
-
 #[tokio::test]
-async fn project_agents_appends_required_skills_absolute_paths() {
+async fn project_agents_keeps_skill_paths_as_plain_agents_content() {
     let _guard = ENV_LOCK.lock().await;
     let selected = tempfile::tempdir().expect("selected project");
     let agents = selected.path().join("AGENTS.md");
-    std::fs::write(
-        &agents,
-        "导航：\n- `./skills/rustcodegraph/SKILL.md`\n- fallback rg\n",
-    )
-    .expect("write agents");
+    std::fs::write(&agents, "导航：\n- `./skills/rustcodegraph/SKILL.md`\n- fallback rg\n")
+        .expect("write agents");
     let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
 
     let resolved = project_agents(selected.path().to_str()).await.expect("selected agents");
-    let expected = normalize_str(selected.path().join("skills/rustcodegraph/SKILL.md"));
-
-    assert!(resolved.content.contains("<required_skills>"));
-    assert!(resolved.content.contains("<unresolved_skill_paths>"));
-    assert!(resolved.content.contains(&expected));
-    assert!(resolved.content.contains("</required_skills>"));
+    assert!(resolved.content.contains("./skills/rustcodegraph/SKILL.md"));
+    assert!(!resolved.content.contains("<required_skills>"));
+    assert!(!resolved.content.contains("<unresolved_skill_paths>"));
 }
 
 #[tokio::test]
-async fn project_agents_preloads_referenced_skill_instructions() {
+async fn project_agents_does_not_preload_referenced_skill_instructions() {
     let _guard = ENV_LOCK.lock().await;
     let selected = tempfile::tempdir().expect("selected project");
     let skill_dir = selected.path().join("skills/rustcodegraph");
@@ -399,12 +367,12 @@ async fn project_agents_preloads_referenced_skill_instructions() {
         .await
         .expect("selected agents");
 
-    assert!(resolved.content.contains("<preloaded_skill_instructions>"));
-    assert!(resolved.content.contains("MUST_USE_GRAPH_FIRST"));
+    assert!(!resolved.content.contains("<preloaded_skill_instructions>"));
+    assert!(!resolved.content.contains("MUST_USE_GRAPH_FIRST"));
 }
 
 #[tokio::test]
-async fn project_agents_preloads_skill_referenced_only_by_name() {
+async fn project_agents_does_not_preload_skill_referenced_only_by_name() {
     let _guard = ENV_LOCK.lock().await;
     let selected = tempfile::tempdir().expect("selected project");
     let skill_dir = selected.path().join("skills/rustcodegraph");
@@ -426,8 +394,8 @@ async fn project_agents_preloads_skill_referenced_only_by_name() {
         .await
         .expect("selected agents");
 
-    assert!(resolved.content.contains("<preloaded_skill_instructions>"));
-    assert!(resolved.content.contains("MUST_USE_NAMED_GRAPH_FIRST"));
+    assert!(!resolved.content.contains("<preloaded_skill_instructions>"));
+    assert!(!resolved.content.contains("MUST_USE_NAMED_GRAPH_FIRST"));
 }
 
 #[tokio::test]
@@ -455,13 +423,13 @@ async fn project_agents_does_not_preload_skill_outside_project_root() {
         .await
         .expect("selected agents");
 
-    assert!(resolved.content.contains("<unresolved_skill_paths>"));
-    assert!(resolved.content.contains(&normalize_str(&skill_path)));
+    assert!(resolved.content.contains(&skill_path.display().to_string()));
+    assert!(!resolved.content.contains("<unresolved_skill_paths>"));
     assert!(!resolved.content.contains("MUST_NOT_BE_PRELOADED"));
 }
 
 #[tokio::test]
-async fn project_agents_omits_required_skills_when_no_skill_path() {
+async fn project_agents_does_not_synthesize_skill_blocks() {
     let _guard = ENV_LOCK.lock().await;
     let selected = tempfile::tempdir().expect("selected project");
     let agents = selected.path().join("AGENTS.md");
@@ -490,11 +458,7 @@ async fn agent_workspace_identity_reads_only_enabled_non_empty_known_files() {
     std::fs::write(&project_agents, "selected project protocol").expect("write project agents");
     let _workspace = EnvGuard::set("VIBEWINDOW_WORKSPACE", &base_path);
     let _disable = EnvGuard::unset("VIBEWINDOW_DISABLE_PROJECT_CONFIG");
-    let enabled = vec![
-        "SOUL.md".to_string(),
-        "TOOLS.md".to_string(),
-        "UNKNOWN.md".to_string(),
-    ];
+    let enabled = vec!["SOUL.md".to_string(), "TOOLS.md".to_string(), "UNKNOWN.md".to_string()];
 
     let resolved = agent_workspace_identity(Some("reviewer"), &enabled);
     let paths = resolved.iter().map(|entry| entry.filepath.as_str()).collect::<HashSet<_>>();
@@ -511,16 +475,16 @@ async fn agent_workspace_identity_reads_only_enabled_non_empty_known_files() {
         Some("reviewer"),
         &enabled,
     );
-    assert!(prompt.content.contains("selected project protocol"));
-    assert!(prompt.content.contains("reviewer soul"));
+    assert!(!prompt.content.contains("selected project protocol"));
+    assert!(!prompt.content.contains("reviewer soul"));
     assert!(!prompt.content.contains("reviewer agents"));
     assert!(!prompt.content.contains("unknown identity"));
+    assert_eq!(prompt.instruction_context().len(), 2);
+    assert!(prompt.instruction_context()[0].content.contains("selected project protocol"));
+    assert!(prompt.instruction_context()[1].content.contains("reviewer soul"));
     assert_eq!(
         prompt.visible_instruction_paths,
-        vec![
-            normalize_str(project_agents),
-            normalize_str(reviewer_root.join("SOUL.md")),
-        ]
+        vec![normalize_str(project_agents), normalize_str(reviewer_root.join("SOUL.md")),]
     );
 }
 
@@ -586,14 +550,14 @@ fn loaded_ignores_non_array_metadata_and_deduplicates_paths() {
 }
 
 #[tokio::test]
-async fn find_prefers_agents_then_claude_then_context() {
+async fn find_reads_only_agents_files() {
     let dir = tempfile::tempdir().expect("instruction dir");
     let claude = dir.path().join("CLAUDE.md");
     let context = dir.path().join("CONTEXT.md");
     std::fs::write(&claude, "claude").expect("write claude");
     std::fs::write(&context, "context").expect("write context");
 
-    assert_eq!(find(&path_string(dir.path())).await, Some(normalize_str(&claude)));
+    assert_eq!(find(&path_string(dir.path())).await, None);
 
     let agents = dir.path().join("AGENTS.md");
     std::fs::write(&agents, "agents").expect("write agents");
@@ -602,12 +566,12 @@ async fn find_prefers_agents_then_claude_then_context() {
 }
 
 #[tokio::test]
-async fn find_returns_context_when_it_is_the_only_candidate() {
+async fn find_ignores_context_when_it_is_the_only_candidate() {
     let dir = tempfile::tempdir().expect("instruction dir");
     let context = dir.path().join("CONTEXT.md");
     std::fs::write(&context, "context").expect("write context");
 
-    assert_eq!(find(&path_string(dir.path())).await, Some(normalize_str(context)));
+    assert_eq!(find(&path_string(dir.path())).await, None);
 }
 
 #[tokio::test]
@@ -689,7 +653,7 @@ async fn resolve_walks_up_from_target_directory_skips_loaded_files_and_claims_pe
     std::fs::create_dir_all(&leaf).expect("leaf dir");
     let target = leaf.join("main.rs");
     let leaf_agents = leaf.join("AGENTS.md");
-    let parent_claude = parent.join("CLAUDE.md");
+    let parent_claude = parent.join("AGENTS.md");
     std::fs::write(&target, "fn main() {}").expect("write target");
     std::fs::write(&leaf_agents, "leaf instructions").expect("write leaf agents");
     std::fs::write(&parent_claude, "parent instructions").expect("write parent claude");

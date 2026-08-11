@@ -119,11 +119,12 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "default tools must be framed as fallback when project protocol is silent"
     );
     assert!(
-        prompt.contains("<required_skills>")
-            && prompt.contains("<preloaded_skill_instructions>")
-            && prompt.contains("<unresolved_skill_paths>"),
-        "project skill instructions must be followed directly or read before other search"
+        prompt.contains("Skill Tool")
+            && prompt.contains("<system-reminder>")
+            && prompt.contains("预加载任何技能正文"),
+        "skills must be listed as metadata and loaded only by a successful Skill Tool call"
     );
+    assert!(!prompt.contains("<preloaded_skill_instructions>"));
     assert!(prompt.contains("## 自主代理纪律（防走偏）"));
     assert!(prompt.contains("## 结构化工作流"));
     assert!(

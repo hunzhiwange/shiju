@@ -1,6 +1,6 @@
 //! Agent Scheduler API 路由。
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -31,6 +31,9 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
+    AgentSchedulerTaskGraphReadinessDto, AgentSchedulerTaskGraphResponse,
+    AgentSchedulerTaskGraphTaskDto,
     AgentSchedulerScope, AgentSchedulerStageActionInputsDto,
     AgentSchedulerStageCapabilityIoSummaryDto, AgentSchedulerStageCapabilityKindDto,
     AgentSchedulerTaskArtifactDto, AgentSchedulerTaskArtifactsResponse,
@@ -68,7 +71,7 @@ use crate::agent_scheduler::domain::{
 };
 use crate::agent_scheduler::engine::dispatch::{
     DispatchEngine, DispatchMode, DispatchOutcome, load_dispatch_workflow,
-    task_lifecycle_allows_dispatch,
+    ready_queued_finite_task, task_lifecycle_allows_dispatch,
 };
 use crate::agent_scheduler::engine::recovery::{RecoveryEngine, RecoveryOutcome};
 use crate::agent_scheduler::events::AgentEventKind;
@@ -121,6 +124,9 @@ use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentScheduler
 use crate::agent_scheduler::task_board::{
     AgentTaskBoardService, task_board_status_key as stored_task_board_status_key,
 };
+use crate::agent_scheduler::task_graph::{
+    AgentTaskDependency, TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot,
+};
 #[cfg(not(test))]
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::ApiError;
@@ -165,6 +171,11 @@ where
             "/agent-scheduler/projects/{project_id}/tasks",
             axum::routing::get(agent_scheduler_project_tasks)
                 .post(agent_scheduler_project_create_task),
+        )
+        .route(
+            "/agent-scheduler/projects/{project_id}/task-graph",
+            axum::routing::get(agent_scheduler_project_task_graph)
+                .put(agent_scheduler_project_replace_task_graph),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/metadata",
@@ -403,6 +414,25 @@ async fn agent_scheduler_project_create_task(
 ) -> Result<Json<AgentSchedulerCreateTaskResponse>, ApiError> {
     let context = resolve_project_context(tenant, &project_id).await?;
     gateway.create_task_scoped(context, body).await.map(Json)
+}
+
+async fn agent_scheduler_project_task_graph(
+    AxumPath(project_id): AxumPath<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+) -> Result<Json<AgentSchedulerTaskGraphResponse>, ApiError> {
+    let project_path = resolve_project_context(tenant, &project_id).await?;
+    gateway.task_graph(project_id, project_path).await.map(Json)
+}
+
+async fn agent_scheduler_project_replace_task_graph(
+    AxumPath(project_id): AxumPath<String>,
+    Extension(tenant): Extension<TenantScope>,
+    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
+    Json(body): Json<AgentSchedulerReplaceTaskGraphRequest>,
+) -> Result<Json<AgentSchedulerTaskGraphResponse>, ApiError> {
+    let project_path = resolve_project_context(tenant, &project_id).await?;
+    gateway.replace_task_graph(project_id, project_path, body).await.map(Json)
 }
 
 async fn agent_scheduler_project_update_task_metadata(
@@ -650,6 +680,23 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
         _project_path: AgentSchedulerContext,
     ) -> Result<AgentSchedulerTaskBoardStatusResponse, ApiError> {
         Err(ApiError::internal("agent scheduler task board gateway is not configured"))
+    }
+
+    async fn task_graph(
+        &self,
+        _project_id: String,
+        _project_path: AgentSchedulerContext,
+    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
+        Err(ApiError::internal("agent scheduler task graph gateway is not configured"))
+    }
+
+    async fn replace_task_graph(
+        &self,
+        _project_id: String,
+        _project_path: AgentSchedulerContext,
+        _request: AgentSchedulerReplaceTaskGraphRequest,
+    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
+        Err(ApiError::internal("agent scheduler task graph gateway is not configured"))
     }
 
     async fn update_task_metadata(
@@ -1157,6 +1204,52 @@ impl StoreBackedAgentSchedulerGateway {
     }
 }
 
+impl StoreBackedAgentSchedulerGateway {
+    fn task_graph_snapshot(
+        &self,
+        project_id: String,
+        project_path: &AgentSchedulerContext,
+    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
+        self.store.initialize_project(project_path).map_err(map_scheduler_error)?;
+        let dependencies = self
+            .store
+            .list_task_dependencies(project_path)
+            .map_err(map_scheduler_error)?;
+        let task_ids = dependencies
+            .iter()
+            .flat_map(|dependency| [&dependency.predecessor, &dependency.successor])
+            .map(|task_id| task_id.as_str().to_owned())
+            .collect::<BTreeSet<_>>();
+        let tasks = self
+            .store
+            .list_tasks(project_path, AgentTaskFilter::default())
+            .map_err(map_scheduler_error)?
+            .into_iter()
+            .filter(|task| task_ids.contains(task.id.as_str()))
+            .collect::<Vec<_>>();
+        let graph = TaskGraph::new(
+            tasks
+                .iter()
+                .map(|task| TaskGraphTaskSnapshot::new(task.id.clone(), task.kind, task.status))
+                .collect(),
+            dependencies.clone(),
+        )
+        .map_err(map_scheduler_error)?;
+        let tasks = tasks
+            .into_iter()
+            .map(|task| task_graph_task_to_dto(task, &graph))
+            .collect::<Result<Vec<_>, _>>()?;
+        let edges = dependencies
+            .into_iter()
+            .map(|dependency| AgentSchedulerTaskGraphEdgeDto {
+                predecessor_task_id: dependency.predecessor.as_str().to_string(),
+                successor_task_id: dependency.successor.as_str().to_string(),
+            })
+            .collect();
+        Ok(AgentSchedulerTaskGraphResponse { project_id: project_id.into(), edges, tasks })
+    }
+}
+
 #[async_trait]
 impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     async fn create_task(
@@ -1426,6 +1519,37 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             read_model: AgentSchedulerTaskBoardSnapshotReadModelDto { workflow },
             tasks,
         })
+    }
+
+    async fn task_graph(
+        &self,
+        project_id: String,
+        project_path: AgentSchedulerContext,
+    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
+        self.task_graph_snapshot(project_id, &project_path)
+    }
+
+    async fn replace_task_graph(
+        &self,
+        project_id: String,
+        project_path: AgentSchedulerContext,
+        request: AgentSchedulerReplaceTaskGraphRequest,
+    ) -> Result<AgentSchedulerTaskGraphResponse, ApiError> {
+        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
+        let dependencies = request
+            .edges
+            .into_iter()
+            .map(|edge| {
+                Ok(AgentTaskDependency::new(
+                    TaskId::new(edge.predecessor_task_id).map_err(map_bad_request)?,
+                    TaskId::new(edge.successor_task_id).map_err(map_bad_request)?,
+                ))
+            })
+            .collect::<Result<Vec<_>, ApiError>>()?;
+        self.store
+            .replace_task_dependencies(&project_path, dependencies)
+            .map_err(map_bad_request)?;
+        self.task_graph_snapshot(project_id, &project_path)
     }
 
     async fn update_task_metadata(
@@ -1705,17 +1829,8 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             );
             return Ok(project_wake_response_from_dispatch_outcome(outcome));
         }
-        let workflow =
-            load_dispatch_workflow(&self.store, &project_path).map_err(map_scheduler_error)?;
-        let Some(task) = self
-            .store
-            .list_active_tasks(&project_path, AgentTaskFilter::for_status(AgentTaskStatus::Queued))
+        let Some(task) = ready_queued_finite_task(&self.store, &project_path, None)
             .map_err(map_scheduler_error)?
-            .into_iter()
-            .find(|task| {
-                task.kind == AgentTaskKind::Finite
-                    && task_lifecycle_allows_dispatch(&project_path, task, &workflow)
-            })
         else {
             tracing::info!(
                 project_path = %project_path.storage_project_path().display(),
@@ -4486,6 +4601,38 @@ fn capability_to_dto(capability: AgentCapabilityRecord) -> AgentCapabilityDto {
         name: capability.name,
         metadata: capability.metadata,
     }
+}
+
+fn task_graph_task_to_dto(
+    task: StoredAgentTask,
+    graph: &TaskGraph,
+) -> Result<AgentSchedulerTaskGraphTaskDto, ApiError> {
+    let readiness = graph.readiness_for(&task.id).map_err(map_scheduler_error)?;
+    let (readiness, waiting_task_ids, blocking_task_ids) = match readiness {
+        TaskGraphReadiness::Ready => {
+            (AgentSchedulerTaskGraphReadinessDto::Ready, Vec::new(), Vec::new())
+        }
+        TaskGraphReadiness::WaitingDependencies { task_ids } => (
+            AgentSchedulerTaskGraphReadinessDto::WaitingDependencies,
+            task_ids.into_iter().map(|task_id| task_id.as_str().to_string()).collect(),
+            Vec::new(),
+        ),
+        TaskGraphReadiness::BlockedByDependency { task_ids } => (
+            AgentSchedulerTaskGraphReadinessDto::BlockedByDependency,
+            Vec::new(),
+            task_ids.into_iter().map(|task_id| task_id.as_str().to_string()).collect(),
+        ),
+        TaskGraphReadiness::NotQueued => {
+            (AgentSchedulerTaskGraphReadinessDto::NotQueued, Vec::new(), Vec::new())
+        }
+    };
+    Ok(AgentSchedulerTaskGraphTaskDto {
+        task_id: task.id.as_str().to_string(),
+        status: task_status_to_dto(task.status),
+        readiness,
+        waiting_task_ids,
+        blocking_task_ids,
+    })
 }
 
 fn task_to_dto(task: StoredAgentTask) -> AgentTaskDto {

@@ -39,12 +39,30 @@ fn main_agent_model_fields_use_provider_from_full_default_model() {
     };
 
     assert_eq!(
-        super::main_agent_model_fields(
+        crate::app::state::main_agent_model_fields(
             &config,
             Some("alibaba-cn"),
             Some("token-plan/qwen3.7-plus"),
         ),
         ("token-plan".to_string(), "qwen3.7-plus".to_string())
+    );
+}
+
+#[test]
+fn main_agent_settings_use_the_same_paired_model_resolution_as_new() {
+    let config = vw_config_types::agent::DelegateAgentConfig {
+        provider: "configured-provider".to_string(),
+        model: String::new(),
+        ..Default::default()
+    };
+
+    assert_eq!(
+        crate::app::state::main_agent_model_fields(
+            &config,
+            Some("fallback-provider"),
+            Some("selected-provider/selected-model"),
+        ),
+        ("selected-provider".to_string(), "selected-model".to_string())
     );
 }
 

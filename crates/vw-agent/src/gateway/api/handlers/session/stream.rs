@@ -585,13 +585,7 @@ async fn resolve_delegate_request_overrides(
         return Err(ApiError::bad_request(format!("unknown agent: {}", agent_name)));
     };
 
-    // 显式 model 优先于 agent 绑定模型；agent 只提供默认补全。
-    let model = if explicit_model.is_some() {
-        explicit_model
-    } else {
-        agent::resolve_model_ref(&config)
-            .map(|model_ref| format!("{}/{}", model_ref.provider_id, model_ref.model_id))
-    };
+    let model = delegated_model_override(&config, explicit_model);
 
     Ok(DelegateRequestOverrides {
         agent: Some(agent_name),
@@ -606,6 +600,18 @@ async fn resolve_delegate_request_overrides(
         temperature: config.temperature,
         top_p: config.top_p,
     })
+}
+
+/// 将完整强制绑定置于显式父模型之前；普通 agent 绑定只作为 Auto 软偏好。
+fn delegated_model_override(
+    config: &crate::config::DelegateAgentConfig,
+    explicit_model: Option<String>,
+) -> Option<String> {
+    if config.force_model_selection && config.has_complete_model_binding() {
+        return agent::resolve_model_ref(config)
+            .map(|model_ref| format!("{}/{}", model_ref.provider_id, model_ref.model_id));
+    }
+    explicit_model
 }
 
 async fn start_gateway_chat_stream(

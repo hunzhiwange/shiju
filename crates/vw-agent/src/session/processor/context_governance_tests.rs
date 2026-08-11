@@ -61,10 +61,8 @@ fn history_trim_handles_zero_budget_and_in_range_history() {
     assert_eq!(zero.messages[0].role, Role::System);
     assert_eq!(zero.messages[0].content, "rules");
 
-    let mut unchanged = Session {
-        id: "unchanged".to_string(),
-        messages: vec![message(Role::User, "user")],
-    };
+    let mut unchanged =
+        Session { id: "unchanged".to_string(), messages: vec![message(Role::User, "user")] };
     assert_eq!(trim_session_history(&mut unchanged, 2), 0);
     assert_eq!(unchanged.messages.len(), 1);
     assert_eq!(unchanged.messages[0].role, Role::User);
@@ -202,7 +200,11 @@ fn compaction_keeps_system_and_protocol_pairs_while_clearing_old_results() {
     assert_eq!(result.cleared_tool_results, 1);
     assert!(messages.iter().any(|message| message["role"] == "system"));
     assert!(messages.iter().any(|message| message["role"] == "user"));
-    assert!(messages.iter().any(|message| message["role"] == "assistant" && message["tool_calls"].is_array()));
+    assert!(
+        messages
+            .iter()
+            .any(|message| message["role"] == "assistant" && message["tool_calls"].is_array())
+    );
     let cleared = messages
         .iter()
         .find(|message| message["tool_call_id"] == "old-call-0")
@@ -223,4 +225,33 @@ fn compaction_stops_after_a_finite_number_of_passes_when_system_alone_is_too_lar
     .expect_err("an oversized system prompt cannot be compacted");
 
     assert!(error.contains("上下文压缩后仍超过限制"));
+}
+
+#[test]
+fn invoked_skill_context_restore_replaces_stale_messages_and_preserves_updates() {
+    let replay = crate::app::agent::skills::InvokedSkillReplay {
+        stable_id: "file:///skills/review/SKILL.md".to_string(),
+        content: "<system-reminder>current skill body</system-reminder>".to_string(),
+        allowed_tools: vec!["read".to_string()],
+        model: Some("provider/model".to_string()),
+        effort: Some("high".to_string()),
+    };
+    let mut messages = vec![
+        json!({"role": "user", "content": "old user"}),
+        json!({
+            "role": "user",
+            "content": "stale skill body",
+            "vw_invoked_skill_source": "file:///skills/review/SKILL.md"
+        }),
+    ];
+
+    let updates = restore_invoked_skill_context(&mut messages, &[replay.clone()]);
+
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["content"], replay.content);
+    assert_eq!(messages[1]["content"], "old user");
+    assert_eq!(updates[0].key, "skill.name");
+    assert_eq!(updates[1].key, "skill.allowed_tools");
+    assert_eq!(updates[2].key, "skill.model");
+    assert_eq!(updates[3].key, "skill.effort");
 }

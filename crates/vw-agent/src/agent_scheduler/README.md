@@ -58,13 +58,14 @@ errors are redacted. The first successful selection for a config path is pinned
 for the process lifetime, so changes require a restart.
 
 `ProjectStore` owns `platform`, `company`, and `projects`.
-`AgentSchedulerStore` separately owns the 11
+`AgentSchedulerStore` separately owns the 12
 scheduler tables: `scheduler_meta`, `scheduler_tasks`, `scheduler_runs`,
+`scheduler_task_dependencies`,
 `scheduler_task_logs`, `scheduler_task_artifacts`,
 `scheduler_run_workspaces`, `scheduler_events`, `scheduler_outbox_messages`,
 `scheduler_workers`, `scheduler_teams`, and `scheduler_resource_leases`.
-Within the global 31-table matrix, `projects` and these 11 tables are the
-scheduler's supported 12-table project-scoped integration set.
+Within the global 32-table matrix, `projects` and these 12 tables are the
+scheduler's supported 13-table project-scoped integration set.
 Scheduler rows use
 `(platform_id, company_id, project_id)` as their scope prefix and reference the
 matching `projects` row. Project deletion is restricted while scheduler rows
@@ -76,6 +77,33 @@ tenant or project scope. Built-in desktop and CLI flows construct the local
 tenant as `platform_id = local`, `company_id = local`; remote routes must send
 both values explicitly. A worktree path is runtime context, not tenant
 identity.
+
+## Task Graph Scheduling
+
+Finite tasks can have successful-completion dependencies stored in
+`scheduler_task_dependencies`. A project-scoped `PUT` of `/task-graph`
+atomically replaces the complete edge set; a `GET` returns the edges, current
+task status, derived readiness, and waiting or blocking task IDs. Every graph
+read, replacement, candidate lookup, and run claim carries the same
+`(platform_id, company_id, project_id)` scope.
+
+`Queued` means a task is in the scheduling pool, not that it is ready. A task
+is ready only when every predecessor is currently `Completed`. A predecessor in
+`Submitted` keeps the successor waiting; `Failed`, `Cancelled`, and `Archived`
+block it by default. Readiness is derived at read and dispatch time and is
+never persisted as a separate `Ready` state.
+
+Wake is explicit. A task completion does not automatically dispatch its
+successors; a later Matrix, local, directed, or project-local wake reevaluates
+the graph. Each execution entry point prefilters on the same readiness rule,
+then the SQLite or PostgreSQL claim transaction repeats the dependency check
+while moving `Queued` to `Assigned` and creating the run atomically.
+
+The first version covers only top-level `Finite` tasks and successful
+dependencies. It does not migrate `SubTask.batch` or
+`depends_on_batches`, add conditional or priority edges, or change worker
+selection. Legacy task `dag_json`, `TeamDagStatus`, and `ready_nodes` remain
+compatibility/planning data and do not participate in scheduler dispatch.
 
 ## Migration And Safety
 

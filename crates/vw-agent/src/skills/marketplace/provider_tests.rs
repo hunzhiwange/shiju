@@ -9,8 +9,8 @@ use vw_gateway_client::{
 };
 
 use super::{
-    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider,
-    SkillMarketProviderError, SkillMarketProviderRegistry, SkillMarketRegistryError,
+    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,
+    SkillMarketProviderRegistry, SkillMarketRegistryError,
 };
 
 struct MockProvider {
@@ -47,9 +47,7 @@ impl SkillMarketProvider for MockProvider {
         Ok(SkillMarketSkillPageDto::default())
     }
 
-    async fn categories(
-        &self,
-    ) -> Result<Vec<SkillMarketCategoryDto>, SkillMarketProviderError> {
+    async fn categories(&self) -> Result<Vec<SkillMarketCategoryDto>, SkillMarketProviderError> {
         Ok(Vec::new())
     }
 
@@ -144,10 +142,7 @@ fn provider_registry_rejects_unknown_source() {
         Err(error) => error,
     };
 
-    assert_eq!(
-        error,
-        SkillMarketRegistryError::UnknownSource("missing".to_string())
-    );
+    assert_eq!(error, SkillMarketRegistryError::UnknownSource("missing".to_string()));
 }
 
 #[test]
@@ -186,10 +181,7 @@ fn locator(source: &str) -> SkillMarketSkillLocatorDto {
 }
 
 fn coordinate(locator: &SkillMarketSkillLocatorDto) -> SkillMarketCoordinateDto {
-    SkillMarketCoordinateDto {
-        locator: locator.clone(),
-        version: "1.0.0".to_string(),
-    }
+    SkillMarketCoordinateDto { locator: locator.clone(), version: "1.0.0".to_string() }
 }
 
 fn skill(coordinate: SkillMarketCoordinateDto) -> vw_gateway_client::SkillMarketSkillDto {

@@ -337,6 +337,37 @@ fn extract_recent_text_returns_empty_at_zero_character_limit() {
     assert_eq!(extract_recent_text(&messages, 0), "");
 }
 
+#[test]
+fn compaction_restore_reloads_agents_before_replaying_current_invoked_skill_body() {
+    let temp = tempfile::tempdir().expect("temporary skills root");
+    let skill_dir = temp.path().join("skills/compaction-skill");
+    std::fs::create_dir_all(&skill_dir).expect("skill directory");
+    let skill_file = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_file, "---\nallowed-tools: [read]\nmodel: provider/old\n---\n\nOLD")
+        .expect("write initial skill");
+    let mut skills = crate::app::agent::skills::SkillListingSessionState::default();
+    skills.register_invoked(
+        "main",
+        crate::app::agent::skills::InvokedSkillRecord::new("compaction-skill", &skill_file, None)
+            .expect("invocation record"),
+    );
+    std::fs::write(&skill_file, "---\nallowed-tools: [write]\nmodel: provider/new\n---\n\nNEW")
+        .expect("write current skill");
+    let mut messages = vec![json!({"role": "user", "content": "history"})];
+    let mut reloaded_agents = false;
+
+    let updates = restore_invoked_skills_after_compaction(&mut messages, &skills, "main", || {
+        reloaded_agents = true
+    })
+    .expect("replay invoked skill");
+
+    assert!(reloaded_agents);
+    assert!(messages[0]["content"].as_str().is_some_and(|content| content.contains("NEW")));
+    assert_eq!(messages[1]["content"], "history");
+    assert!(updates.iter().any(|update| update.key == "skill.allowed_tools"));
+    assert!(updates.iter().any(|update| update.value == json!("provider/new")));
+}
+
 #[tokio::test]
 async fn process_returns_stop_when_parent_user_message_is_missing() {
     let result = process(

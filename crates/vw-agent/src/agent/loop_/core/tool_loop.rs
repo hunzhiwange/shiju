@@ -333,16 +333,22 @@ async fn prepare_legacy_image_turn(
     use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
     use crate::app::agent::multimodal::context::ImageTurnContext;
     use crate::app::agent::multimodal::ocr::SessionImageTextExtractor;
-    use crate::app::agent::multimodal::{contains_image_markers, parse_image_markers};
+    use crate::app::agent::multimodal::parse_image_markers;
 
-    if !contains_image_markers(history) {
+    if !history.iter().filter(|message| !is_transient_protocol_message(message)).any(|message| {
+        message.role == "user" && !parse_image_markers(&message.content).1.is_empty()
+    }) {
         return Ok(None);
     }
 
     let mut prior = history.to_vec();
     let current = prior
         .iter()
-        .rposition(|message| message.role == "user" && !parse_image_markers(&message.content).1.is_empty())
+        .rposition(|message| {
+            !is_transient_protocol_message(message)
+                && message.role == "user"
+                && !parse_image_markers(&message.content).1.is_empty()
+        })
         .map(|index| prior.remove(index).content);
 
     let scope = ImageAssetScope::from_request_context(None, "legacy-tool-loop")?;
@@ -364,4 +370,8 @@ async fn prepare_legacy_image_turn(
     } else {
         Ok(Some(ctx))
     }
+}
+
+fn is_transient_protocol_message(message: &ChatMessage) -> bool {
+    message.content.starts_with("<system-reminder>")
 }

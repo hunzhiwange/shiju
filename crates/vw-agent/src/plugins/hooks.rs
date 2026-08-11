@@ -14,6 +14,7 @@ pub enum PluginHookEvent {
     AfterToolCall,
     BeforeLlmCall,
     UserPromptSubmit,
+    InstructionsLoaded,
 }
 
 impl PluginHookEvent {
@@ -23,6 +24,7 @@ impl PluginHookEvent {
             Self::AfterToolCall => "after_tool_call",
             Self::BeforeLlmCall => "before_llm_call",
             Self::UserPromptSubmit => "user_prompt_submit",
+            Self::InstructionsLoaded => "instructions_loaded",
         }
     }
 }
@@ -133,6 +135,7 @@ fn parse_event(raw: &str) -> Result<PluginHookEvent> {
         "after_tool_call" => Ok(PluginHookEvent::AfterToolCall),
         "before_llm_call" => Ok(PluginHookEvent::BeforeLlmCall),
         "user_prompt_submit" => Ok(PluginHookEvent::UserPromptSubmit),
+        "instructions_loaded" => Ok(PluginHookEvent::InstructionsLoaded),
         other => bail!("unsupported plugin hook event: {other}"),
     }
 }

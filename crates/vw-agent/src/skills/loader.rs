@@ -27,18 +27,61 @@ use serde::Deserialize;
 use std::path::Path;
 use vw_config_types::skills::SkillSecurityConfig;
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum StringOrStrings {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl StringOrStrings {
+    fn into_vec(self) -> Vec<String> {
+        match self {
+            Self::One(value) => sanitize_frontmatter_value(Some(&value)).into_iter().collect(),
+            Self::Many(values) => values
+                .into_iter()
+                .filter_map(|value| sanitize_frontmatter_value(Some(&value)))
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Default, Deserialize)]
 struct MarkdownSkillFrontmatter {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
     description: Option<String>,
+    #[serde(default)]
+    when_to_use: Option<String>,
+    #[serde(default, rename = "allowed-tools")]
+    allowed_tools: Option<StringOrStrings>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default, rename = "disable-model-invocation")]
+    disable_model_invocation: bool,
+    #[serde(default = "default_user_invocable", rename = "user-invocable")]
+    user_invocable: bool,
+    #[serde(default)]
+    hooks: Option<serde_yaml::Value>,
+    #[serde(default)]
+    context: Option<String>,
+    #[serde(default)]
+    paths: Option<StringOrStrings>,
+    #[serde(default)]
+    effort: Option<String>,
+    #[serde(default, rename = "argument-hint")]
+    argument_hint: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MarkdownSkillMetadata {
     pub(crate) display_name: Option<String>,
     pub(crate) description: Option<String>,
+}
+
+fn default_user_invocable() -> bool {
+    true
 }
 
 pub(crate) fn read_markdown_skill_metadata(path: &Path) -> Result<MarkdownSkillMetadata> {
@@ -153,28 +196,14 @@ pub(crate) fn load_skills_from_directory(
 
     let mut skills = Vec::new();
 
-    // 尝试读取目录内容，失败时返回已收集的技能（可能为空）
-    let Ok(entries) = std::fs::read_dir(skills_dir) else {
-        return skills;
-    };
-
-    // 遍历目录中的每个条目
-    for entry in entries.flatten() {
-        let path = entry.path();
-
-        // 跳过非目录条目（技能必须位于独立目录中）
-        if !path.is_dir() {
-            continue;
-        }
-
+    for path in crate::app::agent::skills::discovery::discover_skill_directories(skills_dir) {
         if crate::app::agent::skills::is_local_skill_disabled(&path) {
             continue;
         }
 
         // 对技能目录进行安全审计，确保不包含危险文件或符号链接
-        match crate::app::agent::skills::audit::audit_skill_directory_with_security(
-            &path, security,
-        ) {
+        match crate::app::agent::skills::audit::audit_skill_directory_with_security(&path, security)
+        {
             // 审计通过，继续加载
             Ok(report) if report.is_clean() => {}
             // 审计发现问题，跳过该技能并记录警告
@@ -249,6 +278,7 @@ fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
                 tools: manifest.tools,
                 prompts: manifest.prompts,
                 location: Some(path.to_path_buf()),
+                ..Skill::default()
             })
         }
         // 仅元数据模式：跳过工具和提示词以提升性能
@@ -264,6 +294,7 @@ fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
                 tools: Vec::new(),
                 prompts: Vec::new(),
                 location: Some(path.to_path_buf()),
+                ..Skill::default()
             })
         }
     }
@@ -297,6 +328,7 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
     // 使用目录名作为技能名称
     let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
     let content = std::fs::read_to_string(path)?;
+    let frontmatter = parse_markdown_skill_frontmatter(&content);
     let metadata = parse_markdown_skill_metadata(&content);
     let description = metadata.description.unwrap_or_else(|| "No description".to_string());
     let prompts = match load_mode {
@@ -313,6 +345,38 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
         tools: Vec::new(),
         prompts,
         location: Some(path.to_path_buf()),
+        when_to_use: frontmatter_string(
+            frontmatter.as_ref().and_then(|meta| meta.when_to_use.as_deref()),
+        ),
+        allowed_tools: frontmatter
+            .as_ref()
+            .and_then(|meta| meta.allowed_tools.as_ref())
+            .cloned()
+            .map(StringOrStrings::into_vec)
+            .unwrap_or_default(),
+        model: frontmatter_string(frontmatter.as_ref().and_then(|meta| meta.model.as_deref())),
+        disable_model_invocation: frontmatter
+            .as_ref()
+            .is_some_and(|meta| meta.disable_model_invocation),
+        user_invocable: frontmatter
+            .as_ref()
+            .map(|meta| meta.user_invocable)
+            .unwrap_or_else(default_user_invocable),
+        hooks: frontmatter
+            .as_ref()
+            .and_then(|meta| meta.hooks.as_ref())
+            .and_then(|hooks| serde_json::to_value(hooks).ok()),
+        context: frontmatter_string(frontmatter.as_ref().and_then(|meta| meta.context.as_deref())),
+        paths: frontmatter
+            .as_ref()
+            .and_then(|meta| meta.paths.as_ref())
+            .cloned()
+            .map(StringOrStrings::into_vec)
+            .unwrap_or_default(),
+        effort: frontmatter_string(frontmatter.as_ref().and_then(|meta| meta.effort.as_deref())),
+        argument_hint: frontmatter_string(
+            frontmatter.as_ref().and_then(|meta| meta.argument_hint.as_deref()),
+        ),
     })
 }
 
@@ -357,7 +421,12 @@ pub(crate) fn load_open_skill_md(path: &Path, load_mode: SkillLoadMode) -> Resul
         tools: Vec::new(),
         prompts,
         location: Some(path.to_path_buf()),
+        ..Skill::default()
     })
+}
+
+fn frontmatter_string(value: Option<&str>) -> Option<String> {
+    sanitize_frontmatter_value(value)
 }
 
 /// 从 Markdown 内容中提取描述

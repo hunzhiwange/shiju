@@ -386,8 +386,7 @@ fn load_open_skills_supports_nested_and_flat_layouts() {
         detect_shell_chaining: true,
         ..Default::default()
     };
-    let flat_loaded =
-        load_open_skills(flat.path(), SkillLoadMode::MetadataOnly, &reject_unsafe);
+    let flat_loaded = load_open_skills(flat.path(), SkillLoadMode::MetadataOnly, &reject_unsafe);
     assert_eq!(flat_loaded.len(), 1);
     assert_eq!(flat_loaded[0].name, "flat");
     assert!(flat_loaded[0].prompts.is_empty());

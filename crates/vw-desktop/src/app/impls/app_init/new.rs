@@ -6,6 +6,33 @@ use std::collections::{HashMap, HashSet};
 
 mod settings;
 
+fn main_agent_model_fields(
+    config: &vw_config_types::agent::DelegateAgentConfig,
+    default_provider: Option<&str>,
+    default_model: Option<&str>,
+) -> (String, String) {
+    if let Some((provider, model)) = default_model
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.split_once('/'))
+        .filter(|(provider, model)| !provider.trim().is_empty() && !model.trim().is_empty())
+    {
+        return (provider.trim().to_string(), model.trim().to_string());
+    }
+
+    let provider = if config.provider.trim().is_empty() {
+        default_provider.map(str::trim).unwrap_or_default().to_string()
+    } else {
+        config.provider.trim().to_string()
+    };
+    let model = if config.model.trim().is_empty() {
+        default_model.map(str::trim).unwrap_or_default().to_string()
+    } else {
+        config.model.trim().to_string()
+    };
+    (provider, model)
+}
+
 fn build_multimodal_settings(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> super::state::MultimodalSettingsState {
@@ -16,6 +43,7 @@ fn build_multimodal_settings(
         max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
         allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
         ocr_enabled: multimodal_cfg.ocr.enabled,
+        model_supports_images: multimodal_cfg.ocr.model_supports_images,
         ocr_model: multimodal_cfg
             .ocr
             .model
@@ -1215,6 +1243,11 @@ impl App {
                                 vw_config_types::agent::builtin_agent_config("main")
                                     .unwrap_or_default()
                             });
+                            let (provider, model) = main_agent_model_fields(
+                                &config,
+                                default_provider_cfg.as_deref(),
+                                default_model_cfg.as_deref(),
+                            );
                             let entry = vw_config_types::agent::DelegateAgentConfig {
                                 label: config.label,
                                 description: config.description,
@@ -1223,20 +1256,8 @@ impl App {
                                 enabled: true,
                                 allow_as_subagent: config.allow_as_subagent,
                                 max_parallel_subagents: config.max_parallel_subagents,
-                                provider: if config.provider.trim().is_empty() {
-                                    default_provider_cfg.clone().unwrap_or_default()
-                                } else {
-                                    config.provider
-                                },
-                                model: if config.model.trim().is_empty() {
-                                    default_model_cfg
-                                        .as_deref()
-                                        .and_then(|value: &str| value.split('/').next_back())
-                                        .unwrap_or_default()
-                                        .to_string()
-                                } else {
-                                    config.model
-                                },
+                                provider,
+                                model,
                                 system_prompt: config.system_prompt,
                                 api_key: config.api_key,
                                 temperature: Some(

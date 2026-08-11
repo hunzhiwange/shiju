@@ -151,7 +151,7 @@ async fn run_gateway_chat_simple_with_extractor(
     let image_marker_count = multimodal::count_image_markers(&messages);
     let prepared = if image_marker_count == 0 {
         multimodal::prepare_messages_for_provider(&messages, &multimodal_config).await?
-    } else if multimodal_config.ocr.enabled {
+    } else if multimodal_config.ocr.enabled && !multimodal_config.ocr.model_supports_images {
         multimodal::ocr::prepare_messages_with_ocr(&messages, &multimodal_config, extractor).await?
     } else if state.provider.supports_vision() {
         multimodal::prepare_messages_for_provider(&messages, &multimodal_config).await?

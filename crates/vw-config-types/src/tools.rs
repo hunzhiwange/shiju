@@ -18,14 +18,27 @@ pub fn resolve_user_agent(user_agent: &str) -> String {
 }
 
 /// 多模态 OCR 图片模型配置（`[multimodal.ocr]` 配置段）。
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MultimodalOcrConfig {
     /// 是否启用图片 OCR。默认关闭。
     #[serde(default)]
     pub enabled: bool,
+    /// 当前模型是否支持直接接收图片。默认开启；开启时优先由当前模型处理图片。
+    #[serde(default = "default_model_supports_images")]
+    pub model_supports_images: bool,
     /// OCR 图片模型的完整 `provider/model` 引用。
     #[serde(default)]
     pub model: Option<String>,
+}
+
+fn default_model_supports_images() -> bool {
+    true
+}
+
+impl Default for MultimodalOcrConfig {
+    fn default() -> Self {
+        Self { enabled: false, model_supports_images: default_model_supports_images(), model: None }
+    }
 }
 
 /// 多模态图片处理配置（`[multimodal]` 配置段）。

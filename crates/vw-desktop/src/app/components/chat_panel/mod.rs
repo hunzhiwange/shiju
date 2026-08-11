@@ -144,7 +144,7 @@ fn chat_panel_context_menu_overlay<'a>(
 
     PointBelowOverlay::new(content, menu)
         .show(is_open)
-        .anchor(Point::new(anchor.0, anchor.1))
+        .global_anchor(Point::new(anchor.0, anchor.1))
         .gap(0.0)
         .close_on_target_click(true)
         .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))

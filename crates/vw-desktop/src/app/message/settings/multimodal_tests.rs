@@ -9,6 +9,7 @@ fn app() -> App {
 fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
     let mut app = app();
     app.multimodal_settings.ocr_enabled = false;
+    app.multimodal_settings.model_supports_images = false;
     app.multimodal_settings.ocr_model.clear();
 
     let _ = update(
@@ -55,6 +56,46 @@ fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
         multimodal_config_from_state(&app.multimodal_settings).expect("valid OCR settings map");
     assert!(config.ocr.enabled);
     assert_eq!(config.ocr.model.as_deref(), Some("vision-provider/vision-model"));
+}
+
+#[test]
+fn model_supports_images_defaults_on_and_allows_ocr_without_fallback_model() {
+    let mut app = app();
+    assert!(app.multimodal_settings.model_supports_images);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
+    );
+
+    assert!(app.multimodal_settings.ocr_enabled);
+    let config = multimodal_config_from_state(&app.multimodal_settings)
+        .expect("model vision mode should not require an OCR model");
+    assert!(config.ocr.model_supports_images);
+    assert!(config.ocr.model.is_none());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::ModelSupportsImagesToggled(false)),
+    );
+    assert!(app.multimodal_settings.model_supports_images);
+    assert!(app.multimodal_settings.save_error.is_some());
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(
+            "provider/model".to_string(),
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::ModelSupportsImagesToggled(false)),
+    );
+    assert!(!app.multimodal_settings.model_supports_images);
+    assert!(!multimodal_config_from_state(&app.multimodal_settings)
+        .expect("fallback OCR model should make configuration valid")
+        .ocr
+        .model_supports_images);
 }
 
 #[test]
@@ -136,6 +177,7 @@ fn multimodal_changes_schedule_persistence_tasks() {
         MultimodalMessage::MaxImagesChanged(4),
         MultimodalMessage::MaxImageSizeMbChanged(8),
         MultimodalMessage::AllowRemoteFetchToggled(true),
+        MultimodalMessage::ModelSupportsImagesToggled(true),
         MultimodalMessage::OcrModelChanged("provider/model".to_string()),
         MultimodalMessage::OcrEnabledToggled(true),
     ] {

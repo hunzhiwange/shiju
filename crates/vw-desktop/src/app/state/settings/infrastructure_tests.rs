@@ -14,6 +14,7 @@ fn multimodal_and_http_request_defaults_match_config_ui() {
     assert_eq!(multimodal.max_image_size_mb, 5);
     assert!(multimodal.allow_remote_fetch);
     assert!(!multimodal.ocr_enabled);
+    assert!(multimodal.model_supports_images);
     assert!(multimodal.ocr_model.is_empty());
     assert!(multimodal.save_error.is_none());
 

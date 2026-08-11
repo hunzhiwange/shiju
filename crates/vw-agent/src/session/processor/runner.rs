@@ -50,6 +50,26 @@ fn request_full_access_enabled(options: &Value) -> bool {
     options.get("full_access").and_then(Value::as_bool).unwrap_or(false)
 }
 
+fn with_request_model_context(
+    mut context: ToolUseContext,
+    request_model: Option<&str>,
+) -> ToolUseContext {
+    let Some(request_model) = request_model.map(str::trim).filter(|value| !value.is_empty()) else {
+        return context;
+    };
+    if let Some((provider, model)) = request_model.split_once('/')
+        && !provider.trim().is_empty()
+        && !model.trim().is_empty()
+    {
+        context = context
+            .with_provider(provider.trim().to_string())
+            .with_model(model.trim().to_string());
+    } else {
+        context = context.with_model(request_model.to_string());
+    }
+    context
+}
+
 fn enabled_identity_files_for_agent(
     config: &crate::config::Config,
     agent_key: Option<&str>,
@@ -85,7 +105,10 @@ pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 
         })
         .collect();
 
-    let mut tool_use_context = ToolUseContext::new(req.session.clone(), req.root.clone());
+    let mut tool_use_context = with_request_model_context(
+        ToolUseContext::new(req.session.clone(), req.root.clone()),
+        req.model.as_deref(),
+    );
     if let Some(channel_name) = req.channel_name.clone() {
         tool_use_context = tool_use_context.with_channel(channel_name);
     }
@@ -977,7 +1000,7 @@ fn build_image_turn_context_for_request(
         Ok(ctx) if !ctx.images.is_empty() => Ok(Some(ctx)),
         Ok(_) => Ok(None),
         Err(error) => {
-            if config.multimodal.ocr.enabled {
+            if config.multimodal.ocr.enabled && !config.multimodal.ocr.model_supports_images {
                 // OCR 开启时必须把失败暴露给用户，不能静默回退成直传图片。
                 Err(format!("image OCR preprocessing failed: {error}"))
             } else {

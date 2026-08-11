@@ -198,6 +198,7 @@ fn point_below_overlay_new_sets_hidden_defaults() {
     assert!(overlay.on_close.is_none());
     assert!(overlay.capture_outside_click);
     assert!(!overlay.close_on_target_click);
+    assert!(!overlay.anchor_is_global);
 }
 
 #[test]
@@ -210,15 +211,17 @@ fn point_below_overlay_builder_updates_all_flags() {
         .snap_within_target_bounds(true)
         .capture_outside_click(false)
         .close_on_target_click(true)
+        .global_anchor(Point::new(40.0, 50.0))
         .on_close(TestMessage::Close);
 
     assert!(overlay.show);
-    assert_eq!(overlay.anchor, Point::new(18.0, 24.0));
     assert_eq!(overlay.gap, 5.0);
     assert!(!overlay.snap_within_viewport);
     assert!(overlay.snap_within_target_bounds);
     assert!(!overlay.capture_outside_click);
     assert!(overlay.close_on_target_click);
+    assert_eq!(overlay.anchor, Point::new(40.0, 50.0));
+    assert!(overlay.anchor_is_global);
     assert_eq!(overlay.on_close, Some(TestMessage::Close));
 }
 

@@ -43,6 +43,8 @@ pub struct ChildAgentRunInput {
     pub directory: String,
     /// 要使用的委托 agent key。
     pub agent_key: String,
+    /// 父会话当前模型的完整 `provider/model` 引用。
+    pub model: Option<String>,
     /// 本轮子任务提示词。
     pub prompt: String,
     /// 提示词之前的 Gateway 格式上下文消息。
@@ -132,6 +134,7 @@ fn validate_input(input: &ChildAgentRunInput) -> Result<()> {
 fn stream_request(
     child_session_id: &str,
     agent_key: &str,
+    model: Option<String>,
     prompt: &str,
     mut context: Vec<Value>,
 ) -> GatewayChatStreamRequest {
@@ -147,6 +150,7 @@ fn stream_request(
         session_id: Some(SessionId::from(child_session_id)),
         messages: context,
         agent: Some(agent_key.to_string()),
+        model,
         ..GatewayChatStreamRequest::default()
     }
 }
@@ -329,6 +333,7 @@ pub(crate) async fn cancel_created(
             parent_session_id: _,
             directory,
             agent_key,
+            model: _,
             prompt,
             context: _,
         },
@@ -382,13 +387,20 @@ where
 {
     let CreatedChildAgentRun {
         input:
-            ChildAgentRunInput { parent_session_id: _, directory, agent_key, prompt, context },
+            ChildAgentRunInput {
+                parent_session_id: _,
+                directory,
+                agent_key,
+                model,
+                prompt,
+                context,
+            },
         child_session_id,
     } = created;
     let project_directory = directory.clone();
     let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
-            let request = stream_request(&child_session_id, &agent_key, &prompt, context);
+            let request = stream_request(&child_session_id, &agent_key, model, &prompt, context);
 
             let result = match execute_stream(request).await {
                 Ok(collected) => {

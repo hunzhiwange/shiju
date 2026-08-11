@@ -256,6 +256,7 @@ pub(crate) fn build_common_tool_view<'a>(
                 }
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into()
     };
@@ -360,6 +361,7 @@ pub(crate) fn build_common_tool_view<'a>(
                 }
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into();
         content = content.push(wrapped);

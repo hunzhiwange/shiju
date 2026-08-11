@@ -6,6 +6,7 @@ pub(crate) struct MultimodalSettingsState {
     pub(crate) max_image_size_mb: u32,
     pub(crate) allow_remote_fetch: bool,
     pub(crate) ocr_enabled: bool,
+    pub(crate) model_supports_images: bool,
     pub(crate) ocr_model: String,
     pub(crate) save_error: Option<String>,
 }
@@ -17,6 +18,7 @@ impl Default for MultimodalSettingsState {
             max_image_size_mb: 5,
             allow_remote_fetch: true,
             ocr_enabled: false,
+            model_supports_images: true,
             ocr_model: String::new(),
             save_error: None,
         }

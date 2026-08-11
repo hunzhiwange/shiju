@@ -18,7 +18,7 @@ fn multimodal_config_from_state(
     state: &crate::app::state::MultimodalSettingsState,
 ) -> Result<MultimodalConfig, String> {
     let ocr_model = valid_ocr_model(&state.ocr_model).map(str::to_string);
-    if state.ocr_enabled && ocr_model.is_none() {
+    if state.ocr_enabled && !state.model_supports_images && ocr_model.is_none() {
         return Err(INVALID_OCR_MODEL_ERROR.to_string());
     }
 
@@ -26,7 +26,11 @@ fn multimodal_config_from_state(
         max_images: state.max_images.clamp(1, 16) as usize,
         max_image_size_mb: state.max_image_size_mb.clamp(1, 20) as usize,
         allow_remote_fetch: state.allow_remote_fetch,
-        ocr: MultimodalOcrConfig { enabled: state.ocr_enabled, model: ocr_model },
+        ocr: MultimodalOcrConfig {
+            enabled: state.ocr_enabled,
+            model_supports_images: state.model_supports_images,
+            model: ocr_model,
+        },
     })
 }
 
@@ -63,8 +67,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         MultimodalMessage::AllowRemoteFetchToggled(value) => {
             app.multimodal_settings.allow_remote_fetch = value
         }
+        MultimodalMessage::ModelSupportsImagesToggled(value) => {
+            if !value
+                && app.multimodal_settings.ocr_enabled
+                && valid_ocr_model(&app.multimodal_settings.ocr_model).is_none()
+            {
+                app.multimodal_settings.save_error = Some(INVALID_OCR_MODEL_ERROR.to_string());
+                return Task::none();
+            }
+            app.multimodal_settings.model_supports_images = value
+        }
         MultimodalMessage::OcrEnabledToggled(true) => {
-            if valid_ocr_model(&app.multimodal_settings.ocr_model).is_none() {
+            if !app.multimodal_settings.model_supports_images
+                && valid_ocr_model(&app.multimodal_settings.ocr_model).is_none()
+            {
                 app.multimodal_settings.ocr_enabled = false;
                 app.multimodal_settings.save_error = Some(INVALID_OCR_MODEL_ERROR.to_string());
                 return Task::none();

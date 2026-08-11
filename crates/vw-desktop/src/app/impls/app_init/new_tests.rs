@@ -31,6 +31,24 @@ fn new_tests_keeps_planned_coverage_targets() {
 }
 
 #[test]
+fn main_agent_model_fields_use_provider_from_full_default_model() {
+    let config = vw_config_types::agent::DelegateAgentConfig {
+        provider: "alibaba-cn".to_string(),
+        model: "qwen3.7-plus".to_string(),
+        ..Default::default()
+    };
+
+    assert_eq!(
+        super::main_agent_model_fields(
+            &config,
+            Some("alibaba-cn"),
+            Some("token-plan/qwen3.7-plus"),
+        ),
+        ("token-plan".to_string(), "qwen3.7-plus".to_string())
+    );
+}
+
+#[test]
 fn new_initializes_safe_empty_session_state() {
     let (app, _task) = App::new();
 

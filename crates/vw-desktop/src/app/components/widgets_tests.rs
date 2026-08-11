@@ -287,6 +287,24 @@ fn right_click_inside_publishes_local_position_after_child_update() {
 }
 
 #[test]
+fn global_position_mode_publishes_window_position_after_child_update() {
+    let mut area = area().use_global_position();
+    let mut tree = tree_for(&area);
+
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
+        mouse::Cursor::Available(Point::new(34.0, 47.0)),
+    );
+
+    assert_eq!(
+        messages,
+        vec![TestMessage::ChildUpdated, TestMessage::RightClicked(Point::new(34.0, 47.0)),]
+    );
+}
+
+#[test]
 fn preserve_on_right_click_skips_child_update_for_right_click_inside() {
     let mut area = area().preserve_on_right_click();
     let mut tree = tree_for(&area);

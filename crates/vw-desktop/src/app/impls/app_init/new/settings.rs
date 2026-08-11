@@ -601,6 +601,7 @@ pub(super) fn build_multimodal_settings(
         max_image_size_mb: multimodal_cfg.max_image_size_mb.clamp(1, 20) as u32,
         allow_remote_fetch: multimodal_cfg.allow_remote_fetch,
         ocr_enabled: multimodal_cfg.ocr.enabled,
+        model_supports_images: multimodal_cfg.ocr.model_supports_images,
         ocr_model: multimodal_cfg
             .ocr
             .model

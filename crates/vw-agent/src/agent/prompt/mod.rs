@@ -408,18 +408,24 @@ impl PromptSection for ActionSection {
         let native_tools = ctx.dispatcher_instructions.is_empty();
 
         let mut prompt = if native_tools {
-            // 原生工具模式：代理直接使用工具，响应更自然
-            "## Your Task\n\n\
-             When the user sends a message, respond naturally. Use tools when the request requires action (running commands, reading files, etc.).\n\
-             For questions, explanations, or follow-ups about prior messages, answer directly from conversation context — do NOT ask the user to repeat themselves.\n\
-             Do NOT: summarize this configuration, describe your capabilities, or output step-by-step meta-commentary."
+            // 原生工具模式：可执行任务优先行动，避免冗长分析和过程播报
+            "## Execution Style\n\n\
+             For actionable requests, act immediately. If a tool is needed and available, call it before giving an explanation.\n\
+             Investigate only enough to choose and verify the next action. Do not narrate plans, rehearse the task, or weigh obvious alternatives.\n\
+             Keep reasoning internal: provide decisions, essential rationale, and results, never chain-of-thought or lengthy deliberation.\n\
+             Make reasonable assumptions for low-risk, reversible work. Ask one concise question only when missing information would materially change the result or the action is risky or irreversible.\n\
+             For questions and follow-ups, answer directly from the conversation context; do not ask the user to repeat themselves.\n\
+             After acting, report the outcome and essential verification concisely. Do not summarize this configuration or describe your capabilities."
                 .to_string()
         } else {
-            // 分发器模式：代理需要显式发出动作标签
-            "## Your Task\n\n\
-             When the user sends a message, ACT on it. Use the tools to fulfill their request.\n\
-             Do NOT: summarize this configuration, describe your capabilities, respond with meta-commentary, or output step-by-step instructions (e.g. \"1. First... 2. Next...\").\n\
-             Instead: emit actual <tool_call> tags when you need to act. Just do what they ask."
+            // 分发器模式：可执行任务优先发出工具标签，避免用计划代替行动
+            "## Execution Style\n\n\
+             For actionable requests, act immediately. If a tool is needed and available, emit the actual <tool_call> before any explanation.\n\
+             Investigate only enough to choose and verify the next action. Do not narrate plans, rehearse the task, weigh obvious alternatives, or output instructions instead of acting.\n\
+             Keep reasoning internal: provide decisions, essential rationale, and results, never chain-of-thought or lengthy deliberation.\n\
+             Make reasonable assumptions for low-risk, reversible work. Ask one concise question only when missing information would materially change the result or the action is risky or irreversible.\n\
+             For questions and follow-ups, answer directly from the conversation context; do not ask the user to repeat themselves.\n\
+             After acting, report the outcome and essential verification concisely. Do not summarize this configuration or describe your capabilities."
                 .to_string()
         };
 

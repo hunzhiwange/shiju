@@ -1842,39 +1842,31 @@ fn goal_only_does_not_activate_task_plan_run() {
 }
 
 #[test]
-fn lightweight_goal_requires_a_clear_executable_request() {
-    for query in [
-        "修复登录超时并运行测试",
-        "识别这张图片并提取关键信息",
-        "Please implement the retry guard",
-        "do the work",
-    ] {
+fn lightweight_goal_gate_is_structural_and_language_agnostic() {
+    let mut request = sample_agent_request(false, true, None);
+    for query in ["帮我分析一下", "Please take a look", "これを見て", "حلّل هذا"] {
+        request.query = query.to_string();
         assert!(
-            super::lightweight_goal_query_is_clear(query),
-            "explicit action should enable goal mode: {query}"
+            super::lightweight_goal_enabled_for_request(&request),
+            "query semantics must be delegated to the evaluator: {query}"
         );
     }
 
-    for query in [
-        "这个模块是做什么的？",
-        "为什么测试会失败",
-        "解释一下当前工作流",
-        "继续刚才",
-        "帮我看看",
-        "你好",
-    ] {
-        assert!(
-            !super::lightweight_goal_query_is_clear(query),
-            "unclear or informational input must stay single-turn: {query}"
-        );
-    }
+    request.goal_mode_enabled = false;
+    assert!(!super::lightweight_goal_enabled_for_request(&request));
+    request.goal_mode_enabled = true;
+    request.workflow_mode_enabled = true;
+    assert!(!super::lightweight_goal_enabled_for_request(&request));
+    request.workflow_mode_enabled = false;
+    request.resume_history_only = true;
+    assert!(!super::lightweight_goal_enabled_for_request(&request));
 }
 
 #[test]
 fn lightweight_goal_continues_until_evaluation_passes() {
     let rejected = super::resolve_lightweight_goal_turn(
         "已改代码，但还没跑测试",
-        r#"{"achieved":false,"reason":"缺少验证退出码证据"}"#,
+        r#"{"status":"continue","reason":"缺少验证退出码证据"}"#,
     );
     assert!(matches!(
         rejected,
@@ -1891,7 +1883,7 @@ fn lightweight_goal_continues_until_evaluation_passes() {
 
     let passed = super::resolve_lightweight_goal_turn(
         "验证通过，exit 0",
-        r#"{"achieved":true,"reason":"验证退出码为 0"}"#,
+        r#"{"status":"complete","reason":"验证退出码为 0"}"#,
     );
     assert!(matches!(
         passed,
@@ -1900,11 +1892,20 @@ fn lightweight_goal_continues_until_evaluation_passes() {
 
     let fenced = super::resolve_lightweight_goal_turn(
         "验证通过，exit 0",
-        "```json\n{\"achieved\":true,\"reason\":\"验证退出码为 0\"}\n```",
+        "```json\n{\"status\":\"complete\",\"reason\":\"验证退出码为 0\"}\n```",
     );
     assert!(matches!(
         fenced,
         super::LightweightGoalNext::Complete { reason } if reason.contains("验证退出码")
+    ));
+
+    let needs_input = super::resolve_lightweight_goal_turn(
+        "请上传需要分析的图片。",
+        r#"{"status":"needs_input","reason":"缺少用户要分析的图片"}"#,
+    );
+    assert!(matches!(
+        needs_input,
+        super::LightweightGoalNext::NeedsInput { reason } if reason.contains("图片")
     ));
 
     let empty = super::resolve_lightweight_goal_turn("已执行一轮", "");
@@ -1979,6 +1980,7 @@ fn lightweight_goal_continues_until_evaluation_passes() {
             && SOURCE.contains("\"disable_tools\": true")
             && SOURCE.contains("\"max_output_tokens\": 256")
             && SOURCE.contains("goal_terminal_sent")
+            && !SOURCE.contains("[目标续轮] {reason}")
             && !SOURCE.contains("目标验收失败：{error}"),
         "goal eval must guard invalid JSON, disable tools, and always emit a terminal event"
     );
@@ -1998,7 +2000,7 @@ fn lightweight_goal_continues_until_evaluation_passes() {
 fn lightweight_goal_stops_on_explicit_blocker() {
     let blocked = super::resolve_lightweight_goal_turn(
         "状态：已阻塞\n阻塞原因：缺少部署凭据，需要用户输入\n",
-        r#"{"achieved":false,"reason":"不应再评估"}"#,
+        r#"{"status":"continue","reason":"不应再评估"}"#,
     );
     assert!(matches!(
         blocked,
@@ -2006,7 +2008,11 @@ fn lightweight_goal_stops_on_explicit_blocker() {
     ));
 
     assert!(matches!(
-        super::lightweight_goal_next_action(false, "还差一步", Some("需要用户提供 API key")),
+        super::lightweight_goal_next_action(
+            super::LightweightGoalEvaluation::Continue,
+            "还差一步",
+            Some("需要用户提供 API key")
+        ),
         super::LightweightGoalNext::Blocked { reason } if reason.contains("API key")
     ));
 }

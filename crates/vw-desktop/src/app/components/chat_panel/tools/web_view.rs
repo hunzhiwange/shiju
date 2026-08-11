@@ -228,6 +228,7 @@ pub fn tool_web_view<'a>(
                 })
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into()
     } else {
@@ -276,6 +277,7 @@ pub fn tool_web_view<'a>(
                 })
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into()
     };

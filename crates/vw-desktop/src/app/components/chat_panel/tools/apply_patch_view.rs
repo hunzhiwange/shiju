@@ -250,6 +250,7 @@ pub fn tool_apply_patch_view<'a>(
                         }
                     }),
                 )
+                .use_global_position()
                 .preserve_on_right_click()
                 .into();
                 content = content.push(err_view);
@@ -487,6 +488,7 @@ pub fn tool_apply_patch_view<'a>(
                     }
                 }),
             )
+            .use_global_position()
             .preserve_on_right_click()
             .into();
             content = content.push(body);

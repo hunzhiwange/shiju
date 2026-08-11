@@ -1756,69 +1756,14 @@ fn task_plan_run_active(workflow_mode_enabled: bool, resume_history_only: bool) 
     workflow_mode_enabled && !resume_history_only
 }
 
-/// 无工作流时，只有目标明确且目标模式开启才走独立验收续轮。
+/// 无工作流时，目标模式开启便由独立评估器决定是否续轮。
 fn lightweight_goal_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
     !workflow_mode_enabled && !resume_history_only
-}
-
-/// 判断普通聊天是否包含足够明确的可执行目标。
-///
-/// 目标模式不能把所有问句都升级成“必须完成”的任务，否则解释、闲聊或
-/// 模糊的“继续一下”会在验收失败后触发无意义续轮。这里保守地只接受带有
-/// 常见动作词、且包含实际对象的请求；工作流模式仍由显式开关单独控制。
-fn lightweight_goal_query_is_clear(query: &str) -> bool {
-    let query = query.trim();
-    if query.is_empty() {
-        return false;
-    }
-
-    const ACTION_MARKERS: &[&str] = &[
-        "修复", "实现", "添加", "增加", "修改", "重构", "优化", "创建", "删除", "移除",
-        "补充", "编写", "更新", "升级", "排查", "解决", "处理", "完成", "构建", "运行",
-        "测试", "检查", "识别", "分析", "生成", "制作", "开发", "设计", "整理", "迁移",
-        "替换", "恢复", "配置", "部署", "提交", "发布", "do ", "fix ", "implement ",
-        "add ", "change ", "refactor ", "build ", "create ", "update ", "run ", "test ",
-        "check ", "identify ", "analyze ", "generate ",
-    ];
-    const INFORMATION_PREFIXES: &[&str] = &[
-        "为什么", "怎么", "如何", "什么", "是否", "能否", "可以吗", "请问", "解释一下", "介绍一下",
-        "what ", "why ", "how ", "can you explain", "could you explain",
-    ];
-    const VAGUE_REQUESTS: &[&str] = &[
-        "继续", "继续刚才", "继续上次", "帮我看看", "看看", "看一下", "处理一下", "修复一下",
-        "做一下", "搞一下", "这个", "那个", "问题", "do it", "continue", "take a look",
-    ];
-
-    let lowered = query.to_ascii_lowercase();
-    if query.ends_with(['?', '？'])
-        || INFORMATION_PREFIXES
-            .iter()
-            .any(|prefix| query.starts_with(prefix) || lowered.starts_with(prefix))
-    {
-        return false;
-    }
-
-    let has_action = ACTION_MARKERS
-        .iter()
-        .any(|marker| query.contains(marker) || lowered.contains(marker));
-    if !has_action {
-        return false;
-    }
-
-    let compact_len = query.chars().filter(|character| !character.is_whitespace()).count();
-    if compact_len < 4 {
-        return false;
-    }
-
-    !VAGUE_REQUESTS.iter().any(|request| {
-        query == *request || lowered == request.to_ascii_lowercase()
-    })
 }
 
 fn lightweight_goal_enabled_for_request(req: &AgentRequest) -> bool {
     req.goal_mode_enabled
         && lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only)
-        && lightweight_goal_query_is_clear(&req.query)
 }
 
 /// 轻量目标续轮决策。
@@ -1826,7 +1771,15 @@ fn lightweight_goal_enabled_for_request(req: &AgentRequest) -> bool {
 enum LightweightGoalNext {
     Continue { reason: String },
     Complete { reason: String },
+    NeedsInput { reason: String },
     Blocked { reason: String },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LightweightGoalEvaluation {
+    Continue,
+    Complete,
+    NeedsInput,
 }
 
 fn detect_explicit_lightweight_blocker(text: &str) -> Option<String> {
@@ -1848,7 +1801,9 @@ fn detect_explicit_lightweight_blocker(text: &str) -> Option<String> {
     Some(reason.unwrap_or_else(|| "目标执行明确标记为已阻塞".to_string()))
 }
 
-fn parse_lightweight_goal_evaluation(output: &str) -> Result<(bool, String), String> {
+fn parse_lightweight_goal_evaluation(
+    output: &str,
+) -> Result<(LightweightGoalEvaluation, String), String> {
     let trimmed = output.trim();
     if trimmed.is_empty() {
         return Err("目标评估器返回空响应".to_string());
@@ -1872,11 +1827,17 @@ fn parse_lightweight_goal_evaluation(output: &str) -> Result<(bool, String), Str
 
 fn lightweight_goal_evaluation_from_value(
     value: serde_json::Value,
-) -> Result<(bool, String), String> {
-    let achieved = value
-        .get("achieved")
-        .and_then(serde_json::Value::as_bool)
-        .ok_or_else(|| "目标评估器 JSON 缺少 achieved".to_string())?;
+) -> Result<(LightweightGoalEvaluation, String), String> {
+    let status = value
+        .get("status")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "目标评估器 JSON 缺少 status".to_string())?;
+    let evaluation = match status {
+        "continue" => LightweightGoalEvaluation::Continue,
+        "complete" => LightweightGoalEvaluation::Complete,
+        "needs_input" => LightweightGoalEvaluation::NeedsInput,
+        _ => return Err(format!("目标评估器 status 无效: {status}")),
+    };
     let reason = value
         .get("reason")
         .and_then(serde_json::Value::as_str)
@@ -1885,19 +1846,22 @@ fn lightweight_goal_evaluation_from_value(
         .ok_or_else(|| "目标评估器 reason 不能为空".to_string())?
         .to_string();
     if value.as_object().is_some_and(|object| object.len() != 2) {
-        return Err("目标评估器必须只包含 achieved 与 reason".to_string());
+        return Err("目标评估器必须只包含 status 与 reason".to_string());
     }
-    Ok((achieved, reason))
+    Ok((evaluation, reason))
 }
 
 fn build_lightweight_goal_evaluation_prompt(original_goal: &str, execution_evidence: &str) -> String {
     format!(
-        "你是独立目标验收器，只判断已有证据，不执行工具或命令。\
-\n请根据用户给出的完成条件与执行会话展示的确切命令/退出码/结果，判断目标是否真正完成。\
-\n完成条件即本轮用户原始查询；请以可验证证据证明完成。没有新鲜验证证据、验证失败或约束未满足时，achieved 必须为 false。\
+        "你是独立会话决策器，只判断已有上下文与证据，不执行工具或命令。\
+\n请理解用户原始查询的语义和当前回复，不依赖关键词或特定语言，决定会话下一步：\
+\n- complete：回复已经满足请求；普通问答、解释或闲聊得到适当回答也属于完成。\
+\n- continue：仍有明确工作未完成，并且智能体可利用现有上下文、工具或文件自主推进。\
+\n- needs_input：缺少只能由用户提供的图片、文件、文本、选择或其他关键信息；回复已经在向用户索取这些内容。\
+\n当回复正在请求用户补充必需上下文时，必须选择 needs_input，不能选择 continue。对于可执行目标，缺少新鲜验证证据、验证失败或约束未满足时不能选择 complete。\
 \n本路径是普通聊天上的独立验收，不依赖工作流计划目录或任务清单文件是否删除。\
 \n只返回一个严格 JSON 对象，不要 Markdown、代码围栏或额外文字：\
-\n{{\"achieved\":true或false,\"reason\":\"简洁且可执行的中文原因\"}}\
+\n{{\"status\":\"complete|continue|needs_input\",\"reason\":\"简洁原因\"}}\
 \n\n# 完成条件（用户原始查询）\n{}\
 \n\n# 执行证据\n{}",
         original_goal.trim(),
@@ -1927,7 +1891,7 @@ fn build_lightweight_goal_continuation_prompt(original_goal: &str, reason: &str)
 
 /// 一轮执行结束后，根据验收结果与显式阻塞决定是否续轮。
 fn lightweight_goal_next_action(
-    achieved: bool,
+    evaluation: LightweightGoalEvaluation,
     reason: &str,
     explicit_blocker: Option<&str>,
 ) -> LightweightGoalNext {
@@ -1936,14 +1900,16 @@ fn lightweight_goal_next_action(
             reason: blocker.to_string(),
         };
     }
-    if achieved {
-        LightweightGoalNext::Complete {
+    match evaluation {
+        LightweightGoalEvaluation::Continue => LightweightGoalNext::Continue {
             reason: reason.to_string(),
-        }
-    } else {
-        LightweightGoalNext::Continue {
+        },
+        LightweightGoalEvaluation::Complete => LightweightGoalNext::Complete {
             reason: reason.to_string(),
-        }
+        },
+        LightweightGoalEvaluation::NeedsInput => LightweightGoalNext::NeedsInput {
+            reason: reason.to_string(),
+        },
     }
 }
 
@@ -1964,7 +1930,7 @@ fn resolve_lightweight_goal_turn(
         };
     }
     match parse_lightweight_goal_evaluation(trimmed) {
-        Ok((achieved, reason)) => lightweight_goal_next_action(achieved, &reason, None),
+        Ok((evaluation, reason)) => lightweight_goal_next_action(evaluation, &reason, None),
         Err(error) => LightweightGoalNext::Continue {
             reason: format!("独立验收结论无效（{error}），请继续验证并完成目标"),
         },
@@ -2050,7 +2016,7 @@ async fn collect_lightweight_goal_evaluation(
             .then(|| parent_session_id.to_string().into()),
         messages: vec![serde_json::json!({"role": "user", "content": evaluation_prompt})],
         system: Some(vec![
-            "你是严格的 JSON 目标验收器。只输出一个 JSON 对象，不得输出 Markdown、代码围栏、解释或其他文字。对象只能包含 achieved（布尔值）和 reason（非空字符串）。".to_string(),
+            "你是严格的 JSON 会话决策器。只输出一个 JSON 对象，不得输出 Markdown、代码围栏、解释或其他文字。对象只能包含 status（complete、continue 或 needs_input）和 reason（非空字符串）。".to_string(),
         ]),
         model,
         reasoning_effort: None,
@@ -2928,12 +2894,13 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             };
 
             match next {
-                LightweightGoalNext::Complete { reason } => {
+                LightweightGoalNext::Complete { reason }
+                | LightweightGoalNext::NeedsInput { reason } => {
                     info!(
                         target: "vw_desktop",
                         request_id = req.id,
                         reason = %reason,
-                        "lightweight goal achieved"
+                        "lightweight goal stopped without continuation"
                     );
                     if let Some((usage, message_id, parent_message_id)) = held_done.take() {
                         let _ = output
@@ -2975,10 +2942,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                         reason = %reason,
                         "lightweight goal continuing"
                     );
+                    // 续轮原因属于内部控制信息，不写入用户可见的聊天正文。
                     let _ = output
                         .send(Message::Chat(message::ChatMessage::AgentStreamDelta(
                             req.id,
-                            format!("\n\n[目标续轮] {reason}\n\n"),
+                            "\n\n".to_string(),
                         )))
                         .await;
                     if !assistant_turn_buffer.is_empty() {

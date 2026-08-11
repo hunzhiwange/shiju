@@ -40,6 +40,8 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     on_right_click: Box<dyn Fn(Point) -> Message + 'a>,
     /// 是否在右键点击时拦截子组件事件，以保留内部状态（如文本选区）
     consume_right_click: bool,
+    /// 是否将右键位置作为窗口坐标传给回调，而不是组件内部坐标。
+    use_global_position: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, RendererT> {
@@ -57,11 +59,25 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
         content: Element<'a, Message, ThemeT, RendererT>,
         on_right_click: Box<dyn Fn(Point) -> Message + 'a>,
     ) -> Self {
-        Self { content, on_right_click, consume_right_click: false }
+        Self {
+            content,
+            on_right_click,
+            consume_right_click: false,
+            use_global_position: false,
+        }
     }
 
     pub fn preserve_on_right_click(mut self) -> Self {
         self.consume_right_click = true;
+        self
+    }
+
+    /// 让回调接收相对于窗口的点击位置。
+    ///
+    /// 默认回调参数是相对于当前组件左上角的本地坐标，适合将菜单锚定到
+    /// 当前组件。跨越滚动容器或由外层统一渲染的菜单则应使用窗口坐标。
+    pub fn use_global_position(mut self) -> Self {
+        self.use_global_position = true;
         self
     }
 }
@@ -219,7 +235,8 @@ where
         if is_right_click_inside && let Some(pos) = cursor.position() {
             let bounds = layout.bounds();
             let local = Point::new(pos.x - bounds.x, pos.y - bounds.y);
-            shell.publish((self.on_right_click)(local));
+            let click_position = if self.use_global_position { pos } else { local };
+            shell.publish((self.on_right_click)(click_position));
         }
     }
 

@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
+use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
 use crate::app::agent::tools::traits::Tool;
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -368,6 +369,46 @@ async fn run_leaves_model_selection_to_child_agent_config() {
         .execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"}))
         .await
         .expect("child run should complete");
+
+    assert!(result.success);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let agents = HashMap::from([(
+        "main".to_string(),
+        DelegateAgentConfig {
+            provider: "alibaba-cn".to_string(),
+            model: "qwen3.7-plus".to_string(),
+            ..DelegateAgentConfig::default()
+        },
+    )]);
+    let tool = AgentTool::new(agents, Some(parent.id), directory.into())
+        .with_child_agent_stream_executor(Arc::new(|request| {
+            Box::pin(async move {
+                assert_eq!(request.model.as_deref(), Some("token-plan/qwen3.7-plus"));
+                Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                    output: "child completed".to_string(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            })
+        }));
+    let context = Arc::new(
+        ToolUseContext::new("parent", None)
+            .with_provider("token-plan")
+            .with_model("qwen3.7-plus"),
+    );
+
+    let result = scope_tool_use_context(
+        context,
+        tool.execute(json!({"action": "run", "agent": "main", "prompt": "inspect"})),
+    )
+    .await
+    .expect("child run should complete");
 
     assert!(result.success);
 }

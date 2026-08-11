@@ -175,8 +175,16 @@ fn action_section_switches_between_native_and_dispatcher_modes() {
     let native = ActionSection.build(&native_ctx).unwrap();
     let dispatcher = ActionSection.build(&dispatcher_ctx).unwrap();
 
-    assert!(native.contains("respond naturally"));
+    for prompt in [&native, &dispatcher] {
+        assert!(prompt.contains("act immediately"));
+        assert!(prompt.contains("Investigate only enough"));
+        assert!(prompt.contains("Keep reasoning internal"));
+        assert!(prompt.contains("Ask one concise question only"));
+        assert!(prompt.contains("report the outcome and essential verification concisely"));
+    }
+    assert!(native.contains("call it before giving an explanation"));
     assert!(dispatcher.contains("<tool_call>"));
+    assert!(dispatcher.contains("output instructions instead of acting"));
     assert_ne!(native, dispatcher);
 }
 

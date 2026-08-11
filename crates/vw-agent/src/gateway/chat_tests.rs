@@ -181,6 +181,7 @@ async fn run_gateway_chat_simple_uses_ocr_text_for_non_vision_provider() {
     let provider = Arc::new(RecordingProvider::default());
     state.provider = provider.clone();
     state.config.lock().multimodal.ocr.enabled = true;
+    state.config.lock().multimodal.ocr.model_supports_images = false;
     state.config.lock().multimodal.ocr.model = Some("vision/reader".to_string());
     let extractor = StubImageTextExtractor::default();
 

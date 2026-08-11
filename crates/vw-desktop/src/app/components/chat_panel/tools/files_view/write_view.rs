@@ -140,6 +140,7 @@ pub(crate) fn build_write_tool_view<'a>(
             write_tool_context_menu_message(context_key, point, fallback_context_text.clone())
         }),
     )
+    .use_global_position()
     .preserve_on_right_click()
     .into();
 

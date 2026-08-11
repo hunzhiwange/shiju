@@ -252,6 +252,7 @@ pub fn tool_read_view<'a>(
                 })
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into(),
     )

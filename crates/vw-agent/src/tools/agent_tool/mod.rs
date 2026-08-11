@@ -3,7 +3,9 @@
 //! `AgentTool` 为每次 launch 创建并等待持久化子会话，让上层只暴露一个稳定工具入口。
 
 use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult, ToolSpec};
+use crate::app::agent::agent;
 use crate::app::agent::config::DelegateAgentConfig;
+use crate::app::agent::tools::context::current_tool_use_context;
 use crate::session::child_agent::coordinator::{
     ChildAgentCoordinator, WaitCondition, global_child_agent_coordinator,
 };
@@ -87,6 +89,19 @@ pub struct AgentTool {
 }
 
 impl AgentTool {
+    fn inherited_model_ref() -> Option<String> {
+        let context = current_tool_use_context()?;
+        let model = context.model()?.trim();
+        if model.is_empty() {
+            return None;
+        }
+        let provider = context.provider().map(str::trim).filter(|value| !value.is_empty());
+        Some(match provider {
+            Some(provider) => format!("{provider}/{model}"),
+            None => model.to_string(),
+        })
+    }
+
     /// 创建新的 `AgentTool`。
     ///
     /// # 参数
@@ -377,8 +392,8 @@ impl AgentTool {
         let prompt = self
             .prompt_from_args(args)
             .ok_or_else(|| anyhow::anyhow!("Missing 'prompt' parameter"))?;
-        let max_depth = match self.agents.get(agent) {
-            Some(config) => usize::try_from(config.max_depth).unwrap_or(usize::MAX),
+        let agent_config = match self.agents.get(agent) {
+            Some(config) => config,
             None => {
                 return Ok(Err(ToolResult {
                     success: false,
@@ -387,6 +402,7 @@ impl AgentTool {
                 }));
             }
         };
+        let max_depth = usize::try_from(agent_config.max_depth).unwrap_or(usize::MAX);
         let parent_session_id = self.parent_session_id()?;
         let task = Self::task_summary(prompt);
         if let Some(ancestor) =
@@ -426,6 +442,9 @@ impl AgentTool {
             parent_session_id: parent_session_id.to_string(),
             directory: self.workspace_dir.to_string_lossy().to_string(),
             agent_key: agent.to_string(),
+            model: (agent == "main" || agent::resolve_model_ref(agent_config).is_none())
+                .then(Self::inherited_model_ref)
+                .flatten(),
             prompt: prompt.to_string(),
             context,
         })

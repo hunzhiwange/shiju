@@ -330,7 +330,7 @@ fn workspace_identity_context_accepts_identity_config_and_default_limit() {
 }
 
 #[test]
-fn system_prompt_includes_tools_workspace_runtime_and_mode_specific_task_text() {
+fn system_prompt_includes_tools_workspace_runtime_and_execution_style() {
     let temp = tempfile::tempdir().unwrap();
     let prompt = build_system_prompt_with_mode(
         temp.path(),
@@ -346,7 +346,12 @@ fn system_prompt_includes_tools_workspace_runtime_and_mode_specific_task_text() 
 
     assert!(prompt.contains("## Tools"));
     assert!(prompt.contains("- **read**: Read files"));
-    assert!(prompt.contains("respond naturally"));
+    assert!(prompt.contains("## Execution Style"));
+    assert!(prompt.contains("act immediately"));
+    assert!(prompt.contains("Investigate only enough"));
+    assert!(prompt.contains("Keep reasoning internal"));
+    assert!(prompt.contains("Ask one concise question only"));
+    assert!(prompt.contains("report the outcome and essential verification concisely"));
     assert!(prompt.contains("Working directory:"));
     assert!(prompt.contains("Model: model-x"));
     assert!(prompt.contains("## Channel Capabilities"));

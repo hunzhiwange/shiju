@@ -479,7 +479,7 @@ pub fn build_system_prompt(
 ///
 /// 生成的提示按以下顺序组织：
 /// 1. 工具章节 — 可用工具列表
-/// 2. 任务指令 — 如何处理用户消息
+/// 2. 执行风格 — 优先行动并压缩分析与过程播报
 /// 3. 安全章节 — 操作护栏
 /// 4. 技能章节 — 技能定义（根据模式）
 /// 5. 工作空间章节 — 当前目录
@@ -514,23 +514,29 @@ pub fn build_system_prompt_with_mode(
         prompt.push('\n');
     }
 
-    // ── 1c. 动作指令（避免元总结）───────────────────────
-    // 根据工具调用模式添加不同的任务指令
+    // ── 1c. 执行风格（优先行动，避免冗长分析）─────────────
+    // 根据工具调用模式添加不同的执行指令
     if native_tools {
-        // 原生工具调用模式：更自然的交互方式
+        // 原生工具调用模式：需要行动时先调用工具
         prompt.push_str(
-            "## Your Task\n\n\
-             When the user sends a message, respond naturally. Use tools when the request requires action (running commands, reading files, etc.).\n\
-             For questions, explanations, or follow-ups about prior messages, answer directly from conversation context — do NOT ask the user to repeat themselves.\n\
-             Do NOT: summarize this configuration, describe your capabilities, or output step-by-step meta-commentary.\n\n",
+            "## Execution Style\n\n\
+             For actionable requests, act immediately. If a tool is needed and available, call it before giving an explanation.\n\
+             Investigate only enough to choose and verify the next action. Do not narrate plans, rehearse the task, or weigh obvious alternatives.\n\
+             Keep reasoning internal: provide decisions, essential rationale, and results, never chain-of-thought or lengthy deliberation.\n\
+             Make reasonable assumptions for low-risk, reversible work. Ask one concise question only when missing information would materially change the result or the action is risky or irreversible.\n\
+             For questions and follow-ups, answer directly from the conversation context; do not ask the user to repeat themselves.\n\
+             After acting, report the outcome and essential verification concisely. Do not summarize this configuration or describe your capabilities.\n\n",
         );
     } else {
-        // XML 工具协议模式：需要显式的工具调用标签
+        // XML 工具协议模式：需要行动时先发出工具标签
         prompt.push_str(
-            "## Your Task\n\n\
-             When the user sends a message, ACT on it. Use the tools to fulfill their request.\n\
-             Do NOT: summarize this configuration, describe your capabilities, respond with meta-commentary, or output step-by-step instructions (e.g. \"1. First... 2. Next...\").\n\
-             Instead: emit actual <tool_call> tags when you need to act. Just do what they ask.\n\n",
+            "## Execution Style\n\n\
+             For actionable requests, act immediately. If a tool is needed and available, emit the actual <tool_call> before any explanation.\n\
+             Investigate only enough to choose and verify the next action. Do not narrate plans, rehearse the task, weigh obvious alternatives, or output instructions instead of acting.\n\
+             Keep reasoning internal: provide decisions, essential rationale, and results, never chain-of-thought or lengthy deliberation.\n\
+             Make reasonable assumptions for low-risk, reversible work. Ask one concise question only when missing information would materially change the result or the action is risky or irreversible.\n\
+             For questions and follow-ups, answer directly from the conversation context; do not ask the user to repeat themselves.\n\
+             After acting, report the outcome and essential verification concisely. Do not summarize this configuration or describe your capabilities.\n\n",
         );
     }
 

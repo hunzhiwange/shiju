@@ -19,6 +19,17 @@ fn missing_full_access_option_defaults_to_disabled() {
 }
 
 #[test]
+fn request_model_context_keeps_provider_and_model_together() {
+    let context = super::with_request_model_context(
+        crate::app::agent::tools::ToolUseContext::new("parent", None),
+        Some(" token-plan/qwen3.7-plus "),
+    );
+
+    assert_eq!(context.provider(), Some("token-plan"));
+    assert_eq!(context.model(), Some("qwen3.7-plus"));
+}
+
+#[test]
 fn enabled_identity_files_follow_selected_agent_config_snapshot() {
     let mut config = crate::config::Config::default();
     config.agents.insert(

@@ -91,5 +91,8 @@ fn native_tools_system_prompt_contains_zero_xml() {
     );
 
     assert!(system_prompt.contains("bash"), "原生模式提示应列出工具名称");
-    assert!(system_prompt.contains("## Your Task"), "原生模式提示应包含任务指令");
+    assert!(
+        system_prompt.contains("## Execution Style"),
+        "原生模式提示应包含执行风格指令"
+    );
 }

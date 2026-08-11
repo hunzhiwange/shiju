@@ -627,6 +627,7 @@ pub fn tool_advanced_view<'a>(
 
         return Some(
             RightClickArea::new(card, Box::new(move |_| detail_message.clone()))
+                .use_global_position()
                 .preserve_on_right_click()
                 .into(),
         );
@@ -752,6 +753,7 @@ pub fn tool_advanced_view<'a>(
                 })
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into()
     } else {
@@ -788,6 +790,7 @@ pub fn tool_advanced_view<'a>(
                 })
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into()
     };

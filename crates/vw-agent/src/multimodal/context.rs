@@ -2,7 +2,7 @@
 //!
 //! 状态机：
 //! - 历史图片 / resume-only：始终使用 `[VW_IMAGE:id]` + 有界 OCR/摘要
-//! - `multimodal.ocr.enabled`：当前新图片也直接使用 OCR/摘要文本，不再首轮直传压缩图
+//! - `multimodal.ocr.enabled && !multimodal.ocr.model_supports_images`：当前新图片也直接使用 OCR/摘要文本，不再首轮直传压缩图
 //! - 当前新图片（OCR 关闭）：首次成功 LLM step 前保留压缩 data URI；成功后切换为引用文本
 //! - 首次 step 网络失败不切换状态，重试仍可携带图片
 
@@ -86,7 +86,7 @@ impl ImageTurnContext {
         current_model: Option<&str>,
         extractor: &dyn ImageTextExtractor,
     ) -> Result<Self> {
-        let ocr_text_only = config.ocr.enabled;
+        let ocr_text_only = config.ocr.enabled && !config.ocr.model_supports_images;
         let mut images = Vec::new();
         let mut total_refs = 0usize;
         for message in history_messages {

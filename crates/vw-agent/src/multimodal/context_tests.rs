@@ -158,6 +158,7 @@ async fn legacy_loop_reuses_cached_analysis() {
     let extractor = CountingExtractor { calls: AtomicUsize::new(0) };
     let mut config = MultimodalConfig::default();
     config.ocr.enabled = true;
+    config.ocr.model_supports_images = false;
     config.ocr.model = Some("vision/reader".to_string());
 
     // 生成可用 PNG fixture。

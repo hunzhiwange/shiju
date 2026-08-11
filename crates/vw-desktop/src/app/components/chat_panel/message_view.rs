@@ -514,6 +514,7 @@ pub fn message_view<'a>(
             })
         }),
     )
+    .use_global_position()
     .preserve_on_right_click()
     .into();
 

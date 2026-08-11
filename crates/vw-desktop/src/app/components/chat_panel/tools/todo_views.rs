@@ -332,6 +332,7 @@ pub fn tool_todowrite_compact_view<'a>(
                 }
             }),
         )
+        .use_global_position()
         .preserve_on_right_click()
         .into();
         content = content.push(container(body).width(Length::Fill));

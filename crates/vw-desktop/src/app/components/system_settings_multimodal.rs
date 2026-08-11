@@ -201,8 +201,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_panel(
             column![
                 bool_row(
+                    "模型支持图片",
+                    "开启后优先把图片交给当前模型处理；即使启用 OCR，也不会先转换为 OCR 文本。",
+                    s.model_supports_images,
+                    "由当前模型直接处理图片",
+                    |value| {
+                        Message::Settings(SettingsMessage::Multimodal(
+                            MultimodalMessage::ModelSupportsImagesToggled(value),
+                        ))
+                    },
+                ),
+                bool_row(
                     "启用 OCR",
-                    "启用前必须选择一个可用的图片输入模型。",
+                    "关闭“模型支持图片”后，才会使用下方模型提取图片文字。",
                     s.ocr_enabled,
                     "对图片附件执行文字提取",
                     |value| {
@@ -213,7 +224,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 field_row(
                     "图片模型",
-                    "只显示已启用且明确支持图片输入的 provider/model。",
+                    "仅在当前模型不支持图片时使用；只显示已启用且明确支持图片输入的 provider/model。",
                     image_model_control(app),
                 ),
             ]

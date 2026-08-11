@@ -67,6 +67,8 @@ pub struct PointBelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rend
     capture_outside_click: bool,
     // 锚点控件区域内的点击是否也触发关闭。默认 false，保护可切换锚点不被同一次点击关闭。
     close_on_target_click: bool,
+    // anchor_is_global 表示锚点已经是 overlay 坐标系中的位置。
+    anchor_is_global: bool,
 }
 
 impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -110,6 +112,7 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
             capture_outside_click: true,
             // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             close_on_target_click: false,
+            anchor_is_global: false,
         }
     }
 
@@ -146,6 +149,13 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
     /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
     pub fn anchor(mut self, anchor: Point) -> Self {
         self.anchor = anchor;
+        self
+    }
+
+    /// 使用 overlay 坐标系中的绝对锚点，不再叠加 content 的布局位置。
+    pub fn global_anchor(mut self, anchor: Point) -> Self {
+        self.anchor = anchor;
+        self.anchor_is_global = true;
         self
     }
 
@@ -508,7 +518,11 @@ where
 
         let floating = if self.show {
             let base = layout.position() + translation;
-            let anchor = Point::new(base.x + self.anchor.x, base.y + self.anchor.y);
+            let anchor = if self.anchor_is_global {
+                self.anchor
+            } else {
+                Point::new(base.x + self.anchor.x, base.y + self.anchor.y)
+            };
             let mut target_bounds = layout.bounds();
             target_bounds.x += translation.x;
             target_bounds.y += translation.y;

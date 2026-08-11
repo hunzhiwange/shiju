@@ -234,6 +234,7 @@ pub enum MultimodalMessage {
     MaxImageSizeMbChanged(u32),
     AllowRemoteFetchToggled(bool),
     OcrEnabledToggled(bool),
+    ModelSupportsImagesToggled(bool),
     OcrModelChanged(String),
 }
 

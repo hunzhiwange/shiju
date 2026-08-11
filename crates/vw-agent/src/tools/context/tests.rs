@@ -123,6 +123,7 @@ fn builder_methods_expose_injected_runtime_capabilities() {
         .with_security(Arc::new(security))
         .with_approval(approval.clone())
         .with_messages_view(messages)
+        .with_explicitly_requested_skills(["RustCodeGraph", "review"])
         .with_observer(Arc::new(NoopObserver))
         .with_progress_tx(progress_tx)
         .with_abort_token(abort_token.clone())
@@ -136,6 +137,9 @@ fn builder_methods_expose_injected_runtime_capabilities() {
     assert_eq!(context.workspace_root().as_deref(), Some(Path::new("/secure-workspace")));
     assert!(std::ptr::eq(context.approval_manager().expect("approval manager"), approval.as_ref()));
     assert_eq!(context.messages_view().expect("messages").len(), 2);
+    assert!(context.is_skill_explicitly_requested("rustcodegraph"));
+    assert!(context.is_skill_explicitly_requested("REVIEW"));
+    assert_eq!(context.explicitly_requested_skills().len(), 2);
     assert!(context.observer().is_some());
     assert!(context.progress_tx().is_some());
     abort_token.cancel();

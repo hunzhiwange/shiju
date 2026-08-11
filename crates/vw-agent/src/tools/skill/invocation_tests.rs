@@ -34,9 +34,13 @@ fn skill() -> (Skill, PathBuf) {
 #[test]
 fn skill_tool_returns_full_skill_as_meta_user_extra_message() {
     let (skill, root) = skill();
-    let result =
-        build_invocation_result(&skill, PathBuf::from("/workspace").as_path(), Some("src/lib.rs"))
-            .expect("supported skill should load");
+    let result = build_invocation_result(
+        &skill,
+        PathBuf::from("/workspace").as_path(),
+        Some("src/lib.rs"),
+        false,
+    )
+    .expect("supported skill should load");
 
     assert_eq!(result.model_text(), "Skill \"review\" loaded.");
     assert_eq!(result.extra_messages.len(), 1);
@@ -63,15 +67,19 @@ fn skill_tool_rejects_model_disabled_and_path_scoped_skills() {
     let (mut disabled, disabled_root) = skill();
     disabled.disable_model_invocation = true;
     assert!(
-        build_invocation_result(&disabled, PathBuf::from("/workspace").as_path(), None)
+        build_invocation_result(&disabled, PathBuf::from("/workspace").as_path(), None, false,)
             .expect_err("model-disabled skills must not load")
             .contains("禁止模型调用")
+    );
+    assert!(
+        build_invocation_result(&disabled, PathBuf::from("/workspace").as_path(), None, true,)
+            .is_ok()
     );
 
     let (mut path_scoped, path_scoped_root) = skill();
     path_scoped.paths = vec!["src/**/*.rs".to_string()];
     assert!(
-        build_invocation_result(&path_scoped, PathBuf::from("/workspace").as_path(), None)
+        build_invocation_result(&path_scoped, PathBuf::from("/workspace").as_path(), None, false,)
             .expect_err("path-scoped skills need an execution path")
             .contains("未支持的 paths 条件")
     );

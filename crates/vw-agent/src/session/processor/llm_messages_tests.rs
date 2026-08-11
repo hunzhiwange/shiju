@@ -119,3 +119,26 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
         assert_eq!(messages[3], history[0]);
     }
 }
+
+#[test]
+fn session_protocol_places_agents_immediately_before_current_user_turn() {
+    let instructions = vec![crate::session::instruction::Resolved {
+        filepath: "/workspace/AGENTS.md".to_string(),
+        content: "Instructions from: /workspace/AGENTS.md\nCURRENT_PROTOCOL".to_string(),
+        sources: Vec::new(),
+        diagnostics: Vec::new(),
+    }];
+    let history = vec![
+        json!({"role": "user", "content": "old question"}),
+        json!({"role": "assistant", "content": "old answer"}),
+        json!({"role": "user", "content": "current question"}),
+    ];
+
+    let messages = super::assemble_session_protocol_messages(&history, &instructions, &[], None);
+
+    assert_eq!(&messages[..2], &history[..2]);
+    assert!(messages[2]["content"].as_str().is_some_and(|content| {
+        content.contains("AGENTS.md") && content.contains("CURRENT_PROTOCOL")
+    }));
+    assert_eq!(messages[3], history[2]);
+}

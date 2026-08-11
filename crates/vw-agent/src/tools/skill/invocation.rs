@@ -13,8 +13,9 @@ pub(super) fn build_invocation_result(
     skill: &skills::Skill,
     workspace_dir: &Path,
     args: Option<&str>,
+    explicitly_requested: bool,
 ) -> Result<ToolCallResult, String> {
-    if skill.disable_model_invocation {
+    if skill.disable_model_invocation && !explicitly_requested {
         return Err(format!("技能 \"{}\" 禁止模型调用", skill.name));
     }
     if !skill.paths.is_empty() {

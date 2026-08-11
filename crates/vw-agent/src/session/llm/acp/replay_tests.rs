@@ -41,6 +41,49 @@ fn build_request_prompt_extracts_latest_user_message_when_not_forcing_replay() {
 }
 
 #[test]
+fn build_request_prompt_preserves_protocol_context_without_forced_replay() {
+    let prompt = build_request_prompt(
+        &json!([
+            { "role": "user", "content": "old request" },
+            { "role": "assistant", "content": "old answer" },
+            {
+                "role": "user",
+                "content": "<system-reminder>AGENTS.md repository instructions</system-reminder>"
+            },
+            { "role": "user", "content": "current request" }
+        ]),
+        false,
+        AcpReplayStrategy::Discard,
+        3,
+    );
+
+    assert!(prompt.starts_with("<protocol_context>"));
+    assert!(prompt.contains("AGENTS.md repository instructions"));
+    assert!(prompt.contains("<current_user_request>\ncurrent request\n</current_user_request>"));
+    assert!(!prompt.contains("old request"));
+    assert!(!prompt.contains("old answer"));
+}
+
+#[test]
+fn build_request_prompt_deduplicates_protocol_context_without_forced_replay() {
+    let protocol = "<system-reminder>AGENTS current contents</system-reminder>";
+    let prompt = build_request_prompt(
+        &json!([
+            { "role": "user", "content": protocol },
+            { "role": "assistant", "content": "old answer" },
+            { "role": "user", "content": protocol },
+            { "role": "user", "content": "current request" }
+        ]),
+        false,
+        AcpReplayStrategy::Full,
+        3,
+    );
+
+    assert_eq!(prompt.matches("AGENTS current contents").count(), 1);
+    assert_eq!(prompt.matches("current request").count(), 1);
+}
+
+#[test]
 fn build_request_prompt_delegates_to_replay_when_forced() {
     let prompt = build_request_prompt(
         &json!([

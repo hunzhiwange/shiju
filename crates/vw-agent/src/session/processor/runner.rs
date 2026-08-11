@@ -338,7 +338,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     if full_access_enabled {
         tool_use_context = tool_use_context.with_bypass_non_cli_approval_for_turn(true);
     }
-    let ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
+    let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
         .with_session_tools(req.session_tools.clone());
     let mut tool_state = ToolSessionState::default();
@@ -382,6 +382,22 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         agent_key,
         &enabled_identity_files,
     );
+    let explicitly_requested_skills =
+        crate::app::agent::tools::skill::explicitly_referenced_skill_names(
+            &session_protocol.skills,
+            std::iter::once(req.query.as_str()).chain(
+                base_system
+                    .instruction_context()
+                    .iter()
+                    .map(|instruction| instruction.content.as_str()),
+            ),
+        );
+    let tool_use_context = ctx
+        .tool_use_context()
+        .as_ref()
+        .clone()
+        .with_explicitly_requested_skills(explicitly_requested_skills);
+    ctx = ctx.with_tool_use_context(tool_use_context);
     if !base_system.visible_instruction_paths.is_empty()
         && !on_event(StreamEvent::ContextLoaded {
             paths: base_system.visible_instruction_paths.clone(),

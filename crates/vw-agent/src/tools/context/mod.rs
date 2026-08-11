@@ -17,6 +17,7 @@ use crate::app::agent::observability::Observer;
 use crate::app::agent::providers::ChatMessage;
 use crate::app::agent::security::SecurityPolicy;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::fmt;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -116,6 +117,7 @@ pub struct ToolUseContext {
     security: Option<Arc<SecurityPolicy>>,
     approval: Option<Arc<ApprovalManager>>,
     messages_view: Option<Arc<Vec<ChatMessage>>>,
+    explicitly_requested_skills: Arc<BTreeSet<String>>,
     read_state: Arc<Mutex<FileReadStateCache>>,
     observer: Option<Arc<dyn Observer>>,
     progress_tx: Option<Sender<String>>,
@@ -180,6 +182,7 @@ impl ToolUseContext {
             security: None,
             approval: None,
             messages_view: None,
+            explicitly_requested_skills: Arc::new(BTreeSet::new()),
             read_state: Arc::new(Mutex::new(FileReadStateCache::default())),
             observer: None,
             progress_tx: None,
@@ -241,6 +244,16 @@ impl ToolUseContext {
     /// 返回消息视图快照。
     pub fn messages_view(&self) -> Option<&[ChatMessage]> {
         self.messages_view.as_deref().map(Vec::as_slice)
+    }
+
+    /// 返回当前用户或仓库协议明确指定的技能名称。
+    pub fn explicitly_requested_skills(&self) -> &BTreeSet<String> {
+        self.explicitly_requested_skills.as_ref()
+    }
+
+    /// 判断技能是否由当前用户或仓库协议明确指定。
+    pub fn is_skill_explicitly_requested(&self, name: &str) -> bool {
+        self.explicitly_requested_skills.contains(&name.trim().to_lowercase())
     }
 
     /// 返回文件读取状态句柄。
@@ -413,6 +426,22 @@ impl ToolUseContext {
     /// 注入消息视图快照。
     pub fn with_messages_view(mut self, messages: Vec<ChatMessage>) -> Self {
         self.messages_view = Some(Arc::new(messages));
+        self
+    }
+
+    /// 注入由运行时从可信用户输入和仓库协议中解析出的技能名称。
+    pub fn with_explicitly_requested_skills<I, S>(mut self, skills: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.explicitly_requested_skills = Arc::new(
+            skills
+                .into_iter()
+                .map(|skill| skill.as_ref().trim().to_lowercase())
+                .filter(|skill| !skill.is_empty())
+                .collect(),
+        );
         self
     }
 

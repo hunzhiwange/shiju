@@ -1,10 +1,13 @@
 use super::{
-    Args, SkillTool, available_skill_names, base_dir_url, block_on, file_url, skill_file_id,
-    skill_location, skill_matches_name, skill_prompt_content, xml_escape,
+    Args, SkillTool, available_skill_names, base_dir_url, block_on,
+    explicitly_referenced_skill_names, file_url, skill_file_id, skill_location, skill_matches_name,
+    skill_prompt_content, skill_request_is_explicit, text_contains_skill_reference, xml_escape,
 };
 use crate::app::agent::skills::Skill;
+use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
 use serde_json::json;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 fn skill(name: &str, location: Option<PathBuf>, prompts: Vec<&str>) -> Skill {
     Skill {
@@ -59,6 +62,48 @@ fn skill_matching_accepts_display_name_or_file_id() {
     assert!(skill_matches_name(&item, "Display Name"));
     assert!(skill_matches_name(&item, "my-skill"));
     assert!(!skill_matches_name(&item, "missing"));
+}
+
+#[test]
+fn explicit_skill_reference_requires_identifier_boundaries() {
+    assert!(text_contains_skill_reference(
+        "优先使用 ./skills/rustcodegraph/SKILL.md skill",
+        "rustcodegraph"
+    ));
+    assert!(text_contains_skill_reference("请使用 $RustCodeGraph", "rustcodegraph"));
+    assert!(!text_contains_skill_reference("rustcodegraph-next", "rustcodegraph"));
+    assert!(!text_contains_skill_reference("do not trustcodegraph output", "rustcodegraph"));
+}
+
+#[test]
+fn repository_protocol_reference_authorizes_display_name_and_file_id() {
+    let item = skill(
+        "Rust Code Graph",
+        Some(PathBuf::from("/workspace/skills/rustcodegraph/SKILL.md")),
+        vec![],
+    );
+
+    let requested = explicitly_referenced_skill_names(
+        &[item],
+        ["优先使用 ./skills/rustcodegraph/SKILL.md skill"],
+    );
+
+    assert!(requested.contains("rust code graph"));
+    assert!(requested.contains("rustcodegraph"));
+}
+
+#[tokio::test]
+async fn trusted_runtime_context_marks_skill_as_explicitly_requested() {
+    let context = Arc::new(
+        ToolUseContext::new("session", Some("/workspace".to_string()))
+            .with_explicitly_requested_skills(["rustcodegraph"]),
+    );
+
+    scope_tool_use_context(context, async {
+        assert!(skill_request_is_explicit("RustCodeGraph"));
+        assert!(!skill_request_is_explicit("other-skill"));
+    })
+    .await;
 }
 
 #[test]

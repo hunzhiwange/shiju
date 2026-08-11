@@ -3,6 +3,7 @@
 //! 加载并执行预定义的技能脚本。技能是可重用的工作流模板，
 //! 用于封装常见的任务模式和最佳实践。
 
+use super::context::current_tool_use_context;
 use super::traits::{Tool, ToolCallResult, ToolResult};
 use crate::app::agent::agent;
 use crate::app::agent::config;
@@ -306,7 +307,16 @@ impl SkillTool {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let Err(error) = self.security.enforce_tool_operation(ToolOperation::Act, "skill") {
+            let requested_name = input
+                .get("skill")
+                .or_else(|| input.get("name"))
+                .or_else(|| input.get("skill_name"))
+                .and_then(Value::as_str);
+            let explicitly_requested = requested_name.is_some_and(skill_request_is_explicit);
+            if !explicitly_requested
+                && let Err(error) =
+                    self.security.enforce_tool_operation(ToolOperation::Act, "skill")
+            {
                 return failure_result(error);
             }
             let args: Args = match serde_json::from_value(input) {
@@ -328,22 +338,90 @@ impl SkillTool {
                     available_skill_names(&skills)
                 ));
             };
-            if skill.disable_model_invocation {
+            if explicitly_requested && !skill.user_invocable {
+                return failure_result(format!("技能 \"{}\" 禁止用户显式调用", skill.name));
+            }
+            if skill.disable_model_invocation && !explicitly_requested {
                 return failure_result(format!("技能 \"{}\" 禁止模型调用", skill.name));
             }
-            if let Err(error) = self.ask_skill_permission(&skill.name).await {
+            if !explicitly_requested
+                && let Err(error) = self.ask_skill_permission(&skill.name).await
+            {
                 return failure_result(error);
             }
             match invocation::build_invocation_result(
                 &skill,
                 &self.workspace_dir,
                 args.args.as_deref(),
+                explicitly_requested,
             ) {
                 Ok(result) => result,
                 Err(error) => failure_result(error),
             }
         }
     }
+}
+
+/// 从可信用户输入和已加载仓库协议中找出明确引用的技能名称及文件 ID。
+pub(crate) fn explicitly_referenced_skill_names<'a>(
+    skills: &[skills::Skill],
+    sources: impl IntoIterator<Item = &'a str>,
+) -> BTreeSet<String> {
+    let sources = sources.into_iter().collect::<Vec<_>>();
+    let mut requested = BTreeSet::new();
+    for skill in skills {
+        let mut names = vec![skill.name.as_str()];
+        let file_id = skill_file_id(skill);
+        if let Some(file_id) = file_id.as_deref()
+            && !names.iter().any(|name| name.eq_ignore_ascii_case(file_id))
+        {
+            names.push(file_id);
+        }
+        if !names
+            .iter()
+            .any(|name| sources.iter().any(|source| text_contains_skill_reference(source, name)))
+        {
+            continue;
+        }
+        requested.extend(names.into_iter().map(|name| name.trim().to_lowercase()));
+    }
+    requested
+}
+
+fn skill_request_is_explicit(name: &str) -> bool {
+    let Some(context) = current_tool_use_context() else {
+        return false;
+    };
+    if context.is_skill_explicitly_requested(name) {
+        return true;
+    }
+    context
+        .messages_view()
+        .and_then(|messages| {
+            messages.iter().rev().find(|message| {
+                message.role == "user" && !message.content.trim().starts_with("<system-reminder>")
+            })
+        })
+        .is_some_and(|message| text_contains_skill_reference(&message.content, name))
+}
+
+fn text_contains_skill_reference(text: &str, name: &str) -> bool {
+    let text = text.to_lowercase();
+    let name = name.trim().to_lowercase();
+    if name.is_empty() {
+        return false;
+    }
+    text.match_indices(&name).any(|(start, _)| {
+        let end = start + name.len();
+        let before = text[..start].chars().next_back();
+        let after = text[end..].chars().next();
+        before.is_none_or(|ch| !is_skill_name_char(ch))
+            && after.is_none_or(|ch| !is_skill_name_char(ch))
+    })
+}
+
+fn is_skill_name_char(ch: char) -> bool {
+    ch.is_alphanumeric() || matches!(ch, '-' | '_' | ':')
 }
 
 fn failure_result(error: String) -> ToolCallResult {

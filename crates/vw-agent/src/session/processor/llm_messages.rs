@@ -104,7 +104,7 @@ pub(crate) fn assemble_session_protocol_messages(
     skill_listing: Option<Value>,
 ) -> Vec<Value> {
     let injection = context_injection::assemble_agents_context(instructions, history);
-    let mut messages = injection
+    let mut protocol_messages = injection
         .transient_messages
         .iter()
         .map(|message| {
@@ -114,11 +114,23 @@ pub(crate) fn assemble_session_protocol_messages(
             })
         })
         .collect::<Vec<_>>();
-    messages.extend(invoked_skill_messages.iter().cloned());
+    protocol_messages.extend(invoked_skill_messages.iter().cloned());
     if let Some(skill_listing) = skill_listing {
-        messages.push(skill_listing);
+        protocol_messages.push(skill_listing);
     }
-    messages.extend(injection.history);
+
+    // 协议提醒必须紧邻本轮用户请求。若始终放在整段历史最前面，长会话中的模型会把它
+    // 当成陈旧上下文；用户手工再次要求读取 AGENTS 时反而能生效。工具轮次仍以最后一条
+    // 真实用户消息作为本轮边界，保持后续 assistant/tool 配对顺序不变。
+    let insertion_index = injection
+        .history
+        .iter()
+        .rposition(|message| message.get("role").and_then(Value::as_str) == Some("user"))
+        .unwrap_or(0);
+    let mut messages = Vec::with_capacity(injection.history.len() + protocol_messages.len());
+    messages.extend(injection.history[..insertion_index].iter().cloned());
+    messages.extend(protocol_messages);
+    messages.extend(injection.history[insertion_index..].iter().cloned());
     messages
 }
 

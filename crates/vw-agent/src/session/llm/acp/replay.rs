@@ -11,7 +11,8 @@ use super::AcpReplayStrategy;
 
 /// 为一次 ACP 请求构造最终 prompt。
 ///
-/// `force_new_session` 为 `true` 时会按重放策略拼接本地历史；否则只提取最新用户消息。
+/// `force_new_session` 为 `true` 时会按重放策略拼接本地历史；否则会把瞬态协议消息与
+/// 最新用户请求合并为 ACP 可接受的单条 prompt。
 /// 返回值可能为空，调用方需要把空 prompt 作为请求错误处理。
 pub(crate) fn build_request_prompt(
     chat_messages: &Value,
@@ -22,8 +23,50 @@ pub(crate) fn build_request_prompt(
     if force_new_session {
         build_replay_prompt(chat_messages, replay_strategy, replay_recent_count)
     } else {
-        extract_prompt(chat_messages)
+        build_current_prompt(chat_messages)
     }
+}
+
+/// 构造当前 ACP 会话的单条 prompt。
+///
+/// AGENTS.md 和 skill 协议以瞬态 meta-user 消息存在于本地消息列表中。ACP 只接收一条
+/// 文本 prompt，因此不能像普通 OpenAI 请求一样把这些消息独立发送；这里显式收集、
+/// 去重并放在当前用户请求之前。没有协议消息时保留原有的纯用户文本格式。
+fn build_current_prompt(chat_messages: &Value) -> String {
+    let Some(items) = chat_messages.as_array() else {
+        return extract_prompt(chat_messages);
+    };
+
+    let mut protocol_messages = Vec::new();
+    let mut seen_protocol_messages = HashSet::new();
+    let mut latest_user = String::new();
+    for item in items {
+        let role = item.get("role").and_then(Value::as_str).unwrap_or_default();
+        let content = content_to_text(&item.get("content").cloned().unwrap_or(Value::Null));
+        if content.is_empty() {
+            continue;
+        }
+        if is_protocol_meta_message(role, &content) {
+            if seen_protocol_messages.insert(content.clone()) {
+                protocol_messages.push(content);
+            }
+        } else if role == "user" {
+            latest_user = content;
+        }
+    }
+
+    if protocol_messages.is_empty() {
+        return latest_user;
+    }
+    if latest_user.is_empty() {
+        return extract_prompt(chat_messages);
+    }
+
+    format!(
+        "<protocol_context>\n{}\n</protocol_context>\n\n<current_user_request>\n{}\n</current_user_request>",
+        protocol_messages.join("\n\n"),
+        latest_user
+    )
 }
 
 fn extract_prompt(chat_messages: &Value) -> String {

@@ -19,11 +19,12 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.mode, "all");
     assert!(definition.enabled);
     assert!(definition.allow_as_subagent);
+    assert!(definition.agentic);
     assert_eq!(definition.max_parallel_subagents, 4);
     assert_eq!(definition.max_depth, 3);
     assert_eq!(definition.max_iterations, 50_000);
 
-    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 10);
+    assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 5);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
 }
 
@@ -36,11 +37,63 @@ fn agent_definition_defaults_include_subagent_controls() {
     .expect("legacy-shaped agent config should deserialize");
 
     assert!(definition.allow_as_subagent);
+    assert!(definition.agentic);
     assert_eq!(definition.max_parallel_subagents, 4);
 
     let value = serde_json::to_value(&definition).expect("agent config should serialize");
     assert_eq!(value["allow_as_subagent"], true);
     assert_eq!(value["max_parallel_subagents"], 4);
+}
+
+#[test]
+fn delegate_capability_policies_default_to_unrestricted_and_round_trip() {
+    let legacy: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test"
+    }))
+    .expect("legacy-shaped agent config should deserialize");
+
+    assert_eq!(legacy.tool_policy, super::DelegateCapabilityPolicy::Unrestricted);
+    assert_eq!(legacy.skill_policy, super::DelegateCapabilityPolicy::Unrestricted);
+    assert_eq!(
+        super::AgentDefinitionConfig::default().tool_policy,
+        super::DelegateCapabilityPolicy::Unrestricted
+    );
+    assert_eq!(
+        super::AgentDefinitionConfig::default().skill_policy,
+        super::DelegateCapabilityPolicy::Unrestricted
+    );
+
+    let definition = super::AgentDefinitionConfig {
+        provider: "openai".into(),
+        model: "gpt-test".into(),
+        tool_policy: super::DelegateCapabilityPolicy::Strict,
+        skill_policy: super::DelegateCapabilityPolicy::UserOverride,
+        ..Default::default()
+    };
+    let value = serde_json::to_value(&definition).expect("agent config should serialize");
+    assert_eq!(value["tool_policy"], "strict");
+    assert_eq!(value["skill_policy"], "user_override");
+
+    let policy_schema = serde_json::to_value(schemars::schema_for!(super::DelegateCapabilityPolicy))
+        .expect("capability policy schema should serialize");
+    assert_eq!(
+        policy_schema["enum"],
+        serde_json::json!(["strict", "user_override", "unrestricted"])
+    );
+
+    let decoded: super::AgentDefinitionConfig =
+        serde_json::from_value(value).expect("agent config should deserialize");
+    assert_eq!(decoded.tool_policy, super::DelegateCapabilityPolicy::Strict);
+    assert_eq!(decoded.skill_policy, super::DelegateCapabilityPolicy::UserOverride);
+
+    let error = serde_json::from_value::<super::AgentDefinitionConfig>(serde_json::json!({
+        "provider": "openai",
+        "model": "gpt-test",
+        "tool_policy": "unknown"
+    }))
+    .expect_err("invalid capability policy must fail to deserialize");
+    assert!(error.to_string().contains("unknown variant"));
 }
 
 #[test]
@@ -147,13 +200,9 @@ fn workspaces_config_handles_blank_and_absolute_root_overrides() {
 
 #[test]
 fn builtin_agent_configs_apply_role_specific_permissions() {
-    let build = super::builtin_agent_config("build").expect("build preset");
-    assert_eq!(build.mode, "primary");
-    assert_eq!(build.permission["file_write"], "allow");
-
-    let plan = super::builtin_agent_config("plan").expect("plan preset");
-    assert_eq!(plan.permission["file_write"]["*"], "deny");
-    assert_eq!(plan.permission["file_write"][".vibewindow/plans/*.md"], "allow");
+    let main = super::builtin_agent_config("main").expect("main preset");
+    assert_eq!(main.mode, "primary");
+    assert_eq!(main.permission["file_write"], "allow");
 
     let explore = super::builtin_agent_config("explore").expect("explore preset");
     assert_eq!(explore.mode, "subagent");
@@ -161,9 +210,9 @@ fn builtin_agent_configs_apply_role_specific_permissions() {
     assert_eq!(explore.permission["file_read"], "allow");
     assert!(!explore.allowed_tools.iter().any(|tool| tool == "bash"));
 
-    let summary = super::builtin_agent_config("summary").expect("summary preset");
-    assert!(summary.hidden);
-    assert_eq!(summary.permission["*"], "deny");
+    for key in ["build", "plan", "compaction", "title", "summary"] {
+        assert!(super::builtin_agent_config(key).is_none(), "{key} must not be public");
+    }
 
     assert!(super::builtin_agent_config("unknown").is_none());
 }
@@ -239,18 +288,7 @@ fn builtin_agent_keys_follow_spec_order() {
 
     assert_eq!(
         keys,
-        vec![
-            "main",
-            "researcher",
-            "coder",
-            "reviewer",
-            "build",
-            "plan",
-            "explore",
-            "compaction",
-            "title",
-            "summary",
-        ]
+        vec!["main", "researcher", "coder", "reviewer", "explore"]
     );
 }
 
@@ -280,18 +318,7 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let keys = super::builtin_agent_keys();
     assert_eq!(
         keys,
-        vec![
-            "main",
-            "researcher",
-            "coder",
-            "reviewer",
-            "build",
-            "plan",
-            "explore",
-            "compaction",
-            "title",
-            "summary",
-        ]
+        vec!["main", "researcher", "coder", "reviewer", "explore"]
     );
 
     let expected_delegate_roles = ["researcher", "coder", "reviewer", "explore"];
@@ -315,7 +342,30 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let coder = super::builtin_agent_config("coder").expect("coder config");
     assert_eq!(coder.temperature, Some(0.2));
     assert_eq!(coder.max_iterations, 64);
-    assert!(super::builtin_agent_config("compaction").expect("service config").hidden);
+    assert!(super::builtin_agent_config("compaction").is_none());
+}
+
+#[test]
+fn retired_builtin_agents_cannot_reenter_effective_catalog() {
+    let configured = ["build", "plan", "compaction", "title", "summary"]
+        .into_iter()
+        .map(|key| {
+            (
+                key.to_string(),
+                super::AgentDefinitionConfig {
+                    label: Some(format!("legacy-{key}")),
+                    provider: "legacy".into(),
+                    model: "legacy-model".into(),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+
+    let merged = super::merged_agent_configs(&configured);
+    for key in ["build", "plan", "compaction", "title", "summary"] {
+        assert!(!merged.contains_key(key), "{key} must not become a custom agent");
+    }
 }
 
 #[test]

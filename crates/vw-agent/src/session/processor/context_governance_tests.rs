@@ -34,8 +34,8 @@ fn context_compaction_never_removes_agents_protocol_reminder() {
         None,
     );
 
-    let result = result.expect("history should compact below the input limit");
-    assert!(result.passes > 0);
+    let result = result.expect("history sizing should succeed");
+    assert!(result.needs_internal_compaction);
     assert!(messages.contains(&reminder));
 }
 
@@ -152,6 +152,29 @@ fn auto_compaction_uses_an_inclusive_ninety_percent_boundary() {
 }
 
 #[test]
+fn context_governance_requests_internal_summary_instead_of_discarding_history() {
+    let mut messages = vec![json!({"role": "system", "content": "rules"})];
+    for index in 0..12 {
+        messages.push(json!({
+            "role": if index % 2 == 0 { "user" } else { "assistant" },
+            "content": format!("history-{index}-{}", "x".repeat(240))
+        }));
+    }
+    let original = messages.clone();
+
+    let decision = context_governance_decision(
+        &messages,
+        &["rules".to_string()],
+        &[],
+        &limit(600, Some(600), 0),
+        None,
+    );
+
+    assert!(decision.needs_internal_compaction);
+    assert_eq!(messages, original, "sizing must not discard historical messages");
+}
+
+#[test]
 fn effective_input_window_prefers_input_and_handles_invalid_output_space() {
     assert_eq!(effective_input_window(&limit(100_000, Some(80_000), 20_000)), 80_000);
     assert_eq!(effective_input_window(&limit(100_000, None, 10_000)), 90_000);
@@ -193,12 +216,13 @@ fn context_usage_does_not_count_base64_image_body_as_text_tokens() {
     let estimated = context_usage_tokens(&messages, &system, &tools, None);
 
     assert!(estimated < 200_000);
-    compact_context_for_next_request(&mut messages, &system, &tools, &model_limit, None)
-        .expect("a vision request should not fail because of its base64 transport payload");
+    let result = compact_context_for_next_request(&mut messages, &system, &tools, &model_limit, None)
+        .expect("a vision request should be sized without mutation");
+    assert!(!result.needs_internal_compaction);
 }
 
 #[test]
-fn compaction_keeps_system_and_protocol_pairs_while_clearing_old_results() {
+fn compaction_requests_internal_summary_without_clearing_protocol_history() {
     let mut messages = vec![json!({"role": "system", "content": "system rules"})];
     for index in 0..9 {
         let call_id = format!("old-call-{index}");
@@ -222,9 +246,9 @@ fn compaction_keeps_system_and_protocol_pairs_while_clearing_old_results() {
         &limit(500, Some(500), 0),
         Some(490),
     )
-    .expect("old tool result should make the request fit");
+    .expect("oversized history should produce a compaction decision");
 
-    assert_eq!(result.cleared_tool_results, 1);
+    assert!(result.needs_internal_compaction);
     assert!(messages.iter().any(|message| message["role"] == "system"));
     assert!(messages.iter().any(|message| message["role"] == "user"));
     assert!(
@@ -236,22 +260,22 @@ fn compaction_keeps_system_and_protocol_pairs_while_clearing_old_results() {
         .iter()
         .find(|message| message["tool_call_id"] == "old-call-0")
         .expect("old tool pair should remain");
-    assert_eq!(cleared["content"], STALE_TOOL_RESULT_PLACEHOLDER);
+    assert_eq!(cleared["content"], "old tool output ".repeat(80));
 }
 
 #[test]
-fn compaction_stops_after_a_finite_number_of_passes_when_system_alone_is_too_large() {
+fn compaction_requests_summary_when_system_alone_is_too_large() {
     let mut messages = vec![json!({"role": "user", "content": "question"})];
-    let error = compact_context_for_next_request(
+    let result = compact_context_for_next_request(
         &mut messages,
         &["x".repeat(1_000)],
         &[],
         &limit(100, Some(100), 0),
         None,
     )
-    .expect_err("an oversized system prompt cannot be compacted");
+    .expect("sizing should not discard an oversized system prompt");
 
-    assert!(error.contains("上下文压缩后仍超过限制"));
+    assert!(result.needs_internal_compaction);
 }
 
 #[test]

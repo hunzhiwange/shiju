@@ -155,6 +155,23 @@ fn builder_methods_expose_injected_runtime_capabilities() {
 }
 
 #[test]
+fn trusted_user_capability_selections_survive_tool_call_context_cloning() {
+    let context = ToolUseContext::new("parent", Some("/workspace".into()))
+        .with_trusted_user_selected_tools([" File_Read ", "shell", "shell"])
+        .with_trusted_user_selected_skills(["Review", " rustcodegraph "]);
+    let child_call = context.clone().with_tool_call_id("call-1");
+
+    assert_eq!(
+        child_call.trusted_user_selected_tools(),
+        &std::collections::BTreeSet::from(["file_read".to_string(), "shell".to_string()])
+    );
+    assert_eq!(
+        child_call.trusted_user_selected_skills(),
+        &std::collections::BTreeSet::from(["review".to_string(), "rustcodegraph".to_string()])
+    );
+}
+
+#[test]
 fn shared_read_state_and_workflow_handles_are_reused() {
     let read_state = Arc::new(Mutex::new(FileReadStateCache::new(8, 1024)));
     let workflow = Arc::new(Mutex::new(WorkflowState::default()));

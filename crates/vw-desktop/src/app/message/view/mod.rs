@@ -190,6 +190,10 @@ pub enum ViewMessage {
     ActivityAnimationTick,
     /// 开启或关闭独立小宠物窗口
     TaskPetToggleWindow,
+    /// 打开小宠物右键菜单
+    TaskPetContextMenuOpened(f32, f32),
+    /// 关闭小宠物右键菜单
+    TaskPetContextMenuClosed,
     /// 切换小宠物任务面板收起状态
     TaskPetToggleCollapsed,
     /// 开始拖拽小宠物任务面板
@@ -677,6 +681,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::TaskPetToggleWindow => {
+            app.task_pet_context_menu_pos = None;
             #[cfg(target_arch = "wasm32")]
             {
                 Task::none()
@@ -696,7 +701,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 }
             }
         }
+        ViewMessage::TaskPetContextMenuOpened(x, y) => {
+            app.task_pet_context_menu_pos = Some((x, y));
+            Task::none()
+        }
+        ViewMessage::TaskPetContextMenuClosed => {
+            app.task_pet_context_menu_pos = None;
+            Task::none()
+        }
         ViewMessage::TaskPetToggleCollapsed => {
+            app.task_pet_context_menu_pos = None;
             app.toggle_task_pet_collapsed();
             Task::none()
         }

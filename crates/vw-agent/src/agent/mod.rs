@@ -22,13 +22,8 @@
 //! ## 内置代理
 //!
 //! 本模块预定义了以下内置代理：
-//! - `build`：默认代理，根据配置的权限执行工具
-//! - `plan`：计划模式代理，禁止所有编辑工具
-//! - `general`：通用代理，用于研究复杂问题和执行多步骤任务
-//! - `explore`：快速代码库探索代理
-//! - `compaction`：压缩代理（隐藏）
-//! - `title`：标题生成代理（隐藏）
-//! - `summary`：摘要生成代理（隐藏）
+//! - `main`：唯一交互执行代理
+//! - `researcher`、`coder`、`reviewer`、`explore`：专业委托代理
 
 #[allow(clippy::module_inception)]
 pub mod agent;
@@ -71,11 +66,6 @@ use vw_config_types::agent::{DelegateAgentConfig, merged_agent_configs};
 /// 用于生成代理配置的提示词内容
 const PROMPT_GENERATE: &str = include_str!("generate.txt");
 
-/// 压缩提示词模板
-///
-/// 用于 compaction 代理执行消息压缩任务
-const PROMPT_COMPACTION: &str = include_str!("prompt/compaction.txt");
-
 /// 探索提示词模板
 ///
 /// 用于 explore 代理执行代码库探索任务
@@ -89,16 +79,6 @@ const PROMPT_CODER: &str = include_str!("prompt/coder.txt");
 
 /// 审查角色提示词模板。
 const PROMPT_REVIEWER: &str = include_str!("prompt/reviewer.txt");
-
-/// 摘要提示词模板
-///
-/// 用于 summary 代理生成对话摘要
-const PROMPT_SUMMARY: &str = include_str!("prompt/summary.txt");
-
-/// 标题提示词模板
-///
-/// 用于 title 代理生成会话标题
-const PROMPT_TITLE: &str = include_str!("prompt/title.txt");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Info {
@@ -128,7 +108,7 @@ struct ResolvedAgentDefinition {
 /// # 示例
 ///
 /// ```ignore
-/// if let Some(info) = get("build").await {
+/// if let Some(info) = get("main").await {
 ///     println!("代理描述: {:?}", info.description);
 /// }
 /// ```
@@ -141,9 +121,8 @@ pub async fn get(name: &str) -> Option<DelegateAgentConfig> {
 /// 根据配置和可用代理，智能选择最合适的默认代理。
 /// 选择优先级：
 /// 1. 配置中明确指定的默认代理
-/// 2. "build" 代理（如果可见且为主代理）
-/// 3. "plan" 代理（如果可见且为主代理）
-/// 4. 按名称排序的第一个可见主代理
+/// 2. "main" 代理（如果可见且为主代理）
+/// 3. 按名称排序的第一个可见主代理
 ///
 /// # 返回值
 ///
@@ -287,7 +266,7 @@ fn choose_default_agent(state: &State) -> Result<String, String> {
     }
 
     // 尝试使用内置的首选代理
-    for key in ["main", "build", "plan"] {
+    for key in ["main"] {
         if let Some(agent) = state.agents.get(key) {
             if is_primary_visible(&agent.definition) {
                 return Ok(key.to_string());
@@ -382,25 +361,12 @@ fn build_resolved_agent(
     user: &Ruleset,
 ) -> ResolvedAgentDefinition {
     config.mode = normalize_agent_mode(&config.mode);
-    if key == "plan" {
-        let mut permission = config.permission.clone();
-        let overlay = json!({
-            "edit": {
-                format!("{}/plans/*.md", global::paths().data.to_string_lossy()): "allow"
-            }
-        });
-        merge_json_value(&mut permission, &overlay);
-        config.permission = permission;
-    }
     if config.system_prompt.is_none() {
         config.system_prompt = match key {
             "researcher" => Some(PROMPT_RESEARCHER.to_string()),
             "coder" => Some(PROMPT_CODER.to_string()),
             "reviewer" => Some(PROMPT_REVIEWER.to_string()),
             "explore" => Some(PROMPT_EXPLORE.to_string()),
-            "compaction" => Some(PROMPT_COMPACTION.to_string()),
-            "title" => Some(PROMPT_TITLE.to_string()),
-            "summary" => Some(PROMPT_SUMMARY.to_string()),
             _ => None,
         };
     }

@@ -31,7 +31,6 @@ enum InlineModeCommand {
     ChatMode,
 }
 
-const SUMMARY_HANDOFF_PROMPT: &str = "请总结当前会话中已经完成的工作、关键决策、已修改内容、验证结果和剩余任务，并生成一份可供下一个会话直接继续执行的完整提示词。只输出这份提示词，不要创建新会话。";
 pub(crate) const SUBAGENT_MODE_SYSTEM_PROMPT: &str = "## AgentTool-First Mode\n\n\
 - Prefer AgentTool for meaningful independent workstreams when delegation improves speed, focus, or verification.\n\
 - The parent agent may work directly when delegation would not help, and remains responsible for coordinating, verifying evidence, and synthesizing results.\n\
@@ -63,16 +62,10 @@ fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     );
     if matches!(
         app.quick_message_handoff,
-        Some(
-            QuickMessageHandoffState::WaitingForSummary {
-                request_id: pending_id,
-                ..
-            }
-            | QuickMessageHandoffState::WaitingForGitCommitMessage {
-                request_id: pending_id,
-                ..
-            }
-        ) if pending_id == request_id
+        Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+            request_id: pending_id,
+            ..
+        }) if pending_id == request_id
     ) {
         app.quick_message_handoff = None;
         if generating_git_commit {
@@ -201,10 +194,8 @@ fn compose_query_with_session_context(
         lines.push(format!("技能：{}", effective_skills.join(", ")));
     }
     if !selected_shiju_skills.is_empty() {
-        let slugs = selected_shiju_skills
-            .iter()
-            .map(|selection| selection.slug())
-            .collect::<Vec<_>>();
+        let slugs =
+            selected_shiju_skills.iter().map(|selection| selection.slug()).collect::<Vec<_>>();
         lines.push(format!("识矩功能：{}", slugs.join(", ")));
         lines.push(
             "除非用户明确询问识矩平台或识矩技能本身，否则默认将用户的问题理解为针对上述已选识矩功能；不要回答成对识矩本身的介绍或使用说明。"
@@ -758,41 +749,138 @@ fn send_current_session_text_only(app: &mut App) -> Task<Message> {
     task
 }
 
-fn summarize_and_create_new_session(app: &mut App, project_path: String) -> Task<Message> {
-    let Some(source_session_id) = app.active_session_id.clone() else {
-        return app.show_warning_toast("当前没有可摘要的会话");
-    };
-    if app.current_session_is_requesting() {
-        return app.show_warning_toast("请等待当前回复完成后再执行摘要并创建新会话");
+fn session_info_is_compacting(app: &App, session_id: &str) -> bool {
+    app.sessions
+        .iter()
+        .chain(app.project_sessions.values().flatten())
+        .find(|info| info.id == session_id)
+        .is_some_and(|info| info.time.compacting.is_some())
+}
+
+fn set_session_compacting(app: &mut App, session_id: &str, compacting: Option<u64>) {
+    for info in app
+        .sessions
+        .iter_mut()
+        .chain(app.project_sessions.values_mut().flatten())
+        .filter(|info| info.id == session_id)
+    {
+        info.time.compacting = compacting;
     }
-    if app.quick_message_handoff.is_some() {
-        return app.show_warning_toast("摘要并创建新会话正在进行中");
+}
+
+fn request_session_compaction_confirmation(
+    app: &mut App,
+    session_id: String,
+    project_path: String,
+) -> Task<Message> {
+    if session_id.trim().is_empty() {
+        return app.show_warning_toast("当前没有可压缩的会话");
     }
-    if app.current_session_runtime().task_mode_enabled {
-        return app.show_warning_toast("请先切换到聊天模式，再摘要并创建新会话");
+    if app.session_is_requesting(&session_id) {
+        return app.show_warning_toast("请等待当前回复完成后再压缩会话");
     }
-    if !app.chat.iter().any(|message| !message.content.trim().is_empty()) {
-        return app.show_warning_toast("当前会话没有可摘要的内容");
+    if session_info_is_compacting(app, &session_id) {
+        return app.show_info_toast("会话压缩正在进行中");
     }
 
-    app.current_session_runtime_mut().input_editor =
-        iced::widget::text_editor::Content::with_text(SUMMARY_HANDOFF_PROMPT);
-    let task = send_current_session_text_only(app);
-    let request_id = app
-        .get_session_runtime(&source_session_id)
-        .active_agent_request
-        .as_ref()
-        .map(|request| request.id);
-    let Some(request_id) = request_id else {
-        return task;
-    };
+    app.show_session_actions_popover = false;
+    app.session_menu_id = None;
+    app.session_menu_anchor = None;
+    Task::perform(
+        async move {
+            let result = rfd::AsyncMessageDialog::new()
+                .set_level(rfd::MessageLevel::Warning)
+                .set_title("压缩当前会话")
+                .set_description("压缩会用摘要替换较早的会话历史，并保留当前会话 ID。确认继续吗？")
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .show()
+                .await;
+            (session_id, project_path, matches!(result, rfd::MessageDialogResult::Yes))
+        },
+        |(session_id, project_path, confirmed)| {
+            Message::Chat(ChatMessage::CompactSessionConfirmationResolved {
+                session_id,
+                project_path,
+                confirmed,
+            })
+        },
+    )
+}
 
-    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForSummary {
-        request_id,
-        source_session_id,
-        project_path,
-    });
-    task
+fn compact_session(
+    app: &mut App,
+    session_id: String,
+    project_path: String,
+    confirmed: bool,
+) -> Task<Message> {
+    if !confirmed {
+        return Task::none();
+    }
+    if app.session_is_requesting(&session_id) {
+        return app.show_warning_toast("请等待当前回复完成后再压缩会话");
+    }
+    if session_info_is_compacting(app, &session_id) {
+        return app.show_info_toast("会话压缩正在进行中");
+    }
+
+    set_session_compacting(app, &session_id, Some(crate::app::time::now_ms()));
+    Task::perform(
+        async move {
+            let result = async {
+                let client = crate::app::gateway_client()?;
+                let messages = client
+                    .session_messages::<Vec<agent_message::WithParts>>(
+                        &session_id,
+                        Some(&project_path),
+                    )
+                    .await?;
+                let message_id = latest_persisted_user_message_id(&messages)
+                    .ok_or_else(|| "当前会话没有可用于压缩的用户消息".to_string())?;
+                client
+                    .session_summarize(
+                        &session_id,
+                        Some(&project_path),
+                        &vw_gateway_client::GatewaySessionSummarizeBody { message_id },
+                    )
+                    .await
+            }
+            .await;
+            (session_id, project_path, result)
+        },
+        |(session_id, project_path, result)| {
+            Message::Chat(ChatMessage::CompactSessionFinished { session_id, project_path, result })
+        },
+    )
+}
+
+fn latest_persisted_user_message_id(messages: &[agent_message::WithParts]) -> Option<String> {
+    messages
+        .iter()
+        .filter(|message| matches!(message.info, agent_message::Info::User(_)))
+        .map(|message| message.info.id())
+        .max()
+        .map(str::to_string)
+}
+
+fn finish_session_compaction(
+    app: &mut App,
+    session_id: String,
+    project_path: String,
+    result: Result<bool, String>,
+) -> Task<Message> {
+    set_session_compacting(app, &session_id, None);
+    match result {
+        Ok(true) => Task::batch([
+            app.show_success_toast("会话压缩完成"),
+            Task::done(session_compaction_reload_message(session_id, project_path)),
+        ]),
+        Ok(false) => app.show_info_toast("当前会话没有需要压缩的较早历史"),
+        Err(error) => app.show_error_toast(format!("会话压缩失败：{error}")),
+    }
+}
+
+fn session_compaction_reload_message(session_id: String, project_path: String) -> Message {
+    Message::Project(message::ProjectMessage::OpenProjectSessionPressed(project_path, session_id))
 }
 
 fn git_commit_selection_context(app: &App) -> String {
@@ -958,9 +1046,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         &selected_skills,
         &selected_shiju_skills,
     );
-    app.current_session_runtime_mut()
-        .tool_selector
-        .clear_manual_context_selection();
+    app.current_session_runtime_mut().tool_selector.clear_manual_context_selection();
     if task_mode_enabled {
         return Task::done(Message::TaskBoard(TaskBoardMessage::AddTaskFromInputWithOptions {
             content: compose_query_with_attachments(&query, &attachments),
@@ -1047,8 +1133,14 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::SendToSession { session_id, input } => {
             send_to_existing_session(app, session_id, input)
         }
-        ChatMessage::SummarizeAndCreateNewSession { project_path } => {
-            summarize_and_create_new_session(app, project_path)
+        ChatMessage::CompactSessionRequested { session_id, project_path } => {
+            request_session_compaction_confirmation(app, session_id, project_path)
+        }
+        ChatMessage::CompactSessionConfirmationResolved { session_id, project_path, confirmed } => {
+            compact_session(app, session_id, project_path, confirmed)
+        }
+        ChatMessage::CompactSessionFinished { session_id, project_path, result } => {
+            finish_session_compaction(app, session_id, project_path, result)
         }
         ChatMessage::GenerateGitCommitMessage { project_path, action } => {
             generate_git_commit_message(app, project_path, action)
@@ -1921,10 +2013,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         think_timing: Vec::new(),
         processing_timing: None,
     });
-    super::processing_timing::start_tail_assistant_processing(
-        &mut app.chat,
-        request_started_ms,
-    );
+    super::processing_timing::start_tail_assistant_processing(&mut app.chat, request_started_ms);
     app.chat_message_ids.push(None);
     app.invalidate_chat_ui_for_message_idx(
         appended_start_idx.min(app.chat.len().saturating_sub(1)),

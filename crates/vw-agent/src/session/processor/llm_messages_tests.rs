@@ -101,9 +101,10 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
         &instructions,
         &invoked,
         listing.clone(),
+        None,
     );
     let next =
-        super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing);
+        super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing, None);
 
     for messages in [&first, &next] {
         assert!(
@@ -134,11 +135,31 @@ fn session_protocol_places_agents_immediately_before_current_user_turn() {
         json!({"role": "user", "content": "current question"}),
     ];
 
-    let messages = super::assemble_session_protocol_messages(&history, &instructions, &[], None);
+    let messages = super::assemble_session_protocol_messages(&history, &instructions, &[], None, None);
 
     assert_eq!(&messages[..2], &history[..2]);
     assert!(messages[2]["content"].as_str().is_some_and(|content| {
         content.contains("AGENTS.md") && content.contains("CURRENT_PROTOCOL")
     }));
     assert_eq!(messages[3], history[2]);
+}
+
+#[test]
+fn default_tool_reminder_is_adjacent_to_current_user_turn_and_not_a_whitelist() {
+    let history = vec![json!({"role": "user", "content": "current question"})];
+    let default_tools = vec!["file_read".to_string(), "shell".to_string()];
+
+    let messages = super::assemble_session_protocol_messages(
+        &history,
+        &[],
+        &[],
+        None,
+        super::default_tool_reminder(&default_tools),
+    );
+
+    assert_eq!(messages.len(), 2);
+    assert!(messages[0]["content"].as_str().is_some_and(|content| {
+        content.contains("file_read, shell") && content.contains("not a restriction")
+    }));
+    assert_eq!(messages[1], history[0]);
 }

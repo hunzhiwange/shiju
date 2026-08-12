@@ -3,7 +3,7 @@
 //! 加载并执行预定义的技能脚本。技能是可重用的工作流模板，
 //! 用于封装常见的任务模式和最佳实践。
 
-use super::context::current_tool_use_context;
+use super::context::{ToolUseContext, current_tool_use_context};
 use super::traits::{Tool, ToolCallResult, ToolResult};
 use crate::app::agent::agent;
 use crate::app::agent::config;
@@ -11,6 +11,7 @@ use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::question;
 use crate::app::agent::security::{SecurityPolicy, policy::ToolOperation};
 use crate::app::agent::skills;
+use crate::session::capability_policy::resolve_skill_capabilities;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -150,6 +151,21 @@ impl SkillTool {
             root_config,
             description_text,
         }
+    }
+
+    /// 用请求边界已确定的策略刷新模型可见的技能目录。
+    pub(crate) fn with_skill_directory_context(mut self, context: &ToolUseContext) -> Self {
+        let skills = filter_delegate_skills_for_context(
+            skills::load_skills_with_config(&self.workspace_dir, self.root_config.as_ref()),
+            context,
+        );
+        #[cfg(not(target_arch = "wasm32"))]
+        let skills = accessible_skills(skills);
+        self.description_text = Arc::<str>::from(prompt::build_description_text_for_skills(
+            &self.workspace_dir,
+            skills,
+        ));
+        self
     }
 
     /// 生成工具参数的 JSON Schema
@@ -329,6 +345,7 @@ impl SkillTool {
                 &self.workspace_dir,
                 self.root_config.as_ref(),
             );
+            let skills = filter_delegate_skills(skills);
             let Some(skill) =
                 skills.iter().find(|skill| skill_matches_name(skill, &args.skill)).cloned()
             else {
@@ -360,6 +377,35 @@ impl SkillTool {
             }
         }
     }
+}
+
+fn filter_delegate_skills(skills: Vec<skills::Skill>) -> Vec<skills::Skill> {
+    let Some(context) = current_tool_use_context() else {
+        return skills;
+    };
+    filter_delegate_skills_for_context(skills, context.as_ref())
+}
+
+fn filter_delegate_skills_for_context(
+    skills: Vec<skills::Skill>,
+    context: &ToolUseContext,
+) -> Vec<skills::Skill> {
+    let Some((policy, defaults)) = context.delegate_skill_policy() else {
+        return skills;
+    };
+    let trusted = context.trusted_user_selected_skills();
+    let visible = resolve_skill_capabilities(
+        skills.iter().map(|skill| skill.name.as_str()),
+        defaults.iter().map(String::as_str),
+        trusted.iter().map(String::as_str),
+        policy,
+        std::iter::empty::<&str>(),
+    )
+    .visible_ids;
+    skills
+        .into_iter()
+        .filter(|skill| visible.contains(&skill.name.trim().to_lowercase()))
+        .collect()
 }
 
 /// 从可信用户输入和已加载仓库协议中找出明确引用的技能名称及文件 ID。

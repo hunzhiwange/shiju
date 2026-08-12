@@ -15,7 +15,13 @@ use std::sync::{
 };
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
@@ -81,32 +87,6 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         goal_mode_enabled: false,
         history: Vec::new(),
     }
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn completed_summary_handoff_creates_session_with_visible_ai_result() {
-    let (mut app, _) = crate::app::App::new();
-    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForSummary {
-        request_id: 42,
-        source_session_id: "session-1".to_string(),
-        project_path: "/workspace/project".to_string(),
-    });
-    let chat = vec![message(ChatRole::Assistant, "<think>internal</think>\n继续任务的完整提示词")];
-
-    let task = super::complete_quick_message_handoff(&mut app, 42, "session-1", &chat)
-        .expect("handoff should complete");
-
-    assert_eq!(
-        app.quick_message_handoff,
-        Some(QuickMessageHandoffState::WaitingForSession {
-            prompt: "继续任务的完整提示词".to_string(),
-        })
-    );
-    assert!(matches!(
-        collect_task_messages(task).await.as_slice(),
-        [Message::Project(crate::app::message::ProjectMessage::ProjectCreateSession(path))]
-            if path == "/workspace/project"
-    ));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -946,13 +926,12 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
     let active_id = "active-session".to_string();
     app.active_session_id = Some(active_id.clone());
     let mut active_assistant = message(ChatRole::Assistant, "answer");
-    active_assistant.processing_timing =
-        Some(vw_shared::session::ui_types::ProcessingTiming {
-            started_ms: 100,
-            completed_ms: None,
-            processing_elapsed_ms: None,
-            llm_elapsed_ms: None,
-        });
+    active_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: 100,
+        completed_ms: None,
+        processing_elapsed_ms: None,
+        llm_elapsed_ms: None,
+    });
     app.chat = vec![active_assistant];
     app.chat_message_ids = vec![None];
     app.get_session_runtime_mut(&active_id).active_agent_request =
@@ -969,13 +948,12 @@ fn processing_timing_stream_done_closes_active_and_background_cycles() {
 
     let background_id = "background-session".to_string();
     let mut background_assistant = message(ChatRole::Assistant, "background answer");
-    background_assistant.processing_timing =
-        Some(vw_shared::session::ui_types::ProcessingTiming {
-            started_ms: 200,
-            completed_ms: None,
-            processing_elapsed_ms: None,
-            llm_elapsed_ms: None,
-        });
+    background_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: 200,
+        completed_ms: None,
+        processing_elapsed_ms: None,
+        llm_elapsed_ms: None,
+    });
     app.store_session_chat_snapshot(
         background_id.clone(),
         crate::app::session::shared_chat_messages(vec![background_assistant]),
@@ -1070,13 +1048,12 @@ fn processing_timing_stream_error_closes_and_saves_background_cycle() {
     let active_id = "active-session".to_string();
     app.active_session_id = Some(active_id.clone());
     let mut active_assistant = message(ChatRole::Assistant, "active partial");
-    active_assistant.processing_timing =
-        Some(vw_shared::session::ui_types::ProcessingTiming {
-            started_ms: 250,
-            completed_ms: None,
-            processing_elapsed_ms: None,
-            llm_elapsed_ms: None,
-        });
+    active_assistant.processing_timing = Some(vw_shared::session::ui_types::ProcessingTiming {
+        started_ms: 250,
+        completed_ms: None,
+        processing_elapsed_ms: None,
+        llm_elapsed_ms: None,
+    });
     app.chat = vec![active_assistant];
     app.chat_message_ids = vec![None];
     app.get_session_runtime_mut(&active_id).active_agent_request =
@@ -1219,10 +1196,7 @@ fn context_loaded_adds_visible_agents_read_card() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
-    app.chat = vec![
-        message(ChatRole::User, "question"),
-        message(ChatRole::Assistant, ""),
-    ];
+    app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "")];
     app.chat_message_ids = vec![Some("user-id".to_string()), None];
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(42, &session_id));

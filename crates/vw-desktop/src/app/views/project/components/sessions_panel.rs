@@ -329,6 +329,21 @@ pub fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message
         .into()
 }
 
+fn disabled_session_menu_button<'a>(label: &str) -> Element<'a, Message> {
+    let label = label.to_string();
+    button(container(text(label).size(12)).width(Length::Fill).padding([2, 6]))
+        .style(session_menu_button_style)
+        .width(Length::Fill)
+        .into()
+}
+
+fn session_compact_message(session_id: &str, project_path: &str) -> Message {
+    Message::Chat(message::ChatMessage::CompactSessionRequested {
+        session_id: session_id.to_string(),
+        project_path: project_path.to_string(),
+    })
+}
+
 /// 构建对应界面片段。
 ///
 /// # 参数
@@ -339,7 +354,11 @@ pub fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
+pub fn build_session_menu<'a>(
+    id: String,
+    project_path: String,
+    compaction_disabled: bool,
+) -> Element<'a, Message> {
     let separator = || -> Element<'a, Message> {
         container(iced::widget::Space::new())
             .width(Length::Fill)
@@ -348,7 +367,13 @@ pub fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
             .into()
     };
 
+    let compact_action = if compaction_disabled {
+        disabled_session_menu_button("压缩会话")
+    } else {
+        session_menu_button("压缩会话", session_compact_message(&id, &project_path))
+    };
     let content = column![
+        compact_action,
         session_menu_button(
             "重命名",
             Message::Project(message::ProjectMessage::SessionRenamePressed(id.clone())),
@@ -525,10 +550,7 @@ struct SessionTreeProjection<'a> {
     total_roots: usize,
 }
 
-fn compare_session_recency(
-    left: &&session::Info,
-    right: &&session::Info,
-) -> std::cmp::Ordering {
+fn compare_session_recency(left: &&session::Info, right: &&session::Info) -> std::cmp::Ordering {
     right
         .time
         .updated
@@ -553,11 +575,8 @@ fn session_tree_projection<'a>(
         .collect::<Vec<_>>();
     roots.sort_by(compare_session_recency);
     let total_roots = roots.len();
-    let rows = roots
-        .into_iter()
-        .take(load_count)
-        .map(|session| SessionTreeRow { session })
-        .collect();
+    let rows =
+        roots.into_iter().take(load_count).map(|session| SessionTreeRow { session }).collect();
 
     SessionTreeProjection { rows, total_roots }
 }
@@ -641,11 +660,7 @@ fn session_tree_row<'a>(
         text(truncate_display_width(&session_title, dynamic_title_max_chars))
             .size(13)
             .font(iced::Font {
-                weight: if active {
-                    iced::font::Weight::Bold
-                } else {
-                    iced::font::Weight::Medium
-                },
+                weight: if active { iced::font::Weight::Bold } else { iced::font::Weight::Medium },
                 ..Default::default()
             })
             .wrapping(iced::widget::text::Wrapping::None)
@@ -700,11 +715,14 @@ fn session_tree_row<'a>(
     ));
 
     if app.session_menu_id == Some(id.clone()) {
-        PointBelowOverlay::new(right_click, build_session_menu(id))
-            .show(true)
-            .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-            .on_close(Message::Project(message::ProjectMessage::SessionMenuClose))
-            .into()
+        PointBelowOverlay::new(
+            right_click,
+            build_session_menu(id, s.directory.clone(), is_running || s.time.compacting.is_some()),
+        )
+        .show(true)
+        .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+        .on_close(Message::Project(message::ProjectMessage::SessionMenuClose))
+        .into()
     } else {
         right_click
     }

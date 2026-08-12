@@ -23,14 +23,6 @@ pub enum QuickMessageGitCommitAction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum QuickMessageHandoffState {
-    WaitingForSummary {
-        request_id: u64,
-        source_session_id: String,
-        project_path: String,
-    },
-    WaitingForSession {
-        prompt: String,
-    },
     WaitingForGitCommitMessage {
         request_id: u64,
         source_session_id: String,
@@ -700,6 +692,8 @@ pub struct App {
     pub(crate) task_pet_avatar_kind: TaskPetAvatarKind,
     /// 鼠标是否悬停在小宠物本体上
     pub(crate) task_pet_robot_hovered: bool,
+    /// 小宠物右键菜单在窗口内的锚点位置
+    pub(crate) task_pet_context_menu_pos: Option<(f32, f32)>,
     /// 小宠物展示的任务条目
     pub(crate) task_pet_items: Vec<TaskPetItem>,
     /// 当前鼠标悬停的小宠物任务请求 ID

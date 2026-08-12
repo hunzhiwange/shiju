@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::config::DelegateAgentConfig;
+use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
 
 fn route(hint: &str) -> ModelRouteConfig {
     ModelRouteConfig {
@@ -60,6 +60,8 @@ fn snapshot_sorts_agents_and_treats_blank_keys_as_unconfigured() {
             api_key: Some("secret".to_string()),
             allowed_tools: vec!["file_read".to_string()],
             allowed_skills: vec!["review".to_string()],
+            tool_policy: DelegateCapabilityPolicy::Strict,
+            skill_policy: DelegateCapabilityPolicy::UserOverride,
             ..DelegateAgentConfig::default()
         },
     );
@@ -70,6 +72,10 @@ fn snapshot_sorts_agents_and_treats_blank_keys_as_unconfigured() {
     assert_eq!(names, vec!["alpha", "zeta"]);
     assert_eq!(snapshot["agents"]["alpha"]["api_key_configured"], true);
     assert_eq!(snapshot["agents"]["alpha"]["allowed_tools"], json!(["file_read"]));
+    assert_eq!(snapshot["agents"]["alpha"]["tool_policy"], "strict");
+    assert_eq!(snapshot["agents"]["alpha"]["skill_policy"], "user_override");
+    assert_eq!(snapshot["agents"]["zeta"]["tool_policy"], "unrestricted");
+    assert_eq!(snapshot["agents"]["zeta"]["skill_policy"], "unrestricted");
     assert_eq!(snapshot["agents"]["zeta"]["api_key_configured"], false);
 }
 

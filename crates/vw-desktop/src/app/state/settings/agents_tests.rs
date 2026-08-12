@@ -34,14 +34,14 @@ fn delegate_agent_entry_uses_main_kind_and_forces_main_enabled() {
 
 #[test]
 fn delegate_agent_entry_uses_builtin_worker_defaults() {
-    let entry = DelegateAgentSettingsEntry::from_config("title", None);
+    let entry = DelegateAgentSettingsEntry::from_config("coder", None);
 
-    assert_eq!(entry.key, "title");
-    assert_eq!(entry.label, "标题生成");
+    assert_eq!(entry.key, "coder");
+    assert_eq!(entry.label, "代码实现");
     assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
     assert!(entry.enabled);
-    assert!(!entry.allow_as_subagent);
-    assert_eq!(entry.temperature, 0.5);
+    assert!(entry.allow_as_subagent);
+    assert_eq!(entry.temperature, 0.2);
     assert_eq!(entry.max_depth, 1);
     assert_eq!(entry.max_iterations, 32);
 }
@@ -159,10 +159,10 @@ fn delegate_agent_entry_replaces_blank_text_and_clamps_numeric_lower_bounds() {
 fn delegate_agent_entry_blank_builtin_label_falls_back_to_builtin_label() {
     let config = DelegateAgentConfig { label: Some(" \n ".to_string()), ..Default::default() };
 
-    let entry = DelegateAgentSettingsEntry::from_config("title", Some(config));
+    let entry = DelegateAgentSettingsEntry::from_config("coder", Some(config));
 
     assert_eq!(entry.kind, AgentSettingsEntryKind::BuiltinWorker);
-    assert_eq!(entry.label, "标题生成");
+    assert_eq!(entry.label, "代码实现");
 }
 
 #[test]
@@ -196,6 +196,19 @@ fn ordered_agent_keys_does_not_duplicate_configured_builtin_keys() {
     assert_eq!(keys.iter().filter(|key| key.as_str() == MAIN_AGENT_KEY).count(), 1);
     assert_eq!(keys.iter().filter(|key| key.as_str() == "reviewer").count(), 1);
     assert_eq!(keys.last().map(String::as_str), Some("custom"));
+}
+
+#[test]
+fn ordered_agent_keys_excludes_retired_builtin_agents_from_legacy_config() {
+    let configured = ["build", "plan", "compaction", "title", "summary"]
+        .into_iter()
+        .map(|key| (key.to_string(), DelegateAgentConfig::default()))
+        .collect();
+
+    let keys = ordered_agent_keys(&configured);
+    for key in ["build", "plan", "compaction", "title", "summary"] {
+        assert!(!keys.iter().any(|actual| actual == key), "{key} must not be shown");
+    }
 }
 
 #[test]

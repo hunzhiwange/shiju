@@ -53,7 +53,7 @@ pub mod cron_update;
 mod decision;
 pub mod delegate;
 pub mod delegate_coordination_status;
-mod delegated_tools;
+pub(crate) mod delegated_tools;
 pub mod enter_plan_mode;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod enter_worktree;

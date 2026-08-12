@@ -1,10 +1,14 @@
 use super::tools::{
-    ToolGroup, preset_tool_count, tool_card_button_style, tool_english_name, tool_group_meta,
-    tool_group_order, tool_in_preset, tool_matches_any, tool_meta, tool_preset_meta,
+    ToolGroup, capability_policy_label, preset_tool_count, tool_card_button_style,
+    tool_english_name, tool_group_meta, tool_group_order, tool_in_preset, tool_matches_any,
+    tool_meta, tool_policy_message, tool_preset_meta,
 };
+use crate::app::message::settings::{AgentsMessage, SettingsMessage};
+use crate::app::Message;
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Color, Theme};
+use vw_config_types::agent::DelegateCapabilityPolicy;
 
 fn background_color(style: &button::Style) -> Color {
     match style.background.as_ref() {
@@ -18,6 +22,23 @@ fn tool_in_preset_rejects_unknown_preset() {
     assert!(!tool_in_preset("shell", "missing"));
     assert!(!tool_in_preset("", "minimal"));
     assert!(tool_in_preset("", "full"));
+}
+
+#[test]
+fn tool_capability_policy_controls_use_typed_messages_and_expected_labels() {
+    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Strict), "严格限制");
+    assert_eq!(
+        capability_policy_label(DelegateCapabilityPolicy::UserOverride),
+        "限制但允许用户选择"
+    );
+    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Unrestricted), "不限制");
+    assert!(matches!(
+        tool_policy_message("main".to_string(), DelegateCapabilityPolicy::Unrestricted),
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(
+            ref agent,
+            DelegateCapabilityPolicy::Unrestricted,
+        ))) if agent == "main"
+    ));
 }
 
 #[test]
@@ -361,8 +382,8 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
         let empty = super::tools::view(&app, &entry);
         Tree::new(empty.as_widget())
     };
-    assert_eq!(empty_tree.children.len(), 2);
-    assert!(empty_tree.children[1].children.is_empty());
+    assert_eq!(empty_tree.children.len(), 3);
+    assert!(empty_tree.children[2].children.is_empty());
 
     app.agents_settings.available_tools = [
         "read",
@@ -380,7 +401,7 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
 
     let grouped = super::tools::view(&app, &entry);
     let grouped_tree = Tree::new(grouped.as_widget());
-    let tools_list = &grouped_tree.children[1];
+    let tools_list = &grouped_tree.children[2];
 
     // tabs + select-all + preset section + presets + optional groups
     assert_eq!(tools_list.children.len(), 5);
@@ -399,7 +420,7 @@ fn tools_view_keeps_zero_match_presets_visible_without_grouping_them() {
 
     let view = super::tools::view(&app, &entry);
     let tree = Tree::new(view.as_widget());
-    let tools_list = &tree.children[1];
+    let tools_list = &tree.children[2];
 
     assert_eq!(tools_list.children.len(), 5);
     assert_eq!(tools_list.children[3].children.len(), 5);
@@ -417,7 +438,7 @@ fn tools_view_preserves_duplicate_available_tools_and_selection_state() {
 
     let view = super::tools::view(&app, &entry);
     let tree = Tree::new(view.as_widget());
-    let tools_list = &tree.children[1];
+    let tools_list = &tree.children[2];
     let file_cards = &tools_list.children[4].children[0].children[2];
 
     assert_eq!(tools_list.children[1].children.len(), 3);
@@ -450,7 +471,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
     {
         let optional_view = super::tools::view(&app, &entry);
         let optional_tree = Tree::new(optional_view.as_widget());
-        let optional_list = &optional_tree.children[1];
+        let optional_list = &optional_tree.children[2];
         // tabs + select-all row + preset section + preset buttons + grouped cards
         assert!(
             optional_list.children.len() >= 4,
@@ -473,7 +494,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
 
     let builtin_view = super::tools::view(&app, &entry);
     let builtin_tree = Tree::new(builtin_view.as_widget());
-    let builtin_list = &builtin_tree.children[1];
+    let builtin_list = &builtin_tree.children[2];
     assert_eq!(
         builtin_list.children.len(),
         2,
@@ -517,7 +538,7 @@ fn builtin_tool_cards_are_locked_and_badged() {
 
     let view = super::tools::view(&app, &entry);
     let tree = Tree::new(view.as_widget());
-    let tools_list = &tree.children[1];
+    let tools_list = &tree.children[2];
     // tabs + groups; first group card title row includes badge child
     let groups = &tools_list.children[1];
     let first_group_cards = &groups.children[0].children[2];

@@ -16,6 +16,7 @@ use crate::gateway::ApiError;
 use crate::gateway::api::handlers::session::stream::{
     GatewayChatStreamCollected, collect_gateway_chat_stream, persist_child_agent_turn,
 };
+use vw_config_types::agent::DelegateCapabilityPolicy;
 
 use super::{message, session};
 
@@ -49,6 +50,18 @@ pub struct ChildAgentRunInput {
     pub prompt: String,
     /// 提示词之前的 Gateway 格式上下文消息。
     pub context: Vec<Value>,
+    /// 委托 agent 配置的默认工具选择。
+    pub default_allowed_tools: Vec<String>,
+    /// 委托 agent 的工具可见性策略。
+    pub tool_policy: DelegateCapabilityPolicy,
+    /// 从父会话运行时上下文固化的可信用户工具选择。
+    pub trusted_user_selected_tools: Vec<String>,
+    /// 委托 agent 配置的默认技能选择。
+    pub default_allowed_skills: Vec<String>,
+    /// 委托 agent 的技能可见性策略。
+    pub skill_policy: DelegateCapabilityPolicy,
+    /// 从父会话运行时上下文固化的可信用户技能选择。
+    pub trusted_user_selected_skills: Vec<String>,
 }
 
 /// 子会话执行结束后的终态。
@@ -88,6 +101,9 @@ pub(crate) struct CreatedChildAgentRun {
 /// 根会话深度为 0；每经过一个 `parent_id` 增加 1。循环父链会被显式拒绝，
 /// 避免主智能体允许自委托后因损坏的会话关系绕过深度限制。
 pub(crate) async fn session_depth(directory: String, session_id: String) -> Result<usize> {
+    let directory = crate::app::agent::util::filesystem::normalize_path(&directory)
+        .to_string_lossy()
+        .to_string();
     let project_directory = directory.clone();
     project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
@@ -137,6 +153,12 @@ pub(crate) fn stream_request(
     model: Option<String>,
     prompt: &str,
     mut context: Vec<Value>,
+    default_allowed_tools: Vec<String>,
+    tool_policy: DelegateCapabilityPolicy,
+    trusted_user_selected_tools: Vec<String>,
+    default_allowed_skills: Vec<String>,
+    skill_policy: DelegateCapabilityPolicy,
+    trusted_user_selected_skills: Vec<String>,
 ) -> GatewayChatStreamRequest {
     context.push(serde_json::json!({
         "role": "system",
@@ -151,6 +173,14 @@ pub(crate) fn stream_request(
         messages: context,
         agent: Some(agent_key.to_string()),
         model,
+        options: Some(serde_json::json!({
+            "delegate_default_allowed_tools": default_allowed_tools,
+            "delegate_tool_policy": tool_policy,
+            "delegate_trusted_user_selected_tools": trusted_user_selected_tools,
+            "delegate_default_allowed_skills": default_allowed_skills,
+            "delegate_skill_policy": skill_policy,
+            "delegate_trusted_user_selected_skills": trusted_user_selected_skills,
+        })),
         ..GatewayChatStreamRequest::default()
     }
 }
@@ -291,7 +321,10 @@ pub async fn run(input: ChildAgentRunInput) -> Result<ChildAgentRunResult> {
 }
 
 /// 创建持久化子会话，但不启动模型执行。
-pub(crate) async fn create(input: ChildAgentRunInput) -> Result<CreatedChildAgentRun> {
+pub(crate) async fn create(mut input: ChildAgentRunInput) -> Result<CreatedChildAgentRun> {
+    input.directory = crate::app::agent::util::filesystem::normalize_path(&input.directory)
+        .to_string_lossy()
+        .to_string();
     validate_input(&input)?;
     let directory = input.directory.clone();
     let parent_session_id = input.parent_session_id.clone();
@@ -337,6 +370,12 @@ pub(crate) async fn cancel_created(
                 model: _,
                 prompt,
                 context: _,
+                default_allowed_tools: _,
+                tool_policy: _,
+                trusted_user_selected_tools: _,
+                default_allowed_skills: _,
+                skill_policy: _,
+                trusted_user_selected_skills: _,
             },
         child_session_id,
     } = created;
@@ -388,13 +427,38 @@ where
 {
     let CreatedChildAgentRun {
         input:
-            ChildAgentRunInput { parent_session_id: _, directory, agent_key, model, prompt, context },
+            ChildAgentRunInput {
+                parent_session_id: _,
+                directory,
+                agent_key,
+                model,
+                prompt,
+                context,
+                default_allowed_tools,
+                tool_policy,
+                trusted_user_selected_tools,
+                default_allowed_skills,
+                skill_policy,
+                trusted_user_selected_skills,
+            },
         child_session_id,
     } = created;
     let project_directory = directory.clone();
     let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
-            let request = stream_request(&child_session_id, &agent_key, model, &prompt, context);
+            let request = stream_request(
+                &child_session_id,
+                &agent_key,
+                model,
+                &prompt,
+                context,
+                default_allowed_tools,
+                tool_policy,
+                trusted_user_selected_tools,
+                default_allowed_skills,
+                skill_policy,
+                trusted_user_selected_skills,
+            );
 
             let result = match execute_stream(request).await {
                 Ok(collected) => {

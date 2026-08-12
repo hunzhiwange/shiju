@@ -693,15 +693,15 @@ async fn session_ops_cover_diff_summary_reset_and_title_errors() {
     .expect("diff should return an empty list outside git changes");
     assert!(diffs.is_empty());
 
-    let Json(summarized) = session_summarize(
+    let summarize_error = session_summarize(
         Path(info.id.clone()),
         Query(query_for(project_path)),
         HeaderMap::new(),
         Json(GatewaySessionSummarizeBody { message_id: "missing-message".to_string() }),
     )
     .await
-    .expect("summarize should safely handle a missing message");
-    assert!(summarized);
+    .expect_err("summarize requires an existing user-message boundary");
+    assert!(summarize_error.to_string().contains("compaction boundary"));
 
     let Json(reset) = session_reset(
         State(state()),

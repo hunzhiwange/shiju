@@ -16,6 +16,13 @@ pub(super) const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn build_description_text(workspace_dir: &Path, root_config: &config::Config) -> String {
     let skills = accessible_skills(skills::load_skills_with_config(workspace_dir, root_config));
+    build_description_text_for_skills(workspace_dir, skills)
+}
+
+pub(super) fn build_description_text_for_skills(
+    workspace_dir: &Path,
+    skills: Vec<skills::Skill>,
+) -> String {
     if skills.is_empty() {
         return "Load a specialized skill for domain-specific guidance.\n\n<BLOCKING REQUIREMENT>When a task matches an available skill, you MUST call this tool before responding. Do not answer from memory or proceed with the task until the skill has been loaded.</BLOCKING REQUIREMENT>\n\nNo skills are available."
             .to_string();

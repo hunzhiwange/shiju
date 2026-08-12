@@ -1,4 +1,3 @@
-use crate::app::agent::session::processor::StreamEvent;
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::{ToolRuntimeContext, todo};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -123,90 +122,6 @@ fn build_todo_status_patches_only_updates_first_eligible_item() {
     let patches = super::build_todo_status_patches(&items, "in_progress", true);
 
     assert_eq!(patches, vec![serde_json::json!({ "id": "2", "status": "in_progress" })]);
-}
-
-#[test]
-fn maybe_mark_all_todos_completed_runs_todowrite_and_records_events() {
-    let session_id = unique_session("todos-complete");
-    let ctx = ctx(&session_id);
-    seed(
-        &ctx,
-        vec![
-            item("1", "done", "completed"),
-            item("2", "active", "in_progress"),
-            item("3", "waiting", "pending"),
-        ],
-    );
-    let mut session = Session::new(session_id);
-    let mut tool_state =
-        super::super::ToolSessionState { non_todo_tool_runs: 1, ..Default::default() };
-    let mut events = Vec::new();
-
-    let marked = super::maybe_mark_all_todos_completed(
-        &mut session,
-        &ctx,
-        &mut |event| {
-            events.push(event);
-            true
-        },
-        &mut tool_state,
-    );
-
-    assert!(marked);
-    assert!(read(&ctx).iter().all(|todo| todo.status == "completed"));
-    assert!(session.messages.iter().any(|message| matches!(message.role, Role::Tool)));
-    assert!(events.iter().any(|event| match event {
-        StreamEvent::Delta(text) => text.contains("tool todowrite"),
-        _ => false,
-    }));
-}
-
-#[test]
-fn maybe_mark_all_todos_completed_returns_false_when_nothing_needs_update() {
-    let session_id = unique_session("todos-complete-noop");
-    let ctx = ctx(&session_id);
-    seed(&ctx, vec![item("1", "done", "completed")]);
-    let mut session = Session::new(session_id);
-    let mut tool_state = super::super::ToolSessionState::default();
-    let mut event_count = 0usize;
-
-    let marked = super::maybe_mark_all_todos_completed(
-        &mut session,
-        &ctx,
-        &mut |_event| {
-            event_count += 1;
-            true
-        },
-        &mut tool_state,
-    );
-
-    assert!(!marked);
-    assert_eq!(event_count, 0);
-    assert!(session.messages.is_empty());
-}
-
-#[test]
-fn maybe_mark_all_todos_completed_returns_false_for_empty_list_without_side_effects() {
-    let session_id = unique_session("todos-complete-empty");
-    let ctx = ctx(&session_id);
-    seed(&ctx, Vec::new());
-    let mut session = Session::new(session_id);
-    let mut tool_state = super::super::ToolSessionState::default();
-    let mut event_count = 0usize;
-
-    let marked = super::maybe_mark_all_todos_completed(
-        &mut session,
-        &ctx,
-        &mut |_event| {
-            event_count += 1;
-            true
-        },
-        &mut tool_state,
-    );
-
-    assert!(!marked);
-    assert_eq!(event_count, 0);
-    assert!(session.messages.is_empty());
 }
 
 #[test]

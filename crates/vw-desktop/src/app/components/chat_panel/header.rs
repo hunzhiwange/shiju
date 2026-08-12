@@ -43,9 +43,7 @@ fn header_surface_style(
 ) -> iced::widget::container::Style {
     // 默认透明；显式/合成的 chat_header_bg 提供分区透明度色层。
     iced::widget::container::Style {
-        background: chrome
-            .and_then(|c| c.chat_header_bg)
-            .map(Background::Color),
+        background: chrome.and_then(|c| c.chat_header_bg).map(Background::Color),
         border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
         ..Default::default()
     }
@@ -164,12 +162,11 @@ fn return_to_parent_button_style(
 fn return_to_parent_button<'a>(msg: Message) -> Element<'a, Message> {
     button(
         row![
-            icon_svg(Icon::Back)
-                .width(Length::Fixed(11.0))
-                .height(Length::Fixed(11.0))
-                .style(|theme: &Theme, _status| svg::Style {
+            icon_svg(Icon::Back).width(Length::Fixed(11.0)).height(Length::Fixed(11.0)).style(
+                |theme: &Theme, _status| svg::Style {
                     color: Some(theme.palette().text.scale_alpha(0.88)),
-                }),
+                }
+            ),
             text("返回主会话").size(10),
         ]
         .spacing(4)
@@ -578,10 +575,8 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     .padding(iced::Padding { top: 6.0, right: 10.0, bottom: 6.0, left: 10.0 })
     .style(move |theme: &Theme| header_surface_style(theme, Some(&chrome)));
 
-    let header_bg = app
-        .active_theme_skin
-        .as_ref()
-        .and_then(|skin| skin.chat_header_path.as_deref());
+    let header_bg =
+        app.active_theme_skin.as_ref().and_then(|skin| skin.chat_header_path.as_deref());
     let fit = app
         .active_theme_skin
         .as_ref()
@@ -612,14 +607,16 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 /// - **重命名**：触发会话标题编辑
 /// - **归档**：将当前会话归档
 /// - **删除**：删除当前会话（带分隔线，表示危险操作）
-fn session_actions_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
+fn session_actions_button<'a>(label: &str, msg: Option<Message>) -> Element<'a, Message> {
     let label = label.to_string();
 
-    button(container(text(label).size(13)).width(Length::Fill).padding([2, 6]))
+    let button = button(container(text(label).size(13)).width(Length::Fill).padding([2, 6]))
         .width(Length::Fill)
-        .style(session_actions_button_style)
-        .on_press(msg)
-        .into()
+        .style(session_actions_button_style);
+    match msg {
+        Some(msg) => button.on_press(msg).into(),
+        None => button.into(),
+    }
 }
 
 fn session_actions_button_style(
@@ -698,9 +695,10 @@ fn session_actions_popover(app: &App) -> Element<'_, Message> {
         Message::Project(message::ProjectMessage::SessionDeletePressed(session_id.clone()));
 
     let content = column![
-        session_actions_button("重命名", rename_msg),
-        session_actions_button("归档", archive_msg),
-        session_actions_button("删除", delete_msg),
+        session_actions_button("压缩当前会话", session_compact_message(app)),
+        session_actions_button("重命名", Some(rename_msg)),
+        session_actions_button("归档", Some(archive_msg)),
+        session_actions_button("删除", Some(delete_msg)),
     ]
     .spacing(4);
 
@@ -709,6 +707,21 @@ fn session_actions_popover(app: &App) -> Element<'_, Message> {
         .style(session_actions_popover_style)
         .width(Length::Fixed(120.0))
         .into()
+}
+
+fn session_compact_message(app: &App) -> Option<Message> {
+    let session_id = app.active_session_id.as_deref()?;
+    if app.session_is_requesting(session_id) {
+        return None;
+    }
+    let session = known_session_info(app, session_id)?;
+    if session.time.compacting.is_some() {
+        return None;
+    }
+    Some(Message::Chat(message::ChatMessage::CompactSessionRequested {
+        session_id: session_id.to_string(),
+        project_path: session.directory.clone(),
+    }))
 }
 #[cfg(test)]
 #[path = "header_tests.rs"]

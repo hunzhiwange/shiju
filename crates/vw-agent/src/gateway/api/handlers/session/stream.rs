@@ -357,6 +357,12 @@ struct DelegateRequestOverrides {
     chat_system_prompt: Option<String>,
     temperature: Option<f64>,
     top_p: Option<f64>,
+    default_allowed_tools: Option<Vec<String>>,
+    tool_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    trusted_user_selected_tools: Option<Vec<String>>,
+    default_allowed_skills: Option<Vec<String>>,
+    skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    trusted_user_selected_skills: Option<Vec<String>>,
 }
 
 #[derive(Debug)]
@@ -590,7 +596,13 @@ async fn resolve_delegate_request_overrides(
     Ok(DelegateRequestOverrides {
         agent: Some(agent_name),
         model,
-        allowed_tools: explicit_allowed_tools.or_else(|| normalize_tool_ids(config.allowed_tools)),
+        allowed_tools: None,
+        default_allowed_tools: normalize_tool_ids(config.allowed_tools),
+        tool_policy: Some(config.tool_policy),
+        trusted_user_selected_tools: explicit_allowed_tools,
+        default_allowed_skills: normalize_tool_ids(config.allowed_skills),
+        skill_policy: Some(config.skill_policy),
+        trusted_user_selected_skills: None,
         chat_system_prompt: config
             .system_prompt
             .as_deref()
@@ -600,6 +612,66 @@ async fn resolve_delegate_request_overrides(
         temperature: config.temperature,
         top_p: config.top_p,
     })
+}
+
+fn merge_delegate_capability_policy_options(
+    mut options: Value,
+    default_allowed_tools: Option<Vec<String>>,
+    tool_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    trusted_user_selected_tools: Option<Vec<String>>,
+    default_allowed_skills: Option<Vec<String>>,
+    skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
+    trusted_user_selected_skills: Option<Vec<String>>,
+) -> Value {
+    let delegated = tool_policy.is_some() || skill_policy.is_some();
+    if let Some(options) = options.as_object_mut() {
+        if let Some(default_allowed_tools) = default_allowed_tools {
+            options.insert(
+                "delegate_default_allowed_tools".to_string(),
+                Value::Array(default_allowed_tools.into_iter().map(Value::String).collect()),
+            );
+        }
+        if let Some(tool_policy) = tool_policy {
+            options.insert(
+                "delegate_tool_policy".to_string(),
+                serde_json::to_value(tool_policy)
+                    .expect("DelegateCapabilityPolicy always serializes to a string"),
+            );
+        }
+        if let Some(trusted_user_selected_tools) = trusted_user_selected_tools
+            && !options.contains_key("delegate_trusted_user_selected_tools")
+        {
+            options.insert(
+                "delegate_trusted_user_selected_tools".to_string(),
+                Value::Array(trusted_user_selected_tools.into_iter().map(Value::String).collect()),
+            );
+        }
+        if let Some(default_allowed_skills) = default_allowed_skills {
+            options.insert(
+                "delegate_default_allowed_skills".to_string(),
+                Value::Array(default_allowed_skills.into_iter().map(Value::String).collect()),
+            );
+        }
+        if let Some(skill_policy) = skill_policy {
+            options.insert(
+                "delegate_skill_policy".to_string(),
+                serde_json::to_value(skill_policy)
+                    .expect("DelegateCapabilityPolicy always serializes to a string"),
+            );
+        }
+        if let Some(trusted_user_selected_skills) = trusted_user_selected_skills
+            && !options.contains_key("delegate_trusted_user_selected_skills")
+        {
+            options.insert(
+                "delegate_trusted_user_selected_skills".to_string(),
+                Value::Array(trusted_user_selected_skills.into_iter().map(Value::String).collect()),
+            );
+        }
+        if delegated {
+            options.remove("allowed_tools");
+        }
+    }
+    options
 }
 
 /// 将完整强制绑定置于显式父模型之前；普通 agent 绑定只作为 Auto 软偏好。
@@ -663,6 +735,15 @@ async fn start_gateway_chat_producer(
         acp_agent,
         acp_allowed_tools,
         reasoning_effort,
+    );
+    let options = merge_delegate_capability_policy_options(
+        options,
+        delegate_overrides.default_allowed_tools,
+        delegate_overrides.tool_policy,
+        delegate_overrides.trusted_user_selected_tools,
+        delegate_overrides.default_allowed_skills,
+        delegate_overrides.skill_policy,
+        delegate_overrides.trusted_user_selected_skills,
     );
     let resume_history_only =
         options.get("desktop_resume_history_only").and_then(Value::as_bool).unwrap_or(false);

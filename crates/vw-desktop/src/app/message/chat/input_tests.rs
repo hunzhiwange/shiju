@@ -9,7 +9,13 @@ use crate::app::skill_hub::{InstalledSkill, LoadState};
 use crate::app::{Message, message};
 
 fn chat_entry(role: ChatRole, content: &str) -> ChatEntry {
-    ChatEntry { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatEntry {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
@@ -107,30 +113,22 @@ fn agent_sessions_popover_stop_rejects_missing_and_mismatched_plan_run_targets()
     let (mut app, _) = crate::app::App::new();
 
     let _ = super::update(&mut app, ChatMessage::StopPlanRun(" \t ".to_string()));
-    assert!(
-        app.active_toast
-            .as_ref()
-            .is_some_and(|toast| toast.message.contains("task ID 为空"))
-    );
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("task ID 为空")));
 
     let _ = super::update(
         &mut app,
         ChatMessage::StopPlanRunFinished {
             task_id: "task-requested".to_string(),
-            result: Ok(
-                vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {
-                    task_id: "task-other".to_string(),
-                    status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,
-                    current_session_id: None,
-                    terminal_event: None,
-                },
-            ),
+            result: Ok(vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {
+                task_id: "task-other".to_string(),
+                status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,
+                current_session_id: None,
+                terminal_event: None,
+            }),
         },
     );
     assert!(
-        app.active_toast
-            .as_ref()
-            .is_some_and(|toast| toast.message.contains("响应任务不匹配"))
+        app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("响应任务不匹配"))
     );
 }
 
@@ -154,7 +152,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
             kind: vw_config_types::ui::QuickMessageKind::CreateNewSession,
         },
         vw_config_types::ui::QuickMessageConfig {
-            text: "摘要并创建新会话".to_string(),
+            text: "压缩当前会话".to_string(),
             group: vw_config_types::ui::QuickMessageGroup::General,
             kind: vw_config_types::ui::QuickMessageKind::SummarizeAndCreateNewSession,
         },
@@ -168,13 +166,11 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     ));
 
     let fill_task = super::update(&mut app, ChatMessage::QuickMessageSelected(1));
-    assert_eq!(
-        app.current_session_runtime().input_editor.text(),
-        "继续推进\n仔细检查"
-    );
+    assert_eq!(app.current_session_runtime().input_editor.text(), "继续推进\n仔细检查");
     assert!(collect_task_messages(fill_task).await.is_empty());
 
     app.project_path = Some("/workspace/project".to_string());
+    app.active_session_id = Some("session-1".to_string());
     app.quick_message_open_group = Some(vw_config_types::ui::QuickMessageGroup::Git);
     let create_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
     assert_eq!(app.quick_message_open_group, None);
@@ -187,8 +183,8 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     let summarize_task = super::update(&mut app, ChatMessage::QuickMessageSelected(3));
     assert!(matches!(
         collect_task_messages(summarize_task).await.as_slice(),
-        [Message::Chat(ChatMessage::SummarizeAndCreateNewSession { project_path })]
-            if project_path == "/workspace/project"
+        [Message::Chat(ChatMessage::CompactSessionRequested { session_id, project_path })]
+            if session_id == "session-1" && project_path == "/workspace/project"
     ));
 
     app.project_path = None;
@@ -587,9 +583,8 @@ fn unchanged_scroll_geometry_reports_no_viewport_or_offset_change() {
 #[test]
 fn scroll_within_rendered_window_skips_redundant_measurement() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = (0..40)
-        .map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}")))
-        .collect();
+    app.chat =
+        (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
     app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat.len()]);
     app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_virtualizer.set_scroll_top_px(1_500.0);
@@ -606,9 +601,8 @@ fn scroll_within_rendered_window_skips_redundant_measurement() {
 #[test]
 fn scroll_across_rendered_window_boundary_requests_measurement() {
     let (mut app, _) = crate::app::App::new();
-    app.chat = (0..40)
-        .map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}")))
-        .collect();
+    app.chat =
+        (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
     app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat.len()]);
     app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_auto_scroll = false;

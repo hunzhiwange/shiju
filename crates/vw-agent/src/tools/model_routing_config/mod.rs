@@ -185,15 +185,25 @@ impl Tool for ModelRoutingConfigTool {
                     "type": "boolean",
                     "description": "Enable tool-call loop mode for delegate agent"
                 },
+                "tool_policy": {
+                    "type": "string",
+                    "enum": ["strict", "user_override", "unrestricted"],
+                    "description": "Delegate tool access policy (default unrestricted)"
+                },
                 "allowed_tools": {
-                    "description": "Allowed tools for agentic delegate mode (string or string array)",
+                    "description": "Default tools injected for agentic delegate mode (string or string array)",
                     "oneOf": [
                         {"type": "string"},
                         {"type": "array", "items": {"type": "string"}}
                     ]
                 },
+                "skill_policy": {
+                    "type": "string",
+                    "enum": ["strict", "user_override", "unrestricted"],
+                    "description": "Delegate skill access policy (default unrestricted)"
+                },
                 "allowed_skills": {
-                    "description": "Allowed skills for delegate agent prompt context (string or string array)",
+                    "description": "Default skills injected for delegate agent prompt context (string or string array)",
                     "oneOf": [
                         {"type": "string"},
                         {"type": "array", "items": {"type": "string"}}

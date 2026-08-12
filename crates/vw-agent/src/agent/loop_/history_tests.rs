@@ -32,8 +32,8 @@ impl Provider for Testcov0094Provider {
         temperature: f64,
     ) -> anyhow::Result<String> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        assert!(system_prompt.unwrap_or_default().contains("conversation compaction engine"));
-        assert!(message.contains("Summarize the following conversation history"));
+        assert!(system_prompt.is_none());
+        assert!(message.contains("Summarize the conversation below for a future continuation"));
         assert_eq!(model, "test-model");
         assert_eq!(temperature, 0.2);
 
@@ -92,11 +92,12 @@ fn compaction_transcript_truncates_long_sources() {
 }
 
 #[tokio::test]
-async fn auto_compact_history_returns_false_when_under_limit() {
+async fn internal_compaction_returns_false_when_under_limit() {
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::system("system"), ChatMessage::user("short")];
 
-    let compacted = auto_compact_history(&mut history, &provider, "test-model", 3).await.unwrap();
+    let compacted =
+        compact_history_with_internal_service(&mut history, &provider, "test-model", 3).await.unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -104,11 +105,12 @@ async fn auto_compact_history_returns_false_when_under_limit() {
 }
 
 #[tokio::test]
-async fn auto_compact_history_returns_false_when_recent_window_covers_all_messages() {
+async fn internal_compaction_returns_false_when_recent_window_covers_all_messages() {
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::user("older"), ChatMessage::assistant("newer")];
 
-    let compacted = auto_compact_history(&mut history, &provider, "test-model", 1).await.unwrap();
+    let compacted =
+        compact_history_with_internal_service(&mut history, &provider, "test-model", 1).await.unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -118,14 +120,15 @@ async fn auto_compact_history_returns_false_when_recent_window_covers_all_messag
 }
 
 #[tokio::test]
-async fn auto_compact_history_preserves_system_and_recent_messages() {
+async fn internal_compaction_preserves_system_and_recent_messages() {
     let provider = Testcov0094Provider::ok("- remembered decision");
     let mut history = vec![ChatMessage::system("system")];
     for index in 0..23 {
         history.push(ChatMessage::user(format!("message-{index}")));
     }
 
-    let compacted = auto_compact_history(&mut history, &provider, "test-model", 2).await.unwrap();
+    let compacted =
+        compact_history_with_internal_service(&mut history, &provider, "test-model", 2).await.unwrap();
 
     assert!(compacted);
     assert_eq!(provider.calls(), 1);
@@ -139,19 +142,19 @@ async fn auto_compact_history_preserves_system_and_recent_messages() {
 }
 
 #[tokio::test]
-async fn auto_compact_history_falls_back_to_local_summary_when_provider_fails() {
+async fn internal_compaction_keeps_history_when_provider_fails() {
     let provider = Testcov0094Provider::failing();
     let mut history = Vec::new();
     for index in 0..22 {
         history.push(ChatMessage::user(format!("fallback-{index}")));
     }
 
-    let compacted = auto_compact_history(&mut history, &provider, "test-model", 1).await.unwrap();
+    let error = compact_history_with_internal_service(&mut history, &provider, "test-model", 1)
+        .await
+        .expect_err("summary failure should preserve history");
 
-    assert!(compacted);
+    assert!(error.to_string().contains("internal compaction model request failed"));
     assert_eq!(provider.calls(), 1);
-    assert_eq!(history.len(), 21);
-    assert!(history[0].content.contains("[Compaction summary]"));
-    assert!(history[0].content.contains("USER: fallback-0"));
-    assert_eq!(history[1].content, "fallback-2");
+    assert_eq!(history.len(), 22);
+    assert_eq!(history[0].content, "fallback-0");
 }

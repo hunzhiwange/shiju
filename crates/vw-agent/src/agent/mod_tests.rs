@@ -78,21 +78,8 @@ fn choose_default_agent_uses_configured_then_builtin_priority() {
         state(&[("build", resolved("primary", false)), ("main", resolved("primary", false))], None);
     assert_eq!(choose_default_agent(&main).unwrap(), "main");
 
-    let build = state(
-        &[("main", resolved("subagent", false)), ("build", resolved("primary", false))],
-        None,
-    );
-    assert_eq!(choose_default_agent(&build).unwrap(), "build");
-
-    let plan = state(
-        &[
-            ("main", resolved("subagent", false)),
-            ("build", resolved("primary", true)),
-            ("plan", resolved("primary", false)),
-        ],
-        None,
-    );
-    assert_eq!(choose_default_agent(&plan).unwrap(), "plan");
+    let main_only = state(&[("main", resolved("primary", false))], None);
+    assert_eq!(choose_default_agent(&main_only).unwrap(), "main");
 }
 
 #[test]
@@ -159,7 +146,9 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
 
     let agents = load_agent_configs(&cfg);
 
-    assert!(agents.contains_key("build"));
+    for key in ["build", "plan", "compaction", "title", "summary"] {
+        assert!(!agents.contains_key(key), "{key} must not be loaded");
+    }
     assert_eq!(agents["custom"].provider, "openai");
     assert_eq!(agents["custom"].mode, "sub_agent");
     assert_eq!(agents["main"].label.as_deref(), Some("Main"));
@@ -167,7 +156,7 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
 
     let fallback = load_agent_configs(&json!({"agents": "not an object"}));
     assert!(fallback.contains_key("main"));
-    assert!(fallback.contains_key("summary"));
+    assert_eq!(fallback.len(), 5);
 }
 
 #[test]
@@ -182,7 +171,7 @@ fn load_agent_configs_discards_malformed_configured_map() {
 
     assert!(!agents.contains_key("incomplete"));
     assert!(agents.contains_key("main"));
-    assert!(agents.contains_key("build"));
+    assert_eq!(agents.len(), 5);
 }
 
 #[test]
@@ -190,8 +179,7 @@ fn load_agent_configs_uses_builtins_when_agents_key_is_missing() {
     let agents = load_agent_configs(&json!({"default_agent": "main"}));
 
     assert!(agents.contains_key("main"));
-    assert!(agents.contains_key("build"));
-    assert!(agents.contains_key("plan"));
+    assert_eq!(agents.len(), 5);
     assert!(agents.values().all(|agent| agent.builtin));
 }
 
@@ -247,27 +235,22 @@ fn build_resolved_agent_applies_runtime_defaults() {
     let defaults = permission_next::from_config(&json!({"read": "allow"}));
     let user = permission_next::from_config(&json!({"question": "deny"}));
 
-    let mut plan_config = DelegateAgentConfig {
+    let mut role_config = DelegateAgentConfig {
         mode: "sub-agent".into(),
         permission: json!({"edit": {"*": "deny"}}),
         ..DelegateAgentConfig::default()
     };
-    let plan = build_resolved_agent("plan", plan_config.clone(), &defaults, &user);
-    assert_eq!(plan.definition.mode, "subagent");
-    assert!(plan.permission.iter().any(|rule| {
-        rule.permission == "edit"
-            && rule.pattern.ends_with("/plans/*.md")
-            && rule.action == Action::Allow
-    }));
-    assert!(plan.permission.iter().any(|rule| rule.permission == "read"));
-    assert!(plan.permission.iter().any(|rule| rule.permission == "question"));
+    let coder = build_resolved_agent("coder", role_config.clone(), &defaults, &user);
+    assert_eq!(coder.definition.mode, "subagent");
+    assert!(coder.permission.iter().any(|rule| rule.permission == "read"));
+    assert!(coder.permission.iter().any(|rule| rule.permission == "question"));
 
-    plan_config.system_prompt = Some("custom".into());
+    role_config.system_prompt = Some("custom".into());
     let explore_keeps_custom =
-        build_resolved_agent("explore", plan_config, &Vec::new(), &Vec::new());
+        build_resolved_agent("explore", role_config, &Vec::new(), &Vec::new());
     assert_eq!(explore_keeps_custom.definition.system_prompt.as_deref(), Some("custom"));
 
-    for key in ["explore", "compaction", "title", "summary"] {
+    for key in ["explore"] {
         let resolved =
             build_resolved_agent(key, DelegateAgentConfig::default(), &Vec::new(), &Vec::new());
         assert!(
@@ -332,7 +315,7 @@ fn build_resolved_agent_orders_permission_layers() {
 
 #[test]
 fn build_resolved_agent_preserves_custom_builtin_prompts() {
-    for key in ["researcher", "coder", "reviewer", "explore", "compaction", "title", "summary"] {
+    for key in ["researcher", "coder", "reviewer", "explore"] {
         let resolved = build_resolved_agent(
             key,
             DelegateAgentConfig {

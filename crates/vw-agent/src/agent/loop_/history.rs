@@ -213,8 +213,7 @@ pub(crate) fn apply_compaction_summary(
 ///
 /// # 错误处理
 ///
-/// 如果 LLM 调用失败，会自动回退到确定性截断策略，
-/// 确保压缩操作不会因 API 错误而完全失败。
+/// 如果摘要调用失败，返回错误并保留完整历史；不以本地截断伪造摘要。
 ///
 /// # 示例
 ///
@@ -223,13 +222,13 @@ pub(crate) fn apply_compaction_summary(
 /// let provider = OpenAIProvider::new(api_key);
 ///
 /// // 当历史超过 50 条时自动压缩
-/// let compressed = auto_compact_history(&mut history, &provider, "gpt-4", 50).await?;
+/// let compressed = compact_history_with_internal_service(&mut history, &provider, "gpt-4", 50).await?;
 ///
 /// if compressed {
 ///     println!("历史已压缩");
 /// }
 /// ```
-pub(crate) async fn auto_compact_history(
+pub(crate) async fn compact_history_with_internal_service(
     history: &mut Vec<ChatMessage>,
     provider: &dyn Provider,
     model: &str,
@@ -269,27 +268,19 @@ pub(crate) async fn auto_compact_history(
     // 构建压缩源文本
     let transcript = build_compaction_transcript(&to_compact);
 
-    // 定义总结器的系统提示
-    // 要求保留关键信息，省略无关内容
-    let summarizer_system = "You are a conversation compaction engine. Summarize older chat history into concise context for future turns. Preserve: user preferences, commitments, decisions, unresolved tasks, key facts. Omit: filler, repeated chit-chat, verbose tool logs. Output plain text bullet points only.";
-
-    // 构建总结器的用户提示
-    let summarizer_user = format!(
-        "Summarize the following conversation history for context preservation. Keep it short (max 12 bullet points).\n\n{}",
-        transcript
-    );
-
-    // 调用 LLM 进行总结，设置较低的 temperature 以获得更确定性的输出
+    // QueryEngine 没有持久化消息 ID；复用内部服务的无工具提示契约，而不是
+    // 使用另一种摘要语义或本地回退策略。
+    let summarizer_user = crate::session::compaction::internal_summary_prompt(&transcript);
     let summary_raw = provider
-        .chat_with_system(Some(summarizer_system), &summarizer_user, model, 0.2)
+        .chat_with_system(None, &summarizer_user, model, 0.2)
         .await
-        .unwrap_or_else(|_| {
-            // 当 LLM 调用失败时，回退到确定性本地截断
-            truncate_with_ellipsis(&transcript, COMPACTION_MAX_SUMMARY_CHARS)
-        });
+        .map_err(|error| anyhow::anyhow!("internal compaction model request failed: {error}"))?;
 
     // 确保摘要不超过最大长度限制
     let summary = truncate_with_ellipsis(&summary_raw, COMPACTION_MAX_SUMMARY_CHARS);
+    if summary.trim().is_empty() {
+        anyhow::bail!("internal compaction generated an empty summary");
+    }
 
     // 应用压缩摘要到历史记录
     apply_compaction_summary(history, start, compact_end, &summary);

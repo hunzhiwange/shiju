@@ -203,13 +203,13 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
             json!({
                 "id": "s1",
                 "title": "Session",
-                "messages": [{"role": "user", "content": "hello"}],
+                "messages": [{"role": "User", "content": "hello"}],
                 "message_ids": ["m1"],
                 "calls": [],
                 "steps": [{
                     "index": 2,
                     "started_ms": 1,
-                    "llm_raw": {"messages": [{"role": "user", "content": "hello"}]}
+                    "llm_raw": {"messages": [{"role": "User", "content": "hello"}]}
                 }],
                 "created_ms": 0,
                 "updated_ms": 2

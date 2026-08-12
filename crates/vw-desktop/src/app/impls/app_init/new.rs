@@ -574,6 +574,7 @@ impl App {
             task_pet_walk_until_ms: 0,
             task_pet_avatar_kind: state::TaskPetAvatarKind::Robot,
             task_pet_robot_hovered: false,
+            task_pet_context_menu_pos: None,
             task_pet_items: Vec::new(),
             task_pet_hovered_request_id: None,
             task_pet_reply_request_id: None,

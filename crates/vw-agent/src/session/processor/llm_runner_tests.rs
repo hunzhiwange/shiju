@@ -22,18 +22,18 @@ static TEST_LLM_STREAM_TOOL_IDS: std::sync::LazyLock<std::sync::Mutex<Vec<Vec<St
 static TEST_LLM_STREAM_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
-fn test_llm_stream_guard() -> std::sync::MutexGuard<'static, ()> {
+pub(crate) fn test_llm_stream_guard() -> std::sync::MutexGuard<'static, ()> {
     let guard = TEST_LLM_STREAM_LOCK.lock().expect("lock scripted LLM stream tests");
     TEST_LLM_STREAMS.lock().expect("lock scripted LLM streams").clear();
     TEST_LLM_STREAM_TOOL_IDS.lock().expect("lock scripted LLM tool ids").clear();
     guard
 }
 
-fn enqueue_test_llm_stream(events: Vec<llm::StreamEvent>) {
+pub(crate) fn enqueue_test_llm_stream(events: Vec<llm::StreamEvent>) {
     TEST_LLM_STREAMS.lock().expect("lock scripted LLM streams").push_back(events);
 }
 
-fn take_test_llm_stream_tool_ids() -> Vec<Vec<String>> {
+pub(crate) fn take_test_llm_stream_tool_ids() -> Vec<Vec<String>> {
     std::mem::take(&mut *TEST_LLM_STREAM_TOOL_IDS.lock().expect("lock scripted LLM tool ids"))
 }
 

@@ -446,7 +446,7 @@ pub fn message_view<'a>(
         } else {
             iced::Padding { top: 2.0, right: 2.0, bottom: 2.0, left: 0.0 }
         })
-        .width(if is_user { Length::FillPortion(7) } else { Length::Fill })
+        .width(Length::Fill)
         .style(move |theme: &Theme| {
             if !is_user {
                 if is_permission_target {
@@ -661,7 +661,7 @@ pub fn message_view<'a>(
 
     let footer_container = container(footer_element)
         .padding(message_footer_padding(is_user))
-        .width(if is_user { Length::FillPortion(7) } else { Length::Fill })
+        .width(Length::Fill)
         .align_x(if is_user {
             iced::alignment::Horizontal::Right
         } else {
@@ -670,10 +670,8 @@ pub fn message_view<'a>(
 
     if is_user {
         column![
-            row![container(Space::new()).width(Length::FillPortion(3)), bubble_inner]
-                .align_y(Alignment::End),
-            row![container(Space::new()).width(Length::FillPortion(3)), footer_container]
-                .align_y(Alignment::Center)
+            row![bubble_inner].align_y(Alignment::End),
+            row![footer_container].align_y(Alignment::Center)
         ]
         .spacing(5)
         .into()

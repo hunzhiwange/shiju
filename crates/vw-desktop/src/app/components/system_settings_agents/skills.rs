@@ -1,6 +1,6 @@
-//! 系统设置中委托代理技能白名单的界面拼装。
+//! 系统设置中委托代理默认技能和访问策略的界面拼装。
 //!
-//! 本模块只负责把已发现的技能目录映射成代理级白名单选择控件。
+//! 本模块只负责把已发现的技能目录映射成代理级默认注入选择控件。
 
 use super::shared::{is_dark_theme, section_card};
 use crate::app::components::system_settings_common::{
@@ -12,6 +12,34 @@ use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDir
 use crate::app::{App, Message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use vw_config_types::agent::DelegateCapabilityPolicy;
+
+pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
+    match policy {
+        DelegateCapabilityPolicy::Strict => "严格限制",
+        DelegateCapabilityPolicy::UserOverride => "限制但允许用户选择",
+        DelegateCapabilityPolicy::Unrestricted => "不限制",
+    }
+}
+
+pub(super) fn skill_policy_message(
+    agent_key: String,
+    policy: DelegateCapabilityPolicy,
+) -> Message {
+    Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(agent_key, policy)))
+}
+
+fn skill_policy_button(
+    entry: &DelegateAgentSettingsEntry,
+    policy: DelegateCapabilityPolicy,
+) -> Element<'static, Message> {
+    let selected = entry.skill_policy == policy;
+    button(text(capability_policy_label(policy)).size(12))
+        .padding([8, 12])
+        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
+        .on_press(skill_policy_message(entry.key.clone(), policy))
+        .into()
+}
 
 pub(super) fn skill_card_button_style(
     theme: &Theme,
@@ -269,9 +297,23 @@ pub(super) fn view<'a>(
 
     column![
         section_card(
-            "允许的技能",
-            "项目与父级技能默认可用；这里选择额外技能，或在技能系统配置中关闭默认加载。",
+            "默认技能",
+            "选择会在委托代理首步默认注入的技能；它们不是技能白名单。",
         ),
+        column![
+            text("技能访问策略").size(14),
+            text("控制委托代理可见技能的范围；不限制为默认策略。")
+                .size(12)
+                .style(settings_muted_text_style),
+            row![
+                skill_policy_button(entry, DelegateCapabilityPolicy::Strict),
+                skill_policy_button(entry, DelegateCapabilityPolicy::UserOverride),
+                skill_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
+            ]
+            .spacing(8)
+            .wrap(),
+        ]
+        .spacing(8),
         scope_filter,
         skills_list,
     ]

@@ -356,6 +356,43 @@ fn merge_gateway_request_options_forwards_allowed_tools_to_acp() {
 }
 
 #[test]
+fn delegated_gateway_options_pass_policy_inputs_without_writing_a_whitelist() {
+    let options = merge_delegate_capability_policy_options(
+        merge_gateway_request_options(
+            None,
+            Some("reviewer".to_string()),
+            None,
+            None,
+            None,
+            None,
+            Some("codex".to_string()),
+            None,
+            None,
+        ),
+        Some(vec!["file_read".to_string()]),
+        Some(vw_config_types::agent::DelegateCapabilityPolicy::UserOverride),
+        Some(vec!["shell".to_string()]),
+        Some(vec!["review".to_string()]),
+        Some(vw_config_types::agent::DelegateCapabilityPolicy::UserOverride),
+        Some(vec!["rustcodegraph".to_string()]),
+    );
+
+    assert!(options.get("allowed_tools").is_none());
+    assert_eq!(options["delegate_default_allowed_tools"], serde_json::json!(["file_read"]));
+    assert_eq!(options["delegate_tool_policy"], "user_override");
+    assert_eq!(
+        options["delegate_trusted_user_selected_tools"],
+        serde_json::json!(["shell"]),
+    );
+    assert_eq!(options["delegate_default_allowed_skills"], serde_json::json!(["review"]));
+    assert_eq!(options["delegate_skill_policy"], "user_override");
+    assert_eq!(
+        options["delegate_trusted_user_selected_skills"],
+        serde_json::json!(["rustcodegraph"]),
+    );
+}
+
+#[test]
 fn merge_gateway_request_options_preserves_explicit_options_over_agent_defaults() {
     let options = merge_gateway_request_options(
         Some(serde_json::json!({

@@ -230,8 +230,19 @@ fn menu_builders_return_elements() {
         "重命名",
         Message::Project(message::ProjectMessage::SessionRenamePressed("s1".to_string())),
     ));
-    keep_element(build_session_menu("s1".to_string()));
+    keep_element(build_session_menu("s1".to_string(), "/tmp/project".to_string(), false));
     keep_element(build_project_tools_menu("/tmp/project".to_string()));
+}
+
+#[test]
+fn project_session_menu_exposes_compact_target_session_action() {
+    assert!(matches!(
+        session_compact_message("s1", "/tmp/project"),
+        Message::Chat(message::ChatMessage::CompactSessionRequested {
+            session_id,
+            project_path,
+        }) if session_id == "s1" && project_path == "/tmp/project"
+    ));
 }
 
 #[test]

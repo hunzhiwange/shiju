@@ -210,6 +210,40 @@ fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
 }
 
 #[test]
+fn delegated_request_tool_policy_uses_shared_resolution_and_removes_recursive_agent_tool() {
+    let specs = vec![
+        crate::app::agent::tools::ToolSpec::new(
+            "file_read",
+            "Read file",
+            json!({"type": "object"}),
+        ),
+        crate::app::agent::tools::ToolSpec::new(
+            "shell",
+            "Run command",
+            json!({"type": "object"}),
+        ),
+        crate::app::agent::tools::ToolSpec::new(
+            "AgentTool",
+            "Delegate work",
+            json!({"type": "object"}),
+        )
+        .with_aliases(["agent"]),
+    ];
+    let options = json!({
+        "delegate_default_allowed_tools": ["file_read"],
+        "delegate_tool_policy": "user_override",
+        "delegate_trusted_user_selected_tools": ["shell"],
+    });
+
+    let resolution = delegated_tool_policy_resolution_from_specs(&specs, &options)
+        .expect("delegate policy should resolve");
+    assert_eq!(
+        resolution.visible_ids,
+        std::collections::BTreeSet::from(["file_read".to_string(), "shell".to_string()]),
+    );
+}
+
+#[test]
 fn response_preview_trims_scrubs_credentials_and_truncates() {
     let secret = "abcdefghijklmnopqrstuvwxyz";
     let preview = response_preview(&format!("  token={secret}  "));

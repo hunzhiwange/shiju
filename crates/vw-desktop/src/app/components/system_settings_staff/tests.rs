@@ -391,6 +391,20 @@ fn agent_option_lists_include_trimmed_selected_values_and_keep_unbound_first() {
 }
 
 #[test]
+fn delegate_agent_options_exclude_retired_builtin_agents() {
+    let (mut app, _) = App::new();
+    app.agents_settings.entries = vec![
+        crate::app::state::DelegateAgentSettingsEntry::from_config("main", None),
+        crate::app::state::DelegateAgentSettingsEntry::from_config("build", None),
+    ];
+
+    let options = super::delegate_agent_options(&app, &Some("build".to_string()));
+
+    assert!(options.contains(&"main".to_string()));
+    assert!(!options.contains(&"build".to_string()));
+}
+
+#[test]
 fn channel_binding_profiles_skip_blank_values_and_preserve_custom_bindings() {
     let (mut app, _) = App::new();
     app.channels_settings.feishu = Some(FeishuConfig {

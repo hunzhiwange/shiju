@@ -639,12 +639,8 @@ fn project_create_session_ignores_duplicate_request_while_creation_is_running() 
 }
 
 #[test]
-fn session_create_failure_restores_summary_handoff_view_and_shows_error() {
+fn session_create_failure_clears_progress_and_shows_error() {
     let mut app = app();
-    app.quick_message_handoff =
-        Some(crate::app::state::QuickMessageHandoffState::WaitingForSession {
-            prompt: "continue".to_string(),
-        });
     app.new_session_creating = true;
 
     let task = super::handle(
@@ -655,7 +651,6 @@ fn session_create_failure_restores_summary_handoff_view_and_shows_error() {
     );
 
     assert!(task.is_some());
-    assert!(app.quick_message_handoff.is_none());
     assert!(!app.new_session_creating);
     assert!(
         app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("创建新会话失败"))

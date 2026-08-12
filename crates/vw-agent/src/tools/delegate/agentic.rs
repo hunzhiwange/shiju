@@ -1,8 +1,8 @@
 //! Agentic 委派执行路径。
 //!
-//! 本模块把委派 agent 的 provider/model 配置、允许工具列表和子循环执行连接起来。
-//! 工具能力通过 allowlist 过滤，且显式排除再次调用 `delegate`，避免子 agent 递归
-//! 委派导致不可控的执行树。
+//! 本模块把委派 agent 的 provider/model 配置、能力策略和子循环执行连接起来。
+//! 工具能力由共享策略解析，并显式排除再次调用 `delegate`，避免子 agent 递归委派
+//! 导致不可控的执行树。
 
 use super::super::traits::ToolResult;
 use super::support::NoopObserver;
@@ -12,6 +12,7 @@ use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::hooks::HookRunner;
 use crate::app::agent::providers::{ChatMessage, Provider};
+use crate::app::agent::tools::current_tool_use_context;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -21,7 +22,7 @@ use std::time::Duration;
 ///
 /// - `tool`: 父级 `DelegateTool`，提供可复用工具、安全策略和多模态配置。
 /// - `agent_name`: 当前委派 agent 名称，用于错误和输出标识。
-/// - `agent_config`: agent 的 provider/model/allowlist/迭代上限配置。
+/// - `agent_config`: agent 的 provider/model/能力策略/迭代上限配置。
 /// - `provider`: 实际执行模型调用的 provider。
 /// - `system_prompt`: 可选系统提示词。
 /// - `full_prompt`: 传给子 agent 的完整用户任务。
@@ -45,20 +46,17 @@ pub(super) async fn execute_agentic(
     full_prompt: &str,
     temperature: f64,
 ) -> anyhow::Result<ToolResult> {
-    if agent_config.allowed_tools.is_empty() {
-        return Ok(ToolResult {
-            success: false,
-            output: String::new(),
-            error: Some(format!(
-                "Agent '{agent_name}' has agentic=true but allowed_tools is empty"
-            )),
-        });
-    }
-
+    let trusted_user_selected_tools = current_tool_use_context()
+        .map(|context| context.trusted_user_selected_tools().iter().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let trusted_user_selected_skills = current_tool_use_context()
+        .map(|context| context.trusted_user_selected_skills().iter().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
     let sub_tools = crate::app::agent::tools::delegated_tools::build_agentic_tools(
         &tool.parent_tools,
-        &agent_config.allowed_tools,
-        &agent_config.allowed_skills,
+        agent_config,
+        &trusted_user_selected_tools,
+        &trusted_user_selected_skills,
     );
 
     if sub_tools.is_empty() {
@@ -66,7 +64,7 @@ pub(super) async fn execute_agentic(
             success: false,
             output: String::new(),
             error: Some(format!(
-                "Agent '{agent_name}' has no executable tools after filtering allowlist ({})",
+                "Agent '{agent_name}' has no executable tools after applying its capability policy ({})",
                 agent_config.allowed_tools.join(", ")
             )),
         });

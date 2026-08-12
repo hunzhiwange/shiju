@@ -98,9 +98,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     let Some(project_path) =
                         app.project_path.clone().filter(|path| !path.trim().is_empty())
                     else {
-                        return app.show_warning_toast("请先打开项目，再摘要并创建新会话");
+                        return app.show_warning_toast("请先打开项目，再压缩当前会话");
                     };
-                    Task::done(Message::Chat(ChatMessage::SummarizeAndCreateNewSession {
+                    let Some(session_id) = app.active_session_id.clone() else {
+                        return app.show_warning_toast("当前没有可压缩的会话");
+                    };
+                    Task::done(Message::Chat(ChatMessage::CompactSessionRequested {
+                        session_id,
                         project_path,
                     }))
                 }
@@ -162,31 +166,26 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             app.quick_message_open_group = None;
-            Task::done(Message::SkillHub(
-                message::SkillHubMessage::EnsureInstalledSkillsLoaded,
-            ))
+            Task::done(Message::SkillHub(message::SkillHubMessage::EnsureInstalledSkillsLoaded))
         }
         ChatMessage::SelectShijuSkill(skill_id) => {
             let selection = match &app.expert_hub.installed {
-                crate::app::skill_hub::LoadState::Loaded(skills) => skills
-                    .iter()
-                    .find(|skill| skill.skill_id == skill_id)
-                    .map(|skill| {
+                crate::app::skill_hub::LoadState::Loaded(skills) => {
+                    skills.iter().find(|skill| skill.skill_id == skill_id).map(|skill| {
                         crate::app::state::ShijuSkillSelection::new(
                             skill.skill_id,
                             skill.slug.clone(),
                             skill.name.clone(),
                         )
-                    }),
+                    })
+                }
                 _ => None,
             };
             let Some(selection) = selection else {
                 return Task::none();
             };
 
-            app.current_session_runtime_mut()
-                .tool_selector
-                .toggle_shiju_skill(selection);
+            app.current_session_runtime_mut().tool_selector.toggle_shiju_skill(selection);
             Task::none()
         }
         ChatMessage::ToggleAgentSessionsPopover => {
@@ -668,8 +667,8 @@ pub(crate) fn apply_chat_scroll_changed(
 
     let next_window = app.chat_virtualizer.window();
     let visible_range = (next_window.visible_start_idx, next_window.visible_end_idx);
-    let visible_range_changed = visible_range
-        != (previous_window.visible_start_idx, previous_window.visible_end_idx);
+    let visible_range_changed =
+        visible_range != (previous_window.visible_start_idx, previous_window.visible_end_idx);
     let rendered_range_changed = (next_window.render_start_idx, next_window.render_end_idx)
         != (previous_window.render_start_idx, previous_window.render_end_idx);
     let pending_chunk_starts = if visible_range_changed || viewport_changed {

@@ -10,7 +10,7 @@ use crate::app::message::project::helpers::{
     create_gateway_session_in_directory, create_gateway_worktree_session, delete_gateway_worktree,
     reset_gateway_worktree,
 };
-use crate::app::{App, Message, state::QuickMessageHandoffState};
+use crate::app::{App, Message};
 
 /// handle 处理当前模块对应的消息或状态转换。
 ///
@@ -47,12 +47,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         ProjectMessage::ProjectCreateSessionPickerClose => {
             app.hovered_recent_project = None;
             reset_new_session_picker_state(app);
-            if matches!(
-                app.quick_message_handoff,
-                Some(QuickMessageHandoffState::WaitingForSession { .. })
-            ) {
-                app.quick_message_handoff = None;
-            }
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSessionWorktreeNameChanged(v) => {

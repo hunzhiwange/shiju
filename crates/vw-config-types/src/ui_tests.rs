@@ -84,7 +84,7 @@ fn quick_messages_default_missing_and_empty_values_have_distinct_semantics() {
         "继续推进",
         "执行下一步",
         "摘要并生成下一个任务的提示词",
-        "摘要并创建新会话",
+        "压缩当前会话",
         "为剩余任务制定开发计划",
         "不要兼容旧的代码",
         "修复单元测试",
@@ -150,7 +150,7 @@ fn quick_messages_default_missing_and_empty_values_have_distinct_semantics() {
             None,
             Some("发送"),
             Some("新会话"),
-            Some("摘要并新建"),
+            Some("压缩"),
             Some("刷新"),
             Some("全选"),
             Some("反选"),
@@ -270,6 +270,7 @@ fn legacy_builtin_kinds_are_upgraded_without_changing_custom_items() {
     upgrade_legacy_quick_message_actions(&mut messages);
 
     assert_eq!(messages[0].kind, QuickMessageKind::SummarizeAndCreateNewSession);
+    assert_eq!(messages[0].text, "压缩当前会话");
     assert_eq!(messages[1].kind, QuickMessageKind::CreateNewSession);
     assert_eq!(messages[2].kind, QuickMessageKind::FillInput);
     assert_eq!(messages[3].kind, QuickMessageKind::Message);

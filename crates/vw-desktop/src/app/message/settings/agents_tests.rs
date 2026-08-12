@@ -5,6 +5,7 @@ use super::{
     bundled_workspace_identity_path, handle_agents_config_saved, normalize_agent_key,
     summarize_models, summarize_providers, tool_in_preset, tools_for_preset, update,
 };
+use vw_config_types::agent::DelegateCapabilityPolicy;
 use crate::app::{
     App,
     message::settings::{AgentsMessage, SettingsMessage},
@@ -387,6 +388,57 @@ fn agent_subagent_messages_update_and_clamp() {
     let main = entry(&app, "main");
     assert!(main.allow_as_subagent);
     assert_eq!(main.max_parallel_subagents, 32);
+}
+
+#[test]
+fn capability_policy_controls_round_trip_without_rewriting_default_selections() {
+    let mut app = test_app();
+    let main = entry_mut(&mut app, "main");
+    main.allowed_tools = vec!["read".to_string()];
+    main.allowed_skills = vec!["skill-a".to_string()];
+
+    assert_eq!(main.tool_policy, DelegateCapabilityPolicy::Unrestricted);
+    assert_eq!(main.skill_policy, DelegateCapabilityPolicy::Unrestricted);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(
+            "main".to_string(),
+            DelegateCapabilityPolicy::Strict,
+        )),
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(
+            "main".to_string(),
+            DelegateCapabilityPolicy::UserOverride,
+        )),
+    );
+
+    let main = entry(&app, "main");
+    assert_eq!(main.tool_policy, DelegateCapabilityPolicy::Strict);
+    assert_eq!(main.skill_policy, DelegateCapabilityPolicy::UserOverride);
+    assert_eq!(main.allowed_tools, ["read"]);
+    assert_eq!(main.allowed_skills, ["skill-a"]);
+
+    let patch =
+        build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
+    assert_eq!(patch["agents"]["main"]["tool_policy"], "strict");
+    assert_eq!(patch["agents"]["main"]["skill_policy"], "user_override");
+    assert_eq!(patch["agents"]["main"]["allowed_tools"], serde_json::json!(["read"]));
+    assert_eq!(patch["agents"]["main"]["allowed_skills"], serde_json::json!(["skill-a"]));
+
+    let reloaded: vw_config_types::config::Config =
+        serde_json::from_value(patch).expect("patch should deserialize as config");
+    let reloaded_entries = crate::app::state::agent_settings_entries_from_config(&reloaded);
+    let reloaded_main = reloaded_entries
+        .iter()
+        .find(|entry| entry.key == "main")
+        .expect("main entry should reload");
+    assert_eq!(reloaded_main.tool_policy, DelegateCapabilityPolicy::Strict);
+    assert_eq!(reloaded_main.skill_policy, DelegateCapabilityPolicy::UserOverride);
+    assert_eq!(reloaded_main.allowed_tools, ["read"]);
+    assert_eq!(reloaded_main.allowed_skills, ["skill-a"]);
 }
 
 fn skill_item(id: &str, source: &str, enabled: bool) -> SkillsCatalogItem {

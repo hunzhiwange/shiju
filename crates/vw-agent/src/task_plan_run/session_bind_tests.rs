@@ -32,44 +32,37 @@ impl SessionRunner for ScriptedSessionRunner {
         if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
             write_plan_fixture(&request.root, &fixture)?;
         }
-        // 子任务成功后删除编号任务文件，使固定目标模式首轮验收可通过。
-        if !request.session_id.ends_with("-plan")
-            && !request.session_id.contains("-goal-")
-        {
+        // 子任务成功后写入完成清单，使目标模式无需模型验收即可通过。
+        if !request.session_id.ends_with("-plan") {
             let plan_root = PathBuf::from(&request.root).join(".plans");
-            remove_task_mds(&plan_root);
+            complete_task_mds(&plan_root);
         }
         self.responses
             .lock()
             .expect("responses lock")
             .pop_front()
-            .unwrap_or_else(|| {
-                if request.session_id.contains("-goal-eval-") {
-                    Ok(r#"{"achieved":true,"reason":"验证通过"}"#.to_string())
-                } else {
-                    Err("scripted session runner: no more responses".to_string())
-                }
-            })
+            .unwrap_or_else(|| Err("scripted session runner: no more responses".to_string()))
     }
 }
 
-fn remove_task_mds(dir: &std::path::Path) {
+fn complete_task_mds(dir: &std::path::Path) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            remove_task_mds(&path);
+            complete_task_mds(&path);
             continue;
         }
         if path.extension().and_then(|ext| ext.to_str()) == Some("md")
-            && path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name != "plan.md")
+            && path.file_name().and_then(|name| name.to_str()) != Some("plan.md")
+            && path.file_name().and_then(|name| name.to_str()) != Some("prompt.md")
         {
-            let _ = std::fs::remove_file(path);
+            let _ = std::fs::write(
+                path,
+                "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
+            );
         }
     }
 }

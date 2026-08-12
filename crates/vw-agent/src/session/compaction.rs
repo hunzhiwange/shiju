@@ -27,6 +27,7 @@ use crate::app::agent::skills::SkillListingSessionState;
 use crate::app::agent::util::token;
 use crate::session::processor::context_governance;
 use serde_json::json;
+use std::collections::HashMap;
 
 /// 压缩相关事件定义
 pub mod event {
@@ -276,33 +277,6 @@ pub struct ProcessInput {
     pub auto: bool,
 }
 
-/// 在消息列表中查找指定的用户消息
-///
-/// # 参数
-///
-/// - `messages`: 消息列表
-/// - `id`: 要查找的消息 ID
-///
-/// # 返回值
-///
-/// 如果找到匹配的用户消息，返回 `Some(&UserInfo)`，否则返回 `None`
-fn find_user_message<'a>(
-    messages: &'a [message::WithParts],
-    id: &str,
-) -> Option<&'a message::UserInfo> {
-    messages.iter().find_map(|m| {
-        // ID 不匹配则跳过
-        if m.info.id() != id {
-            return None;
-        }
-        // 只返回用户消息
-        match &m.info {
-            message::Info::User(u) => Some(u.as_ref()),
-            _ => None,
-        }
-    })
-}
-
 /// 提取最近的文本内容
 ///
 /// 从消息列表中提取最近的文本内容，用于生成会话摘要。
@@ -358,6 +332,235 @@ fn extract_recent_text(messages: &[message::WithParts], limit_chars: usize) -> S
     out
 }
 
+const INTERNAL_COMPACTION_MODE: &str = "chat";
+
+/// Internal request passed to the one-shot summary model.  It deliberately exposes no tool
+/// definitions: compaction must never acquire an interactive agent's capabilities.
+#[derive(Debug, Clone)]
+pub(crate) struct InternalCompactionRequest {
+    pub(crate) prompt: String,
+    pub(crate) tools: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CompactionStats {
+    pub covered_messages: usize,
+    pub covered_parts: usize,
+    pub summary_chars: usize,
+}
+
+#[derive(Debug, Clone)]
+pub enum CompactionOutcome {
+    NotNeeded { history: Vec<message::WithParts> },
+    Compacted { history: Vec<message::WithParts>, stats: CompactionStats },
+    Failed { history: Vec<message::WithParts>, error: String },
+}
+
+/// Private runtime profile for compaction. This is not an entry in the user Agent directory.
+pub(crate) fn internal_compaction_profile() -> crate::app::agent::session::llm::AgentInfo {
+    crate::app::agent::session::llm::AgentInfo {
+        name: "session-compaction".to_string(),
+        mode: INTERNAL_COMPACTION_MODE.to_string(),
+        prompt: None,
+        temperature: None,
+        top_p: None,
+        options: HashMap::new(),
+        permission: Default::default(),
+    }
+}
+
+fn build_internal_request(input: &ProcessInput) -> Option<(usize, InternalCompactionRequest)> {
+    let boundary = input.messages.iter().position(|message| message.info.id() == input.parent_id)?;
+    if !matches!(input.messages[boundary].info, message::Info::User(_)) || boundary == 0 {
+        return None;
+    }
+    let context = extract_recent_text(&input.messages[..boundary], 32_000);
+    if context.trim().is_empty() {
+        return None;
+    }
+    Some((
+        boundary,
+        InternalCompactionRequest {
+            prompt: internal_summary_prompt(&context),
+            tools: Vec::new(),
+        },
+    ))
+}
+
+/// Stable, tool-free prompt shared by every internal compaction trigger.
+pub(crate) fn internal_summary_prompt(context: &str) -> String {
+    format!(
+        "Summarize the conversation below for a future continuation. Preserve decisions,\nopen work, constraints, and important technical details. Return only the summary.\n\n---\n{context}\n---"
+    )
+}
+
+fn valid_summary(summary: String) -> Result<String, String> {
+    let summary = summary.trim().to_string();
+    if summary.is_empty() {
+        return Err("internal compaction generated an empty summary".to_string());
+    }
+    Ok(summary)
+}
+
+fn summary_message(
+    input: &ProcessInput,
+    model: &provider::Model,
+    user: &message::UserInfo,
+    summary: String,
+) -> Result<message::WithParts, crate::app::agent::session::session::Error> {
+    let assistant_id = id::ascending(id::Prefix::Message, None)?;
+    let now = now_ms();
+    let info = message::Info::Assistant(Box::new(message::AssistantInfo {
+        id: assistant_id.clone(),
+        session_id: input.session_id.clone(),
+        time: message::AssistantTime {
+            created: now,
+            completed: Some(now),
+            processing_elapsed_ms: None,
+            llm_elapsed_ms: None,
+        },
+        error: None,
+        parent_id: input.parent_id.clone(),
+        model_id: model.id.clone(),
+        provider_id: model.provider_id.clone(),
+        mode: "compaction".to_string(),
+        agent: user.agent.clone(),
+        path: message::PathInfo { cwd: instance::directory(), root: instance::worktree() },
+        summary: Some(true),
+        cost: 0.0,
+        tokens: message::TokenInfo {
+            total: None,
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: message::TokenCacheInfo { read: 0, write: 0 },
+        },
+        variant: user.variant.clone(),
+        finish: Some("stop".to_string()),
+    }));
+    let boundary = message::Part::Compaction(message::CompactionPart {
+        base: message::PartBase {
+            id: id::ascending(id::Prefix::Part, None)?,
+            session_id: input.session_id.clone(),
+            message_id: assistant_id.clone(),
+        },
+        auto: input.auto,
+    });
+    let text = message::Part::Text(message::TextPart {
+        base: message::PartBase {
+            id: id::ascending(id::Prefix::Part, None)?,
+            session_id: input.session_id.clone(),
+            message_id: assistant_id,
+        },
+        text: summary,
+        synthetic: Some(true),
+        ignored: None,
+        time: Some(message::PartTime { start: now, end: Some(now) }),
+        metadata: None,
+    });
+    Ok(message::WithParts { info, parts: vec![boundary, text] })
+}
+
+async fn persist_compaction(
+    input: &ProcessInput,
+    boundary: usize,
+    summary: &message::WithParts,
+) -> Result<(), crate::app::agent::session::session::Error> {
+    // The summary is fully generated and validated before any history mutation. Thus provider
+    // failures cannot leave a partial replacement behind.
+    message::update_message(&summary.info).await?;
+    for part in &summary.parts {
+        message::update_part(part).await?;
+    }
+    for covered in &input.messages[..boundary] {
+        for part in &covered.parts {
+            message::remove_part(&input.session_id, covered.info.id(), part.id()).await?;
+        }
+        message::remove_message(&input.session_id, covered.info.id()).await?;
+    }
+    Ok(())
+}
+
+async fn compact_with_summary(
+    input: ProcessInput,
+    model: &provider::Model,
+    summarize: impl FnOnce(&InternalCompactionRequest) -> Result<String, String>,
+) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
+    let Some((boundary, request)) = build_internal_request(&input) else {
+        return Ok(CompactionOutcome::NotNeeded { history: input.messages });
+    };
+    let summary = match summarize(&request).and_then(valid_summary) {
+        Ok(summary) => summary,
+        Err(error) => return Ok(CompactionOutcome::Failed { history: input.messages, error }),
+    };
+    let message::Info::User(user) = &input.messages[boundary].info else { unreachable!() };
+    let summary_message = summary_message(&input, model, user, summary.clone())?;
+    persist_compaction(&input, boundary, &summary_message).await?;
+
+    let mut history = input.messages[boundary..].to_vec();
+    history.push(summary_message);
+    Ok(CompactionOutcome::Compacted {
+        history,
+        stats: CompactionStats {
+            covered_messages: boundary,
+            covered_parts: input.messages[..boundary].iter().map(|message| message.parts.len()).sum(),
+            summary_chars: summary.chars().count(),
+        },
+    })
+}
+
+async fn stream_internal_summary(
+    input: &ProcessInput,
+    model: &provider::Model,
+    request: &InternalCompactionRequest,
+) -> Result<String, String> {
+    use std::sync::{Arc, Mutex};
+
+    let Some(user) = input.messages.iter().find_map(|message| {
+        (message.info.id() == input.parent_id).then(|| match &message.info {
+            message::Info::User(user) => Some(user.as_ref().clone()),
+            _ => None,
+        })
+    }).flatten() else {
+        return Err("compaction boundary is not a user message".to_string());
+    };
+    let output = Arc::new(Mutex::new(String::new()));
+    let output_for_events = Arc::clone(&output);
+    let saw_tool_call = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let saw_tool_call_for_events = Arc::clone(&saw_tool_call);
+    crate::app::agent::session::llm::stream(
+        crate::app::agent::session::llm::StreamInput {
+            agent: internal_compaction_profile(),
+            user,
+            session_id: input.session_id.clone(),
+            model: model.clone(),
+            system: Vec::new(),
+            abort: None,
+            messages: vec![serde_json::json!({ "role": "user", "content": request.prompt })],
+            small: false,
+            tools: Default::default(),
+            retries: 0,
+        },
+        move |event| match event {
+            crate::app::agent::session::llm::StreamEvent::Delta(delta) => {
+                if let Ok(mut output) = output_for_events.lock() {
+                    output.push_str(&delta);
+                }
+            }
+            crate::app::agent::session::llm::StreamEvent::ToolCalls(_) => {
+                saw_tool_call_for_events.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+            _ => {}
+        },
+    )
+    .await
+    .map_err(|error| format!("internal compaction model request failed: {error}"))?;
+    if saw_tool_call.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err("internal compaction rejected a model tool call".to_string());
+    }
+    Ok(output.lock().unwrap_or_else(|error| error.into_inner()).clone())
+}
+
 /// 处理会话压缩
 ///
 /// 执行会话压缩的核心逻辑，包括创建摘要助手消息、生成摘要文本，
@@ -396,128 +599,90 @@ fn extract_recent_text(messages: &[message::WithParts], limit_chars: usize) -> S
 /// let result = process(input, &model).await?;
 /// // result 为 "continue" 或 "stop"
 /// ```
+/// Compact a persisted conversation by requesting one tool-free internal summary.
+///
+/// No history is changed until the model has supplied a non-empty summary.  Trigger paths use
+/// the returned outcome to present failures without losing the conversation.
 pub async fn process(
     input: ProcessInput,
     model: &provider::Model,
-) -> Result<&'static str, crate::app::agent::session::session::Error> {
-    // 查找触发压缩的用户消息，找不到则停止
-    let Some(user_message) = find_user_message(&input.messages, &input.parent_id) else {
-        return Ok("stop");
+) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
+    let Some((_, request)) = build_internal_request(&input) else {
+        return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-
-    // 生成摘要助手消息的 ID
-    let assistant_id = id::ascending(id::Prefix::Message, None)?;
-
-    // 构建摘要助手消息信息
-    let assistant = message::AssistantInfo {
-        id: assistant_id.clone(),
-        session_id: input.session_id.clone(),
-        time: message::AssistantTime {
-            created: now_ms(),
-            completed: None,
-            processing_elapsed_ms: None,
-            llm_elapsed_ms: None,
-        },
-        error: None,
-        parent_id: input.parent_id.clone(),
-        model_id: model.id.clone(),
-        provider_id: model.provider_id.clone(),
-        mode: "compaction".to_string(),
-        agent: "compaction".to_string(),
-        path: message::PathInfo { cwd: instance::directory(), root: instance::worktree() },
-        summary: Some(true), // 标记为摘要消息
-        cost: 0.0,
-        tokens: message::TokenInfo {
-            total: None,
-            input: 0,
-            output: 0,
-            reasoning: 0,
-            cache: message::TokenCacheInfo { read: 0, write: 0 },
-        },
-        variant: user_message.variant.clone(),
-        finish: None,
-    };
-
-    let assistant_info = message::Info::Assistant(Box::new(assistant));
-    message::update_message(&assistant_info).await?;
-
-    // 生成摘要文本
-    let summary_text = {
-        // 提取最近 8000 字符的文本上下文
-        let ctx = extract_recent_text(&input.messages, 8000);
-        if ctx.is_empty() {
-            // 无可用上下文时的默认消息
-            "No prior text context available.".to_string()
-        } else {
-            // 构建摘要提示，要求提供继续对话的详细提示
-            format!(
-                "Provide a detailed prompt for continuing our conversation above.\n\n---\n## Discoveries\n\n{}\n---",
-                ctx
-            )
-        }
-    };
-
-    // 创建摘要文本部分
-    let part_id = id::ascending(id::Prefix::Part, None)?;
-    let part = message::Part::Text(message::TextPart {
-        base: message::PartBase {
-            id: part_id,
-            session_id: input.session_id.clone(),
-            message_id: assistant_id,
-        },
-        text: summary_text,
-        synthetic: Some(true), // 标记为合成内容
-        ignored: None,
-        time: Some(message::PartTime { start: now_ms(), end: Some(now_ms()) }),
-        metadata: None,
-    });
-    message::update_part(&part).await?;
-
-    // 自动模式下，创建继续提示消息
-    if input.auto {
-        // 生成继续用户消息的 ID
-        let continue_id = id::ascending(id::Prefix::Message, None)?;
-
-        // 构建继续用户消息信息
-        let continue_info = message::Info::User(Box::new(message::UserInfo {
-            id: continue_id.clone(),
-            session_id: input.session_id.clone(),
-            time: message::UserTime { created: now_ms() },
-            summary: None,
-            agent: user_message.agent.clone(),
-            model: user_message.model.clone(),
-            system: None,
-            tools: None,
-            variant: user_message.variant.clone(),
-        }));
-        message::update_message(&continue_info).await?;
-
-        // 创建继续提示文本部分
-        let continue_part_id = id::ascending(id::Prefix::Part, None)?;
-        let now = now_ms();
-        let continue_part = message::Part::Text(message::TextPart {
-            base: message::PartBase {
-                id: continue_part_id,
-                session_id: input.session_id.clone(),
-                message_id: continue_id,
-            },
-            synthetic: Some(true),  // 标记为合成内容
-            ignored: None,
-            text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.".to_string(),
-            time: Some(message::PartTime { start: now, end: Some(now) }),
-            metadata: None,
-        });
-        message::update_part(&continue_part).await?;
+    let model_result = stream_internal_summary(&input, model, &request).await;
+    let outcome = compact_with_summary(input, model, |_| model_result).await?;
+    if matches!(outcome, CompactionOutcome::Compacted { .. }) {
+        let session_id = match &outcome {
+            CompactionOutcome::Compacted { history, .. } => history
+                .first()
+                .map(|message| match &message.info {
+                    message::Info::User(user) => user.session_id.clone(),
+                    message::Info::Assistant(assistant) => assistant.session_id.clone(),
+                })
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
+        let _ = bus::publish(event::COMPACTED, json!({ "sessionID": session_id }), instance_directory_opt());
     }
+    Ok(outcome)
+}
 
-    // 发布会话压缩事件
-    let _ = bus::publish(
-        event::COMPACTED,
-        json!({ "sessionID": input.session_id }),
-        instance_directory_opt(),
-    );
+/// Run the internal compaction service for a persisted session.
+///
+/// Manual callers only know a session and the user-message boundary.  Resolve the model from
+/// that boundary so the summary is generated with the same model family as the conversation,
+/// then delegate to [`process`].  A failed or empty summary is represented by
+/// [`CompactionOutcome::Failed`] and deliberately leaves persisted history untouched.
+pub async fn process_session(
+    session_id: &str,
+    parent_id: &str,
+    auto: bool,
+) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
+    let mut messages = message::messages(session_id, None).await?;
+    messages.sort_by(|left, right| left.info.id().cmp(right.info.id()));
 
-    Ok("continue")
+    let model_ref = messages
+        .iter()
+        .find_map(|message| {
+            (message.info.id() == parent_id).then(|| match &message.info {
+                message::Info::User(user) => Some(user.model.clone()),
+                message::Info::Assistant(_) => None,
+            })
+        })
+        .flatten()
+        .ok_or_else(|| {
+            crate::app::agent::session::session::Error::Runtime(anyhow::anyhow!(
+                "compaction boundary must be an existing user message"
+            ))
+        })?;
+    if model_ref.provider_id.trim().is_empty() || model_ref.model_id.trim().is_empty() {
+        return Err(crate::app::agent::session::session::Error::Runtime(anyhow::anyhow!(
+            "compaction boundary has no model reference"
+        )));
+    }
+    let model = provider::get_model(&model_ref.provider_id, &model_ref.model_id)
+        .await
+        .map_err(|error| crate::app::agent::session::session::Error::Runtime(anyhow::anyhow!(error.to_string())))?;
+    process(
+        ProcessInput {
+            parent_id: parent_id.to_string(),
+            messages,
+            session_id: session_id.to_string(),
+            auto,
+        },
+        &model,
+    )
+    .await
+}
+
+#[cfg(test)]
+async fn process_with_summarizer(
+    input: ProcessInput,
+    model: &provider::Model,
+    summarize: impl FnOnce(&InternalCompactionRequest) -> Result<String, String>,
+) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
+    compact_with_summary(input, model, summarize).await
 }
 
 /// 创建压缩请求输入参数

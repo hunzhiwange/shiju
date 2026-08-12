@@ -115,6 +115,15 @@ fn is_non_retryable_llm_error(error: &str) -> bool {
     ]
     .iter()
     .any(|marker| normalized.contains(marker))
+        || is_prompt_too_long_error(&message)
+}
+
+/// Context overflow needs a compaction retry in the caller, never the generic retry loop.
+pub(crate) fn is_prompt_too_long_error(error: &str) -> bool {
+    let normalized = llm_error_message(error).to_ascii_lowercase();
+    ["context length", "context window", "prompt too long", "too many tokens", "context overflow"]
+        .iter()
+        .any(|marker| normalized.contains(marker))
 }
 
 fn llm_step_retry_allowed(error: &str, is_acp: bool) -> bool {
@@ -615,3 +624,8 @@ pub(crate) fn run_llm_step_with_retry(
 #[cfg(test)]
 #[path = "llm_runner_tests.rs"]
 mod llm_runner_tests;
+
+#[cfg(test)]
+pub(crate) use llm_runner_tests::{
+    enqueue_test_llm_stream, take_test_llm_stream_tool_ids, test_llm_stream_guard,
+};

@@ -6,7 +6,8 @@
 use super::artifacts;
 use super::context_governance;
 use super::helpers::{
-    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
+    allowed_tool_ids_for_request_from_specs, delegated_tool_policy_resolution_from_specs,
+    is_acp_request, response_preview, tool_call_preview, trusted_user_selected_tool_ids_from_options,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -56,6 +57,7 @@ impl DesktopSessionProtocol {
         history: &[Value],
         instructions: &[crate::session::instruction::Resolved],
         skill_tool_enabled: bool,
+        default_tool_ids: &[String],
     ) -> Result<Vec<Value>, String> {
         let invoked_skill_messages = self
             .skill_state
@@ -72,7 +74,15 @@ impl DesktopSessionProtocol {
             instructions,
             &invoked_skill_messages,
             skill_listing,
+            llm_messages::default_tool_reminder(default_tool_ids),
         ))
+    }
+
+    fn preload_default_skills(
+        &mut self,
+        default_skill_names: &std::collections::BTreeSet<String>,
+    ) -> Result<(), String> {
+        self.skill_state.preload_defaults(&self.agent_id, &self.skills, default_skill_names)
     }
 
     fn consume_tool_output(
@@ -146,6 +156,71 @@ fn prepare_context_before_llm_step(
         model_limit,
         observed_input_tokens,
     )
+}
+
+/// Replace only the covered transient history after the shared internal summary service returns
+/// a non-empty result. The current user message remains intact, so a failed summary never loses
+/// the request that triggered it.
+fn compact_transient_history_for_request(
+    session_id: &str,
+    llm_messages: &mut Vec<Value>,
+    model: &str,
+) -> Result<bool, String> {
+    let Some(boundary) = llm_messages
+        .iter()
+        .rposition(|message| message.get("role").and_then(Value::as_str) == Some("user"))
+    else {
+        return Ok(false);
+    };
+    if boundary == 0 {
+        return Ok(false);
+    }
+    let mut context = String::new();
+    for message in &llm_messages[..boundary] {
+        let Some(content) = message.get("content").and_then(Value::as_str) else { continue };
+        if content.trim().is_empty() {
+            continue;
+        }
+        if !context.is_empty() {
+            context.push('\n');
+        }
+        context.push_str(message.get("role").and_then(Value::as_str).unwrap_or("unknown"));
+        context.push_str(": ");
+        context.push_str(content.trim());
+        if context.len() >= 32_000 {
+            context.truncate(32_000);
+            break;
+        }
+    }
+    if context.trim().is_empty() {
+        return Ok(false);
+    }
+    let prompt = crate::session::compaction::internal_summary_prompt(&context);
+    let mut discard_events = |_| true;
+    let summary = llm_runner::run_llm_step_with_retry(
+        session_id,
+        &[json!({ "role": "user", "content": prompt })],
+        &[],
+        Some(model.to_string()),
+        &json!({ "disable_tools": true }),
+        &[],
+        &HashSet::new(),
+        &mut discard_events,
+        1,
+    )?
+    .text;
+    let summary = summary.trim();
+    if summary.is_empty() {
+        return Err("internal compaction generated an empty summary".to_string());
+    }
+    llm_messages.splice(
+        0..boundary,
+        std::iter::once(json!({
+            "role": "assistant",
+            "content": format!("[Compaction summary]\n{summary}"),
+        })),
+    );
+    Ok(true)
 }
 
 fn request_full_access_enabled(options: &Value) -> bool {
@@ -278,6 +353,38 @@ fn enabled_identity_files_for_agent(
         .unwrap_or_default()
 }
 
+fn delegated_skill_policy_resolution(
+    skills: &[crate::app::agent::skills::Skill],
+    options: &Value,
+) -> Option<crate::session::capability_policy::CapabilityPolicyResolution> {
+    let policy = options
+        .get("delegate_skill_policy")
+        .cloned()
+        .and_then(|value| {
+            serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
+        })?;
+    Some(crate::session::capability_policy::resolve_skill_capabilities(
+        skills.iter().map(|skill| skill.name.as_str()),
+        option_string_values(options, "delegate_default_allowed_skills"),
+        option_string_values(options, "delegate_trusted_user_selected_skills"),
+        policy,
+        std::iter::empty::<&str>(),
+    ))
+}
+
+fn option_string_values(options: &Value, key: &str) -> Vec<String> {
+    options
+        .get(key)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
 /// 执行会话处理主循环。
 ///
 /// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
@@ -288,7 +395,11 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let app_session_scope = req.app_session_scope.as_deref();
 
-    let agent_key = req.options.get("agent").and_then(Value::as_str);
+    let agent_key = req
+        .options
+        .get("agent")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned);
     let config = prompt::block_on(config::get());
     let selected_model = match resolve_request_model(&req, &config) {
         Ok(model) => model,
@@ -318,6 +429,28 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         selected_model.step_event_model(),
     )
     .with_auto_model_selection(model_selected_by_auto);
+    let trusted_user_selected_tools = trusted_user_selected_tool_ids_from_options(&req.options);
+    if !trusted_user_selected_tools.is_empty() {
+        tool_use_context = tool_use_context.with_trusted_user_selected_tools(trusted_user_selected_tools);
+    }
+    let trusted_user_selected_skills = option_string_values(
+        &req.options,
+        "delegate_trusted_user_selected_skills",
+    );
+    if !trusted_user_selected_skills.is_empty() {
+        tool_use_context = tool_use_context.with_trusted_user_selected_skills(trusted_user_selected_skills);
+    }
+    if let Some(policy) = req
+        .options
+        .get("delegate_skill_policy")
+        .cloned()
+        .and_then(|value| serde_json::from_value(value).ok())
+    {
+        tool_use_context = tool_use_context.with_delegate_skill_policy(
+            policy,
+            option_string_values(&req.options, "delegate_default_allowed_skills"),
+        );
+    }
     if let Some(channel_name) = req.channel_name.clone() {
         tool_use_context = tool_use_context.with_channel(channel_name);
     }
@@ -343,8 +476,21 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .with_session_tools(req.session_tools.clone());
     let mut tool_state = ToolSessionState::default();
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
-    let allowed_tools =
-        allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
+    let tool_policy_resolution =
+        delegated_tool_policy_resolution_from_specs(&available_tool_specs, &req.options);
+    let allowed_tools = tool_policy_resolution
+        .as_ref()
+        .map(|resolution| resolution.visible_ids.iter().cloned().collect())
+        .unwrap_or_else(|| allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options));
+    let default_tool_ids = tool_policy_resolution
+        .as_ref()
+        .map(|resolution| resolution.default_injected_ids.iter().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    if is_acp {
+        req.options["acp_allowed_tools"] = serde_json::json!(
+            allowed_tools.iter().cloned().collect::<Vec<_>>()
+        );
+    }
     let skill_workspace = req
         .root
         .as_deref()
@@ -352,34 +498,38 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| PathBuf::from("."));
     let skills = crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
+    let skill_policy_resolution = delegated_skill_policy_resolution(&skills, &req.options);
+    let skills = if let Some(resolution) = skill_policy_resolution.as_ref() {
+        skills
+            .into_iter()
+            .filter(|skill| resolution.visible_ids.contains(&skill.name.trim().to_lowercase()))
+            .collect()
+    } else {
+        skills
+    };
     let mut session_protocol = DesktopSessionProtocol::new(
         skills,
-        agent_key.unwrap_or("main"),
+        agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
+    if let Some(resolution) = &skill_policy_resolution
+        && let Err(message) = session_protocol.preload_default_skills(&resolution.default_injected_ids)
+    {
+        on_event(StreamEvent::Error(message));
+        return;
+    }
 
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
     }
 
-    let turn_policy = ChatTurnPolicy::from_config(&config, agent_key);
-    let trimmed_history_messages =
-        context_governance::trim_session_history(&mut session, turn_policy.max_history_messages);
-    if trimmed_history_messages > 0 {
-        tracing::info!(
-            target: "vw_agent",
-            session_id = %req.session,
-            trimmed_history_messages,
-            max_history_messages = turn_policy.max_history_messages,
-            "session processor trimmed old chat history"
-        );
-    }
-    let enabled_identity_files = enabled_identity_files_for_agent(&config, agent_key);
+    let turn_policy = ChatTurnPolicy::from_config(&config, agent_key.as_deref());
+    let enabled_identity_files = enabled_identity_files_for_agent(&config, agent_key.as_deref());
     let base_system = prompt::system_with_agent_metadata(
         selected_model.step_event_model(),
         req.root.as_deref(),
-        agent_key,
+        agent_key.as_deref(),
         &enabled_identity_files,
     );
     let explicitly_requested_skills =
@@ -461,10 +611,10 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let mut step = 0usize;
     let mut step_index: u32 = 0;
     let mut total_usage = models::TokenUsage::default();
-    let mut tried_auto_complete_todos = false;
     let mut empty_response_retries = 0usize;
     let model_limit = selected_model.limit.clone();
     let mut observed_input_tokens: Option<i64> = None;
+    let mut internal_compaction_attempted = false;
 
     loop {
         let is_last_step = step >= turn_policy.max_tool_iterations;
@@ -512,6 +662,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &llm_messages,
             base_system.instruction_context(),
             tools_for_step.contains("skill"),
+            &default_tool_ids,
         ) {
             Ok(messages) => messages,
             Err(message) => {
@@ -540,7 +691,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 return;
             }
         };
-        if compaction.passes > 0 {
+        if compaction.needs_internal_compaction {
             tracing::info!(
                 target: "vw_agent",
                 session_id = %req.session,
@@ -549,11 +700,31 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 after_tokens = compaction.after_tokens,
                 context_limit = model_limit.context,
                 input_limit = context_governance::effective_input_window(&model_limit),
-                cleared_tool_results = compaction.cleared_tool_results,
-                trimmed_messages = compaction.trimmed_messages,
-                compaction_passes = compaction.passes,
-                "session processor compacted context before llm step"
+                "session processor requires internal compaction before llm step"
             );
+            if internal_compaction_attempted {
+                on_event(StreamEvent::Error(
+                    "internal compaction did not reduce the request below the model input window"
+                        .to_string(),
+                ));
+                return;
+            }
+            match compact_transient_history_for_request(&req.session, &mut llm_messages, &selected_model.model) {
+                Ok(true) => {
+                    internal_compaction_attempted = true;
+                    continue;
+                }
+                Ok(false) => {
+                    on_event(StreamEvent::Error(
+                        "internal compaction has no eligible history to summarize".to_string(),
+                    ));
+                    return;
+                }
+                Err(error) => {
+                    on_event(StreamEvent::Error(error));
+                    return;
+                }
+            }
         }
 
         if !on_event(StreamEvent::StepStart {
@@ -588,6 +759,26 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 output
             }
             Err(message) => {
+                if llm_runner::is_prompt_too_long_error(&message) && !internal_compaction_attempted {
+                    match compact_transient_history_for_request(
+                        &req.session,
+                        &mut llm_messages,
+                        &selected_model.model,
+                    ) {
+                        Ok(true) => {
+                            internal_compaction_attempted = true;
+                            continue;
+                        }
+                        Ok(false) => {
+                            on_event(StreamEvent::Error(message));
+                            return;
+                        }
+                        Err(_) => {
+                            on_event(StreamEvent::Error(message));
+                            return;
+                        }
+                    }
+                }
                 if handle_step_error(
                     &mut session,
                     &mut llm_messages,
@@ -704,7 +895,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &mut tool_state,
             &mut empty_response_retries,
             &mut step,
-            &mut tried_auto_complete_todos,
             &step_out,
             &step_text_preview,
             &empty_tools,
@@ -958,7 +1148,6 @@ fn handle_assistant_text_branch(
     tool_state: &mut ToolSessionState,
     empty_response_retries: &mut usize,
     step: &mut usize,
-    tried_auto_complete_todos: &mut bool,
     step_out: &llm_runner::LlmStep,
     step_text_preview: &str,
     empty_tools: &HashSet<String>,
@@ -1073,16 +1262,7 @@ fn handle_assistant_text_branch(
     // TodoWrite 可用时强制续轮：未完成 todo 不得提前结束，避免模型“口头完成”后意外退出。
     let enforce_todos =
         allowed_tools.iter().any(|name| crate::app::agent::tools::is_todo_write_tool_id(name));
-    let mut incomplete = enforce_todos && todos::has_incomplete_todos(ctx);
-    if enforce_todos
-        && incomplete
-        && !*tried_auto_complete_todos
-        && utils::should_try_auto_complete_todos(text, tool_state)
-        && todos::maybe_mark_all_todos_completed(session, ctx, on_event, tool_state)
-    {
-        *tried_auto_complete_todos = true;
-        incomplete = enforce_todos && todos::has_incomplete_todos(ctx);
-    }
+    let incomplete = enforce_todos && todos::has_incomplete_todos(ctx);
 
     if enforce_todos && incomplete {
         let message = "任务未完成：todo 列表仍有未完成项，请继续推进直至全部完成，再输出最终答复。"

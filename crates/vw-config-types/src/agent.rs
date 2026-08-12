@@ -34,6 +34,20 @@ impl WorkspacesConfig {
     }
 }
 
+/// 委托代理访问默认能力及用户显式选择的方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename_all = "snake_case")]
+pub enum DelegateCapabilityPolicy {
+    /// 仅允许配置的默认选择。
+    Strict,
+    /// 允许配置的默认选择和可信的用户显式选择。
+    UserOverride,
+    /// 允许全部可用能力。
+    #[default]
+    Unrestricted,
+}
+
 /// 统一的 agent 定义配置。
 ///
 /// 该结构同时服务于主 Agent、内建 agent 预设与自定义 agent。
@@ -90,12 +104,18 @@ pub struct AgentDefinitionConfig {
     #[serde(default = "default_max_depth")]
     pub max_depth: u32,
     /// 是否启用 agentic 子代理模式（多轮工具调用循环）。
-    #[serde(default)]
+    #[serde(default = "default_delegate_agentic")]
     pub agentic: bool,
-    /// agentic 模式下可用工具白名单。
+    /// 委托代理工具的访问策略。
+    #[serde(default)]
+    pub tool_policy: DelegateCapabilityPolicy,
+    /// agentic 模式下注入的默认工具选择。
     #[serde(default, alias = "tools")]
     pub allowed_tools: Vec<String>,
-    /// 委托代理可见的技能白名单。
+    /// 委托代理技能的访问策略。
+    #[serde(default)]
+    pub skill_policy: DelegateCapabilityPolicy,
+    /// 委托代理提示词中注入的默认技能选择。
     #[serde(default, alias = "skills")]
     pub allowed_skills: Vec<String>,
     /// 允许加载到提示词中的工作区身份文件白名单。
@@ -134,6 +154,10 @@ fn default_allow_as_subagent() -> bool {
     true
 }
 
+fn default_delegate_agentic() -> bool {
+    true
+}
+
 fn default_max_parallel_subagents() -> usize {
     4
 }
@@ -162,8 +186,10 @@ impl Default for AgentDefinitionConfig {
             identity_format: None,
             hidden: false,
             max_depth: default_max_depth(),
-            agentic: false,
+            agentic: default_delegate_agentic(),
+            tool_policy: DelegateCapabilityPolicy::default(),
             allowed_tools: Vec::new(),
+            skill_policy: DelegateCapabilityPolicy::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -195,7 +221,9 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("hidden", &self.hidden)
             .field("max_depth", &self.max_depth)
             .field("agentic", &self.agentic)
+            .field("tool_policy", &self.tool_policy)
             .field("allowed_tools", &self.allowed_tools)
+            .field("skill_policy", &self.skill_policy)
             .field("allowed_skills", &self.allowed_skills)
             .field("enabled_identity_files", &self.enabled_identity_files)
             .field("options", &self.options)
@@ -273,16 +301,6 @@ const MAIN_TOOLS: &[&str] = &[
     "lsp",
     "git_operations",
 ];
-const PLAN_TOOLS: &[&str] = &[
-    "file_read",
-    "file_write",
-    "file_edit",
-    "apply_patch",
-    "ls",
-    "glob",
-    "grep",
-];
-const NO_TOOLS: &[&str] = &[];
 
 const READONLY_PERMISSION: &str = r#"{
     "*": "deny",
@@ -331,28 +349,7 @@ const MAIN_PERMISSION: &str = r#"{
     "lsp": "allow",
     "git_operations": "allow"
 }"#;
-const PLAN_PERMISSION: &str = r#"{
-    "*": "deny",
-    "file_read": "allow",
-    "ls": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "file_write": {
-        "*": "deny",
-        ".vibewindow/plans/*.md": "allow"
-    },
-    "file_edit": {
-        "*": "deny",
-        ".vibewindow/plans/*.md": "allow"
-    },
-    "apply_patch": {
-        "*": "deny",
-        ".vibewindow/plans/*.md": "allow"
-    }
-}"#;
-const DENY_ALL_PERMISSION: &str = r#"{ "*": "deny" }"#;
-
-pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
+pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
     BuiltinAgentSpec {
         key: "main",
         label: "主代理",
@@ -414,36 +411,6 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         max_iterations: 32,
     },
     BuiltinAgentSpec {
-        key: "build",
-        label: "构建模式",
-        description: "面向交互式实现、构建与验证，不作为委托子代理。",
-        kind: BuiltinAgentKind::Worker,
-        mode: "primary",
-        hidden: false,
-        allow_as_subagent: false,
-        max_parallel_subagents: 1,
-        max_depth: 0,
-        allowed_tools: CODER_TOOLS,
-        permission: CODER_PERMISSION,
-        default_temperature: Some(0.7),
-        max_iterations: 64,
-    },
-    BuiltinAgentSpec {
-        key: "plan",
-        label: "规划模式",
-        description: "面向交互式需求澄清和实施规划，不直接修改业务代码。",
-        kind: BuiltinAgentKind::Worker,
-        mode: "primary",
-        hidden: false,
-        allow_as_subagent: false,
-        max_parallel_subagents: 1,
-        max_depth: 0,
-        allowed_tools: PLAN_TOOLS,
-        permission: PLAN_PERMISSION,
-        default_temperature: Some(0.7),
-        max_iterations: 32,
-    },
-    BuiltinAgentSpec {
         key: "explore",
         label: "代码探索",
         description: "只读搜索本地代码、符号与调用关系，返回可操作的定位结果。",
@@ -458,52 +425,11 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 10] = [
         default_temperature: Some(0.1),
         max_iterations: 32,
     },
-    BuiltinAgentSpec {
-        key: "compaction",
-        label: "上下文压缩",
-        description: "内部压缩长对话上下文，不面向用户或委托调用。",
-        kind: BuiltinAgentKind::Worker,
-        mode: "primary",
-        hidden: true,
-        allow_as_subagent: false,
-        max_parallel_subagents: 1,
-        max_depth: 0,
-        allowed_tools: NO_TOOLS,
-        permission: DENY_ALL_PERMISSION,
-        default_temperature: Some(0.7),
-        max_iterations: 32,
-    },
-    BuiltinAgentSpec {
-        key: "title",
-        label: "标题生成",
-        description: "内部生成会话标题，不面向用户或委托调用。",
-        kind: BuiltinAgentKind::Worker,
-        mode: "primary",
-        hidden: true,
-        allow_as_subagent: false,
-        max_parallel_subagents: 1,
-        max_depth: 0,
-        allowed_tools: NO_TOOLS,
-        permission: DENY_ALL_PERMISSION,
-        default_temperature: Some(0.5),
-        max_iterations: 32,
-    },
-    BuiltinAgentSpec {
-        key: "summary",
-        label: "会话总结",
-        description: "内部生成会话摘要，不面向用户或委托调用。",
-        kind: BuiltinAgentKind::Worker,
-        mode: "primary",
-        hidden: true,
-        allow_as_subagent: false,
-        max_parallel_subagents: 1,
-        max_depth: 0,
-        allowed_tools: NO_TOOLS,
-        permission: DENY_ALL_PERMISSION,
-        default_temperature: Some(0.7),
-        max_iterations: 32,
-    },
 ];
+
+pub fn is_retired_builtin_agent_key(key: &str) -> bool {
+    matches!(key, "build" | "plan" | "compaction" | "title" | "summary")
+}
 
 pub fn builtin_agent_spec(key: &str) -> Option<&'static BuiltinAgentSpec> {
     BUILTIN_AGENT_SPECS.iter().find(|spec| spec.key == key)
@@ -544,7 +470,7 @@ pub fn merged_agent_configs(
         })
         .collect::<HashMap<_, _>>();
     for (key, value) in configured {
-        if key == "general" {
+        if key == "general" || is_retired_builtin_agent_key(key) {
             continue;
         }
         if let Some(spec) = builtin_agent_spec(key) {
@@ -565,7 +491,9 @@ pub fn merged_agent_configs(
                 builtin.temperature = value.temperature;
             }
             builtin.top_p = value.top_p;
+            builtin.tool_policy = value.tool_policy;
             builtin.allowed_skills = value.allowed_skills.clone();
+            builtin.skill_policy = value.skill_policy;
             builtin.enabled_identity_files = value.enabled_identity_files.clone();
             builtin.options = value.options.clone();
             builtin.steps = value.steps;

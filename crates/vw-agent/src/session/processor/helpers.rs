@@ -5,8 +5,10 @@
 
 use super::utils;
 use crate::tools;
+use crate::session::capability_policy::{CapabilityPolicyResolution, resolve_tool_capabilities};
 use serde_json::Value;
 use std::collections::HashSet;
+use vw_config_types::agent::DelegateCapabilityPolicy;
 use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 /// 获取允许使用的工具 ID 集合。
@@ -67,6 +69,61 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
                 || is_mcp_dynamic_tool_id(tool)
         })
         .cloned()
+        .collect()
+}
+
+/// 解析委托会话的工具能力策略；缺少策略输入时保持旧请求过滤语义。
+pub(crate) fn delegated_tool_policy_resolution_from_specs(
+    specs: &[tools::ToolSpec],
+    options: &Value,
+) -> Option<CapabilityPolicyResolution> {
+    let policy = options
+        .get("delegate_tool_policy")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value).ok())?;
+    let defaults = option_string_values(options, "delegate_default_allowed_tools");
+    let trusted_user_selection = option_string_values(options, "delegate_trusted_user_selected_tools");
+    let hard_disabled = specs.iter().filter(|spec| {
+        crate::session::processor::tools_exec::is_agent_tool(&spec.id)
+            || spec.aliases.iter().any(|alias| crate::session::processor::tools_exec::is_agent_tool(alias))
+    }).map(|spec| spec.id.as_str()).collect::<Vec<_>>();
+    let mut resolution = resolve_tool_capabilities(
+        specs,
+        defaults,
+        trusted_user_selection,
+        policy,
+        hard_disabled,
+    );
+
+    for spec in specs {
+        if (is_builtin_required_tool_id(&spec.id) || is_mcp_dynamic_tool_id(&spec.id))
+            && !crate::session::processor::tools_exec::is_agent_tool(&spec.id)
+        {
+            resolution.visible_ids.insert(spec.id.to_lowercase());
+        }
+    }
+    Some(resolution)
+}
+
+/// 返回 Gateway 请求边界中已固化的可信用户工具选择。
+pub(crate) fn trusted_user_selected_tool_ids_from_options(options: &Value) -> Vec<String> {
+    let delegated = option_string_values(options, "delegate_trusted_user_selected_tools");
+    if !delegated.is_empty() {
+        return delegated;
+    }
+    option_string_values(options, "allowed_tools")
+}
+
+fn option_string_values(options: &Value, key: &str) -> Vec<String> {
+    options
+        .get(key)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
         .collect()
 }
 

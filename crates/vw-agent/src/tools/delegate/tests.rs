@@ -71,7 +71,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
             hidden: false,
             max_depth: 3,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -103,7 +105,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
             hidden: false,
             max_depth: 2,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -308,7 +312,7 @@ impl Provider for FailingProvider {
 ///
 /// # 参数
 ///
-/// - `allowed_tools`: 允许调用的工具名称列表
+/// - `allowed_tools`: 严格策略下的默认工具选择
 /// - `max_iterations`: 最大工具调用迭代次数
 ///
 /// # 返回值
@@ -334,7 +338,9 @@ fn agentic_config(allowed_tools: Vec<String>, max_iterations: usize) -> Delegate
         hidden: false,
         max_depth: 3,
         agentic: true,
+        tool_policy: vw_config_types::agent::DelegateCapabilityPolicy::Strict,
         allowed_tools,
+        skill_policy: Default::default(),
         allowed_skills: Vec::new(),
         enabled_identity_files: Vec::new(),
         options: HashMap::new(),
@@ -493,7 +499,9 @@ async fn invalid_provider_returns_error() {
             hidden: false,
             max_depth: 3,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -601,7 +609,9 @@ async fn delegate_context_is_prepended_to_prompt() {
             hidden: false,
             max_depth: 3,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -651,7 +661,9 @@ async fn delegate_empty_context_omits_prefix() {
             hidden: false,
             max_depth: 3,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -759,12 +771,9 @@ async fn delegate_no_agents_configured() {
     assert!(result.error.unwrap().contains("none configured"));
 }
 
-/// 测试 agentic 模式拒绝空的允许工具列表
-///
-/// agentic 模式需要至少一个允许的工具，
-/// 空列表应导致返回包含 "allowed_tools is empty" 的错误。
+/// 空默认工具选择不应被配置校验拒绝；仅无真实可用工具时失败。
 #[tokio::test]
-async fn agentic_mode_rejects_empty_allowed_tools() {
+async fn agentic_mode_empty_default_tools_fails_only_when_no_tools_are_available() {
     let mut agents = HashMap::new();
     agents.insert("agentic".to_string(), agentic_config(Vec::new(), 10));
 
@@ -772,12 +781,12 @@ async fn agentic_mode_rejects_empty_allowed_tools() {
     let result = tool.execute(json!({"agent": "agentic", "prompt": "test"})).await.unwrap();
 
     assert!(!result.success);
-    assert!(result.error.as_deref().unwrap_or("").contains("allowed_tools is empty"));
+    assert!(result.error.as_deref().unwrap_or("").contains("no executable tools"));
 }
 
-/// 测试 agentic 模式拒绝不在父工具集中的允许工具
+/// 测试严格策略拒绝不在父工具集中的默认工具选择
 ///
-/// 当 allowed_tools 中的工具名称在父工具集中找不到时，
+/// 当严格策略的默认工具不在父工具集中时，
 /// 应返回包含 "no executable tools" 的错误。
 #[tokio::test]
 async fn agentic_mode_rejects_unmatched_allowed_tools() {
@@ -796,7 +805,7 @@ async fn agentic_mode_rejects_unmatched_allowed_tools() {
 /// 测试 agentic 模式执行工具调用循环并过滤工具
 ///
 /// 验证：
-/// - 只使用 allowed_tools 中指定的工具
+/// - 严格策略只使用默认选择中的工具
 /// - 工具调用循环正常执行
 /// - 最终结果包含正确的输出
 #[tokio::test]
@@ -820,10 +829,10 @@ async fn execute_agentic_runs_tool_call_loop_with_filtered_tools() {
     assert!(result.output.contains("done"));
 }
 
-/// 测试 agentic 模式排除 delegate 工具即使在允许列表中
+/// 测试 agentic 模式排除 delegate 工具，即使严格策略选择它
 ///
 /// 为防止无限递归，delegate 工具应被自动排除，
-/// 即使它在 allowed_tools 列表中。这应导致 "no executable tools" 错误。
+/// 这应导致 "no executable tools" 错误。
 #[tokio::test]
 async fn execute_agentic_excludes_delegate_even_if_allowlisted() {
     let config = agentic_config(vec!["delegate".to_string()], 10);
@@ -909,7 +918,9 @@ async fn execute_records_failure_events_in_coordination_bus() {
             hidden: false,
             max_depth: 3,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -995,7 +1006,9 @@ fn coordination_trace_transitions_state_to_completed() {
             hidden: false,
             max_depth: 2,
             agentic: false,
+            tool_policy: Default::default(),
             allowed_tools: Vec::new(),
+            skill_policy: Default::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),

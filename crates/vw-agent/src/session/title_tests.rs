@@ -56,6 +56,18 @@ fn absent_acp_agent_leaves_options_unchanged() {
 }
 
 #[test]
+fn internal_title_profile_is_fixed_and_has_no_configured_options() {
+    let profile = internal_title_profile(None);
+
+    assert_eq!(profile.name, "session-title");
+    assert_eq!(profile.mode, INTERNAL_TITLE_MODE);
+    assert!(profile.prompt.is_none());
+    assert!(profile.temperature.is_none());
+    assert!(profile.top_p.is_none());
+    assert!(profile.options.is_empty());
+}
+
+#[test]
 fn generated_title_is_trimmed_without_truncation() {
     assert_eq!(finalize_generated_title("  Rust 标题\n"), Ok("Rust 标题".to_string()));
 }
@@ -87,6 +99,20 @@ fn generated_title_trims_before_enforcing_character_limit() {
 #[test]
 fn blank_generated_title_is_rejected() {
     assert_eq!(finalize_generated_title(" \n\t "), Err("Empty title generated".to_string()));
+}
+
+#[tokio::test]
+async fn title_generation_does_not_require_a_title_agent_configuration() {
+    let err = generate_from_content(
+        "session-title-no-agent-config".to_string(),
+        "Generate a title without a title agent configuration".to_string(),
+        None,
+        None,
+    )
+    .await
+    .expect_err("the test environment intentionally has no configured model");
+
+    assert_ne!(err, "No title agent found");
 }
 
 #[tokio::test]

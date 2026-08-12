@@ -128,7 +128,7 @@ impl AgentTool {
         Self {
             agents: Arc::new(agents),
             parent_session_id,
-            workspace_dir,
+            workspace_dir: crate::app::agent::util::filesystem::normalize_path(workspace_dir),
             parallelism: Arc::new(Semaphore::new(DEFAULT_MAX_PARALLEL_SUBAGENTS)),
             coordinator: global_child_agent_coordinator(),
             #[cfg(test)]
@@ -458,6 +458,16 @@ impl AgentTool {
             model: Self::model_for_child_request(agent_config),
             prompt: prompt.to_string(),
             context,
+            default_allowed_tools: agent_config.allowed_tools.clone(),
+            tool_policy: agent_config.tool_policy,
+            trusted_user_selected_tools: current_tool_use_context()
+                .map(|context| context.trusted_user_selected_tools().iter().cloned().collect())
+                .unwrap_or_default(),
+            default_allowed_skills: agent_config.allowed_skills.clone(),
+            skill_policy: agent_config.skill_policy,
+            trusted_user_selected_skills: current_tool_use_context()
+                .map(|context| context.trusted_user_selected_skills().iter().cloned().collect())
+                .unwrap_or_default(),
         })
         .await?;
         Ok(Ok(PreparedChildRun {

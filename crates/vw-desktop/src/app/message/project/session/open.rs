@@ -12,7 +12,7 @@ use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{
     App, Message, models,
     state::{
-        QuickMessageHandoffState, default_recent_project_session_auto_refresh,
+        default_recent_project_session_auto_refresh,
         default_recent_project_session_refresh_interval_seconds,
     },
 };
@@ -400,12 +400,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if app.new_session_creating {
                 return Some(iced::Task::none());
             }
-            let project_switch_task =
-                if app.project_path.as_deref() == Some(project_path.as_str()) {
-                    iced::Task::none()
-                } else {
-                    app.open_project_and_index(project_path.clone())
-                };
+            let project_switch_task = if app.project_path.as_deref() == Some(project_path.as_str())
+            {
+                iced::Task::none()
+            } else {
+                app.open_project_and_index(project_path.clone())
+            };
             let project_worktree_enabled =
                 app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
             if !project_worktree_enabled {
@@ -445,12 +445,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::SessionCreateFailed(error) => {
             app.new_session_creating = false;
-            if matches!(
-                app.quick_message_handoff,
-                Some(QuickMessageHandoffState::WaitingForSession { .. })
-            ) {
-                app.quick_message_handoff = None;
-            }
             Some(app.show_error_toast(format!("创建新会话失败：{error}")))
         }
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {

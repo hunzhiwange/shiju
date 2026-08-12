@@ -19,7 +19,7 @@ struct ScriptedSessionRunner {
     responses: Arc<Mutex<VecDeque<Result<String, String>>>>,
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
     task_files: Arc<Mutex<Vec<PathBuf>>>,
-    /// 验收会话开始前删除任务文件，便于旧单测在固定目标模式下一次验收通过。
+    /// 子任务完成后写入完整任务清单证据，便于目标模式按确定性清单完成。
     complete_goal_on_evaluation: bool,
     calls: Arc<Mutex<Vec<SessionRunRequest>>>,
 }
@@ -42,22 +42,12 @@ struct GoalSessionRunner {
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
     task_files: Arc<Mutex<Vec<PathBuf>>>,
     calls: Arc<Mutex<Vec<SessionRunRequest>>>,
-    delete_on_continuation: bool,
     initial_blocker: Option<String>,
 }
 
 #[derive(Clone)]
 struct DescendantGatedSessionRunner {
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
-    descendant_started: Arc<Semaphore>,
-    descendant_release: Arc<Semaphore>,
-}
-
-#[derive(Clone)]
-struct GoalBoundarySessionRunner {
-    plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
-    task_files: Arc<Mutex<Vec<PathBuf>>>,
-    call_count: Arc<Mutex<usize>>,
     descendant_started: Arc<Semaphore>,
     descendant_release: Arc<Semaphore>,
 }
@@ -108,7 +98,6 @@ impl GoalSessionRunner {
     fn new(
         responses: Vec<Result<String, String>>,
         plan_fixture: PlanFixture,
-        delete_on_continuation: bool,
         initial_blocker: Option<&str>,
     ) -> Self {
         Self {
@@ -116,7 +105,6 @@ impl GoalSessionRunner {
             plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
             task_files: Arc::new(Mutex::new(Vec::new())),
             calls: Arc::new(Mutex::new(Vec::new())),
-            delete_on_continuation,
             initial_blocker: initial_blocker.map(str::to_string),
         }
     }
@@ -132,17 +120,6 @@ impl DescendantGatedSessionRunner {
     }
 }
 
-impl GoalBoundarySessionRunner {
-    fn new(plan_fixture: PlanFixture) -> Self {
-        Self {
-            plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
-            task_files: Arc::new(Mutex::new(Vec::new())),
-            call_count: Arc::new(Mutex::new(0)),
-            descendant_started: Arc::new(Semaphore::new(0)),
-            descendant_release: Arc::new(Semaphore::new(0)),
-        }
-    }
-}
 
 #[async_trait]
 impl SessionRunner for CancellationGatedSessionRunner {
@@ -187,15 +164,18 @@ impl SessionRunner for ScriptedSessionRunner {
             .pop_front()
             .unwrap_or_else(|| Err("scripted session runner: no more responses".to_string()));
 
-        // 子任务结束后删除任务文件，使固定目标模式的首次验收能看到 Complete。
+        // 子任务结束后写入完成清单，使固定目标模式无需模型验收即可完成。
         if self.complete_goal_on_evaluation
             && response.is_ok()
             && !request.session_id.ends_with("-plan")
-            && !request.session_id.contains("-goal-")
         {
             for task_file in self.task_files.lock().expect("task files lock").iter() {
                 if task_file.exists() {
-                    let _ = std::fs::remove_file(task_file);
+                    std::fs::write(
+                        task_file,
+                        "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
+                    )
+                    .map_err(|error| format!("write completed task failed: {error}"))?;
                 }
             }
         }
@@ -222,36 +202,6 @@ impl SessionRunner for GatedStreamingSessionRunner {
             return Ok("plan ready".to_string());
         }
 
-        if request.session_id.contains("-goal-eval-") {
-            // 固定目标模式：递归清掉编号任务 md，便于一次验收通过。
-            let plan_root = PathBuf::from(&request.root).join(".plans");
-            fn remove_task_mds(dir: &Path) {
-                let Ok(entries) = std::fs::read_dir(dir) else {
-                    return;
-                };
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        remove_task_mds(&path);
-                        continue;
-                    }
-                    if path.extension().and_then(|ext| ext.to_str()) == Some("md")
-                        && path
-                            .file_name()
-                            .and_then(|name| name.to_str())
-                            .is_some_and(|name| name != "plan.md")
-                    {
-                        let _ = std::fs::remove_file(path);
-                    }
-                }
-            }
-            remove_task_mds(&plan_root);
-            return Ok(r#"{"achieved":true,"reason":"验证通过"}"#.to_string());
-        }
-        if request.session_id.contains("-goal-") {
-            return Ok("goal continuation done".to_string());
-        }
-
         if let Some(delta_tx) = delta_tx {
             delta_tx
                 .send(format!("live:{}", request.session_id))
@@ -264,6 +214,7 @@ impl SessionRunner for GatedStreamingSessionRunner {
             .await
             .map_err(|_| "subtask release closed".to_string())?
             .forget();
+        complete_task_mds(Path::new(&request.root));
         Ok(format!("done:{}", request.session_id))
     }
 }
@@ -301,13 +252,6 @@ impl SessionRunner for GoalSessionRunner {
                 )
                 .map_err(|error| format!("write blocker failed: {error}"))?;
             }
-        } else if self.delete_on_continuation && request.query.contains("目标续轮") {
-            for task_file in self.task_files.lock().expect("task files lock").iter() {
-                if task_file.exists() {
-                    std::fs::remove_file(task_file)
-                        .map_err(|error| format!("delete task file failed: {error}"))?;
-                }
-            }
         }
 
         self.responses
@@ -334,35 +278,6 @@ impl SessionRunner for DescendantGatedSessionRunner {
                 .expect("planning fixture");
             write_plan_fixture(&request.root, &fixture)?;
             return Ok("plan ready".to_string());
-        }
-
-        if request.session_id.contains("-goal-eval-") {
-            let plan_root = PathBuf::from(&request.root).join(".plans");
-            fn remove_task_mds(dir: &Path) {
-                let Ok(entries) = std::fs::read_dir(dir) else {
-                    return;
-                };
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        remove_task_mds(&path);
-                        continue;
-                    }
-                    if path.extension().and_then(|ext| ext.to_str()) == Some("md")
-                        && path
-                            .file_name()
-                            .and_then(|name| name.to_str())
-                            .is_some_and(|name| name != "plan.md")
-                    {
-                        let _ = std::fs::remove_file(path);
-                    }
-                }
-            }
-            remove_task_mds(&plan_root);
-            return Ok(r#"{"achieved":true,"reason":"验证通过"}"#.to_string());
-        }
-        if request.session_id.contains("-goal-") {
-            return Ok("goal continuation done".to_string());
         }
 
         let coordinator = global_child_agent_coordinator();
@@ -426,73 +341,35 @@ impl SessionRunner for DescendantGatedSessionRunner {
             }
         });
 
+        complete_task_mds(Path::new(&request.root));
         Ok("parent session returned".to_string())
     }
 }
 
-#[async_trait]
-impl SessionRunner for GoalBoundarySessionRunner {
-    async fn run_session(
-        &self,
-        request: SessionRunRequest,
-        _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
-    ) -> Result<String, String> {
-        let call_index = {
-            let mut call_count = self.call_count.lock().expect("call count lock");
-            *call_count += 1;
-            *call_count
-        };
-
-        if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
-            write_plan_fixture(&request.root, &fixture)?;
-            let plan_abs = PathBuf::from(&request.root).join(&fixture.plan_dir_rel);
-            *self.task_files.lock().expect("task files lock") =
-                fixture.tasks.iter().map(|task| plan_abs.join(&task.file)).collect();
-        } else if call_index == 4 {
-            for task_file in self.task_files.lock().expect("task files lock").iter() {
-                std::fs::remove_file(task_file)
-                    .map_err(|error| format!("delete task file failed: {error}"))?;
-            }
+fn complete_task_mds(root: &Path) {
+    let plans = root.join(".plans");
+    let Ok(entries) = std::fs::read_dir(plans) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
         }
-
-        let coordinator = global_child_agent_coordinator();
-        let descendant_session_id = format!("{}-nested", request.session_id);
-        coordinator
-            .register(
-                &request.session_id,
-                &descendant_session_id,
-                "reviewer",
-                "verify goal boundary",
-            )
-            .map_err(|error| error.to_string())?;
-        coordinator
-            .mark_running(&request.session_id, &descendant_session_id)
-            .map_err(|error| error.to_string())?;
-        self.descendant_started.add_permits(1);
-
-        let descendant_release = Arc::clone(&self.descendant_release);
-        tokio::spawn(async move {
-            descendant_release
-                .acquire()
-                .await
-                .expect("descendant release should remain open")
-                .forget();
-            coordinator
-                .mark_succeeded(
-                    &request.session_id,
-                    &descendant_session_id,
-                    "goal boundary verified",
-                )
-                .expect("goal descendant should complete");
-        });
-
-        match call_index {
-            1 => Ok("plan ready".to_string()),
-            2 => Ok("initial execution complete".to_string()),
-            3 => Ok(r#"{"achieved":false,"reason":"continue"}"#.to_string()),
-            4 => Ok("continuation complete".to_string()),
-            5 => Ok(r#"{"achieved":true,"reason":"verified"}"#.to_string()),
-            _ => Err(format!("unexpected goal boundary call {call_index}")),
+        let Ok(files) = std::fs::read_dir(path) else {
+            continue;
+        };
+        for file in files.flatten() {
+            let task_file = file.path();
+            if task_file.extension().and_then(|ext| ext.to_str()) == Some("md")
+                && task_file.file_name().and_then(|name| name.to_str()) != Some("plan.md")
+                && task_file.file_name().and_then(|name| name.to_str()) != Some("prompt.md")
+            {
+                let _ = std::fs::write(
+                    task_file,
+                    "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
+                );
+            }
         }
     }
 }
@@ -819,92 +696,6 @@ async fn run_plan_delays_subtask_finished_until_nested_agents_are_terminal() {
 }
 
 #[tokio::test]
-async fn goal_mode_waits_at_every_session_boundary() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let root = temp.path().to_string_lossy().to_string();
-    let task_id = "demo-goal-boundaries";
-    let runner = GoalBoundarySessionRunner::new(PlanFixture {
-        plan_dir_rel: format!(".plans/task-{task_id}"),
-        tasks: vec![entry("1", "目标任务", "1-goal.md", 1, vec![])],
-    });
-    let descendant_started = Arc::clone(&runner.descendant_started);
-    let descendant_release = Arc::clone(&runner.descendant_release);
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let collected_events = Arc::clone(&events);
-
-    let run = tokio::spawn(async move {
-        let request = TaskPlanRunRequest {
-            query: "finish the goal".to_string(),
-            root,
-            model: None,
-            agent: None,
-            acp_agent: None,
-            parent_session_id: Some("main-session".to_string()),
-        };
-        run_task_plan(task_id, &request, &runner, |event| {
-            collected_events.lock().expect("events lock").push(event);
-            true
-        })
-        .await
-    });
-
-    for expected_session_id in [
-        "demo-goal-boundaries-plan",
-        "demo-goal-boundaries-1",
-        "demo-goal-boundaries-goal-eval-1",
-        "demo-goal-boundaries-goal-2",
-        "demo-goal-boundaries-goal-eval-2",
-    ] {
-        tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            descendant_started.acquire(),
-        )
-        .await
-        .unwrap_or_else(|_| panic!("descendant should start for {expected_session_id}"))
-        .expect("descendant start semaphore should remain open")
-        .forget();
-        wait_for_session_waiting(&events, expected_session_id).await;
-        assert!(
-            !run.is_finished(),
-            "goal run must remain pending at {expected_session_id}"
-        );
-        descendant_release.add_permits(1);
-    }
-
-    tokio::time::timeout(std::time::Duration::from_secs(5), run)
-        .await
-        .expect("final goal descendant should release plan-run")
-        .expect("goal plan-run task should join")
-        .expect("goal plan-run should succeed");
-
-    let events = events.lock().expect("events lock");
-    let waiting_sessions = events
-        .iter()
-        .filter_map(|event| match event {
-            TaskPlanRunStreamEventDto::SessionWaiting { session_id, .. } => {
-                Some(session_id.as_str())
-            }
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        waiting_sessions,
-        vec![
-            "demo-goal-boundaries-plan",
-            "demo-goal-boundaries-1",
-            "demo-goal-boundaries-goal-eval-1",
-            "demo-goal-boundaries-goal-2",
-            "demo-goal-boundaries-goal-eval-2",
-        ]
-    );
-    assert!(matches!(
-        events.last(),
-        Some(TaskPlanRunStreamEventDto::Finished { status, output, .. })
-            if status == "completed" && output.contains("[AgentTool 后代终态]")
-    ));
-}
-
-#[tokio::test]
 async fn run_plan_emits_full_success_event_sequence() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
@@ -972,7 +763,6 @@ async fn run_plan_emits_full_success_event_sequence() {
             "subtask_started",
             "subtask_finished",
             "batch_finished",
-            "goal_evaluated",
             "finished",
         ]
     );
@@ -1032,7 +822,7 @@ async fn run_plan_emits_full_success_event_sequence() {
     ));
 
     let calls = runner.calls.lock().expect("calls").clone();
-    assert_eq!(calls.len(), 5, "1 planning + 3 subtasks + 1 evaluation");
+    assert_eq!(calls.len(), 4, "1 planning + 3 subtasks");
     assert_eq!(calls[0].session_id, "demo-success-plan");
 }
 
@@ -1209,7 +999,7 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
     );
 
     let calls = runner.calls.lock().expect("calls").clone();
-    assert_eq!(calls.len(), 6, "1 planning + 3 subtask attempts + later batch + evaluation");
+    assert_eq!(calls.len(), 5, "1 planning + 3 subtask attempts + later batch");
     assert_eq!(
         calls
             .iter()
@@ -1231,7 +1021,7 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
 }
 
 #[tokio::test]
-async fn goal_mode_continues_after_subtask_retries_and_finishes_via_evaluation() {
+async fn goal_mode_continues_after_subtask_retries_and_finishes_via_checklist() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-blocked";
@@ -1253,7 +1043,6 @@ async fn goal_mode_continues_after_subtask_retries_and_finishes_via_evaluation()
             Err("subtask boom 3".to_string()),
             Err("subtask boom 4".to_string()),
             Ok("subtask 2 recovered".to_string()),
-            Ok(r#"{"achieved":true,"reason":"验证通过"}"#.to_string()),
         ],
         fixture,
     );
@@ -1303,7 +1092,6 @@ async fn goal_mode_continues_after_subtask_retries_and_finishes_via_evaluation()
             } if subtask_id == "2"
         )
     }));
-    assert!(kinds.contains(&"goal_evaluated"));
     assert_eq!(kinds.last().copied(), Some("finished"));
 
     let calls = runner.calls.lock().expect("calls").clone();
@@ -1357,25 +1145,16 @@ async fn run_plan_errors_when_planning_session_skips_writing_tasks_json() {
 }
 
 #[tokio::test]
-async fn goal_mode_continues_until_independent_evaluation_passes() {
+async fn goal_mode_finishes_from_completed_task_checklist_without_evaluator() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
-    let task_id = "demo-goal";
-    let plan_dir_rel = format!(".plans/task-{task_id}");
-    let runner = GoalSessionRunner::new(
-        vec![
-            Ok("plan ready".to_string()),
-            Ok("implemented but evidence missing".to_string()),
-            Ok(r#"{"achieved":false,"reason":"任务文件仍存在，缺少验证证据"}"#.to_string()),
-            Ok("目标续轮完成修复并验证，exit 0".to_string()),
-            Ok(r#"{"achieved":true,"reason":"任务文件已删除且验证退出码为 0"}"#.to_string()),
-        ],
+    let task_id = "demo-goal-checklist";
+    let runner = ScriptedSessionRunner::new(
+        vec![Ok("plan ready".to_string()), Ok("implementation complete".to_string())],
         PlanFixture {
-            plan_dir_rel,
+            plan_dir_rel: format!(".plans/task-{task_id}"),
             tasks: vec![entry("1", "实现目标", "1-goal.md", 1, vec![])],
         },
-        true,
-        None,
     );
     let request = TaskPlanRunRequest {
         query: "完成目标并提供验证证据".to_string(),
@@ -1383,7 +1162,7 @@ async fn goal_mode_continues_until_independent_evaluation_passes() {
         model: None,
         agent: None,
         acp_agent: None,
-        parent_session_id: Some("main-chat".to_string()),
+        parent_session_id: None,
     };
     let events = Arc::new(Mutex::new(Vec::new()));
     let captured = Arc::clone(&events);
@@ -1393,35 +1172,21 @@ async fn goal_mode_continues_until_independent_evaluation_passes() {
         true
     })
     .await
-    .expect("goal run");
+    .expect("completed task checklist finishes workflow");
 
     let events = events.lock().expect("events");
-    let evaluations = events
-        .iter()
-        .filter_map(|event| match event {
-            TaskPlanRunStreamEventDto::GoalEvaluated { turn, achieved, reason, .. } => {
-                Some((*turn, *achieved, reason.as_str()))
-            }
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        evaluations,
-        vec![
-            (1, false, "任务文件仍存在，缺少验证证据"),
-            (2, true, "任务文件已删除且验证退出码为 0"),
-        ]
-    );
-    assert!(events.iter().any(|event| matches!(
-        event,
-        TaskPlanRunStreamEventDto::GoalTurnStarted { turn: 2, reason, .. }
-            if reason.contains("任务文件仍存在")
-    )));
     assert!(matches!(
         events.last(),
         Some(TaskPlanRunStreamEventDto::Finished { status, .. }) if status == "completed"
     ));
-    assert_eq!(runner.calls.lock().expect("calls").len(), 5);
+    assert!(!events.iter().any(|event| matches!(
+        event,
+        TaskPlanRunStreamEventDto::GoalEvaluated { .. }
+            | TaskPlanRunStreamEventDto::GoalTurnStarted { .. }
+    )));
+    let calls = runner.calls.lock().expect("calls");
+    assert_eq!(calls.len(), 2, "planning + subtask only");
+    assert!(calls.iter().all(|call| !call.session_id.contains("-goal-eval-")));
 }
 
 #[tokio::test]
@@ -1439,7 +1204,6 @@ async fn goal_mode_never_finishes_without_validation_evidence() {
             plan_dir_rel: format!(".plans/task-{task_id}"),
             tasks: vec![entry("1", "验证目标", "1-verify.md", 1, vec![])],
         },
-        false,
         None,
     );
     let request = TaskPlanRunRequest {
@@ -1465,7 +1229,7 @@ async fn goal_mode_never_finishes_without_validation_evidence() {
     assert!(events.iter().any(|event| matches!(
         event,
         TaskPlanRunStreamEventDto::GoalEvaluated { achieved: false, reason, .. }
-            if reason.contains("任务文件")
+            if reason.contains("状态不是")
     )));
     assert!(!events.iter().any(|event| matches!(
         event,
@@ -1484,7 +1248,6 @@ async fn goal_mode_blocks_on_explicit_external_blocker() {
             plan_dir_rel: format!(".plans/task-{task_id}"),
             tasks: vec![entry("1", "外部系统", "1-external.md", 1, vec![])],
         },
-        false,
         Some("缺少部署凭据"),
     );
     let request = TaskPlanRunRequest {
@@ -1515,55 +1278,6 @@ async fn goal_mode_blocks_on_explicit_external_blocker() {
         event,
         TaskPlanRunStreamEventDto::Finished { .. }
     )));
-}
-
-#[tokio::test]
-async fn goal_mode_blocks_after_three_identical_infrastructure_errors() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let root = temp.path().to_string_lossy().to_string();
-    let task_id = "demo-goal-infrastructure";
-    let runner = GoalSessionRunner::new(
-        vec![
-            Ok("plan ready".to_string()),
-            Ok("implementation attempted".to_string()),
-            Err("gateway timeout".to_string()),
-            Ok("目标续轮重试".to_string()),
-            Err("gateway timeout".to_string()),
-            Ok("目标续轮再次重试".to_string()),
-            Err("gateway timeout".to_string()),
-        ],
-        PlanFixture {
-            plan_dir_rel: format!(".plans/task-{task_id}"),
-            tasks: vec![entry("1", "基础设施重试", "1-infra.md", 1, vec![])],
-        },
-        false,
-        None,
-    );
-    let request = TaskPlanRunRequest {
-        query: "验证重复基础设施错误保护".to_string(),
-        root,
-        model: None,
-        agent: None,
-        acp_agent: None,
-        parent_session_id: None,
-    };
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let captured = Arc::clone(&events);
-
-    run_task_plan(task_id, &request, &runner, |event| {
-        captured.lock().expect("events").push(event);
-        true
-    })
-    .await
-    .expect("infrastructure failures are represented by event");
-
-    let events = events.lock().expect("events");
-    assert!(matches!(
-        events.last(),
-        Some(TaskPlanRunStreamEventDto::Blocked { reason, .. })
-            if reason.contains("连续三轮") && reason.contains("gateway timeout")
-    ));
-    assert_eq!(runner.calls.lock().expect("calls").len(), 7);
 }
 
 #[test]

@@ -138,23 +138,6 @@ fn complete_quick_message_handoff(
     chat: &[models::ChatMessage],
 ) -> Option<Task<Message>> {
     match app.quick_message_handoff.clone()? {
-        QuickMessageHandoffState::WaitingForSummary {
-            request_id: pending_request_id,
-            source_session_id,
-            project_path,
-        } => {
-            if pending_request_id != request_id || source_session_id != session_id {
-                return None;
-            }
-            let Some(prompt) = completed_handoff_prompt(chat) else {
-                app.quick_message_handoff = None;
-                return Some(app.show_warning_toast("AI 未生成可用摘要，未创建新会话"));
-            };
-
-            app.quick_message_handoff =
-                Some(QuickMessageHandoffState::WaitingForSession { prompt });
-            Some(Task::done(Message::Project(ProjectMessage::ProjectCreateSession(project_path))))
-        }
         QuickMessageHandoffState::WaitingForGitCommitMessage {
             request_id: pending_request_id,
             source_session_id,
@@ -199,7 +182,6 @@ fn complete_quick_message_handoff(
             };
             Some(Task::done(Message::Git(message)))
         }
-        QuickMessageHandoffState::WaitingForSession { .. } => None,
     }
 }
 
@@ -460,11 +442,7 @@ pub(super) fn flush_agent_stream_delta(app: &mut App, session_id: String) -> Tas
         runtime.stream_delta_flush_scheduled = false;
         std::mem::take(&mut runtime.pending_stream_delta)
     };
-    if delta.is_empty() {
-        Task::none()
-    } else {
-        apply_agent_session_delta(app, session_id, delta)
-    }
+    if delta.is_empty() { Task::none() } else { apply_agent_session_delta(app, session_id, delta) }
 }
 
 pub(super) fn flush_agent_stream_delta_for_request(app: &mut App, id: u64) -> Task<Message> {
@@ -1021,16 +999,10 @@ fn is_payload_too_large_stream_error(err: &str) -> bool {
 pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> Task<Message> {
     if matches!(
         app.quick_message_handoff,
-        Some(
-            QuickMessageHandoffState::WaitingForSummary {
-                request_id: pending_id,
-                ..
-            }
-            | QuickMessageHandoffState::WaitingForGitCommitMessage {
-                request_id: pending_id,
-                ..
-            }
-        ) if pending_id == id
+        Some(QuickMessageHandoffState::WaitingForGitCommitMessage {
+            request_id: pending_id,
+            ..
+        }) if pending_id == id
     ) {
         if matches!(
             app.quick_message_handoff,

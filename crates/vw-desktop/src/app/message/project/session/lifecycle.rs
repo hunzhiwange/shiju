@@ -7,10 +7,7 @@ use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
     find_session_project_path, now_ms, prepare_session_ui_chunks_task, prepare_session_ui_task,
 };
-use crate::app::{
-    App, Message, models,
-    state::{ActiveSessionViewState, QuickMessageHandoffState},
-};
+use crate::app::{App, Message, models, state::ActiveSessionViewState};
 use serde_json::{Map, Value};
 use vw_shared::message::types as agent_message;
 
@@ -36,22 +33,6 @@ fn push_loaded_chat_message(
         processing_timing: processing_timing.take(),
     });
     message_ids.push(message_id);
-}
-
-pub(super) fn take_quick_message_handoff_task(
-    app: &mut App,
-    session_id: String,
-) -> iced::Task<Message> {
-    let Some(QuickMessageHandoffState::WaitingForSession { prompt }) =
-        app.quick_message_handoff.clone()
-    else {
-        return iced::Task::none();
-    };
-    app.quick_message_handoff = None;
-    iced::Task::done(Message::Chat(crate::app::message::ChatMessage::SendToSession {
-        session_id,
-        input: prompt,
-    }))
 }
 
 fn flush_loaded_text_message(
@@ -510,8 +491,7 @@ pub(crate) fn loaded_chat_from_gateway_messages(
                 has_parent.then(|| user_created_by_id.get(&info.parent_id).copied()).flatten();
             let anchor =
                 parent_created.map_or(info.time.created, |created| created.min(info.time.created));
-            let turn_id =
-                if has_parent { info.parent_id.clone() } else { info.id.clone() };
+            let turn_id = if has_parent { info.parent_id.clone() } else { info.id.clone() };
             (anchor, turn_id, 1_u8, info.time.created)
         }
     });
@@ -990,8 +970,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_session_view_state = ActiveSessionViewState::default();
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
-            let send_handoff_task = take_quick_message_handoff_task(app, info.id);
-            Some(save_last_directory_task.chain(send_handoff_task))
+            Some(save_last_directory_task)
         }
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {

@@ -329,21 +329,6 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         );
     }
 
-    let goal_evaluation = crate::task_plan_run::build_goal_evaluation_prompt(
-        "实现递归智能体编排",
-        "# plan.md",
-        "[AgentTool 后代终态]\n- session=child state=failed error=验证失败",
-        &crate::task_plan_run::GoalTaskFilesState::Complete,
-    );
-    for expected in
-        ["active、waiting、queued 或 running", "failed 或 cancelled", "父会话验证并综合"]
-    {
-        assert!(
-            goal_evaluation.contains(expected),
-            "missing descendant acceptance gate '{expected}':\n{goal_evaluation}"
-        );
-    }
-
     let workflow_context = crate::app::agent::tools::ToolRuntimeContext::new(
         "workflow-subtask-session",
         Some(temp.path().to_string_lossy().to_string()),

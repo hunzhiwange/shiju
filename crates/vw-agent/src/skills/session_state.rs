@@ -53,6 +53,31 @@ impl SkillListingSessionState {
         true
     }
 
+    /// 在首个模型请求前登记配置的默认技能。
+    ///
+    /// 正文仍通过 `InvokedSkillRecord::replay` 从真实来源读取；因此压缩、resume
+    /// 和 fork 与普通成功调用共用同一条恢复链。禁止模型调用的技能绝不预加载。
+    pub(crate) fn preload_defaults(
+        &mut self,
+        agent_id: &str,
+        skills: &[Skill],
+        default_skill_names: &std::collections::BTreeSet<String>,
+    ) -> Result<(), String> {
+        for skill in skills {
+            if skill.disable_model_invocation
+                || !default_skill_names.contains(&skill.name.trim().to_lowercase())
+            {
+                continue;
+            }
+            let Some(source) = skill.location.as_deref() else {
+                continue;
+            };
+            let record = InvokedSkillRecord::new(&skill.name, source, None)?;
+            self.register_invoked(agent_id, record);
+        }
+        Ok(())
+    }
+
     /// 为压缩、resume 或 fork 重新读取并按原调用顺序重放技能上下文。
     pub(crate) fn restore_invoked(
         &self,

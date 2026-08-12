@@ -1,9 +1,8 @@
 //! 目标模式纯函数测试。
 
 use super::{
-    GoalTaskFilesState, PlanTaskEntry, build_goal_continuation_prompt,
-    build_goal_evaluation_prompt, goal_evaluation_session_id, goal_turn_session_id,
-    inspect_goal_task_files, parse_goal_evaluation,
+    GoalTaskFilesState, PlanTaskEntry, build_goal_continuation_prompt, goal_turn_session_id,
+    inspect_goal_task_files,
 };
 
 fn task(file: &str) -> PlanTaskEntry {
@@ -18,38 +17,35 @@ fn task(file: &str) -> PlanTaskEntry {
 }
 
 #[test]
-fn goal_mode_evaluation_requires_strict_json() {
-    assert_eq!(
-        parse_goal_evaluation(r#"{"achieved":true,"reason":"验证通过"}"#)
-            .expect("valid evaluation")
-            .achieved,
-        true
-    );
-    assert_eq!(
-        parse_goal_evaluation("```json\n{\"achieved\":true,\"reason\":\"ok\"}\n```")
-            .expect("fenced evaluation")
-            .reason,
-        "ok"
-    );
-    assert_eq!(
-        parse_goal_evaluation("验收结论如下：\n{\"achieved\":false,\"reason\":\"缺验证\"}\n请继续。")
-            .expect("prose-wrapped evaluation")
-            .achieved,
-        false
-    );
-    assert!(parse_goal_evaluation(r#"{"achieved":true,"reason":"","extra":1}"#).is_err());
-    assert!(parse_goal_evaluation("还没有完成目标").is_err());
-}
-
-#[test]
-fn goal_mode_task_files_distinguish_pending_complete_and_blocked() {
+fn goal_task_files_require_completed_status_and_validation_evidence() {
     let temp = tempfile::tempdir().expect("tempdir");
     let path = temp.path().join("1-goal.md");
-    std::fs::write(&path, "# task\n\n状态：未开始\n").expect("write pending");
+    std::fs::write(&path, "# task\n\n状态：已完成\n\n完成条件：功能已实现\n")
+        .expect("write incomplete completed task");
     assert!(matches!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("pending"),
-        GoalTaskFilesState::Pending(_)
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("missing evidence"),
+        GoalTaskFilesState::Pending(reason) if reason.contains("验证命令")
     ));
+
+    std::fs::write(
+        &path,
+        "# task\n\n状态：已完成\n\n完成条件：功能已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：1\n",
+    )
+    .expect("write failed validation");
+    assert!(matches!(
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("failed evidence"),
+        GoalTaskFilesState::Pending(reason) if reason.contains("退出码")
+    ));
+
+    std::fs::write(
+        &path,
+        "# task\n\n状态：已完成\n\n完成条件：功能已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；测试通过\n",
+    )
+    .expect("write completed task");
+    assert_eq!(
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("complete"),
+        GoalTaskFilesState::Complete
+    );
 
     std::fs::write(&path, "# task\n\n状态：已阻塞\n\n阻塞原因：缺少凭据\n")
         .expect("write blocked");
@@ -59,34 +55,15 @@ fn goal_mode_task_files_distinguish_pending_complete_and_blocked() {
     ));
 
     std::fs::remove_file(path).expect("remove task");
-    assert_eq!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("complete"),
-        GoalTaskFilesState::Complete
-    );
+    assert!(matches!(
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("missing task"),
+        GoalTaskFilesState::Pending(reason) if reason.contains("不存在")
+    ));
 }
 
 #[test]
 fn goal_mode_session_ids_are_stable() {
     assert_eq!(goal_turn_session_id("task.1", 2), "task-1-goal-2");
-    assert_eq!(
-        goal_evaluation_session_id("task.1", 2),
-        "task-1-goal-eval-2"
-    );
-}
-
-#[test]
-fn goal_evaluation_rejects_unsettled_or_unsynthesized_descendants() {
-    let prompt = build_goal_evaluation_prompt(
-        "完成递归智能体目标",
-        "# plan.md",
-        "[AgentTool 后代终态]\n- session=child state=failed error=验证失败",
-        &GoalTaskFilesState::Complete,
-    );
-
-    assert!(prompt.contains("active、waiting、queued 或 running"));
-    assert!(prompt.contains("failed 或 cancelled"));
-    assert!(prompt.contains("父会话验证并综合"));
-    assert!(prompt.contains("achieved 必须为 false"));
 }
 
 #[test]

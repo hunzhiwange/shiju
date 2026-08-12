@@ -78,12 +78,8 @@ fn task_475_test_module_is_wired() {
 
 #[test]
 fn half_fullscreen_control_is_available_in_code_and_work_modes() {
-    assert!(show_half_fullscreen_control(
-        crate::app::state::WorkspaceMode::Code
-    ));
-    assert!(show_half_fullscreen_control(
-        crate::app::state::WorkspaceMode::Work
-    ));
+    assert!(show_half_fullscreen_control(crate::app::state::WorkspaceMode::Code));
+    assert!(show_half_fullscreen_control(crate::app::state::WorkspaceMode::Work));
 }
 
 #[test]
@@ -286,7 +282,7 @@ fn session_actions_popover_style_covers_light_and_dark_surfaces() {
 fn session_actions_elements_build_for_empty_and_active_session() {
     let mut app = test_app();
 
-    keep_element(session_actions_button("重命名", Message::None));
+    keep_element(session_actions_button("重命名", Some(Message::None)));
     keep_element(session_actions_popover(&app));
 
     app.active_session_id = Some("active".to_string());
@@ -294,14 +290,14 @@ fn session_actions_elements_build_for_empty_and_active_session() {
 }
 
 #[test]
-fn session_actions_popover_contains_three_action_buttons() {
+fn session_actions_popover_contains_compact_and_existing_actions() {
     let mut app = test_app();
     app.active_session_id = Some("active".to_string());
 
     let popover = session_actions_popover(&app);
     let children = popover.as_widget().children();
 
-    assert_eq!(children.len(), 3);
+    assert_eq!(children.len(), 4);
 }
 
 #[test]
@@ -427,4 +423,17 @@ fn chat_header_view_builds_with_return_to_parent_control() {
     app.sessions.push(child);
 
     keep_element(chat_header_view(&app));
+}
+
+#[test]
+fn header_session_menu_exposes_compact_current_session_action() {
+    let app = active_header_app();
+
+    assert!(matches!(
+        session_compact_message(&app),
+        Some(Message::Chat(message::ChatMessage::CompactSessionRequested {
+            session_id,
+            project_path,
+        })) if session_id == "active" && project_path == "/workspace/main"
+    ));
 }

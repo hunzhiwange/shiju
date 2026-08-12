@@ -314,7 +314,7 @@ fn now_ms() -> u64 {
 /// 返回一个 `message::UserInfo` 实例，包含：
 /// - 自动生成的唯一 ID（格式：`prompt-{timestamp}`）
 /// - 当前时间戳
-/// - 构建模式（`build`）的代理标识
+/// - 主代理（`main`）的代理标识
 /// - 模型引用信息
 fn dummy_user(session_id: &str, model: &provider::Model) -> message::UserInfo {
     message::UserInfo {
@@ -322,7 +322,7 @@ fn dummy_user(session_id: &str, model: &provider::Model) -> message::UserInfo {
         session_id: session_id.to_string(),
         time: message::UserTime { created: now_ms() },
         summary: None,
-        agent: "build".to_string(),
+        agent: "main".to_string(),
         model: message::ModelRef {
             provider_id: model.provider_id.clone(),
             model_id: model.id.clone(),
@@ -467,8 +467,8 @@ pub fn stream_prompt(
             session_id: "prompt".to_string(),
             model,
             agent: AgentInfo {
-                name: "build".to_string(),
-                mode: "build".to_string(),
+                name: "main".to_string(),
+                mode: "main".to_string(),
                 prompt: Some(String::new()),
                 temperature: None,
                 top_p: None,
@@ -617,8 +617,8 @@ pub fn stream_prompt_with_tools(
             session_id: "prompt".to_string(),
             model,
             agent: AgentInfo {
-                name: "build".to_string(),
-                mode: "build".to_string(),
+                name: "main".to_string(),
+                mode: "main".to_string(),
                 prompt: Some(String::new()),
                 temperature: None,
                 top_p: None,
@@ -784,8 +784,8 @@ pub(crate) fn stream_chat_with_tools_for_session_with_abort(
             session_id: session_id.clone(),
             model,
             agent: AgentInfo {
-                name: "build".to_string(),
-                mode: "build".to_string(),
+                name: "main".to_string(),
+                mode: "main".to_string(),
                 prompt: Some(String::new()),
                 temperature: None,
                 top_p: None,
@@ -893,8 +893,8 @@ pub fn send_prompt(
             session_id: "prompt".to_string(),
             model,
             agent: AgentInfo {
-                name: "build".to_string(),
-                mode: "build".to_string(),
+                name: "main".to_string(),
+                mode: "main".to_string(),
                 prompt: Some(String::new()),
                 temperature: None,
                 top_p: None,

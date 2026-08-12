@@ -3,11 +3,13 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
     Space, button, column, container, mouse_area, row, scrollable, svg, text, text_input,
 };
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Background, Border, Color, Element, Length, Point, Theme};
 use once_cell::sync::Lazy;
 
 use crate::app::assets::{self, Icon};
+use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::status_animation::spinner_frame;
+use crate::app::components::widgets::RightClickArea;
 use crate::app::state::{TaskPetAvatarKind, TaskPetItem, TaskPetStatus};
 use crate::app::{App, Message, message};
 
@@ -358,7 +360,51 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
         );
     }
 
-    pet_stack.into()
+    let pet_control = Element::new(
+        RightClickArea::new(
+            pet_stack.into(),
+            Box::new(|position| {
+                Message::View(message::ViewMessage::TaskPetContextMenuOpened(
+                    position.x, position.y,
+                ))
+            }),
+        )
+        .preserve_on_right_click(),
+    );
+
+    if let Some((x, y)) = app.task_pet_context_menu_pos {
+        PointBelowOverlay::new(pet_control, task_pet_context_menu())
+            .show(true)
+            .anchor(Point::new(x, y))
+            .gap(2.0)
+            .on_close(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
+            .into()
+    } else {
+        pet_control
+    }
+}
+
+fn task_pet_context_menu() -> Element<'static, Message> {
+    button(
+        container(text("关闭宠物").size(13))
+            .width(Length::Fill)
+            .padding([6, 10])
+            .align_x(iced::alignment::Horizontal::Left),
+    )
+    .width(Length::Fixed(112.0))
+    .padding(0)
+    .style(|theme: &Theme, status| {
+        let palette = theme.extended_palette();
+        iced::widget::button::Style {
+            background: matches!(status, iced::widget::button::Status::Hovered)
+                .then_some(Background::Color(palette.danger.base.color.scale_alpha(0.16))),
+            text_color: theme.palette().text,
+            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
+            ..Default::default()
+        }
+    })
+    .on_press(Message::View(message::ViewMessage::TaskPetToggleWindow))
+    .into()
 }
 
 fn pet_sprite(app: &App, size: f32) -> Element<'_, Message> {

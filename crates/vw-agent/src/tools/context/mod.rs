@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
+use vw_config_types::agent::DelegateCapabilityPolicy;
 
 /// 单次工具循环允许排队重看的图片数量上限。
 pub const MAX_PENDING_IMAGE_RELOADS: usize = 4;
@@ -118,6 +119,10 @@ pub struct ToolUseContext {
     approval: Option<Arc<ApprovalManager>>,
     messages_view: Option<Arc<Vec<ChatMessage>>>,
     explicitly_requested_skills: Arc<BTreeSet<String>>,
+    trusted_user_selected_tools: Arc<BTreeSet<String>>,
+    trusted_user_selected_skills: Arc<BTreeSet<String>>,
+    delegate_skill_policy: Option<DelegateCapabilityPolicy>,
+    delegate_default_allowed_skills: Arc<BTreeSet<String>>,
     read_state: Arc<Mutex<FileReadStateCache>>,
     observer: Option<Arc<dyn Observer>>,
     progress_tx: Option<Sender<String>>,
@@ -183,6 +188,10 @@ impl ToolUseContext {
             approval: None,
             messages_view: None,
             explicitly_requested_skills: Arc::new(BTreeSet::new()),
+            trusted_user_selected_tools: Arc::new(BTreeSet::new()),
+            trusted_user_selected_skills: Arc::new(BTreeSet::new()),
+            delegate_skill_policy: None,
+            delegate_default_allowed_skills: Arc::new(BTreeSet::new()),
             read_state: Arc::new(Mutex::new(FileReadStateCache::default())),
             observer: None,
             progress_tx: None,
@@ -254,6 +263,27 @@ impl ToolUseContext {
     /// 判断技能是否由当前用户或仓库协议明确指定。
     pub fn is_skill_explicitly_requested(&self, name: &str) -> bool {
         self.explicitly_requested_skills.contains(&name.trim().to_lowercase())
+    }
+
+    /// 返回仅由运行时注入的可信用户工具选择。
+    ///
+    /// 工具调用 JSON 和模型生成文本无法修改这个集合。
+    pub fn trusted_user_selected_tools(&self) -> &BTreeSet<String> {
+        self.trusted_user_selected_tools.as_ref()
+    }
+
+    /// 返回仅由运行时注入的可信用户技能选择。
+    ///
+    /// 工具调用 JSON 和模型生成文本无法修改这个集合。
+    pub fn trusted_user_selected_skills(&self) -> &BTreeSet<String> {
+        self.trusted_user_selected_skills.as_ref()
+    }
+
+    /// 返回请求边界已确定的委托技能策略及配置默认项。
+    pub(crate) fn delegate_skill_policy(
+        &self,
+    ) -> Option<(DelegateCapabilityPolicy, &BTreeSet<String>)> {
+        self.delegate_skill_policy.map(|policy| (policy, self.delegate_default_allowed_skills.as_ref()))
     }
 
     /// 返回文件读取状态句柄。
@@ -445,6 +475,45 @@ impl ToolUseContext {
         self
     }
 
+    /// 注入可信用户明确选择的工具。
+    ///
+    /// 此方法仅供请求边界在解析原始用户输入后调用；子工具克隆上下文时会保留该集合。
+    pub fn with_trusted_user_selected_tools<I, S>(mut self, tools: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.trusted_user_selected_tools = Arc::new(normalize_capability_selection(tools));
+        self
+    }
+
+    /// 注入可信用户明确选择的技能。
+    ///
+    /// 此方法仅供请求边界在解析原始用户输入后调用；子工具克隆上下文时会保留该集合。
+    pub fn with_trusted_user_selected_skills<I, S>(mut self, skills: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.trusted_user_selected_skills = Arc::new(normalize_capability_selection(skills));
+        self
+    }
+
+    /// 注入 Gateway/Session 传入的委托技能策略。模型工具参数无法修改这些值。
+    pub(crate) fn with_delegate_skill_policy<I, S>(
+        mut self,
+        policy: DelegateCapabilityPolicy,
+        default_skills: I,
+    ) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.delegate_skill_policy = Some(policy);
+        self.delegate_default_allowed_skills = Arc::new(normalize_capability_selection(default_skills));
+        self
+    }
+
     /// 复用现有的读取状态缓存句柄。
     pub fn with_read_state_handle(mut self, read_state: Arc<Mutex<FileReadStateCache>>) -> Self {
         self.read_state = read_state;
@@ -599,6 +668,18 @@ impl ToolUseContext {
             .or_else(|| self.root_path())
             .or_else(|| self.security().map(|security| security.workspace_dir.clone()))
     }
+}
+
+fn normalize_capability_selection<I, S>(selection: I) -> BTreeSet<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    selection
+        .into_iter()
+        .map(|item| item.as_ref().trim().to_lowercase())
+        .filter(|item| !item.is_empty())
+        .collect()
 }
 
 fn current_time_ms() -> u64 {

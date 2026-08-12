@@ -1,9 +1,8 @@
 //! 计划生成与按批次调度的子会话执行器。
 
 use super::goal::{
-    GoalTaskFilesState, build_goal_continuation_prompt, build_goal_evaluation_prompt,
-    goal_evaluation_session_id, goal_turn_session_id, inspect_goal_task_files,
-    parse_goal_evaluation,
+    GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
+    inspect_goal_task_files,
 };
 use super::prompts::{build_execution_prompt, build_goal_planning_prompt, plan_dir_abs};
 use super::session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history};
@@ -589,130 +588,30 @@ where
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let mut turn = 1_u32;
-    let mut last_infrastructure_error: Option<String> = None;
-    let mut repeated_infrastructure_errors = 0_u8;
-
     loop {
         let task_files_state = inspect_goal_task_files(plan_abs, tasks)?;
-        if let GoalTaskFilesState::Blocked(reason) = &task_files_state {
-            let _ = on_event(TaskPlanRunStreamEventDto::Blocked {
-                task_id: task_id.to_string(),
-                batch: None,
-                subtask_id: None,
-                reason: reason.clone(),
-                session_id: goal_turn_session_id(task_id, turn),
-            });
-            return Ok(());
-        }
-
-        let evaluation_session_id = goal_evaluation_session_id(task_id, turn);
-        let evaluation_title = format!("目标验收 · 第 {turn} 轮");
-        let evaluation_prompt = build_goal_evaluation_prompt(
-            &request.query,
-            plan_markdown,
-            &execution_evidence,
-            &task_files_state,
-        );
-        if let Err(error) = ensure_plan_run_session_info(
-            &evaluation_session_id,
-            parent_session_id,
-            root,
-            &evaluation_title,
-        )
-        .await
-        {
-            tracing::warn!(
-                target: "vw_agent::task_plan_run",
-                task_id = %task_id,
-                session_id = %evaluation_session_id,
-                error = %error,
-                "绑定目标验收会话 Info 失败，继续验收"
-            );
-        }
-
-        let evaluation_result = runner
-            .run_session(
-                SessionRunRequest {
-                    session_id: evaluation_session_id.clone(),
-                    query: evaluation_prompt.clone(),
-                    root: root.to_string(),
-                    model: request.model.clone(),
-                    agent: request.agent.clone(),
-                    acp_agent: request.acp_agent.clone(),
-                },
-                None,
-            )
-            .await;
-        let Some(evaluation_descendants) =
-            wait_for_session_descendants(task_id, &evaluation_session_id, |event| {
-                std::future::ready(emit(on_event, event))
-            })
-            .await?
-        else {
-            return Ok(());
-        };
-        append_descendant_evidence(&mut execution_evidence, &evaluation_descendants);
-
-        let (achieved, reason) = match evaluation_result {
-            Ok(output) => {
-                let _ = persist_plan_run_session_history(
-                    &evaluation_session_id,
-                    root,
-                    &evaluation_title,
-                    &evaluation_prompt,
-                    &output,
-                )
-                .await;
-                match parse_goal_evaluation(&output) {
-                    Ok(evaluation) => {
-                        let achieved = evaluation.achieved
-                            && matches!(&task_files_state, GoalTaskFilesState::Complete);
-                        let reason = if evaluation.achieved && !achieved {
-                            "编号任务文件仍存在，缺少验证证据".to_string()
-                        } else {
-                            evaluation.reason
-                        };
-                        (achieved, reason)
-                    }
-                    Err(error) => {
-                        let reason = format!("目标验收基础设施错误：{error}");
-                        if record_repeated_infrastructure_error(
-                            &reason,
-                            &mut last_infrastructure_error,
-                            &mut repeated_infrastructure_errors,
-                        ) {
-                            emit_repeated_infrastructure_block(
-                                task_id,
-                                turn,
-                                &reason,
-                                on_event,
-                            );
-                            return Ok(());
-                        }
-                        (false, reason)
-                    }
-                }
+        let reason = match &task_files_state {
+            GoalTaskFilesState::Complete => {
+                let _ = on_event(TaskPlanRunStreamEventDto::Finished {
+                    task_id: task_id.to_string(),
+                    plan_dir: plan_dir_display.to_string(),
+                    status: "completed".to_string(),
+                    output: execution_evidence,
+                    session_id: Some(goal_turn_session_id(task_id, turn)),
+                });
+                return Ok(());
             }
-            Err(error) => {
-                let _ = persist_plan_run_session_history(
-                    &evaluation_session_id,
-                    root,
-                    &evaluation_title,
-                    &evaluation_prompt,
-                    &format!("目标验收失败: {error}"),
-                )
-                .await;
-                let reason = format!("目标验收基础设施错误：{error}");
-                if record_repeated_infrastructure_error(
-                    &reason,
-                    &mut last_infrastructure_error,
-                    &mut repeated_infrastructure_errors,
-                ) {
-                    emit_repeated_infrastructure_block(task_id, turn, &reason, on_event);
-                    return Ok(());
-                }
-                (false, reason)
+            GoalTaskFilesState::Blocked(reason) => {
+                let _ = on_event(TaskPlanRunStreamEventDto::Blocked {
+                    task_id: task_id.to_string(),
+                    batch: None,
+                    subtask_id: None,
+                    reason: reason.clone(),
+                    session_id: goal_turn_session_id(task_id, turn),
+                });
+                return Ok(());
             }
+            GoalTaskFilesState::Pending(reason) => reason.clone(),
         };
 
         if !emit(
@@ -720,22 +619,11 @@ where
             TaskPlanRunStreamEventDto::GoalEvaluated {
                 task_id: task_id.to_string(),
                 turn,
-                achieved,
+                achieved: false,
                 reason: reason.clone(),
-                session_id: evaluation_session_id,
+                session_id: goal_turn_session_id(task_id, turn),
             },
         ) {
-            return Ok(());
-        }
-
-        if achieved {
-            let _ = on_event(TaskPlanRunStreamEventDto::Finished {
-                task_id: task_id.to_string(),
-                plan_dir: plan_dir_display.to_string(),
-                status: "completed".to_string(),
-                output: execution_evidence,
-                session_id: Some(goal_turn_session_id(task_id, turn)),
-            });
             return Ok(());
         }
 
@@ -825,58 +713,13 @@ where
                     &format!("目标续轮失败: {error}"),
                 )
                 .await;
-                let infrastructure_error = format!("目标续轮基础设施错误：{error}");
-                if record_repeated_infrastructure_error(
-                    &infrastructure_error,
-                    &mut last_infrastructure_error,
-                    &mut repeated_infrastructure_errors,
-                ) {
-                    emit_repeated_infrastructure_block(
-                        task_id,
-                        turn,
-                        &infrastructure_error,
-                        on_event,
-                    );
-                    return Ok(());
-                }
                 if !execution_evidence.is_empty() {
                     execution_evidence.push_str("\n\n");
                 }
-                execution_evidence.push_str(&infrastructure_error);
+                execution_evidence.push_str(&format!("目标续轮失败: {error}"));
             }
         }
     }
-}
-
-fn record_repeated_infrastructure_error(
-    error: &str,
-    last_error: &mut Option<String>,
-    repeated_errors: &mut u8,
-) -> bool {
-    if last_error.as_deref() == Some(error) {
-        *repeated_errors = repeated_errors.saturating_add(1);
-    } else {
-        *last_error = Some(error.to_string());
-        *repeated_errors = 1;
-    }
-    *repeated_errors >= 3
-}
-
-fn emit_repeated_infrastructure_block<F>(
-    task_id: &str,
-    turn: u32,
-    error: &str,
-    on_event: &mut F,
-) where
-    F: FnMut(TaskPlanRunStreamEventDto) -> bool,
-{
-    let _ = on_event(TaskPlanRunStreamEventDto::Blocked {
-        task_id: task_id.to_string(),
-        batch: None,
-        subtask_id: None,
-        reason: format!("连续三轮出现相同基础设施错误，目标模式已停止：{error}"),
-        session_id: goal_turn_session_id(task_id, turn),
-    });
 }
 
 async fn wait_for_session_descendants<F, Fut>(

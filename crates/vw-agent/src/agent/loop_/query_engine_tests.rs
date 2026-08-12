@@ -219,6 +219,11 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         default_temperature: 0.25,
         multimodal_config: crate::app::agent::config::MultimodalConfig::default(),
         compact_context: false,
+        model_limit: crate::app::agent::provider::provider::ModelLimit {
+            context: 0,
+            input: None,
+            output: 0,
+        },
         max_tool_iterations: 2,
         max_history_messages: 10,
         min_memory_relevance_score: 0.5,
@@ -574,7 +579,53 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
 }
 
 #[tokio::test]
-async fn govern_history_trims_non_system_messages() {
+async fn submit_message_compacts_before_the_primary_request() {
+    let provider = ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.max_history_messages = 21;
+    engine.model_limit = crate::app::agent::provider::provider::ModelLimit {
+        context: 10,
+        input: Some(10),
+        output: 0,
+    };
+    engine.history = vec![ChatMessage::system("system")];
+    for index in 0..23 {
+        engine.history.push(ChatMessage::user(format!("message-{index}")));
+    }
+
+    engine.submit_message("latest").await.expect("primary request should succeed");
+
+    let primary_request = provider_handle.seen_messages().pop().expect("primary request");
+    assert!(primary_request.iter().any(|message| message.content.contains("[Compaction summary]")));
+    assert!(!primary_request.iter().any(|message| message.content.contains("message-0")));
+}
+
+#[tokio::test]
+async fn prompt_too_long_compacts_and_retries_once() {
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Error("prompt too long"),
+        ProviderStep::Response(chat_text("recovered", None)),
+    ]);
+    let provider_handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.max_history_messages = 21;
+    engine.history = vec![ChatMessage::system("system")];
+    for index in 0..23 {
+        engine.history.push(ChatMessage::user(format!("message-{index}")));
+    }
+
+    let response = engine.submit_message("latest").await.expect("one retry should recover");
+
+    assert_eq!(response, "recovered");
+    assert_eq!(provider_handle.seen_messages().len(), 2);
+    assert!(engine.history_snapshot().iter().any(|message| message.content.contains("[Compaction summary]")));
+}
+
+#[tokio::test]
+async fn govern_history_does_not_apply_message_count_trimming() {
     let provider = ScriptedProvider::default();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.max_history_messages = 2;
@@ -588,14 +639,11 @@ async fn govern_history_trims_non_system_messages() {
     engine.govern_history().await;
 
     let history = engine.history_snapshot();
-    assert_eq!(
-        history.iter().map(|m| m.content.as_str()).collect::<Vec<_>>(),
-        vec!["system", "middle", "new",]
-    );
+    assert_eq!(history.iter().map(|m| m.content.as_str()).collect::<Vec<_>>(), vec!["system", "old", "middle", "new"]);
 }
 
 #[tokio::test]
-async fn govern_history_compacts_when_enabled_and_over_recent_window() {
+async fn govern_history_preserves_history_after_a_response() {
     let provider = ScriptedProvider::default();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.compact_context = true;
@@ -608,16 +656,14 @@ async fn govern_history_compacts_when_enabled_and_over_recent_window() {
     engine.govern_history().await;
 
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 22);
+    assert_eq!(history.len(), 24);
     assert_eq!(history[0].role, "system");
-    assert!(history[1].content.contains("[Compaction summary]"));
-    assert!(history[1].content.contains("summary"));
-    assert_eq!(history[2].content, "message-3");
+    assert_eq!(history[1].content, "message-0");
     assert_eq!(history.last().unwrap().content, "message-22");
 }
 
 #[tokio::test]
-async fn govern_history_compaction_error_falls_back_to_local_summary() {
+async fn govern_history_never_uses_local_summary_fallback() {
     let provider = ScriptedProvider::with_system_error("summary failed");
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.compact_context = true;
@@ -630,11 +676,9 @@ async fn govern_history_compaction_error_falls_back_to_local_summary() {
     engine.govern_history().await;
 
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 22);
+    assert_eq!(history.len(), 24);
     assert_eq!(history[0].role, "system");
-    assert!(history[1].content.contains("[Compaction summary]"));
-    assert!(history[1].content.contains("USER: message-0"));
-    assert_eq!(history[2].content, "message-3");
+    assert_eq!(history[1].content, "message-0");
     assert_eq!(history.last().unwrap().content, "message-22");
 }
 

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::{ffi::OsString, io::{Read, Write}, net::TcpListener};
 
 use serde_json::json;
 use tokio::sync::oneshot;
@@ -8,7 +10,31 @@ use super::child_agent::{ChildAgentRunInput, ChildAgentTerminalState, run_with_s
 use super::{message, session};
 use crate::app::agent::project;
 use crate::gateway::ApiError;
-use crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected;
+use crate::gateway::api::handlers::session::stream::{
+    GatewayChatStreamCollected, collect_gateway_chat_stream_with_observer,
+};
+
+struct EnvGuard {
+    key: String,
+    previous: Option<OsString>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe { std::env::set_var(key, value) };
+        Self { key: key.to_string(), previous }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => unsafe { std::env::set_var(&self.key, value) },
+            None => unsafe { std::env::remove_var(&self.key) },
+        }
+    }
+}
 
 async fn create_parent(directory: String) -> session::Info {
     project::instance::provide(directory.clone(), None, move || {
@@ -51,6 +77,12 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
         model: None,
         prompt: prompt.to_string(),
         context: vec![json!({"role": "system", "content": "review carefully"})],
+        default_allowed_tools: Vec::new(),
+        tool_policy: Default::default(),
+        trusted_user_selected_tools: Vec::new(),
+        default_allowed_skills: Vec::new(),
+        skill_policy: Default::default(),
+        trusted_user_selected_skills: Vec::new(),
     }
 }
 
@@ -62,9 +94,47 @@ fn child_agent_stream_request_keeps_complete_model_reference() {
         Some("token-plan/qwen3.7-plus".to_string()),
         "inspect",
         Vec::new(),
+        Vec::new(),
+        Default::default(),
+        Vec::new(),
+        Vec::new(),
+        Default::default(),
+        Vec::new(),
     );
 
     assert_eq!(request.model.as_deref(), Some("token-plan/qwen3.7-plus"));
+}
+
+#[test]
+fn child_agent_tool_policy_preserves_trusted_user_selection_across_gateway_boundary() {
+    let request = super::child_agent::stream_request(
+        "child-session",
+        "reviewer",
+        None,
+        "inspect",
+        Vec::new(),
+        vec!["file_read".to_string()],
+        vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
+        vec!["shell".to_string()],
+        vec!["review".to_string()],
+        vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
+        vec!["rustcodegraph".to_string()],
+    );
+
+    assert_eq!(request.allowed_tools, None, "policy inputs must not become a Gateway whitelist");
+    let options = request.options.as_ref().expect("child request options");
+    assert_eq!(
+        options["delegate_default_allowed_tools"],
+        json!(["file_read"]),
+    );
+    assert_eq!(options["delegate_tool_policy"], json!("user_override"));
+    assert_eq!(
+        options["delegate_trusted_user_selected_tools"],
+        json!(["shell"]),
+    );
+    assert_eq!(options["delegate_default_allowed_skills"], json!(["review"]));
+    assert_eq!(options["delegate_skill_policy"], json!("user_override"));
+    assert_eq!(options["delegate_trusted_user_selected_skills"], json!(["rustcodegraph"]));
 }
 
 #[test]
@@ -80,6 +150,12 @@ fn session_protocol_child_agent_uses_same_contract() {
         None,
         "inspect",
         protocol_context.clone(),
+        Vec::new(),
+        Default::default(),
+        Vec::new(),
+        Vec::new(),
+        Default::default(),
+        Vec::new(),
     );
 
     assert_eq!(&request.messages[..2], protocol_context.as_slice());
@@ -158,6 +234,136 @@ async fn child_agent_run_creates_persistent_child_and_waits() {
     assert!(messages[1].parts.iter().any(
         |part| matches!(part, message::Part::Text(text) if text.text == "inspect the session lifecycle")
     ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let workspace = tempfile::tempdir().expect("temporary workspace");
+    let agents_path = workspace.path().join("AGENTS.md");
+    std::fs::write(&agents_path, "DELEGATED_CHILD_AGENTS_MARKER")
+        .expect("write delegated child protocol");
+    let config_home = tempfile::tempdir().expect("temporary config home");
+    let config_dir = config_home.path().join("config");
+    let _home = EnvGuard::set("HOME", config_home.path());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", &config_dir);
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("test provider should bind");
+    let address = listener.local_addr().expect("test provider address");
+    let provider_request = Arc::new(Mutex::new(None));
+    let provider_request_in_server = Arc::clone(&provider_request);
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("test provider should receive request");
+        let mut request = Vec::new();
+        let mut buffer = [0_u8; 4096];
+        loop {
+            let read = stream.read(&mut buffer).expect("test provider should read request");
+            assert!(read > 0, "request should not close before its body");
+            request.extend_from_slice(&buffer[..read]);
+            let Some(headers_end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n")
+            else {
+                continue;
+            };
+            let headers = std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
+            let content_length = headers
+                .lines()
+                .find_map(|line| line.strip_prefix("Content-Length: ").or_else(|| line.strip_prefix("content-length: ")))
+                .expect("provider request content length")
+                .parse::<usize>()
+                .expect("numeric content length");
+            if request.len() >= headers_end + 4 + content_length {
+                break;
+            }
+        }
+        let headers_end = request.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
+        let request_body: serde_json::Value = serde_json::from_slice(&request[headers_end + 4..])
+            .expect("provider request json body");
+        *provider_request_in_server.lock().expect("provider request lock") = Some(request_body);
+
+        let body = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"delegated child complete\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}\n\n",
+            "data: [DONE]\n\n"
+        );
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream.write_all(response.as_bytes()).expect("test provider should respond");
+    });
+    crate::config::update(json!({
+        "providers": {
+            "delegated-child-test-provider": {
+                "api": format!("http://{address}/v1"),
+                "models": {"test-model": {"status": "active"}}
+            }
+        }
+    }))
+    .await
+    .expect("save test provider config");
+
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let observed_in_executor = Arc::clone(&observed);
+    let collector_directory = directory.clone();
+    let result = run_with_stream_executor(
+        ChildAgentRunInput {
+            parent_session_id: parent.id,
+            directory,
+            agent_key: "reviewer".to_string(),
+            model: Some("delegated-child-test-provider/test-model".to_string()),
+            prompt: "complete the delegated task".to_string(),
+            context: Vec::new(),
+            default_allowed_tools: Vec::new(),
+            tool_policy: Default::default(),
+            trusted_user_selected_tools: Vec::new(),
+            default_allowed_skills: Vec::new(),
+            skill_policy: Default::default(),
+            trusted_user_selected_skills: Vec::new(),
+        },
+        move |request| async move {
+            collect_gateway_chat_stream_with_observer(collector_directory, request, |payload| {
+                observed_in_executor
+                    .lock()
+                    .expect("observed gateway payloads lock")
+                    .push(payload.clone());
+            })
+            .await
+        },
+    )
+    .await
+    .expect("delegated child should complete through gateway and processor");
+
+    assert_eq!(result.terminal_state, ChildAgentTerminalState::Succeeded);
+    server.join().expect("test provider should stop");
+    let expected_path = agents_path.to_string_lossy().to_string();
+    let observed = observed.lock().expect("observed gateway payloads lock");
+    let context_loaded = observed
+        .iter()
+        .find(|payload| payload.get("type").and_then(serde_json::Value::as_str) == Some("chat.context_loaded"))
+        .expect("first processor step should report the workspace protocol");
+    assert_eq!(context_loaded["paths"], json!([expected_path]));
+    let provider_request = provider_request
+        .lock()
+        .expect("provider request lock")
+        .take()
+        .expect("provider should receive the delegated child request");
+    let messages = provider_request["messages"].as_array().expect("provider request messages");
+    let protocol_positions = messages
+        .iter()
+        .enumerate()
+        .filter(|(_, message)| {
+            message["content"]
+                .as_str()
+                .is_some_and(|content| content.contains("DELEGATED_CHILD_AGENTS_MARKER"))
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    assert_eq!(protocol_positions.len(), 1, "workspace protocol should be injected once");
+    let protocol_index = protocol_positions[0];
+    assert_eq!(messages[protocol_index + 1]["role"], "user");
+    assert_eq!(messages[protocol_index + 1]["content"], "complete the delegated task");
 }
 
 #[test]

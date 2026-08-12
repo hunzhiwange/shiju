@@ -288,20 +288,6 @@ async fn instance_directory_opt_returns_directory_inside_project_context() {
 }
 
 #[test]
-fn find_user_message_matches_user_messages_only() {
-    let session_id = "find-user-session";
-    let messages = vec![
-        assistant_message(session_id, "same-id", "parent", "assistant", None),
-        user_message(session_id, "same-id", "user content"),
-    ];
-
-    let found = find_user_message(&messages, "same-id").expect("user message");
-    assert_eq!(found.agent, "agent-fixture");
-    assert_eq!(found.variant.as_deref(), Some("variant-a"));
-    assert!(find_user_message(&messages, "missing").is_none());
-}
-
-#[test]
 fn extract_recent_text_formats_roles_trims_and_skips_empty_text() {
     let session_id = "extract-session";
     let messages = vec![
@@ -382,11 +368,118 @@ async fn process_returns_stop_when_parent_user_message_is_missing() {
     .await
     .expect("process should not fail for missing parent");
 
-    assert_eq!(result, "stop");
+    assert!(matches!(result, CompactionOutcome::NotNeeded { .. }));
 }
 
 #[tokio::test]
-async fn process_auto_creates_summary_and_continue_messages() {
+async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("internal-compaction-success");
+    let compact_request_id = "msg_compact".to_string();
+    let history = vec![
+        user_message(&session_id, "msg_old_user", "Investigate the failing build"),
+        assistant_message(
+            &session_id,
+            "msg_old_assistant",
+            "msg_old_user",
+            "The compiler reports an ownership error.",
+            None,
+        ),
+        user_message(&session_id, &compact_request_id, ""),
+    ];
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+
+    let result = process_with_summarizer(
+        ProcessInput {
+            parent_id: compact_request_id.clone(),
+            messages: history,
+            session_id: session_id.clone(),
+            auto: false,
+        },
+        &model_with_limits(100_000, None, 10_000),
+        |request| {
+            assert!(request.prompt.contains("Investigate the failing build"));
+            assert!(request.tools.is_empty());
+            Ok("Build investigation: ownership error remains.".to_string())
+        },
+    )
+    .await
+    .expect("successful summary should persist atomically");
+
+    let CompactionOutcome::Compacted { stats, .. } = result else {
+        panic!("expected a completed compaction");
+    };
+    assert_eq!(stats.covered_messages, 2);
+    assert_eq!(stats.summary_chars, "Build investigation: ownership error remains.".chars().count());
+
+    let stored = message::messages(&session_id, None).await.expect("stored history");
+    assert_eq!(stored.len(), 2);
+    assert!(stored.iter().all(|message| !matches!(
+        message.info.id(),
+        "msg_old_user" | "msg_old_assistant"
+    )));
+    let summary = stored
+        .iter()
+        .find(|message| matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true)))
+        .expect("summary boundary should be persisted");
+    let parts = message::parts(&session_id, summary.info.id()).await.expect("summary parts");
+    assert!(matches!(
+        &parts[..],
+        [message::Part::Compaction(_), message::Part::Text(text)]
+            if text.text == "Build investigation: ownership error remains."
+    ));
+
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn internal_compaction_keeps_history_when_summary_is_blank_or_fails() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("internal-compaction-atomic-failure");
+    let compact_request_id = "msg_compact".to_string();
+    let history = vec![
+        user_message(&session_id, "msg_old_user", "Keep this message"),
+        user_message(&session_id, &compact_request_id, ""),
+    ];
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+
+    for response in [Ok("   ".to_string()), Err("provider unavailable".to_string())] {
+        let result = process_with_summarizer(
+            ProcessInput {
+                parent_id: compact_request_id.clone(),
+                messages: history.clone(),
+                session_id: session_id.clone(),
+                auto: false,
+            },
+            &model_with_limits(100_000, None, 10_000),
+            |_| response.clone(),
+        )
+        .await
+        .expect("model failure is a recoverable compaction outcome");
+        assert!(matches!(result, CompactionOutcome::Failed { .. }));
+        let stored = message::messages(&session_id, None).await.expect("history remains readable");
+        assert_eq!(stored.len(), 2);
+        assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
+    }
+
+    cleanup_session(&session_id).await;
+}
+
+#[test]
+fn internal_compaction_profile_has_no_tool_or_delegation_capability() {
+    let profile = internal_compaction_profile();
+
+    assert_eq!(profile.name, "session-compaction");
+    assert!(profile.prompt.is_none());
+    assert!(profile.options.is_empty());
+}
+
+#[tokio::test]
+async fn process_does_not_compact_when_the_boundary_has_no_prior_history() {
     let session_id = unique_session("compaction-process-auto");
     let parent_id = "msg_parent".to_string();
     let input_messages = vec![
@@ -404,59 +497,17 @@ async fn process_auto_creates_summary_and_continue_messages() {
         &model_with_limits(100_000, None, 10_000),
     )
     .await
-    .expect("process should write compaction messages");
+    .expect("process should recognize insufficient history");
 
-    assert_eq!(result, "continue");
+    assert!(matches!(result, CompactionOutcome::NotNeeded { .. }));
     let stored = message::messages(&session_id, None).await.expect("stored messages");
-    assert_eq!(stored.len(), 2);
-
-    let summary = stored
-        .iter()
-        .find_map(|msg| match &msg.info {
-            message::Info::Assistant(info) if info.summary == Some(true) => Some(info),
-            _ => None,
-        })
-        .expect("summary assistant");
-    assert_eq!(summary.parent_id, parent_id);
-    assert_eq!(summary.model_id, "model-fixture");
-    assert_eq!(summary.provider_id, "provider-fixture");
-    assert_eq!(summary.mode, "compaction");
-    assert_eq!(summary.agent, "compaction");
-    assert_eq!(summary.variant.as_deref(), Some("variant-a"));
-
-    let summary_parts = message::parts(&session_id, &summary.id).await.expect("summary parts");
-    let message::Part::Text(summary_text) = &summary_parts[0] else {
-        panic!("summary part should be text");
-    };
-    assert_eq!(summary_text.synthetic, Some(true));
-    assert!(summary_text.text.contains("Provide a detailed prompt"));
-    assert!(summary_text.text.contains("user: initial question"));
-    assert!(summary_text.text.contains("assistant: initial answer"));
-
-    let continue_msg = stored
-        .iter()
-        .find_map(|msg| match &msg.info {
-            message::Info::User(info) => Some(info),
-            _ => None,
-        })
-        .expect("continue user message");
-    assert_eq!(continue_msg.agent, "agent-fixture");
-    assert_eq!(continue_msg.model.provider_id, "provider-fixture");
-    assert_eq!(continue_msg.variant.as_deref(), Some("variant-a"));
-
-    let continue_parts =
-        message::parts(&session_id, &continue_msg.id).await.expect("continue parts");
-    let message::Part::Text(continue_text) = &continue_parts[0] else {
-        panic!("continue part should be text");
-    };
-    assert_eq!(continue_text.synthetic, Some(true));
-    assert!(continue_text.text.starts_with("Continue if you have next steps"));
+    assert!(stored.is_empty());
 
     cleanup_session(&session_id).await;
 }
 
 #[tokio::test]
-async fn process_manual_uses_default_summary_text_when_no_text_context_exists() {
+async fn process_does_not_synthesize_a_summary_for_blank_history() {
     let session_id = unique_session("compaction-process-manual");
     let parent_id = "msg_parent".to_string();
 
@@ -470,17 +521,11 @@ async fn process_manual_uses_default_summary_text_when_no_text_context_exists() 
         &model_with_limits(100_000, None, 10_000),
     )
     .await
-    .expect("manual process should write summary");
+    .expect("blank history should not call a model");
 
-    assert_eq!(result, "continue");
+    assert!(matches!(result, CompactionOutcome::NotNeeded { .. }));
     let stored = message::messages(&session_id, None).await.expect("stored messages");
-    assert_eq!(stored.len(), 1);
-    let summary_id = stored[0].info.id().to_string();
-    let parts = message::parts(&session_id, &summary_id).await.expect("summary parts");
-    let message::Part::Text(summary_text) = &parts[0] else {
-        panic!("summary part should be text");
-    };
-    assert_eq!(summary_text.text, "No prior text context available.");
+    assert!(stored.is_empty());
 
     cleanup_session(&session_id).await;
 }

@@ -102,6 +102,7 @@ pub(crate) fn assemble_session_protocol_messages(
     instructions: &[Resolved],
     invoked_skill_messages: &[Value],
     skill_listing: Option<Value>,
+    default_tool_reminder: Option<Value>,
 ) -> Vec<Value> {
     let injection = context_injection::assemble_agents_context(instructions, history);
     let mut protocol_messages = injection
@@ -118,6 +119,9 @@ pub(crate) fn assemble_session_protocol_messages(
     if let Some(skill_listing) = skill_listing {
         protocol_messages.push(skill_listing);
     }
+    if let Some(default_tool_reminder) = default_tool_reminder {
+        protocol_messages.push(default_tool_reminder);
+    }
 
     // 协议提醒必须紧邻本轮用户请求。若始终放在整段历史最前面，长会话中的模型会把它
     // 当成陈旧上下文；用户手工再次要求读取 AGENTS 时反而能生效。工具轮次仍以最后一条
@@ -132,6 +136,19 @@ pub(crate) fn assemble_session_protocol_messages(
     messages.extend(protocol_messages);
     messages.extend(injection.history[insertion_index..].iter().cloned());
     messages
+}
+
+/// 构建临近当前用户请求的默认工具提醒；它不构成可见性白名单。
+pub(crate) fn default_tool_reminder(default_tool_ids: &[String]) -> Option<Value> {
+    (!default_tool_ids.is_empty()).then(|| {
+        serde_json::json!({
+            "role": "user",
+            "content": format!(
+                "<system-reminder>Default tools for this delegated agent: {}. This is a default selection, not a restriction on other available tools.</system-reminder>",
+                default_tool_ids.join(", ")
+            ),
+        })
+    })
 }
 
 /// 按图片上下文状态改写 LLM JSON 消息。

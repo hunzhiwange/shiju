@@ -2,6 +2,7 @@ use super::{
     Args, SkillTool, available_skill_names, base_dir_url, block_on,
     explicitly_referenced_skill_names, file_url, skill_file_id, skill_location, skill_matches_name,
     skill_prompt_content, skill_request_is_explicit, text_contains_skill_reference, xml_escape,
+    filter_delegate_skills,
 };
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
@@ -102,6 +103,32 @@ async fn trusted_runtime_context_marks_skill_as_explicitly_requested() {
     scope_tool_use_context(context, async {
         assert!(skill_request_is_explicit("RustCodeGraph"));
         assert!(!skill_request_is_explicit("other-skill"));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn skill_tool_filters_to_policy_visible_skills_without_model_authorization() {
+    let skills = vec![
+        skill("default", None, vec![]),
+        skill("trusted", None, vec![]),
+        skill("other", None, vec![]),
+    ];
+    let context = Arc::new(
+        ToolUseContext::new("child", Some("/workspace".to_string()))
+            .with_trusted_user_selected_skills(["trusted"])
+            .with_delegate_skill_policy(
+                vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
+                ["default"],
+            ),
+    );
+
+    scope_tool_use_context(context, async {
+        let visible = filter_delegate_skills(skills);
+        assert_eq!(
+            visible.into_iter().map(|skill| skill.name).collect::<Vec<_>>(),
+            vec!["default", "trusted"],
+        );
     })
     .await;
 }

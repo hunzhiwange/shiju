@@ -150,9 +150,24 @@ pub enum ChatMessage {
     /// 选择或取消当前会话的识矩技能
     SelectShijuSkill(u64),
 
-    /// 请求当前会话生成摘要，并在完成后创建新会话继续处理
-    SummarizeAndCreateNewSession {
+    /// 请求确认压缩指定会话。
+    CompactSessionRequested {
+        session_id: String,
         project_path: String,
+    },
+
+    /// 用户完成压缩确认。
+    CompactSessionConfirmationResolved {
+        session_id: String,
+        project_path: String,
+        confirmed: bool,
+    },
+
+    /// Gateway 压缩请求完成。
+    CompactSessionFinished {
+        session_id: String,
+        project_path: String,
+        result: Result<bool, String>,
     },
 
     /// 请求当前会话生成 Git 提交标题与摘要，完成后执行对应提交动作
@@ -195,10 +210,7 @@ pub enum ChatMessage {
     /// plan-run 停止请求完成；实时状态仍由 SSE cancelled 事件收敛。
     StopPlanRunFinished {
         task_id: String,
-        result: Result<
-            vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse,
-            String,
-        >,
+        result: Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String>,
     },
 
     /// 模型被选择
@@ -1085,7 +1097,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         // 会话管理相关消息：发送、取消、模型选择、队列操作等
         ChatMessage::SendPressed
         | ChatMessage::SendToSession { .. }
-        | ChatMessage::SummarizeAndCreateNewSession { .. }
+        | ChatMessage::CompactSessionRequested { .. }
+        | ChatMessage::CompactSessionConfirmationResolved { .. }
+        | ChatMessage::CompactSessionFinished { .. }
         | ChatMessage::GenerateGitCommitMessage { .. }
         | ChatMessage::CancelPressed
         | ChatMessage::AutoModelToggled(_)

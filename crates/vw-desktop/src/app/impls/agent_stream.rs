@@ -35,11 +35,7 @@ struct GatewayReconnectState {
 
 impl GatewayReconnectState {
     fn new(request_id: String) -> Self {
-        Self {
-            request_id,
-            last_event_id: None,
-            next_delay: GATEWAY_STREAM_INITIAL_RETRY_DELAY,
-        }
+        Self { request_id, last_event_id: None, next_delay: GATEWAY_STREAM_INITIAL_RETRY_DELAY }
     }
 
     fn resume(&self) -> vw_gateway_client::GatewayStreamResume {
@@ -94,10 +90,7 @@ impl GatewayReconnectState {
 
     fn take_retry_delay(&mut self) -> std::time::Duration {
         let delay = self.next_delay;
-        self.next_delay = self
-            .next_delay
-            .saturating_mul(2)
-            .min(GATEWAY_STREAM_MAX_RETRY_DELAY);
+        self.next_delay = self.next_delay.saturating_mul(2).min(GATEWAY_STREAM_MAX_RETRY_DELAY);
         delay
     }
 }
@@ -112,9 +105,7 @@ fn gateway_stream_error_is_retryable(error: &str) -> bool {
         let Some(status_text) = lower.strip_prefix(prefix) else {
             continue;
         };
-        let Some(status) =
-            status_text.get(..3).and_then(|value| value.parse::<u16>().ok())
-        else {
+        let Some(status) = status_text.get(..3).and_then(|value| value.parse::<u16>().ok()) else {
             continue;
         };
         return status == 408 || status == 429 || status >= 500;
@@ -133,12 +124,6 @@ fn desktop_stream_request_id(req: &AgentRequest) -> String {
     let mut session_hasher = std::collections::hash_map::DefaultHasher::new();
     req.session.hash(&mut session_hasher);
     format!("desktop-{nonce:032x}-{}-{:016x}", req.id, session_hasher.finish())
-}
-
-/// 轻量目标每一轮执行/验收必须使用不同流请求标识：续轮会改 chat body，
-/// 复用同一标识会触发网关 409「相同流请求标识对应了不同 chat 请求」。
-fn desktop_stream_request_id_for_turn(req: &AgentRequest, turn: u32) -> String {
-    format!("{}-t{turn}", desktop_stream_request_id(req))
 }
 
 async fn gateway_stream_retry_sleep(duration: std::time::Duration) {
@@ -382,10 +367,7 @@ fn split_temporary_workflow_segment(value: &str) -> Vec<String> {
     ] {
         normalized = normalized.replace(connector, "\n");
     }
-    normalized
-        .split('\n')
-        .filter_map(normalize_temporary_workflow_task_title)
-        .collect()
+    normalized.split('\n').filter_map(normalize_temporary_workflow_task_title).collect()
 }
 
 fn temporary_workflow_task_titles(query: &str) -> Vec<String> {
@@ -1196,7 +1178,9 @@ fn plan_run_event_task_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto)
     }
 }
 
-fn plan_run_event_session_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> Option<&str> {
+fn plan_run_event_session_id(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+) -> Option<&str> {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { session_id, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta { session_id, .. }
@@ -1228,9 +1212,7 @@ fn plan_run_event_session_title(
             Some(format!("规划 · {task_id}"))
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
-            subtask_id,
-            title,
-            ..
+            subtask_id, title, ..
         }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
             subtask_id,
@@ -1275,9 +1257,7 @@ fn plan_run_session_started_message(
             ..
         }
         | vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
-            session_id,
-            reason,
-            ..
+            session_id, reason, ..
         } => (session_id, reason.clone()),
         _ => return None,
     };
@@ -1329,20 +1309,20 @@ fn plan_run_tool_call_id(event: &vw_api_types::task::TaskPlanRunStreamEventDto) 
             task_id, session_id, ..
         }
         | vw_api_types::task::TaskPlanRunStreamEventDto::SessionWaiting {
-            task_id, session_id, ..
+            task_id,
+            session_id,
+            ..
         } => format!("plan-run-{task_id}-session-{session_id}"),
         vw_api_types::task::TaskPlanRunStreamEventDto::BatchStarted { task_id, batch, .. }
-        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
-            task_id, batch, ..
-        } => {
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { task_id, batch, .. } => {
             format!("plan-run-{task_id}-batch-{batch}")
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted {
             task_id, turn, ..
         } => format!("plan-run-{task_id}-goal-turn-{turn}"),
-        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
-            task_id, turn, ..
-        } => format!("plan-run-{task_id}-goal-evaluation-{turn}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { task_id, turn, .. } => {
+            format!("plan-run-{task_id}-goal-evaluation-{turn}")
+        }
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
             task_id,
             subtask_id,
@@ -1382,9 +1362,7 @@ fn plan_run_event_status(event: &vw_api_types::task::TaskPlanRunStreamEventDto) 
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
             success: false, ..
         }
-        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
-            success: false, ..
-        }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { success: false, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. } => "error",
         vw_api_types::task::TaskPlanRunStreamEventDto::Cancelled { .. } => "cancelled",
@@ -1419,9 +1397,7 @@ fn plan_run_event_summary(event: &vw_api_types::task::TaskPlanRunStreamEventDto)
         vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { turn, .. } => {
             format!("目标续轮 · 第 {turn} 轮")
         }
-        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
-            turn, achieved, ..
-        } => {
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { turn, achieved, .. } => {
             let status = if *achieved { "通过" } else { "未通过" };
             format!("目标验收 · 第 {turn} 轮 · {status}")
         }
@@ -1483,9 +1459,9 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
             let status = if *success { "执行完毕" } else { "执行失败" };
             format!("批次 {batch} {status}: {}", subtask_ids.join(", "))
         }
-        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted {
-            turn, reason, ..
-        } => format!("目标第 {turn} 轮续行：{reason}"),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { turn, reason, .. } => {
+            format!("目标第 {turn} 轮续行：{reason}")
+        }
         vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated {
             turn,
             achieved,
@@ -1555,10 +1531,7 @@ fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) ->
     let error = matches!(
         event,
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { success: false, .. }
-            | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished {
-                success: false,
-                ..
-            }
+            | vw_api_types::task::TaskPlanRunStreamEventDto::BatchFinished { success: false, .. }
             | vw_api_types::task::TaskPlanRunStreamEventDto::Blocked { .. }
             | vw_api_types::task::TaskPlanRunStreamEventDto::Error { .. }
     )
@@ -1766,298 +1739,6 @@ fn lightweight_goal_enabled_for_request(req: &AgentRequest) -> bool {
         && lightweight_goal_active(req.workflow_mode_enabled, req.resume_history_only)
 }
 
-/// 轻量目标续轮决策。
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum LightweightGoalNext {
-    Continue { reason: String },
-    Complete { reason: String },
-    NeedsInput { reason: String },
-    Blocked { reason: String },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LightweightGoalEvaluation {
-    Continue,
-    Complete,
-    NeedsInput,
-}
-
-fn detect_explicit_lightweight_blocker(text: &str) -> Option<String> {
-    let has_blocked_status = text.lines().any(|line| {
-        let line = line.trim();
-        line == "状态：已阻塞" || line == "状态: 已阻塞"
-    });
-    if !has_blocked_status {
-        return None;
-    }
-    let reason = text.lines().find_map(|line| {
-        let line = line.trim();
-        line.strip_prefix("阻塞原因：")
-            .or_else(|| line.strip_prefix("阻塞原因:"))
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-    });
-    Some(reason.unwrap_or_else(|| "目标执行明确标记为已阻塞".to_string()))
-}
-
-fn parse_lightweight_goal_evaluation(
-    output: &str,
-) -> Result<(LightweightGoalEvaluation, String), String> {
-    let trimmed = output.trim();
-    if trimmed.is_empty() {
-        return Err("目标评估器返回空响应".to_string());
-    }
-
-    // 模型常把 JSON 包在 Markdown 围栏或前后说明里；先抽合法 JSON，再按契约校验。
-    let candidates = vw_shared::json::extract_json_values(trimmed);
-    if candidates.is_empty() {
-        return Err("目标评估器必须返回严格 JSON: 未找到 JSON 对象".to_string());
-    }
-
-    let mut last_error = String::from("目标评估器必须返回严格 JSON: 未找到合法评估对象");
-    for value in candidates.into_iter().rev() {
-        match lightweight_goal_evaluation_from_value(value) {
-            Ok(result) => return Ok(result),
-            Err(error) => last_error = error,
-        }
-    }
-    Err(last_error)
-}
-
-fn lightweight_goal_evaluation_from_value(
-    value: serde_json::Value,
-) -> Result<(LightweightGoalEvaluation, String), String> {
-    let status = value
-        .get("status")
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| "目标评估器 JSON 缺少 status".to_string())?;
-    let evaluation = match status {
-        "continue" => LightweightGoalEvaluation::Continue,
-        "complete" => LightweightGoalEvaluation::Complete,
-        "needs_input" => LightweightGoalEvaluation::NeedsInput,
-        _ => return Err(format!("目标评估器 status 无效: {status}")),
-    };
-    let reason = value
-        .get("reason")
-        .and_then(serde_json::Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| "目标评估器 reason 不能为空".to_string())?
-        .to_string();
-    if value.as_object().is_some_and(|object| object.len() != 2) {
-        return Err("目标评估器必须只包含 status 与 reason".to_string());
-    }
-    Ok((evaluation, reason))
-}
-
-fn build_lightweight_goal_evaluation_prompt(original_goal: &str, execution_evidence: &str) -> String {
-    format!(
-        "你是独立会话决策器，只判断已有上下文与证据，不执行工具或命令。\
-\n请理解用户原始查询的语义和当前回复，不依赖关键词或特定语言，决定会话下一步：\
-\n- complete：回复已经满足请求；普通问答、解释或闲聊得到适当回答也属于完成。\
-\n- continue：仍有明确工作未完成，并且智能体可利用现有上下文、工具或文件自主推进。\
-\n- needs_input：缺少只能由用户提供的图片、文件、文本、选择或其他关键信息；回复已经在向用户索取这些内容。\
-\n当回复正在请求用户补充必需上下文时，必须选择 needs_input，不能选择 continue。对于可执行目标，缺少新鲜验证证据、验证失败或约束未满足时不能选择 complete。\
-\n本路径是普通聊天上的独立验收，不依赖工作流计划目录或任务清单文件是否删除。\
-\n只返回一个严格 JSON 对象，不要 Markdown、代码围栏或额外文字：\
-\n{{\"status\":\"complete|continue|needs_input\",\"reason\":\"简洁原因\"}}\
-\n\n# 完成条件（用户原始查询）\n{}\
-\n\n# 执行证据\n{}",
-        original_goal.trim(),
-        {
-            let evidence = execution_evidence.trim();
-            if evidence.is_empty() {
-                "(空)"
-            } else {
-                evidence
-            }
-        }
-    )
-}
-
-fn build_lightweight_goal_continuation_prompt(original_goal: &str, reason: &str) -> String {
-    format!(
-        "这是目标续轮。目标尚未通过独立验收，请继续在当前仓库自主排障、实现并验证，直到满足完成条件。\
-\n不要询问用户；不要重复规划。必须运行相关验证并在回复中展示确切命令、退出码和结果。\
-\n请以可验证证据证明完成。外部凭据、权限或安全风险确实无法自行解决时，在回复中精确写出 `状态：已阻塞` 并记录阻塞原因。\
-\n本路径是普通聊天续轮，不创建或依赖工作流计划目录与任务清单文件。\
-\n\n# 本轮未通过原因\n{}\
-\n\n# 完成条件（用户原始查询）\n{}",
-        reason.trim(),
-        original_goal.trim(),
-    )
-}
-
-/// 一轮执行结束后，根据验收结果与显式阻塞决定是否续轮。
-fn lightweight_goal_next_action(
-    evaluation: LightweightGoalEvaluation,
-    reason: &str,
-    explicit_blocker: Option<&str>,
-) -> LightweightGoalNext {
-    if let Some(blocker) = explicit_blocker.map(str::trim).filter(|value| !value.is_empty()) {
-        return LightweightGoalNext::Blocked {
-            reason: blocker.to_string(),
-        };
-    }
-    match evaluation {
-        LightweightGoalEvaluation::Continue => LightweightGoalNext::Continue {
-            reason: reason.to_string(),
-        },
-        LightweightGoalEvaluation::Complete => LightweightGoalNext::Complete {
-            reason: reason.to_string(),
-        },
-        LightweightGoalEvaluation::NeedsInput => LightweightGoalNext::NeedsInput {
-            reason: reason.to_string(),
-        },
-    }
-}
-
-/// 将执行证据与评估 JSON 合成为下一动作（桌面续轮触发条件）。
-/// 将执行证据与评估输出合成为下一动作（桌面续轮触发条件）。
-fn resolve_lightweight_goal_turn(
-    execution_evidence: &str,
-    evaluation_output: &str,
-) -> LightweightGoalNext {
-    if let Some(blocker) = detect_explicit_lightweight_blocker(execution_evidence) {
-        return LightweightGoalNext::Blocked { reason: blocker };
-    }
-    // 这是纯决策函数；外层会用基础设施错误计数器保护空响应/非法 JSON。
-    let trimmed = evaluation_output.trim();
-    if trimmed.is_empty() {
-        return LightweightGoalNext::Continue {
-            reason: "独立验收未返回结论，请补充可验证证据并继续完成目标".to_string(),
-        };
-    }
-    match parse_lightweight_goal_evaluation(trimmed) {
-        Ok((evaluation, reason)) => lightweight_goal_next_action(evaluation, &reason, None),
-        Err(error) => LightweightGoalNext::Continue {
-            reason: format!("独立验收结论无效（{error}），请继续验证并完成目标"),
-        },
-    }
-}
-
-/// 把评估器协议错误纳入重复错误熔断，避免无效 JSON 触发无限续轮。
-fn lightweight_goal_evaluation_error(
-    execution_evidence: &str,
-    evaluation_output: &str,
-) -> Option<String> {
-    if detect_explicit_lightweight_blocker(execution_evidence).is_some() {
-        return None;
-    }
-    if evaluation_output.trim().is_empty() {
-        return Some("目标评估器返回空响应".to_string());
-    }
-    parse_lightweight_goal_evaluation(evaluation_output).err()
-}
-
-fn record_repeated_infrastructure_error(
-    error: &str,
-    last_error: &mut Option<String>,
-    repeated_errors: &mut u8,
-) -> bool {
-    if last_error.as_deref() == Some(error) {
-        *repeated_errors = repeated_errors.saturating_add(1);
-    } else {
-        *last_error = Some(error.to_string());
-        *repeated_errors = 1;
-    }
-    *repeated_errors >= 3
-}
-
-/// 评估流失败时转为续轮；连续三次相同基础设施错误才停机。
-fn lightweight_goal_infrastructure_continue(
-    error: &str,
-    last_error: &mut Option<String>,
-    repeated_errors: &mut u8,
-) -> LightweightGoalNext {
-    let reason = format!("目标验收基础设施错误：{error}");
-    if record_repeated_infrastructure_error(&reason, last_error, repeated_errors) {
-        LightweightGoalNext::Blocked {
-            reason: format!("连续三轮出现相同基础设施错误，目标模式已停止：{reason}"),
-        }
-    } else {
-        LightweightGoalNext::Continue { reason }
-    }
-}
-
-fn resolve_lightweight_goal_turn_with_infrastructure_guard(
-    execution_evidence: &str,
-    evaluation_output: &str,
-    last_infrastructure_error: &mut Option<String>,
-    repeated_infrastructure_errors: &mut u8,
-) -> LightweightGoalNext {
-    if let Some(error) = lightweight_goal_evaluation_error(execution_evidence, evaluation_output) {
-        return lightweight_goal_infrastructure_continue(
-            &error,
-            last_infrastructure_error,
-            repeated_infrastructure_errors,
-        );
-    }
-
-    let next = resolve_lightweight_goal_turn(execution_evidence, evaluation_output);
-    *last_infrastructure_error = None;
-    *repeated_infrastructure_errors = 0;
-    next
-}
-
-/// 独立验收一次：无会话落盘、禁用工具，对齐 provider 侧纯推理调用。
-async fn collect_lightweight_goal_evaluation(
-    endpoint: &vw_gateway_client::GatewayEndpoint,
-    root: Option<&str>,
-    parent_session_id: &str,
-    model: Option<String>,
-    evaluation_prompt: String,
-) -> Result<String, String> {
-    let evaluation_body = vw_gateway_client::GatewayChatStreamRequest {
-        // 复用原会话作为图片资产作用域 key；网关会通过 goal_evaluation
-        // 选项跳过这次验收内容的会话持久化。
-        session_id: (!parent_session_id.trim().is_empty())
-            .then(|| parent_session_id.to_string().into()),
-        messages: vec![serde_json::json!({"role": "user", "content": evaluation_prompt})],
-        system: Some(vec![
-            "你是严格的 JSON 会话决策器。只输出一个 JSON 对象，不得输出 Markdown、代码围栏、解释或其他文字。对象只能包含 status（complete、continue 或 needs_input）和 reason（非空字符串）。".to_string(),
-        ]),
-        model,
-        reasoning_effort: None,
-        agent: None,
-        allowed_tools: None,
-        acp_agent: None,
-        acp_allowed_tools: None,
-        options: Some(serde_json::json!({
-            "goal_mode": true,
-            "goal_evaluation": true,
-            "disable_tools": true,
-            "temperature": 0.0,
-            "max_output_tokens": 256,
-        })),
-    };
-    let mut evaluation_text = String::new();
-    let mut stream_error = None;
-    vw_gateway_client::GatewayClient::stream_chat(
-        endpoint,
-        root,
-        &evaluation_body,
-        |event| match event {
-            vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-                evaluation_text.push_str(&delta);
-                true
-            }
-            vw_gateway_client::GatewayChatStreamEvent::Done { .. } => false,
-            vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
-                stream_error = Some(error);
-                false
-            }
-            vw_gateway_client::GatewayChatStreamEvent::Other(_) => true,
-        },
-    )
-    .await?;
-    if let Some(error) = stream_error {
-        return Err(error);
-    }
-    Ok(evaluation_text)
-}
-
 /// 按工作流门控构造 plan-run 请求；未进入 plan-run 时返回 `Ok(None)`。
 /// 缺项目根目录错误仅在工作流已开启（即会进入 plan-run）时触发。
 fn build_task_plan_run_request(
@@ -2102,9 +1783,7 @@ async fn stream_task_plan_run_resumable(
     body: &vw_api_types::task::TaskPlanRunRequest,
     resume: &vw_gateway_client::GatewayStreamResume,
     on_event: impl FnMut(
-        vw_gateway_client::GatewayStreamEvent<
-            vw_api_types::task::TaskPlanRunStreamEventDto,
-        >,
+        vw_gateway_client::GatewayStreamEvent<vw_api_types::task::TaskPlanRunStreamEventDto>,
     ) -> bool,
 ) -> Result<vw_gateway_client::GatewayStreamAttemptResult, String> {
     tracing::info!(
@@ -2145,10 +1824,7 @@ fn gateway_request_options(
             options.insert("acp_allowed_tools".to_string(), json!(acp_allowed_tools));
         }
         options.insert("acp_force_new_session".to_string(), json!(req.acp_force_new_session));
-        options.insert(
-            "acp_history_strategy".to_string(),
-            json!(req.acp_history_mode.as_str()),
-        );
+        options.insert("acp_history_strategy".to_string(), json!(req.acp_history_mode.as_str()));
         options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
         options.insert("cwd".to_string(), json!(req.root));
         options.insert("acp_permission_mode".to_string(), json!("approve-all"));
@@ -2160,7 +1836,7 @@ fn gateway_request_options(
         options.insert("chat_system_prompt".to_string(), json!(system_prompt));
     }
     if lightweight_goal_enabled_for_request(req) {
-        // 目标清晰时才启用独立验收续轮；普通问答保持单轮响应。
+        // 目标模式由会话处理器依据 Todo 状态决定是否续轮。
         options.insert("goal_mode".to_string(), json!(true));
     }
     (!options.is_empty()).then_some(Value::Object(options))
@@ -2190,13 +1866,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 .map(|message| message.content.clone());
             let mut messages = Vec::new();
             for message in &req.history {
-                if subagent_system_prompt
-                    .as_deref()
-                    .is_some_and(|prompt| {
-                        matches!(message.role, models::ChatRole::System)
-                            && message.content == prompt
-                    })
-                {
+                if subagent_system_prompt.as_deref().is_some_and(|prompt| {
+                    matches!(message.role, models::ChatRole::System) && message.content == prompt
+                }) {
                     continue;
                 }
                 messages.push(json!({
@@ -2225,14 +1897,12 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 Ok(body) => body,
                 Err(error) => {
                     let _ = output
-                        .send(Message::Chat(message::ChatMessage::AgentStreamError(
-                            req.id, error,
-                        )))
+                        .send(Message::Chat(message::ChatMessage::AgentStreamError(req.id, error)))
                         .await;
                     return;
                 }
             };
-            let mut chat_body = vw_gateway_client::GatewayChatStreamRequest {
+            let chat_body = vw_gateway_client::GatewayChatStreamRequest {
                 session_id: Some(req.session.clone().into()),
                 messages: body
                     .get("messages")
@@ -2248,22 +1918,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 agent: req.agent.clone(),
                 allowed_tools: req.allowed_tools.clone(),
                 acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),
-                acp_allowed_tools: if req.acp_test {
-                    req.acp_allowed_tools.clone()
-                } else {
-                    None
-                },
+                acp_allowed_tools: if req.acp_test { req.acp_allowed_tools.clone() } else { None },
                 options: options.clone(),
             };
-            let goal_only = lightweight_goal_enabled_for_request(&req);
-            let original_goal = req.query.clone();
-            let mut goal_evidence = String::new();
-            let mut goal_turn = 0_u32;
-            let mut last_infrastructure_error: Option<String> = None;
-            let mut repeated_infrastructure_errors = 0_u8;
-            // Complete/Blocked 会发终端事件；异常退出也必须发，否则 UI 一直转圈。
-            let mut goal_terminal_sent = false;
-
             let mut stream_done;
             let mut last_plan_run_event: Option<&'static str> = None;
             let mut plan_run_session_ids = std::collections::HashSet::<String>::new();
@@ -2288,7 +1945,6 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 workflow_mode_enabled = req.workflow_mode_enabled,
                 goal_mode_enabled = req.goal_mode_enabled,
                 workflow_mode_active,
-                goal_only,
                 model = ?req.model,
                 has_root = req.root.is_some(),
                 history_len = req.history.len(),
@@ -2297,20 +1953,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "starting gateway agent stream"
             );
 
-            'goal_turns: loop {
-            goal_turn = goal_turn.saturating_add(1);
-            let mut reconnect = GatewayReconnectState::new(if goal_only {
-                desktop_stream_request_id_for_turn(&req, goal_turn)
-            } else {
-                desktop_stream_request_id(&req)
-            });
-            let mut assistant_turn_buffer = String::new();
-            let mut held_done: Option<(
-                crate::app::models::TokenUsage,
-                Option<String>,
-                Option<String>,
-            )> = None;
-            let mut chat_turn_failed = false;
+            let mut reconnect = GatewayReconnectState::new(desktop_stream_request_id(&req));
             stream_done = false;
 
             loop {
@@ -2530,12 +2173,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         delta_len = delta.len(),
                                         "desktop received gateway delta"
                                     );
-                                    if goal_only {
-                                        assistant_turn_buffer.push_str(&delta);
-                                    }
-                                    Some(Message::Chat(
-                                        message::ChatMessage::AgentStreamDelta(req.id, delta),
-                                    ))
+                                    Some(Message::Chat(message::ChatMessage::AgentStreamDelta(
+                                        req.id, delta,
+                                    )))
                                 }
                                 vw_gateway_client::GatewayChatStreamEvent::Done {
                                     usage,
@@ -2550,26 +2190,14 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         has_usage = usage.is_some(),
                                         message_id = ?message_id,
                                         parent_message_id = ?parent_message_id,
-                                        goal_only,
                                         "desktop received gateway done"
                                     );
-                                    if goal_only {
-                                        held_done = Some((
-                                            parse_usage(usage.as_ref()),
-                                            message_id,
-                                            parent_message_id,
-                                        ));
-                                        None
-                                    } else {
-                                        Some(Message::Chat(
-                                            message::ChatMessage::AgentStreamDone(
-                                                req.id,
-                                                parse_usage(usage.as_ref()),
-                                                message_id,
-                                                parent_message_id,
-                                            ),
-                                        ))
-                                    }
+                                    Some(Message::Chat(message::ChatMessage::AgentStreamDone(
+                                        req.id,
+                                        parse_usage(usage.as_ref()),
+                                        message_id,
+                                        parent_message_id,
+                                    )))
                                 }
                                 vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
                                     info!(
@@ -2578,12 +2206,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         event_id,
                                         "desktop received gateway error"
                                     );
-                                    if goal_only {
-                                        chat_turn_failed = true;
-                                    }
-                                    Some(Message::Chat(
-                                        message::ChatMessage::AgentStreamError(req.id, error),
-                                    ))
+                                    Some(Message::Chat(message::ChatMessage::AgentStreamError(
+                                        req.id, error,
+                                    )))
                                 }
                                 vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {
                                     match payload
@@ -2691,9 +2316,6 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
 
                             let Some(next_message) = next_message else {
                                 last_forwarded_event_id = Some(event_id);
-                                if goal_only && terminal_event {
-                                    stream_done = true;
-                                }
                                 return true;
                             };
 
@@ -2743,16 +2365,6 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             last_plan_run_event,
                             "gateway agent stream cancelled by UI subscription drop"
                         );
-                        if goal_only && !goal_terminal_sent {
-                            let _ = output
-                                .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                    req.id,
-                                    crate::app::models::TokenUsage::default(),
-                                    None,
-                                    None,
-                                )))
-                                .await;
-                        }
                         return;
                     }
                     GatewayStreamNext::PostToolRoundHandoff => {
@@ -2762,24 +2374,14 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             attempt,
                             "gateway agent stream stopped after post-tool-round handoff"
                         );
-                        if goal_only && !goal_terminal_sent {
-                            let _ = output
-                                .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                    req.id,
-                                    crate::app::models::TokenUsage::default(),
-                                    None,
-                                    None,
-                                )))
-                                .await;
-                        }
                         return;
                     }
                     GatewayStreamNext::Failed(error) => {
                         for session_id in plan_run_session_ids.drain() {
                             let _ = output
-                                .send(Message::Chat(
-                                    message::ChatMessage::PlanRunSessionFinished(session_id),
-                                ))
+                                .send(Message::Chat(message::ChatMessage::PlanRunSessionFinished(
+                                    session_id,
+                                )))
                                 .await;
                         }
                         debug!(
@@ -2810,173 +2412,6 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                         gateway_stream_retry_sleep(delay).await;
                     }
                 }
-            }
-
-            if workflow_mode_active {
-                break 'goal_turns;
-            }
-
-            if !goal_only {
-                break 'goal_turns;
-            }
-
-            if !stream_done || chat_turn_failed {
-                // chat_turn_failed 时流里已发过 AgentStreamError；其余异常结束补 Done，
-                // 避免目标续轮半截退出后 UI 仍认为请求进行中。
-                if goal_only && !chat_turn_failed && !goal_terminal_sent {
-                    if let Some((usage, message_id, parent_message_id)) = held_done.take() {
-                        let _ = output
-                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                req.id,
-                                usage,
-                                message_id,
-                                parent_message_id,
-                            )))
-                            .await;
-                    } else {
-                        let _ = output
-                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                req.id,
-                                crate::app::models::TokenUsage::default(),
-                                None,
-                                None,
-                            )))
-                            .await;
-                    }
-                    goal_terminal_sent = true;
-                } else if chat_turn_failed {
-                    goal_terminal_sent = true;
-                }
-                break 'goal_turns;
-            }
-
-            if !assistant_turn_buffer.is_empty() {
-                if !goal_evidence.is_empty() {
-                    goal_evidence.push_str("\n\n");
-                }
-                goal_evidence.push_str(&assistant_turn_buffer);
-            }
-
-            if let Some(blocker) = detect_explicit_lightweight_blocker(&assistant_turn_buffer) {
-                let _ = output
-                    .send(Message::Chat(message::ChatMessage::AgentStreamError(
-                        req.id,
-                        format!("目标模式已停止：{blocker}"),
-                    )))
-                    .await;
-                goal_terminal_sent = true;
-                break 'goal_turns;
-            }
-
-            let evaluation_prompt =
-                build_lightweight_goal_evaluation_prompt(&original_goal, &goal_evidence);
-            let evaluation_result = collect_lightweight_goal_evaluation(
-                &endpoint,
-                req.root.as_deref(),
-                &req.session,
-                chat_body.model.clone(),
-                evaluation_prompt,
-            )
-            .await;
-
-            let next = match evaluation_result {
-                Ok(evaluation_text) => resolve_lightweight_goal_turn_with_infrastructure_guard(
-                    &goal_evidence,
-                    &evaluation_text,
-                    &mut last_infrastructure_error,
-                    &mut repeated_infrastructure_errors,
-                ),
-                Err(error) => lightweight_goal_infrastructure_continue(
-                    &error,
-                    &mut last_infrastructure_error,
-                    &mut repeated_infrastructure_errors,
-                ),
-            };
-
-            match next {
-                LightweightGoalNext::Complete { reason }
-                | LightweightGoalNext::NeedsInput { reason } => {
-                    info!(
-                        target: "vw_desktop",
-                        request_id = req.id,
-                        reason = %reason,
-                        "lightweight goal stopped without continuation"
-                    );
-                    if let Some((usage, message_id, parent_message_id)) = held_done.take() {
-                        let _ = output
-                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                req.id,
-                                usage,
-                                message_id,
-                                parent_message_id,
-                            )))
-                            .await;
-                    } else {
-                        let _ = output
-                            .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                                req.id,
-                                crate::app::models::TokenUsage::default(),
-                                None,
-                                None,
-                            )))
-                            .await;
-                    }
-                    goal_terminal_sent = true;
-                    break 'goal_turns;
-                }
-                LightweightGoalNext::Blocked { reason } => {
-                    let _ = output
-                        .send(Message::Chat(message::ChatMessage::AgentStreamError(
-                            req.id,
-                            format!("目标模式已停止：{reason}"),
-                        )))
-                        .await;
-                    goal_terminal_sent = true;
-                    break 'goal_turns;
-                }
-                LightweightGoalNext::Continue { reason } => {
-                    info!(
-                        target: "vw_desktop",
-                        request_id = req.id,
-                        goal_turn,
-                        reason = %reason,
-                        "lightweight goal continuing"
-                    );
-                    // 续轮原因属于内部控制信息，不写入用户可见的聊天正文。
-                    let _ = output
-                        .send(Message::Chat(message::ChatMessage::AgentStreamDelta(
-                            req.id,
-                            "\n\n".to_string(),
-                        )))
-                        .await;
-                    if !assistant_turn_buffer.is_empty() {
-                        chat_body.messages.push(json!({
-                            "role": "assistant",
-                            "content": assistant_turn_buffer,
-                        }));
-                    }
-                    chat_body.messages.push(json!({
-                        "role": "user",
-                        "content": build_lightweight_goal_continuation_prompt(
-                            &original_goal,
-                            &reason,
-                        ),
-                    }));
-                    continue 'goal_turns;
-                }
-            }
-            } // 'goal_turns
-
-            if goal_only && !goal_terminal_sent {
-                // 兜底：任何未显式收尾的退出都释放 UI 请求态。
-                let _ = output
-                    .send(Message::Chat(message::ChatMessage::AgentStreamDone(
-                        req.id,
-                        crate::app::models::TokenUsage::default(),
-                        None,
-                        None,
-                    )))
-                    .await;
             }
 
             if workflow_mode_active && stream_done {

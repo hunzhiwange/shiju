@@ -75,7 +75,7 @@ fn dummy_user_carries_session_and_model_references() {
 
     assert!(user.id.starts_with("prompt-"));
     assert_eq!(user.session_id, "session-1");
-    assert_eq!(user.agent, "build");
+    assert_eq!(user.agent, "main");
     assert_eq!(user.model.provider_id, "provider-1");
     assert_eq!(user.model.model_id, "model-1");
     assert!(user.time.created > 0);

@@ -5,8 +5,8 @@
 
 use super::*;
 use vw_config_types::agent::{
-    BuiltinAgentKind, DelegateAgentConfig, builtin_agent_config, builtin_agent_keys,
-    builtin_agent_spec, merged_agent_configs,
+    BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config, builtin_agent_keys,
+    builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };
 use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
@@ -37,7 +37,9 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) tool_dispatcher: String,
     pub(crate) max_depth: u32,
     pub(crate) agentic: bool,
+    pub(crate) tool_policy: DelegateCapabilityPolicy,
     pub(crate) allowed_tools: Vec<String>,
+    pub(crate) skill_policy: DelegateCapabilityPolicy,
     pub(crate) allowed_skills: Vec<String>,
     pub(crate) enabled_identity_files: Vec<String>,
     pub(crate) max_iterations: u32,
@@ -96,7 +98,9 @@ impl DelegateAgentSettingsEntry {
             tool_dispatcher: "auto".to_string(),
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
+            tool_policy: config.tool_policy,
             allowed_tools: config.allowed_tools,
+            skill_policy: config.skill_policy,
             allowed_skills: config.allowed_skills,
             enabled_identity_files: config.enabled_identity_files,
             max_iterations: u32::try_from(config.max_iterations).unwrap_or(u32::MAX).max(1),
@@ -164,7 +168,7 @@ pub(crate) fn ordered_agent_keys(
 ) -> Vec<String> {
     let mut custom_agent_keys = configured_agents
         .keys()
-        .filter(|key| key.as_str() != "general")
+        .filter(|key| key.as_str() != "general" && !is_retired_builtin_agent_key(key))
         .filter(|key| builtin_agent_spec(key.as_str()).is_none())
         .cloned()
         .collect::<Vec<_>>();
@@ -251,7 +255,9 @@ pub(crate) fn agent_settings_entries_from_config(
                 hidden: config.hidden,
                 max_depth: config.max_depth,
                 agentic: config.agentic,
+                tool_policy: config.tool_policy,
                 allowed_tools: config.allowed_tools,
+                skill_policy: config.skill_policy,
                 allowed_skills: config.allowed_skills,
                 enabled_identity_files: config.enabled_identity_files,
                 options: config.options,

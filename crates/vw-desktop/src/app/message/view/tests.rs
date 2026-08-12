@@ -150,6 +150,7 @@ fn task_pet_view_messages_update_interaction_state() {
     let _ = super::update(&mut app, ViewMessage::TaskPetReplyPressed(41));
     let _ =
         super::update(&mut app, ViewMessage::TaskPetReplyInputChanged(" 继续执行 ".to_string()));
+    let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuOpened(12.0, 24.0));
 
     assert!(!app.task_pet_collapsed);
     assert!(app.task_pet_robot_hovered);
@@ -157,6 +158,10 @@ fn task_pet_view_messages_update_interaction_state() {
     assert_eq!(app.task_pet_hovered_request_id, Some(41));
     assert_eq!(app.task_pet_reply_request_id, Some(41));
     assert_eq!(app.task_pet_reply_input, " 继续执行 ");
+    assert_eq!(app.task_pet_context_menu_pos, Some((12.0, 24.0)));
+
+    let _ = super::update(&mut app, ViewMessage::TaskPetContextMenuClosed);
+    assert_eq!(app.task_pet_context_menu_pos, None);
 }
 
 #[test]

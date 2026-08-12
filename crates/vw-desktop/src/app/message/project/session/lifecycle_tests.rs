@@ -6,26 +6,11 @@ use super::lifecycle::{
     loaded_chat_from_gateway_messages, reset_boundary_loaded_end, steps_from_gateway_messages,
 };
 use crate::app::models::ChatRole;
-use crate::app::{Message, state::QuickMessageHandoffState};
 use serde_json::{Map, Value, json};
 use vw_shared::message::types as agent_message;
 
 fn app() -> crate::app::App {
     crate::app::App::new().0
-}
-
-async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
-    use iced_runtime::futures::futures::StreamExt;
-
-    let Some(mut stream) = iced_runtime::task::into_stream(task.collect()) else {
-        return Vec::new();
-    };
-    while let Some(action) = stream.next().await {
-        if let iced_runtime::Action::Output(messages) = action {
-            return messages;
-        }
-    }
-    Vec::new()
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
@@ -115,11 +100,7 @@ fn assistant_info_at(id: &str, created: u64) -> agent_message::Info {
     info
 }
 
-fn assistant_info_at_with_parent(
-    id: &str,
-    parent_id: &str,
-    created: u64,
-) -> agent_message::Info {
+fn assistant_info_at_with_parent(id: &str, parent_id: &str, created: u64) -> agent_message::Info {
     let mut info = assistant_info_at(id, created);
     if let agent_message::Info::Assistant(assistant) = &mut info {
         assistant.parent_id = parent_id.to_string();
@@ -191,15 +172,9 @@ fn text_message(info: agent_message::Info, text: &str) -> agent_message::WithPar
 #[test]
 fn loaded_chat_from_gateway_messages_orders_newest_first_gateway_results_chronologically() {
     let messages = vec![
-        text_message(
-            assistant_info_at_with_parent("assistant-2", "user-2", 40),
-            "second answer",
-        ),
+        text_message(assistant_info_at_with_parent("assistant-2", "user-2", 40), "second answer"),
         text_message(user_info_at("user-2", 30), "follow up"),
-        text_message(
-            assistant_info_at_with_parent("assistant-1", "user-1", 20),
-            "first answer",
-        ),
+        text_message(assistant_info_at_with_parent("assistant-1", "user-1", 20), "first answer"),
         text_message(user_info_at("user-1", 10), "first question"),
     ];
 
@@ -222,15 +197,9 @@ fn loaded_chat_from_gateway_messages_orders_newest_first_gateway_results_chronol
 #[test]
 fn loaded_chat_orders_parent_user_before_assistant_when_timestamps_conflict() {
     let messages = vec![
-        text_message(
-            assistant_info_at_with_parent("assistant-2", "user-2", 600),
-            "second answer",
-        ),
+        text_message(assistant_info_at_with_parent("assistant-2", "user-2", 600), "second answer"),
         text_message(user_info_at("user-2", 600), "follow up"),
-        text_message(
-            assistant_info_at_with_parent("assistant-1", "user-1", 100),
-            "first answer",
-        ),
+        text_message(assistant_info_at_with_parent("assistant-1", "user-1", 100), "first answer"),
         text_message(user_info_at("user-1", 500), "first question"),
     ];
 
@@ -256,10 +225,7 @@ fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
     let mut app = app();
     app.active_session_id = Some("session-1".to_string());
     let messages = vec![
-        text_message(
-            assistant_info_at_with_parent("assistant-1", "user-1", 1_000),
-            "answer",
-        ),
+        text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
         text_message(user_info_at("user-1", 9_000), "question"),
     ];
 
@@ -374,20 +340,18 @@ fn processing_timing_history_split_attaches_assistant_time_to_first_visible_row_
                 base: part_base("part-tool-timed", "assistant-timed"),
                 call_id: "call-timed".to_string(),
                 tool: "shell".to_string(),
-                state: agent_message::ToolState::Completed(
-                    agent_message::ToolStateCompleted {
-                        input: Map::new(),
-                        output: "done".to_string(),
-                        title: "run".to_string(),
-                        metadata: Map::new(),
-                        time: agent_message::ToolStateCompletedTime {
-                            start: 12,
-                            end: 18,
-                            compacted: None,
-                        },
-                        attachments: None,
+                state: agent_message::ToolState::Completed(agent_message::ToolStateCompleted {
+                    input: Map::new(),
+                    output: "done".to_string(),
+                    title: "run".to_string(),
+                    metadata: Map::new(),
+                    time: agent_message::ToolStateCompletedTime {
+                        start: 12,
+                        end: 18,
+                        compacted: None,
                     },
-                ),
+                    attachments: None,
+                }),
                 metadata: None,
             }),
             agent_message::Part::Text(agent_message::TextPart {
@@ -772,27 +736,6 @@ fn session_created_inserts_unique_session_and_resets_active_chat_state() {
     assert!(app.chat_message_ids.is_empty());
     assert_eq!(app.usage, crate::app::models::TokenUsage::default());
     assert!(!app.new_session_creating);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn session_created_sends_pending_summary_prompt_into_new_session() {
-    let mut app = app();
-    app.quick_message_handoff = Some(QuickMessageHandoffState::WaitingForSession {
-        prompt: "继续完成剩余任务".to_string(),
-    });
-
-    let task =
-        super::lifecycle::take_quick_message_handoff_task(&mut app, "new-session".to_string());
-    let messages = collect_task_messages(task).await;
-
-    assert!(app.quick_message_handoff.is_none());
-    assert!(messages.iter().any(|message| matches!(
-        message,
-        Message::Chat(crate::app::message::ChatMessage::SendToSession {
-            session_id,
-            input,
-        }) if session_id == "new-session" && input == "继续完成剩余任务"
-    )));
 }
 
 #[test]

@@ -22,6 +22,7 @@ use iced::widget::{
     button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Theme, Vector};
+use vw_config_types::agent::is_retired_builtin_agent_key;
 
 const UNBOUND_AGENT_LABEL: &str = "不绑定";
 const STAFF_TAB_ROSTER: &str = "名册";
@@ -963,8 +964,16 @@ fn save_action_btn_style(
 fn delegate_agent_options(app: &App, selected: &Option<String>) -> Vec<String> {
     let mut options = Vec::with_capacity(app.agents_settings.entries.len() + 2);
     options.push(UNBOUND_AGENT_LABEL.to_string());
-    options.extend(app.agents_settings.entries.iter().map(|entry| entry.key.clone()));
-    push_selected_agent(&mut options, selected);
+    options.extend(
+        app.agents_settings
+            .entries
+            .iter()
+            .filter(|entry| !is_retired_builtin_agent_key(&entry.key))
+            .map(|entry| entry.key.clone()),
+    );
+    if selected.as_deref().is_none_or(|key| !is_retired_builtin_agent_key(key)) {
+        push_selected_agent(&mut options, selected);
+    }
     options.sort();
     options.dedup();
     keep_unbound_first(options)

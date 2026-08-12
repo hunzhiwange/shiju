@@ -2,7 +2,9 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, Stack, button, column, container, mouse_area, row, scrollable, svg, text};
+use iced::widget::{
+    Space, Stack, button, column, container, mouse_area, row, scrollable, svg, text,
+};
 use iced::{Background, Border, Color, Element, Length, Point, Shadow, Theme, Vector};
 
 use crate::app::assets::{self, Icon};
@@ -768,9 +770,7 @@ fn navigation_button_maybe(
     }
 
     let mut control =
-        button(content).padding([9, 11])
-        .width(Length::Fill)
-        .style(navigation_button_style);
+        button(content).padding([9, 11]).width(Length::Fill).style(navigation_button_style);
     if let Some(message) = message {
         control = control.on_press(message);
     }
@@ -889,11 +889,28 @@ pub(super) fn task_session_context_menu(
     ));
 
     if app.session_menu_id.as_ref() == Some(&id) {
-        PointBelowOverlay::new(right_click, build_session_menu(id))
-            .show(true)
-            .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-            .on_close(Message::Project(ProjectMessage::SessionMenuClose))
-            .into()
+        let project_path = app
+            .known_session_directory(&id)
+            .or_else(|| app.project_path.clone())
+            .unwrap_or_default();
+        let compacting = app
+            .sessions
+            .iter()
+            .chain(app.project_sessions.values().flatten())
+            .find(|session| session.id == id)
+            .is_some_and(|session| session.time.compacting.is_some());
+        PointBelowOverlay::new(
+            right_click,
+            build_session_menu(
+                id.clone(),
+                project_path,
+                app.session_is_requesting(&id) || compacting,
+            ),
+        )
+        .show(true)
+        .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+        .on_close(Message::Project(ProjectMessage::SessionMenuClose))
+        .into()
     } else {
         right_click
     }

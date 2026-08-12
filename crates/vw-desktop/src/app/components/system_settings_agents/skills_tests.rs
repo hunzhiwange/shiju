@@ -1,11 +1,14 @@
 use super::skills::{
-    discovery_order_text, enabled_skill_ids, scope_description, scope_source_matches,
-    skill_card_button_style, skill_source_label, view,
+    capability_policy_label, discovery_order_text, enabled_skill_ids, scope_description,
+    scope_source_matches, skill_card_button_style, skill_policy_message, skill_source_label, view,
 };
+use crate::app::message::settings::{AgentsMessage, SettingsMessage};
+use crate::app::Message;
 use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope};
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Theme};
+use vw_config_types::agent::DelegateCapabilityPolicy;
 
 #[test]
 fn skill_source_label_maps_known_and_unknown_sources() {
@@ -14,6 +17,23 @@ fn skill_source_label_maps_known_and_unknown_sources() {
     assert_eq!(skill_source_label("global"), "全局");
     assert_eq!(skill_source_label("bundled"), "内置");
     assert_eq!(skill_source_label("remote"), "其他");
+}
+
+#[test]
+fn skill_capability_policy_controls_use_typed_messages_and_expected_labels() {
+    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Strict), "严格限制");
+    assert_eq!(
+        capability_policy_label(DelegateCapabilityPolicy::UserOverride),
+        "限制但允许用户选择"
+    );
+    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Unrestricted), "不限制");
+    assert!(matches!(
+        skill_policy_message("main".to_string(), DelegateCapabilityPolicy::Unrestricted),
+        Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(
+            ref agent,
+            DelegateCapabilityPolicy::Unrestricted,
+        ))) if agent == "main"
+    ));
 }
 
 #[test]
@@ -86,8 +106,8 @@ fn skills_view_renders_empty_loading_and_filtered_catalog_states() {
     app.skills_settings.loading = true;
 
     let loading_tree = Tree::new(view(&app, &entry).as_widget());
-    assert_eq!(loading_tree.children.len(), 3);
-    assert_eq!(loading_tree.children[2].children.len(), 2);
+    assert_eq!(loading_tree.children.len(), 4);
+    assert_eq!(loading_tree.children[3].children.len(), 2);
 
     app.skills_settings.loading = false;
     app.skills_settings.catalog = vec![
@@ -98,9 +118,9 @@ fn skills_view_renders_empty_loading_and_filtered_catalog_states() {
     app.skills_settings.directory_scope = SkillsDirectoryScope::All;
 
     let catalog_tree = Tree::new(view(&app, &entry).as_widget());
-    assert_eq!(catalog_tree.children.len(), 3);
-    assert_eq!(catalog_tree.children[2].children.len(), 2);
-    assert_eq!(catalog_tree.children[2].children[1].children.len(), 3);
+    assert_eq!(catalog_tree.children.len(), 4);
+    assert_eq!(catalog_tree.children[3].children.len(), 2);
+    assert_eq!(catalog_tree.children[3].children[1].children.len(), 3);
 }
 
 #[test]

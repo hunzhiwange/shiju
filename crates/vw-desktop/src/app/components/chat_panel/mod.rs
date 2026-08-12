@@ -91,7 +91,7 @@ use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use crate::app::theme_catalog::with_panel_background;
-use crate::app::{App, Message, TodoPanelPlacement, message, state::QuickMessageHandoffState};
+use crate::app::{App, Message, TodoPanelPlacement, message};
 
 use self::empty::{empty_session_placeholder, session_loading_placeholder};
 use self::global_status::chat_global_status_view;
@@ -149,10 +149,6 @@ fn chat_panel_context_menu_overlay<'a>(
         .close_on_target_click(true)
         .on_close(Message::Chat(message::ChatMessage::CloseMessageContextMenu))
         .into()
-}
-
-pub(crate) fn is_waiting_for_quick_message_session(app: &App) -> bool {
-    matches!(app.quick_message_handoff, Some(QuickMessageHandoffState::WaitingForSession { .. }))
 }
 
 fn session_loading_panel(app: &App) -> Element<'_, Message> {
@@ -278,12 +274,6 @@ fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
 /// let main_view = container(chat_panel);
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    // 摘要完成后的正文可能包含超长行。创建新会话期间不再重排旧会话正文，
-    // 避免 cosmic-text 在异步会话切换窗口中计算出溢出的字形坐标。
-    if is_waiting_for_quick_message_session(app) {
-        return session_loading_panel(app);
-    }
-
     let window = chat_panel_virtual_window(app);
     let start_idx = window.render_start_idx;
     let end_idx = window.render_end_idx;

@@ -72,6 +72,28 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
     }
 }
 
+fn persisted_user_message(id: &str) -> vw_shared::message::types::WithParts {
+    use vw_shared::message::types as message;
+
+    message::WithParts {
+        info: message::Info::User(Box::new(message::UserInfo {
+            id: id.to_string(),
+            session_id: "session-1".to_string(),
+            time: message::UserTime { created: 1 },
+            summary: None,
+            agent: crate::app::state::MAIN_AGENT_KEY.to_string(),
+            model: message::ModelRef {
+                provider_id: "provider".to_string(),
+                model_id: "model".to_string(),
+            },
+            system: None,
+            tools: None,
+            variant: None,
+        })),
+        parts: Vec::new(),
+    }
+}
+
 fn queue_item(
     query: &str,
     send_behavior: crate::app::state::ChatSendBehavior,
@@ -137,7 +159,7 @@ fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
 }
 
 #[test]
-fn summarize_create_action_starts_ai_summary_and_tracks_its_request() {
+fn compact_action_requests_confirmation_without_sending_chat_or_creating_session() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     let directory = "/workspace/project";
@@ -149,30 +171,22 @@ fn summarize_create_action_starts_ai_summary_and_tracks_its_request() {
 
     let _task = super::update(
         &mut app,
-        super::ChatMessage::SummarizeAndCreateNewSession { project_path: directory.to_string() },
+        super::ChatMessage::CompactSessionRequested {
+            session_id: session_id.clone(),
+            project_path: directory.to_string(),
+        },
     );
 
     let runtime = app.get_session_runtime(&session_id);
-    let request = runtime.active_agent_request.as_ref().expect("summary request should start");
-    assert!(request.query.contains("只输出这份提示词"));
-    assert!(matches!(
-        app.quick_message_handoff,
-        Some(crate::app::state::QuickMessageHandoffState::WaitingForSummary {
-            request_id,
-            ref source_session_id,
-            ref project_path,
-        }) if request_id == request.id
-            && source_session_id == &session_id
-            && project_path == directory
-    ));
-    assert_eq!(
-        app.chat.last().map(|message| message.role),
-        Some(crate::app::models::ChatRole::Assistant)
-    );
+    assert!(runtime.active_agent_request.is_none());
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.sessions.len(), 1);
+    assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
+    assert_eq!(_task.units(), 1);
 }
 
 #[test]
-fn summarize_create_action_rejects_a_busy_session() {
+fn compact_action_rejects_a_busy_session() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
@@ -183,13 +197,116 @@ fn summarize_create_action_rejects_a_busy_session() {
 
     let _task = super::update(
         &mut app,
-        super::ChatMessage::SummarizeAndCreateNewSession {
+        super::ChatMessage::CompactSessionRequested {
+            session_id: session_id.clone(),
             project_path: "/workspace/project".to_string(),
         },
     );
 
-    assert!(app.quick_message_handoff.is_none());
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("等待当前回复")));
+}
+
+#[test]
+fn compaction_uses_latest_user_boundary_independent_of_gateway_order() {
+    let newest_first = vec![persisted_user_message("user-3"), persisted_user_message("user-1")];
+    let oldest_first = vec![persisted_user_message("user-1"), persisted_user_message("user-3")];
+
+    assert_eq!(super::latest_persisted_user_message_id(&newest_first).as_deref(), Some("user-3"));
+    assert_eq!(super::latest_persisted_user_message_id(&oldest_first).as_deref(), Some("user-3"));
+}
+
+#[test]
+fn confirmed_compaction_marks_only_the_target_session_in_progress() {
+    let (mut app, _) = crate::app::App::new();
+    let directory = "/workspace/project";
+    app.active_session_id = Some("other-session".to_string());
+    app.sessions = vec![
+        session_info("target-session", "Target", directory),
+        session_info("other-session", "Other", directory),
+    ];
+
+    let task = super::update(
+        &mut app,
+        super::ChatMessage::CompactSessionConfirmationResolved {
+            session_id: "target-session".to_string(),
+            project_path: directory.to_string(),
+            confirmed: true,
+        },
+    );
+
+    assert_eq!(task.units(), 1);
+    assert!(
+        app.sessions
+            .iter()
+            .find(|session| session.id == "target-session")
+            .is_some_and(|session| session.time.compacting.is_some())
+    );
+    assert!(
+        app.sessions
+            .iter()
+            .find(|session| session.id == "other-session")
+            .is_some_and(|session| session.time.compacting.is_none())
+    );
+    assert_eq!(app.active_session_id.as_deref(), Some("other-session"));
+}
+
+#[test]
+fn compaction_success_preserves_session_id_reloads_and_shows_feedback() {
+    let (mut app, _) = crate::app::App::new();
+    let directory = "/workspace/project";
+    app.active_session_id = Some("session-1".to_string());
+    let mut info = session_info("session-1", "Current", directory);
+    info.time.compacting = Some(42);
+    app.sessions = vec![info];
+
+    let task = super::update(
+        &mut app,
+        super::ChatMessage::CompactSessionFinished {
+            session_id: "session-1".to_string(),
+            project_path: directory.to_string(),
+            result: Ok(true),
+        },
+    );
+
+    assert_eq!(task.units(), 2);
+    assert_eq!(app.active_session_id.as_deref(), Some("session-1"));
+    assert!(app.sessions[0].time.compacting.is_none());
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("压缩完成")));
+    assert!(matches!(
+        super::session_compaction_reload_message(
+            "session-1".to_string(),
+            directory.to_string(),
+        ),
+        crate::app::Message::Project(
+            crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, session_id)
+        ) if path == directory && session_id == "session-1"
+    ));
+}
+
+#[test]
+fn compaction_failure_clears_guard_keeps_session_and_shows_error() {
+    let (mut app, _) = crate::app::App::new();
+    let directory = "/workspace/project";
+    app.active_session_id = Some("session-1".to_string());
+    let mut info = session_info("session-1", "Current", directory);
+    info.time.compacting = Some(42);
+    app.sessions = vec![info];
+
+    let task = super::update(
+        &mut app,
+        super::ChatMessage::CompactSessionFinished {
+            session_id: "session-1".to_string(),
+            project_path: directory.to_string(),
+            result: Err("gateway unavailable".to_string()),
+        },
+    );
+
+    assert_eq!(task.units(), 1);
+    assert_eq!(app.active_session_id.as_deref(), Some("session-1"));
+    assert!(app.sessions[0].time.compacting.is_none());
+    assert!(app.active_toast.as_ref().is_some_and(|toast| {
+        toast.message.contains("压缩失败") && toast.message.contains("gateway unavailable")
+    }));
 }
 
 #[test]
@@ -506,12 +623,8 @@ fn compose_query_with_session_context_can_stand_alone_without_query() {
 
 #[test]
 fn compose_query_with_session_context_supports_skills_without_tools() {
-    let composed = super::compose_query_with_session_context(
-        " inspect ",
-        &[],
-        &["rust".to_string()],
-        &[],
-    );
+    let composed =
+        super::compose_query_with_session_context(" inspect ", &[], &["rust".to_string()], &[]);
 
     assert!(composed.starts_with("inspect\n\n<session_control_selection>"));
     assert!(!composed.contains("工具："));
@@ -1106,10 +1219,7 @@ fn processing_timing_start_uses_runtime_request_start_and_cancel_creates_indepen
     assert_eq!(assistant_timings.len(), 2);
     assert!(assistant_timings[0].completed_ms.is_some());
     assert!(assistant_timings[1].completed_ms.is_none());
-    assert_eq!(
-        app.get_session_runtime("s1").request_started_ms,
-        assistant_timings[1].started_ms
-    );
+    assert_eq!(app.get_session_runtime("s1").request_started_ms, assistant_timings[1].started_ms);
 }
 
 #[test]
@@ -1288,10 +1398,7 @@ fn send_current_session_input_keeps_workflow_mode_for_any_query_when_toggle_on()
             request.workflow_mode_enabled,
             "workflow toggle must enter plan-run for any query: {query}"
         );
-        assert!(
-            runtime.workflow_mode_enabled,
-            "sending must not turn off the workflow toggle"
-        );
+        assert!(runtime.workflow_mode_enabled, "sending must not turn off the workflow toggle");
     }
 }
 
@@ -1344,10 +1451,7 @@ fn send_current_session_input_keeps_goal_mode_for_root_session() {
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root-goal");
-    let request = runtime
-        .active_agent_request
-        .as_ref()
-        .expect("request should start");
+    let request = runtime.active_agent_request.as_ref().expect("request should start");
     assert!(request.goal_mode_enabled);
     assert!(!request.workflow_mode_enabled);
 }
@@ -1412,15 +1516,9 @@ fn subagent_mode_request_disabled_preserves_restricted_tools() {
     let runtime = app.get_session_runtime("root-standard");
     let request = runtime.active_agent_request.as_ref().expect("request should start");
     assert!(!request.require_agent_tool);
-    assert_eq!(
-        request.allowed_tools.as_ref().expect("restricted tools"),
-        &["shell".to_string()]
-    );
+    assert_eq!(request.allowed_tools.as_ref().expect("restricted tools"), &["shell".to_string()]);
     assert!(
-        request
-            .history
-            .iter()
-            .all(|message| message.content != super::SUBAGENT_MODE_SYSTEM_PROMPT)
+        request.history.iter().all(|message| message.content != super::SUBAGENT_MODE_SYSTEM_PROMPT)
     );
 }
 

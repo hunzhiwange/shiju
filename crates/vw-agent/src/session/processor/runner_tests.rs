@@ -93,7 +93,7 @@ fn session_protocol_initial_step_contains_explicit_workspace_agents() {
     let mut protocol = super::DesktopSessionProtocol::default();
 
     let messages = protocol
-        .assemble(&history, base_system.instruction_context(), false)
+        .assemble(&history, base_system.instruction_context(), false, &[])
         .expect("assemble initial protocol messages");
 
     assert_eq!(messages.last(), history.last());
@@ -103,6 +103,49 @@ fn session_protocol_initial_step_contains_explicit_workspace_agents() {
                 content.contains("AGENTS.md") && content.contains("INITIAL_AGENTS_PROTOCOL")
             })
     }));
+}
+
+#[test]
+fn delegate_skill_policy_preloads_defaults_and_honors_trusted_user_override() {
+    let workspace = tempfile::tempdir().expect("skill workspace");
+    let default_path = workspace.path().join("default/SKILL.md");
+    let user_path = workspace.path().join("user/SKILL.md");
+    std::fs::create_dir_all(default_path.parent().expect("default parent")).expect("default dir");
+    std::fs::create_dir_all(user_path.parent().expect("user parent")).expect("user dir");
+    std::fs::write(&default_path, "# Default\nDEFAULT_SKILL_BODY").expect("default skill");
+    std::fs::write(&user_path, "# User\nUSER_SKILL_BODY").expect("user skill");
+    let skills = vec![
+        crate::app::agent::skills::Skill {
+            name: "default".to_string(),
+            location: Some(default_path),
+            ..Default::default()
+        },
+        crate::app::agent::skills::Skill {
+            name: "user".to_string(),
+            location: Some(user_path),
+            ..Default::default()
+        },
+    ];
+    let options = serde_json::json!({
+        "delegate_skill_policy": "user_override",
+        "delegate_default_allowed_skills": ["default"],
+        "delegate_trusted_user_selected_skills": ["user"],
+    });
+    let resolution = super::delegated_skill_policy_resolution(&skills, &options)
+        .expect("delegated policy should resolve");
+    assert_eq!(resolution.visible_ids, ["default", "user"].into_iter().map(String::from).collect());
+
+    let mut protocol = super::DesktopSessionProtocol::new(skills, "delegate", 20_000);
+    protocol.preload_default_skills(&resolution.default_injected_ids).expect("preload default");
+    let history = vec![serde_json::json!({"role": "user", "content": "work"})];
+    let first = protocol.assemble(&history, &[], true, &[]).expect("first protocol");
+    let second = protocol.assemble(&history, &[], true, &[]).expect("second protocol");
+    let default_count = |messages: &[serde_json::Value]| {
+        messages.iter().filter(|message| message["content"].as_str().is_some_and(|content| content.contains("DEFAULT_SKILL_BODY"))).count()
+    };
+    assert_eq!(default_count(&first), 1);
+    assert_eq!(default_count(&second), 1);
+    assert!(!first.iter().any(|message| message["content"].as_str().is_some_and(|content| content.contains("USER_SKILL_BODY"))));
 }
 
 use crate::app::agent::session::llm;
@@ -451,19 +494,77 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
         },
         Some(490),
     )
-    .expect("the next LLM step should be prepared after clearing old output");
+    .expect("the next LLM step should report whether internal compaction is required");
 
-    assert!(result.passes > 0);
-    assert_eq!(result.cleared_tool_results, 1);
+    assert!(result.needs_internal_compaction);
     assert!(messages.iter().any(|message| message["role"] == "system"));
     assert!(messages.iter().any(|message| message["role"] == "user"));
-    assert_eq!(
+    assert_ne!(
         messages
             .iter()
             .find(|message| message["tool_call_id"] == "call-0")
             .and_then(|message| message["content"].as_str()),
-        Some(super::context_governance::STALE_TOOL_RESULT_PLACEHOLDER)
+        Some("old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output ")
     );
+}
+
+#[test]
+fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Delta("remembered context".to_string()),
+        crate::app::agent::session::llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        },
+    ]);
+    let mut messages = vec![
+        serde_json::json!({ "role": "system", "content": "system" }),
+        serde_json::json!({ "role": "user", "content": "old request" }),
+        serde_json::json!({ "role": "assistant", "content": "old response" }),
+        serde_json::json!({ "role": "user", "content": "latest request" }),
+    ];
+
+    let compacted = super::compact_transient_history_for_request(
+        "runner-transient-compaction",
+        &mut messages,
+        "provider/model",
+    )
+    .expect("summary should succeed");
+
+    assert!(compacted);
+    assert_eq!(messages.len(), 2);
+    assert!(messages[0]["content"].as_str().is_some_and(|text| text.contains("remembered context")));
+    assert_eq!(messages[1]["content"], "latest request");
+    assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
+}
+
+#[test]
+fn transient_internal_compaction_keeps_history_when_summary_fails() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Error(
+            crate::app::agent::session::message::AssistantError::Unknown {
+                message: "summary unavailable".to_string(),
+            },
+        ),
+    ]);
+    let mut messages = vec![
+        serde_json::json!({ "role": "system", "content": "system" }),
+        serde_json::json!({ "role": "user", "content": "old request" }),
+        serde_json::json!({ "role": "user", "content": "latest request" }),
+    ];
+    let before = messages.clone();
+
+    let error = super::compact_transient_history_for_request(
+        "runner-transient-compaction-failure",
+        &mut messages,
+        "provider/model",
+    )
+    .expect_err("failed summaries must not change history");
+
+    assert!(error.contains("summary unavailable"));
+    assert_eq!(messages, before);
 }
 
 #[test]
@@ -577,7 +678,6 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
     let mut tool_state = super::ToolSessionState::default();
     let mut retries = 2usize;
     let mut step = 0;
-    let mut tried_auto_complete_todos = false;
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
     let step_out = llm_step("  final answer  ");
@@ -596,7 +696,6 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
         &mut tool_state,
         &mut retries,
         &mut step,
-        &mut tried_auto_complete_todos,
         &step_out,
         "final answer",
         &empty_tools,
@@ -627,7 +726,6 @@ fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
     let mut tool_state = super::ToolSessionState::default();
     let mut retries = 0usize;
     let mut step = 0;
-    let mut tried_auto_complete_todos = false;
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
 
@@ -647,7 +745,6 @@ fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
         &mut tool_state,
         &mut retries,
         &mut step,
-        &mut tried_auto_complete_todos,
         &step_out,
         "plain final answer",
         &empty_tools,
@@ -671,7 +768,6 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
     let mut tool_state = super::ToolSessionState::default();
     let mut retries = 0usize;
     let mut step = 0;
-    let mut tried_auto_complete_todos = false;
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
     let mut step_out = llm_step("   ");
@@ -691,7 +787,6 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
         &mut tool_state,
         &mut retries,
         &mut step,
-        &mut tried_auto_complete_todos,
         &step_out,
         "",
         &empty_tools,
@@ -724,7 +819,6 @@ fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
     let mut tool_state = super::ToolSessionState::default();
     let mut retries = 0usize;
     let mut step = 0;
-    let mut tried_auto_complete_todos = false;
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
     let mut allowed_tools = HashSet::new();
@@ -756,7 +850,6 @@ fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
         &mut tool_state,
         &mut retries,
         &mut step,
-        &mut tried_auto_complete_todos,
         &step_out,
         "看起来已经完成了",
         &empty_tools,
@@ -770,6 +863,69 @@ fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
     assert!(session.messages.iter().any(|message| {
         message.role == super::Role::User && message.content.contains("任务未完成")
     }));
+    assert!(!event_texts(&events).iter().any(|text| text == "done"));
+}
+
+#[test]
+fn unfinished_todos_do_not_auto_complete_from_assistant_text() {
+    use crate::app::agent::tools::{TODO_WRITE_TOOL_ID, todo};
+
+    let session_id = unique_session_id("assistant-text-does-not-complete-todos");
+    let req = request_with_session(&session_id);
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state =
+        super::ToolSessionState { non_todo_tool_runs: 1, ..Default::default() };
+    let mut retries = 0usize;
+    let mut step = 0;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+    let mut allowed_tools = HashSet::new();
+    allowed_tools.insert(TODO_WRITE_TOOL_ID.to_string());
+    let answer =
+        "I completed the requested work after inspecting the repository, applying the changes, and verifying the result.";
+    let step_out = llm_step(answer);
+
+    let seed = serde_json::json!({
+        "todos": [{
+            "id": "1",
+            "content": "still pending work",
+            "status": "pending",
+            "priority": "medium"
+        }]
+    })
+    .to_string();
+    todo::write(&seed, &ctx).expect("seed incomplete todos");
+
+    let should_continue = super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &allowed_tools,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &step_out,
+        answer,
+        &empty_tools,
+        false,
+        1,
+        None,
+    );
+
+    let todos: Vec<todo::Todo> =
+        serde_json::from_str(&todo::read(&ctx).expect("read todos")).expect("parse todos");
+    assert!(should_continue);
+    assert_eq!(todos[0].status, "pending");
+    assert_eq!(step, 1);
     assert!(!event_texts(&events).iter().any(|text| text == "done"));
 }
 

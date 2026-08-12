@@ -1,6 +1,7 @@
 use super::*;
 use crate::app::agent::config::{self, Config};
 use crate::app::agent::security::SecurityPolicy;
+use crate::tools::traits::Tool;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -35,7 +36,9 @@ async fn upsert_agent_sets_optional_fields_and_allowlists() {
             "max_iterations": 7,
             "agentic": true,
             "allowed_tools": [" web_search ", "file_read"],
-            "allowed_skills": "research, summarize"
+            "allowed_skills": "research, summarize",
+            "tool_policy": "strict",
+            "skill_policy": "user_override"
         }))
         .await
         .unwrap();
@@ -52,8 +55,30 @@ async fn upsert_agent_sets_optional_fields_and_allowlists() {
     assert_eq!(agent["agentic"], true);
     assert_eq!(agent["allowed_tools"], json!(["web_search", "file_read"]));
     assert_eq!(agent["allowed_skills"], json!(["research", "summarize"]));
+    assert_eq!(agent["tool_policy"], "strict");
+    assert_eq!(agent["skill_policy"], "user_override");
     let stored = config::get_project_blocking(tmp.path()).unwrap();
     assert!(stored.agents["researcher"].allow_as_subagent);
+    assert_eq!(stored.agents["researcher"].tool_policy, DelegateCapabilityPolicy::Strict);
+    assert_eq!(
+        stored.agents["researcher"].skill_policy,
+        DelegateCapabilityPolicy::UserOverride
+    );
+}
+
+#[test]
+fn upsert_agent_schema_exposes_independent_capability_policies() {
+    let tmp = TempDir::new().unwrap();
+    let schema = test_tool(&tmp).parameters_schema();
+
+    assert_eq!(
+        schema["properties"]["tool_policy"]["enum"],
+        json!(["strict", "user_override", "unrestricted"])
+    );
+    assert_eq!(
+        schema["properties"]["skill_policy"]["enum"],
+        json!(["strict", "user_override", "unrestricted"])
+    );
 }
 
 #[tokio::test]
@@ -102,7 +127,7 @@ async fn upsert_agent_nulls_restore_optional_and_limit_defaults() {
 }
 
 #[tokio::test]
-async fn upsert_agent_rejects_invalid_limits_and_agentic_without_tools() {
+async fn upsert_agent_rejects_invalid_limits() {
     for (args, expected) in [
         (
             json!({"name": "a", "provider": "p", "model": "m", "temperature": 2.01}),
@@ -115,10 +140,6 @@ async fn upsert_agent_rejects_invalid_limits_and_agentic_without_tools() {
         (
             json!({"name": "a", "provider": "p", "model": "m", "max_iterations": 0}),
             "'max_iterations' must be greater than 0",
-        ),
-        (
-            json!({"name": "a", "provider": "p", "model": "m", "agentic": true}),
-            "Agent 'a' has agentic=true but allowed_tools is empty. Set allowed_tools or disable agentic mode.",
         ),
     ] {
         let tmp = TempDir::new().unwrap();

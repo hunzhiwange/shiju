@@ -4,7 +4,6 @@ mod docs;
 mod file_links;
 mod message_format;
 mod output_compaction;
-mod query_analysis;
 mod session_ingest;
 mod tool_parsing;
 
@@ -24,7 +23,6 @@ pub(crate) use output_compaction::{
     rewrite_todowrite_completed_when_no_work, sanitize_tool_input, sanitize_tool_input_for_ui,
     tool_fingerprint, truncate_string,
 };
-pub(crate) use query_analysis::should_try_auto_complete_todos;
 #[allow(unused_imports)]
 pub(crate) use session_ingest::{ingest_assistant_answer, ingest_user_query, push_user_dedup};
 #[allow(unused_imports)]

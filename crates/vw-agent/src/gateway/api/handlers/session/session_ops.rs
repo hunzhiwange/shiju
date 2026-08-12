@@ -1,4 +1,4 @@
-//! 会话生命周期、分支、重置和摘要 API。
+//! 会话生命周期、分支、重置和元数据 API。
 //!
 //! 本模块实现桌面网关的会话列表、状态、创建、更新、删除、fork、reset、diff、
 //! summarize 和标题生成入口。涉及项目目录的操作都会进入实例上下文，跨实例查询则
@@ -500,16 +500,16 @@ pub(super) async fn session_diff(
     Ok(Json(diffs))
 }
 
-/// 生成并保存会话摘要。
+/// 对指定用户消息之前的会话历史执行手动压缩。
 ///
 /// # 参数
 ///
 /// * `session_id` - 目标会话 id。
-/// * `body` - 摘要截止消息 id。
+/// * `body` - 目标消息 id。
 ///
 /// # 返回值
 ///
-/// 成功时返回 `true`。
+/// 返回值表示是否真的替换了历史；无法生成摘要时返回可诊断错误，且保留原历史。
 pub(super) async fn session_summarize(
     Path(session_id): Path<String>,
     Query(query): Query<InstanceQuery>,
@@ -520,17 +520,24 @@ pub(super) async fn session_summarize(
     let dir = resolve_directory(&query, &headers);
     with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
-            agent_session::summary::summarize(agent_session::summary::SummarizeInput {
-                session_id,
-                message_id: body.message_id,
-            })
+            let outcome = agent_session::compaction::process_session(
+                &session_id,
+                &body.message_id,
+                false,
+            )
             .await
-            .map_err(|e| ApiError::bad_request(e.to_string()))?;
-            Ok(())
+            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+            match outcome {
+                agent_session::compaction::CompactionOutcome::Compacted { .. } => Ok(true),
+                agent_session::compaction::CompactionOutcome::NotNeeded { .. } => Ok(false),
+                agent_session::compaction::CompactionOutcome::Failed { error, .. } => {
+                    Err(ApiError::bad_request(error))
+                }
+            }
         })
     })
-    .await?;
-    Ok(Json(true))
+    .await
+    .map(Json)
 }
 
 /// 根据内容生成会话标题。

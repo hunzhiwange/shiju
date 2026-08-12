@@ -6,7 +6,7 @@
 //! # 主要功能
 //!
 //! - 基于会话首条消息内容生成标题
-//! - 支持优先使用指定模型，回退到系统默认模型
+//! - 支持优先使用指定模型，回退到系统小型模型
 //! - 自动截断过长的标题，保证标题简洁性
 //!
 //! # 使用示例
@@ -35,6 +35,9 @@ const CONTENT_TRUNCATE_CHARS: usize = 200;
 /// 标题截断后省略号前的字符数
 const TITLE_TRUNCATE_KEEP: usize = 47;
 
+/// 内部标题请求的固定运行模式。
+const INTERNAL_TITLE_MODE: &str = "chat";
+
 fn truncate_title_source(content: String) -> String {
     if content.chars().count() > CONTENT_TRUNCATE_CHARS {
         content.chars().take(CONTENT_TRUNCATE_CHARS).collect::<String>()
@@ -55,6 +58,74 @@ fn apply_acp_agent_options(options: &mut HashMap<String, Value>, acp_agent: Opti
         options.insert("acp_test".to_string(), Value::Bool(true));
         options.insert("acp_agent".to_string(), Value::String(agent.to_string()));
     }
+}
+
+/// 组装仅供运行时使用的标题请求 profile。
+///
+/// 标题生成不是用户可选 Agent：它没有配置项、系统提示词或工具权限，只有一次纯文本请求。
+fn internal_title_profile(acp_agent: Option<&str>) -> crate::app::agent::session::llm::AgentInfo {
+    let mut options = HashMap::new();
+    apply_acp_agent_options(&mut options, acp_agent);
+
+    crate::app::agent::session::llm::AgentInfo {
+        name: "session-title".to_string(),
+        mode: INTERNAL_TITLE_MODE.to_string(),
+        prompt: None,
+        temperature: None,
+        top_p: None,
+        options,
+        permission: Default::default(),
+    }
+}
+
+async fn stream_title(
+    session_id: String,
+    user: crate::app::agent::session::message::UserInfo,
+    model: provider::Model,
+    prompt: String,
+    acp_agent: Option<&str>,
+) -> Result<String, crate::app::agent::session::llm::Error> {
+    use std::sync::{Arc, Mutex};
+
+    let output = Arc::new(Mutex::new(String::new()));
+    let output_clone = Arc::clone(&output);
+    let profile = internal_title_profile(acp_agent);
+
+    tracing::info!(
+        target: "vw_agent",
+        session_id = %session_id,
+        operation = "session_title",
+        provider_id = %model.provider_id,
+        model_id = %model.id,
+        acp_test = acp_agent.is_some(),
+        acp_agent = ?acp_agent,
+        "starting internal session title generation"
+    );
+
+    crate::app::agent::session::llm::stream(
+        crate::app::agent::session::llm::StreamInput {
+            agent: profile,
+            user,
+            session_id,
+            model,
+            system: Vec::new(),
+            abort: None,
+            messages: vec![serde_json::json!({ "role": "user", "content": prompt })],
+            small: true,
+            tools: Default::default(),
+            retries: 1,
+        },
+        move |event| {
+            if let crate::app::agent::session::llm::StreamEvent::Delta(d) = event
+                && let Ok(mut output) = output_clone.lock()
+            {
+                output.push_str(&d);
+            }
+        },
+    )
+    .await?;
+
+    Ok(output.lock().unwrap_or_else(|e| e.into_inner()).clone())
 }
 
 fn finalize_generated_title(output: &str) -> Result<String, String> {
@@ -88,7 +159,6 @@ fn finalize_generated_title(output: &str) -> Result<String, String> {
 /// - `Ok(String)`: 生成的标题，长度不超过 50 字符
 /// - `Err(String)`: 错误信息，可能原因包括：
 ///   - 输入内容为空
-///   - 未找到可用的标题生成代理配置
 ///   - 未找到可用的模型
 ///   - LLM 调用失败
 ///   - 生成的标题为空
@@ -116,8 +186,7 @@ fn finalize_generated_title(output: &str) -> Result<String, String> {
 /// 1. **内容预处理**：截断过长内容（超过 200 字符），避免 LLM token 浪费
 /// 2. **模型解析与回退**：
 ///    - 尝试解析并获取指定的优先模型
-///    - 若无指定或不可用，回退到代理配置的默认模型
-///    - 若仍不可用，依次尝试 Anthropic 和 OpenAI 的小型模型
+///    - 若无指定或不可用，依次尝试 Anthropic 和 OpenAI 的小型模型
 /// 3. **LLM 调用**：构造提示词并流式调用 LLM
 /// 4. **后处理**：截断过长标题（超过 50 字符），添加省略号
 pub async fn generate_from_content(
@@ -133,12 +202,6 @@ pub async fn generate_from_content(
     if truncated.trim().is_empty() {
         return Err("Empty title source".to_string());
     }
-
-    // 获取标题生成代理的配置信息
-    let agent_info = crate::app::agent::agent::get("title").await;
-    let Some(agent_info) = agent_info else {
-        return Err("No title agent found".to_string());
-    };
 
     // 解析优先模型：支持 "provider/model" 和 "model" 两种格式
     let preferred_resolved = if let Some(s) = preferred_model.as_ref() {
@@ -168,11 +231,8 @@ pub async fn generate_from_content(
     let model = if preferred_resolved.is_some() {
         // 优先级 1：用户指定的模型
         preferred_resolved
-    } else if let Some(m) = crate::app::agent::agent::resolve_model_ref(&agent_info).as_ref() {
-        // 优先级 2：代理配置的默认模型
-        provider::get_model(&m.provider_id, &m.model_id).await.ok()
     } else {
-        // 优先级 3：系统小型模型（先尝试 Anthropic，再尝试 OpenAI）
+        // 优先级 2：系统小型模型（先尝试 Anthropic，再尝试 OpenAI）
         match provider::get_small_model("anthropic").await {
             Some(m) => Some(m),
             None => provider::get_small_model("openai").await,
@@ -184,81 +244,64 @@ pub async fn generate_from_content(
         return Err("No model available for title generation".to_string());
     };
 
-    // 构造标题生成提示词
-    let prompt = build_title_prompt(&truncated);
-
-    // 准备流式输出收集器
-    use std::sync::{Arc, Mutex};
-    let output = Arc::new(Mutex::new(String::new()));
-    let output_clone = Arc::clone(&output);
-
-    // 构造 LLM 代理信息
-    let mut options = agent_info.options.clone();
-    apply_acp_agent_options(&mut options, acp_agent.as_deref());
-    let llm_agent = crate::app::agent::session::llm::AgentInfo {
-        name: "title".to_string(),
-        mode: agent_info.mode.clone(),
-        prompt: agent_info.system_prompt.clone(),
-        temperature: agent_info.temperature,
-        top_p: agent_info.top_p,
-        options,
-        permission: crate::app::agent::agent::permission_rules("title").await.unwrap_or_default(),
-    };
-    tracing::info!(
-        target: "vw_agent",
-        session_id = %session_id,
-        agent = "title",
-        provider_id = %model.provider_id,
-        model_id = %model.id,
-        acp_test = acp_agent.is_some(),
-        acp_agent = ?acp_agent,
-        "starting session title generation"
-    );
-
-    // 调用 LLM 流式接口生成标题
-    crate::app::agent::session::llm::stream(
-        crate::app::agent::session::llm::StreamInput {
-            agent: llm_agent,
-            user: crate::app::agent::session::message::UserInfo {
-                id: "title_gen".to_string(),
-                session_id: session_id.clone(),
-                time: crate::app::agent::session::message::UserTime {
-                    created: crate::app::agent::session::session::now_ms(),
-                },
-                summary: None,
-                agent: "title".to_string(),
-                model: crate::app::agent::session::message::ModelRef {
-                    provider_id: model.provider_id.clone(),
-                    model_id: model.id.clone(),
-                },
-                system: None,
-                tools: None,
-                variant: None,
+    let output = stream_title(
+        session_id.clone(),
+        crate::app::agent::session::message::UserInfo {
+            id: "title_gen".to_string(),
+            session_id,
+            time: crate::app::agent::session::message::UserTime {
+                created: crate::app::agent::session::session::now_ms(),
             },
-            session_id: session_id.clone(),
-            model,
-            system: Vec::new(),
-            abort: None,
-            messages: vec![serde_json::json!({ "role": "user", "content": prompt })],
-            small: true,
-            tools: Default::default(),
-            retries: 1,
+            summary: None,
+            agent: "session-title".to_string(),
+            model: crate::app::agent::session::message::ModelRef {
+                provider_id: model.provider_id.clone(),
+                model_id: model.id.clone(),
+            },
+            system: None,
+            tools: None,
+            variant: None,
         },
-        // 流式事件回调：收集 LLM 输出的文本片段
-        move |event| {
-            if let crate::app::agent::session::llm::StreamEvent::Delta(d) = event
-                && let Ok(mut s) = output_clone.lock()
-            {
-                s.push_str(&d);
-            }
-        },
+        model,
+        build_title_prompt(&truncated),
+        acp_agent.as_deref(),
     )
     .await
-    .map_err(|e| format!("LLM stream error: {}", e))?;
+    .map_err(|e| format!("LLM stream error: {e}"))?;
 
-    // 提取并清理生成的标题
-    let output = output.lock().unwrap_or_else(|e| e.into_inner());
     finalize_generated_title(&output)
+}
+
+/// 为会话中已持久化的用户消息生成标题。
+///
+/// 此路径优先使用同一提供商的小型模型，再回退到该消息实际使用的模型，避免改变
+/// 会话元数据的成本与路由语义。
+pub(crate) async fn generate_message_title(
+    session_id: &str,
+    user: crate::app::agent::session::message::UserInfo,
+    content: String,
+) -> Result<Option<String>, crate::app::agent::session::llm::Error> {
+    let content = truncate_title_source(content);
+    if content.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let model = match provider::get_small_model(&user.model.provider_id).await {
+        Some(model) => Some(model),
+        None => provider::get_model(&user.model.provider_id, &user.model.model_id).await.ok(),
+    };
+    let Some(model) = model else { return Ok(None) };
+
+    let output = stream_title(
+        session_id.to_string(),
+        user,
+        model,
+        build_title_prompt(&content),
+        None,
+    )
+    .await?;
+    let title = output.trim();
+    Ok((!title.is_empty()).then(|| title.to_string()))
 }
 #[cfg(test)]
 #[path = "title_tests.rs"]

@@ -128,6 +128,20 @@ fn agent_options_filter_disabled_entries_but_preserve_selection_and_main_fallbac
 }
 
 #[test]
+fn agent_options_exclude_retired_builtin_agents() {
+    let mut app = test_app();
+    app.agents_settings.entries = vec![
+        DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, None),
+        DelegateAgentSettingsEntry::from_config("build", None),
+    ];
+
+    let options = build_agent_options(&app, "build");
+
+    assert!(options.iter().any(|option| option.key == MAIN_AGENT_KEY));
+    assert!(!options.iter().any(|option| option.key == "build"));
+}
+
+#[test]
 fn agent_options_insert_main_when_agent_registry_is_empty() {
     let mut app = test_app();
     app.agents_settings.entries.clear();

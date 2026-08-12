@@ -117,7 +117,7 @@ impl QuickMessageKind {
             Self::Message => "发送消息",
             Self::FillInput => "填入输入框",
             Self::CreateNewSession => "创建新会话",
-            Self::SummarizeAndCreateNewSession => "摘要并创建新会话",
+            Self::SummarizeAndCreateNewSession => "压缩当前会话",
             Self::RefreshGitChanges => "刷新 Git 变更",
             Self::SelectAllGitChanges => "全选 Git 变更",
             Self::InvertGitSelection => "反选 Git 变更",
@@ -132,7 +132,7 @@ impl QuickMessageKind {
             Self::Message => Some("发送"),
             Self::FillInput => None,
             Self::CreateNewSession => Some("新会话"),
-            Self::SummarizeAndCreateNewSession => Some("摘要并新建"),
+            Self::SummarizeAndCreateNewSession => Some("压缩"),
             Self::RefreshGitChanges => Some("刷新"),
             Self::SelectAllGitChanges => Some("全选"),
             Self::InvertGitSelection => Some("反选"),
@@ -430,7 +430,7 @@ pub fn builtin_general_quick_messages() -> Vec<QuickMessageConfig> {
         send("执行下一步"),
         fill("摘要并生成下一个任务的提示词"),
         QuickMessageConfig {
-            text: "摘要并创建新会话".to_string(),
+            text: "压缩当前会话".to_string(),
             group: QuickMessageGroup::General,
             kind: QuickMessageKind::SummarizeAndCreateNewSession,
         },
@@ -508,9 +508,14 @@ pub fn upgrade_legacy_quick_message_actions(messages: &mut [QuickMessageConfig])
         .collect::<Vec<_>>();
 
     for item in messages {
-        if item.text.trim() == "摘要并创建新会话" && item.kind == QuickMessageKind::CreateNewSession
+        if matches!(item.text.trim(), "摘要并创建新会话" | "压缩当前会话")
+            && matches!(
+                item.kind,
+                QuickMessageKind::CreateNewSession | QuickMessageKind::SummarizeAndCreateNewSession
+            )
         {
             item.kind = QuickMessageKind::SummarizeAndCreateNewSession;
+            item.text = "压缩当前会话".to_string();
         } else if item.group == QuickMessageGroup::General
             && item.kind == QuickMessageKind::Message
             && fill_input_texts.iter().any(|text| item.text.trim() == text)

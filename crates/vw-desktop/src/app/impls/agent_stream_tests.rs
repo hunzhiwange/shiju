@@ -42,10 +42,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
 
     use vw_gateway_client::GatewayStreamAttemptResult;
 
-    assert_eq!(
-        super::GATEWAY_STREAM_MAX_RETRY_DELAY,
-        Duration::from_secs(3 * 60 * 60)
-    );
+    assert_eq!(super::GATEWAY_STREAM_MAX_RETRY_DELAY, Duration::from_secs(3 * 60 * 60));
     assert!(
         !SOURCE.contains("任务异常终止：未收到网关完成信号"),
         "an incomplete gateway attempt must enter the reconnect loop instead of failing"
@@ -65,8 +62,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     }
 
     let run_until_stopped = |stream_kind: &str, script: Vec<ScriptedAttempt>| {
-        let mut state =
-            super::GatewayReconnectState::new(format!("desktop-test-{stream_kind}"));
+        let mut state = super::GatewayReconnectState::new(format!("desktop-test-{stream_kind}"));
         let mut attempts = VecDeque::from(script);
         let mut attempt_count = 0;
         let mut waits = Vec::new();
@@ -123,30 +119,15 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
 
     let mut reset = super::GatewayReconnectState::new("desktop-test-reset".to_string());
     assert_eq!(
-        reset.finish_attempt(
-            Ok(GatewayStreamAttemptResult::Incomplete),
-            false,
-            None,
-            None,
-        ),
+        reset.finish_attempt(Ok(GatewayStreamAttemptResult::Incomplete), false, None, None,),
         super::GatewayStreamNext::Retry(Duration::from_millis(500))
     );
     assert_eq!(
-        reset.finish_attempt(
-            Ok(GatewayStreamAttemptResult::Incomplete),
-            false,
-            None,
-            None,
-        ),
+        reset.finish_attempt(Ok(GatewayStreamAttemptResult::Incomplete), false, None, None,),
         super::GatewayStreamNext::Retry(Duration::from_secs(1))
     );
     assert_eq!(
-        reset.finish_attempt(
-            Ok(GatewayStreamAttemptResult::Incomplete),
-            true,
-            Some(11),
-            None,
-        ),
+        reset.finish_attempt(Ok(GatewayStreamAttemptResult::Incomplete), true, Some(11), None,),
         super::GatewayStreamNext::Retry(Duration::from_millis(500))
     );
     assert_eq!(reset.resume().last_event_id, Some(11));
@@ -220,9 +201,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
             None,
             None,
         ),
-        super::GatewayStreamNext::Failed(
-            "gateway stream failed: 400 Bad Request".to_string()
-        )
+        super::GatewayStreamNext::Failed("gateway stream failed: 400 Bad Request".to_string())
     );
 
     let request = super::AgentRequest {
@@ -251,11 +230,6 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     assert_eq!(stable_id, super::desktop_stream_request_id(&request));
     assert!(!stable_id.contains(&request.session));
     assert!(!stable_id.contains(&request.query));
-    let turn1 = super::desktop_stream_request_id_for_turn(&request, 1);
-    let turn2 = super::desktop_stream_request_id_for_turn(&request, 2);
-    assert_ne!(turn1, turn2, "goal turns must not reuse stream request ids");
-    assert!(turn1.starts_with(&stable_id) && turn1.ends_with("-t1"));
-    assert!(turn2.starts_with(&stable_id) && turn2.ends_with("-t2"));
 }
 
 #[test]
@@ -1829,10 +1803,7 @@ fn sample_agent_request(
 
 #[test]
 fn goal_only_does_not_activate_task_plan_run() {
-    assert!(
-        !super::task_plan_run_active(false, false),
-        "goal alone must not enter task_plan_run"
-    );
+    assert!(!super::task_plan_run_active(false, false), "goal alone must not enter task_plan_run");
     let request = sample_agent_request(false, true, None);
     let plan_run = super::build_task_plan_run_request(&request)
         .expect("goal-only without root must not demand project root");
@@ -1844,11 +1815,12 @@ fn goal_only_does_not_activate_task_plan_run() {
 #[test]
 fn lightweight_goal_gate_is_structural_and_language_agnostic() {
     let mut request = sample_agent_request(false, true, None);
-    for query in ["帮我分析一下", "Please take a look", "これを見て", "حلّل هذا"] {
+    for query in ["帮我分析一下", "Please take a look", "これを見て", "حلّل هذا"]
+    {
         request.query = query.to_string();
         assert!(
             super::lightweight_goal_enabled_for_request(&request),
-            "query semantics must be delegated to the evaluator: {query}"
+            "goal mode must be enabled independently of query language: {query}"
         );
     }
 
@@ -1863,6 +1835,27 @@ fn lightweight_goal_gate_is_structural_and_language_agnostic() {
 }
 
 #[test]
+fn lightweight_goal_mode_finishes_without_secondary_evaluation() {
+    let request = sample_agent_request(false, true, Some("/tmp/project"));
+    let options = super::gateway_request_options(&request, None).expect("goal mode options");
+
+    assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
+    assert_eq!(
+        SOURCE.matches("GatewayClient::stream_chat").count(),
+        1,
+        "ordinary goal mode must send only the main chat request"
+    );
+    assert!(SOURCE.contains("AgentStreamDone"));
+    assert!(
+        !SOURCE.contains("\"goal_evaluation\": true")
+            && !SOURCE.contains("独立会话决策器")
+            && !SOURCE.contains("build_lightweight_goal_continuation_prompt"),
+        "ordinary goal mode must not send an evaluator request or a continuation prompt"
+    );
+}
+
+#[cfg(any())]
+#[test]
 fn lightweight_goal_continues_until_evaluation_passes() {
     let rejected = super::resolve_lightweight_goal_turn(
         "已改代码，但还没跑测试",
@@ -1873,10 +1866,8 @@ fn lightweight_goal_continues_until_evaluation_passes() {
         super::LightweightGoalNext::Continue { reason } if reason.contains("缺少验证退出码")
     ));
 
-    let continuation = super::build_lightweight_goal_continuation_prompt(
-        "修复登录超时",
-        "缺少验证退出码证据",
-    );
+    let continuation =
+        super::build_lightweight_goal_continuation_prompt("修复登录超时", "缺少验证退出码证据");
     assert!(continuation.contains("目标续轮"));
     assert!(continuation.contains("修复登录超时"));
     assert!(!continuation.contains("编号任务文件"));
@@ -1947,22 +1938,34 @@ fn lightweight_goal_continues_until_evaluation_passes() {
 
     let mut last_evaluation_error = None;
     let mut repeated_evaluation_errors = 0_u8;
+    let skipped_evaluation = super::resolve_lightweight_goal_turn_with_infrastructure_guard(
+        "已执行一轮",
+        "模型返回了说明文字而不是 JSON",
+        &mut last_evaluation_error,
+        &mut repeated_evaluation_errors,
+    );
+    assert!(matches!(
+        skipped_evaluation,
+        super::LightweightGoalNext::Skipped { reason } if reason.contains("目标验收已跳过")
+    ));
+    assert_eq!(repeated_evaluation_errors, 0);
+
     for _ in 0..2 {
         let next = super::resolve_lightweight_goal_turn_with_infrastructure_guard(
             "已执行一轮",
-            "模型返回了说明文字而不是 JSON",
+            "```json\n{\"status\":\"unknown\",\"reason\":\"无效状态\"}\n```",
             &mut last_evaluation_error,
             &mut repeated_evaluation_errors,
         );
         assert!(matches!(
             next,
             super::LightweightGoalNext::Continue { reason }
-                if reason.contains("目标评估器必须返回严格 JSON")
+                if reason.contains("目标评估器 status 无效")
         ));
     }
     let blocked_evaluation = super::resolve_lightweight_goal_turn_with_infrastructure_guard(
         "已执行一轮",
-        "模型返回了说明文字而不是 JSON",
+        "```json\n{\"status\":\"unknown\",\"reason\":\"无效状态\"}\n```",
         &mut last_evaluation_error,
         &mut repeated_evaluation_errors,
     );
@@ -1989,13 +1992,12 @@ fn lightweight_goal_continues_until_evaluation_passes() {
     let options = super::gateway_request_options(&request, None).expect("goal-only options");
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert!(
-        super::build_task_plan_run_request(&request)
-            .expect("goal-only")
-            .is_none(),
+        super::build_task_plan_run_request(&request).expect("goal-only").is_none(),
         "goal-only continuation must not create task_plan_run / plan directory"
     );
 }
 
+#[cfg(any())]
 #[test]
 fn lightweight_goal_stops_on_explicit_blocker() {
     let blocked = super::resolve_lightweight_goal_turn(

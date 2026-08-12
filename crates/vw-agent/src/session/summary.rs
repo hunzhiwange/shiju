@@ -1,15 +1,13 @@
-//! 会话摘要模块
+//! 会话元数据模块
 //!
-//! 本模块提供会话变更统计和消息摘要生成功能。
+//! 本模块提供会话变更统计和消息标题生成功能。
 //! 主要职责包括：
 //! - 计算会话中的文件变更差异（新增、删除行数）
-//! - 为用户消息生成标题摘要
+//! - 为用户消息生成标题
 //! - 管理会话级别的差异存储和事件发布
 
-use crate::app::agent::agent;
 use crate::app::agent::bus;
 use crate::app::agent::project::instance;
-use crate::app::agent::provider::provider;
 use crate::app::agent::snapshot;
 use crate::app::agent::storage;
 use crate::app::agent::util::log;
@@ -19,11 +17,10 @@ use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::LazyLock;
-use std::sync::{Arc, Mutex};
 
 /// 模块日志记录器
 ///
-/// 用于记录摘要生成过程中的关键事件，如标题生成结果。
+/// 用于记录会话元数据更新过程中的关键事件，如标题生成结果。
 static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     log::create(Some({
         let mut m = Map::new();
@@ -32,9 +29,9 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-/// 摘要模块错误类型
+/// 会话元数据错误类型
 ///
-/// 封装了会话摘要生成过程中可能发生的各类错误。
+/// 封装了会话元数据更新过程中可能发生的各类错误。
 #[derive(Debug)]
 pub enum Error {
     /// 会话相关错误
@@ -86,9 +83,9 @@ impl From<storage::Error> for Error {
     }
 }
 
-/// 摘要生成输入参数
+/// 会话元数据更新输入参数
 ///
-/// 指定需要进行摘要生成的会话和消息。
+/// 指定需要更新元数据的会话和消息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SummarizeInput {
     /// 会话唯一标识符
@@ -129,15 +126,15 @@ fn worktree_path() -> PathBuf {
     if wt.is_empty() { PathBuf::from(".") } else { PathBuf::from(wt) }
 }
 
-/// 生成会话和消息摘要
+/// 更新会话和消息元数据
 ///
-/// 该函数执行两个层级的摘要生成：
-/// 1. 会话级摘要：统计整个会话的文件变更（新增/删除行数、文件数）
-/// 2. 消息级摘要：为指定用户消息生成标题和关联的文件差异
+/// 该函数更新两个层级的元数据：
+/// 1. 会话级文件变更统计（新增/删除行数、文件数）
+/// 2. 指定用户消息的标题和关联文件差异
 ///
 /// # 参数
 ///
-/// * `input` - 摘要输入参数，包含会话ID和消息ID
+/// * `input` - 元数据更新输入参数，包含会话ID和消息ID
 ///
 /// # 返回值
 ///
@@ -154,16 +151,16 @@ pub async fn summarize(input: SummarizeInput) -> Result<(), Error> {
     // 按消息ID排序，确保时序正确
     all.sort_by(|a, b| a.info.id().cmp(b.info.id()));
 
-    // 执行会话级摘要
+    // 更新会话级文件变更元数据
     summarize_session(&input.session_id, &all).await?;
-    // 执行消息级摘要
+    // 更新消息级元数据
     summarize_message(&input.session_id, &input.message_id, &all).await?;
     Ok(())
 }
 
-/// 生成会话级摘要
+/// 更新会话级文件变更元数据
 ///
-/// 计算会话中所有文件变更的统计数据，并更新会话摘要信息。
+/// 计算会话中所有文件变更的统计数据，并更新会话元数据。
 ///
 /// # 参数
 ///
@@ -264,10 +261,10 @@ pub async fn refresh_session_diff_summary(
     persist_session_diff_summary(session_id, diffs, summary).await
 }
 
-/// 生成消息级摘要
+/// 更新消息级元数据
 ///
-/// 为指定的用户消息生成详细摘要，包括文件差异和标题。
-/// 如果消息尚未有标题，会调用 LLM 生成一个简洁的标题。
+/// 为指定的用户消息更新文件差异和标题。
+/// 如果消息尚未有标题，会调用内部标题能力生成一个简洁标题。
 ///
 /// # 参数
 ///
@@ -280,7 +277,7 @@ pub async fn refresh_session_diff_summary(
 /// 1. 筛选出目标消息及其关联的助手回复
 /// 2. 计算这些消息涉及的文件差异
 /// 3. 更新消息的文件差异摘要
-/// 4. 若消息无标题，使用 LLM 生成标题
+/// 4. 若消息无标题，使用内部标题能力生成标题
 async fn summarize_message(
     session_id: &str,
     message_id: &str,
@@ -332,82 +329,13 @@ async fn summarize_message(
         _ => None,
     });
 
-    // 若消息尚无标题，使用 LLM 生成
+    // 若消息尚无标题，使用内部标题能力生成
     if user.summary.as_ref().and_then(|s| s.title.as_ref()).is_none() {
         let Some(text) = text_part else { return Ok(()) };
+        let title = super::title::generate_message_title(session_id, user.clone(), text).await?;
 
-        // 获取标题生成代理配置
-        let Some(agent_info) = agent::get("title").await else { return Ok(()) };
-
-        // 确定使用的模型：优先使用代理配置的模型，否则使用小型模型或原模型
-        let model = if let Some(m) = agent::resolve_model_ref(&agent_info).as_ref() {
-            provider::get_model(&m.provider_id, &m.model_id).await.ok()
-        } else {
-            if let Some(sm) = provider::get_small_model(&user.model.provider_id).await {
-                Some(sm)
-            } else {
-                provider::get_model(&user.model.provider_id, &user.model.model_id).await.ok()
-            }
-        };
-        let Some(model) = model else { return Ok(()) };
-
-        // 构建 LLM 代理信息
-        let llm_agent = super::llm::AgentInfo {
-            name: "title".to_string(),
-            mode: agent_info.mode.clone(),
-            prompt: agent_info.system_prompt.clone(),
-            temperature: agent_info.temperature,
-            top_p: agent_info.top_p,
-            options: agent_info.options.clone(),
-            permission: agent::permission_rules("title").await.unwrap_or_default(),
-        };
-
-        // 构造提示内容
-        let content = format!(
-            "\n              The following is the text to summarize:\n              <text>\n              {}\n              </text>\n            ",
-            text
-        );
-
-        // 收集 LLM 输出
-        let out = Arc::new(Mutex::new(String::new()));
-        let out2 = out.clone();
-
-        // 调用 LLM 流式生成标题
-        super::llm::stream(
-            super::llm::StreamInput {
-                agent: llm_agent,
-                user: user.clone(),
-                tools: Default::default(),
-                model,
-                small: true,
-                messages: vec![json!({ "role": "user", "content": content })],
-                abort: None,
-                session_id: session_id.to_string(),
-                system: Vec::new(),
-                retries: 3,
-            },
-            move |event| match event {
-                // 累积生成的文本片段
-                super::llm::StreamEvent::Delta(d) => {
-                    if let Ok(mut s) = out2.lock() {
-                        s.push_str(&d);
-                    }
-                }
-                // 忽略其他事件类型
-                super::llm::StreamEvent::ReasoningDelta(_) => {}
-                super::llm::StreamEvent::ToolCalls(_) => {}
-                super::llm::StreamEvent::FullMessages(_) => {}
-                super::llm::StreamEvent::Done { .. } => {}
-                super::llm::StreamEvent::Error(_) => {}
-            },
-        )
-        .await?;
-
-        // 提取并清理生成的标题
-        let title = out.lock().unwrap_or_else(|e| e.into_inner()).trim().to_string();
-
-        // 若生成了有效标题，更新消息
-        if !title.is_empty() {
+        // 若生成了有效标题，更新消息。
+        if let Some(title) = title {
             if let Some(s) = user.summary.as_mut() {
                 s.title = Some(title.clone());
             }

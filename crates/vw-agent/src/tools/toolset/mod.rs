@@ -827,13 +827,15 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(ComposioTool::new(key, composio_entity_id, security.clone())));
     }
 
-    tool_arcs.push(Arc::new(SkillTool::new_with_runtime_config(
-        security.clone(),
-        session_id.to_string(),
-        false,
-        workspace_dir.to_path_buf(),
-        config.clone(),
-    )));
+    tool_arcs.push(Arc::new(
+        SkillTool::new_with_runtime_config(
+            security.clone(),
+            session_id.to_string(),
+            false,
+            workspace_dir.to_path_buf(),
+            config.clone(),
+        ),
+    ));
     tool_arcs.push(Arc::new(BriefTool::new(security.clone())));
     tool_arcs.push(Arc::new(SleepTool::new()));
     tool_arcs

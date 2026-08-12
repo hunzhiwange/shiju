@@ -511,7 +511,9 @@ fn build_agents_settings_patch(
             if builtin_agent_spec(&entry.key).is_some_and(|spec| spec.allow_as_subagent) {
                 agent.insert("allowed_tools".to_string(), serde_json::json!(allowed_tools));
             }
+            agent.insert("tool_policy".to_string(), serde_json::json!(entry.tool_policy));
             agent.insert("allowed_skills".to_string(), serde_json::json!(allowed_skills));
+            agent.insert("skill_policy".to_string(), serde_json::json!(entry.skill_policy));
             agent.insert(
                 "enabled_identity_files".to_string(),
                 serde_json::json!(enabled_identity_files),
@@ -529,7 +531,9 @@ fn build_agents_settings_patch(
                 "temperature": entry.temperature.clamp(0.0, 2.0),
                 "max_depth": entry.max_depth.clamp(1, 32),
                 "agentic": entry.agentic,
+                "tool_policy": entry.tool_policy,
                 "allowed_tools": allowed_tools,
+                "skill_policy": entry.skill_policy,
                 "allowed_skills": allowed_skills,
                 "enabled_identity_files": enabled_identity_files,
                 "max_iterations": entry.max_iterations.max(1),
@@ -1039,6 +1043,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
         }
+        AgentsMessage::ToolPolicyChanged(agent_key, tool_policy) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.tool_policy = tool_policy;
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
+        }
         AgentsMessage::AllowedToolToggled(agent_key, tool_id, enabled) => {
             if !enabled && vw_config_types::tools::is_builtin_required_tool_id(&tool_id) {
                 return Task::none();
@@ -1101,6 +1112,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::ToolsListTabSelected(tab_key) => {
             app.agents_settings.active_tools_list_tab = tab_key;
             Task::none()
+        }
+        AgentsMessage::SkillPolicyChanged(agent_key, skill_policy) => {
+            if let Some(entry) = find_entry_mut(app, &agent_key) {
+                entry.skill_policy = skill_policy;
+            }
+            app.agents_settings.save_error = None;
+            persist_agents_settings(app)
         }
         AgentsMessage::AllowedSkillToggled(agent_key, skill_id, enabled) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {

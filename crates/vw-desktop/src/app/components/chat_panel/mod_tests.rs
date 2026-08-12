@@ -1,9 +1,9 @@
 use super::{
     active_user_question_idx, chat_message_column, chat_panel_context_menu_overlay,
     chat_panel_virtual_window, chat_todo_overlay, compute_visible_message_window_for_chat,
-    is_chat_message_idx_visible, is_waiting_for_quick_message_session, jump_to_bottom_button,
-    live_message_meta_fallback, rough_message_heights, user_question_indices,
-    user_question_nav_overlay, user_question_preview, view,
+    is_chat_message_idx_visible, jump_to_bottom_button, live_message_meta_fallback,
+    rough_message_heights, user_question_indices, user_question_nav_overlay, user_question_preview,
+    view,
 };
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
@@ -11,7 +11,13 @@ use crate::app::{App, Message, TodoPanelPlacement};
 use vw_shared::todo::Todo;
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn todo(id: &str) -> Todo {
@@ -260,20 +266,6 @@ fn chat_panel_context_menu_has_a_single_overlay_owner() {
     ] {
         assert!(!source.contains("PointBelowOverlay"));
     }
-}
-
-#[test]
-fn chat_panel_hides_completed_summary_while_new_session_is_created() {
-    let (mut app, _) = App::new();
-    app.active_session_id = Some("source".to_string());
-    app.chat = vec![message(ChatRole::Assistant, &"x".repeat(100_000))];
-    app.quick_message_handoff =
-        Some(crate::app::state::QuickMessageHandoffState::WaitingForSession {
-            prompt: "handoff".to_string(),
-        });
-
-    assert!(is_waiting_for_quick_message_session(&app));
-    keep_element(view(&app));
 }
 
 #[test]

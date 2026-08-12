@@ -18,6 +18,7 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardDetailTab};
 use crate::app::task::{Task, TaskSplitMode};
 use crate::app::{App, Message};
+use vw_config_types::agent::is_retired_builtin_agent_key;
 
 use super::common::{button_style_primary, button_style_secondary, button_style_success};
 
@@ -710,6 +711,9 @@ fn build_agent_options(app: &App, selected_key: &str) -> Vec<TaskBoardAgentOptio
     let mut options = Vec::new();
 
     for entry in &app.agents_settings.entries {
+        if is_retired_builtin_agent_key(&entry.key) {
+            continue;
+        }
         if entry.key != MAIN_AGENT_KEY && !entry.enabled && selected_key != entry.key {
             continue;
         }

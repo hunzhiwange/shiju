@@ -923,7 +923,7 @@ fn task_plan_run_request_ignores_legacy_mode_and_goal_events_round_trip() {
         turn: 2,
         achieved: false,
         reason: "clippy exits 1".to_string(),
-        session_id: "task-1-goal-eval-2".to_string(),
+        session_id: "task-1-goal-2".to_string(),
     };
     let encoded = serde_json::to_value(&evaluated).expect("serialize goal evaluation");
     assert_eq!(encoded["type"], "goal_evaluated");

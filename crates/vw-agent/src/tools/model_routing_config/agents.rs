@@ -1,6 +1,6 @@
 use super::ModelRoutingConfigTool;
 use super::{DEFAULT_AGENT_MAX_DEPTH, DEFAULT_AGENT_MAX_ITERATIONS};
-use crate::app::agent::config::{self, DelegateAgentConfig};
+use crate::app::agent::config::{self, DelegateAgentConfig, DelegateCapabilityPolicy};
 use crate::app::agent::util::MaybeSet;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -20,6 +20,16 @@ impl ModelRoutingConfigTool {
         let max_depth_update = Self::parse_optional_u32_update(args, "max_depth")?;
         let max_iterations_update = Self::parse_optional_usize_update(args, "max_iterations")?;
         let agentic_update = Self::parse_optional_bool(args, "agentic")?;
+        let tool_policy_update = args
+            .get("tool_policy")
+            .map(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value.clone()))
+            .transpose()
+            .map_err(|error| anyhow::anyhow!("Invalid 'tool_policy': {error}"))?;
+        let skill_policy_update = args
+            .get("skill_policy")
+            .map(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value.clone()))
+            .transpose()
+            .map_err(|error| anyhow::anyhow!("Invalid 'skill_policy': {error}"))?;
 
         let allowed_tools_update = if let Some(raw) = args.get("allowed_tools") {
             Some(Self::parse_string_list(raw, "allowed_tools")?)
@@ -54,7 +64,9 @@ impl ModelRoutingConfigTool {
             hidden: false,
             max_depth: DEFAULT_AGENT_MAX_DEPTH,
             agentic: false,
+            tool_policy: DelegateCapabilityPolicy::default(),
             allowed_tools: Vec::new(),
+            skill_policy: DelegateCapabilityPolicy::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
@@ -105,6 +117,13 @@ impl ModelRoutingConfigTool {
             next_agent.agentic = agentic;
         }
 
+        if let Some(tool_policy) = tool_policy_update {
+            next_agent.tool_policy = tool_policy;
+        }
+        if let Some(skill_policy) = skill_policy_update {
+            next_agent.skill_policy = skill_policy;
+        }
+
         if let Some(allowed_tools) = allowed_tools_update {
             next_agent.allowed_tools = allowed_tools;
         }
@@ -118,12 +137,6 @@ impl ModelRoutingConfigTool {
 
         if next_agent.max_iterations == 0 {
             anyhow::bail!("'max_iterations' must be greater than 0");
-        }
-
-        if next_agent.agentic && next_agent.allowed_tools.is_empty() {
-            anyhow::bail!(
-                "Agent '{name}' has agentic=true but allowed_tools is empty. Set allowed_tools or disable agentic mode."
-            );
         }
 
         cfg.agents.insert(name.clone(), next_agent);

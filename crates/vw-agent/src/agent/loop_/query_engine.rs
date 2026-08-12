@@ -25,7 +25,7 @@ use vw_config_types::agent::merged_agent_configs;
 
 use super::context::build_context;
 use super::core::agent_turn;
-use super::history::{auto_compact_history, trim_history};
+use super::history::compact_history_with_internal_service;
 use super::instructions::{build_shell_policy_instructions, build_tool_instructions};
 
 /// 会话级查询引擎。
@@ -90,6 +90,7 @@ pub(crate) struct QueryEngine {
     default_temperature: f64,
     multimodal_config: crate::app::agent::config::MultimodalConfig,
     compact_context: bool,
+    model_limit: crate::app::agent::provider::provider::ModelLimit,
     max_tool_iterations: usize,
     max_history_messages: usize,
     min_memory_relevance_score: f64,
@@ -288,6 +289,19 @@ impl QueryEngine {
 
         system_prompt.push_str(&build_shell_policy_instructions(&config.autonomy));
 
+        let parsed_model = crate::app::agent::provider::provider::parse_model(&model_name);
+        let model_limit = crate::app::agent::provider::provider::get_model(
+            &parsed_model.provider_id,
+            &parsed_model.model_id,
+        )
+        .await
+        .map(|model| model.limit)
+        .unwrap_or(crate::app::agent::provider::provider::ModelLimit {
+            context: 0,
+            input: None,
+            output: 0,
+        });
+
         Ok(Self {
             history: Vec::new(),
             request_system_prompt: system_prompt,
@@ -300,6 +314,7 @@ impl QueryEngine {
             default_temperature: config.default_temperature,
             multimodal_config: config.multimodal,
             compact_context: config.agent.compact_context,
+            model_limit,
             max_tool_iterations: config.agent.max_tool_iterations,
             max_history_messages: config.agent.max_history_messages,
             min_memory_relevance_score: config.memory.min_relevance_score,
@@ -322,6 +337,10 @@ impl QueryEngine {
         };
 
         self.history.push(ChatMessage::user(enriched));
+        if let Err(error) = self.compact_before_primary_request(false).await {
+            self.history = history_snapshot;
+            return Err(error);
+        }
         let persistent_len = self.history.len();
         let mut request_history = vec![ChatMessage::user(format!(
             "<system-reminder>\n{}\n</system-reminder>",
@@ -344,10 +363,51 @@ impl QueryEngine {
         )
         .await;
 
+        let mut retry_response_persisted = false;
+        let result = match result {
+            Err(error) if is_prompt_too_long(&error.to_string()) => {
+                if let Err(compaction_error) = self.compact_before_primary_request(true).await {
+                    self.history = history_snapshot;
+                    return Err(anyhow::anyhow!(
+                        "{error}; internal compaction could not recover the request: {compaction_error}"
+                    ));
+                }
+                let persistent_len = self.history.len();
+                let mut retry_history = vec![ChatMessage::user(format!(
+                    "<system-reminder>\n{}\n</system-reminder>",
+                    self.request_system_prompt
+                ))];
+                let transient_len = retry_history.len();
+                retry_history.extend(self.history.iter().cloned());
+                let retry = agent_turn(
+                    self.provider.as_ref(),
+                    &mut retry_history,
+                    &self.tools_registry,
+                    self.observer.as_ref(),
+                    &self.provider_name,
+                    &self.model_name,
+                    self.default_temperature,
+                    true,
+                    &self.multimodal_config,
+                    self.max_tool_iterations,
+                )
+                .await;
+                if retry.is_ok() {
+                    self.history
+                        .extend(retry_history.into_iter().skip(transient_len + persistent_len));
+                    retry_response_persisted = true;
+                }
+                retry
+            }
+            result => result,
+        };
+
         if result.is_err() {
             self.history = history_snapshot;
         } else {
-            self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
+            if !retry_response_persisted {
+                self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
+            }
             self.turn_count = self.turn_count.saturating_add(1);
             self.govern_history().await;
         }
@@ -356,26 +416,36 @@ impl QueryEngine {
     }
 
     async fn govern_history(&mut self) {
-        if self.compact_context
-            && let Err(error) = auto_compact_history(
-                &mut self.history,
-                self.provider.as_ref(),
-                &self.model_name,
-                self.max_history_messages,
-            )
-            .await
-        {
-            tracing::warn!(
-                provider = %self.provider_name,
-                model = %self.model_name,
-                turn_count = self.turn_count,
-                max_history_messages = self.max_history_messages,
-                error = %error,
-                "query engine history compaction failed; falling back to trim"
-            );
-        }
+        // History replacement must only happen through the internal summary service before a
+        // primary request.  A post-response message-count trim can discard that summary and
+        // reintroduce the split compaction policy this engine is avoiding.
+    }
 
-        trim_history(&mut self.history, self.max_history_messages);
+    async fn compact_before_primary_request(&mut self, force: bool) -> Result<()> {
+        if !self.compact_context {
+            return Ok(());
+        }
+        let input_tokens = self
+            .history
+            .iter()
+            .map(|message| crate::app::agent::util::token::estimate(&message.content))
+            .sum();
+        if !force
+            && !crate::session::processor::context_governance::should_compact(
+                input_tokens,
+                &self.model_limit,
+            )
+        {
+            return Ok(());
+        }
+        compact_history_with_internal_service(
+            &mut self.history,
+            self.provider.as_ref(),
+            &self.model_name,
+            self.max_history_messages,
+        )
+        .await
+        .map(|_| ())
     }
 
     /// 返回当前会话已成功提交的轮次数。
@@ -429,6 +499,13 @@ impl QueryEngine {
     fn non_system_message_count(&self) -> usize {
         self.history.iter().filter(|message| message.role != "system").count()
     }
+}
+
+fn is_prompt_too_long(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    ["context length", "context window", "prompt too long", "too many tokens", "context overflow"]
+        .iter()
+        .any(|marker| normalized.contains(marker))
 }
 
 fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)> {

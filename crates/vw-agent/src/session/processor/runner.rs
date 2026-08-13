@@ -78,11 +78,11 @@ impl DesktopSessionProtocol {
         ))
     }
 
-    fn preload_default_skills(
+    fn preload_skills(
         &mut self,
-        default_skill_names: &std::collections::BTreeSet<String>,
+        skill_names: &std::collections::BTreeSet<String>,
     ) -> Result<(), String> {
-        self.skill_state.preload_defaults(&self.agent_id, &self.skills, default_skill_names)
+        self.skill_state.preload_defaults(&self.agent_id, &self.skills, skill_names)
     }
 
     fn consume_tool_output(
@@ -475,22 +475,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .with_tool_use_context(tool_use_context)
         .with_session_tools(req.session_tools.clone());
     let mut tool_state = ToolSessionState::default();
-    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
-    let tool_policy_resolution =
-        delegated_tool_policy_resolution_from_specs(&available_tool_specs, &req.options);
-    let allowed_tools = tool_policy_resolution
-        .as_ref()
-        .map(|resolution| resolution.visible_ids.iter().cloned().collect())
-        .unwrap_or_else(|| allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options));
-    let default_tool_ids = tool_policy_resolution
-        .as_ref()
-        .map(|resolution| resolution.default_injected_ids.iter().cloned().collect::<Vec<_>>())
-        .unwrap_or_default();
-    if is_acp {
-        req.options["acp_allowed_tools"] = serde_json::json!(
-            allowed_tools.iter().cloned().collect::<Vec<_>>()
-        );
-    }
     let skill_workspace = req
         .root
         .as_deref()
@@ -513,7 +497,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
     if let Some(resolution) = &skill_policy_resolution
-        && let Err(message) = session_protocol.preload_default_skills(&resolution.default_injected_ids)
+        && let Err(message) = session_protocol.preload_skills(&resolution.default_injected_ids)
     {
         on_event(StreamEvent::Error(message));
         return;
@@ -532,22 +516,57 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         agent_key.as_deref(),
         &enabled_identity_files,
     );
-    let explicitly_requested_skills =
+    let agents_referenced_skills =
         crate::app::agent::tools::skill::explicitly_referenced_skill_names(
             &session_protocol.skills,
-            std::iter::once(req.query.as_str()).chain(
-                base_system
-                    .instruction_context()
-                    .iter()
-                    .map(|instruction| instruction.content.as_str()),
+            base_system
+                .instruction_context()
+                .iter()
+                .map(|instruction| instruction.content.as_str()),
+        );
+    if let Err(message) = session_protocol.preload_skills(&agents_referenced_skills) {
+        on_event(StreamEvent::Error(message));
+        return;
+    }
+    let mut explicitly_requested_skills = agents_referenced_skills;
+    explicitly_requested_skills.extend(
+        crate::app::agent::tools::skill::explicitly_referenced_skill_names(
+            &session_protocol.skills,
+            std::iter::once(req.query.as_str()),
+        ),
+    );
+    if crate::app::agent::tools::skill::user_explicitly_requests_skill_use(&req.query) {
+        explicitly_requested_skills.extend(
+            crate::app::agent::tools::skill::user_invocable_skill_names(
+                &session_protocol.skills,
             ),
         );
+    }
     let tool_use_context = ctx
         .tool_use_context()
         .as_ref()
         .clone()
         .with_explicitly_requested_skills(explicitly_requested_skills);
     ctx = ctx.with_tool_use_context(tool_use_context);
+    // AGENTS.md 和用户显式点名的技能必须先进入可信工具上下文，再生成工具目录。
+    // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
+    // 无法执行的协议要求。
+    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
+    let tool_policy_resolution =
+        delegated_tool_policy_resolution_from_specs(&available_tool_specs, &req.options);
+    let allowed_tools = tool_policy_resolution
+        .as_ref()
+        .map(|resolution| resolution.visible_ids.iter().cloned().collect())
+        .unwrap_or_else(|| allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options));
+    let default_tool_ids = tool_policy_resolution
+        .as_ref()
+        .map(|resolution| resolution.default_injected_ids.iter().cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    if is_acp {
+        req.options["acp_allowed_tools"] = serde_json::json!(
+            allowed_tools.iter().cloned().collect::<Vec<_>>()
+        );
+    }
     if !base_system.visible_instruction_paths.is_empty()
         && !on_event(StreamEvent::ContextLoaded {
             paths: base_system.visible_instruction_paths.clone(),

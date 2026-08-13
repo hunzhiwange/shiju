@@ -26,7 +26,8 @@ pub(crate) struct Expanded {
 pub(crate) fn expand(filepath: &Path, policy: &SecurityPolicy) -> Expanded {
     let mut expanded = Expanded::default();
     let mut visiting = HashSet::new();
-    expand_file(filepath, None, policy, &mut visiting, &mut expanded, true);
+    expanded.content =
+        expand_file(filepath, None, policy, &mut visiting, &mut expanded, true).unwrap_or_default();
     expanded
 }
 

@@ -160,7 +160,7 @@ impl SkillTool {
             context,
         );
         #[cfg(not(target_arch = "wasm32"))]
-        let skills = accessible_skills(skills);
+        let skills = accessible_skills(skills, Some(context));
         self.description_text = Arc::<str>::from(prompt::build_description_text_for_skills(
             &self.workspace_dir,
             skills,
@@ -434,6 +434,71 @@ pub(crate) fn explicitly_referenced_skill_names<'a>(
     requested
 }
 
+/// 判断真实用户输入是否明确要求本轮使用技能，但没有指定技能名称。
+pub(crate) fn user_explicitly_requests_skill_use(text: &str) -> bool {
+    let text = text.trim().to_lowercase();
+    if text.is_empty() {
+        return false;
+    }
+    let denied = [
+        "不要使用技能",
+        "不要加载技能",
+        "不要调用技能",
+        "别使用技能",
+        "别加载技能",
+        "禁止使用技能",
+        "无需使用技能",
+        "不必使用技能",
+        "不使用技能",
+        "不加载技能",
+        "do not use skill",
+        "do not load skill",
+        "don't use skill",
+        "don't load skill",
+        "never use skill",
+        "without using skill",
+    ];
+    if denied.iter().any(|phrase| text.contains(phrase)) {
+        return false;
+    }
+
+    let has_skill_noun = text.contains("技能")
+        || ["skill", "skills"]
+            .iter()
+            .any(|noun| text_contains_skill_reference(&text, noun));
+    if !has_skill_noun {
+        return false;
+    }
+    let has_action = ["使用", "加载", "调用", "启用", "运行", "执行"]
+        .iter()
+        .any(|action| text.contains(action))
+        || ["use", "load", "invoke", "enable", "run", "execute"]
+            .iter()
+            .any(|action| text_contains_skill_reference(&text, action));
+    if !has_action {
+        return false;
+    }
+
+    let directive_markers = ["请", "先", "必须", "务必", "直接", "现在", "帮我", "please", "must", "first"];
+    directive_markers.iter().any(|marker| text.contains(marker))
+        || ["使用", "加载", "调用", "启用", "运行", "执行", "use", "load", "invoke", "enable", "run", "execute"]
+            .iter()
+            .any(|action| text.starts_with(action))
+}
+
+/// 返回本轮可由用户泛化授权显式调用的技能名称及文件 ID。
+pub(crate) fn user_invocable_skill_names(skills: &[skills::Skill]) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for skill in skills.iter().filter(|skill| skill.user_invocable) {
+        names.insert(skill.name.trim().to_lowercase());
+        if let Some(file_id) = skill_file_id(skill) {
+            names.insert(file_id.trim().to_lowercase());
+        }
+    }
+    names.retain(|name| !name.is_empty());
+    names
+}
+
 fn skill_request_is_explicit(name: &str) -> bool {
     let Some(context) = current_tool_use_context() else {
         return false;
@@ -502,7 +567,10 @@ fn build_description_text(_workspace_dir: &Path, _root_config: &config::Config) 
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn accessible_skills(skills: Vec<skills::Skill>) -> Vec<skills::Skill> {
+fn accessible_skills(
+    skills: Vec<skills::Skill>,
+    context: Option<&ToolUseContext>,
+) -> Vec<skills::Skill> {
     let agent_name = block_on(agent::default_agent()).unwrap_or_else(|_| "main".to_string());
     let ruleset = block_on(agent::permission_rules(&agent_name))
         .or_else(|| block_on(agent::permission_rules("main")))
@@ -511,13 +579,25 @@ fn accessible_skills(skills: Vec<skills::Skill>) -> Vec<skills::Skill> {
     skills
         .into_iter()
         .filter(|skill| {
-            !matches!(
-                permission_next::evaluate("skill", &skill.name, std::slice::from_ref(&ruleset))
+            context.is_some_and(|context| skill_is_explicitly_requested(context, skill))
+                || !matches!(
+                    permission_next::evaluate(
+                        "skill",
+                        &skill.name,
+                        std::slice::from_ref(&ruleset),
+                    )
                     .action,
-                permission_next::Action::Deny
-            )
+                    permission_next::Action::Deny
+                )
         })
         .collect()
+}
+
+fn skill_is_explicitly_requested(context: &ToolUseContext, skill: &skills::Skill) -> bool {
+    context.is_skill_explicitly_requested(&skill.name)
+        || skill_file_id(skill)
+            .as_deref()
+            .is_some_and(|file_id| context.is_skill_explicitly_requested(file_id))
 }
 
 fn skill_file_id(skill: &skills::Skill) -> Option<String> {

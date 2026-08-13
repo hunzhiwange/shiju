@@ -98,11 +98,49 @@ fn session_protocol_initial_step_contains_explicit_workspace_agents() {
 
     assert_eq!(messages.last(), history.last());
     assert!(messages.first().is_some_and(|message| {
-        message.get("role").and_then(serde_json::Value::as_str) == Some("user")
+        message.get("role").and_then(serde_json::Value::as_str) == Some("system")
             && message.get("content").and_then(serde_json::Value::as_str).is_some_and(|content| {
                 content.contains("AGENTS.md") && content.contains("INITIAL_AGENTS_PROTOCOL")
             })
     }));
+}
+
+#[test]
+fn agents_referenced_skill_is_preloaded_before_first_user_request() {
+    let workspace = tempfile::tempdir().expect("skill workspace");
+    let skill_path = workspace.path().join("rustcodegraph/SKILL.md");
+    std::fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill dir");
+    std::fs::write(&skill_path, "# RustCodeGraph\nUSE_RUSTCODEGRAPH_FIRST")
+        .expect("write skill");
+    let skills = vec![crate::app::agent::skills::Skill {
+        name: "rustcodegraph".to_string(),
+        location: Some(skill_path),
+        ..Default::default()
+    }];
+    let instructions = vec![crate::session::instruction::Resolved {
+        filepath: "/workspace/AGENTS.md".to_string(),
+        content: "Instructions from: /workspace/AGENTS.md\nUse rustcodegraph for code navigation."
+            .to_string(),
+        sources: Vec::new(),
+        diagnostics: Vec::new(),
+    }];
+    let referenced = crate::app::agent::tools::skill::explicitly_referenced_skill_names(
+        &skills,
+        instructions.iter().map(|instruction| instruction.content.as_str()),
+    );
+    let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 20_000);
+
+    protocol.preload_skills(&referenced).expect("preload AGENTS skill");
+    let history = vec![serde_json::json!({"role": "user", "content": "inspect callers"})];
+    let messages = protocol
+        .assemble(&history, &instructions, true, &[])
+        .expect("assemble protocol");
+
+    assert!(messages[0]["content"].as_str().is_some_and(|content| {
+        content.contains("USE_RUSTCODEGRAPH_FIRST")
+    }));
+    assert_eq!(messages[messages.len() - 2]["role"], "system");
+    assert_eq!(messages.last(), history.last());
 }
 
 #[test]
@@ -136,7 +174,7 @@ fn delegate_skill_policy_preloads_defaults_and_honors_trusted_user_override() {
     assert_eq!(resolution.visible_ids, ["default", "user"].into_iter().map(String::from).collect());
 
     let mut protocol = super::DesktopSessionProtocol::new(skills, "delegate", 20_000);
-    protocol.preload_default_skills(&resolution.default_injected_ids).expect("preload default");
+    protocol.preload_skills(&resolution.default_injected_ids).expect("preload default");
     let history = vec![serde_json::json!({"role": "user", "content": "work"})];
     let first = protocol.assemble(&history, &[], true, &[]).expect("first protocol");
     let second = protocol.assemble(&history, &[], true, &[]).expect("second protocol");

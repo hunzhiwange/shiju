@@ -144,6 +144,21 @@ where
         self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
     }
 
+    fn operate(
+        &mut self,
+        tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content.as_widget_mut().operate(
+            &mut tree.children[0],
+            layout,
+            renderer,
+            operation,
+        );
+    }
+
     /// 绘制组件
     ///
     /// 将绘制操作委托给内部内容元素

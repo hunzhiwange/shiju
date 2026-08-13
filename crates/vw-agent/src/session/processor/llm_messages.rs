@@ -96,7 +96,7 @@ pub(crate) fn session_messages_to_llm_messages(session: &Session) -> Vec<serde_j
 /// 组装桌面会话单步请求的临时协议上下文。
 ///
 /// 这些提醒只发给 provider，绝不回写到 `Session`，从而保持桌面 UI 历史可见内容不变。
-/// 顺序固定为 AGENTS、已调用技能、技能目录和真实历史。
+/// 顺序固定为已调用技能、技能目录、AGENTS 和真实历史。
 pub(crate) fn assemble_session_protocol_messages(
     history: &[Value],
     instructions: &[Resolved],
@@ -105,23 +105,26 @@ pub(crate) fn assemble_session_protocol_messages(
     default_tool_reminder: Option<Value>,
 ) -> Vec<Value> {
     let injection = context_injection::assemble_agents_context(instructions, history);
-    let mut protocol_messages = injection
+    let agents_messages = injection
         .transient_messages
         .iter()
         .map(|message| {
             serde_json::json!({
-                "role": "user",
+                "role": message.role.as_str(),
                 "content": message.content,
             })
         })
         .collect::<Vec<_>>();
-    protocol_messages.extend(invoked_skill_messages.iter().cloned());
+    let mut protocol_messages = invoked_skill_messages.to_vec();
     if let Some(skill_listing) = skill_listing {
         protocol_messages.push(skill_listing);
     }
     if let Some(default_tool_reminder) = default_tool_reminder {
         protocol_messages.push(default_tool_reminder);
     }
+    // AGENTS 必须是当前真实用户指令前的最后一条协议消息，避免后续技能目录或默认工具
+    // 提醒稀释仓库约束的近因权重。
+    protocol_messages.extend(agents_messages);
 
     // 协议提醒必须紧邻本轮用户请求。若始终放在整段历史最前面，长会话中的模型会把它
     // 当成陈旧上下文；用户手工再次要求读取 AGENTS 时反而能生效。工具轮次仍以最后一条

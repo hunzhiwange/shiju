@@ -47,7 +47,7 @@ fn build_request_prompt_preserves_protocol_context_without_forced_replay() {
             { "role": "user", "content": "old request" },
             { "role": "assistant", "content": "old answer" },
             {
-                "role": "user",
+                "role": "system",
                 "content": "<system-reminder>AGENTS.md repository instructions</system-reminder>"
             },
             { "role": "user", "content": "current request" }

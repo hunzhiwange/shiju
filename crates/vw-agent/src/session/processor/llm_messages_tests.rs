@@ -107,16 +107,20 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
         super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing, None);
 
     for messages in [&first, &next] {
-        assert!(
-            messages[0]["content"]
-                .as_str()
-                .is_some_and(|content| content.contains("Follow the protocol."))
-        );
-        assert_eq!(messages[1], invoked[0]);
+        assert_eq!(messages[0], invoked[0]);
         assert_eq!(
-            messages[2]["content"],
+            messages[1]["content"],
             "<system-reminder>Available skills: rustcodegraph</system-reminder>"
         );
+        assert!(
+            messages[2]["content"]
+                .as_str()
+                .is_some_and(|content| {
+                    content.contains("AGENTS.md loaded for this request")
+                        && content.contains("Follow the protocol.")
+                })
+        );
+        assert_eq!(messages[2]["role"], "system");
         assert_eq!(messages[3], history[0]);
     }
 }
@@ -135,13 +139,25 @@ fn session_protocol_places_agents_immediately_before_current_user_turn() {
         json!({"role": "user", "content": "current question"}),
     ];
 
-    let messages = super::assemble_session_protocol_messages(&history, &instructions, &[], None, None);
+    let messages = super::assemble_session_protocol_messages(
+        &history,
+        &instructions,
+        &[json!({"role": "user", "content": "<system-reminder>Skill active</system-reminder>"})],
+        Some(json!({"role": "user", "content": "<system-reminder>Skill listing</system-reminder>"})),
+        super::default_tool_reminder(&["file_read".to_string()]),
+    );
 
     assert_eq!(&messages[..2], &history[..2]);
-    assert!(messages[2]["content"].as_str().is_some_and(|content| {
+    assert_eq!(messages[2]["content"], "<system-reminder>Skill active</system-reminder>");
+    assert_eq!(messages[3]["content"], "<system-reminder>Skill listing</system-reminder>");
+    assert!(messages[4]["content"].as_str().is_some_and(|content| {
+        content.contains("file_read") && content.contains("not a restriction")
+    }));
+    assert!(messages[5]["content"].as_str().is_some_and(|content| {
         content.contains("AGENTS.md") && content.contains("CURRENT_PROTOCOL")
     }));
-    assert_eq!(messages[3], history[2]);
+    assert_eq!(messages[5]["role"], "system");
+    assert_eq!(messages[6], history[2]);
 }
 
 #[test]

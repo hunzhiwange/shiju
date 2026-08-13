@@ -55,9 +55,9 @@ pub(crate) fn model_selection_trace(
 
 /// Builds the transient protocol messages shared by external model entrypoints.
 ///
-/// AGENTS and the skill directory are user-role meta reminders, never part of a
-/// system prompt or persisted conversation history. Full skill bodies remain
-/// exclusive to successful Skill tool invocations.
+/// AGENTS is a system-role repository constraint placed after the user-role
+/// skill directory. Neither message is persisted in conversation history.
+/// Full skill bodies remain exclusive to successful Skill tool invocations.
 pub(crate) fn build_entrypoint_protocol_messages(
     instructions: &[crate::session::instruction::Resolved],
     skills: &[skills::Skill],
@@ -65,17 +65,18 @@ pub(crate) fn build_entrypoint_protocol_messages(
     context_window_tokens: usize,
 ) -> Vec<ChatMessage> {
     let injection = crate::session::context_injection::assemble_agents_context(instructions, &[]);
-    let mut messages = injection
-        .transient_messages
-        .into_iter()
-        .map(|message| ChatMessage::user(message.content))
-        .collect::<Vec<_>>();
+    let mut messages = Vec::new();
     let mut skill_state = skills::SkillListingSessionState::default();
     if let Some(reminder) =
         skill_state.prepare("main", skills, skill_tool_enabled, context_window_tokens)
     {
         messages.push(ChatMessage::user(reminder.content));
     }
+    messages.extend(injection.transient_messages.into_iter().map(|message| match message.role {
+        crate::session::context_injection::ContextRole::System => {
+            ChatMessage::system(message.content)
+        }
+    }));
     messages
 }
 

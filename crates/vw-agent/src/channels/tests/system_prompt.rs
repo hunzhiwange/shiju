@@ -112,7 +112,7 @@ fn prompt_injects_safety() {
 /// - SOUL.md（核心指导原则）
 /// - IDENTITY.md（身份信息）
 /// - USER.md（用户配置）
-/// - AGENTS.md（通过临时 meta-user 消息注入，不属于 system prompt）
+/// - AGENTS.md（通过临时 system 消息注入，不并入基础 system prompt）
 /// - TOOLS.md（工具配置）
 /// - MEMORY.md（长期记忆）
 ///

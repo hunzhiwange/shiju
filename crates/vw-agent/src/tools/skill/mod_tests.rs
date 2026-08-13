@@ -1,8 +1,9 @@
 use super::{
     Args, SkillTool, available_skill_names, base_dir_url, block_on,
-    explicitly_referenced_skill_names, file_url, skill_file_id, skill_location, skill_matches_name,
-    skill_prompt_content, skill_request_is_explicit, text_contains_skill_reference, xml_escape,
-    filter_delegate_skills,
+    explicitly_referenced_skill_names, file_url, filter_delegate_skills, skill_file_id,
+    skill_is_explicitly_requested, skill_location, skill_matches_name, skill_prompt_content,
+    skill_request_is_explicit, text_contains_skill_reference, user_explicitly_requests_skill_use,
+    user_invocable_skill_names, xml_escape,
 };
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
@@ -93,6 +94,28 @@ fn repository_protocol_reference_authorizes_display_name_and_file_id() {
     assert!(requested.contains("rustcodegraph"));
 }
 
+#[test]
+fn generic_user_skill_directive_is_explicit_but_negation_is_not() {
+    assert!(user_explicitly_requests_skill_use("请先加载其中规定的技能"));
+    assert!(user_explicitly_requests_skill_use("使用技能完成代码导航"));
+    assert!(user_explicitly_requests_skill_use("Please use a skill for this task"));
+    assert!(!user_explicitly_requests_skill_use("不要使用技能"));
+    assert!(!user_explicitly_requests_skill_use("为什么加载技能会失败？"));
+    assert!(!user_explicitly_requests_skill_use("请使用普通工具"));
+}
+
+#[test]
+fn generic_user_skill_directive_only_authorizes_user_invocable_skills() {
+    let allowed = skill("allowed", Some(PathBuf::from("/skills/allowed/SKILL.md")), vec![]);
+    let mut denied = skill("denied", Some(PathBuf::from("/skills/denied/SKILL.md")), vec![]);
+    denied.user_invocable = false;
+
+    let names = user_invocable_skill_names(&[allowed, denied]);
+
+    assert!(names.contains("allowed"));
+    assert!(!names.contains("denied"));
+}
+
 #[tokio::test]
 async fn trusted_runtime_context_marks_skill_as_explicitly_requested() {
     let context = Arc::new(
@@ -105,6 +128,22 @@ async fn trusted_runtime_context_marks_skill_as_explicitly_requested() {
         assert!(!skill_request_is_explicit("other-skill"));
     })
     .await;
+}
+
+#[test]
+fn explicit_skill_directory_access_accepts_display_name_and_file_id() {
+    let item = skill(
+        "Rust Code Graph",
+        Some(PathBuf::from("/workspace/skills/rustcodegraph/SKILL.md")),
+        vec![],
+    );
+    let display_context = ToolUseContext::new("session", Some("/workspace".to_string()))
+        .with_explicitly_requested_skills(["rust code graph"]);
+    let file_context = ToolUseContext::new("session", Some("/workspace".to_string()))
+        .with_explicitly_requested_skills(["rustcodegraph"]);
+
+    assert!(skill_is_explicitly_requested(&display_context, &item));
+    assert!(skill_is_explicitly_requested(&file_context, &item));
 }
 
 #[tokio::test]

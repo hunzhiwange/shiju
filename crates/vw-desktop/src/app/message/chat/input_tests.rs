@@ -171,6 +171,25 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
 
     app.project_path = Some("/workspace/project".to_string());
     app.active_session_id = Some("session-1".to_string());
+    app.sessions.push(vw_shared::session::info::Info {
+        id: "session-1".to_string(),
+        slug: "session-1".to_string(),
+        project_id: "project-1".to_string(),
+        directory: "/workspace/session-worktree".to_string(),
+        parent_id: None,
+        summary: None,
+        share: None,
+        title: "Current".to_string(),
+        version: "0.0.0".to_string(),
+        time: vw_shared::session::info::TimeInfo {
+            created: 1,
+            updated: 1,
+            compacting: None,
+            archived: None,
+        },
+        permission: None,
+        revert: None,
+    });
     app.quick_message_open_group = Some(vw_config_types::ui::QuickMessageGroup::Git);
     let create_task = super::update(&mut app, ChatMessage::QuickMessageSelected(2));
     assert_eq!(app.quick_message_open_group, None);
@@ -184,7 +203,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
     assert!(matches!(
         collect_task_messages(summarize_task).await.as_slice(),
         [Message::Chat(ChatMessage::CompactSessionRequested { session_id, project_path })]
-            if session_id == "session-1" && project_path == "/workspace/project"
+            if session_id == "session-1" && project_path == "/workspace/session-worktree"
     ));
 
     app.project_path = None;

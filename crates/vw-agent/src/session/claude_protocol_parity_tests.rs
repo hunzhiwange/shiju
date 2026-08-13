@@ -134,15 +134,16 @@ fn claude_protocol_parity_covers_agents_skills_compaction_and_entrypoints() {
     );
     assert_eq!(desktop.last(), history.last());
     assert_eq!(desktop[0]["role"], "user");
-    assert!(desktop[0]["content"].as_str().is_some_and(|content| {
-        content.contains("managed instruction") && content.contains("nested local instruction")
-    }));
     assert!(
-        desktop[1]["content"]
+        desktop[0]["content"]
             .as_str()
             .is_some_and(|content| content.contains("FULL SKILL BODY argument"))
     );
-    assert!(desktop[2]["content"].as_str().is_some_and(|content| content.contains(&skill_name)));
+    assert!(desktop[1]["content"].as_str().is_some_and(|content| content.contains(&skill_name)));
+    assert_eq!(desktop[2]["role"], "system");
+    assert!(desktop[2]["content"].as_str().is_some_and(|content| {
+        content.contains("managed instruction") && content.contains("nested local instruction")
+    }));
 
     let agent_tools: Vec<Box<dyn crate::app::agent::tools::Tool>> = Vec::new();
     let agent_prompt = crate::app::agent::agent::prompt::SystemPromptBuilder::with_defaults()
@@ -163,8 +164,9 @@ fn claude_protocol_parity_covers_agents_skills_compaction_and_entrypoints() {
     let external =
         build_entrypoint_protocol_messages(&instructions, &[skill.clone()], true, 20_000);
     assert_eq!(external.len(), 2);
-    assert!(external[0].content.contains("conditional Rust instruction"));
-    assert!(external[1].content.contains(&skill_name));
+    assert!(external[0].content.contains(&skill_name));
+    assert_eq!(external[1].role, "system");
+    assert!(external[1].content.contains("conditional Rust instruction"));
     assert!(!external.iter().any(|message| message.content.contains("FULL SKILL BODY")));
 
     let child = stream_request(

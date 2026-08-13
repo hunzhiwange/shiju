@@ -512,10 +512,10 @@ pub(crate) fn execute_slash_command(
             TuiSlashCommandOutcome::Session(SessionCommand::Fork { message_id })
         }
         CommandAction::Builtin(TuiSlashCommandKind::Compact) => {
-            let Some(message_id) = latest_gateway_message_id(state) else {
+            let Some(message_id) = latest_gateway_user_message_id(state) else {
                 push_local_system_message(
                     state,
-                    "当前会话没有可用于 compact 的持久化 message ID",
+                    "当前会话没有可用于 compact 的持久化用户消息 ID",
                     UiSystemMessageLevel::Warning,
                 );
                 return TuiSlashCommandOutcome::Continue;
@@ -586,12 +586,17 @@ fn normalize_gateway_message_id(message_id: &str) -> String {
     message_id.trim().strip_prefix("gateway:").unwrap_or(message_id.trim()).to_string()
 }
 
-fn latest_gateway_message_id(state: &TuiState) -> Option<String> {
+fn latest_gateway_user_message_id(state: &TuiState) -> Option<String> {
     state
         .messages
         .iter()
         .rev()
-        .find_map(|message| message.id().as_str().strip_prefix("gateway:").map(str::to_string))
+        .find_map(|message| match message {
+            UiMessage::User(user) => {
+                user.base.id.as_str().strip_prefix("gateway:").map(str::to_string)
+            }
+            _ => None,
+        })
 }
 
 fn argument_suggestions(

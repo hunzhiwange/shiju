@@ -19,14 +19,14 @@ pub struct TemporaryContextMessage {
 /// 临时上下文消息在 provider 请求中的角色。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContextRole {
-    /// 以 user 角色传递元提醒，匹配 Claude Code 的覆盖语义。
-    User,
+    /// 以 system 角色传递仓库约束，确保其优先级高于普通用户文本。
+    System,
 }
 
 impl ContextRole {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
-            Self::User => "user",
+            Self::System => "system",
         }
     }
 }
@@ -64,10 +64,11 @@ pub fn assemble_agents_context(instructions: &[Resolved], history: &[Value]) -> 
         Vec::new()
     } else {
         vec![TemporaryContextMessage {
-            role: ContextRole::User,
+            role: ContextRole::System,
             content: format!(
                 "<system-reminder>\n\
-                 The following project instructions override any default instructions and must be followed exactly.\n\n\
+                 AGENTS.md loaded for this request.\n\
+                 The following repository instructions are active, override default instructions, and must be followed exactly.\n\n\
                  {}\n\
                  </system-reminder>",
                 content.join("\n\n")

@@ -17,7 +17,7 @@ fn resolved(filepath: &str, content: &str) -> Resolved {
 }
 
 #[test]
-fn agents_context_injection_prepends_meta_user_reminder() {
+fn agents_context_injection_prepends_system_reminder() {
     let history = vec![
         json!({ "role": "user", "content": "original user bytes" }),
         json!({ "role": "assistant", "content": "prior answer" }),
@@ -31,11 +31,12 @@ fn agents_context_injection_prepends_meta_user_reminder() {
 
     assert_eq!(injection.transient_messages.len(), 1);
     let reminder = &injection.transient_messages[0];
-    assert_eq!(reminder.role, ContextRole::User);
+    assert_eq!(reminder.role, ContextRole::System);
     assert!(!reminder.visible);
     assert!(reminder.content.starts_with("<system-reminder>\n"));
     assert!(reminder.content.ends_with("\n</system-reminder>"));
-    assert!(reminder.content.contains("override any default instructions"));
+    assert!(reminder.content.contains("AGENTS.md loaded for this request"));
+    assert!(reminder.content.contains("override default instructions"));
     let first_source = reminder.content.find("/workspace/AGENTS.md").expect("first source");
     let second_source =
         reminder.content.find("/workspace/nested/AGENTS.local.md").expect("second source");
@@ -43,7 +44,7 @@ fn agents_context_injection_prepends_meta_user_reminder() {
     assert_eq!(injection.history, history);
     let messages = injection.provider_messages();
     assert_eq!(messages.len(), 3);
-    assert_eq!(messages[0]["role"], "user");
+    assert_eq!(messages[0]["role"], "system");
     assert_eq!(messages[1], history[0]);
     assert_eq!(messages[2], history[1]);
 }

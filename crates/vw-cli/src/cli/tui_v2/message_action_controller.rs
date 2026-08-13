@@ -140,7 +140,10 @@ fn selected_intent(state: &mut TuiState, action: MessageAction) -> Option<TuiCon
         }
         MessageAction::Fork => MessageActionIntent::Fork { message_id: selected_id },
         MessageAction::Restore => MessageActionIntent::Restore { message_id: selected_id },
-        MessageAction::Summarize => MessageActionIntent::Summarize { message_id: selected_id },
+        MessageAction::Summarize => {
+            let (message_id, _) = editable_user_at_or_before(state, &selected_id)?;
+            MessageActionIntent::Summarize { message_id }
+        }
         MessageAction::Rewind => MessageActionIntent::Rewind { message_id: selected_id },
     };
     Some(TuiControllerCommand::MessageAction(intent))

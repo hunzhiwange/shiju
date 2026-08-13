@@ -1,6 +1,7 @@
 use super::super::input::{TuiSlashCommandOutcome, execute_slash_command, parse_slash_command};
 use super::super::model::{
-    UiConfirmIntent, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage, UiSystemMessageLevel,
+    UiAssistantMessage, UiConfirmIntent, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage,
+    UiSystemMessageLevel, UiTokenUsage, UiTurnTerminal, UiUserMessage,
 };
 use super::super::state::TuiState;
 use super::session::{
@@ -111,17 +112,26 @@ fn destructive_session_confirmation_carries_typed_intent() {
 #[test]
 fn session_commands_use_registry_and_emit_typed_lifecycle_intents() {
     let mut state = TuiState::default();
-    state.messages.push(UiMessage::System(UiSystemMessage {
-        base: UiMessageBase::new(UiMessageId::gateway("message-last")),
-        text: "persisted".to_string(),
-        level: UiSystemMessageLevel::Info,
-    }));
+    state.messages.extend([
+        UiMessage::User(UiUserMessage {
+            base: UiMessageBase::new(UiMessageId::gateway("message-user")),
+            text: "persisted request".to_string(),
+        }),
+        UiMessage::Assistant(UiAssistantMessage {
+            base: UiMessageBase::new(UiMessageId::gateway("message-assistant")),
+            text: "persisted response".to_string(),
+            usage: UiTokenUsage::default(),
+            step_count: 0,
+            terminal: UiTurnTerminal::Done { finish_reason: None },
+            model: None,
+        }),
+    ]);
 
     let cases = [
         ("/rename New title", SessionCommand::Rename { title: "New title".to_string() }),
         ("/branch", SessionCommand::Fork { message_id: None }),
         ("/branch message-1", SessionCommand::Fork { message_id: Some("message-1".to_string()) }),
-        ("/compact", SessionCommand::Compact { message_id: "message-last".to_string() }),
+        ("/compact", SessionCommand::Compact { message_id: "message-user".to_string() }),
         (
             "/rewind gateway:message-2",
             SessionCommand::Reset { message_id: "message-2".to_string() },

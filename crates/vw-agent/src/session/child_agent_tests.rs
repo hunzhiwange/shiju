@@ -140,7 +140,7 @@ fn child_agent_tool_policy_preserves_trusted_user_selection_across_gateway_bound
 #[test]
 fn session_protocol_child_agent_uses_same_contract() {
     let protocol_context = vec![
-        json!({"role": "user", "content": "<system-reminder>Child AGENTS for its cwd.</system-reminder>"}),
+        json!({"role": "system", "content": "<system-reminder>Child AGENTS for its cwd.</system-reminder>"}),
         json!({"role": "user", "content": "<system-reminder>Inherited skill is active.</system-reminder>"}),
     ];
 

@@ -64,6 +64,11 @@ fn tui_message_actions_select_stable_messages_and_emit_exact_intents() {
     ));
     assert!(state.message_actions.active);
     assert_eq!(state.message_actions.selected_id.as_ref(), Some(&assistant2));
+    assert!(matches!(
+        press(&mut controller, &mut state, KeyCode::Char('s'), KeyModifiers::NONE),
+        TuiControllerCommand::MessageAction(MessageActionIntent::Summarize { message_id })
+            if message_id == user2
+    ));
 
     state.append_message(UiMessage::System(UiSystemMessage {
         base: UiMessageBase::new(UiMessageId::local("action-notice")),

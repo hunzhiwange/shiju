@@ -39,6 +39,16 @@ impl Widget<TestMessage, Theme, RecordingRenderer> for TestContent {
         layout::Node::new(Size::new(self.width, self.height))
     }
 
+    fn operate(
+        &mut self,
+        _tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        _renderer: &RecordingRenderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        operation.container(None, layout.bounds());
+    }
+
     fn draw(
         &self,
         _tree: &widget::Tree,
@@ -129,6 +139,21 @@ impl iced::advanced::Renderer for RecordingRenderer {
         + 'static,
     ) {
         callback(Err(iced::advanced::image::Error::Unsupported));
+    }
+}
+
+#[derive(Default)]
+struct RecordingOperation {
+    containers: Vec<Rectangle>,
+}
+
+impl widget::Operation for RecordingOperation {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn widget::Operation)) {
+        operate(self);
+    }
+
+    fn container(&mut self, _id: Option<&widget::Id>, bounds: Rectangle) {
+        self.containers.push(bounds);
     }
 }
 
@@ -256,6 +281,30 @@ fn layout_delegates_to_content() {
     );
 
     assert_eq!(node.size(), Size::new(120.0, 40.0));
+}
+
+#[test]
+fn operate_delegates_to_content() {
+    let mut area = area();
+    let mut tree = tree_for(&area);
+    let renderer = RecordingRenderer::default();
+    let bounds = Rectangle { x: 4.0, y: 8.0, width: 120.0, height: 40.0 };
+    let node = layout_for(bounds);
+    let mut operation = RecordingOperation::default();
+
+    <RightClickArea<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::operate(
+        &mut area,
+        &mut tree,
+        Layout::new(&node),
+        &renderer,
+        &mut operation,
+    );
+
+    assert_eq!(operation.containers, vec![bounds]);
 }
 
 #[test]

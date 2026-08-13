@@ -15,7 +15,10 @@ pub(super) const SKILL_EXECUTION_POLICY: &str = r#"<skill_execution_policy>
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn build_description_text(workspace_dir: &Path, root_config: &config::Config) -> String {
-    let skills = accessible_skills(skills::load_skills_with_config(workspace_dir, root_config));
+    let skills = accessible_skills(
+        skills::load_skills_with_config(workspace_dir, root_config),
+        None,
+    );
     build_description_text_for_skills(workspace_dir, skills)
 }
 

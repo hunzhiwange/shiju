@@ -174,12 +174,14 @@ fn entrypoint_context_all_external_paths_share_agents_skill_contract() {
     assert_eq!(snapshot(&channel), snapshot(&expected));
     assert_eq!(snapshot(&gateway), snapshot(&expected));
     assert_eq!(snapshot(&websocket), snapshot(&expected));
-    assert!(expected[0].content.contains("Follow the project protocol."));
-    assert!(expected[1].content.contains("<available_skills>"));
+    assert!(expected[0].content.contains("<available_skills>"));
+    assert!(expected[1].content.contains("Follow the project protocol."));
+    assert_eq!(expected[1].role, "system");
     assert!(!expected.iter().any(|message| message.content.contains("SKILL.md full body")));
 
     let simple_gateway = build_entrypoint_protocol_messages(&instructions, &skills, false, 8_192);
     assert_eq!(simple_gateway.len(), 1);
+    assert_eq!(simple_gateway[0].role, "system");
     assert!(!simple_gateway[0].content.contains("<available_skills>"));
 }
 

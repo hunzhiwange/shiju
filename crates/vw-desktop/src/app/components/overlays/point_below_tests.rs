@@ -46,6 +46,16 @@ impl Widget<TestMessage, Theme, RecordingRenderer> for TestContent {
         layout::Node::new(Size::new(self.width, self.height))
     }
 
+    fn operate(
+        &mut self,
+        _tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        _renderer: &RecordingRenderer,
+        operation: &mut dyn widget::Operation,
+    ) {
+        operation.container(None, layout.bounds());
+    }
+
     fn draw(
         &self,
         _tree: &widget::Tree,
@@ -136,6 +146,21 @@ impl iced::advanced::Renderer for RecordingRenderer {
         + 'static,
     ) {
         callback(Err(iced::advanced::image::Error::Unsupported));
+    }
+}
+
+#[derive(Default)]
+struct RecordingOperation {
+    containers: Vec<Rectangle>,
+}
+
+impl widget::Operation for RecordingOperation {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn widget::Operation)) {
+        operate(self);
+    }
+
+    fn container(&mut self, _id: Option<&widget::Id>, bounds: Rectangle) {
+        self.containers.push(bounds);
     }
 }
 
@@ -422,6 +447,30 @@ fn point_below_widget_size_layout_draw_update_and_mouse_delegate_to_content() {
     assert_eq!(draw_renderer.fills, vec![Rectangle { x: 4.0, y: 8.0, width: 100.0, height: 30.0 }]);
     assert_eq!(messages, vec![TestMessage::ContentUpdated]);
     assert_eq!(interaction, mouse::Interaction::Pointer);
+}
+
+#[test]
+fn point_below_widget_operate_delegates_to_content() {
+    let mut overlay = test_overlay();
+    let mut tree = tree_for_overlay();
+    let renderer = RecordingRenderer::default();
+    let bounds = Rectangle { x: 4.0, y: 8.0, width: 100.0, height: 30.0 };
+    let node = layout_for(bounds);
+    let mut operation = RecordingOperation::default();
+
+    <PointBelowOverlay<'_, TestMessage, Theme, RecordingRenderer> as Widget<
+        TestMessage,
+        Theme,
+        RecordingRenderer,
+    >>::operate(
+        &mut overlay,
+        &mut tree,
+        Layout::new(&node),
+        &renderer,
+        &mut operation,
+    );
+
+    assert_eq!(operation.containers, vec![bounds]);
 }
 
 #[test]

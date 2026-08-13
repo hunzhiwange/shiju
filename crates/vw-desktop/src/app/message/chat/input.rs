@@ -95,13 +95,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     )))
                 }
                 vw_config_types::ui::QuickMessageKind::SummarizeAndCreateNewSession => {
-                    let Some(project_path) =
-                        app.project_path.clone().filter(|path| !path.trim().is_empty())
-                    else {
-                        return app.show_warning_toast("请先打开项目，再压缩当前会话");
-                    };
                     let Some(session_id) = app.active_session_id.clone() else {
                         return app.show_warning_toast("当前没有可压缩的会话");
+                    };
+                    let Some(project_path) = app
+                        .known_session_directory(&session_id)
+                        .filter(|path| !path.trim().is_empty())
+                        .or_else(|| app.project_path.clone().filter(|path| !path.trim().is_empty()))
+                    else {
+                        return app.show_warning_toast("当前会话没有可用的项目目录");
                     };
                     Task::done(Message::Chat(ChatMessage::CompactSessionRequested {
                         session_id,

@@ -62,20 +62,16 @@ pub fn wrap_with_context_menu<'a, Message: Clone + 'a>(
 ) -> Element<'a, Message> {
     let content: Element<'a, Message> =
         RightClickArea::new(content.into(), Box::new(on_open)).preserve_on_right_click().into();
+    let anchor = menu_state.position.unwrap_or_default();
+    let show = menu_state.open && menu_state.position.is_some();
+    let close_message = messages.close.clone();
 
-    if menu_state.open
-        && let Some((x, y)) = menu_state.position
-    {
-        let close_message = messages.close.clone();
-        return PointBelowOverlay::new(content, context_menu(messages))
-            .show(true)
-            .anchor(Point::new(x, y))
-            .gap(0.0)
-            .on_close(close_message)
-            .into();
-    }
-
-    content
+    PointBelowOverlay::new(content, context_menu(messages))
+        .show(show)
+        .anchor(Point::new(anchor.0, anchor.1))
+        .gap(0.0)
+        .on_close(close_message)
+        .into()
 }
 
 /// 构建或处理 `open_menu` 对应的界面片段与交互数据。
